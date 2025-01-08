@@ -1,0 +1,10 @@
+
+.base-layout{
+    .ant-layout{
+        width: auto !important;
+    }
+
+    .ant-layout-sider-trigger{
+        position: absolute;
+    }
+}

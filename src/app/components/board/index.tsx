@@ -1,9 +1,15 @@
 "use client";
 
 import React, { useState } from "react";
-import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
-import { BoardData } from "@/app/types";
+import {
+  DragDropContext,
+  Droppable,
+  Draggable,
+  DropResult,
+} from "@hello-pangea/dnd";
+import { BoardData, Task, Column } from "@/app/types";
 import ListComponent from "../list";
+import { Button, Input } from "antd";
 
 const initialData: BoardData = {
   columns: {
@@ -32,10 +38,10 @@ const initialData: BoardData = {
 };
 
 const TrelloBoard: React.FC = () => {
-  const [data, setData] = useState(initialData);
+  const [data, setData] = useState<BoardData>(initialData);
   const [newColumnTitle, setNewColumnTitle] = useState<string>("");
 
-  const onDragEnd = (result: any) => {
+  const onDragEnd = (result: DropResult) => {
     const { destination, source, draggableId, type } = result;
 
     if (!destination) return;
@@ -59,8 +65,8 @@ const TrelloBoard: React.FC = () => {
       return;
     }
 
-    const startColumn = data.columns[source.droppableId];
-    const endColumn = data.columns[destination.droppableId];
+    const startColumn: Column = data.columns[source.droppableId];
+    const endColumn: Column = data.columns[destination.droppableId];
 
     if (startColumn === endColumn) {
       const newTaskIds = Array.from(startColumn.taskIds);
@@ -99,7 +105,7 @@ const TrelloBoard: React.FC = () => {
   };
 
   const addCard = (columnId: string, newCardContent: string) => {
-    if (!newCardContent) return; // Avoid adding an empty card
+    if (!newCardContent) return;
     const newTaskId = `task-${Object.keys(data.tasks).length + 1}`;
     const newTask = {
       id: newTaskId,
@@ -125,7 +131,7 @@ const TrelloBoard: React.FC = () => {
   };
 
   const addColumn = () => {
-    if (!newColumnTitle) return; // Avoid adding a column without a title
+    if (!newColumnTitle) return;
     const newColumnId = `column-${Object.keys(data.columns).length + 1}`;
     const newColumn = {
       id: newColumnId,
@@ -141,7 +147,7 @@ const TrelloBoard: React.FC = () => {
       },
       columnOrder: [...data.columnOrder, newColumnId],
     });
-    setNewColumnTitle(""); // Clear the input
+    setNewColumnTitle("");
   };
 
   const changeColumnTitle = (columnId: string, newTitle: string) => {
@@ -205,7 +211,7 @@ const TrelloBoard: React.FC = () => {
                           index={index}
                           provided={provided}
                           addCard={addCard}
-                          changeColumnTitle={changeColumnTitle} // Pass down the changeTitle function
+                          changeColumnTitle={changeColumnTitle}
                         />
                       </div>
                     )}
@@ -213,23 +219,30 @@ const TrelloBoard: React.FC = () => {
                 );
               })}
               {provided.placeholder}
-              {/* Add New Column Button */}
               <div
                 style={{
                   marginLeft: "1rem",
                   display: "flex",
                   flexDirection: "column",
+                  background: "#F0F4F8",
+                  padding: "2rem",
+                  borderRadius: "0.5rem",
+                  boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
                 }}
               >
-                <input
+                <Input
                   type="text"
                   placeholder="New Column Title"
                   value={newColumnTitle}
+                  style={{
+                    background: "white",
+                  }}
                   onChange={(e) => setNewColumnTitle(e.target.value)}
+                  onPressEnter={addColumn}
                 />
-                <button onClick={addColumn} style={{ marginTop: "8px" }}>
+                <Button onClick={addColumn} style={{ marginTop: "8px" }}>
                   Add List
-                </button>
+                </Button>
               </div>
             </div>
           )}

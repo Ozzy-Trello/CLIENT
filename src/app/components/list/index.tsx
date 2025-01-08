@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Droppable } from "@hello-pangea/dnd";
 import { Task } from "@/app/types";
 import TaskComponent from "../task";
@@ -27,7 +27,6 @@ const ListComponent: React.FC<ListComponentProps> = ({
   const columnRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
-  // Handle editing title
   const handleTitleClick = () => {
     setIsEditingTitle(true);
   };
@@ -38,9 +37,9 @@ const ListComponent: React.FC<ListComponentProps> = ({
 
   const handleTitleBlur = () => {
     if (newTitle !== column.title) {
-      changeColumnTitle(column.id, newTitle); // Save the new title
+      changeColumnTitle(column.id, newTitle);
     }
-    setIsEditingTitle(false); // Close title editing
+    setIsEditingTitle(false);
   };
 
   const handleTitleKeyDown = (e: React.KeyboardEvent) => {
@@ -49,7 +48,6 @@ const ListComponent: React.FC<ListComponentProps> = ({
     }
   };
 
-  // Add New Card Logic
   const handleAddCardChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setNewCardContent(e.target.value);
   };
@@ -57,19 +55,17 @@ const ListComponent: React.FC<ListComponentProps> = ({
   const handleAddCardSubmit = () => {
     if (newCardContent.trim() !== "") {
       addCard(column.id, newCardContent);
-      setNewCardContent(""); // Clear input after adding the card
+      setNewCardContent("");
     }
   };
 
-  // Close editing title if user clicks outside
   const handleClickOutside = (e: MouseEvent) => {
     if (columnRef.current && !columnRef.current.contains(e.target as Node)) {
       setIsEditingTitle(false);
     }
   };
 
-  React.useEffect(() => {
-    // Attach click event listener to close the title edit if clicked outside
+  useEffect(() => {
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
@@ -84,13 +80,12 @@ const ListComponent: React.FC<ListComponentProps> = ({
         display: "flex",
         flexDirection: "column",
         width: "300px",
-        backgroundColor: "#f0f4f8", // Light background for the column
+        backgroundColor: "#f0f4f8",
         borderRadius: "8px",
         padding: "1rem",
         boxShadow: "0 2px 10px rgba(0, 0, 0, 0.1)",
       }}
     >
-      {/* Editable Column Title */}
       {isEditingTitle ? (
         <input
           ref={inputRef}
@@ -104,13 +99,13 @@ const ListComponent: React.FC<ListComponentProps> = ({
             fontSize: "18px",
             fontWeight: "bold",
             border: "none",
-            background: "#f9fafb", // Lighter background for input
+            background: "#f9fafb",
             padding: "0.5rem",
             marginBottom: "1rem",
             width: "100%",
             outline: "none",
-            borderBottom: "2px solid #3b82f6", // Blue underline when editing
-            color: "#333", // Darker color for readability
+            borderBottom: "2px solid #3b82f6",
+            color: "#333",
           }}
         />
       ) : (
@@ -121,7 +116,7 @@ const ListComponent: React.FC<ListComponentProps> = ({
             fontWeight: "bold",
             cursor: "pointer",
             marginBottom: "1rem",
-            color: "#333", // Dark text for better contrast
+            color: "#333",
           }}
         >
           {column.title}
@@ -136,7 +131,7 @@ const ListComponent: React.FC<ListComponentProps> = ({
             style={{
               display: "flex",
               flexDirection: "column",
-              gap: "10px", // Space between task cards
+              gap: "10px",
             }}
           >
             {tasks.map((task, index) => (
@@ -147,7 +142,6 @@ const ListComponent: React.FC<ListComponentProps> = ({
         )}
       </Droppable>
 
-      {/* Add New Card Input */}
       <input
         type="text"
         placeholder="Add new Card"
@@ -158,12 +152,12 @@ const ListComponent: React.FC<ListComponentProps> = ({
           fontSize: "16px",
           padding: "0.5rem",
           marginTop: "1rem",
-          backgroundColor: "#ffffff", // White background for input box
-          border: "1px solid #ddd", // Lighter border for input box
+          backgroundColor: "#ffffff",
+          border: "1px solid #ddd",
           borderRadius: "4px",
           outline: "none",
           width: "100%",
-          color: "#333", // Black text for readability
+          color: "#333",
         }}
       />
     </div>
