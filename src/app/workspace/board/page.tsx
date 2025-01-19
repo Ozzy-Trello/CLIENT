@@ -165,13 +165,17 @@ const Board: React.FC = () => {
   };
 
   return (
-    <div>
+    <div style={{height:"100vh", overflow:"hidden"}}>
       <Topbar />
-      <div style={{
-        overflow: "scroll",
-        height: "100vh",
-        marginTop: "50px"
-      }}>
+      <div
+        style={{
+          overflow: "scroll",
+          marginTop:"50px",
+          width: "100%",
+          height: "100%",
+          paddingBottom: "100px"
+        }}
+      >
         <DragDropContext onDragEnd={onDragEnd}>
           <Droppable
             droppableId="all-columns"

@@ -11,16 +11,13 @@
   }
 }
 
-html,
-body {
-}
-
 body {
   color: var(--foreground);
   background: var(--background);
   font-family: Arial, Helvetica, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow: hidden;
 }
 
 * {
@@ -38,4 +35,50 @@ a {
   html {
     color-scheme: dark;
   }
+}
+
+.fullwidth {
+  width: 100%;
+}
+
+.item-h-l {
+  display: flex;
+  justify-content: left;
+  align-items: center;
+  gap: 10px;
+  flex-direction: row;
+}
+
+.item-h-r {
+  display: flex;
+  justify-content: right;
+  align-items: center;
+  gap: 10px;
+  flex-direction: row;
+}
+
+.item-v-l {
+  display: flex;
+  justify-content: left;
+  align-items: center;
+  flex-direction: column;
+}
+
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1; 
+}
+ 
+::-webkit-scrollbar-thumb {
+  background: #a7b0ba;
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #555; 
 }

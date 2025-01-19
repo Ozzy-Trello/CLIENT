@@ -1,7 +1,11 @@
 import { Avatar, Button, Tooltip, Typography } from "antd"
 import { useState } from "react";
+import { useWorkspaceSidebar } from "../workspace-sidebar-context";
+
 
 const Topbar: React.FC = () => {
+
+  const {siderWidth} = useWorkspaceSidebar();
 
   const [members, setMembers] = useState([
     {
@@ -23,17 +27,18 @@ const Topbar: React.FC = () => {
         alignItems:"center", 
         justifyContent:"space-between", 
         height:"50px",
-        width: "100%",
+        width: `calc(100% - ${siderWidth}px)`,
         position: "fixed",
         top: 50,
         padding: "5px 20px",
         color: "#fff",
         background:"#08124c",
-        borderWidth: "1px 0 1px 0px", borderStyle:"solid", borderColor: "#434343"
+        borderWidth: "1px 0 1px 0px", borderStyle:"solid", borderColor: "#434343",
+        zIndex:1000
       }}
     >
       <div style={{display:"flex", alignItems:"center", gap:10}}>
-        <Typography.Title level={3} style={{color: "#fff"}}>Board Title</Typography.Title>
+        <Typography.Title level={4} style={{color: "#fff"}}>Board Title</Typography.Title>
         <Tooltip title={"Starred boards showed up at the top of your baord list"}>
           <Button size="small" shape="default"><i className="fi fi-rr-star"></i></Button>
         </Tooltip>

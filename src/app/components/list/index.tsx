@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { Droppable } from "@hello-pangea/dnd";
 import { Task } from "@/app/types";
 import TaskComponent from "../task";
+import { Button } from "antd";
 
 interface ListComponentProps {
   column: { id: string; title: string; taskIds: string[] };
@@ -79,7 +80,7 @@ const ListComponent: React.FC<ListComponentProps> = ({
       style={{
         display: "flex",
         flexDirection: "column",
-        width: "300px",
+        width: "272px",
         backgroundColor: "#f0f4f8",
         borderRadius: "8px",
         padding: "1rem",
@@ -142,7 +143,7 @@ const ListComponent: React.FC<ListComponentProps> = ({
         )}
       </Droppable>
 
-      <input
+      {/* <input
         type="text"
         placeholder="Add new Card"
         value={newCardContent}
@@ -159,7 +160,8 @@ const ListComponent: React.FC<ListComponentProps> = ({
           width: "100%",
           color: "#333",
         }}
-      />
+      /> */}
+      <Button size="small"><i className="fi fi-br-plus"></i> Add a card</Button>
     </div>
   );
 };

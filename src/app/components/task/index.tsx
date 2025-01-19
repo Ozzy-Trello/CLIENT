@@ -1,10 +1,10 @@
 import React from "react";
 import { Draggable } from "@hello-pangea/dnd";
 import { Task } from "@/app/types";
-import { Avatar, Card, Modal } from "antd";
+import { Avatar, Badge, Card, Modal, Tooltip, Typography } from "antd";
 import { SettingOutlined, EditOutlined, EllipsisOutlined } from "@ant-design/icons";
 import Meta from "antd/es/card/Meta";
-import CardForm from "../card-form";
+import CardDetails from "../card-details";
 import "./style.css"
 
 interface TaskComponentProps {
@@ -27,8 +27,9 @@ const ModalCardForm: React.FC<ModalCardFormProps> = ({ open, setOpen, loading })
       onCancel={() => setOpen(false)}
       footer={null}
       className="modal-card-form"
+      width={1000}
     >
-      <CardForm />
+      <CardDetails />
     </Modal>
   )
 }
@@ -58,18 +59,23 @@ const TaskComponent: React.FC<TaskComponentProps> = ({ task, index }) => {
                 src="https://gw.alipayobjects.com/zos/rmsportal/JiqGstEfoWAOHiTxclqi.png"
               />
             }
-            actions={[
-              <SettingOutlined key="setting" />,
-              <EditOutlined key="edit" />,
-              <EllipsisOutlined key="ellipsis" />,
-            ]}
             onClick={() => {setOpen(true)}}
           >
-            <Meta
-              avatar={<Avatar src="https://api.dicebear.com/7.x/miniavs/svg?seed=8" />}
-              title={task.content}
-              description="This is the description"
-            />
+            <div className="item-h-l fullwidth" style={{marginBottom: "10px"}}>
+              <Badge size="small" count="badge 1" />
+              <Badge size="small" count="badge 2" />
+              <Badge size="small" count="badge 3" />
+            </div>
+            <Typography.Title level={5}>{task.content}</Typography.Title>
+            <div style={{display:"flex", alignItems: "center", justifyContent: "space-between"}}>
+              <div className="item-h-l" style={{gap:"10px"}}>
+                <Tooltip title={"watching"}><i className="fi fi-rr-eye" key={"watching"}></i></Tooltip>
+                <Tooltip title={"description"}><i className="fi fi-rr-symbol" key={"description"}></i></Tooltip>
+                <Tooltip title={"description"}><span><i className="fi fi-rr-comment-alt-middle" key={"comments"}></i> <span>0</span></span></Tooltip>
+                <Tooltip title={"attachment"}><span><i className="fi fi-rr-clip"></i> <span>0</span></span></Tooltip>
+              </div>
+              <Avatar size={"small"}>A</Avatar>
+            </div>
           </Card>
         )}
       </Draggable>

@@ -2,6 +2,7 @@ import { AntdRegistry } from "@ant-design/nextjs-registry";
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
+import { WorkspaceSidebarProvider } from "./workspace/workspace-sidebar-context";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -28,7 +29,9 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
         <AntdRegistry>
-          {children}
+          <WorkspaceSidebarProvider>
+            {children}
+          </WorkspaceSidebarProvider>
         </AntdRegistry>
       </body>
     </html>
