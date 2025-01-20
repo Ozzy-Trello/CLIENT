@@ -1,16 +1,29 @@
 "use client";
 
-import React, { useState } from "react";
-import {
-  DragDropContext,
-  Droppable,
-  Draggable,
-  DropResult,
-} from "@hello-pangea/dnd";
-import { BoardData, Task, Column } from "@/app/types";
+import { BoardData, Column } from "@/app/types";
 import { Button, Input } from "antd";
-import ListComponent from "@/app/components/list";
+import dynamic from "next/dynamic";
+import React, { useState } from "react";
 import Topbar from "./topbar";
+
+const ListComponent = dynamic(() => import("@/app/components/list"), {
+  ssr: false,
+});
+
+const DragDropContext = dynamic(
+  () => import("@hello-pangea/dnd").then((mod) => mod.DragDropContext),
+  { ssr: false }
+);
+
+const Droppable = dynamic(
+  () => import("@hello-pangea/dnd").then((mod) => mod.Droppable),
+  { ssr: false }
+);
+
+const Draggable = dynamic(
+  () => import("@hello-pangea/dnd").then((mod) => mod.Draggable),
+  { ssr: false }
+);
 
 const initialData: BoardData = {
   columns: {
@@ -42,7 +55,7 @@ const Board: React.FC = () => {
   const [data, setData] = useState<BoardData>(initialData);
   const [newColumnTitle, setNewColumnTitle] = useState<string>("");
 
-  const onDragEnd = (result: DropResult) => {
+  const onDragEnd = (result: any) => {
     const { destination, source, draggableId, type } = result;
 
     if (!destination) return;
@@ -165,15 +178,15 @@ const Board: React.FC = () => {
   };
 
   return (
-    <div style={{height:"100vh", overflow:"hidden"}}>
+    <div style={{ height: "100vh", overflow: "hidden" }}>
       <Topbar />
       <div
         style={{
           overflow: "scroll",
-          marginTop:"50px",
+          marginTop: "50px",
           width: "100%",
           height: "100%",
-          paddingBottom: "100px"
+          paddingBottom: "100px",
         }}
       >
         <DragDropContext onDragEnd={onDragEnd}>

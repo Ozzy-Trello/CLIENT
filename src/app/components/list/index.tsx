@@ -161,7 +161,9 @@ const ListComponent: React.FC<ListComponentProps> = ({
           color: "#333",
         }}
       /> */}
-      <Button size="small"><i className="fi fi-br-plus"></i> Add a card</Button>
+      <Button size="small">
+        <i className="fi fi-br-plus"></i> Add a card
+      </Button>
     </div>
   );
 };

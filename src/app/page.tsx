@@ -1,5 +1,14 @@
-import TrelloBoard from "./components/board";
+import dynamic from "next/dynamic";
+import { Suspense } from "react";
+
+const TrelloBoard = dynamic(() => import("./components/board"), {
+  ssr: false,
+});
 
 export default function Home() {
-  return <TrelloBoard />;
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <TrelloBoard />
+    </Suspense>
+  );
 }
