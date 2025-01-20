@@ -1,14 +1,19 @@
-import dynamic from "next/dynamic";
-import { Suspense } from "react";
-
-const TrelloBoard = dynamic(() => import("./components/board"), {
-  ssr: false,
-});
+"use client";
+import { useRouter } from "next/navigation";
+import { Suspense, useEffect } from "react";
 
 export default function Home() {
-  return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <TrelloBoard />
-    </Suspense>
-  );
+
+  const router = useRouter();
+
+  useEffect(() => {
+    const isAuthenticated = false; // Replace with actual auth logic
+    if (isAuthenticated) {
+      router.push('/workspace/home');
+    } else {
+      router.push('/login');
+    }
+  }, [router]);
+
+  return null;
 }

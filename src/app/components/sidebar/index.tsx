@@ -77,7 +77,7 @@ const Sidebar: React.FC = () => {
         </Menu.Item>
 
         <Menu.Item key="menu-workspace-v-calendar" icon={<i className="fi fi-tr-calendar-days"></i>}>
-        <Link className="fullwidth" href={"/workspace/views/calendar"}>Calendar</Link>
+          <Link className="fullwidth" href={"/workspace/views/calendar"}>Calendar</Link>
         </Menu.Item>
 
         <Divider />
@@ -87,7 +87,7 @@ const Sidebar: React.FC = () => {
         {
           boards?.map((board, index) => (
             <Menu.Item key={`board-item-${board?.title}`} icon={<Avatar shape="square" size={"small"}/>}>
-              {board?.title}
+              <Link className="fullwidth" href={"/workspace/board"}>{board?.title}</Link>
             </Menu.Item>
           ))
         }
