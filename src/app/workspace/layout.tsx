@@ -4,9 +4,11 @@ import { ReactNode, useEffect, useRef, useState } from "react";
 import { Layout, Menu } from "antd";
 import TopBar from "../components/topbar";
 import Sidebar from "../components/sidebar";
-import "./style.css"
-import { useWorkspaceSidebar, WorkspaceSidebarProvider } from "./workspace-sidebar-context";
-
+import "./style.css";
+import {
+  useWorkspaceSidebar,
+  WorkspaceSidebarProvider,
+} from "./workspace-sidebar-context";
 
 const { Header, Content } = Layout;
 
@@ -15,30 +17,25 @@ interface BaseLayoutProps {
 }
 
 const WorkspaceLayout: React.FC<BaseLayoutProps> = ({ children }) => {
-
-  const {siderWidth} = useWorkspaceSidebar();
+  const { siderWidth } = useWorkspaceSidebar();
 
   return (
     <Layout className="base-layout">
       <Header>
         <TopBar />
       </Header>
-      
-        <Layout>
-          <Sidebar />
-          <Layout
-            style={{
-              marginTop: 50,
-              marginLeft: siderWidth,
-              transition: "margin-left 0.2s ease",
-              overflow: "hidden",
-            }}
-          >
-            <Content>{children}</Content>
-          </Layout>
-          
-        </Layout>
-      
+
+      <Sidebar />
+      <Layout
+        style={{
+          marginTop: 50,
+          marginLeft: siderWidth,
+          transition: "margin-left 0.2s ease",
+          overflow: "hidden",
+        }}
+      >
+        <Content>{children}</Content>
+      </Layout>
     </Layout>
   );
 };

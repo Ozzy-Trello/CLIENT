@@ -1,99 +1,154 @@
 import { useWorkspaceSidebar } from "@/app/workspace/workspace-sidebar-context";
-import { Avatar, Button, Divider, Menu, Tooltip, Typography, Layout } from "antd";
+import { Avatar, Button, Menu, Tooltip, Typography, Layout } from "antd";
 import Link from "next/link";
-import React, {useState } from "react";
+import React, { useState } from "react";
 
 const { Sider } = Layout;
 
 const Sidebar: React.FC = () => {
-
   const { collapsed, toggleSidebar, siderWidth } = useWorkspaceSidebar();
 
   const [boards, setBoards] = useState([
+    { id: 1, title: "Trello clone project" },
+    { id: 2, title: "E-commerce project" },
+    { id: 3, title: "company profile project" },
+  ]);
+
+  const items = [
     {
-      id: 1,
-      title: "Trello clone project"
+      key: "menu-board",
+      label: (
+        <Link className="fullwidth" href={"/workspace/boards"}>
+          Boards
+        </Link>
+      ),
+      icon: <i className="fi fi-brands-trello"></i>,
     },
     {
-      id: 2,
-      title: "E-commerce project"
+      key: "menu-home",
+      label: (
+        <Link className="fullwidth" href={"/workspace/home"}>
+          Home
+        </Link>
+      ),
+      icon: <i className="fi fi-rr-home"></i>,
     },
     {
-      id: 3,
-      title: "company profile project"
-    }
-  ])
+      key: "menu-workspace-settings",
+      label: (
+        <Link className="fullwidth" href={"/workspace/settings"}>
+          Workspace settings
+        </Link>
+      ),
+      icon: <i className="fi fi-rr-settings"></i>,
+    },
+    ...(collapsed
+      ? []
+      : [
+          {
+            key: "divider-1",
+            label: (
+              <>
+                <hr />
+                <b>Workspace View</b>
+              </>
+            ),
+            icon: null,
+          },
+        ]),
+    {
+      key: "menu-workspace-v-table",
+      label: (
+        <Link className="fullwidth" href={"/workspace/views/table"}>
+          Table
+        </Link>
+      ),
+      icon: <i className="fi-rs-table-list"></i>,
+    },
+    {
+      key: "menu-workspace-v-calendar",
+      label: (
+        <Link className="fullwidth" href={"/workspace/views/calendar"}>
+          Calendar
+        </Link>
+      ),
+      icon: <i className="fi-tr-calendar-days"></i>,
+    },
+    ...(collapsed
+      ? []
+      : [
+          {
+            key: "divider-2",
+            label: (
+              <>
+                <hr />
+                <b>Your Boards</b>
+              </>
+            ),
+            icon: null,
+          },
+        ]),
+    ...boards.map((board) => ({
+      key: `board-item-${board.title}`,
+      label: (
+        <Link className="fullwidth" href={"/workspace/board"}>
+          {board.title}
+        </Link>
+      ),
+      icon: <Avatar shape="square" size={"small"} />,
+    })),
+  ];
 
   return (
     <Sider
       collapsed={collapsed}
       style={{
-        height: `100%`, // Adjust height to account for the topbar
+        height: `100%`,
         position: "fixed",
         left: 0,
-        top: 50, // Position below the topbar
+        top: 50,
         zIndex: 10,
         overflow: "auto",
       }}
       width={siderWidth}
     >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          padding: "10px",
+          background: "white",
+        }}
+      >
+        {!collapsed && (
+          <div className="item-h-l">
+            <Avatar shape="square" size={"small"} />
+            <Typography style={{ color: "black" }}>Workspace Name</Typography>
+          </div>
+        )}
+        <Tooltip title="toggle">
+          <Button
+            size="small"
+            shape="default"
+            icon={
+              <i
+                className={`fi fi-rr-angle-small-${
+                  collapsed ? "right" : "left"
+                }`}
+              />
+            }
+            onClick={() => toggleSidebar()}
+          />
+        </Tooltip>
+      </div>
       <Menu
         mode="inline"
         defaultSelectedKeys={["1"]}
         style={{ height: "100%", borderRight: 0 }}
-      >
-        <div style={{display: "flex", justifyContent:"space-between", padding:"10px"}}>
-          { !collapsed && (
-            <div className="item-h-l">
-              <Avatar shape="square" size={"small"}/>
-              <Typography>Workspace Name</Typography>
-            </div>
-          )}
-          <Tooltip title="search">
-            <Button size="small" shape="default" icon={<i className="fi fi-rr-angle-small-left"></i>} onClick={() => (toggleSidebar())} />
-          </Tooltip>
-        </div>
-
-        <Divider />
-
-        <Menu.Item key="menu-board" icon={<i className="fi fi-brands-trello"></i>}>
-          <Link className="fullwidth" href={"/workspace/boards"}>Boards</Link>
-        </Menu.Item>
-
-        <Menu.Item key="menu-home" icon={<i className="fi fi-rr-home"></i>}>
-          <Link className="fullwidth" href={"/workspace/home"}>Home</Link>
-        </Menu.Item>
-
-        <Menu.Item key="menu-workspace-settings" icon={<i className="fi fi-rr-settings"></i>}>
-          <Link className="fullwidth" href={"/workspace/settings"}>Workspace settings</Link>
-        </Menu.Item>
-
-        <Divider />
-
-        {!collapsed && (<Typography.Text style={{padding: 10}}>Worksapce views</Typography.Text>)}
-
-        <Menu.Item key="menu-workspace-v-table" icon={<i className="fi fi-rs-table-list"></i>}>
-          <Link className="fullwidth" href={"/workspace/views/table"}>Table</Link>
-        </Menu.Item>
-
-        <Menu.Item key="menu-workspace-v-calendar" icon={<i className="fi fi-tr-calendar-days"></i>}>
-          <Link className="fullwidth" href={"/workspace/views/calendar"}>Calendar</Link>
-        </Menu.Item>
-
-        <Divider />
-
-        {!collapsed && (<Typography.Text style={{padding: 10}}>Your boards</Typography.Text>)}
-
-        {
-          boards?.map((board, index) => (
-            <Menu.Item key={`board-item-${board?.title}`} icon={<Avatar shape="square" size={"small"}/>}>
-              <Link className="fullwidth" href={"/workspace/board"}>{board?.title}</Link>
-            </Menu.Item>
-          ))
-        }
-      </Menu>
+        items={items}
+      />
     </Sider>
-  )
-}
+  );
+};
 
 export default Sidebar;

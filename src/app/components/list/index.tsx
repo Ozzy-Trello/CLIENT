@@ -1,66 +1,93 @@
-import React, { useState, useRef, useEffect } from "react";
-import { Droppable } from "@hello-pangea/dnd";
-import { Task } from "@/app/types";
+import React, { useState, useRef, useEffect, FC } from "react";
+import {
+  DraggableProvided,
+  Droppable,
+  DroppableProps,
+  DroppableProvided,
+  DroppableStateSnapshot,
+} from "@hello-pangea/dnd";
 import TaskComponent from "../task";
 import { Button } from "antd";
+import type { Task } from "@/app/types";
+
+interface Column {
+  id: string;
+  title: string;
+  taskIds: string[];
+}
 
 interface ListComponentProps {
-  column: { id: string; title: string; taskIds: string[] };
+  column: Column;
   tasks: Task[];
   index: number;
-  provided: any;
+  provided: DraggableProvided;
   addCard: (columnId: string, newCardContent: string) => void;
   changeColumnTitle: (columnId: string, newTitle: string) => void;
 }
 
-const ListComponent: React.FC<ListComponentProps> = ({
+const ListComponent: FC<ListComponentProps> = ({
   column,
   tasks,
-  index,
   provided,
   addCard,
   changeColumnTitle,
+  index,
 }) => {
-  const [newCardContent, setNewCardContent] = useState<string>("");
-  const [isEditingTitle, setIsEditingTitle] = useState<boolean>(false);
-  const [newTitle, setNewTitle] = useState<string>(column.title);
+  const [newCardContent, setNewCardContent] = useState("");
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [newTitle, setNewTitle] = useState(column.title);
+  const [isAddingCard, setIsAddingCard] = useState(false);
 
   const columnRef = useRef<HTMLDivElement | null>(null);
-  const inputRef = useRef<HTMLInputElement | null>(null);
 
-  const handleTitleClick = () => {
+  const handleTitleClick = (): void => {
     setIsEditingTitle(true);
   };
 
-  const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
     setNewTitle(e.target.value);
   };
 
-  const handleTitleBlur = () => {
-    if (newTitle !== column.title) {
-      changeColumnTitle(column.id, newTitle);
+  const handleTitleBlur = (): void => {
+    if (newTitle.trim() && newTitle !== column.title) {
+      changeColumnTitle(column.id, newTitle.trim());
     }
     setIsEditingTitle(false);
   };
 
-  const handleTitleKeyDown = (e: React.KeyboardEvent) => {
+  const handleTitleKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement>
+  ): void => {
     if (e.key === "Enter") {
       handleTitleBlur();
     }
   };
 
-  const handleAddCardChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAddCardClick = (): void => {
+    setIsAddingCard(true);
+  };
+
+  const handleCancelAddCard = (): void => {
+    setIsAddingCard(false);
+    setNewCardContent("");
+  };
+
+  const handleAddCardChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ): void => {
     setNewCardContent(e.target.value);
   };
 
-  const handleAddCardSubmit = () => {
-    if (newCardContent.trim() !== "") {
-      addCard(column.id, newCardContent);
+  const handleAddCardSubmit = (): void => {
+    const trimmedContent = newCardContent.trim();
+    if (trimmedContent) {
+      addCard(column.id, trimmedContent);
       setNewCardContent("");
+      setIsAddingCard(false);
     }
   };
 
-  const handleClickOutside = (e: MouseEvent) => {
+  const handleClickOutside = (e: MouseEvent): void => {
     if (columnRef.current && !columnRef.current.contains(e.target as Node)) {
       setIsEditingTitle(false);
     }
@@ -76,20 +103,19 @@ const ListComponent: React.FC<ListComponentProps> = ({
   return (
     <div
       ref={columnRef}
-      {...provided.droppableProps}
+      {...provided.draggableProps}
       style={{
         display: "flex",
         flexDirection: "column",
-        width: "272px",
-        backgroundColor: "#f0f4f8",
+        backgroundColor: "#a4b0be",
         borderRadius: "8px",
         padding: "1rem",
         boxShadow: "0 2px 10px rgba(0, 0, 0, 0.1)",
+        minWidth: "275px",
       }}
     >
       {isEditingTitle ? (
         <input
-          ref={inputRef}
           type="text"
           value={newTitle}
           onChange={handleTitleChange}
@@ -102,7 +128,6 @@ const ListComponent: React.FC<ListComponentProps> = ({
             border: "none",
             background: "#f9fafb",
             padding: "0.5rem",
-            marginBottom: "1rem",
             width: "100%",
             outline: "none",
             borderBottom: "2px solid #3b82f6",
@@ -125,45 +150,70 @@ const ListComponent: React.FC<ListComponentProps> = ({
       )}
 
       <Droppable droppableId={column.id} type="TASK">
-        {(provided) => (
+        {(provided: DroppableProvided, snapshot: DroppableStateSnapshot) => (
           <div
             ref={provided.innerRef}
             {...provided.droppableProps}
             style={{
               display: "flex",
               flexDirection: "column",
-              gap: "10px",
+              gap: "1rem",
+              flex: 1,
+              transition: "background-color 0.2s ease",
+              marginBlock: snapshot.isDraggingOver ? "1rem" : "0",
             }}
           >
             {tasks.map((task, index) => (
               <TaskComponent key={task.id} task={task} index={index} />
             ))}
             {provided.placeholder}
+            {!tasks.length && "This list is still empty"}
           </div>
         )}
       </Droppable>
 
-      {/* <input
-        type="text"
-        placeholder="Add new Card"
-        value={newCardContent}
-        onChange={handleAddCardChange}
-        onKeyDown={(e) => e.key === "Enter" && handleAddCardSubmit()}
-        style={{
-          fontSize: "16px",
-          padding: "0.5rem",
-          marginTop: "1rem",
-          backgroundColor: "#ffffff",
-          border: "1px solid #ddd",
-          borderRadius: "4px",
-          outline: "none",
-          width: "100%",
-          color: "#333",
-        }}
-      /> */}
-      <Button size="small">
-        <i className="fi fi-br-plus"></i> Add a card
-      </Button>
+      {isAddingCard ? (
+        <div style={{ marginTop: "1rem" }}>
+          <input
+            type="text"
+            placeholder="Enter card content"
+            value={newCardContent}
+            onChange={handleAddCardChange}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                handleAddCardSubmit();
+              }
+            }}
+            style={{
+              padding: "0.5rem",
+              borderRadius: "4px",
+              border: "1px solid #ccc",
+              width: "100%",
+              marginBottom: "0.5rem",
+            }}
+          />
+          <div style={{ display: "flex", gap: "0.5rem" }}>
+            <Button size="small" onClick={handleAddCardSubmit}>
+              Add Card
+            </Button>
+            <Button size="small" onClick={handleCancelAddCard}>
+              Cancel
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <Button
+          size="small"
+          onClick={handleAddCardClick}
+          style={{
+            marginTop: "1rem",
+            borderRadius: "0.5rem",
+            background: "whitesmoke",
+          }}
+        >
+          + Add a card
+        </Button>
+      )}
     </div>
   );
 };

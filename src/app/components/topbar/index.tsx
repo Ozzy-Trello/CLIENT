@@ -1,54 +1,54 @@
-import React, { useState } from 'react';
-import Link from 'next/link';
-import { Layout, Input, Badge, Avatar, Menu, Dropdown, Typography } from 'antd';
-import Image from 'next/image';
-import { SearchOutlined, BellOutlined, UserOutlined } from '@ant-design/icons';
+import { BellOutlined, SearchOutlined, UserOutlined } from "@ant-design/icons";
+import type { MenuProps } from "antd";
+import { Avatar, Badge, Dropdown, Input, Layout } from "antd";
+import Image from "next/image";
+import Link from "next/link";
+import React, { useState } from "react";
 import logo from "../../assets/images/Logo_Ozzy_Clothing_png.png";
-import { inherits } from 'util';
-
-const { Header } = Layout;
-
 
 const TopBar: React.FC = () => {
   const [notificationVisible, setNotificationVisible] = useState(false);
   const [avatarMenuVisible, setAvatarMenuVisible] = useState(false);
 
-  const notifications = (
-    <Menu>
-      <Menu.Item key="1">Notification 1</Menu.Item>
-      <Menu.Item key="2">Notification 2</Menu.Item>
-      <Menu.Item key="3">Notification 3</Menu.Item>
-    </Menu>
-  );
+  const notificationItems: MenuProps["items"] = [
+    { key: "1", label: "Notification 1" },
+    { key: "2", label: "Notification 2" },
+    { key: "3", label: "Notification 3" },
+  ];
 
-  const avatarMenu = (
-    <Menu>
-      <Menu.Item key="profile">Profile</Menu.Item>
-      <Menu.Item key="settings">Settings</Menu.Item>
-      <Menu.Item key="logout">Logout</Menu.Item>
-    </Menu>
-  );
+  const avatarMenuItems: MenuProps["items"] = [
+    { key: "profile", label: "Profile" },
+    { key: "settings", label: "Settings" },
+    { key: "logout", label: "Logout" },
+  ];
 
   return (
     <div
       style={{
-        display: 'flex',
-        alignItems: 'center',
+        display: "flex",
+        alignItems: "center",
         justifyContent: "space-between",
-        height: "inherit"
+        height: "inherit",
       }}
     >
-      
-      <div style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }} className='brand'>
+      <div
+        style={{ display: "flex", alignItems: "center", cursor: "pointer" }}
+        className="brand"
+      >
         <Link href="/dashboard" passHref>
-          <Image src={logo} alt="Ozzy Clothing Logo" style={{width: "50px", height: "auto"}} />
+          <Image
+            src={logo}
+            alt="Ozzy Clothing Logo"
+            style={{ width: "50px", height: "auto" }}
+          />
         </Link>
       </div>
 
-      <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: "20px"
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "20px",
         }}
       >
         <Input
@@ -61,27 +61,29 @@ const TopBar: React.FC = () => {
         />
 
         <Dropdown
-          overlay={notifications}
-          trigger={['click']}
-          visible={notificationVisible}
-          onVisibleChange={setNotificationVisible}
+          menu={{ items: notificationItems }}
+          trigger={["click"]}
+          open={notificationVisible}
+          onOpenChange={setNotificationVisible}
         >
           <Badge count={4}>
-            <BellOutlined style={{ fontSize: 20, cursor: 'pointer', color: "white" }} />
+            <BellOutlined
+              style={{ fontSize: 20, cursor: "pointer", color: "white" }}
+            />
           </Badge>
         </Dropdown>
 
         <Dropdown
-          overlay={avatarMenu}
-          trigger={['click']}
-          visible={avatarMenuVisible}
-          onVisibleChange={setAvatarMenuVisible}
+          menu={{ items: avatarMenuItems }}
+          trigger={["click"]}
+          open={avatarMenuVisible}
+          onOpenChange={setAvatarMenuVisible}
         >
           <Avatar
             size="small"
             style={{
-              backgroundColor: 'grey',
-              cursor: 'pointer',
+              backgroundColor: "grey",
+              cursor: "pointer",
             }}
             icon={<UserOutlined />}
           />
