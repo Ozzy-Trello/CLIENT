@@ -17,6 +17,7 @@ interface BaseLayoutProps {
 }
 
 const WorkspaceLayout: React.FC<BaseLayoutProps> = ({ children }) => {
+  
   const { siderWidth } = useWorkspaceSidebar();
 
   return (

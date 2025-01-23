@@ -101,6 +101,7 @@ const Sidebar: React.FC = () => {
 
   return (
     <Sider
+      className="sidebar"
       collapsed={collapsed}
       style={{
         height: `100%`,
@@ -113,17 +114,17 @@ const Sidebar: React.FC = () => {
       width={siderWidth}
     >
       <div
+        className="sidebar-title"
         style={{
           display: "flex",
-          justifyContent: "space-between",
+          justifyContent: collapsed ? "center" : "space-between",
           padding: "10px",
-          background: "white",
         }}
       >
         {!collapsed && (
-          <div className="item-h-l">
+          <div className="fx-h-left-center">
             <Avatar shape="square" size={"small"} />
-            <Typography style={{ color: "black" }}>Workspace Name</Typography>
+            <Typography>Workspace Name</Typography>
           </div>
         )}
         <Tooltip title="toggle">

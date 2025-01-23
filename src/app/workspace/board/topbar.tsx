@@ -1,6 +1,7 @@
-import { Avatar, Button, Tooltip, Typography } from "antd";
+import { Avatar, Button, theme, Tooltip, Typography } from "antd";
 import { useState } from "react";
 import { useWorkspaceSidebar } from "../workspace-sidebar-context";
+import { selectTheme } from "@/app/store/slice";
 
 const Topbar: React.FC = () => {
   const { siderWidth } = useWorkspaceSidebar();
@@ -19,26 +20,18 @@ const Topbar: React.FC = () => {
   ]);
 
   return (
-    <div
+    <div 
+      className="board-page-topbar fx-h-sb-center"
       style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        height: "50px",
         width: `calc(100% - ${siderWidth}px)`,
+        height: "50px",
         position: "fixed",
         top: 50,
-        padding: "5px 20px",
-        color: "#fff",
-        background: "#08124c",
-        borderWidth: "1px 0 1px 0px",
-        borderStyle: "solid",
-        borderColor: "#434343",
-        zIndex: 1000,
+        padding: "5px 20px"
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <Typography.Title level={4} style={{ color: "#fff" }}>
+      <div className="fx-h-left-center">
+        <Typography.Title level={4} className="m-0">
           Board Title
         </Typography.Title>
         <Tooltip
@@ -57,7 +50,7 @@ const Topbar: React.FC = () => {
         </Tooltip>
       </div>
 
-      <div style={{ display: "flex", alignItems: "center" }}>
+      <div className="fx-h-right-center">
         <Tooltip
           title={"Starred boards showed up at the top of your baord list"}
         >

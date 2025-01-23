@@ -1,0 +1,8 @@
+.board-page-topbar {
+  color: var(--color-text) !important;
+  background-color: var(--color-background) !important;
+  border-width: "1px 0 1px 0px";
+  border-style: "solid";
+  border-color: var(--color-muted);
+  z-index: 1000;
+}

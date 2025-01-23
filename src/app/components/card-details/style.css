@@ -1,3 +1,29 @@
-.body-wrapper {
+.component-card-details .cover {
+  height: 200px;
+  background-color: var(--color-muted) !important;
+  border-radius:  9px 9px 0px 0px;
+  border-width: 0px 0px 1px 0px;
+  border-style: solid;
+  border-color: var(--color-muted);
+  display: flex;
+  justify-content: right;
+  align-items: end;
+  padding: 20px;
+}
+
+.component-card-details .row {
+  color: var(--color-text);
+  padding: 5px 20px;
+}
+
+.component-card-details .body-wrapper {
   margin-left: 23px !important;
+}
+
+.component-card-details .section-title-wrapper {
+  margin-bottom: 10px;
+}
+
+.component-card-details .ant-list-item {
+  border-width: 0px !important;
 }

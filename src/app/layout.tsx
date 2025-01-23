@@ -6,15 +6,15 @@ import { WorkspaceSidebarProvider } from "./workspace/workspace-sidebar-context"
 import { store } from "./store";
 import { Provider } from "react-redux";
 import { metadata } from './metadata'; 
-import ThemeProvider from "./theme/theme-provider";
+import { ThemeProvider } from "./provider/theme-provider";
 
 const geistSans = localFont({
-  src: "./fonts/GeistVF.woff",
+  src: "./assets/fonts/GeistVF.woff",
   variable: "--font-geist-sans",
   weight: "100 900",
 });
 const geistMono = localFont({
-  src: "./fonts/GeistMonoVF.woff",
+  src: "./assets/fonts/GeistMonoVF.woff",
   variable: "--font-geist-mono",
   weight: "100 900",
 });
@@ -27,13 +27,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
-        <ThemeProvider>
-          <Provider store={store}>
-            <AntdRegistry>
+        <Provider store={store}>
+          <AntdRegistry>
+            <ThemeProvider userId="1">
               <WorkspaceSidebarProvider>{children}</WorkspaceSidebarProvider>
-            </AntdRegistry>
-          </Provider>
-        </ThemeProvider>
+            </ThemeProvider>
+          </AntdRegistry>
+        </Provider>
       </body>
     </html>
   );

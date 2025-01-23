@@ -5,6 +5,9 @@ import { Button, Input } from "antd";
 import dynamic from "next/dynamic";
 import React, { useState } from "react";
 import Topbar from "./topbar";
+import "./style.css";
+import { useSelector } from "react-redux";
+import { selectTheme } from "@/app/store/slice";
 
 const ListComponent = dynamic(() => import("@/app/components/list"), {
   ssr: false,
@@ -54,6 +57,9 @@ const initialData: BoardData = {
 const Board: React.FC = () => {
   const [data, setData] = useState<BoardData>(initialData);
   const [newColumnTitle, setNewColumnTitle] = useState<string>("");
+  const [isAddingNewColumn, setAddingNewColumn] = useState(false);
+  const theme = useSelector(selectTheme);
+  const { colors } = theme;
 
   const onDragEnd = (result: any) => {
     const { destination, source, draggableId, type } = result;
@@ -177,6 +183,14 @@ const Board: React.FC = () => {
     });
   };
 
+  const enableAddingColumn = () => {
+    setAddingNewColumn(true);
+  }
+
+  const disableAddingColumn = () => {
+    setAddingNewColumn(false);
+  }
+
   return (
     <div style={{ height: "100vh", overflow: "hidden" }}>
       <Topbar />
@@ -228,6 +242,7 @@ const Board: React.FC = () => {
                             display: "flex",
                             flexDirection: "column",
                           }}
+  
                         >
                           <ListComponent
                             column={column}
@@ -248,25 +263,31 @@ const Board: React.FC = () => {
                     marginLeft: "1rem",
                     display: "flex",
                     flexDirection: "column",
-                    background: "#F0F4F8",
+                    background: colors?.background,
                     padding: "2rem",
                     borderRadius: "0.5rem",
                     boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
                   }}
                 >
-                  <Input
-                    type="text"
-                    placeholder="New Column Title"
-                    value={newColumnTitle}
-                    style={{
-                      background: "white",
-                    }}
-                    onChange={(e) => setNewColumnTitle(e.target.value)}
-                    onPressEnter={addColumn}
-                  />
-                  <Button onClick={addColumn} style={{ marginTop: "8px" }}>
-                    Add List
-                  </Button>
+                  { isAddingNewColumn ? (
+                    <div>
+                      <Input
+                        type="text"
+                        placeholder="New Column Title"
+                        value={newColumnTitle}
+                        onChange={(e) => setNewColumnTitle(e.target.value)}
+                      />
+                      <div className="fx-h-l-center">
+                        <Button size="small" onClick={disableAddingColumn}>Add List</Button>
+                        <Button size="small" onClick={addColumn}><i className="fi fi-rr-cross"></i></Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <Button onClick={enableAddingColumn} style={{ marginTop: "8px" }}>
+                      <i className="fi fi-br-plus"></i>
+                      <span>Add another list</span>
+                    </Button>
+                  )}
                 </div>
               </div>
             )}

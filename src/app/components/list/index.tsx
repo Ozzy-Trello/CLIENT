@@ -9,6 +9,8 @@ import {
 import TaskComponent from "../task";
 import { Button } from "antd";
 import type { Task } from "@/app/types";
+import { useSelector } from "react-redux";
+import { selectTheme } from "@/app/store/slice";
 
 interface Column {
   id: string;
@@ -37,6 +39,9 @@ const ListComponent: FC<ListComponentProps> = ({
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [newTitle, setNewTitle] = useState(column.title);
   const [isAddingCard, setIsAddingCard] = useState(false);
+  const theme = useSelector(selectTheme);
+  const { colors } = theme;
+  console.log("colors: %o", colors);
 
   const columnRef = useRef<HTMLDivElement | null>(null);
 
@@ -102,52 +107,56 @@ const ListComponent: FC<ListComponentProps> = ({
 
   return (
     <div
+      className="list-column"
       ref={columnRef}
       {...provided.draggableProps}
       style={{
         display: "flex",
         flexDirection: "column",
-        backgroundColor: "#a4b0be",
         borderRadius: "8px",
         padding: "1rem",
         boxShadow: "0 2px 10px rgba(0, 0, 0, 0.1)",
         minWidth: "275px",
+        background: colors?.background
       }}
     >
-      {isEditingTitle ? (
-        <input
-          type="text"
-          value={newTitle}
-          onChange={handleTitleChange}
-          onBlur={handleTitleBlur}
-          onKeyDown={handleTitleKeyDown}
-          autoFocus
-          style={{
-            fontSize: "18px",
-            fontWeight: "bold",
-            border: "none",
-            background: "#f9fafb",
-            padding: "0.5rem",
-            width: "100%",
-            outline: "none",
-            borderBottom: "2px solid #3b82f6",
-            color: "#333",
-          }}
-        />
-      ) : (
-        <h3
-          onClick={handleTitleClick}
-          style={{
-            fontSize: "18px",
-            fontWeight: "bold",
-            cursor: "pointer",
-            marginBottom: "1rem",
-            color: "#333",
-          }}
-        >
-          {column.title}
-        </h3>
-      )}
+      <div className="list-colum-title-wrapper fx-h-sb-center">
+        {isEditingTitle ? (
+          <input
+            type="text"
+            value={newTitle}
+            onChange={handleTitleChange}
+            onBlur={handleTitleBlur}
+            onKeyDown={handleTitleKeyDown}
+            autoFocus
+            style={{
+              fontSize: "18px",
+              fontWeight: "bold",
+              border: "none",
+              background: "#f9fafb",
+              padding: "0.5rem",
+              width: "100%",
+              outline: "none",
+              borderBottom: "2px solid #3b82f6",
+              color: "#333",
+            }}
+          />
+        ) : (
+          <h3
+            onClick={handleTitleClick}
+            style={{
+              fontSize: "18px",
+              fontWeight: "bold",
+              cursor: "pointer",
+              marginBottom: "1rem",
+              color: "#333",
+            }}
+          >
+            {column.title}
+          </h3>
+        )}
+        <Button size="small"><i className="fi fi-rr-menu-dots"></i></Button>
+      </div>
 
       <Droppable droppableId={column.id} type="TASK">
         {(provided: DroppableProvided, snapshot: DroppableStateSnapshot) => (

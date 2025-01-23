@@ -36,6 +36,7 @@ const ModalCardForm: React.FC<ModalCardFormProps> = ({
       footer={null}
       className="modal-card-form"
       width={1000}
+      style={{ top: 20 }}
     >
       <CardDetails />
     </Modal>
@@ -51,6 +52,7 @@ const TaskComponent: React.FC<TaskComponentProps> = ({ task, index }) => {
       <Draggable draggableId={task.id} index={index}>
         {(provided) => (
           <Card
+            bordered={false}
             ref={provided.innerRef}
             {...provided.draggableProps}
             {...provided.dragHandleProps}
