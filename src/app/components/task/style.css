@@ -1,3 +1,17 @@
 .ant-modal, .ant-modal-content {
   padding: 0px !important;
 }
+
+.task-card:hover{
+  border: thin solid rgba(var(--color-accent), 0.5) !important;
+  cursor: pointer;
+}
+
+.ant-card-body {
+  padding: 10px 20px !important;
+}
+
+.section {
+  margin-bottom: 10px;
+}
+

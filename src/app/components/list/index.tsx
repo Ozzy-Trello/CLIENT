@@ -7,7 +7,7 @@ import {
   DroppableStateSnapshot,
 } from "@hello-pangea/dnd";
 import TaskComponent from "../task";
-import { Button } from "antd";
+import { Badge, Button, Input, Typography } from "antd";
 import type { Task } from "@/app/types";
 import { useSelector } from "react-redux";
 import { selectTheme } from "@/app/store/slice";
@@ -121,8 +121,9 @@ const ListComponent: FC<ListComponentProps> = ({
     >
       <div className="list-colum-title-wrapper fx-h-sb-center">
         {isEditingTitle ? (
-          <input
+          <Input
             type="text"
+            variant="borderless"
             value={newTitle}
             onChange={handleTitleChange}
             onBlur={handleTitleBlur}
@@ -135,14 +136,12 @@ const ListComponent: FC<ListComponentProps> = ({
               background: "#f9fafb",
               padding: "0.5rem",
               width: "100%",
-              outline: "none",
-              borderBottom: "2px solid #3b82f6",
-              color: "#333",
             }}
           />
         ) : (
-          <h3
+          <Typography.Title
             onClick={handleTitleClick}
+            level={5}
             style={{
               fontSize: "18px",
               fontWeight: "bold",
@@ -152,9 +151,13 @@ const ListComponent: FC<ListComponentProps> = ({
             }}
           >
             {column.title}
-          </h3>
+          </Typography.Title>
         )}
-        <Button size="small"><i className="fi fi-rr-menu-dots"></i></Button>
+       
+        <div className="fx-h-right-center">
+          <Badge size="small" count="1/9" />
+          <Button size="small"><i className="fi fi-rr-menu-dots"></i></Button>
+        </div>
       </div>
 
       <Droppable droppableId={column.id} type="TASK">

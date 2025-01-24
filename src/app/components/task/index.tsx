@@ -2,12 +2,6 @@ import React from "react";
 import { Draggable } from "@hello-pangea/dnd";
 import { Task } from "@/app/types";
 import { Avatar, Badge, Card, Modal, Tooltip, Typography } from "antd";
-import {
-  SettingOutlined,
-  EditOutlined,
-  EllipsisOutlined,
-} from "@ant-design/icons";
-import Meta from "antd/es/card/Meta";
 import CardDetails from "../card-details";
 import "./style.css";
 
@@ -43,6 +37,7 @@ const ModalCardForm: React.FC<ModalCardFormProps> = ({
   );
 };
 
+
 const TaskComponent: React.FC<TaskComponentProps> = ({ task, index }) => {
   const [open, setOpen] = React.useState<boolean>(false);
   const [loading, setLoading] = React.useState<boolean>(false);
@@ -52,13 +47,13 @@ const TaskComponent: React.FC<TaskComponentProps> = ({ task, index }) => {
       <Draggable draggableId={task.id} index={index}>
         {(provided) => (
           <Card
+            className="task-card"
             bordered={false}
             ref={provided.innerRef}
             {...provided.draggableProps}
             {...provided.dragHandleProps}
             style={{
               ...provided.draggableProps.style,
-              cursor: "pointer",
             }}
             cover={
               <img
@@ -70,45 +65,59 @@ const TaskComponent: React.FC<TaskComponentProps> = ({ task, index }) => {
               setOpen(true);
             }}
           >
-            <div
-              className="item-h-l fullwidth"
+            <div className="section section-badge fullwidth"
               style={{ marginBottom: "10px" }}
             >
-              <Badge size="small" count="badge 1" />
-              <Badge size="small" count="badge 2" />
-              <Badge size="small" count="badge 3" />
+              { task?.customFields?.list?.map(task => (<Badge size="small" count={task.value} />)) }
             </div>
-            <Typography.Title level={5}>{task.content}</Typography.Title>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-              }}
-            >
-              <div className="item-h-l" style={{ gap: "10px" }}>
-                <Tooltip title={"watching"}>
-                  <i className="fi fi-rr-eye" key={"watching"}></i>
-                </Tooltip>
-                <Tooltip title={"description"}>
-                  <i className="fi fi-rr-symbol" key={"description"}></i>
-                </Tooltip>
-                <Tooltip title={"description"}>
-                  <span>
-                    <i
-                      className="fi fi-rr-comment-alt-middle"
-                      key={"comments"}
-                    ></i>{" "}
-                    <span>0</span>
-                  </span>
-                </Tooltip>
-                <Tooltip title={"attachment"}>
-                  <span>
-                    <i className="fi fi-rr-clip"></i> <span>0</span>
-                  </span>
-                </Tooltip>
-              </div>
-              <Avatar size={"small"}>A</Avatar>
+
+            <div className="section section-title">
+              <Typography.Title level={5} className="m-0">{task.title}</Typography.Title>
+            </div>
+  
+            <div className="section section-meta fx-h-left-center" style={{ gap: "15px" }}>
+              {/* watching */}
+              <Tooltip title={"watching"}>
+                <i className="fi fi-rr-eye" key={"watching"}></i>
+              </Tooltip>
+
+              {/* desc */}
+              <Tooltip title={"description"}>
+                <i className="fi fi-rr-symbol" key={"description"}></i>
+              </Tooltip>
+
+              {/* comment */}
+              <Tooltip title={"comment"}>
+                <span>
+                  <i
+                    className="fi fi-rr-comment-alt-middle"
+                    key={"comments"}
+                  ></i>{" "}
+                  <span>0</span>
+                </span>
+              </Tooltip>
+
+              {/* attachament */}
+              <Tooltip title={"attachment"}>
+                <span>
+                  <i className="fi fi-rr-clip"></i> <span>0</span>
+                </span>
+              </Tooltip>
+            </div>
+
+            <div className="section section-detail">
+              { task?.customFields?.list?.map(task => (
+                <Typography.Text style={{display: 'block'}}>{task?.key} : {task?.value}</Typography.Text>
+              )) }
+            </div>
+
+            <div className="section fx-h-left-center">
+              <i className="fi fi-tr-calendar-day"></i>
+              <span>{task?.dueDate}</span>
+            </div>
+
+            <div className="section fx-h-right-center">
+              <Avatar size={"small"} src={task?.createdBy?.avatarUrl}></Avatar>
             </div>
           </Card>
         )}

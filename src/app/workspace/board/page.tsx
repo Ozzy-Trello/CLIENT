@@ -8,6 +8,7 @@ import Topbar from "./topbar";
 import "./style.css";
 import { useSelector } from "react-redux";
 import { selectTheme } from "@/app/store/slice";
+import { getTaskById } from "@/dummy-data";
 
 const ListComponent = dynamic(() => import("@/app/components/list"), {
   ssr: false,
@@ -33,12 +34,12 @@ const initialData: BoardData = {
     "column-1": {
       id: "column-1",
       title: "To Do",
-      taskIds: ["task-1", "task-2"],
+      taskIds: ["1", "2"],
     },
     "column-2": {
       id: "column-2",
       title: "In Progress",
-      taskIds: ["task-3"],
+      taskIds: ["3"],
     },
     "column-3": {
       id: "column-3",
@@ -46,10 +47,15 @@ const initialData: BoardData = {
       taskIds: [],
     },
   },
+  // tasks: {
+  //   "task-1": { id: "task-1", title: "Learn Next.js" },
+  //   "task-2": { id: "task-2", title: "Implement Drag-and-Drop" },
+  //   "task-3": { id: "task-3", title: "Review Code" },
+  // },
   tasks: {
-    "task-1": { id: "task-1", content: "Learn Next.js" },
-    "task-2": { id: "task-2", content: "Implement Drag-and-Drop" },
-    "task-3": { id: "task-3", content: "Review Code" },
+    "1": getTaskById('1'),
+    "2": getTaskById('2'),
+    "3": getTaskById('3')
   },
   columnOrder: ["column-1", "column-2", "column-3"],
 };
@@ -129,7 +135,7 @@ const Board: React.FC = () => {
     const newTaskId = `task-${Object.keys(data.tasks).length + 1}`;
     const newTask = {
       id: newTaskId,
-      content: newCardContent,
+      title: newCardContent,
     };
     const newColumn = data.columns[columnId];
     const newTaskIds = [...newColumn.taskIds, newTaskId];
