@@ -1,7 +1,12 @@
 'use client';
+
+import UnderDevelopment from "@/app/components/underdevelopment";
+
 const WorkspaceSettings: React.FC = () => {
   return (
-    <div>workspace settings</div>
+    <div>
+      <UnderDevelopment pageTitle="Workspace Settings" />
+    </div>
   )
 }
 

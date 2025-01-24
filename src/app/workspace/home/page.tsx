@@ -1,7 +1,12 @@
 'use client';
+
+import UnderDevelopment from "@/app/components/underdevelopment";
+
 const Home: React.FC = () => {
   return (
-    <div>Home</div>
+    <div>
+      <UnderDevelopment pageTitle="Home" />
+    </div>
   )
 }
 
