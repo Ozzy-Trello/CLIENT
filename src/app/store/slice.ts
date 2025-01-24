@@ -12,13 +12,13 @@ const initialAppState: AppState = {
   accessToken: "",
   refreshToken: "",
   theme: {
-    colors: {
-      primary: '#08124c', // Main brand color
-      secondary: '#ffcc00', // Bright secondary color to complement the primary
-      accent: '#ff6f61', // Accent color for highlights and actions
-      background: '#ffffff', // Clean white background
-      text: '#333333', // Dark text for readability
-      muted: '#d9d9d9', // Muted color for borders or subtle text
+    colors: { // ensure these initial color set in the global.css
+      primary: '8, 17, 76', // Main brand color
+      secondary: '255, 204, 0', // Bright secondary color to complement the primary
+      accent: '255, 111, 97', // Accent color for highlights and actions
+      background: '255, 255, 255', // Clean white background
+      text: '51, 51, 51', // Dark text for readability
+      muted: '217, 217, 217', // Muted color for borders or subtle text
     },
     fontSizes: {
       h1: 30,

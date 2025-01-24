@@ -1,46 +1,25 @@
 @import "~@flaticon/flaticon-uicons/css/all/all";
 
-/* :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --foreground: #ededed;
-  }
-}
-
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  overflow: hidden;
-}
-
-
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
-  }
-} */
-
-
 :root{
-  --color-state-hover: color-mix(in srgb, var(--color-primary), white, 80%);
+
+  /* Ensure that these colors are the same as the one in the initial appState store */
+  --color-primary: 8, 17, 76;
+  --color-secondary: 255, 204, 0;
+  --color-accent: 255, 111, 97;
+  --color-background:255, 255,255;
+  --color-text: 51, 51, 51;
+  --color-muted:217, 217, 217;
 }
 
 /* Native HTML tag */
 body {
-  background-color: var(--color-background);
+  background-color: rgb(var(--color-background));
   margin: 0;
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   font-size: var(--font-size-body)px;
-  color: var(--color-text);
+  color: rgb(var(--color-text));
 }
 
 h1 { font-size: var(--h1)px; }
@@ -119,18 +98,26 @@ a {
 
 /* Scrollbar */
 ::-webkit-scrollbar {
-  width: 5px;
-  border-radius: 10px;
+  width: 6px; /* Width of the vertical scrollbar */
+  height: 6px; /* Height of the horizontal scrollbar */
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1; 
-}
- 
-::-webkit-scrollbar-thumb {
-  background: #a7b0ba;
+  background: rgb(var(--color-background)) !important;
   border-radius: 10px;
 }
+
+::-webkit-scrollbar-thumb {
+  background: rgb(var(--color-muted)) !important;
+  border-radius: 10px;
+}
+
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-muted); 
+  background: rgb(var(--color-muted)) !important;
+}
+
+/* Scrollbar for Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--color-text)) rgb(var(--color-background)) !important;
 }

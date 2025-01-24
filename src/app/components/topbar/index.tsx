@@ -4,11 +4,16 @@ import { Avatar, Badge, Dropdown, Input, Layout } from "antd";
 import Image from "next/image";
 import Link from "next/link";
 import React, { useState } from "react";
-import logo from "../../assets/images/Logo_Ozzy_Clothing_png.png";
+import logo from '@/app/assets/images/Logo_Ozzy_Clothing_png.png';
+import ImageDynamicContrast from "../image-dynamic-contrast";
+import { useSelector } from "react-redux";
+import { selectTheme } from "@/app/store/slice";
 
 const TopBar: React.FC = () => {
   const [notificationVisible, setNotificationVisible] = useState(false);
   const [avatarMenuVisible, setAvatarMenuVisible] = useState(false);
+  const theme = useSelector(selectTheme);
+  const {colors} = theme;
 
   const notificationItems: MenuProps["items"] = [
     { key: "1", label: "Notification 1" },
@@ -36,10 +41,12 @@ const TopBar: React.FC = () => {
         className="brand"
       >
         <Link href="/dashboard" passHref>
-          <Image
-            src={logo}
-            alt="Ozzy Clothing Logo"
-            style={{ width: "50px", height: "auto" }}
+          <ImageDynamicContrast 
+            imageSrc={logo} 
+            rgbColor={`rgb(${colors.background})`}
+            width={50}
+            height={"auto"}
+            alt={"Ozzy Clothing logo"}
           />
         </Link>
       </div>
@@ -68,7 +75,7 @@ const TopBar: React.FC = () => {
         >
           <Badge count={4}>
             <BellOutlined
-              style={{ fontSize: 20, cursor: "pointer", color: "white" }}
+              style={{ fontSize: 20, cursor: "pointer" }}
             />
           </Badge>
         </Dropdown>

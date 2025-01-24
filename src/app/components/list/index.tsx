@@ -41,7 +41,6 @@ const ListComponent: FC<ListComponentProps> = ({
   const [isAddingCard, setIsAddingCard] = useState(false);
   const theme = useSelector(selectTheme);
   const { colors } = theme;
-  console.log("colors: %o", colors);
 
   const columnRef = useRef<HTMLDivElement | null>(null);
 
@@ -117,7 +116,7 @@ const ListComponent: FC<ListComponentProps> = ({
         padding: "1rem",
         boxShadow: "0 2px 10px rgba(0, 0, 0, 0.1)",
         minWidth: "275px",
-        background: colors?.background
+        background: `rgb(${colors?.background})`
       }}
     >
       <div className="list-colum-title-wrapper fx-h-sb-center">

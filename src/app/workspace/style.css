@@ -11,25 +11,26 @@ header {
   height: 50px !important;
   border-width: 0px 0 1px 0px;
   border-style:solid;
-  border-color: var(--color-muted);
-  background-color: var(--color-background) !important;
-  color: var(--color-text) !important;
+  border-color: rgb(var(--color-muted));
+  background-color: rgb(var(--color-background)) !important;
+  color: rgb(var(--color-text)) !important;
 }
 
 
 /* SIDEBAR component */
 aside {
-  background-color: var(--color-background);
+  background-color: rgb(var(--color-background));
   border-width: 0px 0px 0px 1px;
   border-style: solid;
-  border-color: var(--color-muted);
+  border-color: rgb(var(--color-muted));
 }
 
 aside .sidebar-title {
-  background-color: var(--color-background) !important;
-  color: var(--color-primary) !important;
+  background-color: rgb(var(--color-background)) !important;
+  color: rgb(var(--color-primary)) !important;
 }
 
-aside li.ant-menu-item:hover {
-  background-color: var(--color-state-hover) !important;
+.ant-menu-item:hover, .ant-menu-item-selected {
+  background-color: rgba(var(--color-primary), 0.1) !important;
+  filter: brightness(5);
 }

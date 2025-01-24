@@ -112,6 +112,7 @@ const Sidebar: React.FC = () => {
         overflow: "auto",
       }}
       width={siderWidth}
+      trigger={null}
     >
       <div
         className="sidebar-title"

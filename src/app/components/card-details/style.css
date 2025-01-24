@@ -1,10 +1,10 @@
 .component-card-details .cover {
   height: 200px;
-  background-color: var(--color-muted) !important;
+  background-color: rgb(var(--color-muted)) !important;
   border-radius:  9px 9px 0px 0px;
   border-width: 0px 0px 1px 0px;
   border-style: solid;
-  border-color: var(--color-muted);
+  border-color: rgb(var(--color-muted));
   display: flex;
   justify-content: right;
   align-items: end;

@@ -1,7 +1,6 @@
 import { Avatar, Button, theme, Tooltip, Typography } from "antd";
 import { useState } from "react";
 import { useWorkspaceSidebar } from "../workspace-sidebar-context";
-import { selectTheme } from "@/app/store/slice";
 
 const Topbar: React.FC = () => {
   const { siderWidth } = useWorkspaceSidebar();
@@ -25,9 +24,7 @@ const Topbar: React.FC = () => {
       style={{
         width: `calc(100% - ${siderWidth}px)`,
         height: "50px",
-        position: "fixed",
         top: 50,
-        padding: "5px 20px"
       }}
     >
       <div className="fx-h-left-center">
