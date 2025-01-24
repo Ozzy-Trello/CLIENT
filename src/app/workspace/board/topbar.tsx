@@ -1,22 +1,27 @@
 import { Avatar, Button, theme, Tooltip, Typography } from "antd";
 import { useState } from "react";
 import { useWorkspaceSidebar } from "../workspace-sidebar-context";
+import { getUserById } from "@/dummy-data";
 
 const Topbar: React.FC = () => {
   const { siderWidth } = useWorkspaceSidebar();
+  const [ membersLoopLimit, setMembersLoopLimit] = useState(2);
 
   const [members, setMembers] = useState([
-    {
-      id: "1",
-      name: "John Doe",
-      avatar: "",
-    },
-    {
-      id: "1",
-      name: "Jane Doe",
-      avatar: "",
-    },
+    getUserById('1'),
+    getUserById('2'),
+    getUserById('3'),
+    getUserById('4'),
+    getUserById('5')
   ]);
+
+  const handleShowAllMembers = () => {
+    setMembersLoopLimit(members?.length)
+  }
+
+  const handleShowFewMembers = () => {
+    setMembersLoopLimit(2);
+  }
 
   return (
     <div 
@@ -57,9 +62,27 @@ const Topbar: React.FC = () => {
           </Button>
         </Tooltip>
         <div className="members">
-          {members?.map((member, index) => (
-            <Avatar key={index} size={"small"} />
-          ))}
+
+          {members.map((member, index) => {
+            if (index < membersLoopLimit) {
+              return (
+                <Tooltip title={member?.username}>
+                  <Avatar key={index} size="small" src={member?.avatarUrl} />
+                </Tooltip>
+              )
+            } else {
+              return null;
+            }
+          })}
+
+          {members?.length > 2 && membersLoopLimit <= 2 && (
+            <Avatar size="small" onClick={handleShowAllMembers}><span>+{members.length - 2}</span></Avatar>
+          )}
+
+          {members?.length > 2 && membersLoopLimit > 2 && (
+            <Avatar size="small" onClick={handleShowFewMembers}><i className="fi fi-rr-angle-small-left"></i></Avatar>
+          )}
+
         </div>
         <Tooltip>
           <Button size="small">

@@ -4,6 +4,12 @@
   z-index: 1000;
 }
 
+
+.ant-avatar:hover{
+  cursor: pointer;
+  border: thin solid rgba(var(--color-accent, 0.5));
+}
+
 /* HEADER component */
 header {
   position:fixed;
