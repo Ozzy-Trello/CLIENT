@@ -8,7 +8,7 @@ import "./style.css";
 import {
   useWorkspaceSidebar,
   WorkspaceSidebarProvider,
-} from "./workspace-sidebar-context";
+} from "@/app/provider/workspace-sidebar-context";
 
 const { Header, Content } = Layout;
 

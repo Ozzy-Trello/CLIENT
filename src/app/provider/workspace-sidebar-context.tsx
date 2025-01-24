@@ -2,6 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { useScreenSize } from "../provider/screen-size-provider";
 
 type SidebarContextType = {
   collapsed: boolean;
@@ -18,6 +19,7 @@ export const WorkspaceSidebarProvider = ({
 }) => {
   const [collapsed, setCollapsed] = useState(false);
   const [siderWidth, setSiderWidth] = useState(200);
+  const { width, height, isMobile } = useScreenSize();
 
   const toggleSidebar = () => {
     setCollapsed((prev) => !prev);
@@ -28,6 +30,23 @@ export const WorkspaceSidebarProvider = ({
       setSiderWidth(80);
     }
   };
+
+  useEffect(() => {
+    // handle auto collapse when screen width < 768
+    const handleResize = () => {
+      const screenWidth = window.innerWidth;
+      if (isMobile && !collapsed) {
+        setCollapsed(true);
+        setSiderWidth(80);
+      } else if (!isMobile && collapsed) {
+        setCollapsed(false);
+        setSiderWidth(200);
+      }
+    };
+
+    handleResize();
+  
+  }, [width]);
 
   return (
     <SidebarContext.Provider value={{ collapsed, toggleSidebar, siderWidth }}>

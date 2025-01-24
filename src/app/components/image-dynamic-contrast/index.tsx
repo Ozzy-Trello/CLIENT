@@ -24,7 +24,6 @@ const ImageDynamicContrast: React.FC<Props> = ({
 }) => {
   const rgbStringToRgb = (rgb: string): RGB => {
 
-    console.log("rgb: %o", rgb);
 
     const matches = rgb.match(/^rgb\((\d+), (\d+), (\d+)\)$/);
     if (!matches) {

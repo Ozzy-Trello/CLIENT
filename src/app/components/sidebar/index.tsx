@@ -1,4 +1,4 @@
-import { useWorkspaceSidebar } from "@/app/workspace/workspace-sidebar-context";
+import { useWorkspaceSidebar } from "@/app/provider/workspace-sidebar-context";
 import { Avatar, Button, Menu, Tooltip, Typography, Layout } from "antd";
 import Link from "next/link";
 import React, { useState } from "react";
