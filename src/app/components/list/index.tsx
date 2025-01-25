@@ -168,10 +168,11 @@ const ListComponent: FC<ListComponentProps> = ({
             style={{
               display: "flex",
               flexDirection: "column",
-              gap: "1rem",
+              gap: "0.5rem",
               flex: 1,
               transition: "background-color 0.2s ease",
               marginBlock: snapshot.isDraggingOver ? "1rem" : "0",
+              maxWidth: "272px"
             }}
           >
             {tasks.map((task, index) => (
