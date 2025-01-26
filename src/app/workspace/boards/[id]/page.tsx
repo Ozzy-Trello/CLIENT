@@ -5,10 +5,10 @@ import { Button, Input } from "antd";
 import dynamic from "next/dynamic";
 import React, { useState } from "react";
 import Topbar from "./topbar";
-import "./style.css";
 import { useSelector } from "react-redux";
 import { selectTheme } from "@/app/store/slice";
 import { getTaskById } from "@/dummy-data";
+import "../style.css";
 
 const ListComponent = dynamic(() => import("@/app/components/list"), {
   ssr: false,
@@ -47,11 +47,6 @@ const initialData: BoardData = {
       taskIds: [],
     },
   },
-  // tasks: {
-  //   "task-1": { id: "task-1", title: "Learn Next.js" },
-  //   "task-2": { id: "task-2", title: "Implement Drag-and-Drop" },
-  //   "task-3": { id: "task-3", title: "Review Code" },
-  // },
   tasks: {
     "1": getTaskById('1'),
     "2": getTaskById('2'),
@@ -198,14 +193,14 @@ const Board: React.FC = () => {
   }
 
   return (
-    <div style={{ height: "100vh", overflow: "hidden" }}>
+    <div style={{ height: "100vh", overflowY: "hidden"}}>
       <Topbar />
       <div
         style={{
           overflow: "scroll",
           marginTop: "50px",
           width: "100%",
-          height: "100%",
+          height: "100vh",
           paddingBottom: "100px",
         }}
       >

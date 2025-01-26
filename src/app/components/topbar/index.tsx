@@ -1,7 +1,6 @@
-import { BellOutlined, SearchOutlined, UserOutlined } from "@ant-design/icons";
+import { BellOutlined, UserOutlined } from "@ant-design/icons";
 import type { MenuProps } from "antd";
-import { Avatar, Badge, Dropdown, Input, Layout } from "antd";
-import Image from "next/image";
+import { Avatar, Badge, Dropdown, Input } from "antd";
 import Link from "next/link";
 import React, { useState } from "react";
 import logo from '@/app/assets/images/Logo_Ozzy_Clothing_png.png';
@@ -60,7 +59,7 @@ const TopBar: React.FC = () => {
       >
         <Input
           placeholder="Search…"
-          prefix={<SearchOutlined />}
+          prefix={<i className="fi fi-rr-search"></i>}
           style={{
             width: 200,
             borderRadius: 4,

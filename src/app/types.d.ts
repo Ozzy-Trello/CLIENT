@@ -75,3 +75,15 @@ export interface User {
   accessToken?: string;
   avatarUrl?: string;
 }
+
+export interface Board {
+  id: string;
+  title: string;
+  cover: string;
+  isStarred: boolean;
+  visibility: string;
+  createdBy?: User;
+  createdAt: string;
+  updatedBy?: User;
+  upatedAt: string;
+}

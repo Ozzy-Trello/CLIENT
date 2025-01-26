@@ -1,103 +1,74 @@
 import { useWorkspaceSidebar } from "@/app/provider/workspace-sidebar-context";
-import { Avatar, Button, Menu, Tooltip, Typography, Layout } from "antd";
+import { Board } from "@/app/types";
+import { boards } from "@/dummy-data";
+import { Avatar, Button, Menu, Tooltip, Typography, Layout, Divider } from "antd";
 import Link from "next/link";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+
+const menus = [
+  {
+    key: "menu-board",
+    label: (
+      <Link className="fullwidth" href={"/workspace/boards"}>
+        Boards
+      </Link>
+    ),
+    icon: <i className="fi fi-brands-trello"></i>,
+  },
+  {
+    key: "menu-members",
+    label: (
+      <Link className="fullwidth" href={"/workspace/boards"}>
+        Members
+      </Link>
+    ),
+    icon: <i className="fi fi-sr-user-add"></i>,
+  }
+];
 
 const { Sider } = Layout;
 
 const Sidebar: React.FC = () => {
+
   const { collapsed, toggleSidebar, siderWidth } = useWorkspaceSidebar();
+  const [boardList, setBoardList] = useState<Board[]>(boards);
+  const [items, setItems] = useState(menus);
 
-  const [boards, setBoards] = useState([
-    { id: 1, title: "Trello clone project" },
-    { id: 2, title: "E-commerce project" },
-    { id: 3, title: "company profile project" },
-  ]);
+  useEffect(() => {
+    const updateMenu = () => {
+      const boardMenus: any[] = [];
 
-  const items = [
-    {
-      key: "menu-board",
-      label: (
-        <Link className="fullwidth" href={"/workspace/boards"}>
-          Boards
-        </Link>
-      ),
-      icon: <i className="fi fi-brands-trello"></i>,
-    },
-    {
-      key: "menu-home",
-      label: (
-        <Link className="fullwidth" href={"/workspace/home"}>
-          Home
-        </Link>
-      ),
-      icon: <i className="fi fi-rr-home"></i>,
-    },
-    {
-      key: "menu-workspace-settings",
-      label: (
-        <Link className="fullwidth" href={"/workspace/settings"}>
-          Workspace settings
-        </Link>
-      ),
-      icon: <i className="fi fi-rr-settings"></i>,
-    },
-    ...(collapsed
-      ? []
-      : [
-          {
-            key: "divider-1",
-            label: (
-              <>
-                <hr />
-                <b>Workspace View</b>
-              </>
-            ),
-            icon: null,
-          },
-        ]),
-    {
-      key: "menu-workspace-v-table",
-      label: (
-        <Link className="fullwidth" href={"/workspace/views/table"}>
-          Table
-        </Link>
-      ),
-      icon: <i className="fi-rs-table-list"></i>,
-    },
-    {
-      key: "menu-workspace-v-calendar",
-      label: (
-        <Link className="fullwidth" href={"/workspace/views/calendar"}>
-          Calendar
-        </Link>
-      ),
-      icon: <i className="fi-tr-calendar-days"></i>,
-    },
-    ...(collapsed
-      ? []
-      : [
-          {
-            key: "divider-2",
-            label: (
-              <>
-                <hr />
-                <b>Your Boards</b>
-              </>
-            ),
-            icon: null,
-          },
-        ]),
-    ...boards.map((board) => ({
-      key: `board-item-${board.title}`,
-      label: (
-        <Link className="fullwidth" href={"/workspace/board"}>
-          {board.title}
-        </Link>
-      ),
-      icon: <Avatar shape="square" size={"small"} />,
-    })),
-  ];
+      boardMenus.push({
+        key: `menu-your-boards`,
+        event: 'none',
+        disabled: true,
+        label: (
+          <div className={collapsed ? "fx-h-sb-center d-none" : "fx-h-sb-center"}>
+            <Typography.Text strong>Your boards</Typography.Text>
+            <Button size="small">+</Button>
+          </div>
+        )
+      });
+
+      boardList?.forEach((board, index) => {
+        const boardMenu = {
+          key: `menu-board-${board.id}`,
+          label: (
+            <Link className="fullwidth" href={`/workspace/boards/${board.id}`}>
+              {board.title}
+            </Link>
+          ),
+          icon: <span><Avatar shape="square" src={board?.cover} size={"small"}/></span>,
+        }
+        boardMenus.push(boardMenu);
+      });
+    
+      setItems([...menus, ...boardMenus]);
+    };
+    
+    updateMenu();
+    
+  }, [boardList, collapsed]);
 
   return (
     <Sider

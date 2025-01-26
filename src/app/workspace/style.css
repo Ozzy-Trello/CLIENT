@@ -24,19 +24,35 @@ header {
 
 
 /* SIDEBAR component */
-aside {
-  background-color: rgb(var(--color-background));
-  border-width: 0px 0px 0px 1px;
+.sidebar {
+  background-color: rgb(var(--color-background)) !important;
+  border-width: 0px 1px 0px 0px;
   border-style: solid;
   border-color: rgb(var(--color-muted));
 }
 
-aside .sidebar-title {
+.sidebar .sidebar-title {
   background-color: rgb(var(--color-background)) !important;
   color: rgb(var(--color-primary)) !important;
+  border-width: 0px 0px 1px 0px;
+  border-color: rgb(var(--color-muted));
+  border-style: solid;
 }
 
 .ant-menu-item:hover, .ant-menu-item-selected {
   background-color: rgba(var(--color-primary), 0.1) !important;
   filter: brightness(5);
+}
+
+.ant-menu-item-selected {
+  border-radius: 0px !important;
+  border-width: 0px 0px 0px 2px;
+  border-style: solid;
+  border-color: rgb(var(--color-primary));
+}
+
+li.ant-menu {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: left;
 }

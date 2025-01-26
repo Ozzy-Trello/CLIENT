@@ -1,4 +1,4 @@
-import { Task, User } from "./app/types";
+import { Board, Task, User } from "./app/types";
 
 // Dummy Users Data
 const users: User[] = [
@@ -101,6 +101,77 @@ export const getUserById = (id: string): User => {
   }
   return user;
 };
+
+
+
+// Dummy Board Data
+export const boards: Board[] = [
+  {
+    id: "1",
+    title: "Sprint 1",
+    cover: "https://images.unsplash.com/photo-1586473219010-2ffc57b0d282?q=80&w=1964&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+    isStarred: false,
+    visibility: "public",
+    createdBy: getUserById('2'),
+    createdAt: "2025-01-01 12:01:34",
+    updatedBy: getUserById('2'),
+    upatedAt: "2025-01-01 12:01:34"
+  },
+  {
+    id: "2",
+    title: "Sprint 2",
+    cover: "https://images.unsplash.com/photo-1515847049296-a281d6401047?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+    isStarred: false,
+    visibility: "public",
+    createdBy: getUserById('4'),
+    createdAt: "2025-01-01 12:01:34",
+    updatedBy: getUserById('4'),
+    upatedAt: "2025-01-01 12:01:34"
+  },
+  {
+    id: "3",
+    title: "Sprint 3",
+    cover: "https://images.unsplash.com/photo-1634078111133-a1e12d6131b6?q=80&w=2130&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+    isStarred: true,
+    visibility: "public",
+    createdBy: getUserById('3'),
+    createdAt: "2025-01-01 12:01:34",
+    updatedBy: getUserById('3'),
+    upatedAt: "2025-01-01 12:01:34"
+  },
+  {
+    id: "4",
+    title: "Sprint 4",
+    cover: "https://images.unsplash.com/photo-1593505681742-8cbb6f44de25?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mzl8fHRhc2t8ZW58MHx8MHx8fDA%3D",
+    isStarred: false,
+    visibility: "shared",
+    createdBy: getUserById('5'),
+    createdAt: "2025-01-01 12:01:34",
+    updatedBy: getUserById('5'),
+    upatedAt: "2025-01-01 12:01:34"
+  },
+  {
+    id: "5",
+    title: "Sprint 5",
+    cover: "https://images.unsplash.com/photo-1569098644584-210bcd375b59?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NDB8fHRhc2t8ZW58MHx8MHx8fDA%3D",
+    isStarred: false,
+    visibility: "private",
+    createdBy: getUserById('2'),
+    createdAt: "2025-01-01 12:01:34",
+    updatedBy: getUserById('2'),
+    upatedAt: "2025-01-01 12:01:34"
+  }
+];
+
+export const getBoard = (id: string): Board => {
+  const board = boards.find(board => board.id === id);
+  if (!board) {
+    throw new Error(`Board with id ${id} not found`);
+  }
+  return board;
+}
+
+
 
 // Dummy Task Data
 const tasks: Task[] = [

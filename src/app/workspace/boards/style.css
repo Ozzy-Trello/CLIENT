@@ -8,3 +8,14 @@
   position: fixed;
   padding: 5px 20px;
 }
+
+.board-item {
+  cursor: pointer;
+  background-color: rgb(var(--color-muted)) !important;
+  color: rgb(var(--color-background)) !important;
+  padding: 10px;
+}
+
+.board-item .title {
+  color: rgb(var(--color-background)) !important;
+}

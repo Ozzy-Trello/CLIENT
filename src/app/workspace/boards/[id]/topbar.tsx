@@ -1,4 +1,4 @@
-import { Avatar, Button, theme, Tooltip, Typography } from "antd";
+import { Avatar, Button, Dropdown, MenuProps, Tooltip, Typography } from "antd";
 import { useEffect, useState } from "react";
 import { useWorkspaceSidebar } from "@/app/provider/workspace-sidebar-context";
 import { getUserById } from "@/dummy-data";
@@ -9,6 +9,7 @@ const Topbar: React.FC = () => {
   const {width} = useScreenSize();
   const [ membersLoopLimit, setMembersLoopLimit] = useState(2);
   const [ showRightColMenu, setIsShowRighColtMenu ] = useState(false);
+  const [ openRightMenu, setOpenRightMenu] = useState(false);
 
   const [members, setMembers] = useState([
     getUserById('1'),
@@ -39,6 +40,30 @@ const Topbar: React.FC = () => {
     handleRightColMenu();
 
   }, [width])
+
+
+  const rightMenu: MenuProps["items"] = [
+    { 
+      key: "filter", 
+      label:  
+        <Tooltip
+          title={"filter"}
+        >
+          <Button size="small" shape="default">
+            <i className="fi fi-br-bars-filter"></i>
+            <span>Filter</span>
+          </Button>
+        </Tooltip> 
+    },
+    {
+      key: "members", 
+      label: "Members"
+    },
+    {
+      key: "share", 
+      label: "Share"
+    },
+  ];
 
   return (
     <div 
@@ -72,14 +97,12 @@ const Topbar: React.FC = () => {
       <div className="right-col">
         { showRightColMenu  ? (
           <div className="fx-h-right-center">
-            <Tooltip
-              title={"Starred boards showed up at the top of your baord list"}
-            >
+            <Tooltip title={"filter"}>
               <Button size="small" shape="default">
                 <i className="fi fi-br-bars-filter"></i>
                 <span>Filter</span>
               </Button>
-            </Tooltip>
+            </Tooltip> 
             <div className="members">
     
               {members.map((member, index) => {
@@ -110,9 +133,16 @@ const Topbar: React.FC = () => {
             </Tooltip>
           </div>
           ) : (
-            <Tooltip title={"show more menu"}>
-              <Button><i className="fi fi-br-menu-burger"></i></Button>
-            </Tooltip>
+            <Dropdown
+              menu={{items: rightMenu}}
+              trigger={["click"]}
+              open={openRightMenu}
+              onOpenChange={setOpenRightMenu}
+            >
+              <Tooltip title={"show more menu"}>
+                  <Button><i className="fi fi-br-menu-burger"></i></Button>
+                </Tooltip>
+            </Dropdown>
           )}
       </div>
     </div>
