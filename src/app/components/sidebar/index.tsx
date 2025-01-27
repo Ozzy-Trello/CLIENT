@@ -1,7 +1,7 @@
 import { useWorkspaceSidebar } from "@/app/provider/workspace-sidebar-context";
 import { Board } from "@/app/types";
 import { boards } from "@/dummy-data";
-import { Avatar, Button, Menu, Tooltip, Typography, Layout, Divider } from "antd";
+import { Avatar, Button, Menu, Tooltip, Typography, Layout, Divider, Skeleton, Space } from "antd";
 import Link from "next/link";
 import React, { useEffect, useState } from "react";
 
@@ -18,7 +18,7 @@ const menus = [
   {
     key: "menu-members",
     label: (
-      <Link className="fullwidth" href={"/workspace/boards"}>
+      <Link className="fullwidth" href={"/workspace/members"}>
         Members
       </Link>
     ),
@@ -31,8 +31,24 @@ const { Sider } = Layout;
 const Sidebar: React.FC = () => {
 
   const { collapsed, toggleSidebar, siderWidth } = useWorkspaceSidebar();
-  const [boardList, setBoardList] = useState<Board[]>(boards);
+  const [boardList, setBoardList] = useState<Board[]>([]);
   const [items, setItems] = useState(menus);
+  const [isFetching, setIsFetching] = useState(true);
+
+  useEffect(() => {
+    const fetchBoardsList = () => {
+      setBoardList(boards);
+    }
+
+    if (isFetching) {
+      // timeout use for testing puposes only
+      setTimeout(function(){
+        fetchBoardsList();
+        setIsFetching(false);
+      }, 3000);
+    }
+
+  }, [isFetching])
 
   useEffect(() => {
     const updateMenu = () => {
@@ -114,12 +130,24 @@ const Sidebar: React.FC = () => {
           />
         </Tooltip>
       </div>
+      
       <Menu
         mode="inline"
         defaultSelectedKeys={["1"]}
-        style={{ height: "100%", borderRight: 0 }}
+        style={{ borderRight: 0 }}
         items={items}
       />
+
+      {/* Skeleton */}
+      { isFetching && [1,2,3].map((item) => (
+       <Space key={`loader-space-${item}`} style={{margin: "0px 0px 10px 25px"}}>
+        <Skeleton.Avatar active={isFetching} size={"small"} shape={"square"} />
+        {!collapsed && (
+          <Skeleton.Input active={isFetching} size={"small"} />
+        )}
+      </Space>
+     ))}
+      
     </Sider>
   );
 };
