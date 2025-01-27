@@ -1,9 +1,9 @@
 "use client";
 
 import { BoardData, Column } from "@/app/types";
-import { Button, Input } from "antd";
+import { Button, Input, Skeleton, Space } from "antd";
 import dynamic from "next/dynamic";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Topbar from "./topbar";
 import { useSelector } from "react-redux";
 import { selectTheme } from "@/app/store/slice";
@@ -56,7 +56,8 @@ const initialData: BoardData = {
 };
 
 const Board: React.FC = () => {
-  const [data, setData] = useState<BoardData>(initialData);
+  const [isFetching, setIsFetching] = useState<boolean>(true);
+  const [data, setData] = useState<BoardData | null>(null);
   const [newColumnTitle, setNewColumnTitle] = useState<string>("");
   const [isAddingNewColumn, setAddingNewColumn] = useState(false);
   const theme = useSelector(selectTheme);
@@ -172,16 +173,18 @@ const Board: React.FC = () => {
   };
 
   const changeColumnTitle = (columnId: string, newTitle: string) => {
-    setData({
-      ...data,
-      columns: {
-        ...data.columns,
-        [columnId]: {
-          ...data.columns[columnId],
-          title: newTitle,
+    if (data) {
+      setData({
+        ...data,
+        columns: {
+          ...data.columns,
+          [columnId]: {
+            ...data.columns[columnId],
+            title: newTitle,
+          },
         },
-      },
-    });
+      });
+    }
   };
 
   const enableAddingColumn = () => {
@@ -191,6 +194,20 @@ const Board: React.FC = () => {
   const disableAddingColumn = () => {
     setAddingNewColumn(false);
   }
+
+  useEffect(() => {
+    const fetchData = () => {
+      setData(initialData);
+    }
+
+    if (isFetching) {
+      setTimeout(() => {
+        fetchData();
+        setIsFetching(false);
+      }, 3000);
+    }
+
+  }, [isFetching])
 
   return (
     <div style={{ height: "100vh", overflowY: "hidden"}}>
@@ -204,96 +221,108 @@ const Board: React.FC = () => {
           paddingBottom: "100px",
         }}
       >
-        <DragDropContext onDragEnd={onDragEnd}>
-          <Droppable
-            droppableId="all-columns"
-            direction="horizontal"
-            type="COLUMN"
-          >
-            {(provided) => (
-              <div
-                {...provided.droppableProps}
-                ref={provided.innerRef}
-                style={{
-                  display: "flex",
-                  gap: "1rem",
-                  padding: "1rem",
-                  alignItems: "flex-start",
-                }}
-              >
-                {data.columnOrder.map((columnId, index) => {
-                  const column = data.columns[columnId];
-                  const tasks = column.taskIds.map(
-                    (taskId) => data.tasks[taskId]
-                  );
-
-                  return (
-                    <Draggable
-                      key={column.id}
-                      draggableId={column.id}
-                      index={index}
-                    >
-                      {(provided) => (
-                        <div
-                          ref={provided.innerRef}
-                          {...provided.draggableProps}
-                          {...provided.dragHandleProps}
-                          style={{
-                            ...provided.draggableProps.style,
-                            display: "flex",
-                            flexDirection: "column",
-                          }}
-  
-                        >
-                          <ListComponent
-                            column={column}
-                            tasks={tasks}
-                            index={index}
-                            provided={provided}
-                            addCard={addCard}
-                            changeColumnTitle={changeColumnTitle}
-                          />
-                        </div>
-                      )}
-                    </Draggable>
-                  );
-                })}
-                {provided.placeholder}
+        { !isFetching && (
+          <DragDropContext onDragEnd={onDragEnd}>
+            <Droppable
+              droppableId="all-columns"
+              direction="horizontal"
+              type="COLUMN"
+            >
+              {(provided) => (
                 <div
+                  {...provided.droppableProps}
+                  ref={provided.innerRef}
                   style={{
-                    marginLeft: "1rem",
                     display: "flex",
-                    flexDirection: "column",
-                    background: colors?.background,
-                    padding: "2rem",
-                    borderRadius: "0.5rem",
-                    boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+                    gap: "1rem",
+                    padding: "1rem",
+                    alignItems: "flex-start",
                   }}
                 >
-                  { isAddingNewColumn ? (
-                    <div>
-                      <Input
-                        type="text"
-                        placeholder="New Column Title"
-                        value={newColumnTitle}
-                        onChange={(e) => setNewColumnTitle(e.target.value)}
-                      />
-                      <div className="fx-h-l-center">
-                        <Button size="small" onClick={disableAddingColumn}>Add List</Button>
-                        <Button size="small" onClick={addColumn}><i className="fi fi-rr-cross"></i></Button>
+                  {data?.columnOrder.map((columnId, index) => {
+                    const column = data.columns[columnId];
+                    const tasks = column.taskIds.map(
+                      (taskId) => data.tasks[taskId]
+                    );
+
+                    return (
+                      <Draggable
+                        key={column.id}
+                        draggableId={column.id}
+                        index={index}
+                      >
+                        {(provided) => (
+                          <div
+                            ref={provided.innerRef}
+                            {...provided.draggableProps}
+                            {...provided.dragHandleProps}
+                            style={{
+                              ...provided.draggableProps.style,
+                              display: "flex",
+                              flexDirection: "column",
+                            }}
+    
+                          >
+                            <ListComponent
+                              column={column}
+                              tasks={tasks}
+                              index={index}
+                              provided={provided}
+                              addCard={addCard}
+                              changeColumnTitle={changeColumnTitle}
+                            />
+                          </div>
+                        )}
+                      </Draggable>
+                    );
+                  })}
+                  {provided.placeholder}
+                  <div
+                    style={{
+                      marginLeft: "1rem",
+                      display: "flex",
+                      flexDirection: "column",
+                      background: colors?.background,
+                      padding: "2rem",
+                      borderRadius: "0.5rem",
+                      boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+                    }}
+                  >
+                    { isAddingNewColumn ? (
+                      <div>
+                        <Input
+                          type="text"
+                          placeholder="New Column Title"
+                          value={newColumnTitle}
+                          onChange={(e) => setNewColumnTitle(e.target.value)}
+                        />
+                        <div className="fx-h-l-center">
+                          <Button size="small" onClick={disableAddingColumn}>Add List</Button>
+                          <Button size="small" onClick={addColumn}><i className="fi fi-rr-cross"></i></Button>
+                        </div>
                       </div>
-                    </div>
-                  ) : (
-                    <Button onClick={enableAddingColumn} style={{ marginTop: "8px" }}>
-                      <i className="fi fi-br-plus"></i>
-                      <span>Add another list</span>
-                    </Button>
-                  )}
+                    ) : (
+                      <Button onClick={enableAddingColumn} style={{ marginTop: "8px" }}>
+                        <i className="fi fi-br-plus"></i>
+                        <span>Add another list</span>
+                      </Button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
-          </Droppable>
-        </DragDropContext>
+              )}
+            </Droppable>
+          </DragDropContext>
+        )}
+
+        
+        {/* Skeleton */}
+        { isFetching && (
+          <div style={{display: "flex", gap:"10px", margin: "20px"}}>
+          { [1,2,3].map((item) => (
+            <Skeleton.Node active={isFetching} style={{ width: 272, height:400 }} />
+          )) }
+          </div>
+        )}
       </div>
     </div>
   );
