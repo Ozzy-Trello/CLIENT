@@ -2,8 +2,8 @@
 
 import { Board } from "@/app/types";
 import { boards } from "@/dummy-data";
-import { Card, Col, Form, Input, List, Row, Select, Typography } from "antd";
-import { useState } from "react";
+import { Card, Col, Form, Input, List, Row, Select, Skeleton, Space, Typography } from "antd";
+import { useEffect, useState } from "react";
 import "./style.css";
 
 const sortOptions = [
@@ -29,7 +29,8 @@ type LayoutType = Parameters<typeof Form>[0]['layout'];
 
 const Boards: React.FC = () => {
 
-  const [boardList, setBoardList] = useState<Board[]>(boards);
+  const [isFetching, setIsFetching] = useState(true);
+  const [boardList, setBoardList] = useState<Board[]>([]);
   const [filter, setFilter] = useState({
     sortBy: "",
     filterBy: "",
@@ -47,13 +48,26 @@ const Boards: React.FC = () => {
     console.log(`selected ${value}`);
   };
 
+  useEffect(() => {
+    const fetchBoards = () => {
+      setBoardList(boards);
+    }
+
+    if (isFetching) {
+      setTimeout(() => {
+        fetchBoards();
+        setIsFetching(false);
+      }, 3000)
+    }
+  }, [isFetching])
+
 
   return (
-    <div style={{padding: "0px 20px", overflowY: 'scroll'}}>
+    <div style={{ overflowY: 'scroll', padding: "20px", overflowX: "hidden"}}>
       <div className="section-workspace">
 
       </div>
-      <Typography.Title level={3}>Boards</Typography.Title>
+      <Typography.Title level={3} className="m-0">Boards</Typography.Title>
 
       <Form
         layout={formLayout}
@@ -94,7 +108,7 @@ const Boards: React.FC = () => {
       <div className="section-card">
 
       <Row>
-        {boardList?.map((board, index) => {
+        {!isFetching && boardList?.map((board, index) => {
           const key = `col-${index}`;
           return (
             <Col
@@ -142,6 +156,14 @@ const Boards: React.FC = () => {
             </Col>
           );
         })}
+
+        {/* Skeleton */}
+        { isFetching && [1,2,3,4,5].map((item) => (
+            <Space style={{margin:"5px"}}>
+              <Skeleton.Input active={isFetching} size={"large"} />
+            </Space>
+          ))
+        }
       </Row>
        
       </div>
