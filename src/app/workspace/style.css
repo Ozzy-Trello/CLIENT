@@ -10,6 +10,10 @@
   border: thin solid rgba(var(--color-accent, 0.5));
 }
 
+.page-content {
+  padding: 20px;
+}
+
 /* HEADER component */
 header {
   position:fixed;

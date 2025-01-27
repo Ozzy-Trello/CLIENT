@@ -74,6 +74,7 @@ export interface User {
   refreshToken?: string;
   accessToken?: string;
   avatarUrl?: string;
+  roleName?:string;
 }
 
 export interface Board {
