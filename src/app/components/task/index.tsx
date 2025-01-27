@@ -1,7 +1,7 @@
 import React from "react";
 import { Draggable } from "@hello-pangea/dnd";
 import { Task } from "@/app/types";
-import { Avatar, Badge, Card, Modal, Tooltip, Typography } from "antd";
+import { Avatar, Badge, Card, Modal, Tag, Tooltip, Typography } from "antd";
 import CardDetails from "../card-details";
 import "./style.css";
 
@@ -68,7 +68,7 @@ const TaskComponent: React.FC<TaskComponentProps> = ({ task, index }) => {
             <div className="section section-badge fullwidth"
               style={{ marginBottom: "10px" }}
             >
-              { task?.customFields?.list?.map(task => (<Badge size="small" count={task.value} />)) }
+              { task?.customFields?.list?.map(task => ( <Tag color="processing">{task.value}</Tag>)) }
             </div>
 
             <div className="section section-title">
