@@ -6,6 +6,7 @@ import "./style.css";
 import RichTextEditor from "../rich-text-editor";
 import defaultPic from "../../assets/images/Logo_Ozzy_Clothing_png.png";
 import { AddMemberButton } from "../button/button";
+import TextArea from "antd/es/input/TextArea";
 
 const CardDetails: React.FC = () => {
 
@@ -56,7 +57,7 @@ const CardDetails: React.FC = () => {
           <List className="card-details-list" itemLayout="vertical">
             <List.Item className="section-metadata">
               <div className="section-title-wrapper fx-h-left-center fullwidth">
-                <i className="fi fi-rs-credit-card"></i>
+                <i className="fi fi-rs-credit-card" style={{fontSize: "20px"}}></i>
                 <Typography.Title level={5} className="m-0">Card Title Sample: slice frontend</Typography.Title>
               </div>
               <div className="body-wrapper">
@@ -91,7 +92,7 @@ const CardDetails: React.FC = () => {
             
             <List.Item className="section-description">
               <div className="section-title-wrapper fx-h-left-center fullwidth">
-                <i className="fi fi-rr-symbol"></i>
+                <i className="fi fi-rr-symbol" style={{fontSize: "20px"}}></i>
                 <Typography.Title level={5} className="m-0">Description</Typography.Title>
               </div>
               <div className="body-wrapper">
@@ -104,6 +105,11 @@ const CardDetails: React.FC = () => {
                   ) : (
                     <div onClick={enableEditDescription}>
                       <Typography.Paragraph className="m-0">No description</Typography.Paragraph>
+                      <TextArea
+                        value={""}
+                        placeholder="Description"
+                        autoSize={{ minRows: 3, maxRows: 5 }}
+                      />
                     </div>
                   )}
                 
@@ -112,7 +118,7 @@ const CardDetails: React.FC = () => {
 
             <List.Item className="section-attachment">
               <div className="section-title-wrapper fx-h-left-center fullwidth">
-                <i className="fi fi-rr-clip"></i>
+                <i className="fi fi-rr-clip" style={{fontSize: "18px"}}></i>
                 <Typography.Title level={5} className="m-0">Attachments</Typography.Title>
               </div>
               <div className="body-wrapper">
@@ -138,7 +144,7 @@ const CardDetails: React.FC = () => {
             <List.Item className="section-activity">
               <div className="fx-h-sb-center">
                 <div className="section-title-wrapper fullwidth fx-h-left-center">
-                  <i className="fi fi-sr-list-timeline"></i>
+                  <i className="fi fi-sr-list-timeline" style={{fontSize: "16px"}}></i>
                   <Typography.Title level={5} className="m-0">Activity</Typography.Title>
                 </div>
                 <Button size="small">Show details</Button>
@@ -148,16 +154,20 @@ const CardDetails: React.FC = () => {
                 { isEditingComment ? (
                   <div className="fx-h-left-start">
                     <Avatar size={"small"} shape="circle" />
-                    <div>
+                    <div className="fullwidth">
                       <RichTextEditor />
                       <Button size="small" onClick={disableEditComment} >Cancel</Button>
                       <Button size="small" color="primary" onClick={handleSaveCommentClick}>Add comment</Button>
                     </div>
                   </div>
                 ) : (
-                  <div onClick={enableEditComment} style={{cursor: "pointer"}}>
-                    <Input placeholder="write comment..." readOnly={true}/>
+                  <div className="fx-h-left-center">
+                    <Avatar size={"small"} />
+                    <div className="fullwidth" onClick={enableEditComment} style={{cursor: "pointer"}}>
+                      <Input placeholder="write comment..." readOnly={true} className="fullwidth"/>
+                    </div>
                   </div>
+                  
                 )}
               </div>
             </List.Item>
@@ -169,49 +179,50 @@ const CardDetails: React.FC = () => {
             itemLayout="horizontal"
           >
             <List.Item>
-              <Button size="small" className="fullwidth tx-align-left ">
+              <Button size="small" className="fullwidth fx-h-left-center">
                 <i className="fi fi-rr-user-add"></i>
                 <span>Join</span>
               </Button>
             </List.Item>
 
             <List.Item>
-              <Button size="small" className="fullwidth tx-align-left ">
+              <Button size="small" className="fullwidth fx-h-left-center">
                 <i className="fi fi-rr-user-add"></i>
                 <span>Members</span>
               </Button>
             </List.Item>
 
             <List.Item>
-              <Button size="small" className="fullwidth tx-align-left ">
+              <Button size="small" className="fullwidth fx-h-left-center">
                 <i className="fi fi-ts-tags"></i>
                 <span>Labels</span>
               </Button>
             </List.Item>
 
             <List.Item>
-              <Button size="small" className="fullwidth tx-align-left ">
+              <Button size="small" className="fullwidth fx-h-left-center">
                 <i className="fi fi-rr-checkbox"></i>
                 <span>Checklist</span>
               </Button>
             </List.Item>
 
             <List.Item>
-              <Button size="small" className="fullwidth tx-align-left ">
+              <Button size="small" className="fullwidth fx-h-left-center">
                 <i className="fi fi-rr-clock-three"></i>
                 <span>Dates</span>
               </Button>
             </List.Item>
 
             <List.Item>
-              <Button size="small" className="fullwidth tx-align-left ">
+              <Button size="small" className="fullwidth fx-h-left-center">
                 <i className="fi fi-sr-clip"></i>
                 <span>Attachment</span>
               </Button>
             </List.Item>
 
             <List.Item>
-              <Button size="small" className="fullwidth tx-align-left ">
+              <Button size="small" className="fullwidth fx-h-left-center
+              ">
                 <i className="fi fi-rr-pen-field"></i>
                 <span>Custom Fields</span>
               </Button>

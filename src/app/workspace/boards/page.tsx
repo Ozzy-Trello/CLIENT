@@ -28,7 +28,6 @@ const sortOptions = [
 type LayoutType = Parameters<typeof Form>[0]['layout'];
 
 const Boards: React.FC = () => {
-
   const [isFetching, setIsFetching] = useState(true);
   const [boardList, setBoardList] = useState<Board[]>([]);
   const [filter, setFilter] = useState({

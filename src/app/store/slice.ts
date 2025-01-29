@@ -1,6 +1,7 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 interface AppState {
+  currentPage: string;
   user: any;
   accessToken: string;
   refreshToken: string;
@@ -8,6 +9,7 @@ interface AppState {
 }
 
 const initialAppState: AppState = {
+  currentPage: 'Ozzy Trello',
   user: null,
   accessToken: "",
   refreshToken: "",
@@ -37,6 +39,9 @@ const appSlice = createSlice({
   name: 'appState',
   initialState: initialAppState,
   reducers: {
+    setCurrentPage: (state, action: PayloadAction<any>) => {
+      state.currentPage = action.payload;
+    },
     setUser: (state, action: PayloadAction<any>) => {
       state.user = action.payload;
     },
@@ -59,6 +64,10 @@ export default appSlice.reducer;
 // selector
 export interface RootState {
   appState: AppState;
+}
+
+export function selectCurrentPage(state: RootState) {
+  return state.appState.currentPage;
 }
 
 export function selectUser(state: RootState) {
