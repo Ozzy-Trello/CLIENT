@@ -13,15 +13,16 @@
 
 .component-card-details .row {
   color: var(--color-text);
-  padding: 5px 20px;
+  padding: 5px 24px;
 }
 
 .component-card-details .body-wrapper {
-  margin-left: 23px !important;
+  margin-left: 40px !important;
 }
 
 .component-card-details .section-title-wrapper {
   margin-bottom: 5px;
+  gap: 20px;
 }
 
 .component-card-details .ant-list-item {

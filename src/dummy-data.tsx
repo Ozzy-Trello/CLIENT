@@ -202,13 +202,35 @@ const tasks: Task[] = [
       getUserById('1'),
       getUserById('2')
     ],
-    comments: {
+    logs: {
       list: [
         {
-          id: "c1",
+          id: "1",
           createdBy: getUserById('2'),
           content: "Looks good, but we need more details on the content.",
-          createdAt: "2025-01-22"
+          createdAt: "2025-01-22",
+          type: 'comment'
+        },
+        {
+          id: "2",
+          createdBy: getUserById('3'),
+          content: "Lorem ipsum dolor sit amet sih.",
+          createdAt: "2025-01-21",
+          type: 'comment'
+        },
+        {
+          id: "2",
+          createdBy: getUserById('1'),
+          content: getUserById('3').id,
+          createdAt: "2025-01-21",
+          type: 'members-addition'
+        },
+        {
+          id: "2",
+          createdBy: getUserById('1'),
+          content: getUserById('3').id,
+          createdAt: "2025-01-21",
+          type: 'card-created'
         }
       ],
       meta: {
@@ -274,13 +296,14 @@ const tasks: Task[] = [
       getUserById('1'),
       getUserById('2')
     ],
-    comments: {
+    logs: {
       list: [
         {
           id: "c1",
           createdBy: getUserById('2'),
           content: "Looks good, but we need more details on the content.",
-          createdAt: "2025-01-22"
+          createdAt: "2025-01-22",
+          type: 'content'
         }
       ],
       meta: {
@@ -346,13 +369,14 @@ const tasks: Task[] = [
       getUserById('1'),
       getUserById('2')
     ],
-    comments: {
+    logs: {
       list: [
         {
           id: "c1",
           createdBy: getUserById('2'),
           content: "Looks good, but we need more details on the content.",
-          createdAt: "2025-01-22"
+          createdAt: "2025-01-22",
+          type: 'comment'
         }
       ],
       meta: {

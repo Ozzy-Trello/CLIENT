@@ -3,11 +3,11 @@ import { useEffect, useState } from "react";
 import { useWorkspaceSidebar } from "@/app/provider/workspace-sidebar-context";
 import { getUserById } from "@/dummy-data";
 import { useScreenSize } from "@/app/provider/screen-size-provider";
+import MembersList from "@/app/components/members-list";
 
 const Topbar: React.FC = () => {
   const { siderWidth } = useWorkspaceSidebar();
   const {width} = useScreenSize();
-  const [ membersLoopLimit, setMembersLoopLimit] = useState(2);
   const [ showRightColMenu, setIsShowRighColtMenu ] = useState(false);
   const [ openRightMenu, setOpenRightMenu] = useState(false);
 
@@ -19,13 +19,6 @@ const Topbar: React.FC = () => {
     getUserById('5')
   ]);
 
-  const handleShowAllMembers = () => {
-    setMembersLoopLimit(members?.length)
-  }
-
-  const handleShowFewMembers = () => {
-    setMembersLoopLimit(2);
-  }
 
   useEffect(() => {
 
@@ -104,27 +97,7 @@ const Topbar: React.FC = () => {
               </Button>
             </Tooltip> 
             <div className="members">
-    
-              {members.map((member, index) => {
-                if (index < membersLoopLimit) {
-                  return (
-                    <Tooltip title={member?.username}>
-                      <Avatar key={index} size="small" src={member?.avatarUrl} />
-                    </Tooltip>
-                  )
-                } else {
-                  return null;
-                }
-              })}
-    
-              {members?.length > 2 && membersLoopLimit <= 2 && (
-                <Avatar size="small" onClick={handleShowAllMembers}><span>+{members.length - 2}</span></Avatar>
-              )}
-    
-              {members?.length > 2 && membersLoopLimit > 2 && (
-                <Avatar size="small" onClick={handleShowFewMembers}><i className="fi fi-rr-angle-small-left"></i></Avatar>
-              )}
-    
+              <MembersList members={members} membersLength={members.length} membersLoopLimit={2} />
             </div>
             <Tooltip>
               <Button size="small">

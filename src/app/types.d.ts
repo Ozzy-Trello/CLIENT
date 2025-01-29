@@ -17,8 +17,18 @@ export interface Meta {
   actualCount?: number;
 }
 
-export interface Comment {
+export const LOG_TYPE_COMMENT = "comment";
+export const LOG_TYPE_MEMBER_ADDITION = "member addition";
+export const LOG_TYPE_MEMBER_REMOVAL = "member removal";
+export const LOG_TYPE_MEMBER_REMOVAL = "member removal";
+export const LOG_TYPE_DUE_DATE_SETTELMENT = "due date settelement";
+export const LOG_TYPE_FILE_ATTACHMENT = "file attachment";
+export const LOG_TYPE_CARD_MOVEMENT = "card movement";
+export const LOG_TYPE_CARD_ADDITION = "card addition";
+
+export interface Logs {
   id: string;
+  type: srting;
   content: string;
   attachments?: Attachment[];
   createdBy?: User;
@@ -44,9 +54,9 @@ export interface Task {
   createdAt?: string;
   updatedAt?: string;
   updatedBy?: User;
-  members?: User[];
-  comments?: {
-    list: Comment[];
+  members: User[];
+  logs?: {
+    list: Logs[];
     meta: Meta
   };
   customFields?: {
