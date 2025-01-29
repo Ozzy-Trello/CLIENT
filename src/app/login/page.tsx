@@ -1,12 +1,24 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Form, Input, Button, Typography, Space, message } from 'antd';
 import { LockOutlined, UserOutlined } from '@ant-design/icons';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { setAccessToken, setUser } from '../store/slice';
 
 const { Title, Text } = Typography;
+
+export const useLogout = () => {
+  const router = useRouter();
+
+  return async function logoutAction() {
+    setAccessToken("");
+    setUser({});
+    router.push("/login");
+  }
+}
+
 
 export default function LoginPage() {
   const [loading, setLoading] = React.useState(false);
@@ -18,7 +30,7 @@ export default function LoginPage() {
       // Simulate login
       message.success('Login successful!');
       setLoading(false);
-      router.push("/workspace/home");
+      router.push("/workspace/boards");
     }, 2000);
   };
 
@@ -26,10 +38,11 @@ export default function LoginPage() {
     message.error('Please check your input and try again.');
   };
 
+
   return (
     <div style={styles.container}>
       <Space direction="vertical" size="large" align="center" style={styles.card}>
-        <Title level={3} style={styles.title}>Welcome Back</Title>
+      <Title level={3} style={styles.title} className={"m-0"}>Welcome Back</Title>
         <Text type="secondary">Please login to your account</Text>
         <Form
           name="login-form"
@@ -71,7 +84,7 @@ export default function LoginPage() {
           </Form.Item>
         </Form>
         <Space direction="vertical" size="small" align="center">
-          <Link href="/forgot-password">
+          <Link href={"/forgot-password"}>
             <Text type="secondary">Forgot Password?</Text>
           </Link>
         </Space>

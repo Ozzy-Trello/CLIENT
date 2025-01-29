@@ -1,18 +1,22 @@
 import { BellOutlined, UserOutlined } from "@ant-design/icons";
 import type { MenuProps } from "antd";
-import { Avatar, Badge, Dropdown, Input } from "antd";
+import { Avatar, Badge, Dropdown, Input, Typography } from "antd";
 import Link from "next/link";
 import React, { useState } from "react";
 import logo from '@/app/assets/images/Logo_Ozzy_Clothing_png.png';
 import ImageDynamicContrast from "../image-dynamic-contrast";
 import { useSelector } from "react-redux";
 import { selectTheme } from "@/app/store/slice";
+import { useLogout } from "@/app/login/page";
+
+
 
 const TopBar: React.FC = () => {
   const [notificationVisible, setNotificationVisible] = useState(false);
   const [avatarMenuVisible, setAvatarMenuVisible] = useState(false);
   const theme = useSelector(selectTheme);
   const {colors} = theme;
+  const logout = useLogout();
 
   const notificationItems: MenuProps["items"] = [
     { key: "1", label: "Notification 1" },
@@ -21,9 +25,29 @@ const TopBar: React.FC = () => {
   ];
 
   const avatarMenuItems: MenuProps["items"] = [
-    { key: "profile", label: "Profile" },
-    { key: "settings", label: "Settings" },
-    { key: "logout", label: "Logout" },
+    { 
+      key: "manage-profile", 
+      label: (
+        <Link href={"/account"}>
+          <div className="fx-h-left-center">
+            <Avatar size={"small"}></Avatar>
+            <div>
+              <Typography.Title level={5} className="m-0">John Doe</Typography.Title>
+              <Typography.Text>johndoe@email.com</Typography.Text>
+            </div>
+          </div>
+        </Link>
+      ) 
+    },
+    { 
+      key: "logout", 
+      label: (
+        <div className="fx-h-left-center" onClick={logout}>
+          <i className="fi fi-rr-exit"></i>
+          Logout
+        </div>
+      ) 
+    },
   ];
 
   return (
