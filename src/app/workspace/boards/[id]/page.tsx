@@ -1,6 +1,6 @@
 "use client";
 
-import { BoardData, Column } from "@/app/types/types";
+import { BoardData, Column } from "@/app/types";
 import { Button, Input, Skeleton, Space } from "antd";
 import dynamic from "next/dynamic";
 import React, { useEffect, useState } from "react";

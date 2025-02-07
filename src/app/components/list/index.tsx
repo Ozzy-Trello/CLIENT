@@ -8,7 +8,7 @@ import {
 } from "@hello-pangea/dnd";
 import TaskComponent from "../task";
 import { Badge, Button, Input, Typography } from "antd";
-import type { Task } from "@/app/types/types";
+import type { Task } from "@/app/types";
 import { useSelector } from "react-redux";
 import { selectTheme } from "@/app/store/slice";
 

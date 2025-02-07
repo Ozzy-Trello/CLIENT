@@ -1,7 +1,7 @@
 'use client';
 
 import { SkeletonTable } from "@/app/components/skeleton";
-import { User } from "@/app/types/types";
+import { User } from "@/app/types";
 import { users } from "@/dummy-data";
 import { Avatar, Badge, Button, Menu, MenuProps, Table, Typography } from "antd";
 import { useEffect, useState } from "react";
