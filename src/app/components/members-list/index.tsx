@@ -1,4 +1,4 @@
-import { User } from "@/app/types";
+import { User } from "@/app/types/types";
 import { Avatar, Tooltip } from "antd";
 import { useState } from "react";
 

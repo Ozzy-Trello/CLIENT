@@ -6,7 +6,7 @@ import "./style.css";
 import RichTextEditor from "../rich-text-editor";
 import defaultPic from "../../assets/images/Logo_Ozzy_Clothing_png.png";
 import TextArea from "antd/es/input/TextArea";
-import { Task } from "@/app/types";
+import { Task } from "@/app/types/types";
 import { getTaskById } from "@/dummy-data";
 import MembersList from "../members-list";
 import CardDetailsLogs from "../card-details-logs";

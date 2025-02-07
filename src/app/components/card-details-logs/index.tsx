@@ -1,4 +1,4 @@
-import { Logs } from "@/app/types";
+import { Logs } from "@/app/types/types";
 import { Avatar, Typography } from "antd";
 
 interface CardDetailsLogsProps {

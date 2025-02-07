@@ -1,5 +1,5 @@
 import { useWorkspaceSidebar } from "@/app/provider/workspace-sidebar-context";
-import { Board } from "@/app/types";
+import { Board } from "@/app/types/types";
 import { boards } from "@/dummy-data";
 import { Avatar, Button, Menu, Tooltip, Typography, Layout, Divider, Skeleton, Space } from "antd";
 import Link from "next/link";

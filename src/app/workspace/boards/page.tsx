@@ -1,6 +1,6 @@
 'use client';
 
-import { Board } from "@/app/types";
+import { Board } from "@/app/types/types";
 import { boards } from "@/dummy-data";
 import { Card, Col, Form, Input, List, Row, Select, Skeleton, Space, Typography } from "antd";
 import { useEffect, useState } from "react";

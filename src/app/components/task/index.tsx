@@ -1,6 +1,6 @@
 import React from "react";
 import { Draggable } from "@hello-pangea/dnd";
-import { Task } from "@/app/types";
+import { Task } from "@/app/types/types";
 import { Avatar, Badge, Card, Modal, Tag, Tooltip, Typography } from "antd";
 import CardDetails from "../card-details";
 import "./style.css";
