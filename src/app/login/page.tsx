@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import { setAccessToken, setUser } from '../store/slice';
 import { users } from '@/dummy-data';
 import { useDispatch } from 'react-redux';
+import Footer from '../components/footer';
 
 const { Title, Text } = Typography;
 
@@ -58,54 +59,57 @@ export default function LoginPage() {
 
   return (
     <div style={styles.container}>
-      <Space direction="vertical" size="large" align="center" style={styles.card}>
-      <Title level={3} style={styles.title} className={"m-0"}>Welcome Back</Title>
-        <Text type="secondary">Please login to your account</Text>
-        <Form
-          name="login-form"
-          onFinish={onFinish}
-          onFinishFailed={onFinishFailed}
-          style={styles.form}
-          layout="vertical"
-        >
-          <Form.Item
-            name="email"
-            rules={[{ required: true, message: 'Please enter your email!' }]}
+      <div style={{display: "flex", justifyContent:"center"}}>
+        <Space direction="vertical" size="large" align="center" style={styles.card}>
+          <Title level={3} style={styles.title} className={"m-0"}>Welcome Back</Title>
+          <Text type="secondary">Please login to your account</Text>
+          <Form
+            name="login-form"
+            onFinish={onFinish}
+            onFinishFailed={onFinishFailed}
+            style={styles.form}
+            layout="vertical"
           >
-            <Input
-              prefix={<UserOutlined />}
-              placeholder="Email"
-              size="large"
-            />
-          </Form.Item>
-          <Form.Item
-            name="password"
-            rules={[{ required: true, message: 'Please enter your password!' }]}
-          >
-            <Input.Password
-              prefix={<LockOutlined />}
-              placeholder="Password"
-              size="large"
-            />
-          </Form.Item>
-          <Form.Item>
-            <Button
-              type="primary"
-              htmlType="submit"
-              block
-              size="large"
-              loading={loading}
+            <Form.Item
+              name="email"
+              rules={[{ required: true, message: 'Please enter your email!' }]}
             >
-              Login
-            </Button>
-          </Form.Item>
-        </Form>
-        <Space direction="vertical" size="small" align="center">
-          <Link href={"/forgot-password"}>
-            <Text type="secondary">Forgot Password?</Text>
-          </Link>
+              <Input
+                prefix={<UserOutlined />}
+                placeholder="Email"
+                size="large"
+              />
+            </Form.Item>
+            <Form.Item
+              name="password"
+              rules={[{ required: true, message: 'Please enter your password!' }]}
+            >
+              <Input.Password
+                prefix={<LockOutlined />}
+                placeholder="Password"
+                size="large"
+              />
+            </Form.Item>
+            <Form.Item>
+              <Button
+                type="primary"
+                htmlType="submit"
+                block
+                size="large"
+                loading={loading}
+              >
+                Login
+              </Button>
+            </Form.Item>
+          </Form>
+          <Space direction="vertical" size="small" align="center">
+            <Link href={"/forgot-password"}>
+              <Text type="secondary">Forgot Password?</Text>
+            </Link>
+          </Space>
         </Space>
-      </Space>
+      </div>
+      <Footer />
     </div>
   );
 }
@@ -114,8 +118,9 @@ const styles: { [key: string]: React.CSSProperties } = {
   container: {
     display: 'flex',
     justifyContent: 'center',
-    alignItems: 'center',
+    alignItems: 'space-between',
     height: '100vh',
+    flexDirection: "column",
     background: 'linear-gradient(135deg, #f5f7fa, #c3cfe2)',
   },
   card: {

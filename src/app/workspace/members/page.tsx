@@ -94,7 +94,7 @@ const Members: React.FC = () => {
   }, [isFetching])
 
   return (
-    <div style={{padding: "20px"}}>
+    <div className="page scrollable-page">
       <div className="fx-h-sb-center" style={{marginBottom: "20px"}}>
         <div className="section-title fx-h-left-center">
           <Typography.Title level={4} className="m-0">Collaborators</Typography.Title>

@@ -9,6 +9,7 @@ import {
   useWorkspaceSidebar,
   WorkspaceSidebarProvider,
 } from "@/app/provider/workspace-sidebar-context";
+import Footer from "../components/footer";
 
 const { Header, Content } = Layout;
 
@@ -33,9 +34,13 @@ const WorkspaceLayout: React.FC<BaseLayoutProps> = ({ children }) => {
           marginLeft: siderWidth,
           transition: "margin-left 0.2s ease",
           overflow: "hidden",
+          height: "100vh"
         }}
       >
-        <Content>{children}</Content>
+        <Content>
+          {children}
+          <Footer />
+        </Content>
       </Layout>
     </Layout>
   );

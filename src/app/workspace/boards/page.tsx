@@ -62,7 +62,7 @@ const Boards: React.FC = () => {
 
 
   return (
-    <div style={{ overflowY: 'scroll', padding: "20px", overflowX: "hidden"}}>
+    <div className="page scrollable-page">
       <div className="section-workspace">
 
       </div>

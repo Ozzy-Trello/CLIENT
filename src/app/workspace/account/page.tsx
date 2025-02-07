@@ -39,7 +39,7 @@ const Account: React.FC = () => {
   }
 
   return (
-    <div style={{ overflowY: 'scroll', padding: "20px", overflowX: "hidden"}}>
+    <div className="page scrollable-page">
       <div className="fx-h-sb-center" style={{marginBottom: "20px"}}>
         <div className="section-title fx-h-left-center">
           <Typography.Title level={4} className="m-0">Account</Typography.Title>
