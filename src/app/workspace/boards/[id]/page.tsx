@@ -215,7 +215,7 @@ const Board: React.FC = () => {
       <div
         style={{
           overflow: "scroll",
-          marginTop: "50px",
+          marginTop: "0px",
           width: "100%",
           height: "100vh",
           paddingBottom: "100px",
