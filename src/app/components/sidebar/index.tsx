@@ -28,8 +28,7 @@ const menus = [
 
 const { Sider } = Layout;
 
-const Sidebar: React.FC = () => {
-
+const Sidebar: React.FC = React.memo(() => {
   const { collapsed, toggleSidebar, siderWidth } = useWorkspaceSidebar();
   const [boardList, setBoardList] = useState<Board[]>([]);
   const [items, setItems] = useState(menus);
@@ -150,6 +149,6 @@ const Sidebar: React.FC = () => {
       
     </Sider>
   );
-};
+});
 
 export default Sidebar;

@@ -1,20 +1,23 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Form, Input, Button, Typography, Space, message } from 'antd';
 import { LockOutlined, UserOutlined } from '@ant-design/icons';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { setAccessToken, setUser } from '../store/slice';
+import { users } from '@/dummy-data';
+import { useDispatch } from 'react-redux';
 
 const { Title, Text } = Typography;
 
 export const useLogout = () => {
   const router = useRouter();
+  const dispatch = useDispatch();
 
   return async function logoutAction() {
-    setAccessToken("");
-    setUser({});
+    dispatch(setAccessToken(""));
+    setUser(setUser({}));
     router.push("/login");
   }
 }
@@ -23,15 +26,29 @@ export const useLogout = () => {
 export default function LoginPage() {
   const [loading, setLoading] = React.useState(false);
   const router = useRouter();
+  const dispatch = useDispatch();
 
-  const onFinish = (values: { email: string; password: string }) => {
+  const validateCredentials = async ( email: string, password: string ) => {
+    const dummyUsers = users;
+    const foundUser = dummyUsers.find((item) => item.email == email);
+    if (foundUser) {
+      dispatch(setUser(foundUser));
+      dispatch(setAccessToken("lorem-ipsum-dummy-access-token"));
+      return true;
+    }
+    return false;
+  }
+
+  const onFinish = async (values: { email: string; password: string }) => {
     setLoading(true);
-    setTimeout(() => {
-      // Simulate login
+    const isValid = await validateCredentials(values.email, values.password);
+    if (isValid) {
       message.success('Login successful!');
       setLoading(false);
       router.push("/workspace/boards");
-    }, 2000);
+    } else {
+      message.success('Login Failed!');
+    }
   };
 
   const onFinishFailed = () => {

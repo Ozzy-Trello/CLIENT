@@ -6,17 +6,18 @@ import React, { useState } from "react";
 import logo from '@/app/assets/images/Logo_Ozzy_Clothing_png.png';
 import ImageDynamicContrast from "../image-dynamic-contrast";
 import { useSelector } from "react-redux";
-import { selectTheme } from "@/app/store/slice";
+import { selectTheme, selectUser } from "@/app/store/slice";
 import { useLogout } from "@/app/login/page";
 
 
 
-const TopBar: React.FC = () => {
+const TopBar: React.FC = React.memo(() => {
   const [notificationVisible, setNotificationVisible] = useState(false);
   const [avatarMenuVisible, setAvatarMenuVisible] = useState(false);
   const theme = useSelector(selectTheme);
   const {colors} = theme;
   const logout = useLogout();
+  const user = useSelector(selectUser);
 
   const notificationItems: MenuProps["items"] = [
     { key: "1", label: "Notification 1" },
@@ -28,12 +29,12 @@ const TopBar: React.FC = () => {
     { 
       key: "manage-profile", 
       label: (
-        <Link href={"/account"}>
+        <Link href={"/workspace/account"}>
           <div className="fx-h-left-center">
             <Avatar size={"small"}></Avatar>
             <div>
-              <Typography.Title level={5} className="m-0">John Doe</Typography.Title>
-              <Typography.Text>johndoe@email.com</Typography.Text>
+              <Typography.Title level={5} className="m-0">{user?.name}</Typography.Title>
+              <Typography.Text>{user?.email}</Typography.Text>
             </div>
           </div>
         </Link>
@@ -121,6 +122,5 @@ const TopBar: React.FC = () => {
       </div>
     </div>
   );
-};
-
+});
 export default TopBar;

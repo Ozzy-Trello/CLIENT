@@ -3,11 +3,12 @@ import { AntdRegistry } from "@ant-design/nextjs-registry";
 import localFont from "next/font/local";
 import "./globals.css";
 import { WorkspaceSidebarProvider } from "@/app/provider/workspace-sidebar-context";
-import { store } from "./store";
+import { persistor, store } from "./store";
 import { Provider } from "react-redux";
 import { ThemeProvider } from "./provider/theme-provider";
 import { ScreenSizeProvider } from "./provider/screen-size-provider";
 import { Metadata } from "next";
+import { PersistGate } from "redux-persist/integration/react";
 
 const geistSans = localFont({
   src: "./assets/fonts/GeistVF.woff",
@@ -34,15 +35,17 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
         <Provider store={store}>
-          <ScreenSizeProvider>
-            <AntdRegistry>
-              <ThemeProvider userId="1">
-                <WorkspaceSidebarProvider>
-                  {children}
-                </WorkspaceSidebarProvider>
-              </ThemeProvider>
-            </AntdRegistry>
-          </ScreenSizeProvider>
+          <PersistGate loading={<p>Loading...</p>} persistor={persistor}>
+            <ScreenSizeProvider>
+              <AntdRegistry>
+                <ThemeProvider userId="1">
+                  <WorkspaceSidebarProvider>
+                    {children}
+                  </WorkspaceSidebarProvider>
+                </ThemeProvider>
+              </AntdRegistry>
+            </ScreenSizeProvider>
+          </PersistGate>
         </Provider>
       </body>
     </html>

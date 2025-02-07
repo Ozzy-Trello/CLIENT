@@ -1,6 +1,6 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
-interface AppState {
+export interface AppState {
   currentPage: string;
   user: any;
   accessToken: string;
