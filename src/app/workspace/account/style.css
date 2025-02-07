@@ -1,0 +1,7 @@
+table.horizontal-table td {
+  padding: 5px 0px;
+}
+table.horizontal-table th {
+  text-align: left;
+  min-width: 200px;
+}
