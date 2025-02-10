@@ -4,8 +4,25 @@ import { combineReducers } from "redux";
 import { encryptTransform } from "redux-persist-transform-encrypt";
 import appSlice from "./slice";
 
-// Ensure storage is only used on the client side
-const storage = typeof window !== "undefined" ? require("redux-persist/lib/storage").default : undefined;
+//noop storage for server-side
+const createNoopStorage = () => {
+  return {
+    getItem(_key: string) {
+      return Promise.resolve(null);
+    },
+    setItem(_key: string, value: any) {
+      return Promise.resolve(value);
+    },
+    removeItem(_key: string) {
+      return Promise.resolve();
+    },
+  };
+};
+
+// Use storage based on environment
+const storage = typeof window !== "undefined" 
+  ? require("redux-persist/lib/storage").default 
+  : createNoopStorage();
 
 // encryptor config
 const encryptor = encryptTransform({
@@ -18,6 +35,7 @@ const persistConfig: PersistConfig<{ appState: ReturnType<typeof appSlice> }> = 
   key: "root",
   storage,
   transforms: [encryptor],
+
 };
 
 // Combine Reducers
@@ -35,6 +53,7 @@ export const store = configureStore({
     getDefaultMiddleware({
       serializableCheck: false,
     }),
+  devTools: process.env.NODE_ENV !== 'production',
 });
 
 // Persistor
