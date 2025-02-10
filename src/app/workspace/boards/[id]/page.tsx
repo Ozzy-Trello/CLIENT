@@ -65,41 +65,45 @@ const Board: React.FC = () => {
 
   const onDragEnd = (result: any) => {
     const { destination, source, draggableId, type } = result;
-
-    if (!destination) return;
-
+  
+    if (!destination || !data) return;
+  
     if (
       destination.droppableId === source.droppableId &&
       destination.index === source.index
     ) {
       return;
     }
-
+  
     if (type === "COLUMN") {
       const newColumnOrder = Array.from(data.columnOrder);
       newColumnOrder.splice(source.index, 1);
       newColumnOrder.splice(destination.index, 0, draggableId);
-
+  
       setData({
         ...data,
         columnOrder: newColumnOrder,
       });
       return;
     }
-
-    const startColumn: Column = data.columns[source.droppableId];
-    const endColumn: Column = data.columns[destination.droppableId];
-
+  
+    // Get columns with type checking
+    const startColumn = data.columns[source.droppableId];
+    const endColumn = data.columns[destination.droppableId];
+  
+    // Add type guard
+    if (!startColumn || !endColumn) return;
+  
     if (startColumn === endColumn) {
       const newTaskIds = Array.from(startColumn.taskIds);
       newTaskIds.splice(source.index, 1);
       newTaskIds.splice(destination.index, 0, draggableId);
-
+  
       const newColumn = {
         ...startColumn,
         taskIds: newTaskIds,
       };
-
+  
       setData({
         ...data,
         columns: {
@@ -109,13 +113,13 @@ const Board: React.FC = () => {
       });
       return;
     }
-
+  
     const startTaskIds = Array.from(startColumn.taskIds);
     startTaskIds.splice(source.index, 1);
-
+  
     const endTaskIds = Array.from(endColumn.taskIds);
     endTaskIds.splice(destination.index, 0, draggableId);
-
+  
     setData({
       ...data,
       columns: {
@@ -126,16 +130,20 @@ const Board: React.FC = () => {
     });
   };
 
-  const addCard = (columnId: string, newCardContent: string) => {
-    if (!newCardContent) return;
+const addCard = (columnId: string, newCardContent: string) => {
+    if (!newCardContent || !data) return;
+    
     const newTaskId = `task-${Object.keys(data.tasks).length + 1}`;
     const newTask = {
       id: newTaskId,
       title: newCardContent,
     };
+    
     const newColumn = data.columns[columnId];
-    const newTaskIds = [...newColumn.taskIds, newTaskId];
+    if (!newColumn) return;
 
+    const newTaskIds = [...newColumn.taskIds, newTaskId];
+    
     setData({
       ...data,
       tasks: {
@@ -150,10 +158,11 @@ const Board: React.FC = () => {
         },
       },
     });
-  };
+};
 
-  const addColumn = () => {
-    if (!newColumnTitle) return;
+const addColumn = () => {
+    if (!newColumnTitle || !data) return;
+    
     const newColumnId = `column-${Object.keys(data.columns).length + 1}`;
     const newColumn = {
       id: newColumnId,
@@ -170,7 +179,7 @@ const Board: React.FC = () => {
       columnOrder: [...data.columnOrder, newColumnId],
     });
     setNewColumnTitle("");
-  };
+};
 
   const changeColumnTitle = (columnId: string, newTitle: string) => {
     if (data) {

@@ -54,7 +54,7 @@ export interface Task {
   createdAt?: string;
   updatedAt?: string;
   updatedBy?: User;
-  members: User[];
+  members?: User[];
   logs?: {
     list: Logs[];
     meta: Meta

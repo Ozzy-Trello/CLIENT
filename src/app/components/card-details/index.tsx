@@ -90,7 +90,9 @@ const CardDetails: React.FC = () => {
                   <div className="fx-h-left-center fullwidth">
                     <div className="title-wrapper fx-v-left-center">
                       <span>Members</span>
-                      <MembersList members={data?.members || []} membersLength={data?.members.length || 0} membersLoopLimit={2} />
+                      { data && data?.members && (
+                        <MembersList members={data?.members || []} membersLength={data?.members.length || 0} membersLoopLimit={2} />
+                      )}
                     </div>
 
                     <div className="members-wrapper fx-v-left-center">

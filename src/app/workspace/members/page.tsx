@@ -28,7 +28,7 @@ const TableMembers: React.FC<{dataSource?: User[]}> = ({dataSource}) => {
       title: 'User',
       dataIndex: 'name',
       key: 'name',
-      render: (_, record: any) => {
+      render: (_: any, record: any) => {
         return (
           <div className="fx-h-left-center">
             <Avatar size="small" src={record.avatarUrl}></Avatar>
@@ -53,7 +53,7 @@ const TableMembers: React.FC<{dataSource?: User[]}> = ({dataSource}) => {
       title: 'Action',
       dataIndex: 'action',
       key: '-',
-      render: (_, record: any) => {
+      render: (_: any, record: any) => {
         return (
           <Button size="small"><i className="fi fi-rr-cross"></i> Remove</Button>
         );
