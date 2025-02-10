@@ -12,18 +12,6 @@ import Footer from '../components/footer';
 
 const { Title, Text } = Typography;
 
-export const useLogout = () => {
-  const router = useRouter();
-  const dispatch = useDispatch();
-
-  return async function logoutAction() {
-    dispatch(setAccessToken(""));
-    setUser(setUser({}));
-    router.push("/login");
-  }
-}
-
-
 export default function LoginPage() {
   const [loading, setLoading] = React.useState(false);
   const router = useRouter();
