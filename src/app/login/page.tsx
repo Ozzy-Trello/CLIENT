@@ -1,49 +1,81 @@
 'use client';
-
 import React from 'react';
-import { Form, Input, Button, Typography, Space, message } from 'antd';
-import { LockOutlined, UserOutlined } from '@ant-design/icons';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { setAccessToken, setUser } from '../store/slice';
-import { users } from '@/dummy-data';
 import { useDispatch } from 'react-redux';
-import Footer from '../components/footer';
+import { LockOutlined, UserOutlined } from '@ant-design/icons';
+
+// Dynamic imports for Antd components
+import Form from 'antd/es/form';
+import Input from 'antd/es/input/Input';
+import Button from 'antd/es/button';
+import Space from 'antd/es/space';
+import message from 'antd/es/message';
+import Typography from 'antd/es/typography';
+
+// Local imports
+import { setAccessToken, setUser } from '@/app/store/slice';
+import { users } from '@/dummy-data';
+import Footer from '@/app/components/footer';
+import { login } from '@/app/services/api';
 
 const { Title, Text } = Typography;
+
+interface LoginFormValues {
+  email: string;
+  password: string;
+}
 
 export default function LoginPage() {
   const [loading, setLoading] = React.useState(false);
   const router = useRouter();
   const dispatch = useDispatch();
 
-  const validateCredentials = async ( email: string, password: string ) => {
-    const dummyUsers = users;
-    const foundUser = dummyUsers.find((item) => item.email == email);
-    if (foundUser) {
-      dispatch(setUser(foundUser));
-      dispatch(setAccessToken("lorem-ipsum-dummy-access-token"));
-      return true;
-    }
-    return false;
-  }
+  // Prefetch the next page
+  React.useEffect(() => {
+    router.prefetch('/workspace/boards');
+  }, [router]);
 
-  const onFinish = async (values: { email: string; password: string }) => {
+  const validateCredentials = async (email: string, password: string) => {
+    try {
+      const result = await login({ email, password });
+      if (result?.data?.token) {
+        const foundUser = users.find((item) => item.email === 'johndoe@example.com');
+        if (foundUser) {
+          dispatch(setUser(foundUser));
+          dispatch(setAccessToken(result.data.token));
+          return true;
+        }
+      }
+      return false;
+    } catch (error) {
+      console.error('Login error:', error);
+      return false;
+    }
+  };
+
+  const onFinish = async (values: LoginFormValues) => {
     setLoading(true);
-    const isValid = await validateCredentials(values.email, values.password);
-    if (isValid) {
-      message.success('Login successful!');
+    try {
+      const isValid = await validateCredentials(values.email, values.password);
+      if (isValid) {
+        await message.success('Login successful!');
+        router.push("/workspace/boards");
+      } else {
+        message.error('Login Failed!');
+      }
+    } catch (error) {
+      message.error('An unexpected error occurred');
+      console.error(error);
+    } finally {
       setLoading(false);
-      router.push("/workspace/boards");
-    } else {
-      message.success('Login Failed!');
     }
   };
 
   const onFinishFailed = () => {
     message.error('Please check your input and try again.');
   };
-
 
   return (
     <div style={styles.container}>
@@ -72,10 +104,11 @@ export default function LoginPage() {
               name="password"
               rules={[{ required: true, message: 'Please enter your password!' }]}
             >
-              <Input.Password
+              <Input
                 prefix={<LockOutlined />}
                 placeholder="Password"
                 size="large"
+                type="password"
               />
             </Form.Item>
             <Form.Item>

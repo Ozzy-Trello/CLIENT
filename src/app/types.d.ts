@@ -1,3 +1,8 @@
+export interface ApiResponse {
+  data?: any;
+  message?: string;
+}
+
 export interface Attachment{
   id: string;
   type?: string;

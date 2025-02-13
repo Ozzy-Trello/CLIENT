@@ -5,6 +5,8 @@ import { User } from "@/app/types";
 import { users } from "@/dummy-data";
 import { Avatar, Badge, Button, Menu, MenuProps, Table, Typography } from "antd";
 import { useEffect, useState } from "react";
+import AddUserModal from "./add_user_modal";
+import { register } from "@/app/services/api";
 
 type MenuItem = Required<MenuProps>['items'][number];
 const items: MenuItem[] = [
@@ -72,12 +74,19 @@ const Members: React.FC = () => {
   const [isFetching, setIsFetching] = useState<boolean>(true);
   const [data, setData] = useState<User[]>();
   const [activeMenu, setActiveMenu] = useState<string>("menu-workspace-members");
-  
- 
+  const [addUserModalVisible, setAddUserModalVisible] = useState<boolean>(false);
 
   const handleMenuClick: MenuProps['onClick'] = (e) => {
     setActiveMenu(e.key);
   };
+
+  const openAddUserModal = () => {
+    setAddUserModalVisible(true);
+  }
+
+  const closeAddUserModal = () => {
+    setAddUserModalVisible(false);
+  }
 
   useEffect(() => {
     const fecthData = () => {
@@ -100,7 +109,7 @@ const Members: React.FC = () => {
           <Typography.Title level={4} className="m-0">Collaborators</Typography.Title>
           <Badge count="3/10"></Badge>
         </div>
-        <Button size="small"><i className="fi fi-sr-user-add"></i> Invite Members</Button>
+        <Button size="small" onClick={openAddUserModal}><i className="fi fi-sr-user-add"></i> Add User</Button>
       </div>
 
       <div className="fx-h-left-start">
@@ -131,6 +140,7 @@ const Members: React.FC = () => {
         </div>
       </div>
       
+      <AddUserModal visible={addUserModalVisible} onCancel={closeAddUserModal}/>
     </div>
 
   )
