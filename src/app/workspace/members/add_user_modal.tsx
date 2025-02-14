@@ -44,6 +44,7 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ visible, onCancel }) => {
       footer={null}
       maskClosable={false}
       destroyOnClose
+      style={{padding: "20px", top: 20}}
     >
       <Form
         form={form}
