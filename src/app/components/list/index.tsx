@@ -130,7 +130,7 @@ const ListComponent: FC<ListComponentProps> = ({
             onKeyDown={handleTitleKeyDown}
             autoFocus
             style={{
-              fontSize: "18px",
+              fontSize: "15px",
               fontWeight: "bold",
               border: "none",
               background: "#f9fafb",
@@ -143,9 +143,10 @@ const ListComponent: FC<ListComponentProps> = ({
             onClick={handleTitleClick}
             level={5}
             style={{
-              fontSize: "18px",
+              fontSize: "15px",
               fontWeight: "bold",
               cursor: "pointer",
+              marginTop: "0",
               marginBottom: "1rem",
               color: "#333",
             }}

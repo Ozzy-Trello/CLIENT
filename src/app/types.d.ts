@@ -52,6 +52,7 @@ export interface Task {
   id: string;
   title: string;
   description?: string;
+  cover?: string;
   attachment?: Attachment;
   dueDate?: string;
   assignment?: Assignment;

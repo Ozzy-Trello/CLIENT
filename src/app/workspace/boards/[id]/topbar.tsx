@@ -69,7 +69,7 @@ const Topbar: React.FC = () => {
     >
       <div className="fx-h-left-center left-col">
         <Typography.Title level={4} className="m-0">
-          Board Title
+          Request Design
         </Typography.Title>
         <Tooltip
           title={"Starred boards showed up at the top of your baord list"}

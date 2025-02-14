@@ -1,5 +1,5 @@
 .component-card-details .cover {
-  height: 200px;
+  height: 150px;
   background-color: rgb(var(--color-muted)) !important;
   border-radius:  9px 9px 0px 0px;
   border-width: 0px 0px 1px 0px;
@@ -27,4 +27,12 @@
 
 .component-card-details .ant-list-item {
   border-width: 0px !important;
+}
+
+.component-card-details .right-col li {
+  padding: 5px !important;
+}
+
+.component-card-details .right-col button.ant-btn {
+  padding: 10px !important;
 }

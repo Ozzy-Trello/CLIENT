@@ -189,6 +189,7 @@ const tasks: Task[] = [
     id: "1",
     title: "Task 1: Design Landing Page",
     description: "Create a beautiful landing page for the website.",
+    cover: "https://gw.alipayobjects.com/zos/rmsportal/JiqGstEfoWAOHiTxclqi.png",
     dueDate: "2025-02-28",
     assignment: {
       assignee: getUserById('1'),
@@ -283,6 +284,7 @@ const tasks: Task[] = [
     id: "2",
     title: "Task 2: Design Landing Page 2",
     description: "Create a beautiful landing page for the website 2.",
+    cover: "",
     dueDate: "2025-02-28",
     assignment: {
       assignee: getUserById('3'),
@@ -356,6 +358,7 @@ const tasks: Task[] = [
     id: "3",
     title: "Task 3: Design Landing Page 3",
     description: "Create a beautiful landing page for the website 2.",
+    cover: "https://gw.alipayobjects.com/zos/rmsportal/JiqGstEfoWAOHiTxclqi.png",
     dueDate: "2025-02-28",
     assignment: {
       assignee: getUserById('3'),

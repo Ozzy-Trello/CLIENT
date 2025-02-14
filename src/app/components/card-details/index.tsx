@@ -65,14 +65,14 @@ const CardDetails: React.FC = () => {
           background: `url("https://gw.alipayobjects.com/zos/rmsportal/JiqGstEfoWAOHiTxclqi.png")`,
           backgroundPosition: "center center",
           backgroundRepeat: "no-repeat",
-          backgroundSize: "contain"
+          backgroundSize: "contain",
         }}
       >
         <Button size="small" variant="outlined">Cover</Button>
       </div>
       
       <Row className="row">
-        <Col span={20} style={{paddingRight: "10px"}}>
+        <Col span={18} style={{paddingRight: "10px"}}  className="left-col">
           { !isFetching && 
             <List className="card-details-list" itemLayout="vertical">
               <List.Item className="section-metadata">
@@ -206,7 +206,7 @@ const CardDetails: React.FC = () => {
           }
         </Col>
 
-        <Col span={4} style={{paddingLeft: "10px"}}>
+        <Col span={6} style={{paddingLeft: "10px"}} className="right-col">
           { !isFetching &&
             <List
               itemLayout="horizontal"
@@ -254,8 +254,7 @@ const CardDetails: React.FC = () => {
               </List.Item>
 
               <List.Item>
-                <Button size="small" className="fullwidth fx-h-left-center
-                ">
+                <Button size="small" className="fullwidth fx-h-left-center">
                   <i className="fi fi-rr-pen-field"></i>
                   <span>Custom Fields</span>
                 </Button>

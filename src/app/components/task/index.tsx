@@ -1,9 +1,10 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Draggable } from "@hello-pangea/dnd";
 import { Task } from "@/app/types";
 import { Avatar, Badge, Card, Modal, Tag, Tooltip, Typography } from "antd";
 import CardDetails from "../card-details";
 import "./style.css";
+import { useScreenSize } from "@/app/provider/screen-size-provider";
 
 interface TaskComponentProps {
   task: Task;
@@ -21,6 +22,9 @@ const ModalCardForm: React.FC<ModalCardFormProps> = ({
   setOpen,
   loading,
 }) => {
+  
+  const {width, isMobile} =  useScreenSize();
+
   return (
     <Modal
       title={null}
@@ -29,7 +33,7 @@ const ModalCardForm: React.FC<ModalCardFormProps> = ({
       onCancel={() => setOpen(false)}
       footer={null}
       className="modal-card-form"
-      width={1000}
+      width={width > 768 ? "60%" : "90%"}
       style={{ top: 20 }}
     >
       <CardDetails />
@@ -57,18 +61,16 @@ const TaskComponent: React.FC<TaskComponentProps> = ({ task, index }) => {
             }}
             cover={
               <img
-                alt="example"
-                src="https://gw.alipayobjects.com/zos/rmsportal/JiqGstEfoWAOHiTxclqi.png"
+                alt=""
+                src={task.cover}
               />
             }
             onClick={() => {
               setOpen(true);
             }}
           >
-            <div className="section section-badge fullwidth"
-              style={{ marginBottom: "10px" }}
-            >
-              { task?.customFields?.list?.map(task => ( <Tag color="processing">{task.value}</Tag>)) }
+            <div className="section section-badge fullwidth" style={{ marginBottom: "10px" }}>
+              { task?.customFields?.list?.map(task => ( <Tag color="processing" style={{fontSize: "10px"}}>{task.value}</Tag>)) }
             </div>
 
             <div className="section section-title">
