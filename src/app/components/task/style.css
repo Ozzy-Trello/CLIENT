@@ -8,19 +8,25 @@
   border: thin solid rgba(var(--color-accent), 0.5) !important;
   cursor: pointer;
 }
+.task-card .section-badge .ant-typography {
+  font-size: 8px !important;
+  padding: 0px;
+}
+.task-card .section-title .ant-typography {
+  font-size: 14px !important;
+}
+.task-card .section-detail .ant-typography {
+  font-size: 12px !important;
+}
 
+.ant-card-cover, .ant-card-cover img {
+  max-height: 100px !important;
+}
 .ant-card-body {
   padding: 10px 20px !important;
 }
 
 .section {
   margin-bottom: 10px;
-}
-
-.section.section-cover {
-  background-position: center center;
-  background-repeat: no-repeat;
-  background-size: contain;
-  max-height: 100px;
 }
 

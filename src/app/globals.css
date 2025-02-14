@@ -107,6 +107,10 @@ a {
   display: none !important;
 }
 
+.tx-small > * {
+  font-size: 10px !important;
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar {
   width: thin; /* Width of the vertical scrollbar */

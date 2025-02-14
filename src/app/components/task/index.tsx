@@ -80,17 +80,21 @@ const TaskComponent: React.FC<TaskComponentProps> = ({ task, index }) => {
             <div className="section section-meta fx-h-left-center" style={{ gap: "15px" }}>
               {/* watching */}
               <Tooltip title={"watching"}>
-                <i className="fi fi-rr-eye" key={"watching"}></i>
+                <span className="tx-small">
+                  <i className="fi fi-rr-eye tx-small" key={"watching"}></i>
+                </span>
               </Tooltip>
 
               {/* desc */}
               <Tooltip title={"description"}>
-                <i className="fi fi-rr-symbol" key={"description"}></i>
+                <span className="tx-small">
+                  <i className="fi fi-rr-symbol" key={"description"}></i>
+                </span>
               </Tooltip>
 
               {/* comment */}
               <Tooltip title={"comment"}>
-                <span>
+                <span className="tx-small">
                   <i
                     className="fi fi-rr-comment-alt-middle"
                     key={"comments"}
@@ -101,7 +105,7 @@ const TaskComponent: React.FC<TaskComponentProps> = ({ task, index }) => {
 
               {/* attachament */}
               <Tooltip title={"attachment"}>
-                <span>
+                <span className="tx-small">
                   <i className="fi fi-rr-clip"></i> <span>0</span>
                 </span>
               </Tooltip>
@@ -112,13 +116,12 @@ const TaskComponent: React.FC<TaskComponentProps> = ({ task, index }) => {
                 <Typography.Text style={{display: 'block'}}>{task?.key} : {task?.value}</Typography.Text>
               )) }
             </div>
-
-            <div className="section fx-h-left-center">
-              <i className="fi fi-tr-calendar-day"></i>
-              <span>{task?.dueDate}</span>
-            </div>
-
-            <div className="section fx-h-right-center">
+            
+            <div className="fx-h-sb-center">
+              <div className="section fx-h-left-center tx-small">
+                <i className="fi fi-tr-calendar-day"></i>
+                <span className="tx-small">{task?.dueDate}</span>
+              </div>
               <Avatar size={"small"} src={task?.createdBy?.avatarUrl}></Avatar>
             </div>
           </Card>
