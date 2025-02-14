@@ -81,14 +81,14 @@ const CardDetails: React.FC = () => {
                   <Typography.Title level={5} className="m-0">{data?.title}</Typography.Title>
                 </div>
                 <div className="body-wrapper">
-                  <div className="fx-h-left-center fullwidth">
+                  <div className="fx-h-left-center fullwidth" style={{marginBottom: "10px"}}>
                     <span>in list</span>
                     <DropdownCardListCategory />
                     <i className="fi fi-rr-eye"></i>
                   </div>
 
                   <div className="fx-h-left-center fullwidth">
-                    <div className="title-wrapper fx-v-left-center">
+                    <div className="title-wrapper fx-v-left-center" style={{marginRight: "10px"}}>
                       <span>Members</span>
                       { data && data?.members && (
                         <MembersList members={data?.members || []} membersLength={data?.members.length || 0} membersLoopLimit={2} />
@@ -97,11 +97,10 @@ const CardDetails: React.FC = () => {
 
                     <div className="members-wrapper fx-v-left-center">
                       <span>Notifications</span>
-                      <Button>
-                        <div className="fx-h-left-center" style={{gap: 3}}>
+                      <Button size="small">
+                        <div className="fx-h-center-center">
                           <i className="fi fi-rr-eye"></i> 
                           <span>watching</span>
-                          <i className="fi fi-rr-check"></i>
                         </div>
                       </Button>
                     </div>
@@ -146,8 +145,8 @@ const CardDetails: React.FC = () => {
                       <div className="fx-h-left-center fullwidth">
                         <Image src={defaultPic} alt="Ozzy Clothing Logo" style={{width: "50px", height: "auto", background: "grey"}} />
                         <div className="fx-h-left-center fullwidth">
-                          <span className="fullwidth">Filename 1.png</span>
-                          <span className="fullwidth">Added Jan 18 2025, 09:17 PM</span>
+                          <span className="fullwidth tx-small">Filename 1.png</span>
+                          <span className="fullwidth tx-small">Added Jan 18 2025, 09:17 PM</span>
                         </div>
                       </div>
                       <div className="fx-h-right-center">
@@ -212,52 +211,52 @@ const CardDetails: React.FC = () => {
               itemLayout="horizontal"
             >
               <List.Item>
-                <Button size="small" className="fullwidth fx-h-left-center">
+                <div className="list-content-wrapper fx-h-left-center">
                   <i className="fi fi-rr-user-add"></i>
                   <span>Join</span>
-                </Button>
+                </div>
               </List.Item>
 
               <List.Item>
-                <Button size="small" className="fullwidth fx-h-left-center">
+                <div className="list-content-wrapper fx-h-left-center">
                   <i className="fi fi-rr-user-add"></i>
                   <span>Members</span>
-                </Button>
+                </div>
               </List.Item>
 
               <List.Item>
-                <Button size="small" className="fullwidth fx-h-left-center">
+                <div className="list-content-wrapper fx-h-left-center">
                   <i className="fi fi-ts-tags"></i>
                   <span>Labels</span>
-                </Button>
+                </div>
               </List.Item>
 
               <List.Item>
-                <Button size="small" className="fullwidth fx-h-left-center">
+                <div className="list-content-wrapper fx-h-left-center">
                   <i className="fi fi-rr-checkbox"></i>
                   <span>Checklist</span>
-                </Button>
+                </div>
               </List.Item>
 
               <List.Item>
-                <Button size="small" className="fullwidth fx-h-left-center">
+                <div className="list-content-wrapper fx-h-left-center">
                   <i className="fi fi-rr-clock-three"></i>
                   <span>Dates</span>
-                </Button>
+                </div>
               </List.Item>
 
               <List.Item>
-                <Button size="small" className="fullwidth fx-h-left-center">
+                <div className="list-content-wrapper fx-h-left-center">
                   <i className="fi fi-sr-clip"></i>
                   <span>Attachment</span>
-                </Button>
+                </div>
               </List.Item>
 
               <List.Item>
-                <Button size="small" className="fullwidth fx-h-left-center">
+                <div className="list-content-wrapper fx-h-left-center">
                   <i className="fi fi-rr-pen-field"></i>
                   <span>Custom Fields</span>
-                </Button>
+                </div>
               </List.Item>
             </List> 
           }

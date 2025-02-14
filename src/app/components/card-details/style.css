@@ -1,5 +1,5 @@
 .component-card-details .cover {
-  height: 150px;
+  height: 120px;
   background-color: rgb(var(--color-muted)) !important;
   border-radius:  9px 9px 0px 0px;
   border-width: 0px 0px 1px 0px;
@@ -17,22 +17,42 @@
 }
 
 .component-card-details .body-wrapper {
-  margin-left: 40px !important;
+  margin-left: 35px !important;
+}
+
+.component-card-details .body-wrapper > * {
+  font-size: 12px;
 }
 
 .component-card-details .section-title-wrapper {
   margin-bottom: 5px;
-  gap: 20px;
+  gap: 15px;
 }
 
-.component-card-details .ant-list-item {
-  border-width: 0px !important;
+.component-card-details .section-title-wrapper i, .component-card-details .section-title-wrapper .ant-typography {
+  color: rgb(var(--color-text));
+}
+
+.component-card-details .left-col .ant-list-item {
+  border: unset;
+}
+
+.component-card-details .right-col .ant-list-item {
+  border: 1px solid rgb(var(--color-text)) !important;
+  padding: 10px 5px;
+  border-radius: 5px;
+  margin-bottom: 10px;
+}
+.component-card-details .right-col .ant-list-item:hover {
+  cursor: pointer;
+  border: 1px solid rgb(var(--color-accent)) !important;
 }
 
 .component-card-details .right-col li {
   padding: 5px !important;
 }
 
-.component-card-details .right-col button.ant-btn {
-  padding: 10px !important;
+.component-card-details .right-col li > * {
+  font-size: 12px;
+  color: rgb(var(--color-text));
 }

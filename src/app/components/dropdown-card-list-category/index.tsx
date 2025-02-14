@@ -43,7 +43,7 @@ const DropdownCardListCategory: React.FC = () => {
     <Dropdown menu={{ items }}>
       <a onClick={(e) => e.preventDefault()}>
         <Space>
-          Hover me
+          On Progress
           <i className="fi fi-rr-angle-small-down"></i>
         </Space>
       </a>
