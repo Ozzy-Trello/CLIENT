@@ -8,7 +8,7 @@ import {
 } from "@hello-pangea/dnd";
 import TaskComponent from "../task";
 import { Badge, Button, Input, Typography } from "antd";
-import type { Task } from "@/app/types";
+import type { Task } from "@/app/dto/types";
 import { useSelector } from "react-redux";
 import { selectTheme } from "@/app/store/slice";
 
@@ -116,7 +116,10 @@ const ListComponent: FC<ListComponentProps> = ({
         padding: "1rem",
         boxShadow: "0 2px 10px rgba(0, 0, 0, 0.1)",
         minWidth: "275px",
-        background: `rgb(${colors?.background})`
+        background: `rgb(${colors?.background})`,
+        height: `fit-content`,
+        maxHeight: `calc(100vh - 130px)`,
+        overflowY: "hidden"
       }}
     >
       <div className="list-colum-title-wrapper fx-h-sb-center">
@@ -173,7 +176,9 @@ const ListComponent: FC<ListComponentProps> = ({
               flex: 1,
               transition: "background-color 0.2s ease",
               marginBlock: snapshot.isDraggingOver ? "1rem" : "0",
-              maxWidth: "272px"
+              maxWidth: "272px",
+              overflowY: "auto",
+              padding: "0px 5px",
             }}
           >
             {tasks.map((task, index) => (
@@ -215,17 +220,14 @@ const ListComponent: FC<ListComponentProps> = ({
           </div>
         </div>
       ) : (
-        <Button
-          size="small"
-          onClick={handleAddCardClick}
-          style={{
-            marginTop: "1rem",
-            borderRadius: "0.5rem",
-            background: "whitesmoke",
-          }}
-        >
+        <div className="fullwidth fx-v-end" style={{minHeight: "40px"}}>
+          <Button
+            className="fullwidth"
+            onClick={handleAddCardClick}
+          >
           + Add a card
         </Button>
+        </div>
       )}
     </div>
   );

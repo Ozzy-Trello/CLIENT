@@ -1,6 +1,6 @@
 "use client";
 
-import { BoardData, Column } from "@/app/types";
+import { BoardData, Column } from "@/app/dto/types";
 import { Button, Input, Skeleton, Space } from "antd";
 import dynamic from "next/dynamic";
 import React, { useEffect, useState } from "react";
@@ -227,7 +227,6 @@ const addColumn = () => {
           marginTop: "50px",
           width: "100%",
           height: "100vh",
-          paddingBottom: "100px",
         }}
       >
         { !isFetching && (
@@ -246,6 +245,7 @@ const addColumn = () => {
                     gap: "1rem",
                     padding: "1rem",
                     alignItems: "flex-start",
+                    height: "100vh"
                   }}
                 >
                   {data?.columnOrder.map((columnId, index) => {

@@ -3,6 +3,8 @@
 }
 .task-card {
   max-width: inherit;
+  box-shadow: rgba(0, 0, 0, 0.16) 0px 1px 4px !important;
+  margin-bottom: 10px;
 }
 .task-card:hover{
   border: thin solid rgba(var(--color-accent), 0.5) !important;

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Modal, Form, Input, Button, message } from 'antd';
 import { UserOutlined, MailOutlined, LockOutlined, PhoneOutlined } from '@ant-design/icons';
-import { register } from '@/app/services/api';
+import { register } from '@/app/api/auth';
 
 interface AddUserModalProps {
   visible: boolean;

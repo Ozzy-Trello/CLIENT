@@ -1,5 +1,5 @@
 'use client';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -15,10 +15,11 @@ import message from 'antd/es/message';
 import Typography from 'antd/es/typography';
 
 // Local imports
-import { setAccessToken, setUser } from '@/app/store/slice';
+import { setAccessToken, setRefreshToken, setUser } from '@/app/store/slice';
 import { users } from '@/dummy-data';
 import Footer from '@/app/components/footer';
-import { login } from '@/app/services/api';
+import { useLogin } from '../hooks/auth';
+import { useAccount } from '../hooks/account';
 
 const { Title, Text } = Typography;
 
@@ -28,28 +29,35 @@ interface LoginFormValues {
 }
 
 export default function LoginPage() {
-  const [loading, setLoading] = React.useState(false);
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
   const dispatch = useDispatch();
+  const login = useLogin();
 
   // Prefetch the next page
-  React.useEffect(() => {
+  useEffect(() => {
     router.prefetch('/workspace/boards');
   }, [router]);
 
+
   const validateCredentials = async (email: string, password: string) => {
     try {
-      const result = await login({ email, password });
-      if (result?.data?.token) {
+      const result = await login.mutateAsync({ email, password });
+      if (result.data?.accessToken) {
         const foundUser = users.find((item) => item.email === 'johndoe@example.com');
         if (foundUser) {
           dispatch(setUser(foundUser));
-          dispatch(setAccessToken(result.data.token));
+          dispatch(setAccessToken(result.data.accessToken));
+          dispatch(setRefreshToken(result.data.accessToken));
+          await message.success(result.message);
           return true;
         }
+      } else {
+        await message.error(result.message);
       }
       return false;
     } catch (error) {
+      message.error('An unexpected error occurred');
       console.error('Login error:', error);
       return false;
     }
@@ -60,13 +68,9 @@ export default function LoginPage() {
     try {
       const isValid = await validateCredentials(values.email, values.password);
       if (isValid) {
-        await message.success('Login successful!');
         router.push("/workspace/boards");
-      } else {
-        message.error('Login Failed!');
       }
     } catch (error) {
-      message.error('An unexpected error occurred');
       console.error(error);
     } finally {
       setLoading(false);

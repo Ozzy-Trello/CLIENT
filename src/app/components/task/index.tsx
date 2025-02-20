@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { Draggable } from "@hello-pangea/dnd";
-import { Task } from "@/app/types";
+import { Task } from "@/app/dto/types";
 import { Avatar, Badge, Card, Modal, Tag, Tooltip, Typography } from "antd";
 import CardDetails from "../card-details";
 import "./style.css";
@@ -51,6 +51,7 @@ const TaskComponent: React.FC<TaskComponentProps> = ({ task, index }) => {
       <Draggable draggableId={task.id} index={index}>
         {(provided) => (
           <Card
+            
             className="task-card"
             bordered={false}
             ref={provided.innerRef}
@@ -117,11 +118,24 @@ const TaskComponent: React.FC<TaskComponentProps> = ({ task, index }) => {
               )) }
             </div>
             
-            <div className="fx-h-sb-center">
-              <div className="section fx-h-left-center tx-small">
-                <i className="fi fi-tr-calendar-day"></i>
-                <span className="tx-small">{task?.dueDate}</span>
-              </div>
+            <div className="fx-h-left-center">
+              <Tooltip title={"time on board"}>
+                <div className="section fx-h-left-center tx-small" style={{gap: "4px"}}>
+                  <i className="fi fi-rr-calendar-clock"></i>
+                  <span className="tx-small">{task?.dueDate}</span>
+                </div>
+              </Tooltip>
+
+              <Tooltip title={"time in list"}>
+                <div className="section fx-h-left-center tx-small" style={{gap: "4px"}}>
+                  <i className="fi fi-rs-calendar-lines"></i>
+                  <span className="tx-small">{task?.dueDate}</span>
+                </div>
+              </Tooltip>
+
+            </div>
+
+            <div className="section section-avatar fx-h-right-center">
               <Avatar size={"small"} src={task?.createdBy?.avatarUrl}></Avatar>
             </div>
           </Card>

@@ -1,4 +1,4 @@
-import { Board, Task, User } from "./app/types";
+import { Board, Task, User } from "./app/dto/types";
 
 // Dummy Users Data
 export const users: User[] = [

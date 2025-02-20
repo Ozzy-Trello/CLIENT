@@ -22,6 +22,12 @@ body {
   color: rgb(var(--color-text));
 }
 
+p, span, i, a {
+  font-size: var(--font-size-body)px;
+  color: inherit;
+  text-decoration: none;
+}
+
 h1 { font-size: var(--h1)px; }
 h2 { font-size: var(--h2)px; }
 h3 { font-size: var(--h3)px; }
@@ -29,12 +35,11 @@ h4 { font-size: var(--h4)px; }
 h5 { font-size: var(--h5)px; }
 h6 { font-size: var(--h6)px; }
 
-a {
-  color: inherit;
-  text-decoration: none;
+
+/* Lib element */
+div[data-rfd-droppable-id="all-columns"] {
+  height: 100vh !important;
 }
-
-
 
 /* Custom Utility Class */
 .fullwidth {
@@ -93,11 +98,21 @@ a {
   flex-direction: column;
   align-items: left;
   justify-content:  space-between;
- }
+}
+
+.fx-v-end {
+  display: flex;
+  flex-direction: column;
+  justify-content: end;
+}
 
 .tx-align-left {
   text-align: left;
 }
+
+.tx-small { font-size: var(--font-size-small); }
+
+.tx-tiny { font-size: var(--font-size-tiny); }
 
 .m-0 {
   margin: 0px !important;

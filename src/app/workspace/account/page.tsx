@@ -1,11 +1,13 @@
 'use client';
 import { selectUser } from "@/app/store/slice";
-import { User } from "@/app/types";
+import { User } from "@/app/dto/types";
 import { Avatar, Button, Card, Col, Flex, Form, Input, Row, Tooltip, Typography, Upload } from "antd";
 import { useState } from "react";
 import { useSelector } from "react-redux";
 import { LoadingOutlined, PlusOutlined } from '@ant-design/icons';
 import "./style.css"
+import { useUpdateAccount } from "@/app/hooks/account";
+import { Account as AccountDto } from "@/app/dto/account";
 
 
 const Account: React.FC = () => {
@@ -14,6 +16,7 @@ const Account: React.FC = () => {
   const [user, setUser] = useState<User>(useSelector(selectUser));
   const [editAbout, setEditAbout] = useState(false);
   const [editPassword, setEditPassword] = useState(false);
+  const updateAccount = useUpdateAccount();
 
   const uploadButton = (
     <button style={{ border: 0, background: 'none' }} type="button">
@@ -26,7 +29,19 @@ const Account: React.FC = () => {
     setEditAbout(true);
   }
 
-  const applyAboutChanges = () => {
+  const applyAboutChanges = async (values: AccountDto) => {
+    try {
+      setIsLoading(true);
+      const result = await updateAccount.mutateAsync(values);
+      console.log("resulte update: %o", result);
+      if (result) {
+
+      }
+    } catch (error) {
+
+    } finally {
+      setIsLoading(false);
+    }
     setEditAbout(false);
   }
 
@@ -36,6 +51,10 @@ const Account: React.FC = () => {
 
   const applyPasswordChanges = () => {
     setEditPassword(false);
+  }
+
+  const applyAvatarChanges = () => {
+
   }
 
   return (
@@ -59,36 +78,38 @@ const Account: React.FC = () => {
               flexDirection: 'column'
             }}
           >
-            <div className="section-avatar" style={{
-              display: 'flex',
-              flexDirection: 'column',
-              height: '100%',
-              marginBottom: '20px'
-            }}>
-              <Typography.Title level={5} className="m-0">Avatar</Typography.Title>
-              <Card style={{ 
-                flex: 1,
+            <Form onFinish={applyAvatarChanges}>
+              <div className="section-avatar" style={{
                 display: 'flex',
-                flexDirection: 'column'
+                flexDirection: 'column',
+                height: '100%',
+                marginBottom: '20px'
               }}>
-                <div className="section-header" />
-                <Upload
-                  name="avatar"
-                  listType="picture-circle"
-                  className="avatar-uploader"
-                  showUploadList={false}
-                  action="https://660d2bd96ddfa2943b33731c.mockapi.io/api/upload"
-                >
-                  {user.avatarUrl ? 
-                    <Avatar 
-                      src={user.avatarUrl} 
-                      alt="avatar" 
-                      shape="circle" 
-                      style={{width:"100%", height:"100%"}}
-                    /> : uploadButton}
-                </Upload>
-              </Card>
-            </div>
+                <Typography.Title level={5} className="m-0">Avatar</Typography.Title>
+                <Card style={{ 
+                  flex: 1,
+                  display: 'flex',
+                  flexDirection: 'column'
+                }}>
+                  <div className="section-header" />
+                  <Upload
+                    name="avatar"
+                    listType="picture-circle"
+                    className="avatar-uploader"
+                    showUploadList={false}
+                    action="https://660d2bd96ddfa2943b33731c.mockapi.io/api/upload"
+                  >
+                    {user.avatarUrl ? 
+                      <Avatar 
+                        src={user.avatarUrl} 
+                        alt="avatar" 
+                        shape="circle" 
+                        style={{width:"100%", height:"100%"}}
+                      /> : uploadButton}
+                  </Upload>
+                </Card>
+              </div>
+            </Form>
           </Col>
           
           <Col
@@ -102,28 +123,30 @@ const Account: React.FC = () => {
               flexDirection: 'column'
             }}
           >
-            <div className="section-about-you" style={{
-              display: 'flex',
-              flexDirection: 'column',
-              height: '100%',
-              marginBottom: '20px'
-            }}>
-              <div className="fx-h-sb-center">
-                <Typography.Title level={5} className="m-0">About You</Typography.Title>
-                <Tooltip title="Update about you">
-                  { editAbout ? (
-                    <Button size="small" onClick={applyAboutChanges}>Apply changes</Button>
-                  ) : (
-                    <Button size="small" onClick={enableEditAbout}>Update</Button>
-                  ) }
-                </Tooltip>
-              </div>
-              <Card style={{ 
-                flex: 1,
+            <Form onFinish={applyAboutChanges}>
+              <div className="section-about-you" style={{
                 display: 'flex',
-                flexDirection: 'column'
+                flexDirection: 'column',
+                height: '100%',
+                marginBottom: '20px'
               }}>
-                <Form>
+                <div className="fx-h-sb-center">
+                  <Typography.Title level={5} className="m-0">About You</Typography.Title>
+                  <Tooltip title="Update about you">
+                    { editAbout ? (
+                      <Form.Item>
+                        <Button size="small" htmlType="submit">Apply changes</Button>
+                      </Form.Item>
+                    ) : (
+                      <Button size="small" onClick={enableEditAbout}>Update</Button>
+                    ) }
+                  </Tooltip>
+                </div>
+                <Card style={{ 
+                  flex: 1,
+                  display: 'flex',
+                  flexDirection: 'column'
+                }}>
                   <table style={{ height: '100%' }} className="horizontal-table">
                     <tbody>
                       <tr>
@@ -152,11 +175,11 @@ const Account: React.FC = () => {
                               className="m-0"
                               initialValue={user.username}
                             >
-                             <Input
-                               size="small"
-                               type="text"
-                             />
-                           </Form.Item>
+                              <Input
+                                size="small"
+                                type="text"
+                              />
+                            </Form.Item>
                           ) : (user?.username)}
                         </td>
                       </tr>
@@ -179,9 +202,10 @@ const Account: React.FC = () => {
                       </tr>
                     </tbody>
                   </table>
-                </Form>
-              </Card>
-            </div>
+                
+                </Card>
+              </div>
+            </Form>
           </Col>
         </Row>
 
@@ -197,68 +221,68 @@ const Account: React.FC = () => {
             </Tooltip>
           </div>
           <Card>
-            <Form>
-            <table className="horizontal-table">
-              { editPassword ? (
-                <>
-                  <tr>
-                    <th>Current Password</th>
-                    <td>
-                      <Form.Item
-                        name="password"
-                        rules={[{ required: true, message: 'Please enter your current password!' }]}
-                        className="m-0"
-                      >
-                        <Input
-                          placeholder="Current Password"
-                          size="small"
-                          type="password"
-                        />
-                      </Form.Item>
-                    </td>
-                  </tr>
-                  <tr>
-                    <th>New Password</th>
-                    <td>
-                      <Form.Item
-                        name="newPassword"
-                        rules={[{ required: true, message: 'Please enter your new password!' }]}
-                        className="m-0"
-                      >
-                        <Input
-                          placeholder="New Password"
-                          size="small"
-                          type="password"
-                        />
-                      </Form.Item>
-                    </td>
-                  </tr>
-                  <tr>
-                    <th>New Password Confirmation</th>
-                    <td>
-                      <Form.Item
-                        name="newPasswordConfirmation"
-                        rules={[{ required: true, message: 'Please enter your new password confirmation!' }]}
-                        className="m-0"
-                      >
-                        <Input
-                          placeholder="New Password confirmation"
-                          size="small"
-                          type="password"
-                        />
-                      </Form.Item>
-                    </td>
-                  </tr>
-                </>
-              ) : (
-                <>
-                  <tr>
-                    <th>Password</th>
-                    <td>***********</td>
-                  </tr>
-                </>
-              ) }
-            </table>
+            <Form onFinish={applyPasswordChanges}>
+              <table className="horizontal-table">
+                { editPassword ? (
+                  <>
+                    <tr>
+                      <th>Current Password</th>
+                      <td>
+                        <Form.Item
+                          name="password"
+                          rules={[{ required: true, message: 'Please enter your current password!' }]}
+                          className="m-0"
+                        >
+                          <Input
+                            placeholder="Current Password"
+                            size="small"
+                            type="password"
+                          />
+                        </Form.Item>
+                      </td>
+                    </tr>
+                    <tr>
+                      <th>New Password</th>
+                      <td>
+                        <Form.Item
+                          name="newPassword"
+                          rules={[{ required: true, message: 'Please enter your new password!' }]}
+                          className="m-0"
+                        >
+                          <Input
+                            placeholder="New Password"
+                            size="small"
+                            type="password"
+                          />
+                        </Form.Item>
+                      </td>
+                    </tr>
+                    <tr>
+                      <th>New Password Confirmation</th>
+                      <td>
+                        <Form.Item
+                          name="newPasswordConfirmation"
+                          rules={[{ required: true, message: 'Please enter your new password confirmation!' }]}
+                          className="m-0"
+                        >
+                          <Input
+                            placeholder="New Password confirmation"
+                            size="small"
+                            type="password"
+                          />
+                        </Form.Item>
+                      </td>
+                    </tr>
+                  </>
+                ) : (
+                  <>
+                    <tr>
+                      <th>Password</th>
+                      <td>***********</td>
+                    </tr>
+                  </>
+                ) }
+              </table>
             </Form>
           </Card>
         </div>

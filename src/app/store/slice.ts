@@ -23,14 +23,15 @@ const initialAppState: AppState = {
       muted: '217, 217, 217', // Muted color for borders or subtle text
     },
     fontSizes: {
-      h1: 30,
-      h2: 28,
-      h3: 25,
-      h4: 22,
-      h5: 20,
-      h6: 18,
-      body: 15,
-      tiny: 12
+      h1: 25,
+      h2: 22,
+      h3: 20,
+      h4: 18,
+      h5: 16,
+      h6: 14,
+      body: 12,
+      small: 10,
+      tiny: 8,
     }
   }
 };

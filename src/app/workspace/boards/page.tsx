@@ -1,10 +1,13 @@
 'use client';
 
-import { Board } from "@/app/types";
+import { Board } from "@/app/dto/types";
 import { boards } from "@/dummy-data";
 import { Card, Col, Form, Input, List, Row, Select, Skeleton, Space, Typography } from "antd";
 import { useEffect, useState } from "react";
 import "./style.css";
+import { useAccount } from "@/app/hooks/account";
+import { setUser } from "@/app/store/slice";
+import { useDispatch } from "react-redux";
 
 const sortOptions = [
  {
@@ -28,7 +31,9 @@ const sortOptions = [
 type LayoutType = Parameters<typeof Form>[0]['layout'];
 
 const Boards: React.FC = () => {
+  const dispatch = useDispatch();
   const [isFetching, setIsFetching] = useState(true);
+  const account = useAccount();
   const [boardList, setBoardList] = useState<Board[]>([]);
   const [filter, setFilter] = useState({
     sortBy: "",
@@ -46,6 +51,19 @@ const Boards: React.FC = () => {
   const handleChange = (value: string) => {
     console.log(`selected ${value}`);
   };
+
+  useEffect(() => {
+    
+    const getAccount = async() => {
+      const result = await account.mutateAsync();
+      if (result) {
+        dispatch(setUser(result.data));
+      }
+    }
+
+    getAccount();
+    
+  }, [])
 
   useEffect(() => {
     const fetchBoards = () => {

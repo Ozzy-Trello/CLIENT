@@ -1,12 +1,12 @@
 'use client';
 
 import { SkeletonTable } from "@/app/components/skeleton";
-import { User } from "@/app/types";
+import { User } from "@/app/dto/types";
 import { users } from "@/dummy-data";
 import { Avatar, Badge, Button, Menu, MenuProps, Table, Typography } from "antd";
 import { useEffect, useState } from "react";
 import AddUserModal from "./add_user_modal";
-import { register } from "@/app/services/api";
+import { register } from "@/app/api/auth";
 
 type MenuItem = Required<MenuProps>['items'][number];
 const items: MenuItem[] = [

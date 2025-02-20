@@ -4,7 +4,7 @@ import { BellOutlined, UserOutlined } from "@ant-design/icons";
 import type { MenuProps } from "antd";
 import { Avatar, Badge, Dropdown, Input, Typography } from "antd";
 import Link from "next/link";
-import React, { useState } from "react";
+import React, { use, useState } from "react";
 import logo from '@/app/assets/images/Logo_Ozzy_Clothing_png.png';
 import ImageDynamicContrast from "../image-dynamic-contrast";
 import { useSelector } from "react-redux";
@@ -39,9 +39,13 @@ const TopBar: React.FC = React.memo(() => {
       label: (
         <Link href="/workspace/account">
           <div className="fx-h-left-center">
-            <Avatar size="small" />
+            {user?.avatar ? (
+              <Avatar size="small" src={user.avatar} />
+            ) : (
+              <Avatar size="small" icon={<UserOutlined />} />
+            )}
             <div>
-              <Typography.Title level={5} className="m-0">{user?.name}</Typography.Title>
+              <Typography.Title level={5} className="m-0">{user?.username}</Typography.Title>
               <Typography.Text>{user?.email}</Typography.Text>
             </div>
           </div>
