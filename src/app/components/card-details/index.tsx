@@ -6,7 +6,7 @@ import "./style.css";
 import RichTextEditor from "../rich-text-editor";
 import defaultPic from "../../assets/images/Logo_Ozzy_Clothing_png.png";
 import TextArea from "antd/es/input/TextArea";
-import { Task } from "@/app/types";
+import { Task } from "@/app/dto/types";
 import { getTaskById } from "@/dummy-data";
 import MembersList from "../members-list";
 import CardDetailsLogs from "../card-details-logs";
@@ -194,8 +194,6 @@ const CardDetails: React.FC = () => {
                   }) }
                 </div>
               </List.Item>
-
-
             </List>
           }
 
@@ -207,58 +205,98 @@ const CardDetails: React.FC = () => {
 
         <Col span={6} style={{paddingLeft: "10px"}} className="right-col">
           { !isFetching &&
-            <List
-              itemLayout="horizontal"
-            >
-              <List.Item>
-                <div className="list-content-wrapper fx-h-left-center">
-                  <i className="fi fi-rr-user-add"></i>
-                  <span>Join</span>
-                </div>
-              </List.Item>
+            <>
+              <List
+                className="list-menu"
+                itemLayout="horizontal"
+              >
+                <List.Item>
+                  <div className="list-content-wrapper fx-h-left-center">
+                    <i className="fi fi-rr-user-add"></i>
+                    <span>Join</span>
+                  </div>
+                </List.Item>
 
-              <List.Item>
-                <div className="list-content-wrapper fx-h-left-center">
-                  <i className="fi fi-rr-user-add"></i>
-                  <span>Members</span>
-                </div>
-              </List.Item>
+                <List.Item>
+                  <div className="list-content-wrapper fx-h-left-center">
+                    <i className="fi fi-rr-user-add"></i>
+                    <span>Members</span>
+                  </div>
+                </List.Item>
 
-              <List.Item>
-                <div className="list-content-wrapper fx-h-left-center">
-                  <i className="fi fi-ts-tags"></i>
-                  <span>Labels</span>
-                </div>
-              </List.Item>
+                <List.Item>
+                  <div className="list-content-wrapper fx-h-left-center">
+                    <i className="fi fi-ts-tags"></i>
+                    <span>Labels</span>
+                  </div>
+                </List.Item>
 
-              <List.Item>
-                <div className="list-content-wrapper fx-h-left-center">
-                  <i className="fi fi-rr-checkbox"></i>
-                  <span>Checklist</span>
-                </div>
-              </List.Item>
+                <List.Item>
+                  <div className="list-content-wrapper fx-h-left-center">
+                    <i className="fi fi-rr-checkbox"></i>
+                    <span>Checklist</span>
+                  </div>
+                </List.Item>
 
-              <List.Item>
-                <div className="list-content-wrapper fx-h-left-center">
-                  <i className="fi fi-rr-clock-three"></i>
-                  <span>Dates</span>
-                </div>
-              </List.Item>
+                <List.Item>
+                  <div className="list-content-wrapper fx-h-left-center">
+                    <i className="fi fi-rr-clock-three"></i>
+                    <span>Dates</span>
+                  </div>
+                </List.Item>
 
-              <List.Item>
-                <div className="list-content-wrapper fx-h-left-center">
-                  <i className="fi fi-sr-clip"></i>
-                  <span>Attachment</span>
-                </div>
-              </List.Item>
+                <List.Item>
+                  <div className="list-content-wrapper fx-h-left-center">
+                    <i className="fi fi-sr-clip"></i>
+                    <span>Attachment</span>
+                  </div>
+                </List.Item>
 
-              <List.Item>
-                <div className="list-content-wrapper fx-h-left-center">
-                  <i className="fi fi-rr-pen-field"></i>
-                  <span>Custom Fields</span>
-                </div>
-              </List.Item>
-            </List> 
+                <List.Item>
+                  <div className="list-content-wrapper fx-h-left-center">
+                    <i className="fi fi-rr-pen-field"></i>
+                    <span>Custom Fields</span>
+                  </div>
+                </List.Item>
+              </List>
+
+              <div className="list-action-wrapper">
+                <Typography.Text>Action</Typography.Text>
+                <List 
+                  itemLayout="horizontal"
+                  className="list-action"
+                >
+                  <List.Item>
+                    <div className="list-content-wrapper fx-h-left-center">
+                      <i className="fi fi-rr-arrow-right"></i>
+                      <span>Move</span>
+                    </div>
+                  </List.Item>
+
+                  <List.Item>
+                    <div className="list-content-wrapper fx-h-left-center">
+                      <i className="fi fi-rr-copy-alt"></i>
+                      <span>Copy</span>
+                    </div>
+                  </List.Item>
+
+                  <List.Item>
+                    <div className="list-content-wrapper fx-h-left-center">
+                      <i className="fi fi-sr-box"></i>
+                      <span>Archive</span>
+                    </div>
+                  </List.Item>
+
+                  <List.Item>
+                    <div className="list-content-wrapper fx-h-left-center">
+                      <i className="fi fi-sr-share"></i>
+                      <span>Share</span>
+                    </div>
+                  </List.Item>
+                  
+                </List>
+              </div>
+            </>
           }
 
           {/* Skeleton */}
