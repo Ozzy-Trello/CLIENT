@@ -44,7 +44,7 @@ const Sidebar: React.FC = React.memo(() => {
       setTimeout(function(){
         fetchBoardsList();
         setIsFetching(false);
-      }, 3000);
+      }, 1000);
     }
 
   }, [isFetching])

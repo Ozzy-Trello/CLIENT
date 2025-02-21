@@ -53,6 +53,7 @@ export interface Task {
   id: string;
   title: string;
   description?: string;
+  type?:string;
   cover?: string;
   attachment?: Attachment;
   dueDate?: string;
@@ -73,6 +74,7 @@ export interface Task {
   
 export interface Column {
   id: string;
+  type: string;
   title: string;
   taskIds: string[];
 }

@@ -98,6 +98,7 @@ const ListComponent: FC<ListComponentProps> = ({
   };
 
   useEffect(() => {
+    console.log("task: %o", tasks);
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
@@ -181,8 +182,8 @@ const ListComponent: FC<ListComponentProps> = ({
               padding: "0px 5px",
             }}
           >
-            {tasks.map((task, index) => (
-              <TaskComponent key={task.id} task={task} index={index} />
+            {tasks?.map((task, index) => (
+              <TaskComponent key={task?.id} task={task} index={index} />
             ))}
             {provided.placeholder}
             {!tasks.length && "This list is still empty"}

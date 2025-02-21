@@ -128,8 +128,8 @@ div[data-rfd-droppable-id="all-columns"] {
 
 /* Scrollbar */
 ::-webkit-scrollbar {
-  width: thin; /* Width of the vertical scrollbar */
-  height: thin; /* Height of the horizontal scrollbar */
+  width: 8px;  /* Width of the vertical scrollbar */
+  height: 8px; /* Height of the horizontal scrollbar */
 }
 
 ::-webkit-scrollbar-track {
@@ -148,5 +148,5 @@ div[data-rfd-droppable-id="all-columns"] {
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgb(var(--color-muted));
+  scrollbar-color: rgb(var(--color-muted)) transparent;  /* Added transparent for track color */
 }

@@ -1,7 +1,7 @@
 "use client";
 
-import { BoardData, Column } from "@/app/dto/types";
-import { Button, Input, Skeleton, Space } from "antd";
+import { BoardData, Column} from "@/app/dto/types";
+import { Button, Input, Skeleton } from "antd";
 import dynamic from "next/dynamic";
 import React, { useEffect, useState } from "react";
 import Topbar from "./topbar";
@@ -33,26 +33,48 @@ const initialData: BoardData = {
   columns: {
     "column-1": {
       id: "column-1",
-      title: "To Do",
+      type: "counter",
+      title: "Filter Design Pending",
       taskIds: ["1", "2"],
-    },
+    }, 
     "column-2": {
+      id: "column-1",
+      type: "counter",
+      title: "Filter Deal Maker",
+      taskIds: ["3", "4"],
+    }, 
+    "column-3": {
+      id: "column-1",
+      type: "flow",
+      title: "To Do",
+      taskIds: ["5", "6"],
+    },
+    "column-4": {
       id: "column-2",
       title: "In Progress",
-      taskIds: ["3"],
+      type: "flow",
+      taskIds: ["7, 8"],
     },
-    "column-3": {
+    "column-5": {
       id: "column-3",
+      type: "flow",
       title: "Done",
-      taskIds: [],
+      taskIds: ["9"],
     },
   },
   tasks: {
     "1": getTaskById('1'),
     "2": getTaskById('2'),
-    "3": getTaskById('3')
+    "3": getTaskById('3'),
+    "4": getTaskById('4'),
+    "5": getTaskById('5'),
+    "6": getTaskById('6'),
+    "7": getTaskById('7'),
+    "8": getTaskById('8'),
+    "9": getTaskById('9'),
+    "10": getTaskById('10'),
   },
-  columnOrder: ["column-1", "column-2", "column-3"],
+  columnOrder: ["column-1", "column-2", "column-3", "column-4", "column-5"],
 };
 
 const Board: React.FC = () => {
@@ -223,10 +245,11 @@ const addColumn = () => {
       <Topbar />
       <div
         style={{
-          overflow: "scroll",
-          marginTop: "50px",
-          width: "100%",
-          height: "100vh",
+          paddingTop: "50px",
+          height: "calc(100vh - 50px)",
+          overflowX: "scroll",
+          overflowY: "hidden",
+          minWidth: "200px",
         }}
       >
         { !isFetching && (
@@ -245,14 +268,15 @@ const addColumn = () => {
                     gap: "1rem",
                     padding: "1rem",
                     alignItems: "flex-start",
-                    height: "100vh"
+                    // height: "100vh",
                   }}
                 >
                   {data?.columnOrder.map((columnId, index) => {
                     const column = data.columns[columnId];
-                    const tasks = column.taskIds.map(
-                      (taskId) => data.tasks[taskId]
-                    );
+                    const tasks = column.taskIds.map((taskId) => {
+                      console.log(data.tasks)
+                      return data.tasks[taskId]
+                    });
 
                     return (
                       <Draggable

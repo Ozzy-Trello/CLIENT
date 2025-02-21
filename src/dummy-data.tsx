@@ -187,8 +187,85 @@ export const getBoard = (id: string): Board => {
 const tasks: Task[] = [
   {
     id: "1",
+    title: "110",
+    description: "Handle by Dewi",
+    type: "counter",
+    dueDate: "2025-02-28",
+    assignment: {
+      assignee: getUserById('1'),
+      assignedAt: "2025-01-20"
+    },
+    createdBy: getUserById('2'),
+    createdAt: "2025-01-19",
+    updatedAt: "2025-01-25",
+    updatedBy: getUserById('2'),
+    members: [
+      getUserById('1'),
+      getUserById('2')
+    ],
+  },
+  {
+    id: "2",
+    title: "110",
+    description: "Handle by Dewi",
+    type: "counter",
+    dueDate: "2025-02-28",
+    assignment: {
+      assignee: getUserById('1'),
+      assignedAt: "2025-01-20"
+    },
+    createdBy: getUserById('2'),
+    createdAt: "2025-01-19",
+    updatedAt: "2025-01-25",
+    updatedBy: getUserById('2'),
+    members: [
+      getUserById('1'),
+      getUserById('2')
+    ],
+  },
+  {
+    id: "3",
+    title: "110",
+    description: "Handle by Dewi",
+    type: "counter",
+    dueDate: "2025-02-28",
+    assignment: {
+      assignee: getUserById('1'),
+      assignedAt: "2025-01-20"
+    },
+    createdBy: getUserById('2'),
+    createdAt: "2025-01-19",
+    updatedAt: "2025-01-25",
+    updatedBy: getUserById('2'),
+    members: [
+      getUserById('1'),
+      getUserById('2')
+    ],
+  },
+  {
+    id: "4",
+    title: "110",
+    description: "Handle by Dewi",
+    type: "counter",
+    dueDate: "2025-02-28",
+    assignment: {
+      assignee: getUserById('1'),
+      assignedAt: "2025-01-20"
+    },
+    createdBy: getUserById('2'),
+    createdAt: "2025-01-19",
+    updatedAt: "2025-01-25",
+    updatedBy: getUserById('2'),
+    members: [
+      getUserById('1'),
+      getUserById('2')
+    ],
+  },
+  {
+    id: "5",
     title: "Task 1: Design Landing Page",
     description: "Create a beautiful landing page for the website.",
+    type: "flow",
     cover: "https://gw.alipayobjects.com/zos/rmsportal/JiqGstEfoWAOHiTxclqi.png",
     dueDate: "2025-02-28",
     assignment: {
@@ -281,8 +358,9 @@ const tasks: Task[] = [
     }
   },
   {
-    id: "2",
+    id: "6",
     title: "Task 2: Design Landing Page 2",
+    type: "flow",
     description: "Create a beautiful landing page for the website 2.",
     cover: "",
     dueDate: "2025-02-28",
@@ -355,8 +433,234 @@ const tasks: Task[] = [
     }
   },
   {
-    id: "3",
+    id: "7",
     title: "Task 3: Design Landing Page 3",
+    type: "flow",
+    description: "Create a beautiful landing page for the website 2.",
+    cover: "https://gw.alipayobjects.com/zos/rmsportal/JiqGstEfoWAOHiTxclqi.png",
+    dueDate: "2025-02-28",
+    assignment: {
+      assignee: getUserById('3'),
+      assignedAt: "2025-01-20"
+    },
+    createdBy: getUserById('4'),
+    createdAt: "2025-01-19",
+    updatedAt: "2025-01-25",
+    updatedBy: getUserById('4'),
+    members: [
+      getUserById('1'),
+      getUserById('2')
+    ],
+    logs: {
+      list: [
+        {
+          id: "c1",
+          createdBy: getUserById('2'),
+          content: "Looks good, but we need more details on the content.",
+          createdAt: "2025-01-22",
+          type: 'comment'
+        }
+      ],
+      meta: {
+        actualCount: 1,
+        currentPage: 1,
+        sizePerPage: 10
+      }
+    },
+    customFields: {
+      list: [
+        {
+          type: "input",
+          key: "Cabang",
+          value: "MGW"
+        },
+        {
+          type: "input",
+          key: "Deal Maker",
+          value: "Hari Sucipto"
+        },
+        {
+          type: "input",
+          key: "Design Langsung",
+          value: "Tidak"
+        },
+        {
+          type: "input",
+          key: "Produk",
+          value: "HEMCA polo"
+        },
+        {
+          type: "input",
+          key: "Bahan",
+          value: "Lacost pisque soft"
+        },
+        {
+          type: "input",
+          key: "Warna",
+          value: "Misty Gelap"
+        },
+        {
+          type: "input",
+          key: "Desainer",
+          value: "Ridwan"
+        }
+      ],
+    }
+  },
+  {
+    id: "8",
+    title: "Task 3: Design Landing Page 3",
+    type: "flow",
+    description: "Create a beautiful landing page for the website 2.",
+    cover: "https://gw.alipayobjects.com/zos/rmsportal/JiqGstEfoWAOHiTxclqi.png",
+    dueDate: "2025-02-28",
+    assignment: {
+      assignee: getUserById('3'),
+      assignedAt: "2025-01-20"
+    },
+    createdBy: getUserById('4'),
+    createdAt: "2025-01-19",
+    updatedAt: "2025-01-25",
+    updatedBy: getUserById('4'),
+    members: [
+      getUserById('1'),
+      getUserById('2')
+    ],
+    logs: {
+      list: [
+        {
+          id: "c1",
+          createdBy: getUserById('2'),
+          content: "Looks good, but we need more details on the content.",
+          createdAt: "2025-01-22",
+          type: 'comment'
+        }
+      ],
+      meta: {
+        actualCount: 1,
+        currentPage: 1,
+        sizePerPage: 10
+      }
+    },
+    customFields: {
+      list: [
+        {
+          type: "input",
+          key: "Cabang",
+          value: "MGW"
+        },
+        {
+          type: "input",
+          key: "Deal Maker",
+          value: "Hari Sucipto"
+        },
+        {
+          type: "input",
+          key: "Design Langsung",
+          value: "Tidak"
+        },
+        {
+          type: "input",
+          key: "Produk",
+          value: "HEMCA polo"
+        },
+        {
+          type: "input",
+          key: "Bahan",
+          value: "Lacost pisque soft"
+        },
+        {
+          type: "input",
+          key: "Warna",
+          value: "Misty Gelap"
+        },
+        {
+          type: "input",
+          key: "Desainer",
+          value: "Ridwan"
+        }
+      ],
+    }
+  },
+  {
+    id: "9",
+    title: "Task 3: Design Landing Page 3",
+    type: "flow",
+    description: "Create a beautiful landing page for the website 2.",
+    cover: "https://gw.alipayobjects.com/zos/rmsportal/JiqGstEfoWAOHiTxclqi.png",
+    dueDate: "2025-02-28",
+    assignment: {
+      assignee: getUserById('3'),
+      assignedAt: "2025-01-20"
+    },
+    createdBy: getUserById('4'),
+    createdAt: "2025-01-19",
+    updatedAt: "2025-01-25",
+    updatedBy: getUserById('4'),
+    members: [
+      getUserById('1'),
+      getUserById('2')
+    ],
+    logs: {
+      list: [
+        {
+          id: "c1",
+          createdBy: getUserById('2'),
+          content: "Looks good, but we need more details on the content.",
+          createdAt: "2025-01-22",
+          type: 'comment'
+        }
+      ],
+      meta: {
+        actualCount: 1,
+        currentPage: 1,
+        sizePerPage: 10
+      }
+    },
+    customFields: {
+      list: [
+        {
+          type: "input",
+          key: "Cabang",
+          value: "MGW"
+        },
+        {
+          type: "input",
+          key: "Deal Maker",
+          value: "Hari Sucipto"
+        },
+        {
+          type: "input",
+          key: "Design Langsung",
+          value: "Tidak"
+        },
+        {
+          type: "input",
+          key: "Produk",
+          value: "HEMCA polo"
+        },
+        {
+          type: "input",
+          key: "Bahan",
+          value: "Lacost pisque soft"
+        },
+        {
+          type: "input",
+          key: "Warna",
+          value: "Misty Gelap"
+        },
+        {
+          type: "input",
+          key: "Desainer",
+          value: "Ridwan"
+        }
+      ],
+    }
+  },
+  {
+    id: "10",
+    title: "Task 3: Design Landing Page 3",
+    type: "flow",
     description: "Create a beautiful landing page for the website 2.",
     cover: "https://gw.alipayobjects.com/zos/rmsportal/JiqGstEfoWAOHiTxclqi.png",
     dueDate: "2025-02-28",
@@ -429,6 +733,10 @@ const tasks: Task[] = [
     }
   },
 ];
+
+const taskCounter: Task[] = [
+  
+]
 
 export const getTaskById = (id: string): Task => {
   const task = tasks.find(task => task.id === id);
