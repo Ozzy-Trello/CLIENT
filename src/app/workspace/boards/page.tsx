@@ -35,7 +35,7 @@ const BoardsPage: React.FC = () => {
       }
     }
     getAccount();
-  }, [account, dispatch]) // Added missing dependencies
+  }, [])
 
   useEffect(() => {
     const fetchBoards = () => {

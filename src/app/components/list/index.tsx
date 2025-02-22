@@ -162,7 +162,7 @@ const ListComponent: FC<ListComponentProps> = ({
        
         <div className="fx-h-right-center">
           <Badge size="small" count="1/9" />
-          <Button size="small"><Ellipsis /></Button>
+          <Button size="small"><Ellipsis size={14}/></Button>
         </div>
       </div>
 

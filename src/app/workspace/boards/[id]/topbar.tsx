@@ -4,6 +4,7 @@ import { useWorkspaceSidebar } from "@/app/provider/workspace-sidebar-context";
 import { getUserById } from "@/dummy-data";
 import { useScreenSize } from "@/app/provider/screen-size-provider";
 import MembersList from "@/app/components/members-list";
+import { ListFilter, SlidersHorizontal, Star, UserPlus, Users } from "lucide-react";
 
 const Topbar: React.FC = () => {
   const { collapsed, siderSmall, siderWide } = useWorkspaceSidebar();
@@ -43,7 +44,7 @@ const Topbar: React.FC = () => {
           title={"filter"}
         >
           <Button size="small" shape="default">
-            <i className="fi fi-br-bars-filter"></i>
+            <SlidersHorizontal />
             <span>Filter</span>
           </Button>
         </Tooltip> 
@@ -74,16 +75,12 @@ const Topbar: React.FC = () => {
         <Tooltip
           title={"Starred boards showed up at the top of your baord list"}
         >
-          <Button size="small" shape="default">
-            <i className="fi fi-rr-star"></i>
-          </Button>
+          <Star size={16} cursor={"pointer"}/>
         </Tooltip>
         <Tooltip
-          title={"Starred boards showed up at the top of your baord list"}
+          title={"Change board visibility"}
         >
-          <Button size="small" shape="default">
-            <i className="fi fi-rr-users"></i>
-          </Button>
+          <Users size={16} cursor={"pointer"} />
         </Tooltip>
       </div>
 
@@ -91,17 +88,16 @@ const Topbar: React.FC = () => {
         { showRightColMenu  ? (
           <div className="fx-h-right-center">
             <Tooltip title={"filter"}>
-              <Button size="small" shape="default">
-                <i className="fi fi-br-bars-filter"></i>
+              <Button size="small" shape="default" icon={<ListFilter size={16} />}>
                 <span>Filter</span>
               </Button>
             </Tooltip> 
             <div className="members">
               <MembersList members={members} membersLength={members.length} membersLoopLimit={2} />
             </div>
-            <Tooltip>
-              <Button size="small">
-                <i className="fi fi-rr-user-add"></i> <span>Share</span>
+            <Tooltip title="Share board">
+              <Button size="small" icon={<UserPlus size={16}/>}>
+                <span>Share</span>
               </Button>
             </Tooltip>
           </div>

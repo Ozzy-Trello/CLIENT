@@ -18,7 +18,7 @@ const menus = [
         Boards
       </Link>
     ),
-    icon: <Trello />,
+    icon: <Trello size={16}/>,
   },
   {
     key: "menu-members",
@@ -27,7 +27,7 @@ const menus = [
         Members
       </Link>
     ),
-    icon: <Users />,
+    icon: <Users size={16} />,
   }
 ];
 
