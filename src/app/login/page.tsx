@@ -18,7 +18,6 @@ import { setAccessToken, setRefreshToken, setUser } from '@/app/store/slice';
 import { users } from '@/dummy-data';
 import Footer from '@/app/components/footer';
 import { useLogin } from '../hooks/auth';
-import { useAccount } from '../hooks/account';
 
 const { Title, Text } = Typography;
 

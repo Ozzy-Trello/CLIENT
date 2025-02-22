@@ -1,9 +1,14 @@
+'use client';
+
 import { useWorkspaceSidebar } from "@/app/provider/workspace-sidebar-context";
 import { Board } from "@/app/dto/types";
 import { boards } from "@/dummy-data";
-import { Avatar, Button, Menu, Tooltip, Typography, Layout, Divider, Skeleton, Space } from "antd";
+import { Avatar, Button, Menu, Tooltip, Typography, Layout, Skeleton, Space } from "antd";
 import Link from "next/link";
 import React, { useEffect, useState } from "react";
+import { ChevronLeft, ChevronRight, Trello, Users } from "lucide-react";
+import "./style.css";
+import { calc } from "antd/es/theme/internal";
 
 const menus = [
   {
@@ -13,7 +18,7 @@ const menus = [
         Boards
       </Link>
     ),
-    icon: <i className="fi fi-brands-trello"></i>,
+    icon: <Trello />,
   },
   {
     key: "menu-members",
@@ -22,37 +27,34 @@ const menus = [
         Members
       </Link>
     ),
-    icon: <i className="fi fi-sr-user-add"></i>,
+    icon: <Users />,
   }
 ];
 
 const { Sider } = Layout;
 
 const Sidebar: React.FC = React.memo(() => {
-  const { collapsed, toggleSidebar, siderWidth } = useWorkspaceSidebar();
+  const { collapsed, toggleSidebar, siderWide, siderSmall } = useWorkspaceSidebar();
   const [boardList, setBoardList] = useState<Board[]>([]);
   const [items, setItems] = useState(menus);
   const [isFetching, setIsFetching] = useState(true);
+  const [isHovered, setIsHovered] = useState(false);
 
   useEffect(() => {
     const fetchBoardsList = () => {
       setBoardList(boards);
     }
-
     if (isFetching) {
-      // timeout use for testing puposes only
       setTimeout(function(){
         fetchBoardsList();
         setIsFetching(false);
       }, 1000);
     }
-
-  }, [isFetching])
+  }, [isFetching]);
 
   useEffect(() => {
     const updateMenu = () => {
       const boardMenus: any[] = [];
-
       boardMenus.push({
         key: `menu-your-boards`,
         event: 'none',
@@ -65,7 +67,7 @@ const Sidebar: React.FC = React.memo(() => {
         )
       });
 
-      boardList?.forEach((board, index) => {
+      boardList?.forEach((board) => {
         const boardMenu = {
           key: `menu-board-${board.id}`,
           label: (
@@ -77,78 +79,86 @@ const Sidebar: React.FC = React.memo(() => {
         }
         boardMenus.push(boardMenu);
       });
-    
+   
       setItems([...menus, ...boardMenus]);
     };
-    
+   
     updateMenu();
-    
+   
   }, [boardList, collapsed]);
 
   return (
-    <Sider
-      className="sidebar"
-      collapsed={collapsed}
-      style={{
-        height: `100%`,
-        position: "fixed",
-        left: 0,
-        top: 50,
-        zIndex: 10,
-        overflow: "auto",
-      }}
-      width={siderWidth}
-      trigger={null}
+    <div 
+      className="sidebar-container"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
-      <div
-        className="sidebar-title"
+      <Sider
+        className={`sidebar ${collapsed ? 'collapsed' : ''}`}
+        collapsed={collapsed}
         style={{
-          display: "flex",
-          justifyContent: collapsed ? "center" : "space-between",
-          padding: "10px",
+          height: '100%',
+          position: 'fixed',
+          left: 0,
+          top: 45,
+          overflow: 'visible',
+          backgroundColor: '#fff',
+          transition: 'width 0.2s ease, transform 0.2s ease',
+          width: collapsed ? siderSmall : siderWide,
+          zIndex: 101
         }}
+        width={collapsed ? siderSmall : siderWide}
+        collapsedWidth={12}
+        trigger={null}
       >
-        {!collapsed && (
-          <div className="fx-h-left-center">
-            <Avatar shape="square" size={"small"} />
-            <Typography>Workspace Name</Typography>
-          </div>
-        )}
-        <Tooltip title="toggle">
-          <Button
-            size="small"
-            shape="default"
-            icon={
-              <i
-                className={`fi fi-rr-angle-small-${
-                  collapsed ? "right" : "left"
-                }`}
+        <div className="sidebar-content" style={{ opacity: collapsed ? 0 : 1 }}>
+          {!collapsed && (
+            <>
+              <div className="sidebar-title">
+                <div className="fx-h-left-center">
+                  <Avatar shape="square" size={"small"} />
+                  <Typography>Workspace Name</Typography>
+                </div>
+              </div>
+              
+              <Menu
+                mode="inline"
+                defaultSelectedKeys={["1"]}
+                style={{ borderRight: 0 }}
+                items={items}
               />
-            }
-            onClick={() => toggleSidebar()}
-          />
-        </Tooltip>
-      </div>
-      
-      <Menu
-        mode="inline"
-        defaultSelectedKeys={["1"]}
-        style={{ borderRight: 0 }}
-        items={items}
-      />
 
-      {/* Skeleton */}
-      { isFetching && [1,2,3].map((item) => (
-       <Space key={`loader-space-${item}`} style={{margin: "0px 0px 10px 25px"}}>
-        <Skeleton.Avatar active={isFetching} size={"small"} shape={"square"} />
-        {!collapsed && (
-          <Skeleton.Input active={isFetching} size={"small"} />
-        )}
-      </Space>
-     ))}
-      
-    </Sider>
+              {isFetching && [1,2,3].map((item) => (
+                <Space key={`loader-space-${item}`} style={{margin: "0px 0px 10px 25px"}}>
+                  <Skeleton.Avatar active={isFetching} size={"small"} shape={"square"} />
+                  <Skeleton.Input active={isFetching} size={"small"} />
+                </Space>
+              ))}
+            </>
+          )}
+        </div>
+      </Sider>
+
+      <Tooltip 
+        title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        placement="right"
+      >
+        <Button
+          className={`sidebar-toggle ${isHovered ? 'hovered' : ''}`}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          size="small"
+          type="text"
+          icon={collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+          onClick={toggleSidebar}
+          style={{
+            left: collapsed ? `calc(${siderSmall}px - 10px)` : `calc(${siderWide}px - 30px)`,
+            zIndex: 102
+          }}
+        />
+      </Tooltip>
+    </div>
   );
 });
 
+Sidebar.displayName = 'Sidebar';
 export default Sidebar;

@@ -11,6 +11,7 @@ import { Badge, Button, Input, Typography } from "antd";
 import type { Task } from "@/app/dto/types";
 import { useSelector } from "react-redux";
 import { selectTheme } from "@/app/store/slice";
+import { Ellipsis } from "lucide-react";
 
 interface Column {
   id: string;
@@ -161,7 +162,7 @@ const ListComponent: FC<ListComponentProps> = ({
        
         <div className="fx-h-right-center">
           <Badge size="small" count="1/9" />
-          <Button size="small"><i className="fi fi-rr-menu-dots"></i></Button>
+          <Button size="small"><Ellipsis /></Button>
         </div>
       </div>
 

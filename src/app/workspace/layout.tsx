@@ -19,7 +19,7 @@ interface BaseLayoutProps {
 
 const WorkspaceLayout: React.FC<BaseLayoutProps> = ({ children }) => {
   
-  const { siderWidth } = useWorkspaceSidebar();
+  const { collapsed, siderSmall, siderWide } = useWorkspaceSidebar();
 
   return (
     <Layout className="base-layout">
@@ -30,8 +30,8 @@ const WorkspaceLayout: React.FC<BaseLayoutProps> = ({ children }) => {
       <Sidebar />
       <Layout
         style={{
-          marginTop: 50,
-          marginLeft: siderWidth,
+          marginTop: 45,
+          marginLeft: collapsed ? siderSmall : siderWide,
           transition: "margin-left 0.2s ease",
           overflow: "hidden",
           height: "100vh"

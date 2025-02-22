@@ -4,7 +4,7 @@
   border-width: 0px 0px 1px 0px;
   border-style: solid;
   border-color: rgb(var(--color-muted));
-  z-index: 1000;
+  z-index: 100;
   position: fixed;
   padding: 5px 20px;
 }

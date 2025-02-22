@@ -69,7 +69,7 @@ const TopBar: React.FC = React.memo(() => {
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        height: "inherit",
+        lineHeight: "45px"
       }}
     >
       <div

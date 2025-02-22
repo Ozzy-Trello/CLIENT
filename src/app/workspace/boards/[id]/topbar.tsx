@@ -6,7 +6,7 @@ import { useScreenSize } from "@/app/provider/screen-size-provider";
 import MembersList from "@/app/components/members-list";
 
 const Topbar: React.FC = () => {
-  const { siderWidth } = useWorkspaceSidebar();
+  const { collapsed, siderSmall, siderWide } = useWorkspaceSidebar();
   const {width} = useScreenSize();
   const [ showRightColMenu, setIsShowRighColtMenu ] = useState(false);
   const [ openRightMenu, setOpenRightMenu] = useState(false);
@@ -62,9 +62,9 @@ const Topbar: React.FC = () => {
     <div 
       className="board-page-topbar fx-h-sb-center"
       style={{
-        width: `calc(100% - ${siderWidth}px)`,
-        height: "50px",
-        top: 50,
+        width: collapsed ? `calc(100% - ${siderSmall}px)` : `calc(100% - ${siderWide}px)`,
+        height: "45px",
+        top: 45,
       }}
     >
       <div className="fx-h-left-center left-col">
