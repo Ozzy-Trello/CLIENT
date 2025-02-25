@@ -99,7 +99,6 @@ const ListComponent: FC<ListComponentProps> = ({
   };
 
   useEffect(() => {
-    console.log("task: %o", tasks);
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);

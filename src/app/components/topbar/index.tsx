@@ -11,6 +11,7 @@ import { useSelector } from "react-redux";
 import { selectTheme, selectUser, setAccessToken, setUser } from "@/app/store/slice";
 import { useDispatch } from "react-redux";
 import { useRouter } from "next/navigation"; // Changed from 'next/router'
+import { WorkspaceSelection } from "../selection";
 
 const TopBar: React.FC = React.memo(() => {
   const [notificationVisible, setNotificationVisible] = useState(false);
@@ -73,8 +74,7 @@ const TopBar: React.FC = React.memo(() => {
       }}
     >
       <div
-        style={{ display: "flex", alignItems: "center", cursor: "pointer" }}
-        className="brand"
+        className="brand fx-h-left-center"
       >
         <Link href="/dashboard">
           <ImageDynamicContrast
@@ -85,6 +85,8 @@ const TopBar: React.FC = React.memo(() => {
             alt="Ozzy Clothing logo"
           />
         </Link>
+
+        <WorkspaceSelection />
       </div>
       <div
         style={{

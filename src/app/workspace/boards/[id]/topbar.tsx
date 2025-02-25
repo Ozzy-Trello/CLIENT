@@ -4,7 +4,7 @@ import { useWorkspaceSidebar } from "@/app/provider/workspace-sidebar-context";
 import { getUserById } from "@/dummy-data";
 import { useScreenSize } from "@/app/provider/screen-size-provider";
 import MembersList from "@/app/components/members-list";
-import { ListFilter, SlidersHorizontal, Star, UserPlus, Users } from "lucide-react";
+import { ListFilter, Menu, SlidersHorizontal, Star, UserPlus, Users } from "lucide-react";
 
 const Topbar: React.FC = () => {
   const { collapsed, siderSmall, siderWide } = useWorkspaceSidebar();
@@ -109,7 +109,7 @@ const Topbar: React.FC = () => {
               onOpenChange={setOpenRightMenu}
             >
               <Tooltip title={"show more menu"}>
-                  <Button><i className="fi fi-br-menu-burger"></i></Button>
+                  <Button><Menu size={16} /></Button>
                 </Tooltip>
             </Dropdown>
           )}

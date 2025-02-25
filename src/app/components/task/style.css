@@ -1,6 +1,3 @@
-.ant-modal, .ant-modal-content {
-  padding: 0px !important;
-}
 .task-card {
   max-width: inherit;
   box-shadow: rgba(0, 0, 0, 0.16) 0px 1px 4px !important;

@@ -107,3 +107,9 @@ export interface Board {
   updatedBy?: User;
   upatedAt: string;
 }
+
+
+export interface Workspace {
+  id: string;
+  title: string;
+}

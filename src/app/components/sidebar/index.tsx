@@ -8,7 +8,8 @@ import Link from "next/link";
 import React, { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, Trello, Users } from "lucide-react";
 import "./style.css";
-import { calc } from "antd/es/theme/internal";
+import ModalCreateBoard from "../modal-create-board";
+
 
 const menus = [
   {
@@ -39,6 +40,11 @@ const Sidebar: React.FC = React.memo(() => {
   const [items, setItems] = useState(menus);
   const [isFetching, setIsFetching] = useState(true);
   const [isHovered, setIsHovered] = useState(false);
+  const [openCreateBoardModal, setOpenCreateBoardModal] = useState<boolean>(false);
+  
+  const handleOpenBoardModal = () => {
+    setOpenCreateBoardModal(true);
+  }
 
   useEffect(() => {
     const fetchBoardsList = () => {
@@ -60,9 +66,9 @@ const Sidebar: React.FC = React.memo(() => {
         event: 'none',
         disabled: true,
         label: (
-          <div className={collapsed ? "fx-h-sb-center d-none" : "fx-h-sb-center"}>
+          <div className={collapsed ? "menu-group-title fx-h-sb-center d-none" : "menu-group-title fx-h-sb-center"}>
             <Typography.Text strong>Your boards</Typography.Text>
-            <Button size="small">+</Button>
+            <Button size="small" onClick={handleOpenBoardModal}>+</Button>
           </div>
         )
       });
@@ -156,6 +162,7 @@ const Sidebar: React.FC = React.memo(() => {
           }}
         />
       </Tooltip>
+      <ModalCreateBoard open={openCreateBoardModal} setOpen={setOpenCreateBoardModal} />
     </div>
   );
 });

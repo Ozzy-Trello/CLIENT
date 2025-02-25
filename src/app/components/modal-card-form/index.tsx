@@ -1,4 +1,4 @@
-import { Avatar, Button, Col, Input, List, Row, Skeleton, Space, Tooltip, Typography } from "antd";
+import { Avatar, Button, Col, Input, List, Modal, Row, Skeleton, Space, Tooltip, Typography } from "antd";
 import { useEffect, useState } from "react";
 import Image from 'next/image';
 import DropdownCardListCategory from "../dropdown-card-list-category";
@@ -10,9 +10,18 @@ import { Task } from "@/app/dto/types";
 import { getTaskById } from "@/dummy-data";
 import MembersList from "../members-list";
 import CardDetailsLogs from "../card-details-logs";
+import { useScreenSize } from "@/app/provider/screen-size-provider";
 
-const CardDetails: React.FC = () => {
+interface ModalCardFormProps {
+  open: boolean;
+  setOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  loading: boolean;
+}
 
+const ModalCardForm: React.FC<ModalCardFormProps> = (props) => {
+
+  const {width, isMobile} =  useScreenSize();
+  const {open, setOpen, loading} = props;
   const [data, setData] = useState<Task>();
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [isEditingComment, setIsEditingComment] = useState(false);
@@ -39,7 +48,6 @@ const CardDetails: React.FC = () => {
   }
 
   const handleSaveCommentClick = () => {
-
   }
 
 
@@ -47,7 +55,6 @@ const CardDetails: React.FC = () => {
     const fetchData = () => {
       const task = getTaskById('1');
       setData(task);
-      console.log("task: %o", task);
     }
 
     if (isFetching) {
@@ -59,6 +66,16 @@ const CardDetails: React.FC = () => {
   }, [isFetching]);
 
   return (
+    <Modal
+      title={null}
+      loading={loading}
+      open={open}
+      onCancel={() => setOpen(false)}
+      footer={null}
+      className="modal-card-form"
+      width={width > 768 ? "60%" : "90%"}
+      style={{ top: 20 }}
+    >
     <div className="component-card-details">
       <div className="cover" 
         style={{
@@ -314,7 +331,8 @@ const CardDetails: React.FC = () => {
         </Col>
       </Row>
     </div>
+    </Modal>
   )
 }
 
-export default CardDetails;
+export default ModalCardForm;

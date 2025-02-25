@@ -92,3 +92,10 @@
   display: flex !important;
   align-items: center !important;
 }
+
+/* List Menu */
+
+li:has(.menu-group-title):hover {
+  background-color: transparent !important;
+  cursor: pointer !important;
+}

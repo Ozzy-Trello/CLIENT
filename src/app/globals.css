@@ -86,6 +86,13 @@ div[data-rfd-droppable-id="all-columns"] {
   gap: 10px;
 }
 
+.fx-v-left-left {
+  display: flex;
+  flex-direction: column;
+  justify-content: start;
+  align-items: left;
+}
+
 .fx-v-left-center {
   display: flex;
   flex-direction: column;

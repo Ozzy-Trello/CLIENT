@@ -1,6 +1,6 @@
 "use client";
 
-import { BoardData, Column} from "@/app/dto/types";
+import { BoardData } from "@/app/dto/types";
 import { Button, Input, Skeleton } from "antd";
 import dynamic from "next/dynamic";
 import React, { useEffect, useState } from "react";
@@ -38,22 +38,22 @@ const initialData: BoardData = {
       taskIds: ["1", "2"],
     }, 
     "column-2": {
-      id: "column-1",
+      id: "column-2",
       type: "counter",
       title: "Filter Deal Maker",
       taskIds: ["3", "4"],
     }, 
     "column-3": {
-      id: "column-1",
+      id: "column-3",
       type: "flow",
       title: "To Do",
       taskIds: ["5", "6"],
     },
     "column-4": {
-      id: "column-2",
+      id: "column-4",
       title: "In Progress",
       type: "flow",
-      taskIds: ["7, 8"],
+      taskIds: ["7", "8"],
     },
     "column-5": {
       id: "column-3",
@@ -274,7 +274,6 @@ const addColumn = () => {
                   {data?.columnOrder.map((columnId, index) => {
                     const column = data.columns[columnId];
                     const tasks = column.taskIds.map((taskId) => {
-                      console.log(data.tasks)
                       return data.tasks[taskId]
                     });
 

@@ -33,7 +33,6 @@ const Account: React.FC = () => {
     try {
       setIsLoading(true);
       const result = await updateAccount.mutateAsync(values);
-      console.log("resulte update: %o", result);
       if (result) {
 
       }
