@@ -4,12 +4,13 @@ import { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { ConfigProvider } from 'antd';
 import { RootState } from '../store';
-import { selectTheme } from '../store/slice';
+import { selectSelectedBoard, selectTheme } from '../store/slice';
 
 export function ThemeProvider({ children, userId }: { children: React.ReactNode; userId: string }) {
   const dispatch = useDispatch();
   // const { colors, isLoading } = useSelector((state: RootState) => state.theme);
   const theme = useSelector(selectTheme);
+  const selectedBoard = useSelector(selectSelectedBoard);
   const { colors, fontSizes } = theme;
   let root: HTMLElement;
 
@@ -27,7 +28,16 @@ export function ThemeProvider({ children, userId }: { children: React.ReactNode;
   //   }
 
   //   fetchTheme();
-  // }, [dispatch, userId]);
+  // }, [dispatch, userId]);.
+
+  useEffect(() => {
+    if (!root) root = document.documentElement;
+    if (selectedBoard) {;
+      root.style.setProperty(`--color-board-page-background-color`, selectedBoard.backgroundColor as string);
+    } else {
+      root.style.setProperty(`--color-board-page-background-color`, root.style.getPropertyValue(`--color-background`));
+    }
+  }, [selectedBoard] )
 
   // Apply theme to CSS variables
   useEffect(() => {

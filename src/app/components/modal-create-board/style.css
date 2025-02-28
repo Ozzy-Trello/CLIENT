@@ -101,6 +101,11 @@
 
 .modal-create-board .color-picker-item .ant-form-item-control-input {
   min-height: auto;
+  height: 100px;
+}
+
+.modal-create-board .ant-color-picker-trigger {
+  margin: 10px;
 }
 
 .modal-create-board .ant-form-item {
@@ -120,6 +125,10 @@
 
 .modal-create-board .form-action-button {
   padding: 10px 20px;
+}
+
+.ant-modal-footer {
+  border-top: thin solid lightgray !important;
 }
 
 /* Animations for modal */

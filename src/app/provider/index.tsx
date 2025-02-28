@@ -8,6 +8,7 @@ import { ThemeProvider } from "@/app/provider/theme-provider";
 import { ScreenSizeProvider } from "@/app/provider/screen-size-provider";
 import { AntdRegistry } from "@ant-design/nextjs-registry";
 import QueryProvider from "./query-provider";
+import RouteController from "../route_controller";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -18,6 +19,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
             <AntdRegistry>
               <ThemeProvider userId="1">
                 <WorkspaceSidebarProvider>
+                  <RouteController></RouteController>
                   {children}
                 </WorkspaceSidebarProvider>
               </ThemeProvider>

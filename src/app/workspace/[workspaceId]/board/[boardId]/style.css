@@ -1,0 +1,38 @@
+/* HEADER component */
+.board-page header {
+  background-color: rgba(0, 0, 0, 0.09) !important;
+  border-color: rgba(0, 0, 0, 0.09) !important;
+}
+
+
+/* SIDEBAR component */
+.board-page .sidebar {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+  border-color: rgba(0, 0, 0, 0.05) !important;
+}
+
+.board-page .sidebar .sidebar-title {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+  border-color: rgba(0, 0, 0, 0.05) !important;
+}
+
+.board-page .sidebar ul {
+  background: transparent !important;
+}
+
+/* topbar */
+.board-page .board-page-topbar {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+  border-color: rgba(0, 0, 0, 0.05) !important;
+}
+
+button {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+  border-color: rgba(0, 0, 0, 0.05) !important;
+}
+
+.add-list-wrapper {
+  background-color: white !important;
+  padding: 10px;
+  border-radius: 7px;
+}

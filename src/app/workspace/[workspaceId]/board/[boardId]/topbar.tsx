@@ -4,7 +4,7 @@ import { useWorkspaceSidebar } from "@/app/provider/workspace-sidebar-context";
 import { getUserById } from "@/dummy-data";
 import { useScreenSize } from "@/app/provider/screen-size-provider";
 import MembersList from "@/app/components/members-list";
-import { ListFilter, Menu, SlidersHorizontal, Star, UserPlus, Users } from "lucide-react";
+import { Ellipsis, ListFilter, Menu, SlidersHorizontal, Star, UserPlus, Users } from "lucide-react";
 
 const Topbar: React.FC = () => {
   const { collapsed, siderSmall, siderWide } = useWorkspaceSidebar();
@@ -20,9 +20,7 @@ const Topbar: React.FC = () => {
     getUserById('5')
   ]);
 
-
   useEffect(() => {
-
     const handleRightColMenu = () => {
       if (width < 768) {
         setIsShowRighColtMenu(false);
@@ -32,7 +30,6 @@ const Topbar: React.FC = () => {
     }
 
     handleRightColMenu();
-
   }, [width])
 
 
@@ -98,6 +95,10 @@ const Topbar: React.FC = () => {
             <Tooltip title="Share board">
               <Button size="small" icon={<UserPlus size={16}/>}>
                 <span>Share</span>
+              </Button>
+            </Tooltip>
+            <Tooltip title="more">
+              <Button size="small" icon={<Ellipsis size={16} />}>
               </Button>
             </Tooltip>
           </div>

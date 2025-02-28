@@ -1,32 +1,35 @@
 import { 
-  Avatar, 
   Button, 
   ColorPicker, 
-  Divider, 
-  Flex, 
   Form, 
   Input, 
   Modal, 
-  Space, 
   Tooltip, 
   Typography 
 } from "antd";
 import { VisibilitySelection, WorkspaceSelection } from "../selection";
 import boardsImage from "@/app/assets/images/boards.png";
 import Image from "next/image";
-import { PictureOutlined, CheckOutlined, StarOutlined } from "@ant-design/icons";
+import { PictureOutlined, StarOutlined } from "@ant-design/icons";
 import "./style.css";
+import { Board } from "@/app/dto/types";
+import { useSelector } from "react-redux";
+import { selectSelectedWorkspace, setSelectedBoard } from "@/app/store/slice";
+import { useDispatch } from "react-redux";
+import { useRouter } from "next/navigation";
 const { Text, Title } = Typography;
 
 interface ModalCreateBoardForm {
   open: boolean;
   setOpen: React.Dispatch<React.SetStateAction<boolean>>;
-  onCreateBoard?: (values: any) => void;
 }
 
 const CreateBoard: React.FC<ModalCreateBoardForm> = (props: ModalCreateBoardForm) => {
-  const { open, setOpen, onCreateBoard } = props;
+  const { open, setOpen } = props;
   const [form] = Form.useForm();
+  const selectedWorkspace = useSelector(selectSelectedWorkspace);
+  const router = useRouter();
+  const dispatch = useDispatch();
   const DEFAULT_COLOR = [
     {
       color: 'rgb(16, 142, 233)',
@@ -41,16 +44,21 @@ const CreateBoard: React.FC<ModalCreateBoardForm> = (props: ModalCreateBoardForm
   // Use Form's values to track background instead of separate state
   const backgroundGradient = Form.useWatch('background', form) || 'linear-gradient(to right, rgb(16, 142, 233), rgb(135, 208, 104))';
   
-  const PRESET_COLORS = [
-    '#1890ff', '#f5222d', '#fa8c16', '#faad14', 
-    '#13c2c2', '#52c41a', '#722ed1', '#eb2f96',
-    '#2f54eb', '#fadb14', '#a0d911', '#fa541c'
-  ];
-  
   const handleSubmit = (values: any) => {
-    if (onCreateBoard) {
-      onCreateBoard(values); // Background is already included in values
+    const tempId = `board-${Date.now()}`;
+    const board: Board = {
+      id: tempId,
+      workspaceId: selectedWorkspace,
+      title: values.title,
+      cover: '',
+      backgroundColor: values.background,
+      isStarred: false,
+      visibility: '',
+      createdAt: '',
+      upatedAt: '',
     }
+    dispatch(setSelectedBoard(board));
+    router.push(`/workspace/${selectedWorkspace}/board/${tempId}`);
     form.resetFields();
     setOpen(false);
   };
@@ -61,16 +69,7 @@ const CreateBoard: React.FC<ModalCreateBoardForm> = (props: ModalCreateBoardForm
       open={open}
       onCancel={() => setOpen(false)}
       title={"Create New Board"}
-      footer={
-        <div className="form-action-button fx-v-right-center">
-          <Button onClick={() => setOpen(false)}>
-            Cancel
-          </Button>
-          <Button type="primary" htmlType="submit">
-            Create Board
-          </Button>
-        </div>
-        }
+      footer={null}
       width={520}
       centered
       destroyOnClose
@@ -120,21 +119,16 @@ const CreateBoard: React.FC<ModalCreateBoardForm> = (props: ModalCreateBoardForm
         </div>
         
         <div className="board-form-content">
+          
           <Form.Item 
-            name="background"
+            name="background" 
             label={<Text strong>Background</Text>} 
-            className="color-picker-item"
+            rules={[{ required: true, message: 'Please enter a board title' }]}
           >
             <ColorPicker
               defaultValue={DEFAULT_COLOR}
               allowClear
               showText
-              presets={[
-                {
-                  label: 'Recommended',
-                  colors: PRESET_COLORS,
-                }
-              ]}
               mode={['gradient']}
               onChangeComplete={(color) => {
                 form.setFieldValue('background', color.toRgbString());
@@ -150,8 +144,6 @@ const CreateBoard: React.FC<ModalCreateBoardForm> = (props: ModalCreateBoardForm
             <Input placeholder="Enter board title" size="large" />
           </Form.Item>
           
-          <Divider style={{ margin: '16px 0' }} />
-          
           <Form.Item name="workspace" label={<Text strong>Workspace</Text>}>
             <WorkspaceSelection />
           </Form.Item>
@@ -160,6 +152,15 @@ const CreateBoard: React.FC<ModalCreateBoardForm> = (props: ModalCreateBoardForm
             <VisibilitySelection />
           </Form.Item>
         
+        </div>
+
+        <div className="form-action-button fx-v-right-center">
+          <Button onClick={() => setOpen(false)} size="small">
+            Cancel
+          </Button>
+          <Button htmlType="submit" size="small">
+            Create Board
+          </Button>
         </div>
       </Form>
     </Modal>

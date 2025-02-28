@@ -26,7 +26,7 @@
 .sidebar-toggle {
   position: absolute !important;
   top: 58px;
-  background: #fff !important;
+  background: inherit !important;
   border-radius: 50% !important;
   width: 24px !important;
   height: 24px !important;

@@ -27,7 +27,7 @@ const MembersList: React.FC<MembersListProps> = ({members, membersLength, member
         if (index < limit) {
           return (
             <Tooltip title={member?.username}>
-              <Avatar key={index} size="small" src={member?.avatarUrl} />
+              <Avatar key={index} size="small" src={member?.avatar} />
             </Tooltip>
           )
         } else {

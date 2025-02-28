@@ -9,58 +9,84 @@ import React, { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, Trello, Users } from "lucide-react";
 import "./style.css";
 import ModalCreateBoard from "../modal-create-board";
+import { useSelector } from "react-redux";
+import { selectSelectedWorkspace, setSelectedBoard } from "@/app/store/slice";
+import { useRouter } from "next/navigation";
+import { useDispatch } from "react-redux";
 
-
-const menus = [
-  {
-    key: "menu-board",
-    label: (
-      <Link className="fullwidth" href={"/workspace/boards"}>
-        Boards
-      </Link>
-    ),
-    icon: <Trello size={16}/>,
-  },
-  {
-    key: "menu-members",
-    label: (
-      <Link className="fullwidth" href={"/workspace/members"}>
-        Members
-      </Link>
-    ),
-    icon: <Users size={16} />,
-  }
-];
 
 const { Sider } = Layout;
 
 const Sidebar: React.FC = React.memo(() => {
   const { collapsed, toggleSidebar, siderWide, siderSmall } = useWorkspaceSidebar();
   const [boardList, setBoardList] = useState<Board[]>([]);
-  const [items, setItems] = useState(menus);
+  const [menus, setMenus] = useState<{ key: string; label: React.ReactNode; icon: React.ReactNode; }[]>([]);
+  const [allMenus, setAllMenus] = useState<{ key: string; label: React.ReactNode; icon: React.ReactNode; }[]>([]);
   const [isFetching, setIsFetching] = useState(true);
   const [isHovered, setIsHovered] = useState(false);
   const [openCreateBoardModal, setOpenCreateBoardModal] = useState<boolean>(false);
+  const selectedWorkspace = useSelector(selectSelectedWorkspace);
+  const router = useRouter();
+  const dispatch = useDispatch();
   
   const handleOpenBoardModal = () => {
     setOpenCreateBoardModal(true);
   }
 
-  useEffect(() => {
-    const fetchBoardsList = () => {
-      setBoardList(boards);
-    }
-    if (isFetching) {
-      setTimeout(function(){
-        fetchBoardsList();
-        setIsFetching(false);
-      }, 1000);
-    }
-  }, [isFetching]);
+  const handleSelectBoardItem = (board: Board) => {
+    dispatch(setSelectedBoard(board));
+  }
 
   useEffect(() => {
+    const menus = [
+      {
+        key: "menu-board",
+        label: (
+          <Link className="fullwidth" href={`/workspace/${selectedWorkspace}/board`}>
+            Boards
+          </Link>
+        ),
+        icon: <Trello size={16}/>,
+      },
+      {
+        key: "menu-members",
+        label: (
+          <Link className="fullwidth" href={`/workspace/${selectedWorkspace}/members`}>
+            Members
+          </Link>
+        ),
+        icon: <Users size={16} />,
+      }
+    ];
+
+    setMenus(menus);
+  }, [selectedWorkspace])
+
+  useEffect(() => {
+    const fetchBoardsList = () => {
+      const filteredBoards = boards.filter(item => item.workspaceId == selectedWorkspace);
+      setBoardList(filteredBoards);
+    }
+
+    setTimeout(function(){
+      fetchBoardsList();
+      setIsFetching(false);
+    }, 1000);
+
+  }, [selectedWorkspace]);
+
+  useEffect(() => {
+    if (selectedWorkspace === "") {
+      // If no workspace is selected, only show the base menus without boards
+      setAllMenus([...menus]);
+      return;
+    }
+    
+    // If a workspace is selected, add the boards section
     const updateMenu = () => {
-      const boardMenus: any[] = [];
+      const boardMenus = [];
+      
+      // Add the "Your boards" header item with an empty icon to satisfy the type
       boardMenus.push({
         key: `menu-your-boards`,
         event: 'none',
@@ -70,14 +96,16 @@ const Sidebar: React.FC = React.memo(() => {
             <Typography.Text strong>Your boards</Typography.Text>
             <Button size="small" onClick={handleOpenBoardModal}>+</Button>
           </div>
-        )
+        ),
+        icon: <span></span>
       });
-
+      
+      // Add each board as a menu item
       boardList?.forEach((board) => {
         const boardMenu = {
           key: `menu-board-${board.id}`,
           label: (
-            <Link className="fullwidth" href={`/workspace/boards/${board.id}`}>
+            <Link className="fullwidth" href={`/workspace/${selectedWorkspace}/board/${board.id}`} onClick={() => {handleSelectBoardItem(board)}}>
               {board.title}
             </Link>
           ),
@@ -85,13 +113,15 @@ const Sidebar: React.FC = React.memo(() => {
         }
         boardMenus.push(boardMenu);
       });
-   
-      setItems([...menus, ...boardMenus]);
+     
+      // Update the items state with base menus plus board menus
+      setAllMenus([...menus, ...boardMenus]);
     };
-   
+     
+    // Call updateMenu when we have a selected workspace
     updateMenu();
-   
-  }, [boardList, collapsed]);
+    
+  }, [selectedWorkspace, boardList, menus, collapsed]);
 
   return (
     <div 
@@ -123,7 +153,7 @@ const Sidebar: React.FC = React.memo(() => {
               <div className="sidebar-title">
                 <div className="fx-h-left-center">
                   <Avatar shape="square" size={"small"} />
-                  <Typography>Workspace Name</Typography>
+                  <Typography>{selectedWorkspace}</Typography>
                 </div>
               </div>
               
@@ -131,7 +161,7 @@ const Sidebar: React.FC = React.memo(() => {
                 mode="inline"
                 defaultSelectedKeys={["1"]}
                 style={{ borderRight: 0 }}
-                items={items}
+                items={allMenus}
               />
 
               {isFetching && [1,2,3].map((item) => (

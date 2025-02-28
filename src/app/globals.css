@@ -1,7 +1,6 @@
 /* @import "~@flaticon/flaticon-uicons/css/all/all"; */
 
 :root{
-
   /* Ensure that these colors are the same as the one in the initial appState store */
   --color-primary: 8, 17, 76;
   --color-secondary: 255, 204, 0;
@@ -9,17 +8,22 @@
   --color-background:255, 255,255;
   --color-text: 51, 51, 51;
   --color-muted:217, 217, 217;
+  --color-board-page-background-color: 255, 225, 225;
 }
 
 /* Native HTML tag */
 body {
-  background-color: rgb(var(--color-background));
+  background-color: rgb(var(--color-background), 0);
   margin: 0;
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   font-size: var(--font-size-body)px;
   color: rgb(var(--color-text));
+}
+
+body.board-page {
+  background-color: rgb(var(--color-board-page-background-color));
 }
 
 p, span, i, a {
@@ -131,6 +135,12 @@ div[data-rfd-droppable-id="all-columns"] {
 
 .tx-small > * {
   font-size: 10px !important;
+}
+
+
+/* Ant Design */
+.ant-layout {
+  background-color: transparent;
 }
 
 /* Scrollbar */

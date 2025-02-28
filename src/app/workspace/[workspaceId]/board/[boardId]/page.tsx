@@ -9,6 +9,8 @@ import { useSelector } from "react-redux";
 import { selectTheme } from "@/app/store/slice";
 import { getTaskById } from "@/dummy-data";
 import "../style.css";
+import "./style.css";
+import { Plus, X } from "lucide-react";
 
 const ListComponent = dynamic(() => import("@/app/components/list"), {
   ssr: false,
@@ -28,54 +30,54 @@ const Draggable = dynamic(
   () => import("@hello-pangea/dnd").then((mod) => mod.Draggable),
   { ssr: false }
 );
-
-const initialData: BoardData = {
-  columns: {
-    "column-1": {
-      id: "column-1",
-      type: "counter",
-      title: "Filter Design Pending",
-      taskIds: ["1", "2"],
-    }, 
-    "column-2": {
-      id: "column-2",
-      type: "counter",
-      title: "Filter Deal Maker",
-      taskIds: ["3", "4"],
-    }, 
-    "column-3": {
-      id: "column-3",
-      type: "flow",
-      title: "To Do",
-      taskIds: ["5", "6"],
-    },
-    "column-4": {
-      id: "column-4",
-      title: "In Progress",
-      type: "flow",
-      taskIds: ["7", "8"],
-    },
-    "column-5": {
-      id: "column-3",
-      type: "flow",
-      title: "Done",
-      taskIds: ["9"],
-    },
-  },
-  tasks: {
-    "1": getTaskById('1'),
-    "2": getTaskById('2'),
-    "3": getTaskById('3'),
-    "4": getTaskById('4'),
-    "5": getTaskById('5'),
-    "6": getTaskById('6'),
-    "7": getTaskById('7'),
-    "8": getTaskById('8'),
-    "9": getTaskById('9'),
-    "10": getTaskById('10'),
-  },
-  columnOrder: ["column-1", "column-2", "column-3", "column-4", "column-5"],
-};
+const initialData: BoardData | null = null;
+// const initialData: BoardData = {
+//   columns: {
+//     "column-1": {
+//       id: "column-1",
+//       type: "counter",
+//       title: "Filter Design Pending",
+//       taskIds: ["1", "2"],
+//     }, 
+//     "column-2": {
+//       id: "column-2",
+//       type: "counter",
+//       title: "Filter Deal Maker",
+//       taskIds: ["3", "4"],
+//     }, 
+//     "column-3": {
+//       id: "column-3",
+//       type: "flow",
+//       title: "To Do",
+//       taskIds: ["5", "6"],
+//     },
+//     "column-4": {
+//       id: "column-4",
+//       title: "In Progress",
+//       type: "flow",
+//       taskIds: ["7", "8"],
+//     },
+//     "column-5": {
+//       id: "column-3",
+//       type: "flow",
+//       title: "Done",
+//       taskIds: ["9"],
+//     },
+//   },
+//   tasks: {
+//     "1": getTaskById('1'),
+//     "2": getTaskById('2'),
+//     "3": getTaskById('3'),
+//     "4": getTaskById('4'),
+//     "5": getTaskById('5'),
+//     "6": getTaskById('6'),
+//     "7": getTaskById('7'),
+//     "8": getTaskById('8'),
+//     "9": getTaskById('9'),
+//     "10": getTaskById('10'),
+//   },
+//   columnOrder: ["column-1", "column-2", "column-3", "column-4", "column-5"],
+// };
 
 const Board: React.FC = () => {
   const [isFetching, setIsFetching] = useState<boolean>(true);
@@ -152,56 +154,56 @@ const Board: React.FC = () => {
     });
   };
 
-const addCard = (columnId: string, newCardContent: string) => {
-    if (!newCardContent || !data) return;
-    
-    const newTaskId = `task-${Object.keys(data.tasks).length + 1}`;
-    const newTask = {
-      id: newTaskId,
-      title: newCardContent,
-    };
-    
-    const newColumn = data.columns[columnId];
-    if (!newColumn) return;
+  const addCard = (columnId: string, newCardContent: string) => {
+      if (!newCardContent || !data) return;
+      
+      const newTaskId = `task-${Object.keys(data.tasks).length + 1}`;
+      const newTask = {
+        id: newTaskId,
+        title: newCardContent,
+      };
+      
+      const newColumn = data.columns[columnId];
+      if (!newColumn) return;
 
-    const newTaskIds = [...newColumn.taskIds, newTaskId];
-    
-    setData({
-      ...data,
-      tasks: {
-        ...data.tasks,
-        [newTaskId]: newTask,
-      },
-      columns: {
-        ...data.columns,
-        [columnId]: {
-          ...newColumn,
-          taskIds: newTaskIds,
+      const newTaskIds = [...newColumn.taskIds, newTaskId];
+      
+      setData({
+        ...data,
+        tasks: {
+          ...data.tasks,
+          [newTaskId]: newTask,
         },
-      },
-    });
-};
+        columns: {
+          ...data.columns,
+          [columnId]: {
+            ...newColumn,
+            taskIds: newTaskIds,
+          },
+        },
+      });
+  };
 
-const addColumn = () => {
-    if (!newColumnTitle || !data) return;
-    
-    const newColumnId = `column-${Object.keys(data.columns).length + 1}`;
-    const newColumn = {
-      id: newColumnId,
-      title: newColumnTitle,
-      taskIds: [],
-    };
+  const addColumn = () => {
+      if (!newColumnTitle || !data) return;
+      
+      const newColumnId = `column-${Object.keys(data.columns).length + 1}`;
+      const newColumn = {
+        id: newColumnId,
+        title: newColumnTitle,
+        taskIds: [],
+      };
 
-    setData({
-      ...data,
-      columns: {
-        ...data.columns,
-        [newColumnId]: newColumn,
-      },
-      columnOrder: [...data.columnOrder, newColumnId],
-    });
-    setNewColumnTitle("");
-};
+      setData({
+        ...data,
+        columns: {
+          ...data.columns,
+          [newColumnId]: newColumn,
+        },
+        columnOrder: [...data.columnOrder, newColumnId],
+      });
+      setNewColumnTitle("");
+  };
 
   const changeColumnTitle = (columnId: string, newTitle: string) => {
     if (data) {
@@ -228,7 +230,9 @@ const addColumn = () => {
 
   useEffect(() => {
     const fetchData = () => {
-      setData(initialData);
+      if (initialData) {
+        setData(initialData);
+      }
     }
 
     if (isFetching) {
@@ -268,7 +272,6 @@ const addColumn = () => {
                     gap: "1rem",
                     padding: "1rem",
                     alignItems: "flex-start",
-                    // height: "100vh",
                   }}
                 >
                   {data?.columnOrder.map((columnId, index) => {
@@ -309,37 +312,26 @@ const addColumn = () => {
                     );
                   })}
                   {provided.placeholder}
-                  <div
-                    style={{
-                      marginLeft: "1rem",
-                      display: "flex",
-                      flexDirection: "column",
-                      background: colors?.background,
-                      padding: "2rem",
-                      borderRadius: "0.5rem",
-                      boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
-                    }}
-                  >
-                    { isAddingNewColumn ? (
-                      <div>
-                        <Input
-                          type="text"
-                          placeholder="New Column Title"
-                          value={newColumnTitle}
-                          onChange={(e) => setNewColumnTitle(e.target.value)}
-                        />
-                        <div className="fx-h-l-center">
-                          <Button size="small" onClick={disableAddingColumn}>Add List</Button>
-                          <Button size="small" onClick={addColumn}><i className="fi fi-rr-cross"></i></Button>
-                        </div>
+
+                  {/* Add list section*/}
+                  { isAddingNewColumn ? (
+                    <div className="add-list-wrapper">
+                      <Input
+                        type="text"
+                        placeholder="New Column Title"
+                        value={newColumnTitle}
+                        onChange={(e) => setNewColumnTitle(e.target.value)}
+                      />
+                      <div className="fx-h-left-center">
+                        <Button size="small" onClick={disableAddingColumn}>Add List</Button>
+                        <Button size="small" onClick={addColumn} icon={<X size={15}/>}></Button>
                       </div>
-                    ) : (
-                      <Button onClick={enableAddingColumn} style={{ marginTop: "8px" }}>
-                        <i className="fi fi-br-plus"></i>
-                        <span>Add another list</span>
-                      </Button>
-                    )}
-                  </div>
+                    </div>
+                  ) : (
+                    <Button onClick={enableAddingColumn} style={{ marginTop: "8px" }} icon={<Plus size={15}/>}>
+                      Add a list
+                    </Button>
+                  )}
                 </div>
               )}
             </Droppable>

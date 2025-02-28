@@ -3,7 +3,6 @@ export interface ApiResponse<T = any> {
   message?: string;
 }
 
-
 export interface Attachment{
   id: string;
   type?: string;
@@ -92,14 +91,16 @@ export interface User {
   email: string;
   refreshToken?: string;
   accessToken?: string;
-  avatarUrl?: string;
+  avatar?: string;
   roleName?:string;
 }
 
 export interface Board {
   id: string;
+  workspaceId: string;
   title: string;
   cover: string;
+  backgroundColor: string;
   isStarred: boolean;
   visibility: string;
   createdBy?: User;
@@ -111,5 +112,6 @@ export interface Board {
 
 export interface Workspace {
   id: string;
-  title: string;
+  name: string;
+  description: string;
 }

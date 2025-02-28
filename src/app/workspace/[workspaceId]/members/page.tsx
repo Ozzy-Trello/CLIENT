@@ -33,7 +33,7 @@ const TableMembers: React.FC<{dataSource?: User[]}> = ({dataSource}) => {
       render: (_: any, record: any) => {
         return (
           <div className="fx-h-left-center">
-            <Avatar size="small" src={record.avatarUrl}></Avatar>
+            <Avatar size="small" src={record.avatar}></Avatar>
             <div>
               <Typography.Text strong={true}>{record.fullname}</Typography.Text>
               <div className="fx-h-left-center">

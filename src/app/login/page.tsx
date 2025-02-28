@@ -18,6 +18,7 @@ import { setAccessToken, setRefreshToken, setUser } from '@/app/store/slice';
 import { users } from '@/dummy-data';
 import Footer from '@/app/components/footer';
 import { useLogin } from '../hooks/auth';
+import { useAccount } from '../hooks/account';
 
 const { Title, Text } = Typography;
 
@@ -31,12 +32,7 @@ export default function LoginPage() {
   const router = useRouter();
   const dispatch = useDispatch();
   const login = useLogin();
-
-  // Prefetch the next page
-  useEffect(() => {
-    router.prefetch('/workspace/boards');
-  }, [router]);
-
+  const account = useAccount();
 
   const validateCredentials = async (email: string, password: string) => {
     try {
@@ -48,7 +44,15 @@ export default function LoginPage() {
           dispatch(setAccessToken(result.data.accessToken));
           dispatch(setRefreshToken(result.data.accessToken));
           await message.success(result.message);
-          return true;
+          
+          // Get account
+          const accountResult = await account.mutateAsync();
+          if (accountResult) {
+            dispatch(setUser(result.data));
+            return true;
+          }
+
+          return false;
         }
       } else {
         await message.error(result.message);
@@ -66,7 +70,7 @@ export default function LoginPage() {
     try {
       const isValid = await validateCredentials(values.email, values.password);
       if (isValid) {
-        router.push("/workspace/boards");
+        router.push("/workspace");
       }
     } catch (error) {
       console.error(error);
