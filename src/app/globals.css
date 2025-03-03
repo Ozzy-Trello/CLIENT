@@ -1,4 +1,4 @@
-/* @import "~@flaticon/flaticon-uicons/css/all/all"; */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap');
 
 :root{
   /* Ensure that these colors are the same as the one in the initial appState store */
@@ -20,16 +20,23 @@ body {
   -moz-osx-font-smoothing: grayscale;
   font-size: var(--font-size-body)px;
   color: rgb(var(--color-text));
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-optical-sizing: auto;
+  font-style: normal;
 }
 
 body.board-page {
   background-color: rgb(var(--color-board-page-background-color));
+  background-image: var(--color-board-page-background-color);
 }
 
 p, span, i, a {
   font-size: var(--font-size-body)px;
   color: inherit;
   text-decoration: none;
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-optical-sizing: auto;
+  font-style: normal;
 }
 
 h1 { font-size: var(--h1)px; }
@@ -141,6 +148,65 @@ div[data-rfd-droppable-id="all-columns"] {
 /* Ant Design */
 .ant-layout {
   background-color: transparent;
+}
+
+.ant-modal-content {
+  padding: 0px !important;
+  border-radius: 12px;
+  max-height: calc(100vh - 100px);
+  display: flex;
+  flex-direction: column;
+  padding: 0px;
+}
+
+.ant-modal-header {
+  margin: 0;
+  padding: 10px !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  position: sticky;
+  top: 0;
+  background: white;
+  z-index: 10;
+}
+
+.ant-modal-body {
+  padding: 0;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 50px;
+  max-height: calc(100vh - 10px);
+  margin-bottom: 50px;
+}
+
+.ant-modal .custom-footer {
+  border-top: thin solid lightgrey;
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+}
+
+.ant-modal .custom-footer .form-action-button {
+  padding: 10px;
+  display: flex;
+  justify-content: right;
+  gap: 10px;
+}
+
+.ant-modal-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.ant-modal-body::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.modal-create-board .ant-modal-body::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+}
+
+.modal-create-board .ant-modal-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
 }
 
 /* Scrollbar */

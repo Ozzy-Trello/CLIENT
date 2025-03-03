@@ -3,6 +3,7 @@ import {
   ColorPicker, 
   Form, 
   Input, 
+  message, 
   Modal, 
   Tooltip, 
   Typography 
@@ -17,6 +18,8 @@ import { useSelector } from "react-redux";
 import { selectSelectedWorkspace, setSelectedBoard } from "@/app/store/slice";
 import { useDispatch } from "react-redux";
 import { useRouter } from "next/navigation";
+import { getGradientString } from "@/app/utils/general";
+import { useEffect, useState } from "react";
 const { Text, Title } = Typography;
 
 interface ModalCreateBoardForm {
@@ -30,6 +33,8 @@ const CreateBoard: React.FC<ModalCreateBoardForm> = (props: ModalCreateBoardForm
   const selectedWorkspace = useSelector(selectSelectedWorkspace);
   const router = useRouter();
   const dispatch = useDispatch();
+  
+  // Define the default gradient color for the color picker
   const DEFAULT_COLOR = [
     {
       color: 'rgb(16, 142, 233)',
@@ -41,26 +46,33 @@ const CreateBoard: React.FC<ModalCreateBoardForm> = (props: ModalCreateBoardForm
     },
   ];
   
-  // Use Form's values to track background instead of separate state
-  const backgroundGradient = Form.useWatch('background', form) || 'linear-gradient(to right, rgb(16, 142, 233), rgb(135, 208, 104))';
+  // Get the background value from the form
+  const [backgroundGradient, setBackgroundGradient] = useState(DEFAULT_COLOR);
   
-  const handleSubmit = (values: any) => {
+  const onFinish = async (values: any) => {
     const tempId = `board-${Date.now()}`;
+    
     const board: Board = {
       id: tempId,
       workspaceId: selectedWorkspace,
       title: values.title,
       cover: '',
-      backgroundColor: values.background,
+      backgroundColor: backgroundGradient,
       isStarred: false,
       visibility: '',
       createdAt: '',
       upatedAt: '',
     }
+    
     dispatch(setSelectedBoard(board));
-    router.push(`/workspace/${selectedWorkspace}/board/${tempId}`);
     form.resetFields();
     setOpen(false);
+
+    router.push(`/workspace/${selectedWorkspace}/board/${tempId}`);
+  };
+
+  const onFinishFailed = () => {
+    message.error('Please check your input and try again.');
   };
 
   return (
@@ -74,21 +86,23 @@ const CreateBoard: React.FC<ModalCreateBoardForm> = (props: ModalCreateBoardForm
       centered
       destroyOnClose
     >
-      <Form 
+      <Form
+        name="create-board-form"
         form={form} 
         layout="vertical" 
-        onFinish={handleSubmit}
+        onFinish={onFinish}
+        onFinishFailed={onFinishFailed}
         requiredMark={false}
         initialValues={{ 
           title: "", 
           workspace: "Personal", 
           visibility: "Private",
-          background: 'linear-gradient(to right, rgb(16, 142, 233), rgb(135, 208, 104))'
+          background: DEFAULT_COLOR  // Pass the gradient array directly
         }}
       >
         <div
           className="selected-background"
-          style={{ background: backgroundGradient }}
+          style={{ background: getGradientString(backgroundGradient) }}
         >
           <div className="image-container">
             <Image
@@ -122,16 +136,23 @@ const CreateBoard: React.FC<ModalCreateBoardForm> = (props: ModalCreateBoardForm
           
           <Form.Item 
             name="background" 
-            label={<Text strong>Background</Text>} 
-            rules={[{ required: true, message: 'Please enter a board title' }]}
+            label={<Text strong>Background</Text>}
           >
             <ColorPicker
               defaultValue={DEFAULT_COLOR}
               allowClear
               showText
+              format="rgb"
               mode={['gradient']}
-              onChangeComplete={(color) => {
-                form.setFieldValue('background', color.toRgbString());
+              onChange={(value) => {
+                const { colors } = value;
+                if (Array.isArray(value?.colors)) { // Ensure it's a gradient array
+                  const formattedGradient = colors.map(({ color, percent }) => ({
+                    color: color.toRgbString(), // Convert color to string
+                    percent,
+                  }));
+                  setBackgroundGradient(formattedGradient);
+                }
               }}
             />
           </Form.Item>
@@ -154,13 +175,17 @@ const CreateBoard: React.FC<ModalCreateBoardForm> = (props: ModalCreateBoardForm
         
         </div>
 
-        <div className="form-action-button fx-v-right-center">
-          <Button onClick={() => setOpen(false)} size="small">
-            Cancel
-          </Button>
-          <Button htmlType="submit" size="small">
-            Create Board
-          </Button>
+        <div className="custom-footer">
+          <Form.Item>
+            <div className="form-action-button fx-v-right-center">
+              <Button onClick={() => setOpen(false)} size="small">
+                Cancel
+              </Button>
+              <Button htmlType="submit" size="small">
+                Create Board
+              </Button>
+            </div>
+          </Form.Item>
         </div>
       </Form>
     </Modal>

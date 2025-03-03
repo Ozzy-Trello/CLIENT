@@ -6,7 +6,7 @@ import dynamic from "next/dynamic";
 import React, { useEffect, useState } from "react";
 import Topbar from "./topbar";
 import { useSelector } from "react-redux";
-import { selectTheme } from "@/app/store/slice";
+import { selectSelectedBoard, selectTheme } from "@/app/store/slice";
 import { getTaskById } from "@/dummy-data";
 import "../style.css";
 import "./style.css";
@@ -86,6 +86,7 @@ const Board: React.FC = () => {
   const [isAddingNewColumn, setAddingNewColumn] = useState(false);
   const theme = useSelector(selectTheme);
   const { colors } = theme;
+  const selectBoard = useSelector(selectSelectedBoard);
 
   const onDragEnd = (result: any) => {
     const { destination, source, draggableId, type } = result;

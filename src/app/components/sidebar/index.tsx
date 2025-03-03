@@ -152,7 +152,7 @@ const Sidebar: React.FC = React.memo(() => {
             <>
               <div className="sidebar-title">
                 <div className="fx-h-left-center">
-                  <Avatar shape="square" size={"small"} />
+                  <Avatar shape="square" size={"small"}>{selectedWorkspace ? selectedWorkspace.charAt(0) : ''}</Avatar>
                   <Typography>{selectedWorkspace}</Typography>
                 </div>
               </div>

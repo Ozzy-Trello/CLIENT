@@ -100,7 +100,7 @@ export interface Board {
   workspaceId: string;
   title: string;
   cover: string;
-  backgroundColor: string;
+  backgroundColor: color[] | string;
   isStarred: boolean;
   visibility: string;
   createdBy?: User;
@@ -109,6 +109,10 @@ export interface Board {
   upatedAt: string;
 }
 
+export interface Color {
+  color: string;
+  percent: number;
+}
 
 export interface Workspace {
   id: string;

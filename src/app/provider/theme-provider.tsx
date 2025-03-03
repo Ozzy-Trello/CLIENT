@@ -5,6 +5,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { ConfigProvider } from 'antd';
 import { RootState } from '../store';
 import { selectSelectedBoard, selectTheme } from '../store/slice';
+import { getGradientString } from '../utils/general';
 
 export function ThemeProvider({ children, userId }: { children: React.ReactNode; userId: string }) {
   const dispatch = useDispatch();
@@ -32,8 +33,14 @@ export function ThemeProvider({ children, userId }: { children: React.ReactNode;
 
   useEffect(() => {
     if (!root) root = document.documentElement;
-    if (selectedBoard) {;
-      root.style.setProperty(`--color-board-page-background-color`, selectedBoard.backgroundColor as string);
+    if (selectedBoard) {
+      console.log("Selected board in theme provider", selectedBoard);
+      if (Array.isArray(selectedBoard.backgroundColor)) {
+        root.style.setProperty(`--color-board-page-background-color`, getGradientString(selectedBoard.backgroundColor) as string);
+        console.log("Gradient string", getGradientString(selectedBoard.backgroundColor));
+      } else {
+        root.style.setProperty(`--color-board-page-background-color`, selectedBoard.backgroundColor as string);
+      }
     } else {
       root.style.setProperty(`--color-board-page-background-color`, root.style.getPropertyValue(`--color-background`));
     }
