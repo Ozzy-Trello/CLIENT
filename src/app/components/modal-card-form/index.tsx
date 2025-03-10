@@ -1,338 +1,375 @@
-import { Avatar, Button, Col, Input, List, Modal, Row, Skeleton, Space, Tooltip, Typography } from "antd";
+import { Avatar, Button, Col, Input, List, Modal, Row, Skeleton, Space, Tooltip, Typography, Checkbox, Dropdown, Flex, Tag } from "antd";
 import { useEffect, useState } from "react";
-import Image from 'next/image';
-import DropdownCardListCategory from "../dropdown-card-list-category";
+import { DownOutlined, UploadOutlined, EllipsisOutlined, ExportOutlined, EyeOutlined } from '@ant-design/icons';
 import "./style.css";
-import RichTextEditor from "../rich-text-editor";
-import defaultPic from "../../assets/images/Logo_Ozzy_Clothing_png.png";
-import TextArea from "antd/es/input/TextArea";
-import { Task } from "@/app/dto/types";
-import { getTaskById } from "@/dummy-data";
+import RichTextEditor from "../rich-text-editor";;
+import { Attachment, Card, Label } from "@/app/dto/types";
+import useTaskService from "@/app/hooks/task";
+import CustomFieldsSection from "./custom_fields";
+import AttachmentsSection from "./attachments";
+import ActivitySection from "./activity";
+import ActionsSection from "./actions";
 import MembersList from "../members-list";
-import CardDetailsLogs from "../card-details-logs";
-import { useScreenSize } from "@/app/provider/screen-size-provider";
+import LabelsSelection from "../selection/label-selection";
+import UploadModal from "../modal-upload/modal-upload";
+import { generateId } from "@/app/utils/general";
+import { url } from "inspector";
 
 interface ModalCardFormProps {
+  card: Card;
   open: boolean;
   setOpen: React.Dispatch<React.SetStateAction<boolean>>;
-  loading: boolean;
+  loading?: boolean;
 }
 
 const ModalCardForm: React.FC<ModalCardFormProps> = (props) => {
+  const { open, setOpen, loading = false, card } = props;
+  const [data, setData] = useState<Card | null>(null);
+  const { currentUser } = useTaskService();
+  const {taskService} = useTaskService();
 
-  const {width, isMobile} =  useScreenSize();
-  const {open, setOpen, loading} = props;
-  const [data, setData] = useState<Task>();
   const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [newDescription, setNewDesription] = useState("");
   const [isEditingComment, setIsEditingComment] = useState(false);
   const [isFetching, setIsFetching] = useState(true);
+  const [comment, setComment] = useState("");
+  const [labelModalVisible, setLabelModalVisible] = useState(false);
+  const [uploadModalVisible, setUploadModalVisible] = useState(false);
+
+  const [customFields, setCustomFields] = useState({
+    priority: "",
+    branch: "WBT",
+    dealMaker: "Lenni Luvita Dewi",
+    designType: "",
+    product: "Custom Kemeja",
+    variant: "KMB",
+    printType: "Bordir",
+    material: "Nagata Drill",
+    color: "UNGU MIX HITAM",
+    designer: "Raka",
+    revision: false,
+    sentToDM: true,
+    designACC: false
+  });
 
   const enableEditDescription = () => {
     setIsEditingDescription(true);
-  }
+  };
 
   const disableEditDescription = () => {
     setIsEditingDescription(false);
-  }
+  };
 
   const handleSaveDescriptionClick = () => {
+    taskService.updateCardDescription(card.id, newDescription);
     setIsEditingDescription(false);
   };
 
   const enableEditComment = () => {
     setIsEditingComment(true);
-  }
+  };
 
   const disableEditComment = () => {
     setIsEditingComment(false);
-  }
+  };
 
   const handleSaveCommentClick = () => {
+    disableEditComment();;
+  };
+
+  const onUploadComplete = (imageUrl: string, filename: string) => {
+    const attachment: Attachment = {
+      id: generateId(),
+      filename: filename,
+      url: imageUrl,
+      type: "image",
+      addedAt: new Date().toISOString(),
+      isCover: true
+    };
+    taskService.updateCardDetails(card.id, {cover: attachment});
+    setUploadModalVisible(false);
   }
 
+  const addLabel = (selectedLabels: Label[]) => {
+    taskService.updateCardDetails(card.id, { labels: selectedLabels });
+  }
 
   useEffect(() => {
-    const fetchData = () => {
-      const task = getTaskById('1');
-      setData(task);
-    }
-
-    if (isFetching) {
-      setTimeout(() => {
-        fetchData();
+    const fetchData = async () => {
+      try {
+        // Simulate API call
+        // In real implementation, replace with actual API call
+        setTimeout(() => {
+          const taskData = card;
+          setData(taskData);
+          setIsFetching(false);
+        }, 1500);
+      } catch (error) {
+        console.error("Error fetching data: ", error);
         setIsFetching(false);
-      }, 3000)
+      }
+    };
+
+    if (open && isFetching) {
+      fetchData();
     }
-  }, [isFetching]);
+  }, [open, isFetching, card]);
+
+  // Reset state when modal closes
+  useEffect(() => {
+    if (!open) {
+      setIsFetching(true);
+      setIsEditingDescription(false);
+      setIsEditingComment(false);
+    }
+  }, [open]);
+
+  const timeReport = [
+    { list: "Revisi Desain", time: "34 minutes" },
+    { list: "Terkirim ke DM", time: "22 hours" },
+    { list: "Desain Terambil", time: "8 minutes" },
+    { list: "Revisi Desain", time: "1 hour" },
+    { list: "Terkirim ke DM", time: "18 hours" },
+    { list: "Revisi Desain", time: "6 minutes" },
+  ];
+
+  const renderTimeReport = () => {
+    return (
+      <div className="time-report-section">
+        <div className="section-header">
+          <span className="section-icon"><i className="fi fi-rr-time-past"></i></span>
+          <Typography.Title level={5} className="m-0">Card time by list</Typography.Title>
+        </div>
+        
+        <List
+          className="time-report-list"
+          dataSource={timeReport}
+          renderItem={(item) => (
+            <List.Item className="time-report-item">
+              <div className="list-name">
+                <div className={`list-indicator ${item.list.includes("Terkirim") ? "blue" : item.list.includes("Revisi") ? "green" : "orange"}`}></div>
+                {item.list}
+              </div>
+              <div className="time-value">{item.time}</div>
+            </List.Item>
+          )}
+        />
+      </div>
+    );
+  };
+
 
   return (
     <Modal
       title={null}
-      loading={loading}
       open={open}
       onCancel={() => setOpen(false)}
       footer={null}
       className="modal-card-form"
-      width={width > 768 ? "60%" : "90%"}
       style={{ top: 20 }}
+      width={750}
+      destroyOnClose
     >
-    <div className="component-card-details">
-      <div className="cover" 
-        style={{
-          background: `url("https://gw.alipayobjects.com/zos/rmsportal/JiqGstEfoWAOHiTxclqi.png")`,
-          backgroundPosition: "center center",
-          backgroundRepeat: "no-repeat",
-          backgroundSize: "contain",
-        }}
-      >
-        <Button size="small" variant="outlined">Cover</Button>
-      </div>
-      
-      <Row className="row">
-        <Col span={18} style={{paddingRight: "10px"}}  className="left-col">
-          { !isFetching && 
-            <List className="card-details-list" itemLayout="vertical">
-              <List.Item className="section-metadata">
-                <div className="section-title-wrapper fx-h-left-center fullwidth">
-                  <i className="fi fi-rs-credit-card" style={{fontSize: "20px"}}></i>
-                  <Typography.Title level={5} className="m-0">{data?.title}</Typography.Title>
-                </div>
-                <div className="body-wrapper">
-                  <div className="fx-h-left-center fullwidth" style={{marginBottom: "10px"}}>
-                    <span>in list</span>
-                    <DropdownCardListCategory />
-                    <i className="fi fi-rr-eye"></i>
+      <div className="card-details-container">
+        {/* Cover Image Section */}
+        <div className="cover-section bg-gray-200 bg-contain bg-center bg-no-repeat"
+          style={{
+            backgroundImage: `url("${card.cover?.url}")`,
+            display: "flex",
+            justifyContent: "end",
+            alignItems: "end",
+          }}
+        >
+          <Button 
+            icon={<UploadOutlined />} 
+            size="small" 
+            className="cover-button"
+            onClick={() => {setUploadModalVisible(true)}}
+          >
+            Cover
+          </Button>
+          <UploadModal 
+            isVisible={uploadModalVisible} 
+            onClose={() => setUploadModalVisible(false)}
+            onUploadComplete={onUploadComplete}
+          />
+        </div>
+        
+        <Row gutter={20} className="card-content-row">
+          {/* Main Content Column */}
+          <Col xs={20} md={17} className="main-content-column">
+            {isFetching ? (
+              <Skeleton active paragraph={{ rows: 10 }} />
+            ) : (
+              <>
+                {/* Card Title Section */}
+                <div className="card-title-section">
+                  <div className="section-header">
+                    <span className="section-icon"><i className="fi fi-rs-credit-card"></i></span>
+                    <Typography.Title level={4} className="card-title">{data?.title || "PEMUDA GMIT"}</Typography.Title>
                   </div>
-
-                  <div className="fx-h-left-center fullwidth">
-                    <div className="title-wrapper fx-v-left-center" style={{marginRight: "10px"}}>
-                      <span>Members</span>
-                      { data && data?.members && (
-                        <MembersList members={data?.members || []} membersLength={data?.members.length || 0} membersLoopLimit={2} />
-                      )}
-                    </div>
-
-                    <div className="members-wrapper fx-v-left-center">
-                      <span>Notifications</span>
-                      <Button size="small">
-                        <div className="fx-h-center-center">
-                          <i className="fi fi-rr-eye"></i> 
-                          <span>watching</span>
-                        </div>
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </List.Item>
-              
-              <List.Item className="section-description">
-                <div className="section-title-wrapper fx-h-left-center fullwidth">
-                  <i className="fi fi-rr-symbol" style={{fontSize: "20px"}}></i>
-                  <Typography.Title level={5} className="m-0">Description</Typography.Title>
-                </div>
-                <div className="body-wrapper">
-                  {isEditingDescription ? (
-                      <div>
-                        <RichTextEditor />
-                        <Button size="small" onClick={disableEditDescription} >Cancel</Button>
-                        <Button size="small" color="primary" onClick={handleSaveDescriptionClick}>Save</Button>
-                      </div>
-                    ) : (
-                      <div onClick={enableEditDescription}>
-                        <TextArea
-                          value={data?.description}
-                          placeholder="Description"
-                          autoSize={{ minRows: 3, maxRows: 5 }}
-                        />
-                      </div>
-                    )}
                   
-                </div>
-              </List.Item>
+                  <div className="card-metadata">
+                    {/* in list section */}
+                    <div className="list-info">
+                      <span className="info-label">in list</span>
+                      <Dropdown
+                        menu={{ 
+                          items: [
+                            { key: '1', label: 'Terkirim ke DM' },
+                            { key: '2', label: 'Revisi Desain' },
+                            { key: '3', label: 'Desain Terambil' }
+                          ] 
+                        }}
+                        trigger={['click']}
+                      >
+                        <Button className="list-button">
+                          TERKIRIM KE DM <DownOutlined />
+                        </Button>
+                      </Dropdown>
+                      <Button icon={<EyeOutlined />} size="small" className="watch-button" />
+                    </div>
+                    
+                    {/* members and tag section */}
+                    <div className="card-members">
+                      <div className="members-section">
+                        <span className="info-label">Members</span>
+                        <MembersList members={card.members} membersLength={card?.members?.length} membersLoopLimit={3} />
+                      </div>
 
-              <List.Item className="section-attachment">
-                <div className="section-title-wrapper fx-h-left-center fullwidth">
-                  <i className="fi fi-rr-clip" style={{fontSize: "18px"}}></i>
-                  <Typography.Title level={5} className="m-0">Attachments</Typography.Title>
-                </div>
-                <div className="body-wrapper">
-                  <div className="files fx-v-left-center">
-                    <span className="fullwidth">Files</span>
-                    <div className="fx-h-left-center fullwidth">
-                      <div className="fx-h-left-center fullwidth">
-                        <Image src={defaultPic} alt="Ozzy Clothing Logo" style={{width: "50px", height: "auto", background: "grey"}} />
-                        <div className="fx-h-left-center fullwidth">
-                          <span className="fullwidth tx-small">Filename 1.png</span>
-                          <span className="fullwidth tx-small">Added Jan 18 2025, 09:17 PM</span>
+                      {/* Labels Section */}
+                      <div className="labels-section">
+                        <span className="info-label">Labels</span>
+                        <div className="labels-container">
+                          <Flex gap="1px 0">
+                            {card?.labels?.map((label, index) => (
+                              <Tag color={label.color}>{label.title}</Tag>
+                            ))}
+                              <Tag className="cursor-pointer" onClick={() => setLabelModalVisible(true)}>+</Tag>
+                              <LabelsSelection
+                                visible={labelModalVisible}
+                                onClose={() => setLabelModalVisible(false)}
+                                onSave={addLabel}
+                                initialSelectedLabels={[]}
+                              />
+                          </Flex>
                         </div>
                       </div>
-                      <div className="fx-h-right-center">
-                        <Button size="small"><i className="fi fi-br-arrow-up-right"></i></Button>
-                        <Button size="small"><i className="fi fi-bs-menu-dots"></i></Button>
-                      </div>
                     </div>
+
+                    {/*  */}
+                    <Flex gap={2}>
+                      <div className="notifications-section">
+                        <span className="info-label">Notifications</span>
+                        <Button icon={<EyeOutlined />} size="small" className="notification-button">
+                          Watch
+                        </Button>
+                      </div>
+
+                      <div className="notifications-section">
+                        <span className="info-label">Time in List</span>
+                        <Button icon={<EyeOutlined />} size="small" className="notification-button">
+                          {card.time.inList}
+                        </Button>
+                      </div>
+
+                      <div className="notifications-section">
+                        <span className="info-label">Time on Board</span>
+                        <Button icon={<EyeOutlined />} size="small" className="notification-button">
+                        {card.time.onBoard}
+                        </Button>
+                      </div>
+                    </Flex>
+                    
                   </div>
                 </div>
-              </List.Item>
-
-              <List.Item className="section-activity">
-                <div className="fx-h-sb-center">
-                  <div className="section-title-wrapper fullwidth fx-h-left-center">
-                    <i className="fi fi-sr-list-timeline" style={{fontSize: "16px"}}></i>
-                    <Typography.Title level={5} className="m-0">Activity</Typography.Title>
+                
+                
+                {/* Description Section */}
+                <div className="description-section">
+                  <div className="section-header">
+                    <span className="section-icon"><i className="fi fi-rr-symbol"></i></span>
+                    <Typography.Title level={5} className="m-0">Description</Typography.Title>
+                    {!isEditingDescription && (
+                      <Button type="default" size="small" onClick={enableEditDescription} className="edit-button">
+                        Edit
+                      </Button>
+                    )}
                   </div>
-                  <Button size="small">Show details</Button>
-                </div>
-
-                <div className="section-add-comment">
-                  { isEditingComment ? (
-                    <div className="fx-h-left-start">
-                      <Avatar size={"small"} shape="circle" />
-                      <div className="fullwidth">
-                        <RichTextEditor />
-                        <Button size="small" onClick={disableEditComment} >Cancel</Button>
-                        <Button size="small" color="primary" onClick={handleSaveCommentClick}>Add comment</Button>
+                  
+                  {isEditingDescription ? (
+                    <div className="description-editor">
+                      <RichTextEditor
+                        initialValue={card?.description? card.description : ""}
+                        onChange={(content: string) => {
+                          setNewDesription(content);
+                        }}
+                        placeholder="description..."
+                        height="150px"
+                        className="w-full"
+                      />
+                      <div className="flex justify-end p-2 bg-gray-50 border-t">
+                        <Button 
+                          onClick={disableEditDescription} 
+                          size="middle" 
+                          className="mr-2 rounded-md"
+                        >
+                          Cancel
+                        </Button>
+                        <Button 
+                          type="primary" 
+                          onClick={handleSaveDescriptionClick} 
+                          size="middle" 
+                          className="rounded-md bg-black"
+                        >
+                          Save
+                        </Button>
                       </div>
                     </div>
                   ) : (
-                    <div className="fx-h-left-center">
-                      <Avatar size={"small"} />
-                      <div className="fullwidth" onClick={enableEditComment} style={{cursor: "pointer"}}>
-                        <Input placeholder="write comment..." readOnly={true} className="fullwidth"/>
-                      </div>
+                    <div className="description-content" onClick={enableEditDescription}>
+                      {card.description ? (
+                        <div dangerouslySetInnerHTML={{ __html: card.description }} />
+                      ): (
+                        "description..."
+                      )}
                     </div>
-                    
                   )}
-
-                  { data?.logs?.list?.map((item, index) => {
-                    return (
-                      <CardDetailsLogs logs={item}/>
-                    )
-                  }) }
                 </div>
-              </List.Item>
-            </List>
-          }
-
-          {/* Skeleton */}
-          { isFetching && 
-            <Skeleton active={isFetching}  />
-          }
-        </Col>
-
-        <Col span={6} style={{paddingLeft: "10px"}} className="right-col">
-          { !isFetching &&
-            <>
-              <List
-                className="list-menu"
-                itemLayout="horizontal"
-              >
-                <List.Item>
-                  <div className="list-content-wrapper fx-h-left-center">
-                    <i className="fi fi-rr-user-add"></i>
-                    <span>Join</span>
-                  </div>
-                </List.Item>
-
-                <List.Item>
-                  <div className="list-content-wrapper fx-h-left-center">
-                    <i className="fi fi-rr-user-add"></i>
-                    <span>Members</span>
-                  </div>
-                </List.Item>
-
-                <List.Item>
-                  <div className="list-content-wrapper fx-h-left-center">
-                    <i className="fi fi-ts-tags"></i>
-                    <span>Labels</span>
-                  </div>
-                </List.Item>
-
-                <List.Item>
-                  <div className="list-content-wrapper fx-h-left-center">
-                    <i className="fi fi-rr-checkbox"></i>
-                    <span>Checklist</span>
-                  </div>
-                </List.Item>
-
-                <List.Item>
-                  <div className="list-content-wrapper fx-h-left-center">
-                    <i className="fi fi-rr-clock-three"></i>
-                    <span>Dates</span>
-                  </div>
-                </List.Item>
-
-                <List.Item>
-                  <div className="list-content-wrapper fx-h-left-center">
-                    <i className="fi fi-sr-clip"></i>
-                    <span>Attachment</span>
-                  </div>
-                </List.Item>
-
-                <List.Item>
-                  <div className="list-content-wrapper fx-h-left-center">
-                    <i className="fi fi-rr-pen-field"></i>
-                    <span>Custom Fields</span>
-                  </div>
-                </List.Item>
-              </List>
-
-              <div className="list-action-wrapper">
-                <Typography.Text>Action</Typography.Text>
-                <List 
-                  itemLayout="horizontal"
-                  className="list-action"
-                >
-                  <List.Item>
-                    <div className="list-content-wrapper fx-h-left-center">
-                      <i className="fi fi-rr-arrow-right"></i>
-                      <span>Move</span>
-                    </div>
-                  </List.Item>
-
-                  <List.Item>
-                    <div className="list-content-wrapper fx-h-left-center">
-                      <i className="fi fi-rr-copy-alt"></i>
-                      <span>Copy</span>
-                    </div>
-                  </List.Item>
-
-                  <List.Item>
-                    <div className="list-content-wrapper fx-h-left-center">
-                      <i className="fi fi-sr-box"></i>
-                      <span>Archive</span>
-                    </div>
-                  </List.Item>
-
-                  <List.Item>
-                    <div className="list-content-wrapper fx-h-left-center">
-                      <i className="fi fi-sr-share"></i>
-                      <span>Share</span>
-                    </div>
-                  </List.Item>
-                  
-                </List>
-              </div>
-            </>
-          }
-
-          {/* Skeleton */}
-          { isFetching &&
-            <div style={{marginBottom:"10px"}}>
-              {
-                [1,2,3].map(item => 
-                  <Space style={{marginBottom:"10px"}}>
-                    <Skeleton.Input size="small" active={isFetching}  />
-                  </Space>
-                )
-              }
-            </div> 
-          }
-        </Col>
-      </Row>
-    </div>
+                
+                {/* Custom Fields Section */}
+                {card?.customFields && (
+                  <CustomFieldsSection customFields={card?.customFields}  />
+                )}
+                
+                {/* Time Report Section */}
+                {renderTimeReport()}
+                
+                {/* Attachments Section */}
+                {card?.attachments && (
+                  <AttachmentsSection attachments={card?.attachments} />
+                )}
+                
+                {/* Activity Section */}
+                {card?.activity && currentUser && (
+                  <ActivitySection activities={card?.activity} currentUser={currentUser} card={card} />
+                )}
+              </>
+            )}
+          </Col>
+          
+          {/* Sidebar Column */}
+          <Col xs={20} md={3} className="sidebar-column">
+            {isFetching ? (
+              <Skeleton active paragraph={{ rows: 8 }} />
+            ) : (
+             <ActionsSection />
+            )}
+          </Col>
+        </Row>
+      </div>
     </Modal>
-  )
-}
+  );
+};
 
 export default ModalCardForm;

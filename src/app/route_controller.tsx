@@ -2,7 +2,7 @@
 import { usePathname } from 'next/navigation';
 import { useEffect } from 'react';
 import { useSelector } from 'react-redux';
-import { selectSelectedBoard, selectSelectedWorkspace, setSelectedBoard } from './store/slice';
+import { selectSelectedBoard, setSelectedBoard } from './store/app_slice';
 import { useDispatch } from 'react-redux';
 
 /**
@@ -10,7 +10,6 @@ import { useDispatch } from 'react-redux';
  */
 const BodyClassController: React.FC = () => {
   const pathname = usePathname();
-  const selectedBoard = useSelector(selectSelectedBoard);
   const dispatch = useDispatch();
  
   useEffect(() => {

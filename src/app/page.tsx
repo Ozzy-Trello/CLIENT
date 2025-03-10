@@ -2,7 +2,7 @@
 import { useRouter } from "next/navigation";
 import { Suspense, useEffect } from "react";
 import { useSelector } from "react-redux";
-import { selectAccessToken } from "./store/slice";
+import { selectAccessToken } from "./store/app_slice";
 
 export default function Home() {
 

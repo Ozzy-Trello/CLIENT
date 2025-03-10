@@ -2,7 +2,7 @@ import axios from "axios";
 import camelcaseKeys from "camelcase-keys";
 import { useSelector } from "react-redux";
 import snakecaseKeys from "snakecase-keys";
-import { selectAccessToken } from "../store/slice";
+import { selectAccessToken } from "../store/app_slice";
 import { store } from "../store";
 
 // Create axios instance with interceptors to handle case conversion

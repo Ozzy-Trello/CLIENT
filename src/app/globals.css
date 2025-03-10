@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap');
+@import "tailwindcss";
 
 :root{
   /* Ensure that these colors are the same as the one in the initial appState store */
@@ -9,6 +10,8 @@
   --color-text: 51, 51, 51;
   --color-muted:217, 217, 217;
   --color-board-page-background-color: 255, 225, 225;
+
+  --font-size-body: 12px;
 }
 
 /* Native HTML tag */
@@ -25,10 +28,10 @@ body {
   font-style: normal;
 }
 
-body.board-page {
+/* body.board-page {
   background-color: rgb(var(--color-board-page-background-color));
   background-image: var(--color-board-page-background-color);
-}
+} */
 
 p, span, i, a {
   font-size: var(--font-size-body)px;
@@ -50,98 +53,6 @@ h6 { font-size: var(--h6)px; }
 /* Lib element */
 div[data-rfd-droppable-id="all-columns"] {
   height: 100vh !important;
-}
-
-/* Custom Utility Class */
-.fullwidth {
-  width: 100%;
-}
-
-.fx-h-right-center {
-  display: flex;
-  flex-direction: row;
-  justify-content: right;
-  align-items: center;
-  gap: 10px;
-}
-
-.fx-h-left-center {
-  display: flex !important;
-  flex-direction: row !important;
-  justify-content: left !important;
-  align-items: center !important;
-  gap: 10px;
-}
-
-.fx-h-center-center {
-  display: flex;
-  flex-direction: row;
-  justify-content: center;
-  align-items: center;
-  gap: 10px;
-}
-
-.fx-h-sb-center {
-  display: flex;
-  flex-direction: row;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-}
-
-.fx-h-left-start {
-  display: flex;
-  flex-direction: row;
-  justify-content: left;
-  align-items: start;
-  gap: 10px;
-}
-
-.fx-v-left-left {
-  display: flex;
-  flex-direction: column;
-  justify-content: start;
-  align-items: left;
-}
-
-.fx-v-left-center {
-  display: flex;
-  flex-direction: column;
-  justify-content: start;
-  align-items: center;
-}
-
-.fx-v-sb-left {
-  display: flex;
-  flex-direction: column;
-  align-items: left;
-  justify-content:  space-between;
-}
-
-.fx-v-end {
-  display: flex;
-  flex-direction: column;
-  justify-content: end;
-}
-
-.tx-align-left {
-  text-align: left;
-}
-
-.tx-small { font-size: var(--font-size-small); }
-
-.tx-tiny { font-size: var(--font-size-tiny); }
-
-.m-0 {
-  margin: 0px !important;
-}
-
-.d-none {
-  display: none !important;
-}
-
-.tx-small > * {
-  font-size: 10px !important;
 }
 
 

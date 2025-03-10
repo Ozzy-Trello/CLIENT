@@ -3,87 +3,6 @@ export interface ApiResponse<T = any> {
   message?: string;
 }
 
-export interface Attachment{
-  id: string;
-  type?: string;
-  url: string;
-  filename: string;
-}
-
-export interface CustomFields {
-  type?: string;
-  key?: string;
-  value?: any;
-}
-
-export interface Meta {
-  currentPage?: number;
-  sizePerPage?: number;
-  actualCount?: number;
-}
-
-export const LOG_TYPE_COMMENT = "comment";
-export const LOG_TYPE_MEMBER_ADDITION = "member addition";
-export const LOG_TYPE_MEMBER_REMOVAL = "member removal";
-export const LOG_TYPE_MEMBER_REMOVAL = "member removal";
-export const LOG_TYPE_DUE_DATE_SETTELMENT = "due date settelement";
-export const LOG_TYPE_FILE_ATTACHMENT = "file attachment";
-export const LOG_TYPE_CARD_MOVEMENT = "card movement";
-export const LOG_TYPE_CARD_ADDITION = "card addition";
-
-export interface Logs {
-  id: string;
-  type: srting;
-  content: string;
-  attachments?: Attachment[];
-  createdBy?: User;
-  createdAt?: string;
-  updatedAt?: string;
-  updatedBy?: User;
-}
-
-export interface Assignment {
-  assignee?: User;
-  assignedBy?: User;
-  assignedAt: string;
-}
-
-export interface Task {
-  id: string;
-  title: string;
-  description?: string;
-  type?:string;
-  cover?: string;
-  attachment?: Attachment;
-  dueDate?: string;
-  assignment?: Assignment;
-  createdBy?: User;
-  createdAt?: string;
-  updatedAt?: string;
-  updatedBy?: User;
-  members?: User[];
-  logs?: {
-    list: Logs[];
-    meta: Meta
-  };
-  customFields?: {
-    list: CustomFields[];
-  };
-}
-  
-export interface Column {
-  id: string;
-  type: string;
-  title: string;
-  taskIds: string[];
-}
-
-export interface BoardData {
-  columns: { [key: string]: Column };
-  tasks: { [key: string]: Task };
-  columnOrder: string[];
-}
-
 export interface User {
   id: string;
   username: string;
@@ -119,3 +38,122 @@ export interface Workspace {
   name: string;
   description: string;
 }
+
+// Basic types for card elements
+export interface Attachment {
+  id: string;
+  filename: string;
+  url: string;
+  type?: string;
+  addedAt: string;
+  isCover?: boolean;
+}
+
+export interface Label {
+  id: string;
+  title: string;
+  color: string;
+}
+
+export interface CardTime {
+  inList: string; // Duration in list (e.g., "1 second", "22 hours")
+  onBoard: string; // Duration on board (e.g., "1 month", "3 months")
+  lastActivity?: string; // ISO date string
+}
+
+export interface ActivityItem {
+  id: string;
+  type: string; // "comment", "update", "attachment", "move", etc.
+  content: string;
+  user: User;
+  timestamp: string;
+  via?: string; // e.g., "Butler"
+  attachments?: Attachment[];
+  referencedCardId?: string; // For @card mentions
+}
+
+// For custom fields
+export type CustomFieldValueType = 'text' | 'number' | 'date' | 'checkbox' | 'select' | 'user';
+
+export interface CustomFieldValue {
+  value: string | number | boolean | null;
+  displayValue?: string;
+  type: CustomFieldValueType;
+  options?: { id: string; value: string; color?: string }[];
+  selectedOption?: { id: string; value: string; color?: string };
+}
+
+export interface CustomField {
+  id: string;
+  name: string;
+  type: CustomFieldValueType;
+  value: CustomFieldValue | null;
+}
+
+// Checklist item
+export interface ChecklistItem {
+  id: string;
+  title: string;
+  isComplete: boolean;
+  assignedTo?: User[];
+  dueDate?: string;
+}
+
+// Checklist
+export interface Checklist {
+  id: string;
+  title: string;
+  items: ChecklistItem[];
+  progress: number; // Percentage 0-100
+}
+
+// Define the core Card type
+export interface Card {
+  id: string;
+  title: string;
+  description?: string;
+  cover?: Attachment | null;
+  attachments: Attachment[];
+  labels: Label[];
+  members: User[];
+  customFields: CustomField[];
+  time: CardTime;
+  activity: ActivityItem[];
+  checklists: Checklist[];
+  isWatched: boolean;
+  isArchived: boolean;
+  position: number;
+  dueDate?: string;
+  location?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Counter Card (used in filter columns)
+export interface CounterCard extends Card {
+  isCounter: true;
+  count: number;
+  filterCriteria?: any; // Define specific filter criteria structure
+}
+
+// Regular List/Column
+export interface List {
+  id: string;
+  title: string;
+  cover?: string;
+  type: 'regular';
+  cardIds: string[];
+  position: number;
+}
+
+// Filter List/Column
+export interface FilterList {
+  id: string;
+  title: string;
+  type: 'filter';
+  cardIds: string[];
+  position: number;
+  filterCriteria?: any; // Define specific filter criteria structure
+}
+
+export type AnyList = List | FilterList;

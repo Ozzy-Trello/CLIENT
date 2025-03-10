@@ -40,9 +40,9 @@ const FilterForm: React.FC = () => {
         form={form}
         initialValues={{ layout: formLayout }}
         onValuesChange={onFormLayoutChange}
-        className="fx-h-sb-center"
+        className="flex items-center justify-between"
       >
-        <div className="fx-h-left-center">
+        <div className="flex items-center gap-4">
           <Form.Item label="Sort by">
             <Select
               defaultValue={sortOptions[0].label}

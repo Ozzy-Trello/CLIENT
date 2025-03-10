@@ -1,22 +1,20 @@
 'use client';
-import { selectUser } from "@/app/store/slice";
-import { User } from "@/app/dto/types";
 import { Avatar, Button, Card, Col, Flex, Form, Input, Row, Tooltip, Typography, Upload } from "antd";
 import { useState } from "react";
-import { useSelector } from "react-redux";
 import { LoadingOutlined, PlusOutlined } from '@ant-design/icons';
 import "./style.css"
 import { useUpdateAccount } from "@/app/hooks/account";
 import { Account as AccountDto } from "@/app/dto/account";
+import useTaskService from "@/app/hooks/task";
 
 
 const Account: React.FC = () => {
 
   const [isLoading, setIsLoading] = useState(false);
-  const [user, setUser] = useState<User>(useSelector(selectUser));
   const [editAbout, setEditAbout] = useState(false);
   const [editPassword, setEditPassword] = useState(false);
   const updateAccount = useUpdateAccount();
+  const {currentUser} = useTaskService();
 
   const uploadButton = (
     <button style={{ border: 0, background: 'none' }} type="button">
@@ -98,9 +96,9 @@ const Account: React.FC = () => {
                     showUploadList={false}
                     action="https://660d2bd96ddfa2943b33731c.mockapi.io/api/upload"
                   >
-                    {user.avatarUrl ? 
+                    {currentUser?.avatar ? 
                       <Avatar 
-                        src={user.avatarUrl} 
+                        src={currentUser.avatar} 
                         alt="avatar" 
                         shape="circle" 
                         style={{width:"100%", height:"100%"}}
@@ -155,14 +153,14 @@ const Account: React.FC = () => {
                             <Form.Item
                               name="fullName"
                               className="m-0"
-                              initialValue={user.fullname}
+                              initialValue={currentUser?.fullname}
                             >
                               <Input
                                 size="small"
                                 type="text"
                               />
                             </Form.Item>
-                          ) : (user?.fullname)}
+                          ) : (currentUser?.fullname)}
                         </td>
                       </tr>
                       <tr>
@@ -172,14 +170,14 @@ const Account: React.FC = () => {
                             <Form.Item
                               name="username"
                               className="m-0"
-                              initialValue={user.username}
+                              initialValue={currentUser?.username}
                             >
                               <Input
                                 size="small"
                                 type="text"
                               />
                             </Form.Item>
-                          ) : (user?.username)}
+                          ) : (currentUser?.username)}
                         </td>
                       </tr>
                       <tr>
@@ -189,14 +187,14 @@ const Account: React.FC = () => {
                             <Form.Item
                               name="email"
                               className="m-0"
-                              initialValue={user.email}
+                              initialValue={currentUser?.email}
                             >
                             <Input
                               size="small"
                               type="text"
                             />
                           </Form.Item>
-                          ) : (user?.email)}
+                          ) : (currentUser?.email)}
                         </td>
                       </tr>
                     </tbody>

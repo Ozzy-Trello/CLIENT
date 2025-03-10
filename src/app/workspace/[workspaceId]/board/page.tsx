@@ -1,15 +1,18 @@
 'use client';
 import { Board } from "@/app/dto/types";
-import { boards } from "@/dummy-data";
 import { Card, Col, Row, Skeleton, Space, Typography } from "antd";
 import { useEffect, useState } from "react";
 import "./style.css";
 import { useAccount } from "@/app/hooks/account";
-import { selectSelectedWorkspace, setUser } from "@/app/store/slice";
+import { selectSelectedWorkspace, setUser } from "@/app/store/app_slice";
 import { useDispatch } from "react-redux";
 import dynamic from "next/dynamic";
 import { useSelector } from "react-redux";
 import { Earth, Lock, Users } from "lucide-react";
+// import { BoardService } from "@/app/mock/api";
+import Link from "next/link";
+import { useAppSelector } from "@/app/store/hook";
+import useTaskService from "@/app/hooks/task";
 
 // Move this outside the component
 const BoardFilters = dynamic(() => import('./_filter_form'), {
@@ -22,7 +25,8 @@ const BoardsPage: React.FC = () => {
   const dispatch = useDispatch();
   const [isFetching, setIsFetching] = useState(true);
   const account = useAccount();
-  const [boardList, setBoardList] = useState<Board[]>([]);
+  const { workspaceBoards, currentWorkspaceId } = useTaskService();
+  const [boardList, setBoardList] = useState<Board[]>(workspaceBoards);
   const selectedWorksapce = useSelector(selectSelectedWorkspace);
   const [filter, setFilter] = useState({
     sortBy: "",
@@ -31,30 +35,13 @@ const BoardsPage: React.FC = () => {
   });
 
   useEffect(() => {
-    const getAccount = async() => {
-      const result = await account.mutateAsync();
-      if (result) {
-        dispatch(setUser(result.data));
-      }
-    }
-    getAccount();
+    setTimeout(() => {
+      setIsFetching(false)
+    }, 500)
   }, [])
 
-  useEffect(() => {
-    const fetchBoards = () => {
-      const filteredBoards = boards.filter(item => item.workspaceId === selectedWorksapce);
-      setBoardList(filteredBoards);
-    }
-
-    setTimeout(() => {
-      fetchBoards();
-      setIsFetching(false);
-    }, 1000)
-    
-  }, [isFetching, selectedWorksapce])
-
   return (
-    <div className="page scrollable-page">
+    <div className="page scrollable-page mt-7">
       <div className="section-workspace">
       </div>
       <Typography.Title level={3} className="m-0">Boards</Typography.Title>
@@ -73,35 +60,38 @@ const BoardsPage: React.FC = () => {
                 lg={{ flex: '30%' }}
                 xl={{ flex: '20%' }}
               >
-                <Card
-                  className="board-item"
-                  style={{
-                    backgroundImage: `url('${board?.cover}')`,
-                    backgroundPosition: "center",
-                    backgroundRepeat: "no-repeat",
-                    height: '120px',
-                    margin: '5px'
-                  }}
-                  bodyStyle={{
-                    padding: 0,
-                    height: "100%"
-                  }}
-                >
-                  <div className="fx-v-sb-left" style={{height: '100%', width: '100%', padding: "7px"}}>
-                    <Typography.Title level={3} className="title m-0">{board.title}</Typography.Title>
-                    <div>
-                      {board.visibility === "shared" && (
-                        <Users size={15} />
-                      )}
-                      {board.visibility === "private" && (
-                        <Lock size={15} />
-                      )}
-                      {board.visibility === "public" && (
-                        <Earth size={15} />
-                      )}
+                <Link href={`/workspace/${selectedWorksapce?.id}/board/${board.id}`}>
+                  <Card
+                    className="board-item hover:shadow-sm"
+                    style={{
+                      backgroundImage: `url('${board?.cover}')`,
+                      backgroundPosition: "center",
+                      backgroundRepeat: "no-repeat",
+                      height: '120px',
+                      margin: '5px'
+                    }}
+                    bodyStyle={{
+                      padding: 0,
+                      height: "100%"
+                    }}
+                  >
+                    <div className="fx-v-sb-left" style={{height: '100%', width: '100%', padding: "7px"}}>
+                      <Typography.Title level={4} className="title m-0">{board.title}</Typography.Title>
+                      <div>
+                        {board.visibility === "shared" && (
+                          <Users size={15} />
+                        )}
+                        {board.visibility === "private" && (
+                          <Lock size={15} />
+                        )}
+                        {board.visibility === "public" && (
+                          <Earth size={15} />
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </Card>
+                  </Card>
+                </Link>
+                
               </Col>
             );
           })}

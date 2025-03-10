@@ -1,17 +1,17 @@
 'use client';
-
 import { BellOutlined, UserOutlined } from "@ant-design/icons";
 import type { MenuProps } from "antd";
 import { Avatar, Badge, Dropdown, Input, Typography } from "antd";
 import Link from "next/link";
-import React, { use, useState } from "react";
+import React, { useState } from "react";
 import logo from '@/app/assets/images/Logo_Ozzy_Clothing_png.png';
 import ImageDynamicContrast from "../image-dynamic-contrast";
 import { useSelector } from "react-redux";
-import { selectTheme, selectUser, setAccessToken, setUser } from "@/app/store/slice";
+import { selectTheme, selectUser, setAccessToken, setUser } from "@/app/store/app_slice";
 import { useDispatch } from "react-redux";
 import { useRouter } from "next/navigation"; // Changed from 'next/router'
 import { WorkspaceSelection } from "../selection";
+import { useWorkspaceSidebar } from "@/app/provider/workspace-sidebar-context";
 
 const TopBar: React.FC = React.memo(() => {
   const [notificationVisible, setNotificationVisible] = useState(false);
@@ -21,25 +21,27 @@ const TopBar: React.FC = React.memo(() => {
   const dispatch = useDispatch();
   const router = useRouter();
   const user = useSelector(selectUser);
-
+  const { collapsed, siderSmall, siderWide } = useWorkspaceSidebar();
+  
+  
   const notificationItems: MenuProps["items"] = [
     { key: "1", label: "Notification 1" },
     { key: "2", label: "Notification 2" },
     { key: "3", label: "Notification 3" },
   ];
-
+  
   const handleLogout = () => {
     dispatch(setAccessToken(""));
     dispatch(setUser({}));
     router.push("/login");
   };
-
+  
   const avatarMenuItems: MenuProps["items"] = [
     {
       key: "manage-profile",
       label: (
         <Link href="/workspace/account">
-          <div className="fx-h-left-center">
+          <div className="flex items-center gap-2">
             {user?.avatar ? (
               <Avatar size="small" src={user.avatar} />
             ) : (
@@ -56,26 +58,19 @@ const TopBar: React.FC = React.memo(() => {
     {
       key: "logout",
       label: (
-        <div className="fx-h-left-center" onClick={handleLogout}>
+        <div className="flex items-center gap-2" onClick={handleLogout}>
           <i className="fi fi-rr-exit" />
           Logout
         </div>
       )
     },
   ];
-
+  
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        lineHeight: "45px"
-      }}
+    <div 
+      className="flex items-center justify-between h-[45px]" 
     >
-      <div
-        className="brand fx-h-left-center"
-      >
+      <div className="flex items-center gap-2">
         <Link href="/dashboard">
           <ImageDynamicContrast
             imageSrc={logo}
@@ -85,23 +80,14 @@ const TopBar: React.FC = React.memo(() => {
             alt="Ozzy Clothing logo"
           />
         </Link>
-
         <WorkspaceSelection />
       </div>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "20px",
-        }}
-      >
+      
+      <div className="flex items-center gap-5 w-100">
         <Input
           placeholder="Search…"
           prefix={<i className="fi fi-rr-search" />}
-          style={{
-            width: 200,
-            borderRadius: 4,
-          }}
+          className="w-[200px] rounded"
         />
         <Dropdown
           menu={{ items: notificationItems }}
@@ -111,7 +97,7 @@ const TopBar: React.FC = React.memo(() => {
         >
           <Badge count={4}>
             <BellOutlined
-              style={{ fontSize: 20, cursor: "pointer" }}
+              className="text-xl cursor-pointer"
             />
           </Badge>
         </Dropdown>
@@ -123,10 +109,14 @@ const TopBar: React.FC = React.memo(() => {
         >
           <Avatar
             size="small"
-            style={{
-              backgroundColor: "grey",
-              cursor: "pointer",
+            style={{ 
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: "30px",
+              height: "25px"
             }}
+            className="cursor-pointer"
             icon={<UserOutlined />}
           />
         </Dropdown>
@@ -136,5 +126,4 @@ const TopBar: React.FC = React.memo(() => {
 });
 
 TopBar.displayName = 'TopBar';
-
 export default TopBar;

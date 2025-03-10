@@ -2,11 +2,11 @@
 
 import { SkeletonTable } from "@/app/components/skeleton";
 import { User } from "@/app/dto/types";
-import { users } from "@/dummy-data";
 import { Avatar, Badge, Button, Menu, MenuProps, Table, Typography } from "antd";
 import { useEffect, useState } from "react";
 import AddUserModal from "./add_user_modal";
 import { register } from "@/app/api/auth";
+import { mockUsers } from "@/app/store/user_slice";
 
 type MenuItem = Required<MenuProps>['items'][number];
 const items: MenuItem[] = [
@@ -32,11 +32,11 @@ const TableMembers: React.FC<{dataSource?: User[]}> = ({dataSource}) => {
       key: 'name',
       render: (_: any, record: any) => {
         return (
-          <div className="fx-h-left-center">
+          <div className="flex items-center gap-4">
             <Avatar size="small" src={record.avatar}></Avatar>
             <div>
               <Typography.Text strong={true}>{record.fullname}</Typography.Text>
-              <div className="fx-h-left-center">
+              <div className="flex items-center">
                 <Typography.Text>@{record.username}</Typography.Text>
                 <i className="fi fi-ss-circle" style={{fontSize:"3px"}}></i>
                 <Typography.Text>Last active recently</Typography.Text>
@@ -90,29 +90,29 @@ const Members: React.FC = () => {
 
   useEffect(() => {
     const fecthData = () => {
-      setData(users);
+      setData(mockUsers);
     }
 
     if (isFetching) {
       setTimeout(() => {
         fecthData();
         setIsFetching(false);
-      }, 3000)
+      }, 500)
     }
 
   }, [isFetching])
 
   return (
-    <div className="page scrollable-page">
-      <div className="fx-h-sb-center" style={{marginBottom: "20px"}}>
-        <div className="section-title fx-h-left-center">
+    <div className="page scrollable-page mt-8">
+      <div className="flex justify-between items-center" style={{marginBottom: "10px"}}>
+        <div className="section-title flex items-center gap-4">
           <Typography.Title level={4} className="m-0">Collaborators</Typography.Title>
           <Badge count="3/10"></Badge>
         </div>
         <Button size="small" onClick={openAddUserModal}><i className="fi fi-sr-user-add"></i> Add User</Button>
       </div>
 
-      <div className="fx-h-left-start">
+      <div className="flex">
         <Menu
           style={{ width: 256 }}
           defaultSelectedKeys={['menu-workspace-members']}

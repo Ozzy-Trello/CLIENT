@@ -1,10 +1,16 @@
+// src/store/index.ts
 import { configureStore } from "@reduxjs/toolkit";
 import { persistReducer, persistStore, PersistConfig } from "redux-persist";
 import { combineReducers } from "redux";
 import { encryptTransform } from "redux-persist-transform-encrypt";
-import appSlice from "./slice";
+import appSlice from "./app_slice";
+import boardsSlice from "./board_slice";
+import workspacesSlice from "./workspace_slice";
+import usersSlice from "./user_slice";
+import listSlice from "./list_slice";
+import cardSlice from "./card_slice";
 
-//noop storage for server-side
+// noop storage for server-side
 const createNoopStorage = () => {
   return {
     getItem(_key: string) {
@@ -20,8 +26,8 @@ const createNoopStorage = () => {
 };
 
 // Use storage based on environment
-const storage = typeof window !== "undefined" 
-  ? require("redux-persist/lib/storage").default 
+const storage = typeof window !== "undefined"
+  ? require("redux-persist/lib/storage").default
   : createNoopStorage();
 
 // encryptor config
@@ -30,18 +36,22 @@ const encryptor = encryptTransform({
   onError: (error) => console.error("Encryption Error:", error),
 });
 
-// persist config
-const persistConfig: PersistConfig<{ appState: ReturnType<typeof appSlice> }> = {
-  key: "root",
-  storage,
-  transforms: [encryptor],
-
-};
-
 // Combine Reducers
 const rootReducer = combineReducers({
   appState: appSlice,
+  workspaces: workspacesSlice,
+  users: usersSlice,
+  boards: boardsSlice,
+  lists: listSlice,
+  cards: cardSlice
 });
+
+// persist config
+const persistConfig: PersistConfig<ReturnType<typeof rootReducer>> = {
+  key: "root",
+  storage,
+  transforms: [encryptor],
+};
 
 // Apply Persisted Reducer
 const persistedReducer = persistReducer(persistConfig, rootReducer);
@@ -62,3 +72,9 @@ export const persistor = persistStore(store);
 // Infer types for RootState and AppDispatch
 export type RootState = ReturnType<typeof rootReducer>;
 export type AppDispatch = typeof store.dispatch;
+
+// Reset function to clear the persisted state for demo purposes
+export const resetDemoState = () => {
+  persistor.purge();
+  window.location.reload();
+};

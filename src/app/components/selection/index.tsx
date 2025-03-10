@@ -1,45 +1,40 @@
-import { Workspace } from "@/app/dto/types";
-import { selectSelectedWorkspace, setSelectedWorkspace } from "@/app/store/slice";
-import { workspaces } from "@/dummy-data";
 import { Select } from "antd";
 import { useEffect, useState } from "react";
-import { useDispatch } from "react-redux";
-import { useSelector } from "react-redux";
 import { useRouter } from "next/navigation";
+import useTaskService from "@/app/hooks/task";
 
 export const WorkspaceSelection: React.FC = () => {
-
-  const [workspaceList, setWorkspaceList] = useState<Workspace[]>(workspaces);
+  const { taskService, workspaces, currentWorkspace } = useTaskService();
   const [options, setOptions] = useState<{ label: string; value: string; }[]>([]);
-  const selectedWorkspace = useSelector(selectSelectedWorkspace);
-  const dispatch = useDispatch();
   const router = useRouter();
-
+  
   const handleChange = (value: string) => {
-    dispatch(setSelectedWorkspace(value));
-    router.push(`/workspace/${selectedWorkspace}/board`);
+    const ws = workspaces.find(ws => ws.id === value);
+    if (ws) {
+      taskService.selectWorkspace(ws.id);
+      router.push(`/workspace/${value}/board`);
+    }
   };
-
+  
   useEffect(() => {
-    let opt = workspaceList.map((item) => {
-      return {
-        label: item.name,
-        value: item.id
-      }
-    });
-    setOptions(opt);
-  }, [])
-
+    if (workspaces && workspaces.length > 0) {
+      setOptions(workspaces.map((ws) => ({label: ws.name, value: ws.id})));
+    }
+  }, [workspaces]);
+  
+  // Determine current selected value
+  const selectedValue = currentWorkspace?.id || (workspaces.length > 0 ? workspaces[0]?.id : undefined);
+  
   return(
     <Select
       style={{minWidth: "100px"}}
       showSearch
       placeholder="Select a workspace"
-      defaultValue={selectedWorkspace}
+      value={selectedValue}
       optionFilterProp="label"
       onChange={handleChange}
-      // onSearch={onSearch}
       options={options}
+      notFoundContent={workspaces.length === 0 ? "No workspaces available" : "No match found"}
     />
   )
 }

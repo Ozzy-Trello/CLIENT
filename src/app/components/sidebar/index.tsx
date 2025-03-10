@@ -2,47 +2,51 @@
 
 import { useWorkspaceSidebar } from "@/app/provider/workspace-sidebar-context";
 import { Board } from "@/app/dto/types";
-import { boards } from "@/dummy-data";
 import { Avatar, Button, Menu, Tooltip, Typography, Layout, Skeleton, Space } from "antd";
 import Link from "next/link";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { ChevronLeft, ChevronRight, Trello, Users } from "lucide-react";
-import "./style.css";
 import ModalCreateBoard from "../modal-create-board";
-import { useSelector } from "react-redux";
-import { selectSelectedWorkspace, setSelectedBoard } from "@/app/store/slice";
-import { useRouter } from "next/navigation";
+import { setSelectedBoard } from "@/app/store/app_slice";
 import { useDispatch } from "react-redux";
-
+import useTaskService from "@/app/hooks/task";
+import { MenuProps } from 'antd';
 
 const { Sider } = Layout;
+type MenuItem = Required<MenuProps>['items'][number];
 
-const Sidebar: React.FC = React.memo(() => {
+const Sidebar = () => {
   const { collapsed, toggleSidebar, siderWide, siderSmall } = useWorkspaceSidebar();
-  const [boardList, setBoardList] = useState<Board[]>([]);
-  const [menus, setMenus] = useState<{ key: string; label: React.ReactNode; icon: React.ReactNode; }[]>([]);
-  const [allMenus, setAllMenus] = useState<{ key: string; label: React.ReactNode; icon: React.ReactNode; }[]>([]);
-  const [isFetching, setIsFetching] = useState(true);
+  const [allMenus, setAllMenus] = useState<MenuItem[]>([]);
+  const [isFetching, setIsFetching] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [openCreateBoardModal, setOpenCreateBoardModal] = useState<boolean>(false);
-  const selectedWorkspace = useSelector(selectSelectedWorkspace);
-  const router = useRouter();
   const dispatch = useDispatch();
+  const { currentWorkspace, workspaceBoards } = useTaskService();
   
-  const handleOpenBoardModal = () => {
+  // Use refs to avoid dependency changes in useEffect
+  const prevWorkspaceIdRef = useRef<string | null>(null);
+  const prevBoardsLengthRef = useRef<number>(0);
+  const prevCollapsedRef = useRef<boolean>(collapsed);
+  
+  // Memoize handlers to prevent them from changing on every render
+  const handleOpenBoardModal = useCallback(() => {
     setOpenCreateBoardModal(true);
-  }
+  }, []);
 
-  const handleSelectBoardItem = (board: Board) => {
+  const handleSelectBoardItem = useCallback((board: Board) => {
     dispatch(setSelectedBoard(board));
-  }
-
-  useEffect(() => {
-    const menus = [
+  }, [dispatch]);
+  
+  // Memoize the base menus
+  const baseMenus = useMemo<MenuItem[]>(() => {
+    if (!currentWorkspace) return [];
+    
+    return [
       {
         key: "menu-board",
         label: (
-          <Link className="fullwidth" href={`/workspace/${selectedWorkspace}/board`}>
+          <Link className="block w-full" href={`/workspace/${currentWorkspace.id}/board`}>
             Boards
           </Link>
         ),
@@ -51,86 +55,124 @@ const Sidebar: React.FC = React.memo(() => {
       {
         key: "menu-members",
         label: (
-          <Link className="fullwidth" href={`/workspace/${selectedWorkspace}/members`}>
+          <Link className="block w-full" href={`/workspace/${currentWorkspace.id}/members`}>
             Members
           </Link>
         ),
         icon: <Users size={16} />,
       }
     ];
-
-    setMenus(menus);
-  }, [selectedWorkspace])
-
+  }, [currentWorkspace]);
+  
+  // Build menu items separately to avoid frequent render cycles
   useEffect(() => {
-    const fetchBoardsList = () => {
-      const filteredBoards = boards.filter(item => item.workspaceId == selectedWorkspace);
-      setBoardList(filteredBoards);
-    }
-
-    setTimeout(function(){
-      fetchBoardsList();
-      setIsFetching(false);
-    }, 1000);
-
-  }, [selectedWorkspace]);
-
-  useEffect(() => {
-    if (selectedWorkspace === "") {
-      // If no workspace is selected, only show the base menus without boards
-      setAllMenus([...menus]);
+    // Skip if nothing significant has changed
+    const currentWorkspaceId = currentWorkspace?.id || null;
+    const currentBoardsLength = workspaceBoards?.length || 0;
+    
+    if (
+      currentWorkspaceId === prevWorkspaceIdRef.current &&
+      currentBoardsLength === prevBoardsLengthRef.current &&
+      collapsed === prevCollapsedRef.current &&
+      allMenus.length > 0
+    ) {
       return;
     }
     
-    // If a workspace is selected, add the boards section
-    const updateMenu = () => {
-      const boardMenus = [];
-      
-      // Add the "Your boards" header item with an empty icon to satisfy the type
-      boardMenus.push({
-        key: `menu-your-boards`,
-        event: 'none',
-        disabled: true,
-        label: (
-          <div className={collapsed ? "menu-group-title fx-h-sb-center d-none" : "menu-group-title fx-h-sb-center"}>
-            <Typography.Text strong>Your boards</Typography.Text>
-            <Button size="small" onClick={handleOpenBoardModal}>+</Button>
-          </div>
-        ),
-        icon: <span></span>
-      });
-      
-      // Add each board as a menu item
-      boardList?.forEach((board) => {
-        const boardMenu = {
-          key: `menu-board-${board.id}`,
-          label: (
-            <Link className="fullwidth" href={`/workspace/${selectedWorkspace}/board/${board.id}`} onClick={() => {handleSelectBoardItem(board)}}>
-              {board.title}
-            </Link>
-          ),
-          icon: <span><Avatar shape="square" src={board?.cover} size={"small"}/></span>,
-        }
-        boardMenus.push(boardMenu);
-      });
-     
-      // Update the items state with base menus plus board menus
-      setAllMenus([...menus, ...boardMenus]);
-    };
-     
-    // Call updateMenu when we have a selected workspace
-    updateMenu();
+    // Update refs for next comparison
+    prevWorkspaceIdRef.current = currentWorkspaceId;
+    prevBoardsLengthRef.current = currentBoardsLength;
+    prevCollapsedRef.current = collapsed;
     
-  }, [selectedWorkspace, boardList, menus, collapsed]);
+    // Build menus only when needed
+    const buildMenus = async () => {
+      setIsFetching(true);
+      
+      try {
+        // If no workspace, just use base menus
+        if (!currentWorkspace) {
+          setAllMenus(baseMenus);
+          return;
+        }
+        
+        // Start with base menus
+        const fullMenus: MenuItem[] = [...baseMenus];
+        
+        // Add header for boards section
+        if (baseMenus.length > 0) {
+          fullMenus.push({
+            key: 'menu-your-boards',
+            disabled: true,
+            label: (
+              <div className={collapsed ? "hidden" : "flex items-center justify-between"}>
+                <Typography.Text strong>Your boards</Typography.Text>
+                <Button 
+                  size="small" 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenBoardModal();
+                  }}
+                >
+                  +
+                </Button>
+              </div>
+            ),
+            icon: <span></span>
+          });
+        }
+        
+        // Add board items if we have any
+        if (workspaceBoards && workspaceBoards.length > 0 && currentWorkspace) {
+          workspaceBoards.forEach((board) => {
+            fullMenus.push({
+              key: `menu-board-${board.id}`,
+              label: (
+                <Link 
+                  className="block w-full" 
+                  href={`/workspace/${currentWorkspace.id}/board/${board.id}`} 
+                  onClick={() => handleSelectBoardItem(board)}
+                >
+                  {board.title}
+                </Link>
+              ),
+              icon: <span><Avatar shape="square" src={board?.cover || `https://ui-avatars.com/api/?name=${board?.title}&background=random`} size={"small"}/></span>,
+            });
+          });
+        }
+        
+        // Only update state if values have actually changed
+        setAllMenus(prevMenus => {
+          // Simple length check to avoid deep comparison
+          if (prevMenus.length !== fullMenus.length) {
+            return fullMenus;
+          }
+          // If lengths match, check if any keys have changed
+          const prevKeys = prevMenus.map(item => item?.key);
+          const newKeys = fullMenus.map(item => item?.key);
+          if (JSON.stringify(prevKeys) !== JSON.stringify(newKeys)) {
+            return fullMenus;
+          }
+          return prevMenus;
+        });
+      } finally {
+        setIsFetching(false);
+      }
+    };
+    
+    // Execute the menu building
+    buildMenus();
+  }, [baseMenus, currentWorkspace, workspaceBoards, collapsed, handleOpenBoardModal, handleSelectBoardItem]);
 
+  // Render the sidebar
   return (
     <div 
-      className="sidebar-container"
+      className="relative h-full "
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      style={{width: collapsed ? siderSmall : siderWide}}
     >
       <Sider
-        className={`sidebar ${collapsed ? 'collapsed' : ''}`}
+        className={`transition-all duration-200 ease-in-out border-r border-gray-200 ${collapsed ? 'w-3 scrollbar-none' : ''}`}
         collapsed={collapsed}
         style={{
           height: '100%',
@@ -139,33 +181,34 @@ const Sidebar: React.FC = React.memo(() => {
           top: 45,
           overflow: 'visible',
           backgroundColor: '#fff',
-          transition: 'width 0.2s ease, transform 0.2s ease',
-          width: collapsed ? siderSmall : siderWide,
           zIndex: 101
         }}
         width={collapsed ? siderSmall : siderWide}
         collapsedWidth={12}
         trigger={null}
       >
-        <div className="sidebar-content" style={{ opacity: collapsed ? 0 : 1 }}>
+        <div className="transition-opacity duration-200 ease-in-out" style={{ opacity: collapsed ? 0 : 1 }}>
           {!collapsed && (
             <>
-              <div className="sidebar-title">
-                <div className="fx-h-left-center">
-                  <Avatar shape="square" size={"small"}>{selectedWorkspace ? selectedWorkspace.charAt(0) : ''}</Avatar>
-                  <Typography>{selectedWorkspace}</Typography>
+              <div className="flex justify-between items-center p-2.5 border-b border-gray-100">
+                <div className="flex items-center gap-2">
+                  <Avatar shape="square" size={"small"}>
+                    {currentWorkspace ? currentWorkspace.name.charAt(0) : ''}
+                  </Avatar>
+                  <Typography className="font-semibold">{currentWorkspace?.name}</Typography>
                 </div>
               </div>
               
               <Menu
                 mode="inline"
                 defaultSelectedKeys={["1"]}
-                style={{ borderRight: 0 }}
+                style={{ borderRight: 0 , fontSize: "12px"}}
                 items={allMenus}
+                className="[&_.ant-menu-item]:my-1 [&_.ant-menu-item-icon]:flex [&_.ant-menu-item-icon]:items-center text-[10px]"
               />
 
               {isFetching && [1,2,3].map((item) => (
-                <Space key={`loader-space-${item}`} style={{margin: "0px 0px 10px 25px"}}>
+                <Space key={`loader-space-${item}`} className="mx-0 my-0 mb-2.5 ml-6">
                   <Skeleton.Avatar active={isFetching} size={"small"} shape={"square"} />
                   <Skeleton.Input active={isFetching} size={"small"} />
                 </Space>
@@ -180,7 +223,7 @@ const Sidebar: React.FC = React.memo(() => {
         placement="right"
       >
         <Button
-          className={`sidebar-toggle ${isHovered ? 'hovered' : ''}`}
+          className={`absolute top-[58px] flex items-center justify-center rounded-full w-6 h-6 shadow-md border border-gray-200 p-0 transition-all duration-200 ease-in-out hover:bg-gray-50 hover:shadow-lg ${isHovered ? 'scale-105' : ''}`}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           size="small"
           type="text"
@@ -195,7 +238,10 @@ const Sidebar: React.FC = React.memo(() => {
       <ModalCreateBoard open={openCreateBoardModal} setOpen={setOpenCreateBoardModal} />
     </div>
   );
-});
+};
 
-Sidebar.displayName = 'Sidebar';
-export default Sidebar;
+// Use React.memo with custom comparison to prevent unnecessary rerenders
+export default React.memo(Sidebar, (prevProps, nextProps) => {
+  // These are object identity checks, not deep equality
+  return true; // Always consider equal since we don't have props
+});

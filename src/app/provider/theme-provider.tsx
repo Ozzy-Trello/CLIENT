@@ -4,42 +4,26 @@ import { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { ConfigProvider } from 'antd';
 import { RootState } from '../store';
-import { selectSelectedBoard, selectTheme } from '../store/slice';
-import { getGradientString } from '../utils/general';
+import { selectSelectedBoard, selectTheme } from '../store/app_slice';
+import { getContrastingTextColor, getGradientString } from '../utils/general';
 
 export function ThemeProvider({ children, userId }: { children: React.ReactNode; userId: string }) {
-  const dispatch = useDispatch();
-  // const { colors, isLoading } = useSelector((state: RootState) => state.theme);
   const theme = useSelector(selectTheme);
   const selectedBoard = useSelector(selectSelectedBoard);
   const { colors, fontSizes } = theme;
   let root: HTMLElement;
 
-  // useEffect(() => {
-  //   async function fetchTheme() {
-  //     dispatch(setLoading(true));
-  //     try {
-  //       const themeData = await themeService.fetchTheme(userId);
-  //       dispatch(setTheme(themeData));
-  //     } catch (error) {
-  //       dispatch(setError(error.message));
-  //     } finally {
-  //       dispatch(setLoading(false));
-  //     }
-  //   }
-
-  //   fetchTheme();
-  // }, [dispatch, userId]);.
-
   useEffect(() => {
     if (!root) root = document.documentElement;
     if (selectedBoard) {
-      console.log("Selected board in theme provider", selectedBoard);
       if (Array.isArray(selectedBoard.backgroundColor)) {
         root.style.setProperty(`--color-board-page-background-color`, getGradientString(selectedBoard.backgroundColor) as string);
-        console.log("Gradient string", getGradientString(selectedBoard.backgroundColor));
+        const textColor = getContrastingTextColor(selectedBoard.backgroundColor[0].color);
+        root.style.setProperty(`--color-text`, textColor);
       } else {
         root.style.setProperty(`--color-board-page-background-color`, selectedBoard.backgroundColor as string);
+        const textColor = getContrastingTextColor(selectedBoard.backgroundColor as string);
+        root.style.setProperty(`--color-text`, textColor);
       }
     } else {
       root.style.setProperty(`--color-board-page-background-color`, root.style.getPropertyValue(`--color-background`));

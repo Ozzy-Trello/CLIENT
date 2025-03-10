@@ -1,95 +1,79 @@
-import { Avatar, Button, Dropdown, MenuProps, Tooltip, Typography } from "antd";
-import { useEffect, useState } from "react";
+import { Button, Dropdown, MenuProps, Tooltip, Typography } from "antd";
+import { useState } from "react";
 import { useWorkspaceSidebar } from "@/app/provider/workspace-sidebar-context";
-import { getUserById } from "@/dummy-data";
-import { useScreenSize } from "@/app/provider/screen-size-provider";
 import MembersList from "@/app/components/members-list";
 import { Ellipsis, ListFilter, Menu, SlidersHorizontal, Star, UserPlus, Users } from "lucide-react";
+import { useSelector } from "react-redux";
+import { selectSelectedWorkspace } from "@/app/store/app_slice";
+import useTaskService from "@/app/hooks/task";
 
 const Topbar: React.FC = () => {
   const { collapsed, siderSmall, siderWide } = useWorkspaceSidebar();
-  const {width} = useScreenSize();
-  const [ showRightColMenu, setIsShowRighColtMenu ] = useState(false);
-  const [ openRightMenu, setOpenRightMenu] = useState(false);
-
+  const [showRightColMenu, setIsShowRighColtMenu] = useState(false);
+  const [openRightMenu, setOpenRightMenu] = useState(false);
+  const {currentBoard} = useTaskService()
   const [members, setMembers] = useState([
-    getUserById('1'),
-    getUserById('2'),
-    getUserById('3'),
-    getUserById('4'),
-    getUserById('5')
+    // getUserById('1'),
+    // getUserById('2'),
+    // getUserById('3'),
+    // getUserById('4'),
+    // getUserById('5')
   ]);
 
-  useEffect(() => {
-    const handleRightColMenu = () => {
-      if (width < 768) {
-        setIsShowRighColtMenu(false);
-      } else {
-        setIsShowRighColtMenu(true);
-      }
-    }
-
-    handleRightColMenu();
-  }, [width])
-
-
   const rightMenu: MenuProps["items"] = [
-    { 
-      key: "filter", 
-      label:  
-        <Tooltip
-          title={"filter"}
-        >
+    {
+      key: "filter",
+      label: (
+        <Tooltip title={"filter"}>
           <Button size="small" shape="default">
             <SlidersHorizontal />
             <span>Filter</span>
           </Button>
-        </Tooltip> 
+        </Tooltip>
+      )
     },
     {
-      key: "members", 
+      key: "members",
       label: "Members"
     },
     {
-      key: "share", 
+      key: "share",
       label: "Share"
     },
   ];
 
   return (
-    <div 
-      className="board-page-topbar fx-h-sb-center"
+    <div
+      className="flex items-center justify-between h-[45px] absolute top-[45px] border-b border-gray-200 px-2"
       style={{
-        width: collapsed ? `calc(100% - ${siderSmall}px)` : `calc(100% - ${siderWide}px)`,
-        height: "45px",
-        top: 45,
+        width: collapsed ? `calc(100% - ${siderSmall}px)` : `calc(100% - ${siderWide}px)`
       }}
     >
-      <div className="fx-h-left-center left-col">
+      <div className="flex items-center gap-2">
         <Typography.Title level={4} className="m-0">
-          Request Design
+          {currentBoard ? currentBoard.title : "Board Title"}
         </Typography.Title>
         <Tooltip
           title={"Starred boards showed up at the top of your baord list"}
         >
-          <Star size={16} cursor={"pointer"}/>
+          <Star size={16} className="cursor-pointer" />
         </Tooltip>
         <Tooltip
           title={"Change board visibility"}
         >
-          <Users size={16} cursor={"pointer"} />
+          <Users size={16} className="cursor-pointer" />
         </Tooltip>
       </div>
-
-      <div className="right-col">
-        { showRightColMenu  ? (
-          <div className="fx-h-right-center">
+      
+      <div>
+        {showRightColMenu ? (
+          <div className="flex items-center justify-end gap-2">
             <Tooltip title={"filter"}>
               <Button size="small" shape="default" icon={<ListFilter size={16} />}>
                 <span>Filter</span>
               </Button>
-            </Tooltip> 
-            <div className="members">
+            </Tooltip>
+            <div>
               <MembersList members={members} membersLength={members.length} membersLoopLimit={2} />
             </div>
             <Tooltip title="Share board">
@@ -102,18 +86,18 @@ const Topbar: React.FC = () => {
               </Button>
             </Tooltip>
           </div>
-          ) : (
-            <Dropdown
-              menu={{items: rightMenu}}
-              trigger={["click"]}
-              open={openRightMenu}
-              onOpenChange={setOpenRightMenu}
-            >
-              <Tooltip title={"show more menu"}>
-                  <Button><Menu size={16} /></Button>
-                </Tooltip>
-            </Dropdown>
-          )}
+        ) : (
+          <Dropdown
+            menu={{items: rightMenu}}
+            trigger={["click"]}
+            open={openRightMenu}
+            onOpenChange={setOpenRightMenu}
+          >
+            <Tooltip title={"show more menu"}>
+              <Button><Menu size={16} /></Button>
+            </Tooltip>
+          </Dropdown>
+        )}
       </div>
     </div>
   );

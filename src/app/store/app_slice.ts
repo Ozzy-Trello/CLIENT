@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { Board, User } from '../dto/types';
+import { Board, User, Workspace } from '../dto/types';
 
 export interface AppState {
   currentPage: string;
@@ -7,7 +7,7 @@ export interface AppState {
   accessToken: string;
   refreshToken: string;
   theme: any;
-  selectedWorkspace: string;
+  selectedWorkspace: Workspace | null;
   selectedBoard: Board | null;
 }
 
@@ -37,7 +37,7 @@ const initialAppState: AppState = {
       tiny: 8,
     }
   },
-  selectedWorkspace: "",
+  selectedWorkspace: null,
   selectedBoard: null,
 };
 

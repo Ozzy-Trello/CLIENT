@@ -13,13 +13,15 @@ import boardsImage from "@/app/assets/images/boards.png";
 import Image from "next/image";
 import { PictureOutlined, StarOutlined } from "@ant-design/icons";
 import "./style.css";
-import { Board } from "@/app/dto/types";
+import { Board, Card } from "@/app/dto/types";
 import { useSelector } from "react-redux";
-import { selectSelectedWorkspace, setSelectedBoard } from "@/app/store/slice";
+import { selectSelectedWorkspace, setSelectedBoard } from "@/app/store/app_slice";
 import { useDispatch } from "react-redux";
 import { useRouter } from "next/navigation";
 import { getGradientString } from "@/app/utils/general";
 import { useEffect, useState } from "react";
+import useTaskService from "@/app/hooks/task";
+// import { BoardService } from "@/app/mock/api";
 const { Text, Title } = Typography;
 
 interface ModalCreateBoardForm {
@@ -30,18 +32,18 @@ interface ModalCreateBoardForm {
 const CreateBoard: React.FC<ModalCreateBoardForm> = (props: ModalCreateBoardForm) => {
   const { open, setOpen } = props;
   const [form] = Form.useForm();
-  const selectedWorkspace = useSelector(selectSelectedWorkspace);
+  const {taskService, currentWorkspace, currentBoard, currentWorkspaceId} = useTaskService();
   const router = useRouter();
   const dispatch = useDispatch();
   
   // Define the default gradient color for the color picker
   const DEFAULT_COLOR = [
     {
-      color: 'rgb(16, 142, 233)',
+      color: 'rgb(255, 255, 255)',
       percent: 0,
     },
     {
-      color: 'rgb(135, 208, 104)',
+      color: 'rgb(255, 255, 255)',
       percent: 100,
     },
   ];
@@ -51,24 +53,29 @@ const CreateBoard: React.FC<ModalCreateBoardForm> = (props: ModalCreateBoardForm
   
   const onFinish = async (values: any) => {
     const tempId = `board-${Date.now()}`;
-    
-    const board: Board = {
-      id: tempId,
-      workspaceId: selectedWorkspace,
-      title: values.title,
-      cover: '',
-      backgroundColor: backgroundGradient,
-      isStarred: false,
-      visibility: '',
-      createdAt: '',
-      upatedAt: '',
+    let board: Board = {} as Board;
+    if (currentWorkspaceId !== null) {
+      board = {
+        id: tempId,
+        workspaceId: currentWorkspaceId,
+        title: values.title,
+        cover: '',
+        backgroundColor: backgroundGradient,
+        isStarred: false,
+        visibility: '',
+        createdAt: '',
+        upatedAt: '',
+      }
     }
-    
-    dispatch(setSelectedBoard(board));
-    form.resetFields();
-    setOpen(false);
+    if (currentWorkspace?.id) {
+      taskService.createBoard(currentWorkspace.id, board.title, "");
 
-    router.push(`/workspace/${selectedWorkspace}/board/${tempId}`);
+      dispatch(setSelectedBoard(board));
+      form.resetFields();
+      setOpen(false);
+
+      router.push(`/workspace/${currentWorkspace?.id}/board/${tempId}`);
+    }
   };
 
   const onFinishFailed = () => {
@@ -145,14 +152,14 @@ const CreateBoard: React.FC<ModalCreateBoardForm> = (props: ModalCreateBoardForm
               format="rgb"
               mode={['gradient']}
               onChange={(value) => {
-                const { colors } = value;
-                if (Array.isArray(value?.colors)) { // Ensure it's a gradient array
-                  const formattedGradient = colors.map(({ color, percent }) => ({
-                    color: color.toRgbString(), // Convert color to string
-                    percent,
-                  }));
-                  setBackgroundGradient(formattedGradient);
-                }
+                // const { colors } = value;
+                // if (Array.isArray(value?.colors)) { // Ensure it's a gradient array
+                //   const formattedGradient = colors.map(({ color, percent }) => ({
+                //     color: color.toRgbString(), // Convert color to string
+                //     percent,
+                //   }));
+                //   setBackgroundGradient(formattedGradient);
+                // }
               }}
             />
           </Form.Item>

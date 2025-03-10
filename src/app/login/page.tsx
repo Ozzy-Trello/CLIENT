@@ -1,30 +1,32 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useDispatch } from 'react-redux';
 import { LockOutlined, UserOutlined } from '@ant-design/icons';
+import { Users } from 'lucide-react';
 
 // Dynamic imports for Antd components
 import Form from 'antd/es/form';
 import Input from 'antd/es/input/Input';
 import Button from 'antd/es/button';
-import Space from 'antd/es/space';
 import message from 'antd/es/message';
 import Typography from 'antd/es/typography';
+import { Select } from 'antd';
 
 // Local imports
-import { setAccessToken, setRefreshToken, setUser } from '@/app/store/slice';
-import { users } from '@/dummy-data';
+import { setAccessToken, setRefreshToken, setUser } from '@/app/store/app_slice';
 import Footer from '@/app/components/footer';
 import { useLogin } from '../hooks/auth';
 import { useAccount } from '../hooks/account';
+import { mockUsers } from '../store/user_slice';
 
 const { Title, Text } = Typography;
 
 interface LoginFormValues {
   email: string;
   password: string;
+  role: string;
 }
 
 export default function LoginPage() {
@@ -38,7 +40,7 @@ export default function LoginPage() {
     try {
       const result = await login.mutateAsync({ email, password });
       if (result.data?.accessToken) {
-        const foundUser = users.find((item) => item.email === 'johndoe@example.com');
+        const foundUser = mockUsers[0];
         if (foundUser) {
           dispatch(setUser(foundUser));
           dispatch(setAccessToken(result.data.accessToken));
@@ -84,39 +86,44 @@ export default function LoginPage() {
   };
 
   return (
-    <div style={styles.container}>
-      <div style={{display: "flex", justifyContent:"center"}}>
-        <Space direction="vertical" size="large" align="center" style={styles.card}>
-          <Title level={3} style={styles.title} className={"m-0"}>Welcome Back</Title>
-          <Text type="secondary">Please login to your account</Text>
+    <div className="h-screen flex flex-col justify-between items-center bg-gradient-to-br from-gray-100 to-blue-100 overflow-y-scroll">
+      <div className="flex justify-center w-full mt-20">
+        <div className="flex flex-col items-center p-10 bg-white rounded-lg shadow-md">
+          <Title level={3} className="text-gray-800 mb-0">Welcome Back</Title>
+          <Text type="secondary" className="mb-6">Please login to your account</Text>
+          
           <Form
             name="login-form"
             onFinish={onFinish}
             onFinishFailed={onFinishFailed}
-            style={styles.form}
             layout="vertical"
+            className="w-72"
           >
             <Form.Item
               name="email"
               rules={[{ required: true, message: 'Please enter your email!' }]}
             >
               <Input
-                prefix={<UserOutlined />}
+                prefix={<UserOutlined  />}
                 placeholder="Email"
                 size="large"
+                className="rounded"
               />
             </Form.Item>
+            
             <Form.Item
               name="password"
               rules={[{ required: true, message: 'Please enter your password!' }]}
             >
               <Input
-                prefix={<LockOutlined />}
+                prefix={<LockOutlined  />}
                 placeholder="Password"
                 size="large"
                 type="password"
+                className="rounded"
               />
             </Form.Item>
+            
             <Form.Item>
               <Button
                 type="primary"
@@ -124,48 +131,22 @@ export default function LoginPage() {
                 block
                 size="large"
                 loading={loading}
+                className="rounded h-10"
               >
                 Login
               </Button>
             </Form.Item>
           </Form>
-          <Space direction="vertical" size="small" align="center">
-            <Link href={"/forgot-password"}>
-              <Text type="secondary">Forgot Password?</Text>
+          
+          <div className="mt-2 text-center">
+            <Link href="/forgot-password" className="text-gray-500 hover:text-blue-500">
+              Forgot Password?
             </Link>
-          </Space>
-        </Space>
+          </div>
+        </div>
       </div>
+      
       <Footer />
     </div>
   );
 }
-
-const styles: { [key: string]: React.CSSProperties } = {
-  container: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'space-between',
-    height: '100vh',
-    flexDirection: "column",
-    background: 'linear-gradient(135deg, #f5f7fa, #c3cfe2)',
-  },
-  card: {
-    padding: '40px',
-    background: '#fff',
-    borderRadius: '8px',
-    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-    textAlign: 'center',
-  },
-  title: {
-    color: '#333',
-    marginBottom: '10px',
-  },
-  form: {
-    width: '300px',
-  },
-  link: {
-    color: '#1890ff',
-    textDecoration: 'underline',
-  },
-};

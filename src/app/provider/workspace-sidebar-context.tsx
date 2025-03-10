@@ -1,7 +1,5 @@
-// WorkspaceSidebarContext.tsx
 "use client";
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { useScreenSize } from "../provider/screen-size-provider";
 type SidebarContextType = {
   collapsed: boolean;
   toggleSidebar: () => void;
@@ -15,26 +13,28 @@ export const WorkspaceSidebarProvider = ({
   children: React.ReactNode;
 }) => {
   const [collapsed, setCollapsed] = useState(false);
-  const { width, height, isMobile } = useScreenSize();
+  // const { width, height, isMobile } = useScreenSize();
   const siderWide = 200;
   const siderSmall = 10;
 
   const toggleSidebar = () => {
     setCollapsed((prev) => !prev);
   };
-  useEffect(() => {
-    // handle auto collapse when screen width < 768
-    const handleResize = () => {
-      const screenWidth = window.innerWidth;
-      if (isMobile && !collapsed) {
-        setCollapsed(true);
-      } else if (!isMobile && collapsed) {
-        setCollapsed(false);
-      }
-    };
-    handleResize();
+
+  // useEffect(() => {
+  //   // handle auto collapse when screen width < 768
+  //   const handleResize = () => {
+  //     const screenWidth = window.innerWidth;
+  //     if (isMobile && !collapsed) {
+  //       setCollapsed(true);
+  //     } else if (!isMobile && collapsed) {
+  //       setCollapsed(false);
+  //     }
+  //   };
+  //   handleResize();
  
-  }, [width]);
+  // }, [width]);
+
   return (
     <SidebarContext.Provider value={{ collapsed, toggleSidebar, siderWide, siderSmall }}>
       {children}

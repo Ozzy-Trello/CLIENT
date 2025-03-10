@@ -5,7 +5,6 @@ import { PersistGate } from "redux-persist/integration/react";
 import { persistor, store } from "@/app/store";
 import { WorkspaceSidebarProvider } from "@/app/provider/workspace-sidebar-context";
 import { ThemeProvider } from "@/app/provider/theme-provider";
-import { ScreenSizeProvider } from "@/app/provider/screen-size-provider";
 import { AntdRegistry } from "@ant-design/nextjs-registry";
 import QueryProvider from "./query-provider";
 import RouteController from "../route_controller";
@@ -15,16 +14,14 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <Provider store={store}>
       <PersistGate loading={<p>Loading...</p>} persistor={persistor}>
         <QueryProvider>
-          <ScreenSizeProvider>
-            <AntdRegistry>
-              <ThemeProvider userId="1">
-                <WorkspaceSidebarProvider>
-                  <RouteController></RouteController>
-                  {children}
-                </WorkspaceSidebarProvider>
-              </ThemeProvider>
-            </AntdRegistry>
-          </ScreenSizeProvider>
+          <AntdRegistry>
+            <ThemeProvider userId="1">
+              <WorkspaceSidebarProvider>
+                <RouteController></RouteController>
+                {children}
+              </WorkspaceSidebarProvider>
+            </ThemeProvider>
+          </AntdRegistry>
         </QueryProvider>
       </PersistGate>
     </Provider>

@@ -1,27 +1,21 @@
-import React, { useState, useRef, useEffect, FC } from "react";
+import React, { useState, useRef, useEffect, FC, Fragment } from "react";
 import {
   DraggableProvided,
   Droppable,
-  DroppableProps,
   DroppableProvided,
   DroppableStateSnapshot,
 } from "@hello-pangea/dnd";
-import TaskComponent from "../task";
 import { Badge, Button, Input, Typography } from "antd";
-import type { Task } from "@/app/dto/types";
+import type { AnyList, Card } from "@/app/dto/types";
 import { useSelector } from "react-redux";
-import { selectTheme } from "@/app/store/slice";
-import { Ellipsis } from "lucide-react";
-
-interface Column {
-  id: string;
-  title: string;
-  taskIds: string[];
-}
+import { selectTheme } from "@/app/store/app_slice";
+import { Ellipsis, MessageSquare, Paperclip, Plus } from "lucide-react";
+import ListCard from "../list-card";
+import { useAppSelector } from "@/app/store/hook";
+import { selectCardsByList } from "@/app/store/card_slice";
 
 interface ListComponentProps {
-  column: Column;
-  tasks: Task[];
+  list: AnyList;
   index: number;
   provided: DraggableProvided;
   addCard: (columnId: string, newCardContent: string) => void;
@@ -29,16 +23,16 @@ interface ListComponentProps {
 }
 
 const ListComponent: FC<ListComponentProps> = ({
-  column,
-  tasks,
+  list,
   provided,
   addCard,
   changeColumnTitle,
   index,
 }) => {
+  const cards = useAppSelector(state => selectCardsByList(state, list.id)) || [];
   const [newCardContent, setNewCardContent] = useState("");
   const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [newTitle, setNewTitle] = useState(column.title);
+  const [newTitle, setNewTitle] = useState(list.title);
   const [isAddingCard, setIsAddingCard] = useState(false);
   const theme = useSelector(selectTheme);
   const { colors } = theme;
@@ -54,8 +48,8 @@ const ListComponent: FC<ListComponentProps> = ({
   };
 
   const handleTitleBlur = (): void => {
-    if (newTitle.trim() && newTitle !== column.title) {
-      changeColumnTitle(column.id, newTitle.trim());
+    if (newTitle.trim() && newTitle !== list.title) {
+      changeColumnTitle(list.id, newTitle.trim());
     }
     setIsEditingTitle(false);
   };
@@ -86,7 +80,7 @@ const ListComponent: FC<ListComponentProps> = ({
   const handleAddCardSubmit = (): void => {
     const trimmedContent = newCardContent.trim();
     if (trimmedContent) {
-      addCard(column.id, trimmedContent);
+      addCard(list.id, trimmedContent);
       setNewCardContent("");
       setIsAddingCard(false);
     }
@@ -107,23 +101,11 @@ const ListComponent: FC<ListComponentProps> = ({
 
   return (
     <div
-      className="list-column"
+      className="flex flex-col rounded-xl bg-white p-4 shadow-md min-w-[275px] h-fit max-h-[calc(100vh-130px)] overflow-y-hidden"
       ref={columnRef}
       {...provided.draggableProps}
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        borderRadius: "8px",
-        padding: "1rem",
-        boxShadow: "0 2px 10px rgba(0, 0, 0, 0.1)",
-        minWidth: "275px",
-        background: `rgb(${colors?.background})`,
-        height: `fit-content`,
-        maxHeight: `calc(100vh - 130px)`,
-        overflowY: "hidden"
-      }}
     >
-      <div className="list-colum-title-wrapper fx-h-sb-center">
+      <div className="flex justify-between items-center mb-2">
         {isEditingTitle ? (
           <Input
             type="text"
@@ -133,66 +115,61 @@ const ListComponent: FC<ListComponentProps> = ({
             onBlur={handleTitleBlur}
             onKeyDown={handleTitleKeyDown}
             autoFocus
-            style={{
-              fontSize: "15px",
-              fontWeight: "bold",
-              border: "none",
-              background: "#f9fafb",
-              padding: "0.5rem",
-              width: "100%",
-            }}
+            className="text-base font-bold border-none bg-gray-50 p-2 w-full"
           />
         ) : (
-          <Typography.Title
+          <Typography.Text
             onClick={handleTitleClick}
-            level={5}
-            style={{
-              fontSize: "15px",
-              fontWeight: "bold",
-              cursor: "pointer",
-              marginTop: "0",
-              marginBottom: "1rem",
-              color: "#333",
-            }}
+            className="text-xs font-bold cursor-pointer mt-0 mb-0 text-gray-800"
           >
-            {column.title}
-          </Typography.Title>
+            {list.title}
+          </Typography.Text>
         )}
        
-        <div className="fx-h-right-center">
-          <Badge size="small" count="1/9" />
-          <Button size="small"><Ellipsis size={14}/></Button>
+        <div className="flex items-center justify-end gap-1">
+          <div className="bg-gray-200 text-gray-600 rounded-full px-2 py-1 text-xs">
+            {cards?.length || 0}
+          </div>
+          <Button type="text" size="small" className="flex items-center justify-center">
+            <span className="flex">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M7 3L2 8L7 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M17 3L22 8L17 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </span>
+          </Button>
+          <Button type="text" size="small"><Ellipsis size={16}/></Button>
         </div>
       </div>
 
-      <Droppable droppableId={column.id} type="TASK">
+      <Droppable droppableId={list.id} type="TASK">
         {(provided: DroppableProvided, snapshot: DroppableStateSnapshot) => (
           <div
             ref={provided.innerRef}
             {...provided.droppableProps}
+            className="flex flex-col gap-2 flex-1 overflow-y-auto"
             style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "0.5rem",
-              flex: 1,
-              transition: "background-color 0.2s ease",
-              marginBlock: snapshot.isDraggingOver ? "1rem" : "0",
-              maxWidth: "272px",
-              overflowY: "auto",
-              padding: "0px 5px",
+              minHeight: "40px",
+              backgroundColor: snapshot.isDraggingOver ? "#f0f8ff" : "transparent",
+              transition: "background-color 0.2s ease"
             }}
           >
-            {tasks?.map((task, index) => (
-              <TaskComponent key={task?.id} task={task} index={index} />
+            {/* Only render cards if they exist and are an array */}
+            {Array.isArray(cards) && cards.map((card, index) => (
+              <ListCard
+                key={card.id}
+                card={card}
+                index={index}
+                type={list.type}
+              />
             ))}
             {provided.placeholder}
-            {!tasks.length && "This list is still empty"}
           </div>
         )}
       </Droppable>
 
       {isAddingCard ? (
-        <div style={{ marginTop: "1rem" }}>
+        <div className="mt-4">
           <input
             type="text"
             placeholder="Enter card content"
@@ -203,15 +180,9 @@ const ListComponent: FC<ListComponentProps> = ({
                 handleAddCardSubmit();
               }
             }}
-            style={{
-              padding: "0.5rem",
-              borderRadius: "4px",
-              border: "1px solid #ccc",
-              width: "100%",
-              marginBottom: "0.5rem",
-            }}
+            className="p-2 rounded border border-gray-300 w-full mb-2"
           />
-          <div style={{ display: "flex", gap: "0.5rem" }}>
+          <div className="flex gap-2">
             <Button size="small" onClick={handleAddCardSubmit}>
               Add Card
             </Button>
@@ -221,13 +192,23 @@ const ListComponent: FC<ListComponentProps> = ({
           </div>
         </div>
       ) : (
-        <div className="fullwidth fx-v-end" style={{minHeight: "40px"}}>
+        <div className="w-full flex items-center text-gray-600 mt-2 pt-2 border-t border-gray-200">
           <Button
-            className="fullwidth"
+            type="text"
+            className="flex items-center gap-2 font-normal"
             onClick={handleAddCardClick}
           >
-          + Add a card
-        </Button>
+            <Plus size={16} />
+            Add a card
+          </Button>
+          <div className="ml-auto">
+            <Button type="text" size="small" className="text-gray-500">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="4" y="4" width="16" height="16" rx="2" stroke="currentColor" strokeWidth="2"/>
+                <path d="M4 16L8 12M8 12L4 8M8 12H16M16 12L20 8M16 12L20 16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </Button>
+          </div>
         </div>
       )}
     </div>
