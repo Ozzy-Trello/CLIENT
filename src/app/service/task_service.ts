@@ -47,7 +47,7 @@ import {
 } from '@/app/store/user_slice';
 
 
-import { User, Workspace, Board, AnyList } from '@/app/dto/types';
+import { User, Workspace, Board, AnyList, Card } from '@/app/dto/types';
 
 // Task Management Service
 class TaskService {
@@ -378,6 +378,8 @@ class TaskService {
     const { dispatch, getState } = store;
     const user = getState().users.currentUser;
     
+    console.log('Updating card details:', id, updates);
+    
     if (!user) {
       console.error('Cannot update card: No current user');
       return;
@@ -388,6 +390,8 @@ class TaskService {
       ...updates, 
       user 
     }));
+    
+    console.log('Card details updated successfully');
   }
   
   updateCardDescription(cardId: string, description: string) {
@@ -452,6 +456,12 @@ class TaskService {
   moveCardBetweenLists(cardId: string, sourceListId: string, destinationListId: string) {
     const { dispatch } = store;
     
+    console.log('Moving card between lists:', {
+      cardId,
+      sourceListId,
+      destinationListId
+    });
+    
     dispatch(moveCard({ 
       cardId, 
       sourceListId, 
@@ -462,6 +472,8 @@ class TaskService {
     dispatch(updateCardTime({ 
       cardId 
     }));
+    
+    console.log('Card moved successfully');
   }
   
   reorderCardsInList(listId: string, sourceIndex: number, destinationIndex: number) {
@@ -472,6 +484,20 @@ class TaskService {
       sourceIndex, 
       destinationIndex 
     }));
+  }
+  
+  // Get a card by its ID
+  getCardById(cardId: string): Card | undefined {
+    const { getState } = store;
+    const state = getState();
+    return state.cards.cards.find(card => card.id === cardId);
+  }
+  
+  // Get all lists
+  getAllLists(): AnyList[] {
+    const { getState } = store;
+    const state = getState();
+    return state.lists.lists;
   }
   
   // Advanced operations that coordinate between different slices

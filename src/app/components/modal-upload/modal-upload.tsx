@@ -6,22 +6,26 @@ interface UploadModalProps {
   isVisible: boolean;
   onClose: () => void;
   onUploadComplete?: (imageUrl: string, filename: string) => void;
+  initialImageUrl?: string;
 }
 
 const UploadModal: React.FC<UploadModalProps> = ({
   isVisible,
   onClose,
-  onUploadComplete
+  onUploadComplete,
+  initialImageUrl
 }) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(initialImageUrl || null);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Generate preview URL when a file is selected
   useEffect(() => {
     if (!selectedFile) {
-      setPreviewUrl(null);
+      if (!initialImageUrl) {
+        setPreviewUrl(null);
+      }
       return;
     }
 
@@ -32,7 +36,22 @@ const UploadModal: React.FC<UploadModalProps> = ({
     return () => {
       URL.revokeObjectURL(objectUrl);
     };
-  }, [selectedFile]);
+  }, [selectedFile, initialImageUrl]);
+
+  // Check for stored image in localStorage when component mounts
+  useEffect(() => {
+    if (!selectedFile && !initialImageUrl) {
+      const storedImage = localStorage.getItem('uploadedImage');
+      const storedImageName = localStorage.getItem('uploadedImageName');
+      
+      if (storedImage && storedImageName) {
+        setPreviewUrl(storedImage);
+        
+        // We don't need to create a File object from the stored image
+        // since we're just showing the preview and using the stored URL
+      }
+    }
+  }, [selectedFile, initialImageUrl]);
 
   // Function to handle file selection
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -40,7 +59,7 @@ const UploadModal: React.FC<UploadModalProps> = ({
     setSelectedFile(file);
   };
 
-  // Function to handle the "fake" upload
+  // Function to handle the upload
   const handleUpload = () => {
     if (!selectedFile) {
       message.error('Please select a file first!');
@@ -52,22 +71,75 @@ const UploadModal: React.FC<UploadModalProps> = ({
    
     // Simulate network delay
     setTimeout(() => {
-      // Your static image URL
-      const staticImageUrl = "https://media.canva.com/v2/mockup-template-rasterize/color0:171618/image0:s3%3A%2F%2Ftemplate.canva.com%2FEAFLsJd5odY%2F1%2F0%2F933w-xBtZhbBcHcY.png/mockuptemplateid:FAqieNuus/size:L?csig=AAAAAAAAAAAAAAAAAAAAAJAuNjMCCEDFt3m4qSA-7a1pdrjgZRgZw2Qq7DcFu0Lk&exp=1741576467&osig=AAAAAAAAAAAAAAAAAAAAACr2ZdO05eIrJRsyRZilJ3LlXPaRpNVnfcEeLojmYD2u&seoslug=black-bold-logo-text-graphic-t-shirt&signer=marketplace-rpc";
-     
-      // Call the callback with the URL
-      if (onUploadComplete) {
-        onUploadComplete(staticImageUrl, selectedFile.name);
+      // Instead of using static image, use the local image URL
+      if (previewUrl && onUploadComplete) {
+        // Create a canvas to resize the image
+        const compressImage = (file: File, maxWidth = 800, maxHeight = 600, quality = 0.7): Promise<string> => {
+          return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+              const img = new Image();
+              img.onload = () => {
+                // Calculate new dimensions while maintaining aspect ratio
+                let width = img.width;
+                let height = img.height;
+                
+                if (width > maxWidth) {
+                  height = (height * maxWidth) / width;
+                  width = maxWidth;
+                }
+                
+                if (height > maxHeight) {
+                  width = (width * maxHeight) / height;
+                  height = maxHeight;
+                }
+                
+                // Create canvas and draw resized image
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx?.drawImage(img, 0, 0, width, height);
+                
+                // Convert to base64 with reduced quality
+                const dataUrl = canvas.toDataURL('image/jpeg', quality);
+                resolve(dataUrl);
+              };
+              img.src = event.target?.result as string;
+            };
+            reader.readAsDataURL(file);
+          });
+        };
+        
+        // Compress and store the image
+        compressImage(selectedFile).then((compressedDataUrl) => {
+          try {
+            // Try to store in localStorage
+            localStorage.setItem('uploadedImage', compressedDataUrl);
+            localStorage.setItem('uploadedImageName', selectedFile.name);
+            
+            // Call the callback with the compressed URL
+            onUploadComplete(compressedDataUrl, selectedFile.name);
+          } catch (error) {
+            console.error('Error storing image in localStorage:', error);
+            // If localStorage fails, just use the compressed image without storing it
+            message.warning('Image is too large to store in browser cache, it will not persist between sessions.');
+            onUploadComplete(compressedDataUrl, selectedFile.name);
+          }
+          
+          // Show success message
+          message.success('Cover image updated successfully!');
+          
+          // Reset states
+          setIsUploading(false);
+          setSelectedFile(null);
+          onClose();
+        });
+      } else {
+        setIsUploading(false);
+        message.error('Failed to process image');
       }
-     
-      // Show success message
-      message.success('Cover image updated successfully!');
-     
-      // Reset states
-      setIsUploading(false);
-      setSelectedFile(null);
-      onClose();
-    }, 1500); // Simulate 1.5s upload time
+    }, 1000); // Reduced simulation time
   };
 
   // Function to open file picker

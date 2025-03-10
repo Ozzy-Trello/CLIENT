@@ -3,12 +3,12 @@
 import { ReactNode } from "react";
 import { Layout, Menu } from "antd";
 import TopBar from "../components/topbar";
-import Sidebar from "../components/sidebar";
 import "./style.css";
 import {
   useWorkspaceSidebar,
 } from "@/app/provider/workspace-sidebar-context";
 import Footer from "../components/footer";
+import Sidebar from "../components/sidebar";
 
 const { Header, Content } = Layout;
 
@@ -26,20 +26,22 @@ const WorkspaceLayout: React.FC<BaseLayoutProps> = ({ children }) => {
         <TopBar />
       </Header>
 
-      <Sidebar />
-      <Layout
-        style={{
-          marginTop: "45x !important",
-          width: collapsed ? `calc(100%-${siderSmall})` : `calc(100%-${siderWide}) `,
-          transition: "margin-left 0.2s ease",
-          overflow: "hidden",
-          height: "100vh"
-        }}
-      >
-        <Content>
-          {children}
-          <Footer />
-        </Content>
+      <Layout>
+        <Sidebar />
+        <Layout
+          style={{
+            marginTop: "45px !important",
+            width: collapsed ? `calc(100%-${siderSmall})` : `calc(100%-${siderWide}) `,
+            transition: "margin-left 0.2s ease",
+            overflow: "hidden",
+            height: "100vh"
+          }}
+        >
+          <Content>
+            {children}
+            <Footer />
+          </Content>
+        </Layout>
       </Layout>
     </Layout>
   );

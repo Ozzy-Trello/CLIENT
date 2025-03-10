@@ -11,7 +11,7 @@ export interface User {
   refreshToken?: string;
   accessToken?: string;
   avatar?: string;
-  roleName?:string;
+  roleName?: string;
 }
 
 export interface Board {
@@ -73,7 +73,13 @@ export interface ActivityItem {
 }
 
 // For custom fields
-export type CustomFieldValueType = 'text' | 'number' | 'date' | 'checkbox' | 'select' | 'user';
+export type CustomFieldValueType =
+  | "text"
+  | "number"
+  | "date"
+  | "checkbox"
+  | "select"
+  | "user";
 
 export interface CustomFieldValue {
   value: string | number | boolean | null;
@@ -127,6 +133,8 @@ export interface Card {
   location?: string;
   createdAt: string;
   updatedAt: string;
+  isNew?: boolean; // Flag to indicate if this is a newly created card
+  labels: any;
 }
 
 // Counter Card (used in filter columns)
@@ -141,7 +149,7 @@ export interface List {
   id: string;
   title: string;
   cover?: string;
-  type: 'regular';
+  type: "regular";
   cardIds: string[];
   position: number;
 }
@@ -150,7 +158,7 @@ export interface List {
 export interface FilterList {
   id: string;
   title: string;
-  type: 'filter';
+  type: "filter";
   cardIds: string[];
   position: number;
   filterCriteria?: any; // Define specific filter criteria structure

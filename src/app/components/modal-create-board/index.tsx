@@ -1,12 +1,12 @@
-import { 
-  Button, 
-  ColorPicker, 
-  Form, 
-  Input, 
-  message, 
-  Modal, 
-  Tooltip, 
-  Typography 
+import {
+  Button,
+  ColorPicker,
+  Form,
+  Input,
+  message,
+  Modal,
+  Tooltip,
+  Typography,
 } from "antd";
 import { VisibilitySelection, WorkspaceSelection } from "../selection";
 import boardsImage from "@/app/assets/images/boards.png";
@@ -15,7 +15,10 @@ import { PictureOutlined, StarOutlined } from "@ant-design/icons";
 import "./style.css";
 import { Board, Card } from "@/app/dto/types";
 import { useSelector } from "react-redux";
-import { selectSelectedWorkspace, setSelectedBoard } from "@/app/store/app_slice";
+import {
+  selectSelectedWorkspace,
+  setSelectedBoard,
+} from "@/app/store/app_slice";
 import { useDispatch } from "react-redux";
 import { useRouter } from "next/navigation";
 import { getGradientString } from "@/app/utils/general";
@@ -29,28 +32,31 @@ interface ModalCreateBoardForm {
   setOpen: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-const CreateBoard: React.FC<ModalCreateBoardForm> = (props: ModalCreateBoardForm) => {
+const CreateBoard: React.FC<ModalCreateBoardForm> = (
+  props: ModalCreateBoardForm
+) => {
   const { open, setOpen } = props;
   const [form] = Form.useForm();
-  const {taskService, currentWorkspace, currentBoard, currentWorkspaceId} = useTaskService();
+  const { taskService, currentWorkspace, currentBoard, currentWorkspaceId } =
+    useTaskService();
   const router = useRouter();
   const dispatch = useDispatch();
-  
+
   // Define the default gradient color for the color picker
   const DEFAULT_COLOR = [
     {
-      color: 'rgb(255, 255, 255)',
+      color: "rgb(255, 255, 255)",
       percent: 0,
     },
     {
-      color: 'rgb(255, 255, 255)',
+      color: "rgb(255, 255, 255)",
       percent: 100,
     },
   ];
-  
+
   // Get the background value from the form
   const [backgroundGradient, setBackgroundGradient] = useState(DEFAULT_COLOR);
-  
+
   const onFinish = async (values: any) => {
     const tempId = `board-${Date.now()}`;
     let board: Board = {} as Board;
@@ -59,13 +65,13 @@ const CreateBoard: React.FC<ModalCreateBoardForm> = (props: ModalCreateBoardForm
         id: tempId,
         workspaceId: currentWorkspaceId,
         title: values.title,
-        cover: '',
+        cover: "",
         backgroundColor: backgroundGradient,
         isStarred: false,
-        visibility: '',
-        createdAt: '',
-        upatedAt: '',
-      }
+        visibility: "",
+        createdAt: "",
+        upatedAt: "",
+      };
     }
     if (currentWorkspace?.id) {
       taskService.createBoard(currentWorkspace.id, board.title, "");
@@ -79,7 +85,7 @@ const CreateBoard: React.FC<ModalCreateBoardForm> = (props: ModalCreateBoardForm
   };
 
   const onFinishFailed = () => {
-    message.error('Please check your input and try again.');
+    message.error("Please check your input and try again.");
   };
 
   return (
@@ -95,16 +101,16 @@ const CreateBoard: React.FC<ModalCreateBoardForm> = (props: ModalCreateBoardForm
     >
       <Form
         name="create-board-form"
-        form={form} 
-        layout="vertical" 
+        form={form}
+        layout="vertical"
         onFinish={onFinish}
         onFinishFailed={onFinishFailed}
         requiredMark={false}
-        initialValues={{ 
-          title: "", 
-          workspace: "Personal", 
+        initialValues={{
+          title: "",
+          workspace: "Personal",
           visibility: "Private",
-          background: DEFAULT_COLOR  // Pass the gradient array directly
+          background: DEFAULT_COLOR, // Pass the gradient array directly
         }}
       >
         <div
@@ -118,68 +124,66 @@ const CreateBoard: React.FC<ModalCreateBoardForm> = (props: ModalCreateBoardForm
               className="preview-image"
             />
           </div>
-          
+
           <div className="background-actions">
             <Tooltip title="Choose image">
-              <Button 
-                type="text" 
-                shape="circle" 
-                icon={<PictureOutlined />} 
+              <Button
+                type="text"
+                shape="circle"
+                icon={<PictureOutlined />}
                 className="background-action-button"
               />
             </Tooltip>
             <Tooltip title="Save as favorite">
-              <Button 
-                type="text" 
-                shape="circle" 
-                icon={<StarOutlined />} 
+              <Button
+                type="text"
+                shape="circle"
+                icon={<StarOutlined />}
                 className="background-action-button"
               />
             </Tooltip>
           </div>
         </div>
-        
+
         <div className="board-form-content">
-          
-          <Form.Item 
-            name="background" 
-            label={<Text strong>Background</Text>}
-          >
+          <Form.Item name="background" label={<Text strong>Background</Text>}>
             <ColorPicker
               defaultValue={DEFAULT_COLOR}
               allowClear
               showText
               format="rgb"
-              mode={['gradient']}
+              mode={["gradient"]}
               onChange={(value) => {
-                // const { colors } = value;
-                // if (Array.isArray(value?.colors)) { // Ensure it's a gradient array
-                //   const formattedGradient = colors.map(({ color, percent }) => ({
-                //     color: color.toRgbString(), // Convert color to string
-                //     percent,
-                //   }));
-                //   setBackgroundGradient(formattedGradient);
-                // }
+                const { colors } = value;
+                if (Array.isArray(value?.colors)) {
+                  // Ensure it's a gradient array
+                  const formattedGradient = colors.map(
+                    ({ color, percent }) => ({
+                      color: color.toRgbString(), // Convert color to string
+                      percent,
+                    })
+                  );
+                  setBackgroundGradient(formattedGradient);
+                }
               }}
             />
           </Form.Item>
-          
-          <Form.Item 
-            name="title" 
-            label={<Text strong>Board Title</Text>} 
-            rules={[{ required: true, message: 'Please enter a board title' }]}
+
+          <Form.Item
+            name="title"
+            label={<Text strong>Board Title</Text>}
+            rules={[{ required: true, message: "Please enter a board title" }]}
           >
             <Input placeholder="Enter board title" size="large" />
           </Form.Item>
-          
+
           <Form.Item name="workspace" label={<Text strong>Workspace</Text>}>
             <WorkspaceSelection />
           </Form.Item>
-          
+
           <Form.Item name="visibility" label={<Text strong>Visibility</Text>}>
             <VisibilitySelection />
           </Form.Item>
-        
         </div>
 
         <div className="custom-footer">

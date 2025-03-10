@@ -29,7 +29,8 @@ const ListComponent: FC<ListComponentProps> = ({
   changeColumnTitle,
   index,
 }) => {
-  const cards = useAppSelector(state => selectCardsByList(state, list.id)) || [];
+  const cards =
+    useAppSelector((state) => selectCardsByList(state, list.id)) || [];
   const [newCardContent, setNewCardContent] = useState("");
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [newTitle, setNewTitle] = useState(list.title);
@@ -125,20 +126,45 @@ const ListComponent: FC<ListComponentProps> = ({
             {list.title}
           </Typography.Text>
         )}
-       
         <div className="flex items-center justify-end gap-1">
-          <div className="bg-gray-200 text-gray-600 rounded-full px-2 py-1 text-xs">
-            {cards?.length || 0}
-          </div>
-          <Button type="text" size="small" className="flex items-center justify-center">
+          {list.type !== "filter" && (
+            <div className="bg-gray-200 text-gray-600 rounded-full px-2 py-1 text-xs">
+              {cards?.length || 0}
+            </div>
+          )}
+          <Button
+            type="text"
+            size="small"
+            className="flex items-center justify-center"
+          >
             <span className="flex">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M7 3L2 8L7 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M17 3L22 8L17 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M7 3L2 8L7 13"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M17 3L22 8L17 13"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
               </svg>
             </span>
           </Button>
-          <Button type="text" size="small"><Ellipsis size={16}/></Button>
+          <Button type="text" size="small">
+            <Ellipsis size={16} />
+          </Button>
         </div>
       </div>
 
@@ -150,19 +176,22 @@ const ListComponent: FC<ListComponentProps> = ({
             className="flex flex-col gap-2 flex-1 overflow-y-auto"
             style={{
               minHeight: "40px",
-              backgroundColor: snapshot.isDraggingOver ? "#f0f8ff" : "transparent",
-              transition: "background-color 0.2s ease"
+              backgroundColor: snapshot.isDraggingOver
+                ? "#f0f8ff"
+                : "transparent",
+              transition: "background-color 0.2s ease",
             }}
           >
             {/* Only render cards if they exist and are an array */}
-            {Array.isArray(cards) && cards.map((card, index) => (
-              <ListCard
-                key={card.id}
-                card={card}
-                index={index}
-                type={list.type}
-              />
-            ))}
+            {Array.isArray(cards) &&
+              cards.map((card, index) => (
+                <ListCard
+                  key={card.id}
+                  card={card}
+                  index={index}
+                  type={list.type}
+                />
+              ))}
             {provided.placeholder}
           </div>
         )}
@@ -203,9 +232,29 @@ const ListComponent: FC<ListComponentProps> = ({
           </Button>
           <div className="ml-auto">
             <Button type="text" size="small" className="text-gray-500">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect x="4" y="4" width="16" height="16" rx="2" stroke="currentColor" strokeWidth="2"/>
-                <path d="M4 16L8 12M8 12L4 8M8 12H16M16 12L20 8M16 12L20 16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <rect
+                  x="4"
+                  y="4"
+                  width="16"
+                  height="16"
+                  rx="2"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                />
+                <path
+                  d="M4 16L8 12M8 12L4 8M8 12H16M16 12L20 8M16 12L20 16"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
               </svg>
             </Button>
           </div>
