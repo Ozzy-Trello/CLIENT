@@ -170,7 +170,7 @@ const ModalCardForm: React.FC<ModalCardFormProps> = (props) => {
       width={750}
       destroyOnClose
     >
-      <div className="card-details-container">
+      <div className="card-details-container overflow-x-hidden">
         {/* Cover Image Section */}
         <div className="cover-section bg-gray-200 bg-contain bg-center bg-no-repeat"
           style={{

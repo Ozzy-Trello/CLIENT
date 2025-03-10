@@ -53,7 +53,7 @@ const UploadModal: React.FC<UploadModalProps> = ({
     // Simulate network delay
     setTimeout(() => {
       // Your static image URL
-      const staticImageUrl = "https://media.canva.com/v2/mockup-template-rasterize/color0:171618/image0:s3%3A%2F%2Ftemplate.canva.com%2FEAFLsJd5odY%2F1%2F0%2F933w-xBtZhbBcHcY.png/mockuptemplateid:FAqieNuus/size:L?csig=AAAAAAAAAAAAAAAAAAAAAJAuNjMCCEDFt3m4qSA-7a1pdrjgZRgZw2Qq7DcFu0Lk&exp=1741576467&osig=AAAAAAAAAAAAAAAAAAAAACr2ZdO05eIrJRsyRZilJ3LlXPaRpNVnfcEeLojmYD2u&seoslug=black-bold-logo-text-graphic-t-shirt&signer=marketplace-rpc";
+      const staticImageUrl = "https://images.unsplash.com/photo-1618354691438-25bc04584c23?q=80&w=2028&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D";
      
       // Call the callback with the URL
       if (onUploadComplete) {
