@@ -17,17 +17,18 @@ import {
 } from 'lucide-react';
 import PopoverCustomField from '@/app/components/popover-custom-field';
 import PopoverUser from '@/app/components/popover-user';
+import PopoverDates from '@/app/components/popover-dates.tsx';
 
 const Actions: React.FC = ({ }) => {
 
   const [openCustomField, setOpenCustomField] = useState(false);
   const [openMembers, setOpenMembers] = useState(false);
+  const [openDates, setOpenDates] = useState(false);
 
   const menuItems = [
     { icon: <Users size={14} />, label: 'Join' },
     { icon: <Tag size={14} />, label: 'Labels' },
     { icon: <CheckSquare size={14} />, label: 'Checklist' },
-    { icon: <Clock size={14} />, label: 'Dates' },
     { icon: <Paperclip size={14} />, label: 'Attachment' },
     { icon: <MapPin size={14} />, label: 'Location' },
   ];
@@ -46,7 +47,7 @@ const Actions: React.FC = ({ }) => {
       ))}
 
       <PopoverUser 
-        open={openMembers} 
+        open={openDates} 
         setOpen={setOpenMembers}
         triggerEl={
           <button
@@ -56,6 +57,19 @@ const Actions: React.FC = ({ }) => {
             <span className="text-xs">Members</span>
           </button>
         }
+      />
+
+      <PopoverDates
+         open={openDates} 
+         setOpen={setOpenDates}
+         triggerEl={
+           <button
+             className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700"
+           >
+             <span className="text-gray-600 text-xs"><Clock size={14} /></span>
+             <span className="text-xs">Dates</span>
+           </button>
+         }
       />
 
       <PopoverCustomField 
