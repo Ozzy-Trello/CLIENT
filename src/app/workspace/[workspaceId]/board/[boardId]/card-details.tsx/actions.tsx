@@ -18,12 +18,14 @@ import {
 import PopoverCustomField from '@/app/components/popover-custom-field';
 import PopoverUser from '@/app/components/popover-user';
 import PopoverDates from '@/app/components/popover-dates.tsx';
+import PopoverMoveCard from '@/app/components/popover-move-card';
 
 const Actions: React.FC = ({ }) => {
 
   const [openCustomField, setOpenCustomField] = useState(false);
   const [openMembers, setOpenMembers] = useState(false);
   const [openDates, setOpenDates] = useState(false);
+  const [openMoveCard, setOpenMoveCard] = useState(false);
 
   const menuItems = [
     { icon: <Users size={14} />, label: 'Join' },
@@ -47,7 +49,7 @@ const Actions: React.FC = ({ }) => {
       ))}
 
       <PopoverUser 
-        open={openDates} 
+        open={openMembers} 
         setOpen={setOpenMembers}
         triggerEl={
           <button
@@ -111,12 +113,18 @@ const Actions: React.FC = ({ }) => {
       {/* Actions Section */}
       <div className="mt-4 mb-2">
         <h3 className="text-sm font-medium text-gray-600 px-4 mb-2">Actions</h3>
-        <button
-          className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700"
-        >
-          <MoveRight size={14} />
-          <span className="text-xs">Move</span>
-        </button>
+        <PopoverMoveCard
+          open={openMoveCard}
+          setOpen={setOpenMoveCard}
+          triggerEl={
+            <button
+              className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700"
+            >
+              <MoveRight size={14} />
+              <span className="text-xs">Move</span>
+            </button>
+          }
+        />
 
         <button
           className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700"
