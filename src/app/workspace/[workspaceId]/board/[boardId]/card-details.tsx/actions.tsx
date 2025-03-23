@@ -16,14 +16,15 @@ import {
   RectangleEllipsis
 } from 'lucide-react';
 import PopoverCustomField from '@/app/components/popover-custom-field';
+import PopoverUser from '@/app/components/popover-user';
 
 const Actions: React.FC = ({ }) => {
 
   const [openCustomField, setOpenCustomField] = useState(false);
+  const [openMembers, setOpenMembers] = useState(false);
 
   const menuItems = [
     { icon: <Users size={14} />, label: 'Join' },
-    { icon: <Users size={14} />, label: 'Members' },
     { icon: <Tag size={14} />, label: 'Labels' },
     { icon: <CheckSquare size={14} />, label: 'Checklist' },
     { icon: <Clock size={14} />, label: 'Dates' },
@@ -43,6 +44,19 @@ const Actions: React.FC = ({ }) => {
           <span className="text-xs">{item.label}</span>
         </button>
       ))}
+
+      <PopoverUser 
+        open={openMembers} 
+        setOpen={setOpenMembers}
+        triggerEl={
+          <button
+            className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700"
+          >
+            <span className="text-gray-600 text-xs"><Users size={14} /></span>
+            <span className="text-xs">Members</span>
+          </button>
+        }
+      />
 
       <PopoverCustomField 
         open={openCustomField} 

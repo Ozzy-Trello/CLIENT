@@ -4,6 +4,7 @@ export interface AccountListRequest {
 }
 
 export interface Account {
+  id: string;
   username: string;
   email: string;
   phone: string;

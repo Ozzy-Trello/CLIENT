@@ -28,7 +28,7 @@ const Cover: React.FC<CoverProps> = (props) => {
     <div className="relative bg-gray-300 bg-center bg-no-repeat h-36 flex justify-end items-end rounded-t-lg"
       style={{
         backgroundImage: card.cover?.url ? `url("${card.cover.url}")` : 'none',
-        backgroundSize: 'cover'
+        backgroundSize: 'contain'
       }}
     >
       <Button 
