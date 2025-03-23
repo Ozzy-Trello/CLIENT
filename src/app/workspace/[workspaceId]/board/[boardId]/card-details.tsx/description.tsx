@@ -1,0 +1,88 @@
+import RichTextEditor from "@/app/components/rich-text-editor";
+import { Card } from "@/app/dto/types";
+import { Button, Typography } from "antd";
+import { AlignLeft, Edit } from "lucide-react";
+import { useState } from "react";
+
+const Description: React.FC<{card: Card}> = ({card}) => {
+
+  const [isEditingDescription, setIsEditingDescription] = useState<boolean>(false);
+  const [newDescription, setNewDescription] = useState<string>("");
+
+  const enableEditDescription = () => {
+    setIsEditingDescription(true);
+  };
+
+  const disableEditDescription = () => {
+    setIsEditingDescription(false);
+  };
+
+  const handleSaveDescriptionClick = () => {
+    setIsEditingDescription(false);
+  };
+
+  return (
+    <div className="mt-6">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-3">
+          <AlignLeft size={18} />
+          <h1 className="text-5xl font-bold mb-0">Description</h1>
+        </div>
+        {!isEditingDescription && (
+          <Button 
+            icon={<Edit size={14}/>}
+            type="text" 
+            size="small" 
+            onClick={enableEditDescription} 
+            className="text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-md"
+          >
+            Edit
+          </Button>
+        )}
+      </div>
+      
+      {isEditingDescription ? (
+        <div className="border rounded-md overflow-hidden ml-8">
+          <RichTextEditor
+            initialValue={card?.description ? card.description : ""}
+            onChange={(content: string) => {
+              setNewDescription(content);
+            }}
+            placeholder="Add a more detailed description..."
+            className="w-full"
+          />
+          <div className="flex justify-end p-2 bg-gray-50 border-t">
+            <Button 
+              onClick={disableEditDescription} 
+              size="middle" 
+              className="mr-2 rounded-md"
+            >
+              Cancel
+            </Button>
+            <Button 
+              type="primary" 
+              onClick={handleSaveDescriptionClick} 
+              size="middle" 
+              className="rounded-md bg-blue-600 hover:bg-blue-700"
+            >
+              Save
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div 
+          className="ml-8 p-3 bg-gray-50 rounded-md min-h-20 cursor-pointer hover:bg-gray-100 transition-colors" 
+          onClick={enableEditDescription}
+        >
+          {card.description ? (
+            <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: card.description }} />
+          ) : (
+            <span className="text-gray-400">Add a more detailed description...</span>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default Description;

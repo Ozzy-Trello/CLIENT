@@ -21,8 +21,6 @@ const TopBar: React.FC = React.memo(() => {
   const dispatch = useDispatch();
   const router = useRouter();
   const user = useSelector(selectUser);
-  const { collapsed, siderSmall, siderWide } = useWorkspaceSidebar();
-  
   
   const notificationItems: MenuProps["items"] = [
     { key: "1", label: "Notification 1" },

@@ -1,227 +1,176 @@
 "use client";
 
-import { Button, Input, Skeleton, Empty } from "antd";
 import dynamic from "next/dynamic";
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import Topbar from "./topbar";
-import { useDispatch, useSelector } from "react-redux";
-import { selectSelectedBoard, selectTheme, selectUser } from "@/app/store/app_slice";
-import { Plus, X } from "lucide-react";
-import useTaskService from "@/app/hooks/task";
-import { useAppSelector } from "@/app/store/hook";
-import { selectBoardLists } from "@/app/store/list_slice";
+import { useSelector } from "react-redux";
+import { selectTheme, selectUser } from "@/app/store/app_slice";
 import { useWorkspaceSidebar } from "@/app/provider/workspace-sidebar-context";
-
-const ListComponent = dynamic(() => import("@/app/components/list"), {
-  ssr: false,
-});
+import { useLists } from "@/app/hooks/list";
+import { AnyList, Card } from "@/app/dto/types";
+import { useParams } from "next/navigation";
+import { generateId } from "@/app/utils/general";
+import { Droppable, DropResult } from "@hello-pangea/dnd";
+import List from "./draggable-list";
+import { Button, Input } from "antd";
+import { Plus, X } from "lucide-react";
+import { CardDetailProvider } from "@/app/provider/card-detail-context";
+import CardDetails from "./card-details.tsx";
+import { useCards } from "@/app/hooks/card";
+import ListSkeleton from "./list-skeleton.tsx";
 
 const DragDropContext = dynamic(
   () => import("@hello-pangea/dnd").then((mod) => mod.DragDropContext),
   { ssr: false }
 );
 
-const Droppable = dynamic(
-  () => import("@hello-pangea/dnd").then((mod) => mod.Droppable),
-  { ssr: false }
-);
-
-const Draggable = dynamic(
-  () => import("@hello-pangea/dnd").then((mod) => mod.Draggable),
-  { ssr: false }
-);
-
 const Board: React.FC = () => {
-  const { currentBoardId, currentBoard, taskService} = useTaskService();
-  const currentBoardLists = useAppSelector(state => 
-    currentBoardId ? selectBoardLists(state, currentBoardId) : []
-  );
-  const [isFetching, setIsFetching] = useState(false);
-  const [newColumnTitle, setNewColumnTitle] = useState<string>("");
-  const [isAddingNewList, setAddingNewList] = useState(false);
-  
+  const { boardId } = useParams();
   const theme = useSelector(selectTheme);
   const { colors } = theme;
-  const dispatch = useDispatch();
   const selectedUser = useSelector(selectUser);
   const { collapsed, siderSmall, siderWide } = useWorkspaceSidebar();
-  
-  
-  const onDragEnd = (result: any) => {
-    const { destination, source, draggableId, type } = result;
-  
-    if (!destination || !currentBoardLists || !currentBoard) return;
-  
-    if (
-      destination.droppableId === source.droppableId &&
-      destination.index === source.index
-    ) {
-      return;
-    }
-  
-    if (type === "COLUMN") {
-      // Use the taskService from the hook's return value
-      taskService.reorderListsInBoard(
-        currentBoardId!, 
-        source.index, 
-        destination.index
-      );
-      
-      return;
-    }
-  
-    // For moving cards
-    const sourceListId = source.droppableId;
-    const destinationListId = destination.droppableId;
-    
-    // Rest of card handling...
-    if (sourceListId === destinationListId) {
-      // Reordering within the same list
-      taskService.reorderCardsInList(
-        sourceListId,
-        source.index,
-        destination.index
-      );
-    } else {
-      // Moving card between lists
-      const cardId = draggableId;
-      
-      taskService.moveCardBetweenLists(
-        cardId,
-        sourceListId,
-        destinationListId
-      );
-    }
-  };
+  const { lists, addList, pagination, isLoading, updateList } = useLists(Array.isArray(boardId) ? boardId[0] : boardId);
+  const [ listData, setListData ] = useState<AnyList[]>();
+  const [ isAddingList, setIsAddingList ] = useState<boolean>(false);
+  const [ newListName, setNewListName ] = useState<string>("");
 
-  const handleAddCard = (listId: string, cardTitle: string) => {
-    if (!cardTitle || !currentBoardId) return;
+
+  const onListDragEnd = useCallback(
+    (result: DropResult) => {
+      const { destination, source, type } = result;
+      
+      // Drop outside any droppable area
+      if (!destination) return;
+      
+      // If dropped in the same position, exit
+      if ( destination.droppableId === source.droppableId && destination.index === source.index) return;
+
+      switch(type) {
+        case "list" :
+          handleListDragEnd(source.index, destination.index);
+          break;
+        case "card":
+          handleCardDragEnd(source.droppableId, destination.droppableId)
+      }
+      
+      
+    },
+    [listData]
+  );
+
+  const handleListDragEnd = (from: number, to: number): void => {
+    setListData((prev) => {
+      const copyList = [...(prev || [])];
+      const [movedItem] = copyList.splice(from, 1);      
+      copyList.splice(to, 0, movedItem);
+      return copyList;
+    });    
+  }
+
+  const handleCardDragEnd = (sourceList: any, destList: any): void => {
+    if (sourceList === destList) {
+
+    } else {
+      
+    }
+  }
+
+  const handleAddList = (): void => {
+    if (!newListName || !boardId) return;
     
-    // Create a new card in the specified list
-    taskService.createCard(listId, currentBoardId, cardTitle);
-  };
-  
-  const handleAddList = () => {
-    if (!newColumnTitle || !currentBoardId) return;
-    
-    // Create a new list in the current board
-    taskService.createList(currentBoardId, newColumnTitle);
-    
-    // Reset state
-    setNewColumnTitle("");
-    setAddingNewList(false);
-  };
-  
-  const handleChangeListTitle = (listId: string, newTitle: string) => {
-    if (!newTitle || !currentBoardId) return;
-    
-    // Update the list title
-    taskService.updateListDetails(listId, { title: newTitle });
-  };
+    const newList: AnyList = {
+      id: generateId(),
+      boardId: Array.isArray(boardId) ? boardId[0] : boardId,
+      name: newListName
+    };
+    addList(newList);
+    setNewListName("");
+    setIsAddingList(false);
+  }
+
+  useEffect(() => {
+    setListData(lists);
+  }, [lists])
 
   return (
-    <div className="h-screen overflow-y-hidden" style={{
-      width: collapsed ? `calc(100%-${siderSmall})` : `calc(100%-${siderWide})`
-    }}>
+    <div 
+      className="h-screen overflow-y-hidden mr-4" 
+      style={{
+       width: collapsed ? `calc(100%-${siderSmall})` : `calc(100%-${siderWide})`
+      }}
+    >
       <Topbar />
-      <div
-        className="pt-[50px] h-[calc(100vh-50px)] overflow-x-auto overflow-y-hidden min-w-[200px]"
-        style={{marginTop: "45px"}}
-      >
-        <DragDropContext onDragEnd={onDragEnd}>
-          <Droppable
-            droppableId="all-lists"
-            direction="horizontal"
-            type="COLUMN"
-          >
-            {(provided) => (
-              <div
-                {...provided.droppableProps}
-                ref={provided.innerRef}
-                className="flex gap-4 p-4 items-start"
+      <CardDetailProvider>
+        <div className="pt-[50px] h-[calc(100vh-30px)] overflow-x-auto overflow-y-hidden min-w-[200px]">
+          {!isLoading && (
+            <DragDropContext onDragEnd={onListDragEnd}>
+              <Droppable
+                droppableId="droppable-list-area"
+                direction="horizontal"
+                type="list"
               >
-                {!isFetching && currentBoardLists && (
-                  currentBoardLists.map((list, index) => {
-                    const isFilterList = list.type === 'filter';
-  
-                    return (
-                      <Draggable
-                        key={list.id}
-                        draggableId={list.id}
-                        index={index}
-                        isDragDisabled={isFilterList} // Don't allow dragging filter lists
-                      >
-                        {(provided) => (
-                          <div
-                            ref={provided.innerRef}
-                            {...provided.draggableProps}
-                            {...provided.dragHandleProps}
-                            className="flex flex-col"
-                            style={{
-                              ...provided.draggableProps.style,
-                            }}
-                          >
-                            <ListComponent
-                              list={list}
-                              index={index}
-                              provided={provided}
-                              addCard={handleAddCard}
-                              changeColumnTitle={handleChangeListTitle}
-                            />
-                          </div>
-                        )}
-                      </Draggable>
-                    );
-                  })
-                )}
-
-                {/* Add list section*/}
-                {isAddingNewList ? (
-                  <div className="add-list-wrapper">
-                    <Input
-                      type="text"
-                      placeholder="New List Title"
-                      value={newColumnTitle}
-                      onChange={(e) => setNewColumnTitle(e.target.value)}
-                      onPressEnter={handleAddList}
-                    />
-                    <div className="flex items-center gap-2">
-                      <Button size="small" onClick={handleAddList}>Add List</Button>
-                      <Button 
-                        size="small" 
-                        onClick={() => setAddingNewList(false)} 
-                        icon={<X size={15}/>}
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <Button 
-                    onClick={() => setAddingNewList(true)} 
-                    className="mt-2" 
-                    icon={<Plus size={15}/>}
+                {(provided) => (
+                  <div
+                    {...provided.droppableProps}
+                    ref={provided.innerRef}
+                    className="flex gap-4 p-4 items-start"
                   >
-                    Add a list
-                  </Button>
-                )}
-                {provided.placeholder}
-              </div>
-            )}
-          </Droppable>
-        </DragDropContext>
+                    {listData?.map((list, index) => {
+                      return (
+                        <List 
+                          key={`list-${index}`}
+                          list={list}
+                          setListsState={setListData}
+                          index={index} 
+                          boardId={Array.isArray(boardId) ? boardId[0] : boardId} 
+                          updateList={updateList}
+                        />
+                      )
+                    })}
+                    {provided.placeholder}
 
-        {/* Skeleton loading state */}
-        {isFetching && (
-          <div className="flex gap-2.5 m-5">
-            {[1,2,3,4].map((item) => (
-              <Skeleton.Node 
-                key={item} 
-                active={isFetching} 
-                className="w-[272px] h-[400px]" 
-              />
-            ))}
-          </div>
-        )}
-      </div>
+                    {/* Add list section*/}
+                    { isAddingList ? (
+                      <div className="add-list-wrapper p-4 rounded-sm bg-white shadow-sm">
+                        <Input
+                          type="text"
+                          placeholder="New List Title"
+                          value={newListName}
+                          onChange={(e) => setNewListName(e.target.value)}
+                          onPressEnter={handleAddList}
+                        />
+                        <div className="flex items-center gap-2 mt-2">
+                          <Button size="small" onClick={handleAddList}>Add List</Button>
+                          <Button 
+                            size="small" 
+                            onClick={() => setIsAddingList(false)} 
+                            icon={<X size={15}/>}
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <Button 
+                        onClick={() => setIsAddingList(true)} 
+                        className="mt-2" 
+                        icon={<Plus size={15}/>}
+                      >
+                        Add a list
+                      </Button>
+                    )}
+
+                  </div>
+                )}
+              </Droppable>
+            </DragDropContext>
+          )}
+
+          {isLoading && (
+            <ListSkeleton />
+          )}
+        </div>
+        <CardDetails />
+      </CardDetailProvider>
     </div>
   );
 };

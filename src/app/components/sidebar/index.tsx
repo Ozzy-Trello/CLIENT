@@ -9,28 +9,32 @@ import { ChevronLeft, ChevronRight, Trello, Users } from "lucide-react";
 import ModalCreateBoard from "../modal-create-board";
 import { setSelectedBoard } from "@/app/store/app_slice";
 import { useDispatch } from "react-redux";
-import useTaskService from "@/app/hooks/task";
 import { MenuProps } from 'antd';
+import { useSelector } from "react-redux";
+import { selectBoards, selectCurrentWorkspace } from "@/app/store/workspace_slice";
+import { useBoards } from "@/app/hooks/board";
 
 const { Sider } = Layout;
 type MenuItem = Required<MenuProps>['items'][number];
 
 const Sidebar = () => {
   const { collapsed, toggleSidebar, siderWide, siderSmall } = useWorkspaceSidebar();
-  const [allMenus, setAllMenus] = useState<MenuItem[]>([]);
-  const [isFetching, setIsFetching] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
-  const [openCreateBoardModal, setOpenCreateBoardModal] = useState<boolean>(false);
+  const [ allMenus, setAllMenus ] = useState<MenuItem[]>([]);
+  const [ isFetching, setIsFetching ] = useState(false);
+  const [ isHovered, setIsHovered ] = useState(false);
+  const [ openCreateBoardModal, setOpenCreateBoardModal ] = useState<boolean>(false);
   const dispatch = useDispatch();
-  const { currentWorkspace, workspaceBoards } = useTaskService();
+  const currentWorkspace = useSelector(selectCurrentWorkspace);
+  const { boards } = useBoards(currentWorkspace?.id || '');
   
   // Use refs to avoid dependency changes in useEffect
   const prevWorkspaceIdRef = useRef<string | null>(null);
   const prevBoardsLengthRef = useRef<number>(0);
-  const prevCollapsedRef = useRef<boolean>(collapsed);
-  
+  const prevCollapsedRef = useRef<boolean>(collapsed); // Add missing ref for collapsed state
+
   // Memoize handlers to prevent them from changing on every render
-  const handleOpenBoardModal = useCallback(() => {
+  const handleOpenBoardModal = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation(); // Ensure event doesn't propagate
     setOpenCreateBoardModal(true);
   }, []);
 
@@ -68,7 +72,7 @@ const Sidebar = () => {
   useEffect(() => {
     // Skip if nothing significant has changed
     const currentWorkspaceId = currentWorkspace?.id || null;
-    const currentBoardsLength = workspaceBoards?.length || 0;
+    const currentBoardsLength = boards?.length || 0;
     
     if (
       currentWorkspaceId === prevWorkspaceIdRef.current &&
@@ -108,10 +112,7 @@ const Sidebar = () => {
                 <Typography.Text strong>Your boards</Typography.Text>
                 <Button 
                   size="small" 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleOpenBoardModal();
-                  }}
+                  onClick={handleOpenBoardModal}
                 >
                   +
                 </Button>
@@ -122,8 +123,8 @@ const Sidebar = () => {
         }
         
         // Add board items if we have any
-        if (workspaceBoards && workspaceBoards.length > 0 && currentWorkspace) {
-          workspaceBoards.forEach((board) => {
+        if (boards?.length > 0 && currentWorkspace) {
+          boards.forEach((board) => {
             fullMenus.push({
               key: `menu-board-${board.id}`,
               label: (
@@ -132,10 +133,10 @@ const Sidebar = () => {
                   href={`/workspace/${currentWorkspace.id}/board/${board.id}`} 
                   onClick={() => handleSelectBoardItem(board)}
                 >
-                  {board.title}
+                  {board.name}
                 </Link>
               ),
-              icon: <span><Avatar shape="square" src={board?.cover || `https://ui-avatars.com/api/?name=${board?.title}&background=random`} size={"small"}/></span>,
+              icon: <span><Avatar shape="square" src={board?.cover || `https://ui-avatars.com/api/?name=${board?.name}&background=random`} size={"small"}/></span>,
             });
           });
         }
@@ -161,12 +162,12 @@ const Sidebar = () => {
     
     // Execute the menu building
     buildMenus();
-  }, [baseMenus, currentWorkspace, workspaceBoards, collapsed, handleOpenBoardModal, handleSelectBoardItem]);
+  }, [baseMenus, collapsed, currentWorkspace, boards]);
 
   // Render the sidebar
   return (
     <div 
-      className="relative h-full "
+      className="relative h-full"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       style={{width: collapsed ? siderSmall : siderWide}}
@@ -202,7 +203,7 @@ const Sidebar = () => {
               <Menu
                 mode="inline"
                 defaultSelectedKeys={["1"]}
-                style={{ borderRight: 0 , fontSize: "12px"}}
+                style={{ borderRight: 0, fontSize: "12px" }}
                 items={allMenus}
                 className="[&_.ant-menu-item]:my-1 [&_.ant-menu-item-icon]:flex [&_.ant-menu-item-icon]:items-center text-[10px]"
               />
@@ -223,7 +224,7 @@ const Sidebar = () => {
         placement="right"
       >
         <Button
-          className={`absolute top-[58px] flex items-center justify-center rounded-full w-6 h-6 shadow-md border border-gray-200 p-0 transition-all duration-200 ease-in-out hover:bg-gray-50 hover:shadow-lg ${isHovered ? 'scale-105' : ''}`}
+          className={`absolute top-[58px] flex items-center justify-center rounded-full w-6 h-6 bg-white shadow-md border border-gray-200 p-0 transition-all duration-200 ease-in-out hover:shadow-lg ${isHovered ? 'scale-105' : ''}`}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           size="small"
           type="text"
@@ -241,7 +242,4 @@ const Sidebar = () => {
 };
 
 // Use React.memo with custom comparison to prevent unnecessary rerenders
-export default React.memo(Sidebar, (prevProps, nextProps) => {
-  // These are object identity checks, not deep equality
-  return true; // Always consider equal since we don't have props
-});
+export default React.memo(Sidebar);

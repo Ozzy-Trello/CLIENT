@@ -1,105 +1,208 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button, message, Modal } from 'antd';
-import { UploadOutlined, FileImageOutlined, DeleteOutlined } from '@ant-design/icons';
+import { 
+  UploadOutlined, 
+  FileOutlined, 
+  DeleteOutlined, 
+  FileImageOutlined, 
+  FilePdfOutlined, 
+  FileZipOutlined 
+} from '@ant-design/icons';
+
+// Define file type configurations
+const FILE_TYPE_CONFIGS = {
+  'image': {
+    accept: 'image/*',
+    icon: <FileImageOutlined />,
+    maxSize: 5 * 1024 * 1024, // 5MB
+  },
+  'document': {
+    accept: '.pdf,.doc,.docx,.txt,.rtf',
+    icon: <FilePdfOutlined />,
+    maxSize: 10 * 1024 * 1024, // 10MB
+  },
+  'compressed': {
+    accept: '.zip,.rar,.7z',
+    icon: <FileZipOutlined />,
+    maxSize: 20 * 1024 * 1024, // 20MB
+  },
+  'all': {
+    accept: '*',
+    icon: <FileOutlined />,
+    maxSize: 50 * 1024 * 1024, // 50MB
+  }
+};
 
 interface UploadModalProps {
   isVisible: boolean;
   onClose: () => void;
-  onUploadComplete?: (imageUrl: string, filename: string) => void;
+  onUploadComplete?: (file: File) => void;
+  uploadType?: keyof typeof FILE_TYPE_CONFIGS;
+  title?: string;
 }
 
 const UploadModal: React.FC<UploadModalProps> = ({
   isVisible,
   onClose,
-  onUploadComplete
+  onUploadComplete,
+  uploadType = 'all',
+  title = 'Upload File'
 }) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dropAreaRef = useRef<HTMLDivElement>(null);
 
-  // Generate preview URL when a file is selected
+  const fileTypeConfig = FILE_TYPE_CONFIGS[uploadType];
+
+  useEffect(() => {
+    // Reset state when modal closes or upload type changes
+    if (!isVisible) {
+      setSelectedFile(null);
+      setPreviewUrl(null);
+    }
+  }, [isVisible, uploadType]);
+
   useEffect(() => {
     if (!selectedFile) {
       setPreviewUrl(null);
       return;
     }
 
-    const objectUrl = URL.createObjectURL(selectedFile);
-    setPreviewUrl(objectUrl);
+    // Create preview for image files
+    if (selectedFile.type.startsWith('image/')) {
+      const objectUrl = URL.createObjectURL(selectedFile);
+      setPreviewUrl(objectUrl);
 
-    // Free memory when this component is unmounted
-    return () => {
-      URL.revokeObjectURL(objectUrl);
-    };
+      return () => {
+        URL.revokeObjectURL(objectUrl);
+      };
+    }
   }, [selectedFile]);
 
-  // Function to handle file selection
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0] || null;
-    setSelectedFile(file);
+  const validateFile = (file: File): boolean => {
+    // Check file size
+    if (file.size > fileTypeConfig.maxSize) {
+      message.error(`File size exceeds ${fileTypeConfig.maxSize / 1024 / 1024}MB limit`);
+      return false;
+    }
+
+    // Check file type if not 'all'
+    if (uploadType !== 'all') {
+      const acceptedTypes = fileTypeConfig.accept.split(',');
+      const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
+      const fileType = file.type;
+
+      const isValidType = acceptedTypes.some(type => 
+        type.endsWith('*') 
+          ? fileType.startsWith(type.replace('*', ''))
+          : type === fileExtension
+      );
+
+      if (!isValidType) {
+        message.error(`Please upload a valid file type: ${fileTypeConfig.accept}`);
+        return false;
+      }
+    }
+
+    return true;
   };
 
-  // Function to handle the "fake" upload
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] || null;
+    if (file && validateFile(file)) {
+      setSelectedFile(file);
+    }
+  };
+
+  const handleFileDrop = (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    
+    const file = files[0];
+    if (validateFile(file)) {
+      setSelectedFile(file);
+    }
+  };
+
   const handleUpload = () => {
     if (!selectedFile) {
       message.error('Please select a file first!');
       return;
     }
     
-    // Simulate upload process
     setIsUploading(true);
    
-    // Simulate network delay
     setTimeout(() => {
-      // Your static image URL
-      const staticImageUrl = "https://images.unsplash.com/photo-1618354691438-25bc04584c23?q=80&w=2028&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D";
-     
-      // Call the callback with the URL
       if (onUploadComplete) {
-        onUploadComplete(staticImageUrl, selectedFile.name);
+        onUploadComplete(selectedFile);
       }
      
-      // Show success message
-      message.success('Cover image updated successfully!');
+      message.success('File uploaded successfully!');
      
-      // Reset states
       setIsUploading(false);
       setSelectedFile(null);
       onClose();
-    }, 1500); // Simulate 1.5s upload time
+    }, 1500);
   };
 
-  // Function to open file picker
   const triggerFileInput = () => {
     fileInputRef.current?.click();
   };
 
-  // Reset selected file when modal closes
   const handleCancel = () => {
     setSelectedFile(null);
     onClose();
   };
 
-  // Handle removing the selected file
   const handleRemoveFile = () => {
     setSelectedFile(null);
   };
 
+  // Drag event handlers (same as before)
+  const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isDragging) {
+      setIsDragging(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleFileDrop(e.dataTransfer.files);
+    }
+  };
+
   return (
     <>
-      {/* Hidden file input */}
       <input
         type="file"
         ref={fileInputRef}
         onChange={handleFileChange}
-        accept="image/*"
+        accept={fileTypeConfig.accept}
         style={{ display: 'none' }}
       />
 
-      {/* Upload Modal */}
       <Modal
-        title="Upload Cover Image"
+        title={title}
         open={isVisible}
         onCancel={handleCancel}
         width={520}
@@ -132,9 +235,14 @@ const UploadModal: React.FC<UploadModalProps> = ({
           {selectedFile ? (
             <div className="space-y-4">
               <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                <div>
-                  <p className="font-medium text-gray-800">{selectedFile.name}</p>
-                  <p className="text-sm text-gray-500">{(selectedFile.size / 1024).toFixed(2)} KB</p>
+                <div className="flex items-center space-x-3">
+                  {fileTypeConfig.icon}
+                  <div>
+                    <p className="font-medium text-gray-800">{selectedFile.name}</p>
+                    <p className="text-sm text-gray-500">
+                      {(selectedFile.size / 1024).toFixed(2)} KB
+                    </p>
+                  </div>
                 </div>
                 <Button 
                   danger 
@@ -159,12 +267,28 @@ const UploadModal: React.FC<UploadModalProps> = ({
             </div>
           ) : (
             <div 
-              className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-blue-500 transition-colors"
+              ref={dropAreaRef}
+              className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
+                isDragging 
+                  ? 'border-blue-500 bg-blue-50' 
+                  : 'border-gray-300 hover:border-blue-500'
+              }`}
               onClick={triggerFileInput}
+              onDragEnter={handleDragEnter}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
             >
-              <FileImageOutlined className="text-4xl text-gray-400 mb-2" />
-              <p className="text-gray-600">Click or drag file to this area to upload</p>
-              <p className="text-xs text-gray-500 mt-1">Support for a single image upload</p>
+              {fileTypeConfig.icon}
+              <p className={`text-4xl mb-2 ${isDragging ? 'text-blue-500' : 'text-gray-400'}`} />
+              <p className={`${isDragging ? 'text-blue-600' : 'text-gray-600'}`}>
+                {isDragging 
+                  ? `Drop ${uploadType} file here` 
+                  : 'Click or drag file to this area to upload'}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                Supports {uploadType} file upload (Max: {fileTypeConfig.maxSize / 1024 / 1024}MB)
+              </p>
             </div>
           )}
         </div>

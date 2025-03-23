@@ -1,6 +1,16 @@
 export interface ApiResponse<T = any> {
   data?: T;
   message?: string;
+  paginate: Pagination;
+}
+
+export interface Pagination {
+  limit: number;
+  page: number;
+  totalData: number;
+  totalPage: number;
+  nextPage: number;
+  prevPage: number;
 }
 
 export interface User {
@@ -8,6 +18,7 @@ export interface User {
   username: string;
   fullname: string;
   email: string;
+  phone: string;
   refreshToken?: string;
   accessToken?: string;
   avatar?: string;
@@ -16,16 +27,16 @@ export interface User {
 
 export interface Board {
   id: string;
-  workspaceId: string;
-  title: string;
-  cover: string;
-  backgroundColor: color[] | string;
-  isStarred: boolean;
-  visibility: string;
+  workspaceId?: string;
+  name?: string;
+  cover?: string;
+  background?: color[] | string;
+  isStarred?: boolean;
+  visibility?: string;
   createdBy?: User;
   createdAt: string;
   updatedBy?: User;
-  upatedAt: string;
+  upatedAt?: string;
 }
 
 export interface Color {
@@ -37,6 +48,7 @@ export interface Workspace {
   id: string;
   name: string;
   description: string;
+  slug: string;
 }
 
 // Basic types for card elements
@@ -73,7 +85,7 @@ export interface ActivityItem {
 }
 
 // For custom fields
-export type CustomFieldValueType = 'text' | 'number' | 'date' | 'checkbox' | 'select' | 'user';
+export type CustomFieldValueType = 'text' | 'number' | 'date' | 'checkbox' | 'select';
 
 export interface CustomFieldValue {
   value: string | number | boolean | null;
@@ -86,8 +98,10 @@ export interface CustomFieldValue {
 export interface CustomField {
   id: string;
   name: string;
-  type: CustomFieldValueType;
-  value: CustomFieldValue | null;
+  description: string;
+  source: string;
+  type?: CustomFieldValueType;
+  value?: CustomFieldValue | null;
 }
 
 // Checklist item
@@ -110,23 +124,24 @@ export interface Checklist {
 // Define the core Card type
 export interface Card {
   id: string;
-  title: string;
+  listId: string;
+  name: string;
   description?: string;
   cover?: Attachment | null;
-  attachments: Attachment[];
-  labels: Label[];
-  members: User[];
-  customFields: CustomField[];
-  time: CardTime;
-  activity: ActivityItem[];
-  checklists: Checklist[];
-  isWatched: boolean;
-  isArchived: boolean;
-  position: number;
+  attachments?: Attachment[];
+  labels?: Label[];
+  members?: User[];
+  customFields?: CustomField[];
+  time?: CardTime;
+  activity?: ActivityItem[];
+  checklists?: Checklist[];
+  isWatched?: boolean;
+  isArchived?: boolean;
+  position?: number;
   dueDate?: string;
   location?: string;
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 // Counter Card (used in filter columns)
@@ -139,20 +154,25 @@ export interface CounterCard extends Card {
 // Regular List/Column
 export interface List {
   id: string;
-  title: string;
+  boardId: string;
+  name?: string;
   cover?: string;
-  type: 'regular';
-  cardIds: string[];
-  position: number;
+  type?: 'regular';
+  cardIds?: string[];
+  cards?: Card[];
+  position?: number;
+  type?: string;
 }
 
 // Filter List/Column
 export interface FilterList {
   id: string;
-  title: string;
-  type: 'filter';
-  cardIds: string[];
-  position: number;
+  boardId: string;
+  name?: string;
+  type?: 'filter';
+  cardIds?: string[];
+  cards?: Card[];
+  position?: number;
   filterCriteria?: any; // Define specific filter criteria structure
 }
 

@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useDispatch } from 'react-redux';
 import { LockOutlined, UserOutlined } from '@ant-design/icons';
-import { Users } from 'lucide-react';
 
 // Dynamic imports for Antd components
 import Form from 'antd/es/form';
@@ -12,14 +11,12 @@ import Input from 'antd/es/input/Input';
 import Button from 'antd/es/button';
 import message from 'antd/es/message';
 import Typography from 'antd/es/typography';
-import { Select } from 'antd';
 
 // Local imports
-import { setAccessToken, setRefreshToken, setUser } from '@/app/store/app_slice';
+import { setUser } from '@/app/store/app_slice';
 import Footer from '@/app/components/footer';
 import { useLogin } from '../hooks/auth';
-import { useAccount } from '../hooks/account';
-import { mockUsers } from '../store/user_slice';
+import { useCurrentAccount } from '../hooks/account';
 
 const { Title, Text } = Typography;
 
@@ -34,35 +31,20 @@ export default function LoginPage() {
   const router = useRouter();
   const dispatch = useDispatch();
   const login = useLogin();
-  const account = useAccount();
+  const {refetch} = useCurrentAccount();
 
   const validateCredentials = async (email: string, password: string) => {
     try {
       const result = await login.mutateAsync({ email, password });
       if (result.data?.accessToken) {
-        const foundUser = mockUsers[0];
-        if (foundUser) {
-          dispatch(setUser(foundUser));
-          dispatch(setAccessToken(result.data.accessToken));
-          dispatch(setRefreshToken(result.data.accessToken));
-          await message.success(result.message);
-          
-          // Get account
-          const accountResult = await account.mutateAsync();
-          if (accountResult) {
-            dispatch(setUser(result.data));
-            return true;
-          }
-
-          return false;
-        }
+        await message.success(result.message);
+        return true;
       } else {
         await message.error(result.message);
       }
       return false;
     } catch (error) {
       message.error('An unexpected error occurred');
-      console.error('Login error:', error);
       return false;
     }
   };
@@ -72,6 +54,10 @@ export default function LoginPage() {
     try {
       const isValid = await validateCredentials(values.email, values.password);
       if (isValid) {
+        const result = await refetch();
+        if (result) {
+          dispatch(setUser(result?.data?.data));
+        }
         router.push("/workspace");
       }
     } catch (error) {

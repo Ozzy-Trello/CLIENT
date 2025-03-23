@@ -16,13 +16,13 @@ export function ThemeProvider({ children, userId }: { children: React.ReactNode;
   useEffect(() => {
     if (!root) root = document.documentElement;
     if (selectedBoard) {
-      if (Array.isArray(selectedBoard.backgroundColor)) {
-        root.style.setProperty(`--color-board-page-background-color`, getGradientString(selectedBoard.backgroundColor) as string);
-        const textColor = getContrastingTextColor(selectedBoard.backgroundColor[0].color);
+      if (Array.isArray(selectedBoard.background)) {
+        root.style.setProperty(`--color-board-page-background-color`, getGradientString(selectedBoard.background) as string);
+        const textColor = getContrastingTextColor(selectedBoard.background[0].color);
         root.style.setProperty(`--color-text`, textColor);
       } else {
-        root.style.setProperty(`--color-board-page-background-color`, selectedBoard.backgroundColor as string);
-        const textColor = getContrastingTextColor(selectedBoard.backgroundColor as string);
+        root.style.setProperty(`--color-board-page-background-color`, selectedBoard.background as string);
+        const textColor = getContrastingTextColor(selectedBoard.background as string);
         root.style.setProperty(`--color-text`, textColor);
       }
     } else {

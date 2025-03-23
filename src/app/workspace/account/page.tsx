@@ -5,7 +5,8 @@ import { LoadingOutlined, PlusOutlined } from '@ant-design/icons';
 import "./style.css"
 import { useUpdateAccount } from "@/app/hooks/account";
 import { Account as AccountDto } from "@/app/dto/account";
-import useTaskService from "@/app/hooks/task";
+import { selectUser } from "@/app/store/app_slice";
+import { useSelector } from "react-redux";
 
 
 const Account: React.FC = () => {
@@ -14,7 +15,7 @@ const Account: React.FC = () => {
   const [editAbout, setEditAbout] = useState(false);
   const [editPassword, setEditPassword] = useState(false);
   const updateAccount = useUpdateAccount();
-  const {currentUser} = useTaskService();
+  const currentUser = useSelector(selectUser);
 
   const uploadButton = (
     <button style={{ border: 0, background: 'none' }} type="button">

@@ -1,87 +1,49 @@
-import React, { useState, useEffect } from 'react';
-import ReactQuill, { Quill } from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
+import dynamic from 'next/dynamic';
+import React from 'react';
+import "./style.css";
 
+// Define the props interface here too so it's available for both components
 interface RichTextEditorProps {
   initialValue?: string;
   onChange?: (content: string) => void;
   placeholder?: string;
   width?: string | number;
-  height?: string | number;
-  modules?: any;
-  formats?: string[];
+  minHeight?: string | number;
+  maxHeight?: string | number;
   className?: string;
   readOnly?: boolean;
 }
 
-const RichTextEditor: React.FC<RichTextEditorProps> = ({
-  initialValue = '',
-  onChange,
-  placeholder = 'description...',
-  width = '100%',
-  height = '200px',
-  modules,
-  formats,
-  className = '',
-  readOnly = false,
-}) => {
-  const [value, setValue] = useState<string>(initialValue);
-
-  useEffect(() => {
-    setValue(initialValue);
-  }, [initialValue]);
-
-  // Default toolbar configuration
-  const defaultModules = {
-    toolbar: [
-      [{ header: [1, 2, false] }],
-      ['bold', 'italic', 'underline', 'strike'], // Formatting options
-      [{ list: 'ordered' }, { list: 'bullet' }],
-      [{ align: [] }],
-      ['link', 'image'], // Add links and images
-      ['clean'], // Clear formatting
-    ],
-  };
-
-  const defaultFormats = [
-    'header',
-    'bold',
-    'italic',
-    'underline',
-    'strike',
-    'list',
-    'bullet',
-    'align',
-    'link',
-    'image',
-  ];
-
-  const handleChange = (content: string) => {
-    setValue(content);
-    if (onChange) {
-      onChange(content);
-    }
-  };
-
-  const editorStyle = {
-    width: width,
-    height: height,
-  };
-
+// Create a placeholder component to show while loading
+const EditorPlaceholder: React.FC<{
+  minHeight?: string | number;
+  width?: string | number;
+}> = ({ minHeight = '100px', width = '100%' }) => {
   return (
-    <div className={className} style={{ width }}>
-      <ReactQuill
-        theme="snow"
-        value={value}
-        onChange={handleChange}
-        modules={modules || defaultModules}
-        formats={formats || defaultFormats}
-        placeholder={placeholder}
-        style={editorStyle}
-        readOnly={readOnly}
-      />
+    <div 
+      style={{ 
+        minHeight: typeof minHeight === 'number' ? `${minHeight}px` : minHeight,
+        width: typeof width === 'number' ? `${width}px` : width,
+        backgroundColor: '#f9f9f9', 
+        border: '1px solid #d9d9d9',
+        borderRadius: '4px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}
+    >
+      <span style={{ color: '#bfbfbf' }}>Loading editor...</span>
     </div>
   );
 };
 
-export default RichTextEditor;
+// Import the component with SSR disabled
+const RichTextEditorClient = dynamic<RichTextEditorProps>(
+  () => import('./client').then(mod => mod.default), 
+  { 
+    ssr: false,
+    loading: () => <EditorPlaceholder />
+  }
+);
+
+export default RichTextEditorClient;

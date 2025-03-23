@@ -13,6 +13,9 @@ const nextConfig = {
     minimumCacheTTL: 60,
   },
 
+  // Add these packages to the list of packages that should be transpiled
+  transpilePackages: ['react-quill'],
+
   // Experimental features
   experimental: {
     optimizeCss: true,
@@ -21,7 +24,7 @@ const nextConfig = {
       "@ant-design/icons",
       "antd",
       "@hello-pangea/dnd"
-    ]
+    ],
   },
 
   // Cache build outputs

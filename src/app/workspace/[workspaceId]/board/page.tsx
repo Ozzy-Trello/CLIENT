@@ -3,16 +3,15 @@ import { Board } from "@/app/dto/types";
 import { Card, Col, Row, Skeleton, Space, Typography } from "antd";
 import { useEffect, useState } from "react";
 import "./style.css";
-import { useAccount } from "@/app/hooks/account";
 import { selectSelectedWorkspace, setUser } from "@/app/store/app_slice";
 import { useDispatch } from "react-redux";
 import dynamic from "next/dynamic";
 import { useSelector } from "react-redux";
 import { Earth, Lock, Users } from "lucide-react";
-// import { BoardService } from "@/app/mock/api";
 import Link from "next/link";
-import { useAppSelector } from "@/app/store/hook";
-import useTaskService from "@/app/hooks/task";
+import { selectBoards, selectCurrentWorkspace } from "@/app/store/workspace_slice";
+import { useParams } from "next/navigation";
+import { useBoards } from "@/app/hooks/board";
 
 // Move this outside the component
 const BoardFilters = dynamic(() => import('./_filter_form'), {
@@ -22,26 +21,17 @@ const BoardFilters = dynamic(() => import('./_filter_form'), {
 
 // Change this to a regular function declaration
 const BoardsPage: React.FC = () => {
-  const dispatch = useDispatch();
-  const [isFetching, setIsFetching] = useState(true);
-  const account = useAccount();
-  const { workspaceBoards, currentWorkspaceId } = useTaskService();
-  const [boardList, setBoardList] = useState<Board[]>(workspaceBoards);
-  const selectedWorksapce = useSelector(selectSelectedWorkspace);
+  const { workspaceId } = useParams();
+  const {boards, isLoading} = useBoards(Array.isArray(workspaceId) ? workspaceId[0] : workspaceId || '');
   const [filter, setFilter] = useState({
     sortBy: "",
     filterBy: "",
     searchKeyword: ""
   });
 
-  useEffect(() => {
-    setTimeout(() => {
-      setIsFetching(false)
-    }, 500)
-  }, [])
 
   return (
-    <div className="page scrollable-page mt-7">
+    <div className="page scrollable-page">
       <div className="section-workspace">
       </div>
       <Typography.Title level={3} className="m-0">Boards</Typography.Title>
@@ -49,7 +39,7 @@ const BoardsPage: React.FC = () => {
      
       <div className="section-card">
         <Row gutter={[10, 10]}>
-          {!isFetching && boardList?.map((board, index) => {
+          {!isLoading && boards?.map((board, index) => {
             const key = `col-${index}`;
             return (
               <Col
@@ -60,13 +50,14 @@ const BoardsPage: React.FC = () => {
                 lg={{ flex: '30%' }}
                 xl={{ flex: '20%' }}
               >
-                <Link href={`/workspace/${selectedWorksapce?.id}/board/${board.id}`}>
+                <Link href={`/workspace/${workspaceId}/board/${board.id}`}>
                   <Card
                     className="board-item hover:shadow-sm"
                     style={{
                       backgroundImage: `url('${board?.cover}')`,
                       backgroundPosition: "center",
                       backgroundRepeat: "no-repeat",
+                      backgroundColor: `${board?.background} !important`,
                       height: '120px',
                       margin: '5px'
                     }}
@@ -76,7 +67,7 @@ const BoardsPage: React.FC = () => {
                     }}
                   >
                     <div className="fx-v-sb-left" style={{height: '100%', width: '100%', padding: "7px"}}>
-                      <Typography.Title level={4} className="title m-0">{board.title}</Typography.Title>
+                      <Typography.Title level={4} className="title m-0">{board.name}</Typography.Title>
                       <div>
                         {board.visibility === "shared" && (
                           <Users size={15} />
@@ -95,10 +86,10 @@ const BoardsPage: React.FC = () => {
               </Col>
             );
           })}
-          {isFetching && [1,2,3,4,5].map((item) => (
+          {isLoading && [1,2,3,4,5].map((item) => (
             <Col key={item}>
               <Space style={{margin:"5px"}}>
-                <Skeleton.Input active={isFetching} size={"large"} />
+                <Skeleton.Input active={isLoading} size={"large"} />
               </Space>
             </Col>
           ))}

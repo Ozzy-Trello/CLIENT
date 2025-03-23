@@ -13,15 +13,15 @@ import boardsImage from "@/app/assets/images/boards.png";
 import Image from "next/image";
 import { PictureOutlined, StarOutlined } from "@ant-design/icons";
 import "./style.css";
-import { Board, Card } from "@/app/dto/types";
-import { useSelector } from "react-redux";
-import { selectSelectedWorkspace, setSelectedBoard } from "@/app/store/app_slice";
+import { Board } from "@/app/dto/types";
+import { setSelectedBoard } from "@/app/store/app_slice";
 import { useDispatch } from "react-redux";
 import { useRouter } from "next/navigation";
 import { getGradientString } from "@/app/utils/general";
-import { useEffect, useState } from "react";
-import useTaskService from "@/app/hooks/task";
-// import { BoardService } from "@/app/mock/api";
+import { useState } from "react";
+import { useSelector } from "react-redux";
+import { selectCurrentBoard, selectCurrentWorkspace } from "@/app/store/workspace_slice";
+import { useBoards } from "@/app/hooks/board";
 const { Text, Title } = Typography;
 
 interface ModalCreateBoardForm {
@@ -31,8 +31,11 @@ interface ModalCreateBoardForm {
 
 const CreateBoard: React.FC<ModalCreateBoardForm> = (props: ModalCreateBoardForm) => {
   const { open, setOpen } = props;
-  const [form] = Form.useForm();
-  const {taskService, currentWorkspace, currentBoard, currentWorkspaceId} = useTaskService();
+  const [ form ] = Form.useForm();
+  const currentWorkspace = useSelector(selectCurrentWorkspace);
+  const currentBoard = useSelector(selectCurrentBoard);
+  const { createBoard } = useBoards(currentWorkspace?.id ?? '');
+
   const router = useRouter();
   const dispatch = useDispatch();
   
@@ -54,13 +57,13 @@ const CreateBoard: React.FC<ModalCreateBoardForm> = (props: ModalCreateBoardForm
   const onFinish = async (values: any) => {
     const tempId = `board-${Date.now()}`;
     let board: Board = {} as Board;
-    if (currentWorkspaceId !== null) {
+    if (currentWorkspace !== null) {
       board = {
         id: tempId,
-        workspaceId: currentWorkspaceId,
-        title: values.title,
+        workspaceId: currentWorkspace?.id,
+        name: values.title,
         cover: '',
-        backgroundColor: backgroundGradient,
+        background: backgroundGradient,
         isStarred: false,
         visibility: '',
         createdAt: '',
@@ -68,8 +71,7 @@ const CreateBoard: React.FC<ModalCreateBoardForm> = (props: ModalCreateBoardForm
       }
     }
     if (currentWorkspace?.id) {
-      taskService.createBoard(currentWorkspace.id, board.title, "");
-
+      createBoard(board);
       dispatch(setSelectedBoard(board));
       form.resetFields();
       setOpen(false);

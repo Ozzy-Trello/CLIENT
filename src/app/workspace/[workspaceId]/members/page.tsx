@@ -6,7 +6,9 @@ import { Avatar, Badge, Button, Menu, MenuProps, Table, Typography } from "antd"
 import { useEffect, useState } from "react";
 import AddUserModal from "./add_user_modal";
 import { register } from "@/app/api/auth";
-import { mockUsers } from "@/app/store/user_slice";
+import { accountList } from "@/app/api/account";
+import { useParams } from "next/navigation";
+import { Account } from "@/app/dto/account";
 
 type MenuItem = Required<MenuProps>['items'][number];
 const items: MenuItem[] = [
@@ -24,7 +26,7 @@ const items: MenuItem[] = [
   }
 ];
 
-const TableMembers: React.FC<{dataSource?: User[]}> = ({dataSource}) => {
+const TableMembers: React.FC<{dataSource?: Account[]}> = ({dataSource = []}) => {
   const columns = [
     {
       title: 'User',
@@ -71,8 +73,9 @@ const TableMembers: React.FC<{dataSource?: User[]}> = ({dataSource}) => {
 
 const Members: React.FC = () => {
 
+  const {workspaceId, boardId} = useParams();
   const [isFetching, setIsFetching] = useState<boolean>(true);
-  const [data, setData] = useState<User[]>();
+  const [data, setData] = useState<Account[] | []>([]);
   const [activeMenu, setActiveMenu] = useState<string>("menu-workspace-members");
   const [addUserModalVisible, setAddUserModalVisible] = useState<boolean>(false);
 
@@ -89,9 +92,16 @@ const Members: React.FC = () => {
   }
 
   useEffect(() => {
-    const fecthData = () => {
-      setData(mockUsers);
-    }
+    const fecthData = async() => {
+        const wsId = Array.isArray(workspaceId) ? workspaceId[0] : workspaceId;
+        const bId = Array.isArray(boardId) ? boardId[0] : boardId;
+        const result = await accountList(wsId, bId);
+        console.log(result);
+
+        if (result && result.data) {
+          setData(result.data || []);
+        }
+      }
 
     if (isFetching) {
       setTimeout(() => {
@@ -103,7 +113,7 @@ const Members: React.FC = () => {
   }, [isFetching])
 
   return (
-    <div className="page scrollable-page mt-8">
+    <div className="page scrollable-page">
       <div className="flex justify-between items-center" style={{marginBottom: "10px"}}>
         <div className="section-title flex items-center gap-4">
           <Typography.Title level={4} className="m-0">Collaborators</Typography.Title>

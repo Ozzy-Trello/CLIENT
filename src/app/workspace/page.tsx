@@ -1,9 +1,9 @@
 'use client';
 import React, { useEffect, useState } from "react";
-import useTaskService from "../hooks/task";
+import { Workspace } from "../dto/types";
 
 const WorkspacePage: React.FC = () => {
-  const { workspaces } = useTaskService();
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [isFetching, setIsFetching] = useState(true);
  
   const [filter, setFilter] = useState({
@@ -14,9 +14,15 @@ const WorkspacePage: React.FC = () => {
 
   // Simulate fetching completion after component mounts
   useEffect(() => {
-    if (workspaces && workspaces.length > 0) {
-      setIsFetching(false);
+    const fetchWorkspace = async() => {
+      // const result = await useWorkspaces().mutateAsync();
+      // if (result && result?.data) {
+      //   setWorkspaces(result?.data);
+      // }
     }
+
+    fetchWorkspace();
+    setIsFetching(false);
   }, [workspaces]);
 
   return (

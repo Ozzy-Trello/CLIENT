@@ -4,11 +4,7 @@ import { persistReducer, persistStore, PersistConfig } from "redux-persist";
 import { combineReducers } from "redux";
 import { encryptTransform } from "redux-persist-transform-encrypt";
 import appSlice from "./app_slice";
-import boardsSlice from "./board_slice";
-import workspacesSlice from "./workspace_slice";
-import usersSlice from "./user_slice";
-import listSlice from "./list_slice";
-import cardSlice from "./card_slice";
+import workspaceSlice from './workspace_slice';
 
 // noop storage for server-side
 const createNoopStorage = () => {
@@ -39,11 +35,12 @@ const encryptor = encryptTransform({
 // Combine Reducers
 const rootReducer = combineReducers({
   appState: appSlice,
-  workspaces: workspacesSlice,
-  users: usersSlice,
-  boards: boardsSlice,
-  lists: listSlice,
-  cards: cardSlice
+  workspaceState: workspaceSlice
+  // workspaces: workspacesSlice,
+  // users: usersSlice,
+  // boards: boardsSlice,
+  // lists: listSlice,
+  // cards: cardSlice
 });
 
 // persist config

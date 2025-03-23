@@ -1,6 +1,6 @@
 import { User } from "@/app/dto/types";
 import { Avatar, Tooltip } from "antd";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Plus } from "lucide-react";
 import { useState } from "react";
 
 interface MembersListProps {
@@ -42,6 +42,10 @@ const MembersList: React.FC<MembersListProps> = ({members, membersLength, member
       {membersLength > 2 && limit > 2 && (
         <Avatar size="small" onClick={handleShowFewMembers} icon={<ChevronLeft size={16} />}></Avatar>
       )}
+
+      <Tooltip title={"add member"}>
+        <Avatar size="small"><Plus size={14} /></Avatar>
+      </Tooltip>
     </div>
   )
 }

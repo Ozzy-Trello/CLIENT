@@ -1,48 +1,65 @@
 import { Select } from "antd";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import useTaskService from "@/app/hooks/task";
+import { useWorkspaces } from "@/app/hooks/workspace";
+import { useDispatch } from "react-redux";
+import { useSelector } from "react-redux";
+import { selectCurrentWorkspace, setBoards, setCurrentWorkspace } from "@/app/store/workspace_slice";
+import { useParams, useRouter } from "next/navigation";
 
 export const WorkspaceSelection: React.FC = () => {
-  const { taskService, workspaces, currentWorkspace } = useTaskService();
+  const { workspaceId } = useParams();
   const [options, setOptions] = useState<{ label: string; value: string; }[]>([]);
+  const { data } = useWorkspaces();
+  const selectedWorkspace = useSelector(selectCurrentWorkspace);
+  const dispatch = useDispatch();
   const router = useRouter();
   
-  const handleChange = (value: string) => {
-    const ws = workspaces.find(ws => ws.id === value);
-    if (ws) {
-      taskService.selectWorkspace(ws.id);
-      router.push(`/workspace/${value}/board`);
+  const handleChange = (value: string | undefined) => {
+    if (!value) {
+      dispatch(setCurrentWorkspace(null));
+      router.push(`/workspace`);
+    } else {
+      const selected = data?.data?.find(item => item.id === value);
+      dispatch(setCurrentWorkspace(selected));
+      router.push(`/workspace/${value}`);
     }
-  };
+  }
   
   useEffect(() => {
-    if (workspaces && workspaces.length > 0) {
-      setOptions(workspaces.map((ws) => ({label: ws.name, value: ws.id})));
+    if (data?.data) {
+      const opt = data?.data?.map(item => ({label: item.name, value: item.id}));
+      setOptions(opt);
+      dispatch(setCurrentWorkspace(data.data[0]));
+    } 
+  }, [data]);
+  
+  useEffect(() => {
+    if (!workspaceId) {
+      dispatch(setCurrentWorkspace(null));
+      router.push(`/workspace`);
     }
-  }, [workspaces]);
-  
-  // Determine current selected value
-  const selectedValue = currentWorkspace?.id || (workspaces.length > 0 ? workspaces[0]?.id : undefined);
-  
+  }, [workspaceId])
+
   return(
     <Select
       style={{minWidth: "100px"}}
       showSearch
       placeholder="Select a workspace"
-      value={selectedValue}
+      value={selectedWorkspace?.id}
       optionFilterProp="label"
       onChange={handleChange}
       options={options}
-      notFoundContent={workspaces.length === 0 ? "No workspaces available" : "No match found"}
+      notFoundContent={data?.data?.length === 0 ? "No workspaces available" : "No match found"}
     />
   )
 }
 
 export const VisibilitySelection: React.FC = () => {
 
-  const [options, setOption] = useState([
-    
+  const [ options, setOption ] = useState([
+    {id: "private", label: "Private"},
+    {id: "shared", label: "Shared"},
+    {id: "public", label: "Public"},
   ]);
 
   const handleChange = (value: string) => {
@@ -54,24 +71,7 @@ export const VisibilitySelection: React.FC = () => {
       defaultValue="workspace-default"                                                                                              
       style={{ width: 200 }}
       onChange={handleChange}
-      options={[
-        {
-          label: <span>manager</span>,
-          title: 'manager',
-          options: [
-            { label: <span>Jack</span>, value: 'Jack' },
-            { label: <span>Lucy</span>, value: 'Lucy' },
-          ],
-        },
-        {
-          label: <span>engineer</span>,
-          title: 'engineer',
-          options: [
-            { label: <span>Chloe</span>, value: 'Chloe' },
-            { label: <span>Lucas</span>, value: 'Lucas' },
-          ],
-        },
-      ]}
+      options={options}
     />
   )
 }

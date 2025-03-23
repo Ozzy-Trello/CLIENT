@@ -28,8 +28,9 @@ const WorkspaceLayout: React.FC<BaseLayoutProps> = ({ children }) => {
 
       <Sidebar />
       <Layout
+        className="workspace-layout"
         style={{
-          marginTop: "45x !important",
+          marginTop: "45px",
           width: collapsed ? `calc(100%-${siderSmall})` : `calc(100%-${siderWide}) `,
           transition: "margin-left 0.2s ease",
           overflow: "hidden",

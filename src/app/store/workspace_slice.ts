@@ -1,99 +1,58 @@
-// src/store/slices/workspaceSlice.ts
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { Workspace } from '@/app/dto/types';
-import { generateId } from '@/app/utils/general';
+import { createSlice, PayloadAction } from "@reduxjs/toolkit";
+import { AnyList, Board, List, Workspace } from "../dto/types";
 
-interface WorkspaceState {
-  workspaces: Workspace[];
-  currentWorkspace: string | null; // ID of the current workspace
-  loading: boolean;
-  error: string | null;
+export interface WorkspaceState {
+  currentWorkspace: Workspace | null;
+  boards: Board[];
+  currentBoard: Board | null;
+  lists: AnyList[];
 }
 
-const initialState: WorkspaceState = {
-  workspaces: [],
+const initialWorkspaceState: WorkspaceState = {
   currentWorkspace: null,
-  loading: false,
-  error: null
+  boards: [],
+  currentBoard: null,
+  lists: []
 };
 
 const workspaceSlice = createSlice({
-  name: 'workspace',
-  initialState,
+  name: 'workspaceSlice',
+  initialState: initialWorkspaceState,
   reducers: {
-    // Add a new workspace
-    addWorkspace: (state, action: PayloadAction<Omit<Workspace, 'id'>>) => {
-      const newWorkspace: Workspace = {
-        ...action.payload,
-        id: generateId()
-      };
-      
-      state.workspaces.push(newWorkspace);
-      
-      // Set as current workspace if we don't have one yet
-      if (state.currentWorkspace === null) {
-        state.currentWorkspace = newWorkspace.id;
-      }
-    },
-    
-    // Update workspace
-    updateWorkspace: (state, action: PayloadAction<Partial<Workspace> & { id: string }>) => {
-      const index = state.workspaces.findIndex(workspace => workspace.id === action.payload.id);
-      
-      if (index !== -1) {
-        state.workspaces[index] = { ...state.workspaces[index], ...action.payload };
-      }
-    },
-    
-    // Delete workspace
-    deleteWorkspace: (state, action: PayloadAction<string>) => {
-      state.workspaces = state.workspaces.filter(workspace => workspace.id !== action.payload);
-      
-      // If we deleted the current workspace, set current to another one if available
-      if (state.currentWorkspace === action.payload) {
-        state.currentWorkspace = state.workspaces.length > 0 ? state.workspaces[0].id : null;
-      }
-    },
-    
-    // Set current workspace
-    setCurrentWorkspace: (state, action: PayloadAction<string>) => {
+    setCurrentWorkspace: (state, action: PayloadAction<any>) => {
       state.currentWorkspace = action.payload;
     },
-    
-    // For demo purposes, create some initial workspaces
-    initializeMockWorkspaces: (state) => {
-      if (state.workspaces.length === 0) {
-        const mockWorkspaces: Workspace[] = [
-          {
-            id: generateId(),
-            name: 'Ozzy Operation Workflow',
-            description: 'Workspace for all operation workflow'
-          },
-          // {
-          //   id: generateId(),
-          //   name: 'Marketing',
-          //   description: 'Marketing campaigns and initiatives'
-          // },
-          // {
-          //   id: generateId(),
-          //   name: 'Design Team',
-          //   description: 'Design projects and resources'
-          // }
-        ];
-        
-        state.workspaces = mockWorkspaces;
-        state.currentWorkspace = mockWorkspaces[0].id;
-      }
+    setBoards: (state, action: PayloadAction<any>) => {
+      state.boards = action.payload;
+    },
+    setCurrentBoard: (state, action: PayloadAction<any>) => {
+      state.currentWorkspace = action.payload;
+    },
+    setLists: (state, action: PayloadAction<any>) => {
+      state.lists = action.payload;
     }
   }
 });
 
-export const { 
-  addWorkspace, 
-  updateWorkspace, 
-  deleteWorkspace, 
-  setCurrentWorkspace, 
-  initializeMockWorkspaces 
-} = workspaceSlice.actions;
-
+export const { setCurrentWorkspace, setBoards, setCurrentBoard } = workspaceSlice.actions;
 export default workspaceSlice.reducer;
+
+export interface RootWorkspaceState {
+  workspaceState: WorkspaceState;
+}
+
+export function selectCurrentWorkspace(state: RootWorkspaceState) {
+  return state.workspaceState.currentWorkspace;
+}
+
+export function selectBoards(state: RootWorkspaceState) {
+  return state.workspaceState.boards;
+}
+
+export function selectCurrentBoard(state: RootWorkspaceState) {
+  return state.workspaceState.currentBoard;
+}
+
+export function selectLists(state: RootWorkspaceState) {
+  return state.workspaceState.lists;
+}

@@ -4,14 +4,13 @@ import { useWorkspaceSidebar } from "@/app/provider/workspace-sidebar-context";
 import MembersList from "@/app/components/members-list";
 import { Ellipsis, ListFilter, Menu, SlidersHorizontal, Star, UserPlus, Users } from "lucide-react";
 import { useSelector } from "react-redux";
-import { selectSelectedWorkspace } from "@/app/store/app_slice";
-import useTaskService from "@/app/hooks/task";
+import { selectCurrentBoard } from "@/app/store/workspace_slice";
 
 const Topbar: React.FC = () => {
   const { collapsed, siderSmall, siderWide } = useWorkspaceSidebar();
   const [showRightColMenu, setIsShowRighColtMenu] = useState(false);
   const [openRightMenu, setOpenRightMenu] = useState(false);
-  const {currentBoard} = useTaskService()
+  const currentBoard = useSelector(selectCurrentBoard);
   const [members, setMembers] = useState([
     // getUserById('1'),
     // getUserById('2'),
@@ -51,7 +50,7 @@ const Topbar: React.FC = () => {
     >
       <div className="flex items-center gap-2">
         <Typography.Title level={4} className="m-0">
-          {currentBoard ? currentBoard.title : "Board Title"}
+          {currentBoard ? currentBoard.name : "Board Title"}
         </Typography.Title>
         <Tooltip
           title={"Starred boards showed up at the top of your baord list"}
