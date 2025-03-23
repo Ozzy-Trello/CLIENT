@@ -19,6 +19,7 @@ import PopoverCustomField from '@/app/components/popover-custom-field';
 import PopoverUser from '@/app/components/popover-user';
 import PopoverDates from '@/app/components/popover-dates.tsx';
 import PopoverMoveCard from '@/app/components/popover-move-card';
+import PopoverCopyCard from '@/app/components/popover-copy-card';
 
 const Actions: React.FC = ({ }) => {
 
@@ -26,6 +27,7 @@ const Actions: React.FC = ({ }) => {
   const [openMembers, setOpenMembers] = useState(false);
   const [openDates, setOpenDates] = useState(false);
   const [openMoveCard, setOpenMoveCard] = useState(false);
+  const [openCopyCard, setOpenCopyCard] = useState(false);
 
   const menuItems = [
     { icon: <Users size={14} />, label: 'Join' },
@@ -126,12 +128,18 @@ const Actions: React.FC = ({ }) => {
           }
         />
 
-        <button
-          className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700"
-        >
-          <Copy size={14} />
-          <span className="text-xs">Copy</span>
-        </button>
+        <PopoverCopyCard 
+          open={openCopyCard}
+          setOpen={setOpenCopyCard}
+          triggerEl={
+            <button
+              className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700"
+            >
+              <Copy size={14} />
+              <span className="text-xs">Copy</span>
+            </button>
+          }
+        />
 
         <button
           className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700"
