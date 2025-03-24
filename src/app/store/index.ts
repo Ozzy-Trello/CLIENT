@@ -36,11 +36,6 @@ const encryptor = encryptTransform({
 const rootReducer = combineReducers({
   appState: appSlice,
   workspaceState: workspaceSlice
-  // workspaces: workspacesSlice,
-  // users: usersSlice,
-  // boards: boardsSlice,
-  // lists: listSlice,
-  // cards: cardSlice
 });
 
 // persist config

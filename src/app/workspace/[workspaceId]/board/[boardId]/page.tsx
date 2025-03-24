@@ -7,7 +7,7 @@ import { useSelector } from "react-redux";
 import { selectTheme, selectUser } from "@/app/store/app_slice";
 import { useWorkspaceSidebar } from "@/app/provider/workspace-sidebar-context";
 import { useLists } from "@/app/hooks/list";
-import { AnyList, Card } from "@/app/dto/types";
+import { AnyList } from "@/app/dto/types";
 import { useParams } from "next/navigation";
 import { generateId } from "@/app/utils/general";
 import { Droppable, DropResult } from "@hello-pangea/dnd";
@@ -15,8 +15,7 @@ import List from "./draggable-list";
 import { Button, Input } from "antd";
 import { Plus, X } from "lucide-react";
 import { CardDetailProvider } from "@/app/provider/card-detail-context";
-import CardDetails from "./card-details.tsx";
-import { useCards } from "@/app/hooks/card";
+import CardDetails from "./card-details";
 import ListSkeleton from "./list-skeleton.tsx";
 
 const DragDropContext = dynamic(

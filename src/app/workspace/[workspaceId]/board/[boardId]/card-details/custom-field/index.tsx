@@ -1,6 +1,7 @@
+import { UserSelection } from "@/app/components/selection";
 import { CustomField } from "@/app/dto/types";
 import { Checkbox, Input, Select, Typography } from "antd";
-import { List, ListTodo, TextCursorInput } from "lucide-react";
+import { List, ListTodo, StretchHorizontal, TextCursorInput } from "lucide-react";
 import { Fragment, useEffect, useState } from "react";
 
 interface CustomFieldsProps {
@@ -71,27 +72,41 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
         );
       case 'select':
       default:
-        return (
-          <Select
-            className="w-full"
-            placeholder="Select..."
-            value={fieldValue as string || undefined}
-            onChange={(value) => handleValueChange(field.id, value)}
-            options={ []}
-            suffixIcon={<span className="text-gray-400">▼</span>}
-          />
-        );
+        if (field.source === "user") {
+          return (<UserSelection />);
+        } else {
+          return (
+            <Select
+              className="w-full"
+              placeholder="Select..."
+              value={fieldValue as string || undefined}
+              onChange={(value) => handleValueChange(field.id, value)}
+              options={ []}
+              suffixIcon={<span className="text-gray-400">▼</span>}
+            />
+          );
+        }   
     }
   };
+
+  const getSelectOptions = (field: CustomField) => {
+    if (field.source === "user") {
+
+    } else if (field.source === "product") {
+
+    } else if (field.source === "custom") {
+      
+    }
+  }
 
   // Get icon based on field type
   const getFieldIcon = (field: CustomField) => {
     const fieldType: string = field.type || 'select';
     switch (fieldType) {
       case 'string':
-        return <ListTodo size={14} className="text-gray-500" />;
+        return <StretchHorizontal size={12} className="text-gray-500" />;
       default:
-        return <ListTodo size={14} className="text-gray-500" />;
+        return <StretchHorizontal size={12} className="text-gray-500" />;
     }
   };
 

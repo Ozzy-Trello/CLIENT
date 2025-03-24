@@ -1,31 +1,21 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { workspaceDefault, workspaceDetails, workspaces } from "../api/workspace";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { workspaces } from "../api/workspace";
 
 export const useWorkspaces = () => {
-  return useQuery({
+
+  const queryClient = useQueryClient();
+
+  const workspaceQuery = useQuery({
     queryKey: ["workspaces"],
-    queryFn: workspaces
+    queryFn: workspaces,
+    enabled: true,
+    staleTime: 30000
   });
-}
 
-export const useWorkspaceDefault = () => {
-  const workspaceClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: workspaceDefault,
-    onSuccess: (data) => {
-      workspaceClient.invalidateQueries({queryKey: ["workspaceDefault"]});
-    }
-  })
-}
-
-export const useWorkspaceDetails = () => {
-  const workspaceClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: workspaceDetails,
-    onSuccess: (data) => {
-      workspaceClient.invalidateQueries({queryKey: ["workspaceDetails"]})
-    }
-  })
+  return {
+    workspaces: workspaceQuery.data?.data || [],
+    isLoading: workspaceQuery.isLoading,
+    isError: workspaceQuery.isError,
+    error: workspaceQuery.error
+  }
 }

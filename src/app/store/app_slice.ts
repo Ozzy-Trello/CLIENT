@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { Board, User, Workspace } from '../dto/types';
+import { User } from '../dto/types';
 
 export interface AppState {
   currentPage: string;
@@ -7,8 +7,6 @@ export interface AppState {
   accessToken: string;
   refreshToken: string;
   theme: any;
-  selectedWorkspace: Workspace | null;
-  selectedBoard: Board | null;
 }
 
 const initialAppState: AppState = {
@@ -36,9 +34,7 @@ const initialAppState: AppState = {
       small: 10,
       tiny: 8,
     }
-  },
-  selectedWorkspace: null,
-  selectedBoard: null,
+  }
 };
 
 const appSlice = createSlice({
@@ -59,17 +55,11 @@ const appSlice = createSlice({
     },
     setTheme: (state, action: PayloadAction<any>) => {
       state.theme = action.payload;
-    },
-    setSelectedWorkspace: (state, action: PayloadAction<any>) => {
-      state.selectedWorkspace = action.payload;
-    },
-    setSelectedBoard: (state, action: PayloadAction<any>) => {
-      state.selectedBoard = action.payload;
     }
   },
 });
 
-export const { setUser, setAccessToken, setRefreshToken, setTheme, setSelectedWorkspace, setSelectedBoard } = appSlice.actions;
+export const { setUser, setAccessToken, setRefreshToken, setTheme } = appSlice.actions;
 export default appSlice.reducer;
 
 
@@ -96,12 +86,4 @@ export function selectRefreshToken(state: RootState) {
 
 export function selectTheme(state: RootState) {
   return state.appState.theme;
-}
-
-export function selectSelectedWorkspace(state: RootState) {
-  return state.appState.selectedWorkspace;
-}
-
-export function selectSelectedBoard(state: RootState) {
-  return state.appState.selectedBoard;
 }

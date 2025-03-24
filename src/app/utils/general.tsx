@@ -16,6 +16,8 @@ export const getGradientString = (gradientArray: { color: string; percent: numbe
 
 // Function to determine if text should be light or dark based on background
 export const getContrastingTextColor = (backgroundColor: string): string => {
+  console.log("backgroundColor: %o", backgroundColor);
+  if (typeof backgroundColor !== "string") return '51, 51, 51';
   // Convert hex to RGB
   const rgbArr = backgroundColor.split(',');
   const r = parseInt(rgbArr[0]);

@@ -26,7 +26,7 @@ const workspaceSlice = createSlice({
       state.boards = action.payload;
     },
     setCurrentBoard: (state, action: PayloadAction<any>) => {
-      state.currentWorkspace = action.payload;
+      state.currentBoard = action.payload;
     },
     setLists: (state, action: PayloadAction<any>) => {
       state.lists = action.payload;

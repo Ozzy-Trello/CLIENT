@@ -1,6 +1,7 @@
 import { 
   Button, 
   ColorPicker, 
+  ColorPickerProps, 
   Form, 
   Input, 
   message, 
@@ -17,11 +18,12 @@ import { Board } from "@/app/dto/types";
 import { setSelectedBoard } from "@/app/store/app_slice";
 import { useDispatch } from "react-redux";
 import { useRouter } from "next/navigation";
-import { getGradientString } from "@/app/utils/general";
-import { useState } from "react";
 import { useSelector } from "react-redux";
 import { selectCurrentBoard, selectCurrentWorkspace } from "@/app/store/workspace_slice";
 import { useBoards } from "@/app/hooks/board";
+import { useMemo, useState } from "react";
+import { Color } from "antd/es/color-picker";
+import { generateId } from "@/app/utils/general";
 const { Text, Title } = Typography;
 
 interface ModalCreateBoardForm {
@@ -35,49 +37,55 @@ const CreateBoard: React.FC<ModalCreateBoardForm> = (props: ModalCreateBoardForm
   const currentWorkspace = useSelector(selectCurrentWorkspace);
   const currentBoard = useSelector(selectCurrentBoard);
   const { createBoard } = useBoards(currentWorkspace?.id ?? '');
-
+  const DEFAULT_COLOR = 'rgba(255, 255, 255, 1)';
+  const [bg, setBg] = useState<string>(DEFAULT_COLOR);
   const router = useRouter();
   const dispatch = useDispatch();
-  
-  // Define the default gradient color for the color picker
-  const DEFAULT_COLOR = [
-    {
-      color: 'rgb(255, 255, 255)',
-      percent: 0,
-    },
-    {
-      color: 'rgb(255, 255, 255)',
-      percent: 100,
-    },
-  ];
-  
-  // Get the background value from the form
-  const [backgroundGradient, setBackgroundGradient] = useState(DEFAULT_COLOR);
+
+
+  const handleColorChange = (color: any, hex: any) => {
+    setBg(color.toRgbString());
+  }
   
   const onFinish = async (values: any) => {
-    const tempId = `board-${Date.now()}`;
-    let board: Board = {} as Board;
+    const tempId = generateId();
+    let board: Partial<Board>;
     if (currentWorkspace !== null) {
       board = {
-        id: tempId,
         workspaceId: currentWorkspace?.id,
         name: values.title,
         cover: '',
-        background: backgroundGradient,
+        background: values.background.toRgbString(),
         isStarred: false,
         visibility: '',
         createdAt: '',
         upatedAt: '',
       }
-    }
-    if (currentWorkspace?.id) {
-      createBoard(board);
-      dispatch(setSelectedBoard(board));
-      form.resetFields();
-      setOpen(false);
 
-      router.push(`/workspace/${currentWorkspace?.id}/board/${tempId}`);
+      createBoard({ board }, {
+        onSuccess: (response) => {
+          // Get the created board with ID from the server response
+          const createdBoard = response.data?.data;
+          
+          // Update the selected board with the server data
+          if (createdBoard) {
+            dispatch(setSelectedBoard(createdBoard));
+            router.push(`/workspace/${currentWorkspace.id}/board/${createdBoard.id}`);
+          } else {
+            // Fallback to using the temp ID if there's an issue
+            dispatch(setSelectedBoard(board));
+            router.push(`/workspace/${currentWorkspace.id}/board/${tempId}`);
+          }
+          
+          // Reset and close
+          dispatch(setSelectedBoard(board));
+          form.resetFields();
+          setBg(DEFAULT_COLOR);
+          setOpen(false);
+        }
+      });
     }
+    
   };
 
   const onFinishFailed = () => {
@@ -106,12 +114,12 @@ const CreateBoard: React.FC<ModalCreateBoardForm> = (props: ModalCreateBoardForm
           title: "", 
           workspace: "Personal", 
           visibility: "Private",
-          background: DEFAULT_COLOR  // Pass the gradient array directly
+          background: DEFAULT_COLOR
         }}
       >
         <div
           className="selected-background"
-          style={{ background: getGradientString(backgroundGradient) }}
+          style={{ background: bg }}
         >
           <div className="image-container">
             <Image
@@ -147,22 +155,11 @@ const CreateBoard: React.FC<ModalCreateBoardForm> = (props: ModalCreateBoardForm
             name="background" 
             label={<Text strong>Background</Text>}
           >
-            <ColorPicker
-              defaultValue={DEFAULT_COLOR}
-              allowClear
-              showText
-              format="rgb"
-              mode={['gradient']}
-              onChange={(value) => {
-                // const { colors } = value;
-                // if (Array.isArray(value?.colors)) { // Ensure it's a gradient array
-                //   const formattedGradient = colors.map(({ color, percent }) => ({
-                //     color: color.toRgbString(), // Convert color to string
-                //     percent,
-                //   }));
-                //   setBackgroundGradient(formattedGradient);
-                // }
-              }}
+            <ColorPicker 
+              disabledAlpha={false} 
+              value={DEFAULT_COLOR}
+              onChange={handleColorChange}
+              showText={true}
             />
           </Form.Item>
           

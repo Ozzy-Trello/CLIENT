@@ -9,6 +9,7 @@ import {
   useWorkspaceSidebar,
 } from "@/app/provider/workspace-sidebar-context";
 import Footer from "../components/footer";
+import UrlSynchronizer from "./url_synchronizer";
 
 const { Header, Content } = Layout;
 
@@ -22,6 +23,7 @@ const WorkspaceLayout: React.FC<BaseLayoutProps> = ({ children }) => {
 
   return (
     <Layout className="base-layout">
+      <UrlSynchronizer />
       <Header>
         <TopBar />
       </Header>

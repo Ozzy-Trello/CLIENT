@@ -7,12 +7,12 @@ import Link from "next/link";
 import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { ChevronLeft, ChevronRight, Trello, Users } from "lucide-react";
 import ModalCreateBoard from "../modal-create-board";
-import { setSelectedBoard } from "@/app/store/app_slice";
 import { useDispatch } from "react-redux";
 import { MenuProps } from 'antd';
 import { useSelector } from "react-redux";
-import { selectBoards, selectCurrentWorkspace } from "@/app/store/workspace_slice";
+import { selectBoards, selectCurrentBoard, selectCurrentWorkspace, setCurrentBoard } from "@/app/store/workspace_slice";
 import { useBoards } from "@/app/hooks/board";
+import { useRouter } from "next/navigation";
 
 const { Sider } = Layout;
 type MenuItem = Required<MenuProps>['items'][number];
@@ -24,7 +24,9 @@ const Sidebar = () => {
   const [ isHovered, setIsHovered ] = useState(false);
   const [ openCreateBoardModal, setOpenCreateBoardModal ] = useState<boolean>(false);
   const dispatch = useDispatch();
+  const router = useRouter();
   const currentWorkspace = useSelector(selectCurrentWorkspace);
+  const currentBoard = useSelector(selectCurrentBoard);
   const { boards } = useBoards(currentWorkspace?.id || '');
   
   // Use refs to avoid dependency changes in useEffect
@@ -38,9 +40,12 @@ const Sidebar = () => {
     setOpenCreateBoardModal(true);
   }, []);
 
-  const handleSelectBoardItem = useCallback((board: Board) => {
-    dispatch(setSelectedBoard(board));
-  }, [dispatch]);
+  const handleSelectBoardItem = (board: Board) => {
+    if (board?.id !== currentBoard?.id) {
+      dispatch(setCurrentBoard(board));
+    }
+    router.push(`/workspace/${currentWorkspace?.id}/board/${board?.id}`);
+  };
   
   // Memoize the base menus
   const baseMenus = useMemo<MenuItem[]>(() => {
@@ -128,13 +133,12 @@ const Sidebar = () => {
             fullMenus.push({
               key: `menu-board-${board.id}`,
               label: (
-                <Link 
+                <Typography.Text 
                   className="block w-full" 
-                  href={`/workspace/${currentWorkspace.id}/board/${board.id}`} 
                   onClick={() => handleSelectBoardItem(board)}
                 >
                   {board.name}
-                </Link>
+                </Typography.Text>
               ),
               icon: <span><Avatar shape="square" src={board?.cover || `https://ui-avatars.com/api/?name=${board?.name}&background=random`} size={"small"}/></span>,
             });

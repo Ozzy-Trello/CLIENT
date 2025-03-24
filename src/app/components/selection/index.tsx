@@ -2,55 +2,51 @@ import { Avatar, Select, Typography } from "antd";
 import { useEffect, useState } from "react";
 import { useWorkspaces } from "@/app/hooks/workspace";
 import { useDispatch } from "react-redux";
-import { useSelector } from "react-redux";
-import { selectCurrentWorkspace, setBoards, setCurrentWorkspace } from "@/app/store/workspace_slice";
+import { selectCurrentWorkspace, setCurrentWorkspace } from "@/app/store/workspace_slice";
 import { useParams, useRouter } from "next/navigation";
 import { accountList } from "@/app/api/account";
+import { useSelector } from "react-redux";
 
 export const WorkspaceSelection: React.FC = () => {
-  const { workspaceId } = useParams();
   const [options, setOptions] = useState<{ label: string | JSX.Element; value: string; }[]>([]);
-  const { data } = useWorkspaces();
-  const selectedWorkspace = useSelector(selectCurrentWorkspace);
+  const { workspaces } = useWorkspaces();
   const dispatch = useDispatch();
   const router = useRouter();
+  const currentWorkspace = useSelector(selectCurrentWorkspace);
   
   const handleChange = (value: string | undefined) => {
     if (!value) {
-      dispatch(setCurrentWorkspace(null));
       router.push(`/workspace`);
     } else {
-      const selected = data?.data?.find(item => item.id === value);
-      dispatch(setCurrentWorkspace(selected));
+      const w = workspaces.find(item => (item.id === value));
+      if (currentWorkspace?.id !== w?.id) {
+        dispatch(setCurrentWorkspace(w));
+      }
       router.push(`/workspace/${value}`);
     }
   }
   
   useEffect(() => {
-    if (data?.data) {
-      const opt = data?.data?.map(item => ({label: item.name, value: item.id}));
+    if (workspaces) {
+      const opt = workspaces?.map(item => ({label: item.name, value: item.id}));
       setOptions(opt);
-      dispatch(setCurrentWorkspace(data.data[0]));
+      if (!currentWorkspace) {
+        dispatch(setCurrentWorkspace(workspaces[0]));
+        router.push(`/workspace/${workspaces[0]?.id}`);
+      }
     } 
-  }, [data]);
-  
-  useEffect(() => {
-    if (!workspaceId) {
-      dispatch(setCurrentWorkspace(null));
-      router.push(`/workspace`);
-    }
-  }, [workspaceId])
+  }, [workspaces]);
 
   return(
     <Select
       style={{minWidth: "100px"}}
       showSearch
       placeholder="Select a workspace"
-      value={selectedWorkspace?.id}
+      value={currentWorkspace?.id}
       optionFilterProp="label"
       onChange={handleChange}
       options={options}
-      notFoundContent={data?.data?.length === 0 ? "No workspaces available" : "No match found"}
+      notFoundContent={workspaces.length === 0 ? "No workspaces available" : "No match found"}
     />
   )
 }

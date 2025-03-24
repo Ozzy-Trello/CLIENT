@@ -1,15 +1,10 @@
 'use client';
-import { Board } from "@/app/dto/types";
 import { Card, Col, Row, Skeleton, Space, Typography } from "antd";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import "./style.css";
-import { selectSelectedWorkspace, setUser } from "@/app/store/app_slice";
-import { useDispatch } from "react-redux";
 import dynamic from "next/dynamic";
-import { useSelector } from "react-redux";
 import { Earth, Lock, Users } from "lucide-react";
 import Link from "next/link";
-import { selectBoards, selectCurrentWorkspace } from "@/app/store/workspace_slice";
 import { useParams } from "next/navigation";
 import { useBoards } from "@/app/hooks/board";
 

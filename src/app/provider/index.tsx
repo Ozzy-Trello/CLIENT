@@ -7,7 +7,6 @@ import { WorkspaceSidebarProvider } from "@/app/provider/workspace-sidebar-conte
 import { ThemeProvider } from "@/app/provider/theme-provider";
 import { AntdRegistry } from "@ant-design/nextjs-registry";
 import QueryProvider from "./query-provider";
-import RouteController from "../route_controller";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -17,7 +16,6 @@ export function Providers({ children }: { children: React.ReactNode }) {
           <AntdRegistry>
             <ThemeProvider userId="1">
               <WorkspaceSidebarProvider>
-                <RouteController></RouteController>
                 {children}
               </WorkspaceSidebarProvider>
             </ThemeProvider>

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { boardDetails, boards, createBoard } from "../api/board";
+import { boardDetails, boards } from "../api/board";
 import { ApiResponse, Board } from "../dto/types";
 import { api } from "../api";
 
@@ -19,11 +19,12 @@ export function useBoards(workspaceId: string) {
 
   // Create board mutation with optimistic updates
   const createBoardMutation = useMutation({
-    mutationFn: (newBoard: Partial<Board>) => {
-      return createBoard(newBoard, workspaceId);
+    mutationFn: (data: { board: Partial<Board> }) => {
+      return api.post<ApiResponse<Board>>(`/board`, data.board);
     },
     // Optimistic update
-    onMutate: async (newBoard) => {
+    onMutate: async (newBoardData) => {
+      const newBoard = newBoardData.board;
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ["boards", workspaceId] });
       
@@ -33,7 +34,7 @@ export function useBoards(workspaceId: string) {
       // Create temporary board for optimistic update
       const tempBoard = {
         ...newBoard,
-        id: `temp-board-${Date.now()}`,
+        id: newBoard.id || `temp-board-${Date.now()}`,
         createdAt: new Date().toISOString(),
         workspaceId: workspaceId,
       };

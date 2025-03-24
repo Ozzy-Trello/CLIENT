@@ -50,7 +50,7 @@ const Topbar: React.FC = () => {
     >
       <div className="flex items-center gap-2">
         <Typography.Title level={4} className="m-0">
-          {currentBoard ? currentBoard.name : "Board Title"}
+          {currentBoard?.name}
         </Typography.Title>
         <Tooltip
           title={"Starred boards showed up at the top of your baord list"}

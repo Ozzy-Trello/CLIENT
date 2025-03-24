@@ -1,15 +1,15 @@
 'use client'
 
 import { useEffect } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import { useSelector } from 'react-redux';
 import { ConfigProvider } from 'antd';
-import { RootState } from '../store';
-import { selectSelectedBoard, selectTheme } from '../store/app_slice';
+import { selectTheme } from '../store/app_slice';
 import { getContrastingTextColor, getGradientString } from '../utils/general';
+import { selectCurrentBoard } from '../store/workspace_slice';
 
 export function ThemeProvider({ children, userId }: { children: React.ReactNode; userId: string }) {
   const theme = useSelector(selectTheme);
-  const selectedBoard = useSelector(selectSelectedBoard);
+  const selectedBoard = useSelector(selectCurrentBoard);
   const { colors, fontSizes } = theme;
   let root: HTMLElement;
 

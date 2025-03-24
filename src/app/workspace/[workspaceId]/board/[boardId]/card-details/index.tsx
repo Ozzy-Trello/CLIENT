@@ -1,12 +1,9 @@
-import UploadModal from "@/app/components/modal-upload/modal-upload";
-import { Card } from "@/app/dto/types";
 import { Button, Checkbox, CheckboxProps, Col, Dropdown, Flex, Modal, Row, Tag, Typography } from "antd";
 import { useState } from "react";
 import Cover from "./cover";
 import { useCardDetailContext } from "@/app/provider/card-detail-context";
-import { ArrowDown, ChevronDown, Eye, Upload } from "lucide-react";
+import { ChevronDown, Eye } from "lucide-react";
 import MembersList from "@/app/components/members-list";
-import LabelsSelection from "@/app/components/selection/label-selection";
 import Description from "./description";
 import Attachments from "./attachments";
 import Activity from "./activity";
@@ -15,7 +12,7 @@ import { selectUser } from "@/app/store/app_slice";
 import Actions from "./actions";
 import { useCustomFields } from "@/app/hooks/custom_field";
 import { useParams } from "next/navigation";
-import CustomFields from "./custom-fields";
+import CustomFields from "./custom-field";
 
 const CardDetails: React.FC = (props) => {
   const params = useParams();
