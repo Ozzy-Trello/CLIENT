@@ -1,11 +1,11 @@
-import React, { useRef, useState } from 'react';
-import { 
-  Users, 
-  Tag, 
-  CheckSquare, 
-  Clock, 
-  Paperclip, 
-  MapPin, 
+import React, { useRef, useState } from "react";
+import {
+  Users,
+  Tag,
+  CheckSquare,
+  Clock,
+  Paperclip,
+  MapPin,
   Database,
   PlusCircle,
   MoveRight,
@@ -13,16 +13,16 @@ import {
   Copy,
   Archive,
   Share2,
-  RectangleEllipsis
-} from 'lucide-react';
-import PopoverCustomField from '@/app/components/popover-custom-field';
-import PopoverUser from '@/app/components/popover-user';
-import PopoverDates from '@/app/components/popover-dates.tsx';
-import PopoverMoveCard from '@/app/components/popover-move-card';
-import PopoverCopyCard from '@/app/components/popover-copy-card';
+  RectangleEllipsis,
+} from "lucide-react";
+import PopoverCustomField from "@/app/components/popover-custom-field";
+import PopoverUser from "@/app/components/popover-user";
+import PopoverDates from "@/app/components/popover-dates.tsx";
+import PopoverMoveCard from "@/app/components/popover-move-card";
+import PopoverCopyCard from "@/app/components/popover-copy-card";
+import { message } from "antd";
 
-const Actions: React.FC = ({ }) => {
-
+const Actions: React.FC = ({}) => {
   const [openCustomField, setOpenCustomField] = useState(false);
   const [openMembers, setOpenMembers] = useState(false);
   const [openDates, setOpenDates] = useState(false);
@@ -30,11 +30,11 @@ const Actions: React.FC = ({ }) => {
   const [openCopyCard, setOpenCopyCard] = useState(false);
 
   const menuItems = [
-    { icon: <Users size={14} />, label: 'Join' },
-    { icon: <Tag size={14} />, label: 'Labels' },
-    { icon: <CheckSquare size={14} />, label: 'Checklist' },
-    { icon: <Paperclip size={14} />, label: 'Attachment' },
-    { icon: <MapPin size={14} />, label: 'Location' },
+    { icon: <Users size={14} />, label: "Join" },
+    { icon: <Tag size={14} />, label: "Labels" },
+    { icon: <CheckSquare size={14} />, label: "Checklist" },
+    { icon: <Paperclip size={14} />, label: "Attachment" },
+    { icon: <MapPin size={14} />, label: "Location" },
   ];
 
   return (
@@ -50,40 +50,40 @@ const Actions: React.FC = ({ }) => {
         </button>
       ))}
 
-      <PopoverUser 
-        open={openMembers} 
+      <PopoverUser
+        open={openMembers}
         setOpen={setOpenMembers}
         triggerEl={
-          <button
-            className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700"
-          >
-            <span className="text-gray-600 text-xs"><Users size={14} /></span>
+          <button className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700">
+            <span className="text-gray-600 text-xs">
+              <Users size={14} />
+            </span>
             <span className="text-xs">Members</span>
           </button>
         }
       />
 
       <PopoverDates
-         open={openDates} 
-         setOpen={setOpenDates}
-         triggerEl={
-           <button
-             className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700"
-           >
-             <span className="text-gray-600 text-xs"><Clock size={14} /></span>
-             <span className="text-xs">Dates</span>
-           </button>
-         }
+        open={openDates}
+        setOpen={setOpenDates}
+        triggerEl={
+          <button className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700">
+            <span className="text-gray-600 text-xs">
+              <Clock size={14} />
+            </span>
+            <span className="text-xs">Dates</span>
+          </button>
+        }
       />
 
-      <PopoverCustomField 
-        open={openCustomField} 
+      <PopoverCustomField
+        open={openCustomField}
         setOpen={setOpenCustomField}
         triggerEl={
-          <button
-            className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700"
-          >
-            <span className="text-gray-600 text-xs"><RectangleEllipsis size={14} /></span>
+          <button className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700">
+            <span className="text-gray-600 text-xs">
+              <RectangleEllipsis size={14} />
+            </span>
             <span className="text-xs">Custom fields</span>
           </button>
         }
@@ -119,59 +119,56 @@ const Actions: React.FC = ({ }) => {
           open={openMoveCard}
           setOpen={setOpenMoveCard}
           triggerEl={
-            <button
-              className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700"
-            >
+            <button className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700">
               <MoveRight size={14} />
               <span className="text-xs">Move</span>
             </button>
           }
         />
 
-        <PopoverCopyCard 
+        <PopoverCopyCard
           open={openCopyCard}
           setOpen={setOpenCopyCard}
           triggerEl={
-            <button
-              className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700"
-            >
+            <button className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700">
               <Copy size={14} />
               <span className="text-xs">Copy</span>
             </button>
           }
         />
 
-        <button
-          className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700"
-        >
+        <button className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700">
           <Archive size={14} />
           <span className="text-xs">Archive</span>
         </button>
 
         <button
+          onClick={() => {
+            navigator.clipboard.writeText(window.location.href);
+            message.info("Copied to clipboard");
+          }}
           className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700"
         >
           <Share2 size={14} />
           <span className="text-xs">Share</span>
         </button>
       </div>
-
     </div>
   );
 };
 
 const InfoCircle = ({ size = 24, className = "" }) => {
   return (
-    <svg 
-      xmlns="http://www.w3.org/2000/svg" 
-      width={size} 
-      height={size} 
-      viewBox="0 0 24 24" 
-      fill="none" 
-      stroke="currentColor" 
-      strokeWidth="2" 
-      strokeLinecap="round" 
-      strokeLinejoin="round" 
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
       className={className}
     >
       <circle cx="12" cy="12" r="10"></circle>
