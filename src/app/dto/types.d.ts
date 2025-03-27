@@ -95,6 +95,7 @@ export interface CustomField {
   source: string | CustomOption;
   type?: CustomFieldValueType;
   trigger: Trigger;
+  value?: string;
 }
 
 export interface CustomOption {

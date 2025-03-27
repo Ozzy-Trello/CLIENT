@@ -86,7 +86,7 @@ const RuleContent: NextPage = () => {
           setRule(prev => ({
             ...prev,
             customFieldId: customField.value || "",
-            customFieldName: customField.label || ""
+            customFieldName: typeof customField.label === "string" ? customField.label : ""
           }));
         }
       } else if (currentStep === 2) {
@@ -133,8 +133,8 @@ const RuleContent: NextPage = () => {
       if (customField && customField.value) {
         setRule(prev => ({
           ...prev,
-          customFieldId: customField.value,
-          customFieldName: customField.label
+          customFieldId: customField.value || "",
+          customFieldName: typeof customField.label === 'string' ? customField.label : ""
         }));
       }
     }
