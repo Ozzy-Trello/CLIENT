@@ -85,23 +85,44 @@ export interface ActivityItem {
 }
 
 // For custom fields
-export type CustomFieldValueType = 'text' | 'number' | 'date' | 'checkbox' | 'select';
-
-export interface CustomFieldValue {
-  value: string | number | boolean | null;
-  displayValue?: string;
-  type: CustomFieldValueType;
-  options?: { id: string; value: string; color?: string }[];
-  selectedOption?: { id: string; value: string; color?: string };
-}
+export type CustomFieldValueType = 'text' | 'number' | 'date' | 'checkbox' | 'dropdown';
 
 export interface CustomField {
   id: string;
+  boardId: string;
   name: string;
   description: string;
-  source: string;
+  source: string | CustomOption;
   type?: CustomFieldValueType;
-  value?: CustomFieldValue | null;
+  trigger: Trigger;
+}
+
+export interface CustomOption {
+  value: string;
+  label: string;
+}
+
+export interface Trigger {
+  name?: string;
+  conditionValue?: string;
+  action?: TriggerAction;
+}
+
+export interface TriggerAction {
+  targetListId?: string;
+  message?: string;
+  labelCard?: string;
+}
+
+export interface CardCustomField {
+  customFieldId: string;
+  cardId?: string;
+  id?: string;
+  name?: string;
+  description?: string;
+  source?: string | CustomOption[];
+  type?: CustomFieldValueType;
+  value?: string;
 }
 
 // Checklist item

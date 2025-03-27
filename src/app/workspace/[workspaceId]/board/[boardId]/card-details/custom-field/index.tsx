@@ -1,5 +1,7 @@
 import { UserSelection } from "@/app/components/selection";
 import { CustomField } from "@/app/dto/types";
+import { useCardCustomField } from "@/app/hooks/card_custom_field";
+import { useCardDetailContext } from "@/app/provider/card-detail-context";
 import { Checkbox, Input, Select, Typography } from "antd";
 import { List, ListTodo, StretchHorizontal, TextCursorInput } from "lucide-react";
 import { Fragment, useEffect, useState } from "react";
@@ -9,14 +11,17 @@ interface CustomFieldsProps {
 }
 const CustomFields: React.FC<CustomFieldsProps> = (props) => {
 
-  const {customFields} = props;
-  const [fieldValues, setFieldValues] = useState<Record<string, any>>({});
+  const { customFields } = props;
+  const { selectedCard } = useCardDetailContext();
+  const { cardCustomFields } = useCardCustomField(selectedCard?.id || '');
+  const [ fieldValues, setFieldValues ] = useState<Record<string, any>>({});
 
   // Initialize field values from props
   useEffect(() => {
     const initialValues: Record<string, any> = {};
     customFields.forEach(field => {
-      initialValues[field.id] = field.value ?? null;
+      const found = cardCustomFields.find(item => item.id === field.id)
+      // initialValues[field.id] = found?. ?? null;
     });
     setFieldValues(initialValues);
   }, [customFields]);
@@ -88,16 +93,6 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
         }   
     }
   };
-
-  const getSelectOptions = (field: CustomField) => {
-    if (field.source === "user") {
-
-    } else if (field.source === "product") {
-
-    } else if (field.source === "custom") {
-      
-    }
-  }
 
   // Get icon based on field type
   const getFieldIcon = (field: CustomField) => {

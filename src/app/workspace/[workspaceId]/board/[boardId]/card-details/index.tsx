@@ -1,5 +1,5 @@
 import { Button, Checkbox, CheckboxProps, Col, Dropdown, Flex, Modal, Row, Tag, Typography } from "antd";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Cover from "./cover";
 import { useCardDetailContext } from "@/app/provider/card-detail-context";
 import { ChevronDown, Eye } from "lucide-react";
@@ -13,6 +13,7 @@ import Actions from "./actions";
 import { useCustomFields } from "@/app/hooks/custom_field";
 import { useParams } from "next/navigation";
 import CustomFields from "./custom-field";
+import { ListSelection, SelectionRef } from "@/app/components/selection";
 
 const CardDetails: React.FC = (props) => {
   const params = useParams();
@@ -21,6 +22,7 @@ const CardDetails: React.FC = (props) => {
   const currentUser = useSelector(selectUser);
   const [isComplete, setIsComplete] = useState<boolean>(false);
   const {customFields} = useCustomFields(workspaceId || '');
+  const listSelectionRef = useRef<SelectionRef>(null);
 
   const onChange: CheckboxProps['onChange'] = (e) => {
     e.stopPropagation();
@@ -56,23 +58,14 @@ const CardDetails: React.FC = (props) => {
               </div>
 
               <div className="space-y-3 ml-8">
-                {/* List Section */}
+                
                 <div className="flex items-center space-x-2">
-                  <span className="text-gray-500 text-sm">in list</span>
-                  <Dropdown
-                    menu={{ 
-                      items: [
-                        { key: '1', label: 'Terkirim ke DM' },
-                        { key: '2', label: 'Revisi Desain' },
-                        { key: '3', label: 'Desain Terambil' }
-                      ] 
-                    }}
-                    trigger={['click']}
-                  >
-                    <Button size="small" className="rounded-md border border-gray-300 hover:bg-gray-50 font-medium">
-                      TERKIRIM KE DM <ChevronDown size={14} />
-                    </Button>
-                  </Dropdown>
+                  {/* List Section */}
+                  <div>
+                    <span className="text-gray-500 text-sm mr-2">in list</span>
+                    <ListSelection ref={listSelectionRef} size="small" width={"fit-content"}/>
+                  </div>
+                  
                   <Button 
                     icon={<Eye size={14} />} 
                     size="small" 

@@ -15,11 +15,10 @@ import Image from "next/image";
 import { PictureOutlined, StarOutlined } from "@ant-design/icons";
 import "./style.css";
 import { Board } from "@/app/dto/types";
-import { setSelectedBoard } from "@/app/store/app_slice";
 import { useDispatch } from "react-redux";
 import { useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
-import { selectCurrentBoard, selectCurrentWorkspace } from "@/app/store/workspace_slice";
+import { selectCurrentBoard, selectCurrentWorkspace, setCurrentBoard } from "@/app/store/workspace_slice";
 import { useBoards } from "@/app/hooks/board";
 import { useMemo, useState } from "react";
 import { Color } from "antd/es/color-picker";
@@ -69,16 +68,16 @@ const CreateBoard: React.FC<ModalCreateBoardForm> = (props: ModalCreateBoardForm
           
           // Update the selected board with the server data
           if (createdBoard) {
-            dispatch(setSelectedBoard(createdBoard));
+            dispatch(setCurrentBoard(createdBoard));
             router.push(`/workspace/${currentWorkspace.id}/board/${createdBoard.id}`);
           } else {
             // Fallback to using the temp ID if there's an issue
-            dispatch(setSelectedBoard(board));
+            dispatch(setCurrentBoard(board));
             router.push(`/workspace/${currentWorkspace.id}/board/${tempId}`);
           }
           
           // Reset and close
-          dispatch(setSelectedBoard(board));
+          dispatch(setCurrentBoard(board));
           form.resetFields();
           setBg(DEFAULT_COLOR);
           setOpen(false);

@@ -90,7 +90,7 @@ const Actions: React.FC = ({ }) => {
       />
 
       {/* Power-Ups Section */}
-      <div className="mt-4 mb-2">
+      {/* <div className="mt-4 mb-2">
         <h3 className="text-sm font-medium text-gray-600 px-4 mb-2">Power-Ups</h3>
         <button
           className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700"
@@ -98,10 +98,10 @@ const Actions: React.FC = ({ }) => {
           <Plus size={14} />
           <span className="text-xs">Add Power-Ups</span>
         </button>
-      </div>
+      </div> */}
 
       {/* Automation Section */}
-      <div className="mt-4 mb-2 flex items-center justify-between px-4">
+      {/* <div className="mt-4 mb-2 flex items-center justify-between px-4">
         <h3 className="text-sm font-medium text-gray-600">Automation</h3>
         <InfoCircle size={14} className="text-gray-500" />
       </div>
@@ -110,7 +110,7 @@ const Actions: React.FC = ({ }) => {
       >
         <Plus size={14} />
         <span className="text-xs">Add button</span>
-      </button>
+      </button> */}
 
       {/* Actions Section */}
       <div className="mt-4 mb-2">

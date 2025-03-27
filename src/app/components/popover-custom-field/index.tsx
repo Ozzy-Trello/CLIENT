@@ -1,11 +1,13 @@
 import React, { ReactNode, useEffect, useState } from "react";
-import { Popover, Typography } from "antd";
+import { Button, Popover, Typography } from "antd";
 import HomeCustomField from "./home-custom-field";
 import { ChevronLeft, X } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useCustomFields } from "@/app/hooks/custom_field";
 import AddUpdateField from "./add-update-field";
 import { CustomField } from "@/app/dto/types";
+import CustomOption from "./custom-option";
+import TriggerContent from "./trigger";
 
 interface PopoverCustomFieldProps {
   open: boolean;
@@ -21,7 +23,7 @@ const PopoverCustomField: React.FC<PopoverCustomFieldProps> = ({
   const { workspaceId } = useParams();
   const currentWorkspaceId = Array.isArray(workspaceId) ? workspaceId[0] : workspaceId;
   
-  const [popoverPage, setPopoverPage] = useState<'home' | 'add' | 'update'>('home');
+  const [popoverPage, setPopoverPage] = useState<'home' | 'add' | 'update' | 'trigger' | 'custom-option'>('home');
   const [selectedCustomField, setSelectedCustomField] = useState<CustomField | undefined>();
   
   const { 
@@ -65,30 +67,45 @@ const PopoverCustomField: React.FC<PopoverCustomFieldProps> = ({
             addCustomField={addCustomField}
             updateCustomField={updateCustomField}
           />
-        ) : null
+        ) : (popoverPage == 'custom-option') ? (
+          null
+        ) : (popoverPage == 'trigger') ? (
+          <TriggerContent
+            popoverPage={popoverPage}
+            setPopoverPage={setPopoverPage}
+            selectedCustomField={selectedCustomField}
+            setSelectedCustomField={setSelectedCustomField}
+          />
+        ) : (
+          null
+        )
       }
       title={
         <div className="flex justify-between items-center">
           <div className="flex justify-start items-center gap-2">
             {popoverPage !== "home" && (
-              <button className="cursor-pointer">
+              <Button size="small" type="text">
                 <ChevronLeft size={16} onClick={goBack} />
-              </button>
+              </Button>
             )}
             <Typography.Title level={5} className="m-0">
               {
                 popoverPage === "home" ? "Custom Fields" :
                 popoverPage === "add" ? "Add new custom field" :
-                popoverPage === "update" ? "Update custom field" : null
+                popoverPage === "update" ? "Update custom field" :
+                popoverPage === "custom-option" ? "Custom option" :
+                popoverPage === "trigger" ? "Trigger" :
+                ""
               }
             </Typography.Title>
           </div>
-          <button 
+          <Button 
+            size="small"
+            type="text"
             onClick={() => setOpen(false)}
-            className="hover:bg-gray-100 p-1 rounded-sm transition-colors"
           >
             <X size={14} className="text-gray-400"/>
-          </button>
+          </Button>
         </div>
       }
       trigger="click"

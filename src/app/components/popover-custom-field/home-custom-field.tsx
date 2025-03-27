@@ -62,8 +62,6 @@ const HomeCustomField: React.FC<HomeCustomFieldProps> = (props) => {
     // Update local state to show the new order immediately
     setItems(reorderedItems);
     
-    // If you have a backend API to update the order, call it here
-    // For example:
     // if (props.reorderCustomFields) {
     //   props.reorderCustomFields(removed.id, result.destination.index);
     // }

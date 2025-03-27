@@ -6,11 +6,18 @@ import { Ellipsis, ListFilter, Menu, SlidersHorizontal, Star, UserPlus, Users } 
 import { useSelector } from "react-redux";
 import { selectCurrentBoard } from "@/app/store/workspace_slice";
 
-const Topbar: React.FC = () => {
+interface BoardTopbarProps {
+  boardScopeMenuOpen: boolean;
+  setBoardScopeMenuOpen: any;
+}
+
+const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
+  const { boardScopeMenuOpen, setBoardScopeMenuOpen } = props;
   const { collapsed, siderSmall, siderWide } = useWorkspaceSidebar();
-  const [showRightColMenu, setIsShowRighColtMenu] = useState(false);
+  const [showRightColMenu, setIsShowRighColtMenu] = useState(true);
   const [openRightMenu, setOpenRightMenu] = useState(false);
   const currentBoard = useSelector(selectCurrentBoard);
+
   const [members, setMembers] = useState([
     // getUserById('1'),
     // getUserById('2'),
@@ -81,7 +88,7 @@ const Topbar: React.FC = () => {
               </Button>
             </Tooltip>
             <Tooltip title="more">
-              <Button size="small" icon={<Ellipsis size={16} />}>
+              <Button type="text" size="small" icon={<Ellipsis size={16} />} onClick={() => {setBoardScopeMenuOpen(true)}}>
               </Button>
             </Tooltip>
           </div>
@@ -102,4 +109,4 @@ const Topbar: React.FC = () => {
   );
 };
 
-export default Topbar;
+export default BoardTopbar;

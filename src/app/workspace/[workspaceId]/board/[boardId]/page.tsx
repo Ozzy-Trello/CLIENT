@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import React, { useCallback, useEffect, useState } from "react";
-import Topbar from "./topbar";
+import BoardTopbar from "./topbar";
 import { useSelector } from "react-redux";
 import { selectTheme, selectUser } from "@/app/store/app_slice";
 import { useWorkspaceSidebar } from "@/app/provider/workspace-sidebar-context";
@@ -17,6 +17,7 @@ import { Plus, X } from "lucide-react";
 import { CardDetailProvider } from "@/app/provider/card-detail-context";
 import CardDetails from "./card-details";
 import ListSkeleton from "./list-skeleton.tsx";
+import BoardScopeMenu from "@/app/components/board-scope-menu";
 
 const DragDropContext = dynamic(
   () => import("@hello-pangea/dnd").then((mod) => mod.DragDropContext),
@@ -33,6 +34,7 @@ const Board: React.FC = () => {
   const [ listData, setListData ] = useState<AnyList[]>();
   const [ isAddingList, setIsAddingList ] = useState<boolean>(false);
   const [ newListName, setNewListName ] = useState<string>("");
+  const [ boardScopeMenu, setBoardScopeMenu] = useState<boolean>(false);
 
 
   const onListDragEnd = useCallback(
@@ -99,7 +101,7 @@ const Board: React.FC = () => {
        width: collapsed ? `calc(100%-${siderSmall})` : `calc(100%-${siderWide})`
       }}
     >
-      <Topbar />
+      <BoardTopbar boardScopeMenuOpen={boardScopeMenu} setBoardScopeMenuOpen={setBoardScopeMenu} />
       <CardDetailProvider>
         <div className="pt-[50px] h-[calc(100vh-30px)] overflow-x-auto overflow-y-hidden min-w-[200px]">
           {!isLoading && (
@@ -169,6 +171,10 @@ const Board: React.FC = () => {
           )}
         </div>
         <CardDetails />
+        <BoardScopeMenu
+          visible={boardScopeMenu}
+          setIsVisible={setBoardScopeMenu}
+        />
       </CardDetailProvider>
     </div>
   );
