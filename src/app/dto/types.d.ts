@@ -33,6 +33,7 @@ export interface Board {
   background?: color[] | string;
   isStarred?: boolean;
   description?: string;
+  visibility?:string;
   createdBy?: User;
   createdAt: string;
   updatedBy?: User;

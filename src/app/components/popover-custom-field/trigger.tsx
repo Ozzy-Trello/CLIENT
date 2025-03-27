@@ -76,7 +76,7 @@ const TriggerContent: React.FC<TriggerProps> = (props) => {
       return;
     }
 
-    if (!triggerState.conditionValue) {
+    if (!triggerState?.conditionalValue) {
       messageApi.error("Please enter a condition value");
       return;
     }
@@ -84,7 +84,7 @@ const TriggerContent: React.FC<TriggerProps> = (props) => {
     // Update the target list ID from the selection component
     const updatedTrigger: Trigger = {
       name: triggerState.name,
-      conditionalValue: triggerState.conditionValue,
+      conditionalValue: triggerState.conditionalValue,
       action: {
         targetListId: listId,
         message: triggerState.action.message,
@@ -196,7 +196,7 @@ const TriggerContent: React.FC<TriggerProps> = (props) => {
               <Input
                 size="small"
                 className="min-w-2"
-                value={triggerState.conditionValue}
+                value={triggerState.conditionalValue}
                 onChange={handleConditionValueChange}
                 placeholder="Enter value"
                 disabled={loading}
