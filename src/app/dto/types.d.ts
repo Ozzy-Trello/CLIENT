@@ -22,7 +22,7 @@ export interface User {
   refreshToken?: string;
   accessToken?: string;
   avatar?: string;
-  roleName?:string;
+  roleName?: string;
 }
 
 export interface Board {
@@ -30,10 +30,10 @@ export interface Board {
   workspaceId?: string;
   name?: string;
   cover?: string;
-  background?: color[] | string;
+  background?: string;
   isStarred?: boolean;
   description?: string;
-  visibility?:string;
+  visibility?: string;
   createdBy?: User;
   createdAt: string;
   updatedBy?: User;
@@ -86,7 +86,12 @@ export interface ActivityItem {
 }
 
 // For custom fields
-export type CustomFieldValueType = 'text' | 'number' | 'date' | 'checkbox' | 'dropdown';
+export type CustomFieldValueType =
+  | "text"
+  | "number"
+  | "date"
+  | "checkbox"
+  | "dropdown";
 
 export interface CustomField {
   id: string;
@@ -180,7 +185,7 @@ export interface List {
   boardId: string;
   name?: string;
   cover?: string;
-  type?: 'regular';
+  type?: "regular";
   cardIds?: string[];
   cards?: Card[];
   position?: number;
@@ -192,7 +197,7 @@ export interface FilterList {
   id: string;
   boardId: string;
   name?: string;
-  type?: 'filter';
+  type?: "filter";
   cardIds?: string[];
   cards?: Card[];
   position?: number;
