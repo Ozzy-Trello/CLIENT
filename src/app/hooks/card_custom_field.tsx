@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { cardCustomFields } from "../api/card_custom_field";
-import { ApiResponse, CardCustomField } from "../dto/types";
+import { ApiResponse, CardCustomField, Trigger } from "../dto/types";
 import { api } from "../api";
 
 export const useCardCustomField = (cardId: string) => {
@@ -21,17 +21,23 @@ export const useCardCustomField = (cardId: string) => {
       customFieldId, 
       cardId
     } : {
-      value: string, 
+      value: Trigger, 
       customFieldId: string, 
       cardId: string
     }) => {
       console.log("API - Adding custom field:", { value, customFieldId, cardId });
-      const param = {
-        value,
-        customFieldId,
-        cardId
-      };
-      return api.post(`/card/${cardId}/custom-field/${customFieldId}`, param);
+      // const param = {
+      //   value,
+      //   customFieldId,
+      //   cardId
+      // };
+
+      const params = {
+        trigger: value,
+        value: "e6097fcc-a35b-4a22-9556-8f648c87b103"
+      } 
+
+      return api.post(`/card/${cardId}/custom-field/${customFieldId}`, params);
     },
     onMutate: async({ value, customFieldId, cardId }) => {
       console.log("Optimistically adding custom field:", { value, customFieldId, cardId });
@@ -46,7 +52,7 @@ export const useCardCustomField = (cardId: string) => {
       const tempCustomField: CardCustomField = {
         customFieldId,
         cardId,
-        value
+        value: ""
       };
 
       try {
@@ -68,7 +74,7 @@ export const useCardCustomField = (cardId: string) => {
               const updatedData = [...safeOldData];
               updatedData[existingIndex] = { 
                 ...updatedData[existingIndex], 
-                value
+                value: ""
               };
               return { ...old, data: updatedData };
             } else {
@@ -86,7 +92,7 @@ export const useCardCustomField = (cardId: string) => {
       
       // Also update the card data in cache if it exists
       try {
-        updateCardInCache(queryClient, cardId, customFieldId, value);
+        updateCardInCache(queryClient, cardId, customFieldId, "");
       } catch (error) {
         console.error("Error updating card cache:", error);
       }
@@ -300,7 +306,7 @@ export const useCardCustomField = (cardId: string) => {
   function updateCardInCache(
     queryClient: any, 
     cardId: string, 
-    customFieldId: string, 
+    customFieldId: string,
     value: string | null,
     isDelete: boolean = false
   ) {

@@ -105,7 +105,7 @@ export interface CustomOption {
 
 export interface Trigger {
   name?: string;
-  conditionValue?: string;
+  conditionalValue?: string;
   action?: TriggerAction;
 }
 

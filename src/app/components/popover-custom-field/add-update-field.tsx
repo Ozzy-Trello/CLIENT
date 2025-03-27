@@ -271,7 +271,7 @@ const AddUpdateField: React.FC<AddUpdateFieldProps> = (props) => {
           iconPosition="end"
           onClick={() => {setPopoverPage('trigger')}}
         >
-          Trigger
+          Trigger & Assignment
         </Button>
       </div>
 
