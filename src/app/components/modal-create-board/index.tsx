@@ -36,14 +36,14 @@ const CreateBoard: React.FC<ModalCreateBoardForm> = (props: ModalCreateBoardForm
   const currentWorkspace = useSelector(selectCurrentWorkspace);
   const currentBoard = useSelector(selectCurrentBoard);
   const { createBoard } = useBoards(currentWorkspace?.id ?? '');
-  const DEFAULT_COLOR = 'rgba(255, 255, 255, 1)';
+  const DEFAULT_COLOR = '#FFFFFF';
   const [bg, setBg] = useState<string>(DEFAULT_COLOR);
   const router = useRouter();
   const dispatch = useDispatch();
 
 
   const handleColorChange = (color: any, hex: any) => {
-    setBg(color.toRgbString());
+    setBg(color.toHexString());
   }
   
   const onFinish = async (values: any) => {
@@ -54,9 +54,9 @@ const CreateBoard: React.FC<ModalCreateBoardForm> = (props: ModalCreateBoardForm
         workspaceId: currentWorkspace?.id,
         name: values.title,
         cover: '',
-        background: values.background.toRgbString(),
+        background: values?.background?.toHexString() || "#FFFFFF",
         isStarred: false,
-        visibility: '',
+        description: values.description,
         createdAt: '',
         upatedAt: '',
       }
@@ -112,7 +112,7 @@ const CreateBoard: React.FC<ModalCreateBoardForm> = (props: ModalCreateBoardForm
         initialValues={{ 
           title: "", 
           workspace: "Personal", 
-          visibility: "Private",
+          description: "",
           background: DEFAULT_COLOR
         }}
       >
@@ -154,7 +154,9 @@ const CreateBoard: React.FC<ModalCreateBoardForm> = (props: ModalCreateBoardForm
             name="background" 
             label={<Text strong>Background</Text>}
           >
-            <ColorPicker 
+            <ColorPicker
+              defaultFormat="hex"
+              format="hex"
               disabledAlpha={false} 
               value={DEFAULT_COLOR}
               onChange={handleColorChange}
@@ -174,8 +176,8 @@ const CreateBoard: React.FC<ModalCreateBoardForm> = (props: ModalCreateBoardForm
             <WorkspaceSelection />
           </Form.Item>
           
-          <Form.Item name="visibility" label={<Text strong>Visibility</Text>}>
-            <VisibilitySelection />
+          <Form.Item name="description" label={<Text strong>Description</Text>}>
+            <Input placeholder="Description..." size="large" />
           </Form.Item>
         
         </div>
