@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { Provider } from "react-redux";
 import { PersistGate } from "redux-persist/integration/react";
@@ -7,17 +7,16 @@ import { WorkspaceSidebarProvider } from "@/app/provider/workspace-sidebar-conte
 import { ThemeProvider } from "@/app/provider/theme-provider";
 import { AntdRegistry } from "@ant-design/nextjs-registry";
 import QueryProvider from "./query-provider";
+import Loading from "../loading";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <Provider store={store}>
-      <PersistGate loading={<p>Loading...</p>} persistor={persistor}>
+      <PersistGate loading={<Loading />} persistor={persistor}>
         <QueryProvider>
           <AntdRegistry>
             <ThemeProvider userId="1">
-              <WorkspaceSidebarProvider>
-                {children}
-              </WorkspaceSidebarProvider>
+              <WorkspaceSidebarProvider>{children}</WorkspaceSidebarProvider>
             </ThemeProvider>
           </AntdRegistry>
         </QueryProvider>
