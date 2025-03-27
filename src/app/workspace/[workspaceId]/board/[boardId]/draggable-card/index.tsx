@@ -113,7 +113,7 @@ const DraggableCard: React.FC<DraggableCardProps> = ({
             <div className="space-y-2 mb-3">
               {card?.customFields?.map((item, index) => (
                 <div key={`${card.id}-field-${index}`} className="text-gray-700 text-[11px]">
-                  <span className="font-medium">{item.name}:</span> {item.value?.displayValue}
+                  <span className="font-medium">{item.name}:</span> {item.value}
                 </div>
               ))}
             </div>
