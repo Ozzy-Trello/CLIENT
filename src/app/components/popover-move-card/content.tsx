@@ -1,12 +1,19 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Modal, Select, Button } from 'antd';
 import { X } from 'lucide-react';
+import { ListSelection, SelectionRef } from '../selection';
+import { useCardDetailContext } from '@/app/provider/card-detail-context';
+import { useCards } from '@/app/hooks/card';
 
 
 const ContentMoveCard: React.FC = () => {
+  const {selectedCard, setSelectedCard,  isCardDetailOpen, openCardDetail, closeCardDetail } = useCardDetailContext();
   const [selectedBoard, setSelectedBoard] = useState<string>("board1");
-  const [selectedList, setSelectedList] = useState<string>("list1");
+  const [selectedList, setSelectedList] = useState<string>(selectedCard?.listId || "");
   const [selectedPosition, setSelectedPosition] = useState<number>(1);
+  const listSelectionRef = useRef<SelectionRef>(null);
+  const { updateCard } = useCards(selectedCard?.listId || '');
+  
 
   const boardOptions = [
     { value: 'board1', label: '4.7 Request Desain | Outlet' },
@@ -29,9 +36,23 @@ const ContentMoveCard: React.FC = () => {
   }
 
   const handleMove = () => {
-    // onMove(selectedBoard, selectedList, selectedPosition);
-    onClose();
+    if (selectedCard) {
+      updateCard({
+        cardId: selectedCard?.id,
+        updates: { 
+          listId: selectedList
+        },
+        listId: selectedCard?.listId,
+        destinationListId: selectedList
+      });
+    }
   };
+
+  const onListChange = (value: string, option: object) => {
+    console.log("List changed to: ", value, option);
+    setSelectedList(value);
+  } 
+  
 
   return (
     <div className="py-2">
@@ -50,11 +71,12 @@ const ContentMoveCard: React.FC = () => {
       <div className="grid grid-cols-2 gap-4 mb-6">
         <div>
           <h3 className="text-gray-800 font-medium mb-2">List</h3>
-          <Select
-            className="w-full"
-            value={selectedList}
-            onChange={setSelectedList}
-            options={listOptions}
+          <ListSelection 
+            ref={listSelectionRef} 
+            size="small" 
+            width={"fit-content"} 
+            value={selectedCard?.listId}
+            onChange={onListChange}
           />
         </div>
         

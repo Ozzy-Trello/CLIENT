@@ -29,9 +29,9 @@ const TopBar: React.FC = React.memo(() => {
   ];
   
   const handleLogout = () => {
+    router.push("/login");
     dispatch(setAccessToken(""));
     dispatch(setUser({}));
-    router.push("/login");
   };
   
   const avatarMenuItems: MenuProps["items"] = [

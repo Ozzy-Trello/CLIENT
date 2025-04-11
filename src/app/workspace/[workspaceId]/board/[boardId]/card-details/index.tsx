@@ -14,20 +14,92 @@ import { useCustomFields } from "@/app/hooks/custom_field";
 import { useParams } from "next/navigation";
 import CustomFields from "./custom-field";
 import { ListSelection, SelectionRef } from "@/app/components/selection";
+import { useCards } from "@/app/hooks/card";
+import { useLists } from "@/app/hooks/list";
 
 const CardDetails: React.FC = (props) => {
   const params = useParams();
   const workspaceId = Array.isArray(params.workspaceId) ? params.workspaceId[0] : params.workspaceId;
+  const boardId = Array.isArray(params.boardId) ? params.boardId[0] : params.boardId;
   const {selectedCard, setSelectedCard,  isCardDetailOpen, openCardDetail, closeCardDetail } = useCardDetailContext();
   const currentUser = useSelector(selectUser);
   const [isComplete, setIsComplete] = useState<boolean>(false);
   const {customFields} = useCustomFields(workspaceId || '');
   const listSelectionRef = useRef<SelectionRef>(null);
+  const [isEditingTitle, setIsEditingTitle] = useState<boolean>(false);
+  const [newTitle, setNewTitle] = useState<string>("");
+  const { updateCard } = useCards(selectedCard?.listId || '');
+  const { lists } = useLists(boardId || '');
 
-  const onChange: CheckboxProps['onChange'] = (e) => {
+  const onCardComplete: CheckboxProps['onChange'] = (e) => {
     e.stopPropagation();
-    setIsComplete(e.target.checked);
+    const isChecked = e.target.checked;
+    setIsComplete(isChecked);
+    
+    // If checked, move the card to next list
+    if (isChecked && selectedCard) {
+      // Find the current list index
+      const currentListIndex = lists.findIndex(list => list.id === selectedCard.listId);
+      
+      // Get the next list if it exists
+      if (currentListIndex !== -1 && currentListIndex < lists.length - 1) {
+        const nextListId = lists[currentListIndex + 1].id;
+        
+        // Move card to next list
+        updateCard({
+          cardId: selectedCard.id,
+          updates: { 
+            listId: nextListId
+          },
+          listId: selectedCard.listId,
+          destinationListId: nextListId
+        });
+      }
+    }
   };
+
+  const handleSaveTitleClick = () => {
+    if (!selectedCard) return;
+    
+    console.log("Saving title:", newTitle);
+    updateCard({
+      cardId: selectedCard.id,
+      updates: {
+        listId: selectedCard.listId,
+        name: newTitle,
+      },
+      listId: selectedCard.listId,
+      destinationListId: selectedCard.listId,
+    }, {
+      onSuccess: (data) => {
+        console.log("Title update successful:", data);
+        if (setSelectedCard) {
+          setSelectedCard({
+            ...selectedCard,
+            name: newTitle
+          });
+        }
+        setIsEditingTitle(false);
+      },
+      onError: (error) => {
+        console.error("Title update failed:", error);
+      }
+    });
+  };
+
+  const onListChange = (value: string, option: object) => {
+    console.log("List changed to: ", value, option);
+    if (selectedCard) {
+      updateCard({
+        cardId: selectedCard?.id,
+        updates: { 
+          listId: value
+        },
+        listId: selectedCard?.listId,
+        destinationListId: value
+      });
+    }
+  } 
   
   return(
     <Modal
@@ -50,11 +122,37 @@ const CardDetails: React.FC = (props) => {
               <div className="flex items-center gap-2 mb-4">
                 <Checkbox 
                   className="custom-circular-checkbox"
-                  onChange={onChange} 
+                  onChange={onCardComplete} 
                   onClick={(e) => e.stopPropagation()}
                   checked={isComplete}
                 />
-                <h1 className="text-5xl font-bold mb-0 ml-2">{selectedCard?.name}</h1>
+                {isEditingTitle ? (
+                  <input
+                    type="text"
+                    value={newTitle}
+                    onChange={(e) => setNewTitle(e.target.value)}
+                    onBlur={handleSaveTitleClick}
+                    autoFocus
+                    className="font-bold mb-0 ml-2 px-2 py-1 w-full border border-blue-400 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleSaveTitleClick();
+                      } else if (e.key === 'Escape') {
+                        setIsEditingTitle(false);
+                      }
+                    }}
+                  />
+                ) : (
+                  <h1 
+                    className="text-5xl font-bold mb-0 ml-2 cursor-pointer hover:bg-gray-50 px-2 py-1 rounded-md"
+                    onClick={() => {
+                      setNewTitle(selectedCard?.name || "");
+                      setIsEditingTitle(true);
+                    }}
+                  >
+                    {selectedCard?.name}
+                  </h1>
+                )}
               </div>
 
               <div className="space-y-3 ml-8">
@@ -63,7 +161,13 @@ const CardDetails: React.FC = (props) => {
                   {/* List Section */}
                   <div>
                     <span className="text-gray-500 text-sm mr-2">in list</span>
-                    <ListSelection ref={listSelectionRef} size="small" width={"fit-content"}/>
+                    <ListSelection 
+                      ref={listSelectionRef} 
+                      size="small" 
+                      width={"fit-content"} 
+                      value={selectedCard?.listId}
+                      onChange={onListChange}
+                    />
                   </div>
                   
                   <Button 

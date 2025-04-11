@@ -3,6 +3,7 @@ import React from 'react';
 import { Button } from 'antd';
 import type { NextPage } from 'next';
 import { useParams, useRouter } from 'next/navigation';
+import RuleListPage from './rule/rule_list';
 
 const AutomationContent: NextPage = () => {
   const router = useRouter();
@@ -34,9 +35,7 @@ const AutomationContent: NextPage = () => {
         
         <div className="bg-white rounded-lg shadow-md p-6">
           <h2 className="text-xl font-medium mb-4">Your Existing Rules</h2>
-          <div className="text-gray-500 italic">
-            No rules created yet.
-          </div>
+          <RuleListPage />
         </div>
       </div>
     </div>

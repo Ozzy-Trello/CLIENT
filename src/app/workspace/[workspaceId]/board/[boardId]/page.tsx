@@ -18,6 +18,8 @@ import { CardDetailProvider } from "@/app/provider/card-detail-context";
 import CardDetails from "./card-details";
 import ListSkeleton from "./list-skeleton.tsx";
 import BoardScopeMenu from "@/app/components/board-scope-menu";
+import { useCards } from "@/app/hooks/card";
+import { useQueryClient } from "@tanstack/react-query";
 
 const DragDropContext = dynamic(
   () => import("@hello-pangea/dnd").then((mod) => mod.DragDropContext),
@@ -35,11 +37,13 @@ const Board: React.FC = () => {
   const [ isAddingList, setIsAddingList ] = useState<boolean>(false);
   const [ newListName, setNewListName ] = useState<string>("");
   const [ boardScopeMenu, setBoardScopeMenu] = useState<boolean>(false);
+  const { updateCard } = useCards("");
+  const queryClient = useQueryClient();
 
 
   const onListDragEnd = useCallback(
     (result: DropResult) => {
-      const { destination, source, type } = result;
+      const { destination, source, type, draggableId } = result;
       
       // Drop outside any droppable area
       if (!destination) return;
@@ -52,12 +56,12 @@ const Board: React.FC = () => {
           handleListDragEnd(source.index, destination.index);
           break;
         case "card":
-          handleCardDragEnd(source.droppableId, destination.droppableId)
+          handleCardDragEnd(source.droppableId, destination.droppableId, draggableId);
       }
       
       
     },
-    [listData]
+    [listData, updateCard]
   );
 
   const handleListDragEnd = (from: number, to: number): void => {
@@ -69,11 +73,22 @@ const Board: React.FC = () => {
     });    
   }
 
-  const handleCardDragEnd = (sourceList: any, destList: any): void => {
+  const handleCardDragEnd = (sourceList: string, destList: string, cardId: string): void => {
+    
+    const sourceListId = sourceList?.replaceAll("droppable-card-area-", "");
+    const destListId = destList?.replaceAll("droppable-card-area-", "");
+
     if (sourceList === destList) {
 
     } else {
-      
+      updateCard({
+        cardId: cardId,
+        updates: { 
+          listId: destListId
+        },
+        listId: sourceListId,
+        destinationListId: destListId
+      });
     }
   }
 

@@ -1,13 +1,16 @@
 import RichTextEditor from "@/app/components/rich-text-editor";
 import { Card } from "@/app/dto/types";
+import { useCards } from "@/app/hooks/card";
 import { Button, Typography } from "antd";
 import { AlignLeft, Edit } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const Description: React.FC<{card: Card}> = ({card}) => {
 
   const [isEditingDescription, setIsEditingDescription] = useState<boolean>(false);
   const [newDescription, setNewDescription] = useState<string>("");
+  console.log("Description component card:", card);
+  const {updateCard} = useCards(card.listId);
 
   const enableEditDescription = () => {
     setIsEditingDescription(true);
@@ -18,8 +21,22 @@ const Description: React.FC<{card: Card}> = ({card}) => {
   };
 
   const handleSaveDescriptionClick = () => {
+    console.log("Saving description:", newDescription);
+    updateCard({
+      cardId: card.id,
+      updates: { 
+        listId: card.listId,
+        description: newDescription,
+      },
+      listId: card.listId,
+      destinationListId: card.listId,
+    });
     setIsEditingDescription(false);
   };
+
+  useEffect(() => {
+    setNewDescription(card.description || "");
+  }, [card.description]);
 
   return (
     <div className="mt-6">

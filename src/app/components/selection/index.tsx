@@ -202,10 +202,12 @@ export const ListSelection = forwardRef<SelectionRef, SelectionProps>(({
   width = "100%",
   size = "middle",
   style = {},
-  className = ""
+  className = "",
+  value,
+  onChange
 }, ref) => {
   const [options, setOptions] = useState<{ label: string; value: string; }[]>([]);
-  const [selectedValue, setSelectedValue] = useState<string>();
+  const [selectedValue, setSelectedValue] = useState<string | undefined>(value);
   const [selectedObject, setSelectedObject] = useState<{ label: string; value: string }>();
   const { boardId } = useParams();
   const { lists } = useLists(Array.isArray(boardId) ? boardId[0] : boardId);
@@ -231,6 +233,10 @@ export const ListSelection = forwardRef<SelectionRef, SelectionProps>(({
       setSelectedObject(selectedOptions[0]);
     } else {
       setSelectedObject({ label: option.label, value: option.value });
+    }
+
+    if (onChange) {
+      onChange(value, option);
     }
   };
  

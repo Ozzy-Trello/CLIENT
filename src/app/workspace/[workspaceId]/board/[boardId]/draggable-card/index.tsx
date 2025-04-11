@@ -37,7 +37,7 @@ const DraggableCard: React.FC<DraggableCardProps> = ({
           ref={provided.innerRef}
           {...provided.dragHandleProps}
           {...provided.draggableProps}
-          onClick={() => {openCardDetail(card)}}
+          onClick={() => {openCardDetail(card, list)}}
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
         >
@@ -104,9 +104,9 @@ const DraggableCard: React.FC<DraggableCardProps> = ({
                   <span className="text-sm">{card?.attachments?.length || 0}</span>
                 </div>
               </Tooltip>
-              <div className="text-green-600 text-[14px]">
+              {/* <div className="text-green-600 text-[14px]">
                 Cabang: {card.location}
-              </div>
+              </div> */}
             </div>
          
             {/* Custom fields */}

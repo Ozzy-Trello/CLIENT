@@ -115,7 +115,7 @@ export function useCards(listId: string) {
       listId: string;
       destinationListId?: string; // Only needed for moving cards between lists
     }) => {
-      return api.patch(`/card/${cardId}`, updates);
+      return api.put(`/card/${cardId}`, updates);
     },
     onMutate: async ({ cardId, updates, listId, destinationListId }) => {
       // For regular updates within the same list
@@ -140,9 +140,7 @@ export function useCards(listId: string) {
         );
         
         return { previousCards, isMoveOperation: false };
-      } 
-      // For moving a card between lists
-      else {
+      } else { // For moving a card between lists
         // Cancel queries for both source and destination lists
         await Promise.all([
           queryClient.cancelQueries({ queryKey: ["cards", listId] }),
@@ -161,7 +159,7 @@ export function useCards(listId: string) {
         if (!cardToMove) return { isMoveOperation: false };
         
         // Updated card with new list ID
-        const updatedCard = { ...cardToMove, ...updates, listId: destinationListId };
+        const updatedCard = { ...cardToMove, listId: destinationListId };
         
         // Remove from source list
         queryClient.setQueryData(

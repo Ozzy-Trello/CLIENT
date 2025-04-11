@@ -1,9 +1,6 @@
 import { Button, Input, Select, message } from "antd";
-import { ChevronRight, GripVertical, Plus } from "lucide-react";
 import { useParams } from "next/navigation";
-import { DragDropContext, Draggable, Droppable, DropResult } from "@hello-pangea/dnd";
 import { CustomField, Trigger, TriggerAction } from "@/app/dto/types";
-import SkeletonInput from "antd/es/skeleton/Input";
 import { useState, useEffect, useRef } from "react";
 import { ListSelection, SelectionRef } from "../selection";
 import { useCardCustomField } from "@/app/hooks/card_custom_field";
@@ -84,7 +81,7 @@ const TriggerContent: React.FC<TriggerProps> = (props) => {
     // Update the target list ID from the selection component
     const updatedTrigger: Trigger = {
       name: triggerState.name,
-      conditionalValue: triggerState.conditionalValue,
+      conditionalValue: "e6097fcc-a35b-4a22-9556-8f648c87b103",
       action: {
         targetListId: listId,
         message: triggerState.action.message,
@@ -128,7 +125,7 @@ const TriggerContent: React.FC<TriggerProps> = (props) => {
   const handleConditionValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setTriggerState(prev => ({
       ...prev,
-      conditionValue: e.target.value
+      conditionalValue: e.target.value
     }));
   };
 

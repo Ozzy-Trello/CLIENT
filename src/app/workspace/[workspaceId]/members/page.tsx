@@ -45,7 +45,7 @@ const TableMembers: React.FC<{ dataSource?: Account[] }> = ({
       render: (_: any, record: any) => {
         return (
           <div className="flex items-center gap-4">
-            <Avatar size="small" src={record.avatar}></Avatar>
+            <Avatar size="small"  src={record?.avatar || `https://ui-avatars.com/api/?name=${record?.username}&background=random`}></Avatar>
             <div>
               <Typography.Text strong={true}>{record.fullname}</Typography.Text>
               <div className="flex items-center gap-2">

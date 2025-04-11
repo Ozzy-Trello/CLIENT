@@ -10,21 +10,23 @@ import ModalCreateBoard from "../modal-create-board";
 import { useDispatch } from "react-redux";
 import { MenuProps } from 'antd';
 import { useSelector } from "react-redux";
-import { selectBoards, selectCurrentBoard, selectCurrentWorkspace, setCurrentBoard } from "@/app/store/workspace_slice";
+import { selectCurrentBoard, selectCurrentWorkspace, setCurrentBoard } from "@/app/store/workspace_slice";
 import { useBoards } from "@/app/hooks/board";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 
 const { Sider } = Layout;
 type MenuItem = Required<MenuProps>['items'][number];
 
 const Sidebar = () => {
+  const dispatch = useDispatch();
+  const router = useRouter();
+  // const path = usePat
   const { collapsed, toggleSidebar, siderWide, siderSmall } = useWorkspaceSidebar();
+  const { workspaceId, boardId } = useParams();
   const [ allMenus, setAllMenus ] = useState<MenuItem[]>([]);
   const [ isFetching, setIsFetching ] = useState(false);
   const [ isHovered, setIsHovered ] = useState(false);
   const [ openCreateBoardModal, setOpenCreateBoardModal ] = useState<boolean>(false);
-  const dispatch = useDispatch();
-  const router = useRouter();
   const currentWorkspace = useSelector(selectCurrentWorkspace);
   const currentBoard = useSelector(selectCurrentBoard);
   const { boards } = useBoards(currentWorkspace?.id || '');
@@ -53,7 +55,7 @@ const Sidebar = () => {
     
     return [
       {
-        key: "menu-board",
+        key: `/workspace/${workspaceId}/board`,
         label: (
           <Link className="block w-full" href={`/workspace/${currentWorkspace.id}/board`}>
             Boards
@@ -62,7 +64,7 @@ const Sidebar = () => {
         icon: <Trello size={16}/>,
       },
       {
-        key: "menu-members",
+        key: `/workspace/${currentWorkspace.id}/members`,
         label: (
           <Link className="block w-full" href={`/workspace/${currentWorkspace.id}/members`}>
             Members
@@ -134,9 +136,7 @@ const Sidebar = () => {
               key: `menu-board-${board.id}`,
               label: (
                 <Typography.Text 
-                  className="block w-full" 
-                  onClick={() => handleSelectBoardItem(board)}
-                >
+                  className="block w-full text-left">
                   {board.name}
                 </Typography.Text>
               ),
@@ -167,6 +167,14 @@ const Sidebar = () => {
     // Execute the menu building
     buildMenus();
   }, [baseMenus, collapsed, currentWorkspace, boards]);
+
+  const selectedKeys = useMemo(() => {
+    if (boardId) {
+      return [`/workspace/${workspaceId}/board/${boardId}`];
+    } else {
+      return [`/workspace/${workspaceId}/board`];
+    }
+  }, [boardId, workspaceId]);
 
   // Render the sidebar
   return (
@@ -209,6 +217,12 @@ const Sidebar = () => {
                 defaultSelectedKeys={["1"]}
                 style={{ borderRight: 0, fontSize: "12px" }}
                 items={allMenus}
+                onClick={(e) => {
+                  const selectedBoard = boards?.find(board => `menu-board-${board.id}` === e.key);
+                  if (selectedBoard) {
+                    handleSelectBoardItem(selectedBoard);
+                  }
+                }}
                 className="[&_.ant-menu-item]:my-1 [&_.ant-menu-item-icon]:flex [&_.ant-menu-item-icon]:items-center text-[10px]"
               />
 
