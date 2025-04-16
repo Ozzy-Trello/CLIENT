@@ -7,15 +7,15 @@ interface CardDetailsLogsProps {
 const CardDetailsLogs: React.FC<CardDetailsLogsProps> = ({ logs }) => {
   return (
     <div className="fx-h-left-center" style={{margin: "10px 0px"}}>
-      <Avatar size={"small"} src={logs.user.avatar}></Avatar>
+      <Avatar size={"small"} src={`https://ui-avatars.com/api/?name=${logs?.senderUsername}&background=random`}></Avatar>
       <div>
         <div className="fx-h-left-center">
-          <Typography.Text>{logs.user.fullname}</Typography.Text>
-          <Typography.Text>{logs.timestamp}</Typography.Text>
+          <Typography.Text>{logs.senderUsername}</Typography.Text>
+          <Typography.Text>timestamp</Typography.Text>
         </div>
         
-        { logs.type === "comment" && (
-          <Typography.Text>{logs.content}</Typography.Text>
+        { logs.type === "text" && (
+          <Typography.Text>{logs.text}</Typography.Text>
         ) }
 
       </div>

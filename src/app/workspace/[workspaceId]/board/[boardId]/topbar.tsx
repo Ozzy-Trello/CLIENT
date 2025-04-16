@@ -25,6 +25,8 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
   const [showRightColMenu, setIsShowRighColtMenu] = useState(true);
   const [openRightMenu, setOpenRightMenu] = useState(false);
   const currentBoard = useSelector(selectCurrentBoard);
+  const [openAddMember, setOpenAddMember] = useState<boolean>(false);
+
 
   const [members, setMembers] = useState([
     // getUserById('1'),
@@ -96,6 +98,7 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
                 members={members}
                 membersLength={members.length}
                 membersLoopLimit={2}
+                openAddMember={openAddMember} setOpenAddMember={setOpenAddMember}
               />
             </div>
             <Tooltip title="Share board">

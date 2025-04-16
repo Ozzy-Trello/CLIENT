@@ -22,6 +22,7 @@ const DraggableCard: React.FC<DraggableCardProps> = ({
   const {selectedCard, isCardDetailOpen, openCardDetail, closeCardDetail } = useCardDetailContext();
   const [isComplete, setIsComplete] = useState<boolean>(false);
   const [isHovered, setIsHovered] = useState<boolean>(false);
+  const [openAddMember, setOpenAddMember] = useState<boolean>(false);
   
   const onChange: CheckboxProps['onChange'] = (e) => {
     e.stopPropagation();
@@ -134,7 +135,7 @@ const DraggableCard: React.FC<DraggableCardProps> = ({
               {/* Status badges */}
               {card?.members && (
                 <div className="flex gap-1">
-                  <MembersList members={card.members} membersLength={card?.members?.length} membersLoopLimit={3} />
+                  <MembersList members={card.members} membersLength={card?.members?.length} membersLoopLimit={3} openAddMember={openAddMember} setOpenAddMember={setOpenAddMember}/>
                 </div>
               )}
               
