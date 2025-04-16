@@ -14,6 +14,7 @@ import {
   Archive,
   Share2,
   RectangleEllipsis,
+  QrCode,
 } from "lucide-react";
 import PopoverCustomField from "@/app/components/popover-custom-field";
 import PopoverUser from "@/app/components/popover-user";
@@ -21,6 +22,7 @@ import PopoverDates from "@/app/components/popover-dates.tsx";
 import PopoverMoveCard from "@/app/components/popover-move-card";
 import PopoverCopyCard from "@/app/components/popover-copy-card";
 import { message } from "antd";
+import QRModal from "./qr-modal/qr-modal";
 
 const Actions: React.FC = ({}) => {
   const [openCustomField, setOpenCustomField] = useState(false);
@@ -28,6 +30,7 @@ const Actions: React.FC = ({}) => {
   const [openDates, setOpenDates] = useState(false);
   const [openMoveCard, setOpenMoveCard] = useState(false);
   const [openCopyCard, setOpenCopyCard] = useState(false);
+  const [openQrModal, setOpenQrModal] = useState(false);
 
   const menuItems = [
     { icon: <Users size={14} />, label: "Join" },
@@ -152,29 +155,20 @@ const Actions: React.FC = ({}) => {
           <Share2 size={14} />
           <span className="text-xs">Share</span>
         </button>
+
+        <button
+          onClick={() => {
+            setOpenQrModal(true);
+          }}
+          className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700"
+        >
+          <QrCode size={14} />
+          <span className="text-xs">Generate QR</span>
+        </button>
+
+        <QRModal isOpen={openQrModal} onClose={() => {setOpenQrModal(false)}} />
       </div>
     </div>
-  );
-};
-
-const InfoCircle = ({ size = 24, className = "" }) => {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-    >
-      <circle cx="12" cy="12" r="10"></circle>
-      <line x1="12" y1="16" x2="12" y2="12"></line>
-      <line x1="12" y1="8" x2="12.01" y2="8"></line>
-    </svg>
   );
 };
 

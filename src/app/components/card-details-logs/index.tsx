@@ -1,8 +1,8 @@
-import { ActivityItem } from "@/app/dto/types";
+import { CardActivity } from "@/app/dto/types";
 import { Avatar, Typography } from "antd";
 
 interface CardDetailsLogsProps {
-  logs: ActivityItem;
+  logs: CardActivity;
 }
 const CardDetailsLogs: React.FC<CardDetailsLogsProps> = ({ logs }) => {
   return (

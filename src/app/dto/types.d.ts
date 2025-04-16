@@ -74,15 +74,33 @@ export interface CardTime {
   lastActivity?: string; // ISO date string
 }
 
-export interface ActivityItem {
+// export interface ActivityItem {
+//   id: string;
+//   type: string; // "comment", "update", "attachment", "move", etc.
+//   content: string;
+//   user: User;
+//   timestamp: string;
+//   via?: string; // e.g., "Butler"
+//   attachments?: Attachment[];
+//   referencedCardId?: string; // For @card mentions
+// }
+export interface CardActivity {
   id: string;
-  type: string; // "comment", "update", "attachment", "move", etc.
-  content: string;
-  user: User;
-  timestamp: string;
-  via?: string; // e.g., "Butler"
-  attachments?: Attachment[];
-  referencedCardId?: string; // For @card mentions
+  senderUsername: string; // "comment", "update", "attachment", "move", etc.
+  senderUserId: string;
+  type: "text" | "action";
+  text: string;
+  source: AcitivitySource;
+}
+
+export interface AcitivitySource {
+  actionType: string;
+  fromId: string;
+  from: string;
+  destination: string;
+  destinationId: string;
+  tagId: string;
+  tagName: string;
 }
 
 // For custom fields
@@ -161,7 +179,7 @@ export interface Card {
   members?: User[];
   customFields?: CustomField[];
   time?: CardTime;
-  activity?: ActivityItem[];
+  activity?: CardActivity[];
   checklists?: Checklist[];
   isWatched?: boolean;
   isArchived?: boolean;

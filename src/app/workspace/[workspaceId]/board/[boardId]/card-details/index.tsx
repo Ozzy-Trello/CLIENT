@@ -16,6 +16,7 @@ import CustomFields from "./custom-field";
 import { ListSelection, SelectionRef } from "@/app/components/selection";
 import { useCards } from "@/app/hooks/card";
 import { useLists } from "@/app/hooks/list";
+import { useCardActivity } from "@/app/hooks/card_activity";
 
 const CardDetails: React.FC = (props) => {
   const params = useParams();
@@ -29,7 +30,9 @@ const CardDetails: React.FC = (props) => {
   const [isEditingTitle, setIsEditingTitle] = useState<boolean>(false);
   const [newTitle, setNewTitle] = useState<string>("");
   const { updateCard } = useCards(selectedCard?.listId || '');
+  const { cardActivities } = useCardActivity(selectedCard?.id || '');
   const { lists } = useLists(boardId || '');
+  const [openAddMember, setOpenAddMember] = useState<boolean>(false);
 
   const onCardComplete: CheckboxProps['onChange'] = (e) => {
     e.stopPropagation();
@@ -183,7 +186,13 @@ const CardDetails: React.FC = (props) => {
                     <div className="space-y-2 text-xs">
                       <span className="text-gray-300 font-semibold text-xs block">Members</span>
                       <div>
-                        <MembersList members={selectedCard?.members || []} membersLength={selectedCard?.members?.length || 0} membersLoopLimit={3} />
+                        <MembersList 
+                          members={selectedCard?.members || []} 
+                          membersLength={selectedCard?.members?.length || 0} 
+                          membersLoopLimit={3}
+                          openAddMember={openAddMember}
+                          setOpenAddMember={setOpenAddMember}
+                        />
                       </div>
                     </div>
                   </div>
@@ -268,7 +277,7 @@ const CardDetails: React.FC = (props) => {
 
               {/* Activity Section */}
               {selectedCard && (
-                <Activity activities={selectedCard.activity || []} currentUser={currentUser} card={selectedCard} setCard={setSelectedCard} />
+                <Activity activities={cardActivities || []} currentUser={currentUser} card={selectedCard} setCard={setSelectedCard} />
               )}
 
             </Col>

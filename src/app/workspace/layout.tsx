@@ -9,7 +9,7 @@ import {
   useWorkspaceSidebar,
 } from "@/app/provider/workspace-sidebar-context";
 import Footer from "../components/footer";
-import UrlSynchronizer from "./url_synchronizer";
+// import UrlSynchronizer from "./url_synchronizer"; still error, needs to fix later
 
 const { Header, Content } = Layout;
 
@@ -23,7 +23,7 @@ const WorkspaceLayout: React.FC<BaseLayoutProps> = ({ children }) => {
 
   return (
     <Layout className="base-layout">
-      <UrlSynchronizer />
+      {/* <UrlSynchronizer /> */}
       <Header>
         <TopBar />
       </Header>

@@ -1,16 +1,15 @@
 import React, { useState } from 'react';
 import { Button, Input, Avatar, Typography, Divider } from 'antd';
-import { ClockCircleOutlined, MessageOutlined } from '@ant-design/icons';
-import { ActivityItem, Card, User } from '@/app/dto/types';
+import { MessageOutlined } from '@ant-design/icons';
+import { CardActivity, Card, User } from '@/app/dto/types';
 import { generateId } from '@/app/utils/general';
 import RichTextEditor from '@/app/components/rich-text-editor';
 import { ListCollapse } from 'lucide-react';
-import PopoverCustomField from '@/app/components/popover-custom-field';
 
 interface ActivitySectionProps {
   card: Card;
   setCard: React.Dispatch<React.SetStateAction<Card | null>>;
-  activities: ActivityItem[];
+  activities: CardActivity[];
   currentUser: User | null;
 }
 
@@ -31,13 +30,13 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
   const handleSaveCommentClick = (): void => {
     if (!currentUser) return;
     
-    const newComment: ActivityItem = {
-      id: generateId(),
-      type: "comment",
-      content: comment,
-      user: currentUser,
-      timestamp: new Date().toISOString()
-    }
+    // const newComment: CardActivity = {
+    //   id: generateId(),
+    //   type: "text",
+    //   text: comment,
+    //   // user: currentUser,
+    //   // timestamp: new Date().toISOString()
+    // }
     // taskService.updateCardDetails(card.id, {"activity": newComment})
     disableEditComment();
   };
@@ -197,26 +196,26 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
       {activities && activities.length > 0 && (
         <div className="space-y-4 mt-2">
           <Divider className="my-2" />
-          {activities.map((item: ActivityItem, index: number) => (
+          {activities.map((item: CardActivity, index: number) => (
             <div key={index} className="flex pt-2">
               <div className="mr-3">
                 <Avatar size={28} className="bg-gray-100 text-gray-600 border border-gray-200">
-                  {item.user?.fullname?.substring(0, 2)?.toUpperCase() || "AD"}
+                  {item.senderUsername?.substring(0, 2)?.toUpperCase() || "AD"}
                 </Avatar>
               </div>
               <div className="flex-grow">
                 <div className="mb-1 flex items-baseline">
-                  <span className="font-medium text-sm mr-2">{item.user.fullname || "Unknown user"}</span>
-                  <span className="text-gray-400 text-xs">
+                  <span className="font-medium text-sm mr-2">{item.senderUsername || "Unknown user"}</span>
+                  {/* <span className="text-gray-400 text-xs">
                     do {item.type} 
                     {item.via && <span className="ml-1 italic">via {item.via}</span>}
-                  </span>
+                  </span> */}
                 </div>
                 <div>
-                  {formatTimestamp(item.timestamp || "2025-03-09T06:15:30.419Z")}
+                  {/* {formatTimestamp(item.timestamp || "2025-03-09T06:15:30.419Z")} */}
                 </div>
                 <div className="text-gray-700 text-xs mb-1 leading-relaxed">
-                  {item.content || "Admin User created this counter card"}
+                  {/* {item.content || "Admin User created this counter card"} */}
                 </div>
                 <div>
                   <Button

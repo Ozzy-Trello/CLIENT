@@ -2,14 +2,17 @@ import { User } from "@/app/dto/types";
 import { Avatar, Tooltip } from "antd";
 import { ChevronLeft, Plus } from "lucide-react";
 import { useState } from "react";
+import PopoverUser from "../popover-user";
 
 interface MembersListProps {
   members: User[],
   membersLength: number;
   membersLoopLimit: number;
+  openAddMember: boolean;
+  setOpenAddMember: (open: boolean) => void;
 }
 
-const MembersList: React.FC<MembersListProps> = ({members, membersLength, membersLoopLimit}) => {
+const MembersList: React.FC<MembersListProps> = ({members, membersLength, membersLoopLimit, openAddMember, setOpenAddMember}) => {
 
   const [limit, setLimit] = useState<number>(membersLoopLimit);
 
@@ -44,7 +47,14 @@ const MembersList: React.FC<MembersListProps> = ({members, membersLength, member
       )}
 
       <Tooltip title={"add member"}>
-        <Avatar size="small"><Plus size={14} /></Avatar>
+        
+      <PopoverUser
+        open={openAddMember}
+        setOpen={setOpenAddMember}
+        triggerEl={
+          <Avatar size="small"><Plus size={14} /></Avatar>
+        }
+      />
       </Tooltip>
     </div>
   )

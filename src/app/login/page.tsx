@@ -21,7 +21,7 @@ import { useCurrentAccount } from '../hooks/account';
 const { Title, Text } = Typography;
 
 interface LoginFormValues {
-  email: string;
+  identity: string;
   password: string;
   role: string;
 }
@@ -33,9 +33,9 @@ export default function LoginPage() {
   const login = useLogin();
   const {refetch} = useCurrentAccount();
 
-  const validateCredentials = async (email: string, password: string) => {
+  const validateCredentials = async (identity: string, password: string) => {
     try {
-      const result = await login.mutateAsync({ email, password });
+      const result = await login.mutateAsync({ identity, password });
       if (result.data?.accessToken) {
         await message.success(result.message);
         return true;
@@ -52,7 +52,7 @@ export default function LoginPage() {
   const onFinish = async (values: LoginFormValues) => {
     setLoading(true);
     try {
-      const isValid = await validateCredentials(values.email, values.password);
+      const isValid = await validateCredentials(values.identity, values.password);
       if (isValid) {
         const result = await refetch();
         if (result) {
@@ -86,12 +86,12 @@ export default function LoginPage() {
             className="w-72"
           >
             <Form.Item
-              name="email"
-              rules={[{ required: true, message: 'Please enter your email!' }]}
+              name="identity"
+              rules={[{ required: true, message: 'Please enter your email or username!' }]}
             >
               <Input
                 prefix={<UserOutlined  />}
-                placeholder="Email"
+                placeholder="Email/Username"
                 size="large"
                 className="rounded"
               />

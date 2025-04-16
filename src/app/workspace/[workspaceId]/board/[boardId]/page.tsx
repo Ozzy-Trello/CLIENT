@@ -8,7 +8,7 @@ import { selectTheme, selectUser } from "@/app/store/app_slice";
 import { useWorkspaceSidebar } from "@/app/provider/workspace-sidebar-context";
 import { useLists } from "@/app/hooks/list";
 import { AnyList } from "@/app/dto/types";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { generateId } from "@/app/utils/general";
 import { Droppable, DropResult } from "@hello-pangea/dnd";
 import List from "./draggable-list";
@@ -28,6 +28,7 @@ const DragDropContext = dynamic(
 
 const Board: React.FC = () => {
   const { boardId } = useParams();
+  const searchParams = useSearchParams();
   const theme = useSelector(selectTheme);
   const { colors } = theme;
   const selectedUser = useSelector(selectUser);
@@ -38,7 +39,6 @@ const Board: React.FC = () => {
   const [ newListName, setNewListName ] = useState<string>("");
   const [ boardScopeMenu, setBoardScopeMenu] = useState<boolean>(false);
   const { updateCard } = useCards("");
-  const queryClient = useQueryClient();
 
 
   const onListDragEnd = useCallback(
@@ -58,8 +58,6 @@ const Board: React.FC = () => {
         case "card":
           handleCardDragEnd(source.droppableId, destination.droppableId, draggableId);
       }
-      
-      
     },
     [listData, updateCard]
   );
@@ -107,7 +105,15 @@ const Board: React.FC = () => {
 
   useEffect(() => {
     setListData(lists);
-  }, [lists])
+  }, [lists]);
+
+  useEffect(() => {
+    if (searchParams.has("cardId")) {
+      setBoardScopeMenu(true);
+    } else {
+      setBoardScopeMenu(false);
+    }
+  }, [window.location.href])
 
   return (
     <div 
@@ -185,7 +191,9 @@ const Board: React.FC = () => {
             <ListSkeleton />
           )}
         </div>
+
         <CardDetails />
+        
         <BoardScopeMenu
           visible={boardScopeMenu}
           setIsVisible={setBoardScopeMenu}
