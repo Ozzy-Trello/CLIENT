@@ -92,31 +92,31 @@ const AddUpdateField: React.FC<AddUpdateFieldProps> = (props) => {
     }
   };
   
-  const changeTriggerAction = (key: string, value: string) => {
-    if (isAddMode) {
-      setNewField((prev: CustomField) => ({
-        ...prev,
-        trigger: {
-          ...prev.trigger,
-          action: {
-            ...prev.trigger.action,
-            [key]: value
-          }
-        }
-      }));
-    } else {
-      setSelectedCustomField((prev: CustomField) => ({
-        ...prev,
-        trigger: {
-          ...prev.trigger,
-          action: {
-            ...prev.trigger.action,
-            [key]: value
-          }
-        }
-      }));
-    }
-  };
+  // const changeTriggerAction = (key: string, value: string) => {
+  //   if (isAddMode) {
+  //     setNewField((prev: CustomField) => ({
+  //       ...prev,
+  //       trigger: {
+  //         ...prev.trigger,
+  //         action: {
+  //           ...prev.trigger.action,
+  //           [key]: value
+  //         }
+  //       }
+  //     }));
+  //   } else {
+  //     setSelectedCustomField((prev: CustomField) => ({
+  //       ...prev,
+  //       trigger: {
+  //         ...prev.trigger,
+  //         action: {
+  //           ...prev.trigger.action,
+  //           [key]: value
+  //         }
+  //       }
+  //     }));
+  //   }
+  // };
   
   const cancel = () => {
     setNewField({ 
@@ -264,15 +264,17 @@ const AddUpdateField: React.FC<AddUpdateFieldProps> = (props) => {
           </>
         )}
 
-        <Button 
-          size="small" 
-          className="w-full mb-2" 
-          icon={<ChevronRight size={14} />}
-          iconPosition="end"
-          onClick={() => {setPopoverPage('trigger')}}
-        >
-          Trigger & Assignment
-        </Button>
+        { popoverPage === "update" && (
+          <Button 
+            size="small" 
+            className="w-full mb-2" 
+            icon={<ChevronRight size={14} />}
+            iconPosition="end"
+            onClick={() => {setPopoverPage('trigger')}}
+          >
+            Set Trigger
+          </Button>
+        ) }
       </div>
 
       {/* Action Buttons */}

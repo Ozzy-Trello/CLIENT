@@ -2,9 +2,10 @@ import { Button, Input, Select, message } from "antd";
 import { useParams } from "next/navigation";
 import { CustomField, Trigger, TriggerAction } from "@/app/dto/types";
 import { useState, useEffect, useRef } from "react";
-import { ListSelection, SelectionRef } from "../selection";
+import { ListSelection, SelectionRef, UserSelection } from "../selection";
 import { useCardCustomField } from "@/app/hooks/card_custom_field";
 import { useCardDetailContext } from "@/app/provider/card-detail-context";
+import { useTriggers } from "@/app/hooks/trigger";
 
 interface TriggerProps {
   popoverPage: string;
@@ -27,26 +28,18 @@ const TriggerContent: React.FC<TriggerProps> = (props) => {
   const listSelectionRef = useRef<SelectionRef>(null);
   const [loading, setLoading] = useState(false);
   const { addCustomField } = useCardCustomField(selectedCard?.id || '');
+  const { createTrigger } = useTriggers();
+  const userSelectionRefs = useRef<SelectionRef>(null);
   
   // Initialize with existing trigger data or defaults
-  const [triggerState, setTriggerState] = useState<{
-    name: string;
-    conditionalValue: string;
-    condition: string;
-    action: {
-      targetListId: string;
-      message: string;
-      labelCard: string;
-    }
-  }>({
+  const [triggerState, setTriggerState] = useState<Trigger>({
     name: selectedCustomField?.trigger?.name || "move",
-    conditionalValue: selectedCustomField?.trigger?.conditionalValue || "",
-    condition: "equals", // Default condition
+    conditionValue: selectedCustomField?.trigger?.conditionValue || "",
     action: {
       targetListId: selectedCustomField?.trigger?.action?.targetListId || "",
-      message: selectedCustomField?.trigger?.action?.message || "",
-      labelCard: selectedCustomField?.trigger?.action?.labelCard || ""
-    }
+      messageTelegram: selectedCustomField?.trigger?.action?.messageTelegram || "",
+      labelCardId: selectedCustomField?.trigger?.action?.labelCardId || ""
+    } as TriggerAction
   });
 
   // Initialize list selection if we have a saved value
@@ -73,33 +66,35 @@ const TriggerContent: React.FC<TriggerProps> = (props) => {
       return;
     }
 
-    if (!triggerState?.conditionalValue) {
+    console.log("triggerState: %o", triggerState);
+
+    if (!triggerState?.conditionValue) {
       messageApi.error("Please enter a condition value");
       return;
     }
 
     // Update the target list ID from the selection component
-    const updatedTrigger: Trigger = {
+    const updatedTrigger: Partial<Trigger> = {
       name: triggerState.name,
-      conditionalValue: "e6097fcc-a35b-4a22-9556-8f648c87b103",
+      workspaceId: Array.isArray(workspaceId) ? workspaceId[0] : workspaceId,
+      conditionValue: listSelectionRef.current?.getValue(),
       action: {
         targetListId: listId,
-        message: triggerState.action.message,
-        labelCard: listId
+        messageTelegram: triggerState.action?.messageTelegram || "",
       }
     };
 
-    console.log("updatedTrigger: %o", updatedTrigger);
+    createTrigger({ trigger: updatedTrigger });
 
     // Update the selected custom field with the new trigger
-    setSelectedCustomField((prev: CustomField) => ({
-      ...prev,
-      trigger: updatedTrigger
-    }));
+    // setSelectedCustomField((prev: CustomField) => ({
+    //   ...prev,
+    //   trigger: updatedTrigger
+    // }));
 
-    if (selectedCard) {
-      addCustomField({value: triggerState, customFieldId: selectedCustomField.id, cardId: selectedCard?.id})
-    }
+    // if (selectedCard) {
+    //   addCustomField({value: triggerState, customFieldId: selectedCustomField.id, cardId: selectedCard?.id})
+    // }
 
     // // Show success message
     // messageApi.success("Trigger settings saved");
@@ -125,7 +120,7 @@ const TriggerContent: React.FC<TriggerProps> = (props) => {
   const handleConditionValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setTriggerState(prev => ({
       ...prev,
-      conditionalValue: e.target.value
+      conditionvalue: e.target.value
     }));
   };
 
@@ -133,11 +128,19 @@ const TriggerContent: React.FC<TriggerProps> = (props) => {
     setTriggerState(prev => ({
       ...prev,
       action: {
-        ...prev.action,
-        targetListId: value
+        targetListId: value,
+        messageTelegram: prev.action?.messageTelegram ?? "",
+        labelCardId: prev.action?.labelCardId ?? ""
       }
     }));
   };
+
+  const handleConditionValueUserChange = (value: any) => {
+    setTriggerState(prev => ({
+      ...prev,
+      conditionValue: value
+    }));
+  }
 
   return (
     <>
@@ -178,25 +181,14 @@ const TriggerContent: React.FC<TriggerProps> = (props) => {
               Trigger Condition
             </label>
             <div className="mt-2 flex items-center gap-2">
-              <span>$field_value</span>
-              <Select
-                size="small"
-                options={[
-                  {value: "has_value", label: "Has value"},
-                  {value: "contains", label: "Contains"},
-                  {value: "equals", label: "="},
-                ]}
-                value={triggerState.condition}
-                onChange={handleConditionChange}
-                disabled={loading}
-              />
-              <Input
-                size="small"
-                className="min-w-2"
-                value={triggerState.conditionalValue}
-                onChange={handleConditionValueChange}
-                placeholder="Enter value"
-                disabled={loading}
+              <span>Condition Value</span>
+              <UserSelection 
+                ref={userSelectionRefs}
+                value={triggerState?.conditionValue || userSelectionRefs.current?.getValue()}
+                onChange={(value) => handleConditionValueUserChange(value)}
+                placeholder={`Select user`}
+                size="middle"
+                className="w-full"
               />
             </div>
           </div>

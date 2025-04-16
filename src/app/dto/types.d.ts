@@ -1,3 +1,5 @@
+import { Action } from "@reduxjs/toolkit";
+
 export interface ApiResponse<T = any> {
   data?: T;
   message?: string;
@@ -128,15 +130,17 @@ export interface CustomOption {
 }
 
 export interface Trigger {
+  id?: string;
   name?: string;
-  conditionalValue?: string;
+  conditionValue?: string;
+  workspaceId?: string;
   action?: TriggerAction;
 }
 
 export interface TriggerAction {
   targetListId?: string;
-  message?: string;
-  labelCard?: string;
+  messageTelegram: string;
+  labelCardId?: string;
 }
 
 export interface CardCustomField {

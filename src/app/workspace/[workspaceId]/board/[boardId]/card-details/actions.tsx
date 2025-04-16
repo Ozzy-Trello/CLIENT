@@ -21,7 +21,7 @@ import PopoverUser from "@/app/components/popover-user";
 import PopoverDates from "@/app/components/popover-dates.tsx";
 import PopoverMoveCard from "@/app/components/popover-move-card";
 import PopoverCopyCard from "@/app/components/popover-copy-card";
-import { message } from "antd";
+import { message, Tooltip } from "antd";
 import QRModal from "./qr-modal/qr-modal";
 
 const Actions: React.FC = ({}) => {
@@ -118,53 +118,67 @@ const Actions: React.FC = ({}) => {
       {/* Actions Section */}
       <div className="mt-4 mb-2">
         <h3 className="text-sm font-medium text-gray-600 px-4 mb-2">Actions</h3>
+        
         <PopoverMoveCard
           open={openMoveCard}
           setOpen={setOpenMoveCard}
           triggerEl={
-            <button className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700">
-              <MoveRight size={14} />
-              <span className="text-xs">Move</span>
-            </button>
+            <Tooltip title={"Move this card to another card"}>
+              <button className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700">
+                <MoveRight size={14} />
+                <span className="text-xs">Move</span>
+              </button>
+            </Tooltip>
           }
         />
 
-        <PopoverCopyCard
-          open={openCopyCard}
-          setOpen={setOpenCopyCard}
-          triggerEl={
-            <button className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700">
-              <Copy size={14} />
-              <span className="text-xs">Copy</span>
-            </button>
-          }
-        />
+        <Tooltip title="Copy this card to another list">
+          <PopoverCopyCard
+            open={openCopyCard}
+            setOpen={setOpenCopyCard}
+            triggerEl={
+              <Tooltip title={"Copy this card to another list"}>
+                <button className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700">
+                  <Copy size={14} />
+                  <span className="text-xs">Copy</span>
+                </button>
+              </Tooltip>
+            }
+          />
+        </Tooltip>
 
-        <button className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700">
-          <Archive size={14} />
-          <span className="text-xs">Archive</span>
-        </button>
+        <Tooltip title="Archive this card">
+          <button className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700">
+            <Archive size={14} />
+            <span className="text-xs">Archive</span>
+          </button>
+        </Tooltip>
 
-        <button
-          onClick={() => {
-            navigator.clipboard.writeText(window.location.href);
-            message.info("Copied to clipboard");
-          }}
-          className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700"
-        >
-          <Share2 size={14} />
-          <span className="text-xs">Share</span>
-        </button>
+        <Tooltip title="Share this card with others by copying the link">
+          <button
+            onClick={() => {
+              const url = `${window.location.href}?listId=${"listId"}&cardId=${"cardId"}`;
+              navigator.clipboard.writeText(url);
+              message.info("Copied to clipboard");
+            }}
+            className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700"
+          >
+            <Share2 size={14} />
+            <span className="text-xs">Share</span>
+          </button>
+        </Tooltip>
 
-        <button
-          onClick={() => {
-            setOpenQrModal(true);
-          }}
-          className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700"
-        >
-          <QrCode size={14} />
-          <span className="text-xs">Generate QR</span>
-        </button>
+        <Tooltip title="Generate this card QR code">
+          <button
+            onClick={() => {
+              setOpenQrModal(true);
+            }}
+            className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700"
+          >
+            <QrCode size={14} />
+            <span className="text-xs">Generate QR</span>
+          </button>
+        </Tooltip>
 
         <QRModal isOpen={openQrModal} onClose={() => {setOpenQrModal(false)}} />
       </div>
