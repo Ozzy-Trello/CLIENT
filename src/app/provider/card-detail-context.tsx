@@ -1,6 +1,7 @@
 import React, { createContext, useState, useContext, ReactNode, useEffect, useRef } from 'react';
 import { AnyList, Card } from '@/app/dto/types';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { cardDetails } from '../api/card';
 
 type CardDetailContextType = {
   selectedCard: Card | null;
@@ -67,11 +68,18 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({ children
       const listId = searchParams.get('listId');
       if (cardId && listId) {
         setIsCardDetailOpen(true);
-        const card: Card = {id: cardId, listId: listId} as Card;
-        const list: AnyList = {id: listId} as AnyList;
+        const resp = cardDetails(cardId);
+        resp.then((res) => {
+          if (res.data) {   
+            const card: Card = res.data;
+            card.listId = listId;
+            const list: AnyList = {id: listId} as AnyList;
 
-        setSelectedCard(card);
-        setActiveList(list);
+            setSelectedCard(card);
+            setActiveList(list);
+          }
+        });
+        
       } else {
         closeCardDetail();
       }
