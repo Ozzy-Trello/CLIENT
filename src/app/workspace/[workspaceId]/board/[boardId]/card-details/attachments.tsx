@@ -1,8 +1,9 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button, List, Typography } from 'antd';
 import { ExportOutlined, EllipsisOutlined, PaperClipOutlined, PlusOutlined } from '@ant-design/icons';
-import { Card, CardAttachment, User } from '@/app/dto/types';
+import { Card, CardAttachment, FileAttachment, User } from '@/app/dto/types';
 import { useCardAttachment } from '@/app/hooks/card_attachment';
+import UploadModal from '@/app/components/modal-upload/modal-upload';
 
 
 interface AttachmentsProps {
@@ -14,7 +15,24 @@ interface AttachmentsProps {
 const Attachments: React.FC<AttachmentsProps> = (props) => {
 
   const { card, setCard, currentUser } = props;
-  const { cardAttachments } = useCardAttachment(card?.id);
+  const { cardAttachments, addAttachment } = useCardAttachment(card?.id);
+  const [ openUploadModal, setOpenUploadmodal ] = useState<boolean>(false);
+  
+  const handleCloseModal = () => {
+    setOpenUploadmodal(false);
+  }
+
+  const handleOpenModal = () => {
+    setOpenUploadmodal(true);
+  }
+
+  const handleUpload = (file: File, result: FileAttachment) => {
+    addAttachment({
+      cardId: card.id,
+      fileId: result.id,
+      isCover: false
+    });
+  }
 
   useEffect(() => {
     if (cardAttachments) {
@@ -41,6 +59,7 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
           size="small" 
           icon={<PlusOutlined />}
           className="flex items-center"
+          onClick={() => {handleOpenModal()}}
         >
           Add
         </Button>
@@ -95,6 +114,14 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
       >
         View all attachments (30 hidden)
       </Button> */}
+
+      <UploadModal 
+        isVisible={openUploadModal}
+        onClose={handleCloseModal}
+        onUploadComplete={handleUpload}
+        uploadType="image"
+        title="Upload attachment"
+      />
     </div>
   );
 };

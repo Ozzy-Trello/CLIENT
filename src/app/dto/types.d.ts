@@ -311,3 +311,20 @@ export interface FileAttachment {
   createdBy: string;
   createdAt: string;
 }
+
+export interface PostAutomationRule {
+  groupType: string;
+  type: string;
+  condition: PostAutomationRuleCondition;
+  filter?: any;
+  workspaceId: string;
+  action: PostAutomationRuleAction
+}
+export interface PostAutomationRuleCondition{
+  [key: string]: any | undefined;
+}
+export interface PostAutomationRuleAction {
+  groupType: string;
+  type: string;
+  condition: PostAutomationRuleCondition;
+}

@@ -135,8 +135,9 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
     const newAction: SelectedAction = {
       type: actions[0].type,
     }
+
     let currentActions = selectedRule?.actions || [];
-    currentActions?.push(newAction);
+    currentActions.push(newAction);
 
     setSelectedRule((prev: AutomationRule | null) => ({
       ...prev,

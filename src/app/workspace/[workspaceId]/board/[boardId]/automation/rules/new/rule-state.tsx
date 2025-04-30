@@ -78,7 +78,7 @@ const RuleState: React.FC<RuleStateProps> = (props) => {
         <Button variant="text" onClick={removeTrigger}><Trash size={16} /></Button>
       </div>
 
-      { selectedRule.actions && selectedRule.actions?.length > 0 && (
+      { selectedRule.actions && selectedRule.actions.length > 0 && (
         <>
           <Typography.Title level={5}>Action</Typography.Title>
           {selectedRule?.actions?.map((item: SelectedAction, index: number) => {
@@ -87,7 +87,6 @@ const RuleState: React.FC<RuleStateProps> = (props) => {
                 <div className="flex justify-between items-center gap-2 my-4 w-full">
                   <div className="p-2 rounded-md bg-gray-200 border-2 border-gray-300 w-full">
                     <LabelRenderer item={item.selectedActionItem} />
-                    {/* {item.selectedActionItem.label} */}
                   </div>
                   <Button variant="text" onClick={() => removeAction(item, index)}><Trash size={16} /></Button>
                 </div>
