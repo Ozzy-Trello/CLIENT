@@ -134,16 +134,16 @@ const UploadModal: React.FC<UploadModalProps> = ({
       return;
     }
 
+    setIsUploading(true);
+
     const result = await uploadFile(selectedFile);
     
-    setIsUploading(true);
-   
+  
     if (onUploadComplete && result?.data) {
       onUploadComplete(selectedFile, result?.data);
     }
    
     message.success('File uploaded successfully!');
-   
     setIsUploading(false);
     setSelectedFile(null);
     onClose();

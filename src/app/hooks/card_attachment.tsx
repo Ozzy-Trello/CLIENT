@@ -22,14 +22,14 @@ export function useCardAttachment(cardId: string) {
     mutationFn: ({ 
       cardId, 
       fileId,
-      isCover = false,
+      isCover,
     }: { 
       cardId: string; 
       fileId: string;
       isCover: boolean;
     }) => {
       console.log("API - Adding attachment:", { cardId, fileId });
-      return createCardAttachment({ card_id: cardId, file_id: fileId });
+      return createCardAttachment({ cardId: cardId, fileId: fileId, isCover: isCover});
     },
     onMutate: async ({ cardId, fileId, isCover }) => {
       console.log("Optimistically adding attachment:", { cardId, fileId });

@@ -16,7 +16,7 @@ export const getCardAttachments = async (cardId: string): Promise<ApiResponse<Ca
  * @param params Object containing card_id and file_id
  * @returns Promise with the created attachment data
  */
-export const createCardAttachment = async (params: { card_id: string; file_id: string }): Promise<ApiResponse<CardAttachment>> => {
+export const createCardAttachment = async (params: { cardId: string; fileId: string, isCover: boolean }): Promise<ApiResponse<CardAttachment>> => {
   const { data } = await api.post('/card-attachment', params);
   return data;
 };
