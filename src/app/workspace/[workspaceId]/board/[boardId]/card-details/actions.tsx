@@ -6,10 +6,7 @@ import {
   Clock,
   Paperclip,
   MapPin,
-  Database,
-  PlusCircle,
   MoveRight,
-  Plus,
   Copy,
   Archive,
   Share2,
@@ -23,6 +20,7 @@ import PopoverMoveCard from "@/app/components/popover-move-card";
 import PopoverCopyCard from "@/app/components/popover-copy-card";
 import { message, Tooltip } from "antd";
 import QRModal from "./qr-modal/qr-modal";
+import PopoverLocation from "@/app/components/popover-location";
 
 const Actions: React.FC = ({}) => {
   const [openCustomField, setOpenCustomField] = useState(false);
@@ -31,13 +29,13 @@ const Actions: React.FC = ({}) => {
   const [openMoveCard, setOpenMoveCard] = useState(false);
   const [openCopyCard, setOpenCopyCard] = useState(false);
   const [openQrModal, setOpenQrModal] = useState(false);
+  const [openLocation, setOpenLocation] = useState(false);
 
   const menuItems = [
     { icon: <Users size={14} />, label: "Join" },
     { icon: <Tag size={14} />, label: "Labels" },
     { icon: <CheckSquare size={14} />, label: "Checklist" },
     { icon: <Paperclip size={14} />, label: "Attachment" },
-    { icon: <MapPin size={14} />, label: "Location" },
   ];
 
   return (
@@ -52,6 +50,20 @@ const Actions: React.FC = ({}) => {
           <span className="text-xs">{item.label}</span>
         </button>
       ))}
+
+
+      <PopoverLocation
+        open={openLocation}
+        setOpen={setOpenLocation}
+        triggerEl={
+          <button className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700">
+            <span className="text-gray-600 text-xs">
+              <MapPin size={14} />
+            </span>
+            <span className="text-xs">Location</span>
+          </button>
+        }
+      />
 
       <PopoverUser
         open={openMembers}

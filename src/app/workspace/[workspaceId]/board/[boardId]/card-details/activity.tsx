@@ -1,10 +1,13 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button, Input, Avatar, Typography, Divider } from 'antd';
 import { MessageOutlined } from '@ant-design/icons';
 import { CardActivity, Card, User } from '@/app/dto/types';
 import { generateId } from '@/app/utils/general';
 import RichTextEditor from '@/app/components/rich-text-editor';
 import { ListCollapse } from 'lucide-react';
+import { useAccountList } from '@/app/hooks/account';
+import { useParams } from 'next/navigation';
+import { Account } from '@/app/dto/account';
 
 interface ActivitySectionProps {
   card: Card;
@@ -15,9 +18,13 @@ interface ActivitySectionProps {
 
 const Activity: React.FC<ActivitySectionProps> = (props) => {
   const {activities, currentUser, card, setCard} = props;
+  const params = useParams();
+  const workspaceId = typeof params.workspaceId === 'string' ? params.workspaceId : '';
+  const boardId = typeof params.boardId === 'string' ? params.boardId : '';
   const [isEditingComment, setIsEditingComment] = useState<boolean>(false);
   const [comment, setComment] = useState("");
   const [firstImage, setFirstImage] = useState<string | null>(null);
+  const users =  useAccountList({workspaceId, boardId});
 
   const enableEditComment = (): void => {
     setIsEditingComment(true);
@@ -76,14 +83,15 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
             id: generateId(),
             url: imageUrl || '',
             filename: "test",
-            addedAt: new Date().toISOString(),
+            cardId: prev.id,
+            fileId: "",
+            createdBy: currentUser?.id || '',
+            createdAt: new Date().toISOString(),
             isCover: true
           }
         };
       });
     }
-
-    console.log("card: ", card);
   }
 
   function base64ToFile(base64String: string, filename: string = 'image.png'): File {
@@ -130,6 +138,15 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
       return timestamp;
     }
   };
+
+  const getUser = (senderId: string) => {
+    const foundUser = users?.data?.data?.find((item: Account) => item.id == senderId);
+    return foundUser;
+  }
+
+  useEffect(() => {
+    console.log("users?.data: %o", users?.data);
+  }, [users])
   
   return (
     <div className="mt-4">
@@ -196,39 +213,44 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
       {activities && activities.length > 0 && (
         <div className="space-y-4 mt-2">
           <Divider className="my-2" />
-          {activities.map((item: CardActivity, index: number) => (
-            <div key={index} className="flex pt-2">
-              <div className="mr-3">
-                <Avatar size={28} className="bg-gray-100 text-gray-600 border border-gray-200">
-                  {item.senderUsername?.substring(0, 2)?.toUpperCase() || "AD"}
-                </Avatar>
+          {activities.map((item: CardActivity, index: number) => {
+            
+            const foundUser = getUser(item.senderId);
+
+            return (
+              <div key={index} className="flex pt-2">
+                <div className="mr-3">
+                  <Avatar size={28} className="bg-gray-100 text-gray-600 border border-gray-200">
+                    {foundUser?.username?.substring(0, 2)?.toUpperCase() || "0"}
+                  </Avatar>
+                </div>
+                <div className="flex-grow">
+                  <div className="mb-1 flex items-baseline">
+                    <span className="font-medium text-sm mr-2">{foundUser?.username}</span>
+                    {/* <span className="text-gray-400 text-xs">
+                      do {item.type} 
+                      {item.via && <span className="ml-1 italic">via {item.via}</span>}
+                    </span> */}
+                  </div>
+                  <div>
+                    {/* {formatTimestamp(item.timestamp || "2025-03-09T06:15:30.419Z")} */}
+                  </div>
+                  <div className="text-gray-700 text-xs mb-1 leading-relaxed">
+                    {/* {item.content || "Admin User created this counter card"} */}
+                  </div>
+                  <div>
+                    <Button
+                      type="link"
+                      size="small"
+                      className="text-xs text-gray-500 hover:text-blue-600 p-0 h-auto"
+                    >
+                      Reply
+                    </Button>
+                  </div>
+                </div>
               </div>
-              <div className="flex-grow">
-                <div className="mb-1 flex items-baseline">
-                  <span className="font-medium text-sm mr-2">{item.senderUsername || "Unknown user"}</span>
-                  {/* <span className="text-gray-400 text-xs">
-                    do {item.type} 
-                    {item.via && <span className="ml-1 italic">via {item.via}</span>}
-                  </span> */}
-                </div>
-                <div>
-                  {/* {formatTimestamp(item.timestamp || "2025-03-09T06:15:30.419Z")} */}
-                </div>
-                <div className="text-gray-700 text-xs mb-1 leading-relaxed">
-                  {/* {item.content || "Admin User created this counter card"} */}
-                </div>
-                <div>
-                  <Button
-                    type="link"
-                    size="small"
-                    className="text-xs text-gray-500 hover:text-blue-600 p-0 h-auto"
-                  >
-                    Reply
-                  </Button>
-                </div>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

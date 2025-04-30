@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { cardCustomFields } from "../api/card_custom_field";
-import { ApiResponse, CardCustomField, Trigger } from "../dto/types";
+import { ApiResponse, CardCustomField } from "../dto/types";
 import { api } from "../api";
 
 export const useCardCustomField = (cardId: string) => {
@@ -17,15 +17,13 @@ export const useCardCustomField = (cardId: string) => {
   // Add custom field value mutation with optimistic updates
   const addCustomFieldMutation = useMutation({
     mutationFn: ({
-      value, 
       customFieldId, 
       cardId
     } : {
-      value: Trigger, 
       customFieldId: string, 
       cardId: string
     }) => {
-      console.log("API - Adding custom field:", { value, customFieldId, cardId });
+      console.log("API - Adding custom field:", { customFieldId, cardId });
       // const param = {
       //   value,
       //   customFieldId,
@@ -33,14 +31,13 @@ export const useCardCustomField = (cardId: string) => {
       // };
 
       const params = {
-        trigger: value,
         value: "e6097fcc-a35b-4a22-9556-8f648c87b103"
       } 
 
       return api.post(`/card/${cardId}/custom-field/${customFieldId}`, params);
     },
-    onMutate: async({ value, customFieldId, cardId }) => {
-      console.log("Optimistically adding custom field:", { value, customFieldId, cardId });
+    onMutate: async({ customFieldId, cardId }) => {
+      console.log("Optimistically adding custom field:", { customFieldId, cardId });
       
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ["cardCustomField", cardId] });

@@ -2,7 +2,7 @@ import { Button, Checkbox, CheckboxProps, Col, Dropdown, Flex, Modal, Row, Tag, 
 import { useRef, useState } from "react";
 import Cover from "./cover";
 import { useCardDetailContext } from "@/app/provider/card-detail-context";
-import { ChevronDown, Eye } from "lucide-react";
+import { Eye } from "lucide-react";
 import MembersList from "@/app/components/members-list";
 import Description from "./description";
 import Attachments from "./attachments";
@@ -17,6 +17,7 @@ import { ListSelection, SelectionRef } from "@/app/components/selection";
 import { useCards } from "@/app/hooks/card";
 import { useLists } from "@/app/hooks/list";
 import { useCardActivity } from "@/app/hooks/card_activity";
+import LocationDisplay from "./location";
 
 const CardDetails: React.FC = (props) => {
   const params = useParams();
@@ -93,7 +94,7 @@ const CardDetails: React.FC = (props) => {
   const onListChange = (value: string, option: object) => {
     console.log("List changed to: ", value, option);
     if (selectedCard) {
-      updateCard({
+      const result = updateCard({
         cardId: selectedCard?.id,
         updates: { 
           listId: value
@@ -258,21 +259,19 @@ const CardDetails: React.FC = (props) => {
                 </div>
               </div>
 
-              {selectedCard && <Description card={selectedCard} />}
+              {selectedCard && <Description card={selectedCard} setSelectedCard={setSelectedCard} />}
+
+              {selectedCard && selectedCard?.location && selectedCard?.location != "" && (
+                <LocationDisplay coordinate={selectedCard?.location} />
+              )}
 
               {selectedCard && customFields && (
                 <CustomFields customFields={customFields} />
               )}
 
               {/* Attachments Section */}
-              {selectedCard?.attachments && (
-                <div className="pt-2 border-t border-gray-200">
-                  <div className="flex items-center mb-2">
-                    <span className="text-gray-500 mr-2"><i className="fi fi-rs-clip"></i></span>
-                    <Typography.Title level={5} className="m-0">Attachments</Typography.Title>
-                  </div>
-                  <Attachments attachments={selectedCard?.attachments} />
-                </div>
+              {selectedCard && (
+               <Attachments card={selectedCard} setCard={setSelectedCard} currentUser={currentUser} />
               )}
 
               {/* Activity Section */}

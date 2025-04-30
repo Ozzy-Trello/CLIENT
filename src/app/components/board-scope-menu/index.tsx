@@ -99,7 +99,6 @@ const BoardScopeMenu: React.FC<BoardMenuSidebarProps> = ({
           icon={<Bot size={16} />} 
           text="Automation"
           onClick={() => {
-            console.log("diclick");
             router.push(`/workspace/${workspaceId}/board/${boardId}/automation`)
           }}
         />

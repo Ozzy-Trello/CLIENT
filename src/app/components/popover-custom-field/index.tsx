@@ -6,8 +6,6 @@ import { useParams } from "next/navigation";
 import { useCustomFields } from "@/app/hooks/custom_field";
 import AddUpdateField from "./add-update-field";
 import { CustomField } from "@/app/dto/types";
-import CustomOption from "./custom-option";
-import TriggerContent from "./trigger";
 
 interface PopoverCustomFieldProps {
   open: boolean;
@@ -69,14 +67,7 @@ const PopoverCustomField: React.FC<PopoverCustomFieldProps> = ({
           />
         ) : (popoverPage == 'custom-option') ? (
           null
-        ) : (popoverPage == 'trigger') ? (
-          <TriggerContent
-            popoverPage={popoverPage}
-            setPopoverPage={setPopoverPage}
-            selectedCustomField={selectedCustomField}
-            setSelectedCustomField={setSelectedCustomField}
-          />
-        ) : (
+        ) :  (
           null
         )
       }

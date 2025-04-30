@@ -43,11 +43,11 @@ const DraggableCard: React.FC<DraggableCardProps> = ({
           onMouseLeave={() => setIsHovered(false)}
         >
           {/* Cover image */}
-          {card.cover?.url && (
+          {card.cover?.file?.url && (
             <div className="w-full bg-white border-b mb-3">
               <div className="relative">
                 <img
-                  src={card.cover.url}
+                  src={card.cover?.file?.url}
                   alt=""
                   className="w-full object-contain"
                 />

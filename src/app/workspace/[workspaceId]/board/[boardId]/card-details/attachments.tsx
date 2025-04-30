@@ -1,12 +1,36 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Button, List, Typography } from 'antd';
 import { ExportOutlined, EllipsisOutlined, PaperClipOutlined, PlusOutlined } from '@ant-design/icons';
-import { Attachment } from '@/app/dto/types';
+import { Card, CardAttachment, User } from '@/app/dto/types';
+import { useCardAttachment } from '@/app/hooks/card_attachment';
 
-const Attachments: React.FC<{attachments: Attachment[]}> = ({attachments}) => {
+
+interface AttachmentsProps {
+  card: Card;
+  setCard: React.Dispatch<React.SetStateAction<Card | null>>;
+  currentUser: User | null;
+}
+
+const Attachments: React.FC<AttachmentsProps> = (props) => {
+
+  const { card, setCard, currentUser } = props;
+  const { cardAttachments } = useCardAttachment(card?.id);
+
+  useEffect(() => {
+    if (cardAttachments) {
+      const cover = cardAttachments?.find((item) => item.isCover);
+      if (cover) {
+        console.log("setting cover nih: %o", cover);
+        setCard((prev: Card | null) => prev ? {
+          ...prev,
+          cover: cover
+        } : null);
+      }
+    }
+  }, [cardAttachments])
 
   return (
-    <div className="bg-white p-4 rounded-lg">
+    <div className="bg-white p-4 rounded-lg mt-2">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center">
           <PaperClipOutlined className="text-gray-500 mr-2" />
@@ -26,26 +50,26 @@ const Attachments: React.FC<{attachments: Attachment[]}> = ({attachments}) => {
      
       <List
         className="space-y-3"
-        dataSource={attachments}
+        dataSource={cardAttachments}
         renderItem={(item) => (
           <List.Item className="flex items-center p-2 hover:bg-gray-50 rounded">
             <div className="flex-shrink-0 mr-3">
               <img 
-                src={item.url} 
+                src={item.file?.url} 
                 alt={"review"} 
                 className="w-20 h-15 object-cover rounded"
               />
             </div>
            
             <div className="flex-grow">
-              <div className="text-sm font-medium">{item.filename}</div>
+              <div className="text-sm font-medium">{item.file?.name}</div>
               <div className="text-xs text-gray-500 flex items-center">
-                {item.addedAt} 
+                {/* {item.addedAt} 
                 {item.isCover && (
                   <span className="ml-2 bg-blue-100 text-blue-600 text-xs px-2 py-0.5 rounded">
                     Cover
                   </span>
-                )}
+                )} */}
               </div>
             </div>
            

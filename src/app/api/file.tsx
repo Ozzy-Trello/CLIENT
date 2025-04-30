@@ -1,6 +1,7 @@
 import { api } from ".";
+import { ApiResponse, FileAttachment } from "../dto/types";
 
-export const uploadFile = async (file: File) => {
+export const uploadFile = async (file: File): Promise<ApiResponse<FileAttachment>> => {
   const formData = new FormData();
   formData.append('file', file);
   formData.append('name', file.name);

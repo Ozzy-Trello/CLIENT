@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { currentAccount, updateAccount } from "../api/account";
+import { accountList, currentAccount, updateAccount } from "../api/account";
 
 export function useCurrentAccount() {
   return useQuery({
@@ -17,5 +17,13 @@ export function useUpdateAccount() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['currentAccount'] });
     }
+  });
+}
+
+export function useAccountList({workspaceId, boardId}: {workspaceId: string, boardId: string}) {
+  return useQuery({
+    queryKey: ['accountList'],
+    queryFn: () => accountList(workspaceId, boardId),
+    enabled: !!workspaceId && !!boardId,
   });
 }

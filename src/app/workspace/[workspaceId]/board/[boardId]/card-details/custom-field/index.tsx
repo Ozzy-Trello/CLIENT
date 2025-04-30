@@ -6,6 +6,8 @@ import { api } from "@/app/api";
 import { Checkbox, Input, Select, message } from "antd";
 import { List, StretchHorizontal, TextCursorInput } from "lucide-react";
 import { Fragment, useEffect, useRef, useState } from "react";
+import { useLists } from "@/app/hooks/list";
+import { useParams } from "next/navigation";
 
 interface CustomFieldsProps {
   customFields: CustomField[];
@@ -25,6 +27,10 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
   const [messageApi, contextHolder] = message.useMessage();
   const [fieldValues, setFieldValues] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState<Record<string, boolean>>({});
+  const params = useParams();
+  const boardId = Array.isArray(params.boardId) ? params.boardId[0] : params.boardId;
+  const { lists } = useLists(boardId || '');
+  
   
   // Create a map of refs for user selection fields
   const userSelectionRefs = useRef<Map<string, SelectionRef>>(new Map());

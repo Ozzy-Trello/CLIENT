@@ -3,13 +3,12 @@ import { Card } from "@/app/dto/types";
 import { useCards } from "@/app/hooks/card";
 import { Button, Typography } from "antd";
 import { AlignLeft, Edit } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Dispatch, SetStateAction, useEffect, useState } from "react";
 
-const Description: React.FC<{card: Card}> = ({card}) => {
+const Description: React.FC<{card: Card, setSelectedCard: Dispatch<SetStateAction<Card | null>>}> = ({card, setSelectedCard}) => {
 
   const [isEditingDescription, setIsEditingDescription] = useState<boolean>(false);
-  const [newDescription, setNewDescription] = useState<string>("");
-  console.log("Description component card:", card);
+  const [newDescription, setNewDescription] = useState<string>(card?.description || "");
   const {updateCard} = useCards(card.listId);
 
   const enableEditDescription = () => {
@@ -25,18 +24,23 @@ const Description: React.FC<{card: Card}> = ({card}) => {
     updateCard({
       cardId: card.id,
       updates: { 
-        listId: card.listId,
         description: newDescription,
       },
       listId: card.listId,
       destinationListId: card.listId,
+    }, {
+      onSuccess: (data) => {
+        console.log("Description update successful:", data);
+        if (setSelectedCard) {
+          setSelectedCard({
+            ...card,
+            description: newDescription
+          });
+        }
+      },
     });
     setIsEditingDescription(false);
   };
-
-  useEffect(() => {
-    setNewDescription(card.description || "");
-  }, [card.description]);
 
   return (
     <div className="mt-6">
@@ -61,7 +65,7 @@ const Description: React.FC<{card: Card}> = ({card}) => {
       {isEditingDescription ? (
         <div className="border rounded-md overflow-hidden ml-8">
           <RichTextEditor
-            initialValue={card?.description ? card.description : ""}
+            initialValue={newDescription}
             onChange={(content: string) => {
               setNewDescription(content);
             }}
@@ -92,7 +96,7 @@ const Description: React.FC<{card: Card}> = ({card}) => {
           onClick={enableEditDescription}
         >
           {card.description ? (
-            <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: card.description }} />
+            <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: newDescription }} />
           ) : (
             <span className="text-gray-400">Add a more detailed description...</span>
           )}

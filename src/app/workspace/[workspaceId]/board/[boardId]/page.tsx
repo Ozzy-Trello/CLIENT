@@ -107,13 +107,13 @@ const Board: React.FC = () => {
     setListData(lists);
   }, [lists]);
 
-  useEffect(() => {
-    if (searchParams.has("cardId")) {
-      setBoardScopeMenu(true);
-    } else {
-      setBoardScopeMenu(false);
-    }
-  }, [window.location.href])
+  // useEffect(() => {
+  //   if (searchParams.has("cardId")) {
+  //     setBoardScopeMenu(true);
+  //   } else {
+  //     setBoardScopeMenu(false);
+  //   }
+  // }, [window.location.href])
 
   return (
     <div 

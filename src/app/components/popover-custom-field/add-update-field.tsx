@@ -1,11 +1,12 @@
-import { CustomField, CustomFieldValueType, Trigger, TriggerAction } from "@/app/dto/types";
+import { CustomField, CustomFieldValueType, TriggerAction } from "@/app/dto/types";
 import { useLists } from "@/app/hooks/list";
 import { generateId } from "@/app/utils/general";
-import { Button, Input, Select, message } from "antd";
+import { Button, Input, Select, Typography, message } from "antd";
 import { useParams } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import { ListSelection, SelectionRef } from "../selection";
 import { ChevronRight, Plus } from "lucide-react";
+import { useCardDetailContext } from "@/app/provider/card-detail-context";
 
 interface AddUpdateFieldProps {
   popoverPage: string;
@@ -32,6 +33,7 @@ const AddUpdateField: React.FC<AddUpdateFieldProps> = (props) => {
   
   const { workspaceId } = useParams();
   const currentWorkspaceId = Array.isArray(workspaceId) ? workspaceId[0] : workspaceId;
+  const {selectedCard} = useCardDetailContext();
   
   const [newField, setNewField] = useState<CustomField>({
     id: generateId(),
@@ -41,7 +43,11 @@ const AddUpdateField: React.FC<AddUpdateFieldProps> = (props) => {
     source: "user",
     trigger: {}
   });
-  
+
+
+  const listSelectionRef = useRef<SelectionRef>(null);
+
+
   // Reset the form when popoverPage changes
   useEffect(() => {
     if (popoverPage === "add") {
@@ -130,7 +136,7 @@ const AddUpdateField: React.FC<AddUpdateFieldProps> = (props) => {
     setPopoverPage("home");
   }
   
-  const handleSave = () => {
+  const handleSave = async() => {
     // Validation
     if (isAddMode && !newField.name) {
       message.error("Field name is required");
@@ -143,22 +149,25 @@ const AddUpdateField: React.FC<AddUpdateFieldProps> = (props) => {
     }
     
     if (isAddMode) {
+      if (selectedCard) {
+        const fieldWithWorkspace = {
+          ...newField,
+          workspaceId: currentWorkspaceId,
+        };
+        
+        addCustomField(fieldWithWorkspace);
+        // Reset form
+        setNewField({
+          id: generateId(),
+          boardId: currentWorkspaceId || "",
+          name: "",
+          description: "",
+          source: "user",
+          trigger: {}
+        });
+      }
       // Add workspaceId to the new field
-      const fieldWithWorkspace = {
-        ...newField,
-        workspaceId: currentWorkspaceId
-      };
-      
-      addCustomField(fieldWithWorkspace);
-      // Reset form
-      setNewField({
-        id: generateId(),
-        boardId: currentWorkspaceId || "",
-        name: "",
-        description: "",
-        source: "user",
-        trigger: {}
-      });
+  
     } else if (!isAddMode && selectedCustomField) {
       // Update existing field
       updateCustomFieldMutation({
@@ -173,7 +182,12 @@ const AddUpdateField: React.FC<AddUpdateFieldProps> = (props) => {
   };
   
   const currentField = isAddMode ? newField : selectedCustomField;
-  
+  useEffect(() => {
+    if (listSelectionRef.current && selectedCustomField?.trigger?.action?.targetListId) {
+      listSelectionRef.current.setValue(selectedCustomField.trigger.action.targetListId);
+    }
+  }, [selectedCustomField, listSelectionRef.current]);
+
   return (
     <div className="h-fit">
       <div className="max-h-60 overflow-y-auto px-2">
@@ -206,7 +220,7 @@ const AddUpdateField: React.FC<AddUpdateFieldProps> = (props) => {
         </div>
         
         {/* Type Field */}
-        <div className="mb-3 text-xs">
+        {/* <div className="mb-3 text-xs">
           <label htmlFor="field-type" className="block mb-1.5 font-medium text-gray-600">
             Type
           </label>
@@ -223,7 +237,7 @@ const AddUpdateField: React.FC<AddUpdateFieldProps> = (props) => {
               {value: "checkbox", label: "Checkbox"},
             ]}
           />
-        </div>
+        </div> */}
         
         {/* Conditional Source Field */}
         { selectedCustomField?.type === "dropdown" && (
@@ -258,13 +272,13 @@ const AddUpdateField: React.FC<AddUpdateFieldProps> = (props) => {
                 iconPosition="end"
                 onClick={() => {setPopoverPage('custom-option')}}
               >
-                  Add option
+                Add option
               </Button>
             )}
           </>
         )}
 
-        { popoverPage === "update" && (
+        {/* { popoverPage === "update" && (
           <Button 
             size="small" 
             className="w-full mb-2" 
@@ -274,7 +288,7 @@ const AddUpdateField: React.FC<AddUpdateFieldProps> = (props) => {
           >
             Set Trigger
           </Button>
-        ) }
+        ) } */}
       </div>
 
       {/* Action Buttons */}

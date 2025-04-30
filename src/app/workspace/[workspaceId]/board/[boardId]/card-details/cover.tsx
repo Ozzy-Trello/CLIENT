@@ -1,5 +1,6 @@
 import UploadModal from "@/app/components/modal-upload/modal-upload";
-import { Card } from "@/app/dto/types";
+import { Card, FileAttachment } from "@/app/dto/types";
+import { useCardAttachment } from "@/app/hooks/card_attachment";
 import { Button, Upload } from "antd";
 import { useState } from "react";
 
@@ -11,6 +12,7 @@ const Cover: React.FC<CoverProps> = (props) => {
 
   const { card } = props;
   const [ openUploadModal, setOpenUploadmodal ] = useState<boolean>(false);
+  const { addAttachment } = useCardAttachment(card.id);
 
   const handleCloseModal = () => {
     setOpenUploadmodal(false);
@@ -20,14 +22,18 @@ const Cover: React.FC<CoverProps> = (props) => {
     setOpenUploadmodal(true);
   }
 
-  const handleUpload = (file: File) => {
-    console.log("fle is: %o", file);
+  const handleUpload = (file: File, result: FileAttachment) => {
+    addAttachment({
+      cardId: card.id,
+      fileId: result.id,
+      isCover: true
+    });
   }
 
   return (
     <div className="relative bg-gray-300 bg-center bg-no-repeat h-36 flex justify-end items-end rounded-t-lg"
       style={{
-        backgroundImage: card.cover?.url ? `url("${card.cover.url}")` : 'none',
+        backgroundImage: card.cover ? `url("${card.cover?.file?.url}")` : 'none',
         backgroundSize: 'contain'
       }}
     >

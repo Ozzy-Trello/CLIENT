@@ -1,8 +1,6 @@
 import axios from "axios";
 import camelcaseKeys from "camelcase-keys";
-import { useSelector } from "react-redux";
 import snakecaseKeys from "snakecase-keys";
-import { selectAccessToken } from "../store/app_slice";
 import { store } from "../store";
 
 // Create axios instance with interceptors to handle case conversion
@@ -12,14 +10,20 @@ export const api = axios.create({
 
 // Request interceptor to convert camelCase to snake_case
 api.interceptors.request.use((config) => {
+  // Add authorization header if token exists
   const accessToken = store.getState().appState.accessToken;
   if (accessToken) {
     config.headers.Authorization = `Bearer ${accessToken}`;
   }
-
-  if (config.data) {
-    config.data = snakecaseKeys(config.data, { deep: true });
+  
+  // Skip snakecase conversion for FormData
+  if (config.data && !(config.data instanceof FormData)) {
+    // Only apply to plain objects, not FormData, arrays, etc.
+    if (typeof config.data === 'object' && !Array.isArray(config.data)) {
+      config.data = snakecaseKeys(config.data, { deep: true });
+    }
   }
+  
   return config;
 });
 
@@ -30,3 +34,5 @@ api.interceptors.response.use((response) => {
   }
   return response;
 });
+
+export default api;

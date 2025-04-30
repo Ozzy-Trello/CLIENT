@@ -1,5 +1,4 @@
 "use client";
-
 import { ReactNode } from "react";
 import { Layout, Menu } from "antd";
 import TopBar from "../components/topbar";
@@ -9,7 +8,6 @@ import {
   useWorkspaceSidebar,
 } from "@/app/provider/workspace-sidebar-context";
 import Footer from "../components/footer";
-// import UrlSynchronizer from "./url_synchronizer"; still error, needs to fix later
 
 const { Header, Content } = Layout;
 
@@ -18,16 +16,13 @@ interface BaseLayoutProps {
 }
 
 const WorkspaceLayout: React.FC<BaseLayoutProps> = ({ children }) => {
-  
   const { collapsed, siderSmall, siderWide } = useWorkspaceSidebar();
 
   return (
     <Layout className="base-layout">
-      {/* <UrlSynchronizer /> */}
-      <Header>
+      <Header style={{ position: 'fixed', zIndex: 1, width: '100%' }}>
         <TopBar />
       </Header>
-
       <Sidebar />
       <Layout
         className="workspace-layout"
@@ -35,13 +30,19 @@ const WorkspaceLayout: React.FC<BaseLayoutProps> = ({ children }) => {
           marginTop: "45px",
           width: collapsed ? `calc(100%-${siderSmall})` : `calc(100%-${siderWide}) `,
           transition: "margin-left 0.2s ease",
+          height: "calc(100vh - 45px)",
           overflow: "hidden",
-          height: "100vh"
         }}
       >
-        <Content>
-          {children}
-          <Footer />
+        <Content style={{ 
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden'
+        }}>
+          <div style={{ flex: 1, overflow: 'hidden' }}>
+            {children}
+          </div>
         </Content>
       </Layout>
     </Layout>

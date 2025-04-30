@@ -8,6 +8,8 @@ import {
   FilePdfOutlined, 
   FileZipOutlined 
 } from '@ant-design/icons';
+import { uploadFile } from '@/app/api/file';
+import { FileAttachment } from '@/app/dto/types';
 
 // Define file type configurations
 const FILE_TYPE_CONFIGS = {
@@ -36,7 +38,7 @@ const FILE_TYPE_CONFIGS = {
 interface UploadModalProps {
   isVisible: boolean;
   onClose: () => void;
-  onUploadComplete?: (file: File) => void;
+  onUploadComplete?: (file: File, result: FileAttachment) => void;
   uploadType?: keyof typeof FILE_TYPE_CONFIGS;
   title?: string;
 }
@@ -126,25 +128,25 @@ const UploadModal: React.FC<UploadModalProps> = ({
     }
   };
 
-  const handleUpload = () => {
+  const handleUpload = async() => {
     if (!selectedFile) {
       message.error('Please select a file first!');
       return;
     }
+
+    const result = await uploadFile(selectedFile);
     
     setIsUploading(true);
    
-    setTimeout(() => {
-      if (onUploadComplete) {
-        onUploadComplete(selectedFile);
-      }
-     
-      message.success('File uploaded successfully!');
-     
-      setIsUploading(false);
-      setSelectedFile(null);
-      onClose();
-    }, 1500);
+    if (onUploadComplete && result?.data) {
+      onUploadComplete(selectedFile, result?.data);
+    }
+   
+    message.success('File uploaded successfully!');
+   
+    setIsUploading(false);
+    setSelectedFile(null);
+    onClose();
   };
 
   const triggerFileInput = () => {

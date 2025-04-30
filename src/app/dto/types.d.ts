@@ -3,7 +3,7 @@ import { Action } from "@reduxjs/toolkit";
 export interface ApiResponse<T = any> {
   data?: T;
   message?: string;
-  paginate: Pagination;
+  paginate?: Pagination;
 }
 
 export interface Pagination {
@@ -54,14 +54,14 @@ export interface Workspace {
   slug: string;
 }
 
-// Basic types for card elements
-export interface Attachment {
+export interface CardAttachment {
   id: string;
-  filename: string;
-  url: string;
-  type?: string;
-  addedAt: string;
-  isCover?: boolean;
+  isCover: boolean;
+  cardId: string;
+  fileId: string;
+  createdBy: string;
+  createdAt: string;
+  file?: FileAttachment;
 }
 
 export interface Label {
@@ -76,20 +76,11 @@ export interface CardTime {
   lastActivity?: string; // ISO date string
 }
 
-// export interface ActivityItem {
-//   id: string;
-//   type: string; // "comment", "update", "attachment", "move", etc.
-//   content: string;
-//   user: User;
-//   timestamp: string;
-//   via?: string; // e.g., "Butler"
-//   attachments?: Attachment[];
-//   referencedCardId?: string; // For @card mentions
-// }
+
 export interface CardActivity {
   id: string;
   senderUsername: string; // "comment", "update", "attachment", "move", etc.
-  senderUserId: string;
+  senderId: string;
   type: "text" | "action";
   text: string;
   source: AcitivitySource;
@@ -115,6 +106,7 @@ export type CustomFieldValueType =
 
 export interface CustomField {
   id: string;
+  triggerId?: string;
   boardId: string;
   name: string;
   description: string;
@@ -129,18 +121,98 @@ export interface CustomOption {
   label: string;
 }
 
-export interface Trigger {
-  id?: string;
-  name?: string;
-  conditionValue?: string;
-  workspaceId?: string;
-  action?: TriggerAction;
+
+// Automation Rule interface to accomodate selection state of automation rule setting
+export interface AutomationRule {
+  triggerType: string;
+  triggerItem?: SelectedTriggerItem;
+  actions?: SelectedAction[];
+}
+
+export interface SelectedTriggerItem {
+  type?: string;
+  label?: string;
+  filter?: SelectedCardFilter;
+  [key: string]: GeneralOptions | string | undefined;
+}
+
+export interface SelectedCardFilter {
+  type?: string;
+  selectedItem?: SelectedCardFilterItem;
+}
+
+export interface SelectedCardFilterItem {
+  type: string;
+  label: string;
+  [key: string]: GeneralOptions  | string | undefined;
+}
+
+export interface SelectedAction {
+  type?: string;
+  selectedActionItem?: SelectedActionItem;
+}
+export interface SelectedActionItem {
+  type: string;
+  label?: string;
+  [key: string]: GeneralOptions  | string | undefined;
+}
+
+// Trigger interface to accomodate the static trigger data use to construct trigger UI
+export interface TriggerType {
+  type: string;
+  icon: any;
+  label: any;
+  items?: TriggerItems[];
+}
+
+export interface TriggerItems {
+  type: string;
+  label: string;
+  [key: string]: TriggerItemSelection | string | undefined;
+}
+
+export interface TriggerItemSelection {
+  options?: GeneralOptions[] // to store the options
+  value?: GeneralOptions | null | undefined // to store selected option
+}
+
+// Action interface to accomodate the static action data to construct acttionUI
+export interface ActionType {
+  type: string;
+  icon: any;
+  label: any;
+  items?: ActionItems[];
+}
+
+export interface ActionItems {
+  type: string;
+  label: string;
+  [key: string]: TriggerItemSelection  | string | undefined;
+}
+
+export interface GeneralOptions {
+  value: string;
+  label: React.ReactNode;
 }
 
 export interface TriggerAction {
   targetListId?: string;
   messageTelegram: string;
   labelCardId?: string;
+}
+
+// trigger card filter interface to accomodate the static card filter data use to construct the filter UI
+export interface CardTriggerFilterType {
+  type: string;
+  icon: any;
+  label: any;
+  items: CardTriggerFilterItem[]
+}
+
+export interface CardTriggerFilterItem {
+  type: string;
+  label: string;
+  [key: string]: TriggerItemSelection  | string | undefined;
 }
 
 export interface CardCustomField {
@@ -177,8 +249,9 @@ export interface Card {
   listId: string;
   name: string;
   description?: string;
-  cover?: Attachment | null;
-  attachments?: Attachment[];
+  location?: string;
+  cover?: CardAttachment | null;
+  attachments?: CardAttachment[];
   labels?: Label[];
   members?: User[];
   customFields?: CustomField[];
@@ -227,3 +300,14 @@ export interface FilterList {
 }
 
 export type AnyList = List | FilterList;
+
+export interface FileAttachment {
+  id: string;
+  name: string;
+  url: string;
+  size: number;
+  sizeUnit: string;
+  mimeType: string;
+  createdBy: string;
+  createdAt: string;
+}
