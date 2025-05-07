@@ -1,4 +1,4 @@
-import { CardActivity } from "@/app/dto/types";
+import { CardActivity } from "@/app/types/card";
 import { Avatar, Typography } from "antd";
 
 interface CardDetailsLogsProps {

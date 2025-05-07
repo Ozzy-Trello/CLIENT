@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ApiResponse, CardAttachment, FileAttachment } from "../dto/types";
 import { createCardAttachment, deleteCardAttachment, getCardAttachments } from "../api/card_attachment";
+import { ApiResponse } from "../types/type";
+import { AttachableType, CardAttachment } from "../types/card";
 
 
 /**
@@ -20,19 +21,21 @@ export function useCardAttachment(cardId: string) {
   // Create attachment mutation with optimistic updates
   const addAttachmentMutation = useMutation({
     mutationFn: ({ 
-      cardId, 
-      fileId,
+      cardId,
+      attachableType,
+      attachableId,
       isCover,
     }: { 
       cardId: string; 
-      fileId: string;
+      attachableType: AttachableType;
+      attachableId: string;
       isCover: boolean;
     }) => {
-      console.log("API - Adding attachment:", { cardId, fileId });
-      return createCardAttachment({ cardId: cardId, fileId: fileId, isCover: isCover});
+      console.log("API - Adding attachment:", {cardId, attachableType, attachableId, isCover});
+      return createCardAttachment({cardId, attachableType, attachableId, isCover});
     },
-    onMutate: async ({ cardId, fileId, isCover }) => {
-      console.log("Optimistically adding attachment:", { cardId, fileId });
+    onMutate: async ({ cardId, attachableType, attachableId, isCover }) => {
+      console.log("Optimistically adding attachment:", { cardId, attachableId });
       
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ["cardAttachment", cardId] });
@@ -43,21 +46,12 @@ export function useCardAttachment(cardId: string) {
       // Create temporary attachment for optimistic update
       const tempAttachment: CardAttachment = {
         id: `temp-${Date.now()}`,
-        isCover: isCover,
         cardId: cardId,
-        fileId: fileId,
+        attachableType: attachableType,
+        attachableId: attachableId,
+        isCover: isCover,
         createdBy: "current-user", // This will be replaced when the server responds
-        createdAt: new Date().toISOString(),
-        file: {
-          id: fileId,
-          name: "Uploading...",
-          url: "",
-          size: 0,
-          sizeUnit: "KB",
-          mimeType: "",
-          createdAt: new Date().toISOString(),
-          createdBy: "current-user"
-        }
+        createdAt: new Date().toISOString()
       };
 
       // Update the UI optimistically

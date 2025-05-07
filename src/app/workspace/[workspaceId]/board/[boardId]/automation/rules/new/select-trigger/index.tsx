@@ -3,9 +3,9 @@ import { Button, Select, Typography } from "antd";
 import { ListFilter, Plus } from "lucide-react";
 import { Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
 import { triggers } from "../../../../../../../../constants/automation-rule/data";
-import { AutomationRule, GeneralOptions, SelectedTriggerItem, TriggerItems, TriggerItemSelection } from "@/app/dto/types";
 import { CustomFilter, CustomSelectionArr, CustomSelectionList } from "@/app/constants/automation-rule/automation-rule";
 import PopoverRuleCardFilter from "@/app/components/popover-rule-card-filter";
+import { AutomationRule, GeneralOptions, TriggerItems, TriggerItemSelection } from "@/app/types/type";
 
 interface SelectTriggerProps {
   nextStep: () => void;

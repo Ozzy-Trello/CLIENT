@@ -1,6 +1,6 @@
-import { ActionType, TriggerType } from "@/app/dto/types";
 import { AlignJustify, ArrowDownNarrowWide, Check, Clock, MessageSquare, Minus, MoveRight, Plus, User } from "lucide-react";
 import { CustomSelectionAction, CustomSelectionBoard, CustomSelectionBy, CustomSelectionList, CustomSelectionQtyCompOperator, CustomSelectionQtyCompOperatorOptions, TriggerTypeCardChanges, TriggerTypeCardContent, TriggerTypeCardMove, TriggerTypeChecklists, TriggerTypeDates, TriggerTypeFields } from "./automation-rule";
+import { ActionType, TriggerType } from "@/app/types/type";
 
 export const triggers: TriggerType[] = [
   {

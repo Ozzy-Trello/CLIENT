@@ -1,7 +1,6 @@
 'use client';
 
 import { useWorkspaceSidebar } from "@/app/provider/workspace-sidebar-context";
-import { Board } from "@/app/dto/types";
 import { Avatar, Button, Menu, Tooltip, Typography, Layout, Skeleton, Space } from "antd";
 import Link from "next/link";
 import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
@@ -13,6 +12,7 @@ import { useSelector } from "react-redux";
 import { selectCurrentBoard, selectCurrentWorkspace, setCurrentBoard } from "@/app/store/workspace_slice";
 import { useBoards } from "@/app/hooks/board";
 import { useParams, useRouter } from "next/navigation";
+import { Board } from "@/app/types/board";
 
 const { Sider } = Layout;
 type MenuItem = Required<MenuProps>['items'][number];

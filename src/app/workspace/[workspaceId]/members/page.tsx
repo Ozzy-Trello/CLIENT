@@ -1,7 +1,6 @@
 "use client";
 
 import { SkeletonTable } from "@/app/components/skeleton";
-import { User } from "@/app/dto/types";
 import {
   Avatar,
   Badge,

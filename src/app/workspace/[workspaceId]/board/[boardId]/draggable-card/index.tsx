@@ -1,7 +1,8 @@
 import { cards } from "@/app/api/card";
 import MembersList from "@/app/components/members-list";
-import { AnyList, Card } from "@/app/dto/types";
 import { useCardDetailContext } from "@/app/provider/card-detail-context";
+import { Card } from "@/app/types/card";
+import { AnyList } from "@/app/types/list";
 import { Draggable, DroppableProvided } from "@hello-pangea/dnd";
 import { Checkbox, CheckboxProps, Tooltip } from "antd";
 import { Calendar, CalendarDays, MessageSquare, Paperclip, Text } from "lucide-react";
@@ -43,11 +44,11 @@ const DraggableCard: React.FC<DraggableCardProps> = ({
           onMouseLeave={() => setIsHovered(false)}
         >
           {/* Cover image */}
-          {card.cover?.file?.url && (
+          {card.cover && (
             <div className="w-full bg-white border-b mb-3">
               <div className="relative">
                 <img
-                  src={card.cover?.file?.url}
+                  src={card.cover}
                   alt=""
                   className="w-full object-contain"
                 />

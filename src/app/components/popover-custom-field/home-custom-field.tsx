@@ -2,9 +2,9 @@ import { Button } from "antd";
 import { ChevronRight, GripVertical, Plus } from "lucide-react";
 import { useParams } from "next/navigation";
 import { DragDropContext, Draggable, Droppable, DropResult } from "@hello-pangea/dnd";
-import { CustomField } from "@/app/dto/types";
 import SkeletonInput from "antd/es/skeleton/Input";
 import { useState, useEffect } from "react";
+import { CustomField } from "@/app/types/type";
 
 interface HomeCustomFieldProps {
   popoverPage: string;

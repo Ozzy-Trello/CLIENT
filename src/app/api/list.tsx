@@ -1,5 +1,6 @@
 import { api } from ".";
-import { AnyList, ApiResponse } from "../dto/types";
+import { AnyList } from "../types/list";
+import { ApiResponse } from "../types/type";
 
 export const lists = async(boardId: string): Promise<ApiResponse<AnyList[]>> => {
   const { data } = await api.get("/list", { headers: { 'board-id': boardId } });

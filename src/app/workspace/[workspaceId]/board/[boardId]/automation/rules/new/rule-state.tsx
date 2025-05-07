@@ -1,5 +1,5 @@
 import { CustomSelectionArr } from "@/app/constants/automation-rule/automation-rule";
-import { AutomationRule, GeneralOptions, SelectedAction, SelectedActionItem, SelectedTriggerItem, TriggerItems } from "@/app/dto/types";
+import { AutomationRule, GeneralOptions, SelectedAction, SelectedActionItem, SelectedTriggerItem } from "@/app/types/type";
 import { Button, Typography } from "antd";
 import { Trash } from "lucide-react";
 import { Dispatch, SetStateAction } from "react";
@@ -51,7 +51,7 @@ const RuleState: React.FC<RuleStateProps> = (props) => {
     goToSpecificStep(0);
   }
 
-  const removeAction = (item: SelectedAction, indexToRemove: number) => {
+  const removeAction = (item: SelectedActionItem, indexToRemove: number) => {
     if (selectedRule?.actions?.length) {
       if (selectedRule?.actions?.length > 1) {
         setSelectedRule((prev: AutomationRule | null) => ({
@@ -88,7 +88,7 @@ const RuleState: React.FC<RuleStateProps> = (props) => {
                   <div className="p-2 rounded-md bg-gray-200 border-2 border-gray-300 w-full">
                     <LabelRenderer item={item.selectedActionItem} />
                   </div>
-                  <Button variant="text" onClick={() => removeAction(item, index)}><Trash size={16} /></Button>
+                  <Button variant="text" onClick={() => removeAction(item.selectedActionItem!, index)}><Trash size={16} /></Button>
                 </div>
               )
             }

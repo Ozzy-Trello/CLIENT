@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { boardDetails, boards } from "../api/board";
-import { ApiResponse, Board } from "../dto/types";
 import { api } from "../api";
+import { ApiResponse } from "../types/type";
+import { Board } from "../types/board";
 
 /**
  * Hook to fetch all boards for a workspace

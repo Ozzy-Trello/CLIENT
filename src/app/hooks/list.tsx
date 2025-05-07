@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { lists } from "../api/list";
-import { AnyList, ApiResponse } from "../dto/types";
 import { api } from "../api";
+import { AnyList } from "../types/list";
+import { ApiResponse } from "../types/type";
 
 export function useLists(boardId: string) {
   const queryClient = useQueryClient();

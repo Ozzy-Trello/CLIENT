@@ -14,7 +14,6 @@ import boardsImage from "@/app/assets/images/boards.png";
 import Image from "next/image";
 import { PictureOutlined, StarOutlined } from "@ant-design/icons";
 import "./style.css";
-import { Board } from "@/app/dto/types";
 import { useDispatch } from "react-redux";
 import { useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
@@ -23,6 +22,7 @@ import { useBoards } from "@/app/hooks/board";
 import { useMemo, useState } from "react";
 import { Color } from "antd/es/color-picker";
 import { generateId } from "@/app/utils/general";
+import { Board } from "@/app/types/board";
 const { Text, Title } = Typography;
 
 interface ModalCreateBoardForm {

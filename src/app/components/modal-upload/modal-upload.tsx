@@ -6,41 +6,82 @@ import {
   DeleteOutlined, 
   FileImageOutlined, 
   FilePdfOutlined, 
-  FileZipOutlined 
+  FileZipOutlined,
+  FileExcelOutlined,
+  FileWordOutlined,
+  FileTextOutlined
 } from '@ant-design/icons';
 import { uploadFile } from '@/app/api/file';
-import { FileAttachment } from '@/app/dto/types';
+import { FileUpload } from '@/app/types/file-upload';
+import { getFileIcon } from '@/app/utils/file';
 
-// Define file type configurations
+// file type configurations
 const FILE_TYPE_CONFIGS = {
   'image': {
     accept: 'image/*',
     icon: <FileImageOutlined />,
     maxSize: 5 * 1024 * 1024, // 5MB
+    description: 'images'
   },
   'document': {
     accept: '.pdf,.doc,.docx,.txt,.rtf',
     icon: <FilePdfOutlined />,
     maxSize: 10 * 1024 * 1024, // 10MB
+    description: 'documents'
+  },
+  'spreadsheet': {
+    accept: '.xlsx,.xls,.csv',
+    icon: <FileExcelOutlined />,
+    maxSize: 10 * 1024 * 1024, // 10MB
+    description: 'spreadsheets'
+  },
+  'word': {
+    accept: '.doc,.docx',
+    icon: <FileWordOutlined />,
+    maxSize: 10 * 1024 * 1024, // 10MB
+    description: 'Word documents'
+  },
+  'text': {
+    accept: '.txt,.rtf',
+    icon: <FileTextOutlined />,
+    maxSize: 5 * 1024 * 1024, // 5MB
+    description: 'text files'
   },
   'compressed': {
     accept: '.zip,.rar,.7z',
     icon: <FileZipOutlined />,
     maxSize: 20 * 1024 * 1024, // 20MB
+    description: 'compressed files'
+  },
+  'pdf': {
+    accept: '.pdf',
+    icon: <FilePdfOutlined />,
+    maxSize: 10 * 1024 * 1024, // 10MB
+    description: 'PDF files'
+  },
+  'csv': {
+    accept: '.csv',
+    icon: <FileExcelOutlined />,
+    maxSize: 5 * 1024 * 1024, // 5MB
+    description: 'CSV files'
   },
   'all': {
     accept: '*',
     icon: <FileOutlined />,
     maxSize: 50 * 1024 * 1024, // 50MB
+    description: 'files'
   }
 };
 
 interface UploadModalProps {
   isVisible: boolean;
   onClose: () => void;
-  onUploadComplete?: (file: File, result: FileAttachment) => void;
+  onUploadComplete?: (file: File, result: FileUpload) => void;
   uploadType?: keyof typeof FILE_TYPE_CONFIGS;
   title?: string;
+  maxSize?: number; // Optional custom max size in bytes
+  acceptableExtensions?: string; // Optional custom file extensions like ".jpg,.png,.pdf"
+  multiple?: boolean; // Support for multiple file upload
 }
 
 const UploadModal: React.FC<UploadModalProps> = ({
@@ -48,41 +89,54 @@ const UploadModal: React.FC<UploadModalProps> = ({
   onClose,
   onUploadComplete,
   uploadType = 'all',
-  title = 'Upload File'
+  title = 'Upload File',
+  maxSize,
+  acceptableExtensions,
+  multiple = false
 }) => {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropAreaRef = useRef<HTMLDivElement>(null);
 
-  const fileTypeConfig = FILE_TYPE_CONFIGS[uploadType];
+  // Use predefined config or custom settings
+  const fileTypeConfig = {
+    accept: acceptableExtensions || FILE_TYPE_CONFIGS[uploadType].accept,
+    icon: FILE_TYPE_CONFIGS[uploadType].icon,
+    maxSize: maxSize || FILE_TYPE_CONFIGS[uploadType].maxSize,
+    description: FILE_TYPE_CONFIGS[uploadType].description
+  };
 
   useEffect(() => {
     // Reset state when modal closes or upload type changes
     if (!isVisible) {
-      setSelectedFile(null);
+      setSelectedFiles([]);
       setPreviewUrl(null);
     }
-  }, [isVisible, uploadType]);
+  }, [isVisible, uploadType, acceptableExtensions]);
 
   useEffect(() => {
-    if (!selectedFile) {
+    // Create preview for first selected image file
+    if (selectedFiles.length === 0) {
       setPreviewUrl(null);
       return;
     }
 
-    // Create preview for image files
-    if (selectedFile.type.startsWith('image/')) {
-      const objectUrl = URL.createObjectURL(selectedFile);
+    const firstFile = selectedFiles[0];
+    
+    if (firstFile.type.startsWith('image/')) {
+      const objectUrl = URL.createObjectURL(firstFile);
       setPreviewUrl(objectUrl);
 
       return () => {
         URL.revokeObjectURL(objectUrl);
       };
+    } else {
+      setPreviewUrl(null);
     }
-  }, [selectedFile]);
+  }, [selectedFiles]);
 
   const validateFile = (file: File): boolean => {
     // Check file size
@@ -91,62 +145,91 @@ const UploadModal: React.FC<UploadModalProps> = ({
       return false;
     }
 
-    // Check file type if not 'all'
-    if (uploadType !== 'all') {
-      const acceptedTypes = fileTypeConfig.accept.split(',');
-      const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
-      const fileType = file.type;
+    // Skip file type validation if accept is '*'
+    if (fileTypeConfig.accept === '*') {
+      return true;
+    }
 
-      const isValidType = acceptedTypes.some(type => 
-        type.endsWith('*') 
-          ? fileType.startsWith(type.replace('*', ''))
-          : type === fileExtension
-      );
+    // Check file type
+    const acceptedTypes = fileTypeConfig.accept.split(',');
+    const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
+    const fileType = file.type;
 
-      if (!isValidType) {
-        message.error(`Please upload a valid file type: ${fileTypeConfig.accept}`);
-        return false;
+    const isValidType = acceptedTypes.some(type => {
+      if (type.endsWith('*')) {
+        // Handle MIME type wildcards like 'image/*'
+        return fileType.startsWith(type.replace('*', ''));
+      } else if (type.startsWith('.')) {
+        // Handle extension matches like '.pdf'
+        return type === fileExtension;
+      } else {
+        // Handle exact MIME type matches
+        return type === fileType;
       }
+    });
+
+    if (!isValidType) {
+      message.error(`Please upload a valid file type: ${fileTypeConfig.accept}`);
+      return false;
     }
 
     return true;
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0] || null;
-    if (file && validateFile(file)) {
-      setSelectedFile(file);
+    const filesArray = event.target.files ? Array.from(event.target.files) : [];
+    const validFiles = filesArray.filter(validateFile);
+    
+    if (multiple) {
+      setSelectedFiles(prev => [...prev, ...validFiles]);
+    } else if (validFiles.length > 0) {
+      setSelectedFiles([validFiles[0]]);
+    }
+    
+    // Reset the input so the same file can be selected again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
   const handleFileDrop = (files: FileList | null) => {
     if (!files || files.length === 0) return;
     
-    const file = files[0];
-    if (validateFile(file)) {
-      setSelectedFile(file);
+    const filesArray = Array.from(files);
+    const validFiles = filesArray.filter(validateFile);
+    
+    if (multiple) {
+      setSelectedFiles(prev => [...prev, ...validFiles]);
+    } else if (validFiles.length > 0) {
+      setSelectedFiles([validFiles[0]]);
     }
   };
 
-  const handleUpload = async() => {
-    if (!selectedFile) {
+  const handleUpload = async () => {
+    if (selectedFiles.length === 0) {
       message.error('Please select a file first!');
       return;
     }
 
     setIsUploading(true);
-
-    const result = await uploadFile(selectedFile);
     
-  
-    if (onUploadComplete && result?.data) {
-      onUploadComplete(selectedFile, result?.data);
+    try {
+      for (const file of selectedFiles) {
+        const result = await uploadFile(file);
+        
+        if (onUploadComplete && result?.data) {
+          onUploadComplete(file, result?.data);
+        }
+      }
+      
+      message.success(`File${selectedFiles.length > 1 ? 's' : ''} uploaded successfully!`);
+      setIsUploading(false);
+      setSelectedFiles([]);
+      onClose();
+    } catch (error) {
+      message.error('Upload failed. Please try again.');
+      setIsUploading(false);
     }
-   
-    message.success('File uploaded successfully!');
-    setIsUploading(false);
-    setSelectedFile(null);
-    onClose();
   };
 
   const triggerFileInput = () => {
@@ -154,15 +237,15 @@ const UploadModal: React.FC<UploadModalProps> = ({
   };
 
   const handleCancel = () => {
-    setSelectedFile(null);
+    setSelectedFiles([]);
     onClose();
   };
 
-  const handleRemoveFile = () => {
-    setSelectedFile(null);
+  const handleRemoveFile = (index: number) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
-  // Drag event handlers (same as before)
+  // Drag event handlers
   const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
@@ -193,6 +276,24 @@ const UploadModal: React.FC<UploadModalProps> = ({
     }
   };
 
+  // Get pretty file size
+  const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024) return bytes + ' B';
+    else if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
+    else return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+  };
+
+  // Get accceptable file types description
+  const getAcceptableTypesDescription = (): string => {
+    if (fileTypeConfig.accept === '*') return 'all files';
+    
+    const types = fileTypeConfig.accept.split(',')
+      .map(type => type.replace('.', '').toUpperCase())
+      .join(', ');
+      
+    return types;
+  };
+
   return (
     <>
       <input
@@ -200,6 +301,7 @@ const UploadModal: React.FC<UploadModalProps> = ({
         ref={fileInputRef}
         onChange={handleFileChange}
         accept={fileTypeConfig.accept}
+        multiple={multiple}
         style={{ display: 'none' }}
       />
 
@@ -219,14 +321,14 @@ const UploadModal: React.FC<UploadModalProps> = ({
             icon={<UploadOutlined />}
             className="rounded-md m-2"
           >
-            {selectedFile ? 'Change File' : 'Select File'}
+            {selectedFiles.length > 0 ? 'Add File' : 'Select File'}
           </Button>,
           <Button
             key="upload"
             type="primary"
             loading={isUploading}
             onClick={handleUpload}
-            disabled={!selectedFile || isUploading}
+            disabled={selectedFiles.length === 0 || isUploading}
             className="bg-blue-600 hover:bg-blue-700 rounded-md m-2"
           >
             Upload
@@ -234,25 +336,27 @@ const UploadModal: React.FC<UploadModalProps> = ({
         ]}
       >
         <div className="mb-6 px-4">
-          {selectedFile ? (
+          {selectedFiles.length > 0 ? (
             <div className="space-y-4">
-              <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                <div className="flex items-center space-x-3">
-                  {fileTypeConfig.icon}
-                  <div>
-                    <p className="font-medium text-gray-800">{selectedFile.name}</p>
-                    <p className="text-sm text-gray-500">
-                      {(selectedFile.size / 1024).toFixed(2)} KB
-                    </p>
+              {selectedFiles.map((file, index) => (
+                <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    {getFileIcon(file.name)}
+                    <div>
+                      <p className="font-medium text-gray-800">{file.name}</p>
+                      <p className="text-sm text-gray-500">
+                        {formatFileSize(file.size)}
+                      </p>
+                    </div>
                   </div>
+                  <Button 
+                    danger 
+                    icon={<DeleteOutlined />} 
+                    onClick={() => handleRemoveFile(index)}
+                    shape="circle"
+                  />
                 </div>
-                <Button 
-                  danger 
-                  icon={<DeleteOutlined />} 
-                  onClick={handleRemoveFile}
-                  shape="circle"
-                />
-              </div>
+              ))}
 
               {previewUrl && (
                 <div className="mt-4">
@@ -285,11 +389,14 @@ const UploadModal: React.FC<UploadModalProps> = ({
               <p className={`text-4xl mb-2 ${isDragging ? 'text-blue-500' : 'text-gray-400'}`} />
               <p className={`${isDragging ? 'text-blue-600' : 'text-gray-600'}`}>
                 {isDragging 
-                  ? `Drop ${uploadType} file here` 
+                  ? `Drop ${fileTypeConfig.description} here` 
                   : 'Click or drag file to this area to upload'}
               </p>
               <p className="text-xs text-gray-500 mt-1">
-                Supports {uploadType} file upload (Max: {fileTypeConfig.maxSize / 1024 / 1024}MB)
+                Supports {getAcceptableTypesDescription()} 
+                {multiple ? ' (multiple files allowed)' : ''}
+                <br />
+                Max size: {formatFileSize(fileTypeConfig.maxSize)}
               </p>
             </div>
           )}

@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { AnyList, ApiResponse, CustomField } from "../dto/types";
 import { api } from "../api";
 import { customFields } from "../api/custom_field";
+import { ApiResponse, CustomField } from "../types/type";
+import { AnyList } from "../types/list";
 
 export function useCustomFields(workspaceId: string) {
   const queryClient = useQueryClient();

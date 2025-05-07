@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Modal, Input, Checkbox, Button } from 'antd';
 import { EditOutlined, CloseOutlined } from '@ant-design/icons';
-import { Label } from '@/app/dto/types';
+import { Label } from '@/app/types/type';
 
 interface LabelsSelectionProps {
   visible: boolean;

@@ -1,4 +1,3 @@
-import { AnyList, Card, Pagination } from "@/app/dto/types";
 import { Draggable, Droppable, DroppableProvided } from "@hello-pangea/dnd";
 import ListName from "./list-name";
 import { useCards } from "@/app/hooks/card";
@@ -6,6 +5,7 @@ import DraggableCard from "../draggable-card";
 import AddCard from "./add-card";
 import { UseMutateFunction } from "@tanstack/react-query";
 import { useEffect } from "react";
+import { AnyList } from "@/app/types/list";
 
 interface DraggableListProps {
   list: AnyList;

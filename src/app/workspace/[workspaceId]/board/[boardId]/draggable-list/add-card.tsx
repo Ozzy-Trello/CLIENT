@@ -1,5 +1,4 @@
-import { Card } from "@/app/dto/types";
-import { useCards } from "@/app/hooks/card";
+import { Card } from "@/app/types/type";
 import { generateId } from "@/app/utils/general";
 import { Button } from "antd";
 import { Plus } from "lucide-react";

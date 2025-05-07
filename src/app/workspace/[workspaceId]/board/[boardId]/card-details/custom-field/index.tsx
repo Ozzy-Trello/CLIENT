@@ -1,5 +1,4 @@
 import { SelectionRef, UserSelection } from "@/app/components/selection";
-import { CustomField } from "@/app/dto/types";
 import { useCardCustomField } from "@/app/hooks/card_custom_field";
 import { useCardDetailContext } from "@/app/provider/card-detail-context";
 import { api } from "@/app/api";
@@ -8,6 +7,7 @@ import { List, StretchHorizontal, TextCursorInput } from "lucide-react";
 import { Fragment, useEffect, useRef, useState } from "react";
 import { useLists } from "@/app/hooks/list";
 import { useParams } from "next/navigation";
+import { CustomField } from "@/app/types/type";
 
 interface CustomFieldsProps {
   customFields: CustomField[];

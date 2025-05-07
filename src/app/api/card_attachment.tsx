@@ -1,5 +1,6 @@
 import { api } from "./index";
-import { ApiResponse, CardAttachment } from "../dto/types";
+import { AttachableType, CardAttachment } from "../types/card";
+import { ApiResponse } from "../types/type";
 
 /**
  * Get all attachments for a specific card
@@ -16,7 +17,7 @@ export const getCardAttachments = async (cardId: string): Promise<ApiResponse<Ca
  * @param params Object containing card_id and file_id
  * @returns Promise with the created attachment data
  */
-export const createCardAttachment = async (params: { cardId: string; fileId: string, isCover: boolean }): Promise<ApiResponse<CardAttachment>> => {
+export const createCardAttachment = async (params: { cardId: string; attachableType: AttachableType, attachableId: string; isCover: boolean }): Promise<ApiResponse<CardAttachment>> => {
   const { data } = await api.post('/card-attachment', params);
   return data;
 };

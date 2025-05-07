@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { User } from '../dto/types';
+import { User } from '../types/user';
 
 export interface AppState {
   currentPage: string;

@@ -5,7 +5,7 @@ import { ChevronLeft, X } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useCustomFields } from "@/app/hooks/custom_field";
 import AddUpdateField from "./add-update-field";
-import { CustomField } from "@/app/dto/types";
+import { CustomField } from "@/app/types/type";
 
 interface PopoverCustomFieldProps {
   open: boolean;

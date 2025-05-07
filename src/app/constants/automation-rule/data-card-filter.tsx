@@ -1,6 +1,6 @@
-import { CardTriggerFilterType } from "@/app/dto/types";
 import { AlignJustify, Check, Clock, MessageSquare, SwatchBook } from "lucide-react";
 import { TriggerCardFilterTypeBasic, TriggerCardFilterTypeChecklists, TriggerCardFilterTypeContent, TriggerCardFilterTypeDates, TriggerCardFilterTypeFields } from "./automation-rule";
+import { CardTriggerFilterType } from "@/app/types/type";
 
 export const cardFilters: CardTriggerFilterType[] = [
   {

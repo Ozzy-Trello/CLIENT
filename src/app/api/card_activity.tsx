@@ -1,5 +1,6 @@
 import { api } from ".";
-import { ApiResponse, CardActivity} from "../dto/types";
+import { CardActivity } from "../types/card";
+import { ApiResponse } from "../types/type";
 
 export const cardAcitivities = async (cardId: string): Promise<ApiResponse<CardActivity[]>> => {
   const {data} = await api.get(`/card/${cardId}/activity`);

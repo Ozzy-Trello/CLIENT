@@ -7,7 +7,6 @@ import { useSelector } from "react-redux";
 import { selectTheme, selectUser } from "@/app/store/app_slice";
 import { useWorkspaceSidebar } from "@/app/provider/workspace-sidebar-context";
 import { useLists } from "@/app/hooks/list";
-import { AnyList } from "@/app/dto/types";
 import { useParams, useSearchParams } from "next/navigation";
 import { generateId } from "@/app/utils/general";
 import { Droppable, DropResult } from "@hello-pangea/dnd";
@@ -18,8 +17,9 @@ import { CardDetailProvider } from "@/app/provider/card-detail-context";
 import CardDetails from "./card-details";
 import ListSkeleton from "./list-skeleton.tsx";
 import BoardScopeMenu from "@/app/components/board-scope-menu";
-import { useCards } from "@/app/hooks/card";
+import { useCardMove, useCards } from "@/app/hooks/card";
 import { useQueryClient } from "@tanstack/react-query";
+import { AnyList } from "@/app/types/list";
 
 const DragDropContext = dynamic(
   () => import("@hello-pangea/dnd").then((mod) => mod.DragDropContext),
@@ -39,6 +39,7 @@ const Board: React.FC = () => {
   const [ newListName, setNewListName ] = useState<string>("");
   const [ boardScopeMenu, setBoardScopeMenu] = useState<boolean>(false);
   const { updateCard } = useCards("");
+  const { moveCard } = useCardMove();
 
 
   const onListDragEnd = useCallback(
@@ -79,13 +80,20 @@ const Board: React.FC = () => {
     if (sourceList === destList) {
 
     } else {
-      updateCard({
+      // updateCard({
+      //   cardId: cardId,
+      //   updates: { 
+      //     listId: destListId
+      //   },
+      //   listId: sourceListId,
+      //   destinationListId: destListId
+      // });
+      moveCard({
         cardId: cardId,
-        updates: { 
-          listId: destListId
-        },
-        listId: sourceListId,
-        destinationListId: destListId
+        previousListId: sourceListId,
+        targetListId: destListId,
+        previousPosition: 0,
+        targetPosition: 0,
       });
     }
   }

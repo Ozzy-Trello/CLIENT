@@ -1,7 +1,7 @@
-import { AutomationRule } from "@/app/dto/types";
 import { Button } from "antd";
 import { Dispatch, SetStateAction } from "react";
 import { Plus } from "lucide-react";
+import { AutomationRule } from "@/app/types/type";
 
 interface ReviewAndSaveProps {
   nextStep: () => void;

@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { Button, Input, Avatar, Typography, Divider } from 'antd';
 import { MessageOutlined } from '@ant-design/icons';
-import { CardActivity, Card, User } from '@/app/dto/types';
 import { generateId } from '@/app/utils/general';
 import RichTextEditor from '@/app/components/rich-text-editor';
 import { ListCollapse } from 'lucide-react';
 import { useAccountList } from '@/app/hooks/account';
 import { useParams } from 'next/navigation';
 import { Account } from '@/app/dto/account';
+import { Card, CardActivity } from '@/app/types/card';
+import { User } from '@/app/types/user';
 
 interface ActivitySectionProps {
   card: Card;
@@ -79,16 +80,7 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
         if (!prev) return prev;
         return {
           ...prev,
-          cover: { 
-            id: generateId(),
-            url: imageUrl || '',
-            filename: "test",
-            cardId: prev.id,
-            fileId: "",
-            createdBy: currentUser?.id || '',
-            createdAt: new Date().toISOString(),
-            isCover: true
-          }
+          cover: card.cover
         };
       });
     }

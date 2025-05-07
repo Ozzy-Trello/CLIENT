@@ -1,6 +1,6 @@
 import { api } from ".";
 import { Account } from "../dto/account";
-import { ApiResponse } from "../dto/types";
+import { ApiResponse } from "../types/type";
 
 export const currentAccount = async (): Promise<ApiResponse<Account>> => {
   const { data } = await api.get('/account');

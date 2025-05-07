@@ -1,6 +1,6 @@
 import RichTextEditor from "@/app/components/rich-text-editor";
-import { Card } from "@/app/dto/types";
 import { useCards } from "@/app/hooks/card";
+import { Card } from "@/app/types/card";
 import { Button, Typography } from "antd";
 import { AlignLeft, Edit } from "lucide-react";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";

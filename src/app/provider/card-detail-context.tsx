@@ -1,7 +1,8 @@
 import React, { createContext, useState, useContext, ReactNode, useEffect, useRef } from 'react';
-import { AnyList, Card } from '@/app/dto/types';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { cardDetails } from '../api/card';
+import { AnyList } from '../types/list';
+import { Card } from '../types/card';
 
 type CardDetailContextType = {
   selectedCard: Card | null;

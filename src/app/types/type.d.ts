@@ -15,53 +15,9 @@ export interface Pagination {
   prevPage: number;
 }
 
-export interface User {
-  id: string;
-  username: string;
-  fullname: string;
-  email: string;
-  phone: string;
-  refreshToken?: string;
-  accessToken?: string;
-  avatar?: string;
-  roleName?: string;
-}
-
-export interface Board {
-  id: string;
-  workspaceId?: string;
-  name?: string;
-  cover?: string;
-  background?: string;
-  isStarred?: boolean;
-  description?: string;
-  visibility?: string;
-  createdBy?: User;
-  createdAt: string;
-  updatedBy?: User;
-  upatedAt?: string;
-}
-
 export interface Color {
   color: string;
   percent: number;
-}
-
-export interface Workspace {
-  id: string;
-  name: string;
-  description: string;
-  slug: string;
-}
-
-export interface CardAttachment {
-  id: string;
-  isCover: boolean;
-  cardId: string;
-  fileId: string;
-  createdBy: string;
-  createdAt: string;
-  file?: FileAttachment;
 }
 
 export interface Label {
@@ -70,21 +26,6 @@ export interface Label {
   color: string;
 }
 
-export interface CardTime {
-  inList: string; // Duration in list (e.g., "1 second", "22 hours")
-  onBoard: string; // Duration on board (e.g., "1 month", "3 months")
-  lastActivity?: string; // ISO date string
-}
-
-
-export interface CardActivity {
-  id: string;
-  senderUsername: string; // "comment", "update", "attachment", "move", etc.
-  senderId: string;
-  type: "text" | "action";
-  text: string;
-  source: AcitivitySource;
-}
 
 export interface AcitivitySource {
   actionType: string;
@@ -95,14 +36,6 @@ export interface AcitivitySource {
   tagId: string;
   tagName: string;
 }
-
-// For custom fields
-export type CustomFieldValueType =
-  | "text"
-  | "number"
-  | "date"
-  | "checkbox"
-  | "dropdown";
 
 export interface CustomField {
   id: string;
@@ -215,17 +148,6 @@ export interface CardTriggerFilterItem {
   [key: string]: TriggerItemSelection  | string | undefined;
 }
 
-export interface CardCustomField {
-  customFieldId: string;
-  cardId?: string;
-  id?: string;
-  name?: string;
-  description?: string;
-  source?: string | CustomOption[];
-  type?: CustomFieldValueType;
-  value?: string;
-}
-
 // Checklist item
 export interface ChecklistItem {
   id: string;
@@ -274,43 +196,7 @@ export interface CounterCard extends Card {
   filterCriteria?: any; // Define specific filter criteria structure
 }
 
-// Regular List/Column
-export interface List {
-  id: string;
-  boardId: string;
-  name?: string;
-  cover?: string;
-  type?: "regular";
-  cardIds?: string[];
-  cards?: Card[];
-  position?: number;
-  type?: string;
-}
 
-// Filter List/Column
-export interface FilterList {
-  id: string;
-  boardId: string;
-  name?: string;
-  type?: "filter";
-  cardIds?: string[];
-  cards?: Card[];
-  position?: number;
-  filterCriteria?: any; // Define specific filter criteria structure
-}
-
-export type AnyList = List | FilterList;
-
-export interface FileAttachment {
-  id: string;
-  name: string;
-  url: string;
-  size: number;
-  sizeUnit: string;
-  mimeType: string;
-  createdBy: string;
-  createdAt: string;
-}
 
 export interface PostAutomationRule {
   groupType: string;

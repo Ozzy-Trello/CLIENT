@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { cards } from "../api/card";
-import { ApiResponse, Card } from "../dto/types";
+import { cards, moveCard } from "../api/card";
 import { api } from "../api";
+import { ApiResponse, Card } from "../types/type";
 
 export function useCards(listId: string) {
   const queryClient = useQueryClient();
@@ -280,7 +280,6 @@ export function useCards(listId: string) {
 }
 
 // Add this to your existing useCards.ts file
-
 export function useCardDetails(cardId: string, listId: string) {
   const queryClient = useQueryClient();
 
@@ -501,5 +500,148 @@ export function useCardDetails(cardId: string, listId: string) {
     isDeleting: deleteCardMutation.isPending,
     moveCard: moveCardMutation.mutate,
     isMoving: moveCardMutation.isPending,
+  };
+}
+
+
+/**
+ * Hook to manage card movement between lists or within a list
+ */
+export function useCardMove() {
+  const queryClient = useQueryClient();
+  
+  const cardMoveMutation = useMutation({
+    mutationFn: ({ 
+      cardId,
+      previousListId,
+      targetListId,
+      previousPosition,
+      targetPosition
+    }: {
+      cardId: string;
+      previousListId: string;
+      targetListId: string;
+      previousPosition: number;
+      targetPosition: number;
+    }) => {
+      return moveCard(
+        cardId, 
+        previousListId, 
+        targetListId, 
+        previousPosition, 
+        targetPosition
+      );
+    },
+    onMutate: async ({ cardId, targetListId, previousListId, targetPosition, previousPosition }) => {
+      console.log("Optimistically moving card:", { cardId, targetListId, previousListId, targetPosition });
+      
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["cards"] });
+      await queryClient.cancelQueries({ queryKey: ["lists"] });
+      
+      // Get a snapshot of the current state
+      const previousLists = queryClient.getQueryData<ApiResponse<any[]>>(["lists"]);
+      
+      // If we're moving between lists, we need to update both lists
+      const isCrossList = previousListId && targetListId && previousListId !== targetListId;
+      
+      // Update lists in cache for optimistic UI
+      queryClient.setQueryData<ApiResponse<any[]>>(
+        ["lists"],
+        (old) => {
+          if (!old?.data) return old;
+          
+          const lists = Array.isArray(old.data) ? [...old.data] : [];
+          
+          // Find the card that's being moved
+          let cardToMove: any = null;
+          let sourceListIndex: number = -1;
+          
+          // Search for the card in all lists
+          for (let i = 0; i < lists.length; i++) {
+            const list = lists[i];
+            if (!list.cards) continue;
+            
+            const cardIndex = list.cards.findIndex((card: any) => card.id === cardId);
+            if (cardIndex >= 0) {
+              cardToMove = { ...list.cards[cardIndex] };
+              sourceListIndex = i;
+              
+              // Remove the card from its current position
+              lists[i] = {
+                ...list,
+                cards: [
+                  ...list.cards.slice(0, cardIndex),
+                  ...list.cards.slice(cardIndex + 1)
+                ]
+              };
+              break;
+            }
+          }
+          
+          if (!cardToMove) return old; // Couldn't find the card
+          
+          // Find the target list
+          const targetListIndex = lists.findIndex(list => 
+            list.id === (targetListId || (previousListId || lists[sourceListIndex]?.id))
+          );
+          
+          if (targetListIndex < 0) return old; // Couldn't find the target list
+          
+          // Add the card to the target list at the specified position
+          const targetList = lists[targetListIndex];
+          const targetCards = [...(targetList.cards || [])];
+          
+          // Insert the card at the target position
+          targetCards.splice(targetPosition, 0, cardToMove);
+          
+          lists[targetListIndex] = {
+            ...targetList,
+            cards: targetCards
+          };
+          
+          return {
+            ...old,
+            data: lists
+          };
+        }
+      );
+      
+      return { previousLists, isCrossList };
+    },
+    onError: (error, variables, context) => {
+      console.error("Error moving card:", error);
+      
+      // Revert to snapshot on error
+      if (context?.previousLists) {
+        queryClient.setQueryData(["lists"], context.previousLists);
+      }
+    },
+    onSuccess: (data, variables) => {
+      console.log("Successfully moved card:", data);
+      
+      // If the card was moved to a different list, invalidate the card attachments
+      if (variables.targetListId !== variables.previousListId) {
+        queryClient.invalidateQueries({ 
+          queryKey: ["cardAttachment", variables.cardId] 
+        });
+      }
+      
+      // Also invalidate any card time tracking data if present
+      queryClient.invalidateQueries({
+        queryKey: ["cardTime", variables.cardId]
+      });
+    },
+    onSettled: () => {
+      // Refetch lists to ensure consistency
+      queryClient.invalidateQueries({ queryKey: ["lists"] });
+      queryClient.invalidateQueries({ queryKey: ["cards"] });
+    }
+  });
+  
+  return {
+    moveCard: cardMoveMutation.mutate,
+    isMovingCard: cardMoveMutation.isPending,
+    moveCardError: cardMoveMutation.error
   };
 }

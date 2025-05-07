@@ -4,10 +4,10 @@ import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import SelecTrigger from "./select-trigger";
 import SelectAction from "./select-action";
-import { AutomationRule } from "@/app/dto/types";
 import { triggers } from "../../../../../../../constants/automation-rule/data";
 import ReviewAndSave from "./review-and-save";
 import RuleState from "./rule-state";
+import { AutomationRule } from "@/app/types/type";
 
 
 const StepsItem = [

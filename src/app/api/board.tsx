@@ -1,5 +1,6 @@
 import { api } from ".";
-import { ApiResponse, Board } from "../dto/types";
+import { Board } from "../types/board";
+import { ApiResponse } from "../types/type";
 
 export const boards = async(workspaceId: string): Promise<ApiResponse<Board[]>> => {
   const { data } = await api.get("/board", { headers: { 'workspace-id': workspaceId } });

@@ -1,10 +1,10 @@
 import { Button, Select, Typography } from "antd";
 import { actions } from "../../../../../../../../constants/automation-rule/data";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
-import { ActionItems, AutomationRule, GeneralOptions, SelectedAction, SelectedActionItem, TriggerItemSelection } from "@/app/dto/types";
 import { Plus } from "lucide-react";
 import RuleState from "../rule-state";
 import { CustomSelectionArr } from "@/app/constants/automation-rule/automation-rule";
+import { ActionItems, AutomationRule, GeneralOptions, SelectedAction, SelectedActionItem, TriggerItemSelection } from "@/app/types/type";
 
 interface SelectActionProps {
   nextStep: () => void;

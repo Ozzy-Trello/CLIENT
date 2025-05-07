@@ -4,7 +4,7 @@ import { ChevronLeft, X } from "lucide-react";
 import { useParams } from "next/navigation";
 import { UserSelection } from "../selection";
 import PopoverRuleCardFilterContent from "./content";
-import { AutomationRule } from "@/app/dto/types";
+import { AutomationRule } from "@/app/types/type";
 
 interface PopoverRuleCardFilterProps {
   open: boolean;

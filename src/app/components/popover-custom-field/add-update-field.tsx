@@ -1,4 +1,3 @@
-import { CustomField, CustomFieldValueType, TriggerAction } from "@/app/dto/types";
 import { useLists } from "@/app/hooks/list";
 import { generateId } from "@/app/utils/general";
 import { Button, Input, Select, Typography, message } from "antd";
@@ -7,6 +6,7 @@ import { useState, useEffect, useRef } from "react";
 import { ListSelection, SelectionRef } from "../selection";
 import { ChevronRight, Plus } from "lucide-react";
 import { useCardDetailContext } from "@/app/provider/card-detail-context";
+import { CustomField } from "@/app/types/type";
 
 interface AddUpdateFieldProps {
   popoverPage: string;

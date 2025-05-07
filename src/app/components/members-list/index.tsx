@@ -1,8 +1,8 @@
-import { User } from "@/app/dto/types";
 import { Avatar, Tooltip } from "antd";
 import { ChevronLeft, Plus } from "lucide-react";
 import { useState } from "react";
 import PopoverUser from "../popover-user";
+import { User } from "@/app/types/user";
 
 interface MembersListProps {
   members: User[],

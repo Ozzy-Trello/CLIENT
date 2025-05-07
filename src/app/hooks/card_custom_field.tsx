@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { cardCustomFields } from "../api/card_custom_field";
-import { ApiResponse, CardCustomField } from "../dto/types";
 import { api } from "../api";
+import { CardCustomField } from "../types/custom-field";
+import { ApiResponse } from "../types/type";
 
 export const useCardCustomField = (cardId: string) => {
   const queryClient = useQueryClient();

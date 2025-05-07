@@ -3,7 +3,6 @@ import { Popover, Typography } from "antd";
 import { ChevronLeft, X } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useCustomFields } from "@/app/hooks/custom_field";
-import { CustomField } from "@/app/dto/types";
 import { UserSelection } from "../selection";
 import LocationAutocomplete from "./content";
 import { useCardDetailContext } from "@/app/provider/card-detail-context";

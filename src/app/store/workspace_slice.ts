@@ -1,5 +1,7 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { AnyList, Board, List, Workspace } from "../dto/types";
+import { Workspace } from "../types/workspace";
+import { Board } from "../types/board";
+import { AnyList } from "../types/list";
 
 export interface WorkspaceState {
   currentWorkspace: Workspace | null;
