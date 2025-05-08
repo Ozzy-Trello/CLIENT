@@ -21,3 +21,8 @@ export const updateList = async ({ listId, list }: { listId: string, list: AnyLi
   const { data } = await api.post(`/list/${listId}`, list);
   return data;
 }
+
+export const moveList = async (id: string, previousPosition: number, targetPosition: number, boardId: string): Promise<ApiResponse<any>> => {
+  const { data } = await api.post(`/list/${id}/move`, { id, previousPosition, targetPosition, boardId});
+  return data;
+}

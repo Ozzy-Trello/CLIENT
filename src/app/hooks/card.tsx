@@ -503,7 +503,6 @@ export function useCardDetails(cardId: string, listId: string) {
   };
 }
 
-
 /**
  * Hook to manage card movement between lists or within a list
  */
@@ -536,69 +535,65 @@ export function useCardMove() {
       console.log("Optimistically moving card:", { cardId, targetListId, previousListId, targetPosition });
       
       // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ["cards"] });
-      await queryClient.cancelQueries({ queryKey: ["lists"] });
+      await queryClient.cancelQueries({ queryKey: ["lists", "cards"] });
       
-      // Get a snapshot of the current state
-      const previousLists = queryClient.getQueryData<ApiResponse<any[]>>(["lists"]);
+      // Get snapshot of current state
+      const previousListsData = queryClient.getQueryData<ApiResponse<any[]>>(["lists"]);
       
-      // If we're moving between lists, we need to update both lists
-      const isCrossList = previousListId && targetListId && previousListId !== targetListId;
+      if (!previousListsData?.data) {
+        console.error("No lists data found for optimistic update");
+        return { noData: true };
+      }
       
-      // Update lists in cache for optimistic UI
+      // Deep clone to avoid reference issues
+      const clonedListsData = JSON.parse(JSON.stringify(previousListsData));
+      
       queryClient.setQueryData<ApiResponse<any[]>>(
         ["lists"],
         (old) => {
           if (!old?.data) return old;
           
-          const lists = Array.isArray(old.data) ? [...old.data] : [];
+          // Clone the data to avoid mutation
+          const lists = JSON.parse(JSON.stringify(old.data));
           
-          // Find the card that's being moved
-          let cardToMove: any = null;
-          let sourceListIndex: number = -1;
-          
-          // Search for the card in all lists
-          for (let i = 0; i < lists.length; i++) {
-            const list = lists[i];
-            if (!list.cards) continue;
-            
-            const cardIndex = list.cards.findIndex((card: any) => card.id === cardId);
-            if (cardIndex >= 0) {
-              cardToMove = { ...list.cards[cardIndex] };
-              sourceListIndex = i;
-              
-              // Remove the card from its current position
-              lists[i] = {
-                ...list,
-                cards: [
-                  ...list.cards.slice(0, cardIndex),
-                  ...list.cards.slice(cardIndex + 1)
-                ]
-              };
-              break;
-            }
+          // Find source list
+          const sourceList = lists.find((list: any) => list.id === previousListId);
+          if (!sourceList || !sourceList.cards) {
+            console.error("Source list not found:", previousListId);
+            return old;
           }
           
-          if (!cardToMove) return old; // Couldn't find the card
+          // Find card in source list
+          const cardIndex = sourceList.cards.findIndex((card: any) => card.id === cardId);
+          if (cardIndex === -1) {
+            console.error("Card not found in source list:", cardId);
+            return old;
+          }
           
-          // Find the target list
-          const targetListIndex = lists.findIndex(list => 
-            list.id === (targetListId || (previousListId || lists[sourceListIndex]?.id))
-          );
+          // Save a copy of the card
+          const card = { ...sourceList.cards[cardIndex] };
           
-          if (targetListIndex < 0) return old; // Couldn't find the target list
+          // Remove card from source list
+          sourceList.cards.splice(cardIndex, 1);
           
-          // Add the card to the target list at the specified position
-          const targetList = lists[targetListIndex];
-          const targetCards = [...(targetList.cards || [])];
+          // Find target list
+          const targetList = lists.find((list: any) => list.id === targetListId);
+          if (!targetList) {
+            console.error("Target list not found:", targetListId);
+            return old;
+          }
           
-          // Insert the card at the target position
-          targetCards.splice(targetPosition, 0, cardToMove);
+          // Ensure target list has cards array
+          if (!targetList.cards) targetList.cards = [];
           
-          lists[targetListIndex] = {
-            ...targetList,
-            cards: targetCards
-          };
+          // Insert card at target position
+          const insertPosition = Math.min(targetPosition, targetList.cards.length);
+          targetList.cards.splice(insertPosition, 0, card);
+          
+          // Fix order values to ensure consistent sorting
+          targetList.cards.forEach((c: any, idx: number) => {
+            c.order = (idx + 1) * 10000;
+          });
           
           return {
             ...old,
@@ -607,35 +602,26 @@ export function useCardMove() {
         }
       );
       
-      return { previousLists, isCrossList };
+      // Return previous state for rollback
+      return { 
+        previousLists: clonedListsData,
+        cardId,
+        previousListId,
+        targetListId
+      };
     },
     onError: (error, variables, context) => {
       console.error("Error moving card:", error);
       
       // Revert to snapshot on error
-      if (context?.previousLists) {
+      if (context && !context.noData && context.previousLists) {
         queryClient.setQueryData(["lists"], context.previousLists);
       }
     },
-    onSuccess: (data, variables) => {
-      console.log("Successfully moved card:", data);
-      
-      // If the card was moved to a different list, invalidate the card attachments
-      if (variables.targetListId !== variables.previousListId) {
-        queryClient.invalidateQueries({ 
-          queryKey: ["cardAttachment", variables.cardId] 
-        });
-      }
-      
-      // Also invalidate any card time tracking data if present
-      queryClient.invalidateQueries({
-        queryKey: ["cardTime", variables.cardId]
-      });
-    },
     onSettled: () => {
-      // Refetch lists to ensure consistency
       queryClient.invalidateQueries({ queryKey: ["lists"] });
       queryClient.invalidateQueries({ queryKey: ["cards"] });
+
     }
   });
   

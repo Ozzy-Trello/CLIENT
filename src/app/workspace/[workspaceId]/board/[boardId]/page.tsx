@@ -6,7 +6,7 @@ import BoardTopbar from "./topbar";
 import { useSelector } from "react-redux";
 import { selectTheme, selectUser } from "@/app/store/app_slice";
 import { useWorkspaceSidebar } from "@/app/provider/workspace-sidebar-context";
-import { useLists } from "@/app/hooks/list";
+import { useListMove, useLists } from "@/app/hooks/list";
 import { useParams, useSearchParams } from "next/navigation";
 import { generateId } from "@/app/utils/general";
 import { Droppable, DropResult } from "@hello-pangea/dnd";
@@ -40,11 +40,13 @@ const Board: React.FC = () => {
   const [ boardScopeMenu, setBoardScopeMenu] = useState<boolean>(false);
   const { updateCard } = useCards("");
   const { moveCard } = useCardMove();
+  const { moveList } = useListMove();
 
 
   const onListDragEnd = useCallback(
     (result: DropResult) => {
       const { destination, source, type, draggableId } = result;
+      console.log("onListDragEnd", result);
       
       // Drop outside any droppable area
       if (!destination) return;
@@ -54,48 +56,44 @@ const Board: React.FC = () => {
 
       switch(type) {
         case "list" :
-          handleListDragEnd(source.index, destination.index);
+          handleListDragEnd(draggableId, source.index, destination.index);
           break;
         case "card":
-          handleCardDragEnd(source.droppableId, destination.droppableId, draggableId);
+          handleCardDragEnd(source.droppableId, source.index, destination.droppableId, destination.index, draggableId);
       }
     },
     [listData, updateCard]
   );
 
-  const handleListDragEnd = (from: number, to: number): void => {
-    setListData((prev) => {
-      const copyList = [...(prev || [])];
-      const [movedItem] = copyList.splice(from, 1);      
-      copyList.splice(to, 0, movedItem);
-      return copyList;
-    });    
+  const handleListDragEnd = (draggabelId: string, sourceIndex: number, destIndex: number): void => {
+    // setListData((prev) => {
+    //   const copyList = [...(prev || [])];
+    //   const [movedItem] = copyList.splice(from, 1);      
+    //   copyList.splice(to, 0, movedItem);
+    //   return copyList;
+    // }); 
+    const listId = draggabelId?.replaceAll("draggable-list-", "");
+
+    moveList({
+      listId: listId,
+      previousPosition: sourceIndex,
+      targetPosition: destIndex,
+      boardId: Array.isArray(boardId) ? boardId[0] : boardId,
+    });   
   }
 
-  const handleCardDragEnd = (sourceList: string, destList: string, cardId: string): void => {
+  const handleCardDragEnd = (sourceList: string, sourceIndex: number, destList: string, destIndex: number, cardId: string): void => {
     
     const sourceListId = sourceList?.replaceAll("droppable-card-area-", "");
     const destListId = destList?.replaceAll("droppable-card-area-", "");
 
-    if (sourceList === destList) {
-
-    } else {
-      // updateCard({
-      //   cardId: cardId,
-      //   updates: { 
-      //     listId: destListId
-      //   },
-      //   listId: sourceListId,
-      //   destinationListId: destListId
-      // });
-      moveCard({
-        cardId: cardId,
-        previousListId: sourceListId,
-        targetListId: destListId,
-        previousPosition: 0,
-        targetPosition: 0,
-      });
-    }
+    moveCard({
+      cardId: cardId,
+      previousListId: sourceListId,
+      targetListId: destListId,
+      previousPosition: sourceIndex,
+      targetPosition: destIndex,
+    });
   }
 
   const handleAddList = (): void => {
