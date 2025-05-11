@@ -229,18 +229,22 @@ export interface FilterList {
 
 export interface CardRequest {
   id: number;
-  card_id: string;
-  request_type: string;
-  requested_item_id: string;
-  request_amount: number;
+  cardId: string;
+  requestType: string;
+  requestedItemId: string;
+  requestAmount: number;
+  requestAmount: number;
   is_verified: boolean;
+  isVerified: boolean;
   adjustment_no: string;
+  adjustmentNo: string;
   description: string;
-  item_name: string;
+  itemName: string;
   adjustment_name: string;
+  adjustmentName: string;
   createdAt: string;
   updatedAt: string;
-  card_name: string;
+  cardName: string;
 }
 
 export type AnyList = List | FilterList;

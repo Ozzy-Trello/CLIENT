@@ -26,6 +26,15 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
   const [cards, setCards] = React.useState<any>([]);
   const [items, setItems] = React.useState<any>([]);
   const [glaccounts, setGlaccounts] = React.useState<any>([]);
+  const [isAkunPenyesuaianDisabled, setIsAkunPenyesuaianDisabled] =
+    React.useState<boolean>(false);
+  const [barangSearchValue, setBarangSearchValue] = React.useState<string>("");
+  const [isSearchingBarang, setIsSearchingBarang] =
+    React.useState<boolean>(false);
+  const [selectedItemUnit, setSelectedItemUnit] = React.useState<string>("");
+  const [availableUnits, setAvailableUnits] = React.useState<
+    { label: string; value: string }[]
+  >([]);
   const queries = useQueries({
     queries: [
       {
@@ -33,8 +42,9 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
         queryFn: () => allCards(),
       },
       {
-        queryKey: ["items"],
-        queryFn: () => getAllItemList(),
+        queryKey: ["items", barangSearchValue],
+        queryFn: () => getAllItemList(barangSearchValue),
+        enabled: barangSearchValue !== "",
       },
       {
         queryKey: ["glaccounts"],
@@ -45,10 +55,19 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
 
   useEffect(() => {
     if (queries[0].data?.data) setCards(queries[0].data.data);
-    if (queries[1].data?.data) setItems(queries[1].data.data);
+    if (queries[1].data?.data) {
+      setItems(queries[1].data.data);
+      setIsSearchingBarang(false);
+    }
     if (queries[2].data?.data) setGlaccounts(queries[2].data.data);
-    console.log(queries[2].data, "<< ioni data");
   }, [queries[0].data, queries[1].data, queries[2].data]);
+
+  // Handle barang search loading state
+  useEffect(() => {
+    if (queries[1].isLoading) {
+      setIsSearchingBarang(true);
+    }
+  }, [queries[1].isLoading]);
 
   useEffect(() => {
     if (open) {
@@ -62,8 +81,10 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
   }));
 
   const actionTypes = [
-    { value: "REJECT", label: "REJECT" },
-    { value: "OTHERS", label: "OTHERS" },
+    { value: "NEW_ORDER", label: "New Order" },
+    { value: "REJECT", label: "Reject" },
+    { value: "KEKURANGAN", label: "Kekurangan" },
+    { value: "KESALAHAN", label: "Kesalahan" },
   ];
 
   const barangList = useMemo(() => {
@@ -117,6 +138,16 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
   }, [glaccounts]);
 
   const [form] = Form.useForm();
+  const [formValid, setFormValid] = React.useState<boolean>(false);
+  
+  // Monitor form values to determine if the form is valid
+  const formValues = Form.useWatch([], form);
+  
+  React.useEffect(() => {
+    form.validateFields({ validateOnly: true })
+      .then(() => setFormValid(true))
+      .catch(() => setFormValid(false));
+  }, [formValues]);
 
   const filterOption = (
     inputValue: string,
@@ -158,6 +189,18 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
       message.error("Failed to submit request");
     }
   };
+
+  // Reset form when modal is closed
+  React.useEffect(() => {
+    if (!open) {
+      form.resetFields();
+      setFormValid(false);
+      setIsAkunPenyesuaianDisabled(false);
+      setSelectedItemUnit("");
+      setAvailableUnits([]);
+      setBarangSearchValue("");
+    }
+  }, [open]);
 
   return (
     <Modal
@@ -227,24 +270,99 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
             <AutoComplete
               options={barangList}
               placeholder="Cari atau pilih Barang"
-              filterOption={filterOption}
+              filterOption={false} // Disable client-side filtering as we're using server-side search
+              notFoundContent={
+                isSearchingBarang ? "Searching..." : "No items found"
+              }
               onSelect={(value, option) => {
                 if (
                   typeof value === "string" &&
                   value.startsWith("__header__")
                 ) {
                   form.setFieldsValue({ barang: undefined });
+                  setIsAkunPenyesuaianDisabled(false);
                 } else if (typeof option.label === "string") {
                   form.setFieldsValue({ barang: option.label });
+
+                  // Find the selected item from the items array
+                  const selectedItem = items.find(
+                    (item: any) => item.name === option.label
+                  );
+
+                  // Store available units
+                  if (selectedItem) {
+                    const units = [];
+                    if (selectedItem.unit1Name)
+                      units.push({
+                        label: selectedItem.unit1Name,
+                        value: selectedItem.unit1Name,
+                      });
+                    if (selectedItem.unit2Name)
+                      units.push({
+                        label: selectedItem.unit2Name,
+                        value: selectedItem.unit2Name,
+                      });
+                    if (selectedItem.unit3Name)
+                      units.push({
+                        label: selectedItem.unit3Name,
+                        value: selectedItem.unit3Name,
+                      });
+                    if (selectedItem.unit4Name)
+                      units.push({
+                        label: selectedItem.unit4Name,
+                        value: selectedItem.unit4Name,
+                      });
+                    if (selectedItem.unit5Name)
+                      units.push({
+                        label: selectedItem.unit5Name,
+                        value: selectedItem.unit5Name,
+                      });
+
+                    setAvailableUnits(units);
+
+                    // Set default unit if available
+                    if (units.length > 0) {
+                      setSelectedItemUnit(units[0].value);
+                    } else {
+                      setSelectedItemUnit("");
+                    }
+                  } else {
+                    setAvailableUnits([]);
+                    setSelectedItemUnit("");
+                  }
+
+                  if (selectedItem && selectedItem.itemCategory) {
+                    // Get the inventory GL account from the item's category
+                    const cogsGlAccountId =
+                      selectedItem.itemCategory.parent?.cogsGlAccountId;
+
+                    if (cogsGlAccountId && glaccounts && glaccounts.d) {
+                      // Find the matching GL account
+                      const matchingGlAccount = glaccounts.d.find(
+                        (acc: any) => acc.id === cogsGlAccountId
+                      );
+
+                      if (matchingGlAccount) {
+                        // Set the akun penyesuaian field value
+                        form.setFieldsValue({
+                          akunPenyesuaian: matchingGlAccount.name,
+                        });
+                        setIsAkunPenyesuaianDisabled(true);
+                      }
+                    }
+                  }
                 }
               }}
               onChange={(input) => {
-                const match = barangList.find(
-                  (opt: any) =>
-                    typeof opt.label === "string" && opt.label === input
-                );
-                if (!match) {
-                  form.setFieldsValue({ barang: input });
+                // Update the search value state which will trigger the query
+                setBarangSearchValue(input);
+                form.setFieldsValue({ barang: input });
+
+                // If input is empty, reset akun penyesuaian field and units
+                if (!input) {
+                  setIsAkunPenyesuaianDisabled(false);
+                  setSelectedItemUnit("");
+                  setAvailableUnits([]);
                 }
               }}
             />
@@ -261,20 +379,37 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
             ]}
             style={{ marginBottom: 16 }}
           >
-            <AutoComplete
-              options={[]}
-              placeholder="Masukkan jumlah"
-              onSelect={(value, option) => {
-                form.setFieldsValue({ jumlah: value });
-              }}
-              onChange={(value) => {
-                if (!/^\d*$/.test(value)) {
-                  form.setFieldsValue({ jumlah: value.replace(/\D/g, "") });
-                } else {
+            <div className="flex w-full">
+              <AutoComplete
+                options={[]}
+                placeholder="Masukkan jumlah"
+                style={{ width: "100%" }}
+                onSelect={(value, option) => {
                   form.setFieldsValue({ jumlah: value });
-                }
-              }}
-            />
+                }}
+                onChange={(value) => {
+                  if (!/^\d*$/.test(value)) {
+                    form.setFieldsValue({ jumlah: value.replace(/\D/g, "") });
+                  } else {
+                    form.setFieldsValue({ jumlah: value });
+                  }
+                }}
+              />
+              {availableUnits.length > 0 && (
+                <Select
+                  value={selectedItemUnit}
+                  style={{ width: 80, marginLeft: 8 }}
+                  onChange={(value) => setSelectedItemUnit(value)}
+                  dropdownMatchSelectWidth={false}
+                >
+                  {availableUnits.map((unit) => (
+                    <Option key={unit.value} value={unit.value}>
+                      {unit.label}
+                    </Option>
+                  ))}
+                </Select>
+              )}
+            </div>
           </Form.Item>
           <Form.Item
             name="akunPenyesuaian"
@@ -286,18 +421,21 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
               options={akunPenyesuaianList}
               placeholder="Cari atau pilih Akun Penyesuaian"
               filterOption={filterOption}
+              disabled={true}
               onSelect={(value, option) => {
                 if (typeof option.label === "string") {
                   form.setFieldsValue({ akunPenyesuaian: option.label });
                 }
               }}
               onChange={(input) => {
-                const match = akunPenyesuaianList.find(
-                  (opt: any) =>
-                    typeof opt.label === "string" && opt.label === input
-                );
-                if (!match) {
-                  form.setFieldsValue({ akunPenyesuaian: input });
+                if (!isAkunPenyesuaianDisabled) {
+                  const match = akunPenyesuaianList.find(
+                    (opt: any) =>
+                      typeof opt.label === "string" && opt.label === input
+                  );
+                  if (!match) {
+                    form.setFieldsValue({ akunPenyesuaian: input });
+                  }
                 }
               }}
             />
@@ -312,7 +450,12 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
           </Form.Item>
         </div>
         <Form.Item style={{ marginTop: 16 }}>
-          <Button type="primary" htmlType="submit" block>
+          <Button 
+            type="primary" 
+            htmlType="submit" 
+            block
+            disabled={!formValid}
+          >
             Submit
           </Button>
         </Form.Item>

@@ -77,6 +77,10 @@ const ModalListRequest: React.FC<ModalListRequestProps> = ({
         </Button>
       ),
     },
+    {
+      title: "Requested By",
+      dataIndex: "productionUserName",
+    },
   ];
 
   return (

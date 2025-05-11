@@ -19,12 +19,14 @@ import { WorkspaceSelection } from "../selection";
 import { useWorkspaceSidebar } from "@/app/provider/workspace-sidebar-context";
 import ModalRequest from "../modal-request";
 import ModalListRequest from "../modal-list-request";
+import ModalRequestSent from "../modal-request-sent";
 
 const TopBar: React.FC = React.memo(() => {
   const [notificationVisible, setNotificationVisible] = useState(false);
   const [avatarMenuVisible, setAvatarMenuVisible] = useState(false);
   const [modalRequestOpen, setModalRequestOpen] = useState(false);
   const [modalListRequestOpen, setModalListRequestOpen] = useState(false);
+  const [modalRequestSentOpen, setModalRequestSentOpen] = useState(false);
   const theme = useSelector(selectTheme);
   const { colors } = theme;
   const dispatch = useDispatch();
@@ -95,6 +97,9 @@ const TopBar: React.FC = React.memo(() => {
           Lihat Request
         </Button>
         <Button onClick={() => setModalRequestOpen(true)}>Buat Request</Button>
+        <Button onClick={() => setModalRequestSentOpen(true)}>
+          Lihat Request (Gudang)
+        </Button>
         <Input
           placeholder="Search…"
           prefix={<i className="fi fi-rr-search" />}
@@ -137,6 +142,10 @@ const TopBar: React.FC = React.memo(() => {
       <ModalListRequest
         open={modalListRequestOpen}
         onClose={() => setModalListRequestOpen(false)}
+      />
+      <ModalRequestSent
+        open={modalRequestSentOpen}
+        onClose={() => setModalRequestSentOpen(false)}
       />
     </div>
   );
