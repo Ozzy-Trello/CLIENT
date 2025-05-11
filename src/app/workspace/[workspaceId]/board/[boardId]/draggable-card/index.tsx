@@ -39,7 +39,9 @@ const DraggableCard: React.FC<DraggableCardProps> = ({
           ref={provided.innerRef}
           {...provided.dragHandleProps}
           {...provided.draggableProps}
-          onClick={() => {openCardDetail(card, list)}}
+          onClick={() => {
+            openCardDetail(card, list);
+          }}
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
         >
