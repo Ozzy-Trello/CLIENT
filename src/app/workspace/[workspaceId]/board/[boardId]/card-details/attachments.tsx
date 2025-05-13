@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import ReactDOM from "react-dom";
-import { Button, Image, List, Typography, message, Space } from "antd";
+import { Button, Image, List, Typography, message, Space, Upload } from "antd";
 import {
   DownloadOutlined,
   PrinterOutlined,
@@ -8,6 +8,7 @@ import {
   RotateRightOutlined,
   ZoomInOutlined,
   ZoomOutOutlined,
+  InboxOutlined,
 } from "@ant-design/icons";
 import {
   ExportOutlined,
@@ -42,6 +43,7 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
   const { cardAttachments, addAttachment } = useCardAttachment(card?.id);
   const [openUploadModal, setOpenUploadmodal] = useState<boolean>(false);
   const attachmentsRef = useRef<HTMLDivElement>(null);
+  const [isDraggingOver, setIsDraggingOver] = useState<boolean>(false);
 
   const handleCloseModal = () => {
     setOpenUploadmodal(false);
@@ -355,6 +357,59 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
     }
   };
 
+  // Process files for upload (used by both paste and Upload component)
+  const processFiles = async (files: File[]) => {
+    if (!files.length) return;
+
+    // Show loading message
+    const loadingMsg = message.loading("Uploading file...", 0);
+
+    try {
+      // Process each file (up to 5 at a time to avoid overwhelming the server)
+      const filesToProcess = files.slice(0, 5);
+
+      for (const file of filesToProcess) {
+        try {
+          // Use the uploadFile function from your API
+          const result = await uploadFile(file);
+
+          if (result?.data) {
+            // Call the same handler that's used by the upload modal
+            handleUpload(file, result.data);
+          } else {
+            throw new Error("Upload failed");
+          }
+        } catch (error) {
+          console.error("Upload error for file", file.name, error);
+          message.error(`Failed to upload ${file.name}`);
+        }
+      }
+
+      if (filesToProcess.length === 1) {
+        message.success(
+          `File "${filesToProcess[0].name}" uploaded successfully`
+        );
+      } else {
+        message.success(`${filesToProcess.length} files uploaded successfully`);
+      }
+
+      // If there were more files than we processed, show a message
+      if (files.length > 5) {
+        message.info(
+          `Only the first 5 files were uploaded. Please upload the remaining ${
+            files.length - 5
+          } files separately.`
+        );
+      }
+    } catch (error) {
+      message.error("Failed to upload files");
+      console.error("Upload error:", error);
+    } finally {
+      // Always close the loading message
+      loadingMsg();
+    }
+  };
+
   // Handle paste events for file uploads
   useEffect(() => {
     const handlePaste = async (e: Event) => {
@@ -364,44 +419,23 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
 
       if (!items) return;
 
-      // Look for files in the clipboard data
+      // Collect all files from the clipboard data
+      const files: File[] = [];
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
-
-        // Check if the item is a file
         if (item.kind === "file") {
           const file = item.getAsFile();
-
           if (file) {
-            // Prevent the default paste behavior
-            event.preventDefault();
-
-            // Show loading message
-            const loadingMsg = message.loading("Uploading file...", 0);
-
-            try {
-              // Use the uploadFile function from your API
-              const result = await uploadFile(file);
-
-              if (result?.data) {
-                // Call the same handler that's used by the upload modal
-                handleUpload(file, result.data);
-                message.success(`File "${file.name}" uploaded successfully`);
-              } else {
-                throw new Error("Upload failed");
-              }
-            } catch (error) {
-              message.error("Failed to upload pasted file");
-              console.error("Paste upload error:", error);
-            } finally {
-              // Always close the loading message
-              loadingMsg();
-            }
-
-            // Only process the first file if multiple files were pasted
-            break;
+            files.push(file);
           }
         }
+      }
+
+      if (files.length > 0) {
+        // Prevent the default paste behavior
+        event.preventDefault();
+        // Process the files
+        await processFiles(files);
       }
     };
 
@@ -421,7 +455,93 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
       }
       document.removeEventListener("paste", handlePaste);
     };
-  }, [card?.id, handleUpload]);
+  }, [card?.id]);
+
+  // Handle file drops anywhere on the card
+  useEffect(() => {
+    // Track drag enter/leave with a counter to handle nested elements
+    let dragCounter = 0;
+
+    const handleDragEnter = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      // Increment counter on drag enter
+      dragCounter++;
+
+      // Only set isDraggingOver to true if we have files
+      if (
+        e.dataTransfer?.types.includes("Files") ||
+        e.dataTransfer?.types.includes("application/x-moz-file")
+      ) {
+        setIsDraggingOver(true);
+      }
+    };
+
+    const handleDragLeave = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      // Decrement counter on drag leave
+      dragCounter--;
+
+      // Only set isDraggingOver to false when counter reaches 0
+      if (dragCounter === 0) {
+        setIsDraggingOver(false);
+      }
+    };
+
+    const handleFileDrop = async (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      // Reset drag state
+      dragCounter = 0;
+      setIsDraggingOver(false);
+
+      if (!e.dataTransfer) return;
+
+      const files: File[] = [];
+
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        for (let i = 0; i < e.dataTransfer.files.length; i++) {
+          files.push(e.dataTransfer.files[i]);
+        }
+
+        if (files.length > 0) {
+          await processFiles(files);
+        }
+      }
+    };
+
+    const handleDragOver = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.dataTransfer) {
+        e.dataTransfer.dropEffect = "copy";
+      }
+    };
+
+    // Create wrapper functions to handle type conversion properly
+    const dragEnterHandler = (e: Event) => handleDragEnter(e as DragEvent);
+    const dragLeaveHandler = (e: Event) => handleDragLeave(e as DragEvent);
+    const dropHandler = (e: Event) => handleFileDrop(e as DragEvent);
+    const dragOverHandler = (e: Event) => handleDragOver(e as DragEvent);
+
+    // Add event listeners to the document
+    document.addEventListener("dragenter", dragEnterHandler);
+    document.addEventListener("dragleave", dragLeaveHandler);
+    document.addEventListener("drop", dropHandler);
+    document.addEventListener("dragover", dragOverHandler);
+
+    // Cleanup
+    return () => {
+      document.removeEventListener("dragenter", dragEnterHandler);
+      document.removeEventListener("dragleave", dragLeaveHandler);
+      document.removeEventListener("drop", dropHandler);
+      document.removeEventListener("dragover", dragOverHandler);
+    };
+  }, [card?.id]);
 
   useEffect(() => {
     if (cardAttachments) {
@@ -440,168 +560,170 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
   }, [cardAttachments]);
 
   return (
-    <div
-      className="bg-white p-4 rounded-lg mt-2"
-      ref={attachmentsRef}
-      tabIndex={0}
-    >
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center">
-          <PaperClipOutlined className="text-gray-500 mr-2" />
-          <Typography.Title level={5} className="m-0">
-            Attachments
-          </Typography.Title>
+    <>
+      <div
+        className="bg-white p-4 rounded-lg mt-2"
+        ref={attachmentsRef}
+        tabIndex={0}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center">
+            <PaperClipOutlined className="text-gray-500 mr-2" />
+            <Typography.Title level={5} className="m-0">
+              Attachments
+            </Typography.Title>
+          </div>
+          <Button
+            type="default"
+            size="small"
+            icon={<PlusOutlined />}
+            className="flex items-center"
+            onClick={handleOpenModal}
+          >
+            Add
+          </Button>
         </div>
-        <Button
-          type="default"
-          size="small"
-          icon={<PlusOutlined />}
-          className="flex items-center"
-          onClick={handleOpenModal}
-        >
-          Add
-        </Button>
-      </div>
 
-      <div className="text-xs text-gray-500 font-medium uppercase mb-2">
-        Files
-      </div>
+        <div className="text-xs text-gray-500 font-medium uppercase mb-2">
+          Files
+        </div>
 
-      <List
-        className="space-y-3"
-        dataSource={cardAttachments}
-        locale={{ emptyText: "No attachments yet" }}
-        renderItem={(item) => (
-          <List.Item className="flex items-center p-2 hover:bg-gray-50 rounded">
-            <div className="flex-shrink-0 mr-3 w-20 h-15 flex items-center justify-center">
-              {isImageFile(item.file?.name || "", item.file?.mimeType) ? (
-                <div className="w-20 h-15 bg-gray-100 rounded flex items-center justify-center overflow-hidden">
-                  <Image
-                    preview={{
-                      toolbarRender: (
-                        _,
-                        {
-                          transform: { scale },
-                          actions: {
-                            onRotateLeft,
-                            onRotateRight,
-                            onZoomOut,
-                            onZoomIn,
-                          },
-                        }
-                      ) => (
-                        <Space size={12} className="toolbar-wrapper">
-                          <Button onClick={onRotateLeft}>
-                            <RotateLeftOutlined />
-                          </Button>
-                          <Button onClick={onRotateRight}>
-                            <RotateRightOutlined />
-                          </Button>
-                          <Button onClick={onZoomOut}>
-                            <ZoomOutOutlined />
-                          </Button>
-                          <Button onClick={onZoomIn}>
-                            <ZoomInOutlined />
-                          </Button>
-                          <Button
-                            onClick={() => {
-                              document
-                                .querySelector(".ant-image-preview-close")
-                                ?.dispatchEvent(
-                                  new MouseEvent("click", { bubbles: true })
-                                );
-                              setTimeout(() => {
-                                handlePrintWithQR(
-                                  item.file?.url,
-                                  item.file?.name || "image"
-                                );
-                              }, 100);
-                            }}
-                          >
-                            <PrinterOutlined />
-                          </Button>
-                        </Space>
-                      ),
-                    }}
-                    src={item.file?.url}
-                    alt={item.file?.name || "attachment"}
-                    width={80}
-                    height={60}
-                    style={{ objectFit: "cover" }}
-                  />
-                </div>
-              ) : (
-                <div className="w-20 h-15 bg-gray-100 rounded flex items-center justify-center">
-                  {getFileIcon(item.file?.name || "", item.file?.mimeType)}
-                </div>
-              )}
-            </div>
-
-            <div className="flex-grow">
-              <div className="text-sm font-medium">{item.file?.name}</div>
-              <div className="text-xs text-gray-500 flex items-center space-x-2">
-                <span>{formatFileSize(item.file?.size)}</span>
-                {item.file?.mimeType && <span>•</span>}
-                <span>{item.file?.mimeType}</span>
-                {item.isCover && (
-                  <span className="bg-blue-100 text-blue-600 text-xs px-2 py-0.5 rounded">
-                    Cover
-                  </span>
+        <List
+          className="space-y-3"
+          dataSource={cardAttachments}
+          locale={{ emptyText: "No attachments yet" }}
+          renderItem={(item) => (
+            <List.Item className="flex items-center p-2 hover:bg-gray-50 rounded">
+              <div className="flex-shrink-0 mr-3 w-20 h-15 flex items-center justify-center">
+                {isImageFile(item.file?.name || "", item.file?.mimeType) ? (
+                  <div className="w-20 h-15 bg-gray-100 rounded flex items-center justify-center overflow-hidden">
+                    <Image
+                      preview={{
+                        toolbarRender: (
+                          _,
+                          {
+                            transform: { scale },
+                            actions: {
+                              onRotateLeft,
+                              onRotateRight,
+                              onZoomOut,
+                              onZoomIn,
+                            },
+                          }
+                        ) => (
+                          <Space size={12} className="toolbar-wrapper">
+                            <Button onClick={onRotateLeft}>
+                              <RotateLeftOutlined />
+                            </Button>
+                            <Button onClick={onRotateRight}>
+                              <RotateRightOutlined />
+                            </Button>
+                            <Button onClick={onZoomOut}>
+                              <ZoomOutOutlined />
+                            </Button>
+                            <Button onClick={onZoomIn}>
+                              <ZoomInOutlined />
+                            </Button>
+                            <Button
+                              onClick={() => {
+                                document
+                                  .querySelector(".ant-image-preview-close")
+                                  ?.dispatchEvent(
+                                    new MouseEvent("click", { bubbles: true })
+                                  );
+                                setTimeout(() => {
+                                  handlePrintWithQR(
+                                    item.file?.url,
+                                    item.file?.name || "image"
+                                  );
+                                }, 100);
+                              }}
+                            >
+                              <PrinterOutlined />
+                            </Button>
+                          </Space>
+                        ),
+                      }}
+                      src={item.file?.url}
+                      alt={item.file?.name || "attachment"}
+                      width={80}
+                      height={60}
+                      style={{ objectFit: "cover" }}
+                    />
+                  </div>
+                ) : (
+                  <div className="w-20 h-15 bg-gray-100 rounded flex items-center justify-center">
+                    {getFileIcon(item.file?.name || "", item.file?.mimeType)}
+                  </div>
                 )}
               </div>
-            </div>
 
-            <div className="flex-shrink-0 flex space-x-1">
-              {isImageFile(item.file?.name || "", item.file?.mimeType) ? (
-                <>
+              <div className="flex-grow">
+                <div className="text-sm font-medium">{item.file?.name}</div>
+                <div className="text-xs text-gray-500 flex items-center space-x-2">
+                  <span>{formatFileSize(item.file?.size)}</span>
+                  {item.file?.mimeType && <span>•</span>}
+                  <span>{item.file?.mimeType}</span>
+                  {item.isCover && (
+                    <span className="bg-blue-100 text-blue-600 text-xs px-2 py-0.5 rounded">
+                      Cover
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex-shrink-0 flex space-x-1">
+                {isImageFile(item.file?.name || "", item.file?.mimeType) ? (
+                  <>
+                    <Button
+                      icon={<DownloadOutlined />}
+                      size="small"
+                      title="Download Original"
+                      onClick={() => window.open(item.file?.url, "_blank")}
+                      className="flex items-center justify-center border-0 shadow-none"
+                    />
+                    <Button
+                      icon={<PrinterOutlined />}
+                      size="small"
+                      title="Print with QR Code"
+                      onClick={() =>
+                        handlePrintWithQR(
+                          item.file?.url,
+                          item.file?.name || "image"
+                        )
+                      }
+                      className="flex items-center justify-center border-0 shadow-none"
+                    />
+                  </>
+                ) : (
                   <Button
-                    icon={<DownloadOutlined />}
+                    icon={<ExportOutlined />}
                     size="small"
-                    title="Download Original"
+                    title="Download"
                     onClick={() => window.open(item.file?.url, "_blank")}
                     className="flex items-center justify-center border-0 shadow-none"
                   />
-                  <Button
-                    icon={<PrinterOutlined />}
-                    size="small"
-                    title="Print with QR Code"
-                    onClick={() =>
-                      handlePrintWithQR(
-                        item.file?.url,
-                        item.file?.name || "image"
-                      )
-                    }
-                    className="flex items-center justify-center border-0 shadow-none"
-                  />
-                </>
-              ) : (
+                )}
                 <Button
-                  icon={<ExportOutlined />}
+                  icon={<EllipsisOutlined />}
                   size="small"
-                  title="Download"
-                  onClick={() => window.open(item.file?.url, "_blank")}
+                  title="More options"
                   className="flex items-center justify-center border-0 shadow-none"
                 />
-              )}
-              <Button
-                icon={<EllipsisOutlined />}
-                size="small"
-                title="More options"
-                className="flex items-center justify-center border-0 shadow-none"
-              />
-            </div>
-          </List.Item>
-        )}
-      />
+              </div>
+            </List.Item>
+          )}
+        />
 
-      <UploadModal
-        isVisible={openUploadModal}
-        onClose={handleCloseModal}
-        onUploadComplete={handleUpload}
-        uploadType="all"
-        title="Upload attachment"
-      />
-    </div>
+        <UploadModal
+          isVisible={openUploadModal}
+          onClose={handleCloseModal}
+          onUploadComplete={handleUpload}
+          uploadType="all"
+          title="Upload attachment"
+        />
+      </div>
+    </>
   );
 };
 
