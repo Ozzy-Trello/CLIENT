@@ -1,9 +1,9 @@
 "use client";
-import { BellOutlined, UserOutlined } from "@ant-design/icons";
+import { BellOutlined, FileOutlined, UserOutlined } from "@ant-design/icons";
 import type { MenuProps } from "antd";
-import { Avatar, Badge, Button, Dropdown, Input, Typography } from "antd";
+import { Avatar, Badge, Button, Dropdown, Input, Typography, List } from "antd";
 import Link from "next/link";
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import logo from "@/app/assets/images/Logo_Ozzy_Clothing_png.png";
 import ImageDynamicContrast from "../image-dynamic-contrast";
 import { useSelector } from "react-redux";
@@ -14,12 +14,16 @@ import {
   setUser,
 } from "@/app/store/app_slice";
 import { useDispatch } from "react-redux";
-import { useRouter } from "next/navigation"; // Changed from 'next/router'
+import { useRouter } from "next/navigation";
 import { WorkspaceSelection } from "../selection";
 import { useWorkspaceSidebar } from "@/app/provider/workspace-sidebar-context";
 import ModalRequest from "../modal-request";
 import ModalListRequest from "../modal-list-request";
 import ModalRequestSent from "../modal-request-sent";
+import { searchCards } from "@/app/api/card";
+import { Card } from "@/app/types/card";
+
+const { Text } = Typography;
 
 const TopBar: React.FC = React.memo(() => {
   const [notificationVisible, setNotificationVisible] = useState(false);
@@ -27,24 +31,27 @@ const TopBar: React.FC = React.memo(() => {
   const [modalRequestOpen, setModalRequestOpen] = useState(false);
   const [modalListRequestOpen, setModalListRequestOpen] = useState(false);
   const [modalRequestSentOpen, setModalRequestSentOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<Card[]>([]);
+  const [recentlyViewedCards, setRecentlyViewedCards] = useState<Card[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
   const theme = useSelector(selectTheme);
   const { colors } = theme;
   const dispatch = useDispatch();
   const router = useRouter();
   const user = useSelector(selectUser);
-
   const notificationItems: MenuProps["items"] = [
     { key: "1", label: "Notification 1" },
     { key: "2", label: "Notification 2" },
     { key: "3", label: "Notification 3" },
   ];
-
   const handleLogout = () => {
     router.push("/login");
     dispatch(setAccessToken(""));
     dispatch(setUser({}));
   };
-
   const avatarMenuItems: MenuProps["items"] = [
     {
       key: "manage-profile",
@@ -77,6 +84,50 @@ const TopBar: React.FC = React.memo(() => {
     },
   ];
 
+  // Handle search input change
+  const handleSearchChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const query = e.target.value;
+    setSearchQuery(query);
+    
+    if (query.trim()) {
+      setIsSearching(true);
+      setShowSearchDropdown(true);
+      
+      try {
+        const results = await searchCards({name: query, desription: query});
+        if (results && results?.data) {
+          setSearchResults(results.data);
+        }
+      } catch (error) {
+        console.error("Search failed:", error);
+        setSearchResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    } else {
+      setShowSearchDropdown(false);
+      setSearchResults([]);
+    }
+  };
+
+  // Handle clicks outside the search dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setShowSearchDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Handle search input focus
+  const handleSearchFocus = () => {
+    setShowSearchDropdown(true);
+  };
   return (
     <div className="flex items-center justify-between h-[45px]">
       <div className="flex items-center gap-2">
@@ -100,11 +151,86 @@ const TopBar: React.FC = React.memo(() => {
         <Button onClick={() => setModalRequestSentOpen(true)}>
           Lihat Request (Gudang)
         </Button>
-        <Input
-          placeholder="Search…"
-          prefix={<i className="fi fi-rr-search" />}
-          className="w-[200px] rounded"
-        />
+        
+        <div className="relative" ref={searchRef}>
+          <Input
+            placeholder="Search…"
+            prefix={<i className="fi fi-rr-search" />}
+            className="w-[200px] rounded"
+            value={searchQuery}
+            onChange={handleSearchChange}
+            onFocus={handleSearchFocus}
+          />
+          
+          {showSearchDropdown && (
+            <div className="absolute z-50 top-full left-0 mt-1 w-80 bg-white rounded-md shadow-lg border border-gray-200">
+              <div className="max-h-80 overflow-auto p-2">
+                {isSearching ? (
+                  <div className="flex justify-center py-4">
+                    <span>Searching...</span>
+                  </div>
+                ) : searchQuery ? (
+                  <div className="w-full">
+                    <Text strong>Search Results</Text>
+                    <List
+                      dataSource={searchResults}
+                      renderItem={(item) => (
+                        <List.Item
+                          key={item.id}
+                          className="w-full cursor-pointer hover:bg-gray-50 px-2 rounded"
+                        >
+                          <List.Item.Meta
+                            avatar={
+                              item.cover ?
+                                <img src={item.cover} alt={item.name} className="w-12 h-auto object-cover rounded"/> :
+                                <div className="flex justify-center items-center w-12 h-8 rounded bg-gray-200">
+                                  <Avatar shape="square" size="small" src={`https://ui-avatars.com/api/?name=${item?.name}&background=random`}></Avatar>
+                                </div>
+                            }
+                            title={item.name}
+                            description={
+                              <div className="prose prose-sm max-w-none text-[10px]" dangerouslySetInnerHTML={{ __html: item.description || '' }} />
+                            }
+                          />
+                        </List.Item>
+                      )}
+                      locale={{ emptyText: "No results found" }}
+                      className="max-h-48 overflow-auto"
+                    />
+                  </div>
+                ) : (
+                  <div className="w-full">
+                    <Text strong>Recently Viewed</Text>
+                    <List
+                      dataSource={recentlyViewedCards}
+                      renderItem={(item) => (
+                        <List.Item
+                          key={item.id}
+                          className="cursor-pointer hover:bg-gray-50 px-2 rounded"
+                        >
+                          <List.Item.Meta
+                            avatar={<FileOutlined className="text-blue-500" />}
+                            title={item.name}
+                            description={
+                              <div>
+                                <Text type="secondary" className="text-xs">
+                                  Viewed {item.createdAt}
+                                </Text>
+                              </div>
+                            }
+                          />
+                        </List.Item>
+                      )}
+                      locale={{ emptyText: "No recently viewed items" }}
+                      className="max-h-48 overflow-auto"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+        
         {/* <Dropdown
           menu={{ items: notificationItems }}
           trigger={["click"]}
@@ -127,8 +253,8 @@ const TopBar: React.FC = React.memo(() => {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              width: "80px",
-              height: "30px",
+              width: "30px",
+              height: "25px"
             }}
             className="cursor-pointer"
             icon={<UserOutlined />}

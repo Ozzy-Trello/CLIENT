@@ -6,6 +6,7 @@ import AddCard from "./add-card";
 import { UseMutateFunction } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { AnyList } from "@/app/types/list";
+import { useParams } from "next/navigation";
 
 interface DraggableListProps {
   list: AnyList;
@@ -22,7 +23,8 @@ const DraggableList: React.FC<DraggableListProps> = ({
   boardId,
   updateList,
 }) => {
-  const {cards, addCard, isLoading} = useCards(list.id || "");
+
+  const {cards, addCard, isLoading} = useCards(list.id || "", boardId);
 
   useEffect(() => {
     setListsState((prev) => 

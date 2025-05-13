@@ -1,6 +1,6 @@
 import UploadModal from "@/app/components/modal-upload/modal-upload";
 import { useCardAttachment } from "@/app/hooks/card_attachment";
-import { AttachmentType, Card } from "@/app/types/card";
+import { EnumAttachmentType, Card } from "@/app/types/card";
 import { FileUpload } from "@/app/types/file-upload";
 import { Button, Upload } from "antd";
 import { useState } from "react";
@@ -26,7 +26,7 @@ const Cover: React.FC<CoverProps> = (props) => {
   const handleUpload = (file: File, result: FileUpload) => {
     addAttachment({
       cardId: card.id,
-      attachableType: AttachmentType.File,
+      attachableType: EnumAttachmentType.File,
       attachableId: result.id,
       isCover: true
     });

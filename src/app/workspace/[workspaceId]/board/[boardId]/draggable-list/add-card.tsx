@@ -1,4 +1,4 @@
-import { Card } from "@/app/types/type";
+import { Card, EnumCardType } from "@/app/types/card";
 import { generateId } from "@/app/utils/general";
 import { Button } from "antd";
 import { Plus } from "lucide-react";
@@ -32,7 +32,8 @@ const AddCard: React.FC<AddCardProps> = ({listId, addCard}) => {
       const newCard: Card = {
         id: generateId(),
         listId: listId,
-        name: trimmedContent
+        name: trimmedContent,
+        type: EnumCardType.Regular
       };
       addCard({ card: newCard, listId: listId });
       setNewCardName("");

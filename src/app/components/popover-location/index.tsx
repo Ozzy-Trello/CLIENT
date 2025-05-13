@@ -21,7 +21,8 @@ const PopoverLocation: React.FC<PopoverLocationProps> = ({
 }) => {
 
   const { selectedCard, activeList, setSelectedCard } = useCardDetailContext();
-  const {updateCard} = useCards(activeList?.id || '');
+  const {boardId} = useParams();
+  const {updateCard} = useCards(activeList?.id || '', Array.isArray(boardId) ? boardId[0] : boardId || '');
 
   const onLocationSelect = (location: any) => {
     if (location?.lat && location?.lon && selectedCard?.id) {

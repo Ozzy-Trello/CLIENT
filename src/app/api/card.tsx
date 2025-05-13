@@ -1,8 +1,21 @@
 import { api } from ".";
-import { ApiResponse, Card } from "../types/type";
+import { Card } from "../types/card";
+import { ApiResponse } from "../types/type";
 
-export const cards = async (listId: string): Promise<ApiResponse<Card[]>> => {
-  const { data } = await api.get("/card", { headers: { "list-id": listId } });
+export const cards = async (
+  listId: string,
+  boardId: string
+): Promise<ApiResponse<Card[]>> => {
+  const { data } = await api.get("/card", {
+    headers: { "list-id": listId, "board-id": boardId },
+  });
+  return data;
+};
+
+export const searchCards = async (
+  params: any
+): Promise<ApiResponse<Card[]>> => {
+  const { data } = await api.get("/card/search", { params: params });
   return data;
 };
 

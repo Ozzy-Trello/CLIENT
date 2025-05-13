@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import ReactDOM from "react-dom";
-import { Button, Image, List, Typography, message, Space, Upload } from "antd";
+import { Avatar, Button, Image, List, Typography, message, Space, Upload } from "antd";
 import {
   DownloadOutlined,
   PrinterOutlined,
@@ -9,8 +9,6 @@ import {
   ZoomInOutlined,
   ZoomOutOutlined,
   InboxOutlined,
-} from "@ant-design/icons";
-import {
   ExportOutlined,
   EllipsisOutlined,
   PaperClipOutlined,
@@ -26,7 +24,7 @@ import {
 } from "@ant-design/icons";
 import { useCardAttachment } from "@/app/hooks/card_attachment";
 import UploadModal from "@/app/components/modal-upload/modal-upload";
-import { AttachmentType, Card } from "@/app/types/card";
+import { EnumAttachmentType, Card, CardAttachment } from "@/app/types/card";
 import { User } from "@/app/types/user";
 import { FileUpload } from "@/app/types/file-upload";
 import QRCode from "react-qr-code";
@@ -44,7 +42,8 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
   const [openUploadModal, setOpenUploadmodal] = useState<boolean>(false);
   const attachmentsRef = useRef<HTMLDivElement>(null);
   const [isDraggingOver, setIsDraggingOver] = useState<boolean>(false);
-
+  const [attachedCards, setAttachedCards] = useState<Card[]>([]);
+  const [attachedFiles, setAttachedFiles] = useState<FileUpload[]>([]);
   const handleCloseModal = () => {
     setOpenUploadmodal(false);
   };
@@ -56,7 +55,7 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
   const handleUpload = (file: File, result: FileUpload) => {
     addAttachment({
       cardId: card.id,
-      attachableType: AttachmentType.File,
+      attachableType: EnumAttachmentType.File,
       attachableId: result.id,
       isCover: false,
     });
@@ -545,6 +544,24 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
 
   useEffect(() => {
     if (cardAttachments) {
+      // Clear previous state to avoid duplications on re-renders
+      setAttachedCards([]);
+      setAttachedFiles([]);
+      
+      // Process all attachments
+      cardAttachments.forEach((item: CardAttachment) => {
+        if (item.attachableType === EnumAttachmentType.Card) {
+          if (item.targetCard !== undefined) {
+            setAttachedCards((prev) => [...prev, item.targetCard as Card]);
+          }
+        } else if (item.attachableType === EnumAttachmentType.File) {
+          if (item.file !== undefined) {
+            setAttachedFiles((prev) => [...prev, item.file as FileUpload]);
+          }
+        }
+      });
+      
+      // Find cover attachment and update card cover
       const cover = cardAttachments?.find((item) => item.isCover);
       if (cover?.file?.url) {
         setCard((prev: Card | null) =>
@@ -557,7 +574,7 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
         );
       }
     }
-  }, [cardAttachments]);
+  }, [cardAttachments, setCard]);
 
   return (
     <>
@@ -587,10 +604,9 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
         <div className="text-xs text-gray-500 font-medium uppercase mb-2">
           Files
         </div>
-
         <List
           className="space-y-3"
-          dataSource={cardAttachments}
+          dataSource={cardAttachments?.filter(item => item.attachableType === EnumAttachmentType.File)}
           locale={{ emptyText: "No attachments yet" }}
           renderItem={(item) => (
             <List.Item className="flex items-center p-2 hover:bg-gray-50 rounded">
@@ -657,7 +673,7 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
                   </div>
                 )}
               </div>
-
+              
               <div className="flex-grow">
                 <div className="text-sm font-medium">{item.file?.name}</div>
                 <div className="text-xs text-gray-500 flex items-center space-x-2">
@@ -714,6 +730,60 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
             </List.Item>
           )}
         />
+        
+        {/* Cards Section */}
+        {attachedCards.length > 0 && (
+          <>
+            <div className="text-xs text-gray-500 font-medium uppercase mt-4 mb-2">
+              Cards
+            </div>
+            <List
+              className="space-y-3"
+              dataSource={attachedCards}
+              locale={{ emptyText: "No attached cards yet" }}
+              renderItem={(item) => (
+                <List.Item className="flex items-center hover:bg-gray-50 rounded">
+                  <div className="flex-shrink-0 mr-3 w-20 h-10 flex items-center justify-center">
+                    {item.cover ? (
+                      <img 
+                        src={item.cover} 
+                        alt={item.name} 
+                        className="w-20 h-15 object-cover rounded"
+                      />
+                    ) : (
+                      <div className="flex justify-center items-center w-20 h-10 rounded bg-gray-200">
+                        <Avatar shape="square" src={`https://ui-avatars.com/api/?name=${item?.name}&background=random`}></Avatar>
+                      </div>
+                    )}
+                  </div>
+                
+                  <div className="flex-grow">
+                    <div className="text-sm font-medium">{item.name}</div>
+                    <div className="text-xs text-gray-500 flex items-center space-x-2">
+                      <div className="prose prose-sm max-w-none text-[10px]" dangerouslySetInnerHTML={{ __html: item.description || '' }} />
+                    </div>
+                  </div>
+                
+                  <div className="flex-shrink-0 flex space-x-1">
+                    <Button 
+                      icon={<ExportOutlined />} 
+                      size="small" 
+                      title="Download"
+                      onClick={() => window.open(item.cover, '_blank')}
+                      className="flex items-center justify-center border-0 shadow-none"
+                    />
+                    <Button 
+                      icon={<EllipsisOutlined />} 
+                      size="small" 
+                      title="More options"
+                      className="flex items-center justify-center border-0 shadow-none"
+                    />
+                  </div>
+                </List.Item>
+              )}
+            />
+          </>
+        )}
 
         <UploadModal
           isVisible={openUploadModal}
@@ -723,6 +793,33 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
           title="Upload attachment"
         />
       </div>
+      
+      {/* Overlay for drag and drop */}
+      {isDraggingOver && (
+        <div className="fixed inset-0 bg-blue-500 bg-opacity-10 z-50 flex items-center justify-center">
+          <div className="bg-white p-8 rounded-lg shadow-lg text-center">
+            <Upload.Dragger
+              className="border-dashed border-2 border-blue-500 p-8 rounded-lg"
+              showUploadList={false}
+              customRequest={({ file, onSuccess }) => {
+                // This is just a placeholder to make the component work
+                // The actual upload is handled by the drop event listeners
+                setTimeout(() => {
+                  onSuccess?.({}, new XMLHttpRequest());
+                }, 0);
+              }}
+            >
+              <p className="ant-upload-drag-icon">
+                <InboxOutlined style={{ fontSize: '48px', color: '#1890ff' }} />
+              </p>
+              <p className="ant-upload-text text-lg font-medium">Drop files here to upload</p>
+              <p className="ant-upload-hint text-gray-500">
+                Support for single or bulk upload
+              </p>
+            </Upload.Dragger>
+          </div>
+        </div>
+      )}
     </>
   );
 };
