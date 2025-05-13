@@ -1,9 +1,18 @@
-import React, { useEffect, useState } from 'react';
-import { Button, List, Typography } from 'antd';
-import { 
-  ExportOutlined, 
-  EllipsisOutlined, 
-  PaperClipOutlined, 
+import React, { useEffect, useState, useRef } from "react";
+import ReactDOM from "react-dom";
+import { Button, Image, List, Typography, message, Space } from "antd";
+import {
+  DownloadOutlined,
+  PrinterOutlined,
+  RotateLeftOutlined,
+  RotateRightOutlined,
+  ZoomInOutlined,
+  ZoomOutOutlined,
+} from "@ant-design/icons";
+import {
+  ExportOutlined,
+  EllipsisOutlined,
+  PaperClipOutlined,
   PlusOutlined,
   FileImageOutlined,
   FilePdfOutlined,
@@ -11,13 +20,16 @@ import {
   FileExcelOutlined,
   FileZipOutlined,
   FileTextOutlined,
-  FileOutlined
-} from '@ant-design/icons';
-import { useCardAttachment } from '@/app/hooks/card_attachment';
-import UploadModal from '@/app/components/modal-upload/modal-upload';
-import { AttachmentType, Card } from '@/app/types/card';
-import { User } from '@/app/types/user';
-import { FileUpload } from '@/app/types/file-upload';
+  FileOutlined,
+  QrcodeOutlined,
+} from "@ant-design/icons";
+import { useCardAttachment } from "@/app/hooks/card_attachment";
+import UploadModal from "@/app/components/modal-upload/modal-upload";
+import { AttachmentType, Card } from "@/app/types/card";
+import { User } from "@/app/types/user";
+import { FileUpload } from "@/app/types/file-upload";
+import QRCode from "react-qr-code";
+import { uploadFile } from "@/app/api/file";
 
 interface AttachmentsProps {
   card: Card;
@@ -29,97 +41,420 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
   const { card, setCard, currentUser } = props;
   const { cardAttachments, addAttachment } = useCardAttachment(card?.id);
   const [openUploadModal, setOpenUploadmodal] = useState<boolean>(false);
-  
+  const attachmentsRef = useRef<HTMLDivElement>(null);
+
   const handleCloseModal = () => {
     setOpenUploadmodal(false);
-  }
+  };
 
   const handleOpenModal = () => {
     setOpenUploadmodal(true);
-  }
+  };
 
   const handleUpload = (file: File, result: FileUpload) => {
     addAttachment({
       cardId: card.id,
       attachableType: AttachmentType.File,
       attachableId: result.id,
-      isCover: false
+      isCover: false,
     });
-  }
+  };
 
   // Helper function to determine if a file is an image based on file name or MIME type
   const isImageFile = (fileName: string, mimeType?: string): boolean => {
-    const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp'];
-    const extension = fileName.split('.').pop()?.toLowerCase() || '';
-    
-    if (mimeType && mimeType.startsWith('image/')) {
+    const imageExtensions = ["jpg", "jpeg", "png", "gif", "bmp", "svg", "webp"];
+    const extension = fileName.split(".").pop()?.toLowerCase() || "";
+
+    if (mimeType && mimeType.startsWith("image/")) {
       return true;
     }
-    
+
     return imageExtensions.includes(extension);
-  }
+  };
 
   // Helper function to get appropriate file icon based on file extension
   const getFileIcon = (fileName: string, mimeType?: string) => {
     if (isImageFile(fileName, mimeType)) {
       return <FileImageOutlined className="text-blue-500 text-2xl" />;
     }
-    
-    const extension = fileName.split('.').pop()?.toLowerCase();
-    
+
+    const extension = fileName.split(".").pop()?.toLowerCase();
+
     switch (extension) {
-      case 'pdf':
+      case "pdf":
         return <FilePdfOutlined className="text-red-500 text-2xl" />;
-      case 'doc':
-      case 'docx':
+      case "doc":
+      case "docx":
         return <FileWordOutlined className="text-blue-700 text-2xl" />;
-      case 'xls':
-      case 'xlsx':
-      case 'csv':
+      case "xls":
+      case "xlsx":
+      case "csv":
         return <FileExcelOutlined className="text-green-600 text-2xl" />;
-      case 'zip':
-      case 'rar':
-      case '7z':
+      case "zip":
+      case "rar":
+      case "7z":
         return <FileZipOutlined className="text-yellow-600 text-2xl" />;
-      case 'txt':
-      case 'rtf':
+      case "txt":
+      case "rtf":
         return <FileTextOutlined className="text-gray-600 text-2xl" />;
       default:
         return <FileOutlined className="text-gray-500 text-2xl" />;
     }
-  }
+  };
 
   // Format file size
   const formatFileSize = (bytes?: number): string => {
-    if (!bytes) return '';
-    
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-  }
+    if (!bytes) return "";
+
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+  };
+
+  // Canvas reference for generating QR code images
+  const qrCanvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  // Function to open image with QR code in print dialog
+  const handlePrintWithQR = async (imageUrl?: string, fileName?: string) => {
+    if (!imageUrl) return;
+
+    try {
+      // Show loading message
+      const loadingMsg = message.loading("Preparing print view...", 0);
+
+      // Create a canvas element if it doesn't exist
+      if (!qrCanvasRef.current) {
+        qrCanvasRef.current = document.createElement("canvas");
+      }
+      const canvas = qrCanvasRef.current;
+      const ctx = canvas.getContext("2d");
+
+      if (!ctx) {
+        message.error("Failed to create canvas context");
+        loadingMsg();
+        return;
+      }
+
+      // Load the image
+      const img = document.createElement("img");
+      img.crossOrigin = "anonymous"; // Enable CORS
+
+      img.onload = () => {
+        // Set canvas dimensions (same as original image)
+        const qrSize = Math.min(200, img.width * 0.35); // QR code size (35% of image width, max 200px)
+        const padding = 10; // Padding around QR code
+
+        canvas.width = img.width;
+        canvas.height = img.height;
+
+        // Draw original image
+        ctx.drawImage(img, 0, 0, img.width, img.height);
+
+        // Calculate QR code position (30% from left, 10% from top)
+        const qrX = Math.floor(img.width * 0.3);
+        const qrY = Math.floor(img.height * 0.1);
+
+        // Draw white background for QR code with slight transparency
+        ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+        ctx.fillRect(
+          qrX - padding,
+          qrY - padding,
+          qrSize + padding * 2,
+          qrSize + padding * 2
+        );
+
+        // Add border around QR code
+        ctx.strokeStyle = "rgba(0, 0, 0, 0.3)";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(
+          qrX - padding,
+          qrY - padding,
+          qrSize + padding * 2,
+          qrSize + padding * 2
+        );
+
+        // Create QR code SVG
+        const qrSvg = document.createElement("div");
+        qrSvg.style.position = "absolute";
+        qrSvg.style.top = "-9999px";
+        qrSvg.style.left = "-9999px";
+        document.body.appendChild(qrSvg);
+
+        // Create QR code element
+        const qrElement = document.createElement("div");
+        qrElement.style.width = `${qrSize}px`;
+        qrElement.style.height = `${qrSize}px`;
+        qrElement.style.position = "absolute";
+        qrElement.style.top = "-9999px";
+        qrElement.style.left = "-9999px";
+        qrElement.style.background = "white";
+        document.body.appendChild(qrElement);
+
+        // Render QR code
+        ReactDOM.render(
+          <QRCode
+            value={window.location.href}
+            size={qrSize}
+            level="M"
+            fgColor="#000000"
+            bgColor="#FFFFFF"
+          />,
+          qrElement
+        );
+
+        // Convert SVG to image
+        const svgElement = qrElement.querySelector("svg");
+        if (!svgElement) {
+          message.error("Failed to generate QR code");
+          document.body.removeChild(qrSvg);
+          document.body.removeChild(qrElement);
+          loadingMsg();
+          return;
+        }
+
+        const svgData = new XMLSerializer().serializeToString(svgElement);
+        const qrImg = document.createElement("img");
+        qrImg.src =
+          "data:image/svg+xml;base64," +
+          btoa(unescape(encodeURIComponent(svgData)));
+
+        qrImg.onload = () => {
+          // Draw QR code on canvas
+          ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
+
+          // Add small label for QR code
+          ctx.font = "bold 12px Arial";
+          ctx.fillStyle = "black";
+          ctx.textAlign = "center";
+          ctx.fillText(
+            "Scan to view",
+            qrX + qrSize / 2,
+            qrY + qrSize + padding + 12
+          );
+
+          // Create a hidden iframe for printing
+          const printFrame = document.createElement("iframe");
+          printFrame.style.position = "fixed";
+          printFrame.style.right = "-9999px";
+          printFrame.style.bottom = "-9999px";
+          printFrame.style.width = "0";
+          printFrame.style.height = "0";
+          printFrame.style.border = "0";
+          document.body.appendChild(printFrame);
+
+          // Convert canvas to data URL
+          const dataUrl = canvas.toDataURL("image/png");
+
+          // Set up the print frame content
+          const printDocument = printFrame.contentWindow?.document;
+          if (!printDocument) {
+            message.error("Failed to create print document");
+            document.body.removeChild(printFrame);
+            document.body.removeChild(qrSvg);
+            document.body.removeChild(qrElement);
+            loadingMsg();
+            return;
+          }
+
+          // Write the content to the iframe
+          printDocument.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <title>${fileName || "Image"} with QR Code</title>
+              <style>
+                @page {
+                  margin: 0.5cm;
+                }
+                body {
+                  margin: 0;
+                  padding: 0;
+                  display: flex;
+                  justify-content: center;
+                  align-items: center;
+                  min-height: 100vh;
+                }
+                img {
+                  max-width: 100%;
+                  max-height: 100vh;
+                  object-fit: contain;
+                }
+              </style>
+            </head>
+            <body>
+              <img src="${dataUrl}" alt="${fileName || "Image"} with QR Code" />
+            </body>
+            </html>
+          `);
+
+          printDocument.close();
+
+          // Wait for the image to load before printing
+          const img = printDocument.querySelector("img");
+          if (img) {
+            img.onload = () => {
+              // Short delay to ensure everything is loaded
+              setTimeout(() => {
+                try {
+                  // Focus the iframe and print
+                  printFrame.contentWindow?.focus();
+                  printFrame.contentWindow?.print();
+
+                  // Clean up after printing (with delay to ensure print dialog opens)
+                  setTimeout(() => {
+                    document.body.removeChild(printFrame);
+                    document.body.removeChild(qrSvg);
+                    document.body.removeChild(qrElement);
+                    loadingMsg();
+                    message.success("Print dialog opened");
+                  }, 1000);
+                } catch (error) {
+                  console.error("Print error:", error);
+                  document.body.removeChild(printFrame);
+                  document.body.removeChild(qrSvg);
+                  document.body.removeChild(qrElement);
+                  loadingMsg();
+                  message.error("Failed to open print dialog");
+                }
+              }, 500);
+            };
+
+            img.onerror = () => {
+              document.body.removeChild(printFrame);
+              document.body.removeChild(qrSvg);
+              document.body.removeChild(qrElement);
+              loadingMsg();
+              message.error("Failed to load image for printing");
+            };
+          } else {
+            document.body.removeChild(printFrame);
+            document.body.removeChild(qrSvg);
+            document.body.removeChild(qrElement);
+            loadingMsg();
+            message.error("Failed to prepare image for printing");
+          }
+        };
+
+        qrImg.onerror = () => {
+          message.error("Failed to generate QR code");
+          document.body.removeChild(qrSvg);
+          document.body.removeChild(qrElement);
+          loadingMsg();
+        };
+      };
+
+      img.onerror = () => {
+        message.error("Failed to load image");
+        loadingMsg();
+      };
+
+      img.src = imageUrl;
+    } catch (error) {
+      message.error("An error occurred during download");
+      console.error("Download error:", error);
+    }
+  };
+
+  // Handle paste events for file uploads
+  useEffect(() => {
+    const handlePaste = async (e: Event) => {
+      // Cast to ClipboardEvent to access clipboard data
+      const event = e as ClipboardEvent;
+      const items = event.clipboardData?.items;
+
+      if (!items) return;
+
+      // Look for files in the clipboard data
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+
+        // Check if the item is a file
+        if (item.kind === "file") {
+          const file = item.getAsFile();
+
+          if (file) {
+            // Prevent the default paste behavior
+            event.preventDefault();
+
+            // Show loading message
+            const loadingMsg = message.loading("Uploading file...", 0);
+
+            try {
+              // Use the uploadFile function from your API
+              const result = await uploadFile(file);
+
+              if (result?.data) {
+                // Call the same handler that's used by the upload modal
+                handleUpload(file, result.data);
+                message.success(`File "${file.name}" uploaded successfully`);
+              } else {
+                throw new Error("Upload failed");
+              }
+            } catch (error) {
+              message.error("Failed to upload pasted file");
+              console.error("Paste upload error:", error);
+            } finally {
+              // Always close the loading message
+              loadingMsg();
+            }
+
+            // Only process the first file if multiple files were pasted
+            break;
+          }
+        }
+      }
+    };
+
+    // Add the paste event listener to the attachments container
+    const attachmentsElement = attachmentsRef.current;
+    if (attachmentsElement) {
+      attachmentsElement.addEventListener("paste", handlePaste);
+    }
+
+    // Also add to document to catch pastes anywhere on the page
+    document.addEventListener("paste", handlePaste);
+
+    // Cleanup function
+    return () => {
+      if (attachmentsElement) {
+        attachmentsElement.removeEventListener("paste", handlePaste);
+      }
+      document.removeEventListener("paste", handlePaste);
+    };
+  }, [card?.id, handleUpload]);
 
   useEffect(() => {
     if (cardAttachments) {
       const cover = cardAttachments?.find((item) => item.isCover);
       if (cover?.file?.url) {
-        setCard((prev: Card | null) => prev ? {
-          ...prev,
-          cover: cover?.file?.url,
-        } : null);
+        setCard((prev: Card | null) =>
+          prev
+            ? {
+                ...prev,
+                cover: cover?.file?.url,
+              }
+            : null
+        );
       }
     }
   }, [cardAttachments]);
 
   return (
-    <div className="bg-white p-4 rounded-lg mt-2">
+    <div
+      className="bg-white p-4 rounded-lg mt-2"
+      ref={attachmentsRef}
+      tabIndex={0}
+    >
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center">
           <PaperClipOutlined className="text-gray-500 mr-2" />
-          <Typography.Title level={5} className="m-0">Attachments</Typography.Title>
+          <Typography.Title level={5} className="m-0">
+            Attachments
+          </Typography.Title>
         </div>
-        <Button 
-          type="default" 
-          size="small" 
+        <Button
+          type="default"
+          size="small"
           icon={<PlusOutlined />}
           className="flex items-center"
           onClick={handleOpenModal}
@@ -127,9 +462,11 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
           Add
         </Button>
       </div>
-     
-      <div className="text-xs text-gray-500 font-medium uppercase mb-2">Files</div>
-     
+
+      <div className="text-xs text-gray-500 font-medium uppercase mb-2">
+        Files
+      </div>
+
       <List
         className="space-y-3"
         dataSource={cardAttachments}
@@ -137,19 +474,69 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
         renderItem={(item) => (
           <List.Item className="flex items-center p-2 hover:bg-gray-50 rounded">
             <div className="flex-shrink-0 mr-3 w-20 h-15 flex items-center justify-center">
-              {isImageFile(item.file?.name || '', item.file?.mimeType) ? (
-                <img 
-                  src={item.file?.url} 
-                  alt={item.file?.name || "attachment"} 
-                  className="w-20 h-15 object-cover rounded"
-                />
+              {isImageFile(item.file?.name || "", item.file?.mimeType) ? (
+                <div className="w-20 h-15 bg-gray-100 rounded flex items-center justify-center overflow-hidden">
+                  <Image
+                    preview={{
+                      toolbarRender: (
+                        _,
+                        {
+                          transform: { scale },
+                          actions: {
+                            onRotateLeft,
+                            onRotateRight,
+                            onZoomOut,
+                            onZoomIn,
+                          },
+                        }
+                      ) => (
+                        <Space size={12} className="toolbar-wrapper">
+                          <Button onClick={onRotateLeft}>
+                            <RotateLeftOutlined />
+                          </Button>
+                          <Button onClick={onRotateRight}>
+                            <RotateRightOutlined />
+                          </Button>
+                          <Button onClick={onZoomOut}>
+                            <ZoomOutOutlined />
+                          </Button>
+                          <Button onClick={onZoomIn}>
+                            <ZoomInOutlined />
+                          </Button>
+                          <Button
+                            onClick={() => {
+                              document
+                                .querySelector(".ant-image-preview-close")
+                                ?.dispatchEvent(
+                                  new MouseEvent("click", { bubbles: true })
+                                );
+                              setTimeout(() => {
+                                handlePrintWithQR(
+                                  item.file?.url,
+                                  item.file?.name || "image"
+                                );
+                              }, 100);
+                            }}
+                          >
+                            <PrinterOutlined />
+                          </Button>
+                        </Space>
+                      ),
+                    }}
+                    src={item.file?.url}
+                    alt={item.file?.name || "attachment"}
+                    width={80}
+                    height={60}
+                    style={{ objectFit: "cover" }}
+                  />
+                </div>
               ) : (
                 <div className="w-20 h-15 bg-gray-100 rounded flex items-center justify-center">
-                  {getFileIcon(item.file?.name || '', item.file?.mimeType)}
+                  {getFileIcon(item.file?.name || "", item.file?.mimeType)}
                 </div>
               )}
             </div>
-           
+
             <div className="flex-grow">
               <div className="text-sm font-medium">{item.file?.name}</div>
               <div className="text-xs text-gray-500 flex items-center space-x-2">
@@ -163,18 +550,42 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
                 )}
               </div>
             </div>
-           
+
             <div className="flex-shrink-0 flex space-x-1">
-              <Button 
-                icon={<ExportOutlined />} 
-                size="small" 
-                title="Download"
-                onClick={() => window.open(item.file?.url, '_blank')}
-                className="flex items-center justify-center border-0 shadow-none"
-              />
-              <Button 
-                icon={<EllipsisOutlined />} 
-                size="small" 
+              {isImageFile(item.file?.name || "", item.file?.mimeType) ? (
+                <>
+                  <Button
+                    icon={<DownloadOutlined />}
+                    size="small"
+                    title="Download Original"
+                    onClick={() => window.open(item.file?.url, "_blank")}
+                    className="flex items-center justify-center border-0 shadow-none"
+                  />
+                  <Button
+                    icon={<PrinterOutlined />}
+                    size="small"
+                    title="Print with QR Code"
+                    onClick={() =>
+                      handlePrintWithQR(
+                        item.file?.url,
+                        item.file?.name || "image"
+                      )
+                    }
+                    className="flex items-center justify-center border-0 shadow-none"
+                  />
+                </>
+              ) : (
+                <Button
+                  icon={<ExportOutlined />}
+                  size="small"
+                  title="Download"
+                  onClick={() => window.open(item.file?.url, "_blank")}
+                  className="flex items-center justify-center border-0 shadow-none"
+                />
+              )}
+              <Button
+                icon={<EllipsisOutlined />}
+                size="small"
                 title="More options"
                 className="flex items-center justify-center border-0 shadow-none"
               />
@@ -183,7 +594,7 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
         )}
       />
 
-      <UploadModal 
+      <UploadModal
         isVisible={openUploadModal}
         onClose={handleCloseModal}
         onUploadComplete={handleUpload}
