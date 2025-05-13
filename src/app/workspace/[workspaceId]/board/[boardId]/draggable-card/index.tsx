@@ -34,8 +34,9 @@ const DraggableCard: React.FC<DraggableCardProps> = ({
     <Draggable draggableId={card.id} index={index}>
       {(provided) => (
         <div
-          className="bg-white rounded-lg border border-gray-200 hover:border-blue-500
-           transition-all duration-300 overflow-hidden cursor-move"
+          className="bg-white rounded-lg border border-gray-200 
+            max-w-sm
+          hover:border-blue-500 transition-all duration-300 overflow-hidden cursor-move"
           ref={provided.innerRef}
           {...provided.dragHandleProps}
           {...provided.draggableProps}
@@ -45,13 +46,13 @@ const DraggableCard: React.FC<DraggableCardProps> = ({
         >
           {/* Cover image */}
           {card.cover && (
-            <div className="w-full bg-white border-b mb-3">
-              <div className="relative">
-                <img
-                  src={card.cover}
-                  alt=""
-                  className="w-full object-contain"
-                />
+            <div className="w-full bg-white">
+              <div className="relative bg-gray-100 bg-center bg-no-repeat h-36 flex justify-end items-end rounded-t-lg"
+                style={{
+                  backgroundImage: card.cover ? `url("${card.cover}")` : 'none',
+                  backgroundSize: 'contain'
+                }}
+              >
               </div>
             </div>
           )}
@@ -125,11 +126,11 @@ const DraggableCard: React.FC<DraggableCardProps> = ({
               <div className="flex items-center gap-2 text-gray-600">
                 <div className="flex items-center gap-1 text-[10px]">
                   <Calendar size={13} />
-                  <span className="text-[10px]">{card?.time?.inList}</span>
+                  <span className="text-[10px]">{card?.formattedTimeInBoard || "--"}</span>
                 </div>
                 <div className="flex items-center gap-1 text-[10px]">
                   <CalendarDays size={13} />
-                  <span className="text-[10px]">{card?.time?.onBoard}</span>
+                  <span className="text-[10px]">{card?.formattedTimeInList || "--"}</span>
                 </div>
               </div>
            

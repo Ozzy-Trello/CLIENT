@@ -1,15 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { cards, moveCard } from "../api/card";
 import { api } from "../api";
-import { ApiResponse, Card } from "../types/type";
+import { ApiResponse } from "../types/type";
+import { Card } from "../types/card";
 
-export function useCards(listId: string) {
+export function useCards(listId: string, boardId: string) {
   const queryClient = useQueryClient();
   
   // Main query for cards
   const cardsQuery = useQuery({
-    queryKey: ["cards", listId],
-    queryFn: () => cards(listId),
+    queryKey: ["cards", listId, boardId],
+    queryFn: () => cards(listId, boardId),
     enabled: !!listId,
     staleTime: 5000,
   });
@@ -279,13 +280,16 @@ export function useCards(listId: string) {
   };
 }
 
-// Add this to your existing useCards.ts file
-export function useCardDetails(cardId: string, listId: string) {
+export function useCardDetails(cardId: string, listId: string, boardId: string) {
   const queryClient = useQueryClient();
 
   const cardDetailsQuery = useQuery({
-    queryKey: ["card", cardId],
-    queryFn: () => api.get(`/card/${cardId}`).then(res => res.data),
+    queryKey: ["card", cardId, boardId],
+    queryFn: () => api.get(`/card/${cardId}`,  {
+      headers: {
+        "board-id": boardId
+      }
+    }).then(res => res.data),
     enabled: !!cardId,
     staleTime: 5000,
     // Use any card data we might already have from the cards query
@@ -629,5 +633,29 @@ export function useCardMove() {
     moveCard: cardMoveMutation.mutate,
     isMovingCard: cardMoveMutation.isPending,
     moveCardError: cardMoveMutation.error
+  };
+}
+
+
+/**
+ * Hook to get time a card has spent in a specific board
+ */
+export function useCardTimeInBoard(cardId: string, boardId: string) {
+  const queryClient = useQueryClient();
+
+  // Query for card time in board data
+  const cardTimeInBoardQuery = useQuery({
+    queryKey: ["card-time-in-board", cardId, boardId],
+    queryFn: () => api.get(`/v1/card/${cardId}/time-in-board/${boardId}`).then(res => res.data),
+    enabled: !!cardId && !!boardId, // Only run the query if both IDs are available
+    staleTime: 30000, // Data doesn't change very frequently
+  });
+
+  return {
+    timeInBoard: cardTimeInBoardQuery.data?.data,
+    isLoading: cardTimeInBoardQuery.isLoading,
+    isError: cardTimeInBoardQuery.isError,
+    error: cardTimeInBoardQuery.error,
+    refetch: cardTimeInBoardQuery.refetch,
   };
 }

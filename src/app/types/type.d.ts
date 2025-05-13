@@ -165,39 +165,6 @@ export interface Checklist {
   progress: number; // Percentage 0-100
 }
 
-// Define the core Card type
-export interface Card {
-  id: string;
-  listId: string;
-  name: string;
-  description?: string;
-  location?: string;
-  cover?: CardAttachment | null;
-  attachments?: CardAttachment[];
-  labels?: Label[];
-  members?: User[];
-  customFields?: CustomField[];
-  time?: CardTime;
-  activity?: CardActivity[];
-  checklists?: Checklist[];
-  isWatched?: boolean;
-  isArchived?: boolean;
-  position?: number;
-  dueDate?: string;
-  location?: string;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-// Counter Card (used in filter columns)
-export interface CounterCard extends Card {
-  isCounter: true;
-  count: number;
-  filterCriteria?: any; // Define specific filter criteria structure
-}
-
-
-
 export interface PostAutomationRule {
   groupType: string;
   type: string;

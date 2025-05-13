@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Button, List, Typography } from 'antd';
+import { Avatar, Button, List, Typography } from 'antd';
 import { 
   ExportOutlined, 
   EllipsisOutlined, 
@@ -15,7 +15,7 @@ import {
 } from '@ant-design/icons';
 import { useCardAttachment } from '@/app/hooks/card_attachment';
 import UploadModal from '@/app/components/modal-upload/modal-upload';
-import { AttachmentType, Card } from '@/app/types/card';
+import { EnumAttachmentType, Card, CardAttachment } from '@/app/types/card';
 import { User } from '@/app/types/user';
 import { FileUpload } from '@/app/types/file-upload';
 
@@ -28,7 +28,9 @@ interface AttachmentsProps {
 const Attachments: React.FC<AttachmentsProps> = (props) => {
   const { card, setCard, currentUser } = props;
   const { cardAttachments, addAttachment } = useCardAttachment(card?.id);
-  const [openUploadModal, setOpenUploadmodal] = useState<boolean>(false);
+  const [ openUploadModal, setOpenUploadmodal ] = useState<boolean>(false);
+  const [ attachedCards, setAttachedCards ] = useState<Card[]>([]);
+  const [ attachedFiles, setAttachedFiles ] = useState<FileUpload[]>([]);
   
   const handleCloseModal = () => {
     setOpenUploadmodal(false);
@@ -41,7 +43,7 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
   const handleUpload = (file: File, result: FileUpload) => {
     addAttachment({
       cardId: card.id,
-      attachableType: AttachmentType.File,
+      attachableType: EnumAttachmentType.File,
       attachableId: result.id,
       isCover: false
     });
@@ -100,23 +102,40 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
 
   useEffect(() => {
     if (cardAttachments) {
-      const cover = cardAttachments?.find((item) => item.isCover);
-      if (cover?.file?.url) {
-        setCard((prev: Card | null) => prev ? {
-          ...prev,
-          cover: cover?.file?.url,
-        } : null);
-      }
+      // Clear previous state to avoid duplications on re-renders
+      setAttachedCards([]);
+      setAttachedFiles([]);
+      
+      cardAttachments.forEach((item: CardAttachment) => {
+        if (item.attachableType === EnumAttachmentType.Card) {
+          if (item.targetCard !== undefined) {
+            setAttachedCards((prev) => [...prev, item.targetCard as Card]);
+          }
+        } else if (item.attachableType === EnumAttachmentType.File) {
+          if (item.file !== undefined) {
+            setAttachedFiles((prev) => [...prev, item.file as FileUpload]);
+          }
+          
+          if (item.isCover && item.file?.url) {
+            setCard((prev: Card | null) => prev ? {
+              ...prev,
+              cover: item.file?.url,
+            } : null);
+          }
+        }
+      });
     }
-  }, [cardAttachments]);
+    
+  }, [cardAttachments, setCard]);
 
   return (
-    <div className="bg-white p-4 rounded-lg mt-2">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center">
-          <PaperClipOutlined className="text-gray-500 mr-2" />
-          <Typography.Title level={5} className="m-0">Attachments</Typography.Title>
+    <div className="mt-6">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-3">
+          <PaperClipOutlined size={18} />
+          <h1 className="text-lg font-bold mb-0">Attachments</h1>
         </div>
+
         <Button 
           type="default" 
           size="small" 
@@ -127,61 +146,111 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
           Add
         </Button>
       </div>
-     
-      <div className="text-xs text-gray-500 font-medium uppercase mb-2">Files</div>
-     
-      <List
-        className="space-y-3"
-        dataSource={cardAttachments}
-        locale={{ emptyText: "No attachments yet" }}
-        renderItem={(item) => (
-          <List.Item className="flex items-center p-2 hover:bg-gray-50 rounded">
-            <div className="flex-shrink-0 mr-3 w-20 h-15 flex items-center justify-center">
-              {isImageFile(item.file?.name || '', item.file?.mimeType) ? (
-                <img 
-                  src={item.file?.url} 
-                  alt={item.file?.name || "attachment"} 
-                  className="w-20 h-15 object-cover rounded"
-                />
-              ) : (
-                <div className="w-20 h-15 bg-gray-100 rounded flex items-center justify-center">
-                  {getFileIcon(item.file?.name || '', item.file?.mimeType)}
-                </div>
-              )}
-            </div>
-           
-            <div className="flex-grow">
-              <div className="text-sm font-medium">{item.file?.name}</div>
-              <div className="text-xs text-gray-500 flex items-center space-x-2">
-                <span>{formatFileSize(item.file?.size)}</span>
-                {item.file?.mimeType && <span>•</span>}
-                <span>{item.file?.mimeType}</span>
-                {item.isCover && (
-                  <span className="bg-blue-100 text-blue-600 text-xs px-2 py-0.5 rounded">
-                    Cover
-                  </span>
+
+      <div className='ml-8'>
+        <span className="text-sm text-gray-500 mb-2">Files</span>
+        <List
+          className="space-y-3"
+          dataSource={cardAttachments}
+          locale={{ emptyText: "No attachments yet" }}
+          renderItem={(item) => (
+            <List.Item className="flex items-center p-2 hover:bg-gray-50 rounded">
+              <div className="flex-shrink-0 mr-3 w-20 h-15 flex items-center justify-center">
+                {isImageFile(item.file?.name || '', item.file?.mimeType) ? (
+                  <img 
+                    src={item.file?.url} 
+                    alt={item.file?.name || "attachment"} 
+                    className="w-20 h-15 object-cover rounded"
+                  />
+                ) : (
+                  <div className="w-20 h-15 bg-gray-100 rounded flex items-center justify-center">
+                    {getFileIcon(item.file?.name || '', item.file?.mimeType)}
+                  </div>
                 )}
               </div>
-            </div>
-           
-            <div className="flex-shrink-0 flex space-x-1">
-              <Button 
-                icon={<ExportOutlined />} 
-                size="small" 
-                title="Download"
-                onClick={() => window.open(item.file?.url, '_blank')}
-                className="flex items-center justify-center border-0 shadow-none"
-              />
-              <Button 
-                icon={<EllipsisOutlined />} 
-                size="small" 
-                title="More options"
-                className="flex items-center justify-center border-0 shadow-none"
-              />
-            </div>
-          </List.Item>
-        )}
-      />
+            
+              <div className="flex-grow">
+                <div className="text-sm font-medium">{item.file?.name}</div>
+                <div className="text-xs text-gray-500 flex items-center space-x-2">
+                  <span>{formatFileSize(item.file?.size)}</span>
+                  {item.file?.mimeType && <span>•</span>}
+                  <span>{item.file?.mimeType}</span>
+                  {item.isCover && (
+                    <span className="bg-blue-100 text-blue-600 text-xs px-2 py-0.5 rounded">
+                      Cover
+                    </span>
+                  )}
+                </div>
+              </div>
+            
+              <div className="flex-shrink-0 flex space-x-1">
+                <Button 
+                  icon={<ExportOutlined />} 
+                  size="small" 
+                  title="Download"
+                  onClick={() => window.open(item.file?.url, '_blank')}
+                  className="flex items-center justify-center border-0 shadow-none"
+                />
+                <Button 
+                  icon={<EllipsisOutlined />} 
+                  size="small" 
+                  title="More options"
+                  className="flex items-center justify-center border-0 shadow-none"
+                />
+              </div>
+            </List.Item>
+          )}
+        />
+      </div>
+
+      <div className='ml-8'>
+        <span className="text-sm text-gray-500 mb-2">Cards</span>
+        <List
+          className="space-y-3"
+          dataSource={attachedCards}
+          locale={{ emptyText: "No attachments yet" }}
+          renderItem={(item) => (
+            <List.Item className="flex items-center hover:bg-gray-50 rounded">
+              <div className="flex-shrink-0 mr-3 w-20 h-10 flex items-center justify-center">
+                {item.cover ? (
+                  <img 
+                    src={item.cover} 
+                    alt={item.name} 
+                    className="w-20 h-15 object-cover rounded"
+                  />
+                ) : (
+                  <div className="flex justify-center items-center w-20 h-10 rounded bg-gray-200">
+                    <Avatar shape="square" src={`https://ui-avatars.com/api/?name=${item?.name}&background=random`}></Avatar>
+                  </div>
+                )}
+              </div>
+            
+              <div className="flex-grow">
+                <div className="text-sm font-medium">{item.name}</div>
+                <div className="text-xs text-gray-500 flex items-center space-x-2">
+                  <div className="prose prose-sm max-w-none text-[10px]" dangerouslySetInnerHTML={{ __html: item.description || '' }} />
+                </div>
+              </div>
+            
+              <div className="flex-shrink-0 flex space-x-1">
+                <Button 
+                  icon={<ExportOutlined />} 
+                  size="small" 
+                  title="Download"
+                  onClick={() => window.open(item.cover, '_blank')}
+                  className="flex items-center justify-center border-0 shadow-none"
+                />
+                <Button 
+                  icon={<EllipsisOutlined />} 
+                  size="small" 
+                  title="More options"
+                  className="flex items-center justify-center border-0 shadow-none"
+                />
+              </div>
+            </List.Item>
+          )}
+        />  
+      </div>
 
       <UploadModal 
         isVisible={openUploadModal}

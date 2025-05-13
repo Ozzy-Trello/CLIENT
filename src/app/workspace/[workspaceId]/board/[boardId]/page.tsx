@@ -38,7 +38,7 @@ const Board: React.FC = () => {
   const [ isAddingList, setIsAddingList ] = useState<boolean>(false);
   const [ newListName, setNewListName ] = useState<string>("");
   const [ boardScopeMenu, setBoardScopeMenu] = useState<boolean>(false);
-  const { updateCard } = useCards("");
+  const { updateCard } = useCards("", "");
   const { moveCard } = useCardMove();
   const { moveList } = useListMove();
 

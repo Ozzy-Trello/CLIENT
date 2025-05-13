@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createCardAttachment, deleteCardAttachment, getCardAttachments } from "../api/card_attachment";
 import { ApiResponse } from "../types/type";
-import { AttachableType, CardAttachment } from "../types/card";
+import { TAttachableType, CardAttachment } from "../types/card";
 
 
 /**
@@ -27,7 +27,7 @@ export function useCardAttachment(cardId: string) {
       isCover,
     }: { 
       cardId: string; 
-      attachableType: AttachableType;
+      attachableType: TAttachableType;
       attachableId: string;
       isCover: boolean;
     }) => {

@@ -2,9 +2,15 @@ import { FileUpload } from "./file-upload";
 import { AcitivitySource, Checklist, CustomField, Label } from "./type";
 import { User } from "./user";
 
+export enum EnumCardType {
+  Regular = 'regular',
+  Dashcard = 'dashcard'
+};
+export type TCardType = EnumCardType.Regular | EnumCardType.Dashcard;
 export interface Card {
   id: string;
   listId: string;
+  type: TCardType;
   name: string;
   description?: string;
   location?: string;
@@ -13,38 +19,48 @@ export interface Card {
   labels?: Label[];
   members?: User[];
   customFields?: CustomField[];
-  time?: CardTime;
+  timeInLists?: CardTimeInList[];
+  formattedTimeInBoard?: string;
+  formattedTimeInList?: string;
   activity?: CardActivity[];
   checklists?: Checklist[];
   isWatched?: boolean;
   isArchived?: boolean;
   position?: number;
+  order?: number;
+  startDate?: string;
   dueDate?: string;
+  dueDateReminder?: string;
+  dashConfig?: JSON;
   createdAt?: string;
   updatedAt?: string;
 }
 
-export enum AttachmentType {
+export enum EnumAttachmentType {
   File = 'file',
   Card = 'card',
 }
-export type AttachableType = AttachmentType.File | AttachmentType.Card;
+export type TAttachableType = EnumAttachmentType.File | EnumAttachmentType.Card;
 export interface CardAttachment {
   id: string;
   isCover: boolean;
   cardId: string;
-  attachableType: AttachableType;
+  attachableType: TAttachableType;
   attachableId: string;
   createdBy?: string;
   createdAt?: string;
   file?: FileUpload;
-  card?: Card;
+  targetCard?: Card;
 }
 
-export interface CardTime {
-  inList: string; // Duration in list (e.g., "1 second", "22 hours")
-  onBoard: string; // Duration on board (e.g., "1 month", "3 months")
-  lastActivity?: string; // ISO date string
+export interface CardTimeInList {
+  cardId: string;
+  listId: string;
+  listName: string;
+  eneteredAt: string;
+  exitedAt: string;
+  totalSeconds: number;
+  formattedTimeInList: string;
 }
 
 

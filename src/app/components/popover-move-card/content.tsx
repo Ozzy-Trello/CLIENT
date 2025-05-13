@@ -4,6 +4,7 @@ import { X } from 'lucide-react';
 import { ListSelection, SelectionRef } from '../selection';
 import { useCardDetailContext } from '@/app/provider/card-detail-context';
 import { useCards } from '@/app/hooks/card';
+import { useParams } from 'next/navigation';
 
 
 const ContentMoveCard: React.FC = () => {
@@ -12,7 +13,8 @@ const ContentMoveCard: React.FC = () => {
   const [selectedList, setSelectedList] = useState<string>(selectedCard?.listId || "");
   const [selectedPosition, setSelectedPosition] = useState<number>(1);
   const listSelectionRef = useRef<SelectionRef>(null);
-  const { updateCard } = useCards(selectedCard?.listId || '');
+  const { boardId } = useParams();
+  const { updateCard } = useCards(selectedCard?.listId || '', Array.isArray(boardId) ? boardId[0] : boardId || '');
   
 
   const boardOptions = [

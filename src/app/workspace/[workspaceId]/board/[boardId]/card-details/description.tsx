@@ -3,13 +3,15 @@ import { useCards } from "@/app/hooks/card";
 import { Card } from "@/app/types/card";
 import { Button, Typography } from "antd";
 import { AlignLeft, Edit } from "lucide-react";
+import { useParams } from "next/navigation";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 
 const Description: React.FC<{card: Card, setSelectedCard: Dispatch<SetStateAction<Card | null>>}> = ({card, setSelectedCard}) => {
 
   const [isEditingDescription, setIsEditingDescription] = useState<boolean>(false);
   const [newDescription, setNewDescription] = useState<string>(card?.description || "");
-  const {updateCard} = useCards(card.listId);
+  const boardId = useParams();
+  const {updateCard} = useCards(card.listId, Array.isArray(boardId) ? boardId[0] : boardId || '');
 
   const enableEditDescription = () => {
     setIsEditingDescription(true);

@@ -18,6 +18,7 @@ import { useCards } from "@/app/hooks/card";
 import { useLists } from "@/app/hooks/list";
 import { useCardActivity } from "@/app/hooks/card_activity";
 import LocationDisplay from "./location";
+import CardTimeInList from "./time-in-lists";
 
 const CardDetails: React.FC = (props) => {
   const params = useParams();
@@ -30,7 +31,7 @@ const CardDetails: React.FC = (props) => {
   const listSelectionRef = useRef<SelectionRef>(null);
   const [isEditingTitle, setIsEditingTitle] = useState<boolean>(false);
   const [newTitle, setNewTitle] = useState<string>("");
-  const { updateCard } = useCards(selectedCard?.listId || '');
+  const { updateCard } = useCards(selectedCard?.listId || '', boardId);
   const { cardActivities } = useCardActivity(selectedCard?.id || '');
   const { lists } = useLists(boardId || '');
   const [openAddMember, setOpenAddMember] = useState<boolean>(false);
@@ -243,7 +244,7 @@ const CardDetails: React.FC = (props) => {
                       size="small" 
                       className="rounded-md hover:bg-gray-50"
                     >
-                      {selectedCard?.time?.inList || "0m"}
+                      {selectedCard?.timeInLists?.find(item => item.listId == selectedCard.listId)?.formattedTimeInList || "0m"}
                     </Button>
                   </div>
 
@@ -253,7 +254,7 @@ const CardDetails: React.FC = (props) => {
                       size="small" 
                       className="rounded-md hover:bg-gray-50"
                     >
-                      {selectedCard?.time?.onBoard || "0m"}
+                      {selectedCard?.formattedTimeInBoard || "0m"}
                     </Button>
                   </div>
                 </div>
@@ -267,6 +268,10 @@ const CardDetails: React.FC = (props) => {
 
               {selectedCard && customFields && (
                 <CustomFields customFields={customFields} />
+              )}
+
+              {selectedCard && (
+                <CardTimeInList card={selectedCard} setCard={setSelectedCard} />
               )}
 
               {/* Attachments Section */}
