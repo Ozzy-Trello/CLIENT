@@ -32,6 +32,7 @@ const NewRulePage: React.FC = () => {
     triggerType: triggers[0].type,
     actions: []
   });
+  const [isLoading, setIsLoading] = useState<boolean>(false);
  
   const onCancel = () => {
     router.push(`/workspace/${workspaceId}/board/${boardId}/automation/rules`);
@@ -117,12 +118,15 @@ const NewRulePage: React.FC = () => {
     
     // post rule
     try {
+      setIsLoading(true);
       const result = await createRule(rule);
       console.log("resultz: %o", result);
       router.push(`/workspace/${workspaceId}/board/${boardId}/automation/rules`);
     } catch (e: any) {
       console.log("eh ini eeror: ", e?.response?.data?.message);
       message.error(e?.response?.data?.message || "something went wrong");
+    } finally {
+      setIsLoading(false);
     }
   };
   
@@ -150,6 +154,7 @@ const NewRulePage: React.FC = () => {
           <Button 
             type="primary"
             onClick={saveRule}
+            loading={isLoading}
             disabled={
               !selectedRule.triggerItem || 
               !selectedRule.actions || 
