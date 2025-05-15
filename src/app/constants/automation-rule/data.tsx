@@ -9,7 +9,7 @@ export const triggers: TriggerType[] = [
     icon: <MoveRight />,
     items: [
       {
-        type: "when_a_card_<filter>_is_<action>_to_the_<board>_by_<by>",
+        type: "when_a_card_<filter>is<action>to_the<board>by<by>",
         label: "when a card <filter> is <action> to the board by <by>",
         [CustomSelectionAction]: {
           options: [
@@ -260,7 +260,7 @@ export const actions: ActionType[] = [
     icon: <MoveRight />,
     items: [
       {
-        type: "action_card_to_position_optional_board",
+        type: "<action>_the_<card>_to_<position>_<optional_board>",
         label: "<action> the card to a specific <position> <optional-board>",
         action: {
           options: [

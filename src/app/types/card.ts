@@ -1,3 +1,4 @@
+import { DashcardConfig } from "./dashcard";
 import { FileUpload } from "./file-upload";
 import { AcitivitySource, Checklist, CustomField, Label } from "./type";
 import { User } from "./user";
@@ -31,7 +32,7 @@ export interface Card {
   startDate?: string;
   dueDate?: string;
   dueDateReminder?: string;
-  dashConfig?: JSON;
+  dashConfig?: DashcardConfig;
   createdAt?: string;
   updatedAt?: string;
 }

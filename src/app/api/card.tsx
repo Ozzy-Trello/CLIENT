@@ -26,3 +26,8 @@ export const moveCard = async (cardId: string, previousListId: string, targetLis
   const { data } = await api.post(`/card/${cardId}/move`, { cardId, previousListId, targetListId, previousPosition, targetPosition});
   return data;
 }
+
+export const cardCount = async (cardId: string): Promise<ApiResponse<any>> => {
+  const {data} = await api.get(`/card/${cardId}/dashcard/count`);
+  return data;
+}

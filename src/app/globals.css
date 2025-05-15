@@ -95,6 +95,10 @@ div[data-rfd-droppable-id="all-columns"] {
   flex: 1;
   min-height: 50px;
   max-height: calc(100vh - 10px);
+  margin-bottom: 10px;
+}
+
+.modal-cust-footer .ant-modal-body {
   margin-bottom: 50px;
 }
 
