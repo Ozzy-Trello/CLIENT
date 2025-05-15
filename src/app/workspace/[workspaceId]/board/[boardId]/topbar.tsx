@@ -1,5 +1,5 @@
 import { Button, Dropdown, MenuProps, Tooltip, Typography } from "antd";
-import { useState } from "react";
+import { Dispatch, SetStateAction, useState } from "react";
 import { useWorkspaceSidebar } from "@/app/provider/workspace-sidebar-context";
 import MembersList from "@/app/components/members-list";
 import {
@@ -13,20 +13,22 @@ import {
 } from "lucide-react";
 import { useSelector } from "react-redux";
 import { selectCurrentBoard } from "@/app/store/workspace_slice";
+import ModalDashcard from "@/app/components/dashcard/modal-dashcard";
 
 interface BoardTopbarProps {
   boardScopeMenuOpen: boolean;
   setBoardScopeMenuOpen: any;
+  openDashcardModal: boolean; 
+  setOpenDashcardModal: Dispatch<SetStateAction<boolean>>
 }
 
 const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
-  const { boardScopeMenuOpen, setBoardScopeMenuOpen } = props;
+  const { boardScopeMenuOpen, setBoardScopeMenuOpen, openDashcardModal, setOpenDashcardModal } = props;
   const { collapsed, siderSmall, siderWide } = useWorkspaceSidebar();
-  const [showRightColMenu, setIsShowRighColtMenu] = useState(true);
-  const [openRightMenu, setOpenRightMenu] = useState(false);
+  const [ showRightColMenu, setIsShowRighColtMenu ] = useState(true);
+  const [ openRightMenu, setOpenRightMenu ] = useState(false);
   const currentBoard = useSelector(selectCurrentBoard);
-  const [openAddMember, setOpenAddMember] = useState<boolean>(false);
-
+  const [ openAddMember, setOpenAddMember ] = useState<boolean>(false);
 
   const [members, setMembers] = useState([
     // getUserById('1'),
@@ -38,9 +40,19 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
 
   const rightMenu: MenuProps["items"] = [
     {
+      key: "track",
+      label: (
+        <Tooltip title={"track"}>
+          <Button size="small" shape="default" variant="outlined">
+            <span>10</span>
+          </Button>
+        </Tooltip>
+      )
+    },
+    {
       key: "filter",
       label: (
-        <Tooltip title={"filter"}>
+        <Tooltip title={"filtering loh ini"}>
           <Button size="small" shape="default">
             <SlidersHorizontal />
             <span>Filter</span>
@@ -84,6 +96,18 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
       <div>
         {showRightColMenu ? (
           <div className="flex items-center justify-end gap-2">
+            <Tooltip title={"track"}>
+              <Button 
+                size="small" 
+                shape="default" 
+                variant="text" 
+                onClick={() => {
+                  setOpenDashcardModal(true);
+                }}>
+                <div className="border rounded px-1 text-[7px]">10</div>
+                <span>Track</span>
+              </Button>
+            </Tooltip>
             <Tooltip title={"filter"}>
               <Button
                 size="small"

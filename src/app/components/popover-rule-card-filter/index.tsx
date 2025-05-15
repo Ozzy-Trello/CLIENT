@@ -1,35 +1,30 @@
-import React, { ReactNode, useEffect, useState } from "react";
-import { Popover, Typography } from "antd";
-import { ChevronLeft, X } from "lucide-react";
-import { useParams } from "next/navigation";
-import { UserSelection } from "../selection";
-import PopoverRuleCardFilterContent from "./content";
-import { AutomationRule } from "@/app/types/type";
+import { PropsWithChildren, ReactElement } from 'react';
+import { Popover } from 'antd';
 
 interface PopoverRuleCardFilterProps {
   open: boolean;
   setOpen: (open: boolean) => void;
-  triggerEl?: ReactNode;
+  triggerEl: ReactElement;
+  popoverContent?: ReactElement;
 }
 
-const PopoverRuleCardFilter: React.FC<PopoverRuleCardFilterProps> = ({ 
-  open, 
-  setOpen, 
-  triggerEl 
+const PopoverRuleCardFilter: React.FC<PopoverRuleCardFilterProps> = ({
+  open,
+  setOpen,
+  triggerEl,
+  popoverContent,
 }) => {
-  const { workspaceId } = useParams();
-  const [selectedRule, setSelectedRule] = useState<AutomationRule>({triggerType: "", triggerItem: undefined, actions: []});
- 
+  const handleOpenChange = (newOpen: boolean) => {
+    setOpen(newOpen);
+  };
+
   return (
     <Popover
-      content={<PopoverRuleCardFilterContent selectedRule={selectedRule} setSelectedRule={setSelectedRule}  />}
-      title={null}
+      content={popoverContent}
       trigger="click"
       open={open}
-      onOpenChange={setOpen}
+      onOpenChange={handleOpenChange}
       placement="bottom"
-      overlayClassName="custom-field-popover"
-      destroyTooltipOnHide
     >
       {triggerEl}
     </Popover>

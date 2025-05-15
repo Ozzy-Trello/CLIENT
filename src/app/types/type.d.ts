@@ -171,7 +171,7 @@ export interface PostAutomationRule {
   condition: PostAutomationRuleCondition;
   filter?: any;
   workspaceId: string;
-  action: PostAutomationRuleAction
+  action: PostAutomationRuleAction[];
 }
 export interface PostAutomationRuleCondition{
   [key: string]: any | undefined;
