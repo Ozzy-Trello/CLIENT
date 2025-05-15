@@ -36,7 +36,7 @@ const ReviewAndSave: React.FC<ReviewAndSaveProps> = (props) => {
     }
     
     return (
-      <div className="p-3 rounded bg-blue-50 border border-blue-200">
+      <div className="mt-2 p-3 rounded bg-blue-50 border border-blue-200">
         <Typography.Text>{selectedRule.triggerItem.label}</Typography.Text>
         
         {/* Render dynamic properties */}
@@ -76,14 +76,14 @@ const ReviewAndSave: React.FC<ReviewAndSaveProps> = (props) => {
     return selectedRule.actions.map((action, index) => {
       if (!action.selectedActionItem) {
         return (
-          <div key={index} className="p-3 mb-2 rounded bg-gray-100">
+          <div key={index} className="mt-2 p-3 mb-2 rounded bg-gray-100">
             Action not fully configured
           </div>
         );
       }
       
       return (
-        <div key={index} className="p-3 mb-2 rounded bg-green-50 border border-green-200">
+        <div key={index} className="mt-2 p-3 mb-2 rounded bg-green-50 border border-green-200">
           <Typography.Text>{action.selectedActionItem.label}</Typography.Text>
           
           {/* Render dynamic properties */}
@@ -118,7 +118,7 @@ const ReviewAndSave: React.FC<ReviewAndSaveProps> = (props) => {
       
       {/* Display all selected actions */}
       <div className="mb-4">
-        <Typography.Title level={5}>Actions</Typography.Title>
+        <Typography.Title level={5} className="mb-2">Actions</Typography.Title>
         {renderActionDetails()}
       </div>
       
