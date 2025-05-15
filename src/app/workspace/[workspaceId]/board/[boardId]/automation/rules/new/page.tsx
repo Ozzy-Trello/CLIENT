@@ -1,5 +1,5 @@
 "use client";
-import { Button, Steps, Typography } from "antd";
+import { Button, message, Steps, Typography } from "antd";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import Se from "./select-trigger";
@@ -114,15 +114,16 @@ const NewRulePage: React.FC = () => {
       condition: triggerCondition,
       action: newActions
     };
-
-    console.log("Edited rule:", JSON.stringify(rule));
     
     // post rule
-    const result = await createRule(rule);
-    console.log("RESULT: %o", result);
-    
-    // Navigate back to the rules list
-    router.push(`/workspace/${workspaceId}/board/${boardId}/automation/rules`);
+    try {
+      const result = await createRule(rule);
+      console.log("resultz: %o", result);
+      router.push(`/workspace/${workspaceId}/board/${boardId}/automation/rules`);
+    } catch (e: any) {
+      console.log("eh ini eeror: ", e?.response?.data?.message);
+      message.error(e?.response?.data?.message || "something went wrong");
+    }
   };
   
   const nextStep = () => {
