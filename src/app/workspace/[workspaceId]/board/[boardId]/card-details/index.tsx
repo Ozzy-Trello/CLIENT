@@ -9,11 +9,12 @@ import {
   Row,
   Tag,
   Typography,
+  Divider,
 } from "antd";
 import { useRef, useState } from "react";
 import Cover from "./cover";
 import { useCardDetailContext } from "@/app/provider/card-detail-context";
-import { Eye } from "lucide-react";
+import { CheckSquare, Eye } from "lucide-react";
 import MembersList from "@/app/components/members-list";
 import Description from "./description";
 import Attachments from "./attachments";
@@ -32,6 +33,7 @@ import LocationDisplay from "./location";
 import AdditionalFields from "./additional-field";
 import RequestFields from "./request-field";
 import CardTimeInList from "./time-in-lists";
+import ChecklistFields from "./checklist-field";
 
 const CardDetails: React.FC = (props) => {
   const params = useParams();
@@ -325,6 +327,9 @@ const CardDetails: React.FC = (props) => {
               {selectedCard && (
                 <CardTimeInList card={selectedCard} setCard={setSelectedCard} />
               )}
+
+              {/* Checklist Section */}
+              {selectedCard && <ChecklistFields />}
 
               {/* Attachments Section */}
               {selectedCard && (

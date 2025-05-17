@@ -22,8 +22,15 @@ import ModalListRequest from "../modal-list-request";
 import ModalRequestSent from "../modal-request-sent";
 import { searchCards } from "@/app/api/card";
 import { Card } from "@/app/types/card";
+import { mock } from "node:test";
 
 const { Text } = Typography;
+
+enum MockRole {
+  Supervisor = "supervisor",
+  Warehouse = "warehouse",
+  Production = "production",
+}
 
 const TopBar: React.FC = React.memo(() => {
   const [notificationVisible, setNotificationVisible] = useState(false);
@@ -47,6 +54,7 @@ const TopBar: React.FC = React.memo(() => {
     { key: "2", label: "Notification 2" },
     { key: "3", label: "Notification 3" },
   ];
+  const [mockRole, setMockRole] = useState(MockRole.Supervisor);
   const handleLogout = () => {
     router.push("/login");
     dispatch(setAccessToken(""));
@@ -88,13 +96,13 @@ const TopBar: React.FC = React.memo(() => {
   const handleSearchChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
     setSearchQuery(query);
-    
+
     if (query.trim()) {
       setIsSearching(true);
       setShowSearchDropdown(true);
-      
+
       try {
-        const results = await searchCards({name: query, desription: query});
+        const results = await searchCards({ name: query, desription: query });
         if (results && results?.data) {
           setSearchResults(results.data);
         }
@@ -113,14 +121,17 @@ const TopBar: React.FC = React.memo(() => {
   // Handle clicks outside the search dropdown
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+      if (
+        searchRef.current &&
+        !searchRef.current.contains(event.target as Node)
+      ) {
         setShowSearchDropdown(false);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
 
@@ -144,14 +155,43 @@ const TopBar: React.FC = React.memo(() => {
       </div>
 
       <div className="flex items-center gap-5 w-100vh">
-        <Button onClick={() => setModalListRequestOpen(true)}>
-          Lihat Request
-        </Button>
-        <Button onClick={() => setModalRequestOpen(true)}>Buat Request</Button>
-        <Button onClick={() => setModalRequestSentOpen(true)}>
-          Lihat Request (Gudang)
-        </Button>
-        
+        <Dropdown
+          menu={{
+            items: [
+              {
+                key: "supervisor",
+                label: "Supervisor",
+                onClick: () => setMockRole(MockRole.Supervisor),
+              },
+              {
+                key: "warehouse",
+                label: "Warehouse",
+                onClick: () => setMockRole(MockRole.Warehouse),
+              },
+              {
+                key: "production",
+                label: "Production",
+                onClick: () => setMockRole(MockRole.Production),
+              },
+            ],
+          }}
+        >
+          <Button>{mockRole}</Button>
+        </Dropdown>
+        {mockRole === MockRole.Production && (
+          <Button onClick={() => setModalRequestOpen(true)}>
+            Buat Request
+          </Button>
+        )}
+        {mockRole === MockRole.Supervisor && (
+          <Button onClick={() => setModalListRequestOpen(true)}>
+            Lihat Request
+          </Button>
+        )}
+        {mockRole === MockRole.Warehouse && (
+          <Button onClick={() => setModalRequestSentOpen(true)}>Gudang</Button>
+        )}
+
         <div className="relative" ref={searchRef}>
           <Input
             placeholder="Search…"
@@ -161,7 +201,7 @@ const TopBar: React.FC = React.memo(() => {
             onChange={handleSearchChange}
             onFocus={handleSearchFocus}
           />
-          
+
           {showSearchDropdown && (
             <div className="absolute z-50 top-full left-0 mt-1 w-80 bg-white rounded-md shadow-lg border border-gray-200">
               <div className="max-h-80 overflow-auto p-2">
@@ -181,15 +221,30 @@ const TopBar: React.FC = React.memo(() => {
                         >
                           <List.Item.Meta
                             avatar={
-                              item.cover ?
-                                <img src={item.cover} alt={item.name} className="w-12 h-auto object-cover rounded"/> :
+                              item.cover ? (
+                                <img
+                                  src={item.cover}
+                                  alt={item.name}
+                                  className="w-12 h-auto object-cover rounded"
+                                />
+                              ) : (
                                 <div className="flex justify-center items-center w-12 h-8 rounded bg-gray-200">
-                                  <Avatar shape="square" size="small" src={`https://ui-avatars.com/api/?name=${item?.name}&background=random`}></Avatar>
+                                  <Avatar
+                                    shape="square"
+                                    size="small"
+                                    src={`https://ui-avatars.com/api/?name=${item?.name}&background=random`}
+                                  ></Avatar>
                                 </div>
+                              )
                             }
                             title={item.name}
                             description={
-                              <div className="prose prose-sm max-w-none text-[10px]" dangerouslySetInnerHTML={{ __html: item.description || '' }} />
+                              <div
+                                className="prose prose-sm max-w-none text-[10px]"
+                                dangerouslySetInnerHTML={{
+                                  __html: item.description || "",
+                                }}
+                              />
                             }
                           />
                         </List.Item>
@@ -230,7 +285,7 @@ const TopBar: React.FC = React.memo(() => {
             </div>
           )}
         </div>
-        
+
         {/* <Dropdown
           menu={{ items: notificationItems }}
           trigger={["click"]}
@@ -254,7 +309,7 @@ const TopBar: React.FC = React.memo(() => {
               alignItems: "center",
               justifyContent: "center",
               width: "30px",
-              height: "25px"
+              height: "25px",
             }}
             className="cursor-pointer"
             icon={<UserOutlined />}

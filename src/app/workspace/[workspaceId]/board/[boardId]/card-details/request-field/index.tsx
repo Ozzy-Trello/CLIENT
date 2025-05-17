@@ -2,7 +2,12 @@ import { CardRequest } from "@/app/dto/types";
 import { Table } from "antd";
 import { useCardDetailContext } from "@/app/provider/card-detail-context";
 import { getRequestsByCardId, updateRequestReceived } from "@/app/api/accurate";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Button, Dropdown, Modal, Input } from "antd";
+import { MoreOutlined } from "@ant-design/icons";
+import { useState } from "react";
 
+// Constants
 const tabNames = ["Polo", "Oblong", "Kemeja", "Jaket", "Hoodie"];
 
 const baseInputClass =
@@ -12,19 +17,19 @@ const labelClass =
 const sectionTitleClass =
   "text-[20px] font-semibold text-gray-900 mb-2 mt-8 flex items-center gap-2";
 
-import { useQuery } from "@tanstack/react-query";
-import { Button, Dropdown, Modal, Input } from "antd";
-import { MoreOutlined } from "@ant-design/icons";
-import { useState } from "react";
-
 const RequestFields: React.FC = () => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [sisaBahan, setSisaBahan] = useState("");
   const [activeRequest, setActiveRequest] = useState<CardRequest | null>(null);
   const { selectedCard } = useCardDetailContext();
+  const queryClient = useQueryClient();
 
-  const { data: requestData, refetch } = useQuery<{ data: CardRequest[] }>({
-    queryKey: ["requests", selectedCard?.id],
+  // Query key for requests
+  const requestsQueryKey = ["requests", selectedCard?.id];
+
+  // Query for fetching requests
+  const { data: requestData } = useQuery<{ data: CardRequest[] }>({
+    queryKey: requestsQueryKey,
     queryFn: async () => {
       if (!selectedCard?.id) return null;
       return getRequestsByCardId(selectedCard.id);
@@ -32,24 +37,76 @@ const RequestFields: React.FC = () => {
     enabled: !!selectedCard?.id,
   });
 
+  // Mutation for updating request received amount
+  const updateRequestMutation = useMutation({
+    mutationFn: ({ id, amount }: { id: string; amount: number }) => {
+      return updateRequestReceived(id, amount);
+    },
+    onSuccess: () => {
+      // Invalidate and refetch the requests query
+      queryClient.invalidateQueries({ queryKey: requestsQueryKey });
+
+      // Reset state if modal is open
+      if (isModalVisible) {
+        setIsModalVisible(false);
+        setSisaBahan("");
+        setActiveRequest(null);
+      }
+    },
+    onError: (error) => {
+      console.error("Error updating request:", error);
+    },
+  });
+
   const columns = [
     {
-      title: "Item Name",
+      title: "Bahan",
       dataIndex: "itemName",
       key: "itemName",
     },
     {
-      title: "Request Amount",
+      title: "Diminta",
       dataIndex: "requestAmount",
       key: "requestAmount",
+      render: (_: unknown, record: CardRequest) => {
+        return (
+          <span>
+            {record.requestAmount} {record.satuan}
+          </span>
+        );
+      },
     },
     {
-      title: "Adjustment Name",
+      title: "Dikirim",
+      dataIndex: "requestSent",
+      key: "requestSent",
+      render: (_: unknown, record: CardRequest) => {
+        return (
+          <span>
+            {record.requestSent ? record.requestSent : 0} {record.satuan}
+          </span>
+        );
+      },
+    },
+    {
+      title: "Jenis",
       dataIndex: "adjustmentName",
       key: "adjustmentName",
     },
     {
-      title: "Description",
+      title: "Kembali ke Gudang",
+
+      render: (_: unknown, record: CardRequest) => {
+        return (
+          <span>
+            {record.requestReceived ? record.requestReceived : ""}{" "}
+            {record.satuan}
+          </span>
+        );
+      },
+    },
+    {
+      title: "Deskripsi",
       dataIndex: "description",
       key: "description",
     },
@@ -59,9 +116,20 @@ const RequestFields: React.FC = () => {
       width: 50,
       align: "center" as const,
       render: (_: unknown, record: CardRequest) => {
+        // Handler for opening the modal
         const handleClick = () => {
           setActiveRequest(record);
           setIsModalVisible(true);
+        };
+
+        // Handler for "habis" action
+        const handleHabisClick = () => {
+          if (record.requestSent) {
+            updateRequestMutation.mutate({
+              id: record.id.toString(),
+              amount: record.requestSent,
+            });
+          }
         };
 
         return (
@@ -76,7 +144,7 @@ const RequestFields: React.FC = () => {
                 {
                   key: "habis",
                   label: "Habis",
-                  onClick: () => console.log("Habis clicked"),
+                  onClick: handleHabisClick,
                 },
               ],
             }}
@@ -94,21 +162,12 @@ const RequestFields: React.FC = () => {
     },
   ];
 
-  const handleModalOk = async () => {
+  const handleModalOk = () => {
     if (activeRequest && sisaBahan) {
-      try {
-        await updateRequestReceived(
-          activeRequest.id.toString(),
-          Number(sisaBahan)
-        );
-        // Refetch the data
-        await refetch();
-        setIsModalVisible(false);
-        setSisaBahan("");
-        setActiveRequest(null);
-      } catch (error) {
-        console.error("Error updating request:", error);
-      }
+      updateRequestMutation.mutate({
+        id: activeRequest.id.toString(),
+        amount: Number(sisaBahan),
+      });
     }
   };
 
@@ -118,8 +177,12 @@ const RequestFields: React.FC = () => {
     setActiveRequest(null);
   };
 
+  if (!selectedCard?.id) return null;
+
+  if (!requestData?.data || requestData.data.length === 0) return null;
+
   return (
-    <div className="mt-8">
+    <div className="mt-8 w-full">
       {/* Top Row */}
       <div className="flex items-center gap-2 mb-4">
         <span className="inline-flex items-center justify-center text-gray-700">

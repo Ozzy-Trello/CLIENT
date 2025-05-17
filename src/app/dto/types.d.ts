@@ -245,6 +245,9 @@ export interface CardRequest {
   createdAt: string;
   updatedAt: string;
   cardName: string;
+  requestReceived?: number;
+  requestSent?: number;
+  satuan?: string;
 }
 
 export type AnyList = List | FilterList;

@@ -21,9 +21,17 @@ export const getAllRequests = async (
   limit = 10,
   filter?: Record<string, any>
 ) => {
-  const { data } = await api.get(`/request`, {
-    params: { page, limit, ...filter },
-  });
+  // Create params object with page and limit
+  const params: Record<string, any> = { page, limit };
+
+  // If filter is provided, convert it to a query string format
+  // The backend expects filter as a string parameter
+  if (filter && Object.keys(filter).length > 0) {
+    // Convert filter object to JSON string
+    params.filter = JSON.stringify(filter);
+  }
+
+  const { data } = await api.get(`/request`, { params });
   return data;
 };
 
@@ -70,5 +78,22 @@ export const updateRequestReceived = async (
   requestReceived: number
 ) => {
   const { data } = await api.patch(`/request/${id}`, { requestReceived });
+  return data;
+};
+
+export const rejectRequest = async (id: string) => {
+  // Use snake_case for API request payload
+  const { data } = await api.patch(`/request/${id}`, { is_rejected: true });
+  return data;
+};
+
+export const markRequestDone = async (id: string) => {
+  // Use snake_case for API request payload
+  const { data } = await api.patch(`/request/${id}`, { is_done: true });
+  return data;
+};
+
+export const getItemDetail = async (id: string) => {
+  const { data } = await api.get(`/accurate/item/${id}`);
   return data;
 };

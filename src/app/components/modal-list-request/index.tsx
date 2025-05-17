@@ -1,6 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { Modal, Table, Button, message } from "antd";
-import { getAllRequests, verifyRequest } from "@/app/api/accurate";
+import { Modal, Table, Button, message, Space, Tag } from "antd";
+import {
+  getAllRequests,
+  verifyRequest,
+  rejectRequest,
+} from "@/app/api/accurate";
 
 interface ModalListRequestProps {
   open: boolean;
@@ -19,11 +23,13 @@ const ModalListRequest: React.FC<ModalListRequestProps> = ({
     total: 0,
   });
   const [verifying, setVerifying] = useState<string | null>(null);
+  const [rejecting, setRejecting] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
     setLoading(true);
-    getAllRequests(pagination.page, pagination.limit)
+    // Pass an empty filter object to ensure consistent API behavior
+    getAllRequests(pagination.page, pagination.limit, {})
       .then((res) => {
         setDataSource(res.data || []);
         setPagination((prev) => ({
@@ -41,7 +47,7 @@ const ModalListRequest: React.FC<ModalListRequestProps> = ({
       message.success("Request verified!");
       // Refresh table
       setLoading(true);
-      const res = await getAllRequests(pagination.page, pagination.limit);
+      const res = await getAllRequests(pagination.page, pagination.limit, {});
       setDataSource(res.data || []);
       setPagination((prev) => ({
         ...prev,
@@ -55,26 +61,80 @@ const ModalListRequest: React.FC<ModalListRequestProps> = ({
     }
   };
 
+  const handleReject = async (id: string) => {
+    setRejecting(id);
+    try {
+      await rejectRequest(id);
+      message.success("Request rejected!");
+      // Refresh table
+      setLoading(true);
+      const res = await getAllRequests(pagination.page, pagination.limit, {});
+      setDataSource(res.data || []);
+      setPagination((prev) => ({
+        ...prev,
+        total: res.pagination?.total || 0,
+      }));
+    } catch (err) {
+      message.error("Failed to reject request");
+    } finally {
+      setRejecting(null);
+      setLoading(false);
+    }
+  };
+
   const columns = [
     { title: "Nama PO", dataIndex: "cardName", key: "card_name" },
     { title: "Type", dataIndex: "requestType", key: "request_type" },
     { title: "Item", dataIndex: "itemName", key: "requested_item_id" },
-    { title: "Jumlah", dataIndex: "requestAmount", key: "request_amount" },
+    {
+      title: "Jumlah",
+      key: "request_amount",
+      render: (_: any, record: any) => (
+        <span>
+          {record.requestAmount} {record.satuan || ""}
+        </span>
+      ),
+    },
     { title: "Adjustment", dataIndex: "adjustmentName", key: "adjustment_no" },
     { title: "Description", dataIndex: "description", key: "description" },
+    {
+      title: "Status",
+      key: "status",
+      render: (_: any, record: any) => {
+        if (record.isRejected || record.isRejected) {
+          // Support both formats during transition
+          return <Tag color="red">Rejected</Tag>;
+        }
+        if (record.isVerified) {
+          return <Tag color="green">Verified</Tag>;
+        }
+        return <Tag color="default">Pending</Tag>;
+      },
+    },
     {
       title: "Action",
       key: "action",
       render: (_: any, record: any) => (
-        <Button
-          disabled={record.isVerified}
-          type="primary"
-          icon={<span className="fi fi-rr-check" />}
-          loading={verifying === record.id}
-          onClick={() => handleVerify(record.id)}
-        >
-          Accept
-        </Button>
+        <Space>
+          <Button
+            disabled={record.isVerified || record.isRejected}
+            type="primary"
+            icon={<span className="fi fi-rr-check" />}
+            loading={verifying === record.id}
+            onClick={() => handleVerify(record.id)}
+          >
+            Accept
+          </Button>
+          <Button
+            disabled={record.isVerified || record.isRejected}
+            type="primary"
+            danger
+            loading={rejecting === record.id}
+            onClick={() => handleReject(record.id)}
+          >
+            X
+          </Button>
+        </Space>
       ),
     },
     {

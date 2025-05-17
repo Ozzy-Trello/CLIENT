@@ -3,6 +3,7 @@ import {
   updateRequest,
   updateWarehouseReturn,
   updateWarehouseFinalAmount,
+  markRequestDone,
 } from "@/app/api/accurate";
 import { Button, Checkbox, Input, Modal, Table, message } from "antd";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -30,6 +31,12 @@ interface RequestItem {
   warehouseReturned?: boolean;
   warehouseFinalUsedAmount?: number;
   requestReceived?: number;
+  // Support both naming conventions during transition
+  is_rejected?: boolean;
+  isRejected?: boolean;
+  is_done?: boolean;
+  isDone?: boolean;
+  satuan?: string;
 }
 
 interface ModalRequestSentProps {
@@ -62,6 +69,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     queryFn: () =>
       getAllRequests(pagination.page, pagination.limit, {
         isVerified: true,
+        isRejected: false,
       }),
     enabled: open,
   });
@@ -127,6 +135,8 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     [key: string]: number;
   }>({});
 
+  const [markingDone, setMarkingDone] = useState<string | null>(null);
+
   const debouncedUpdateFunctions = useRef<{
     [key: string]: (amount: number) => void;
   }>({});
@@ -162,11 +172,32 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     debouncedUpdateFunctions.current[id](amount);
   };
 
+  const handleMarkDone = async (id: string) => {
+    setMarkingDone(id);
+    try {
+      await markRequestDone(id);
+      message.success("Request marked as done!");
+      refetch(); // Refresh the data
+    } catch (err) {
+      message.error("Failed to mark request as done");
+    } finally {
+      setMarkingDone(null);
+    }
+  };
+
   const columns = [
     { title: "Nama PO", dataIndex: "cardName", key: "card_name" },
     { title: "Type", dataIndex: "requestType", key: "request_type" },
     { title: "Item", dataIndex: "itemName", key: "requested_item_id" },
-    { title: "Jumlah", dataIndex: "requestAmount", key: "request_amount" },
+    {
+      title: "Jumlah",
+      key: "request_amount",
+      render: (_: any, record: RequestItem) => (
+        <span>
+          {record.requestAmount} {record.satuan || ""}
+        </span>
+      ),
+    },
     { title: "Adjustment", dataIndex: "adjustmentName", key: "adjustment_no" },
     { title: "Deskripsi", dataIndex: "description", key: "description" },
     {
@@ -181,7 +212,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
               ? requestSentValues[record.id]
               : record.requestSent ?? ""
           }
-          disabled={record.requestSent !== null}
+          disabled={record.requestSent !== null || record.isRejected}
           onChange={(e) =>
             setRequestSentValues((prev) => ({
               ...prev,
@@ -221,6 +252,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
         <Checkbox
           checked={value}
           onChange={(e) => handleWarehouseReturn(record.id, e.target.checked)}
+          disabled={record.isDone}
         />
       ),
     },
@@ -240,7 +272,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
             handleFinalAmountUpdate(record.id, Number(e.target.value))
           }
           max={record.requestSent}
-          disabled={!record.warehouseReturned}
+          disabled={!record.warehouseReturned || record.isDone}
           style={{ width: 120 }}
         />
       ),
@@ -250,7 +282,18 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       key: "status",
       width: 200,
       render: (_: unknown, record: RequestItem) => {
-        console.log(record, "<< ini ");
+        if (record.is_done || record.isDone) {
+          return (
+            <span style={{ color: "#52c41a", fontWeight: "bold" }}>Done</span>
+          );
+        }
+        if (record.is_rejected || record.isRejected) {
+          return (
+            <span style={{ color: "#f5222d", fontWeight: "bold" }}>
+              Rejected
+            </span>
+          );
+        }
         if (record.productionReceived) {
           return <span style={{ color: "#52c41a" }}>Diterima produksi</span>;
         }
@@ -258,7 +301,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
           if (record.requestReceived) {
             return (
               <span style={{ color: "#1890ff" }}>
-                Diterima {record.requestReceived} satuan
+                Diterima {record.requestReceived} {record.satuan || "satuan"}
               </span>
             );
           }
@@ -268,6 +311,26 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       },
     },
     {
+      title: "Action",
+      key: "done_action",
+      width: 100,
+      render: (_: unknown, record: RequestItem) => (
+        <Button
+          type="primary"
+          onClick={() => handleMarkDone(record.id)}
+          disabled={
+            record.is_done ||
+            record.isDone ||
+            record.is_rejected ||
+            record.isRejected
+          }
+          loading={markingDone === record.id}
+        >
+          Done
+        </Button>
+      ),
+    },
+    {
       title: "Request",
       dataIndex: "productionUserName",
     },
@@ -275,7 +338,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
 
   return (
     <Modal
-      title="Lihat Request (Gudang)"
+      title="Gudang"
       open={open}
       onCancel={onClose}
       footer={null}

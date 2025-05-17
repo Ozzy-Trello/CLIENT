@@ -1,6 +1,15 @@
 import React, { useEffect, useState, useRef } from "react";
 import ReactDOM from "react-dom";
-import { Avatar, Button, Image, List, Typography, message, Space, Upload } from "antd";
+import {
+  Avatar,
+  Button,
+  Image,
+  List,
+  Typography,
+  message,
+  Space,
+  Upload,
+} from "antd";
 import {
   DownloadOutlined,
   PrinterOutlined,
@@ -115,6 +124,44 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
   // Canvas reference for generating QR code images
   const qrCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
+  // Function to convert external image URL to base64 to avoid CORS issues
+  const getBase64FromUrl = async (url: string): Promise<string> => {
+    try {
+      // Use a server-side proxy to fetch the image if it's from an external domain
+      // This assumes you have an API endpoint that can proxy the request
+      if (url.startsWith('http') && !url.includes(window.location.hostname)) {
+        // Create a proxy URL through your Next.js API
+        const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(url)}`;
+        const response = await fetch(proxyUrl);
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch image: ${response.statusText}`);
+        }
+        
+        const blob = await response.blob();
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+      } else {
+        // For same-origin images, fetch directly
+        const response = await fetch(url);
+        const blob = await response.blob();
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+      }
+    } catch (error) {
+      console.error("Error converting image to base64:", error);
+      throw error;
+    }
+  };
+
   // Function to open image with QR code in print dialog
   const handlePrintWithQR = async (imageUrl?: string, fileName?: string) => {
     if (!imageUrl) return;
@@ -136,6 +183,9 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
         return;
       }
 
+      // Convert the image URL to base64 to avoid CORS issues
+      const base64Image = await getBase64FromUrl(imageUrl);
+      
       // Load the image
       const img = document.createElement("img");
       img.crossOrigin = "anonymous"; // Enable CORS
@@ -307,7 +357,6 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
                     document.body.removeChild(qrSvg);
                     document.body.removeChild(qrElement);
                     loadingMsg();
-                    message.success("Print dialog opened");
                   }, 1000);
                 } catch (error) {
                   console.error("Print error:", error);
@@ -349,7 +398,7 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
         loadingMsg();
       };
 
-      img.src = imageUrl;
+      img.src = base64Image;
     } catch (error) {
       message.error("An error occurred during download");
       console.error("Download error:", error);
@@ -547,7 +596,7 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
       // Clear previous state to avoid duplications on re-renders
       setAttachedCards([]);
       setAttachedFiles([]);
-      
+
       // Process all attachments
       cardAttachments.forEach((item: CardAttachment) => {
         if (item.attachableType === EnumAttachmentType.Card) {
@@ -560,7 +609,7 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
           }
         }
       });
-      
+
       // Find cover attachment and update card cover
       const cover = cardAttachments?.find((item) => item.isCover);
       if (cover?.file?.url) {
@@ -606,7 +655,9 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
         </div>
         <List
           className="space-y-3"
-          dataSource={cardAttachments?.filter(item => item.attachableType === EnumAttachmentType.File)}
+          dataSource={cardAttachments?.filter(
+            (item) => item.attachableType === EnumAttachmentType.File
+          )}
           locale={{ emptyText: "No attachments yet" }}
           renderItem={(item) => (
             <List.Item className="flex items-center p-2 hover:bg-gray-50 rounded">
@@ -673,7 +724,7 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
                   </div>
                 )}
               </div>
-              
+
               <div className="flex-grow">
                 <div className="text-sm font-medium">{item.file?.name}</div>
                 <div className="text-xs text-gray-500 flex items-center space-x-2">
@@ -730,7 +781,7 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
             </List.Item>
           )}
         />
-        
+
         {/* Cards Section */}
         {attachedCards.length > 0 && (
           <>
@@ -745,36 +796,44 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
                 <List.Item className="flex items-center hover:bg-gray-50 rounded">
                   <div className="flex-shrink-0 mr-3 w-20 h-10 flex items-center justify-center">
                     {item.cover ? (
-                      <img 
-                        src={item.cover} 
-                        alt={item.name} 
+                      <img
+                        src={item.cover}
+                        alt={item.name}
                         className="w-20 h-15 object-cover rounded"
                       />
                     ) : (
                       <div className="flex justify-center items-center w-20 h-10 rounded bg-gray-200">
-                        <Avatar shape="square" src={`https://ui-avatars.com/api/?name=${item?.name}&background=random`}></Avatar>
+                        <Avatar
+                          shape="square"
+                          src={`https://ui-avatars.com/api/?name=${item?.name}&background=random`}
+                        ></Avatar>
                       </div>
                     )}
                   </div>
-                
+
                   <div className="flex-grow">
                     <div className="text-sm font-medium">{item.name}</div>
                     <div className="text-xs text-gray-500 flex items-center space-x-2">
-                      <div className="prose prose-sm max-w-none text-[10px]" dangerouslySetInnerHTML={{ __html: item.description || '' }} />
+                      <div
+                        className="prose prose-sm max-w-none text-[10px]"
+                        dangerouslySetInnerHTML={{
+                          __html: item.description || "",
+                        }}
+                      />
                     </div>
                   </div>
-                
+
                   <div className="flex-shrink-0 flex space-x-1">
-                    <Button 
-                      icon={<ExportOutlined />} 
-                      size="small" 
+                    <Button
+                      icon={<ExportOutlined />}
+                      size="small"
                       title="Download"
-                      onClick={() => window.open(item.cover, '_blank')}
+                      onClick={() => window.open(item.cover, "_blank")}
                       className="flex items-center justify-center border-0 shadow-none"
                     />
-                    <Button 
-                      icon={<EllipsisOutlined />} 
-                      size="small" 
+                    <Button
+                      icon={<EllipsisOutlined />}
+                      size="small"
                       title="More options"
                       className="flex items-center justify-center border-0 shadow-none"
                     />
@@ -793,7 +852,7 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
           title="Upload attachment"
         />
       </div>
-      
+
       {/* Overlay for drag and drop */}
       {isDraggingOver && (
         <div className="fixed inset-0 bg-blue-500 bg-opacity-10 z-50 flex items-center justify-center">
@@ -810,9 +869,11 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
               }}
             >
               <p className="ant-upload-drag-icon">
-                <InboxOutlined style={{ fontSize: '48px', color: '#1890ff' }} />
+                <InboxOutlined style={{ fontSize: "48px", color: "#1890ff" }} />
               </p>
-              <p className="ant-upload-text text-lg font-medium">Drop files here to upload</p>
+              <p className="ant-upload-text text-lg font-medium">
+                Drop files here to upload
+              </p>
               <p className="ant-upload-hint text-gray-500">
                 Support for single or bulk upload
               </p>

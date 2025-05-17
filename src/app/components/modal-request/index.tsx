@@ -3,7 +3,7 @@ import {
   getAllItemList,
   submitRequest,
 } from "@/app/api/accurate";
-import { allCards } from "@/app/api/card";
+import { searchCards } from "@/app/api/card";
 import { useQueries } from "@tanstack/react-query";
 import {
   AutoComplete,
@@ -26,9 +26,13 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
   const [cards, setCards] = React.useState<any>([]);
   const [items, setItems] = React.useState<any>([]);
   const [glaccounts, setGlaccounts] = React.useState<any>([]);
+  const [selectedCardId, setSelectedCardId] = React.useState<string | null>(
+    null
+  );
   const [isAkunPenyesuaianDisabled, setIsAkunPenyesuaianDisabled] =
     React.useState<boolean>(false);
   const [barangSearchValue, setBarangSearchValue] = React.useState<string>("");
+  const [cardSearchValue, setCardSearchValue] = React.useState<string>("");
   const [isSearchingBarang, setIsSearchingBarang] =
     React.useState<boolean>(false);
   const [selectedItemUnit, setSelectedItemUnit] = React.useState<string>("");
@@ -38,17 +42,19 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
   const queries = useQueries({
     queries: [
       {
-        queryKey: ["cards"],
-        queryFn: () => allCards(),
+        queryKey: ["cards", cardSearchValue],
+        queryFn: () => searchCards({ name: cardSearchValue }),
+        enabled: open, // Only run when modal is open
       },
       {
         queryKey: ["items", barangSearchValue],
         queryFn: () => getAllItemList(barangSearchValue),
-        enabled: barangSearchValue !== "",
+        enabled: open && (barangSearchValue !== "" || barangSearchValue === ""), // Always run when modal is open
       },
       {
         queryKey: ["glaccounts"],
         queryFn: () => getAllAdjustmentItems(),
+        enabled: open, // Only run when modal is open
       },
     ],
   });
@@ -69,11 +75,12 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
     }
   }, [queries[1].isLoading]);
 
-  useEffect(() => {
-    if (open) {
-      allCards().then((res) => setCards(res.data || []));
-    }
-  }, [open]);
+  // This effect is no longer needed as we're using React Query with enabled: open
+  // useEffect(() => {
+  //   if (open) {
+  //     searchCards({}).then((res) => setCards(res.data || []));
+  //   }
+  // }, [open]);
 
   const listPO = cards.map((card: any) => ({
     value: card.id,
@@ -139,12 +146,13 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
 
   const [form] = Form.useForm();
   const [formValid, setFormValid] = React.useState<boolean>(false);
-  
+
   // Monitor form values to determine if the form is valid
   const formValues = Form.useWatch([], form);
-  
+
   React.useEffect(() => {
-    form.validateFields({ validateOnly: true })
+    form
+      .validateFields({ validateOnly: true })
       .then(() => setFormValid(true))
       .catch(() => setFormValid(false));
   }, [formValues]);
@@ -160,7 +168,6 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
   const handleOk = async () => {
     try {
       const values = await form.validateFields();
-      console.log(values);
       // Find IDs/values from labels for barang, listPO, akunPenyesuaian
       const card = listPO.find((opt: any) => opt.label === values.listPO);
       const item = barangList.find(
@@ -172,7 +179,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
           typeof opt.label === "string" && opt.label === values.akunPenyesuaian
       );
       const payload = {
-        card_id: card ? card.value : values.listPO,
+        card_id: selectedCardId || (card ? card.value : values.listPO),
         request_type: values.actionType,
         requested_item_id: item ? item.value : values.barang,
         request_amount: Number(values.jumlah),
@@ -180,10 +187,13 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
         description: values.description,
         item_name: item ? item.label : values.barang,
         adjustment_name: adjustment ? adjustment.label : values.akunPenyesuaian,
+        satuan: selectedItemUnit || "", // Add the selected unit (satuan) to the payload
       };
+
       await submitRequest(payload);
       message.success("Request submitted successfully");
       await form.resetFields();
+      setSelectedCardId(null);
       onClose();
     } catch (err) {
       message.error("Failed to submit request");
@@ -199,6 +209,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
       setSelectedItemUnit("");
       setAvailableUnits([]);
       setBarangSearchValue("");
+      setSelectedCardId(null);
     }
   }, [open]);
 
@@ -234,15 +245,25 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
               onSelect={(value, option) => {
                 if (typeof option.label === "string") {
                   form.setFieldsValue({ listPO: option.label });
+                  // Save the selected card ID when a card is selected from dropdown
+                  setSelectedCardId(value);
                 }
               }}
               onChange={(input) => {
+                // Update search value for the cards query
+                setCardSearchValue(input);
+
                 const match = listPO.find(
                   (opt: any) =>
                     typeof opt.label === "string" && opt.label === input
                 );
                 if (!match) {
                   form.setFieldsValue({ listPO: input });
+                  // Clear selected card ID if the input doesn't match any card
+                  setSelectedCardId(null);
+                } else {
+                  // If input matches a card label, set the card ID
+                  setSelectedCardId(match.value);
                 }
               }}
             />
@@ -319,6 +340,8 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
                       });
 
                     setAvailableUnits(units);
+
+                    console.log("units", units);
 
                     // Set default unit if available
                     if (units.length > 0) {
@@ -450,12 +473,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
           </Form.Item>
         </div>
         <Form.Item style={{ marginTop: 16 }}>
-          <Button 
-            type="primary" 
-            htmlType="submit" 
-            block
-            disabled={!formValid}
-          >
+          <Button type="primary" htmlType="submit" block disabled={!formValid}>
             Submit
           </Button>
         </Form.Item>
