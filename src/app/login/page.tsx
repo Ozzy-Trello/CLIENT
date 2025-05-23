@@ -13,10 +13,10 @@ import message from 'antd/es/message';
 import Typography from 'antd/es/typography';
 
 // Local imports
-import { setUser } from '@/app/store/app_slice';
-import Footer from '@/app/components/footer';
-import { useLogin } from '../hooks/auth';
-import { useCurrentAccount } from '../hooks/account';
+import { setUser } from '@store/app_slice';
+import { useCurrentAccount } from '@hooks/account';
+import { useLogin } from '@hooks/auth';
+import Footer from '@components/footer';
 
 const { Title, Text } = Typography;
 

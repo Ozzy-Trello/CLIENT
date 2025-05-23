@@ -2,15 +2,14 @@
 import { Button, message, Steps, Typography } from "antd";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
-import Se from "./select-trigger";
 import SelectAction from "./select-action";
-import { triggers } from "../../../../../../../constants/automation-rule/data";
+import { triggers } from "@constants/automation-rule/data";
 import ReviewAndSave from "./review-and-save";
 import RuleState from "./rule-state";
-import { AutomationRule, PostAutomationRule, PostAutomationRuleAction, TriggerItemSelection } from "@/app/types/type";
+import { AutomationRule, PostAutomationRule, PostAutomationRuleAction, TriggerItemSelection } from "@myTypes/type";
 import SelectTrigger from "./select-trigger";
-import { extractPlaceholders } from "@/app/utils/general";
-import { createRule } from "@/app/api/automation_rule";
+import { extractPlaceholders } from "@utils/general";
+import { createRule } from "@api/automation_rule";
 
 const StepsItem = [
   {

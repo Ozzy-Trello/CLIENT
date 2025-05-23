@@ -28,16 +28,15 @@ import {
   FileExcelOutlined,
   FileZipOutlined,
   FileTextOutlined,
-  FileOutlined,
-  QrcodeOutlined,
-} from "@ant-design/icons";
-import { useCardAttachment } from "@/app/hooks/card_attachment";
-import UploadModal from "@/app/components/modal-upload/modal-upload";
-import { EnumAttachmentType, Card, CardAttachment } from "@/app/types/card";
-import { User } from "@/app/types/user";
-import { FileUpload } from "@/app/types/file-upload";
+  FileOutlined
+} from '@ant-design/icons';
+import { useCardAttachment } from '@hooks/card_attachment';
+import UploadModal from '@components/modal-upload/modal-upload';
+import { EnumAttachmentType, Card, CardAttachment } from '@myTypes/card';
+import { User } from '@myTypes/user';
+import { FileUpload } from '@myTypes/file-upload';
 import QRCode from "react-qr-code";
-import { uploadFile } from "@/app/api/file";
+import { uploadFile } from "@api/file";
 
 interface AttachmentsProps {
   card: Card;

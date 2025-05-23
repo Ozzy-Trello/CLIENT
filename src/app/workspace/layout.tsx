@@ -1,13 +1,13 @@
 "use client";
 import { ReactNode } from "react";
 import { Layout, Menu } from "antd";
-import TopBar from "../components/topbar";
-import Sidebar from "../components/sidebar";
+import TopBar from "@components/topbar";
+import Sidebar from "@components/sidebar";
 import "./style.css";
 import {
   useWorkspaceSidebar,
-} from "@/app/provider/workspace-sidebar-context";
-import Footer from "../components/footer";
+} from "@providers/workspace-sidebar-context";
+import Footer from "@components/footer";
 
 const { Header, Content } = Layout;
 

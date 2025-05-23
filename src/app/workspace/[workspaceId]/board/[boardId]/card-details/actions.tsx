@@ -15,16 +15,15 @@ import {
   RectangleEllipsis,
   QrCode,
 } from "lucide-react";
-import PopoverCustomField from "@/app/components/popover-custom-field";
-import PopoverUser from "@/app/components/popover-user";
-import PopoverDates from "@/app/components/popover-dates.tsx";
-import PopoverMoveCard from "@/app/components/popover-move-card";
-import PopoverCopyCard from "@/app/components/popover-copy-card";
+import PopoverCustomField from "@components/popover-custom-field";
+import PopoverUser from "@components/popover-user";
+import PopoverDates from "@components/popover-dates.tsx";
+import PopoverMoveCard from "@components/popover-move-card";
+import PopoverCopyCard from "@components/popover-copy-card";
 import { message, Tooltip } from "antd";
 import QRModal from "./qr-modal/qr-modal";
-import PopoverLocation from "@/app/components/popover-location";
-import PopoverAttach from "@/app/components/popover-attach";
-import { set } from "lodash";
+import PopoverLocation from "@components/popover-location";
+import PopoverAttach from "@components/popover-attach";
 
 const Actions: React.FC = () => {
   const [openCustomField, setOpenCustomField] = useState(false);

@@ -1,4 +1,4 @@
-import { AnyList } from "@/app/types/list";
+import { AnyList } from "@myTypes/list";
 import { UseMutateFunction } from "@tanstack/react-query";
 import { Button, Input, Tooltip, Typography } from "antd";
 import { Ellipsis } from "lucide-react";

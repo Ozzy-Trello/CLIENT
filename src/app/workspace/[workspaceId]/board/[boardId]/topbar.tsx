@@ -1,16 +1,7 @@
-import {
-  Button,
-  Dropdown,
-  MenuProps,
-  message,
-  Tooltip,
-  Typography,
-} from "antd";
-import { useState, useEffect, Dispatch, SetStateAction } from "react";
-import { useWorkspaceSidebar } from "@/app/provider/workspace-sidebar-context";
-import MembersList from "@/app/components/members-list";
-import { Scanner } from "@yudiel/react-qr-scanner";
-import { useRouter } from "next/navigation";
+import { Button, Dropdown, MenuProps, Tooltip, Typography, message } from "antd";
+import { Dispatch, SetStateAction, useEffect, useState } from "react";
+import { useWorkspaceSidebar } from "@providers/workspace-sidebar-context";
+import MembersList from "@components/members-list";
 import {
   Ellipsis,
   ListFilter,
@@ -22,8 +13,9 @@ import {
   QrCode,
 } from "lucide-react";
 import { useSelector } from "react-redux";
-import { selectCurrentBoard } from "@/app/store/workspace_slice";
-import ModalDashcard from "@/app/components/dashcard/modal-dashcard";
+import { selectCurrentBoard } from "@store/workspace_slice";
+import { useRouter } from "next/navigation";
+import { Scanner } from "@yudiel/react-qr-scanner";
 
 interface BoardTopbarProps {
   boardScopeMenuOpen: boolean;

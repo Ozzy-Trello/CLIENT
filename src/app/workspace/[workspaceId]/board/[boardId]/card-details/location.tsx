@@ -60,7 +60,7 @@ const LocationDisplay: React.FC<LocationDisplayProps> = ({
   }, [lat, lon]);
   
   // Dynamic import of the actual map component
-  const MapWithNoSSR = dynamic(() => import('@/app/components/map/index'), {
+  const MapWithNoSSR = dynamic(() => import('@components/map/index'), {
     ssr: false,
     loading: () => (
       <div 

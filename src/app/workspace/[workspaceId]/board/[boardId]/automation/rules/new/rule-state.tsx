@@ -1,6 +1,6 @@
 import { Button, Typography } from "antd";
 import { Dispatch, SetStateAction } from "react";
-import { AutomationRule } from "@/app/types/type";
+import { AutomationRule } from "@myTypes/type";
 
 interface RuleStateProps {
   selectedRule: AutomationRule;

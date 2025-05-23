@@ -1,8 +1,7 @@
 import { Button, Select, Typography } from "antd";
-import { actions } from "../../../../../../../../constants/automation-rule/data";
+import { actions } from "@constants/automation-rule/data";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import { Plus } from "lucide-react";
-import { CustomSelectionArr } from "@/app/constants/automation-rule/automation-rule";
 import { 
   ActionItems, 
   AutomationRule, 
@@ -10,7 +9,7 @@ import {
   SelectedAction, 
   SelectedActionItem, 
   TriggerItemSelection 
-} from "@/app/types/type";
+} from "@myTypes/type";
 
 // Helper function to extract placeholders from a pattern
 function extractPlaceholders(pattern: string): string[] {

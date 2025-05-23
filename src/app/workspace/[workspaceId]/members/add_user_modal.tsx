@@ -6,7 +6,7 @@ import {
   LockOutlined,
   PhoneOutlined,
 } from "@ant-design/icons";
-import { register } from "@/app/api/auth";
+import { register } from "@api/auth";
 
 interface AddUserModalProps {
   visible: boolean;

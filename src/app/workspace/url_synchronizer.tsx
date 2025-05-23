@@ -2,9 +2,9 @@
 import { useParams, usePathname } from 'next/navigation';
 import { useEffect } from 'react';
 import { useDispatch } from 'react-redux';
-import { useWorkspaces } from '../hooks/workspace';
-import { useBoards } from '../hooks/board';
-import { selectCurrentBoard, selectCurrentWorkspace, setCurrentBoard, setCurrentWorkspace } from '../store/workspace_slice';
+import { useWorkspaces } from '@hooks/workspace';
+import { useBoards } from '@hooks/board';
+import { selectCurrentBoard, selectCurrentWorkspace, setCurrentBoard, setCurrentWorkspace } from '../../store/workspace_slice';
 import { useSelector } from 'react-redux';
 
 /**

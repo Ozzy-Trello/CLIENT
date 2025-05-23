@@ -1,10 +1,10 @@
-import { ListSelection, SelectionRef } from "@/app/components/selection";
+import { ListSelection, SelectionRef } from "@components/selection";
 import { Button, Select, Typography } from "antd";
 import { ListFilter, Plus } from "lucide-react";
 import { Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
-import { triggers } from "../../../../../../../../constants/automation-rule/data";
-import { CustomFilter, CustomSelectionArr, CustomSelectionList } from "@/app/constants/automation-rule/automation-rule";
-import PopoverRuleCardFilter from "@/app/components/popover-rule-card-filter";
+import { triggers } from "@constants/automation-rule/data";
+import { CustomFilter, CustomSelectionArr, CustomSelectionList } from "@constants/automation-rule/automation-rule";
+import PopoverRuleCardFilter from "@components/popover-rule-card-filter";
 import { 
   AutomationRule, 
   GeneralOptions, 
@@ -13,7 +13,7 @@ import {
   TriggerItems, 
   TriggerItemSelection,
   SelectedTriggerItem
-} from "@/app/types/type";
+} from "@myTypes/type";
 
 // Helper function to extract placeholders from a pattern
 function extractPlaceholders(pattern: string): string[] {

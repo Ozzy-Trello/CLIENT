@@ -3,9 +3,9 @@ import { Avatar, Button, Card, Col, Flex, Form, Input, Row, Tooltip, Typography,
 import { useState } from "react";
 import { LoadingOutlined, PlusOutlined } from '@ant-design/icons';
 import "./style.css"
-import { useUpdateAccount } from "@/app/hooks/account";
-import { Account as AccountDto } from "@/app/dto/account";
-import { selectUser } from "@/app/store/app_slice";
+import { useUpdateAccount } from "@hooks/account";
+import { Account as AccountDto } from "@dto/account";
+import { selectUser } from "@store/app_slice";
 import { useSelector } from "react-redux";
 
 

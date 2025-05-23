@@ -1,12 +1,11 @@
 import { Draggable, Droppable, DroppableProvided } from "@hello-pangea/dnd";
 import ListName from "./list-name";
-import { useCards } from "@/app/hooks/card";
+import { useCards } from "@hooks/card";
 import DraggableCard from "../draggable-card";
 import AddCard from "./add-card";
 import { UseMutateFunction } from "@tanstack/react-query";
 import { useEffect } from "react";
-import { AnyList } from "@/app/types/list";
-import { useParams } from "next/navigation";
+import { AnyList } from "@myTypes/list";
 
 interface DraggableListProps {
   list: AnyList;

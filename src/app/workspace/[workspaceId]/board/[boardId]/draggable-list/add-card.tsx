@@ -1,5 +1,5 @@
-import { Card, EnumCardType } from "@/app/types/card";
-import { generateId } from "@/app/utils/general";
+import { Card, EnumCardType } from "@myTypes/card";
+import { generateId } from "@utils/general";
 import { Button } from "antd";
 import { Plus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";

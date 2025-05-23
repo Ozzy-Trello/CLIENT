@@ -6,7 +6,7 @@ import dynamic from "next/dynamic";
 import { Earth, Lock, Users } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useBoards } from "@/app/hooks/board";
+import { useBoards } from "@hooks/board";
 
 // Move this outside the component
 const BoardFilters = dynamic(() => import("./_filter_form"), {
