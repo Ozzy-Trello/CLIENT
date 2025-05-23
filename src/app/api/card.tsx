@@ -52,3 +52,8 @@ export const allCards = async (): Promise<any> => {
   const { data } = await api.get("/card/all");
   return data;
 };
+
+export const cardCount = async (cardId: string): Promise<ApiResponse<any>> => {
+  const {data} = await api.get(`/card/${cardId}/dashcard/count`);
+  return data;
+}

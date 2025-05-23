@@ -93,7 +93,7 @@ const CreateBoard: React.FC<ModalCreateBoardForm> = (props: ModalCreateBoardForm
 
   return (
     <Modal
-      className="modal-create-board"
+      className="modal-create-board modal-cust-footer"
       open={open}
       onCancel={() => setOpen(false)}
       title={"Create New Board"}

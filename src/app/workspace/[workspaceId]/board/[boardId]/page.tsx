@@ -20,6 +20,9 @@ import BoardScopeMenu from "@/app/components/board-scope-menu";
 import { useCardMove, useCards } from "@/app/hooks/card";
 import { useQueryClient } from "@tanstack/react-query";
 import { AnyList } from "@/app/types/list";
+import ModalDashcard from "@/app/components/dashcard/modal-dashcard";
+import { DashcardConfig } from "@/app/types/dashcard";
+import { Card, EnumCardType } from "@/app/types/card";
 
 const DragDropContext = dynamic(
   () => import("@hello-pangea/dnd").then((mod) => mod.DragDropContext),
@@ -38,10 +41,11 @@ const Board: React.FC = () => {
   const [ isAddingList, setIsAddingList ] = useState<boolean>(false);
   const [ newListName, setNewListName ] = useState<string>("");
   const [ boardScopeMenu, setBoardScopeMenu] = useState<boolean>(false);
-  const { updateCard } = useCards("", "");
+  const { updateCard, addCard } = useCards("", "");
   const { moveCard } = useCardMove();
   const { moveList } = useListMove();
-
+  const [ openDashcardModal, setOpenDashcardModal ] = useState<boolean>(false);
+  const [ dashcardConfig, setDashcardConfig ] = useState<DashcardConfig>();
 
   const onListDragEnd = useCallback(
     (result: DropResult) => {
@@ -109,17 +113,24 @@ const Board: React.FC = () => {
     setIsAddingList(false);
   }
 
+  const onDashcardSave = (dashcardConfig: DashcardConfig): void => {
+    if (lists?.length > 0) {
+      const listId = lists[0]?.id;
+      const card: Card = {
+        id: dashcardConfig.id,
+        listId: listId,
+        name: dashcardConfig?.name,
+        type: EnumCardType.Dashcard,
+        dashConfig: dashcardConfig
+      }
+
+      addCard({ card, listId });
+    }
+  }
+
   useEffect(() => {
     setListData(lists);
   }, [lists]);
-
-  // useEffect(() => {
-  //   if (searchParams.has("cardId")) {
-  //     setBoardScopeMenu(true);
-  //   } else {
-  //     setBoardScopeMenu(false);
-  //   }
-  // }, [window.location.href])
 
   return (
     <div 
@@ -128,7 +139,11 @@ const Board: React.FC = () => {
        width: collapsed ? `calc(100%-${siderSmall})` : `calc(100%-${siderWide})`
       }}
     >
-      <BoardTopbar boardScopeMenuOpen={boardScopeMenu} setBoardScopeMenuOpen={setBoardScopeMenu} />
+      <BoardTopbar 
+        boardScopeMenuOpen={boardScopeMenu} 
+        setBoardScopeMenuOpen={setBoardScopeMenu} 
+        openDashcardModal={openDashcardModal} setOpenDashcardModal={setOpenDashcardModal}
+      />
       <CardDetailProvider>
         <div className="pt-[50px] h-[calc(100vh-30px)] overflow-x-auto overflow-y-hidden min-w-[200px]">
           {!isLoading && (
@@ -203,6 +218,11 @@ const Board: React.FC = () => {
         <BoardScopeMenu
           visible={boardScopeMenu}
           setIsVisible={setBoardScopeMenu}
+        />
+
+        <ModalDashcard 
+          open={openDashcardModal} setOpen={setOpenDashcardModal}
+          onSave={onDashcardSave} initialData={dashcardConfig}
         />
       </CardDetailProvider>
     </div>
