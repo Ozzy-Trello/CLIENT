@@ -1,49 +1,63 @@
-'use client';
+"use client";
 import { BellOutlined, FileOutlined, UserOutlined } from "@ant-design/icons";
 import type { MenuProps } from "antd";
-import { Avatar, Badge, Dropdown, Input, Typography, List } from "antd";
+import { Avatar, Badge, Button, Dropdown, Input, Typography, List } from "antd";
 import Link from "next/link";
 import React, { useState, useEffect, useRef } from "react";
-import logo from '@assets/images/Logo_Ozzy_Clothing_png.png';
+import logo from "@assets/images/Logo_Ozzy_Clothing_png.png";
 import ImageDynamicContrast from "../image-dynamic-contrast";
 import { useSelector } from "react-redux";
-import { selectTheme, selectUser, setAccessToken, setUser } from "@store/app_slice";
+import {
+  selectTheme,
+  selectUser,
+  setAccessToken,
+  setUser,
+} from "@store/app_slice";
 import { useDispatch } from "react-redux";
 import { useRouter } from "next/navigation";
 import { WorkspaceSelection } from "../selection";
+import ModalRequest from "../modal-request";
+import ModalListRequest from "../modal-list-request";
+import ModalRequestSent from "../modal-request-sent";
 import { searchCards } from "@api/card";
 import { Card } from "@myTypes/card";
 
 const { Text } = Typography;
 
+enum MockRole {
+  Supervisor = "supervisor",
+  Warehouse = "warehouse",
+  Production = "production",
+}
+
 const TopBar: React.FC = React.memo(() => {
   const [notificationVisible, setNotificationVisible] = useState(false);
   const [avatarMenuVisible, setAvatarMenuVisible] = useState(false);
+  const [modalRequestOpen, setModalRequestOpen] = useState(false);
+  const [modalListRequestOpen, setModalListRequestOpen] = useState(false);
+  const [modalRequestSentOpen, setModalRequestSentOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Card[]>([]);
   const [recentlyViewedCards, setRecentlyViewedCards] = useState<Card[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
-  
   const theme = useSelector(selectTheme);
-  const {colors} = theme;
+  const { colors } = theme;
   const dispatch = useDispatch();
   const router = useRouter();
   const user = useSelector(selectUser);
- 
   const notificationItems: MenuProps["items"] = [
     { key: "1", label: "Notification 1" },
     { key: "2", label: "Notification 2" },
     { key: "3", label: "Notification 3" },
   ];
- 
+  const [mockRole, setMockRole] = useState(MockRole.Supervisor);
   const handleLogout = () => {
     router.push("/login");
     dispatch(setAccessToken(""));
     dispatch(setUser({}));
   };
- 
   const avatarMenuItems: MenuProps["items"] = [
     {
       key: "manage-profile",
@@ -56,12 +70,14 @@ const TopBar: React.FC = React.memo(() => {
               <Avatar size="small" icon={<UserOutlined />} />
             )}
             <div>
-              <Typography.Title level={5} className="m-0">{user?.username}</Typography.Title>
+              <Typography.Title level={5} className="m-0">
+                {user?.username}
+              </Typography.Title>
               <Typography.Text>{user?.email}</Typography.Text>
             </div>
           </div>
         </Link>
-      )
+      ),
     },
     {
       key: "logout",
@@ -70,23 +86,21 @@ const TopBar: React.FC = React.memo(() => {
           <i className="fi fi-rr-exit" />
           Logout
         </div>
-      )
+      ),
     },
   ];
-
 
   // Handle search input change
   const handleSearchChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
     setSearchQuery(query);
-    
+
     if (query.trim()) {
       setIsSearching(true);
       setShowSearchDropdown(true);
-      
+
       try {
-            
-        const results = await searchCards({name: query, desription: query});
+        const results = await searchCards({ name: query, desription: query });
         if (results && results?.data) {
           setSearchResults(results.data);
         }
@@ -105,14 +119,17 @@ const TopBar: React.FC = React.memo(() => {
   // Handle clicks outside the search dropdown
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+      if (
+        searchRef.current &&
+        !searchRef.current.contains(event.target as Node)
+      ) {
         setShowSearchDropdown(false);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
 
@@ -120,7 +137,6 @@ const TopBar: React.FC = React.memo(() => {
   const handleSearchFocus = () => {
     setShowSearchDropdown(true);
   };
- 
   return (
     <div className="flex items-center justify-between h-[45px]">
       <div className="flex items-center gap-2">
@@ -135,8 +151,45 @@ const TopBar: React.FC = React.memo(() => {
         </Link>
         <WorkspaceSelection />
       </div>
-     
-      <div className="flex justify-end items-center gap-5 w-100">
+
+      <div className="flex items-center gap-5 w-100vh">
+        <Dropdown
+          menu={{
+            items: [
+              {
+                key: "supervisor",
+                label: "Supervisor",
+                onClick: () => setMockRole(MockRole.Supervisor),
+              },
+              {
+                key: "warehouse",
+                label: "Warehouse",
+                onClick: () => setMockRole(MockRole.Warehouse),
+              },
+              {
+                key: "production",
+                label: "Production",
+                onClick: () => setMockRole(MockRole.Production),
+              },
+            ],
+          }}
+        >
+          <Button>{mockRole}</Button>
+        </Dropdown>
+        {mockRole === MockRole.Production && (
+          <Button onClick={() => setModalRequestOpen(true)}>
+            Buat Request
+          </Button>
+        )}
+        {mockRole === MockRole.Supervisor && (
+          <Button onClick={() => setModalListRequestOpen(true)}>
+            Lihat Request
+          </Button>
+        )}
+        {mockRole === MockRole.Warehouse && (
+          <Button onClick={() => setModalRequestSentOpen(true)}>Gudang</Button>
+        )}
+
         <div className="relative" ref={searchRef}>
           <Input
             placeholder="Search…"
@@ -146,7 +199,7 @@ const TopBar: React.FC = React.memo(() => {
             onChange={handleSearchChange}
             onFocus={handleSearchFocus}
           />
-          
+
           {showSearchDropdown && (
             <div className="absolute z-50 top-full left-0 mt-1 w-80 bg-white rounded-md shadow-lg border border-gray-200">
               <div className="max-h-80 overflow-auto p-2">
@@ -166,15 +219,30 @@ const TopBar: React.FC = React.memo(() => {
                         >
                           <List.Item.Meta
                             avatar={
-                              item.cover ?
-                                <img src={item.cover} alt={item.name} className="w-12 h-auto object-cover rounded"/> :
+                              item.cover ? (
+                                <img
+                                  src={item.cover}
+                                  alt={item.name}
+                                  className="w-12 h-auto object-cover rounded"
+                                />
+                              ) : (
                                 <div className="flex justify-center items-center w-12 h-8 rounded bg-gray-200">
-                                  <Avatar shape="square" size="small" src={`https://ui-avatars.com/api/?name=${item?.name}&background=random`}></Avatar>
+                                  <Avatar
+                                    shape="square"
+                                    size="small"
+                                    src={`https://ui-avatars.com/api/?name=${item?.name}&background=random`}
+                                  ></Avatar>
                                 </div>
+                              )
                             }
                             title={item.name}
                             description={
-                              <div className="prose prose-sm max-w-none text-[10px]" dangerouslySetInnerHTML={{ __html: item.description || '' }} />
+                              <div
+                                className="prose prose-sm max-w-none text-[10px]"
+                                dangerouslySetInnerHTML={{
+                                  __html: item.description || "",
+                                }}
+                              />
                             }
                           />
                         </List.Item>
@@ -215,19 +283,17 @@ const TopBar: React.FC = React.memo(() => {
             </div>
           )}
         </div>
-        
-        <Dropdown
+
+        {/* <Dropdown
           menu={{ items: notificationItems }}
           trigger={["click"]}
           open={notificationVisible}
           onOpenChange={setNotificationVisible}
         >
           <Badge count={4}>
-            <BellOutlined
-              className="text-xl cursor-pointer"
-            />
+            <BellOutlined className="text-xl cursor-pointer" />
           </Badge>
-        </Dropdown>
+        </Dropdown> */}
         <Dropdown
           menu={{ items: avatarMenuItems }}
           trigger={["click"]}
@@ -237,20 +303,32 @@ const TopBar: React.FC = React.memo(() => {
           <Avatar
             size="small"
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
               width: "30px",
-              height: "25px"
+              height: "25px",
             }}
             className="cursor-pointer"
             icon={<UserOutlined />}
           />
         </Dropdown>
       </div>
+      <ModalRequest
+        open={modalRequestOpen}
+        onClose={() => setModalRequestOpen(false)}
+      />
+      <ModalListRequest
+        open={modalListRequestOpen}
+        onClose={() => setModalListRequestOpen(false)}
+      />
+      <ModalRequestSent
+        open={modalRequestSentOpen}
+        onClose={() => setModalRequestSentOpen(false)}
+      />
     </div>
   );
 });
 
-TopBar.displayName = 'TopBar';
+TopBar.displayName = "TopBar";
 export default TopBar;

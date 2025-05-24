@@ -339,7 +339,7 @@ const CardDetails: React.FC = (props) => {
                   currentUser={currentUser}
                 />
               )}
-              {selectedCard?.attachments && (
+              {/* {selectedCard?.attachments && (
                 <div className="pt-2 border-t border-gray-200">
                   <div className="flex items-center mb-2">
                     <span className="text-gray-500 mr-2">
@@ -351,7 +351,7 @@ const CardDetails: React.FC = (props) => {
                   </div>
                   <Attachments attachments={selectedCard?.attachments} />
                 </div>
-              )}
+              )} */}
 
               {/* Activity Section */}
               {selectedCard && (

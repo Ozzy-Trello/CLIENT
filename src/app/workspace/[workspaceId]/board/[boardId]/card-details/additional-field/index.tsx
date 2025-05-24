@@ -1,12 +1,12 @@
-import { getItemDetail } from "@/app/api/accurate";
+import { getItemDetail } from "@api/accurate";
 import {
   useCardAdditionalFields,
   useCreateAdditionalField,
   useUpdateAdditionalField,
   useUpdateAdditionalFieldItem,
-} from "@/app/hooks/additional-field";
-import { useCardDetailContext } from "@/app/provider/card-detail-context";
-import type { AdditionalFieldItem } from "@/app/types/additional-field";
+} from "@hooks/additional-field";
+import { useCardDetailContext } from "@providers/card-detail-context";
+import type { AdditionalFieldItem } from "@myTypes/additional-field";
 import { useQuery } from "@tanstack/react-query";
 import { Scanner } from "@yudiel/react-qr-scanner";
 import { Tabs } from "antd";
