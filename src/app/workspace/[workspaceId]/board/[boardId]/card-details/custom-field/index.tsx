@@ -1,13 +1,13 @@
-import { SelectionRef, UserSelection } from "@/app/components/selection";
-import { useCardCustomField } from "@/app/hooks/card_custom_field";
-import { useCardDetailContext } from "@/app/provider/card-detail-context";
-import { api } from "@/app/api";
+import { SelectionRef, UserSelection } from "@components/selection";
+import { useCardCustomField } from "@hooks/card_custom_field";
+import { useCardDetailContext } from "@providers/card-detail-context";
 import { Checkbox, Input, Select, message } from "antd";
 import { List, StretchHorizontal, TextCursorInput } from "lucide-react";
 import { Fragment, useEffect, useRef, useState } from "react";
-import { useLists } from "@/app/hooks/list";
+import { useLists } from "@hooks/list";
 import { useParams } from "next/navigation";
-import { CustomField } from "@/app/types/type";
+import { CustomField } from "@myTypes/type";
+import api from "@api/index";
 
 interface CustomFieldsProps {
   customFields: CustomField[];

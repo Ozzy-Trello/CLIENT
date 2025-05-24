@@ -1,6 +1,6 @@
 'use client';
 import React, { useEffect, useState } from "react";
-import { Workspace } from "../types/workspace";
+import { Workspace } from "@myTypes/workspace";
 
 const WorkspacePage: React.FC = () => {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);

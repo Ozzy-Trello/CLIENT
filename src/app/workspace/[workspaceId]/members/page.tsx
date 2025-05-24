@@ -1,6 +1,6 @@
 "use client";
 
-import { SkeletonTable } from "@/app/components/skeleton";
+import { SkeletonTable } from "@components/skeleton";
 import {
   Avatar,
   Badge,
@@ -12,10 +12,9 @@ import {
 } from "antd";
 import { useEffect, useState } from "react";
 import AddUserModal from "./add_user_modal";
-import { register } from "@/app/api/auth";
-import { accountList } from "@/app/api/account";
+import { accountList } from "@api/account";
 import { useParams } from "next/navigation";
-import { Account } from "@/app/dto/account";
+import { Account } from "@dto/account";
 
 type MenuItem = Required<MenuProps>["items"][number];
 const items: MenuItem[] = [

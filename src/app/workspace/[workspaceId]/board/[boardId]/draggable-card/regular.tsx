@@ -1,5 +1,5 @@
-import MembersList from "@/app/components/members-list";
-import { Card } from "@/app/types/card";
+import MembersList from "@components/members-list";
+import { Card } from "@myTypes/card";
 import { Checkbox, CheckboxChangeEvent, Tooltip } from "antd";
 import { Calendar, CalendarDays, MessageSquare, Paperclip, Text } from "lucide-react";
 

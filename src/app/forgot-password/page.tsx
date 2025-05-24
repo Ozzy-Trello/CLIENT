@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Form, Input, Button, Typography, Space, message } from 'antd';
-import { LockOutlined, UserOutlined } from '@ant-design/icons';
+import { UserOutlined } from '@ant-design/icons';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import Footer from '../components/footer';
+import Footer from '@components/footer';
 
 const { Title, Text } = Typography;
 

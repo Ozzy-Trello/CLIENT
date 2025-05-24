@@ -1,4 +1,6 @@
 import React, { useRef, useState } from "react";
+import { useCardDetailContext } from "@/app/provider/card-detail-context";
+import PopoverChecklist from "@/app/components/popover-checklist";
 import {
   Users,
   Tag,
@@ -13,18 +15,17 @@ import {
   RectangleEllipsis,
   QrCode,
 } from "lucide-react";
-import PopoverCustomField from "@/app/components/popover-custom-field";
-import PopoverUser from "@/app/components/popover-user";
-import PopoverDates from "@/app/components/popover-dates.tsx";
-import PopoverMoveCard from "@/app/components/popover-move-card";
-import PopoverCopyCard from "@/app/components/popover-copy-card";
+import PopoverCustomField from "@components/popover-custom-field";
+import PopoverUser from "@components/popover-user";
+import PopoverDates from "@components/popover-dates.tsx";
+import PopoverMoveCard from "@components/popover-move-card";
+import PopoverCopyCard from "@components/popover-copy-card";
 import { message, Tooltip } from "antd";
 import QRModal from "./qr-modal/qr-modal";
-import PopoverLocation from "@/app/components/popover-location";
-import PopoverAttach from "@/app/components/popover-attach";
-import { set } from "lodash";
+import PopoverLocation from "@components/popover-location";
+import PopoverAttach from "@components/popover-attach";
 
-const Actions: React.FC = ({}) => {
+const Actions: React.FC = () => {
   const [openCustomField, setOpenCustomField] = useState(false);
   const [openMembers, setOpenMembers] = useState(false);
   const [openDates, setOpenDates] = useState(false);
@@ -33,7 +34,10 @@ const Actions: React.FC = ({}) => {
   const [openQrModal, setOpenQrModal] = useState(false);
   const [openLocation, setOpenLocation] = useState(false);
   const [openAttach, setOpenAttach] = useState(false);
-
+  const [openChecklist, setOpenChecklist] = useState(false);
+  
+  const { selectedCard } = useCardDetailContext();
+  
   const menuItems = [
     { icon: <Users size={14} />, label: "Join" },
     { icon: <Tag size={14} />, label: "Labels" },
@@ -43,15 +47,33 @@ const Actions: React.FC = ({}) => {
   return (
     <div className="w-full rounded-lg">
       {/* Menu Items */}
-      {menuItems.map((item, index) => (
-        <button
-          key={index}
-          className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700"
-        >
-          <span className="text-gray-600 text-xs">{item.icon}</span>
-          <span className="text-xs">{item.label}</span>
-        </button>
-      ))}
+      {/* Regular menu items (excluding Checklist) */}
+      {menuItems
+        .filter(item => item.label !== "Checklist")
+        .map((item, index) => (
+          <button
+            key={index}
+            className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700"
+          >
+            <span className="text-gray-600 text-xs">{item.icon}</span>
+            <span className="text-xs">{item.label}</span>
+          </button>
+        ))
+      }
+      
+      {/* Checklist with Popover */}
+      <PopoverChecklist
+        open={openChecklist}
+        setOpen={setOpenChecklist}
+        triggerEl={
+          <button className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700">
+            <span className="text-gray-600 text-xs">
+              <CheckSquare size={14} />
+            </span>
+            <span className="text-xs">Checklist</span>
+          </button>
+        }
+      />
 
       <PopoverAttach
         open={openAttach}
@@ -144,7 +166,7 @@ const Actions: React.FC = ({}) => {
       {/* Actions Section */}
       <div className="mt-4 mb-2">
         <h3 className="text-sm font-medium text-gray-600 px-4 mb-2">Actions</h3>
-        
+
         <PopoverMoveCard
           open={openMoveCard}
           setOpen={setOpenMoveCard}
@@ -183,7 +205,9 @@ const Actions: React.FC = ({}) => {
         <Tooltip title="Share this card with others by copying the link">
           <button
             onClick={() => {
-              const url = `${window.location.href}?listId=${"listId"}&cardId=${"cardId"}`;
+              const url = `${
+                window.location.href
+              }?listId=${"listId"}&cardId=${"cardId"}`;
               navigator.clipboard.writeText(url);
               message.info("Copied to clipboard");
             }}
@@ -206,7 +230,7 @@ const Actions: React.FC = ({}) => {
           </button>
         </Tooltip>
 
-        <QRModal isOpen={openQrModal} onClose={() => {setOpenQrModal(false)}} />
+        <QRModal isOpen={openQrModal} onClose={() => setOpenQrModal(false)} />
       </div>
     </div>
   );

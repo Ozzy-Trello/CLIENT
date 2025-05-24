@@ -1,6 +1,6 @@
-import RichTextEditor from "@/app/components/rich-text-editor";
-import { useCards } from "@/app/hooks/card";
-import { Card } from "@/app/types/card";
+import RichTextEditor from "@components/rich-text-editor";
+import { useCards } from "@hooks/card";
+import { Card } from "@myTypes/card";
 import { Button, Typography } from "antd";
 import { AlignLeft, Edit } from "lucide-react";
 import { useParams } from "next/navigation";

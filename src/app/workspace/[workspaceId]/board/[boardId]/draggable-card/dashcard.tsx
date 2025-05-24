@@ -1,5 +1,5 @@
-import { cardCount } from "@/app/api/card";
-import { Card } from "@/app/types/card";
+import { cardCount } from "@api/card";
+import { Card } from "@myTypes/card";
 import { Checkbox, CheckboxChangeEvent, Typography } from "antd";
 import { useEffect, useState } from "react";
 

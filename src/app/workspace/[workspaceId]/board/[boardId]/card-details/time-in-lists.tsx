@@ -1,9 +1,8 @@
 import React, { use, useEffect } from 'react';
 import { Progress, Typography } from 'antd';
-import { Card } from '@/app/types/card';
-import { useCardTimeInList } from '@/app/hooks/card-time-in-lists';
-import { ListRestart, PaperclipIcon } from 'lucide-react';
-import { set } from 'lodash';
+import { Card } from '@myTypes/card';
+import { useCardTimeInList } from '@hooks/card-time-in-lists';
+import { ListRestart } from 'lucide-react';
 
 const { Text } = Typography;
 

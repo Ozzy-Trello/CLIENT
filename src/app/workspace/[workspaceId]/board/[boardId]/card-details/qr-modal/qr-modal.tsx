@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Modal, Button, Typography, Tooltip, Spin } from 'antd';
 import { Download } from 'lucide-react';
 import QRCode from 'react-qr-code';
-import { useCardDetailContext } from '@/app/provider/card-detail-context';
+import { useCardDetailContext } from '@providers/card-detail-context';
 
 interface QRModalProps {
   isOpen: boolean;

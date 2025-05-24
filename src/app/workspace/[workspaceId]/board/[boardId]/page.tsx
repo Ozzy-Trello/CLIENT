@@ -4,25 +4,24 @@ import dynamic from "next/dynamic";
 import React, { useCallback, useEffect, useState } from "react";
 import BoardTopbar from "./topbar";
 import { useSelector } from "react-redux";
-import { selectTheme, selectUser } from "@/app/store/app_slice";
-import { useWorkspaceSidebar } from "@/app/provider/workspace-sidebar-context";
-import { useListMove, useLists } from "@/app/hooks/list";
+import { selectTheme, selectUser } from "@store/app_slice";
+import { useWorkspaceSidebar } from "@providers/workspace-sidebar-context";
+import { useListMove, useLists } from "@hooks/list";
 import { useParams, useSearchParams } from "next/navigation";
-import { generateId } from "@/app/utils/general";
+import { generateId } from "@utils/general";
 import { Droppable, DropResult } from "@hello-pangea/dnd";
 import List from "./draggable-list";
 import { Button, Input } from "antd";
 import { Plus, X } from "lucide-react";
-import { CardDetailProvider } from "@/app/provider/card-detail-context";
+import { CardDetailProvider } from "@providers/card-detail-context";
 import CardDetails from "./card-details";
 import ListSkeleton from "./list-skeleton.tsx";
-import BoardScopeMenu from "@/app/components/board-scope-menu";
-import { useCardMove, useCards } from "@/app/hooks/card";
-import { useQueryClient } from "@tanstack/react-query";
-import { AnyList } from "@/app/types/list";
-import ModalDashcard from "@/app/components/dashcard/modal-dashcard";
-import { DashcardConfig } from "@/app/types/dashcard";
-import { Card, EnumCardType } from "@/app/types/card";
+import BoardScopeMenu from "@components/board-scope-menu";
+import { useCardMove, useCards } from "@hooks/card";
+import ModalDashcard from "@components/dashcard/modal-dashcard";
+import { DashcardConfig } from "@myTypes/dashcard";
+import { Card, EnumCardType } from "@myTypes/card";
+import { AnyList } from "@myTypes/list";
 
 const DragDropContext = dynamic(
   () => import("@hello-pangea/dnd").then((mod) => mod.DragDropContext),

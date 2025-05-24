@@ -1,7 +1,7 @@
-import UploadModal from "@/app/components/modal-upload/modal-upload";
-import { useCardAttachment } from "@/app/hooks/card_attachment";
-import { EnumAttachmentType, Card } from "@/app/types/card";
-import { FileUpload } from "@/app/types/file-upload";
+import UploadModal from "@components/modal-upload/modal-upload";
+import { useCardAttachment } from "@hooks/card_attachment";
+import { EnumAttachmentType, Card } from "@myTypes/card";
+import { FileUpload } from "@myTypes/file-upload";
 import { Button, Upload } from "antd";
 import { useState } from "react";
 

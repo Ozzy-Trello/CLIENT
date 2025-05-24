@@ -1,11 +1,9 @@
-import { cards } from "@/app/api/card";
-import MembersList from "@/app/components/members-list";
-import { useCardDetailContext } from "@/app/provider/card-detail-context";
-import { Card, EnumCardType } from "@/app/types/card";
-import { AnyList } from "@/app/types/list";
-import { Draggable, DroppableProvided } from "@hello-pangea/dnd";
-import { Checkbox, CheckboxProps, Tooltip } from "antd";
-import { Calendar, CalendarDays, MessageSquare, Paperclip, Text } from "lucide-react";
+
+import { useCardDetailContext } from "@providers/card-detail-context";
+import { Card, EnumCardType } from "@myTypes/card";
+import { AnyList } from "@myTypes/list";
+import { Draggable } from "@hello-pangea/dnd";
+import { CheckboxProps } from "antd";
 import { useState } from "react";
 import RegularCard from "./regular";
 import Dashcard from "./dashcard";
@@ -42,7 +40,9 @@ const DraggableCard: React.FC<DraggableCardProps> = ({
           ref={provided.innerRef}
           {...provided.dragHandleProps}
           {...provided.draggableProps}
-          onClick={() => {openCardDetail(card, list)}}
+          onClick={() => {
+            openCardDetail(card, list);
+          }}
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
         >
