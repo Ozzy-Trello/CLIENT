@@ -17,8 +17,8 @@ import {
   useAddChecklistItem, 
   useRemoveChecklistItem, 
   useUpdateChecklistItem 
-} from "@/app/hooks/checklist";
-import { ChecklistDTO, ChecklistItem } from "@/app/types/checklist";
+} from "@hooks/checklist";
+import { ChecklistDTO, ChecklistItem } from "@myTypes/checklist";
 
 const { Title, Text } = Typography;
 

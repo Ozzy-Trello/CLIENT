@@ -4,7 +4,7 @@ import {
   getAllRequests,
   verifyRequest,
   rejectRequest,
-} from "@/app/api/accurate";
+} from "@api/accurate";
 
 interface ModalListRequestProps {
   open: boolean;

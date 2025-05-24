@@ -2,8 +2,8 @@ import {
   getAllAdjustmentItems,
   getAllItemList,
   submitRequest,
-} from "@/app/api/accurate";
-import { searchCards } from "@/app/api/card";
+} from "@api/accurate";
+import { searchCards } from "@api/card";
 import { useQueries } from "@tanstack/react-query";
 import {
   AutoComplete,
