@@ -1,7 +1,21 @@
-import Image from "next/image";
-import styles from "./page.module.css";
-import TrelloBoard from "./components/board";
+"use client";
+import { useRouter } from "next/navigation";
+import { Suspense, useEffect } from "react";
+import { useSelector } from "react-redux";
+import { selectAccessToken } from "../store/app_slice";
 
 export default function Home() {
-  return <TrelloBoard />;
+
+  const router = useRouter();
+  const accessToken = useSelector(selectAccessToken);
+
+  useEffect(() => {
+    if (accessToken) {
+      router.push('/workspace');
+    } else {
+      router.push('/login');
+    }
+  }, [router]);
+
+  return null;
 }

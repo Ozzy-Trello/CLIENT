@@ -1,0 +1,15 @@
+.board-page-topbar {
+  color: rgb(var(--color-text)) !important;
+  background-color: rgb(var(--color-background)) !important;
+  border-width: 0px 0px 1px 0px;
+  border-style: solid;
+  border-color: rgb(var(--color-muted));
+  z-index: 100;
+  position: fixed;
+  padding: 5px 20px;
+}
+
+.board-item {
+  cursor: pointer;
+  padding: 10px;
+}
