@@ -1,7 +1,7 @@
+import TokenStorage from "@utils/token-storage";
 import axios from "axios";
 import camelcaseKeys from "camelcase-keys";
 import snakecaseKeys from "snakecase-keys";
-import { store } from "../store";
 
 // Create axios instance with interceptors to handle case conversion
 export const api = axios.create({
@@ -11,7 +11,7 @@ export const api = axios.create({
 // Request interceptor to convert camelCase to snake_case
 api.interceptors.request.use((config) => {
   // Add authorization header if token exists
-  const accessToken = store.getState().appState.accessToken;
+  const accessToken = TokenStorage.getAccessToken();
   if (accessToken) {
     config.headers.Authorization = `Bearer ${accessToken}`;
   }

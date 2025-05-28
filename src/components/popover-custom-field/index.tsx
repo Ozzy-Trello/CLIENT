@@ -5,7 +5,7 @@ import { ChevronLeft, X } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useCustomFields } from "@hooks/custom_field";
 import AddUpdateField from "./add-update-field";
-import { CustomField } from "@myTypes/type";
+import { CustomField } from "@myTypes/custom-field";
 
 interface PopoverCustomFieldProps {
   open: boolean;
@@ -73,13 +73,13 @@ const PopoverCustomField: React.FC<PopoverCustomFieldProps> = ({
       }
       title={
         <div className="flex justify-between items-center">
-          <div className="flex justify-start items-center gap-2">
+          <div className="flex justify-start items-center gap-2 text-[12px]">
             {popoverPage !== "home" && (
               <Button size="small" type="text">
                 <ChevronLeft size={16} onClick={goBack} />
               </Button>
             )}
-            <Typography.Title level={5} className="m-0">
+            <span>
               {
                 popoverPage === "home" ? "Custom Fields" :
                 popoverPage === "add" ? "Add new custom field" :
@@ -88,7 +88,7 @@ const PopoverCustomField: React.FC<PopoverCustomFieldProps> = ({
                 popoverPage === "trigger" ? "Trigger" :
                 ""
               }
-            </Typography.Title>
+            </span>
           </div>
           <Button 
             size="small"

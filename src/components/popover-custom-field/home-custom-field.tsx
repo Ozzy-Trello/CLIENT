@@ -4,7 +4,7 @@ import { useParams } from "next/navigation";
 import { DragDropContext, Draggable, Droppable, DropResult } from "@hello-pangea/dnd";
 import SkeletonInput from "antd/es/skeleton/Input";
 import { useState, useEffect } from "react";
-import { CustomField } from "@myTypes/type";
+import { CustomField } from "@myTypes/custom-field";
 
 interface HomeCustomFieldProps {
   popoverPage: string;
@@ -91,21 +91,21 @@ const HomeCustomField: React.FC<HomeCustomFieldProps> = (props) => {
                           }`}
                         >
                           <div 
-                            className="flex items-center space-x-3 flex-1"
+                            className="flex items-center space-x-3 flex-1 text-[11px]"
                             onClick={() => handleDetails(item)}
                           >
                             <div 
                               className="flex items-center justify-center w-6 h-6 text-gray-500 cursor-grab"
                               {...provided.dragHandleProps}
                             >
-                              <GripVertical size={16}/>
+                              <GripVertical size={14}/>
                             </div>
-                            <span className="text-xs font-medium text-gray-800 truncate">
+                            <span className="font-medium text-gray-800 truncate">
                               {item.name}
                             </span>
                           </div>
                           <ChevronRight 
-                            size={16} 
+                            size={14} 
                             className="h-5 w-5 text-gray-400 cursor-pointer" 
                             onClick={() => handleDetails(item)}
                           />
