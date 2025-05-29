@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { customFields, createCustomField, updateCustomField, deleteCustomField, reorderCustomFields as apiReorderCustomFields } from "../api/custom_field";
 import { ApiResponse } from "../types/type";
 import { CustomField } from "@myTypes/custom-field";
+import { useCardDetailContext } from "@providers/card-detail-context";
 
 
 export function useCustomFields(workspaceId: string) {
@@ -13,6 +14,15 @@ export function useCustomFields(workspaceId: string) {
     queryFn: () => customFields(workspaceId),
     enabled: !!workspaceId,
   });
+
+  const invalidateSpecificCardCustomFields = (cardId?: string) => {
+    if (cardId) {
+      console.log("invalidating card cc nih: card: "+cardId);
+      queryClient.invalidateQueries({
+        queryKey: ["cardCustomField", cardId, workspaceId]
+      });
+    }
+  };
 
   // Create custom field mutation with optimistic update
   const createMutation = useMutation({
@@ -219,6 +229,7 @@ export function useCustomFields(workspaceId: string) {
     isLoading: customFieldQuery.isLoading,
     isError: customFieldQuery.isError,
     error: customFieldQuery.error,
+    invalidateSpecificCardCustomFields,
     
     // Mutations
     createCustomField: createMutation.mutate,
