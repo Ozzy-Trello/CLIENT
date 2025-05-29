@@ -135,10 +135,6 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
     const foundUser = users?.data?.data?.find((item: Account) => item.id == senderId);
     return foundUser;
   }
-
-  useEffect(() => {
-    console.log("users?.data: %o", users?.data);
-  }, [users])
   
   return (
     <div className="mt-4">

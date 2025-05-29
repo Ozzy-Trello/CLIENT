@@ -6,12 +6,14 @@ import { SelectionRef } from "../selection";
 import { useCardDetailContext } from "@providers/card-detail-context";
 import { CustomField, CustomOption, EnumCustomFieldSource, EnumCustomFieldType } from "@myTypes/custom-field";
 import { Trash } from "lucide-react";
+import { Card } from "@myTypes/card";
 
 interface AddUpdateFieldProps {
   popoverPage: string;
   setPopoverPage: any;
   selectedCustomField: CustomField | undefined;
   setSelectedCustomField: any;
+  selectedCard: Card | null;
   createCustomField: (newField: Partial<CustomField>) => void;
   updateCustomField: ({ customFieldId, updates }: { 
     customFieldId: string, 
@@ -24,14 +26,14 @@ const AddUpdateField: React.FC<AddUpdateFieldProps> = (props) => {
     popoverPage, 
     setPopoverPage, 
     selectedCustomField, 
-    setSelectedCustomField, 
+    setSelectedCustomField,
+    selectedCard,
     createCustomField,
     updateCustomField,
   } = props;
   
   const { workspaceId } = useParams();
   const currentWorkspaceId = Array.isArray(workspaceId) ? workspaceId[0] : workspaceId;
-  const {selectedCard} = useCardDetailContext();
   const [optionForm] = Form.useForm();
   
   const [newField, setNewField] = useState<CustomField>({

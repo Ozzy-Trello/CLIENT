@@ -11,8 +11,6 @@ export function middleware(request: NextRequest) {
     request.nextUrl.pathname.startsWith(route)
   );
 
-  console.log('Is protected route:', isProtectedRoute);
-
   if (isProtectedRoute && !accessToken) {
     return NextResponse.redirect(new URL('/login', request.url));
   }

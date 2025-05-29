@@ -24,9 +24,7 @@ export const useCardCustomField = (cardId: string, workspaceId: string) => {
       customFieldId: string; 
       updatedData: Partial<CardCustomField> 
     }) => setCardCustomFieldValue(workspaceId, cardId, customFieldId, updatedData),
-    onMutate: async ({ customFieldId, updatedData }) => {
-      console.log('🔄 onMutate called:', { customFieldId, updatedData });
-      
+    onMutate: async ({ customFieldId, updatedData }) => {      
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ 
         queryKey: ["cardCustomField", cardId, workspaceId] 
@@ -37,19 +35,10 @@ export const useCardCustomField = (cardId: string, workspaceId: string) => {
         ["cardCustomField", cardId, workspaceId]
       );
 
-      console.log('📋 Previous data:', previousCardCustomFields);
-
       // Optimistically update to the new value
       if (previousCardCustomFields?.data) {
         const updatedFields = previousCardCustomFields.data.map(field => {
           const isMatch = field.id === customFieldId;
-          console.log('🔍 Field match:', { 
-            fieldId: field.id, 
-            customFieldId, 
-            isMatch,
-            fieldName: field.name,
-            currentValue: field.valueString || field.valueNumber || field.valueOption
-          });
           
           return isMatch ? { ...field, ...updatedData } : field;
         });
@@ -60,7 +49,6 @@ export const useCardCustomField = (cardId: string, workspaceId: string) => {
         );
 
         if (!fieldExists) {
-          console.log('➕ Creating new field:', customFieldId);
           const newField: CardCustomField = {
             id: customFieldId,
             cardId,
@@ -69,8 +57,6 @@ export const useCardCustomField = (cardId: string, workspaceId: string) => {
           
           updatedFields.push(newField);
         }
-
-        console.log('✅ Updated fields:', updatedFields);
 
         queryClient.setQueryData<ApiResponse<CardCustomField[]>>(
           ["cardCustomField", cardId, workspaceId],
@@ -85,7 +71,6 @@ export const useCardCustomField = (cardId: string, workspaceId: string) => {
       return { previousCardCustomFields };
     },
     onError: (err, variables, context) => {
-      console.log('❌ onError:', err);
       // If the mutation fails, use the context returned from onMutate to roll back
       if (context?.previousCardCustomFields) {
         console.log('🔙 Rolling back to previous data');
@@ -99,7 +84,6 @@ export const useCardCustomField = (cardId: string, workspaceId: string) => {
       console.log('🎉 onSuccess - API Response:', data);
       // Update with the actual server response
       if (data?.data) {
-        console.log('📝 Setting query data from API response');
         queryClient.setQueryData<ApiResponse<CardCustomField[]>>(
           ["cardCustomField", cardId, workspaceId],
           data
@@ -293,16 +277,6 @@ export const useCardCustomField = (cardId: string, workspaceId: string) => {
       (field.valueUserId && field.valueUserId !== '')
     );
   };
-
-  // Add debugging for the main data
-  console.log('🎯 Hook state:', {
-    cardId,
-    workspaceId,
-    isLoading: cardCustomFieldQuery.isLoading,
-    isError: cardCustomFieldQuery.isError,
-    cardCustomFields: cardCustomFieldQuery.data?.data,
-    queryEnabled: !!cardId && !!workspaceId
-  });
 
   return {
     // Query data and state
