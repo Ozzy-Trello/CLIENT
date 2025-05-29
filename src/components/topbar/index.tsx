@@ -10,7 +10,6 @@ import { useSelector } from "react-redux";
 import {
   selectTheme,
   selectUser,
-  setAccessToken,
   setUser,
 } from "@store/app_slice";
 import { useDispatch } from "react-redux";
@@ -21,6 +20,7 @@ import ModalListRequest from "../modal-list-request";
 import ModalRequestSent from "../modal-request-sent";
 import { searchCards } from "@api/card";
 import { Card } from "@myTypes/card";
+import TokenStorage from "@utils/token-storage";
 
 const { Text } = Typography;
 
@@ -55,7 +55,7 @@ const TopBar: React.FC = React.memo(() => {
   const [mockRole, setMockRole] = useState(MockRole.Supervisor);
   const handleLogout = () => {
     router.push("/login");
-    dispatch(setAccessToken(""));
+    TokenStorage.clearTokens();
     dispatch(setUser({}));
   };
   const avatarMenuItems: MenuProps["items"] = [

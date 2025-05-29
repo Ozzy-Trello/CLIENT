@@ -85,11 +85,11 @@ const RegularCard:React.FC<RegularCardProps> = (props) => {
       
         {/* Custom fields */}
         <div className="space-y-2 mb-3">
-          {card?.customFields?.map((item, index) => (
+          {/* {card?.customFields?.map((item, index) => (
             <div key={`${card.id}-field-${index}`} className="text-gray-700 text-[11px]">
               <span className="font-medium">{item.name}:</span> {item.value}
             </div>
-          ))}
+          ))} */}
         </div>
       
         {/* Date information */}
