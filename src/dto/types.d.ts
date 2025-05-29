@@ -143,17 +143,6 @@ export interface TriggerAction {
   labelCardId?: string;
 }
 
-export interface CardCustomField {
-  customFieldId: string;
-  cardId?: string;
-  id?: string;
-  name?: string;
-  description?: string;
-  source?: string | CustomOption[];
-  type?: CustomFieldValueType;
-  value?: string;
-}
-
 // Checklist item
 export interface ChecklistItem {
   id: string;

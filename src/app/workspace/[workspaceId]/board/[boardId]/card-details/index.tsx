@@ -318,12 +318,14 @@ const CardDetails: React.FC = (props) => {
                   <LocationDisplay coordinate={selectedCard?.location} />
                 )}
 
-              {selectedCard && customFields && (
-                <CustomFields customFields={customFields} />
+              {selectedCard && (
+                <CustomFields card={selectedCard} setCard={setSelectedCard} />
               )}
 
               <AdditionalFields />
+
               <RequestFields />
+              
               {selectedCard && (
                 <CardTimeInList card={selectedCard} setCard={setSelectedCard} />
               )}
