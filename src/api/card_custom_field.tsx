@@ -6,3 +6,8 @@ export const cardCustomFields = async (cardId: string, workspaceId: string): Pro
   const {data} = await api.get(`/card/${cardId}/custom-field`, { headers: { 'workspace-id': workspaceId } });
   return data;
 }
+
+export const setCardCustomFieldValue = async (workspaceId: string, cardId: string, customFieldId: string, updatedData: CardCustomField): Promise<ApiResponse<CardCustomField[]>> => {
+  const {data} = await api.post(`/card/${cardId}/custom-field/${customFieldId}`, updatedData, { headers: { 'workspace-id': workspaceId } });
+  return data;
+}

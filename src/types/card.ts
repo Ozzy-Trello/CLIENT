@@ -77,7 +77,6 @@ export interface CardActivity {
 }
 
 export interface CardCustomField {
-  customFieldId: string;
   cardId?: string;
   id?: string;
   name?: string;

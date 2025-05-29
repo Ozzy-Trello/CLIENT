@@ -10,6 +10,7 @@ import api from "@api/index";
 import { CustomField, EnumCustomFieldSource, EnumCustomFieldType } from "@myTypes/custom-field";
 import { Card, CardCustomField, EnumAttachmentType, EnumCardType } from "@myTypes/card";
 import dayjs, { Dayjs } from "dayjs";
+import { setCardCustomFieldValue } from "@api/card_custom_field";
 
 interface CustomFieldsProps {
   card: Card | null;
@@ -24,8 +25,6 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
   const { cardCustomFields, } = useCardCustomField(card?.id || '', workspaceId);
   
   const [messageApi, contextHolder] = message.useMessage();
-  const [fieldValues, setFieldValues] = useState<Record<string, any>>({});
-  const [loading, setLoading] = useState<Record<string, boolean>>({});
   
   const { lists } = useLists(boardId || '');
   
@@ -35,7 +34,7 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
 
 
   // Handle value changes for all field types
-  const handleValueChange = (fieldId: string, value: any) => {
+  const handleValueChange = async (fieldId: string, valueObj: any) => {
     if (!fieldId) {
       messageApi.error("Missing field ID");
       return;
@@ -45,18 +44,21 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
       messageApi.error("Missing card ID");
       return;
     }
+
+    const result = await setCardCustomFieldValue(workspaceId, card.id, fieldId, valueObj);
+    console.log("result: %o", result)
     
     // Update local state first
-    setFieldValues(prev => ({
-      ...prev,
-      [fieldId]: value
-    }));
+    // setFieldValues(prev => ({
+    //   ...prev,
+    //   [fieldId]: value
+    // }));
     
-    // Set this field as loading
-    setLoading(prev => ({
-      ...prev,
-      [fieldId]: true
-    }));
+    // // Set this field as loading
+    // setLoading(prev => ({
+    //   ...prev,
+    //   [fieldId]: true
+    // }));
   };
 
   // Group fields into rows of 3
@@ -76,7 +78,7 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
         return (
           <Checkbox 
             checked={Boolean(field?.value_checkbox)}
-            onChange={(e) => field.id && handleValueChange(field.id, e.target.checked)}
+            onChange={(e) => field.id && handleValueChange(field.id, {value_checkbox: e.target.checked})}
           />
         );
       case EnumCustomFieldType.Text:
@@ -85,7 +87,7 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
             placeholder={`Add ${field.name}...`}
             className="w-full"
             value={field.value_string}
-            onChange={(e) => field.id && handleValueChange(field.id, e.target.value)}
+            onChange={(e) => field.id && handleValueChange(field.id, {value_string: e.target.value})}
           />
         );
       case EnumCustomFieldType.Number:
@@ -95,7 +97,7 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
             placeholder={`Add ${field.name}...`}
             className="w-full"
             value={field.value_number}
-            onChange={(e) => field.id && handleValueChange(field.id, Number(e.target.value))}
+            onChange={(e) => field.id && handleValueChange(field.id, {value_number: Number(e.target.value)})}
           />
         );
       case EnumCustomFieldType.Date:
@@ -108,7 +110,7 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
               if (field.id) {
                 // Convert dayjs to Date object or null
                 const dateValue = date ? date.toDate() : null;
-                handleValueChange(field.id, dateValue);
+                handleValueChange(field.id, {value_date: dateValue});
               }
             }}
             format="YYYY-MM-DD"
@@ -123,7 +125,7 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
                 if (ref && field.id) userSelectionRefs.current.set(field.id, ref);
               }}
               value={field.value_user_id}
-              onChange={(value) => value && field.id && handleValueChange(field.id, value)}
+              onChange={(value) => value && field.id && handleValueChange(field.id, {value_user_id: value})}
               placeholder={`Select ${field.name}...`}
               size="middle"
               className="w-full"
@@ -135,7 +137,7 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
               className="w-full"
               placeholder={`Select ${field.name}...`}
               value={field.value_option as string || undefined}
-              onChange={(value) => value && field.id && handleValueChange(field.id, value)}
+              onChange={(value) => value && field.id && handleValueChange(field.id, {value_option: value})}
               options={field?.options}
             />
           );

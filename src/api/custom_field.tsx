@@ -1,5 +1,6 @@
+import { CustomField } from "@myTypes/custom-field";
 import { api } from ".";
-import { ApiResponse, CustomField } from "../types/type";
+import { ApiResponse } from "../types/type";
 
 export const customFields = async(workspaceId: string): Promise<ApiResponse<CustomField[]>> => {
   const {data} = await api.get("/custom-field", {headers: {'workspace-id': workspaceId}});
