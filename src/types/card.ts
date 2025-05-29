@@ -84,10 +84,10 @@ export interface CardCustomField {
   source?: EnumCustomFieldSource;
   type?: EnumCustomFieldType;
   options?: CustomOption[];
-  value_string?: string;
-  value_number?: number;
-  value_option?: string;
-  value_checkbox?:boolean;
-  value_date?: Date;
-  value_user_id?: string;
+  valueString?: string;
+  valueNumber?: number;
+  valueOption?: string;
+  valueCheckbox?:boolean;
+  valueDate?: Date;
+  valueUserId?: string;
 }

@@ -27,7 +27,7 @@ const PopoverCustomField: React.FC<PopoverCustomFieldProps> = ({
   const { 
     customFields, 
     isLoading, 
-    addCustomField, 
+    createCustomField, 
     updateCustomField 
   } = useCustomFields(currentWorkspaceId);
   
@@ -62,8 +62,8 @@ const PopoverCustomField: React.FC<PopoverCustomFieldProps> = ({
             setPopoverPage={setPopoverPage}
             selectedCustomField={selectedCustomField}
             setSelectedCustomField={setSelectedCustomField}
-            addCustomField={addCustomField}
-            updateCustomField={updateCustomField}
+            createCustomField={createCustomField}
+            updateCustomField={({ customFieldId, updates }) => updateCustomField({ id: customFieldId, updates })}
           />
         ) : (popoverPage == 'custom-option') ? (
           null

@@ -12,10 +12,9 @@ interface AddUpdateFieldProps {
   setPopoverPage: any;
   selectedCustomField: CustomField | undefined;
   setSelectedCustomField: any;
-  addCustomField: (newField: Partial<CustomField>) => void;
-  updateCustomField: ({ customFieldId, workspaceId, updates }: { 
+  createCustomField: (newField: Partial<CustomField>) => void;
+  updateCustomField: ({ customFieldId, updates }: { 
     customFieldId: string, 
-    workspaceId: string; 
     updates: Partial<CustomField> 
   }) => void;
 }
@@ -26,8 +25,8 @@ const AddUpdateField: React.FC<AddUpdateFieldProps> = (props) => {
     setPopoverPage, 
     selectedCustomField, 
     setSelectedCustomField, 
-    addCustomField,
-    updateCustomField: updateCustomFieldMutation
+    createCustomField,
+    updateCustomField,
   } = props;
   
   const { workspaceId } = useParams();
@@ -45,23 +44,41 @@ const AddUpdateField: React.FC<AddUpdateFieldProps> = (props) => {
     isShowAtFront: false
   });
 
-  const listSelectionRef = useRef<SelectionRef>(null);
-
-
   // Reset the form when popoverPage changes
   useEffect(() => {
     if (popoverPage === "update" && selectedCustomField) {
       setNewField(selectedCustomField);
+    } else if (popoverPage === "add") {
+      // Reset to default when adding new field
+      setNewField({
+        id: generateId(),
+        workspaceId: currentWorkspaceId || "",
+        name: "",
+        description: "",
+        source: "",
+        type: EnumCustomFieldType.Text,
+        isShowAtFront: false
+      });
     }
-  }, [newField, popoverPage, currentWorkspaceId]);
+  }, [popoverPage, selectedCustomField, currentWorkspaceId]); // Fixed dependencies
   
   const isAddMode = popoverPage === "add";
   
-  const change = (key: string, value: string) => {
-    setNewField((prev: CustomField) => ({
-      ...prev,
-      [key]: value
-    }));
+  const change = (key: string, value: any) => {    
+    if (isAddMode) {
+      // In add mode, update newField
+      setNewField((prev: CustomField) => {
+        const updated = { ...prev, [key]: value };
+        return updated;
+      });
+    } else {
+      // In update mode, update selectedCustomField
+      setSelectedCustomField((prev: CustomField | undefined) => {
+        if (!prev) return prev;
+        const updated = { ...prev, [key]: value };
+        return updated;
+      });
+    }
   };
 
   const handleAddOption = async() => {
@@ -73,49 +90,29 @@ const AddUpdateField: React.FC<AddUpdateFieldProps> = (props) => {
         value: sanitized.replaceAll(" ", "-")
       }
       let options: CustomOption[] = [];
-      if (newField?.options) {
-        options = [...newField?.options]
+      if (currentField?.options) {
+        options = [...currentField?.options]
       }
       options.push(option);
-      setNewField((prev: CustomField) => ({
-        ...prev,
-        options: options
-      }));
+      change("options", options);
       optionForm.resetFields();
     }
   }
   
   const deleteOption = (valueToDelete: string) => {
     let options: CustomOption[] = [];
-    if (newField?.options) {
-      options = [...newField?.options]
+    if (currentField?.options) {
+      options = [...currentField?.options]
     }
     options = options.filter((item) => (item.value != valueToDelete));
-    setNewField((prev: CustomField) => ({
-      ...prev,
-      options: options
-    }));
-  }
-
-  const cancel = () => {
-    setNewField({ 
-      id: generateId(), 
-      workspaceId: currentWorkspaceId || "",
-      name: "", 
-      description: "", 
-      source: "",
-    });
-    setPopoverPage("home");
+    change("options", options);
   }
   
   const handleSave = async() => {
-    // Validation
-    if (isAddMode && !newField.name) {
-      message.error("Field name is required");
-      return;
-    }
+    const fieldToSave = isAddMode ? newField : selectedCustomField;
     
-    if (!isAddMode && !selectedCustomField?.name) {
+    // Validation
+    if (!fieldToSave?.name) {
       message.error("Field name is required");
       return;
     }
@@ -127,23 +124,22 @@ const AddUpdateField: React.FC<AddUpdateFieldProps> = (props) => {
           workspaceId: currentWorkspaceId,
         };
         
-        addCustomField(fieldWithWorkspace);
+        createCustomField(fieldWithWorkspace);
         // Reset form
         setNewField({
           id: generateId(),
-          boardId: currentWorkspaceId || "",
+          workspaceId: currentWorkspaceId || "",
           name: "",
           description: "",
           source: "",
+          type: EnumCustomFieldType.Text,
+          isShowAtFront: false
         });
-      }
-      // Add workspaceId to the new field
-  
+      }  
     } else if (!isAddMode && selectedCustomField) {
       // Update existing field
-      updateCustomFieldMutation({
+      updateCustomField({
         customFieldId: selectedCustomField.id,
-        workspaceId: currentWorkspaceId || "",
         updates: selectedCustomField
       });
     }
@@ -152,11 +148,12 @@ const AddUpdateField: React.FC<AddUpdateFieldProps> = (props) => {
     setPopoverPage("home");
   };
   
+  // Use the appropriate field based on mode
   const currentField = isAddMode ? newField : selectedCustomField;
 
   return (
     <div className="h-fit">
-      <div className="max-h-60 overflow-y-auto px-2">
+      <div className="max-h-60 overflow-y-auto px-2"> 
         {/* Title Field */}
         <div className="mb-3 text-xs">
           <label htmlFor="field-name" className="block mb-1.5 font-medium text-gray-600">
@@ -167,7 +164,7 @@ const AddUpdateField: React.FC<AddUpdateFieldProps> = (props) => {
             id="field-name"
             name="name"
             className="w-full"
-            value={newField?.name || ""}
+            value={currentField?.name || ""}
             onChange={(e) => change("name", e.target.value)}
           />
         </div>
@@ -182,7 +179,7 @@ const AddUpdateField: React.FC<AddUpdateFieldProps> = (props) => {
             id="field-description"
             name="description"
             className="w-full"
-            value={newField?.description || ""}
+            value={currentField?.description || ""}
             onChange={(e) => change("description", e.target.value)}
           />
         </div>
@@ -196,7 +193,7 @@ const AddUpdateField: React.FC<AddUpdateFieldProps> = (props) => {
             size="small"
             id="field-type"
             className="w-full"
-            value={newField?.type}
+            value={currentField?.type}
             onChange={(value) => change("type", value)}
             options={[
               {value: EnumCustomFieldType.Text, label: EnumCustomFieldType.Text.toWellFormed()},
@@ -209,7 +206,7 @@ const AddUpdateField: React.FC<AddUpdateFieldProps> = (props) => {
         </div>
         
         {/* Conditional Source Field */}
-        { newField?.type === EnumCustomFieldType.Dropdown && (
+        { currentField?.type === EnumCustomFieldType.Dropdown && (
           <>
             {/* Source Type */}
             <div className="mb-3 text-xs">
@@ -220,7 +217,7 @@ const AddUpdateField: React.FC<AddUpdateFieldProps> = (props) => {
                 size="small"
                 id="field-source"
                 className="w-full"
-                value={newField?.source}
+                value={currentField?.source}
                 onChange={(value) => {
                   if (typeof value === "string") {
                     change("source", value);
@@ -236,14 +233,14 @@ const AddUpdateField: React.FC<AddUpdateFieldProps> = (props) => {
             </div>
             
             {/* Added Options */}
-            { newField?.options && (
+            { currentField?.options && (
               <>
                 <label htmlFor="field-source" className="block mb-1.5 font-medium text-gray-600">
                   Options
                 </label>
                 <div className="w-full">
-                  { newField.options.map((item: CustomOption) => (
-                    <div className="flex gap-2 mb-1 bg-gray-100 rounded px-2">
+                  { currentField.options.map((item: CustomOption) => (
+                    <div key={item.value} className="flex gap-2 mb-1 bg-gray-100 rounded px-2">
                       <span className="w-full">{item.label}</span>
                       <Button size="small" type="text"><Trash size={12} onClick={() => deleteOption(item.value)} /></Button>
                     </div>
@@ -253,7 +250,7 @@ const AddUpdateField: React.FC<AddUpdateFieldProps> = (props) => {
             ) }
 
             {/* Form add option */}
-            { newField?.source === EnumCustomFieldSource.Custom && (
+            { currentField?.source === EnumCustomFieldSource.Custom && (
               <Form
                 form={optionForm}
                 name="add-option-form"
@@ -280,11 +277,15 @@ const AddUpdateField: React.FC<AddUpdateFieldProps> = (props) => {
 
         {/* Show at the front card */}
         <div className="text-[11px] flex gap-2 px-2">
-          <Checkbox value={selectedCustomField?.isShowAtFront}/>
+          <Checkbox 
+            checked={Boolean(currentField?.isShowAtFront)}  
+            onChange={(e) => {
+              change("isShowAtFront", e.target.checked);
+            }}
+          />
           <span>Show at the front card</span>
         </div>
       </div>
-
 
       {/* Action Buttons */}
       <div className="flex gap-2 justify-end items-center mt-4 pt-3 border-t border-gray-100">
