@@ -22,6 +22,11 @@ export const cardDetails = async (cardId: string): Promise<ApiResponse<Card>> =>
   return data;
 }
 
+export const updateCard = async (cardId: string, dataToUpdate: Partial<Card>): Promise<ApiResponse<Card>> => {
+  const { data } = await api.put(`/card/${cardId}`, dataToUpdate);
+  return data;
+}
+
 export const moveCard = async (cardId: string, previousListId: string, targetListId: string, previousPosition: number, targetPosition: number): Promise<ApiResponse<any>> => {
   const { data } = await api.post(`/card/${cardId}/move`, { cardId, previousListId, targetListId, previousPosition, targetPosition});
   return data;
