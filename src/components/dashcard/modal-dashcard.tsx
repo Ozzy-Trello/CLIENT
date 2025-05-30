@@ -6,11 +6,15 @@ import {
   DashcardConfig, 
   DashcardFilter, 
   dashcardsFilter, 
-  CardAttributeType, 
+  EnumCardAttributeType, 
   FilterOperator, 
   FilterOption, 
   FilterValue 
 } from "@myTypes/dashcard";
+import { useCustomFields } from "@hooks/custom_field";
+import { useParams } from "next/navigation";
+import { CustomField } from "@myTypes/custom-field";
+import { UserSelection } from "@components/selection";
 
 const { Text } = Typography;
 
@@ -27,14 +31,14 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
   initialData, 
   onSave 
 }) => {
+  const {workspaceId} = useParams();
   const [form] = Form.useForm();
   const [bgColor, setBgColor] = useState<string>(initialData?.backgroundColor || "#4e95ff");
   const [dashcardName, setDashcardName] = useState<string>(initialData?.name || "Dashcard");
-  const [selectedFilters, setSelectedFilters] = useState<DashcardFilter[]>(
-    initialData?.filters || dashcardsFilter.slice(0, 2)
-  );
+  const [selectedFilters, setSelectedFilters] = useState<DashcardFilter[]>(initialData?.filters || dashcardsFilter.slice(0, 3));
   const [cardCount, setCardCount] = useState<number>(0);
   const [availableFilters, setAvailableFilters] = useState<DashcardFilter[]>([]);
+  const { customFields } = useCustomFields(Array.isArray(workspaceId) ? workspaceId[0] : workspaceId);
 
   // Initialize available filters
   useEffect(() => {
@@ -62,6 +66,40 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
       form.resetFields();
     }
   }, [initialData, form, open]);
+
+  // add custom field to the dashcard filters
+  useEffect(() => {
+    if (customFields && customFields.length > 0) {
+      console.log("customFields: %o", customFields);
+      const customFieldFilters: DashcardFilter[] = customFields.map((item: CustomField) => ({
+        id: item.id,
+        label: item.name,
+        groupType: "custom",
+        type: EnumCardAttributeType.CUSTOM_FIELD,
+        value: "",
+        operator: 'equals' as FilterOperator,
+        options: [
+          { label: 'any', value: 'any' },
+          { label: 'select', value: 'select' }
+        ]
+      }));
+      
+      // Push custom fields to dashcardsFilter if not already there
+      const existingIds = dashcardsFilter.map(f => f.id);
+      customFieldFilters.forEach(cf => {
+        if (!existingIds.includes(cf.id)) {
+          dashcardsFilter.push(cf);
+        }
+      });
+      
+      // Only add custom fields that aren't already in the filters
+      setSelectedFilters(prev => {
+        const existingCustomFieldIds = prev.filter(f => f.type === EnumCardAttributeType.CUSTOM_FIELD).map(f => f.id);
+        const newCustomFields = customFieldFilters.filter(cf => !existingCustomFieldIds.includes(cf.id));
+        return [...prev, ...newCustomFields];
+      });
+    }
+  }, [customFields]);
 
   const handleColorChange = (color: any) => {
     setBgColor(color.toHexString());
@@ -128,6 +166,10 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
   const onFinishFailed = () => {
     message.error('Please check your input and try again.');
   };
+
+  const onAssignedChange = (value: string, option: any) => {
+    handleFilterValueChange("assigned", value);
+  }
 
   return (
     <Modal
@@ -216,7 +258,7 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
                         />
                       </td>
                       <td className="py-2 px-2 flex-1">
-                        {filter.type === CardAttributeType.IS_COMPLETED ? (
+                        {filter.type === EnumCardAttributeType.IS_COMPLETED ? (
                           <Select
                             size="small"
                             options={[
@@ -226,7 +268,9 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
                             value={filter.value?.toString() || 'false'}
                             onChange={(value) => handleFilterValueChange(filter.id, value === 'true')}
                           />
-                        ) : (
+                        ) : filter.type === EnumCardAttributeType.ASSIGNED ? (
+                          <UserSelection onChange={onAssignedChange} />
+                        ): (
                           <Input 
                             size="small" 
                             placeholder="Type and press enter"
