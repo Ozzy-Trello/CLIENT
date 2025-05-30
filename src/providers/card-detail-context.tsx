@@ -64,7 +64,13 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
       if (resp.data) {
         const fullCard = resp.data;
         fullCard.listId = list.id;
-        setSelectedCard(fullCard);
+        setSelectedCard(prevCard => {
+          if (!prevCard) return prevCard;
+          return {
+            ...prevCard,
+            ...fullCard
+          };
+        });
       }
     } catch (error) {
       console.error("Error fetching full card details:", error);

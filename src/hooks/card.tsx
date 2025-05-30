@@ -113,12 +113,18 @@ export function useCards(listId: string, boardId: string) {
     }: {
       cardId: string;
       updates: Partial<Card>;
-      listId: string;
-      destinationListId?: string; // Only needed for moving cards between lists
+      listId?: string;
+      destinationListId?: string;
     }) => {
       return api.put(`/card/${cardId}`, updates);
     },
     onMutate: async ({ cardId, updates, listId, destinationListId }) => {
+      // If no listId or destinationListId provided, it's a simple card details update
+      // We'll just invalidate all card queries after the mutation
+      if (!listId && !destinationListId) {
+        return { isSimpleUpdate: true };
+      }
+
       // For regular updates within the same list
       if (!destinationListId || destinationListId === listId) {
         await queryClient.cancelQueries({ queryKey: ["cards", listId] });
@@ -140,7 +146,7 @@ export function useCards(listId: string, boardId: string) {
           }
         );
 
-        return { previousCards, isMoveOperation: false };
+        return { previousCards, isMoveOperation: false, listId };
       } else {
         // For moving a card between lists
         // Cancel queries for both source and destination lists
@@ -202,13 +208,13 @@ export function useCards(listId: string, boardId: string) {
       }
     },
     onError: (err, variables, context) => {
-      if (!context) return;
+      if (!context || context.isSimpleUpdate) return;
 
       if (!context.isMoveOperation) {
         // Simple update rollback
-        if (context.previousCards) {
+        if (context.previousCards && context.listId) {
           queryClient.setQueryData(
-            ["cards", variables.listId],
+            ["cards", context.listId],
             context.previousCards
           );
         }
@@ -229,8 +235,24 @@ export function useCards(listId: string, boardId: string) {
       }
     },
     onSettled: (data, error, variables) => {
-      // Invalidate affected queries
-      queryClient.invalidateQueries({ queryKey: ["cards", variables.listId] });
+      // For simple updates (no listId/destinationListId), invalidate all card-related queries
+      if (!variables.listId && !variables.destinationListId) {
+        // Invalidate all card queries
+        queryClient.invalidateQueries({ 
+          queryKey: ["cards"],
+          type: "all" 
+        });
+        // Also invalidate specific card details if you have those queries
+        queryClient.invalidateQueries({ 
+          queryKey: ["cardDetails", variables.cardId] 
+        });
+        return;
+      }
+
+      // For list-specific updates, invalidate affected queries
+      if (variables.listId) {
+        queryClient.invalidateQueries({ queryKey: ["cards", variables.listId] });
+      }
 
       if (
         variables.destinationListId &&

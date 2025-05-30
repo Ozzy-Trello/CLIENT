@@ -84,10 +84,18 @@ export interface CardCustomField {
   source?: EnumCustomFieldSource;
   type?: EnumCustomFieldType;
   options?: CustomOption[];
+  isShowAtFront?: boolean;
   valueString?: string;
   valueNumber?: number;
   valueOption?: string;
   valueCheckbox?:boolean;
   valueDate?: Date;
   valueUserId?: string;
+}
+
+export interface CardMember {
+  id?: string;
+  cardId?: string;
+  userId?: string;
+  created_at?: Date;
 }

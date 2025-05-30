@@ -20,7 +20,7 @@ const DraggableCard: React.FC<DraggableCardProps> = ({
   list,
 }) => {
 
-  const {selectedCard, isCardDetailOpen, openCardDetail, closeCardDetail } = useCardDetailContext();
+  const { openCardDetail } = useCardDetailContext();
   const [isComplete, setIsComplete] = useState<boolean>(false);
   const [isHovered, setIsHovered] = useState<boolean>(false);
   const [openAddMember, setOpenAddMember] = useState<boolean>(false);

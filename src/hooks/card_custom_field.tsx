@@ -73,7 +73,6 @@ export const useCardCustomField = (cardId: string, workspaceId: string) => {
     onError: (err, variables, context) => {
       // If the mutation fails, use the context returned from onMutate to roll back
       if (context?.previousCardCustomFields) {
-        console.log('🔙 Rolling back to previous data');
         queryClient.setQueryData(
           ["cardCustomField", cardId, workspaceId],
           context.previousCardCustomFields
@@ -81,7 +80,6 @@ export const useCardCustomField = (cardId: string, workspaceId: string) => {
       }
     },
     onSuccess: (data) => {
-      console.log('🎉 onSuccess - API Response:', data);
       // Update with the actual server response
       if (data?.data) {
         queryClient.setQueryData<ApiResponse<CardCustomField[]>>(
@@ -100,7 +98,6 @@ export const useCardCustomField = (cardId: string, workspaceId: string) => {
 
   // Helper function to set string value
   const setStringValue = (customFieldId: string, value: string) => {
-    console.log('📝 setStringValue called:', { customFieldId, value });
     setValueMutation.mutate({
       customFieldId,
       updatedData: { 
@@ -113,7 +110,6 @@ export const useCardCustomField = (cardId: string, workspaceId: string) => {
 
   // Helper function to set number value
   const setNumberValue = (customFieldId: string, value: number) => {
-    console.log('🔢 setNumberValue called:', { customFieldId, value });
     setValueMutation.mutate({
       customFieldId,
       updatedData: { 
@@ -124,7 +120,6 @@ export const useCardCustomField = (cardId: string, workspaceId: string) => {
 
   // Helper function to set option value
   const setOptionValue = (customFieldId: string, value: string) => {
-    console.log('📋 setOptionValue called:', { customFieldId, value });
     setValueMutation.mutate({
       customFieldId,
       updatedData: { 
@@ -135,7 +130,6 @@ export const useCardCustomField = (cardId: string, workspaceId: string) => {
 
   // Helper function to set checkbox value
   const setCheckboxValue = (customFieldId: string, value: boolean) => {
-    console.log('☑️ setCheckboxValue called:', { customFieldId, value });
     setValueMutation.mutate({
       customFieldId,
       updatedData: { 
@@ -146,7 +140,6 @@ export const useCardCustomField = (cardId: string, workspaceId: string) => {
 
   // Helper function to set date value
   const setDateValue = (customFieldId: string, value: Date) => {
-    console.log('📅 setDateValue called:', { customFieldId, value });
     setValueMutation.mutate({
       customFieldId,
       updatedData: { 
@@ -157,7 +150,6 @@ export const useCardCustomField = (cardId: string, workspaceId: string) => {
 
   // Helper function to set user ID value
   const setUserValue = (customFieldId: string, value: string) => {
-    console.log('👤 setUserValue called:', { customFieldId, value });
     setValueMutation.mutate({
       customFieldId,
       updatedData: { 
@@ -168,7 +160,6 @@ export const useCardCustomField = (cardId: string, workspaceId: string) => {
 
   // Generic helper to set value based on type
   const setValue = (customFieldId: string, value: any, source: EnumCustomFieldSource, type: EnumCustomFieldType) => {
-    console.log('🎯 setValue called:', { customFieldId, value, source, type });
     switch (type) {
       case EnumCustomFieldType.Text:
         setStringValue(customFieldId, value);
@@ -218,7 +209,6 @@ export const useCardCustomField = (cardId: string, workspaceId: string) => {
     const field = cardCustomFieldQuery.data?.data?.find(
       field => field.id === customFieldId
     );
-    console.log('🔍 getCustomField:', { customFieldId, field, allFields: cardCustomFieldQuery.data?.data });
     return field;
   };
 
@@ -226,7 +216,6 @@ export const useCardCustomField = (cardId: string, workspaceId: string) => {
   const getStringValue = (customFieldId: string): string | null => {
     const field = getCustomField(customFieldId);
     const value = field?.valueString || null;
-    console.log('📝 getStringValue:', { customFieldId, value, field });
     return value;
   };
 

@@ -42,11 +42,14 @@ const PopoverDates: React.FC<PopoverCustomFieldProps> = ({
 
   useEffect(() => {
     if (!isUpdating && selectedCard && dates) {
-      setSelectedCard({
-        ...selectedCard,
-        startDate: dates.startDate || undefined,
-        dueDate: dates.dueDate || undefined,
-        dueDateReminder: dates.dueDateReminder || ""
+      setSelectedCard(prevCard => {
+        if (!prevCard) return prevCard;
+        return {
+          ...prevCard,
+          startDate: dates.startDate || undefined,
+          dueDate: dates.dueDate || undefined,
+          dueDateReminder: dates.dueDateReminder || ""
+        };
       });
     }
   }, [isUpdating, dates])
