@@ -73,7 +73,7 @@ div[data-rfd-droppable-id="all-columns"] {
 .ant-modal-content {
   padding: 0px !important;
   border-radius: 12px;
-  max-height: calc(100vh - 100px);
+  /* max-height: calc(100vh - 100px); */
   display: flex;
   flex-direction: column;
   padding: 0px;
@@ -131,6 +131,20 @@ div[data-rfd-droppable-id="all-columns"] {
 
 .modal-create-board .ant-modal-body::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 0, 0, 0.3);
+}
+
+.full-height-modal {
+  top: 10;
+  bottom:10;
+  height: 100% !important;
+  max-height: 100% !important;
+  margin-bottom: 0;
+  overflow: hidden;
+}
+.ant-modal-content.full-height-modal {
+  max-height: 100% !important;
+  height: 100% !important;
+  overflow: hidden;
 }
 
 .custom-circular-checkbox .ant-checkbox-inner {

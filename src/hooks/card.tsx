@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { cards, moveCard } from "../api/card";
+import { cards, moveCard, updateCard } from "../api/card";
 import { api } from "../api";
 import { ApiResponse } from "../types/type";
 import { Card } from "../types/card";
@@ -333,9 +333,7 @@ export function useCardDetails(
 
   // Mutation for updating the card
   const updateCardMutation = useMutation({
-    mutationFn: (updates: Partial<Card>) => {
-      return api.put(`/card/${cardId}`, updates);
-    },
+    mutationFn: (updates: Partial<Card>) => updateCard(cardId, updates),
     // Optimistic update
     onMutate: async (updates) => {
       await queryClient.cancelQueries({ queryKey: ["card", cardId] });

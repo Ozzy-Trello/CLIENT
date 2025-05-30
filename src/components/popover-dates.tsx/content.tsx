@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TimePicker, Select, Button, Checkbox, Modal } from 'antd';
+import { TimePicker, Select, Button, Checkbox, Modal, Input } from 'antd';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
@@ -209,12 +209,13 @@ const DateSetter: React.FC<DateSetterProps> = ({
       <div className="mb-4">
         <label className="block text-gray-700 font-medium text-sm mb-1">Start date</label>
         <div className="relative">
-          <input
+          <Input
             type="text"
             className="w-full border border-gray-300 rounded p-2 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
             placeholder="M/D/YYYY"
             value={formatDate(startDate)}
             readOnly
+            size={"small"}
             onClick={() => setShowDueDate(false)}
           />
         </div>
@@ -222,7 +223,7 @@ const DateSetter: React.FC<DateSetterProps> = ({
 
       {/* Due Date Section */}
       <div className="mb-4">
-        <div className="flex items-center mb-1">
+        <div className="flex items-center mb-1 gap-2">
           <label className="block text-gray-700 font-medium text-sm">Due date</label>
           <Checkbox 
             className="ml-2"
@@ -234,12 +235,13 @@ const DateSetter: React.FC<DateSetterProps> = ({
         {showDueDate && (
           <div className="flex space-x-2">
             <div className="w-1/2">
-              <input
+              <Input
                 type="text"
                 className="w-full border border-gray-300 rounded p-2 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="M/D/YYYY"
                 value={formatDate(dueDate)}
                 readOnly
+                size="small"
                 onClick={() => setShowDueDate(true)}
               />
             </div>
@@ -249,6 +251,7 @@ const DateSetter: React.FC<DateSetterProps> = ({
               format="h:mm A"
               value={dueTime}
               onChange={setDueTime}
+              size='small'
             />
           </div>
         )}
@@ -261,6 +264,7 @@ const DateSetter: React.FC<DateSetterProps> = ({
           <Select
             className="w-full"
             value={reminder}
+            size='small'
             onChange={setReminder}
             options={[
               { value: '1 day before', label: '1 Day before' },

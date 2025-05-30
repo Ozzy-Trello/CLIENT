@@ -31,8 +31,8 @@ export interface Card {
   isArchived?: boolean;
   position?: number;
   order?: number;
-  startDate?: string;
-  dueDate?: string;
+  startDate?: Date;
+  dueDate?: Date;
   dueDateReminder?: string;
   dashConfig?: DashcardConfig;
   createdAt?: string;
