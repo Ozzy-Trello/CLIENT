@@ -321,262 +321,6 @@ export function useCards(listId: string, boardId: string) {
   };
 }
 
-export function useCardDetails(
-  cardId: string,
-  listId: string,
-  boardId: string
-) {
-  const queryClient = useQueryClient();
-
-  const cardDetailsQuery = useQuery({
-    queryKey: ["card", cardId, boardId],
-    queryFn: () =>
-      api
-        .get(`/card/${cardId}`, {
-          headers: {
-            "board-id": boardId,
-          },
-        })
-        .then((res) => res.data),
-    enabled: !!cardId,
-    staleTime: 5000,
-    // Use any card data we might already have from the cards query
-    initialData: () => {
-      const cardsData = queryClient.getQueryData<ApiResponse<Card[]>>([
-        "cards",
-        listId,
-      ]);
-      if (!cardsData) return undefined;
-
-      const foundCard = cardsData.data?.find((card) => card.id === cardId);
-      return foundCard ? { data: foundCard } : undefined;
-    },
-  });
-
-  // Mutation for updating the card
-  const updateCardMutation = useMutation({
-    mutationFn: (updates: Partial<Card>) => updateCard(cardId, updates),
-    // Optimistic update
-    onMutate: async (updates) => {
-      await queryClient.cancelQueries({ queryKey: ["card", cardId] });
-
-      const previousCard = queryClient.getQueryData(["card", cardId]);
-
-      // Update the individual card
-      queryClient.setQueryData(
-        ["card", cardId],
-        (old: ApiResponse<Card> | undefined) => {
-          if (!old) return { data: { ...updates, id: cardId, listId } as Card };
-          return {
-            ...old,
-            data: { ...old.data, ...updates },
-          };
-        }
-      );
-
-      // Also update the card in the cards collection if it exists
-      queryClient.setQueryData(
-        ["cards", listId],
-        (old: ApiResponse<Card[]> | undefined) => {
-          if (!old) return { data: [] };
-
-          return {
-            ...old,
-            data: (old.data ?? []).map((card) =>
-              card.id === cardId ? { ...card, ...updates } : card
-            ),
-          };
-        }
-      );
-
-      return { previousCard };
-    },
-    onError: (err, variables, context) => {
-      if (context?.previousCard) {
-        queryClient.setQueryData(["card", cardId], context.previousCard);
-      }
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["card", cardId] });
-      queryClient.invalidateQueries({ queryKey: ["cards", listId] });
-      // Also refresh lists data that might contain the card
-      queryClient.invalidateQueries({ queryKey: ["lists"] });
-    },
-  });
-
-  // Mutation for deleting the card
-  const deleteCardMutation = useMutation({
-    mutationFn: () => {
-      return api.delete(`/card/${cardId}`);
-    },
-    onMutate: async () => {
-      await queryClient.cancelQueries({ queryKey: ["cards", listId] });
-
-      const previousCards = queryClient.getQueryData(["cards", listId]);
-
-      // Optimistically remove the card from the cards collection
-      queryClient.setQueryData(
-        ["cards", listId],
-        (old: ApiResponse<Card[]> | undefined) => {
-          if (!old) return { data: [] };
-
-          return {
-            ...old,
-            data: (old.data ?? []).filter((card) => card.id !== cardId),
-          };
-        }
-      );
-
-      return { previousCards };
-    },
-    onError: (err, variables, context) => {
-      if (context?.previousCards) {
-        queryClient.setQueryData(["cards", listId], context.previousCards);
-      }
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["cards", listId] });
-      queryClient.invalidateQueries({ queryKey: ["lists"] });
-    },
-  });
-
-  // Mutation for moving a card to another list
-  const moveCardMutation = useMutation({
-    mutationFn: ({
-      destinationListId,
-      position,
-    }: {
-      destinationListId: string;
-      position?: number;
-    }) => {
-      return api.put(`/card/${cardId}/move`, {
-        destinationListId,
-        position,
-      });
-    },
-    onMutate: async ({ destinationListId, position }) => {
-      // Cancel queries for both source and destination lists
-      await Promise.all([
-        queryClient.cancelQueries({ queryKey: ["cards", listId] }),
-        queryClient.cancelQueries({ queryKey: ["cards", destinationListId] }),
-      ]);
-
-      // Get current state of both lists
-      const sourceCards = queryClient.getQueryData<ApiResponse<Card[]>>([
-        "cards",
-        listId,
-      ]);
-      const destinationCards = queryClient.getQueryData<ApiResponse<Card[]>>([
-        "cards",
-        destinationListId,
-      ]);
-
-      // Find the card to move
-      const cardToMove = sourceCards?.data?.find((card) => card.id === cardId);
-
-      if (!cardToMove) return { success: false };
-
-      // Create updated card with new list ID
-      const updatedCard = { ...cardToMove, listId: destinationListId };
-
-      // Remove from source list
-      queryClient.setQueryData(
-        ["cards", listId],
-        (old: ApiResponse<Card[]> | undefined) => {
-          if (!old) return { data: [] };
-
-          return {
-            ...old,
-            data: (old.data ?? []).filter((card) => card.id !== cardId),
-          };
-        }
-      );
-
-      // Add to destination list (with position handling if provided)
-      queryClient.setQueryData(
-        ["cards", destinationListId],
-        (old: ApiResponse<Card[]> | undefined) => {
-          if (!old) return { data: [updatedCard] };
-
-          let newData = [...(old.data ?? [])];
-
-          if (
-            position !== undefined &&
-            position >= 0 &&
-            position <= newData.length
-          ) {
-            // Insert at specific position
-            newData.splice(position, 0, updatedCard);
-          } else {
-            // Add to end
-            newData.push(updatedCard);
-          }
-
-          return {
-            ...old,
-            data: newData,
-          };
-        }
-      );
-
-      // Update the individual card data as well
-      queryClient.setQueryData(
-        ["card", cardId],
-        (old: ApiResponse<Card> | undefined) => {
-          if (!old) return { data: updatedCard };
-          return {
-            ...old,
-            data: { ...old.data, listId: destinationListId },
-          };
-        }
-      );
-
-      return {
-        sourceCards,
-        destinationCards,
-        sourceLid: listId,
-        destLid: destinationListId,
-        success: true,
-      };
-    },
-    onError: (err, variables, context) => {
-      if (!context || !context.success) return;
-
-      // Restore both lists to previous state
-      if (context.sourceCards) {
-        queryClient.setQueryData(
-          ["cards", context.sourceLid],
-          context.sourceCards
-        );
-      }
-
-      if (context.destinationCards) {
-        queryClient.setQueryData(
-          ["cards", context.destLid],
-          context.destinationCards
-        );
-      }
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["card", cardId] });
-      queryClient.invalidateQueries({ queryKey: ["cards", listId] });
-      queryClient.invalidateQueries({ queryKey: ["lists"] });
-    },
-  });
-
-  return {
-    card: cardDetailsQuery.data?.data,
-    isLoading: cardDetailsQuery.isLoading,
-    isError: cardDetailsQuery.isError,
-    error: cardDetailsQuery.error,
-    updateCard: updateCardMutation.mutate,
-    isUpdating: updateCardMutation.isPending,
-    deleteCard: deleteCardMutation.mutate,
-    isDeleting: deleteCardMutation.isPending,
-    moveCard: moveCardMutation.mutate,
-    isMoving: moveCardMutation.isPending,
-  };
-}
 
 /**
  * Hook to manage card movement between lists or within a list
@@ -606,114 +350,131 @@ export function useCardMove() {
         targetPosition
       );
     },
-    onMutate: async ({
-      cardId,
-      targetListId,
-      previousListId,
-      targetPosition,
-      previousPosition,
-    }) => {
-      console.log("Optimistically moving card:", {
-        cardId,
-        targetListId,
-        previousListId,
-        targetPosition,
-      });
+  onMutate: async ({
+    cardId,
+    targetListId,
+    previousListId,
+    targetPosition,
+    previousPosition,
+  }) => {
+    await Promise.all([
+      queryClient.cancelQueries({ queryKey: ["lists"] }),
+      queryClient.cancelQueries({ queryKey: ["cards", previousListId] }),
+      queryClient.cancelQueries({ queryKey: ["cards", targetListId] }),
+    ]);
 
-      // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ["lists", "cards"] });
+    const previousListsData = queryClient.getQueryData<ApiResponse<any[]>>(["lists"]);
+    const previousSourceCards = queryClient.getQueryData<ApiResponse<Card[]>>(["cards", previousListId]);
+    const previousTargetCards = queryClient.getQueryData<ApiResponse<Card[]>>(["cards", targetListId]);
 
-      // Get snapshot of current state
-      const previousListsData = queryClient.getQueryData<ApiResponse<any[]>>([
-        "lists",
-      ]);
+    if (!previousListsData?.data) {
+      console.error("No lists data found for optimistic update");
+      return { noData: true };
+    }
 
-      if (!previousListsData?.data) {
-        console.error("No lists data found for optimistic update");
-        return { noData: true };
+    // Deep clone for rollback
+    const clonedListsData = JSON.parse(JSON.stringify(previousListsData));
+    const clonedSourceCards = previousSourceCards ? JSON.parse(JSON.stringify(previousSourceCards)) : null;
+    const clonedTargetCards = previousTargetCards ? JSON.parse(JSON.stringify(previousTargetCards)) : null;
+
+    // Optimistically update lists cache
+    queryClient.setQueryData<ApiResponse<any[]>>(["lists"], (old) => {
+      if (!old?.data) return old;
+      const lists = JSON.parse(JSON.stringify(old.data));
+      const sourceList = lists.find((list: any) => list.id === previousListId);
+      const targetList = lists.find((list: any) => list.id === targetListId);
+
+      if (!sourceList || !sourceList.cards) {
+        console.error("Source list not found:", previousListId);
+        return old;
       }
+      if (!targetList) {
+        console.error("Target list not found:", targetListId);
+        return old;
+      }
+      if (!targetList.cards) targetList.cards = [];
 
-      // Deep clone to avoid reference issues
-      const clonedListsData = JSON.parse(JSON.stringify(previousListsData));
+      // Remove from source
+      const cardIndex = sourceList.cards.findIndex((card: any) => card.id === cardId);
+      if (cardIndex === -1) {
+        console.error("Card not found in source list:", cardId);
+        return old;
+      }
+      const card = { ...sourceList.cards[cardIndex] };
+      sourceList.cards.splice(cardIndex, 1);
 
-      queryClient.setQueryData<ApiResponse<any[]>>(["lists"], (old) => {
-        if (!old?.data) return old;
+      // Insert into target at position
+      const insertPosition = Math.min(targetPosition, targetList.cards.length);
+      targetList.cards.splice(insertPosition, 0, { ...card, listId: targetListId });
 
-        // Clone the data to avoid mutation
-        const lists = JSON.parse(JSON.stringify(old.data));
-
-        // Find source list
-        const sourceList = lists.find(
-          (list: any) => list.id === previousListId
-        );
-        if (!sourceList || !sourceList.cards) {
-          console.error("Source list not found:", previousListId);
-          return old;
-        }
-
-        // Find card in source list
-        const cardIndex = sourceList.cards.findIndex(
-          (card: any) => card.id === cardId
-        );
-        if (cardIndex === -1) {
-          console.error("Card not found in source list:", cardId);
-          return old;
-        }
-
-        // Save a copy of the card
-        const card = { ...sourceList.cards[cardIndex] };
-
-        // Remove card from source list
-        sourceList.cards.splice(cardIndex, 1);
-
-        // Find target list
-        const targetList = lists.find((list: any) => list.id === targetListId);
-        if (!targetList) {
-          console.error("Target list not found:", targetListId);
-          return old;
-        }
-
-        // Ensure target list has cards array
-        if (!targetList.cards) targetList.cards = [];
-
-        // Insert card at target position
-        const insertPosition = Math.min(
-          targetPosition,
-          targetList.cards.length
-        );
-        targetList.cards.splice(insertPosition, 0, card);
-
-        // Fix order values to ensure consistent sorting
-        targetList.cards.forEach((c: any, idx: number) => {
-          c.order = (idx + 1) * 10000;
-        });
-
-        return {
-          ...old,
-          data: lists,
-        };
+      // Fix order values for both lists
+      sourceList.cards.forEach((c: any, idx: number) => {
+        c.order = (idx + 1) * 10000;
+      });
+      targetList.cards.forEach((c: any, idx: number) => {
+        c.order = (idx + 1) * 10000;
       });
 
-      // Return previous state for rollback
       return {
-        previousLists: clonedListsData,
-        cardId,
-        previousListId,
-        targetListId,
+        ...old,
+        data: lists,
       };
-    },
-    onError: (error, variables, context) => {
-      console.error("Error moving card:", error);
+    });
 
-      // Revert to snapshot on error
-      if (context && !context.noData && context.previousLists) {
-        queryClient.setQueryData(["lists"], context.previousLists);
-      }
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["lists"] });
-      queryClient.invalidateQueries({ queryKey: ["cards"] });
-    },
+    // Optimistically update cards cache for source list
+    queryClient.setQueryData<ApiResponse<Card[]>>(["cards", previousListId], (old) => {
+      if (!old?.data) return { data: [] };
+      return {
+        ...old,
+        data: old.data.filter((card) => card.id !== cardId),
+      };
+    });
+
+  // Optimistically update cards cache for target list
+  queryClient.setQueryData<ApiResponse<Card[]>>(["cards", targetListId], (old) => {
+    if (!old?.data) return { data: [] };
+    // Find the card from the source list
+    const cardToMove = previousSourceCards?.data?.find(c => c.id === cardId);
+    // If the card is not found, return the old data to prevent errors
+    if (!cardToMove) {
+      console.warn(`Card with id ${cardId} not found in source list ${previousListId}`);
+      return old;
+    }
+    // Insert card at targetPosition
+    const newCards = [...old.data];
+    newCards.splice(targetPosition, 0, { ...cardToMove, listId: targetListId });
+    // Reorder cards for consistency
+    newCards.forEach((c, idx) => (c.order = (idx + 1) * 10000));
+    return {
+      ...old,
+      data: newCards,
+    };
+  });
+
+  return {
+    previousLists: clonedListsData,
+    previousSourceCards: clonedSourceCards,
+    previousTargetCards: clonedTargetCards,
+  };
+  },
+  onError: (error, variables, context) => {
+    console.error("Error moving card:", error);
+    if (context?.previousLists) {
+      queryClient.setQueryData(["lists"], context.previousLists);
+    }
+    if (context?.previousSourceCards && variables.previousListId) {
+      queryClient.setQueryData(["cards", variables.previousListId], context.previousSourceCards);
+    }
+    if (context?.previousTargetCards && variables.targetListId) {
+      queryClient.setQueryData(["cards", variables.targetListId], context.previousTargetCards);
+    }
+  },
+  onSettled: (data, error, variables) => {
+    queryClient.invalidateQueries({ queryKey: ["lists"] });
+    queryClient.invalidateQueries({ queryKey: ["cards", variables.previousListId] });
+    queryClient.invalidateQueries({ queryKey: ["cards", variables.targetListId] });
+  },
+
   });
 
   return {

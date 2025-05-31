@@ -32,6 +32,7 @@ const CardDetailContext = createContext<CardDetailContextType>({
 export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
+  const {boardId} = useParams();
   const [isOpenViaUrl, setIsOpenViaUrl] = useState(false); //determine if the modal is open via URL or not
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [activeList, setActiveList] = useState<AnyList | null>(null);
@@ -60,7 +61,7 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
 
     // Then fetch the full card data including requests
     try {
-      const resp = await cardDetails(card.id);
+      const resp = await cardDetails(card.id, boardId as string);
       if (resp.data) {
         const fullCard = resp.data;
         fullCard.listId = list.id;
@@ -101,7 +102,7 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
       const listId = searchParams.get("listId");
       if (cardId && listId) {
         setIsCardDetailOpen(true);
-        const resp = cardDetails(cardId);
+        const resp = cardDetails(cardId, boardId as string);
         resp.then((res) => {
           if (res.data) {
             const card: Card = res.data;

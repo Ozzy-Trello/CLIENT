@@ -4,8 +4,8 @@ import { ChevronLeft, X } from "lucide-react";
 import { useParams } from "next/navigation";
 import { UserSelection } from "../selection";
 import DateSetter from "./content";
-import { useCardDetails, useCards } from "@hooks/card";
 import { useCardDetailContext } from "@providers/card-detail-context";
+import { useCardDetails } from "@hooks/card-details";
 
 interface PopoverCustomFieldProps {
   open: boolean;
