@@ -1,13 +1,12 @@
 "use client";
 import { Card, Col, Row, Skeleton, Space, Typography } from "antd";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import "./style.css";
 import dynamic from "next/dynamic";
 import { Earth, Lock, Users } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useBoards } from "@hooks/board";
-
 // Move this outside the component
 const BoardFilters = dynamic(() => import("./_filter_form"), {
   ssr: false,
@@ -32,6 +31,7 @@ const BoardsPage: React.FC = () => {
       <Typography.Title level={3} className="m-0">
         Boards
       </Typography.Title>
+  
       <BoardFilters />
 
       <div className="section-card">

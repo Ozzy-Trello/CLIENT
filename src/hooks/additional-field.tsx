@@ -9,7 +9,7 @@ import {
   addAdditionalFieldItem,
   removeAdditionalFieldItem,
 } from "../api/additional-field";
-import { AdditionalFieldItem } from "../types/additional-field";
+import { AdditionalFieldItem } from "@myTypes/additional-field";
 
 /**
  * Hook to fetch all additional fields for a card

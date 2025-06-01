@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { ApiResponse, CustomField } from "../types/type";
+import { ApiResponse } from "../types/type";
 import { getCardTimeInList } from "../api/card_list_time";
 
 /**

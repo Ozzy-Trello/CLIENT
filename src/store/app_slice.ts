@@ -4,16 +4,12 @@ import { User } from '../types/user';
 export interface AppState {
   currentPage: string;
   user: User | null;
-  accessToken: string;
-  refreshToken: string;
   theme: any;
 }
 
 const initialAppState: AppState = {
   currentPage: 'Ozzy Trello',
   user: null,
-  accessToken: "",
-  refreshToken: "",
   theme: {
     colors: { // ensure these initial color set in the global.css
       primary: '8, 17, 76', // Main brand color
@@ -47,19 +43,13 @@ const appSlice = createSlice({
     setUser: (state, action: PayloadAction<any>) => {
       state.user = action.payload;
     },
-    setAccessToken: (state, action: PayloadAction<string>) => {
-      state.accessToken = action.payload;
-    },
-    setRefreshToken: (state, action: PayloadAction<string>) => {
-      state.refreshToken = action.payload;
-    },
     setTheme: (state, action: PayloadAction<any>) => {
       state.theme = action.payload;
     }
   },
 });
 
-export const { setUser, setAccessToken, setRefreshToken, setTheme } = appSlice.actions;
+export const { setUser, setTheme } = appSlice.actions;
 export default appSlice.reducer;
 
 
@@ -74,14 +64,6 @@ export function selectCurrentPage(state: RootState) {
 
 export function selectUser(state: RootState) {
   return state.appState.user;
-}
-
-export function selectAccessToken(state: RootState) {
-  return state.appState.accessToken;
-}
-
-export function selectRefreshToken(state: RootState) {
-  return state.appState.refreshToken;
 }
 
 export function selectTheme(state: RootState) {

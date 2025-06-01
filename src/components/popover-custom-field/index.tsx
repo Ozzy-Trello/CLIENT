@@ -5,7 +5,8 @@ import { ChevronLeft, X } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useCustomFields } from "@hooks/custom_field";
 import AddUpdateField from "./add-update-field";
-import { CustomField } from "@myTypes/type";
+import { CustomField } from "@myTypes/custom-field";
+import { useCardDetailContext } from "@providers/card-detail-context";
 
 interface PopoverCustomFieldProps {
   open: boolean;
@@ -23,12 +24,18 @@ const PopoverCustomField: React.FC<PopoverCustomFieldProps> = ({
   
   const [popoverPage, setPopoverPage] = useState<'home' | 'add' | 'update' | 'trigger' | 'custom-option'>('home');
   const [selectedCustomField, setSelectedCustomField] = useState<CustomField | undefined>();
+  const {selectedCard} = useCardDetailContext();
   
   const { 
     customFields, 
     isLoading, 
-    addCustomField, 
-    updateCustomField 
+    createCustomField, 
+    updateCustomField,
+    invalidateSpecificCardCustomFields,
+    isCreating,
+    isUpdating,
+    isDeleting,
+    isReordering,
   } = useCustomFields(currentWorkspaceId);
   
   // Reset selected field when popover closes
@@ -38,6 +45,12 @@ const PopoverCustomField: React.FC<PopoverCustomFieldProps> = ({
       setSelectedCustomField(undefined);
     }
   }, [open]);
+
+  useEffect(() => {
+    if (!isCreating && !isUpdating && !isDeleting && !isReordering) {
+      invalidateSpecificCardCustomFields(selectedCard?.id)
+    }
+  }, [isCreating, isUpdating, isDeleting, isReordering]);
   
   const goBack = () => {
     setPopoverPage("home");
@@ -62,8 +75,9 @@ const PopoverCustomField: React.FC<PopoverCustomFieldProps> = ({
             setPopoverPage={setPopoverPage}
             selectedCustomField={selectedCustomField}
             setSelectedCustomField={setSelectedCustomField}
-            addCustomField={addCustomField}
-            updateCustomField={updateCustomField}
+            selectedCard={selectedCard}
+            createCustomField={createCustomField}
+            updateCustomField={({ customFieldId, updates }) => updateCustomField({ id: customFieldId, updates })}
           />
         ) : (popoverPage == 'custom-option') ? (
           null
@@ -73,13 +87,13 @@ const PopoverCustomField: React.FC<PopoverCustomFieldProps> = ({
       }
       title={
         <div className="flex justify-between items-center">
-          <div className="flex justify-start items-center gap-2">
+          <div className="flex justify-start items-center gap-2 text-[12px]">
             {popoverPage !== "home" && (
               <Button size="small" type="text">
                 <ChevronLeft size={16} onClick={goBack} />
               </Button>
             )}
-            <Typography.Title level={5} className="m-0">
+            <span>
               {
                 popoverPage === "home" ? "Custom Fields" :
                 popoverPage === "add" ? "Add new custom field" :
@@ -88,7 +102,7 @@ const PopoverCustomField: React.FC<PopoverCustomFieldProps> = ({
                 popoverPage === "trigger" ? "Trigger" :
                 ""
               }
-            </Typography.Title>
+            </span>
           </div>
           <Button 
             size="small"

@@ -1,6 +1,6 @@
 import React, { useRef, useState } from "react";
-import { useCardDetailContext } from "@/app/provider/card-detail-context";
-import PopoverChecklist from "@/app/components/popover-checklist";
+import { useCardDetailContext } from "@providers/card-detail-context";
+import PopoverChecklist from "@components/popover-checklist";
 import {
   Users,
   Tag,

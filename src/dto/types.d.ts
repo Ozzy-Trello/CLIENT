@@ -17,10 +17,11 @@ export interface Pagination {
 
 export interface User {
   id: string;
-  username: string;
-  fullname: string;
-  email: string;
-  phone: string;
+  username?: string;
+  fullname?: string;
+  name?: string;
+  email?: string;
+  phone?: string;
   refreshToken?: string;
   accessToken?: string;
   avatar?: string;
@@ -141,17 +142,6 @@ export interface TriggerAction {
   targetListId?: string;
   messageTelegram: string;
   labelCardId?: string;
-}
-
-export interface CardCustomField {
-  customFieldId: string;
-  cardId?: string;
-  id?: string;
-  name?: string;
-  description?: string;
-  source?: string | CustomOption[];
-  type?: CustomFieldValueType;
-  value?: string;
 }
 
 // Checklist item

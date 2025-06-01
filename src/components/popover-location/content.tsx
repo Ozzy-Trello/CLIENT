@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Input, Spin, Modal, InputRef } from 'antd';
-import { SearchOutlined } from '@ant-design/icons';
-import debounce from 'lodash/debounce';
+import React, { useState, useEffect, useRef } from "react";
+import { Input, Spin } from "antd";
+import { SearchOutlined } from "@ant-design/icons";
+import debounce from "lodash/debounce";
 
-// Define TypeScript interfaces
 interface LocationSuggestion {
   place_id: number;
   osm_id: number;
@@ -29,24 +28,47 @@ interface LocationAutocompleteProps {
   onCancel: () => void;
 }
 
+const predefinedLocations: LocationData[] = [
+  {
+    description: "Warungboto",
+    lat: -7.8141977,
+    lon: 110.3921338,
+    osm_id: 0,
+    place_id: 0,
+  },
+  {
+    description: "Maguwo",
+    lat: -7.7637222,
+    lon: 110.4211807,
+    osm_id: 0,
+    place_id: 0,
+  },
+  {
+    description: "Kabupaten",
+    lat: -7.7642042,
+    lon: 110.3446564,
+    osm_id: 0,
+    place_id: 0,
+  },
+];
+
 const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({
   onLocationSelect,
   onCancel,
 }) => {
-  const [query, setQuery] = useState<string>('');
+  const [query, setQuery] = useState<string>("");
   const [suggestions, setSuggestions] = useState<LocationSuggestion[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const inputRef = useRef<InputRef>(null);
+  const inputRef = useRef(null);
 
-  useEffect(()   => {
-      setTimeout(() => {
-        if (inputRef.current) {
-          inputRef.current.focus();
-        }
-      }, 100);
+  useEffect(() => {
+    setTimeout(() => {
+      if (inputRef.current) {
+        (inputRef.current as any).focus();
+      }
+    }, 100);
   }, []);
 
-  // Create a debounced search function to prevent too many API calls
   const debouncedSearch = useRef(
     debounce(async (searchText: string) => {
       if (searchText.length < 2) {
@@ -57,15 +79,14 @@ const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({
 
       setIsLoading(true);
       try {
-        // usage policy: max 1 request per second
         const response = await fetch(
           `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
             searchText
           )}&countrycodes=id&limit=5`,
           {
             headers: {
-              'Accept-Language': 'en-US,en',
-              'User-Agent': 'Ozzy/1.0',
+              "Accept-Language": "en-US,en",
+              "User-Agent": "Ozzy/1.0",
             },
           }
         );
@@ -77,7 +98,7 @@ const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({
         const data: LocationSuggestion[] = await response.json();
         setSuggestions(data);
       } catch (error) {
-        console.error('Error fetching locations:', error);
+        console.error("Error fetching locations:", error);
         setSuggestions([]);
       } finally {
         setIsLoading(false);
@@ -85,25 +106,30 @@ const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({
     }, 800)
   ).current;
 
-  // Effect to trigger search when query changes
   useEffect(() => {
     debouncedSearch(query);
-    // Cancel debounced call on cleanup
     return () => {
       debouncedSearch.cancel();
     };
   }, [query, debouncedSearch]);
 
-  const handleSelectLocation = (location: LocationSuggestion) => {
-    const formattedAddress = location.display_name;
-    setQuery(formattedAddress);
+  const handleSelectLocation = (
+    location: LocationData | LocationSuggestion
+  ) => {
+    const isPredefined = "description" in location;
+    const description = isPredefined
+      ? location.description
+      : location.display_name;
+
     onLocationSelect({
-      description: formattedAddress,
-      lat: parseFloat(location.lat),
-      lon: parseFloat(location.lon),
-      osm_id: location.osm_id,
-      place_id: location.place_id,
+      description,
+      lat: parseFloat(location.lat.toString()),
+      lon: parseFloat(location.lon.toString()),
+      osm_id: location.osm_id ?? 0,
+      place_id: location.place_id ?? 0,
     });
+
+    setQuery(description);
     onCancel();
   };
 
@@ -125,17 +151,31 @@ const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({
       />
 
       <div className="max-h-80 overflow-y-auto">
-        {suggestions.map((location) => (
-          <div
-            key={location.place_id}
-            onClick={() => handleSelectLocation(location)}
-            className="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 transition-colors"
-          >
-            {location.display_name}
-          </div>
-        ))}
-        
-        {suggestions.length === 0 && query.length > 1 && !isLoading && (
+        {/* Show predefined options when no query yet */}
+        {query.length < 2 &&
+          predefinedLocations.map((location) => (
+            <div
+              key={location.description}
+              onClick={() => handleSelectLocation(location)}
+              className="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 transition-colors"
+            >
+              {location.description} ({location.lat}, {location.lon})
+            </div>
+          ))}
+
+        {/* Show search results from API */}
+        {query.length >= 2 &&
+          suggestions.map((location) => (
+            <div
+              key={location.place_id}
+              onClick={() => handleSelectLocation(location)}
+              className="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 transition-colors"
+            >
+              {location.display_name}
+            </div>
+          ))}
+
+        {query.length >= 2 && suggestions.length === 0 && !isLoading && (
           <div className="p-3 text-gray-500 text-center">
             No locations found.
           </div>

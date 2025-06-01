@@ -4,7 +4,7 @@ import {
   updateWarehouseReturn,
   updateWarehouseFinalAmount,
   markRequestDone,
-} from "@/app/api/accurate";
+} from "@api/accurate";
 import { Button, Checkbox, Input, Modal, Table, message } from "antd";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import React, { useState, useEffect, useRef } from "react";

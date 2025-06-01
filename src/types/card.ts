@@ -1,6 +1,8 @@
+import { CustomOption } from "@dto/types";
+import { EnumCustomFieldSource, EnumCustomFieldType } from "./custom-field";
 import { DashcardConfig } from "./dashcard";
 import { FileUpload } from "./file-upload";
-import { AcitivitySource, Checklist, CustomField, Label } from "./type";
+import { AcitivitySource, Checklist, Label } from "./type";
 import { User } from "./user";
 
 export enum EnumCardType {
@@ -19,7 +21,7 @@ export interface Card {
   attachments?: CardAttachment[];
   labels?: Label[];
   members?: User[];
-  customFields?: CustomField[];
+  customFields?: CardCustomField[];
   timeInLists?: CardTimeInList[];
   formattedTimeInBoard?: string;
   formattedTimeInList?: string;
@@ -29,8 +31,8 @@ export interface Card {
   isArchived?: boolean;
   position?: number;
   order?: number;
-  startDate?: string;
-  dueDate?: string;
+  startDate?: Date;
+  dueDate?: Date;
   dueDateReminder?: string;
   dashConfig?: DashcardConfig;
   createdAt?: string;
@@ -72,4 +74,28 @@ export interface CardActivity {
   type: "text" | "action";
   text: string;
   source: AcitivitySource;
+}
+
+export interface CardCustomField {
+  cardId?: string;
+  id?: string;
+  name?: string;
+  description?: string;
+  source?: EnumCustomFieldSource;
+  type?: EnumCustomFieldType;
+  options?: CustomOption[];
+  isShowAtFront?: boolean;
+  valueString?: string;
+  valueNumber?: number;
+  valueOption?: string;
+  valueCheckbox?:boolean;
+  valueDate?: Date;
+  valueUserId?: string;
+}
+
+export interface CardMember {
+  id?: string;
+  cardId?: string;
+  userId?: string;
+  created_at?: Date;
 }

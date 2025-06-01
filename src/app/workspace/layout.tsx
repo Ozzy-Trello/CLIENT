@@ -7,7 +7,6 @@ import "./style.css";
 import {
   useWorkspaceSidebar,
 } from "@providers/workspace-sidebar-context";
-import Footer from "@components/footer";
 
 const { Header, Content } = Layout;
 
