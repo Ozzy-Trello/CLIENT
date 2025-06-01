@@ -3,6 +3,7 @@ import { cards, moveCard, updateCard } from "../api/card";
 import { api } from "../api";
 import { ApiResponse } from "../types/type";
 import { Card } from "../types/card";
+import { useEffect } from "react";
 
 export function useCards(listId: string, boardId: string) {
   const queryClient = useQueryClient();
@@ -508,4 +509,65 @@ export function useCardTimeInBoard(cardId: string, boardId: string) {
     error: cardTimeInBoardQuery.error,
     refetch: cardTimeInBoardQuery.refetch,
   };
+}
+
+
+export function useWebSocketCardUpdates(socket: WebSocket | null) {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleMessage = (event: MessageEvent) => {
+      try {
+        const message = JSON.parse(event.data);
+        console.log("WEBSOCKET DITERIMA!");
+
+        if (message.event === "card:moved") {
+          const { card, fromListId, toListId } = message.data;
+
+          // Remove card from old list
+          queryClient.setQueryData(["cards", fromListId], (old: ApiResponse<Card[]> | undefined) => {
+            if (!old) return { data: [] };
+            return {
+              ...old,
+              data: (old.data ?? []).filter((c) => c.id !== card.id),
+            };
+          });
+
+          // Add card to new list
+          queryClient.setQueryData(["cards", toListId], (old: ApiResponse<Card[]> | undefined) => {
+            if (!old) return { data: [card] };
+            return {
+              ...old,
+              data: [...(old.data ?? []).filter((c) => c.id !== card.id), card],
+            };
+          });
+
+          // Also update "lists" cache if needed
+          queryClient.invalidateQueries({ queryKey: ["lists"] });
+        }
+
+        if (message.event === "card:updated") {
+          const { card, listId } = message.data;
+          queryClient.setQueryData(["cards", listId], (old: ApiResponse<Card[]> | undefined) => {
+            if (!old) return { data: [card] };
+            return {
+              ...old,
+              data: (old.data || []).map((c) => (c.id === card.id ? card : c)),
+            };
+          });
+        }
+
+        // Add more event types as needed
+      } catch (e) {
+        console.error("Invalid WS data", e);
+      }
+    };
+
+    socket.addEventListener("message", handleMessage);
+    return () => {
+      socket.removeEventListener("message", handleMessage);
+    };
+  }, [socket, queryClient]);
 }
