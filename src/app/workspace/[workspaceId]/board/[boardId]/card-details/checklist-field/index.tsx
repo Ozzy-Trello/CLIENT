@@ -10,11 +10,11 @@ import {
   Tag,
 } from "antd";
 import { CheckSquare, Trash2, Clock, User, X } from "lucide-react";
-import { useCardDetailContext } from "@providers/card-detail-context";
-import { useCardChecklists, useDeleteChecklist } from "@hooks/checklist";
-import { updateChecklist } from "@api/checklist";
-import { ChecklistDTO, ChecklistItem } from "@myTypes/checklist";
-import { useAccountList } from "@hooks/account";
+import { useCardDetailContext } from "@/app/provider/card-detail-context";
+import { useCardChecklists, useDeleteChecklist } from "@/app/hooks/checklist";
+import { updateChecklist } from "@/app/api/checklist";
+import { ChecklistDTO, ChecklistItem } from "@/app/types/checklist";
+import { useAccountList } from "@/app/hooks/account";
 import dayjs from "dayjs";
 import { useParams } from "next/navigation";
 

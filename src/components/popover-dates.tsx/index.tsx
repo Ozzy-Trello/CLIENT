@@ -4,8 +4,6 @@ import { ChevronLeft, X } from "lucide-react";
 import { useParams } from "next/navigation";
 import { UserSelection } from "../selection";
 import DateSetter from "./content";
-import { useCardDetailContext } from "@providers/card-detail-context";
-import { useCardDetails } from "@hooks/card-details";
 
 interface PopoverCustomFieldProps {
   open: boolean;
@@ -18,54 +16,17 @@ const PopoverDates: React.FC<PopoverCustomFieldProps> = ({
   setOpen, 
   triggerEl 
 }) => {
-  const { workspaceId, boardId } = useParams();
-  const {selectedCard, setSelectedCard, activeList} =  useCardDetailContext();
-  const { updateCard, isUpdating } = useCardDetails(selectedCard?.id || "", activeList?.id || "", (boardId as string) || "");
-  const [ dates, setDates ] = useState<{startDate: Date | null, dueDate: Date | null, dueDateReminder:string | null}>();
-
-  const onSave = async(startDate: Date | null, dueDate: Date | null, reminder: string | null) => {
-    setDates({
-      startDate: startDate,
-      dueDate: dueDate,
-      dueDateReminder: reminder
-    });
-    updateCard({startDate: startDate || undefined, dueDate: dueDate || undefined, dueDateReminder: reminder || ""})
-  }
-
-  useEffect(() => {
-    setDates({
-      startDate: selectedCard?.startDate || new Date(),
-      dueDate: selectedCard?.dueDate || null,
-      dueDateReminder: selectedCard?.dueDateReminder || ""
-    });
-  }, []);
-
-  useEffect(() => {
-    if (!isUpdating && selectedCard && dates) {
-      setSelectedCard(prevCard => {
-        if (!prevCard) return prevCard;
-        return {
-          ...prevCard,
-          startDate: dates.startDate || undefined,
-          dueDate: dates.dueDate || undefined,
-          dueDateReminder: dates.dueDateReminder || ""
-        };
-      });
-    }
-  }, [isUpdating, dates])
+  const { workspaceId } = useParams();
  
   return (
     <Popover
       content={
-        <div style={{ maxHeight: 'calc(90vh - 60px)', overflowY: 'auto', paddingRight: "10px" }}>
-          <DateSetter
-            onSave={onSave}
-            initialStartDate={dates?.startDate || null}
-            initialDueDate={dates?.dueDate || null}
-            initialReminder={dates?.dueDateReminder || null}
-          />
-        </div>
-      }
+        <DateSetter
+          onSave={() => {}}
+          initialStartDate={null}
+          initialDueDate={null}
+          initialReminder={null}
+        />}
       title={
         <div className="flex justify-between items-center">
           <div className="flex justify-start items-center gap-2">

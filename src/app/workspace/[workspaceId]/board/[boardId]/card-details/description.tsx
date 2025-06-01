@@ -34,12 +34,9 @@ const Description: React.FC<{card: Card, setSelectedCard: Dispatch<SetStateActio
       onSuccess: (data) => {
         console.log("Description update successful:", data);
         if (setSelectedCard) {
-          setSelectedCard(prevCard => {
-            if (!prevCard) return prevCard;
-            return {
-              ...prevCard,
-              description: newDescription
-            };
+          setSelectedCard({
+            ...card,
+            description: newDescription
           });
         }
       },

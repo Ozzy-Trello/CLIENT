@@ -22,7 +22,6 @@ import ModalDashcard from "@components/dashcard/modal-dashcard";
 import { DashcardConfig } from "@myTypes/dashcard";
 import { Card, EnumCardType } from "@myTypes/card";
 import { AnyList } from "@myTypes/list";
-import { useRealtimeUpdates } from "@hooks/websocket";
 
 const DragDropContext = dynamic(
   () => import("@hello-pangea/dnd").then((mod) => mod.DragDropContext),
@@ -46,7 +45,6 @@ const Board: React.FC = () => {
   const { moveList } = useListMove();
   const [ openDashcardModal, setOpenDashcardModal ] = useState<boolean>(false);
   const [ dashcardConfig, setDashcardConfig ] = useState<DashcardConfig>();
-  const { isConnected } = useRealtimeUpdates();
 
   const onListDragEnd = useCallback(
     (result: DropResult) => {
@@ -146,9 +144,6 @@ const Board: React.FC = () => {
         openDashcardModal={openDashcardModal} setOpenDashcardModal={setOpenDashcardModal}
       />
       <CardDetailProvider>
-        {/* <div style={{ position: 'fixed', top: 10, right: 10, zIndex: 1000 }}>
-          WebSocket: {isConnected ? '🟢 Connected' : '🔴 Disconnected'}
-        </div> */}
         <div className="pt-[50px] h-[calc(100vh-30px)] overflow-x-auto overflow-y-hidden min-w-[200px]">
           {!isLoading && (
             <DragDropContext onDragEnd={onListDragEnd}>

@@ -1,28 +1,19 @@
-export enum EnumCustomFieldType {
-  Checkbox = 'checkbox',
-  Dropdown = 'dropdown',
-  Number = 'number',
-  Text = 'text',
-  Date = 'date'
-}
-export enum EnumCustomFieldSource {
-  User = 'user',
-  Custom = 'custom'
-}
-export interface CustomField {
-  id: string;
-  workspaceId?: string;
-  boardId?: string;
-  name: string;
-  description: string;
-  source: string | CustomOption;
-  type?: EnumCustomFieldType;
-  options?: CustomOption[] | undefined;
-  isShowAtFront?: boolean;
-  value?: string;
-}
+import { CustomOption } from "./type";
 
-export interface CustomOption {
-  value: string;
-  label: string;
+export type CustomFieldValueType =
+  | "text"
+  | "number"
+  | "date"
+  | "checkbox"
+  | "dropdown";
+
+export interface CardCustomField {
+  customFieldId: string;
+  cardId?: string;
+  id?: string;
+  name?: string;
+  description?: string;
+  source?: string | CustomOption[];
+  type?: CustomFieldValueType;
+  value?: string;
 }

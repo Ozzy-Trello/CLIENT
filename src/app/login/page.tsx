@@ -75,9 +75,9 @@ export default function LoginPage() {
     <div className="h-screen flex flex-col justify-between items-center bg-gradient-to-br from-gray-100 to-blue-100 overflow-y-scroll">
       <div className="flex justify-center w-full mt-20">
         <div className="flex flex-col items-center p-10 bg-white rounded-lg shadow-md">
-          <Title level={3} className="text-gray-800 mb-2">Ozzy Workflow</Title>
-          <Text type="secondary">Please login to your account</Text>
-          <div className='mb-2'></div>
+          <Title level={3} className="text-gray-800 mb-0">Welcome Back</Title>
+          <Text type="secondary" className="mb-6">Please login to your account</Text>
+          
           <Form
             name="login-form"
             onFinish={onFinish}

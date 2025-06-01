@@ -6,7 +6,7 @@ import {
   DashcardConfig, 
   DashcardFilter, 
   dashcardsFilter, 
-  EnumCardAttributeType, 
+  CardAttributeType, 
   FilterOperator, 
   FilterOption, 
   FilterValue 
@@ -211,7 +211,7 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
                         />
                       </td>
                       <td className="py-2 px-2 flex-1">
-                        {filter.type === EnumCardAttributeType.IS_COMPLETED ? (
+                        {filter.type === CardAttributeType.IS_COMPLETED ? (
                           <Select
                             size="small"
                             options={[

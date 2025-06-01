@@ -1,3 +1,8 @@
+  /**
+   * Raw string inputs for UI editing (not persisted to backend).
+   * Used for handling decimals and localization in number fields.
+   */
+  __rawInputs?: Record<string, string>;
 import { ApiResponse } from "./api";
 
 export interface AdditionalFieldItem {

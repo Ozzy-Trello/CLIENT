@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Button, Input, Popover, Typography } from "antd";
-import { useCardDetailContext } from "@providers/card-detail-context";
-import { useCreateChecklist } from "@hooks/checklist";
+import { useCardDetailContext } from "@/app/provider/card-detail-context";
+import { useCreateChecklist } from "@/app/hooks/checklist";
 
 interface PopoverChecklistProps {
   open: boolean;

@@ -1,22 +1,22 @@
+import { useLists } from "@hooks/list";
 import { generateId } from "@utils/general";
-import { Button, Checkbox, Form, Input, Select, Typography, message } from "antd";
+import { Button, Input, Select, Typography, message } from "antd";
 import { useParams } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
-import { SelectionRef } from "../selection";
+import { ListSelection, SelectionRef } from "../selection";
+import { ChevronRight, Plus } from "lucide-react";
 import { useCardDetailContext } from "@providers/card-detail-context";
-import { CustomField, CustomOption, EnumCustomFieldSource, EnumCustomFieldType } from "@myTypes/custom-field";
-import { Trash } from "lucide-react";
-import { Card } from "@myTypes/card";
+import { CustomField } from "@myTypes/type";
 
 interface AddUpdateFieldProps {
   popoverPage: string;
   setPopoverPage: any;
   selectedCustomField: CustomField | undefined;
   setSelectedCustomField: any;
-  selectedCard: Card | null;
-  createCustomField: (newField: Partial<CustomField>) => void;
-  updateCustomField: ({ customFieldId, updates }: { 
+  addCustomField: (newField: Partial<CustomField>) => void;
+  updateCustomField: ({ customFieldId, workspaceId, updates }: { 
     customFieldId: string, 
+    workspaceId: string; 
     updates: Partial<CustomField> 
   }) => void;
 }
@@ -26,95 +26,124 @@ const AddUpdateField: React.FC<AddUpdateFieldProps> = (props) => {
     popoverPage, 
     setPopoverPage, 
     selectedCustomField, 
-    setSelectedCustomField,
-    selectedCard,
-    createCustomField,
-    updateCustomField,
+    setSelectedCustomField, 
+    addCustomField,
+    updateCustomField: updateCustomFieldMutation
   } = props;
   
   const { workspaceId } = useParams();
   const currentWorkspaceId = Array.isArray(workspaceId) ? workspaceId[0] : workspaceId;
-  const [optionForm] = Form.useForm();
+  const {selectedCard} = useCardDetailContext();
   
   const [newField, setNewField] = useState<CustomField>({
     id: generateId(),
-    workspaceId: currentWorkspaceId || "",
+    boardId: currentWorkspaceId || "",
     name: "",
     description: "",
-    source: "",
-    type: EnumCustomFieldType.Text,
-    isShowAtFront: false
+    source: "user",
+    trigger: {}
   });
+
+
+  const listSelectionRef = useRef<SelectionRef>(null);
+
 
   // Reset the form when popoverPage changes
   useEffect(() => {
-    if (popoverPage === "update" && selectedCustomField) {
-      setNewField(selectedCustomField);
-    } else if (popoverPage === "add") {
-      // Reset to default when adding new field
+    if (popoverPage === "add") {
       setNewField({
         id: generateId(),
-        workspaceId: currentWorkspaceId || "",
+        boardId: currentWorkspaceId || "",
         name: "",
         description: "",
-        source: "",
-        type: EnumCustomFieldType.Text,
-        isShowAtFront: false
+        source: "user",
+        trigger: {}
       });
     }
-  }, [popoverPage, selectedCustomField, currentWorkspaceId]); // Fixed dependencies
+  }, [popoverPage, currentWorkspaceId]);
   
   const isAddMode = popoverPage === "add";
   
-  const change = (key: string, value: any) => {    
+  const change = (key: string, value: string) => {
     if (isAddMode) {
-      // In add mode, update newField
-      setNewField((prev: CustomField) => {
-        const updated = { ...prev, [key]: value };
-        return updated;
-      });
+      setNewField((prev: CustomField) => ({
+        ...prev,
+        [key]: value
+      }));
     } else {
-      // In update mode, update selectedCustomField
-      setSelectedCustomField((prev: CustomField | undefined) => {
-        if (!prev) return prev;
-        const updated = { ...prev, [key]: value };
-        return updated;
-      });
+      setSelectedCustomField((prev: CustomField) => ({
+        ...prev,
+        [key]: value
+      }));
     }
   };
-
-  const handleAddOption = async() => {
-    const values = await optionForm.validateFields();
-    if (values?.option) {
-      let sanitized = values?.option?.trim();
-      let option: CustomOption = {
-        label: sanitized,
-        value: sanitized.replaceAll(" ", "-")
-      }
-      let options: CustomOption[] = [];
-      if (currentField?.options) {
-        options = [...currentField?.options]
-      }
-      options.push(option);
-      change("options", options);
-      optionForm.resetFields();
-    }
-  }
   
-  const deleteOption = (valueToDelete: string) => {
-    let options: CustomOption[] = [];
-    if (currentField?.options) {
-      options = [...currentField?.options]
+  const changeTrigger = (key: string, value: string) => {
+    if (isAddMode) {
+      setNewField((prev: CustomField) => ({
+        ...prev,
+        trigger: {
+          ...prev.trigger,
+          [key]: value
+        }
+      }));
+    } else {
+      setSelectedCustomField((prev: CustomField) => ({
+        ...prev,
+        trigger: {
+          ...prev.trigger,
+          [key]: value
+        }
+      }));
     }
-    options = options.filter((item) => (item.value != valueToDelete));
-    change("options", options);
+  };
+  
+  // const changeTriggerAction = (key: string, value: string) => {
+  //   if (isAddMode) {
+  //     setNewField((prev: CustomField) => ({
+  //       ...prev,
+  //       trigger: {
+  //         ...prev.trigger,
+  //         action: {
+  //           ...prev.trigger.action,
+  //           [key]: value
+  //         }
+  //       }
+  //     }));
+  //   } else {
+  //     setSelectedCustomField((prev: CustomField) => ({
+  //       ...prev,
+  //       trigger: {
+  //         ...prev.trigger,
+  //         action: {
+  //           ...prev.trigger.action,
+  //           [key]: value
+  //         }
+  //       }
+  //     }));
+  //   }
+  // };
+  
+  const cancel = () => {
+    setNewField({ 
+      id: generateId(), 
+      boardId: currentWorkspaceId || "",
+      name: "", 
+      description: "", 
+      source: "user",
+      trigger: {}
+    });
+    setPopoverPage("home");
   }
   
   const handleSave = async() => {
-    const fieldToSave = isAddMode ? newField : selectedCustomField;
-    
     // Validation
-    if (!fieldToSave?.name) {
+    if (isAddMode && !newField.name) {
+      message.error("Field name is required");
+      return;
+    }
+    
+    if (!isAddMode && !selectedCustomField?.name) {
       message.error("Field name is required");
       return;
     }
@@ -126,22 +155,24 @@ const AddUpdateField: React.FC<AddUpdateFieldProps> = (props) => {
           workspaceId: currentWorkspaceId,
         };
         
-        createCustomField(fieldWithWorkspace);
+        addCustomField(fieldWithWorkspace);
         // Reset form
         setNewField({
           id: generateId(),
-          workspaceId: currentWorkspaceId || "",
+          boardId: currentWorkspaceId || "",
           name: "",
           description: "",
-          source: "",
-          type: EnumCustomFieldType.Text,
-          isShowAtFront: false
+          source: "user",
+          trigger: {}
         });
-      }  
+      }
+      // Add workspaceId to the new field
+  
     } else if (!isAddMode && selectedCustomField) {
       // Update existing field
-      updateCustomField({
+      updateCustomFieldMutation({
         customFieldId: selectedCustomField.id,
+        workspaceId: currentWorkspaceId || "",
         updates: selectedCustomField
       });
     }
@@ -150,23 +181,26 @@ const AddUpdateField: React.FC<AddUpdateFieldProps> = (props) => {
     setPopoverPage("home");
   };
   
-  // Use the appropriate field based on mode
   const currentField = isAddMode ? newField : selectedCustomField;
+  useEffect(() => {
+    if (listSelectionRef.current && selectedCustomField?.trigger?.action?.targetListId) {
+      listSelectionRef.current.setValue(selectedCustomField.trigger.action.targetListId);
+    }
+  }, [selectedCustomField, listSelectionRef.current]);
 
   return (
     <div className="h-fit">
-      <div className="max-h-60 overflow-y-auto px-2"> 
+      <div className="max-h-60 overflow-y-auto px-2">
         {/* Title Field */}
         <div className="mb-3 text-xs">
           <label htmlFor="field-name" className="block mb-1.5 font-medium text-gray-600">
             Title
           </label>
           <Input
-            size="small"
             id="field-name"
             name="name"
             className="w-full"
-            value={currentField?.name || ""}
+            value={isAddMode ? newField.name : selectedCustomField?.name || ""}
             onChange={(e) => change("name", e.target.value)}
           />
         </div>
@@ -177,49 +211,45 @@ const AddUpdateField: React.FC<AddUpdateFieldProps> = (props) => {
             Description
           </label>
           <Input
-            size="small"
             id="field-description"
             name="description"
             className="w-full"
-            value={currentField?.description || ""}
+            value={isAddMode ? newField.description : selectedCustomField?.description || ""}
             onChange={(e) => change("description", e.target.value)}
           />
         </div>
         
         {/* Type Field */}
-        <div className="mb-3 text-xs">
+        {/* <div className="mb-3 text-xs">
           <label htmlFor="field-type" className="block mb-1.5 font-medium text-gray-600">
             Type
           </label>
           <Select
-            size="small"
             id="field-type"
             className="w-full"
-            value={currentField?.type}
+            value={isAddMode ? newField.type : selectedCustomField?.type}
             onChange={(value) => change("type", value)}
             options={[
-              {value: EnumCustomFieldType.Text, label: EnumCustomFieldType.Text.toWellFormed()},
-              {value: EnumCustomFieldType.Number, label: EnumCustomFieldType.Number.toWellFormed()},
-              {value: EnumCustomFieldType.Dropdown, label: EnumCustomFieldType.Dropdown.toWellFormed()},
-              {value: EnumCustomFieldType.Date, label: EnumCustomFieldType.Date.toWellFormed()},
-              {value: EnumCustomFieldType.Checkbox, label: EnumCustomFieldType.Checkbox.toWellFormed()},
+              {value: "text", label: "Text"},
+              {value: "number", label: "Number"},
+              {value: "date", label: "Date"},
+              {value: "dropdown", label: "Dropdown"},
+              {value: "checkbox", label: "Checkbox"},
             ]}
           />
-        </div>
+        </div> */}
         
         {/* Conditional Source Field */}
-        { currentField?.type === EnumCustomFieldType.Dropdown && (
+        { selectedCustomField?.type === "dropdown" && (
           <>
-            {/* Source Type */}
             <div className="mb-3 text-xs">
               <label htmlFor="field-source" className="block mb-1.5 font-medium text-gray-600">
                 Source
               </label>
               <Select
-                size="small"
                 id="field-source"
                 className="w-full"
-                value={currentField?.source}
+                value={isAddMode ? newField.source : selectedCustomField?.source}
                 onChange={(value) => {
                   if (typeof value === "string") {
                     change("source", value);
@@ -228,70 +258,47 @@ const AddUpdateField: React.FC<AddUpdateFieldProps> = (props) => {
                   }
                 }}
                 options={[
-                  {value: EnumCustomFieldSource.Custom, label: EnumCustomFieldSource.Custom.toWellFormed()},
-                  {value: EnumCustomFieldSource.User, label: EnumCustomFieldSource.User.toWellFormed()},
+                  {value: "user", label: "User"},
+                  {value: "custom", label: "Custom"},
                 ]}
               />
             </div>
             
-            {/* Added Options */}
-            { currentField?.options && (
-              <>
-                <label htmlFor="field-source" className="block mb-1.5 font-medium text-gray-600">
-                  Options
-                </label>
-                <div className="w-full">
-                  { currentField.options.map((item: CustomOption) => (
-                    <div key={item.value} className="flex gap-2 mb-1 bg-gray-100 rounded px-2">
-                      <span className="w-full">{item.label}</span>
-                      <Button size="small" type="text"><Trash size={12} onClick={() => deleteOption(item.value)} /></Button>
-                    </div>
-                  ))}
-                </div>
-              </>
-            ) }
-
-            {/* Form add option */}
-            { currentField?.source === EnumCustomFieldSource.Custom && (
-              <Form
-                form={optionForm}
-                name="add-option-form"
-                className="flex items-center gap-2"
+            { selectedCustomField.source === "custom" && (
+              <Button 
+                size="small" 
+                className="w-full mb-2" 
+                icon={<ChevronRight size={14} />} 
+                iconPosition="end"
+                onClick={() => {setPopoverPage('custom-option')}}
               >
-                <Form.Item
-                  name="option"
-                  rules={[{ required: true, message: "Please enter option item" }]}
-                >
-                  <Input
-                    id="field-option"
-                    className="w-full"
-                    size="small"
-                    placeholder="option name"
-                  />
-                </Form.Item>
-                <Form.Item>
-                  <Button variant="text" type="text" onClick={handleAddOption}>Add</Button>
-                </Form.Item>
-              </Form>
+                Add option
+              </Button>
             )}
           </>
         )}
 
-        {/* Show at the front card */}
-        <div className="text-[11px] flex gap-2 px-2">
-          <Checkbox 
-            checked={Boolean(currentField?.isShowAtFront)}  
-            onChange={(e) => {
-              change("isShowAtFront", e.target.checked);
-            }}
-          />
-          <span>Show at the front card</span>
-        </div>
+        {/* { popoverPage === "update" && (
+          <Button 
+            size="small" 
+            className="w-full mb-2" 
+            icon={<ChevronRight size={14} />}
+            iconPosition="end"
+            onClick={() => {setPopoverPage('trigger')}}
+          >
+            Set Trigger
+          </Button>
+        ) } */}
       </div>
 
       {/* Action Buttons */}
       <div className="flex gap-2 justify-end items-center mt-4 pt-3 border-t border-gray-100">
-        <Button variant="text" type="text" size="small" color="danger">Delete</Button>
+        <Button 
+          size="small" 
+          onClick={cancel}
+        >
+          Cancel
+        </Button>
         <Button 
           type="primary" 
           size="small" 

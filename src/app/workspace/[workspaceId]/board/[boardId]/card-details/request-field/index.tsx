@@ -1,7 +1,7 @@
-import { CardRequest } from "@dto/types";
+import { CardRequest } from "@/app/dto/types";
 import { Table } from "antd";
-import { useCardDetailContext } from "@providers/card-detail-context";
-import { getRequestsByCardId, updateRequestReceived } from "@api/accurate";
+import { useCardDetailContext } from "@/app/provider/card-detail-context";
+import { getRequestsByCardId, updateRequestReceived } from "@/app/api/accurate";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button, Dropdown, Modal, Input } from "antd";
 import { MoreOutlined } from "@ant-design/icons";

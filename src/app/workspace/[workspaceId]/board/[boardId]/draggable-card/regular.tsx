@@ -1,12 +1,7 @@
-import { CardDateDisplay } from "@components/card-dates";
 import MembersList from "@components/members-list";
-import { useCardCustomField } from "@hooks/card_custom_field";
-import { useCardMembers } from "@hooks/card_member";
-import { Card, CardCustomField } from "@myTypes/card";
+import { Card } from "@myTypes/card";
 import { Checkbox, CheckboxChangeEvent, Tooltip } from "antd";
-import { Calendar, CalendarDays, Clock, MessageSquare, Paperclip, Text } from "lucide-react";
-import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Calendar, CalendarDays, MessageSquare, Paperclip, Text } from "lucide-react";
 
 interface RegularCardProps {
   card: Card;
@@ -17,17 +12,6 @@ interface RegularCardProps {
 
 const RegularCard:React.FC<RegularCardProps> = (props) => {
   const { card, isHovered, onChange, isComplete } = props;
-  const { workspaceId } = useParams();
-  const { cardMembers } = useCardMembers(card?.id);
-  const { cardCustomFields } = useCardCustomField(card.id, workspaceId as string);
-  const [ frontCustomFields, setfrontCustomFields ] = useState<CardCustomField[]>([]);
-
-  useEffect(() => {
-    if (cardCustomFields) {
-      const filtered = cardCustomFields.filter(item => item.isShowAtFront);
-      setfrontCustomFields(filtered);
-    }
-  }, cardCustomFields);
 
   return (
     <div className="w-full">
@@ -74,49 +58,23 @@ const RegularCard:React.FC<RegularCardProps> = (props) => {
             {card.name}
           </h3>
         </div>
-        
-        {/* Dates */}
-        {card?.startDate && (
-          <div className="mb-2">
-            <Tooltip title={"Dates"}>
-              <div className="flex items-center gap-1 text-[10px]">
-                <Clock size={12} strokeWidth={2} />
-                <CardDateDisplay card={card} />
-              </div>
-            </Tooltip>
-          </div>
-        )}
-
-        {/* Time tracking information */}
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2 text-gray-600">
-            <div className="flex items-center gap-1 text-[10px]">
-              <Calendar size={12} />
-              <span className="text-[10px]">{card?.formattedTimeInBoard || "--"}</span>
-            </div>
-            <div className="flex items-center gap-1 text-[10px]">
-              <CalendarDays size={12} />
-              <span className="text-[10px]">{card?.formattedTimeInList || "--"}</span>
-            </div>
-          </div>
-        </div>
       
         {/* Icons row */}
         <div className="flex items-center gap-4 text-gray-600 mb-3">
           <div className="flex items-center gap-1 text-[10px]">
             <Tooltip title={card?.description ? "this card has description" : "no description"}>
-              <Text size={12} strokeWidth={3} />
+              <Text size={13} strokeWidth={3} />
             </Tooltip>
           </div>
           <Tooltip title={"comments"}>
             <div className="flex items-center gap-1 text-[10px]">
-              <MessageSquare size={12} strokeWidth={2} className="font-bold" />
+              <MessageSquare size={13} strokeWidth={2} className="font-bold" />
               <span className="text-sm">{card?.activity?.length || 0}</span>
             </div>
           </Tooltip>
           <Tooltip title={"attachments"}>
             <div className="flex items-center gap-1 text-[10px]">
-              <Paperclip size={12} strokeWidth={2} />
+              <Paperclip size={13} strokeWidth={2} />
               <span className="text-sm">{card?.attachments?.length || 0}</span>
             </div>
           </Tooltip>
@@ -127,24 +85,34 @@ const RegularCard:React.FC<RegularCardProps> = (props) => {
       
         {/* Custom fields */}
         <div className="space-y-2 mb-3">
-          {cardCustomFields?.map((item: CardCustomField, index) => (
-            item.isShowAtFront && (
-              <div key={`${card.id}-field-${index}`} className="text-gray-700 text-[11px]">
-                <span className="font-medium">{item.name}:</span> 
-                {
-                  item.valueUserId || item.valueString || item.valueNumber || item.valueOption
-                  || item.valueCheckbox || item?.valueDate?.toString() || "-"
-                }
-              </div>
-            )
+          {card?.customFields?.map((item, index) => (
+            <div key={`${card.id}-field-${index}`} className="text-gray-700 text-[11px]">
+              <span className="font-medium">{item.name}:</span> {item.value}
+            </div>
           ))}
         </div>
-
-        {cardMembers && (
-          <div className="flex mt-2 gap-1 justify-end">
-            <MembersList members={cardMembers} membersLength={cardMembers?.length} membersLoopLimit={3}/>
+      
+        {/* Date information */}
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2 text-gray-600">
+            <div className="flex items-center gap-1 text-[10px]">
+              <Calendar size={13} />
+              <span className="text-[10px]">{card?.formattedTimeInBoard || "--"}</span>
+            </div>
+            <div className="flex items-center gap-1 text-[10px]">
+              <CalendarDays size={13} />
+              <span className="text-[10px]">{card?.formattedTimeInList || "--"}</span>
+            </div>
           </div>
-        )}
+        
+          {/* Status badges */}
+          {/* {card?.members && (
+            <div className="flex gap-1">
+              <MembersList members={card.members} membersLength={card?.members?.length} membersLoopLimit={3} openAddMember={openAddMember} setOpenAddMember={setOpenAddMember}/>
+            </div>
+          )} */}
+          
+        </div>
       </div>
     </div>
   )

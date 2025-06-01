@@ -1,315 +1,470 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { cardCustomFields, setCardCustomFieldValue } from "../api/card_custom_field";
+import { cardCustomFields } from "../api/card_custom_field";
+import { api } from "../api";
+import { CardCustomField } from "../types/custom-field";
 import { ApiResponse } from "../types/type";
-import { CardCustomField } from "@myTypes/card";
-import { EnumCustomFieldSource, EnumCustomFieldType } from "@myTypes/custom-field";
 
-export const useCardCustomField = (cardId: string, workspaceId: string) => {
+export const useCardCustomField = (cardId: string) => {
   const queryClient = useQueryClient();
- 
+  
   // Main query for card custom fields
   const cardCustomFieldQuery = useQuery({
-    queryKey: ["cardCustomField", cardId, workspaceId],
-    queryFn: () => cardCustomFields(cardId, workspaceId),
-    enabled: !!cardId && !!workspaceId,
+    queryKey: ["cardCustomField", cardId],
+    queryFn: () => cardCustomFields(cardId),
+    enabled: !!cardId,
     staleTime: 5000,
   });
 
-  // Set card custom field value mutation with optimistic update
-  const setValueMutation = useMutation({
-    mutationFn: ({ 
+  // Add custom field value mutation with optimistic updates
+  const addCustomFieldMutation = useMutation({
+    mutationFn: ({
       customFieldId, 
-      updatedData 
-    }: { 
-      customFieldId: string; 
-      updatedData: Partial<CardCustomField> 
-    }) => setCardCustomFieldValue(workspaceId, cardId, customFieldId, updatedData),
-    onMutate: async ({ customFieldId, updatedData }) => {      
+      cardId
+    } : {
+      customFieldId: string, 
+      cardId: string
+    }) => {
+      console.log("API - Adding custom field:", { customFieldId, cardId });
+      // const param = {
+      //   value,
+      //   customFieldId,
+      //   cardId
+      // };
+
+      const params = {
+        value: "e6097fcc-a35b-4a22-9556-8f648c87b103"
+      } 
+
+      return api.post(`/card/${cardId}/custom-field/${customFieldId}`, params);
+    },
+    onMutate: async({ customFieldId, cardId }) => {
+      console.log("Optimistically adding custom field:", { customFieldId, cardId });
+      
       // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ 
-        queryKey: ["cardCustomField", cardId, workspaceId] 
-      });
+      await queryClient.cancelQueries({ queryKey: ["cardCustomField", cardId] });
+      
+      // Snapshot previous value
+      const previousCustomFields = queryClient.getQueryData(["cardCustomField", cardId]);
+      
+      // Create temporary custom field value for optimistic update
+      const tempCustomField: CardCustomField = {
+        customFieldId,
+        cardId,
+        value: ""
+      };
 
-      // Snapshot the previous value
-      const previousCardCustomFields = queryClient.getQueryData<ApiResponse<CardCustomField[]>>(
-        ["cardCustomField", cardId, workspaceId]
-      );
-
-      // Optimistically update to the new value
-      if (previousCardCustomFields?.data) {
-        const updatedFields = previousCardCustomFields.data.map(field => {
-          const isMatch = field.id === customFieldId;
-          
-          return isMatch ? { ...field, ...updatedData } : field;
-        });
-
-        // If the field doesn't exist yet, create it
-        const fieldExists = previousCardCustomFields.data.some(
-          field => field.id === customFieldId
-        );
-
-        if (!fieldExists) {
-          const newField: CardCustomField = {
-            id: customFieldId,
-            cardId,
-            ...updatedData
-          };
-          
-          updatedFields.push(newField);
-        }
-
-        queryClient.setQueryData<ApiResponse<CardCustomField[]>>(
-          ["cardCustomField", cardId, workspaceId],
-          {
-            ...previousCardCustomFields,
-            data: updatedFields
+      try {
+        // Update the UI optimistically
+        queryClient.setQueryData(
+          ["cardCustomField", cardId],
+          (old: ApiResponse<CardCustomField[]> | undefined) => {
+            if (!old) return { data: [tempCustomField] };
+            
+            const oldData = old.data || [];
+            // Make sure old.data is an array
+            const safeOldData = Array.isArray(oldData) ? oldData : [];
+            
+            // Check if this custom field already exists
+            const existingIndex = safeOldData.findIndex(cf => cf.customFieldId === customFieldId);
+            
+            if (existingIndex !== undefined && existingIndex >= 0) {
+              // Update existing custom field
+              const updatedData = [...safeOldData];
+              updatedData[existingIndex] = { 
+                ...updatedData[existingIndex], 
+                value: ""
+              };
+              return { ...old, data: updatedData };
+            } else {
+              // Add new custom field
+              return {
+                ...old,
+                data: [...safeOldData, tempCustomField]
+              };
+            }
           }
         );
+      } catch (error) {
+        console.error("Error in optimistic update:", error);
       }
-
-      // Return a context object with the snapshotted value
-      return { previousCardCustomFields };
+      
+      // Also update the card data in cache if it exists
+      try {
+        updateCardInCache(queryClient, cardId, customFieldId, "");
+      } catch (error) {
+        console.error("Error updating card cache:", error);
+      }
+      
+      return { previousCustomFields };
     },
     onError: (err, variables, context) => {
-      // If the mutation fails, use the context returned from onMutate to roll back
-      if (context?.previousCardCustomFields) {
+      console.error("Error adding custom field:", err);
+      if (context?.previousCustomFields) {
         queryClient.setQueryData(
-          ["cardCustomField", cardId, workspaceId],
-          context.previousCardCustomFields
+          ["cardCustomField", variables.cardId], 
+          context.previousCustomFields
         );
       }
     },
-    onSuccess: (data) => {
-      // Update with the actual server response
-      if (data?.data) {
-        queryClient.setQueryData<ApiResponse<CardCustomField[]>>(
-          ["cardCustomField", cardId, workspaceId],
-          data
-        );
-      }
+    onSuccess: (data, variables) => {
+      console.log("Successfully added custom field:", variables);
     },
-    // Remove onSettled to prevent unnecessary refetches that override our data
-    // onSettled: () => {
-    //   queryClient.invalidateQueries({ 
-    //     queryKey: ["cardCustomField", cardId, workspaceId] 
-    //   });
-    // },
+    onSettled: (data, error, variables) => {
+      console.log("Add custom field settled, invalidating queries");
+      queryClient.invalidateQueries({ 
+        queryKey: ["cardCustomField", variables.cardId] 
+      });
+      
+      // Also invalidate card queries that might contain custom field data
+      queryClient.invalidateQueries({ 
+        queryKey: ["cards"]
+      });
+    },
   });
 
-  // Helper function to set string value
-  const setStringValue = (customFieldId: string, value: string) => {
-    setValueMutation.mutate({
-      customFieldId,
-      updatedData: { 
-        valueString: value,
-        // Don't clear other fields - let the backend handle this
-        // The backend should return the complete updated record
+  // Update custom field value mutation
+  const updateCustomFieldMutation = useMutation({
+    mutationFn: ({
+      value, 
+      customFieldId, 
+      cardId
+    } : {
+      value: string | number | boolean, 
+      customFieldId: string, 
+      cardId: string
+    }) => {
+      console.log("API - Updating custom field:", { value, customFieldId, cardId });
+      // Convert value to string if it's not already
+      const stringValue = value?.toString() || "";
+      const param = {
+        value: stringValue
+      };
+      
+      // Make sure all parameters are defined before making the request
+      if (!cardId || !customFieldId) {
+        console.error("Missing required parameters:", { cardId, customFieldId });
+        return Promise.reject(new Error("Missing required parameters"));
       }
-    });
-  };
-
-  // Helper function to set number value
-  const setNumberValue = (customFieldId: string, value: number) => {
-    setValueMutation.mutate({
-      customFieldId,
-      updatedData: { 
-        valueNumber: value,
+      
+      // Make a direct API call
+      return api.put(`/card/${cardId}/custom-field/${customFieldId}`, param);
+    },
+    onMutate: async({ value, customFieldId, cardId }) => {
+      console.log("Optimistically updating custom field:", { value, customFieldId, cardId });
+      
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["cardCustomField", cardId] });
+      
+      // Snapshot previous value
+      const previousCustomFields = queryClient.getQueryData(["cardCustomField", cardId]);
+      
+      // Convert value to string if it's not already
+      const stringValue = value?.toString() || "";
+      
+      try {
+        // Update the UI optimistically
+        queryClient.setQueryData(
+          ["cardCustomField", cardId],
+          (old: ApiResponse<CardCustomField[]> | undefined) => {
+            if (!old) return { data: [] };
+            
+            const oldData = old.data || [];
+            // Make sure old.data is an array
+            const safeOldData = Array.isArray(oldData) ? oldData : [];
+            
+            return {
+              ...old,
+              data: safeOldData.map(customField =>
+                customField.customFieldId === customFieldId 
+                  ? { ...customField, value: stringValue } 
+                  : customField
+              )
+            };
+          }
+        );
+      } catch (error) {
+        console.error("Error in optimistic update:", error);
       }
-    });
-  };
-
-  // Helper function to set option value
-  const setOptionValue = (customFieldId: string, value: string) => {
-    setValueMutation.mutate({
-      customFieldId,
-      updatedData: { 
-        valueOption: value,
+      
+      // Also update the card data in cache if it exists
+      try {
+        updateCardInCache(queryClient, cardId, customFieldId, stringValue);
+      } catch (error) {
+        console.error("Error updating card cache:", error);
       }
-    });
-  };
-
-  // Helper function to set checkbox value
-  const setCheckboxValue = (customFieldId: string, value: boolean) => {
-    setValueMutation.mutate({
-      customFieldId,
-      updatedData: { 
-        valueCheckbox: value,
+      
+      return { previousCustomFields };
+    },
+    onError: (err, variables, context) => {
+      console.error("Error updating custom field:", err);
+      if (context?.previousCustomFields) {
+        queryClient.setQueryData(
+          ["cardCustomField", variables.cardId], 
+          context.previousCustomFields
+        );
       }
-    });
-  };
+    },
+    onSuccess: (data, variables) => {
+      console.log("Successfully updated custom field:", variables);
+    },
+    onSettled: (data, error, variables) => {
+      console.log("Update custom field settled, invalidating queries");
+      queryClient.invalidateQueries({ 
+        queryKey: ["cardCustomField", variables.cardId] 
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: ["cards"]
+      });
+    },
+  });
 
-  // Helper function to set date value
-  const setDateValue = (customFieldId: string, value: Date) => {
-    setValueMutation.mutate({
-      customFieldId,
-      updatedData: { 
-        valueDate: value,
+  // Delete custom field value mutation
+  const deleteCustomFieldMutation = useMutation({
+    mutationFn: ({
+      customFieldId, 
+      cardId
+    } : {
+      customFieldId: string, 
+      cardId: string
+    }) => {
+      console.log("API - Deleting custom field:", { customFieldId, cardId });
+      // Make sure all parameters are defined before making the request
+      if (!cardId || !customFieldId) {
+        console.error("Missing required parameters:", { cardId, customFieldId });
+        return Promise.reject(new Error("Missing required parameters"));
       }
-    });
-  };
-
-  // Helper function to set user ID value
-  const setUserValue = (customFieldId: string, value: string) => {
-    setValueMutation.mutate({
-      customFieldId,
-      updatedData: { 
-        valueUserId: value,
+      
+      return api.delete(`/card/${cardId}/custom-field/${customFieldId}`);
+    },
+    onMutate: async({ customFieldId, cardId }) => {
+      console.log("Optimistically deleting custom field:", { customFieldId, cardId });
+      
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["cardCustomField", cardId] });
+      
+      // Snapshot previous value
+      const previousCustomFields = queryClient.getQueryData(["cardCustomField", cardId]);
+      
+      try {
+        // Update the UI optimistically
+        queryClient.setQueryData(
+          ["cardCustomField", cardId],
+          (old: ApiResponse<CardCustomField[]> | undefined) => {
+            if (!old) return { data: [] };
+            
+            const oldData = old.data || [];
+            // Make sure old.data is an array
+            const safeOldData = Array.isArray(oldData) ? oldData : [];
+            
+            return {
+              ...old,
+              data: safeOldData.filter(customField => 
+                customField.customFieldId !== customFieldId
+              )
+            };
+          }
+        );
+      } catch (error) {
+        console.error("Error in optimistic update:", error);
       }
-    });
-  };
+      
+      // Also update the card data in cache if it exists
+      try {
+        updateCardInCache(queryClient, cardId, customFieldId, null, true);
+      } catch (error) {
+        console.error("Error updating card cache:", error);
+      }
+      
+      return { previousCustomFields };
+    },
+    onError: (err, variables, context) => {
+      console.error("Error deleting custom field:", err);
+      if (context?.previousCustomFields) {
+        queryClient.setQueryData(
+          ["cardCustomField", variables.cardId], 
+          context.previousCustomFields
+        );
+      }
+    },
+    onSuccess: (data, variables) => {
+      console.log("Successfully deleted custom field:", variables);
+    },
+    onSettled: (data, error, variables) => {
+      console.log("Delete custom field settled, invalidating queries");
+      queryClient.invalidateQueries({ 
+        queryKey: ["cardCustomField", variables.cardId] 
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: ["cards"]
+      });
+    },
+  });
 
-  // Generic helper to set value based on type
-  const setValue = (customFieldId: string, value: any, source: EnumCustomFieldSource, type: EnumCustomFieldType) => {
-    switch (type) {
-      case EnumCustomFieldType.Text:
-        setStringValue(customFieldId, value);
-        break;
-      case EnumCustomFieldType.Number:
-        setNumberValue(customFieldId, Number(value));
-        break;
-      case EnumCustomFieldType.Dropdown:
-        setOptionValue(customFieldId, value);
-        break;
-      case EnumCustomFieldType.Checkbox:
-        setCheckboxValue(customFieldId, Boolean(value));
-        break;
-      case EnumCustomFieldType.Date:
-        setDateValue(customFieldId, value instanceof Date ? value : new Date(value));
-        break;
-      default:
-        if (source === EnumCustomFieldSource.User) {
-          setUserValue(customFieldId, value);
-        } else {
-          console.warn(`Unknown custom field type: ${type}`);
+  // Helper function to update card in cache when custom fields change
+  function updateCardInCache(
+    queryClient: any, 
+    cardId: string, 
+    customFieldId: string,
+    value: string | null,
+    isDelete: boolean = false
+  ) {
+    try {
+      // Update card data in the cards cache
+      queryClient.setQueriesData(
+        { queryKey: ["cards"] },
+        (old: any) => {
+          if (!old || !old.data) return old;
+          
+          const oldData = old.data || [];
+          // Ensure old.data is an array before mapping
+          const safeData = Array.isArray(oldData) ? oldData : [];
+          
+          return {
+            ...old,
+            data: safeData.map((card: any) => {
+              if (card.id === cardId) {
+                // Deep clone to avoid mutation
+                const updatedCard = { ...card };
+                
+                // Initialize customFields array if it doesn't exist
+                if (!updatedCard.customFields) {
+                  updatedCard.customFields = [];
+                }
+                
+                const cardCustomFields = updatedCard.customFields || [];
+                // Ensure customFields is an array
+                const safeCustomFields = Array.isArray(cardCustomFields) ? cardCustomFields : [];
+                
+                if (isDelete) {
+                  // Remove the custom field
+                  updatedCard.customFields = safeCustomFields.filter(
+                    (cf: any) => cf.customFieldId !== customFieldId
+                  );
+                } else {
+                  // Find if the custom field already exists
+                  const existingIndex = safeCustomFields.findIndex(
+                    (cf: any) => cf.customFieldId === customFieldId
+                  );
+                  
+                  if (existingIndex >= 0) {
+                    // Update existing field
+                    const updatedFields = [...safeCustomFields];
+                    updatedFields[existingIndex] = {
+                      ...updatedFields[existingIndex],
+                      value
+                    };
+                    updatedCard.customFields = updatedFields;
+                  } else {
+                    // Add new field
+                    updatedCard.customFields = [
+                      ...safeCustomFields,
+                      { customFieldId, cardId, value }
+                    ];
+                  }
+                }
+                
+                return updatedCard;
+              }
+              return card;
+            })
+          };
         }
+      );
+
+      // Also update lists cache if it contains cards
+      queryClient.setQueriesData(
+        { queryKey: ["lists"] },
+        (old: any) => {
+          if (!old || !old.data) return old;
+          
+          const oldData = old.data || [];
+          // Ensure old.data is an array before mapping
+          const safeData = Array.isArray(oldData) ? oldData : [];
+          
+          return {
+            ...old,
+            data: safeData.map((list: any) => {
+              if (!list.cards) return list;
+              
+              const listCards = list.cards || [];
+              // Ensure list.cards is an array
+              const safeCards = Array.isArray(listCards) ? listCards : [];
+              
+              return {
+                ...list,
+                cards: safeCards.map((card: any) => {
+                  if (card.id === cardId) {
+                    // Deep clone to avoid mutation
+                    const updatedCard = { ...card };
+                    
+                    // Initialize customFields array if it doesn't exist
+                    if (!updatedCard.customFields) {
+                      updatedCard.customFields = [];
+                    }
+                    
+                    const cardCustomFields = updatedCard.customFields || [];
+                    // Ensure customFields is an array
+                    const safeCustomFields = Array.isArray(cardCustomFields) ? cardCustomFields : [];
+                    
+                    if (isDelete) {
+                      // Remove the custom field
+                      updatedCard.customFields = safeCustomFields.filter(
+                        (cf: any) => cf.customFieldId !== customFieldId
+                      );
+                    } else {
+                      // Find if the custom field already exists
+                      const existingIndex = safeCustomFields.findIndex(
+                        (cf: any) => cf.customFieldId === customFieldId
+                      );
+                      
+                      if (existingIndex >= 0) {
+                        // Update existing field
+                        const updatedFields = [...safeCustomFields];
+                        updatedFields[existingIndex] = {
+                          ...updatedFields[existingIndex],
+                          value
+                        };
+                        updatedCard.customFields = updatedFields;
+                      } else {
+                        // Add new field
+                        updatedCard.customFields = [
+                          ...safeCustomFields,
+                          { customFieldId, cardId, value }
+                        ];
+                      }
+                    }
+                    
+                    return updatedCard;
+                  }
+                  return card;
+                })
+              };
+            })
+          };
+        }
+      );
+    } catch (error) {
+      console.error("Error in updateCardInCache:", error);
     }
-  };
+  }
 
-  // Helper function to get the actual value regardless of type
-  const getValue = (customFieldId: string): any => {
-    const field = cardCustomFieldQuery.data?.data?.find(
-      field => field.id === customFieldId
-    );
-    
-    if (!field) return null;
-
-    // Return the appropriate value based on what's set
-    if (field.valueString !== undefined && field.valueString !== null && field.valueString !== '') return field.valueString;
-    if (field.valueNumber !== undefined && field.valueNumber !== null) return field.valueNumber;
-    if (field.valueOption !== undefined && field.valueOption !== null && field.valueOption !== '') return field.valueOption;
-    if (field.valueCheckbox !== undefined && field.valueCheckbox !== null) return field.valueCheckbox;
-    if (field.valueDate !== undefined && field.valueDate !== null) return field.valueDate;
-    if (field.valueUserId !== undefined && field.valueUserId !== null && field.valueUserId !== '') return field.valueUserId;
-
-    return null;
-  };
-
-  // Helper function to get a specific custom field
-  const getCustomField = (customFieldId: string): CardCustomField | undefined => {
-    const field = cardCustomFieldQuery.data?.data?.find(
-      field => field.id === customFieldId
-    );
-    return field;
-  };
-
-  // Helper function to get specific value types
-  const getStringValue = (customFieldId: string): string | null => {
-    const field = getCustomField(customFieldId);
-    const value = field?.valueString || null;
-    return value;
-  };
-
-  const getNumberValue = (customFieldId: string): number | null => {
-    const field = getCustomField(customFieldId);
-    return field?.valueNumber || null;
-  };
-
-  const getOptionValue = (customFieldId: string): string | null => {
-    const field = getCustomField(customFieldId);
-    return field?.valueOption || null;
-  };
-
-  const getCheckboxValue = (customFieldId: string): boolean | null => {
-    const field = getCustomField(customFieldId);
-    return field?.valueCheckbox || null;
-  };
-
-  const getDateValue = (customFieldId: string): Date | null => {
-    const field = getCustomField(customFieldId);
-    return field?.valueDate || null;
-  };
-
-  const getUserValue = (customFieldId: string): string | null => {
-    const field = getCustomField(customFieldId);
-    return field?.valueUserId || null;
-  };
-
-  // Helper function to update multiple properties of a custom field
-  const updateCustomField = (customFieldId: string, updates: Partial<CardCustomField>) => {
-    setValueMutation.mutate({
-      customFieldId,
-      updatedData: updates
-    });
-  };
-
-  // Helper function to check if a custom field has any value
-  const hasValue = (customFieldId: string): boolean => {
-    const field = getCustomField(customFieldId);
-    if (!field) return false;
-
-    return !!(
-      (field.valueString && field.valueString !== '') ||
-      field.valueNumber !== undefined ||
-      (field.valueOption && field.valueOption !== '') ||
-      field.valueCheckbox !== undefined ||
-      field.valueDate ||
-      (field.valueUserId && field.valueUserId !== '')
-    );
+  // For debugging and testing
+  const directUpdateField = (customFieldId: string, value: string) => {
+    console.log("Making direct update with:", { customFieldId, value, cardId });
+    return api.put(`/card/${cardId}/custom-field/${customFieldId}`, { value });
   };
 
   return {
-    // Query data and state
     cardCustomFields: cardCustomFieldQuery.data?.data || [],
     isLoading: cardCustomFieldQuery.isLoading,
     isError: cardCustomFieldQuery.isError,
     error: cardCustomFieldQuery.error,
-    
-    // Type-specific value setters
-    setStringValue,
-    setNumberValue,
-    setOptionValue,
-    setCheckboxValue,
-    setDateValue,
-    setUserValue,
-    setValue, // Generic setter based on type
-    
-    // Value getters
-    getValue, // Generic getter
-    getStringValue,
-    getNumberValue,
-    getOptionValue,
-    getCheckboxValue,
-    getDateValue,
-    getUserValue,
-    
-    // General mutations
-    updateCustomField,
-    
-    // Mutation states
-    isUpdating: setValueMutation.isPending,
-    updateError: setValueMutation.error,
-    
-    // Helper functions
-    getCustomField,
-    hasValue,
-    
-    // Async versions for when you need promises
-    setValueAsync: setValueMutation.mutateAsync,
-    
-    // Raw mutation for advanced usage
-    setValueMutation: setValueMutation.mutate,
-    
-    // For debugging
-    refetch: cardCustomFieldQuery.refetch,
+    addCustomField: addCustomFieldMutation.mutate,
+    updateCustomField: updateCustomFieldMutation.mutate,
+    deleteCustomField: deleteCustomFieldMutation.mutate,
+    directUpdateField, // Direct update function for testing
+    isAddingCustomField: addCustomFieldMutation.isPending,
+    isUpdatingCustomField: updateCustomFieldMutation.isPending,
+    isDeletingCustomField: deleteCustomFieldMutation.isPending,
   };
 };

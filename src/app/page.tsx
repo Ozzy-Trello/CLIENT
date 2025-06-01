@@ -1,14 +1,13 @@
 "use client";
 import { useRouter } from "next/navigation";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect } from "react";
 import { useSelector } from "react-redux";
-import TokenStorage from "@utils/token-storage";
-import { useWebSocketCardUpdates } from "@hooks/card";
+import { selectAccessToken } from "../store/app_slice";
 
 export default function Home() {
 
   const router = useRouter();
-  const accessToken = TokenStorage.getAccessToken();
+  const accessToken = useSelector(selectAccessToken);
 
   useEffect(() => {
     if (accessToken) {

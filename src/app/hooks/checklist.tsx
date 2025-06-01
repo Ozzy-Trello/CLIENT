@@ -6,7 +6,7 @@ import {
   getChecklistsByCardId, 
   updateChecklist 
 } from "../api/checklist";
-import { ChecklistDTO, ChecklistItem, CreateChecklistDTO, UpdateChecklistDTO } from "@myTypes/checklist";
+import { ChecklistDTO, ChecklistItem, CreateChecklistDTO, UpdateChecklistDTO } from "../types/checklist";
 
 /**
  * Hook to fetch all checklists for a card

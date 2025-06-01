@@ -37,6 +37,24 @@ export interface AcitivitySource {
   tagName: string;
 }
 
+export interface CustomField {
+  id: string;
+  triggerId?: string;
+  boardId: string;
+  name: string;
+  description: string;
+  source: string | CustomOption;
+  type?: CustomFieldValueType;
+  trigger: Trigger;
+  value?: string;
+}
+
+export interface CustomOption {
+  value: string;
+  label: string;
+}
+
+
 // Automation Rule interface to accomodate selection state of automation rule setting
 export interface AutomationRule {
   triggerType: string;

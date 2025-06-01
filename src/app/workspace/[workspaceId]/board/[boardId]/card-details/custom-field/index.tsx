@@ -1,336 +1,223 @@
 import { SelectionRef, UserSelection } from "@components/selection";
 import { useCardCustomField } from "@hooks/card_custom_field";
 import { useCardDetailContext } from "@providers/card-detail-context";
-import { Checkbox, DatePicker, Input, Select, message } from "antd";
+import { Checkbox, Input, Select, message } from "antd";
 import { List, StretchHorizontal, TextCursorInput } from "lucide-react";
 import { Fragment, useEffect, useRef, useState } from "react";
 import { useLists } from "@hooks/list";
 import { useParams } from "next/navigation";
+import { CustomField } from "@myTypes/type";
 import api from "@api/index";
-import { CustomField, EnumCustomFieldSource, EnumCustomFieldType } from "@myTypes/custom-field";
-import { Card, CardCustomField, EnumAttachmentType, EnumCardType } from "@myTypes/card";
-import dayjs, { Dayjs } from "dayjs";
-import { setCardCustomFieldValue } from "@api/card_custom_field";
 
 interface CustomFieldsProps {
-  card: Card | null;
-  setCard: React.Dispatch<React.SetStateAction<Card | null>>;
+  customFields: CustomField[];
 }
-
-// Custom hook for Enter-to-save functionality
-function useEnterToSave<T>(
-  initialValue: T,
-  onSave: (value: T) => void,
-  options?: {
-    saveOnBlur?: boolean;
-  }
-) {
-  const [localValue, setLocalValue] = useState<T>(initialValue);
-  const [hasChanges, setHasChanges] = useState(false);
-
-  // Update local value when initial value changes externally
-  useEffect(() => {
-    setLocalValue(initialValue);
-    setHasChanges(false);
-  }, [initialValue]);
-
-  const handleChange = (value: T) => {
-    setLocalValue(value);
-    setHasChanges(value !== initialValue);
-  };
-
-  const save = () => {
-    if (hasChanges) {
-      onSave(localValue);
-      setHasChanges(false);
-    }
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      save();
-    }
-  };
-
-  const handleBlur = () => {
-    if (options?.saveOnBlur) {
-      save();
-    }
-  };
-
-  const reset = () => {
-    setLocalValue(initialValue);
-    setHasChanges(false);
-  };
-
-  return {
-    value: localValue,
-    hasChanges,
-    onChange: handleChange,
-    onKeyPress: handleKeyPress,
-    onBlur: handleBlur,
-    save,
-    reset
-  };
-}
-
-// Enter-to-save Input component
-const EnterToSaveInput: React.FC<{
-  placeholder?: string;
-  initialValue: string;
-  onSave: (value: string) => void;
-  className?: string;
-  type?: string;
-  fieldName?: string; // For debugging
-}> = ({ placeholder, initialValue, onSave, className, type = "text", fieldName }) => {
-
-  const {
-    value,
-    hasChanges,
-    onChange,
-    onKeyPress,
-    onBlur
-  } = useEnterToSave(
-    initialValue,
-    onSave,
-    { saveOnBlur: true }
-  );
-
-  return (
-    <div className="relative">
-      <Input
-        type={type}
-        placeholder={placeholder}
-        className={`${className} ${hasChanges ? 'border-blue-400' : ''}`}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onKeyPress={onKeyPress}
-        onBlur={onBlur}
-      />
-      {hasChanges && (
-        <div className="absolute right-2 top-1/2 transform -translate-y-1/2 pointer-events-none">
-          <span className="text-xs text-blue-500 bg-white px-1">↵</span>
-        </div>
-      )}
-    </div>
-  );
-};
-
-// Enter-to-save Number Input component
-const EnterToSaveNumberInput: React.FC<{
-  placeholder?: string;
-  initialValue: number | undefined | null;
-  onSave: (value: number) => void;
-  className?: string;
-  fieldName?: string; // For debugging
-}> = ({ placeholder, initialValue, onSave, className, fieldName }) => {
-  
-  const {
-    value,
-    hasChanges,
-    onChange,
-    onKeyPress,
-    onBlur
-  } = useEnterToSave(
-    initialValue?.toString() || "",
-    (stringValue) => {
-      const numValue = parseFloat(stringValue);
-      if (!isNaN(numValue)) {
-        onSave(numValue);
-      }
-    },
-    { saveOnBlur: true }
-  );
-
-  return (
-    <div className="relative">
-      <Input
-        type="number"
-        placeholder={placeholder}
-        className={`${className} ${hasChanges ? 'border-blue-400' : ''}`}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onKeyPress={onKeyPress}
-        onBlur={onBlur}
-      />
-      {hasChanges && (
-        <div className="absolute right-2 top-1/2 transform -translate-y-1/2 pointer-events-none">
-          <span className="text-xs text-blue-500 bg-white px-1">↵</span>
-        </div>
-      )}
-    </div>
-  );
-};
 
 const CustomFields: React.FC<CustomFieldsProps> = (props) => {
-  const { card, setCard } = props;
-  const params = useParams();
-  const workspaceId = Array.isArray(params.workspaceId) ? params.workspaceId[0] : params.workspaceId;
-  const boardId = Array.isArray(params.boardId) ? params.boardId[0] : params.boardId;
+  const { customFields } = props;
+  const { selectedCard } = useCardDetailContext();
   const { 
-    cardCustomFields,
-    setStringValue,
-    setNumberValue,
-    setCheckboxValue,
-    setDateValue,
-    setOptionValue,
-    setUserValue,
-    isUpdating,
-    isLoading
-  } = useCardCustomField(card?.id || '', workspaceId);
+    cardCustomFields, 
+    updateCustomField, 
+    addCustomField,
+    isUpdatingCustomField,
+    isAddingCustomField 
+  } = useCardCustomField(selectedCard?.id || '');
   
   const [messageApi, contextHolder] = message.useMessage();
-  
+  const [fieldValues, setFieldValues] = useState<Record<string, any>>({});
+  const [loading, setLoading] = useState<Record<string, boolean>>({});
+  const params = useParams();
+  const boardId = Array.isArray(params.boardId) ? params.boardId[0] : params.boardId;
   const { lists } = useLists(boardId || '');
+  
   
   // Create a map of refs for user selection fields
   const userSelectionRefs = useRef<Map<string, SelectionRef>>(new Map());
 
-  // Handle value changes for different field types
-  const handleStringValueChange = (fieldId: string, value: string) => {
-    if (!fieldId) {
-      messageApi.error("Missing field ID");
-      return;
+  // Initialize field values from props
+  useEffect(() => {
+    if (customFields) {
+      const initialValues: Record<string, any> = {};
+      
+      customFields.forEach(field => {
+        // Make sure cardCustomFields is an array before using find
+        const customFieldsArray = Array.isArray(cardCustomFields) ? cardCustomFields : [];
+        
+        // Find matching custom field value
+        const customFieldValue = customFieldsArray.find(cf => cf.id === field.id);
+        
+        if (customFieldValue) {
+          initialValues[field.id] = customFieldValue.value;
+        } else {
+          initialValues[field.id] = null;
+        }
+      });
+      
+      setFieldValues(initialValues);
     }
-    if (!card?.id) {
-      messageApi.error("Missing card ID");
-      return;
-    }
-    setStringValue(fieldId, value);
-  };
+  }, [customFields, cardCustomFields]);
 
-  const handleNumberValueChange = (fieldId: string, value: number) => {
-    if (!fieldId) {
-      messageApi.error("Missing field ID");
-      return;
+  // Update loading states when mutations complete
+  useEffect(() => {
+    if (!isUpdatingCustomField && !isAddingCustomField) {
+      setLoading({});
     }
-    if (!card?.id) {
-      messageApi.error("Missing card ID");
-      return;
-    }
-    setNumberValue(fieldId, value);
-  };
+  }, [isUpdatingCustomField, isAddingCustomField]);
 
-  const handleCheckboxValueChange = (fieldId: string, value: boolean) => {
+  // Handle value changes for all field types
+  const handleValueChange = (fieldId: string, value: any) => {
     if (!fieldId) {
       messageApi.error("Missing field ID");
       return;
     }
-    if (!card?.id) {
+    
+    if (!selectedCard?.id) {
       messageApi.error("Missing card ID");
       return;
     }
-    setCheckboxValue(fieldId, value);
-  };
-
-  const handleDateValueChange = (fieldId: string, value: Date | null) => {
-    if (!fieldId) {
-      messageApi.error("Missing field ID");
-      return;
+    
+    // Update local state first
+    setFieldValues(prev => ({
+      ...prev,
+      [fieldId]: value
+    }));
+    
+    // Set this field as loading
+    setLoading(prev => ({
+      ...prev,
+      [fieldId]: true
+    }));
+    
+    // Ensure value is a string (or appropriate type for the backend)
+    const processedValue = value?.toString() || "";
+    
+    try {
+      // Make sure cardCustomFields is an array before using find
+      const customFieldsArray = Array.isArray(cardCustomFields) ? cardCustomFields : [];
+      
+      // Check if we have a field value already
+      const existingValue = customFieldsArray.find(cf => cf.id === fieldId);
+      
+      // Use the existing axios-based API directly
+      if (existingValue) {
+        // Use PUT for existing fields
+        api.put(`/card/${selectedCard.id}/custom-field/${fieldId}`, { value: processedValue })
+          .then(response => {
+            console.log("Direct API update succeeded:", response);
+            messageApi.success("Field updated successfully");
+            
+            // Reset loading state
+            setLoading(prev => ({
+              ...prev,
+              [fieldId]: false
+            }));
+          })
+          .catch(error => {
+            console.error("Direct API update failed:", error);
+            messageApi.error("Failed to update field");
+            
+            // Reset loading state
+            setLoading(prev => ({
+              ...prev,
+              [fieldId]: false
+            }));
+          });
+      } else {
+        // Use POST for new fields
+        api.post(`/card/${selectedCard.id}/custom-field/${fieldId}`, { 
+          value: processedValue,
+          customFieldId: fieldId,
+          cardId: selectedCard.id
+        })
+          .then(response => {
+            console.log("Direct API create succeeded:", response);
+            messageApi.success("Field created successfully");
+            
+            // Reset loading state
+            setLoading(prev => ({
+              ...prev,
+              [fieldId]: false
+            }));
+          })
+          .catch(error => {
+            console.error("Direct API create failed:", error);
+            messageApi.error("Failed to create field");
+            
+            // Reset loading state
+            setLoading(prev => ({
+              ...prev,
+              [fieldId]: false
+            }));
+          });
+      }
+    } catch (error) {
+      console.error("Error updating field:", error);
+      messageApi.error("Failed to update field");
+      
+      // Reset loading state on error
+      setLoading(prev => ({
+        ...prev,
+        [fieldId]: false
+      }));
     }
-    if (!card?.id) {
-      messageApi.error("Missing card ID");
-      return;
-    }
-    if (value) {
-      setDateValue(fieldId, value);
-    }
-  };
-
-  const handleOptionValueChange = (fieldId: string, value: string) => {
-    if (!fieldId) {
-      messageApi.error("Missing field ID");
-      return;
-    }
-    if (!card?.id) {
-      messageApi.error("Missing card ID");
-      return;
-    }
-    setOptionValue(fieldId, value);
-  };
-
-  const handleUserValueChange = (fieldId: string, value: string) => {
-    if (!fieldId) {
-      messageApi.error("Missing field ID");
-      return;
-    }
-    if (!card?.id) {
-      messageApi.error("Missing card ID");
-      return;
-    }
-    setUserValue(fieldId, value);
   };
 
   // Group fields into rows of 3
   const getFieldRows = () => {
     const rows = [];
-    for (let i = 0; i < cardCustomFields.length; i += 3) {
-      rows.push(cardCustomFields.slice(i, i + 3));
+    for (let i = 0; i < customFields.length; i += 3) {
+      rows.push(customFields.slice(i, i + 3));
     }
     return rows;
   };
 
   // Render appropriate input based on field type
-  const renderFieldInput = (field: CardCustomField) => {
-    if (!field.id) return null;
+  const renderFieldInput = (field: CustomField) => {
+    const fieldType: string = field.type || 'select';
+    const fieldValue = fieldValues[field.id];
+    const isFieldLoading = loading[field.id] || false;
 
-    switch (field?.type) {
-      case EnumCustomFieldType.Checkbox:
+    switch (fieldType) {
+      case 'checkbox':
         return (
           <Checkbox 
-            checked={Boolean(field?.valueCheckbox)}
-            onChange={(e) => handleCheckboxValueChange(field.id!, e.target.checked)}
+            checked={Boolean(fieldValue)}
+            onChange={(e) => handleValueChange(field.id, e.target.checked)}
+            disabled={isFieldLoading}
           />
         );
-      
-      case EnumCustomFieldType.Text:
+      case 'string':
         return (
-          <EnterToSaveInput
-            fieldName={field.name}
+          <Input
             placeholder={`Add ${field.name}...`}
             className="w-full"
-            initialValue={field.valueString || ""}
-            onSave={(value) => handleStringValueChange(field.id!, value)}
+            value={fieldValue as string || ''}
+            onChange={(e) => handleValueChange(field.id, e.target.value)}
+            disabled={isFieldLoading}
           />
         );
-      
-      case EnumCustomFieldType.Number:
+      case 'number':
         return (
-          <EnterToSaveNumberInput
-            fieldName={field.name}
+          <Input
+            type="number"
             placeholder={`Add ${field.name}...`}
             className="w-full"
-            initialValue={field.valueNumber}
-            onSave={(value) => handleNumberValueChange(field.id!, value)}
+            value={fieldValue as number || ''}
+            onChange={(e) => handleValueChange(field.id, Number(e.target.value))}
+            disabled={isFieldLoading}
           />
         );
-      
-      case EnumCustomFieldType.Date:
-        const dateValue = field.valueDate ? dayjs(field.valueDate) : null;
-        return (
-          <DatePicker
-            className="w-full"
-            placeholder={`Select ${field.name}...`}
-            value={dateValue}
-            onChange={(date: Dayjs | null) => {
-              const dateValue = date ? date.toDate() : null;
-              handleDateValueChange(field.id!, dateValue);
-            }}
-            format="YYYY-MM-DD"
-            allowClear
-          />
-        );
-      
-      case EnumCustomFieldType.Dropdown:
-        if (field.source === EnumCustomFieldSource.User) {
+      case 'select':
+      default:
+        if (field.source === "user") {
           return (
             <UserSelection 
               ref={(ref) => {
-                if (ref && field.id) userSelectionRefs.current.set(field.id, ref);
+                if (ref) userSelectionRefs.current.set(field.id, ref);
               }}
-              value={field.valueUserId}
-              onChange={(value) => value && handleUserValueChange(field.id!, value)}
+              value={fieldValue}
+              onChange={(value) => handleValueChange(field.id, value)}
               placeholder={`Select ${field.name}...`}
               size="middle"
               className="w-full"
@@ -338,35 +225,25 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
           );
         } else {
           return (
-            <div>
-              <Select
-                className="w-full"
-                placeholder={`Select ${field.name}...`}
-                value={field.valueOption as string || undefined}
-                onChange={(value) => value && handleOptionValueChange(field.id!, value)}
-                options={field?.options}
-              />
-            </div>
+            <Select
+              className="w-full"
+              placeholder={`Select ${field.name}...`}
+              value={fieldValue as string || undefined}
+              onChange={(value) => handleValueChange(field.id, value)}
+              options={[]}
+              disabled={isFieldLoading}
+            />
           );
-        }
-      
-      default:
-        return (
-          <div className="text-red-500 text-sm">
-            Unknown field type: {field.type}
-          </div>
-        );
+        }   
     }
   };
 
   // Get icon based on field type
-  const getFieldIcon = (field: CardCustomField) => {
+  const getFieldIcon = (field: CustomField) => {
     const fieldType: string = field.type || 'select';
     switch (fieldType) {
-      case EnumCustomFieldType.Text:
       case 'string':
         return <StretchHorizontal size={12} className="text-gray-500" />;
-      case EnumCustomFieldType.Dropdown:
       case 'user':
       case 'select':
         return <List size={12} className="text-gray-500" />;
@@ -376,35 +253,9 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
   };
 
   // Check if field is a checkbox type
-  const isCheckboxField = (field: CardCustomField) => {
-    return field.type === EnumCustomFieldType.Checkbox;
+  const isCheckboxField = (field: CustomField) => {
+    return field.type === 'checkbox';
   };
-
-  // Show loading state
-  if (isLoading) {
-    return (
-      <div className="mt-6">
-        <div className="flex items-center gap-3 mb-2">
-          <TextCursorInput size={18} />
-          <h1 className="text-lg font-bold mb-0">Custom Fields</h1>
-        </div>
-        <div className="ml-8 text-gray-500">Loading custom fields...</div>
-      </div>
-    );
-  }
-
-  // Show message if no fields
-  if (!cardCustomFields || cardCustomFields.length === 0) {
-    return (
-      <div className="mt-6">
-        <div className="flex items-center gap-3 mb-2">
-          <TextCursorInput size={18} />
-          <h1 className="text-lg font-bold mb-0">Custom Fields</h1>
-        </div>
-        <div className="ml-8 text-gray-500">No custom fields available</div>
-      </div>
-    );
-  }
 
   return (
     <>
@@ -413,30 +264,24 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
         <div className="flex items-center gap-3 mb-2">
           <TextCursorInput size={18} />
           <h1 className="text-lg font-bold mb-0">Custom Fields</h1>
-          {isUpdating && (
-            <span className="text-sm text-blue-500 ml-2">Saving...</span>
-          )}
         </div>
-
         <div className="grid grid-cols-3 gap-4 ml-8">
           {getFieldRows().map((row, rowIndex) => ( 
             <Fragment key={`row-${rowIndex}`}>
               {row.map(field => (
-                <div key={field.id} className="space-y-2 flex items-center">
-                  <div className="w-full">
-                    <div className="flex items-center gap-2 text-gray-700 font-medium">
-                      {isCheckboxField(field) ? (
-                        renderFieldInput(field)
-                      ) : (
-                        getFieldIcon(field)
-                      )}
-                      <span>{field.name}</span>
-                    </div>
-                    
-                    {!isCheckboxField(field) && (
-                      <div>{renderFieldInput(field)}</div>
+                <div key={field.id} className="space-y-2">
+                  <div className="flex items-center gap-2 text-gray-700 font-medium">
+                    {isCheckboxField(field) ? (
+                      renderFieldInput(field)
+                    ) : (
+                      getFieldIcon(field)
                     )}
+                    <span>{field.name}</span>
                   </div>
+                  
+                  {!isCheckboxField(field) && (
+                    <div>{renderFieldInput(field)}</div>
+                  )}
                 </div>
               ))}
             </Fragment>

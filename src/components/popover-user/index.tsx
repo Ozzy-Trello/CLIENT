@@ -8,21 +8,18 @@ interface PopoverCustomFieldProps {
   open: boolean;
   setOpen: (open: boolean) => void;
   triggerEl?: ReactNode;
-  onUserSelectionChange?: (value: string, option?: any) => void;
 }
 
 const PopoverUser: React.FC<PopoverCustomFieldProps> = ({ 
   open, 
   setOpen, 
-  triggerEl,
-  onUserSelectionChange
+  triggerEl 
 }) => {
-
   const { workspaceId } = useParams();
  
   return (
     <Popover
-      content={<UserSelection onChange={onUserSelectionChange} />}
+      content={<UserSelection />}
       title={
         <div className="flex justify-between items-center">
           <div className="flex justify-start items-center gap-2">

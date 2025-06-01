@@ -14,7 +14,7 @@ import {
   Trash2, 
   MoreHorizontal 
 } from "lucide-react";
-import { DashcardConfig, EnumCardAttributeType, DashcardFilter } from "@myTypes/dashcard";
+import { DashcardConfig, CardAttributeType, DashcardFilter } from "@myTypes/dashcard";
 
 const { Title, Text } = Typography;
 
@@ -27,17 +27,17 @@ interface DashcardProps {
 }
 
 // Map card attribute types to their corresponding icons
-const attributeIcons: Record<EnumCardAttributeType, React.ReactNode> = {
-  [EnumCardAttributeType.BOARD]: <Trello size={16} />,
-  [EnumCardAttributeType.LIST]: <ListTodo size={16} />,
-  [EnumCardAttributeType.ASSIGNED]: <User size={16} />,
-  [EnumCardAttributeType.DUE_DATE]: <Calendar size={16} />,
-  [EnumCardAttributeType.LABELS]: <Tag size={16} />,
-  [EnumCardAttributeType.IS_COMPLETED]: <CheckCircle size={16} />,
-  [EnumCardAttributeType.CREATED_AT]: <Calendar size={16} />,
-  [EnumCardAttributeType.LAST_MODIFIED]: <Calendar size={16} />,
-  [EnumCardAttributeType.START_DATE]: <Calendar size={16} />,
-  [EnumCardAttributeType.CUSTOM_FIELD]: <Edit size={16} />
+const attributeIcons: Record<CardAttributeType, React.ReactNode> = {
+  [CardAttributeType.BOARD]: <Trello size={16} />,
+  [CardAttributeType.LIST]: <ListTodo size={16} />,
+  [CardAttributeType.ASSIGNED]: <User size={16} />,
+  [CardAttributeType.DUE_DATE]: <Calendar size={16} />,
+  [CardAttributeType.LABELS]: <Tag size={16} />,
+  [CardAttributeType.IS_COMPLETED]: <CheckCircle size={16} />,
+  [CardAttributeType.CREATED_AT]: <Calendar size={16} />,
+  [CardAttributeType.LAST_MODIFIED]: <Calendar size={16} />,
+  [CardAttributeType.START_DATE]: <Calendar size={16} />,
+  [CardAttributeType.CUSTOM_FIELD]: <Edit size={16} />
 };
 
 const Dashcard: React.FC<DashcardProps> = ({ 

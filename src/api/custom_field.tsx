@@ -1,6 +1,5 @@
-import { CustomField } from "@myTypes/custom-field";
 import { api } from ".";
-import { ApiResponse } from "../types/type";
+import { ApiResponse, CustomField } from "../types/type";
 
 export const customFields = async(workspaceId: string): Promise<ApiResponse<CustomField[]>> => {
   const {data} = await api.get("/custom-field", {headers: {'workspace-id': workspaceId}});
@@ -21,14 +20,3 @@ export const deleteCustomField = async(customFieldId:string): Promise<ApiRespons
   const {data} = await api.delete(`/custom-field/${customFieldId}`);
   return data;
 }
-
-export const reorderCustomFields = async(
-  workspaceId: string, 
-  reorderedIds: string[]
-): Promise<ApiResponse<any>> => {
-  const {data} = await api.put("/custom-field/reorder", 
-    { customFieldIds: reorderedIds }, 
-    { headers: {'workspace-id': workspaceId} }
-  );
-  return data;
-};
