@@ -10,9 +10,14 @@ import { AnyList } from "@myTypes/list";
 interface DraggableListProps {
   list: AnyList;
   index: number;
-  setListsState: React.Dispatch<React.SetStateAction<AnyList[] | undefined>>
+  setListsState: React.Dispatch<React.SetStateAction<AnyList[] | undefined>>;
   boardId: string;
-  updateList: UseMutateFunction<any, Error, { listId: string; updates: Partial<AnyList> }, unknown>;
+  updateList: UseMutateFunction<
+    any,
+    Error,
+    { listId: string; updates: Partial<AnyList> },
+    unknown
+  >;
 }
 
 const DraggableList: React.FC<DraggableListProps> = ({
@@ -22,11 +27,10 @@ const DraggableList: React.FC<DraggableListProps> = ({
   boardId,
   updateList,
 }) => {
-
-  const {cards, addCard, isLoading} = useCards(list.id || "", boardId);
+  const { cards, addCard, isLoading } = useCards(list.id || "", boardId);
 
   useEffect(() => {
-    setListsState((prev) => 
+    setListsState((prev) =>
       prev?.map((item, i) => {
         if (i === index) {
           return { ...item, cards };
@@ -34,8 +38,8 @@ const DraggableList: React.FC<DraggableListProps> = ({
         return item;
       })
     );
-  }, [cards])
- 
+  }, [cards]);
+
   return (
     <Draggable
       key={`draggable-list-${list.id}`}
@@ -98,14 +102,13 @@ const DraggableList: React.FC<DraggableListProps> = ({
               </div>
             )}
           </Droppable>
-         
           <div className="px-2 py-2 border-t border-gray-200">
             <AddCard listId={list.id || ""} addCard={addCard} />
           </div>
         </div>
       )}
     </Draggable>
-  )
-}
+  );
+};
 
 export default DraggableList;
