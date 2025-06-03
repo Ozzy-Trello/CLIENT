@@ -6,8 +6,7 @@ import { ApiResponse } from "../types/type";
 
 export function useLists(boardId: string) {
   const queryClient = useQueryClient();
- 
-  // The main query for lists
+
   const listsQuery = useQuery({
     queryKey: ["lists", boardId],
     queryFn: () => lists(boardId),
@@ -15,77 +14,67 @@ export function useLists(boardId: string) {
     staleTime: 5000,
   });
 
-  // Add a new list mutation with optimistic updates
   const addListMutation = useMutation({
-    mutationFn: (newList: Partial<AnyList>) => {
-      return api.post("/list", newList, {
-        headers: { 'board-id': boardId }
-      });
-    },
+    mutationFn: (newList: Partial<AnyList>) =>
+      api.post("/list", newList, {
+        headers: { "board-id": boardId },
+      }),
     onMutate: async (newList) => {
       await queryClient.cancelQueries({ queryKey: ["lists", boardId] });
       const previousLists = queryClient.getQueryData(["lists", boardId]);
-     
-      // Create a temporary ID for the optimistic update
+
       const tempList = {
         ...newList,
         id: `temp-${Date.now()}`,
         createdAt: new Date().toISOString(),
       };
-     
-      // Optimistically update the UI
+
       queryClient.setQueryData(
         ["lists", boardId],
         (old: ApiResponse<AnyList[]> | undefined) => {
           if (!old) return { data: [tempList] };
           return {
             ...old,
-            data: [...(old.data ?? []), tempList]
+            data: [...(old.data ?? []), tempList],
           };
         }
       );
-     
+
       return { previousLists };
     },
-    onError: (err, newList, context) => {
+    onError: (_err, _newList, context) => {
       if (context?.previousLists) {
         queryClient.setQueryData(["lists", boardId], context.previousLists);
       }
     },
     onSettled: () => {
-      // This will reconcile any differences between our optimistic update and the actual server state
       queryClient.invalidateQueries({ queryKey: ["lists", boardId] });
     },
   });
 
-  // Update a list title mutation
   const updateListMutation = useMutation({
-    mutationFn: ({ listId, updates }: { listId: string; updates: Partial<AnyList> }) => {
-      return api.put(`/list/${listId}`, updates);
-    },
+    mutationFn: ({ listId, updates }: { listId: string; updates: Partial<AnyList> }) =>
+      api.put(`/list/${listId}`, updates),
     onMutate: async ({ listId, updates }) => {
       await queryClient.cancelQueries({ queryKey: ["lists", boardId] });
-     
       const previousLists = queryClient.getQueryData(["lists", boardId]);
-     
-      // Optimistically update the UI
+
       queryClient.setQueryData(
         ["lists", boardId],
         (old: ApiResponse<AnyList[]> | undefined) => {
           if (!old) return { data: [] };
-         
           return {
             ...old,
-            data: (old.data ?? []).map(list =>
+            data: old.data?.map((list) =>
               list.id === listId ? { ...list, ...updates } : list
-            )
+            ),
           };
         }
       );
-     
+
       return { previousLists };
     },
-    onError: (err, variables, context) => {
+    onError: (_err, _vars, context) => {
       if (context?.previousLists) {
         queryClient.setQueryData(["lists", boardId], context.previousLists);
       }
@@ -96,7 +85,7 @@ export function useLists(boardId: string) {
   });
 
   return {
-    lists: listsQuery.data?.data || [],
+    lists: (listsQuery.data?.data || []).sort((a, b) => (a.position || 0) - (b.position || 0)),
     pagination: listsQuery.data?.paginate,
     isLoading: listsQuery.isLoading,
     isError: listsQuery.isError,
@@ -113,96 +102,63 @@ export function useLists(boardId: string) {
  */
 export function useListMove() {
   const queryClient = useQueryClient();
-  
+
   const listMoveMutation = useMutation({
-    mutationFn: ({ 
+    mutationFn: ({
       listId,
       previousPosition,
       targetPosition,
-      boardId
+      boardId,
     }: {
       listId: string;
       previousPosition: number;
       targetPosition: number;
       boardId: string;
-    }) => {
-      return moveList(
-        listId, 
-        previousPosition, 
-        targetPosition,
-        boardId
-      );
-    },
-    onMutate: async ({ listId, previousPosition, targetPosition, boardId }) => {
-      console.log("Optimistically moving list:", { listId, previousPosition, targetPosition });
-      
-      // Cancel any outgoing refetches
+    }) => moveList(listId, previousPosition, targetPosition, boardId),
+
+    onMutate: async ({ listId, targetPosition, boardId }) => {
       await queryClient.cancelQueries({ queryKey: ["lists", boardId] });
-      
-      // Get a snapshot of the current state
-      const previousListsData = queryClient.getQueryData<ApiResponse<any[]>>(["lists", boardId]);
-      
-      // Deep clone to avoid reference issues
-      const clonedListsData = previousListsData 
-        ? JSON.parse(JSON.stringify(previousListsData)) 
-        : null;
-      
-      // Update the lists in cache for optimistic UI
-      queryClient.setQueryData<ApiResponse<any[]>>(
-        ["lists", boardId],
-        (old) => {
-          if (!old?.data || !Array.isArray(old.data)) return old;
-          
-          const lists = JSON.parse(JSON.stringify(old.data));
-          
-          // Find the list being moved and its current index
-          const listIndex = lists.findIndex((list: any) => list.id === listId);
-          if (listIndex === -1) return old; // List not found
-          
-          // Remove the list from its current position
-          const [movedList] = lists.splice(listIndex, 1);
-          
-          // If we don't have a target position, default to the end
-          const insertPosition = targetPosition !== undefined 
-            ? Math.min(targetPosition, lists.length) 
-            : lists.length;
-          
-          // Insert the list at the target position
-          lists.splice(insertPosition, 0, movedList);
-          
-          // Update order values for all lists to maintain visual consistency
-          lists.forEach((list: any, idx: number) => {
-            list.order = (idx + 1) * 10000;
-          });
-          
-          return {
-            ...old,
-            data: lists
-          };
+
+      const previousLists = queryClient.getQueryData<ApiResponse<AnyList[]>>(["lists", boardId]);
+
+      queryClient.setQueryData<ApiResponse<AnyList[]>>(["lists", boardId], (old) => {
+        if (!old?.data) return old;
+
+        const lists = [...old.data];
+        const fromIndex = lists.findIndex((l) => l.id === listId);
+        if (fromIndex === -1) return old;
+
+        const [moved] = lists.splice(fromIndex, 1);
+        const toIndex = Math.min(targetPosition, lists.length);
+        lists.splice(toIndex, 0, moved);
+
+        // Recalculate position based on neighbors
+        for (let i = 0; i < lists.length; i++) {
+          lists[i].position = (i + 1) * 10000;
         }
-      );
-      
-      return { previousLists: clonedListsData };
+
+        return { ...old, data: lists };
+      });
+
+      return { previousLists };
     },
-    onError: (error, variables, context) => {
-      console.error("Error moving list:", error);
-      
-      // Revert to snapshot on error
+
+    onError: (_err, vars, context) => {
       if (context?.previousLists) {
-        queryClient.setQueryData(["lists", variables.boardId], context.previousLists);
+        queryClient.setQueryData(["lists", vars.boardId], context.previousLists);
       }
     },
-    onSettled: (data, error, variables) => {
-      // Use a delay to ensure the UI transition completes before refetching
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ["lists", variables.boardId] });
-      }, 500);
-    }
+
+    onSuccess: (_res, vars) => {
+      // Let the optimistic UI stay — only sync if absolutely needed
+      queryClient.invalidateQueries({ queryKey: ["lists", vars.boardId] });
+    },
   });
-  
+
   return {
     moveList: listMoveMutation.mutate,
     isMovingList: listMoveMutation.isPending,
-    moveListError: listMoveMutation.error
+    moveListError: listMoveMutation.error,
   };
 }
+

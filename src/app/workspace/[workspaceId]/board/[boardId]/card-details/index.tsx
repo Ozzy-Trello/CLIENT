@@ -11,10 +11,10 @@ import {
   Typography,
   Divider,
 } from "antd";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Cover from "./cover";
 import { useCardDetailContext } from "@providers/card-detail-context";
-import { Eye } from "lucide-react";
+import { Clock, Eye, TimerIcon } from "lucide-react";
 import MembersList from "@components/members-list";
 import Description from "./description";
 import Attachments from "./attachments";
@@ -34,6 +34,8 @@ import AdditionalFields from "./additional-field";
 import RequestFields from "./request-field";
 import CardTimeInList from "./time-in-lists";
 import ChecklistFields from "./checklist-field";
+import { CardDateDisplay } from "@components/card-dates";
+import { useCardMembers } from "@hooks/card_member";
 
 const CardDetails: React.FC = (props) => {
   const params = useParams();
@@ -57,6 +59,7 @@ const CardDetails: React.FC = (props) => {
   const [isEditingTitle, setIsEditingTitle] = useState<boolean>(false);
   const [newTitle, setNewTitle] = useState<string>("");
   const { updateCard } = useCards(selectedCard?.listId || "", boardId);
+  const { cardMembers, addMember, isAddingMember, refetch: refetchMember } = useCardMembers(selectedCard?.id || "");
   const { cardActivities } = useCardActivity(selectedCard?.id || "");
   const { lists } = useLists(boardId || "");
   const [openAddMember, setOpenAddMember] = useState<boolean>(false);
@@ -92,25 +95,23 @@ const CardDetails: React.FC = (props) => {
 
   const handleSaveTitleClick = () => {
     if (!selectedCard) return;
-
-    console.log("Saving title:", newTitle);
     updateCard(
       {
         cardId: selectedCard.id,
         updates: {
-          listId: selectedCard.listId,
           name: newTitle,
         },
-        listId: selectedCard.listId,
-        destinationListId: selectedCard.listId,
       },
       {
         onSuccess: (data) => {
           console.log("Title update successful:", data);
           if (setSelectedCard) {
-            setSelectedCard({
-              ...selectedCard,
-              name: newTitle,
+            setSelectedCard(prevCard => {
+              if (!prevCard) return prevCard;
+              return {
+                ...prevCard,
+                name: newTitle,
+              };
             });
           }
           setIsEditingTitle(false);
@@ -136,15 +137,25 @@ const CardDetails: React.FC = (props) => {
     }
   };
 
+  const onUserSelectionChange = (value: string, option: object) => {
+    console.log(`member: value: ${value}`);
+    addMember(value);
+  }
+
+  useEffect(() => {
+    if (isAddingMember) {
+      refetchMember();
+    }
+  }, [isAddingMember])
+
   return (
     <Modal
       title={null}
       open={isCardDetailOpen}
       onCancel={closeCardDetail}
       footer={null}
-      className="modal-card-form"
-      style={{ top: 20 }}
-      width={770}
+      className="modal-card-form full-height-modal"
+      width={750}
       destroyOnClose
     >
       <div className="overflow-x-hidden max-w-full">
@@ -220,11 +231,12 @@ const CardDetails: React.FC = (props) => {
                       </span>
                       <div>
                         <MembersList
-                          members={selectedCard?.members || []}
-                          membersLength={selectedCard?.members?.length || 0}
+                          members={cardMembers || []}
+                          membersLength={cardMembers?.length || 0}
                           membersLoopLimit={3}
                           openAddMember={openAddMember}
                           setOpenAddMember={setOpenAddMember}
+                          onUserSelectionChange={onUserSelectionChange}
                         />
                       </div>
                     </div>
@@ -303,7 +315,26 @@ const CardDetails: React.FC = (props) => {
                     </Button>
                   </div>
                 </div>
+
+                {/* Start and Due Dates */}
+                {selectedCard && (
+                  <div className="flex flex-wrap gap-4 pt-2">
+                    <div className="space-y-2 text-xs">
+                      <span className="text-gray-300 font-semibold text-xs block">
+                        Dates
+                      </span>
+                      <Button
+                        icon={<Clock size={12} />}
+                        size="small"
+                        className="rounded-md hover:bg-gray-50"
+                      >
+                        <CardDateDisplay card={selectedCard} />
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
+              
 
               {selectedCard && (
                 <Description

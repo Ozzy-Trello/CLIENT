@@ -1,7 +1,7 @@
 import { ReactNode } from "react";
 
 // Enum for card attribute types
-export enum CardAttributeType {
+export enum EnumCardAttributeType {
   ASSIGNED = "assigned",
   IS_COMPLETED = "is_completed",
   CREATED_AT = "created_at",
@@ -40,7 +40,8 @@ export interface FilterOption {
 export interface DashcardFilter {
   id: string;
   label?: string;
-  type: CardAttributeType;
+  groupType?: string;
+  type: EnumCardAttributeType;
   operator?: FilterOperator;
   value?: FilterValue;
   options?: FilterOption[];
@@ -60,7 +61,8 @@ export const dashcardsFilter: DashcardFilter[] = [
   {
     id: "board",
     label: "Board",
-    type: CardAttributeType.BOARD,
+    groupType: "primary",
+    type: EnumCardAttributeType.BOARD,
     operator: FilterOperator.ANY,
     options: [
       { label: "any", value: FilterOperator.ANY },
@@ -71,7 +73,8 @@ export const dashcardsFilter: DashcardFilter[] = [
   {
     id: "list",
     label: "List",
-    type: CardAttributeType.LIST,
+    groupType: "primary",
+    type: EnumCardAttributeType.LIST,
     operator: FilterOperator.ANY,
     options: [
       { label: "any", value: FilterOperator.ANY },
@@ -82,7 +85,8 @@ export const dashcardsFilter: DashcardFilter[] = [
   {
     id: "assigned",
     label: "Assigned",
-    type: CardAttributeType.ASSIGNED,
+    groupType: "primary",
+    type: EnumCardAttributeType.ASSIGNED,
     operator: undefined,
     options: [
       { label: "includes any of", value: FilterOperator.INCLUDES_ANY_OF },
@@ -92,7 +96,8 @@ export const dashcardsFilter: DashcardFilter[] = [
   {
     id: "due",
     label: "Due",
-    type: CardAttributeType.DUE_DATE,
+    groupType: "primary",
+    type: EnumCardAttributeType.DUE_DATE,
     options: [
       { label: "select", value: "select" },
       { label: "is within", value: "is_within" },
@@ -102,7 +107,8 @@ export const dashcardsFilter: DashcardFilter[] = [
   {
     id: "labels",
     label: "Labels",
-    type: CardAttributeType.LABELS,
+    groupType: "primary",
+    type: EnumCardAttributeType.LABELS,
     options: [
       { label: "select", value: "select" },
       { label: "includes", value: "includes" },
@@ -112,7 +118,8 @@ export const dashcardsFilter: DashcardFilter[] = [
   {
     id: "complete",
     label: "Complete",
-    type: CardAttributeType.IS_COMPLETED,
+    groupType: "primary",
+    type: EnumCardAttributeType.IS_COMPLETED,
     options: [
       { label: "no", value: "false" },
       { label: "yes", value: "true" }

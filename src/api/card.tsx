@@ -17,8 +17,13 @@ export const createCard = async (card: Card): Promise<ApiResponse<any>> => {
   return data;
 }
 
-export const cardDetails = async (cardId: string): Promise<ApiResponse<Card>> => {
-  const { data } = await api.get(`/card/${cardId}`);
+export const cardDetails = async (cardId: string, boardId: string): Promise<ApiResponse<Card>> => {
+  const { data } = await api.get(`/card/${cardId}`, {headers: {"board-id": boardId}});
+  return data;
+}
+
+export const updateCard = async (cardId: string, dataToUpdate: Partial<Card>): Promise<ApiResponse<Card>> => {
+  const { data } = await api.put(`/card/${cardId}`, dataToUpdate);
   return data;
 }
 
