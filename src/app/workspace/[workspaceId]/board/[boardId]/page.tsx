@@ -22,6 +22,7 @@ import ModalDashcard from "@components/dashcard/modal-dashcard";
 import { DashcardConfig } from "@myTypes/dashcard";
 import { Card, EnumCardType } from "@myTypes/card";
 import { AnyList } from "@myTypes/list";
+import { selectCurrentBoard } from "@store/workspace_slice";
 
 const DragDropContext = dynamic(
   () => import("@hello-pangea/dnd").then((mod) => mod.DragDropContext),
@@ -47,7 +48,7 @@ const Board: React.FC = () => {
   const { moveList } = useListMove();
   const [openDashcardModal, setOpenDashcardModal] = useState<boolean>(false);
   const [dashcardConfig, setDashcardConfig] = useState<DashcardConfig>();
-
+  const selectedBoard = useSelector(selectCurrentBoard);
   const onListDragEnd = useCallback(
     (result: DropResult) => {
       const { destination, source, type, draggableId } = result;
@@ -185,6 +186,7 @@ const Board: React.FC = () => {
         width: collapsed
           ? `calc(100%-${siderSmall})`
           : `calc(100%-${siderWide})`,
+        backgroundColor: selectedBoard?.background,
       }}
     >
       <BoardTopbar
