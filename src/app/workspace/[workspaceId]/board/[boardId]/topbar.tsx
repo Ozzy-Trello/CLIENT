@@ -1,4 +1,11 @@
-import { Button, Dropdown, MenuProps, Tooltip, Typography, message } from "antd";
+import {
+  Button,
+  Dropdown,
+  MenuProps,
+  Tooltip,
+  Typography,
+  message,
+} from "antd";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import { useWorkspaceSidebar } from "@providers/workspace-sidebar-context";
 import MembersList from "@components/members-list";
@@ -20,15 +27,20 @@ import { Scanner } from "@yudiel/react-qr-scanner";
 interface BoardTopbarProps {
   boardScopeMenuOpen: boolean;
   setBoardScopeMenuOpen: any;
-  openDashcardModal: boolean; 
-  setOpenDashcardModal: Dispatch<SetStateAction<boolean>>
+  openDashcardModal: boolean;
+  setOpenDashcardModal: Dispatch<SetStateAction<boolean>>;
 }
 
 const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
-  const { boardScopeMenuOpen, setBoardScopeMenuOpen, openDashcardModal, setOpenDashcardModal } = props;
+  const {
+    boardScopeMenuOpen,
+    setBoardScopeMenuOpen,
+    openDashcardModal,
+    setOpenDashcardModal,
+  } = props;
   const { collapsed, siderSmall, siderWide } = useWorkspaceSidebar();
-  const [ showRightColMenu, setIsShowRighColtMenu ] = useState(true);
-  const [ openRightMenu, setOpenRightMenu ] = useState(false);
+  const [showRightColMenu, setIsShowRighColtMenu] = useState(true);
+  const [openRightMenu, setOpenRightMenu] = useState(false);
   const currentBoard = useSelector(selectCurrentBoard);
   const [openAddMember, setOpenAddMember] = useState<boolean>(false);
   const [showScanner, setShowScanner] = useState(false);
@@ -50,10 +62,10 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
     handleResize();
 
     // Add event listener for window resize
-    window.addEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
 
     // Clean up event listener on component unmount
-    return () => window.removeEventListener('resize', handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   const [members, setMembers] = useState([
@@ -73,7 +85,7 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
             <span>10</span>
           </Button>
         </Tooltip>
-      )
+      ),
     },
     {
       key: "filter",
@@ -103,6 +115,7 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
         width: collapsed
           ? `calc(100% - ${siderSmall}px)`
           : `calc(100% - ${siderWide}px)`,
+        backgroundColor: currentBoard?.background || "#fff",
       }}
     >
       {/* QR Scanner Modal */}
@@ -166,13 +179,14 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
         {showRightColMenu ? (
           <div className="flex items-center justify-end gap-2">
             <Tooltip title={"track"}>
-              <Button 
-                size="small" 
-                shape="default" 
-                variant="text" 
+              <Button
+                size="small"
+                shape="default"
+                variant="text"
                 onClick={() => {
                   setOpenDashcardModal(true);
-                }}>
+                }}
+              >
                 <div className="border rounded px-1 text-[7px]">10</div>
                 <span>Track</span>
               </Button>

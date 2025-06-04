@@ -15,8 +15,6 @@ const Cover: React.FC<CoverProps> = (props) => {
   const [openUploadModal, setOpenUploadmodal] = useState<boolean>(false);
   const { cardAttachments, addAttachment } = useCardAttachment(card.id);
 
-  console.log({ cardAttachments });
-
   const handleCloseModal = () => {
     setOpenUploadmodal(false);
   };
@@ -67,11 +65,9 @@ const Cover: React.FC<CoverProps> = (props) => {
               objectPosition: "center",
               display: "block",
             }}
-
             className="rounded-t-lg"
             height={144}
             width={"100%"}
-            
           />
         </div>
       )}
