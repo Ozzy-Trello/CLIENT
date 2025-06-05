@@ -5,6 +5,7 @@ import { useParams, usePathname, useRouter } from "next/navigation";
 import type { MenuProps } from 'antd';
 import { Button, Layout, Menu, Typography } from 'antd';
 import { Bot, SlidersHorizontal, X } from "lucide-react";
+import styled from "styled-components";
 
 const { Header, Content, Footer, Sider } = Layout;
 type MenuItem = Required<MenuProps>['items'][number];
@@ -28,14 +29,18 @@ const AutomationLayout = ({ children }: { children: React.ReactNode }) => {
   
   const items: MenuItem[] = [
     {
-      key: 'automattion',
+      key: 'automation',
       label: 'Automation',
       type: 'group',
       children: [
         {
           key: `automation-1`,
           label: (
-            <Link className="block w-full" href={`/workspace/${workspaceId}/board/${boardId}/automation/rules`}>
+            <Link 
+              className="block w-full" 
+              href={`/workspace/${workspaceId}/board/${boardId}/automation/rules`}
+              
+            >
               Rules
             </Link>
           ),
@@ -66,7 +71,7 @@ const AutomationLayout = ({ children }: { children: React.ReactNode }) => {
     <Layout hasSider className="h-full shadow rounded-md bg-white" style={{
       margin: '16px',
       height: 'calc(100% - 32px)',
-      overflow: 'hidden',
+      overflow: 'hidden'
     }}>
       <Sider style={siderStyle}>
         <div className="flex items-center justify-start gap-2 p-4">
@@ -75,7 +80,7 @@ const AutomationLayout = ({ children }: { children: React.ReactNode }) => {
             Automation
           </Typography.Title>
         </div>
-        <Menu mode="inline" defaultSelectedKeys={['automation-1']} items={items} style={{background: "transparent"}} />
+        <Menu className="automation-page-menu" mode="inline" defaultSelectedKeys={['automation-1']} items={items} style={{background: "transparent"}} />
       </Sider>
       <Content style={{
         height: '100%',
@@ -101,5 +106,4 @@ const AutomationLayout = ({ children }: { children: React.ReactNode }) => {
     </Layout>
   )
 };
-
 export default AutomationLayout;

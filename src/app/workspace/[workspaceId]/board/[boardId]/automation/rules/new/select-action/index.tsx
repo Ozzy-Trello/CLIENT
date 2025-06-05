@@ -1,6 +1,6 @@
 import { Button, Select, Typography } from "antd";
 import { actions } from "@constants/automation-rule/data";
-import { Dispatch, SetStateAction, useEffect, useState } from "react";
+import { Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
 import { Plus } from "lucide-react";
 import { 
   ActionItems, 
@@ -10,6 +10,8 @@ import {
   SelectedActionItem, 
   TriggerItemSelection 
 } from "@myTypes/type";
+import { CustomSelectionList } from "@constants/automation-rule/automation-rule";
+import { ListSelection, SelectionRef } from "@components/selection";
 
 // Helper function to extract placeholders from a pattern
 function extractPlaceholders(pattern: string): string[] {
@@ -46,6 +48,7 @@ const SelectOption = ({
   item: ActionItems
 }) => {
   const { setSelectedRule, selectedRule } = props;
+  const listSelectionRef = useRef<SelectionRef>(null);
   
   const options = data?.options?.map((optionItem: GeneralOptions) => ({
     value: optionItem.value,
@@ -57,6 +60,75 @@ const SelectOption = ({
   const lastActionIndex = selectedRule.actions ? selectedRule.actions.length - 1 : 0;
   const currentValue = selectedRule.actions?.[lastActionIndex]?.selectedActionItem?.[placeholder] as GeneralOptions;
   
+  // // Handle ListSelection change - use the actual placeholder as key
+  // const onListChange = (value: string, option: object) => {
+  //   console.log('ListSelection onChange called:', { value, option, placeholder });
+    
+  //   setSelectedRule((prev: AutomationRule) => {
+  //     const updatedActions = [...(prev.actions || [])];
+  //     const currentAction = updatedActions[lastActionIndex] || { type: item.type };
+      
+  //     if (!currentAction.selectedActionItem) {
+  //       currentAction.selectedActionItem = {
+  //         type: item.type,
+  //         label: item.label
+  //       };
+  //     }
+      
+  //     // Use the actual placeholder as the key (e.g., 'list')
+  //     currentAction.selectedActionItem[placeholder] = option as GeneralOptions;
+  //     updatedActions[lastActionIndex] = currentAction;
+      
+  //     console.log('Updated action after ListSelection:', currentAction);
+      
+  //     return {
+  //       ...prev,
+  //       actions: updatedActions
+  //     };
+  //   });
+  // };
+
+  // Handle regular Select change
+  const onSelectChange = (value: string, option: any) => {
+    const selectedOption = (option as { option: GeneralOptions }).option;
+    
+    setSelectedRule((prev: AutomationRule) => {
+    
+      const updatedActions = [...(prev.actions || [])];
+      const currentAction = updatedActions[lastActionIndex] || { type: item.type };
+      
+      if (!currentAction.selectedActionItem) {
+        currentAction.selectedActionItem = {
+          type: item.type,
+          label: item.label
+        };
+      }
+      
+      currentAction.selectedActionItem[placeholder] = selectedOption;
+      updatedActions[lastActionIndex] = currentAction;
+      
+      return {
+        ...prev,
+        actions: updatedActions
+      };
+    });
+  };
+
+  // Check if this should render as ListSelection
+  if (placeholder === CustomSelectionList || placeholder === 'list') {
+    return (
+      <ListSelection
+        width={"fit-content"}
+        ref={listSelectionRef}
+        value={currentValue?.value || data?.value?.value}
+        onChange={onSelectChange}
+        className="mx-2"
+        key={`list-selection-${index}`}
+      />
+    );
+  }
+  
+  // Render regular Select
   return (
     <Select
       key={`${placeholder}-${index}`}
@@ -64,36 +136,7 @@ const SelectOption = ({
       options={options}
       labelInValue={false}
       style={{ width: 120, margin: '0 5px' }}
-      onChange={(value, option) => {
-        const selectedOption = (option as { option: GeneralOptions }).option;
-        
-        setSelectedRule((prev: AutomationRule) => {
-          // Make a copy of the actions array
-          const updatedActions = [...(prev.actions || [])];
-          
-          // Get the current action or initialize it
-          const currentAction = updatedActions[lastActionIndex] || { type: item.type };
-          
-          // Initialize selectedActionItem if it doesn't exist
-          if (!currentAction.selectedActionItem) {
-            currentAction.selectedActionItem = {
-              type: item.type,
-              label: item.label
-            };
-          }
-          
-          // Set the dynamic property 
-          currentAction.selectedActionItem[placeholder] = selectedOption;
-          
-          // Update the action in the array
-          updatedActions[lastActionIndex] = currentAction;
-          
-          return {
-            ...prev,
-            actions: updatedActions
-          };
-        });
-      }}
+      onChange={onSelectChange}
     />
   );
 };
@@ -103,8 +146,6 @@ const renderLabelWithSelects = (
   item: ActionItems, 
   lastActionIndex: number
 ) => {
-  const { setSelectedRule, selectedRule } = props;
-  
   // If there's no placeholder in the label, just return the text
   if (!item.label.includes("<")) {
     return <Typography.Text>{item.label}</Typography.Text>;
@@ -120,10 +161,11 @@ const renderLabelWithSelects = (
         if (part.startsWith("<") && part.endsWith(">")) {
           const placeholder = part.slice(1, -1); // Remove < and >
 
-          if (placeholder in item) {
+          if (placeholder in item || placeholder === CustomSelectionList) {
             const data: TriggerItemSelection = item[placeholder] as TriggerItemSelection;
             
-            // Use the SelectOption component for dynamic placeholders
+            // Use the SelectOption component for all dynamic placeholders
+            // It will handle both regular selects and ListSelection internally
             return (
               <SelectOption
                 key={`action-select-${index}`}

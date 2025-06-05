@@ -12,27 +12,47 @@ interface RuleStateProps {
 const RuleState: React.FC<RuleStateProps> = (props) => {
   const { selectedRule, goToSpecificStep, activeStep } = props;
   
+  const renderType = (type: string, condition: any): string => {
+    console.log("renderType called with type:", type, "and condition:", condition);
+    
+    // Replace the placeholders
+    let result = type
+      .replace(/_/g, ' ')
+      .replace(/<action>/, condition?.action?.label || condition?.action || '')
+      .replace(/<by>/, condition?.by?.label || condition?.by || '')
+      .replace(/<board>/, condition?.board?.label || condition?.board || '')
+      .replace(/<list>/, condition?.list?.label || condition?.list || '')
+      .replace(/<position>/, condition?.position?.label || condition?.position || '')
+      .replace(/<filter>/, '') // remove placeholder
+      .replace(/\s+/g, ' ') // clean extra spaces (fixed regex)
+      .trim();
+    
+    return result;
+  }
+ 
   return (
     <div className="mb-6 p-4 bg-gray-50 rounded border border-gray-200">
       <Typography.Title level={5}>Current Rule Configuration</Typography.Title>
-      
+     
       <div className="flex flex-col gap-2">
         {/* Display Trigger */}
         <div className="flex items-center gap-2">
           <span className="font-medium">Trigger:</span>
           <span>
-            {selectedRule.triggerItem?.label || "No trigger selected"}
+            {renderType(selectedRule?.triggerItem?.type ?? '', selectedRule?.triggerItem) || "No trigger selected"}
           </span>
           <Button size="small" onClick={() => goToSpecificStep(0)}>Edit</Button>
         </div>
-        
+       
         {/* Display Actions */}
         {activeStep > 1 && selectedRule.actions && selectedRule.actions.length > 0 && (
           <div className="flex flex-col gap-1">
             <span className="font-medium">Actions:</span>
             {selectedRule.actions.map((action, index) => (
               <div key={index} className="ml-4 flex items-center gap-2">
-                <span>{index + 1}. {action.selectedActionItem?.label || "Action not fully configured"}</span>
+                <span>
+                  {index + 1}. {renderType(action?.selectedActionItem?.type ?? '', action?.selectedActionItem) || "Action not fully configured"}
+                </span>
                 <Button size="small" onClick={() => goToSpecificStep(1)}>Edit</Button>
               </div>
             ))}
