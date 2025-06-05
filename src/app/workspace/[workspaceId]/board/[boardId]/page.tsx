@@ -199,9 +199,6 @@ const Board: React.FC = () => {
         setOpenDashcardModal={setOpenDashcardModal}
       />
       <CardDetailProvider>
-        {/* <div style={{ position: 'fixed', top: 10, right: 10, zIndex: 1000 }}>
-          WebSocket: {isConnected ? '🟢 Connected' : '🔴 Disconnected'}
-        </div> */}
         <div className="pt-[50px] h-[calc(100vh-30px)] overflow-x-auto overflow-y-hidden min-w-[200px]">
           {!isLoading && (
             <DragDropContext onDragEnd={onListDragEnd}>
@@ -285,6 +282,10 @@ const Board: React.FC = () => {
           initialData={dashcardConfig}
         />
       </CardDetailProvider>
+
+      <div style={{ position: 'fixed', bottom: 10, right: 10, zIndex: 1000 }}>
+        Debug WebSocket: {isConnected ? '🟢 Connected' : '🔴 Disconnected'}
+      </div>
     </div>
   );
 };

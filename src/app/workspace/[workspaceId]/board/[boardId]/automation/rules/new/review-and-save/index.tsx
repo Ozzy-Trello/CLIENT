@@ -108,19 +108,19 @@ const ReviewAndSave: React.FC<ReviewAndSaveProps> = (props) => {
   
   return (
     <div className="w-full">
-      <Typography.Title level={4}>Review Your Rule</Typography.Title>
-      
+      {/* <Typography.Title level={4}>Review Your Rule</Typography.Title>
+       */}
       {/* Display the selected trigger */}
-      <div className="mb-4">
+      {/* <div className="mb-4">
         <Typography.Title level={5}>Trigger</Typography.Title>
         {renderTriggerDetails()}
-      </div>
+      </div> */}
       
       {/* Display all selected actions */}
-      <div className="mb-4">
+      {/* <div className="mb-4">
         <Typography.Title level={5} className="mb-2">Actions</Typography.Title>
         {renderActionDetails()}
-      </div>
+      </div> */}
       
       <div className="w-full flex justify-center mt-4">
         <Button size="small" icon={<Plus size={14} />} onClick={addAnotherAction}>

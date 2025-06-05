@@ -39,6 +39,7 @@ export interface AcitivitySource {
 
 // Automation Rule interface to accomodate selection state of automation rule setting
 export interface AutomationRule {
+  id?: string;
   triggerType: string;
   triggerItem?: SelectedTriggerItem;
   actions?: SelectedAction[];
@@ -63,6 +64,7 @@ export interface SelectedCardFilterItem {
 }
 
 export interface SelectedAction {
+  groupType?: string;
   type?: string;
   selectedActionItem?: SelectedActionItem;
 }
@@ -147,19 +149,20 @@ export interface Checklist {
   progress: number; // Percentage 0-100
 }
 
-export interface PostAutomationRule {
+export interface AutomationRuleApiData {
+  id?: string;
   groupType: string;
   type: string;
-  condition: PostAutomationRuleCondition;
+  condition: AutomationRuleConditionApiData;
   filter?: any;
   workspaceId: string;
-  action: PostAutomationRuleAction[];
+  action: AutomationRuleActionApiData[];
 }
-export interface PostAutomationRuleCondition{
+export interface AutomationRuleConditionApiData{
   [key: string]: any | undefined;
 }
-export interface PostAutomationRuleAction {
+export interface AutomationRuleActionApiData {
   groupType: string;
   type: string;
-  condition: PostAutomationRuleCondition;
+  condition: AutomationRuleConditionApiData;
 }

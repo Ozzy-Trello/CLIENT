@@ -6,7 +6,7 @@ import SelectAction from "./select-action";
 import { triggers } from "@constants/automation-rule/data";
 import ReviewAndSave from "./review-and-save";
 import RuleState from "./rule-state";
-import { AutomationRule, PostAutomationRule, PostAutomationRuleAction, TriggerItemSelection } from "@myTypes/type";
+import { AutomationRule, AutomationRuleApiData, AutomationRuleActionApiData, TriggerItemSelection } from "@myTypes/type";
 import SelectTrigger from "./select-trigger";
 import { extractPlaceholders } from "@utils/general";
 import { createRule } from "@api/automation_rule";
@@ -44,6 +44,8 @@ const NewRulePage: React.FC = () => {
       return;
     }
 
+    console.log("selectedRule: %o", selectedRule);
+
     const { actions, triggerItem, triggerType } = selectedRule;
     
     // Extract placeholders from trigger type
@@ -72,7 +74,7 @@ const NewRulePage: React.FC = () => {
     triggerCondition["board"] = boardId;
 
     // Build actions array
-    const newActions: PostAutomationRuleAction[] = [];
+    const newActions: AutomationRuleActionApiData[] = [];
     
     // Process each action
     actions.forEach((action) => {
@@ -97,8 +99,8 @@ const NewRulePage: React.FC = () => {
       });
       
       // Create action object in the expected format
-      const formattedAction: PostAutomationRuleAction = {
-        groupType: action.type || '',
+      const formattedAction: AutomationRuleActionApiData = {
+        groupType: action?.groupType || '',
         type: action.selectedActionItem.type,
         condition: actionCondition
       };
@@ -107,7 +109,7 @@ const NewRulePage: React.FC = () => {
     });
 
     // Create final rule object
-    const rule: PostAutomationRule = {
+    const rule: AutomationRuleApiData = {
       workspaceId: Array.isArray(workspaceId) ? workspaceId[0] : workspaceId as string,
       groupType: triggerType,
       type: triggerItem.type || '',
