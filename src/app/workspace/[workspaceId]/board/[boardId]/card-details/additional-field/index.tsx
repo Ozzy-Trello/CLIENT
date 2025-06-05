@@ -453,9 +453,7 @@ const AdditionalFields: React.FC = () => {
             <path d="M9 9h6v6H9z"></path>
           </svg>
         </span>
-        <span className="text-[18px] font-semibold text-gray-900">
-          Data Field
-        </span>
+        <span className="text-[18px] font-semibold text-gray-900">Bahan</span>
       </div>
       <div className="ml-8 grid grid-cols-3 gap-x-6 gap-y-3 mb-3">
         <div>
