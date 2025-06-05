@@ -7,11 +7,7 @@ import React, { useState, useEffect, useRef } from "react";
 import logo from "@assets/images/Logo_Ozzy_Clothing_png.png";
 import ImageDynamicContrast from "../image-dynamic-contrast";
 import { useSelector } from "react-redux";
-import {
-  selectTheme,
-  selectUser,
-  setUser,
-} from "@store/app_slice";
+import { selectTheme, selectUser, setUser } from "@store/app_slice";
 import { useDispatch } from "react-redux";
 import { useRouter } from "next/navigation";
 import { WorkspaceSelection } from "../selection";

@@ -233,7 +233,8 @@ const Sidebar = () => {
           left: 0,
           top: 45,
           overflow: "visible",
-          // backgroundColor: '#fff',
+          backgroundColor: "rgba(255, 255, 255, 0.85)", // Semi-transparent background
+          backdropFilter: "blur(5px)", // Add blur effect for better readability
           zIndex: 101,
         }}
         width={collapsed ? siderSmall : siderWide}

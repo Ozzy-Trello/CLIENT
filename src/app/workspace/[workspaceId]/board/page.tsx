@@ -52,8 +52,10 @@ const BoardsPage: React.FC = () => {
                     <Card
                       className="board-item hover:shadow-sm"
                       style={{
-                        backgroundImage: `url('${board?.cover}')`,
+                        backgroundImage: `url('${board?.background}')`,
                         backgroundPosition: "center",
+                        // how to fill the background
+                        backgroundSize: "cover",
                         backgroundRepeat: "no-repeat",
                         backgroundColor: board?.background || "#fff",
                         height: "120px",
