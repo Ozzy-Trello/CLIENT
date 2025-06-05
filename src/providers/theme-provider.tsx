@@ -205,6 +205,21 @@ export function ThemeProvider({
             colorItemBgHover: "rgba(255, 255, 255, 0.8)", // Subtle background for hover
             colorActiveBarWidth: 0, // Remove active bar
           },
+          Modal: {
+            // Ensure modals have solid background
+            contentBg: "#ffffff", // Solid white background for modal content
+            headerBg: "#ffffff", // Solid white background for modal header
+            footerBg: "#ffffff", // Solid white background for modal footer
+            titleColor: "rgba(0, 0, 0, 0.88)", // Default dark text for title
+          },
+          Card: {
+            // Ensure cards have proper background
+            colorBgContainer: "#ffffff", // Solid white background for cards
+          },
+          Drawer: {
+            // Ensure drawers have solid background
+            colorBgElevated: "#ffffff", // Solid white background for drawers
+          },
         },
       }}
     >

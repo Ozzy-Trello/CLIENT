@@ -28,15 +28,17 @@ const DashcardList: React.FC<DashcardListProps> = ({
   onDashcardUpdate,
   onDashcardCreate,
   onDashcardDelete,
-  onDashcardClick
+  onDashcardClick,
 }) => {
   const [createModalOpen, setCreateModalOpen] = useState(false);
-  const [editingDashcard, setEditingDashcard] = useState<DashcardConfig | null>(null);
+  const [editingDashcard, setEditingDashcard] = useState<DashcardConfig | null>(
+    null
+  );
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [dashcardToDelete, setDashcardToDelete] = useState<string | null>(null);
 
   const handleEdit = (id: string) => {
-    const dashcard = dashcards.find(d => d.id === id);
+    const dashcard = dashcards.find((d) => d.id === id);
     if (dashcard) {
       setEditingDashcard(dashcard);
       setCreateModalOpen(true);
@@ -71,9 +73,11 @@ const DashcardList: React.FC<DashcardListProps> = ({
       {/* Header */}
       <div className="dashcard-list-header mb-6">
         <div className="flex justify-between items-center mb-2">
-          <Title level={3} className="m-0">{title}</Title>
-          <Button 
-            type="primary" 
+          <Title level={3} className="m-0">
+            {title}
+          </Title>
+          <Button
+            type="primary"
             icon={<Plus size={16} />}
             onClick={() => {
               setEditingDashcard(null);
@@ -83,9 +87,7 @@ const DashcardList: React.FC<DashcardListProps> = ({
             Create Dashcard
           </Button>
         </div>
-        {description && (
-          <Text type="secondary">{description}</Text>
-        )}
+        {description && <Text type="secondary">{description}</Text>}
       </div>
 
       {/* Dashcard Grid */}
@@ -104,8 +106,8 @@ const DashcardList: React.FC<DashcardListProps> = ({
           ))}
         </Row>
       ) : (
-        <Empty 
-          description="No dashcards found" 
+        <Empty
+          description="No dashcards found"
           className="my-12"
           image={Empty.PRESENTED_IMAGE_SIMPLE}
         />
@@ -128,7 +130,10 @@ const DashcardList: React.FC<DashcardListProps> = ({
         okText="Delete"
         okButtonProps={{ danger: true }}
       >
-        <p>Are you sure you want to delete this dashcard? This action cannot be undone.</p>
+        <p>
+          Are you sure you want to delete this dashcard? This action cannot be
+          undone.
+        </p>
       </Modal>
     </div>
   );

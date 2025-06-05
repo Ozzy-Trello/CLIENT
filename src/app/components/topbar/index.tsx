@@ -5,18 +5,11 @@ import { Avatar, Badge, Dropdown, Input, Typography } from "antd";
 import Link from "next/link";
 import React, { useState } from "react";
 import logo from "@/app/assets/images/Logo_Ozzy_Clothing_png.png";
-import ImageDynamicContrast from "../image-dynamic-contrast";
-import { useSelector } from "react-redux";
-import {
-  selectTheme,
-  selectUser,
-  setAccessToken,
-  setUser,
-} from "@/app/store/app_slice";
-import { useDispatch } from "react-redux";
-import { useRouter } from "next/navigation"; // Changed from 'next/router'
-import { WorkspaceSelection } from "../selection";
-import { useWorkspaceSidebar } from "@/app/provider/workspace-sidebar-context";
+import { useDispatch, useSelector } from "react-redux";
+import ImageDynamicContrast from "@components/image-dynamic-contrast";
+import { WorkspaceSelection } from "@components/selection";
+import { selectTheme, selectUser, setUser } from "@store/app_slice";
+import { useRouter } from "next/router";
 
 const TopBar: React.FC = React.memo(() => {
   const [notificationVisible, setNotificationVisible] = useState(false);
@@ -35,7 +28,7 @@ const TopBar: React.FC = React.memo(() => {
 
   const handleLogout = () => {
     router.push("/login");
-    dispatch(setAccessToken(""));
+    // dispatch(setAccessToken(""));
     dispatch(setUser({}));
   };
 
