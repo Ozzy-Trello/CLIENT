@@ -9,28 +9,29 @@ export function useWebSocket() {
 
   useEffect(() => {
     // Make sure the WebSocket URL is correctly formatted
-    const wsUrl = process.env.NEXT_PUBLIC_BE_BASE_URL?.replace('http', 'ws') + '/ws';
-    console.log('Connecting to WebSocket:', wsUrl);
-    
+    const wsUrl =
+      process.env.NEXT_PUBLIC_BE_BASE_URL?.replace("http", "ws") + "/ws";
+    console.log("Connecting to WebSocket:", wsUrl);
+
     const ws = new WebSocket(wsUrl);
-    
+
     ws.onopen = () => {
-      console.log('WebSocket connected successfully');
+      console.log("WebSocket connected successfully");
       setIsConnected(true);
       setSocket(ws);
     };
-    
+
     ws.onclose = () => {
-      console.log('WebSocket connection closed');
+      console.log("WebSocket connection closed");
       setIsConnected(false);
       setSocket(null);
     };
-    
+
     ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
+      console.error("WebSocket error:", error);
       setIsConnected(false);
     };
-    
+
     return () => {
       ws.close();
     };
@@ -54,13 +55,18 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
 
         switch (message.event) {
           case "connection":
-            console.log("WebSocket connection confirmed:", message.data.message);
+            console.log(
+              "WebSocket connection confirmed:",
+              message.data.message
+            );
             break;
-            
+
           case "card:moved":
             const { card, fromListId, toListId } = message.data;
-            console.log(`Card ${card.id} moved from ${fromListId} to ${toListId}`);
-            
+            console.log(
+              `Card ${card.id} moved from ${fromListId} to ${toListId}`
+            );
+
             // invalidate all related queries
             queryClient.invalidateQueries({ queryKey: ["lists"] });
             queryClient.invalidateQueries({ queryKey: ["cards", fromListId] });
@@ -68,34 +74,63 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
               queryClient.invalidateQueries({ queryKey: ["cards", toListId] });
             }
             break;
-            
+
           case "card:updated":
             const { card: updatedCard, listId } = message.data;
             console.log(`Card ${updatedCard.id} updated in list ${listId}`);
-            
+
             // Invalidate relevant queries
             queryClient.invalidateQueries({ queryKey: ["lists"] });
             queryClient.invalidateQueries({ queryKey: ["cards", listId] });
             break;
-            
+
           case "card:created":
             const { card: newCard, listId: newCardListId } = message.data;
-            console.log(`New card ${newCard.id} created in list ${newCardListId}`);
-            
+            console.log(
+              `New card ${newCard.id} created in list ${newCardListId}`
+            );
+
             // Invalidate relevant queries
             queryClient.invalidateQueries({ queryKey: ["lists"] });
-            queryClient.invalidateQueries({ queryKey: ["cards", newCardListId] });
+            queryClient.invalidateQueries({
+              queryKey: ["cards", newCardListId],
+            });
             break;
-            
+
           case "card:deleted":
-            const { cardId: deletedCardId, listId: deletedCardListId } = message.data;
-            console.log(`Card ${deletedCardId} deleted from list ${deletedCardListId}`);
-            
+            const { cardId: deletedCardId, listId: deletedCardListId } =
+              message.data;
+            console.log(
+              `Card ${deletedCardId} deleted from list ${deletedCardListId}`
+            );
+
             // Invalidate relevant queries
             queryClient.invalidateQueries({ queryKey: ["lists"] });
-            queryClient.invalidateQueries({ queryKey: ["cards", deletedCardListId] });
+            queryClient.invalidateQueries({
+              queryKey: ["cards", deletedCardListId],
+            });
             break;
             
+          case "custom_field:updated":
+            const { cardId, customField, workspaceId } = message.data;
+            console.log(
+              `Custom field ${customField.id} updated for card ${cardId}`
+            );
+            
+            // Invalidate relevant queries
+            // For dashcard counts, we need to invalidate all dashcard count queries
+            // since we don't know which dashcards might be affected by this custom field change
+            queryClient.invalidateQueries({ 
+              queryKey: ["dashcardCount"],
+              // This will invalidate all dashcard count queries regardless of the specific dashcard ID
+              // which ensures all dashcards that depend on this custom field will be updated
+              exact: false 
+            });
+            
+            // Also invalidate the specific card's custom field data
+            queryClient.invalidateQueries({ queryKey: ["cardCustomField", cardId] });
+            break;
+
           default:
             console.log("Unknown WebSocket event:", message.event);
         }
@@ -105,7 +140,7 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
     };
 
     socket.addEventListener("message", handleMessage);
-    
+
     return () => {
       socket.removeEventListener("message", handleMessage);
     };
@@ -115,6 +150,6 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
 export function useRealtimeUpdates() {
   const { socket, isConnected } = useWebSocket();
   useWebSocketCardUpdates(socket);
-  
+
   return { socket, isConnected };
 }

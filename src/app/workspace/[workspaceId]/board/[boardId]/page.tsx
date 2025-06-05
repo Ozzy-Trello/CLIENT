@@ -189,7 +189,7 @@ const Board: React.FC = () => {
         width: collapsed
           ? `calc(100%-${siderSmall})`
           : `calc(100%-${siderWide})`,
-        backgroundColor: selectedBoard?.background,
+        // Background is now applied at the body level for full-page effect
       }}
     >
       <BoardTopbar

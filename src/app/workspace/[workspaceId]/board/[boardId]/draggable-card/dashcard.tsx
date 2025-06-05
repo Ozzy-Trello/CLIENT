@@ -1,7 +1,6 @@
-import { cardCount } from "@api/card";
 import { Card } from "@myTypes/card";
 import { Checkbox, CheckboxChangeEvent, Typography } from "antd";
-import { useEffect, useState } from "react";
+import { useDashcardCount } from "@hooks/dashcard";
 
 interface DashcardProps {
   card: Card;
@@ -14,19 +13,9 @@ interface DashcardProps {
 const Dashcard: React.FC<DashcardProps> = (props) => {
 
   const {card, isHovered, onChange, isComplete} = props;
-  const [count, setCount] = useState<number>(0);
-
-  useEffect(() => {
-    const fetchCount = async() => {
-      const result = await cardCount(card.id);
-      console.log("result count is: %o", result);
-      if (result.data) {
-        setCount(result?.data);
-      }
-    }
-
-    fetchCount();
-  }, [card])
+  
+  // Use our custom hook to fetch and manage dashcard count
+  const { count } = useDashcardCount(card.id);
 
   return (
     <div  className="w-full p-2" style={{
