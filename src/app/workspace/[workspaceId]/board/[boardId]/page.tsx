@@ -23,6 +23,7 @@ import { DashcardConfig } from "@myTypes/dashcard";
 import { Card, EnumCardType } from "@myTypes/card";
 import { AnyList } from "@myTypes/list";
 import { selectCurrentBoard } from "@store/workspace_slice";
+import { useRealtimeUpdates } from "@hooks/websocket";
 
 const DragDropContext = dynamic(
   () => import("@hello-pangea/dnd").then((mod) => mod.DragDropContext),
@@ -49,6 +50,8 @@ const Board: React.FC = () => {
   const [openDashcardModal, setOpenDashcardModal] = useState<boolean>(false);
   const [dashcardConfig, setDashcardConfig] = useState<DashcardConfig>();
   const selectedBoard = useSelector(selectCurrentBoard);
+  const { isConnected } = useRealtimeUpdates();
+
   const onListDragEnd = useCallback(
     (result: DropResult) => {
       const { destination, source, type, draggableId } = result;
@@ -196,6 +199,9 @@ const Board: React.FC = () => {
         setOpenDashcardModal={setOpenDashcardModal}
       />
       <CardDetailProvider>
+        {/* <div style={{ position: 'fixed', top: 10, right: 10, zIndex: 1000 }}>
+          WebSocket: {isConnected ? '🟢 Connected' : '🔴 Disconnected'}
+        </div> */}
         <div className="pt-[50px] h-[calc(100vh-30px)] overflow-x-auto overflow-y-hidden min-w-[200px]">
           {!isLoading && (
             <DragDropContext onDragEnd={onListDragEnd}>
