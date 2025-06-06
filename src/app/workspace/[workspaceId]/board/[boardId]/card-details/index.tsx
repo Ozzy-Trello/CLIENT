@@ -36,6 +36,7 @@ import CardTimeInList from "./time-in-lists";
 import ChecklistFields from "./checklist-field";
 import { CardDateDisplay } from "@components/card-dates";
 import { useCardMembers } from "@hooks/card_member";
+import PopoverLabel from "@components/popover-label.tsx";
 
 const CardDetails: React.FC = (props) => {
   const params = useParams();
@@ -63,6 +64,7 @@ const CardDetails: React.FC = (props) => {
   const { cardActivities } = useCardActivity(selectedCard?.id || "");
   const { lists } = useLists(boardId || "");
   const [openAddMember, setOpenAddMember] = useState<boolean>(false);
+  const [openLabel, setOpenLabel] = useState<boolean>(false);
 
   const onCardComplete: CheckboxProps["onChange"] = (e) => {
     e.stopPropagation();
@@ -251,18 +253,20 @@ const CardDetails: React.FC = (props) => {
                         {selectedCard?.labels?.map((label, index) => (
                           <Tag
                             key={index}
-                            color={label.color}
+                            color={label.value}
                             className="rounded-md py-1"
                           >
-                            {label.title}
+                            {label?.name}
                           </Tag>
                         ))}
-                        <Tag
-                          className="cursor-pointer rounded-md border-dashed hover:bg-gray-50"
-                          // onClick={() => setLabelModalVisible(true)}
-                        >
-                          +
-                        </Tag>
+                        
+                        <PopoverLabel
+                          open={openLabel}
+                          setOpen={setOpenLabel}
+                          triggerEl={
+                            <Tag className="cursor-pointer rounded-md border-dashed hover:bg-gray-50">+</Tag>
+                          }
+                        />
                         {/* <LabelsSelection
                           visible={labelModalVisible}
                           onClose={() => setLabelModalVisible(false)}
