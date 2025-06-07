@@ -20,13 +20,6 @@ export interface Color {
   percent: number;
 }
 
-export interface Label {
-  id: string;
-  title: string;
-  color: string;
-}
-
-
 export interface AcitivitySource {
   actionType: string;
   fromId: string;

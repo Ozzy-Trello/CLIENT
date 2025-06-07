@@ -65,12 +65,6 @@ export interface Attachment {
   isCover?: boolean;
 }
 
-export interface Label {
-  id: string;
-  title: string;
-  color: string;
-}
-
 export interface CardTime {
   inList: string; // Duration in list (e.g., "1 second", "22 hours")
   onBoard: string; // Duration on board (e.g., "1 month", "3 months")

@@ -2,8 +2,9 @@ import { CustomOption } from "@dto/types";
 import { EnumCustomFieldSource, EnumCustomFieldType } from "./custom-field";
 import { DashcardConfig } from "./dashcard";
 import { FileUpload } from "./file-upload";
-import { AcitivitySource, Checklist, Label } from "./type";
+import { AcitivitySource, Checklist } from "./type";
 import { User } from "./user";
+import { Label } from "./label";
 
 export enum EnumCardType {
   Regular = 'regular',
