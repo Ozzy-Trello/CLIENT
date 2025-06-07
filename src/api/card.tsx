@@ -36,3 +36,23 @@ export const cardCount = async (cardId: string): Promise<ApiResponse<any>> => {
   const {data} = await api.get(`/card/${cardId}/dashcard/count`);
   return data;
 }
+
+
+/**
+ * Card Label
+ */
+export const addCardLabel = async (workspaceId: string, labelId: string, cardId: string): Promise<ApiResponse<any>> => {
+  console.log("Adding label:", labelId, "to card:", cardId, "in workspace:", workspaceId);
+  const {data} = await api.post(`/card/${cardId}/label`, {labelId: labelId}, {headers: {"workspace-id": workspaceId}});
+  return data; 
+}
+
+export const removeLabelFromCard = async (labelId: string, cardId: string): Promise<ApiResponse<any>> => {
+  const {data} = await api.delete(`/card/${cardId}/label/${labelId}`);
+  return data; 
+}
+
+export const getCardLabels = async (workspaceId: string, cardId: string): Promise<ApiResponse<any>> => {
+  const {data} = await api.get(`/card/${cardId}/label`, {headers: {"workspace-id": workspaceId}});
+  return data; 
+}

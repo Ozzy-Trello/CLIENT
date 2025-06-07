@@ -1,15 +1,19 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Input, Button, Tooltip, Form } from "antd";
-import { X, ArrowLeft } from "lucide-react";
-import { Label } from "@myTypes/label";
+import { Input, Button } from "antd";
+import { X } from "lucide-react";
+import { CardLabel } from "@myTypes/label";
+import { useParams } from "next/navigation";
+import { useLabels } from "@hooks/label";
+import { Card } from "@myTypes/card";
 
 interface LabelFormProps {
-  popoverPage: 'home' | 'form';
-  setPopoverPage: (page: 'home' | 'form') => void;
-  selectedLabel: Label | undefined;
+  popoverPage: 'home' | 'add' | 'update';
+  setPopoverPage: (page: 'home' | 'add' | 'update') => void;
+  selectedLabel: CardLabel | undefined;
   setSelectedLabel: any;
+  selectedCard: Card | null;
 }
 
 const COLORS = [
@@ -22,19 +26,48 @@ const COLORS = [
 ];
 
 const LabelForm: React.FC<LabelFormProps> = (props) => {
-  const { popoverPage, setPopoverPage, setSelectedLabel, selectedLabel } = props;
-  const [selectedColor, setSelectedColor] = useState<string | null>(COLORS[29]);  
-  const [newLabel, setNewLabel] = useState<Label>({
+  const { popoverPage, setPopoverPage, setSelectedLabel, selectedLabel, selectedCard } = props;
+  const [ selectedColor, setSelectedColor ] = useState<string | null>(COLORS[29]);
+  const { workspaceId} = useParams();
+  const { createLabel, updateLabel, deleteLabel } = useLabels(workspaceId as string, {cardId: selectedCard?.id});
+  const [ newLabel, setNewLabel ] = useState<CardLabel>({
     id: "",
     name: "",
     value: "",
-    valueType: "",
-    workspaceId: "",
+    valueType: "color",
+    workspaceId: workspaceId as string,
   });
 
-  const handleCreate = () => {
-    
+  const handleSave = () => {
+    if (newLabel?.labelId) {
+      updateLabel(newLabel.labelId, newLabel);
+    } else {
+      createLabel(newLabel);
+    }
+    setPopoverPage('home');
   };
+
+  const handleDelete = () => {
+    if (newLabel?.labelId) {
+      deleteLabel(newLabel?.labelId);
+    }
+    setPopoverPage('home');
+  }
+
+  const onColorChange = (color: string) => {
+    setSelectedColor(color);
+    setNewLabel((prev) => ({
+      ...prev,
+      value: color,
+    }))
+  }
+
+  const onLabelNameChange = (labelName: string) => {
+    setNewLabel((prev) => ({
+      ...prev,
+      name: labelName,
+    }))
+  }
 
   useEffect(() => {
     if (selectedLabel) {
@@ -57,6 +90,8 @@ const LabelForm: React.FC<LabelFormProps> = (props) => {
         <Input
           placeholder="Enter label title"
           value={newLabel === undefined ? "" : newLabel?.name}
+          onChange={(e) => {onLabelNameChange(e.target.value)}}
+          className="rounded"
         />
       </div>
 
@@ -71,7 +106,7 @@ const LabelForm: React.FC<LabelFormProps> = (props) => {
                 selectedColor === color ? "border-blue-600" : "border-transparent"
               }`}
               style={{ backgroundColor: color }}
-              onClick={() => setSelectedColor(color)}
+              onClick={() => onColorChange(color)}
             />
           ))}
         </div>
@@ -79,23 +114,32 @@ const LabelForm: React.FC<LabelFormProps> = (props) => {
 
       {/* Remove color */}
       <div className="mt-4">
-        <button
+        <Button
+          size="small"
           onClick={() => setSelectedColor(null)}
           className="w-full flex items-center justify-center text-sm text-gray-700 hover:text-red-500"
         >
           <X className="mr-1" size={14} />
           Remove color
-        </button>
+        </Button>
       </div>
 
       {/* Create Button */}
-      <div className="mt-4 border-t pt-4">
+      <div className="mt-4 pt-4 flex gap-2 justify-end">
         <Button
-          block
-          type="primary"
-          onClick={handleCreate}
+          color="danger" 
+          variant="solid"
+          size="small"
+          onClick={handleDelete}
         >
-          Create
+          Delete
+        </Button>
+        <Button
+          type="primary"
+          onClick={handleSave}
+          size="small"
+        >
+          Save
         </Button>
       </div>
     </div>

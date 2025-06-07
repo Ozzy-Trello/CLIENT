@@ -26,7 +26,7 @@ import { useCustomFields } from "@hooks/custom_field";
 import { useParams } from "next/navigation";
 import CustomFields from "./custom-field";
 import { ListSelection, SelectionRef } from "@components/selection";
-import { useCards } from "@hooks/card";
+import { useCardLabels, useCards } from "@hooks/card";
 import { useLists } from "@hooks/list";
 import { useCardActivity } from "@hooks/card_activity";
 import LocationDisplay from "./location";
@@ -37,6 +37,7 @@ import ChecklistFields from "./checklist-field";
 import { CardDateDisplay } from "@components/card-dates";
 import { useCardMembers } from "@hooks/card_member";
 import PopoverLabel from "@components/popover-label.tsx";
+import { CardLabel } from "@myTypes/label";
 
 const CardDetails: React.FC = (props) => {
   const params = useParams();
@@ -61,6 +62,7 @@ const CardDetails: React.FC = (props) => {
   const [newTitle, setNewTitle] = useState<string>("");
   const { updateCard } = useCards(selectedCard?.listId || "", boardId);
   const { cardMembers, addMember, isAddingMember, refetch: refetchMember } = useCardMembers(selectedCard?.id || "");
+  const { cardLabels } = useCardLabels(workspaceId as string, selectedCard?.id || "");
   const { cardActivities } = useCardActivity(selectedCard?.id || "");
   const { lists } = useLists(boardId || "");
   const [openAddMember, setOpenAddMember] = useState<boolean>(false);
@@ -250,7 +252,7 @@ const CardDetails: React.FC = (props) => {
                         Labels
                       </span>
                       <Flex gap="small" wrap="wrap">
-                        {selectedCard?.labels?.map((label, index) => (
+                        {cardLabels?.map((label: CardLabel, index: number) => (
                           <Tag
                             key={index}
                             color={label.value}
@@ -267,12 +269,6 @@ const CardDetails: React.FC = (props) => {
                             <Tag className="cursor-pointer rounded-md border-dashed hover:bg-gray-50">+</Tag>
                           }
                         />
-                        {/* <LabelsSelection
-                          visible={labelModalVisible}
-                          onClose={() => setLabelModalVisible(false)}
-                          onSave={addLabel}
-                          initialSelectedLabels={[]}
-                        /> */}
                       </Flex>
                     </div>
                   </div>

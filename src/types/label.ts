@@ -6,5 +6,17 @@ export interface Label {
   workspaceId?: string;
   createdBy?: string;
   createdAt?: string;
-  checked?: boolean; //helper field for UI
+}
+
+export interface CardLabel {
+  id?: string;
+  labelId?: string;
+  cardId?: string;
+  name?: string;
+  value?: string;
+  valueType?: string; 
+  workspaceId?: string;
+  isAssigned?: boolean;
+  createdBy?: string;
+  createdAt?: string;
 }

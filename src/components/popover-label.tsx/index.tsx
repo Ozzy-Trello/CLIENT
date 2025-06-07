@@ -1,11 +1,11 @@
 import React, { ReactNode, useState } from "react";
-import { Popover, Typography } from "antd";
-import { X } from "lucide-react";
+import { Button, Popover, Typography } from "antd";
+import { ChevronLeft, X } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useCardDetailContext } from "@providers/card-detail-context";
-import LabelManager from "./label-manager";
+import Home from "./home";
 import LabelForm from "./label-form";
-import { Label } from "@myTypes/label";
+import { CardLabel, Label } from "@myTypes/label";
 
 interface PopoverLabel {
   open: boolean;
@@ -21,48 +21,64 @@ const PopoverLabel: React.FC<PopoverLabel> = ({
 
   const { selectedCard, activeList, setSelectedCard } = useCardDetailContext();
   const {boardId} = useParams();
-  const [popoverPage, setPopoverPage] = useState<'home' | 'form'>('home');
-  const [selectedLabel, setSelectedLabel] = useState<Label | undefined>(undefined);
+  const [popoverPage, setPopoverPage] = useState<'home' | 'add' | 'update'>('home');
+  const [selectedLabel, setSelectedLabel] = useState<CardLabel | undefined>(undefined);
   
 
   const onCancel = () => {
     setOpen(false);
   }
- 
+  
+  const goBack = () => {
+    setPopoverPage('home');
+    setSelectedLabel(undefined);
+  }
+
   return (
     <Popover
       content={
         popoverPage === 'home' ? (
-          <LabelManager 
+          <Home 
             popoverPage={popoverPage}
             setPopoverPage={setPopoverPage}
             selectedLabel={selectedLabel}
             setSelectedLabel={setSelectedLabel}
+            selectedCard={selectedCard}
           />
         ) : (
           <LabelForm 
             popoverPage={popoverPage}
             setPopoverPage={setPopoverPage}
-             selectedLabel={selectedLabel}
+            selectedLabel={selectedLabel}
             setSelectedLabel={setSelectedLabel}
+            selectedCard={selectedCard}
           />
         )
       }
       title={
-        <div className="flex justify-between items-center">
-          <div className="flex justify-start items-center gap-2">
-            <Typography.Title level={5} className="m-0">Label</Typography.Title>
+       <div className="flex justify-between items-center">
+          <div className="flex justify-start items-center gap-2 text-[12px]">
+            {popoverPage !== "home" && (
+              <Button size="small" type="text">
+                <ChevronLeft size={16} onClick={goBack} />
+              </Button>
+            )}
+            <span>
+              {
+                popoverPage === "home" ? "Label" :
+                popoverPage === "add" ? "Add new Label" :
+                popoverPage === "update" ? "Update Label" :
+                ""
+              }
+            </span>
           </div>
-          <button 
-            onClick={() => {
-              setOpen(false);
-              setSelectedLabel(undefined);
-              setPopoverPage('home');
-            }}
-            className="hover:bg-gray-100 p-1 rounded-sm transition-colors"
+          <Button 
+            size="small"
+            type="text"
+            onClick={() => setOpen(false)}
           >
             <X size={14} className="text-gray-400"/>
-          </button>
+          </Button>
         </div>
       }
       trigger="click"
