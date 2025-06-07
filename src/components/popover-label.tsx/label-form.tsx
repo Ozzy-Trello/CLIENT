@@ -29,7 +29,7 @@ const LabelForm: React.FC<LabelFormProps> = (props) => {
   const { popoverPage, setPopoverPage, setSelectedLabel, selectedLabel, selectedCard } = props;
   const [ selectedColor, setSelectedColor ] = useState<string | null>(COLORS[29]);
   const { workspaceId} = useParams();
-  const { createLabel, updateLabel, deleteLabel } = useLabels(workspaceId as string, {cardId: selectedCard?.id});
+  const { createLabelAsync, updateLabelAsync, deleteLabelAsync } = useLabels(workspaceId as string, selectedCard?.id, {cardId: selectedCard?.id});
   const [ newLabel, setNewLabel ] = useState<CardLabel>({
     id: "",
     name: "",
@@ -40,16 +40,16 @@ const LabelForm: React.FC<LabelFormProps> = (props) => {
 
   const handleSave = () => {
     if (newLabel?.labelId) {
-      updateLabel(newLabel.labelId, newLabel);
+      updateLabelAsync({id:newLabel?.labelId, updates: newLabel});
     } else {
-      createLabel(newLabel);
+      createLabelAsync(newLabel);
     }
     setPopoverPage('home');
   };
 
   const handleDelete = () => {
     if (newLabel?.labelId) {
-      deleteLabel(newLabel?.labelId);
+      deleteLabelAsync(newLabel?.labelId);
     }
     setPopoverPage('home');
   }

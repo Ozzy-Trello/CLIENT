@@ -1,15 +1,12 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import { Input, Button, Checkbox, Tooltip } from "antd";
 import { Pencil } from "lucide-react";
-import { CardLabel, Label } from "@myTypes/label";
-import { addCardLabel, getCardLabels, removeLabelFromCard } from "@api/card";
+import { CardLabel } from "@myTypes/label";
 import { useParams } from "next/navigation";
 import { Card } from "@myTypes/card";
-import { getLabels } from "@api/label";
 import { useLabels } from "@hooks/label";
-import { useCardLabels } from "@hooks/card";
 
 interface LabelManagerProps {
   popoverPage: 'home' | 'add' | 'update';
@@ -23,17 +20,16 @@ const Home: React.FC<LabelManagerProps> = (props) => {
   const { workspaceId } = useParams();
   const { setPopoverPage, setSelectedLabel, selectedCard } = props;
   const [searchTerm, setSearchTerm] = useState("");
-  // const [labels, setLabels] = useState<CardLabel[]>([]);
-  const { labels } = useLabels(workspaceId as string, {cardId: selectedCard?.id});
-  const { addLabel: addCardLabel, removeLabel: removeCardLabel } = useCardLabels(workspaceId as string, selectedCard?.id || "");
+  const { labels, addCardLabel, removeCardLabel } = useLabels(workspaceId as string, selectedCard?.id, {cardId: selectedCard?.id});
 
-  const filteredLabels = useMemo(() => {
-    if (labels) {
-      return labels.filter(label =>
-      label?.name?.toLowerCase().includes(searchTerm.toLowerCase())
+ const filteredLabels = useMemo(() => {
+    if (!labels) return [];
+    const unique = Array.from(new Map(labels.map(l => [l.labelId, l])).values());
+    return unique.filter(label =>
+      label.name?.toLowerCase().includes(searchTerm.toLowerCase())
     );
-    }
   }, [searchTerm, labels]);
+
 
   const toggleCheck = async (isChecked: boolean, labelId: string) => {
     if (!selectedCard || !workspaceId) {
@@ -41,22 +37,11 @@ const Home: React.FC<LabelManagerProps> = (props) => {
       return;
     }
 
-    // Optimistically update local state
-    // setLabels((prevLabels) => {
-    //   const updated = prevLabels?.map((label) =>
-    //     label.labelId === labelId
-    //       ? { ...label, isAssigned: isChecked }
-    //       : label
-    //   ) ?? [];
-    //   console.log("Optimistically updated labels:", updated);
-    //   return updated;
-    // });
-
     try {
       if (isChecked) {
-        addCardLabel(labelId);
+        addCardLabel({labelId});
       } else {
-        removeCardLabel(labelId);
+        removeCardLabel({labelId});
       }
     } catch (error) {
       console.error("Failed to update label assignment:", error);      

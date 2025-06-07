@@ -62,6 +62,10 @@ div[data-rfd-droppable-id="all-columns"] {
 
 
 /* Ant Design */
+.ant-tag {
+  /* this to remove margin inline end in ant tag */
+  margin-right: 0; 
+}
 .ant-layout {
   background-color: transparent;
 }

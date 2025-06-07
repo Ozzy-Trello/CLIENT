@@ -1,273 +1,221 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { createLabel, getLabels, getLabel, updateLabel, deleteLabel } from "../api/label";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  createLabel,
+  updateLabel,
+  deleteLabel,
+  getLabels,
+} from "@api/label";
+import {   
+  addCardLabel,
+  removeLabelFromCard,
+  getCardLabels } from "@api/card";
+import { Label, CardLabel } from "@myTypes/label";
 import { ApiResponse } from "@myTypes/type";
-import { User } from "@dto/types";
-import { CardLabel, Label } from "@myTypes/label";
 
-export function useLabels(worksapceId: string, params: CardLabel) {
+export function useLabels(workspaceId: string, cardId?: string, labelQueryParams?: CardLabel) {
   const queryClient = useQueryClient();
- 
-  // query for all labels
+
+  // ---------- Queries ----------
+
   const labelsQuery = useQuery({
-    queryKey: ["labels", worksapceId, params.cardId],
-    queryFn: () => getLabels(worksapceId, params),
+    queryKey: ["labels", workspaceId, labelQueryParams],
+    queryFn: () => getLabels(workspaceId, labelQueryParams || {}),
+    enabled: !!workspaceId,
   });
 
-  // Query for a specific label
-  const useLabelQuery = (labelId: string) => {
-    return useQuery({
-      queryKey: ["label", worksapceId, labelId],
-      queryFn: () => getLabel(labelId),
-      enabled: !!labelId,
-    });
-  };
+  const cardLabelsQuery = useQuery({
+    queryKey: ["cardLabels", workspaceId, cardId],
+    queryFn: () => {
+      if (!cardId) throw new Error("cardId is required to fetch card labels");
+      return getCardLabels(workspaceId, cardId);
+    },
+    enabled: !!workspaceId && !!cardId,
+  });
 
-  // Create label mutation with optimistic update
-  const createMutation = useMutation({
+  // ---------- Mutations ----------
+  const createLabelMutation = useMutation({
     mutationFn: (label: Label) => createLabel(label),
     onMutate: async (newLabel) => {
-      // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ["labels", worksapceId, params.cardId] });
-      
-      // Snapshot the previous value
-      const previousLabels = queryClient.getQueryData<ApiResponse<User[]>>(
-        ["labels", worksapceId, params.cardId]
-      );
-      
-      // Optimistically update to the new value
+      await queryClient.cancelQueries({ queryKey: ["labels", workspaceId] });
+
+      const previousLabels = queryClient.getQueryData<ApiResponse<Label[]>>(["labels", workspaceId]);
+
+      const optimisticLabel = {
+        ...newLabel,
+        id: `temp-${Date.now()}`,
+        isAssigned: false,
+      };
+
       if (previousLabels?.data) {
-        const optimisticLabel: User = {
-          ...newLabel,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        } as User;
-        
-        queryClient.setQueryData<ApiResponse<User[]>>(
-          ["labels", worksapceId, params.cardId],
-          {
-            ...previousLabels,
-            data: [...previousLabels.data, optimisticLabel]
-          }
-        );
+        queryClient.setQueryData<ApiResponse<Label[]>>(["labels", workspaceId], {
+          ...previousLabels,
+          data: [...previousLabels.data, optimisticLabel],
+        });
       }
-      
+
       return { previousLabels };
     },
-    onError: (err, newLabel, context) => {
+    onError: (_, __, context) => {
       if (context?.previousLabels) {
-        queryClient.setQueryData(
-          ["labels", worksapceId, params.cardId],
-          context.previousLabels
-        );
+        queryClient.setQueryData(["labels", workspaceId], context.previousLabels);
       }
     },
-    onSuccess: (data) => {
-      // Update with the actual server response
-      if (data?.data) {
-        queryClient.setQueryData<ApiResponse<User[]>>(
-          ["labels", worksapceId, params.cardId],
-          data
-        );
-        queryClient.invalidateQueries({ queryKey: ["cardLabels", worksapceId, params.cardId] });
-      }
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["labels", workspaceId] });
     },
   });
 
-  // Update label mutation with optimistic update
-  const updateMutation = useMutation({
-    mutationFn: ({ labelId, label }: { labelId: string; label: Label }) => 
-    updateLabel(labelId, label),
-    onMutate: async ({ labelId, label }) => {
-      // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ["labels", worksapceId, params.cardId] });
-      await queryClient.cancelQueries({ queryKey: ["label", worksapceId, labelId] });
-      
-      // Snapshot the previous values
-      const previousLabels = queryClient.getQueryData<ApiResponse<User[]>>(
-        ["labels", worksapceId, params.cardId]
-      );
-      const previousLabel = queryClient.getQueryData<ApiResponse<User>>(
-        ["label", worksapceId, labelId]
-      );
-      
-      // Optimistically update the labels list
+  const updateLabelMutation = useMutation({
+    mutationFn: ({ id, updates }: { id: string; updates: Partial<Label> }) => updateLabel(id, updates as Label),
+    onMutate: async ({ id, updates }) => {
+      await queryClient.cancelQueries({ queryKey: ["labels", workspaceId] });
+
+      const previousLabels = queryClient.getQueryData<ApiResponse<CardLabel[]>>(["labels", workspaceId]);
+
       if (previousLabels?.data) {
-        const updatedLabels = previousLabels.data.map((existingLabel) => {
-          if (existingLabel.id === labelId) {
-            return {
-              ...existingLabel,
-              ...label,
-              updatedAt: new Date().toISOString(),
-            };
-          }
-          return existingLabel;
+        const updatedLabels = previousLabels.data.map(label =>
+          label.labelId === id ? { ...label, ...updates } : label
+        );
+        queryClient.setQueryData<ApiResponse<CardLabel[]>>(["labels", workspaceId], {
+          ...previousLabels,
+          data: updatedLabels,
         });
-        
-        queryClient.setQueryData<ApiResponse<User[]>>(
-          ["labels", worksapceId, params.cardId],
-          {
-            ...previousLabels,
-            data: updatedLabels
-          }
-        );
       }
-      
-      // Optimistically update the individual label query
-      if (previousLabel?.data) {
-        queryClient.setQueryData<ApiResponse<any>>(
-          ["label", worksapceId, labelId],
-          {
-            ...previousLabel,
-            data: {
-              ...previousLabel.data,
-              ...label,
-              updatedAt: new Date().toISOString(),
-            }
-          }
-        );
-      }
-      
-      return { previousLabels, previousLabel };
+
+      return { previousLabels };
     },
-    onError: (err, variables, context) => {
-      // Rollback on error
+    onError: (_, __, context) => {
       if (context?.previousLabels) {
-        queryClient.setQueryData(
-          ["labels", worksapceId, params.cardId],
-          context.previousLabels
-        );
-      }
-      if (context?.previousLabel) {
-        queryClient.setQueryData(
-          ["label", worksapceId, variables.labelId],
-          context.previousLabel
-        );
+        queryClient.setQueryData(["labels", workspaceId], context.previousLabels);
       }
     },
-    onSuccess: () => {
-      // Invalidate queries to refetch the latest data since the API returns ApiResponse<any>
-      queryClient.invalidateQueries({ queryKey: ["labels", worksapceId, params.cardId] });
-      queryClient.invalidateQueries({ queryKey: ["cardLabels", worksapceId, params.cardId] });
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["labels", workspaceId] });
     },
   });
 
-  // Delete label mutation with optimistic update
-  const deleteMutation = useMutation({
-    mutationFn: (labelId: string) => deleteLabel(labelId),
-    onMutate: async (labelId) => {
-      // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ["labels", worksapceId,params.cardId] });
-      await queryClient.cancelQueries({ queryKey: ["label", worksapceId, labelId] });
-      
-      // Snapshot the previous values
-      const previousLabels = queryClient.getQueryData<ApiResponse<User[]>>(
-        ["labels", worksapceId, params.cardId]
-      );
-      const previousLabel = queryClient.getQueryData<ApiResponse<User>>(
-        ["label", worksapceId, worksapceId, labelId]
-      );
-      
-      // Optimistically remove from the labels list
+  const deleteLabelMutation = useMutation({
+    mutationFn: (id: string) => deleteLabel(id),
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ["labels", workspaceId] });
+
+      const previousLabels = queryClient.getQueryData<ApiResponse<CardLabel[]>>(["labels", workspaceId]);
+
       if (previousLabels?.data) {
-        const filteredLabels = previousLabels.data.filter(
-          (label) => label.id !== labelId
-        );
-        
-        queryClient.setQueryData<ApiResponse<User[]>>(
-          ["labels", worksapceId, params.cardId],
-          {
-            ...previousLabels,
-            data: filteredLabels
-          }
-        );
+        queryClient.setQueryData<ApiResponse<CardLabel[]>>(["labels", workspaceId], {
+          ...previousLabels,
+          data: previousLabels.data.filter(label => label.labelId !== id),
+        });
       }
-      
-      // Remove the individual label from cache
-      queryClient.removeQueries({ queryKey: ["label", worksapceId, labelId] });
-      
-      return { previousLabels, previousLabel, labelId };
+
+      return { previousLabels };
     },
-    onError: (err, labelId, context) => {
-      // Rollback on error
+    onError: (_, __, context) => {
       if (context?.previousLabels) {
-        queryClient.setQueryData(
-          ["labels", worksapceId, params.cardId],
-          context.previousLabels
-        );
-      }
-      if (context?.previousLabel) {
-        queryClient.setQueryData(
-          ["label", worksapceId, labelId],
-          context.previousLabel
-        );
+        queryClient.setQueryData(["labels", workspaceId], context.previousLabels);
       }
     },
-    onSuccess: () => {
-      // Invalidate queries to refetch the latest data since the API returns ApiResponse<any>
-      queryClient.invalidateQueries({ queryKey: ["labels", worksapceId, params.cardId] });
-      queryClient.invalidateQueries({ queryKey: ["cardLabels", worksapceId, params.cardId] });
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["labels", workspaceId] });
     },
   });
 
-  // Helper functions
-  const createLabelFn = (label: Label) => {
-    createMutation.mutate(label);
-  };
+  const addCardLabelMutation = useMutation({
+    mutationFn: ({ labelId }: { labelId: string }) => {
+      if (!cardId) throw new Error("cardId is required for addCardLabel");
+      return addCardLabel(workspaceId, labelId, cardId);
+    },
+    onMutate: async ({ labelId }) => {
+      await queryClient.cancelQueries();
 
-  const updateLabelFn = (labelId: string, label: Label) => {
-    updateMutation.mutate({ labelId, label });
-  };
+      const labelKey = ["labels", workspaceId, labelQueryParams || {}];
+      const cardLabelKey = ["cardLabels", workspaceId, cardId];
 
-  const deleteLabelFn = (labelId: string) => {
-    deleteMutation.mutate(labelId);
-  };
+      const updateIsAssigned = (queryKey: any) => {
+        const data = queryClient.getQueryData<ApiResponse<CardLabel[]>>(queryKey);
+        if (data?.data) {
+          queryClient.setQueryData(queryKey, {
+            ...data,
+            data: data.data.map(label =>
+              label.labelId === labelId ? { ...label, isAssigned: true } : label
+            ),
+          });
+        }
+      };
 
-  // Helper function to check if a label exists
-  const hasLabel = (labelId: string): boolean => {
-    return !!getLabel(labelId);
-  };
+      updateIsAssigned(labelKey);
+      if (cardId) updateIsAssigned(cardLabelKey);
+    },
+    onError: () => {
+      queryClient.invalidateQueries({ queryKey: ["labels", workspaceId, labelQueryParams || {}] });
+      if (cardId) queryClient.invalidateQueries({ queryKey: ["cardLabels", workspaceId, cardId] });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["labels", workspaceId, labelQueryParams || {}] });
+      if (cardId) queryClient.invalidateQueries({ queryKey: ["cardLabels", workspaceId, cardId] });
+    },
+  });
+
+
+  const removeCardLabelMutation = useMutation({
+    mutationFn: ({ labelId }: { labelId: string }) => {
+      if (!cardId) throw new Error("cardId is required for removeLabelFromCard");
+      return removeLabelFromCard(labelId, cardId);
+    },
+    onMutate: async ({ labelId }) => {
+      await queryClient.cancelQueries();
+
+      const updateIsAssigned = (queryKey: any) => {
+        const data = queryClient.getQueryData<ApiResponse<CardLabel[]>>(queryKey);
+        if (data?.data) {
+          queryClient.setQueryData(queryKey, {
+            ...data,
+            data: data.data.map(label =>
+              label.labelId === labelId ? { ...label, isAssigned: false } : label
+            ),
+          });
+        }
+      };
+
+      updateIsAssigned(["labels", workspaceId]);
+      if (cardId) updateIsAssigned(["cardLabels", workspaceId, cardId]);
+    },
+    onError: () => {
+      queryClient.invalidateQueries({ queryKey: ["labels", workspaceId] });
+      if (cardId) queryClient.invalidateQueries({ queryKey: ["cardLabels", workspaceId, cardId] });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["labels", workspaceId] });
+      if (cardId) queryClient.invalidateQueries({ queryKey: ["cardLabels", workspaceId, cardId] });
+    },
+  });
 
   return {
-    // Query data and state
+    // Queries
     labels: labelsQuery.data?.data || [],
-    isLoading: labelsQuery.isLoading,
-    isError: labelsQuery.isError,
-    error: labelsQuery.error,
-   
-    // Individual label query hook
-    useLabelQuery,
-   
-    // Label operations
-    createLabel: createLabelFn,
-    updateLabel: updateLabelFn,
-    deleteLabel: deleteLabelFn,
-   
-    // Mutation states
-    isCreating: createMutation.isPending,
-    isUpdating: updateMutation.isPending,
-    isDeleting: deleteMutation.isPending,
-    isMutating: createMutation.isPending || updateMutation.isPending || deleteMutation.isPending,
-    
-    // Error states
-    createError: createMutation.error,
-    updateError: updateMutation.error,
-    deleteError: deleteMutation.error,
-   
-    // Helper functions
-    getLabel,
-    hasLabel,
-   
-    // Async versions
-    createLabelAsync: createMutation.mutateAsync,
-    updateLabelAsync: updateMutation.mutateAsync,
-    deleteLabelAsync: deleteMutation.mutateAsync,
+    cardLabels: cardLabelsQuery.data?.data || [],
+    isLoadingLabels: labelsQuery.isLoading,
+    isLoadingCardLabels: cardLabelsQuery.isLoading,
 
-    // Raw mutations for advanced usage
-    createMutation: createMutation.mutate,
-    updateMutation: updateMutation.mutate,
-    deleteMutation: deleteMutation.mutate,
+    // Mutations
+    createLabel: createLabelMutation.mutate,
+    updateLabel: updateLabelMutation.mutate,
+    deleteLabel: deleteLabelMutation.mutate,
+    addCardLabel: addCardLabelMutation.mutate,
+    removeCardLabel: removeCardLabelMutation.mutate,
 
-    // For debugging
-    refetch: labelsQuery.refetch,
+    // Async (promise-based) variants
+    createLabelAsync: createLabelMutation.mutateAsync,
+    updateLabelAsync: updateLabelMutation.mutateAsync,
+    deleteLabelAsync: deleteLabelMutation.mutateAsync,
+    addCardLabelAsync: addCardLabelMutation.mutateAsync,
+    removeCardLabelAsync: removeCardLabelMutation.mutateAsync,
+
+    // Mutation loading states
+    isCreating: createLabelMutation.isPending,
+    isUpdating: updateLabelMutation.isPending,
+    isDeleting: deleteLabelMutation.isPending,
+    isAssigning: addCardLabelMutation.isPending,
+    isUnassigning: removeCardLabelMutation.isPending,
   };
 }
