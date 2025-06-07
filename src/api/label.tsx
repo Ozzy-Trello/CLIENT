@@ -16,10 +16,6 @@ export const getLabels = async (workspaceId: string, params: CardLabel): Promise
   return data;
 }
 
-export const getLabel = async (labelId: string): Promise<ApiResponse<CardLabel[]>> => {
-  const {data} = await api.get(`/label/${labelId}`);
-  return data;
-}
 
 export const updateLabel = async (labelId: string, label: Label): Promise<ApiResponse<any>> => {
   const {data} = await api.put(`/label/${labelId}`, label);

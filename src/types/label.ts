@@ -5,7 +5,8 @@ export interface Label {
   valueType?: string; 
   workspaceId?: string;
   createdBy?: string;
-  createdAt?: string;
+  createdAt?: Date;
+  updatedAt?: Date
 }
 
 export interface CardLabel {
@@ -18,5 +19,6 @@ export interface CardLabel {
   workspaceId?: string;
   isAssigned?: boolean;
   createdBy?: string;
-  createdAt?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
 }

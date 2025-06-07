@@ -42,7 +42,6 @@ export const cardCount = async (cardId: string): Promise<ApiResponse<any>> => {
  * Card Label
  */
 export const addCardLabel = async (workspaceId: string, labelId: string, cardId: string): Promise<ApiResponse<any>> => {
-  console.log("Adding label:", labelId, "to card:", cardId, "in workspace:", workspaceId);
   const {data} = await api.post(`/card/${cardId}/label`, {labelId: labelId}, {headers: {"workspace-id": workspaceId}});
   return data; 
 }
