@@ -37,7 +37,7 @@ export const triggers: AutomationRuleTrigger[] = [
               label: "Moved out of"
             }
           ],
-          value:  {
+          value: {
             value: EnumUserActionEvent.CardAddedTo,
             label: "Added to"
           },
@@ -60,20 +60,20 @@ export const triggers: AutomationRuleTrigger[] = [
               value: EnumOptionsSubject.ByAnyoneExceptMe,
               label: "by anyone except me"
             },
-             {
+            {
               value: EnumOptionsSubject.ByAnyoneExceptSpecificUser,
               label: "by anyone except specific user"
             }
           ],
           value: {
-              value: EnumOptionsSubject.ByMe,
-              label: "by me"
+            value: EnumOptionsSubject.ByMe,
+            label: "by me"
           }
         },
         [EnumSelectionType.OptionalBoard]: {
           options: [],
           value: null,
-        }
+        },
       },
       {
         type: TriggerType.WhenACardActionOverList,
@@ -141,7 +141,7 @@ export const triggers: AutomationRuleTrigger[] = [
       },
       {
         type: TriggerType.WhenACardHasArchivalAction,
-        label: TriggerType.WhenACardHasArchivalAction.replaceAll("-", " "),
+        label: TriggerType.WhenACardHasArchivalAction.replaceAll("-", ""),
         [EnumSelectionType.Action]: {
           options: [
             {

@@ -7,6 +7,7 @@ import PopoverRuleCardFilter from "@components/popover-rule-card-filter";
 
 import {
   AutomationRule,
+  AutomationRuleTrigger,
   GeneralOptions,
   SelectedCardFilter,
   SelectedTriggerItem,
@@ -31,6 +32,8 @@ interface SelectTriggerProps {
   prevStep: () => void;
   setSelectedRule: Dispatch<SetStateAction<AutomationRule>>;
   selectedRule: AutomationRule;
+  triggersData: AutomationRuleTrigger[];
+  setTriggersData: Dispatch<SetStateAction<AutomationRuleTrigger[]>>;
 }
 
 // Component for the filter button
@@ -74,13 +77,17 @@ const SelectOption = ({
   placeholder,
   data,
   itemType, 
+  groupIndex,
+  index
 }: {
   props: SelectTriggerProps;
   placeholder: string;
   data: TriggerItemSelection;
   itemType: string;
+  groupIndex: number,
+  index: number
 }) => {
-  const { setSelectedRule, selectedRule } = props;
+  const { setTriggersData, triggersData } = props;
 
   const options = data?.options?.map((optionItem: GeneralOptions) => ({
     value: optionItem.value,
@@ -88,33 +95,18 @@ const SelectOption = ({
     option: optionItem,
   }));
 
-  const currentSelection = selectedRule.triggerItem?.[placeholder];
-
-  const selectValue =
-    currentSelection && typeof currentSelection === 'object' && 'value' in currentSelection
-      ? (currentSelection as GeneralOptions).value
-      : undefined; 
-
-  const onSelectionChange = useCallback((selectedAntOption: { value: string; label: React.ReactNode; option: GeneralOptions }) => {
-    setSelectedRule((prev) => ({
-      ...prev,
-      triggerItem: {
-        ...prev.triggerItem,
-        [placeholder]: selectedAntOption.option,
-      } as SelectedTriggerItem, 
-    }));
-  }, [setSelectedRule, placeholder]);
+  const onSelectionChange = (selectedAntOption: { value: string; label: React.ReactNode; option: GeneralOptions }) => {
+    let copyArr = [...triggersData];
+    (copyArr[groupIndex]?.items?.[index]?.[placeholder as keyof TriggerItems] as any)["value"] = selectedAntOption.option;
+    setTriggersData(copyArr);
+  };
 
   // Callback for ListSelection's onChange
-  const onListChange = useCallback((selectedOption: GeneralOptions) => {
-    setSelectedRule((prev) => ({
-      ...prev,
-      triggerItem: {
-        ...prev.triggerItem,
-        [placeholder]: selectedOption,
-      } as SelectedTriggerItem,
-    }));
-  }, [setSelectedRule, placeholder]);
+  const onListChange = (selectedOption: GeneralOptions) => {
+    let copyArr = [...triggersData];
+    (copyArr[groupIndex]?.items?.[index]?.[placeholder as keyof TriggerItems] as any)["value"] = selectedOption;
+    setTriggersData(copyArr);
+  };
 
   if (placeholder === EnumSelectionType.List || placeholder === EnumSelectionType.OptionalList) {
     return (
@@ -122,7 +114,7 @@ const SelectOption = ({
         key={`list-select-${itemType}-${placeholder}`}
         width={"fit-content"}
         ref={useRef<SelectionRef>(null)}
-        value={selectValue}
+        value={(triggersData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value?.value || ''}
         onChange={(value: string, option: GeneralOptions) => {
           onListChange(option);
         }}
@@ -134,7 +126,7 @@ const SelectOption = ({
   return (
     <Select
       key={`ant-select-${itemType}-${placeholder}`}
-      value={selectValue}
+      value={(triggersData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value?.value || ''}
       options={options}
       style={{ width: 120, margin: '0 5px' }}
       onChange={(value, option) => {
@@ -144,7 +136,7 @@ const SelectOption = ({
   );
 };
 
-const LabelRenderer = ({ props, item, index}: { props: SelectTriggerProps, item: TriggerItems, index: number }) => {
+const LabelRenderer = ({ props, item, groupIndex, index}: { props: SelectTriggerProps, item: TriggerItems, groupIndex: number, index: number }) => {
   // If there's no placeholder in the label, just return the text
   if (!item.label.includes("<") && !item.label.includes("[")) {
     return <Typography.Text>{item.label}</Typography.Text>;
@@ -166,26 +158,30 @@ const LabelRenderer = ({ props, item, index}: { props: SelectTriggerProps, item:
               const data = item[placeholder] as TriggerItemSelection;
               return (
                 <SelectOption
-                  key={`select-option-${item.type}-${placeholder}-${index}`}
+                  key={`select-option-${item.type}-${placeholder}-${groupIndex}-${index}`}
                   props={props}
                   placeholder={placeholder}
                   data={data}
                   itemType={item.type}
+                  groupIndex={groupIndex}
+                  index={index}
                 />
               );
             }
-          } else if (placeholder === "filter") {
-            return (
-              <FilterButton
-                key={`filter-button-${item.type}-${index}`}
-                itemType={item.type}
-                props={props}
-              />
-            );
-          }
+
+            if (placeholder === "filter") {
+              return (
+                <FilterButton
+                  key={`filter-button-${item.type}-${index}`}
+                  itemType={item.type}
+                  props={props}
+                />
+              );
+            }
+          } 
         }
-        // Handle [...] placeholders (Input fields)
-        else if (trimmedPart.startsWith("[") && trimmedPart.endsWith("]")) {
+
+        if (trimmedPart.startsWith("[") && trimmedPart.endsWith("]")) {
           const placeholder = trimmedPart.slice(1, -1);
           // Get the current value from selectedRule.triggerItem, default to empty string
           const inputValue = (props.selectedRule.triggerItem?.[placeholder] as string) || '';
@@ -210,18 +206,19 @@ const LabelRenderer = ({ props, item, index}: { props: SelectTriggerProps, item:
         }
 
         // Regular text part
-        return <span key={`text-part-${item.type}-${index}`}> {part} </span>;
+        return part;
       })}
     </div>
   );
 };
 
-// Renders the list of available trigger items for the selected trigger type
-const renderItems = (props: SelectTriggerProps, items: TriggerItems[]) => {
-  const { nextStep, setSelectedRule, selectedRule } = props;
 
-  // Callback for when a specific trigger item's '+' button is clicked
-  const onSelectTrigger = useCallback((selectedItem: TriggerItems) => {
+const SelectTrigger: React.FC<SelectTriggerProps> = (props) => {
+  const { setSelectedRule, selectedRule, triggersData, nextStep } = props;
+  const [ selectedGroupIndex, setSelectedGroupIndex ] = useState<number>(0);
+
+   // Callback for when a specific trigger item's '+' button is clicked
+  const onSelectTrigger = useCallback((selectedItem: TriggerItems, index: number) => {
     const placeholders = extractPlaceholders(selectedItem.label);
 
     // Initialize newTriggerItem based on the selectedItem's defaults
@@ -230,39 +227,16 @@ const renderItems = (props: SelectTriggerProps, items: TriggerItems[]) => {
       label: selectedItem.label,
     };
 
-    placeholders.forEach((placeholder) => {
+      placeholders?.forEach((placeholder) => {
       // Handle GeneralOptions-based selections (e.g., <list>, <optionalList>)
-      if (
-        Object.values(EnumSelectionType).includes(placeholder as EnumSelectionType) &&
-        placeholder in selectedItem &&
-        (selectedItem[placeholder] as TriggerItemSelection)?.value 
-      ) {
-        
-        newTriggerItem[placeholder] =
-          (selectedRule.triggerItem?.[placeholder] as GeneralOptions) ||
-          (selectedItem[placeholder] as TriggerItemSelection).value;
-      }
-      // Handle 'filter' placeholder
-      else if (placeholder === "filter") {
-        const defaultFilterLabel = ((selectedItem.filter as TriggerItemSelection)?.value?.label) || 'Card';
-        const finalFilterLabel = typeof defaultFilterLabel === 'string' ? defaultFilterLabel : String(defaultFilterLabel);
-
-        newTriggerItem.filter =
-          selectedRule.triggerItem?.filter ||
-          ({
-            type: (selectedItem.filter as TriggerItemSelection)?.value?.value || 'card',
-            selectedItem: {
-              type: (selectedItem.filter as TriggerItemSelection)?.value?.value || 'card',
-              label: finalFilterLabel,
-            },
-          } as SelectedCardFilter);
-      }
-      // Handle input placeholders (e.g., [duration])
-      else if (selectedItem.label.includes(`[${placeholder}]`)) {
-        newTriggerItem[placeholder] =
-          (selectedRule.triggerItem?.[placeholder] as string) || '';
+      console.log('triggersData[index] as any)[placeholder]?.value: %o', triggersData[index]);
+      const items = triggersData[selectedGroupIndex]?.items;
+      if (items && items[index] && items[index][placeholder]) {
+        newTriggerItem[placeholder] = (items[index][placeholder] as any)?.value;
       }
     });
+
+    console.log("newTriggerItem: %o", newTriggerItem);
 
     setSelectedRule((prev: AutomationRule) => ({
       ...prev,
@@ -274,92 +248,12 @@ const renderItems = (props: SelectTriggerProps, items: TriggerItems[]) => {
 
   return (
     <div>
-      {items?.map((item: TriggerItems, index: number) => (
-        <div
-          key={item.type}
-          className="flex justify-between items-start rounded p-2 mb-2 bg-gray-200"
-        >
-          <div>
-            <LabelRenderer props={props} item={item} index={index} />
-          </div>
-          <Button shape="circle" onClick={() => { onSelectTrigger(item); }}>
-            <Plus />
-          </Button>
-        </div>
-      ))}
-    </div>
-  );
-};
-
-const SelectTrigger: React.FC<SelectTriggerProps> = (props) => {
-  const { setSelectedRule, selectedRule } = props;
-  const [itemsByTriggerType, setItemsByTriggerType] = useState<TriggerItems[]>([]);
-
-  // Callback for when a main trigger type button is clicked (e.g., "Card", "Time")
-  const onTriggerTypeClick = useCallback((type: string) => {
-    setSelectedRule((prev: AutomationRule) => {
-      const selectedTriggerData = triggers.find((t) => t.type === type);
-      let initialTriggerItem: SelectedTriggerItem | undefined = undefined;
-
-      if (selectedTriggerData) {
-        initialTriggerItem = {
-          type: selectedTriggerData.type,
-          label: selectedTriggerData.label,
-        };
-        const placeholders = extractPlaceholders(selectedTriggerData.label);
-
-        placeholders.forEach(placeholder => {
-            // Initialize GeneralOptions-based placeholders with their default values
-            if (Object.values(EnumSelectionType).includes(placeholder as EnumSelectionType) && placeholder in selectedTriggerData) {
-                const key = placeholder as keyof typeof selectedTriggerData;
-                const selection = (selectedTriggerData[key] as unknown as GeneralOptions);
-               if (typeof selectedTriggerData[key] === 'object') {
-                if (selection?.value) {
-                  initialTriggerItem![placeholder] = selection.value;
-                }
-               }
-            }
-            // Initialize input placeholders
-            else if (selectedTriggerData.label.includes(`[${placeholder}]`)) {
-              initialTriggerItem![placeholder] = ''; 
-            }
-        });
-      }
-
-      return {
-        ...prev,
-        triggerType: type,
-        triggerItem: initialTriggerItem,
-      };
-    });
-  }, [setSelectedRule]);
-
-  // Effect to update itemsByTriggerType when the selected trigger type changes
-  useEffect(() => {
-    const filteredItems = triggers.find((item) => item.type === selectedRule.triggerType);
-    setItemsByTriggerType(filteredItems?.items || []);
-  }, [selectedRule.triggerType]);
-
-  // Effect to initialize triggerItem when component mounts or triggerType is initially set
-  // This handles cases where `selectedRule.triggerType` might be pre-set from outside or initially.
-  useEffect(() => {
-    // Only attempt to initialize if a triggerType is set and triggerItem is NOT yet initialized
-    if (selectedRule.triggerType && !selectedRule.triggerItem) {
-        const selectedTriggerData = triggers.find((t) => t.type === selectedRule.triggerType);
-        if (selectedTriggerData) {
-          onTriggerTypeClick(selectedTriggerData.type);
-        }
-    }
-  }, [selectedRule.triggerType, selectedRule.triggerItem, onTriggerTypeClick]);
-
-  return (
-    <div>
       <Typography.Title level={5}>Select Trigger</Typography.Title>
       <div className="flex gap-2 my-4">
-        {triggers.map((item) => (
+        {triggersData.map((item, index) => (
           <div
             key={item.type} // Stable key for trigger type selection
-            onClick={() => { onTriggerTypeClick(item.type); }}
+            onClick={() => { setSelectedGroupIndex(index); }}
             className={`flex flex-col justify-center items-center w-64 rounded p-2 cursor-pointer ${
               selectedRule.triggerType === item.type ? "bg-blue-100" : "bg-gray-300"
             }`}
@@ -369,8 +263,21 @@ const SelectTrigger: React.FC<SelectTriggerProps> = (props) => {
           </div>
         ))}
       </div>
-
-      <div>{renderItems(props, itemsByTriggerType)}</div>
+      <div>
+        {triggersData[0].items?.map((item: TriggerItems, index: number) => (
+          <div
+            key={item.type}
+            className="flex justify-between items-start rounded p-2 mb-2 bg-gray-200"
+          >
+            <div>
+              <LabelRenderer props={props} item={item} groupIndex={selectedGroupIndex} index={index}/>
+            </div>
+            <Button shape="circle" onClick={() => { onSelectTrigger(item, index); }}>
+              <Plus />
+            </Button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 };
