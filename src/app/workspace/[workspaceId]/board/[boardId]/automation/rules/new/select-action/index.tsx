@@ -10,8 +10,8 @@ import {
   SelectedActionItem, 
   TriggerItemSelection 
 } from "@myTypes/type";
-import { CustomSelectionList } from "@constants/automation-rule/automation-rule";
 import { ListSelection, SelectionRef } from "@components/selection";
+import { EnumSelectionType } from "@myTypes/automation-rule";
 
 // Helper function to extract placeholders from a pattern
 function extractPlaceholders(pattern: string): string[] {
@@ -60,37 +60,35 @@ const SelectOption = ({
   const lastActionIndex = selectedRule.actions ? selectedRule.actions.length - 1 : 0;
   const currentValue = selectedRule.actions?.[lastActionIndex]?.selectedActionItem?.[placeholder] as GeneralOptions;
   
-  // // Handle ListSelection change - use the actual placeholder as key
-  // const onListChange = (value: string, option: object) => {
-  //   console.log('ListSelection onChange called:', { value, option, placeholder });
+  // Handle ListSelection change - use the actual placeholder as key
+  const onListChange = (selectedOption: any, selectionName: string) => {
+    console.log('ListSelection onChange called:', selectedOption);
     
-  //   setSelectedRule((prev: AutomationRule) => {
-  //     const updatedActions = [...(prev.actions || [])];
-  //     const currentAction = updatedActions[lastActionIndex] || { type: item.type };
+    setSelectedRule((prev: AutomationRule) => {
+      const updatedActions = [...(prev.actions || [])];
+      const currentAction = updatedActions[lastActionIndex] || { type: item.type };
       
-  //     if (!currentAction.selectedActionItem) {
-  //       currentAction.selectedActionItem = {
-  //         type: item.type,
-  //         label: item.label
-  //       };
-  //     }
+      if (!currentAction.selectedActionItem) {
+        currentAction.selectedActionItem = {
+          type: item.type,
+          label: item.label
+        };
+      }
       
-  //     // Use the actual placeholder as the key (e.g., 'list')
-  //     currentAction.selectedActionItem[placeholder] = option as GeneralOptions;
-  //     updatedActions[lastActionIndex] = currentAction;
-      
-  //     console.log('Updated action after ListSelection:', currentAction);
-      
-  //     return {
-  //       ...prev,
-  //       actions: updatedActions
-  //     };
-  //   });
-  // };
+      // Use the actual placeholder as the key (e.g., 'list')
+      currentAction.selectedActionItem[selectionName] = selectedOption as GeneralOptions;
+      updatedActions[lastActionIndex] = currentAction;
+          
+      return {
+        ...prev,
+        actions: updatedActions
+      };
+    });
+  };
 
   // Handle regular Select change
-  const onSelectChange = (value: string, option: any) => {
-    const selectedOption = (option as { option: GeneralOptions }).option;
+  const onSelectChange = (selectedOption: GeneralOptions, selectionName: string) => {
+    console.log("onSelectChange: value: %o", selectedOption);
     
     setSelectedRule((prev: AutomationRule) => {
     
@@ -104,7 +102,7 @@ const SelectOption = ({
         };
       }
       
-      currentAction.selectedActionItem[placeholder] = selectedOption;
+      currentAction.selectedActionItem[selectionName] = selectedOption;
       updatedActions[lastActionIndex] = currentAction;
       
       return {
@@ -115,13 +113,16 @@ const SelectOption = ({
   };
 
   // Check if this should render as ListSelection
-  if (placeholder === CustomSelectionList || placeholder === 'list') {
+  if (placeholder === EnumSelectionType.List || placeholder === EnumSelectionType.OptionalList) {
     return (
       <ListSelection
         width={"fit-content"}
         ref={listSelectionRef}
         value={currentValue?.value || data?.value?.value}
-        onChange={onSelectChange}
+        onChange={(value, option) => {
+          console.log("di select nya: %o", option);
+          onListChange(option, placeholder);
+        }}
         className="mx-2"
         key={`list-selection-${index}`}
       />
@@ -136,7 +137,9 @@ const SelectOption = ({
       options={options}
       labelInValue={false}
       style={{ width: 120, margin: '0 5px' }}
-      onChange={onSelectChange}
+      onChange={(value, option) => {
+        onSelectChange((option as { option: GeneralOptions }).option, placeholder);
+      }}
     />
   );
 };
@@ -159,13 +162,11 @@ const renderLabelWithSelects = (
       {parts.map((part: string, index: number) => {
         // Check if this part is a placeholder
         if (part.startsWith("<") && part.endsWith(">")) {
-          const placeholder = part.slice(1, -1); // Remove < and >
+          const placeholder = part.trim().slice(1, -1); // Remove < and >
 
-          if (placeholder in item || placeholder === CustomSelectionList) {
+          if (placeholder in item || placeholder === EnumSelectionType.List || placeholder === EnumSelectionType.OptionalList) {
             const data: TriggerItemSelection = item[placeholder] as TriggerItemSelection;
             
-            // Use the SelectOption component for all dynamic placeholders
-            // It will handle both regular selects and ListSelection internally
             return (
               <SelectOption
                 key={`action-select-${index}`}
@@ -263,8 +264,7 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
       
       setLastActionIndex(0);
     } else {
-      // If we're adding another action or editing an existing one,
-      // set the lastActionIndex accordingly
+
       setLastActionIndex(selectedRule.actions.length - 1);
     }
   }, []);
