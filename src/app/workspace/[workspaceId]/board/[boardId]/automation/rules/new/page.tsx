@@ -205,6 +205,8 @@ const NewRulePage: React.FC = () => {
             prevStep={prevStep} 
             selectedRule={selectedRule} 
             setSelectedRule={setSelectedRule} 
+            actionsData={actionsData}
+            setActionsData={setActionsData}
           />
         ) : activeStep === 2 ? (
           <ReviewAndSave 

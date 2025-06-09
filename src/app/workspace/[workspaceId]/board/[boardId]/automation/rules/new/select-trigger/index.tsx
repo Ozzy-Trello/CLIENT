@@ -227,7 +227,7 @@ const SelectTrigger: React.FC<SelectTriggerProps> = (props) => {
       label: selectedItem.label,
     };
 
-      placeholders?.forEach((placeholder) => {
+    placeholders?.forEach((placeholder) => {
       // Handle GeneralOptions-based selections (e.g., <list>, <optionalList>)
       console.log('triggersData[index] as any)[placeholder]?.value: %o', triggersData[index]);
       const items = triggersData[selectedGroupIndex]?.items;
