@@ -1,0 +1,77 @@
+import { AutomationRuleTrigger } from "./type";
+
+export const enum TriggerGroupType {
+  CardMove = "card.move",
+  CardChanges = "card.changes",
+  CardDates = "card.dates",
+  CardChecklist = "card.checklists",
+  CardContent = "card.content",
+  CardFields = "card.fields"
+}
+
+export const enum ActionGroupType {
+  CardMove = "card.move",
+  AddOrRemove = "add-or-remove",
+  CardDates = "card.dates",
+  CardChecklists = "card.checklists",
+  CardMembers = "card.members",
+  CardContent = "card.content",
+  CardFields = "card.fields",
+  ListSort = "list.sort",
+  Cascade = "cascade"
+}
+
+export enum EnumSelectionType {
+  OptionalFilter = "filter",
+  Action = "action",
+  OptionalAction = "optional_action",
+  Position = "position",
+  OptionalPosition = "optional_position",
+  NumberComparison = "number_comparison*",
+  BySubject = "by",
+  OptionalBySubject = "optional_by",
+  Board = "board",
+  OptionalBoard = "opational_board",
+  List = "list",
+  OptionalList = "optional_list"
+}
+
+export enum EnumInputType {
+  Number = "number"
+}
+
+export enum TriggerType {
+  //  `when-a-card-<filter>-is-<action*>-the-board-<by>`,
+  WhenACardActionOverBoard = `when-a-card-<${EnumSelectionType.OptionalFilter}>-is-<${EnumSelectionType.Action}>-the-board-<${EnumSelectionType.OptionalBySubject}>`,
+  
+  // "when-a-card-<filter>-is-<action*>-list-<list*>-<by>",
+  WhenACardActionOverList = `when-a-card-<${EnumSelectionType.OptionalFilter}>-is-<${EnumSelectionType.Action}>-list-<${EnumSelectionType.List}>-<${EnumSelectionType.OptionalBySubject}>`,
+
+  // "when-a-<filter>-is-<action*>" archival action
+  WhenACardHasArchivalAction = `when-a-<${EnumSelectionType.OptionalFilter}>-is-<${EnumSelectionType.Action}>`,
+
+  // "when-a-list-is-<action*>-<by>",
+  WhenAListIsAction = `when-a-list-is-${EnumSelectionType.Action}-<${EnumSelectionType.OptionalBySubject}>`,
+
+  // "when-list-<list*>-has-<number-comparison*>-[number]"
+  WhenListHasCards = `when-list-<${EnumSelectionType.List}>-has-<${EnumSelectionType.NumberComparison}>-[${EnumInputType.Number}]`
+
+
+  // add more..
+}
+
+export enum ActionType {
+  ActionTheCardToPositionInSpecificList = `<${EnumSelectionType.Action}>-the-card-to-<${EnumSelectionType.Position}>-<${EnumSelectionType.List}>`,
+  ActionTheCardToPosition = `move-the-card-to-<${EnumSelectionType.Position}>`,
+  ArchivalActionTheCard = `<${EnumSelectionType.Action}>-the-card`,
+  //add more..
+}
+
+// filter type
+export enum EnumTriggerCardFilter {
+  Basic = "basic",
+  Dates = "dates",
+  Checklists = "checklists",
+  Content = "content",
+  Fields = "fields"
+};

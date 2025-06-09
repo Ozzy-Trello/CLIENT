@@ -5,25 +5,26 @@ import { Plus } from "lucide-react";
 import { 
   ActionItems, 
   AutomationRule, 
+  AutomationRuleAction, 
+  AutomationRuleTrigger, 
   GeneralOptions, 
   SelectedAction, 
   SelectedActionItem, 
   TriggerItemSelection 
 } from "@myTypes/type";
-import { CustomSelectionList } from "@constants/automation-rule/automation-rule";
 import { ListSelection, SelectionRef } from "@components/selection";
+import { EnumSelectionType } from "@myTypes/automation-rule";
 
 // Helper function to extract placeholders from a pattern
 function extractPlaceholders(pattern: string): string[] {
-  const regex = /<([^>]+)>/g;
+  const regex = /<([^>]+)>|\[([^\]]+)\]/g; // Matches both <...> and [...]
   const placeholders: string[] = [];
-  
+
   let match;
   while ((match = regex.exec(pattern)) !== null) {
-    placeholders.push(match[1]);
+    placeholders.push(match[1] || match[2]);
   }
-  
-  return placeholders;
+  return placeholders.filter(Boolean); 
 }
 
 interface SelectActionProps {
@@ -31,23 +32,27 @@ interface SelectActionProps {
   prevStep: () => void;
   setSelectedRule: Dispatch<SetStateAction<AutomationRule>>;
   selectedRule: AutomationRule;
+  actionsData: AutomationRuleAction[];
+  setActionsData: Dispatch<SetStateAction<AutomationRuleAction[]>>;
 }
 
 // Component for select dropdown in actions
 const SelectOption = ({ 
   props, 
-  index, 
   data, 
   placeholder,
-  item
+  item,
+  groupIndex,
+  index
 }: { 
   props: SelectActionProps, 
-  index: number, 
   data: TriggerItemSelection, 
   placeholder: string,
-  item: ActionItems
+  item: ActionItems,
+  groupIndex: number,
+  index: number
 }) => {
-  const { setSelectedRule, selectedRule } = props;
+  const { setActionsData, actionsData } = props;
   const listSelectionRef = useRef<SelectionRef>(null);
   
   const options = data?.options?.map((optionItem: GeneralOptions) => ({
@@ -56,72 +61,39 @@ const SelectOption = ({
     option: optionItem,
   }));
   
-  // Get the current selected value for this placeholder if it exists
-  const lastActionIndex = selectedRule.actions ? selectedRule.actions.length - 1 : 0;
-  const currentValue = selectedRule.actions?.[lastActionIndex]?.selectedActionItem?.[placeholder] as GeneralOptions;
+  // // Get the current selected value for this placeholder if it exists
+  // const lastActionIndex = selectedRule.actions ? selectedRule.actions.length - 1 : 0;
+  // const currentValue = selectedRule.actions?.[lastActionIndex]?.selectedActionItem?.[placeholder] as GeneralOptions;
   
-  // // Handle ListSelection change - use the actual placeholder as key
-  // const onListChange = (value: string, option: object) => {
-  //   console.log('ListSelection onChange called:', { value, option, placeholder });
+  // Handle ListSelection change - use the actual placeholder as key
+  const onListChange = (selectedOption: any, selectionName: string) => {
+    console.log('ListSelection onChange called:', selectedOption);
     
-  //   setSelectedRule((prev: AutomationRule) => {
-  //     const updatedActions = [...(prev.actions || [])];
-  //     const currentAction = updatedActions[lastActionIndex] || { type: item.type };
-      
-  //     if (!currentAction.selectedActionItem) {
-  //       currentAction.selectedActionItem = {
-  //         type: item.type,
-  //         label: item.label
-  //       };
-  //     }
-      
-  //     // Use the actual placeholder as the key (e.g., 'list')
-  //     currentAction.selectedActionItem[placeholder] = option as GeneralOptions;
-  //     updatedActions[lastActionIndex] = currentAction;
-      
-  //     console.log('Updated action after ListSelection:', currentAction);
-      
-  //     return {
-  //       ...prev,
-  //       actions: updatedActions
-  //     };
-  //   });
-  // };
+    let copyArr = [...actionsData];
+    (copyArr[groupIndex]?.items?.[index]?.[placeholder as keyof ActionItems] as any)["value"] = selectedOption;
+    setActionsData(copyArr);
+  };
 
   // Handle regular Select change
-  const onSelectChange = (value: string, option: any) => {
-    const selectedOption = (option as { option: GeneralOptions }).option;
+  const onSelectChange = (selectedOption: GeneralOptions, selectionName: string) => {
+    console.log("onSelectChange: value: %o", selectedOption);
     
-    setSelectedRule((prev: AutomationRule) => {
-    
-      const updatedActions = [...(prev.actions || [])];
-      const currentAction = updatedActions[lastActionIndex] || { type: item.type };
-      
-      if (!currentAction.selectedActionItem) {
-        currentAction.selectedActionItem = {
-          type: item.type,
-          label: item.label
-        };
-      }
-      
-      currentAction.selectedActionItem[placeholder] = selectedOption;
-      updatedActions[lastActionIndex] = currentAction;
-      
-      return {
-        ...prev,
-        actions: updatedActions
-      };
-    });
+   let copyArr = [...actionsData];
+    (copyArr[groupIndex]?.items?.[index]?.[placeholder as keyof ActionItems] as any)["value"] = selectedOption;
+    setActionsData(copyArr);
   };
 
   // Check if this should render as ListSelection
-  if (placeholder === CustomSelectionList || placeholder === 'list') {
+  if (placeholder === EnumSelectionType.List || placeholder === EnumSelectionType.OptionalList) {
     return (
       <ListSelection
         width={"fit-content"}
         ref={listSelectionRef}
-        value={currentValue?.value || data?.value?.value}
-        onChange={onSelectChange}
+        value={(actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value?.value || ''}
+        onChange={(value, option) => {
+          console.log("di select nya: %o", option);
+          onListChange(option, placeholder);
+        }}
         className="mx-2"
         key={`list-selection-${index}`}
       />
@@ -132,11 +104,13 @@ const SelectOption = ({
   return (
     <Select
       key={`${placeholder}-${index}`}
-      defaultValue={currentValue?.value || data.value?.value}
+        value={(actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value?.value || ''}
       options={options}
       labelInValue={false}
       style={{ width: 120, margin: '0 5px' }}
-      onChange={onSelectChange}
+      onChange={(value, option) => {
+        onSelectChange((option as { option: GeneralOptions }).option, placeholder);
+      }}
     />
   );
 };
@@ -144,7 +118,9 @@ const SelectOption = ({
 const renderLabelWithSelects = (
   props: SelectActionProps, 
   item: ActionItems, 
-  lastActionIndex: number
+  lastActionIndex: number,
+  groupIndex: number,
+  number: number
 ) => {
   // If there's no placeholder in the label, just return the text
   if (!item.label.includes("<")) {
@@ -159,21 +135,20 @@ const renderLabelWithSelects = (
       {parts.map((part: string, index: number) => {
         // Check if this part is a placeholder
         if (part.startsWith("<") && part.endsWith(">")) {
-          const placeholder = part.slice(1, -1); // Remove < and >
+          const placeholder = part.trim().slice(1, -1); // Remove < and >
 
-          if (placeholder in item || placeholder === CustomSelectionList) {
+          if (placeholder in item || placeholder === EnumSelectionType.List || placeholder === EnumSelectionType.OptionalList) {
             const data: TriggerItemSelection = item[placeholder] as TriggerItemSelection;
             
-            // Use the SelectOption component for all dynamic placeholders
-            // It will handle both regular selects and ListSelection internally
             return (
               <SelectOption
                 key={`action-select-${index}`}
                 props={props}
-                index={index}
                 data={data}
                 placeholder={placeholder}
                 item={item}
+                groupIndex={groupIndex}
+                index={index}
               />
             );
           }
@@ -186,68 +161,11 @@ const renderLabelWithSelects = (
   );
 };
 
-const renderItems = (props: SelectActionProps, items: ActionItems[], lastActionIndex: number) => {
-  const { nextStep, setSelectedRule, selectedRule } = props;
-
-  const onSelectAction = (selectedItem: ActionItems) => {
-    // Extract placeholders from the type string
-    const placeholders = extractPlaceholders(selectedItem.type);
-    
-    // Create a new action item with the base properties
-    const newActionItem: SelectedActionItem = {
-      type: selectedItem.type,
-      label: selectedItem.label
-    };
-    
-    // Add values from the placeholders if they exist
-    placeholders.forEach(placeholder => {
-      if (placeholder in selectedItem) {
-        const selection = selectedItem[placeholder] as TriggerItemSelection;
-        if (selection?.value) {
-          // Add the value for this placeholder
-          newActionItem[placeholder] = selection.value;
-        }
-      }
-    });
-    
-    // Create a copy of the current actions array
-    const updatedActions = [...(selectedRule.actions || [])];
-    
-    // Update the action at the current index
-    updatedActions[lastActionIndex] = {
-      type: selectedItem.type,
-      selectedActionItem: newActionItem
-    };
-    
-    // Update the rule state
-    setSelectedRule((prev: AutomationRule) => ({
-      ...prev,
-      actions: updatedActions
-    }));
-    
-    nextStep();
-  };
-
-  return (
-    <div>
-      {items?.map((item: ActionItems, index: number) => (
-        <div key={index} className="flex justify-between items-start rounded p-2 mb-2 bg-gray-200">
-          <div>
-            {renderLabelWithSelects(props, item, lastActionIndex)}
-          </div>
-          <Button shape="circle" onClick={() => {onSelectAction(item)}}>
-            <Plus />
-          </Button>
-        </div>
-      ))}
-    </div>
-  );
-};
-
 const SelectAction: React.FC<SelectActionProps> = (props) => {
-  const { setSelectedRule, selectedRule } = props;
+  const { setSelectedRule, selectedRule, actionsData, nextStep } = props;
   const [actionItemsByActionType, setActionItemsByActionType] = useState<ActionItems[]>([]);
   const [lastActionIndex, setLastActionIndex] = useState<number>(0);
+  const [ groupIndex, setGroupIndex ] = useState<number>(0);
 
   useEffect(() => {
     // Initialize with first action type if no actions exist yet
@@ -263,8 +181,7 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
       
       setLastActionIndex(0);
     } else {
-      // If we're adding another action or editing an existing one,
-      // set the lastActionIndex accordingly
+
       setLastActionIndex(selectedRule.actions.length - 1);
     }
   }, []);
@@ -302,11 +219,36 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
     });
   };
 
+  const onAddAction = (index: number) => {
+    const newActionItem: SelectedAction = {
+      groupType: actionsData[groupIndex].type,
+      type: actionsData[groupIndex]?.items?.[index]?.type || '',
+    };
+
+    const placeholders = extractPlaceholders(actionsData[groupIndex]?.items?.[index]?.type || '');
+    placeholders?.forEach((placeholder) => {
+      const items = actionsData[groupIndex]?.items;
+      if (items && items[index][placeholder]) {
+        if (!newActionItem.selectedActionItem) {
+          newActionItem.selectedActionItem = { type: '', label: '' };
+        }
+        newActionItem.selectedActionItem.type = items?.[index]?.type || '';
+        newActionItem.selectedActionItem.label = items?.[index]?.label;
+        newActionItem.selectedActionItem[placeholder] = (items?.[index]?.[placeholder] as TriggerItemSelection).value || '';
+      }
+    });
+
+    let copy = {...selectedRule};
+    copy.actions?.push(newActionItem);
+    setSelectedRule(copy);
+    nextStep();
+  }
+
   return (
     <div>
       <Typography.Title level={5}>Select Action</Typography.Title>
       <div className="flex gap-2 my-4">
-        {actions.map((item, index) => (
+        {actionsData?.map((item: AutomationRuleAction, index: number) => (
           <div 
             key={index}
             onClick={() => onActionTypeClick(item.type)}
@@ -314,14 +256,23 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
               selectedRule?.actions?.[lastActionIndex]?.type === item.type ? 'bg-blue-100' : 'bg-gray-300'
             }`}
           >
-            <div>{item.icon}</div>
+            <div>{item?.icon}</div>
             <Typography.Text>{item.label}</Typography.Text>
           </div>
         ))}
       </div>
 
       <div>
-        {renderItems(props, actionItemsByActionType, lastActionIndex)}
+        {actionsData[groupIndex]?.items?.map((item: ActionItems, index: number) => (
+          <div key={index} className="flex justify-between items-start rounded p-2 mb-2 bg-gray-200">
+            <div>
+              {renderLabelWithSelects(props, item, lastActionIndex, groupIndex, index)}
+            </div>
+            <Button shape="circle" onClick={() => {onAddAction(index)}}>
+              <Plus />
+            </Button>
+          </div>
+        ))}
       </div>
     </div>
   );

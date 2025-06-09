@@ -1,4 +1,5 @@
 import { Action } from "@reduxjs/toolkit";
+import { ReactNode } from "react";
 
 export interface ApiResponse<T = any> {
   data?: T;
@@ -42,7 +43,7 @@ export interface SelectedTriggerItem {
   type?: string;
   label?: string;
   filter?: SelectedCardFilter;
-  [key: string]: GeneralOptions | string | undefined;
+  [key: string]: GeneralOptions | string | undefined | null | ReactNode;
 }
 
 export interface SelectedCardFilter {
@@ -53,7 +54,7 @@ export interface SelectedCardFilter {
 export interface SelectedCardFilterItem {
   type: string;
   label: string;
-  [key: string]: GeneralOptions  | string | undefined;
+  [key: string]: GeneralOptions  | string | undefined | null | ReactNode;
 }
 
 export interface SelectedAction {
@@ -68,7 +69,7 @@ export interface SelectedActionItem {
 }
 
 // Trigger interface to accomodate the static trigger data use to construct trigger UI
-export interface TriggerType {
+export interface AutomationRuleTrigger {
   type: string;
   icon: any;
   label: any;
@@ -87,7 +88,7 @@ export interface TriggerItemSelection {
 }
 
 // Action interface to accomodate the static action data to construct acttionUI
-export interface ActionType {
+export interface AutomationRuleAction {
   type: string;
   icon: any;
   label: any;
