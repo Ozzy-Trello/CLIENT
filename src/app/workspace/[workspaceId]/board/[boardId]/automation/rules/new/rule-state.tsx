@@ -29,6 +29,8 @@ const RuleState: React.FC<RuleStateProps> = (props) => {
       .replace(/<position>/, condition?.position?.label || condition?.position || '')
       .replace(/<optional_position>/, condition?.optional_position?.label || condition?.optional_position || '')
       .replace(/<filter>/, '') // remove placeholder
+      .replace(/<text_input>/, condition?.text_input?.value || condition?.text_input || '')
+      .replace(/<channel>/, condition?.channel?.label || condition?.channel || '')
       .replace(/\s+/g, ' ') // clean extra spaces (fixed regex)
       .trim();
     

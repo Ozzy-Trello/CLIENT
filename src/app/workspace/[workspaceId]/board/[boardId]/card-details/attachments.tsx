@@ -28,13 +28,13 @@ import {
   FileExcelOutlined,
   FileZipOutlined,
   FileTextOutlined,
-  FileOutlined
-} from '@ant-design/icons';
-import { useCardAttachment } from '@hooks/card_attachment';
-import UploadModal from '@components/modal-upload/modal-upload';
-import { EnumAttachmentType, Card, CardAttachment } from '@myTypes/card';
-import { User } from '@myTypes/user';
-import { FileUpload } from '@myTypes/file-upload';
+  FileOutlined,
+} from "@ant-design/icons";
+import { useCardAttachment } from "@hooks/card_attachment";
+import UploadModal from "@components/modal-upload/modal-upload";
+import { EnumAttachmentType, Card, CardAttachment } from "@myTypes/card";
+import { User } from "@myTypes/user";
+import { FileUpload } from "@myTypes/file-upload";
 import QRCode from "react-qr-code";
 import { uploadFile } from "@api/file";
 
@@ -128,15 +128,15 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
     try {
       // Use a server-side proxy to fetch the image if it's from an external domain
       // This assumes you have an API endpoint that can proxy the request
-      if (url.startsWith('http') && !url.includes(window.location.hostname)) {
+      if (url.startsWith("http") && !url.includes(window.location.hostname)) {
         // Create a proxy URL through your Next.js API
         const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(url)}`;
         const response = await fetch(proxyUrl);
-        
+
         if (!response.ok) {
           throw new Error(`Failed to fetch image: ${response.statusText}`);
         }
-        
+
         const blob = await response.blob();
         return new Promise((resolve, reject) => {
           const reader = new FileReader();
@@ -184,7 +184,7 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
 
       // Convert the image URL to base64 to avoid CORS issues
       const base64Image = await getBase64FromUrl(imageUrl);
-      
+
       // Load the image
       const img = document.createElement("img");
       img.crossOrigin = "anonymous"; // Enable CORS
