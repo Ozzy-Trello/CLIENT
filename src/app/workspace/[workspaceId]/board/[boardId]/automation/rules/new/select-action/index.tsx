@@ -61,25 +61,27 @@ const SelectOption = ({
     option: optionItem,
   }));
   
-  // // Get the current selected value for this placeholder if it exists
-  // const lastActionIndex = selectedRule.actions ? selectedRule.actions.length - 1 : 0;
-  // const currentValue = selectedRule.actions?.[lastActionIndex]?.selectedActionItem?.[placeholder] as GeneralOptions;
   
   // Handle ListSelection change - use the actual placeholder as key
   const onListChange = (selectedOption: any, selectionName: string) => {
     console.log('ListSelection onChange called:', selectedOption);
     
     let copyArr = [...actionsData];
-    (copyArr[groupIndex]?.items?.[index]?.[placeholder as keyof ActionItems] as any)["value"] = selectedOption;
+    (copyArr[groupIndex]?.items?.[index]?.[placeholder] as any).value = selectedOption;
     setActionsData(copyArr);
   };
 
   // Handle regular Select change
   const onSelectChange = (selectedOption: GeneralOptions, selectionName: string) => {
-    console.log("onSelectChange: value: %o", selectedOption);
+    // console.log("onSelectChange: value: %o", selectedOption);
+    // console.log("onSelectChange: placeholder: %s", placeholder);
+    // console.log("onSelectChange: actionsData: %o", actionsData);
     
-   let copyArr = [...actionsData];
-    (copyArr[groupIndex]?.items?.[index]?.[placeholder as keyof ActionItems] as any)["value"] = selectedOption;
+    let copyArr = [...actionsData];
+    
+    // console.log("dats: %o", copyArr[groupIndex]?.items?.[index]);
+
+    (copyArr[groupIndex]?.items?.[index]?.[placeholder] as any).value = selectedOption;
     setActionsData(copyArr);
   };
 
@@ -120,7 +122,7 @@ const renderLabelWithSelects = (
   item: ActionItems, 
   lastActionIndex: number,
   groupIndex: number,
-  number: number
+  index: number
 ) => {
   // If there's no placeholder in the label, just return the text
   if (!item.label.includes("<")) {
@@ -132,7 +134,7 @@ const renderLabelWithSelects = (
 
   return (
     <div className="flex items-center flex-wrap">
-      {parts.map((part: string, index: number) => {
+      {parts.map((part: string, indexPart: number) => {
         // Check if this part is a placeholder
         if (part.startsWith("<") && part.endsWith(">")) {
           const placeholder = part.trim().slice(1, -1); // Remove < and >
@@ -142,7 +144,7 @@ const renderLabelWithSelects = (
             
             return (
               <SelectOption
-                key={`action-select-${index}`}
+                key={`action-select-${indexPart}`}
                 props={props}
                 data={data}
                 placeholder={placeholder}
@@ -155,7 +157,7 @@ const renderLabelWithSelects = (
         }
         
         // Regular text part
-        return <span key={index}>{part}</span>;
+        return <span key={indexPart}>{part}</span>;
       })}
     </div>
   );
@@ -240,6 +242,8 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
 
     let copy = {...selectedRule};
     copy.actions?.push(newActionItem);
+    const filtered = copy.actions?.filter(item => item.type && item.selectedActionItem?.type);
+    copy.actions = filtered;
     setSelectedRule(copy);
     nextStep();
   }

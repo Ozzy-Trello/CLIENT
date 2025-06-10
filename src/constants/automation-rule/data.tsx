@@ -340,18 +340,22 @@ export const actions: AutomationRuleAction[] = [
         [EnumSelectionType.Action]: {
           options: [
             {
-              value: EnumActions.Move,
+              value: EnumActions.MoveCard,
               label: "Move",
             },
             {
-              value: EnumActions.Copy,
+              value: EnumActions.CopyCard,
               label: "Copy"
             }
           ],
           value: {
-            value: EnumActions.Move,
+            value: EnumActions.MoveCard,
             label: "Move",
           }
+        },
+        [EnumSelectionType.List]: {
+          options: [],
+          value: null
         }
       },
       {
@@ -360,12 +364,12 @@ export const actions: AutomationRuleAction[] = [
         [EnumSelectionType.Action]: {
           options: [
             {
-              value: EnumActions.Move,
+              value: EnumActions.MoveCard,
               label: "Move",
             },
           ],
           value: {
-            value: EnumActions.Move,
+            value: EnumActions.MoveCard,
             label: "Move",
           }
         },
@@ -392,16 +396,16 @@ export const actions: AutomationRuleAction[] = [
         [EnumSelectionType.Action]: {
           options: [
             {
-              value: EnumActions.Archive,
+              value: EnumActions.ArchiveCard,
               label: "archived"
             },
             {
-              value: EnumActions.Unarchive,
+              value: EnumActions.UnarchiveCard,
               label: "unarchived"
             }
           ],
           value: {
-            value: EnumActions.Archive,
+            value: EnumActions.ArchiveCard,
             label: "archived"
           }
         }

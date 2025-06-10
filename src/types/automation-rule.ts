@@ -62,7 +62,7 @@ export enum TriggerType {
 
 export enum ActionType {
   ActionTheCardToPositionInSpecificList = `<${EnumSelectionType.Action}>-the-card-to-<${EnumSelectionType.Position}>-<${EnumSelectionType.List}>`,
-  ActionTheCardToPosition = `move-the-card-to-<${EnumSelectionType.Position}>`,
+  ActionTheCardToPosition = `<action>-the-card-to-<${EnumSelectionType.Position}>`,
   ArchivalActionTheCard = `<${EnumSelectionType.Action}>-the-card`,
   //add more..
 }

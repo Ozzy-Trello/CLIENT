@@ -53,13 +53,17 @@ const RuleState: React.FC<RuleStateProps> = (props) => {
         {activeStep > 1 && selectedRule.actions && selectedRule.actions.length > 0 && (
           <div className="flex flex-col gap-1">
             <span className="font-medium">Actions:</span>
-            {selectedRule.actions.map((action, index) => (
-              <div key={index} className="ml-4 flex items-center gap-2">
-                <span>
-                  {index + 1}. {renderType(action?.selectedActionItem?.type ?? '', action?.selectedActionItem) || "Action not fully configured"}
-                </span>
-                <Button size="small" onClick={() => goToSpecificStep(1)}>Edit</Button>
-              </div>
+            {selectedRule.actions.map((action: any, index: number) => (
+              <>
+                {action?.selectedActionItem?.type && (
+                  <div key={index} className="ml-4 flex items-center gap-2">
+                    <span>
+                      <span>{`- ${renderType(action?.selectedActionItem?.type, action?.selectedActionItem)}`}</span>
+                    </span>
+                    <Button size="small" onClick={() => goToSpecificStep(1)}>Edit</Button>
+                  </div>
+                )}
+              </>
             ))}
           </div>
         )}

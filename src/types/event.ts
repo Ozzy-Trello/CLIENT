@@ -26,8 +26,8 @@ export enum EnumUserActionEvent {
 }
 
 export enum EnumActions {
-  Move = "move.card",
-  Copy = "copy.card",
-  Archive = "archive.card",
-  Unarchive = "unarchive.card",
+  MoveCard = "move.card",
+  CopyCard = "copy.card",
+  ArchiveCard = "archive.card",
+  UnarchiveCard = "unarchive.card",
 }
