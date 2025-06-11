@@ -493,7 +493,8 @@ export const actions: AutomationRuleAction[] = [
     items: [
       {
         type: ActionType.NotifyTheCard,
-        label: "Send notification via <channel> with message <text_input>",
+        label:
+          "Send notification via <channel> to <user> with message <text_input>",
         [EnumSelectionType.Action]: {
           options: [
             {
@@ -521,6 +522,10 @@ export const actions: AutomationRuleAction[] = [
             value: "whatsapp",
             label: "WhatsApp",
           },
+        },
+        [EnumSelectionType.User]: {
+          options: [],
+          value: null,
         },
         [EnumSelectionType.TextInput]: {
           placeholder: "Enter your message here...",

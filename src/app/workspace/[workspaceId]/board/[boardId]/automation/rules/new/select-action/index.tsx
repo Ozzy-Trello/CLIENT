@@ -12,7 +12,7 @@ import {
   SelectedActionItem,
   TriggerItemSelection,
 } from "@myTypes/type";
-import { ListSelection, SelectionRef } from "@components/selection";
+import { ListSelection, UserSelectionAutoComplete, SelectionRef } from "@components/selection";
 import { EnumSelectionType } from "@myTypes/automation-rule";
 
 // Helper function to extract placeholders from a pattern
@@ -54,6 +54,7 @@ const SelectOption = ({
 }) => {
   const { setActionsData, actionsData } = props;
   const listSelectionRef = useRef<SelectionRef>(null);
+  const userSelectionRef = useRef<SelectionRef>(null);
 
   const options = data?.options?.map((optionItem: GeneralOptions) => ({
     value: optionItem.value,
@@ -64,6 +65,15 @@ const SelectOption = ({
   // Handle ListSelection change - use the actual placeholder as key
   const onListChange = (selectedOption: any, selectionName: string) => {
     console.log("ListSelection onChange called:", selectedOption);
+
+    let copyArr = [...actionsData];
+    (copyArr[groupIndex]?.items?.[index]?.[placeholder] as any).value =
+      selectedOption;
+    setActionsData(copyArr);
+  };
+
+  const onUserChange = (selectedOption: any, selectionName: string) => {
+    console.log("UserSelection onChange called:", selectedOption);
 
     let copyArr = [...actionsData];
     (copyArr[groupIndex]?.items?.[index]?.[placeholder] as any).value =
@@ -88,6 +98,25 @@ const SelectOption = ({
       selectedOption;
     setActionsData(copyArr);
   };
+
+  if (placeholder === EnumSelectionType.User) {
+    return (
+    <UserSelectionAutoComplete
+        width={"fit-content"}
+        ref={userSelectionRef}
+        value={
+          (actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]
+            ?.value?.value || ""
+        }
+        onChange={(value, option) => {
+          console.log("UserSelection onChange called:", option);
+          onUserChange(option, placeholder);
+        }}
+        className="mx-2"
+        key={`user-selection-${index}`}
+      />
+    );
+  }
 
   // Check if this should render as ListSelection
   if (

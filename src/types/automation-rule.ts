@@ -36,6 +36,7 @@ export enum EnumSelectionType {
   OptionalList = "optional_list",
   Channel = "channel",
   TextInput = "text_input",
+  User = "user",
 }
 
 export enum EnumInputType {
@@ -65,7 +66,7 @@ export enum ActionType {
   ActionTheCardToPositionInSpecificList = `<${EnumSelectionType.Action}>-the-card-to-<${EnumSelectionType.Position}>-<${EnumSelectionType.List}>`,
   ActionTheCardToPosition = `<action>-the-card-to-<${EnumSelectionType.Position}>`,
   ArchivalActionTheCard = `<${EnumSelectionType.Action}>-the-card`,
-  NotifyTheCard = `<${EnumSelectionType.Action}>-the-card-via-<${EnumSelectionType.Channel}>-with-message-<${EnumSelectionType.TextInput}>`,
+  NotifyTheCard = `<${EnumSelectionType.Action}>-the-card-via-<${EnumSelectionType.Channel}>-to-<${EnumSelectionType.User}>-with-message-<${EnumSelectionType.TextInput}>`,
   //add more..
 }
 
