@@ -36,20 +36,24 @@ const RulePage: React.FC = () => {
   }, []);
 
   const renderType = (type: string, condition: any): string => {
-    // Extract the <filter> manually
-    const filterMatch = type.match(/<([^>]+)>/);
-    const filter = filterMatch ? filterMatch[1] : '';
-
-    // Replace the placeholders except <filter>
+    
+    // Replace the placeholders
     let result = type
-      .replace(/_/g, ' ')
-      .replace(/<action>/, condition?.action)
-      .replace(/<by>/, condition?.by)
-      .replace(/<board>/, condition?.board)
+      .replace(/-/g, ' ')
+      .replace(/<action>/, condition?.action?.label || condition?.action || '')
+      .replace(/<optional_action>/, condition?.optional_action?.label || condition?.optional_action || '')
+      .replace(/<by>/, condition?.by?.label || condition?.by || '')
+      .replace(/<optional_by>/, condition?.optional_by?.label || condition?.optional_by || '')
+      .replace(/<board>/, condition?.board?.label || condition?.board || '')
+      .replace(/<optional_board>/, condition?.optional_board?.label || condition?.optional_board || '')
+      .replace(/<list>/, condition?.list?.label || condition?.list || '')
+      .replace(/<optional_list>/, condition?.optional_list?.label || condition?.optional_list || '')
+      .replace(/<position>/, condition?.position?.label || condition?.position || '')
+      .replace(/<optional_position>/, condition?.optional_position?.label || condition?.optional_position || '')
       .replace(/<filter>/, '') // remove placeholder
-      .replace(/\s+/, ' ') // clean extra space left by removing <filter>
+      .replace(/\s+/g, ' ') // clean extra spaces (fixed regex)
       .trim();
-
+    
     return result;
   }
 

@@ -37,6 +37,15 @@ export const cardCount = async (cardId: string): Promise<ApiResponse<any>> => {
   return data;
 }
 
+export const cardArchive = async(cardId: string): Promise<ApiResponse<any>> => {
+  const {data} = await api.post(`/card/${cardId}/archive`);
+  return data;
+}
+
+export const cardUnarchive = async(cardId: string): Promise<ApiResponse<any>> => {
+  const {data} = await api.post(`/card/${cardId}/unarchive`);
+  return data;
+}
 
 /**
  * Card Label
