@@ -110,25 +110,45 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
               queryKey: ["cards", deletedCardListId],
             });
             break;
-            
+
           case "custom_field:updated":
             const { cardId, customField, workspaceId } = message.data;
             console.log(
               `Custom field ${customField.id} updated for card ${cardId}`
             );
-            
+
             // Invalidate relevant queries
             // For dashcard counts, we need to invalidate all dashcard count queries
             // since we don't know which dashcards might be affected by this custom field change
-            queryClient.invalidateQueries({ 
+            queryClient.invalidateQueries({
               queryKey: ["dashcardCount"],
               // This will invalidate all dashcard count queries regardless of the specific dashcard ID
               // which ensures all dashcards that depend on this custom field will be updated
-              exact: false 
+              exact: false,
             });
-            
+
             // Also invalidate the specific card's custom field data
-            queryClient.invalidateQueries({ queryKey: ["cardCustomField", cardId] });
+            queryClient.invalidateQueries({
+              queryKey: ["cardCustomField", cardId],
+            });
+            break;
+
+          case "list:created":
+            const { list: createdList, boardId: createdBoardId, createdBy } = message.data;
+            console.log(`List ${createdList.id} created in board ${createdBoardId} by ${createdBy}`);
+
+            // Invalidate relevant queries
+            queryClient.invalidateQueries({ queryKey: ["lists", createdBoardId] });
+            queryClient.invalidateQueries({ queryKey: ["boards", createdBoardId] });
+            break;
+
+          case "list:moved":
+            const { list: movedList, boardId: movedBoardId, previousPosition, targetPosition, movedBy } = message.data;
+            console.log(`List ${movedList.id} moved from position ${previousPosition} to ${targetPosition} in board ${movedBoardId} by ${movedBy}`);
+
+            // Invalidate relevant queries
+            queryClient.invalidateQueries({ queryKey: ["lists", movedBoardId] });
+            queryClient.invalidateQueries({ queryKey: ["boards", movedBoardId] });
             break;
 
           default:

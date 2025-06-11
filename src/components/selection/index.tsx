@@ -1,4 +1,4 @@
-import { Avatar, Select, SelectProps, Typography } from "antd";
+import { AutoComplete, Avatar, Select, SelectProps, Typography } from "antd";
 import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
 import { useWorkspaces } from "@hooks/workspace";
 import { useDispatch } from "react-redux";
@@ -117,6 +117,112 @@ export const UserSelection = forwardRef<SelectionRef, SelectionProps>(({
   
   return (
     <Select
+      style={{ width, ...style }}
+      showSearch
+      placeholder={placeholder}
+      optionFilterProp="label"
+      onChange={handleChange}
+      value={selectedValue}
+      options={options}
+      size={size}
+      className={className}
+      notFoundContent={options.length === 0 ? "No user available" : "No match found"}
+    />
+  );
+});
+
+export const UserSelectionAutoComplete = forwardRef<SelectionRef, SelectionProps>(({
+  placeholder = "Select a User",
+  width = "100%",
+  size = "middle",
+  style = {},
+  className = "",
+  value,
+  onChange
+}, ref) => {
+  const { workspaceId, boardId } = useParams();
+  const [options, setOptions] = useState<{ label: JSX.Element | string | undefined; value: string; }[]>([]);
+  const [selectedValue, setSelectedValue] = useState<string | undefined>(value);
+  const [selectedObject, setSelectedObject] = useState<{ label: JSX.Element | string | undefined; value: string }>();
+  
+  // If the value prop changes, update our internal state
+  useEffect(() => {
+    if (value !== undefined && value !== selectedValue) {
+      setSelectedValue(value);
+    }
+  }, [value]);
+
+  // Expose methods via ref
+  useImperativeHandle(ref, () => ({
+    getValue: () => selectedValue,
+    getObject: () => selectedObject,
+    setValue: (value: string) => {
+      setSelectedValue(value);
+      const foundOption = options.find(opt => opt.value === value);
+      if (foundOption) {
+        setSelectedObject(foundOption);
+      }
+    }
+  }));
+  
+  // Handle selection change
+  const handleChange = (value: string, option: any) => {
+    setSelectedValue(value);
+   
+    // Store the entire selected object
+    if (Array.isArray(option)) {
+      // Handle case if Select allows multiple selection
+      const selectedOptions = option.map(opt => ({ label: opt.label, value: opt.value }));
+      setSelectedObject(selectedOptions[0]);
+    } else {
+      setSelectedObject({ label: option.label, value: option.value });
+    }
+    
+    // Call the onChange prop if provided
+    if (onChange) {
+      onChange(value, option);
+    }
+  };
+  
+  // Fetch user data
+  useEffect(() => {
+    const fetchData = async() => {
+      const wsId = Array.isArray(workspaceId) ? workspaceId[0] : workspaceId;
+      const bId = Array.isArray(boardId) ? boardId[0] : boardId;
+      const result = await accountList(wsId, bId);
+     
+      if (result && result.data) {
+        const opt = result.data.map(item => ({
+          value: item.id,
+          username: item.username,
+          label: (
+            <div className="flex justify-start items-center gap-3">
+              <Avatar size={20} className="bg-blue-50 text-blue-500 border border-blue-100">
+                {item.username?.substring(0, 2)?.toUpperCase()}
+              </Avatar>
+              <Typography.Text>{item.username}</Typography.Text>
+            </div>
+          )
+        }));
+        setOptions(opt);
+      }
+    };
+   
+    fetchData();
+  }, [workspaceId, boardId]);
+  
+  // When options change, update the selected object if value is already set
+  useEffect(() => {
+    if (selectedValue && options.length > 0) {
+      const foundOption = options.find(opt => opt.value === selectedValue);
+      if (foundOption) {
+        setSelectedObject(foundOption);
+      }
+    }
+  }, [options, selectedValue]);
+  
+  return (
+    <AutoComplete
       style={{ width, ...style }}
       showSearch
       placeholder={placeholder}

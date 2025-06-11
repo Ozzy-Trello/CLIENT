@@ -6,7 +6,7 @@ export const enum TriggerGroupType {
   CardDates = "card.dates",
   CardChecklist = "card.checklists",
   CardContent = "card.content",
-  CardFields = "card.fields"
+  CardFields = "card.fields",
 }
 
 export const enum ActionGroupType {
@@ -18,7 +18,7 @@ export const enum ActionGroupType {
   CardContent = "card.content",
   CardFields = "card.fields",
   ListSort = "list.sort",
-  Cascade = "cascade"
+  Cascade = "cascade",
 }
 
 export enum EnumSelectionType {
@@ -33,17 +33,20 @@ export enum EnumSelectionType {
   Board = "board",
   OptionalBoard = "opational_board",
   List = "list",
-  OptionalList = "optional_list"
+  OptionalList = "optional_list",
+  Channel = "channel",
+  TextInput = "text_input",
+  User = "user",
 }
 
 export enum EnumInputType {
-  Number = "number"
+  Number = "number",
 }
 
 export enum TriggerType {
   //  `when-a-card-<filter>-is-<action*>-the-board-<by>`,
   WhenACardActionOverBoard = `when-a-card-<${EnumSelectionType.OptionalFilter}>-is-<${EnumSelectionType.Action}>-the-board-<${EnumSelectionType.OptionalBySubject}>`,
-  
+
   // "when-a-card-<filter>-is-<action*>-list-<list*>-<by>",
   WhenACardActionOverList = `when-a-card-<${EnumSelectionType.OptionalFilter}>-is-<${EnumSelectionType.Action}>-list-<${EnumSelectionType.List}>-<${EnumSelectionType.OptionalBySubject}>`,
 
@@ -54,8 +57,7 @@ export enum TriggerType {
   WhenAListIsAction = `when-a-list-is-${EnumSelectionType.Action}-<${EnumSelectionType.OptionalBySubject}>`,
 
   // "when-list-<list*>-has-<number-comparison*>-[number]"
-  WhenListHasCards = `when-list-<${EnumSelectionType.List}>-has-<${EnumSelectionType.NumberComparison}>-[${EnumInputType.Number}]`
-
+  WhenListHasCards = `when-list-<${EnumSelectionType.List}>-has-<${EnumSelectionType.NumberComparison}>-[${EnumInputType.Number}]`,
 
   // add more..
 }
@@ -64,6 +66,7 @@ export enum ActionType {
   ActionTheCardToPositionInSpecificList = `<${EnumSelectionType.Action}>-the-card-to-<${EnumSelectionType.Position}>-<${EnumSelectionType.List}>`,
   ActionTheCardToPosition = `<action>-the-card-to-<${EnumSelectionType.Position}>`,
   ArchivalActionTheCard = `<${EnumSelectionType.Action}>-the-card`,
+  NotifyTheCard = `<${EnumSelectionType.Action}>-the-card-via-<${EnumSelectionType.Channel}>-to-<${EnumSelectionType.User}>-with-message-<${EnumSelectionType.TextInput}>`,
   //add more..
 }
 
@@ -73,5 +76,5 @@ export enum EnumTriggerCardFilter {
   Dates = "dates",
   Checklists = "checklists",
   Content = "content",
-  Fields = "fields"
-};
+  Fields = "fields",
+}

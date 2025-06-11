@@ -84,7 +84,8 @@ export interface TriggerItems {
 
 export interface TriggerItemSelection {
   options?: GeneralOptions[] // to store the options
-  value?: GeneralOptions | null | undefined // to store selected option
+  value?: GeneralOptions | string | null | undefined // to store selected option or text input value
+  placeholder?: string; // for text input placeholder
 }
 
 // Action interface to accomodate the static action data to construct acttionUI
