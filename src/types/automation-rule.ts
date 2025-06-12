@@ -21,6 +21,10 @@ export const enum ActionGroupType {
   Cascade = "cascade",
 }
 
+export enum EnumTextType {
+  SelectedUser = "selected_user",
+}
+
 export enum EnumSelectionType {
   OptionalFilter = "filter",
   Action = "action",
@@ -37,10 +41,14 @@ export enum EnumSelectionType {
   Channel = "channel",
   TextInput = "text_input",
   User = "user",
+  Fields = "fields",
+  MultiFields = "multi_fields",
+  Set = "set",
 }
 
 export enum EnumInputType {
   Number = "number",
+  FieldValue = "field_value",
 }
 
 export enum TriggerType {
@@ -59,6 +67,12 @@ export enum TriggerType {
   // "when-list-<list*>-has-<number-comparison*>-[number]"
   WhenListHasCards = `when-list-<${EnumSelectionType.List}>-has-<${EnumSelectionType.NumberComparison}>-[${EnumInputType.Number}]`,
 
+  // "when-custom-fields-<fields>-is-set-to-<field_value>-<optional_by>"
+  WhenCustomFieldsIsSetToFieldValue = `when-custom-fields-<${EnumSelectionType.Fields}>-is-set-to-<${EnumInputType.FieldValue}>-<${EnumSelectionType.OptionalBySubject}>`,
+
+  // "when-custom-fields-<fields>-is-<set>-<optional_by>"
+  WhenCustomFieldsIsSet = `when-custom-fields-<${EnumSelectionType.Fields}>-is-<${EnumSelectionType.Set}>-<${EnumSelectionType.OptionalBySubject}>`,
+
   // add more..
 }
 
@@ -66,7 +80,8 @@ export enum ActionType {
   ActionTheCardToPositionInSpecificList = `<${EnumSelectionType.Action}>-the-card-to-<${EnumSelectionType.Position}>-<${EnumSelectionType.List}>`,
   ActionTheCardToPosition = `<action>-the-card-to-<${EnumSelectionType.Position}>`,
   ArchivalActionTheCard = `<${EnumSelectionType.Action}>-the-card`,
-  NotifyTheCard = `<${EnumSelectionType.Action}>-the-card-via-<${EnumSelectionType.Channel}>-to-<${EnumSelectionType.User}>-with-message-<${EnumSelectionType.TextInput}>`,
+  NotifyTheCard = `<${EnumSelectionType.Action}>-the-user-via-<${EnumSelectionType.Channel}>-to-<${EnumSelectionType.User}>-with-message-<${EnumSelectionType.TextInput}>`,
+  NotifySelectedUser = `<${EnumSelectionType.Action}>-the-user-via-<${EnumSelectionType.Channel}>-to-${EnumTextType.SelectedUser}-with-message-<${EnumSelectionType.TextInput}> and custom fields <${EnumSelectionType.MultiFields}>`,
   //add more..
 }
 

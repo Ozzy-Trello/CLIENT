@@ -9,19 +9,28 @@ import {
   MoveRight,
   Plus,
   User,
+  Hash,
 } from "lucide-react";
-import { AutomationRuleAction, AutomationRuleTrigger } from "@myTypes/type";
+import {
+  AutomationRuleAction,
+  AutomationRuleTrigger,
+  TriggerItemSelection,
+} from "@myTypes/type";
 import { EnumActions, EnumUserActionEvent } from "@myTypes/event";
 import {
-  ActionGroupType,
-  ActionType,
-  EnumSelectionType,
   TriggerGroupType,
+  ActionGroupType,
+  EnumSelectionType,
+  EnumTriggerCardFilter,
   TriggerType,
+  ActionType,
+  EnumTextType,
+  EnumInputType,
 } from "@myTypes/automation-rule";
 import {
   EnumOptionPosition,
   EnumOptionsNumberComparisonOperators,
+  EnumOptionsSet,
   EnumOptionsSubject,
 } from "@myTypes/options";
 
@@ -322,12 +331,110 @@ export const triggers: AutomationRuleTrigger[] = [
     type: TriggerGroupType.CardContent,
     label: "Card Content",
     icon: <MessageSquare />,
+    items: [],
   },
   {
     type: TriggerGroupType.CardFields,
     label: "Fields",
     icon: <AlignJustify />,
-  },
+    items: [
+      {
+        type: TriggerType.WhenCustomFieldsIsSetToFieldValue,
+        label: TriggerType.WhenCustomFieldsIsSetToFieldValue.replaceAll(
+          "-",
+          " "
+        ),
+        [EnumSelectionType.Fields]: {
+          options: [],
+          value: null,
+        },
+        [EnumInputType.FieldValue]: {
+          options: [],
+          value: null,
+        },
+        [EnumSelectionType.OptionalBySubject]: {
+          options: [
+            {
+              value: EnumOptionsSubject.ByMe,
+              label: "by me",
+            },
+            {
+              value: EnumOptionsSubject.ByAnyone,
+              label: "by anyone",
+            },
+            {
+              value: EnumOptionsSubject.BySpecificUser,
+              label: "by specific user",
+            },
+            {
+              value: EnumOptionsSubject.ByAnyoneExceptMe,
+              label: "by anyone except me",
+            },
+            {
+              value: EnumOptionsSubject.ByAnyoneExceptSpecificUser,
+              label: "by anyone except specific user",
+            },
+          ],
+          value: {
+            value: EnumOptionsSubject.ByMe,
+            label: "by me",
+          },
+        },
+      },
+      {
+        type: TriggerType.WhenCustomFieldsIsSet,
+        label: TriggerType.WhenCustomFieldsIsSet.replaceAll("-", " "),
+        [EnumSelectionType.Fields]: {
+          options: [],
+          value: null,
+        },
+        [EnumSelectionType.Set]: {
+          options: [
+            {
+              value: EnumOptionsSet.Set,
+              label: "set",
+            },
+            {
+              value: EnumOptionsSet.Cleared,
+              label: "cleared",
+            },
+          ],
+          value: {
+            value: EnumOptionsSet.Set,
+            label: "set",
+          },
+        },
+        [EnumSelectionType.OptionalBySubject]: {
+          options: [
+            {
+              value: EnumOptionsSubject.ByMe,
+              label: "by me",
+            },
+            {
+              value: EnumOptionsSubject.ByAnyone,
+              label: "by anyone",
+            },
+            {
+              value: EnumOptionsSubject.BySpecificUser,
+              label: "by specific user",
+            },
+            {
+              value: EnumOptionsSubject.ByAnyoneExceptMe,
+              label: "by anyone except me",
+            },
+            {
+              value: EnumOptionsSubject.ByAnyoneExceptSpecificUser,
+              label: "by anyone except specific user",
+            },
+          ],
+          value: {
+            value: EnumOptionsSubject.ByMe,
+            label: "by me",
+          },
+        },
+      },
+    ],
+  } as AutomationRuleTrigger,
 ];
 
 export const actions: AutomationRuleAction[] = [
@@ -530,6 +637,48 @@ export const actions: AutomationRuleAction[] = [
         [EnumSelectionType.TextInput]: {
           placeholder: "Enter your message here...",
           value: "",
+        },
+      },
+      {
+        type: ActionType.NotifySelectedUser,
+        label:
+          "Send notification via <channel> to <selected_user> with message <text_input> and custom fields <multi_fields>",
+        [EnumSelectionType.Action]: {
+          options: [
+            {
+              value: EnumActions.Notify,
+              label: "Notify",
+            },
+          ],
+          value: {
+            value: EnumActions.Notify,
+            label: "Notify",
+          },
+        },
+        [EnumTextType.SelectedUser]: {},
+        [EnumSelectionType.Channel]: {
+          options: [
+            {
+              value: "whatsapp",
+              label: "WhatsApp",
+            },
+            {
+              value: "telegram",
+              label: "Telegram",
+            },
+          ],
+          value: {
+            value: "whatsapp",
+            label: "WhatsApp",
+          },
+        },
+        [EnumSelectionType.TextInput]: {
+          placeholder: "Enter your message here...",
+          value: "",
+        },
+        [EnumSelectionType.MultiFields]: {
+          options: [],
+          value: null,
         },
       },
     ],

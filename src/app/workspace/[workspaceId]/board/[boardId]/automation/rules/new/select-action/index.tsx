@@ -12,8 +12,13 @@ import {
   SelectedActionItem,
   TriggerItemSelection,
 } from "@myTypes/type";
-import { ListSelection, UserSelectionAutoComplete, SelectionRef } from "@components/selection";
-import { EnumSelectionType } from "@myTypes/automation-rule";
+import {
+  ListSelection,
+  UserSelectionAutoComplete,
+  SelectionRef,
+  CustomFieldSelection,
+} from "@components/selection";
+import { EnumSelectionType, EnumTextType } from "@myTypes/automation-rule";
 
 // Helper function to extract placeholders from a pattern
 function extractPlaceholders(pattern: string): string[] {
@@ -55,6 +60,7 @@ const SelectOption = ({
   const { setActionsData, actionsData } = props;
   const listSelectionRef = useRef<SelectionRef>(null);
   const userSelectionRef = useRef<SelectionRef>(null);
+  const customFieldSelectionRef = useRef<SelectionRef>(null);
 
   const options = data?.options?.map((optionItem: GeneralOptions) => ({
     value: optionItem.value,
@@ -81,6 +87,13 @@ const SelectOption = ({
     setActionsData(copyArr);
   };
 
+  const onCustomFieldChange = (selectedOption: any, selectionName: string) => {
+    let copyArr = [...actionsData];
+    (copyArr[groupIndex]?.items?.[index]?.[placeholder] as any).value =
+      selectedOption;
+    setActionsData(copyArr);
+  };
+
   // Handle regular Select change
   const onSelectChange = (
     selectedOption: GeneralOptions,
@@ -99,16 +112,43 @@ const SelectOption = ({
     setActionsData(copyArr);
   };
 
+  if (
+    placeholder === EnumSelectionType.Fields ||
+    placeholder === EnumSelectionType.MultiFields
+  ) {
+    return (
+      <CustomFieldSelection
+        width={"fit-content"}
+        ref={customFieldSelectionRef}
+        value={
+          (actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value
+            ?.value || ""
+        }
+        onChange={(option: any) => {
+          console.log("CustomFieldSelection onChange called:", option);
+          onCustomFieldChange(option, placeholder);
+        }}
+        className="mx-2"
+        key={`custom-field-selection-${index}`}
+        multi={placeholder === EnumSelectionType.MultiFields}
+      />
+    );
+  }
+
+  if (placeholder === EnumTextType.SelectedUser) {
+    return <span className="font-bold mx-1"> selected user </span>;
+  }
+
   if (placeholder === EnumSelectionType.User) {
     return (
-    <UserSelectionAutoComplete
+      <UserSelectionAutoComplete
         width={"fit-content"}
         ref={userSelectionRef}
         value={
-          (actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]
-            ?.value?.value || ""
+          (actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value
+            ?.value || ""
         }
-        onChange={(value, option) => {
+        onChange={(option: any) => {
           console.log("UserSelection onChange called:", option);
           onUserChange(option, placeholder);
         }}
@@ -131,7 +171,7 @@ const SelectOption = ({
           (actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value
             ?.value || ""
         }
-        onChange={(value, option) => {
+        onChange={(option: any) => {
           console.log("di select nya: %o", option);
           onListChange(option, placeholder);
         }}
@@ -152,7 +192,7 @@ const SelectOption = ({
       options={options}
       labelInValue={false}
       style={{ width: 120, margin: "0 5px" }}
-      onChange={(value, option) => {
+      onChange={(option) => {
         onSelectChange(
           (option as { option: GeneralOptions }).option,
           placeholder
@@ -363,13 +403,10 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
   };
 
   const onAddAction = (index: number) => {
-    console.log("masuk on add action", index);
     const newActionItem: SelectedAction = {
       groupType: actionsData[groupIndex].type,
       type: actionsData[groupIndex]?.items?.[index]?.type || "",
     };
-
-    console.log(actionsData, "<< isi newaction");
 
     const placeholders = extractPlaceholders(
       actionsData[groupIndex]?.items?.[index]?.type || ""
