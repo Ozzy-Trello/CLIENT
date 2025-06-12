@@ -330,7 +330,7 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
                 if (ref && field.id) userSelectionRefs.current.set(field.id, ref);
               }}
               value={field.valueUserId}
-              onChange={(value) => value && handleUserValueChange(field.id!, value)}
+              onChange={(value: string) => value && handleUserValueChange(field.id!, value)}
               placeholder={`Select ${field.name}...`}
               size="middle"
               className="w-full"
