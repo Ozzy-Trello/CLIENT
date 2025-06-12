@@ -7,7 +7,6 @@ import { useCardDetailContext } from "@providers/card-detail-context";
 
 export function useCustomFields(workspaceId: string) {
   const queryClient = useQueryClient();
- 
   // The main query for custom fields
   const customFieldQuery = useQuery({
     queryKey: ["customFields", workspaceId],

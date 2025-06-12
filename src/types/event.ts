@@ -22,7 +22,7 @@ export enum EnumUserActionEvent {
   ListCreated = "list.created",
   ListRenamed = "list.renamed",
   ListArchived = "list.archived",
-  ListUnarchived = "list.unarchived"
+  ListUnarchived = "list.unarchived",
 }
 
 export enum EnumActions {
@@ -30,4 +30,5 @@ export enum EnumActions {
   CopyCard = "copy.card",
   ArchiveCard = "archive.card",
   UnarchiveCard = "unarchive.card",
+  Notify = "notify",
 }
