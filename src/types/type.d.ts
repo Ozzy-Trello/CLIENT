@@ -85,6 +85,7 @@ export interface TriggerItems {
 export interface TriggerItemSelection {
   options?: GeneralOptions[] // to store the options
   value?: GeneralOptions | string | null | undefined // to store selected option or text input value
+  data?: any[];
   placeholder?: string; // for text input placeholder
 }
 
@@ -105,6 +106,7 @@ export interface ActionItems {
 export interface GeneralOptions {
   value: string;
   label: React.ReactNode;
+  data?: any[];
 }
 
 export interface TriggerAction {

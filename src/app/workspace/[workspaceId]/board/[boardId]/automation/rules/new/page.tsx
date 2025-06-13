@@ -67,7 +67,14 @@ const NewRulePage: React.FC = () => {
         // For dynamic properties that are GeneralOptions
         const value = triggerItem[placeholder];
         if (value && typeof value === 'object' && 'value' in value) {
-          triggerCondition[placeholder] = value.value;
+          if (value?.data) {
+              triggerCondition[placeholder] = {
+                operator: value.value,
+                data:value.data
+              };5
+            } else {
+              triggerCondition[placeholder] = value.value;
+            }
         } else {
           triggerCondition[placeholder] = value;
         }
@@ -90,7 +97,7 @@ const NewRulePage: React.FC = () => {
       
       // For each placeholder in the action, add to condition
       actionPlaceholders.forEach((placeholder) => {
-        if (action.selectedActionItem && placeholder in action.selectedActionItem) {
+        if (action.selectedActionItem && action.selectedActionItem[placeholder]) {
           const value = action.selectedActionItem[placeholder];
           if (value && typeof value === 'object' && 'value' in value) {
             actionCondition[placeholder] = value.value;

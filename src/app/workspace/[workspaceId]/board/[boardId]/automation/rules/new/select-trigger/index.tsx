@@ -3,6 +3,7 @@ import {
   FieldValueInput,
   ListSelection,
   SelectionRef,
+  UserSelection,
 } from "@components/selection";
 import { Button, Input, Select, Typography } from "antd";
 import { ListFilter, Plus } from "lucide-react";
@@ -32,6 +33,7 @@ import {
   EnumTextType,
 } from "@myTypes/automation-rule";
 import Item from "antd/es/list/Item";
+import { EnumOptionsSubject } from "@myTypes/options";
 
 function extractPlaceholders(pattern: string): string[] {
   const regex = /<([^>]+)>|\[([^\]]+)\]/g; // Matches both <...> and [...]
@@ -140,6 +142,12 @@ const SelectOption = ({
     setTriggersData(copyArr);
   };
 
+  const onUserChange = (selectedOption: GeneralOptions) => {
+    let copyArr = [...triggersData];
+    (copyArr[groupIndex]?.items?.[index]?.[placeholder as keyof TriggerItems] as any).data = [selectedOption.value];
+    setTriggersData(copyArr);
+  };
+
   const onCustomFieldChange = (selectedOption: GeneralOptions) => {
     let copyArr = [...triggersData];
     (
@@ -174,7 +182,6 @@ const SelectOption = ({
           ref={useRef<SelectionRef>(null)}
           value={currentValue}
           onChange={(value: string, option: GeneralOptions) => {
-        
             onCustomFieldChange(option);
           }}
           className="mx-2"
@@ -202,10 +209,7 @@ const SelectOption = ({
     );
   }
 
-  if (
-    placeholder === EnumSelectionType.List ||
-    placeholder === EnumSelectionType.OptionalList
-  ) {
+  if ( placeholder === EnumSelectionType.List || placeholder === EnumSelectionType.OptionalList) {
     return (
       <ListSelection
         key={`list-select-${itemType}-${placeholder}`}
@@ -224,25 +228,48 @@ const SelectOption = ({
   }
 
   return (
-    <Select
-      key={`ant-select-${itemType}-${placeholder}`}
-      value={
-        (triggersData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value
-          ?.value || ""
-      }
-      options={options}
-      style={{ width: 120, margin: "0 5px" }}
-      onChange={(value, option) => {
-        onSelectionChange(
-          option as {
-            value: string;
-            label: React.ReactNode;
-            option: GeneralOptions;
-          }
-        );
-      }}
-    />
+    <>
+      <Select
+        key={`ant-select-${itemType}-${placeholder}`}
+        value={
+          (triggersData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value
+            ?.value || ""
+        }
+        options={options}
+        style={{ width: 120, margin: "0 5px" }}
+        onChange={(value, option) => {
+          onSelectionChange(
+            option as {
+              value: string;
+              label: React.ReactNode;
+              option: GeneralOptions;
+            }
+          );
+        }}
+      />
+
+      {(placeholder == EnumSelectionType.OptionalBySubject || placeholder == EnumSelectionType.BySubject) 
+        &&  [
+          EnumOptionsSubject.BySpecificUser, 
+          EnumOptionsSubject.ByAnyoneExceptMe, 
+          EnumOptionsSubject.ByAnyoneExceptSpecificUser
+        ].includes((triggersData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value?.value)
+        && (
+        <UserSelection 
+          key={`user-select-${itemType}-${placeholder}`}
+          width={"fit-content"}
+          ref={useRef<SelectionRef>(null)}
+          onChange={(value: string, option: GeneralOptions) => {
+            onUserChange(option);
+          }}
+          className="mx-2"
+        />
+      )}
+
+    </>
   );
+
+ 
 };
 
 const LabelRenderer = ({
@@ -360,10 +387,14 @@ const SelectTrigger: React.FC<SelectTriggerProps> = (props) => {
       placeholders?.forEach((placeholder) => {
         // Handle GeneralOptions-based selections (e.g., <list>, <optionalList>)
         const items = triggersData[selectedGroupIndex]?.items;
+        
+        
         if (items && items[index] && items[index][placeholder]) {
-          newTriggerItem[placeholder] = (
-            items[index][placeholder] as any
-          )?.value;
+          console.log("next step: items: ", items[index][placeholder]);
+          newTriggerItem[placeholder] = (items[index][placeholder] as any)?.value;
+          if (items[index][placeholder] && typeof items[index][placeholder] === "object" && "data" in (items[index][placeholder] as any)) {
+            (newTriggerItem[placeholder] as any)["data"] = (items[index][placeholder] as any).data;
+          }
         }
       });
 

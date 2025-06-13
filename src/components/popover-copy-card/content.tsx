@@ -1,51 +1,67 @@
-import React, { useState } from 'react';
-import { Modal, Select, Button, Input } from 'antd';
+import React, { useRef, useState } from 'react';
+import { Select, Button, Input } from 'antd';
+import { CardPositionSelection, ListSelection, SelectionRef } from '../selection';
+import { useCardDetailContext } from '@providers/card-detail-context';
+import { useCards } from '@hooks/card';
+import { useParams } from 'next/navigation';
+import { Card } from '@myTypes/card';
 
 
-const ContentMoveCard: React.FC = () => {
+const ContentCopyCard: React.FC = () => {
+  const {selectedCard, setSelectedCard,  isCardDetailOpen, openCardDetail, closeCardDetail } = useCardDetailContext();
   const [selectedBoard, setSelectedBoard] = useState<string>("board1");
-  const [selectedList, setSelectedList] = useState<string>("list1");
-  const [selectedPosition, setSelectedPosition] = useState<number>(1);
+  const [selectedList, setSelectedList] = useState<string>(selectedCard?.listId || "");
+  const [selectedPosition, setSelectedPosition] = useState<string>("1");
+  const listSelectionRef = useRef<SelectionRef>(null);
+  const positionSelectionref = useRef<SelectionRef>(null);
+  const { boardId } = useParams();
+  const [ cardName, setCardName ] = useState<string>(selectedCard?.name || "");
+  const { addCard } = useCards(selectedCard?.listId || '', Array.isArray(boardId) ? boardId[0] : boardId || '');
+  
 
   const boardOptions = [
     { value: 'board1', label: '4.7 Request Desain | Outlet' },
-  ];
-
-  const listOptions = [
-    { value: 'list1', label: 'Filter Desain Terhandle' },
   ];
 
   const positionOptions = [
     { value: 1, label: '1' },
   ];
 
-  const onCopy = () => {
 
-  }
-
-  const onClose = () => {
-
-  }
-
-  const handleMove = () => {
-    // onCopy(selectedBoard, selectedList, selectedPosition);
-    onClose();
+  const handleCopy = () => {
+    if (selectedCard && selectedList) {
+      let cardToCopy: Card = {
+        id: `temp-${Date.now()}`,
+        name: cardName,
+        listId: selectedList || "",
+        type: selectedCard.type
+      }
+      addCard({card: cardToCopy, listId: selectedList || ""});
+    }
   };
+
+  const onListChange = (value: string, option: object) => {
+    console.log("List changed to: ", value, option);
+    setSelectedList(value);
+  } 
+  
 
   return (
     <div className="py-2">
-      
       <div className="mb-4">
-        <h3 className="text-gray-800 font-medium mb-2">Name</h3>
+        <h3 className="text-gray-800 font-medium mb-1">Name</h3>
         <Input
-          className="w-full"
-          name={"name"}
+          size="large"
+          className="rounded"
+          value={cardName}
+          onChange={(e) => {setCardName(e.target.value);}}
         />
       </div>
-
-      <div className="mb-4">
-        <p className="text-gray-300 mb-2 text-xs">copy to..</p>
-        <h3 className="text-gray-800 font-medium mb-2">Board</h3>
+      
+      <p className="text-gray-700 mb-2 font-bold">Select destination</p>
+      
+      <div className="mb-2">
+        <h3 className="text-gray-800 font-medium mb-1">Board</h3>
         <Select
           className="w-full"
           value={selectedBoard}
@@ -54,31 +70,36 @@ const ContentMoveCard: React.FC = () => {
         />
       </div>
       
-      <div className="grid grid-cols-2 gap-4 mb-6">
+      <div className="grid grid-cols-2 gap-4 mb-2">
         <div>
-          <h3 className="text-gray-800 font-medium mb-2">List</h3>
-          <Select
-            className="w-full"
-            value={selectedList}
-            onChange={setSelectedList}
-            options={listOptions}
+          <h3 className="text-gray-800 font-medium mb-1">List</h3>
+          <ListSelection 
+            ref={listSelectionRef} 
+            size="small" 
+            width={"fit-content"} 
+            value={selectedCard?.listId}
+            onChange={onListChange}
           />
         </div>
         
         <div>
-          <h3 className="text-gray-800 font-medium mb-2">Position</h3>
-          <Select
+          <h3 className="text-gray-800 font-medium mb-1">Position</h3>
+          <CardPositionSelection
             className="w-full"
             value={selectedPosition}
             onChange={setSelectedPosition}
             options={positionOptions}
+            ref={positionSelectionref}
+            listId={listSelectionRef.current?.getValue()}
+            size="small"
+            width="100px"
           />
         </div>
       </div>
       
       <Button
         type="primary"
-        onClick={handleMove}
+        onClick={handleCopy}
         className="bg-blue-600 hover:bg-blue-700 h-10"
       >
         Copy
@@ -87,4 +108,4 @@ const ContentMoveCard: React.FC = () => {
   );
 };
 
-export default ContentMoveCard;
+export default ContentCopyCard;

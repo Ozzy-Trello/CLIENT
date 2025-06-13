@@ -46,7 +46,7 @@ interface AttachmentsProps {
 
 const Attachments: React.FC<AttachmentsProps> = (props) => {
   const { card, setCard, currentUser } = props;
-  const { cardAttachments, addAttachment } = useCardAttachment(card?.id);
+  const { cardAttachments, addAttachment } = useCardAttachment(card?.id || "");
   const [openUploadModal, setOpenUploadmodal] = useState<boolean>(false);
   const attachmentsRef = useRef<HTMLDivElement>(null);
   const [isDraggingOver, setIsDraggingOver] = useState<boolean>(false);
@@ -62,7 +62,7 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
 
   const handleUpload = (file: File, result: FileUpload) => {
     addAttachment({
-      cardId: card.id,
+      cardId: card.id || "",
       attachableType: EnumAttachmentType.File,
       attachableId: result.id,
       isCover: false,
