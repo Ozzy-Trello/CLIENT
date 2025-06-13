@@ -1,0 +1,477 @@
+import { FC, useMemo, useState, useEffect } from "react";
+import {
+  useReactTable,
+  getCoreRowModel,
+  flexRender,
+  createColumnHelper,
+  getExpandedRowModel,
+  getGroupedRowModel,
+  getPaginationRowModel,
+  getFilteredRowModel,
+} from "@tanstack/react-table";
+import { Button, Dropdown, Input, MenuProps, Checkbox } from "antd";
+import { ChevronDown, ChevronRight, MoreHorizontal } from "lucide-react";
+import { useDebounce } from "@hooks/debounce";
+import { IItemDashcard } from "@myTypes/card";
+import { ItemType } from "antd/es/menu/interface";
+
+type ColumnType = {
+  type: string;
+  column: string;
+  value: string;
+};
+
+type DataType = {
+  id: string;
+  name: string;
+  members: { id: string; name: string }[];
+  description: string;
+  columns: ColumnType[];
+};
+
+interface TablePivotProps {
+  itemDashcard: IItemDashcard[];
+}
+
+const TablePivot: FC<TablePivotProps> = ({ itemDashcard }) => {
+  const [grouping, setGrouping] = useState<string[]>([]);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [searchValue, setSearchValue] = useState("");
+  const [pageIndex, setPageIndex] = useState(0);
+  const [pageSize, setPageSize] = useState(5);
+  const [columnVisibility, setColumnVisibility] = useState<
+    Record<string, boolean>
+  >({});
+
+  const globalFilter = useDebounce(searchValue, 300);
+
+  useEffect(() => {
+    setPageIndex(0);
+  }, [searchValue]);
+
+  useEffect(() => {
+    const handlePageSize = () => {
+      if (grouping.length > 0) {
+        setPageSize(itemDashcard.length);
+        return;
+      }
+
+      if (grouping.length === 0) {
+        setPageSize(5);
+      }
+    };
+
+    handlePageSize();
+  }, [grouping]);
+
+  const dynamicColumns = useMemo(() => {
+    if (!itemDashcard.length) return [];
+
+    const allColumns = new Set<string>();
+    itemDashcard.forEach((item) => {
+      item.columns.forEach((col) => {
+        allColumns.add(col.column);
+      });
+    });
+
+    const columns = Array.from(allColumns);
+
+    setColumnVisibility((prev) => {
+      const newVisibility = { ...prev };
+      columns.forEach((col) => {
+        if (newVisibility[col] === undefined) {
+          newVisibility[col] = true;
+        }
+      });
+
+      return newVisibility;
+    });
+
+    return columns;
+  }, [itemDashcard]);
+
+  const columnVisibilityMenu = {
+    items: dynamicColumns.map((columnId) => ({
+      key: columnId,
+      label: (
+        <div className="flex items-center gap-2">
+          <Checkbox
+            checked={columnVisibility[columnId] !== false}
+            onChange={(e) => {
+              setColumnVisibility((prev) => ({
+                ...prev,
+                [columnId]: e.target.checked,
+              }));
+            }}
+          />
+          <span>{columnId}</span>
+        </div>
+      ),
+    })),
+  };
+
+  const handleMenuClick = (key: string, columnId: string) => {
+    if (key === "pivot") {
+      setGrouping((prev) => {
+        const isAlreadyGrouped = prev.includes(columnId);
+        if (isAlreadyGrouped) {
+          return prev.filter((id) => id !== columnId);
+        }
+        return [...prev, columnId];
+      });
+    } else if (key === "hide") {
+      setColumnVisibility((prev) => ({
+        ...prev,
+        [columnId]: false,
+      }));
+    }
+  };
+
+  const getColumnMenu = (columnId: string): MenuProps => ({
+    items: [
+      {
+        key: "pivot",
+        label: "Pivot",
+        style: {
+          display: dynamicColumns.includes(columnId) ? "block" : "none",
+        },
+      },
+      {
+        key: "hide",
+        label: "Hide",
+        style: { display: columnId === "name" ? "none" : "block" },
+      },
+    ],
+    onClick: ({ key }) => handleMenuClick(key, columnId),
+  });
+
+  const staticDropdownItems: MenuProps["items"] = [
+    {
+      key: "hide",
+      label: "Hide",
+    },
+  ];
+
+  const dynamicDropdownItems = (columnId: string): MenuProps["items"] => [
+    {
+      key: "hide",
+      label: "Hide",
+      onClick: () => handleMenuClick("hide", columnId),
+    },
+    {
+      key: "pivot",
+      label: grouping.includes(columnId) ? "Unpivot" : "Pivot",
+      onClick: () => handleMenuClick("pivot", columnId),
+    },
+  ];
+
+  const pivotData = useMemo(() => {
+    return itemDashcard.map((item) => {
+      const pivotedItem: any = {
+        id: item.id,
+        name: item.name,
+        members: item.member,
+        description: item.description,
+      };
+
+      item.columns.forEach((col) => {
+        pivotedItem[col.column] = col.value;
+      });
+
+      return pivotedItem;
+    });
+  }, [itemDashcard]);
+
+  const columnHelper = createColumnHelper<any>();
+
+  const columns = useMemo(() => {
+    const headerTemplate = (columnTitle: string, dropdownItems: ItemType[]) => (
+      <div
+        className="flex items-center justify-between whitespace-nowrap"
+        style={{ minWidth: "120px" }}
+      >
+        <span className="mr-4 text-ellipsis overflow-hidden">
+          {columnTitle}
+        </span>
+        <Dropdown menu={{ items: dropdownItems }} trigger={["click"]}>
+          <MoreHorizontal className="h-4 w-4 cursor-pointer flex-shrink-0" />
+        </Dropdown>
+      </div>
+    );
+
+    const baseColumns = [
+      columnHelper.accessor("name", {
+        header: () => headerTemplate("Name", staticDropdownItems),
+        cell: (info) => {
+          const row = info.row;
+          if (row.getIsGrouped()) {
+            return `${row.subRows.length} items`;
+          }
+          return info.getValue();
+        },
+      }),
+      columnHelper.accessor("members", {
+        header: () =>
+          headerTemplate("Members", getColumnMenu("members").items || []),
+        cell: (info) => {
+          const row = info.row;
+          if (row.getIsGrouped()) {
+            return `${row.subRows.length} items`;
+          }
+          const members = (info.row.original as DataType).members;
+          return (
+            <div className="flex flex-wrap gap-1">
+              {members.map((member) => (
+                <span
+                  key={member.id}
+                  className="inline-flex items-center rounded-full bg-gray-100 px-2 py-1 text-xs"
+                >
+                  {member.name}
+                </span>
+              ))}
+            </div>
+          );
+        },
+      }),
+      columnHelper.accessor("description", {
+        header: () => headerTemplate("Description", staticDropdownItems),
+        cell: (info) => {
+          const row = info.row;
+          if (row.getIsGrouped()) {
+            return `${row.subRows.length} items`;
+          }
+          return info.getValue();
+        },
+      }),
+    ];
+
+    // Add dynamic columns from all unique columns collected
+    const dynamicColumnsDefinitions =
+      dynamicColumns.map((columnName) =>
+        columnHelper.accessor(columnName, {
+          header: () =>
+            headerTemplate(
+              columnName.charAt(0).toUpperCase() + columnName.slice(1),
+              dynamicDropdownItems(columnName) || []
+            ),
+          cell: (info) => {
+            const row = info.row;
+            const currentGroupIndex = grouping.indexOf(columnName);
+
+            const getTotalUniqueValues = (
+              row: any,
+              columnId: string
+            ): number => {
+              if (!row.subRows || row.subRows.length === 0) {
+                return 0;
+              }
+
+              if (row.subRows.every((r: any) => !r.subRows)) {
+                return row.subRows.length;
+              }
+              return Math.max(
+                ...row.subRows.map((subRow: any) =>
+                  getTotalUniqueValues(subRow, columnId)
+                )
+              );
+            };
+
+            if (row.getIsGrouped()) {
+              if (grouping.includes(columnName)) {
+                if (row.depth !== currentGroupIndex) {
+                  return "";
+                }
+
+                return (
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        row.getToggleExpandedHandler()();
+                      }}
+                      className="cursor-pointer"
+                    >
+                      {row.getIsExpanded() ? (
+                        <ChevronDown className="h-4 w-4" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4" />
+                      )}
+                    </button>
+                    {info.getValue()}
+                  </div>
+                );
+              }
+
+              const itemCount = getTotalUniqueValues(row, columnName);
+              if (itemCount === 0) {
+                return `${row.subRows.length} items`;
+              }
+              return `${itemCount} items`;
+            }
+
+            return info.getValue();
+          },
+          aggregatedCell: (info) => {
+            const row = info.row;
+            const currentGroupIndex = grouping.indexOf(columnName);
+
+            const getTotalUniqueValues = (
+              row: any,
+              columnId: string
+            ): number => {
+              if (!row.subRows || row.subRows.length === 0) {
+                return 0;
+              }
+
+              if (row.subRows.every((r: any) => !r.subRows)) {
+                return row.subRows.length;
+              }
+              return Math.max(
+                ...row.subRows.map((subRow: any) =>
+                  getTotalUniqueValues(subRow, columnId)
+                )
+              );
+            };
+
+            if (grouping.includes(columnName)) {
+              if (row.depth !== currentGroupIndex) {
+                return "";
+              }
+              return info.getValue();
+            }
+
+            const itemCount = getTotalUniqueValues(row, columnName);
+            if (itemCount === 0) {
+              return `${row.subRows.length} items`;
+            }
+            return `${itemCount} items`;
+          },
+        })
+      ) || [];
+
+    return [...baseColumns, ...dynamicColumnsDefinitions];
+  }, [itemDashcard, grouping]);
+
+  const table = useReactTable({
+    data: pivotData,
+    columns,
+    state: {
+      grouping,
+      expanded,
+      globalFilter,
+      pagination: {
+        pageIndex,
+        pageSize,
+      },
+      columnVisibility,
+    },
+    onExpandedChange: (value) => setExpanded(value as Record<string, boolean>),
+    onColumnVisibilityChange: setColumnVisibility,
+    getExpandedRowModel: getExpandedRowModel(),
+    getGroupedRowModel: getGroupedRowModel(),
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+  });
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex justify-end gap-3 items-center">
+        <div>
+          <Input
+            placeholder="Search"
+            value={searchValue}
+            onChange={(e) => setSearchValue(e.target.value)}
+            className="w-64"
+          />
+        </div>
+        <div>
+          <Dropdown
+            menu={columnVisibilityMenu}
+            trigger={["click"]}
+            placement="bottomRight"
+          >
+            <Button>Columns</Button>
+          </Dropdown>
+        </div>
+      </div>
+      <div className="overflow-x-auto overflow-y-auto max-h-[70vh]">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            {table.getHeaderGroups().map((headerGroup) => (
+              <tr key={headerGroup.id}>
+                {headerGroup.headers.map((header) => (
+                  <th
+                    key={header.id}
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider break-words"
+                  >
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
+                  </th>
+                ))}
+              </tr>
+            ))}
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {table.getRowModel().rows.map((row) => (
+              <tr
+                key={row.id}
+                className={row.getIsGrouped() ? "bg-gray-50" : ""}
+              >
+                {row.getVisibleCells().map((cell) => (
+                  <td
+                    key={cell.id}
+                    className="px-6 py-4 text-sm text-gray-500 break-words"
+                    style={{ maxWidth: "200px", minWidth: "150px" }}
+                    {...{
+                      colSpan: cell.column.getIsGrouped() ? 1 : undefined,
+                    }}
+                  >
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {/* Show pagination only when no columns are pivoted */}
+      {grouping.length === 0 && (
+        <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200 sm:px-6">
+          <div className="flex items-center gap-2">
+            <Button
+              disabled={!table.getCanPreviousPage()}
+              onClick={() =>
+                setPageIndex(table.getState().pagination.pageIndex - 1)
+              }
+            >
+              Previous
+            </Button>
+            <span className="text-sm text-gray-700">
+              Page {table.getState().pagination.pageIndex + 1} of{" "}
+              {table.getPageCount()}
+            </span>
+            <Button
+              disabled={!table.getCanNextPage()}
+              onClick={() =>
+                setPageIndex(table.getState().pagination.pageIndex + 1)
+              }
+            >
+              Next
+            </Button>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-700">
+              {table.getPrePaginationRowModel().rows.length} items
+            </span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default TablePivot;

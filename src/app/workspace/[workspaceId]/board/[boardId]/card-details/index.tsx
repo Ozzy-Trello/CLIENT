@@ -40,6 +40,7 @@ import { useCardMembers } from "@hooks/card_member";
 import PopoverLabel from "@components/popover-label.tsx";
 import { CardLabel } from "@myTypes/label";
 import { useLabels } from "@hooks/label";
+import Dashcard from "./dashcard";
 
 const CardDetails: React.FC = (props) => {
   const params = useParams();
@@ -62,8 +63,15 @@ const CardDetails: React.FC = (props) => {
   const [isEditingTitle, setIsEditingTitle] = useState<boolean>(false);
   const [newTitle, setNewTitle] = useState<string>("");
   const { updateCard } = useCards(selectedCard?.listId || "", boardId);
-  const { cardMembers, addMember, isAddingMember, refetch: refetchMember } = useCardMembers(selectedCard?.id || "");
-  const { cardLabels } = useLabels(workspaceId as string, selectedCard?.id, {cardId: selectedCard?.id || ""});
+  const {
+    cardMembers,
+    addMember,
+    isAddingMember,
+    refetch: refetchMember,
+  } = useCardMembers(selectedCard?.id || "");
+  const { cardLabels } = useLabels(workspaceId as string, selectedCard?.id, {
+    cardId: selectedCard?.id || "",
+  });
   const { cardActivities } = useCardActivity(selectedCard?.id || "");
   const { lists } = useLists(boardId || "");
   const [openAddMember, setOpenAddMember] = useState<boolean>(false);
@@ -111,7 +119,7 @@ const CardDetails: React.FC = (props) => {
         onSuccess: (data) => {
           console.log("Title update successful:", data);
           if (setSelectedCard) {
-            setSelectedCard(prevCard => {
+            setSelectedCard((prevCard) => {
               if (!prevCard) return prevCard;
               return {
                 ...prevCard,
@@ -145,13 +153,13 @@ const CardDetails: React.FC = (props) => {
   const onUserSelectionChange = (value: string, option: object) => {
     console.log(`member: value: ${value}`);
     addMember(value);
-  }
+  };
 
   useEffect(() => {
     if (isAddingMember) {
       refetchMember();
     }
-  }, [isAddingMember])
+  }, [isAddingMember]);
 
   return (
     <Modal
@@ -244,7 +252,7 @@ const CardDetails: React.FC = (props) => {
                       />
                     </div>
                   </div>
-                  
+
                   {/* Labels */}
                   <div className="space-y-2 text-xs">
                     <span className="text-gray-300 font-semibold text-xs block">
@@ -252,7 +260,9 @@ const CardDetails: React.FC = (props) => {
                     </span>
                     <div className="flex gap-1">
                       {cardLabels?.map((label: CardLabel, index: number) => (
-                        <Tooltip title={`color: ${label.value}, title: ${label.name}`}>
+                        <Tooltip
+                          title={`color: ${label.value}, title: ${label.name}`}
+                        >
                           <Tag
                             key={index}
                             color={label.value}
@@ -262,12 +272,14 @@ const CardDetails: React.FC = (props) => {
                           </Tag>
                         </Tooltip>
                       ))}
-                      
+
                       <PopoverLabel
                         open={openLabel}
                         setOpen={setOpenLabel}
                         triggerEl={
-                          <Tag className="cursor-pointer rounded-md border-dashed hover:bg-gray-50">+</Tag>
+                          <Tag className="cursor-pointer rounded-md border-dashed hover:bg-gray-50">
+                            +
+                          </Tag>
                         }
                       />
                     </div>
@@ -301,7 +313,7 @@ const CardDetails: React.FC = (props) => {
                       )?.formattedTimeInList || "0m"}
                     </Button>
                   </div>
-                  
+
                   {/* Time on Board */}
                   <div className="space-y-2 text-xs">
                     <span className="text-gray-300 font-semibold text-xs block">
@@ -350,10 +362,12 @@ const CardDetails: React.FC = (props) => {
                 <CustomFields card={selectedCard} setCard={setSelectedCard} />
               )}
 
+              {selectedCard?.dashConfig && <Dashcard card={selectedCard} />}
+
               <AdditionalFields />
 
               <RequestFields />
-              
+
               {selectedCard && (
                 <CardTimeInList card={selectedCard} setCard={setSelectedCard} />
               )}
