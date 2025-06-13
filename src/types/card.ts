@@ -7,9 +7,9 @@ import { User } from "./user";
 import { Label } from "./label";
 
 export enum EnumCardType {
-  Regular = 'regular',
-  Dashcard = 'dashcard'
-};
+  Regular = "regular",
+  Dashcard = "dashcard",
+}
 export type TCardType = EnumCardType.Regular | EnumCardType.Dashcard;
 export interface Card {
   id: string;
@@ -38,11 +38,12 @@ export interface Card {
   dashConfig?: DashcardConfig;
   createdAt?: string;
   updatedAt?: string;
+  itemDashcard?: IItemDashcard[] | null;
 }
 
 export enum EnumAttachmentType {
-  File = 'file',
-  Card = 'card',
+  File = "file",
+  Card = "card",
 }
 export type TAttachableType = EnumAttachmentType.File | EnumAttachmentType.Card;
 export interface CardAttachment {
@@ -67,7 +68,6 @@ export interface CardTimeInList {
   formattedTimeInList: string;
 }
 
-
 export interface CardActivity {
   id: string;
   senderUsername: string; // "comment", "update", "attachment", "move", etc.
@@ -89,7 +89,7 @@ export interface CardCustomField {
   valueString?: string;
   valueNumber?: number;
   valueOption?: string;
-  valueCheckbox?:boolean;
+  valueCheckbox?: boolean;
   valueDate?: Date;
   valueUserId?: string;
 }
@@ -99,4 +99,23 @@ export interface CardMember {
   cardId?: string;
   userId?: string;
   created_at?: Date;
+}
+
+export type TDynamicColumnDashcard = {
+  type: string;
+  column: string;
+  value: string;
+};
+
+export type TMemberDashcard = {
+  id: string;
+  name: string;
+};
+
+export interface IItemDashcard {
+  id: string;
+  name: string;
+  member: TMemberDashcard[];
+  description: string;
+  columns: TDynamicColumnDashcard[];
 }
