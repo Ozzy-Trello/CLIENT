@@ -20,6 +20,8 @@ export interface CustomField {
   options?: CustomOption[] | undefined;
   isShowAtFront?: boolean;
   value?: string;
+  canView?: string[];
+  canEdit?: string[];
 }
 
 export interface CustomOption {
