@@ -23,7 +23,6 @@ import Activity from "./activity";
 import { useSelector } from "react-redux";
 import { selectUser } from "@store/app_slice";
 import Actions from "./actions";
-import { useCustomFields } from "@hooks/custom_field";
 import { useParams } from "next/navigation";
 import CustomFields from "./custom-field";
 import { ListSelection, SelectionRef } from "@components/selection";

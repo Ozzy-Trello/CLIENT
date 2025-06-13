@@ -14,9 +14,9 @@ import {
 } from "@myTypes/type";
 import {
   ListSelection,
-  UserSelectionAutoComplete,
   SelectionRef,
   CustomFieldSelection,
+  UserSelection,
 } from "@components/selection";
 import { EnumSelectionType, EnumTextType } from "@myTypes/automation-rule";
 
@@ -89,7 +89,7 @@ const SelectOption = ({
 
   const onCustomFieldChange = (selectedOption: any, selectionName: string) => {
     let copyArr = [...actionsData];
-    (copyArr[groupIndex]?.items?.[index]?.[placeholder] as any).value =
+    (copyArr[groupIndex]?.items?.[index]?.[selectionName] as any).value =
       selectedOption;
     setActionsData(copyArr);
   };
@@ -99,16 +99,13 @@ const SelectOption = ({
     selectedOption: GeneralOptions,
     selectionName: string
   ) => {
-    // console.log("onSelectChange: value: %o", selectedOption);
-    // console.log("onSelectChange: placeholder: %s", placeholder);
-    // console.log("onSelectChange: actionsData: %o", actionsData);
+    console.log("onSelectChange: value: %o", selectedOption);
+    console.log("onSelectChange: placeholder: %s", placeholder);
+    console.log("onSelectChange: actionsData: %o", actionsData);
 
     let copyArr = [...actionsData];
 
-    // console.log("dats: %o", copyArr[groupIndex]?.items?.[index]);
-
-    (copyArr[groupIndex]?.items?.[index]?.[placeholder] as any).value =
-      selectedOption;
+    (copyArr[groupIndex]?.items?.[index]?.[selectionName] as any).value = selectedOption;
     setActionsData(copyArr);
   };
 
@@ -141,7 +138,7 @@ const SelectOption = ({
 
   if (placeholder === EnumSelectionType.User) {
     return (
-      <UserSelectionAutoComplete
+      <UserSelection
         width={"fit-content"}
         ref={userSelectionRef}
         value={
@@ -192,7 +189,7 @@ const SelectOption = ({
       options={options}
       labelInValue={false}
       style={{ width: 120, margin: "0 5px" }}
-      onChange={(option) => {
+      onChange={(value, option) => {
         onSelectChange(
           (option as { option: GeneralOptions }).option,
           placeholder

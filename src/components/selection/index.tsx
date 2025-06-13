@@ -20,6 +20,8 @@ import { useSelector } from "react-redux";
 import { useLists } from "@hooks/list";
 import { useCustomFields } from "@hooks/custom_field";
 import { useAccountList } from "@hooks/account";
+import { Card } from "@myTypes/card";
+import { cards } from "@api/card";
 
 // Global SELECTION props
 
@@ -177,128 +179,6 @@ export const UserSelection = forwardRef<SelectionRef, SelectionProps>(
   }
 );
 
-export const UserSelectionAutoComplete = forwardRef<
-  SelectionRef,
-  SelectionProps
->(
-  (
-    {
-      placeholder = "Select a User",
-      width = "100%",
-      size = "middle",
-      style = {},
-      className = "",
-      value,
-      onChange,
-    },
-    ref
-  ) => {
-    const { workspaceId, boardId } = useParams();
-    const [options, setOptions] = useState<
-      { label: JSX.Element | string | undefined; value: string }[]
-    >([]);
-    const [selectedValue, setSelectedValue] = useState<string | undefined>(
-      value
-    );
-    const [selectedObject, setSelectedObject] = useState<{
-      label: JSX.Element | string | undefined;
-      value: string;
-    }>();
-
-    // If the value prop changes, update our internal state
-    useEffect(() => {
-      if (value !== undefined && value !== selectedValue) {
-        setSelectedValue(value);
-      }
-    }, [value]);
-
-    // Expose methods via ref
-    useImperativeHandle(ref, () => ({
-      getValue: () => selectedValue,
-      getObject: () => selectedObject,
-      setValue: (value: string) => {
-        setSelectedValue(value);
-        const foundOption = options.find((opt) => opt.value === value);
-        if (foundOption) {
-          setSelectedObject(foundOption);
-        }
-      },
-    }));
-
-    // Handle selection change
-    const handleChange = (value: string, option: any) => {
-      setSelectedValue(value);
-
-      // Store the entire selected object
-      if (Array.isArray(option)) {
-        // Handle case if Select allows multiple selection
-        const selectedOptions = option.map((opt) => ({
-          label: opt.label,
-          value: opt.value,
-        }));
-        setSelectedObject(selectedOptions[0]);
-      } else {
-        setSelectedObject({ label: option.label, value: option.value });
-      }
-
-      // Call the onChange prop if provided
-      if (onChange) {
-        onChange(value, option);
-      }
-    };
-
-    // Fetch user data
-    useEffect(() => {
-      const fetchData = async () => {
-        const wsId = Array.isArray(workspaceId) ? workspaceId[0] : workspaceId;
-        const bId = Array.isArray(boardId) ? boardId[0] : boardId;
-        const result = await accountList(wsId, bId);
-
-        if (result && result.data) {
-          const opt = result.data.map((item) => ({
-            value: item.id,
-            username: item.username,
-            label: (
-              <div className="flex justify-start items-center gap-3">
-                <Typography.Text>{item.username}</Typography.Text>
-              </div>
-            ),
-          }));
-          setOptions(opt);
-        }
-      };
-
-      fetchData();
-    }, [workspaceId, boardId]);
-
-    // When options change, update the selected object if value is already set
-    useEffect(() => {
-      if (selectedValue && options.length > 0) {
-        const foundOption = options.find((opt) => opt.value === selectedValue);
-        if (foundOption) {
-          setSelectedObject(foundOption);
-        }
-      }
-    }, [options, selectedValue]);
-
-    return (
-      <AutoComplete
-        style={{ width, ...style }}
-        showSearch
-        placeholder={placeholder}
-        optionFilterProp="label"
-        onChange={handleChange}
-        value={selectedValue}
-        options={options}
-        size={size}
-        className={className}
-        notFoundContent={
-          options.length === 0 ? "No user available" : "No match found"
-        }
-      />
-    );
-  }
-);
 
 export const WorkspaceSelection: React.FC = () => {
   const [options, setOptions] = useState<
@@ -683,6 +563,124 @@ export const FieldValueInput = forwardRef<SelectionRef, FieldValueInputProps>(
           })
         }
         placeholder={placeholder}
+      />
+    );
+  }
+);
+
+export const CardPositionSelection = forwardRef<SelectionRef, SelectionProps>(
+  (
+    {
+      listId,
+      placeholder = "Select position in List",
+      width = "100%",
+      size = "middle",
+      style = {},
+      className = "",
+      value,
+      onChange,
+    },
+    ref
+  ) => {
+    const [options, setOptions] = useState<{ label: string; value: string }[]>([]);
+    const [selectedValue, setSelectedValue] = useState<string | undefined>(value);
+    const [selectedObject, setSelectedObject] = useState<{
+      label: string;
+      value: string;
+    }>();
+    const { boardId } = useParams();
+    const [ cardsInList, setCardsInList ] = useState<Card[]>([]);
+    const [ isFetchingData, setIsFetchingData ] = useState<boolean>(false);
+
+    useImperativeHandle(ref, () => ({
+      getValue: () => selectedValue,
+      getObject: () => selectedObject,
+      setValue: (value: string) => {
+        setSelectedValue(value);
+        const foundOption = options.find((opt) => opt.value === value);
+        if (foundOption) {
+          setSelectedObject(foundOption);
+        }
+      },
+    }));
+
+    const handleChange = (value: string, option: any) => {
+      setSelectedValue(value);
+      // Store the entire selected object
+      if (Array.isArray(option)) {
+        // Handle case if Select allows multiple selection
+        const selectedOptions = option.map((opt) => ({
+          label: opt.label,
+          value: opt.value,
+        }));
+        setSelectedObject(selectedOptions[0]);
+      } else {
+        setSelectedObject({ label: option.label, value: option.value });
+      }
+
+      if (onChange) {
+        onChange(value, option);
+      }
+    };
+
+    const fetchData = async () => {
+      setCardsInList([]);
+      setIsFetchingData(true);
+      setOptions([]); // Clear options first
+    
+      const data = await cards(listId, boardId as string);
+      if (data && data.data) {
+        if (data?.data?.length > 0) {
+          setCardsInList(data?.data);
+          const opt = data?.data?.map((item, index) => {
+            return { label: (index + 1).toString(), value: (index + 1).toString() };
+          });
+          
+          // Work with the local opt array instead of the options state
+          const copyOpt = [...opt];
+          let nextPos = parseInt(copyOpt[copyOpt.length - 1].value) + 1;
+          copyOpt.push({label: nextPos.toString(), value: nextPos.toString()});
+          setOptions(copyOpt);
+        } else {
+          // If no cards, just set position 1
+          setOptions([{label: "1", value: "1"}]);
+        }
+      } else {
+        // If no data, just set position 1
+        setOptions([{label: "1", value: "1"}]);
+      }
+      setIsFetchingData(false);
+    }
+
+    useEffect(() => {
+      if (listId) {
+        setSelectedValue(undefined);
+        fetchData();
+      }
+    }, [listId]);
+
+    // When options change, update the selected object if value is already set
+    useEffect(() => {
+      const foundOption = options.find((opt) => opt.value === selectedValue);
+      if (foundOption) {
+        setSelectedObject(foundOption);
+      }
+    }, [options, selectedValue]);
+
+    return (
+      <Select
+        style={{ width, ...style }}
+        showSearch
+        placeholder={placeholder}
+        optionFilterProp="label"
+        onChange={handleChange}
+        value={selectedValue}
+        options={options}
+        size={size}
+        className={className}
+        notFoundContent="No cards available in the list"
+        loading={isFetchingData}
+        disabled={isFetchingData}
       />
     );
   }

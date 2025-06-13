@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import camelcaseKeys from "camelcase-keys";
+import { EnumUserActionEvent } from "@myTypes/event";
 
 // Custom hook to manage WebSocket connection
 export function useWebSocket() {
@@ -61,7 +62,7 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             );
             break;
 
-          case "card:moved":
+          case EnumUserActionEvent.CardMoved:
             const { card, fromListId, toListId } = message.data;
             console.log(
               `Card ${card.id} moved from ${fromListId} to ${toListId}`
@@ -75,7 +76,7 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             }
             break;
 
-          case "card:updated":
+          case EnumUserActionEvent.CardUpdated:
             const { card: updatedCard, listId } = message.data;
             console.log(`Card ${updatedCard.id} updated in list ${listId}`);
 
@@ -84,7 +85,7 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             queryClient.invalidateQueries({ queryKey: ["cards", listId] });
             break;
 
-          case "card:created":
+          case EnumUserActionEvent.CardCreated:
             const { card: newCard, listId: newCardListId } = message.data;
             console.log(
               `New card ${newCard.id} created in list ${newCardListId}`
@@ -97,7 +98,7 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             });
             break;
 
-          case "card:deleted":
+          case EnumUserActionEvent.CardDeleted:
             const { cardId: deletedCardId, listId: deletedCardListId } =
               message.data;
             console.log(
@@ -133,7 +134,7 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             });
             break;
 
-          case "list:created":
+          case EnumUserActionEvent.ListCreated:
             const { list: createdList, boardId: createdBoardId, createdBy } = message.data;
             console.log(`List ${createdList.id} created in board ${createdBoardId} by ${createdBy}`);
 
@@ -142,7 +143,7 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             queryClient.invalidateQueries({ queryKey: ["boards", createdBoardId] });
             break;
 
-          case "list:moved":
+          case EnumUserActionEvent.ListMoved:
             const { list: movedList, boardId: movedBoardId, previousPosition, targetPosition, movedBy } = message.data;
             console.log(`List ${movedList.id} moved from position ${previousPosition} to ${targetPosition} in board ${movedBoardId} by ${movedBy}`);
 

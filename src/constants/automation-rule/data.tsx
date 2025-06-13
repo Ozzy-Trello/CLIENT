@@ -99,6 +99,7 @@ export const triggers: AutomationRuleTrigger[] = [
             value: EnumOptionsSubject.ByMe,
             label: "by me",
           },
+          data: []
         },
         [EnumSelectionType.OptionalBoard]: {
           options: [],
@@ -163,6 +164,7 @@ export const triggers: AutomationRuleTrigger[] = [
             value: EnumOptionsSubject.ByMe,
             label: "by me",
           },
+          data: []
         },
         [EnumSelectionType.List]: {
           options: [],
@@ -215,6 +217,7 @@ export const triggers: AutomationRuleTrigger[] = [
             value: EnumOptionsSubject.ByMe,
             label: "by me",
           },
+          data: []
         },
         [EnumSelectionType.List]: {
           options: [],
@@ -275,6 +278,7 @@ export const triggers: AutomationRuleTrigger[] = [
             value: EnumOptionsSubject.ByMe,
             label: "by me",
           },
+          data: []
         },
       },
       {
@@ -379,6 +383,7 @@ export const triggers: AutomationRuleTrigger[] = [
             value: EnumOptionsSubject.ByMe,
             label: "by me",
           },
+          data: []
         },
       },
       {
@@ -431,6 +436,7 @@ export const triggers: AutomationRuleTrigger[] = [
             value: EnumOptionsSubject.ByMe,
             label: "by me",
           },
+          data: []
         },
       },
     ],
