@@ -3,12 +3,22 @@ import { useCardCustomField } from "@hooks/card_custom_field";
 import { useCardDetailContext } from "@providers/card-detail-context";
 import { Checkbox, DatePicker, Input, Select, message } from "antd";
 import { List, StretchHorizontal, TextCursorInput } from "lucide-react";
+import SplitJobSlider from "@components/split-job/SplitJobSlider";
 import { Fragment, useEffect, useRef, useState } from "react";
 import { useLists } from "@hooks/list";
 import { useParams } from "next/navigation";
 import api from "@api/index";
-import { CustomField, EnumCustomFieldSource, EnumCustomFieldType } from "@myTypes/custom-field";
-import { Card, CardCustomField, EnumAttachmentType, EnumCardType } from "@myTypes/card";
+import {
+  CustomField,
+  EnumCustomFieldSource,
+  EnumCustomFieldType,
+} from "@myTypes/custom-field";
+import {
+  Card,
+  CardCustomField,
+  EnumAttachmentType,
+  EnumCardType,
+} from "@myTypes/card";
 import dayjs, { Dayjs } from "dayjs";
 import { setCardCustomFieldValue } from "@api/card_custom_field";
 
@@ -47,7 +57,7 @@ function useEnterToSave<T>(
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
+    if (e.key === "Enter") {
       e.preventDefault();
       save();
     }
@@ -71,7 +81,7 @@ function useEnterToSave<T>(
     onKeyPress: handleKeyPress,
     onBlur: handleBlur,
     save,
-    reset
+    reset,
   };
 }
 
@@ -83,15 +93,15 @@ const EnterToSaveInput: React.FC<{
   className?: string;
   type?: string;
   fieldName?: string; // For debugging
-}> = ({ placeholder, initialValue, onSave, className, type = "text", fieldName }) => {
-
-  const {
-    value,
-    hasChanges,
-    onChange,
-    onKeyPress,
-    onBlur
-  } = useEnterToSave(
+}> = ({
+  placeholder,
+  initialValue,
+  onSave,
+  className,
+  type = "text",
+  fieldName,
+}) => {
+  const { value, hasChanges, onChange, onKeyPress, onBlur } = useEnterToSave(
     initialValue,
     onSave,
     { saveOnBlur: true }
@@ -102,7 +112,7 @@ const EnterToSaveInput: React.FC<{
       <Input
         type={type}
         placeholder={placeholder}
-        className={`${className} ${hasChanges ? 'border-blue-400' : ''}`}
+        className={`${className} ${hasChanges ? "border-blue-400" : ""}`}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onKeyPress={onKeyPress}
@@ -124,15 +134,19 @@ const EnterToSaveNumberInput: React.FC<{
   onSave: (value: number) => void;
   className?: string;
   fieldName?: string; // For debugging
-}> = ({ placeholder, initialValue, onSave, className, fieldName }) => {
-  
-  const {
-    value,
-    hasChanges,
-    onChange,
-    onKeyPress,
-    onBlur
-  } = useEnterToSave(
+  customFieldId?: string; // Added for split job integration
+}> = ({
+  placeholder,
+  initialValue,
+  onSave,
+  className,
+  fieldName,
+  customFieldId,
+}) => {
+  const params = useParams();
+  const { selectedCard } = useCardDetailContext();
+  const cardId = selectedCard?.id || "";
+  const { value, hasChanges, onChange, onKeyPress, onBlur } = useEnterToSave(
     initialValue?.toString() || "",
     (stringValue) => {
       const numValue = parseFloat(stringValue);
@@ -148,11 +162,23 @@ const EnterToSaveNumberInput: React.FC<{
       <Input
         type="number"
         placeholder={placeholder}
-        className={`${className} ${hasChanges ? 'border-blue-400' : ''}`}
+        className={`${className} ${hasChanges ? "border-blue-400" : ""}`}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onKeyPress={onKeyPress}
         onBlur={onBlur}
+        suffix={
+          <SplitJobSlider
+            workspaceId={params.workspaceId as string}
+            customFieldId={customFieldId || ""}
+            cardId={cardId}
+            value={parseFloat(value) || 0}
+            onChange={(val) => {
+              onChange(val.toString());
+              onBlur();
+            }}
+          />
+        }
       />
       {hasChanges && (
         <div className="absolute right-2 top-1/2 transform -translate-y-1/2 pointer-events-none">
@@ -166,9 +192,13 @@ const EnterToSaveNumberInput: React.FC<{
 const CustomFields: React.FC<CustomFieldsProps> = (props) => {
   const { card, setCard } = props;
   const params = useParams();
-  const workspaceId = Array.isArray(params.workspaceId) ? params.workspaceId[0] : params.workspaceId;
-  const boardId = Array.isArray(params.boardId) ? params.boardId[0] : params.boardId;
-  const { 
+  const workspaceId = Array.isArray(params.workspaceId)
+    ? params.workspaceId[0]
+    : params.workspaceId;
+  const boardId = Array.isArray(params.boardId)
+    ? params.boardId[0]
+    : params.boardId;
+  const {
     cardCustomFields,
     setStringValue,
     setNumberValue,
@@ -177,13 +207,13 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
     setOptionValue,
     setUserValue,
     isUpdating,
-    isLoading
-  } = useCardCustomField(card?.id || '', workspaceId);
-  
+    isLoading,
+  } = useCardCustomField(card?.id || "", workspaceId);
+
   const [messageApi, contextHolder] = message.useMessage();
-  
-  const { lists } = useLists(boardId || '');
-  
+
+  const { lists } = useLists(boardId || "");
+
   // Create a map of refs for user selection fields
   const userSelectionRefs = useRef<Map<string, SelectionRef>>(new Map());
 
@@ -278,12 +308,14 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
     switch (field?.type) {
       case EnumCustomFieldType.Checkbox:
         return (
-          <Checkbox 
+          <Checkbox
             checked={Boolean(field?.valueCheckbox)}
-            onChange={(e) => handleCheckboxValueChange(field.id!, e.target.checked)}
+            onChange={(e) =>
+              handleCheckboxValueChange(field.id!, e.target.checked)
+            }
           />
         );
-      
+
       case EnumCustomFieldType.Text:
         return (
           <EnterToSaveInput
@@ -294,7 +326,7 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
             onSave={(value) => handleStringValueChange(field.id!, value)}
           />
         );
-      
+
       case EnumCustomFieldType.Number:
         return (
           <EnterToSaveNumberInput
@@ -302,10 +334,11 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
             placeholder={`Add ${field.name}...`}
             className="w-full"
             initialValue={field.valueNumber}
+            customFieldId={field.id}
             onSave={(value) => handleNumberValueChange(field.id!, value)}
           />
         );
-      
+
       case EnumCustomFieldType.Date:
         const dateValue = field.valueDate ? dayjs(field.valueDate) : null;
         return (
@@ -321,16 +354,19 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
             allowClear
           />
         );
-      
+
       case EnumCustomFieldType.Dropdown:
         if (field.source === EnumCustomFieldSource.User) {
           return (
-            <UserSelection 
+            <UserSelection
               ref={(ref) => {
-                if (ref && field.id) userSelectionRefs.current.set(field.id, ref);
+                if (ref && field.id)
+                  userSelectionRefs.current.set(field.id, ref);
               }}
               value={field.valueUserId}
-              onChange={(value: string) => value && handleUserValueChange(field.id!, value)}
+              onChange={(value: string) =>
+                value && handleUserValueChange(field.id!, value)
+              }
               placeholder={`Select ${field.name}...`}
               size="middle"
               className="w-full"
@@ -342,14 +378,16 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
               <Select
                 className="w-full"
                 placeholder={`Select ${field.name}...`}
-                value={field.valueOption as string || undefined}
-                onChange={(value) => value && handleOptionValueChange(field.id!, value)}
+                value={(field.valueOption as string) || undefined}
+                onChange={(value) =>
+                  value && handleOptionValueChange(field.id!, value)
+                }
                 options={field?.options}
               />
             </div>
           );
         }
-      
+
       default:
         return (
           <div className="text-red-500 text-sm">
@@ -361,14 +399,14 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
 
   // Get icon based on field type
   const getFieldIcon = (field: CardCustomField) => {
-    const fieldType: string = field.type || 'select';
+    const fieldType: string = field.type || "select";
     switch (fieldType) {
       case EnumCustomFieldType.Text:
-      case 'string':
+      case "string":
         return <StretchHorizontal size={12} className="text-gray-500" />;
       case EnumCustomFieldType.Dropdown:
-      case 'user':
-      case 'select':
+      case "user":
+      case "select":
         return <List size={12} className="text-gray-500" />;
       default:
         return <StretchHorizontal size={12} className="text-gray-500" />;
@@ -419,20 +457,18 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
         </div>
 
         <div className="grid grid-cols-3 gap-4 ml-8">
-          {getFieldRows().map((row, rowIndex) => ( 
+          {getFieldRows().map((row, rowIndex) => (
             <Fragment key={`row-${rowIndex}`}>
-              {row.map(field => (
+              {row.map((field) => (
                 <div key={field.id} className="space-y-2 flex items-center">
                   <div className="w-full">
                     <div className="flex items-center gap-2 text-gray-700 font-medium">
-                      {isCheckboxField(field) ? (
-                        renderFieldInput(field)
-                      ) : (
-                        getFieldIcon(field)
-                      )}
+                      {isCheckboxField(field)
+                        ? renderFieldInput(field)
+                        : getFieldIcon(field)}
                       <span>{field.name}</span>
                     </div>
-                    
+
                     {!isCheckboxField(field) && (
                       <div>{renderFieldInput(field)}</div>
                     )}
@@ -445,6 +481,6 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
       </div>
     </>
   );
-}
+};
 
 export default CustomFields;

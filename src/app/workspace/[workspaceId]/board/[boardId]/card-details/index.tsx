@@ -32,9 +32,10 @@ import { useLists } from "@hooks/list";
 import { useCardActivity } from "@hooks/card_activity";
 import LocationDisplay from "./location";
 import AdditionalFields from "./additional-field";
-import RequestFields from "./request-field";
-import CardTimeInList from "./time-in-lists";
 import ChecklistFields from "./checklist-field";
+import CardTimeInList from "./time-in-lists";
+import RequestFields from "./request-field";
+import SplitJobFields from "./split-job-field";
 import { CardDateDisplay } from "@components/card-dates";
 import { useCardMembers } from "@hooks/card_member";
 import PopoverLabel from "@components/popover-label.tsx";
@@ -357,6 +358,9 @@ const CardDetails: React.FC = (props) => {
               {selectedCard && (
                 <CardTimeInList card={selectedCard} setCard={setSelectedCard} />
               )}
+
+              {/* Split Job Section */}
+              {selectedCard && <SplitJobFields card={selectedCard} setCard={setSelectedCard} />}
 
               {/* Checklist Section */}
               {selectedCard && <ChecklistFields />}
