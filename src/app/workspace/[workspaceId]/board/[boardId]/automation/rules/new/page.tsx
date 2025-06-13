@@ -3,10 +3,10 @@ import { Button, message, Steps, Typography } from "antd";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import SelectAction from "./select-action";
-import { triggers } from "@constants/automation-rule/data";
+import { actions, triggers } from "@constants/automation-rule/data";
 import ReviewAndSave from "./review-and-save";
 import RuleState from "./rule-state";
-import { AutomationRule, AutomationRuleApiData, AutomationRuleActionApiData, TriggerItemSelection } from "@myTypes/type";
+import { AutomationRule, AutomationRuleApiData, AutomationRuleActionApiData, TriggerItemSelection, AutomationRuleTrigger, AutomationRuleAction } from "@myTypes/type";
 import SelectTrigger from "./select-trigger";
 import { extractPlaceholders } from "@utils/general";
 import { createRule } from "@api/automation_rule";
@@ -32,6 +32,8 @@ const NewRulePage: React.FC = () => {
     actions: []
   });
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [triggersData, setTriggersData] = useState<AutomationRuleTrigger[]>(triggers); // data to construct the triggers UI
+  const [actionsData, setActionsData] = useState<AutomationRuleAction[]>(actions); //data to construct the actions UI
  
   const onCancel = () => {
     router.push(`/workspace/${workspaceId}/board/${boardId}/automation/rules`);
@@ -65,7 +67,14 @@ const NewRulePage: React.FC = () => {
         // For dynamic properties that are GeneralOptions
         const value = triggerItem[placeholder];
         if (value && typeof value === 'object' && 'value' in value) {
-          triggerCondition[placeholder] = value.value;
+          if (value?.data) {
+              triggerCondition[placeholder] = {
+                operator: value.value,
+                data:value.data
+              };5
+            } else {
+              triggerCondition[placeholder] = value.value;
+            }
         } else {
           triggerCondition[placeholder] = value;
         }
@@ -88,7 +97,7 @@ const NewRulePage: React.FC = () => {
       
       // For each placeholder in the action, add to condition
       actionPlaceholders.forEach((placeholder) => {
-        if (action.selectedActionItem && placeholder in action.selectedActionItem) {
+        if (action.selectedActionItem && action.selectedActionItem[placeholder]) {
           const value = action.selectedActionItem[placeholder];
           if (value && typeof value === 'object' && 'value' in value) {
             actionCondition[placeholder] = value.value;
@@ -194,6 +203,8 @@ const NewRulePage: React.FC = () => {
             prevStep={prevStep} 
             selectedRule={selectedRule} 
             setSelectedRule={setSelectedRule}
+            triggersData={triggersData}
+            setTriggersData={setTriggersData}
           />
         ) : activeStep === 1 ? (
           <SelectAction 
@@ -201,6 +212,8 @@ const NewRulePage: React.FC = () => {
             prevStep={prevStep} 
             selectedRule={selectedRule} 
             setSelectedRule={setSelectedRule} 
+            actionsData={actionsData}
+            setActionsData={setActionsData}
           />
         ) : activeStep === 2 ? (
           <ReviewAndSave 

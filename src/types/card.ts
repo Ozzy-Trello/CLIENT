@@ -29,7 +29,7 @@ export interface Card {
   activity?: CardActivity[];
   checklists?: Checklist[];
   isWatched?: boolean;
-  isArchived?: boolean;
+  archive?: boolean;
   position?: number;
   order?: number;
   startDate?: Date;

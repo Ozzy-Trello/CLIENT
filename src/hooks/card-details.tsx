@@ -1,4 +1,4 @@
-import { cardDetails, updateCard } from "@api/card";
+import { cardArchive, cardDetails, cardUnarchive, updateCard } from "@api/card";
 import api from "@api/index";
 import { Card } from "@myTypes/card";
 import { ApiResponse } from "@myTypes/type";
@@ -12,7 +12,7 @@ export function useCardDetails(
   const queryClient = useQueryClient();
 
   const cardDetailsQuery = useQuery({
-    queryKey: ["card", cardId, boardId],
+    queryKey: ["card", cardId],
     queryFn: () => cardDetails(cardId, boardId),
     enabled: !!cardId,
     staleTime: 5000,
@@ -75,7 +75,6 @@ export function useCardDetails(
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["card", cardId] });
       queryClient.invalidateQueries({ queryKey: ["cards", listId] });
-      // Also refresh lists data that might contain the card
       queryClient.invalidateQueries({ queryKey: ["lists"] });
     },
   });
@@ -86,7 +85,7 @@ export function useCardDetails(
       return api.delete(`/card/${cardId}`);
     },
     onMutate: async () => {
-      await queryClient.cancelQueries({ queryKey: ["cards", listId] });
+      await queryClient.cancelQueries({ queryKey: ["card", cardId] });
 
       const previousCards = queryClient.getQueryData(["cards", listId]);
 
@@ -240,6 +239,143 @@ export function useCardDetails(
     },
   });
 
+  
+  // Archive card mutation
+  const archiveCardMutation = useMutation({
+    mutationFn: ({ cardId }: { cardId: string }) => {
+      return cardArchive(cardId);
+    },
+    onMutate: async ({ cardId }) => {
+      // Cancel outgoing refetches for the affected list
+      await queryClient.cancelQueries({ queryKey: ["card", cardId] });
+      await queryClient.cancelQueries({ queryKey: ["cards", listId] });
+
+      const previousCards = queryClient.getQueryData(["cards", listId]);
+
+      // Optimistically update the card's archived status
+      queryClient.setQueryData(
+        ["cards", listId],
+        (old: ApiResponse<Card[]> | undefined) => {
+          if (!old) return { data: [] };
+
+          return {
+            ...old,
+            data: (old.data ?? []).map((card) =>
+              card.id === cardId 
+                ? { ...card, archived: true, archivedAt: new Date().toISOString() }
+                : card
+            ),
+          };
+        }
+      );
+
+      // Also update the lists cache if it exists
+      queryClient.setQueriesData({ queryKey: ["lists"] }, (old: any) => {
+        if (!old || !old.data || !Array.isArray(old.data)) return old;
+
+        return {
+          ...old,
+          data: old.data.map((list: any) => {
+            if (list.id === listId && list.cards) {
+              return {
+                ...list,
+                cards: list.cards.map((card: any) =>
+                  card.id === cardId 
+                    ? { ...card, archived: true, archivedAt: new Date().toISOString() }
+                    : card
+                ),
+              };
+            }
+            return list;
+          }),
+        };
+      });
+
+      return { previousCards };
+    },
+    onError: (err, variables, context) => {
+      if (context?.previousCards) {
+        queryClient.setQueryData(
+          ["cards", listId],
+          context.previousCards
+        );
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["card", cardId] });
+      queryClient.invalidateQueries({ queryKey: ["cards", listId] });
+      queryClient.invalidateQueries({ queryKey: ["lists"] });
+    },
+  });
+
+  // Unarchive card mutation
+  const unarchiveCardMutation = useMutation({
+    mutationFn: ({ cardId }: { cardId: string }) => {
+      return cardUnarchive(cardId);
+    },
+    onMutate: async ({ cardId }) => {
+      // Cancel outgoing refetches for the affected list
+      await queryClient.cancelQueries({ queryKey: ["card", cardId] });
+      await queryClient.cancelQueries({ queryKey: ["cards", listId] });
+
+      const previousCards = queryClient.getQueryData(["cards", listId]);
+
+      // Optimistically update the card's archived status
+      queryClient.setQueryData(
+        ["cards", listId],
+        (old: ApiResponse<Card[]> | undefined) => {
+          if (!old) return { data: [] };
+
+          return {
+            ...old,
+            data: (old.data ?? []).map((card) =>
+              card.id === cardId 
+                ? { ...card, archived: false, archivedAt: null }
+                : card
+            ),
+          };
+        }
+      );
+
+      // Also update the lists cache if it exists
+      queryClient.setQueriesData({ queryKey: ["lists"] }, (old: any) => {
+        if (!old || !old.data || !Array.isArray(old.data)) return old;
+
+        return {
+          ...old,
+          data: old.data.map((list: any) => {
+            if (list.id === listId && list.cards) {
+              return {
+                ...list,
+                cards: list.cards.map((card: any) =>
+                  card.id === cardId 
+                    ? { ...card, archived: false, archivedAt: null }
+                    : card
+                ),
+              };
+            }
+            return list;
+          }),
+        };
+      });
+
+      return { previousCards };
+    },
+    onError: (err, variables, context) => {
+      if (context?.previousCards) {
+        queryClient.setQueryData(
+          ["cards", listId],
+          context.previousCards
+        );
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["card", cardId] });
+      queryClient.invalidateQueries({ queryKey: ["cards", listId] });
+      queryClient.invalidateQueries({ queryKey: ["lists"] });
+    },
+  });
+
   return {
     card: cardDetailsQuery.data?.data,
     isLoading: cardDetailsQuery.isLoading,
@@ -251,5 +387,10 @@ export function useCardDetails(
     isDeleting: deleteCardMutation.isPending,
     moveCard: moveCardMutation.mutate,
     isMoving: moveCardMutation.isPending,
+
+    archiveCard: archiveCardMutation.mutate,
+    unarchiveCard: unarchiveCardMutation.mutate,
+    isArchivingCard: archiveCardMutation.isPending,
+    isUnarchivingCard: unarchiveCardMutation.isPending,
   };
 }

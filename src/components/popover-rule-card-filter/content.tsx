@@ -1,10 +1,10 @@
-import { CustomSelectionList } from "@constants/automation-rule/automation-rule";
 import { cardFilters } from "@constants/automation-rule/data-card-filter";
 import { Button, Select, Typography } from "antd";
 import { Plus } from "lucide-react";
 import { Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
 import { ListSelection, SelectionRef } from "../selection";
 import { AutomationRule, CardTriggerFilterItem, GeneralOptions, TriggerItemSelection } from "@myTypes/type";
+import { EnumSelectionType } from "@myTypes/automation-rule";
 
 interface PopoverRuleCardFilterContentProps {
   setSelectedRule: Dispatch<SetStateAction<AutomationRule>>;
@@ -42,7 +42,7 @@ const SelectOption = ({
     } as AutomationRule));
   };
 
-  if (placeholder === CustomSelectionList) {
+  if (placeholder === EnumSelectionType.List || placeholder === EnumSelectionType.OptionalList) {
     return (
       <ListSelection 
         ref={listSelectionRef}

@@ -1,4 +1,5 @@
 import { Action } from "@reduxjs/toolkit";
+import { ReactNode } from "react";
 
 export interface ApiResponse<T = any> {
   data?: T;
@@ -42,7 +43,7 @@ export interface SelectedTriggerItem {
   type?: string;
   label?: string;
   filter?: SelectedCardFilter;
-  [key: string]: GeneralOptions | string | undefined;
+  [key: string]: GeneralOptions | string | undefined | null | ReactNode;
 }
 
 export interface SelectedCardFilter {
@@ -53,7 +54,7 @@ export interface SelectedCardFilter {
 export interface SelectedCardFilterItem {
   type: string;
   label: string;
-  [key: string]: GeneralOptions  | string | undefined;
+  [key: string]: GeneralOptions  | string | undefined | null | ReactNode;
 }
 
 export interface SelectedAction {
@@ -68,7 +69,7 @@ export interface SelectedActionItem {
 }
 
 // Trigger interface to accomodate the static trigger data use to construct trigger UI
-export interface TriggerType {
+export interface AutomationRuleTrigger {
   type: string;
   icon: any;
   label: any;
@@ -83,11 +84,13 @@ export interface TriggerItems {
 
 export interface TriggerItemSelection {
   options?: GeneralOptions[] // to store the options
-  value?: GeneralOptions | null | undefined // to store selected option
+  value?: GeneralOptions | string | null | undefined // to store selected option or text input value
+  data?: any[];
+  placeholder?: string; // for text input placeholder
 }
 
 // Action interface to accomodate the static action data to construct acttionUI
-export interface ActionType {
+export interface AutomationRuleAction {
   type: string;
   icon: any;
   label: any;
@@ -103,6 +106,7 @@ export interface ActionItems {
 export interface GeneralOptions {
   value: string;
   label: React.ReactNode;
+  data?: any[];
 }
 
 export interface TriggerAction {

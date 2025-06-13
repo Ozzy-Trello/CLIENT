@@ -14,6 +14,7 @@ import {
   Share2,
   RectangleEllipsis,
   QrCode,
+  RotateCcw,
 } from "lucide-react";
 import PopoverCustomField from "@components/popover-custom-field";
 import PopoverUser from "@components/popover-user";
@@ -24,6 +25,9 @@ import { message, Tooltip } from "antd";
 import QRModal from "./qr-modal/qr-modal";
 import PopoverLocation from "@components/popover-location";
 import PopoverAttach from "@components/popover-attach";
+import { useCards } from "@hooks/card";
+import { useParams } from "next/navigation";
+import { useCardDetails } from "@hooks/card-details";
 
 const Actions: React.FC = () => {
   const [openCustomField, setOpenCustomField] = useState(false);
@@ -35,14 +39,25 @@ const Actions: React.FC = () => {
   const [openLocation, setOpenLocation] = useState(false);
   const [openAttach, setOpenAttach] = useState(false);
   const [openChecklist, setOpenChecklist] = useState(false);
-  
+  const {boardId} = useParams();
   const { selectedCard } = useCardDetailContext();
-  
+  const { archiveCard, unarchiveCard } = useCardDetails(selectedCard?.id || "", selectedCard?.listId || "", boardId as string);
+
   const menuItems = [
     { icon: <Users size={14} />, label: "Join" },
     { icon: <Tag size={14} />, label: "Labels" },
     { icon: <CheckSquare size={14} />, label: "Checklist" },
   ];
+
+  const handleArchival = () =>{
+    if (selectedCard?.id) {
+      if (selectedCard?.archive) {
+        unarchiveCard({cardId: selectedCard?.id});
+      } else {
+        archiveCard({ cardId: selectedCard?.id });
+      }
+    }
+  }
 
   return (
     <div className="w-full rounded-lg">
@@ -196,11 +211,35 @@ const Actions: React.FC = () => {
         </Tooltip>
 
         <Tooltip title="Archive this card">
-          <button className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700">
-            <Archive size={14} />
-            <span className="text-xs">Archive</span>
+          <button 
+            className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700"
+            onClick={handleArchival}
+          >
+            { selectedCard?.archive ? (
+              <>
+                <RotateCcw size={14} />
+                <span className="text-xs">Restore {selectedCard?.archive}</span>
+              </>
+            ) : (
+              <>
+                <Archive size={14} />
+                <span className="text-xs">Archive {selectedCard?.archive}</span>
+              </>
+            ) }
           </button>
         </Tooltip>
+
+        { selectedCard?.archive && (
+          <Tooltip title="Delete this card">
+            <button
+              className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700"
+              color="danger"
+            >
+              <QrCode size={14} />
+              <span className="text-xs">Delete</span>
+            </button>
+          </Tooltip>
+        ) }
 
         <Tooltip title="Share this card with others by copying the link">
           <button
