@@ -385,10 +385,10 @@ export const triggers: AutomationRuleTrigger[] = [
           options: [],
           value: null,
         },
-        [EnumSelectionType.Set]: {
+        [EnumSelectionType.Action]: {
           options: [
             {
-              value: EnumOptionsSet.Set,
+              value: EnumUserActionEvent.CardCustomFieldChange,
               label: "set",
             },
             {
@@ -397,7 +397,7 @@ export const triggers: AutomationRuleTrigger[] = [
             },
           ],
           value: {
-            value: EnumOptionsSet.Set,
+            value: EnumUserActionEvent.CardCustomFieldChange,
             label: "set",
           },
         },
