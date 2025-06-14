@@ -358,7 +358,7 @@ const CardDetails: React.FC = (props) => {
                   <LocationDisplay coordinate={selectedCard?.location} />
                 )}
 
-              {selectedCard && (
+              {selectedCard && !selectedCard?.dashConfig && (
                 <CustomFields card={selectedCard} setCard={setSelectedCard} />
               )}
 
@@ -373,7 +373,9 @@ const CardDetails: React.FC = (props) => {
               )}
 
               {/* Split Job Section */}
-              {selectedCard && <SplitJobFields card={selectedCard} setCard={setSelectedCard} />}
+              {selectedCard && (
+                <SplitJobFields card={selectedCard} setCard={setSelectedCard} />
+              )}
 
               {/* Checklist Section */}
               {selectedCard && <ChecklistFields />}
