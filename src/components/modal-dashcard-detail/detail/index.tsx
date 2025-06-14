@@ -1,6 +1,6 @@
 import { Button } from "antd";
 import { FC } from "react";
-import { EditOutlined, CopyOutlined } from "@ant-design/icons";
+import { EditOutlined } from "@ant-design/icons";
 import { IItemDashcard } from "@myTypes/card";
 import { DashcardConfig } from "@myTypes/dashcard";
 
@@ -22,7 +22,6 @@ const Detail: FC<DetailProps> = ({ itemDashcard, dashConfig }) => {
       </div>
       <div className="flex gap-3">
         <Button icon={<EditOutlined />}>Edit Filters</Button>
-        <Button icon={<CopyOutlined />}>Clone Dashcard</Button>
       </div>
     </div>
   );

@@ -117,5 +117,7 @@ export interface IItemDashcard {
   name: string;
   member: TMemberDashcard[];
   description: string;
+  boardId: string;
+  listId: string;
   columns: TDynamicColumnDashcard[];
 }
