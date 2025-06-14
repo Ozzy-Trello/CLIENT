@@ -55,10 +55,6 @@ export const triggers: AutomationRuleTrigger[] = [
               label: "Created in",
             },
             {
-              value: EnumUserActionEvent.CardEmailedTo,
-              label: "Emailed to",
-            },
-            {
               value: EnumUserActionEvent.CardMovedInto,
               label: "Moved into",
             },
@@ -120,10 +116,6 @@ export const triggers: AutomationRuleTrigger[] = [
               label: "Created in",
             },
             {
-              value: EnumUserActionEvent.CardEmailedTo,
-              label: "Emailed to",
-            },
-            {
               value: EnumUserActionEvent.CardMovedInto,
               label: "Moved into",
             },
@@ -173,7 +165,7 @@ export const triggers: AutomationRuleTrigger[] = [
       },
       {
         type: TriggerType.WhenACardHasArchivalAction,
-        label: TriggerType.WhenACardHasArchivalAction.replaceAll("-", ""),
+        label: TriggerType.WhenACardHasArchivalAction.replaceAll("-", " "),
         [EnumSelectionType.Action]: {
           options: [
             {

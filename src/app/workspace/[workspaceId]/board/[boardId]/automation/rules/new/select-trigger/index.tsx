@@ -211,19 +211,21 @@ const SelectOption = ({
 
   if ( placeholder === EnumSelectionType.List || placeholder === EnumSelectionType.OptionalList) {
     return (
-      <ListSelection
-        key={`list-select-${itemType}-${placeholder}`}
-        width={"fit-content"}
-        ref={useRef<SelectionRef>(null)}
-        value={
-          (triggersData[groupIndex]?.items?.[index] as any)?.[placeholder]
-            ?.value?.value || ""
-        }
-        onChange={(value: string, option: GeneralOptions) => {
-          onListChange(option);
-        }}
-        className="mx-2"
-      />
+      <span className="mx-2">
+        <ListSelection
+          key={`list-select-${itemType}-${placeholder}`}
+          width={"fit-content"}
+          ref={useRef<SelectionRef>(null)}
+          value={
+            (triggersData[groupIndex]?.items?.[index] as any)?.[placeholder]
+              ?.value?.value || ""
+          }
+          onChange={(value: string, option: GeneralOptions) => {
+            onListChange(option);
+          }}
+          className="mr-2 ml-2"
+        />
+      </span>
     );
   }
 
@@ -251,7 +253,6 @@ const SelectOption = ({
       {(placeholder == EnumSelectionType.OptionalBySubject || placeholder == EnumSelectionType.BySubject) 
         &&  [
           EnumOptionsSubject.BySpecificUser, 
-          EnumOptionsSubject.ByAnyoneExceptMe, 
           EnumOptionsSubject.ByAnyoneExceptSpecificUser
         ].includes((triggersData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value?.value)
         && (
@@ -268,8 +269,6 @@ const SelectOption = ({
 
     </>
   );
-
- 
 };
 
 const LabelRenderer = ({
@@ -387,7 +386,6 @@ const SelectTrigger: React.FC<SelectTriggerProps> = (props) => {
       placeholders?.forEach((placeholder) => {
         // Handle GeneralOptions-based selections (e.g., <list>, <optionalList>)
         const items = triggersData[selectedGroupIndex]?.items;
-        
         
         if (items && items[index] && items[index][placeholder]) {
           console.log("next step: items: ", items[index][placeholder]);
