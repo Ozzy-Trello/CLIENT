@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { addCardLabel, cardArchive, cards, cardUnarchive, getCardLabels, moveCard, removeLabelFromCard, updateCard } from "../api/card";
+import { addCardLabel, cardArchive, cards, cardUnarchive, copyCard, getCardLabels, moveCard, removeLabelFromCard, updateCard } from "../api/card";
 import { api } from "../api";
 import { ApiResponse } from "../types/type";
-import { Card } from "../types/card";
+import { Card, CopycardPost } from "../types/card";
 import { useEffect } from "react";
 import { queryKeys } from "@constants/query-keys";
 
@@ -441,6 +441,95 @@ export function useCardMove() {
     moveCardError: cardMoveMutation.error,
   };
 }
+
+export function useCardCopy() {
+  const queryClient = useQueryClient();
+
+  const cardCopyMutation = useMutation({
+    mutationFn: ({
+      boardId,
+      cardId,
+      cardCopyData
+    }: {
+      boardId: string;
+      cardId: string;
+      cardCopyData: CopycardPost;
+    }) => {
+      return copyCard(
+        cardId,
+        cardCopyData,
+      );
+    },
+    onMutate: async ({cardCopyData, boardId}) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.cards.list(cardCopyData?.targetListId || "") });
+      const previousCards = queryClient.getQueryData(queryKeys.cards.list(cardCopyData?.targetListId || ""));
+
+      // Create temporary card for optimistic update
+      const tempCard = {
+        name: cardCopyData?.name,
+        id: `temp-card-${Date.now()}`,
+        createdAt: new Date().toISOString(),
+        listId: cardCopyData?.targetListId,
+      };
+
+      // Update the UI optimistically
+      queryClient.setQueryData(
+        queryKeys.cards.list(cardCopyData?.targetListId || ""),
+        (old: ApiResponse<Card[]> | undefined) => {
+          if (!old) return { data: [tempCard] };
+          return {
+            ...old,
+            data: [...(old.data ?? []), tempCard],
+          };
+        }
+      );
+
+      // Also update the cards in the list cache if it exists
+      // This ensures both the dedicated cards query and the list+cards query are in sync
+      queryClient.setQueriesData( { queryKey: queryKeys.lists.board(boardId) }, (old: any) => {
+        if (!old) return old;
+
+        // Only proceed if old is an object with data property that's an array
+        if (!old.data || !Array.isArray(old.data)) return old;
+
+        return {
+          ...old,
+          data: old.data.map((list: any) => {
+            if (list.id === cardCopyData) {
+              return {
+                ...list,
+                cards: [...(list.cards || []), tempCard],
+              };
+            }
+            return list;
+          }),
+        };
+      });
+
+      return { previousCards };
+    },
+    onError: (err, variables, context) => {
+       if (context?.previousCards) {
+        queryClient.setQueryData(
+          queryKeys.cards.list(variables.cardCopyData.targetListId || ""),
+          context.previousCards
+        );
+      }
+    },
+    onSettled: (data, error, variables) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.cards.list(variables.cardCopyData.targetListId || "") });
+      queryClient.invalidateQueries({ queryKey: queryKeys.lists.board(variables.boardId) });
+
+    },
+  });
+
+  return {
+    copyCard: cardCopyMutation.mutate,
+    isCopyingngCard: cardCopyMutation.isPending,
+    copyCardError: cardCopyMutation.error,
+  };
+}
+
 
 /**
  * Hook to get time a card has spent in a specific board
