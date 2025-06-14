@@ -3,6 +3,7 @@ import { AlignLeft } from "lucide-react";
 import { FC, useMemo, useState } from "react";
 import ModalDashcardDetail from "@components/modal-dashcard-detail";
 import { Card } from "@myTypes/card";
+import { useCardDetailContext } from "@providers/card-detail-context";
 
 interface DashcardProps {
   card: Card;
@@ -10,6 +11,7 @@ interface DashcardProps {
 
 const Dashcard: FC<DashcardProps> = ({ card }) => {
   const [open, setOpen] = useState<boolean>(false);
+  const { handleItemDashcard } = useCardDetailContext();
 
   const items = useMemo(() => {
     if (!card?.itemDashcard) return [];
@@ -32,7 +34,10 @@ const Dashcard: FC<DashcardProps> = ({ card }) => {
             return (
               <div
                 key={item.id}
-                className="w-full p-3 bg-gray-100 rounded-lg flex items-center justify-between"
+                className="w-full p-3 bg-gray-100 rounded-lg flex items-center justify-between cursor-pointer"
+                onClick={() => {
+                  handleItemDashcard(item.id, item.listId, item.boardId);
+                }}
               >
                 <div>{item.name}</div>
                 <div>
