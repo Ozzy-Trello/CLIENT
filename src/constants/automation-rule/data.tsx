@@ -99,7 +99,7 @@ export const triggers: AutomationRuleTrigger[] = [
             value: EnumOptionsSubject.ByMe,
             label: "by me",
           },
-          data: []
+          data: [],
         },
         [EnumSelectionType.OptionalBoard]: {
           options: [],
@@ -164,7 +164,7 @@ export const triggers: AutomationRuleTrigger[] = [
             value: EnumOptionsSubject.ByMe,
             label: "by me",
           },
-          data: []
+          data: [],
         },
         [EnumSelectionType.List]: {
           options: [],
@@ -217,7 +217,7 @@ export const triggers: AutomationRuleTrigger[] = [
             value: EnumOptionsSubject.ByMe,
             label: "by me",
           },
-          data: []
+          data: [],
         },
         [EnumSelectionType.List]: {
           options: [],
@@ -278,7 +278,7 @@ export const triggers: AutomationRuleTrigger[] = [
             value: EnumOptionsSubject.ByMe,
             label: "by me",
           },
-          data: []
+          data: [],
         },
       },
       {
@@ -383,7 +383,7 @@ export const triggers: AutomationRuleTrigger[] = [
             value: EnumOptionsSubject.ByMe,
             label: "by me",
           },
-          data: []
+          data: [],
         },
       },
       {
@@ -436,7 +436,7 @@ export const triggers: AutomationRuleTrigger[] = [
             value: EnumOptionsSubject.ByMe,
             label: "by me",
           },
-          data: []
+          data: [],
         },
       },
     ],
@@ -677,6 +677,52 @@ export const actions: AutomationRuleAction[] = [
             value: "whatsapp",
             label: "WhatsApp",
           },
+        },
+        [EnumSelectionType.TextInput]: {
+          placeholder: "Enter your message here...",
+          value: "",
+        },
+        [EnumSelectionType.MultiFields]: {
+          options: [],
+          value: null,
+        },
+      },
+      {
+        type: ActionType.NotifyUserFromCustomFields,
+        label:
+          "Send notification via <channel> to <selected_user> from custom fields <fields> with message <text_input> and custom fields <multi_fields>",
+        [EnumSelectionType.Action]: {
+          options: [
+            {
+              value: EnumActions.Notify,
+              label: "Notify",
+            },
+          ],
+          value: {
+            value: EnumActions.Notify,
+            label: "Notify",
+          },
+        },
+        [EnumSelectionType.Channel]: {
+          options: [
+            {
+              value: "whatsapp",
+              label: "WhatsApp",
+            },
+            {
+              value: "telegram",
+              label: "Telegram",
+            },
+          ],
+          value: {
+            value: "whatsapp",
+            label: "WhatsApp",
+          },
+        },
+        [EnumTextType.SelectedUser]: {},
+        [EnumSelectionType.Fields]: {
+          options: [],
+          value: null,
         },
         [EnumSelectionType.TextInput]: {
           placeholder: "Enter your message here...",

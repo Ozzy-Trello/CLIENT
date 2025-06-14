@@ -7,22 +7,27 @@ import {
   message, 
   Modal, 
   Tooltip, 
-  Typography 
+  Typography,
+  Upload,
+  Spin
 } from "antd";
 import { VisibilitySelection, WorkspaceSelection } from "../selection";
 import boardsImage from "@assets/images/boards.png";
 import Image from "next/image";
-import { PictureOutlined, StarOutlined } from "@ant-design/icons";
+import { PictureOutlined, StarOutlined, LoadingOutlined, UploadOutlined } from "@ant-design/icons";
 import "./style.css";
 import { useDispatch } from "react-redux";
 import { useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
 import { selectCurrentBoard, selectCurrentWorkspace, setCurrentBoard } from "@store/workspace_slice";
 import { useBoards } from "@hooks/board";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef } from "react";
 import { Color } from "antd/es/color-picker";
 import { generateId } from "@utils/general";
 import { Board } from "@myTypes/board";
+import { uploadFile } from "@api/file";
+import type { UploadProps, UploadFile } from "antd";
+import type { RcFile } from "antd/es/upload/interface";
 const { Text, Title } = Typography;
 
 interface ModalCreateBoardForm {
@@ -38,13 +43,65 @@ const CreateBoard: React.FC<ModalCreateBoardForm> = (props: ModalCreateBoardForm
   const { createBoard } = useBoards(currentWorkspace?.id ?? '');
   const DEFAULT_COLOR = '#FFFFFF';
   const [bg, setBg] = useState<string>(DEFAULT_COLOR);
+  const [backgroundImage, setBackgroundImage] = useState<string>('');
+  const [isUploading, setIsUploading] = useState<boolean>(false);
+  const [fileList, setFileList] = useState<UploadFile[]>([]);
+  const uploadRef = useRef<any>(null);
   const router = useRouter();
   const dispatch = useDispatch();
 
 
   const handleColorChange = (color: any, hex: any) => {
+    setBackgroundImage('');
+    setFileList([]);
     setBg(color.toHexString());
   }
+  
+  const beforeUpload = (file: RcFile) => {
+    const isImage = file.type.startsWith('image/');
+    if (!isImage) {
+      message.error('You can only upload image files!');
+      return false;
+    }
+    
+    const isLt2M = file.size / 1024 / 1024 < 2;
+    if (!isLt2M) {
+      message.error('Image must be smaller than 2MB!');
+      return false;
+    }
+    
+    return true;
+  };
+  
+  const handleUpload = async (options: any) => {
+    const { file, onSuccess, onError } = options;
+    
+    try {
+      setIsUploading(true);
+      const result = await uploadFile(file);
+      
+      if (result && result.data) {
+        setBackgroundImage(result.data.url);
+        setBg('transparent'); // Make the background transparent to show the image
+        message.success('Background image uploaded successfully!');
+        onSuccess(result, file);
+      } else {
+        throw new Error('Upload failed');
+      }
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      message.error('Failed to upload background image');
+      onError(error);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+  
+  const handleRemoveImage = () => {
+    setBackgroundImage('');
+    setFileList([]);
+    setBg(DEFAULT_COLOR);
+  };
   
   const onFinish = async (values: any) => {
     const tempId = generateId();
@@ -53,8 +110,8 @@ const CreateBoard: React.FC<ModalCreateBoardForm> = (props: ModalCreateBoardForm
       board = {
         workspaceId: currentWorkspace?.id,
         name: values.title,
-        cover: '',
-        background: values?.background?.toHexString() || "#FFFFFF",
+        cover: backgroundImage || '',
+        background: backgroundImage ? backgroundImage : (values?.background?.toHexString() || "#FFFFFF"),
         isStarred: false,
         description: values.description,
         createdAt: '',
@@ -118,31 +175,71 @@ const CreateBoard: React.FC<ModalCreateBoardForm> = (props: ModalCreateBoardForm
       >
         <div
           className="selected-background"
-          style={{ background: bg }}
+          style={{
+            background: bg,
+            backgroundImage: backgroundImage ? `url(${backgroundImage})` : 'none',
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            position: 'relative'
+          }}
         >
+          {isUploading && (
+            <div className="upload-loading-overlay">
+              <Spin indicator={<LoadingOutlined style={{ fontSize: 24 }} spin />} tip="Uploading..." />
+            </div>
+          )}
+          
           <div className="image-container">
-            <Image
-              alt={"boards-image"}
-              src={boardsImage}
-              className="preview-image"
-            />
+            {!backgroundImage && (
+              <Image
+                alt={"boards-image"}
+                src={boardsImage}
+                className="preview-image"
+              />
+            )}
           </div>
           
           <div className="background-actions">
-            <Tooltip title="Choose image">
-              <Button 
-                type="text" 
-                shape="circle" 
-                icon={<PictureOutlined />} 
-                className="background-action-button"
-              />
-            </Tooltip>
+            <Upload
+              name="file"
+              showUploadList={false}
+              beforeUpload={beforeUpload}
+              customRequest={handleUpload}
+              fileList={fileList}
+              onChange={({ fileList }) => setFileList(fileList)}
+              ref={uploadRef}
+            >
+              <Tooltip title="Choose image">
+                <Button 
+                  type="text" 
+                  shape="circle" 
+                  icon={<PictureOutlined />} 
+                  className="background-action-button"
+                  disabled={isUploading}
+                />
+              </Tooltip>
+            </Upload>
+            
+            {backgroundImage && (
+              <Tooltip title="Remove image">
+                <Button 
+                  type="text" 
+                  shape="circle" 
+                  icon={<UploadOutlined />} 
+                  className="background-action-button"
+                  onClick={handleRemoveImage}
+                  disabled={isUploading}
+                />
+              </Tooltip>
+            )}
+            
             <Tooltip title="Save as favorite">
               <Button 
                 type="text" 
                 shape="circle" 
                 icon={<StarOutlined />} 
                 className="background-action-button"
+                disabled={isUploading}
               />
             </Tooltip>
           </div>
@@ -154,14 +251,20 @@ const CreateBoard: React.FC<ModalCreateBoardForm> = (props: ModalCreateBoardForm
             name="background" 
             label={<Text strong>Background</Text>}
           >
-            <ColorPicker
-              defaultFormat="hex"
-              format="hex"
-              disabledAlpha={false} 
-              value={DEFAULT_COLOR}
-              onChange={handleColorChange}
-              showText={true}
-            />
+            <div className="background-selection">
+              <ColorPicker
+                defaultFormat="hex"
+                format="hex"
+                disabledAlpha={false} 
+                value={backgroundImage ? 'transparent' : bg}
+                onChange={handleColorChange}
+                showText={true}
+                disabled={isUploading}
+              />
+              {backgroundImage && (
+                <span className="background-image-text">Image selected</span>
+              )}
+            </div>
           </Form.Item>
           
           <Form.Item 

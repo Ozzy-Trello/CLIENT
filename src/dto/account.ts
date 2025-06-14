@@ -8,4 +8,6 @@ export interface Account {
   username: string;
   email: string;
   phone: string;
+  name?: string;
+  avatar?: string;
 }

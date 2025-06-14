@@ -4,14 +4,17 @@ import { Card } from "@myTypes/card";
 import { Button, Typography } from "antd";
 import { AlignLeft, Edit } from "lucide-react";
 import { useParams } from "next/navigation";
+import { useCallback } from "react";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 
 const Description: React.FC<{card: Card, setSelectedCard: Dispatch<SetStateAction<Card | null>>}> = ({card, setSelectedCard}) => {
 
   const [isEditingDescription, setIsEditingDescription] = useState<boolean>(false);
   const [newDescription, setNewDescription] = useState<string>(card?.description || "");
-  const boardId = useParams();
-  const {updateCard} = useCards(card.listId, Array.isArray(boardId) ? boardId[0] : boardId || '');
+  const params = useParams();
+  const boardId = Array.isArray(params.boardId) ? params.boardId[0] : params.boardId;
+  const workspaceId = Array.isArray(params.workspaceId) ? params.workspaceId[0] : params.workspaceId;
+  const {updateCard} = useCards(card.listId, boardId || '');
 
   const enableEditDescription = () => {
     setIsEditingDescription(true);
@@ -76,6 +79,8 @@ const Description: React.FC<{card: Card, setSelectedCard: Dispatch<SetStateActio
             }}
             placeholder="Add a more detailed description..."
             className="w-full"
+            workspaceId={workspaceId}
+            boardId={boardId}
           />
           <div className="flex justify-end p-2 bg-gray-50 border-t">
             <Button 
