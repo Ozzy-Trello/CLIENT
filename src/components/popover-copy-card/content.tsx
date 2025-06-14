@@ -2,9 +2,10 @@ import React, { useRef, useState } from 'react';
 import { Select, Button, Input } from 'antd';
 import { CardPositionSelection, ListSelection, SelectionRef } from '../selection';
 import { useCardDetailContext } from '@providers/card-detail-context';
-import { useCards } from '@hooks/card';
+import { useCardCopy, useCards } from '@hooks/card';
 import { useParams } from 'next/navigation';
-import { Card } from '@myTypes/card';
+import { Card, CopycardPost } from '@myTypes/card';
+import { EnumOptionPosition } from '@myTypes/options';
 
 
 const ContentCopyCard: React.FC = () => {
@@ -17,6 +18,8 @@ const ContentCopyCard: React.FC = () => {
   const { boardId } = useParams();
   const [ cardName, setCardName ] = useState<string>(selectedCard?.name || "");
   const { addCard } = useCards(selectedCard?.listId || '', Array.isArray(boardId) ? boardId[0] : boardId || '');
+  const { copyCard } = useCardCopy();
+
   
 
   const boardOptions = [
@@ -30,13 +33,24 @@ const ContentCopyCard: React.FC = () => {
 
   const handleCopy = () => {
     if (selectedCard && selectedList) {
-      let cardToCopy: Card = {
-        id: `temp-${Date.now()}`,
+      let cardToCopy: CopycardPost = {
+        cardId: selectedCard?.id,
         name: cardName,
-        listId: selectedList || "",
-        type: selectedCard.type
+        targetListId: selectedList || "",
+        isWithLabels: true,
+        isWithlabels: true,
+        isWithMembers: true,
+        isWithAttachments: true,
+        isWtihCustomFields: true,
+        isWithComments: true,
+        isWithChecklist: true,
+        position: EnumOptionPosition.TopOfList
       }
-      addCard({card: cardToCopy, listId: selectedList || ""});
+      copyCard({
+        boardId: "",
+        cardId: selectedCard?.id,
+        cardCopyData: cardToCopy
+      });
     }
   };
 

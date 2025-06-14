@@ -18,6 +18,7 @@ type CardDetailContextType = {
   isCardDetailOpen: boolean;
   openCardDetail: (card: Card, list: AnyList) => Promise<void>;
   closeCardDetail: () => void;
+  handleItemDashcard: (cardId: string, listId: string, boardId: string) => void;
 };
 
 const CardDetailContext = createContext<CardDetailContextType>({
@@ -27,12 +28,13 @@ const CardDetailContext = createContext<CardDetailContextType>({
   isCardDetailOpen: false,
   openCardDetail: async () => {},
   closeCardDetail: () => {},
+  handleItemDashcard: () => {},
 });
 
 export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
-  const {boardId} = useParams();
+  const { boardId, workspaceId } = useParams();
   const [isOpenViaUrl, setIsOpenViaUrl] = useState(false); //determine if the modal is open via URL or not
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [activeList, setActiveList] = useState<AnyList | null>(null);
@@ -65,11 +67,11 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
       if (resp.data) {
         const fullCard = resp.data;
         fullCard.listId = list.id;
-        setSelectedCard(prevCard => {
+        setSelectedCard((prevCard) => {
           if (!prevCard) return prevCard;
           return {
             ...prevCard,
-            ...fullCard
+            ...fullCard,
           };
         });
       }
@@ -89,10 +91,27 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
     const params = new URLSearchParams(searchParams.toString());
     params.delete("listId");
     params.delete("cardId");
+
     const newUrl = params.toString()
       ? `${window.location.pathname}?${params.toString()}`
       : window.location.pathname;
     router.replace(newUrl, { scroll: false });
+  };
+
+  const handleItemDashcard = (
+    cardId: string,
+    listId: string,
+    boardId: string
+  ) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("listId", listId);
+    params.set("cardId", cardId);
+    router.replace(
+      `/workspace/${workspaceId}/board/${boardId}?${params.toString()}`,
+      {
+        scroll: false,
+      }
+    );
   };
 
   // Handle URL changes
@@ -128,6 +147,7 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
         isCardDetailOpen,
         openCardDetail,
         closeCardDetail,
+        handleItemDashcard,
       }}
     >
       {children}

@@ -5,6 +5,7 @@ import { FileUpload } from "./file-upload";
 import { AcitivitySource, Checklist } from "./type";
 import { User } from "./user";
 import { Label } from "./label";
+import { EnumOptionPosition } from "./options";
 
 export enum EnumCardType {
   Regular = "regular",
@@ -117,5 +118,22 @@ export interface IItemDashcard {
   name: string;
   member: TMemberDashcard[];
   description: string;
+  boardId: string;
+  listId: string;
   columns: TDynamicColumnDashcard[];
+}
+
+export interface CopycardPost {
+  cardId: string;
+  name: string;
+ isWithLabels: boolean;
+  isWithlabels?: boolean;
+  isWithMembers?: boolean;
+  isWithAttachments?: boolean;
+  isWtihCustomFields?: boolean;
+  isWithComments?: boolean;
+  isWithChecklist?: boolean;
+  targetBoardId?: string;
+  targetListId?: string;
+  position?: string | number | EnumOptionPosition;
 }

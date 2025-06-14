@@ -14,6 +14,7 @@ import { ChevronDown, ChevronRight, MoreHorizontal } from "lucide-react";
 import { useDebounce } from "@hooks/debounce";
 import { IItemDashcard } from "@myTypes/card";
 import { ItemType } from "antd/es/menu/interface";
+import { useCardDetailContext } from "@providers/card-detail-context";
 
 type ColumnType = {
   type: string;
@@ -42,6 +43,7 @@ const TablePivot: FC<TablePivotProps> = ({ itemDashcard }) => {
   const [columnVisibility, setColumnVisibility] = useState<
     Record<string, boolean>
   >({});
+  const { handleItemDashcard } = useCardDetailContext();
 
   const globalFilter = useDebounce(searchValue, 300);
 
@@ -170,6 +172,8 @@ const TablePivot: FC<TablePivotProps> = ({ itemDashcard }) => {
       const pivotedItem: any = {
         id: item.id,
         name: item.name,
+        listId: item.listId,
+        boardId: item.boardId,
         members: item.member,
         description: item.description,
       };
@@ -207,7 +211,20 @@ const TablePivot: FC<TablePivotProps> = ({ itemDashcard }) => {
           if (row.getIsGrouped()) {
             return `${row.subRows.length} items`;
           }
-          return info.getValue();
+          return (
+            <span
+              className="cursor-pointer"
+              onClick={() =>
+                handleItemDashcard(
+                  row.original.id,
+                  row.original.listId,
+                  row.original.boardId
+                )
+              }
+            >
+              {info.getValue()}
+            </span>
+          );
         },
       }),
       columnHelper.accessor("members", {

@@ -1,5 +1,5 @@
 import { api } from ".";
-import { Card } from "../types/card";
+import { Card, CopycardPost } from "../types/card";
 import { ApiResponse } from "../types/type";
 
 export const cards = async (listId: string, boardId: string): Promise<ApiResponse<Card[]>> => {
@@ -29,6 +29,11 @@ export const updateCard = async (cardId: string, dataToUpdate: Partial<Card>): P
 
 export const moveCard = async (cardId: string, previousListId: string, targetListId: string, previousPosition: number, targetPosition: number): Promise<ApiResponse<any>> => {
   const { data } = await api.post(`/card/${cardId}/move`, { cardId, previousListId, targetListId, previousPosition, targetPosition});
+  return data;
+}
+
+export const copyCard = async (cardId: string, copyCardData: CopycardPost): Promise<ApiResponse<any>> => {
+  const { data } = await api.post(`/card/${cardId}/copy`, copyCardData);
   return data;
 }
 
