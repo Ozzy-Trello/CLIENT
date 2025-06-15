@@ -11,7 +11,21 @@ export enum EnumOptionsNumberComparisonOperators {
   MoreThan = "more-than",
 }
 
-export enum EnumOptionsSubject {
+export enum EnumOptionTextComparisonOperator {
+  StartingWith = "starting-with",
+  EndingWith = "ending-with",
+  Containing = "containing",
+  NotStartingWith = "not-starting-with",
+  NotEndingWith = "not-ending-with",
+  NotContaining = "containing",
+}
+
+export enum EnumOptionSubject {
+  Iam = "i-am",
+  SomeoneIs = "someone-is"
+}
+
+export enum EnumOptionBySubject {
   ByAnyone = "by-anyone",
   ByMe = "by-me",
   BySpecificUser = "by-specific-user",
@@ -22,4 +36,33 @@ export enum EnumOptionsSubject {
 export enum EnumOptionsSet {
   Set = "set",
   Cleared = "cleared",
+}
+
+export enum EnumOptionCardMarking {
+  Complete = "complete",
+  Incomplete = "incomplete"
+}
+
+export enum EnumOptionArticleType {
+  The = "the",
+  Any = "any"
+}
+
+export enum EnumInclusionOperator {
+  In = "in",
+  NotIn = "not-in",
+  With = "with",
+  Without = "without"
+}
+
+export enum EnumAssignmentOperator {
+  AssignedTo = "assigned-to",
+  AssignedOnlyTo = "assigned-only-to",
+  NotAssignedTo = "not-assigned-to"
+}
+
+export enum EnumAssignmentSubjectOperator {
+  Me = "me",
+  Anyone = "anyone",
+  Member = "member"
 }

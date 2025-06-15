@@ -28,10 +28,12 @@ export enum EnumTextType {
 export enum EnumSelectionType {
   OptionalFilter = "filter",
   Action = "action",
+  Marked = "marked",
   OptionalAction = "optional_action",
   Position = "position",
   OptionalPosition = "optional_position",
   NumberComparison = "number_comparison",
+  TextComparison = "text_comparison",
   BySubject = "by",
   OptionalBySubject = "optional_by",
   Board = "board",
@@ -45,15 +47,23 @@ export enum EnumSelectionType {
   FieldValue = "field_value",
   MultiFields = "multi_fields",
   Set = "set",
+  ArticleType = "article_type", //[the, any]
+  Subject = "subject", //[i am, someone is]
+  Inclusion = "inclusion",
+  CardLabel = "card_label",
+  Assignment = "assignment",
+  AssignmentSubject = "assignment_subject"
 }
 
 export enum EnumInputType {
   Number = "number",
+  Text = "text",
   FieldValue = "field_value",
 }
 
 export enum TriggerType {
-  //  `when-a-card-<filter>-is-<action*>-the-board-<by>`,
+  // CARD MOVE
+  //  `when-a-card-<filter>-is-<action>-the-board-<optional_by>`,
   WhenACardActionOverBoard = `when-a-card-<${EnumSelectionType.OptionalFilter}>-is-<${EnumSelectionType.Action}>-the-board-<${EnumSelectionType.OptionalBySubject}>`,
 
   // "when-a-card-<filter>-is-<action*>-list-<list*>-<by>",
@@ -68,6 +78,14 @@ export enum TriggerType {
   // "when-list-<list*>-has-<number-comparison*>-[number]"
   WhenListHasCards = `when-list-<${EnumSelectionType.List}>-has-<${EnumSelectionType.NumberComparison}>-[${EnumInputType.Number}]`,
 
+
+  // CARD CHANGES
+  WhenCardCompletionChanges = `when-the-card-is-marked-<${EnumSelectionType.Marked}>-in-a-card-<${EnumSelectionType.OptionalFilter}>-<${EnumSelectionType.OptionalBySubject}>`,
+  WhenCardLabelChanges = `when-<${EnumSelectionType.ArticleType}>-label-is-<${EnumSelectionType.Action}>-a-card-<${EnumSelectionType.OptionalFilter}>-<${EnumSelectionType.OptionalBySubject}>`,
+  WhenCardAttachmentChanges = `when-an-attachment-<${EnumSelectionType.TextComparison}>-[${EnumInputType.Text}]-is-<${EnumSelectionType.Action}>-a-card-<${EnumSelectionType.OptionalFilter}>-<${EnumSelectionType.OptionalBySubject}>`,
+  WhenCardMemberChanges = `when-<${EnumSelectionType.Subject}>-is-<${EnumSelectionType.Action}>-a-card-<${EnumSelectionType.OptionalFilter}>-<${EnumSelectionType.OptionalBySubject}>`,
+
+  // CUSTOM FIELDS
   // "when-custom-fields-<fields>-is-set-to-<field_value>-<optional_by>"
   WhenCustomFieldsIsSetToFieldValue = `when-custom-fields-<${EnumSelectionType.Fields}>-is-set-to-<${EnumInputType.FieldValue}>-<${EnumSelectionType.OptionalBySubject}>`,
 
@@ -87,10 +105,16 @@ export enum ActionType {
 }
 
 // filter type
-export enum EnumTriggerCardFilter {
+export enum EnumTriggerCardFilterGroupType {
   Basic = "basic",
   Dates = "dates",
   Checklists = "checklists",
   Content = "content",
   Fields = "fields",
+}
+
+export enum EnumTiggerCarFilterType {
+  CardInclusionInList = `<${EnumSelectionType.Inclusion}>-list-<${EnumSelectionType.List}>`,
+  LabelInclusionInCard = `<${EnumSelectionType.Inclusion}>-the-<${EnumSelectionType.CardLabel}>-label`,
+  CardAssignment = `<${EnumSelectionType.Assignment}>-<${EnumSelectionType.AssignmentSubject}>`
 }
