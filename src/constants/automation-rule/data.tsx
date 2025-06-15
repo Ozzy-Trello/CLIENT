@@ -300,6 +300,7 @@ export const triggers: AutomationRuleTrigger[] = [
           options: [],
           value: null,
         },
+        [EnumInputType.Number]: null,
       },
     ],
   },

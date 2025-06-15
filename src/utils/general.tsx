@@ -109,16 +109,18 @@ export const createGradientBackground = (): { color: string; percent: number }[]
 };
 
 export function extractPlaceholders(pattern: string): string[] {
-  const regex = /<([^>]+)>/g;
+  const regex = /<([^>]+)>|\[([^\]]+)\]/g;
   const placeholders: string[] = [];
-  
+
   let match;
   while ((match = regex.exec(pattern)) !== null) {
-    placeholders.push(match[1]);
+    // match[1] is from <...>, match[2] is from [...]
+    placeholders.push(match[1] || match[2]);
   }
-  
+
   return placeholders;
 }
+
 
 export function isSpecialKey(key: string): boolean {
   // Add all properties that have specific types in the interfaces

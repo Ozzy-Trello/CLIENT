@@ -338,8 +338,7 @@ const LabelRenderer = ({
         if (trimmedPart.startsWith("[") && trimmedPart.endsWith("]")) {
           const placeholder = trimmedPart.slice(1, -1);
           // Get the current value from selectedRule.triggerItem, default to empty string
-          const inputValue =
-            (props.selectedRule.triggerItem?.[placeholder] as string) || "";
+          const inputValue = (props.triggersData[groupIndex]?.items?.[index] as any)?.[placeholder] || "";
 
           return (
             <Input
@@ -347,14 +346,13 @@ const LabelRenderer = ({
               key={`input-${item.type}-${placeholder}-${index}`}
               placeholder={placeholder}
               value={inputValue}
+              type={placeholder === EnumInputType.Number ? "number" : "text"}
               onChange={(e) => {
-                props.setSelectedRule((prev) => ({
-                  ...prev,
-                  triggerItem: {
-                    ...prev.triggerItem,
-                    [placeholder]: e.target.value,
-                  } as SelectedTriggerItem,
-                }));
+                let copyArr = [...props.triggersData];
+                if (copyArr[groupIndex]?.items?.[index]) {
+                  copyArr[groupIndex].items[index][placeholder] = e.target.value;
+                }
+                props.setTriggersData(copyArr);
               }}
             />
           );
@@ -388,10 +386,13 @@ const SelectTrigger: React.FC<SelectTriggerProps> = (props) => {
         const items = triggersData[selectedGroupIndex]?.items;
         
         if (items && items[index] && items[index][placeholder]) {
-          console.log("next step: items: ", items[index][placeholder]);
-          newTriggerItem[placeholder] = (items[index][placeholder] as any)?.value;
-          if (items[index][placeholder] && typeof items[index][placeholder] === "object" && "data" in (items[index][placeholder] as any)) {
-            (newTriggerItem[placeholder] as any)["data"] = (items[index][placeholder] as any).data;
+          if (typeof items[index][placeholder] == "object") {
+            newTriggerItem[placeholder] = (items[index][placeholder] as any)?.value;
+            if ("data" in (items[index][placeholder] as any)) {
+              (newTriggerItem[placeholder] as any)["data"] = (items[index][placeholder] as any).data;
+            }
+          } else {
+            newTriggerItem[placeholder] = items[index][placeholder];
           }
         }
       });

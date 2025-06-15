@@ -66,17 +66,22 @@ const NewRulePage: React.FC = () => {
       } else if (placeholder in triggerItem) {
         // For dynamic properties that are GeneralOptions
         const value = triggerItem[placeholder];
-        if (value && typeof value === 'object' && 'value' in value) {
-          if (value?.data) {
+        console.log(`palceholder; ${placeholder} and item is ${value}`);
+        if (value) {
+          if (typeof value === 'object' && "value" in value) {
+            console.log("ke if")
+            if ("data" in value) {
               triggerCondition[placeholder] = {
                 operator: value.value,
                 data:value.data
               };5
             } else {
-              triggerCondition[placeholder] = value.value;
+              triggerCondition[placeholder] = value?.value || "";
             }
-        } else {
-          triggerCondition[placeholder] = value;
+          } else {
+            console.log("ke else");
+            triggerCondition[placeholder] = value;
+          }
         }
       }
     });
