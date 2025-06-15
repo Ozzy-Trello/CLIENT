@@ -43,7 +43,7 @@ export interface SelectedTriggerItem {
   type?: string;
   label?: string;
   filter?: SelectedCardFilter;
-  [key: string]: GeneralOptions | string | undefined | null | ReactNode;
+  [key: string]: GeneralOptions | string | undefined | null | ReactNode | number;
 }
 
 export interface SelectedCardFilter {
@@ -79,7 +79,7 @@ export interface AutomationRuleTrigger {
 export interface TriggerItems {
   type: string;
   label: string;
-  [key: string]: TriggerItemSelection | string | undefined;
+  [key: string]: TriggerItemSelection | string | undefined | null;
 }
 
 export interface TriggerItemSelection {

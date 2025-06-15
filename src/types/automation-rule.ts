@@ -31,7 +31,7 @@ export enum EnumSelectionType {
   OptionalAction = "optional_action",
   Position = "position",
   OptionalPosition = "optional_position",
-  NumberComparison = "number_comparison*",
+  NumberComparison = "number_comparison",
   BySubject = "by",
   OptionalBySubject = "optional_by",
   Board = "board",
@@ -42,6 +42,7 @@ export enum EnumSelectionType {
   TextInput = "text_input",
   User = "user",
   Fields = "fields",
+  FieldValue = "field_value",
   MultiFields = "multi_fields",
   Set = "set",
 }
