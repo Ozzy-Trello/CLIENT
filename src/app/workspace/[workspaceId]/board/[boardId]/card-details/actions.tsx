@@ -25,7 +25,7 @@ import { message, Tooltip } from "antd";
 import QRModal from "./qr-modal/qr-modal";
 import PopoverLocation from "@components/popover-location";
 import PopoverAttach from "@components/popover-attach";
-import { useCards } from "@hooks/card";
+import { useCardCopy, useCardMove, useCards } from "@hooks/card";
 import { useParams } from "next/navigation";
 import { useCardDetails } from "@hooks/card-details";
 

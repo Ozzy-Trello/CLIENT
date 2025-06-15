@@ -80,11 +80,29 @@ const RulePage: React.FC = () => {
 
           {/* Rule Type */}
           {automationRules.length > 0 ? (
-            automationRules.map((rule) => (
-            <Typography.Text key={rule.id} code className="block mt-3 text-sm">
-              {(rule.type && rule.condition) ? renderType(rule.type, rule.condition) : 'No type defined'}
-            </Typography.Text>
-            ))
+            automationRules.map((rule) => {
+              let ruleDescription = '';
+              if (rule.type && rule.condition) {
+                ruleDescription = renderType(rule.type, rule.condition);
+              }
+
+              if (rule.action && Array.isArray(rule.action) && rule.action.length > 0) {
+                const actionDescriptions = rule.action.map(action =>
+                  renderType(action.type, action.condition)
+                ).join(' and ');
+                if (ruleDescription) {
+                  ruleDescription += ` then ${actionDescriptions}`;
+                } else {
+                  ruleDescription = actionDescriptions;
+                }
+              }
+
+              return (
+                <Typography.Text key={rule.id} code className="block mt-3 text-sm">
+                  {ruleDescription || 'Rule details incomplete'}
+                </Typography.Text>
+              );
+            })
           ) : (
             <Typography.Text type="secondary">No rules found.</Typography.Text>
           )}

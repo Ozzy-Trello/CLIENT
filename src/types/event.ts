@@ -17,7 +17,6 @@ export enum EnumUserActionEvent {
   CardDueDateAdded = "card.duedate.added",
   CardAddedTo = "card.added-to",
   CreatedIn = "card.created-in",
-  CardEmailedTo = "card.emailed-to",
   CardMovedInto = "card.moved-into",
   CardMovedOutOf = "card.moved-out-of",
   ListCreated = "list.created",
@@ -25,6 +24,8 @@ export enum EnumUserActionEvent {
   ListRenamed = "list.renamed",
   ListArchived = "list.archived",
   ListUnarchived = "list.unarchived",
+  ListUpdated = "list.updated",
+  ListDeleted = "list.deleted"
 }
 
 export enum EnumActions {

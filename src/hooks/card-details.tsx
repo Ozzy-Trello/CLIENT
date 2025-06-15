@@ -1,5 +1,6 @@
 import { cardArchive, cardDetails, cardUnarchive, updateCard } from "@api/card";
 import api from "@api/index";
+import { queryKeys } from "@constants/query-keys";
 import { Card } from "@myTypes/card";
 import { ApiResponse } from "@myTypes/type";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -12,16 +13,15 @@ export function useCardDetails(
   const queryClient = useQueryClient();
 
   const cardDetailsQuery = useQuery({
-    queryKey: ["card", cardId],
+    queryKey: queryKeys.cards.detail(cardId),
     queryFn: () => cardDetails(cardId, boardId),
     enabled: !!cardId,
     staleTime: 5000,
     // Use any card data we might already have from the cards query
     initialData: () => {
-      const cardsData = queryClient.getQueryData<ApiResponse<Card[]>>([
-        "cards",
-        listId,
-      ]);
+      const cardsData = queryClient.getQueryData<ApiResponse<Card[]>>(
+        queryKeys.cards.list(listId)
+      );
       if (!cardsData) return undefined;
 
       const foundCard = cardsData.data?.find((card) => card.id === cardId);
@@ -34,13 +34,13 @@ export function useCardDetails(
     mutationFn: (updates: Partial<Card>) => updateCard(cardId, updates),
     // Optimistic update
     onMutate: async (updates) => {
-      await queryClient.cancelQueries({ queryKey: ["card", cardId] });
+      await queryClient.cancelQueries({ queryKey: queryKeys.cards.detail(cardId) });
 
-      const previousCard = queryClient.getQueryData(["card", cardId]);
+      const previousCard = queryClient.getQueryData(queryKeys.cards.detail(cardId));
 
       // Update the individual card
       queryClient.setQueryData(
-        ["card", cardId],
+        queryKeys.cards.detail(cardId),
         (old: ApiResponse<Card> | undefined) => {
           if (!old) return { data: { ...updates, id: cardId, listId } as Card };
           return {
@@ -52,7 +52,7 @@ export function useCardDetails(
 
       // Also update the card in the cards collection if it exists
       queryClient.setQueryData(
-        ["cards", listId],
+        queryKeys.cards.list(listId),
         (old: ApiResponse<Card[]> | undefined) => {
           if (!old) return { data: [] };
 
@@ -69,13 +69,13 @@ export function useCardDetails(
     },
     onError: (err, variables, context) => {
       if (context?.previousCard) {
-        queryClient.setQueryData(["card", cardId], context.previousCard);
+        queryClient.setQueryData(queryKeys.cards.detail(cardId), context.previousCard);
       }
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["card", cardId] });
-      queryClient.invalidateQueries({ queryKey: ["cards", listId] });
-      queryClient.invalidateQueries({ queryKey: ["lists"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.cards.detail(cardId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.cards.list(listId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.lists.all });
     },
   });
 
@@ -85,13 +85,13 @@ export function useCardDetails(
       return api.delete(`/card/${cardId}`);
     },
     onMutate: async () => {
-      await queryClient.cancelQueries({ queryKey: ["card", cardId] });
+      await queryClient.cancelQueries({ queryKey: queryKeys.cards.detail(cardId) });
 
-      const previousCards = queryClient.getQueryData(["cards", listId]);
+      const previousCards = queryClient.getQueryData(queryKeys.cards.list(listId));
 
       // Optimistically remove the card from the cards collection
       queryClient.setQueryData(
-        ["cards", listId],
+        queryKeys.cards.list(listId),
         (old: ApiResponse<Card[]> | undefined) => {
           if (!old) return { data: [] };
 
@@ -106,12 +106,12 @@ export function useCardDetails(
     },
     onError: (err, variables, context) => {
       if (context?.previousCards) {
-        queryClient.setQueryData(["cards", listId], context.previousCards);
+        queryClient.setQueryData(queryKeys.cards.list(listId), context.previousCards);
       }
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["cards", listId] });
-      queryClient.invalidateQueries({ queryKey: ["lists"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.cards.list(listId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.lists.all });
     },
   });
 
@@ -132,19 +132,17 @@ export function useCardDetails(
     onMutate: async ({ destinationListId, position }) => {
       // Cancel queries for both source and destination lists
       await Promise.all([
-        queryClient.cancelQueries({ queryKey: ["cards", listId] }),
-        queryClient.cancelQueries({ queryKey: ["cards", destinationListId] }),
+        queryClient.cancelQueries({ queryKey: queryKeys.cards.list(listId) }),
+        queryClient.cancelQueries({ queryKey: queryKeys.cards.list(destinationListId) }),
       ]);
 
       // Get current state of both lists
-      const sourceCards = queryClient.getQueryData<ApiResponse<Card[]>>([
-        "cards",
-        listId,
-      ]);
-      const destinationCards = queryClient.getQueryData<ApiResponse<Card[]>>([
-        "cards",
-        destinationListId,
-      ]);
+      const sourceCards = queryClient.getQueryData<ApiResponse<Card[]>>(
+        queryKeys.cards.list(listId)
+      );
+      const destinationCards = queryClient.getQueryData<ApiResponse<Card[]>>(
+        queryKeys.cards.list(destinationListId)
+      );
 
       // Find the card to move
       const cardToMove = sourceCards?.data?.find((card) => card.id === cardId);
@@ -156,7 +154,7 @@ export function useCardDetails(
 
       // Remove from source list
       queryClient.setQueryData(
-        ["cards", listId],
+        queryKeys.cards.list(listId),
         (old: ApiResponse<Card[]> | undefined) => {
           if (!old) return { data: [] };
 
@@ -169,7 +167,7 @@ export function useCardDetails(
 
       // Add to destination list (with position handling if provided)
       queryClient.setQueryData(
-        ["cards", destinationListId],
+        queryKeys.cards.list(destinationListId),
         (old: ApiResponse<Card[]> | undefined) => {
           if (!old) return { data: [updatedCard] };
 
@@ -196,7 +194,7 @@ export function useCardDetails(
 
       // Update the individual card data as well
       queryClient.setQueryData(
-        ["card", cardId],
+        queryKeys.cards.detail(cardId),
         (old: ApiResponse<Card> | undefined) => {
           if (!old) return { data: updatedCard };
           return {
@@ -220,26 +218,25 @@ export function useCardDetails(
       // Restore both lists to previous state
       if (context.sourceCards) {
         queryClient.setQueryData(
-          ["cards", context.sourceLid],
+          queryKeys.cards.list(context.sourceLid),
           context.sourceCards
         );
       }
 
       if (context.destinationCards) {
         queryClient.setQueryData(
-          ["cards", context.destLid],
+          queryKeys.cards.list(context.destLid),
           context.destinationCards
         );
       }
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["card", cardId] });
-      queryClient.invalidateQueries({ queryKey: ["cards", listId] });
-      queryClient.invalidateQueries({ queryKey: ["lists"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.cards.detail(cardId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.cards.list(listId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.lists.all });
     },
   });
 
-  
   // Archive card mutation
   const archiveCardMutation = useMutation({
     mutationFn: ({ cardId }: { cardId: string }) => {
@@ -247,14 +244,14 @@ export function useCardDetails(
     },
     onMutate: async ({ cardId }) => {
       // Cancel outgoing refetches for the affected list
-      await queryClient.cancelQueries({ queryKey: ["card", cardId] });
-      await queryClient.cancelQueries({ queryKey: ["cards", listId] });
+      await queryClient.cancelQueries({ queryKey: queryKeys.cards.detail(cardId) });
+      await queryClient.cancelQueries({ queryKey: queryKeys.cards.list(listId) });
 
-      const previousCards = queryClient.getQueryData(["cards", listId]);
+      const previousCards = queryClient.getQueryData(queryKeys.cards.list(listId));
 
       // Optimistically update the card's archived status
       queryClient.setQueryData(
-        ["cards", listId],
+        queryKeys.cards.list(listId),
         (old: ApiResponse<Card[]> | undefined) => {
           if (!old) return { data: [] };
 
@@ -270,7 +267,7 @@ export function useCardDetails(
       );
 
       // Also update the lists cache if it exists
-      queryClient.setQueriesData({ queryKey: ["lists"] }, (old: any) => {
+      queryClient.setQueriesData({ queryKey: queryKeys.lists.all }, (old: any) => {
         if (!old || !old.data || !Array.isArray(old.data)) return old;
 
         return {
@@ -296,15 +293,15 @@ export function useCardDetails(
     onError: (err, variables, context) => {
       if (context?.previousCards) {
         queryClient.setQueryData(
-          ["cards", listId],
+          queryKeys.cards.list(listId),
           context.previousCards
         );
       }
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["card", cardId] });
-      queryClient.invalidateQueries({ queryKey: ["cards", listId] });
-      queryClient.invalidateQueries({ queryKey: ["lists"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.cards.detail(cardId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.cards.list(listId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.lists.all });
     },
   });
 
@@ -315,14 +312,14 @@ export function useCardDetails(
     },
     onMutate: async ({ cardId }) => {
       // Cancel outgoing refetches for the affected list
-      await queryClient.cancelQueries({ queryKey: ["card", cardId] });
-      await queryClient.cancelQueries({ queryKey: ["cards", listId] });
+      await queryClient.cancelQueries({ queryKey: queryKeys.cards.detail(cardId) });
+      await queryClient.cancelQueries({ queryKey: queryKeys.cards.list(listId) });
 
-      const previousCards = queryClient.getQueryData(["cards", listId]);
+      const previousCards = queryClient.getQueryData(queryKeys.cards.list(listId));
 
       // Optimistically update the card's archived status
       queryClient.setQueryData(
-        ["cards", listId],
+        queryKeys.cards.list(listId),
         (old: ApiResponse<Card[]> | undefined) => {
           if (!old) return { data: [] };
 
@@ -338,7 +335,7 @@ export function useCardDetails(
       );
 
       // Also update the lists cache if it exists
-      queryClient.setQueriesData({ queryKey: ["lists"] }, (old: any) => {
+      queryClient.setQueriesData({ queryKey: queryKeys.lists.all }, (old: any) => {
         if (!old || !old.data || !Array.isArray(old.data)) return old;
 
         return {
@@ -364,15 +361,15 @@ export function useCardDetails(
     onError: (err, variables, context) => {
       if (context?.previousCards) {
         queryClient.setQueryData(
-          ["cards", listId],
+          queryKeys.cards.list(listId),
           context.previousCards
         );
       }
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["card", cardId] });
-      queryClient.invalidateQueries({ queryKey: ["cards", listId] });
-      queryClient.invalidateQueries({ queryKey: ["lists"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.cards.detail(cardId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.cards.list(listId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.lists.all });
     },
   });
 
