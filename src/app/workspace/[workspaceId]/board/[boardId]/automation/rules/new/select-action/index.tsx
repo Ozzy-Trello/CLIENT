@@ -70,7 +70,6 @@ const SelectOption = ({
 
   // Handle ListSelection change - use the actual placeholder as key
   const onListChange = (selectedOption: any, selectionName: string) => {
-    console.log("ListSelection onChange called:", selectedOption);
 
     let copyArr = [...actionsData];
     (copyArr[groupIndex]?.items?.[index]?.[placeholder] as any).value =
@@ -79,7 +78,6 @@ const SelectOption = ({
   };
 
   const onUserChange = (selectedOption: any, selectionName: string) => {
-    console.log("UserSelection onChange called:", selectedOption);
 
     let copyArr = [...actionsData];
     (copyArr[groupIndex]?.items?.[index]?.[placeholder] as any).value =
@@ -99,9 +97,6 @@ const SelectOption = ({
     selectedOption: GeneralOptions,
     selectionName: string
   ) => {
-    console.log("onSelectChange: value: %o", selectedOption);
-    console.log("onSelectChange: placeholder: %s", placeholder);
-    console.log("onSelectChange: actionsData: %o", actionsData);
 
     let copyArr = [...actionsData];
 
@@ -169,7 +164,6 @@ const SelectOption = ({
             ?.value || ""
         }
         onChange={(option: any) => {
-          console.log("di select nya: %o", option);
           onListChange(option, placeholder);
         }}
         className="mx-2"

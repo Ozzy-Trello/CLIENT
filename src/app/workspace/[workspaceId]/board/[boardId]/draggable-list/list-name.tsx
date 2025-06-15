@@ -20,7 +20,6 @@ const ListName: React.FC<ListNameProps> = ({ list, boardId, updateList }) => {
   const [newListName, setNewListName] = useState<string>("");
   const inputRef = useRef<HTMLDivElement | null>(null);
 
-  console.log(list, "ini list");
 
   const handleListNameClick = (): void => {
     setIsEditListName(true);
