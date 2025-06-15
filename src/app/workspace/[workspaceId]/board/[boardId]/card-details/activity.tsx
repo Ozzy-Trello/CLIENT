@@ -66,15 +66,12 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
   };
   
   const handleContentChange = (content: string) => {
-    console.log("content: %o", content);
     setComment(content);
 
     // Extract the first image whenever content changes
     const imageUrl = extractFirstImageFromRichText(content);
 
     if (imageUrl !== firstImage) {
-      console.log("Found image:", imageUrl ? "Yes" : "No");
-      console.log("firstImage: ", firstImage);
       setFirstImage(imageUrl);
       setCard((prev: Card | null) => {
         if (!prev) return prev;
