@@ -33,7 +33,7 @@ import {
   EnumTextType,
 } from "@myTypes/automation-rule";
 import Item from "antd/es/list/Item";
-import { EnumOptionsSubject } from "@myTypes/options";
+import { EnumOptionBySubject } from "@myTypes/options";
 
 function extractPlaceholders(pattern: string): string[] {
   const regex = /<([^>]+)>|\[([^\]]+)\]/g; // Matches both <...> and [...]
@@ -58,35 +58,35 @@ interface SelectTriggerProps {
 // Component for the filter button
 const FilterButton = ({
   itemType,
+  selectedIndex,
   props,
 }: {
   itemType: string;
+  selectedIndex: number;
   props: SelectTriggerProps;
 }) => {
   const [openFilter, setOpenFilter] = useState(false);
-  const { selectedRule, setSelectedRule } = props;
+  const { triggersData, setTriggersData } = props;
 
-  const handleSaveFilter = useCallback(
-    (filterData: SelectedCardFilter) => {
-      setSelectedRule((prev) => ({
-        ...prev,
-        triggerItem: {
-          ...prev.triggerItem,
-          filter: filterData,
-        } as SelectedTriggerItem,
-      }));
-      setOpenFilter(false);
-    },
-    [setSelectedRule]
-  );
+  const handleFilterClick = () => {
+    setOpenFilter(true);
+  };
 
   return (
     <PopoverRuleCardFilter
       key={`filter-button-${itemType}`}
       open={openFilter}
       setOpen={setOpenFilter}
+      triggersData={triggersData}
+      setTriggersData={setTriggersData}
+      selectedIndex={selectedIndex}
       triggerEl={
-        <Button type="text" size="small" className="mx-2">
+        <Button 
+          type="text" 
+          size="small" 
+          className="mx-2"
+          onClick={handleFilterClick}
+        >
           <ListFilter size={14} />
         </Button>
       }
@@ -252,8 +252,8 @@ const SelectOption = ({
 
       {(placeholder == EnumSelectionType.OptionalBySubject || placeholder == EnumSelectionType.BySubject) 
         &&  [
-          EnumOptionsSubject.BySpecificUser, 
-          EnumOptionsSubject.ByAnyoneExceptSpecificUser
+          EnumOptionBySubject.BySpecificUser, 
+          EnumOptionBySubject.ByAnyoneExceptSpecificUser
         ].includes((triggersData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value?.value)
         && (
         <UserSelection 
@@ -328,6 +328,7 @@ const LabelRenderer = ({
                 <FilterButton
                   key={`filter-button-${item.type}-${index}`}
                   itemType={item.type}
+                  selectedIndex={index}
                   props={props}
                 />
               );

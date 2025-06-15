@@ -21,17 +21,21 @@ import {
   TriggerGroupType,
   ActionGroupType,
   EnumSelectionType,
-  EnumTriggerCardFilter,
+  EnumTriggerCardFilterGroupType,
   TriggerType,
   ActionType,
   EnumTextType,
   EnumInputType,
 } from "@myTypes/automation-rule";
 import {
+  EnumOptionArticleType,
+  EnumOptionCardMarking,
   EnumOptionPosition,
   EnumOptionsNumberComparisonOperators,
   EnumOptionsSet,
-  EnumOptionsSubject,
+  EnumOptionBySubject,
+  EnumOptionTextComparisonOperator,
+  EnumOptionSubject,
 } from "@myTypes/options";
 
 // The constants used to contruct the UI
@@ -71,28 +75,28 @@ export const triggers: AutomationRuleTrigger[] = [
         [EnumSelectionType.OptionalBySubject]: {
           options: [
             {
-              value: EnumOptionsSubject.ByMe,
+              value: EnumOptionBySubject.ByMe,
               label: "by me",
             },
             {
-              value: EnumOptionsSubject.ByAnyone,
+              value: EnumOptionBySubject.ByAnyone,
               label: "by anyone",
             },
             {
-              value: EnumOptionsSubject.BySpecificUser,
+              value: EnumOptionBySubject.BySpecificUser,
               label: "by specific user",
             },
             {
-              value: EnumOptionsSubject.ByAnyoneExceptMe,
+              value: EnumOptionBySubject.ByAnyoneExceptMe,
               label: "by anyone except me",
             },
             {
-              value: EnumOptionsSubject.ByAnyoneExceptSpecificUser,
+              value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
               label: "by anyone except specific user",
             },
           ],
           value: {
-            value: EnumOptionsSubject.ByMe,
+            value: EnumOptionBySubject.ByMe,
             label: "by me",
           },
           data: []
@@ -132,28 +136,28 @@ export const triggers: AutomationRuleTrigger[] = [
         [EnumSelectionType.OptionalBySubject]: {
           options: [
             {
-              value: EnumOptionsSubject.ByMe,
+              value: EnumOptionBySubject.ByMe,
               label: "by me",
             },
             {
-              value: EnumOptionsSubject.ByAnyone,
+              value: EnumOptionBySubject.ByAnyone,
               label: "by anyone",
             },
             {
-              value: EnumOptionsSubject.BySpecificUser,
+              value: EnumOptionBySubject.BySpecificUser,
               label: "by specific user",
             },
             {
-              value: EnumOptionsSubject.ByAnyoneExceptMe,
+              value: EnumOptionBySubject.ByAnyoneExceptMe,
               label: "by anyone except me",
             },
             {
-              value: EnumOptionsSubject.ByAnyoneExceptSpecificUser,
+              value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
               label: "by anyone except specific user",
             },
           ],
           value: {
-            value: EnumOptionsSubject.ByMe,
+            value: EnumOptionBySubject.ByMe,
             label: "by me",
           },
           data: []
@@ -185,28 +189,28 @@ export const triggers: AutomationRuleTrigger[] = [
         [EnumSelectionType.OptionalBySubject]: {
           options: [
             {
-              value: EnumOptionsSubject.ByMe,
+              value: EnumOptionBySubject.ByMe,
               label: "by me",
             },
             {
-              value: EnumOptionsSubject.ByAnyone,
+              value: EnumOptionBySubject.ByAnyone,
               label: "by anyone",
             },
             {
-              value: EnumOptionsSubject.BySpecificUser,
+              value: EnumOptionBySubject.BySpecificUser,
               label: "by specific user",
             },
             {
-              value: EnumOptionsSubject.ByAnyoneExceptMe,
+              value: EnumOptionBySubject.ByAnyoneExceptMe,
               label: "by anyone except me",
             },
             {
-              value: EnumOptionsSubject.ByAnyoneExceptSpecificUser,
+              value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
               label: "by anyone except specific user",
             },
           ],
           value: {
-            value: EnumOptionsSubject.ByMe,
+            value: EnumOptionBySubject.ByMe,
             label: "by me",
           },
           data: []
@@ -246,28 +250,28 @@ export const triggers: AutomationRuleTrigger[] = [
         [EnumSelectionType.OptionalBySubject]: {
           options: [
             {
-              value: EnumOptionsSubject.ByMe,
+              value: EnumOptionBySubject.ByMe,
               label: "by me",
             },
             {
-              value: EnumOptionsSubject.ByAnyone,
+              value: EnumOptionBySubject.ByAnyone,
               label: "by anyone",
             },
             {
-              value: EnumOptionsSubject.BySpecificUser,
+              value: EnumOptionBySubject.BySpecificUser,
               label: "by specific user",
             },
             {
-              value: EnumOptionsSubject.ByAnyoneExceptMe,
+              value: EnumOptionBySubject.ByAnyoneExceptMe,
               label: "by anyone except me",
             },
             {
-              value: EnumOptionsSubject.ByAnyoneExceptSpecificUser,
+              value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
               label: "by anyone except specific user",
             },
           ],
           value: {
-            value: EnumOptionsSubject.ByMe,
+            value: EnumOptionBySubject.ByMe,
             label: "by me",
           },
           data: []
@@ -313,6 +317,268 @@ export const triggers: AutomationRuleTrigger[] = [
         <Plus /> <Minus />{" "}
       </div>
     ),
+    items: [
+      {
+        type: TriggerType.WhenCardCompletionChanges,
+        label: TriggerType.WhenCardCompletionChanges.replaceAll("-", " "),
+        [EnumSelectionType.Marked]: {
+          options: [
+            {
+              value: EnumOptionCardMarking.Complete,
+              label: "Complete",
+            },
+            {
+              value: EnumOptionCardMarking.Incomplete,
+              label: "Incomplete",
+            },
+          ],
+          value: {
+            value: EnumOptionCardMarking.Complete,
+            label: "Complete",
+          },
+        },
+        [EnumSelectionType.OptionalBySubject]: {
+          options: [
+            {
+              value: EnumOptionBySubject.ByMe,
+              label: "by me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyone,
+              label: "by anyone",
+            },
+            {
+              value: EnumOptionBySubject.BySpecificUser,
+              label: "by specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptMe,
+              label: "by anyone except me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
+              label: "by anyone except specific user",
+            },
+          ],
+          value: {
+            value: EnumOptionBySubject.ByMe,
+            label: "by me",
+          },
+          data: []
+        },
+      },
+      {
+        type: TriggerType.WhenCardLabelChanges,
+        label: TriggerType.WhenCardLabelChanges.replaceAll("-", " "),
+        [EnumSelectionType.ArticleType]: {
+          options: [
+            {
+              value: EnumOptionArticleType.The,
+              label: "The",
+            },
+            {
+              value: EnumOptionArticleType.Any,
+              label: "Any",
+            },
+          ],
+          value: {
+            value: EnumOptionArticleType.The,
+            label: "The",
+          },
+        },
+        [EnumSelectionType.Action]: {
+          options: [
+            {
+              value: EnumUserActionEvent.CardLabelAdded,
+              label: "added to",
+            },
+            {
+              value: EnumUserActionEvent.CardLabelRemove,
+              label: "removed from",
+            },
+          ],
+          value: {
+            value: EnumUserActionEvent.CardLabelAdded,
+            label: "added to",
+          },
+        },
+        [EnumSelectionType.OptionalBySubject]: {
+          options: [
+            {
+              value: EnumOptionBySubject.ByMe,
+              label: "by me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyone,
+              label: "by anyone",
+            },
+            {
+              value: EnumOptionBySubject.BySpecificUser,
+              label: "by specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptMe,
+              label: "by anyone except me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
+              label: "by anyone except specific user",
+            },
+          ],
+          value: {
+            value: EnumOptionBySubject.ByMe,
+            label: "by me",
+          },
+          data: []
+        },
+      },
+      {
+        type: TriggerType.WhenCardAttachmentChanges,
+        label: TriggerType.WhenCardAttachmentChanges.replaceAll("-", " "),
+        [EnumSelectionType.TextComparison]: {
+          options: [
+            {
+              value: EnumOptionTextComparisonOperator.StartingWith,
+              label: "starting with",
+            },
+            {
+              value: EnumOptionTextComparisonOperator.EndingWith,
+              label: "ending with",
+            },
+            {
+              value: EnumOptionTextComparisonOperator.NotContaining,
+              label: "not containing",
+            },
+            {
+              value: EnumOptionTextComparisonOperator.NotStartingWith,
+              label: "not starting with",
+            },
+            {
+              value: EnumOptionTextComparisonOperator.NotEndingWith,
+              label: "not ending with",
+            },
+            {
+              value: EnumOptionTextComparisonOperator.Containing,
+              label: "containing",
+            },
+          ],
+          value: {
+            value: EnumOptionTextComparisonOperator.StartingWith,
+            label: "starting with",
+          },
+        },
+        [EnumSelectionType.Action]: {
+          options: [
+            {
+              value: EnumUserActionEvent.CardLabelAdded,
+              label: "added to",
+            },
+            {
+              value: EnumUserActionEvent.CardLabelRemove,
+              label: "removed from",
+            },
+          ],
+          value: {
+            value: EnumUserActionEvent.CardLabelAdded,
+            label: "added to",
+          },
+        },
+        [EnumSelectionType.OptionalBySubject]: {
+          options: [
+            {
+              value: EnumOptionBySubject.ByMe,
+              label: "by me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyone,
+              label: "by anyone",
+            },
+            {
+              value: EnumOptionBySubject.BySpecificUser,
+              label: "by specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptMe,
+              label: "by anyone except me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
+              label: "by anyone except specific user",
+            },
+          ],
+          value: {
+            value: EnumOptionBySubject.ByMe,
+            label: "by me",
+          },
+          data: []
+        },
+      },
+      {
+        type: TriggerType.WhenCardMemberChanges,
+        label: TriggerType.WhenCardMemberChanges.replaceAll("-", " "),
+        [EnumSelectionType.Subject]: {
+          options: [
+            {
+              value: EnumOptionSubject.Iam,
+              label: "I am",
+            },
+            {
+              value: EnumOptionSubject.SomeoneIs,
+              label: "Someone is",
+            },
+          ],
+          value: {
+            value: EnumOptionSubject.Iam,
+            label: "I am",
+          },
+        },
+        [EnumSelectionType.Action]: {
+          options: [
+            {
+              value: EnumUserActionEvent.CardLabelAdded,
+              label: "added to",
+            },
+            {
+              value: EnumUserActionEvent.CardLabelRemove,
+              label: "removed from",
+            },
+          ],
+          value: {
+            value: EnumUserActionEvent.CardLabelAdded,
+            label: "added to",
+          },
+        },
+        [EnumSelectionType.OptionalBySubject]: {
+          options: [
+            {
+              value: EnumOptionBySubject.ByMe,
+              label: "by me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyone,
+              label: "by anyone",
+            },
+            {
+              value: EnumOptionBySubject.BySpecificUser,
+              label: "by specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptMe,
+              label: "by anyone except me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
+              label: "by anyone except specific user",
+            },
+          ],
+          value: {
+            value: EnumOptionBySubject.ByMe,
+            label: "by me",
+          },
+          data: []
+        },
+      },
+    ]
   },
   {
     type: TriggerGroupType.CardDates,
@@ -352,28 +618,28 @@ export const triggers: AutomationRuleTrigger[] = [
         [EnumSelectionType.OptionalBySubject]: {
           options: [
             {
-              value: EnumOptionsSubject.ByMe,
+              value: EnumOptionBySubject.ByMe,
               label: "by me",
             },
             {
-              value: EnumOptionsSubject.ByAnyone,
+              value: EnumOptionBySubject.ByAnyone,
               label: "by anyone",
             },
             {
-              value: EnumOptionsSubject.BySpecificUser,
+              value: EnumOptionBySubject.BySpecificUser,
               label: "by specific user",
             },
             {
-              value: EnumOptionsSubject.ByAnyoneExceptMe,
+              value: EnumOptionBySubject.ByAnyoneExceptMe,
               label: "by anyone except me",
             },
             {
-              value: EnumOptionsSubject.ByAnyoneExceptSpecificUser,
+              value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
               label: "by anyone except specific user",
             },
           ],
           value: {
-            value: EnumOptionsSubject.ByMe,
+            value: EnumOptionBySubject.ByMe,
             label: "by me",
           },
           data: []
@@ -405,28 +671,28 @@ export const triggers: AutomationRuleTrigger[] = [
         [EnumSelectionType.OptionalBySubject]: {
           options: [
             {
-              value: EnumOptionsSubject.ByMe,
+              value: EnumOptionBySubject.ByMe,
               label: "by me",
             },
             {
-              value: EnumOptionsSubject.ByAnyone,
+              value: EnumOptionBySubject.ByAnyone,
               label: "by anyone",
             },
             {
-              value: EnumOptionsSubject.BySpecificUser,
+              value: EnumOptionBySubject.BySpecificUser,
               label: "by specific user",
             },
             {
-              value: EnumOptionsSubject.ByAnyoneExceptMe,
+              value: EnumOptionBySubject.ByAnyoneExceptMe,
               label: "by anyone except me",
             },
             {
-              value: EnumOptionsSubject.ByAnyoneExceptSpecificUser,
+              value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
               label: "by anyone except specific user",
             },
           ],
           value: {
-            value: EnumOptionsSubject.ByMe,
+            value: EnumOptionBySubject.ByMe,
             label: "by me",
           },
           data: []
