@@ -1,4 +1,4 @@
-import { FC, useMemo, useState, useEffect } from "react";
+import { FC, useMemo, useState, useEffect, useCallback } from "react";
 import {
   useReactTable,
   getCoreRowModel,
@@ -8,6 +8,7 @@ import {
   getGroupedRowModel,
   getPaginationRowModel,
   getFilteredRowModel,
+  getSortedRowModel,
 } from "@tanstack/react-table";
 import { Button, Dropdown, Input, MenuProps, Checkbox } from "antd";
 import { ChevronDown, ChevronRight, MoreHorizontal } from "lucide-react";
@@ -15,6 +16,7 @@ import { useDebounce } from "@hooks/debounce";
 import { IItemDashcard } from "@myTypes/card";
 import { ItemType } from "antd/es/menu/interface";
 import { useCardDetailContext } from "@providers/card-detail-context";
+import MembersList from "@components/members-list";
 
 type ColumnType = {
   type: string;
@@ -34,6 +36,12 @@ interface TablePivotProps {
   itemDashcard: IItemDashcard[];
 }
 
+type ColumnSort = {
+  id: string;
+  desc: boolean;
+};
+type SortingState = ColumnSort[];
+
 const TablePivot: FC<TablePivotProps> = ({ itemDashcard }) => {
   const [grouping, setGrouping] = useState<string[]>([]);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -43,6 +51,7 @@ const TablePivot: FC<TablePivotProps> = ({ itemDashcard }) => {
   const [columnVisibility, setColumnVisibility] = useState<
     Record<string, boolean>
   >({});
+  const [sorting, setSorting] = useState<SortingState>([]);
   const { handleItemDashcard } = useCardDetailContext();
 
   const globalFilter = useDebounce(searchValue, 300);
@@ -121,51 +130,74 @@ const TablePivot: FC<TablePivotProps> = ({ itemDashcard }) => {
         }
         return [...prev, columnId];
       });
-    } else if (key === "hide") {
+
+      return;
+    }
+    if (key === "hide") {
       setColumnVisibility((prev) => ({
         ...prev,
         [columnId]: false,
       }));
+
+      return;
+    }
+
+    if (key === "sort") {
+      setSorting((prev) => {
+        const existingSortItem = prev.find((item) => item.id === columnId);
+
+        if (!existingSortItem) {
+          return [...prev, { id: columnId, desc: false }];
+        }
+
+        if (!existingSortItem.desc) {
+          return prev.map((item) => {
+            if (item.id === columnId) {
+              return { ...item, desc: true };
+            }
+            return item;
+          });
+        }
+
+        return prev.filter((item) => item.id !== columnId);
+      });
+
+      return;
     }
   };
 
-  const getColumnMenu = (columnId: string): MenuProps => ({
-    items: [
-      {
-        key: "pivot",
-        label: "Pivot",
-        style: {
-          display: dynamicColumns.includes(columnId) ? "block" : "none",
+  const getColumnMenu = (columnId: string): MenuProps => {
+    const currentSortStatus = sorting.find((item) => item.id === columnId);
+
+    let sortLabel = "Sort";
+    if (currentSortStatus) {
+      sortLabel = currentSortStatus.desc ? "Remove Sort" : "Sort Descending";
+    }
+
+    return {
+      items: [
+        {
+          key: "hide",
+          label: "Hide",
+          style: { display: columnId === "name" ? "none" : "block" },
         },
+        {
+          key: "sort",
+          label: sortLabel,
+        },
+        {
+          key: "pivot",
+          label: grouping.includes(columnId) ? "Unpivot" : "Pivot",
+          style: {
+            display: dynamicColumns.includes(columnId) ? "block" : "none",
+          },
+        },
+      ],
+      onClick: ({ key }) => {
+        handleMenuClick(key, columnId);
       },
-      {
-        key: "hide",
-        label: "Hide",
-        style: { display: columnId === "name" ? "none" : "block" },
-      },
-    ],
-    onClick: ({ key }) => handleMenuClick(key, columnId),
-  });
-
-  const staticDropdownItems: MenuProps["items"] = [
-    {
-      key: "hide",
-      label: "Hide",
-    },
-  ];
-
-  const dynamicDropdownItems = (columnId: string): MenuProps["items"] => [
-    {
-      key: "hide",
-      label: "Hide",
-      onClick: () => handleMenuClick("hide", columnId),
-    },
-    {
-      key: "pivot",
-      label: grouping.includes(columnId) ? "Unpivot" : "Pivot",
-      onClick: () => handleMenuClick("pivot", columnId),
-    },
-  ];
+    };
+  };
 
   const pivotData = useMemo(() => {
     return itemDashcard.map((item) => {
@@ -189,7 +221,11 @@ const TablePivot: FC<TablePivotProps> = ({ itemDashcard }) => {
   const columnHelper = createColumnHelper<any>();
 
   const columns = useMemo(() => {
-    const headerTemplate = (columnTitle: string, dropdownItems: ItemType[]) => (
+    const headerTemplate = (
+      columnTitle: string,
+      dropdownItems: ItemType[],
+      onClick?: MenuProps["onClick"] | undefined
+    ) => (
       <div
         className="flex items-center justify-between whitespace-nowrap"
         style={{ minWidth: "120px" }}
@@ -197,15 +233,56 @@ const TablePivot: FC<TablePivotProps> = ({ itemDashcard }) => {
         <span className="mr-4 text-ellipsis overflow-hidden">
           {columnTitle}
         </span>
-        <Dropdown menu={{ items: dropdownItems }} trigger={["click"]}>
+        <Dropdown menu={{ items: dropdownItems, onClick }} trigger={["click"]}>
           <MoreHorizontal className="h-4 w-4 cursor-pointer flex-shrink-0" />
         </Dropdown>
       </div>
     );
 
+    const handleRenderDynamicColumn = (
+      id: string,
+      column: string,
+      value: string | boolean | number
+    ) => {
+      const findColumn = itemDashcard.find((item) => item.id === id);
+
+      if (!findColumn) return value;
+
+      const findColumnValue = findColumn.columns.find(
+        (col) => col.column === column
+      );
+
+      if (!findColumnValue) return value;
+
+      const type = findColumnValue.type;
+
+      if (type === "text") {
+        return value;
+      }
+
+      if (type === "checkbox") {
+        return <Checkbox checked={value as boolean} />;
+      }
+
+      if (type === "date") {
+        return new Intl.DateTimeFormat("id-ID", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        }).format(new Date(value as string));
+      }
+
+      return value;
+    };
+
     const baseColumns = [
       columnHelper.accessor("name", {
-        header: () => headerTemplate("Name", staticDropdownItems),
+        header: () =>
+          headerTemplate(
+            "Name",
+            getColumnMenu("name").items || [],
+            getColumnMenu("name").onClick
+          ),
         cell: (info) => {
           const row = info.row;
           if (row.getIsGrouped()) {
@@ -229,7 +306,11 @@ const TablePivot: FC<TablePivotProps> = ({ itemDashcard }) => {
       }),
       columnHelper.accessor("members", {
         header: () =>
-          headerTemplate("Members", getColumnMenu("members").items || []),
+          headerTemplate(
+            "Members",
+            getColumnMenu("members").items || [],
+            getColumnMenu("members").onClick
+          ),
         cell: (info) => {
           const row = info.row;
           if (row.getIsGrouped()) {
@@ -238,20 +319,22 @@ const TablePivot: FC<TablePivotProps> = ({ itemDashcard }) => {
           const members = (info.row.original as DataType).members;
           return (
             <div className="flex flex-wrap gap-1">
-              {members.map((member) => (
-                <span
-                  key={member.id}
-                  className="inline-flex items-center rounded-full bg-gray-100 px-2 py-1 text-xs"
-                >
-                  {member.name}
-                </span>
-              ))}
+              <MembersList
+                members={members || []}
+                membersLength={members?.length || 0}
+                membersLoopLimit={3}
+              />
             </div>
           );
         },
       }),
       columnHelper.accessor("description", {
-        header: () => headerTemplate("Description", staticDropdownItems),
+        header: () =>
+          headerTemplate(
+            "Description",
+            getColumnMenu("description").items || [],
+            getColumnMenu("description").onClick
+          ),
         cell: (info) => {
           const row = info.row;
           if (row.getIsGrouped()) {
@@ -269,7 +352,8 @@ const TablePivot: FC<TablePivotProps> = ({ itemDashcard }) => {
           header: () =>
             headerTemplate(
               columnName.charAt(0).toUpperCase() + columnName.slice(1),
-              dynamicDropdownItems(columnName) || []
+              getColumnMenu(columnName).items || [],
+              getColumnMenu(columnName).onClick
             ),
           cell: (info) => {
             const row = info.row;
@@ -313,7 +397,11 @@ const TablePivot: FC<TablePivotProps> = ({ itemDashcard }) => {
                         <ChevronRight className="h-4 w-4" />
                       )}
                     </button>
-                    {info.getValue()}
+                    {handleRenderDynamicColumn(
+                      row.original.id,
+                      columnName,
+                      info.getValue()
+                    )}
                   </div>
                 );
               }
@@ -325,7 +413,11 @@ const TablePivot: FC<TablePivotProps> = ({ itemDashcard }) => {
               return `${itemCount} items`;
             }
 
-            return info.getValue();
+            return handleRenderDynamicColumn(
+              row.original.id,
+              columnName,
+              info.getValue()
+            );
           },
           aggregatedCell: (info) => {
             const row = info.row;
@@ -366,7 +458,7 @@ const TablePivot: FC<TablePivotProps> = ({ itemDashcard }) => {
       ) || [];
 
     return [...baseColumns, ...dynamicColumnsDefinitions];
-  }, [itemDashcard, grouping]);
+  }, [itemDashcard, grouping, sorting]);
 
   const table = useReactTable({
     data: pivotData,
@@ -375,6 +467,7 @@ const TablePivot: FC<TablePivotProps> = ({ itemDashcard }) => {
       grouping,
       expanded,
       globalFilter,
+      sorting,
       pagination: {
         pageIndex,
         pageSize,
@@ -388,6 +481,8 @@ const TablePivot: FC<TablePivotProps> = ({ itemDashcard }) => {
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    onSortingChange: setSorting,
   });
 
   return (
