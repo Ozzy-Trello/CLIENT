@@ -31,7 +31,6 @@ import {
 } from "@store/workspace_slice";
 import { useBoards } from "@hooks/board";
 import { useMemo, useState, useRef } from "react";
-import { useMemo, useState, useRef } from "react";
 import { Color } from "antd/es/color-picker";
 import { generateId } from "@utils/general";
 import { Board } from "@myTypes/board";
