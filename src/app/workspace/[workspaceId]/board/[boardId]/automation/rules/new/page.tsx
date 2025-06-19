@@ -66,17 +66,19 @@ const NewRulePage: React.FC = () => {
       } else if (placeholder in triggerItem) {
         // For dynamic properties that are GeneralOptions
         const value = triggerItem[placeholder];
-        if (value && typeof value === 'object' && 'value' in value) {
-          if (value?.data) {
+        if (value) {
+          if (typeof value === 'object' && "value" in value) {
+            if ("data" in value) {
               triggerCondition[placeholder] = {
                 operator: value.value,
                 data:value.data
               };5
             } else {
-              triggerCondition[placeholder] = value.value;
+              triggerCondition[placeholder] = value?.value || "";
             }
-        } else {
-          triggerCondition[placeholder] = value;
+          } else {
+            triggerCondition[placeholder] = value;
+          }
         }
       }
     });
@@ -130,10 +132,8 @@ const NewRulePage: React.FC = () => {
     try {
       setIsLoading(true);
       const result = await createRule(rule);
-      console.log("resultz: %o", result);
       router.push(`/workspace/${workspaceId}/board/${boardId}/automation/rules`);
     } catch (e: any) {
-      console.log("eh ini eeror: ", e?.response?.data?.message);
       message.error(e?.response?.data?.message || "something went wrong");
     } finally {
       setIsLoading(false);

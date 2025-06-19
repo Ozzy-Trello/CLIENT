@@ -8,6 +8,7 @@ export enum EnumUserActionEvent {
   CardUnarchived = "card.unarchived",
   CardDeleted = "card.deleted",
   CardLabelAdded = "card.label.added",
+  CardLabelRemove = "card.label.removed",
   CardMemberAdder = "card.member.added",
   CardCoverAdded = "card.cover.added",
   CardAttachmentAdded = "card.attachment.added",
@@ -25,7 +26,7 @@ export enum EnumUserActionEvent {
   ListArchived = "list.archived",
   ListUnarchived = "list.unarchived",
   ListUpdated = "list.updated",
-  ListDeleted = "list.deleted"
+  ListDeleted = "list.deleted",
 }
 
 export enum EnumActions {

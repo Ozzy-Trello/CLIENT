@@ -129,7 +129,7 @@ export const useCardMembers = (cardId: string) => {
     onSuccess: (data) => {
       // Update with the actual server response if it contains updated data
       if (data?.data) {
-        console.log('📝 Setting members data from API response');
+        console.log('Setting members data from API response');
         queryClient.setQueryData<ApiResponse<User[]>>(
           ["cardMembers", cardId],
           data

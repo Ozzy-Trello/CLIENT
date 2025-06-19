@@ -33,7 +33,7 @@ import {
   EnumTextType,
 } from "@myTypes/automation-rule";
 import Item from "antd/es/list/Item";
-import { EnumOptionsSubject } from "@myTypes/options";
+import { EnumOptionBySubject } from "@myTypes/options";
 
 function extractPlaceholders(pattern: string): string[] {
   const regex = /<([^>]+)>|\[([^\]]+)\]/g; // Matches both <...> and [...]
@@ -58,35 +58,35 @@ interface SelectTriggerProps {
 // Component for the filter button
 const FilterButton = ({
   itemType,
+  selectedIndex,
   props,
 }: {
   itemType: string;
+  selectedIndex: number;
   props: SelectTriggerProps;
 }) => {
   const [openFilter, setOpenFilter] = useState(false);
-  const { selectedRule, setSelectedRule } = props;
+  const { triggersData, setTriggersData } = props;
 
-  const handleSaveFilter = useCallback(
-    (filterData: SelectedCardFilter) => {
-      setSelectedRule((prev) => ({
-        ...prev,
-        triggerItem: {
-          ...prev.triggerItem,
-          filter: filterData,
-        } as SelectedTriggerItem,
-      }));
-      setOpenFilter(false);
-    },
-    [setSelectedRule]
-  );
+  const handleFilterClick = () => {
+    setOpenFilter(true);
+  };
 
   return (
     <PopoverRuleCardFilter
       key={`filter-button-${itemType}`}
       open={openFilter}
       setOpen={setOpenFilter}
+      triggersData={triggersData}
+      setTriggersData={setTriggersData}
+      selectedIndex={selectedIndex}
       triggerEl={
-        <Button type="text" size="small" className="mx-2">
+        <Button 
+          type="text" 
+          size="small" 
+          className="mx-2"
+          onClick={handleFilterClick}
+        >
           <ListFilter size={14} />
         </Button>
       }
@@ -252,8 +252,8 @@ const SelectOption = ({
 
       {(placeholder == EnumSelectionType.OptionalBySubject || placeholder == EnumSelectionType.BySubject) 
         &&  [
-          EnumOptionsSubject.BySpecificUser, 
-          EnumOptionsSubject.ByAnyoneExceptSpecificUser
+          EnumOptionBySubject.BySpecificUser, 
+          EnumOptionBySubject.ByAnyoneExceptSpecificUser
         ].includes((triggersData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value?.value)
         && (
         <UserSelection 
@@ -328,6 +328,7 @@ const LabelRenderer = ({
                 <FilterButton
                   key={`filter-button-${item.type}-${index}`}
                   itemType={item.type}
+                  selectedIndex={index}
                   props={props}
                 />
               );
@@ -338,8 +339,7 @@ const LabelRenderer = ({
         if (trimmedPart.startsWith("[") && trimmedPart.endsWith("]")) {
           const placeholder = trimmedPart.slice(1, -1);
           // Get the current value from selectedRule.triggerItem, default to empty string
-          const inputValue =
-            (props.selectedRule.triggerItem?.[placeholder] as string) || "";
+          const inputValue = (props.triggersData[groupIndex]?.items?.[index] as any)?.[placeholder] || "";
 
           return (
             <Input
@@ -347,14 +347,13 @@ const LabelRenderer = ({
               key={`input-${item.type}-${placeholder}-${index}`}
               placeholder={placeholder}
               value={inputValue}
+              type={placeholder === EnumInputType.Number ? "number" : "text"}
               onChange={(e) => {
-                props.setSelectedRule((prev) => ({
-                  ...prev,
-                  triggerItem: {
-                    ...prev.triggerItem,
-                    [placeholder]: e.target.value,
-                  } as SelectedTriggerItem,
-                }));
+                let copyArr = [...props.triggersData];
+                if (copyArr[groupIndex]?.items?.[index]) {
+                  copyArr[groupIndex].items[index][placeholder] = e.target.value;
+                }
+                props.setTriggersData(copyArr);
               }}
             />
           );
@@ -388,10 +387,13 @@ const SelectTrigger: React.FC<SelectTriggerProps> = (props) => {
         const items = triggersData[selectedGroupIndex]?.items;
         
         if (items && items[index] && items[index][placeholder]) {
-          console.log("next step: items: ", items[index][placeholder]);
-          newTriggerItem[placeholder] = (items[index][placeholder] as any)?.value;
-          if (items[index][placeholder] && typeof items[index][placeholder] === "object" && "data" in (items[index][placeholder] as any)) {
-            (newTriggerItem[placeholder] as any)["data"] = (items[index][placeholder] as any).data;
+          if (typeof items[index][placeholder] == "object") {
+            newTriggerItem[placeholder] = (items[index][placeholder] as any)?.value;
+            if ("data" in (items[index][placeholder] as any)) {
+              (newTriggerItem[placeholder] as any)["data"] = (items[index][placeholder] as any).data;
+            }
+          } else {
+            newTriggerItem[placeholder] = items[index][placeholder];
           }
         }
       });

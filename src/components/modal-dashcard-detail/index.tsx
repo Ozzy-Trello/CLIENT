@@ -10,6 +10,7 @@ interface ModalDashcardDetailProps {
   setOpen: Dispatch<SetStateAction<boolean>>;
   itemDashcard: IItemDashcard[];
   dashConfig: DashcardConfig | undefined;
+  name: string;
 }
 
 const ModalDashcardDetail: FC<ModalDashcardDetailProps> = ({
@@ -17,6 +18,7 @@ const ModalDashcardDetail: FC<ModalDashcardDetailProps> = ({
   setOpen,
   itemDashcard,
   dashConfig,
+  name,
 }) => {
   const itemTabs: TabsProps["items"] = [
     {
@@ -38,7 +40,11 @@ const ModalDashcardDetail: FC<ModalDashcardDetailProps> = ({
       width={"90vw"}
     >
       <div className="flex flex-col gap-3 px-3">
-        <Detail itemDashcard={itemDashcard} dashConfig={dashConfig} />
+        <Detail
+          itemDashcard={itemDashcard}
+          dashConfig={dashConfig}
+          name={name}
+        />
         <Tabs items={itemTabs} defaultActiveKey="1" />
       </div>
     </Modal>
