@@ -4,6 +4,7 @@ import { FC, useMemo, useState } from "react";
 import ModalDashcardDetail from "@components/modal-dashcard-detail";
 import { Card } from "@myTypes/card";
 import { useCardDetailContext } from "@providers/card-detail-context";
+import MembersList from "@components/members-list";
 
 interface DashcardProps {
   card: Card;
@@ -41,7 +42,11 @@ const Dashcard: FC<DashcardProps> = ({ card }) => {
               >
                 <div>{item.name}</div>
                 <div>
-                  <Avatar />
+                  <MembersList
+                    members={item.member || []}
+                    membersLength={item.member?.length || 0}
+                    membersLoopLimit={3}
+                  />
                 </div>
               </div>
             );
@@ -69,6 +74,7 @@ const Dashcard: FC<DashcardProps> = ({ card }) => {
         setOpen={setOpen}
         itemDashcard={card?.itemDashcard || []}
         dashConfig={card?.dashConfig}
+        name={card?.name || ""}
       />
     </>
   );
