@@ -57,23 +57,9 @@ const TablePivot: FC<TablePivotProps> = ({ itemDashcard }) => {
   const globalFilter = useDebounce(searchValue, 300);
 
   useEffect(() => {
+    ``;
     setPageIndex(0);
   }, [searchValue]);
-
-  useEffect(() => {
-    const handlePageSize = () => {
-      if (grouping.length > 0) {
-        setPageSize(itemDashcard.length);
-        return;
-      }
-
-      if (grouping.length === 0) {
-        setPageSize(5);
-      }
-    };
-
-    handlePageSize();
-  }, [grouping]);
 
   const dynamicColumns = useMemo(() => {
     if (!itemDashcard.length) return [];
@@ -407,6 +393,7 @@ const TablePivot: FC<TablePivotProps> = ({ itemDashcard }) => {
               }
 
               const itemCount = getTotalUniqueValues(row, columnName);
+
               if (itemCount === 0) {
                 return `${row.subRows.length} items`;
               }
@@ -449,9 +436,11 @@ const TablePivot: FC<TablePivotProps> = ({ itemDashcard }) => {
             }
 
             const itemCount = getTotalUniqueValues(row, columnName);
+
             if (itemCount === 0) {
               return `${row.subRows.length} items`;
             }
+
             return `${itemCount} items`;
           },
         })
@@ -485,6 +474,21 @@ const TablePivot: FC<TablePivotProps> = ({ itemDashcard }) => {
     onSortingChange: setSorting,
   });
 
+  useEffect(() => {
+    const handlePageSize = () => {
+      if (grouping.length > 0) {
+        setPageSize(table.getRowCount());
+        return;
+      }
+
+      if (grouping.length === 0) {
+        setPageSize(5);
+      }
+    };
+
+    handlePageSize();
+  }, [grouping, table.getRowCount()]);
+
   return (
     <div className="flex flex-col gap-3">
       <div className="flex justify-end gap-3 items-center">
@@ -506,7 +510,7 @@ const TablePivot: FC<TablePivotProps> = ({ itemDashcard }) => {
           </Dropdown>
         </div>
       </div>
-      <div className="overflow-x-auto overflow-y-auto max-h-[70vh]">
+      <div style={{ paddingBottom: "1rem" }} className="overflow-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             {table.getHeaderGroups().map((headerGroup) => (
