@@ -362,7 +362,9 @@ const CardDetails: React.FC = (props) => {
                 <CustomFields card={selectedCard} setCard={setSelectedCard} />
               )}
 
-              {selectedCard?.dashConfig && <Dashcard card={selectedCard} />}
+              {selectedCard?.type == "dashcard" && (
+                <Dashcard card={selectedCard} />
+              )}
 
               <AdditionalFields />
 

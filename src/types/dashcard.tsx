@@ -8,10 +8,10 @@ export enum EnumCardAttributeType {
   LABELS = "labels",
   LAST_MODIFIED = "last_modified",
   START_DATE = "start_date",
-  DUE_DATE = "due_date", 
+  DUE_DATE = "due_date",
   CUSTOM_FIELD = "custom_field",
   BOARD = "board",
-  LIST = "list"
+  LIST = "list",
 }
 
 // Filter operator types
@@ -19,12 +19,12 @@ export enum FilterOperator {
   ANY = "any",
   EQUALS = "equals",
   NOT_EQUALS = "not_equals",
-  CONTAINS = "contains", 
+  CONTAINS = "contains",
   NOT_CONTAINS = "not_contains",
   STARTS_WITH = "starts_with",
   MATCHES_WITH = "matches_with",
   INCLUDES_ANY_OF = "includes_any_of",
-  IS_ONE_OF = "is_one_of"
+  IS_ONE_OF = "is_one_of",
 }
 
 // Filter value types
@@ -67,8 +67,8 @@ export const dashcardsFilter: DashcardFilter[] = [
     options: [
       { label: "any", value: FilterOperator.ANY },
       { label: "starts with", value: FilterOperator.STARTS_WITH },
-      { label: "matches with", value: FilterOperator.MATCHES_WITH }
-    ]
+      { label: "matches with", value: FilterOperator.MATCHES_WITH },
+    ],
   },
   {
     id: "list",
@@ -79,8 +79,8 @@ export const dashcardsFilter: DashcardFilter[] = [
     options: [
       { label: "any", value: FilterOperator.ANY },
       { label: "starts with", value: FilterOperator.STARTS_WITH },
-      { label: "matches with", value: FilterOperator.MATCHES_WITH }
-    ]
+      { label: "matches with", value: FilterOperator.MATCHES_WITH },
+    ],
   },
   {
     id: "assigned",
@@ -90,8 +90,8 @@ export const dashcardsFilter: DashcardFilter[] = [
     operator: undefined,
     options: [
       { label: "includes any of", value: FilterOperator.INCLUDES_ANY_OF },
-      { label: "does not include", value: FilterOperator.NOT_CONTAINS }
-    ]
+      { label: "does not include", value: FilterOperator.NOT_CONTAINS },
+    ],
   },
   {
     id: "due",
@@ -101,8 +101,8 @@ export const dashcardsFilter: DashcardFilter[] = [
     options: [
       { label: "select", value: "select" },
       { label: "is within", value: "is_within" },
-      { label: "is empty", value: "is_empty" }
-    ]
+      { label: "is empty", value: "is_empty" },
+    ],
   },
   {
     id: "labels",
@@ -112,8 +112,8 @@ export const dashcardsFilter: DashcardFilter[] = [
     options: [
       { label: "select", value: "select" },
       { label: "includes", value: "includes" },
-      { label: "does not include", value: "does_not_include" }
-    ]
+      { label: "does not include", value: "does_not_include" },
+    ],
   },
   {
     id: "complete",
@@ -122,7 +122,7 @@ export const dashcardsFilter: DashcardFilter[] = [
     type: EnumCardAttributeType.IS_COMPLETED,
     options: [
       { label: "no", value: "false" },
-      { label: "yes", value: "true" }
-    ]
-  }
+      { label: "yes", value: "true" },
+    ],
+  },
 ];

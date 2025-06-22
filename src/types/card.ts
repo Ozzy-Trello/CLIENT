@@ -36,7 +36,7 @@ export interface Card {
   startDate?: Date;
   dueDate?: Date;
   dueDateReminder?: string;
-  dashConfig?: DashcardConfig;
+  dashConfig?: DashcardConfig | undefined;
   createdAt?: string;
   updatedAt?: string;
   itemDashcard?: IItemDashcard[] | null;
@@ -126,7 +126,7 @@ export interface IItemDashcard {
 export interface CopycardPost {
   cardId: string;
   name: string;
- isWithLabels: boolean;
+  isWithLabels: boolean;
   isWithlabels?: boolean;
   isWithMembers?: boolean;
   isWithAttachments?: boolean;
@@ -136,4 +136,9 @@ export interface CopycardPost {
   targetBoardId?: string;
   targetListId?: string;
   position?: string | number | EnumOptionPosition;
+}
+
+export interface ListDashcardDataResponse {
+  dashConfig: DashcardConfig;
+  items: IItemDashcard[];
 }
