@@ -1,32 +1,26 @@
 import { Modal, TabsProps, Tabs } from "antd";
 import { Dispatch, SetStateAction, FC } from "react";
 import TablePivot from "./table-pivot";
-import { IItemDashcard } from "@myTypes/card";
 import Detail from "./detail";
-import { DashcardConfig } from "@myTypes/dashcard";
-
+import { useCardDetailContext } from "@providers/card-detail-context";
 interface ModalDashcardDetailProps {
   open: boolean;
   setOpen: Dispatch<SetStateAction<boolean>>;
-  itemDashcard: IItemDashcard[];
-  dashConfig: DashcardConfig | undefined;
-  name: string;
 }
 
 const ModalDashcardDetail: FC<ModalDashcardDetailProps> = ({
   open,
   setOpen,
-  itemDashcard,
-  dashConfig,
-  name,
 }) => {
+  const { itemDashcard } = useCardDetailContext();
+
   const itemTabs: TabsProps["items"] = [
     {
       key: "1",
       label: (
         <div>Table {itemDashcard?.length && `(${itemDashcard.length})`}</div>
       ),
-      children: <TablePivot itemDashcard={itemDashcard} />,
+      children: <TablePivot />,
     },
   ];
 
@@ -40,11 +34,7 @@ const ModalDashcardDetail: FC<ModalDashcardDetailProps> = ({
       width={"90vw"}
     >
       <div className="flex flex-col gap-3 px-3">
-        <Detail
-          itemDashcard={itemDashcard}
-          dashConfig={dashConfig}
-          name={name}
-        />
+        <Detail />
         <Tabs items={itemTabs} defaultActiveKey="1" />
       </div>
     </Modal>

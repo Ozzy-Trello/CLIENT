@@ -7,9 +7,17 @@ import React, {
   useRef,
 } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { cardDetails } from "../api/card";
-import { Card } from "@myTypes/card";
+import { cardDetails, updateCard } from "../api/card";
+import { Card, IItemDashcard } from "@myTypes/card";
 import { AnyList } from "@myTypes/list";
+import {
+  DashcardConfig,
+  DashcardFilter,
+  FilterOperator,
+} from "@myTypes/dashcard";
+import { useDebouncedCallback } from "@hooks/useDebouncedCallback";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useDashcardList } from "@hooks/dashcard-list";
 
 type CardDetailContextType = {
   selectedCard: Card | null;
@@ -19,6 +27,32 @@ type CardDetailContextType = {
   openCardDetail: (card: Card, list: AnyList) => Promise<void>;
   closeCardDetail: () => void;
   handleItemDashcard: (cardId: string, listId: string, boardId: string) => void;
+  handleChangeFilter: ({
+    id,
+    operator,
+    value,
+  }: {
+    id: string;
+    operator?: string;
+    value?: string | boolean;
+  }) => void;
+  handleDeleteFilter: (type: string, id?: string) => void;
+
+  dashcardConfig: DashcardConfig | undefined;
+  setDashcardConfig: React.Dispatch<
+    React.SetStateAction<DashcardConfig | undefined>
+  >;
+
+  itemDashcard: IItemDashcard[];
+  setItemDashcard: React.Dispatch<React.SetStateAction<IItemDashcard[]>>;
+
+  openEditFilter: boolean;
+  setOpenEditFilter: React.Dispatch<React.SetStateAction<boolean>>;
+
+  currentFilter: DashcardFilter[];
+  setCurrentFilter: React.Dispatch<React.SetStateAction<DashcardFilter[]>>;
+
+  isUpdatingCard: boolean;
 };
 
 const CardDetailContext = createContext<CardDetailContextType>({
@@ -29,11 +63,28 @@ const CardDetailContext = createContext<CardDetailContextType>({
   openCardDetail: async () => {},
   closeCardDetail: () => {},
   handleItemDashcard: () => {},
+  dashcardConfig: undefined,
+  setDashcardConfig: () => {},
+  itemDashcard: [],
+  setItemDashcard: () => {},
+
+  openEditFilter: false,
+  setOpenEditFilter: () => {},
+
+  currentFilter: [],
+  setCurrentFilter: () => {},
+
+  handleChangeFilter: () => {},
+  handleDeleteFilter: () => {},
+
+  isUpdatingCard: false,
 });
 
 export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
+  const queryClient = useQueryClient();
+  const TIMEOUT = 300;
   const { boardId, workspaceId } = useParams();
   const [isOpenViaUrl, setIsOpenViaUrl] = useState(false); //determine if the modal is open via URL or not
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
@@ -42,6 +93,14 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
   const router = useRouter();
   const searchParams = useSearchParams();
   const handleUrlChange = useRef<boolean>(); // Track if URL change is handled
+
+  const [dashcardConfig, setDashcardConfig] = useState<
+    DashcardConfig | undefined
+  >();
+
+  const [itemDashcard, setItemDashcard] = useState<IItemDashcard[]>([]);
+  const [openEditFilter, setOpenEditFilter] = useState<boolean>(false);
+  const [currentFilter, setCurrentFilter] = useState<DashcardFilter[]>([]);
 
   const openCardDetail = async (card: Card, list: AnyList) => {
     handleUrlChange.current = true; // Set to true when opening card detail
@@ -80,6 +139,19 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
     }
   };
 
+  const { mutate, isPending } = useMutation({
+    mutationFn: (data: Partial<Card>) => updateCard(selectedCard!.id, data),
+    onSuccess: async () => {
+      queryClient.refetchQueries({
+        queryKey: ["list-dashcard", selectedCard?.id, workspaceId],
+      });
+      queryClient.refetchQueries({
+        queryKey: ["dashcardCount", selectedCard?.id],
+      });
+    },
+    onError: () => {},
+  });
+
   const closeCardDetail = () => {
     setSelectedCard(null);
     setActiveList(null);
@@ -112,6 +184,62 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
         scroll: false,
       }
     );
+  };
+
+  const handleFilter = useDebouncedCallback((filters: DashcardFilter[]) => {
+    if (!selectedCard || !dashcardConfig) return;
+
+    mutate({
+      dashConfig: {
+        ...dashcardConfig,
+        filters,
+      },
+    });
+  }, TIMEOUT);
+
+  const handleChangeFilter = ({
+    id,
+    operator,
+    value,
+  }: {
+    id: string;
+    operator?: string;
+    value?: string | boolean;
+  }) => {
+    const findFilter = currentFilter.find((filter) => filter.id === id);
+
+    if (!findFilter) return;
+
+    if (operator || operator === "")
+      findFilter.operator = operator as FilterOperator;
+    if (value || value === "") findFilter.value = value;
+
+    setCurrentFilter((prev) => {
+      handleFilter(prev);
+      return [...prev];
+    });
+  };
+
+  const handleDeleteFilter = (type: string, id?: string) => {
+    const findFilter = currentFilter.find((filter) => filter.type === type);
+
+    if (!findFilter) return;
+
+    if (findFilter.type === "custom_field" && id) {
+      setCurrentFilter((prev) => {
+        const result = prev.filter((filter) => filter.id !== id);
+        handleFilter(result);
+        return [...result];
+      });
+
+      return;
+    }
+
+    setCurrentFilter((prev) => {
+      const result = prev.filter((filter) => filter.type !== type);
+      handleFilter(result);
+      return [...result];
+    });
   };
 
   // Handle URL changes
@@ -148,6 +276,17 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
         openCardDetail,
         closeCardDetail,
         handleItemDashcard,
+        dashcardConfig,
+        setDashcardConfig,
+        itemDashcard,
+        setItemDashcard,
+        openEditFilter,
+        setOpenEditFilter,
+        currentFilter,
+        setCurrentFilter,
+        handleChangeFilter,
+        handleDeleteFilter,
+        isUpdatingCard: isPending,
       }}
     >
       {children}

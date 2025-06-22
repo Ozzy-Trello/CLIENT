@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { cardCount } from "@api/card";
+import { useParams } from "next/navigation";
 
 /**
  * Custom hook for fetching and managing dashcard counts
@@ -8,23 +9,27 @@ import { cardCount } from "@api/card";
  */
 export const useDashcardCount = (dashcardId: string) => {
   const queryClient = useQueryClient();
+  const params = useParams();
+  const workspaceId = Array.isArray(params.workspaceId)
+    ? params.workspaceId[0]
+    : params.workspaceId;
 
   const {
     data: count = 0,
     isLoading,
     isError,
     error,
-    refetch
+    refetch,
   } = useQuery({
     queryKey: ["dashcardCount", dashcardId],
     queryFn: async () => {
       if (!dashcardId) return 0;
-      
-      const result = await cardCount(dashcardId);
+
+      const result = await cardCount(dashcardId, workspaceId);
       return result.data || 0;
     },
     staleTime: 30000, // 30 seconds
-    enabled: !!dashcardId
+    enabled: !!dashcardId,
   });
 
   /**
@@ -41,6 +46,6 @@ export const useDashcardCount = (dashcardId: string) => {
     isError,
     error,
     refreshCount,
-    refetch
+    refetch,
   };
 };

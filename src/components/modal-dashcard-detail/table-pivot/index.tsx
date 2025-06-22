@@ -17,6 +17,7 @@ import { IItemDashcard } from "@myTypes/card";
 import { ItemType } from "antd/es/menu/interface";
 import { useCardDetailContext } from "@providers/card-detail-context";
 import MembersList from "@components/members-list";
+import { useDashcardList } from "@hooks/dashcard-list";
 
 type ColumnType = {
   type: string;
@@ -32,32 +33,27 @@ type DataType = {
   columns: ColumnType[];
 };
 
-interface TablePivotProps {
-  itemDashcard: IItemDashcard[];
-}
-
 type ColumnSort = {
   id: string;
   desc: boolean;
 };
 type SortingState = ColumnSort[];
 
-const TablePivot: FC<TablePivotProps> = ({ itemDashcard }) => {
+const TablePivot: FC = () => {
   const [grouping, setGrouping] = useState<string[]>([]);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [searchValue, setSearchValue] = useState("");
   const [pageIndex, setPageIndex] = useState(0);
-  const [pageSize, setPageSize] = useState(5);
+  const [pageSize, setPageSize] = useState(10);
   const [columnVisibility, setColumnVisibility] = useState<
     Record<string, boolean>
   >({});
   const [sorting, setSorting] = useState<SortingState>([]);
-  const { handleItemDashcard } = useCardDetailContext();
+  const { handleItemDashcard, itemDashcard } = useCardDetailContext();
 
   const globalFilter = useDebounce(searchValue, 300);
 
   useEffect(() => {
-    ``;
     setPageIndex(0);
   }, [searchValue]);
 
@@ -86,6 +82,8 @@ const TablePivot: FC<TablePivotProps> = ({ itemDashcard }) => {
 
     return columns;
   }, [itemDashcard]);
+
+  console.log({ dynamicColumns });
 
   const columnVisibilityMenu = {
     items: dynamicColumns.map((columnId) => ({
@@ -482,7 +480,7 @@ const TablePivot: FC<TablePivotProps> = ({ itemDashcard }) => {
       }
 
       if (grouping.length === 0) {
-        setPageSize(5);
+        setPageSize(10);
       }
     };
 

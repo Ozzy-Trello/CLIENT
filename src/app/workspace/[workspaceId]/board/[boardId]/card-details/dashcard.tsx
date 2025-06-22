@@ -5,6 +5,7 @@ import ModalDashcardDetail from "@components/modal-dashcard-detail";
 import { Card } from "@myTypes/card";
 import { useCardDetailContext } from "@providers/card-detail-context";
 import MembersList from "@components/members-list";
+import { useDashcardList } from "@hooks/dashcard-list";
 
 interface DashcardProps {
   card: Card;
@@ -12,13 +13,17 @@ interface DashcardProps {
 
 const Dashcard: FC<DashcardProps> = ({ card }) => {
   const [open, setOpen] = useState<boolean>(false);
-  const { handleItemDashcard } = useCardDetailContext();
+
+  const { resultData, refetchList } = useDashcardList(card);
+
+  const { handleItemDashcard, setOpenEditFilter, setCurrentFilter } =
+    useCardDetailContext();
 
   const items = useMemo(() => {
-    if (!card?.itemDashcard) return [];
+    if (!resultData?.items) return [];
 
-    return card.itemDashcard?.slice(0, 10);
-  }, [card.itemDashcard]);
+    return resultData.items?.slice(0, 10);
+  }, [resultData]);
 
   return (
     <>
@@ -53,15 +58,18 @@ const Dashcard: FC<DashcardProps> = ({ card }) => {
           })}
 
           <div className="p-3 bg-gray-200 rounded-lg flex items-center text-gray-500 font-bold justify-between">
-            {card?.itemDashcard && card.itemDashcard?.length > 0 && (
+            {items.length > 0 && (
               <div>
-                Showing the first {items.length} of {card.itemDashcard?.length}{" "}
+                Showing the first {items.length} of {resultData?.items?.length}{" "}
                 matching cards
               </div>
             )}
             <Button
               onClick={() => {
                 setOpen(true);
+                setOpenEditFilter(false);
+                setCurrentFilter([]);
+                refetchList();
               }}
             >
               Explore and Edit
@@ -69,13 +77,7 @@ const Dashcard: FC<DashcardProps> = ({ card }) => {
           </div>
         </div>
       </div>
-      <ModalDashcardDetail
-        open={open}
-        setOpen={setOpen}
-        itemDashcard={card?.itemDashcard || []}
-        dashConfig={card?.dashConfig}
-        name={card?.name || ""}
-      />
+      <ModalDashcardDetail open={open} setOpen={setOpen} />
     </>
   );
 };
