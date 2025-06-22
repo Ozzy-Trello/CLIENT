@@ -12,6 +12,8 @@ interface RichTextEditorProps {
   maxHeight?: string | number;
   className?: string;
   readOnly?: boolean;
+  workspaceId?: string;
+  boardId?: string;
 }
 
 // Create a placeholder component to show while loading

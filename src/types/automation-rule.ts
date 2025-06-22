@@ -70,10 +70,10 @@ export enum TriggerType {
   WhenACardActionOverList = `when-a-card-<${EnumSelectionType.OptionalFilter}>-is-<${EnumSelectionType.Action}>-list-<${EnumSelectionType.List}>-<${EnumSelectionType.OptionalBySubject}>`,
 
   // "when-a-<filter>-is-<action*>" archival action
-  WhenACardHasArchivalAction = `when-a-card-<${EnumSelectionType.OptionalFilter}>-is-<${EnumSelectionType.Action}>`,
+  WhenACardHasArchivalAction = `when-a-<${EnumSelectionType.OptionalFilter}>-is-<${EnumSelectionType.Action}>`,
 
   // "when-a-list-is-<action*>-<by>",
-  WhenAListIsAction = `when-a-list-is-<${EnumSelectionType.Action}>-<${EnumSelectionType.OptionalBySubject}>`,
+  WhenAListIsAction = `when-a-list-is-${EnumSelectionType.Action}-<${EnumSelectionType.OptionalBySubject}>`,
 
   // "when-list-<list*>-has-<number-comparison*>-[number]"
   WhenListHasCards = `when-list-<${EnumSelectionType.List}>-has-<${EnumSelectionType.NumberComparison}>-[${EnumInputType.Number}]`,
@@ -89,8 +89,8 @@ export enum TriggerType {
   // "when-custom-fields-<fields>-is-set-to-<field_value>-<optional_by>"
   WhenCustomFieldsIsSetToFieldValue = `when-custom-fields-<${EnumSelectionType.Fields}>-is-set-to-<${EnumInputType.FieldValue}>-<${EnumSelectionType.OptionalBySubject}>`,
 
-  // "when-custom-fields-<fields>-is-<set>-<optional_by>"
-  WhenCustomFieldsIsSet = `when-custom-fields-<${EnumSelectionType.Fields}>-is-<${EnumSelectionType.Set}>-<${EnumSelectionType.OptionalBySubject}>`,
+  // "when-custom-fields-<fields>-is-<action>-<optional_by>"
+  WhenCustomFieldsIsSet = `when-custom-fields-<${EnumSelectionType.Fields}>-is-<${EnumSelectionType.Action}>-<${EnumSelectionType.OptionalBySubject}>`,
 
   // add more..
 }
@@ -101,6 +101,7 @@ export enum ActionType {
   ArchivalActionTheCard = `<${EnumSelectionType.Action}>-the-card`,
   NotifyTheCard = `<${EnumSelectionType.Action}>-the-user-via-<${EnumSelectionType.Channel}>-to-<${EnumSelectionType.User}>-with-message-<${EnumSelectionType.TextInput}>`,
   NotifySelectedUser = `<${EnumSelectionType.Action}>-the-user-via-<${EnumSelectionType.Channel}>-to-${EnumTextType.SelectedUser}-with-message-<${EnumSelectionType.TextInput}> and custom fields <${EnumSelectionType.MultiFields}>`,
+  NotifyUserFromCustomFields = `<${EnumSelectionType.Action}>-the-user-via-<${EnumSelectionType.Channel}>-to-users-from-<${EnumSelectionType.Fields}>-with-message-<${EnumSelectionType.TextInput}> and custom fields <${EnumSelectionType.MultiFields}>`,
   //add more..
 }
 
