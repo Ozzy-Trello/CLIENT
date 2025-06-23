@@ -1,7 +1,7 @@
 import React, { ReactNode, useEffect, useState } from "react";
 import { Button, Popover, Typography } from "antd";
 import HomeCustomField from "./home-custom-field";
-import { ChevronLeft, X } from "lucide-react";
+import { ChevronLeft, X, Plus } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useCustomFields } from "@hooks/custom_field";
 import AddUpdateField from "./add-update-field";
@@ -31,6 +31,7 @@ const PopoverCustomField: React.FC<PopoverCustomFieldProps> = ({
     isLoading, 
     createCustomField, 
     updateCustomField,
+    reorderCustomFields,
     invalidateSpecificCardCustomFields,
     isCreating,
     isUpdating,
@@ -60,30 +61,47 @@ const PopoverCustomField: React.FC<PopoverCustomFieldProps> = ({
   return (
     <Popover
       content={
-        popoverPage === 'home' ? (
-          <HomeCustomField
-            popoverPage={popoverPage}
-            setPopoverPage={setPopoverPage}
-            selectedCustomField={selectedCustomField}
-            setSelectedCustomField={setSelectedCustomField}
-            customFields={customFields}
-            isLoading={isLoading}
-          />
-        ) : (popoverPage === 'add' || popoverPage === 'update') ? (
-          <AddUpdateField
-            popoverPage={popoverPage}
-            setPopoverPage={setPopoverPage}
-            selectedCustomField={selectedCustomField}
-            setSelectedCustomField={setSelectedCustomField}
-            selectedCard={selectedCard}
-            createCustomField={createCustomField}
-            updateCustomField={({ customFieldId, updates }) => updateCustomField({ id: customFieldId, updates })}
-          />
-        ) : (popoverPage == 'custom-option') ? (
-          null
-        ) :  (
-          null
-        )
+        <div className="flex flex-col h-full">
+          <div className="flex-1 overflow-y-auto max-h-[300px]">
+            {popoverPage === 'home' ? (
+              <HomeCustomField
+                popoverPage={popoverPage}
+                setPopoverPage={setPopoverPage}
+                selectedCustomField={selectedCustomField}
+                setSelectedCustomField={setSelectedCustomField}
+                customFields={customFields}
+                isLoading={isLoading}
+                reorderCustomFields={reorderCustomFields}
+              />
+            ) : (popoverPage === 'add' || popoverPage === 'update') ? (
+              <AddUpdateField
+                popoverPage={popoverPage}
+                setPopoverPage={setPopoverPage}
+                selectedCustomField={selectedCustomField}
+                setSelectedCustomField={setSelectedCustomField}
+                selectedCard={selectedCard}
+                createCustomField={createCustomField}
+                updateCustomField={({ customFieldId, updates }) => updateCustomField({ id: customFieldId, updates })}
+              />
+            ) : (popoverPage == 'custom-option') ? (
+              null
+            ) :  (
+              null
+            )}
+          </div>
+          {popoverPage === 'home' && (
+            <div className="pt-2 border-t mt-2">
+              <Button
+                className="w-full"
+                size="small"
+                icon={<Plus size={14} />}
+                onClick={() => setPopoverPage("add")}
+              >
+                New field
+              </Button>
+            </div>
+          )}
+        </div>
       }
       title={
         <div className="flex justify-between items-center">
@@ -118,6 +136,7 @@ const PopoverCustomField: React.FC<PopoverCustomFieldProps> = ({
       onOpenChange={setOpen}
       placement="bottom"
       overlayClassName="custom-field-popover"
+      overlayStyle={{ maxHeight: '500px' }}
       destroyTooltipOnHide
     >
       {triggerEl}

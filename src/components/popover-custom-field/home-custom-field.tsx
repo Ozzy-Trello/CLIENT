@@ -1,5 +1,4 @@
-import { Button } from "antd";
-import { ChevronRight, GripVertical, Plus } from "lucide-react";
+import { ChevronRight, GripVertical } from "lucide-react";
 import { useParams } from "next/navigation";
 import { DragDropContext, Draggable, Droppable, DropResult } from "@hello-pangea/dnd";
 import SkeletonInput from "antd/es/skeleton/Input";
@@ -13,8 +12,7 @@ interface HomeCustomFieldProps {
   setSelectedCustomField: any;
   customFields: CustomField[];
   isLoading: boolean;
-  // Add a reorder function prop
-  // reorderCustomFields?: (customFieldId: string, newPosition: number) => void;
+  reorderCustomFields: (startIndex: number, endIndex: number) => void;
 }
 
 const HomeCustomField: React.FC<HomeCustomFieldProps> = (props) => {
@@ -44,27 +42,19 @@ const HomeCustomField: React.FC<HomeCustomFieldProps> = (props) => {
   };
 
   const handleDragEnd = (result: DropResult) => {
-    // If dropped outside the list
-    if (!result.destination) {
+    // If dropped outside the list or in the same position
+    if (!result.destination || result.destination.index === result.source.index) {
       return;
     }
     
-    // If dropped in the same position
-    if (result.destination.index === result.source.index) {
-      return;
-    }
-    
-    // Create a new array with the updated order
+    // Update local state for immediate UI feedback
     const reorderedItems = Array.from(items);
     const [removed] = reorderedItems.splice(result.source.index, 1);
     reorderedItems.splice(result.destination.index, 0, removed);
-    
-    // Update local state to show the new order immediately
     setItems(reorderedItems);
     
-    // if (props.reorderCustomFields) {
-    //   props.reorderCustomFields(removed.id, result.destination.index);
-    // }
+    // Call the reorder function from props
+    props.reorderCustomFields(result.source.index, result.destination.index);
   };
 
   return (
@@ -135,14 +125,7 @@ const HomeCustomField: React.FC<HomeCustomFieldProps> = (props) => {
         )}
       </div>
       
-      <Button
-        className="w-full"
-        size="small"
-        icon={<Plus size={14} />}
-        onClick={() => setPopoverPage("add")}
-      >
-        New field
-      </Button>
+
     </div>
   );
 };
