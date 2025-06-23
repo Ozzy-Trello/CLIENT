@@ -14,7 +14,7 @@ export const WorkspaceSidebarProvider = ({
 }) => {
   const [collapsed, setCollapsed] = useState(false);
   // const { width, height, isMobile } = useScreenSize();
-  const siderWide = 200;
+  const siderWide = 280;
   const siderSmall = 10;
 
   const toggleSidebar = () => {

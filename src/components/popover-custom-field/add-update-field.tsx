@@ -87,7 +87,7 @@ const AddUpdateField: React.FC<AddUpdateFieldProps> = (props) => {
     const fetchRoles = async () => {
       setLoadingRoles(true);
       try {
-        const response = await getRoles();
+        const response = await getRoles(currentWorkspaceId || "");
         if (response?.data) {
           setRoles(response.data);
         }

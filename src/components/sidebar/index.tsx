@@ -159,25 +159,46 @@ const Sidebar = () => {
 
         // Add board items if we have any
         if (boards?.length > 0 && currentWorkspace) {
+          console.log("boards", boards);
           boards.forEach((board) => {
             fullMenus.push({
               key: `menu-board-${board.id}`,
               label: (
-                <Typography.Text className="block w-full text-left">
-                  {board.name}
-                </Typography.Text>
+                <Tooltip title={board.name}>
+                  <Typography.Text
+                    style={{ fontSize: "14px" }}
+                    className="block w-full text-left"
+                  >
+                    {board.name}
+                  </Typography.Text>
+                </Tooltip>
               ),
               icon: (
-                <span>
-                  <Avatar
-                    shape="square"
-                    src={
-                      board?.cover ||
-                      `https://ui-avatars.com/api/?name=${board?.name}&background=random`
-                    }
-                    size={"small"}
-                  />
-                </span>
+                <div style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '4px',
+                  overflow: 'hidden',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: board?.background?.startsWith('http') ? '#f0f2f5' : (board?.background || '#f0f2f5'),
+                  backgroundImage: board?.cover || board?.background?.startsWith('http') ? 
+                    `url('${board.cover || board.background}')` : 'none',
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  backgroundRepeat: 'no-repeat',
+                }}>
+                  {!board?.cover && !board?.background?.startsWith('http') && (
+                    <span style={{
+                      color: '#000',
+                      fontSize: '16px',
+                      fontWeight: 'bold',
+                    }}>
+                      {board?.name?.charAt(0)?.toUpperCase()}
+                    </span>
+                  )}
+                </div>
               ),
             });
           });

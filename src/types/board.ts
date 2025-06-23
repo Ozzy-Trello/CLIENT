@@ -3,6 +3,7 @@ import { User } from "./user";
 export interface Board {
   id: string;
   workspaceId?: string;
+  roleIds?: string[];
   name?: string;
   cover?: string;
   background?: string;

@@ -1,80 +1,164 @@
 import {
+  LoadingOutlined,
+  PictureOutlined,
+  StarOutlined,
+  UploadOutlined,
+} from "@ant-design/icons";
+import { uploadFile } from "@api/file";
+import boardsImage from "@assets/images/boards.png";
+import { useRoles } from "@hooks/useRoles";
+import { Role } from "@myTypes/role";
+import { selectCurrentWorkspace } from "@store/workspace_slice";
+import type { UploadFile } from "antd";
+import {
   Button,
   ColorPicker,
-  ColorPickerProps,
   Form,
   Input,
   message,
   Modal,
+  Select,
+  Spin,
+  Tag,
   Tooltip,
   Typography,
   Upload,
-  Spin,
 } from "antd";
-import { VisibilitySelection, WorkspaceSelection } from "../selection";
-import boardsImage from "@assets/images/boards.png";
-import Image from "next/image";
-import {
-  PictureOutlined,
-  StarOutlined,
-  LoadingOutlined,
-  UploadOutlined,
-} from "@ant-design/icons";
-import "./style.css";
-import { useDispatch } from "react-redux";
-import { useRouter } from "next/navigation";
-import { useSelector } from "react-redux";
-import {
-  selectCurrentBoard,
-  selectCurrentWorkspace,
-  setCurrentBoard,
-} from "@store/workspace_slice";
-import { useBoards } from "@hooks/board";
-import { useMemo, useState, useRef, useEffect } from "react";
-import { Color } from "antd/es/color-picker";
-import { generateId } from "@utils/general";
-import { Board } from "@myTypes/board";
-import { uploadFile } from "@api/file";
-import type { UploadProps, UploadFile } from "antd";
 import type { RcFile } from "antd/es/upload/interface";
-import { Select, Tag } from "antd";
-import { useRoles } from "@hooks/useRoles";
-import { Role } from "@myTypes/role";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { useBoardDetails, useUpdateBoard } from "../../hooks/board";
+import { Board } from "../../types/board";
+import { WorkspaceSelection } from "../selection";
+import "./style.css";
+
+type BoardBackground = {
+  type: "color" | "image";
+  value: string;
+};
 
 const { Option } = Select;
 const { Text, Title } = Typography;
 
-interface ModalCreateBoardForm {
+interface BoardSettingsModalProps {
+  /** Whether the modal is visible */
   open: boolean;
-  setOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  /** Callback when the modal is closed */
+  onClose: () => void;
+  /** Optional board data (if not provided, boardId must be provided) */
+  board?: Board;
+  /** Optional board ID (used to fetch board data if board prop is not provided) */
+  boardId?: string;
+  /** Optional workspace ID (not currently used but kept for future use) */
+  workspaceId?: string;
+  /** Callback when the board is successfully updated */
+  onSuccess?: (board: Board) => void;
 }
 
-const CreateBoard: React.FC<ModalCreateBoardForm> = (
-  props: ModalCreateBoardForm
-) => {
-  const { open, setOpen } = props;
+interface FormValues {
+  title: string;
+  description: string;
+  background: string;
+}
+
+const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
+  open,
+  onClose,
+  board: initialBoard,
+  boardId,
+  workspaceId,
+  onSuccess,
+}) => {
+  // If we have a board ID but no board object, fetch the board details
+
   const [form] = Form.useForm();
   const currentWorkspace = useSelector(selectCurrentWorkspace);
-  const currentBoard = useSelector(selectCurrentBoard);
-  const { createBoard } = useBoards(currentWorkspace?.id ?? "");
   const DEFAULT_COLOR = "#FFFFFF";
   const [bg, setBg] = useState<string>(DEFAULT_COLOR);
   const [backgroundImage, setBackgroundImage] = useState<string>("");
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const uploadRef = useRef<any>(null);
   const router = useRouter();
   const dispatch = useDispatch();
 
   // Fetch roles for the current workspace
   const { roles, loading: loadingRoles } = useRoles(currentWorkspace?.id || "");
+  const { mutateAsync: updateBoard } = useUpdateBoard(
+    currentWorkspace?.id || ""
+  );
 
-  const handleColorChange = (color: Color, hex: string) => {
+  const {
+    board,
+    isLoading: isLoadingBoard,
+    refetch,
+  } = useBoardDetails(initialBoard ? "" : boardId || "", {
+    enabled: open,
+  });
+
+  const handleRefresh = async () => {
+    await refetch();
+  };
+
+  useEffect(() => {
+    if (open) {
+      handleRefresh();
+    }
+  }, [open]);
+
+  // Initialize form with board data whe  n it changes
+  useEffect(() => {
+    if (board) {
+      console.log("Initializing form with board data:", board);
+      const background = board.background || DEFAULT_COLOR;
+      const isImage = background && !background.startsWith("#");
+
+      const formValues = {
+        title: board.name || "",
+        description: board.description || "",
+        background: isImage ? DEFAULT_COLOR : background,
+      };
+
+      console.log("Setting form values:", formValues);
+      form.setFieldsValue(formValues);
+
+      if (isImage) {
+        console.log("Setting background image:", background);
+        setBackgroundImage(background);
+        setBg("transparent");
+      } else {
+        console.log("Setting background color:", background);
+        setBackgroundImage("");
+        setBg(background || DEFAULT_COLOR);
+      }
+
+      if (board.roleIds) {
+        console.log("Setting selected roles:", board.roleIds);
+        setSelectedRoles(board.roleIds);
+      }
+    } else {
+      console.log("No board data available for form initialization");
+    }
+  }, [board, form]);
+
+  // Show loading state while fetching board details
+  if ((!initialBoard && isLoadingBoard) || (!board && !initialBoard)) {
+    return <div>Loading board settings...</div>;
+  }
+
+  // If we still don't have a board, don't render the modal
+  if (!board) {
+    return null;
+  }
+
+  const handleColorChange = (color: any, hex: any) => {
     setBackgroundImage("");
     setFileList([]);
-    setBg(hex);
-    form.setFieldsValue({ background: hex });
+    setBg(color.toHexString());
   };
 
   const beforeUpload = (file: RcFile) => {
@@ -123,50 +207,54 @@ const CreateBoard: React.FC<ModalCreateBoardForm> = (
     setBg(DEFAULT_COLOR);
   };
 
-  const onFinish = async (values: any) => {
-    const tempId = generateId();
-    let board: Partial<Board>;
-    if (currentWorkspace !== null) {
-      board = {
-        workspaceId: currentWorkspace?.id,
-        name: values.title,
-        cover: backgroundImage || "",
-        background: backgroundImage ? backgroundImage : values.background,
-        isStarred: false,
-        description: values.description,
-        createdAt: "",
-        upatedAt: "",
-        roleIds: selectedRoles.length > 0 ? selectedRoles : undefined,
+  const onFinish = async (values: FormValues) => {
+    if (!board?.id || !currentWorkspace?.id) {
+      message.error("Board or workspace not found");
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      console.log("Submitting form with values:", values);
+
+      // Prepare updates
+      const updates: Partial<Board> = {
+        name: values.title?.trim(),
+        description: values.description?.trim() || "",
+        background: backgroundImage || bg,
       };
 
-      createBoard(
-        { board },
-        {
-          onSuccess: (response) => {
-            // Get the created board with ID from the server response
-            const createdBoard = response.data?.data;
+      // Only include roleIds if there are selected roles
+      if (selectedRoles.length > 0) {
+        updates.roleIds = selectedRoles;
+      }
 
-            // Update the selected board with the server data
-            if (createdBoard) {
-              dispatch(setCurrentBoard(createdBoard));
-              router.push(
-                `/workspace/${currentWorkspace.id}/board/${createdBoard.id}`
-              );
-            } else {
-              // Fallback to using the temp ID if there's an issue
-              dispatch(setCurrentBoard(board));
-              router.push(`/workspace/${currentWorkspace.id}/board/${tempId}`);
-            }
+      console.log("Sending board update:", { boardId: board.id, updates });
 
-            // Reset and close
-            dispatch(setCurrentBoard(board));
-            form.resetFields();
-            setBg(DEFAULT_COLOR);
-            setBackgroundImage("");
-            setOpen(false);
-          },
-        }
-      );
+      // Call the updateBoard function with the required parameters
+      await updateBoard({
+        boardId: board.id,
+        board: updates,
+      });
+
+      // Create updated board object with the changes
+      const updatedBoard = { ...board, ...updates };
+
+      onSuccess?.(updatedBoard);
+
+      form.resetFields();
+
+      onClose();
+    } catch (error: any) {
+      console.error("Error updating board:", error);
+
+      // Show more detailed error message if available
+      const errorMessage =
+        error.response?.data?.message || "Failed to update board";
+      message.error(`Error: ${errorMessage}`);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -178,8 +266,8 @@ const CreateBoard: React.FC<ModalCreateBoardForm> = (
     <Modal
       className="modal-create-board modal-cust-footer"
       open={open}
-      onCancel={() => setOpen(false)}
-      title={"Create New Board"}
+      onCancel={onClose}
+      title={"Edit Board Settings"}
       footer={null}
       width={520}
       centered
@@ -295,13 +383,10 @@ const CreateBoard: React.FC<ModalCreateBoardForm> = (
                   defaultFormat="hex"
                   format="hex"
                   disabledAlpha={false}
-                  value={form.getFieldValue('background') || bg}
+                  value={backgroundImage ? "transparent" : bg}
                   onChange={handleColorChange}
                   showText={false}
                   disabled={isUploading}
-                  onChangeComplete={(color) => {
-                    form.setFieldsValue({ background: color.toHexString() });
-                  }}
                 />
               </div>
               {backgroundImage && (
@@ -370,13 +455,18 @@ const CreateBoard: React.FC<ModalCreateBoardForm> = (
 
           <div className="footer">
             <Form.Item>
-              <Button onClick={() => setOpen(false)} size="small">
+              <Button onClick={onClose} size="small">
                 Cancel
               </Button>
             </Form.Item>
             <Form.Item>
-              <Button htmlType="submit" size="small">
-                Create Board
+              <Button
+                type="primary"
+                htmlType="submit"
+                size="small"
+                loading={isLoading}
+              >
+                Save Changes
               </Button>
             </Form.Item>
           </div>
@@ -386,4 +476,4 @@ const CreateBoard: React.FC<ModalCreateBoardForm> = (
   );
 };
 
-export default CreateBoard;
+export default BoardSettingsModal;
