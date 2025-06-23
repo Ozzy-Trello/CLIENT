@@ -1,7 +1,7 @@
 import { SelectionRef, UserSelection } from "@components/selection";
 import { useCardCustomField } from "@hooks/card_custom_field";
 import { useCardDetailContext } from "@providers/card-detail-context";
-import { Checkbox, DatePicker, Input, Select, message } from "antd";
+import { Checkbox, DatePicker, Input, Select, Tooltip, message } from "antd";
 import { List, StretchHorizontal, TextCursorInput } from "lucide-react";
 import SplitJobSlider from "@components/split-job/SplitJobSlider";
 import { Fragment, useEffect, useRef, useState } from "react";
@@ -466,7 +466,11 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
                       {isCheckboxField(field)
                         ? renderFieldInput(field)
                         : getFieldIcon(field)}
-                      <span>{field.name}</span>
+                      <Tooltip title={field.name}>
+                        <span className="truncate" style={{ fontSize: "14px" }}>
+                          {field.name}
+                        </span>
+                      </Tooltip>
                     </div>
 
                     {!isCheckboxField(field) && (

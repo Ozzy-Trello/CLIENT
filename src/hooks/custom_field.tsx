@@ -155,8 +155,9 @@ export function useCustomFields(workspaceId: string) {
 
   // Reorder custom fields mutation with optimistic update
   const reorderMutation = useMutation({
-    mutationFn: (reorderedIds: string[]) => apiReorderCustomFields(workspaceId, reorderedIds),
-    onMutate: async (reorderedIds) => {
+    mutationFn: (params: { customFieldId: string; targetPosition: number; positionType?: 'top' | 'bottom' }) => 
+      apiReorderCustomFields(workspaceId, params.customFieldId, params.targetPosition, params.positionType),
+    onMutate: async (params) => {
       await queryClient.cancelQueries({ queryKey: ["customFields", workspaceId] });
 
       const previousCustomFields = queryClient.getQueryData<ApiResponse<CustomField[]>>(
@@ -164,15 +165,32 @@ export function useCustomFields(workspaceId: string) {
       );
 
       if (previousCustomFields?.data) {
-        // Create a map for quick lookup
-        const fieldMap = new Map(
-          previousCustomFields.data.map(field => [field.id, field])
-        );
-
-        // Reorder the fields based on the new order
-        const reorderedData = reorderedIds
-          .map(id => fieldMap.get(id))
-          .filter((field): field is CustomField => field !== undefined);
+        // Find the custom field being moved
+        const movedFieldIndex = previousCustomFields.data.findIndex(field => field.id === params.customFieldId);
+        if (movedFieldIndex === -1) return { previousCustomFields };
+        
+        const movedField = previousCustomFields.data[movedFieldIndex];
+        const newData = [...previousCustomFields.data];
+        
+        // Remove the moved field from its original position
+        newData.splice(movedFieldIndex, 1);
+        
+        // Calculate the new index based on target position and position type
+        let newIndex = params.targetPosition;
+        if (params.positionType === 'top' && newIndex > 0) {
+          newIndex = newIndex - 1; // Adjust for 0-based index when moving to top
+        } else if (params.positionType === 'bottom') {
+          newIndex = newIndex + 1; // Insert after the target when moving to bottom
+        }
+        
+        // Insert the moved field at the new position
+        newData.splice(newIndex, 0, movedField);
+        
+        // Update the order property based on the new position
+        const reorderedData = newData.map((field, index) => ({
+          ...field,
+          order: index * 10000 // Use the same large gap as backend
+        }));
 
         queryClient.setQueryData<ApiResponse<CustomField[]>>(
           ["customFields", workspaceId],
@@ -185,7 +203,7 @@ export function useCustomFields(workspaceId: string) {
 
       return { previousCustomFields };
     },
-    onError: (err, reorderedIds, context) => {
+    onError: (err, params, context) => {
       if (context?.previousCustomFields) {
         queryClient.setQueryData(
           ["customFields", workspaceId],
@@ -201,11 +219,20 @@ export function useCustomFields(workspaceId: string) {
   // Helper function to reorder items (useful for drag and drop)
   const reorderCustomFields = (startIndex: number, endIndex: number) => {
     const fields = [...(customFieldQuery.data?.data || [])];
-    const [removed] = fields.splice(startIndex, 1);
-    fields.splice(endIndex, 0, removed);
+    if (startIndex === endIndex) return;
     
-    const reorderedIds = fields.map(field => field.id);
-    reorderMutation.mutate(reorderedIds);
+    const fieldId = fields[startIndex]?.id;
+    if (!fieldId) return;
+    
+    // Determine position type (top/bottom) based on movement direction
+    const positionType = endIndex === 0 ? 'top' : 
+                        endIndex >= fields.length - 1 ? 'bottom' : undefined;
+    
+    reorderMutation.mutate({
+      customFieldId: fieldId,
+      targetPosition: endIndex,
+      positionType
+    });
   };
 
   // Helper function to move a field to a specific position
@@ -213,13 +240,17 @@ export function useCustomFields(workspaceId: string) {
     const fields = [...(customFieldQuery.data?.data || [])];
     const currentIndex = fields.findIndex(field => field.id === fieldId);
     
-    if (currentIndex === -1) return;
+    if (currentIndex === -1 || currentIndex === newPosition) return;
     
-    const [removed] = fields.splice(currentIndex, 1);
-    fields.splice(newPosition, 0, removed);
+    // Determine position type (top/bottom) based on target position
+    const positionType = newPosition === 0 ? 'top' : 
+                        newPosition >= fields.length - 1 ? 'bottom' : undefined;
     
-    const reorderedIds = fields.map(field => field.id);
-    reorderMutation.mutate(reorderedIds);
+    reorderMutation.mutate({
+      customFieldId: fieldId,
+      targetPosition: newPosition,
+      positionType
+    });
   };
 
   return {
