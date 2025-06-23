@@ -1,8 +1,8 @@
-import { RoleResponse, SingleRoleResponse } from '@myTypes/role';
-import { api } from './index';
+import { RoleResponse, SingleRoleResponse } from "@myTypes/role";
+import { api } from "./index";
 
 export const getRoles = async (): Promise<RoleResponse> => {
-  const response = await api.get('/roles');
+  const response = await api.get("/roles");
   return response.data;
 };
 

@@ -26,12 +26,6 @@
   line-height: 1.4;
 }
 
-.footer{
-  display: flex;
-  justify-content: flex-end;
-  gap: 1rem;
-}
-
 /* Form Items */
 .modal-create-board .ant-form-item {
   margin-bottom: 20px;
@@ -75,6 +69,12 @@
   align-items: center;
   justify-content: center;
   transition: all 0.2s;
+}
+
+.footer{
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
 }
 
 /* Primary Button */
