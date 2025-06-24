@@ -178,7 +178,13 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
         <div className="space-y-2 mb-3">
           {cardCustomFields?.map(
             (item: CardCustomField, index) =>
-              item.isShowAtFront && (
+              item.isShowAtFront &&
+              (item.valueCheckbox ||
+                item.valueDate ||
+                item.valueNumber ||
+                item.valueOption ||
+                item.valueString ||
+                item.valueUserId) && (
                 <div
                   key={`${card.id}-field-${index}`}
                   className="text-gray-700 text-[11px]"
