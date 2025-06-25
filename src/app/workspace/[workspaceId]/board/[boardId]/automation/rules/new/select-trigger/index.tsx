@@ -530,7 +530,7 @@ const LabelRenderer = ({
   const parts = item.label.split(/(<[^>]+>|\[[^\]]+\])/g);
 
   return (
-    <div className="flex items-center flex-wrap">
+    <div className="flex items-center flex-wrap gap-3">
       {parts.map((part: string) => {
         const trimmedPart = part.trim();
 
@@ -637,7 +637,7 @@ const LabelRenderer = ({
             return (
               <span
                 key={`input-${item.type}-${placeholder}-${index}`}
-                className="flex items-center gap-1"
+                className="flex items-center gap-2"
               >
                 <Input
                   style={{ width: "70px" }}

@@ -433,6 +433,7 @@ export const CustomFieldSelection = forwardRef<
     useEffect(() => {
       if (selectedValue && options.length > 0) {
         const foundOption = options.find((opt) => opt.value === selectedValue);
+        console.log("foundOption", options);
         if (foundOption) {
           setSelectedObject(foundOption);
         }
@@ -445,7 +446,30 @@ export const CustomFieldSelection = forwardRef<
         showSearch
         placeholder={placeholder}
         optionFilterProp="label"
+        popupMatchSelectWidth={false}
+        dropdownStyle={{ maxHeight: 300, overflowY: "auto" }}
         onChange={handleChange}
+        optionRender={(option: any) => {
+          const fieldType = option?.data?.type ?? option?.type;
+          return (
+            <div className="px-4 py-2  cursor-pointer w-100">
+              <div className="flex flex-col w-full">
+                <span className="text-white font-semibold text-sm leading-tight">
+                  {option.label}
+                </span>
+                <span
+                  style={{
+                    fontSize: "12px",
+                    marginLeft: "10px",
+                    color: "gray",
+                  }}
+                >
+                  {fieldType}
+                </span>
+              </div>
+            </div>
+          );
+        }}
         value={selectedValue}
         options={options}
         size={size}
