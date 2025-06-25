@@ -34,6 +34,10 @@ import {
   EnumOptionsNumberComparisonOperators,
   EnumOptionsSet,
   EnumOptionBySubject,
+  EnumInclusionOperator,
+  EnumTimeUnit,
+  EnumRelativeDirection,
+  EnumOptionCheckboxState,
   EnumOptionTextComparisonOperator,
   EnumOptionSubject,
 } from "@myTypes/options";
@@ -364,7 +368,7 @@ export const triggers: AutomationRuleTrigger[] = [
             value: EnumOptionBySubject.ByMe,
             label: "by me",
           },
-          data: []
+          data: [],
         },
       },
       {
@@ -429,7 +433,7 @@ export const triggers: AutomationRuleTrigger[] = [
             value: EnumOptionBySubject.ByMe,
             label: "by me",
           },
-          data: []
+          data: [],
         },
       },
       {
@@ -510,7 +514,7 @@ export const triggers: AutomationRuleTrigger[] = [
             value: EnumOptionBySubject.ByMe,
             label: "by me",
           },
-          data: []
+          data: [],
         },
       },
       {
@@ -575,10 +579,10 @@ export const triggers: AutomationRuleTrigger[] = [
             value: EnumOptionBySubject.ByMe,
             label: "by me",
           },
-          data: []
+          data: [],
         },
       },
-    ]
+    ],
   },
   {
     type: TriggerGroupType.CardDates,
@@ -601,6 +605,18 @@ export const triggers: AutomationRuleTrigger[] = [
     label: "Fields",
     icon: <AlignJustify />,
     items: [
+      {
+        type: TriggerType.WhenAllCustomFieldsAreCompleted,
+        label: TriggerType.WhenAllCustomFieldsAreCompleted.replaceAll("-", " "),
+      },
+      {
+        type: TriggerType.WhenCustomFieldsAreCompleted,
+        label: TriggerType.WhenCustomFieldsAreCompleted.replaceAll("-", " "),
+        [EnumSelectionType.Fields]: {
+          options: [],
+          value: null,
+        },
+      },
       {
         type: TriggerType.WhenCustomFieldsIsSetToFieldValue,
         label: TriggerType.WhenCustomFieldsIsSetToFieldValue.replaceAll(
@@ -695,6 +711,177 @@ export const triggers: AutomationRuleTrigger[] = [
             value: EnumOptionBySubject.ByMe,
             label: "by me",
           },
+          data: [],
+        },
+      },
+      {
+        type: TriggerType.WhenCustomFieldIsChecked,
+        label: TriggerType.WhenCustomFieldIsChecked.replaceAll("-", " "),
+        [EnumSelectionType.Fields]: {
+          options: [],
+          value: null,
+          fieldTypeFilter: ["checkbox"],
+        },
+        [EnumSelectionType.Action]: {
+          options: [],
+          value: {
+            value: EnumUserActionEvent.CardCustomFieldChange,
+            label: EnumUserActionEvent.CardCustomFieldChange,
+          },
+        },
+        [EnumSelectionType.State]: {
+          options: [
+            {
+              value: EnumOptionCheckboxState.Checked,
+              label: "checked",
+            },
+            {
+              value: EnumOptionCheckboxState.Unchecked,
+              label: "unchecked",
+            },
+          ],
+          value: {
+            value: EnumOptionCheckboxState.Checked,
+            label: "checked",
+          },
+        },
+        [EnumSelectionType.OptionalBySubject]: {
+          options: [
+            {
+              value: EnumOptionBySubject.ByMe,
+              label: "by me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyone,
+              label: "by anyone",
+            },
+            {
+              value: EnumOptionBySubject.BySpecificUser,
+              label: "by specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptMe,
+              label: "by anyone except me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
+              label: "by anyone except specific user",
+            },
+          ],
+          value: {
+            value: EnumOptionBySubject.ByMe,
+            label: "by me",
+          },
+          data: [],
+        },
+      },
+      {
+        type: TriggerType.WhenCustomFieldNumberComparison,
+        label: TriggerType.WhenCustomFieldNumberComparison.replaceAll("-", " "),
+        [EnumSelectionType.Action]: {
+          options: [],
+          value: {
+            value: EnumUserActionEvent.CardCustomFieldChange,
+            label: EnumUserActionEvent.CardCustomFieldChange,
+          },
+        },
+        [EnumSelectionType.Fields]: {
+          options: [],
+          value: null,
+          fieldTypeFilter: ["number"],
+        },
+        [EnumSelectionType.NumberComparison]: {
+          options: [
+            {
+              value: EnumOptionsNumberComparisonOperators.MoreThan,
+              label: "greater than",
+            },
+            {
+              value: EnumOptionsNumberComparisonOperators.MoreOrEqual,
+              label: "greater or equal to",
+            },
+            {
+              value: EnumOptionsNumberComparisonOperators.FewerThan,
+              label: "lower than",
+            },
+            {
+              value: EnumOptionsNumberComparisonOperators.FewerOrEqual,
+              label: "lower or equal to",
+            },
+          ],
+          value: {
+            value: EnumOptionsNumberComparisonOperators.MoreThan,
+            label: "greater than",
+          },
+        },
+        [EnumInputType.Number]: null,
+        [EnumSelectionType.OptionalBySubject]: {
+          options: [
+            {
+              value: EnumOptionBySubject.ByMe,
+              label: "by me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyone,
+              label: "by anyone",
+            },
+            {
+              value: EnumOptionBySubject.BySpecificUser,
+              label: "by specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptMe,
+              label: "by anyone except me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
+              label: "by anyone except specific user",
+            },
+          ],
+          value: {
+            value: EnumOptionBySubject.ByMe,
+            label: "by me",
+          },
+          data: [],
+        },
+      },
+      {
+        type: TriggerType.WhenCustomFieldDateCondition,
+        label: TriggerType.WhenCustomFieldDateCondition.replaceAll("-", " "),
+        [EnumSelectionType.Action]: {
+          options: [],
+          value: {
+            value: EnumUserActionEvent.CardCustomFieldChange,
+            label: EnumUserActionEvent.CardCustomFieldChange,
+          },
+        },
+        [EnumSelectionType.Fields]: {
+          options: [],
+          value: null,
+          fieldTypeFilter: ["date"],
+        },
+        [EnumSelectionType.DateExpression]: {
+          options: [],
+          value: null,
+        },
+        [EnumSelectionType.OptionalBySubject]: {
+          options: [
+            { value: EnumOptionBySubject.ByMe, label: "by me" },
+            { value: EnumOptionBySubject.ByAnyone, label: "by anyone" },
+            {
+              value: EnumOptionBySubject.BySpecificUser,
+              label: "by specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptMe,
+              label: "by anyone except me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
+              label: "by anyone except specific user",
+            },
+          ],
+          value: { value: EnumOptionBySubject.ByMe, label: "by me" },
           data: [],
         },
       },
