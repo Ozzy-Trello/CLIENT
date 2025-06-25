@@ -623,6 +623,13 @@ export const triggers: AutomationRuleTrigger[] = [
           "-",
           " "
         ),
+        [EnumSelectionType.Action]: {
+          options: [],
+          value: {
+            value: EnumUserActionEvent.CardCustomFieldChange,
+            label: EnumUserActionEvent.CardCustomFieldChange,
+          },
+        },
         [EnumSelectionType.Fields]: {
           options: [],
           value: null,
