@@ -5,8 +5,8 @@ import {
   SelectionRef,
   UserSelection,
 } from "@components/selection";
-import { Button, Input, Select, Typography } from "antd";
-import { ListFilter, Plus } from "lucide-react";
+import { Button, Input, Select, Typography, Popover } from "antd";
+import { ListFilter, Plus, X, Calendar } from "lucide-react";
 import React, {
   Dispatch,
   SetStateAction,
@@ -34,6 +34,7 @@ import {
 } from "@myTypes/automation-rule";
 import Item from "antd/es/list/Item";
 import { EnumOptionBySubject } from "@myTypes/options";
+import { EnumOptionsNumberComparisonOperators } from "@myTypes/options";
 
 function extractPlaceholders(pattern: string): string[] {
   const regex = /<([^>]+)>|\[([^\]]+)\]/g; // Matches both <...> and [...]
@@ -54,6 +55,223 @@ interface SelectTriggerProps {
   triggersData: AutomationRuleTrigger[];
   setTriggersData: Dispatch<SetStateAction<AutomationRuleTrigger[]>>;
 }
+
+interface DateExpressionSelectorProps {
+  groupIndex: number;
+  index: number;
+  placeholder: string;
+  triggersData: AutomationRuleTrigger[];
+  setTriggersData: React.Dispatch<
+    React.SetStateAction<AutomationRuleTrigger[]>
+  >;
+}
+
+const DateExpressionSelector: React.FC<DateExpressionSelectorProps> = ({
+  groupIndex,
+  index,
+  placeholder,
+  triggersData,
+  setTriggersData,
+}) => {
+  const itemState = triggersData[groupIndex]?.items?.[index] as any;
+  const expressions = itemState?.[placeholder]?.expressions || [];
+
+  const [open, setOpen] = useState(false);
+
+  const [relativeState, setRelativeState] = useState({
+    operator: "in",
+    unit: "this week",
+  });
+
+  const [numericState, setNumericState] = useState({
+    operator: "less than",
+    numberVal: "1",
+    unit: "days",
+    direction: "from now",
+  });
+
+  const applyExpression = (type: "relative" | "numeric") => {
+    let text;
+    let meta;
+
+    if (type === "relative") {
+      text = `${relativeState.operator} ${relativeState.unit}`;
+      meta = { ...relativeState };
+    } else {
+      text = `${numericState.operator} ${numericState.numberVal} ${numericState.unit} ${numericState.direction}`;
+      meta = { ...numericState };
+    }
+
+    const newExpression = { text, meta };
+
+    const copyArr = [...triggersData];
+    const trgItem = copyArr[groupIndex]?.items?.[index] as any;
+
+    if (trgItem) {
+      if (!trgItem[placeholder]) {
+        trgItem[placeholder] = {
+          options: [],
+          value: null,
+          expressions: [],
+        };
+      }
+      trgItem[placeholder].expressions = [...expressions, newExpression];
+    }
+
+    setTriggersData(copyArr);
+    setOpen(false);
+
+    // Reset states
+    setRelativeState({ operator: "in", unit: "this week" });
+    setNumericState({
+      operator: "less than",
+      numberVal: "1",
+      unit: "days",
+      direction: "from now",
+    });
+  };
+
+  const removeExpression = (indexToRemove: number) => {
+    const copyArr = [...triggersData];
+    const trgItem = copyArr[groupIndex]?.items?.[index] as any;
+    if (trgItem?.[placeholder]?.expressions) {
+      trgItem[placeholder].expressions = expressions.filter(
+        (_: unknown, i: number) => i !== indexToRemove
+      );
+    }
+    setTriggersData(copyArr);
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      {expressions.map((expr: any, exprIndex: number) => (
+        <span
+          key={exprIndex}
+          className="inline-flex items-center bg-gray-500 text-white rounded px-2 py-1 text-sm"
+        >
+          {expr.text}
+          <X
+            size={12}
+            className="ml-1 cursor-pointer"
+            onClick={(e) => {
+              e.stopPropagation();
+              removeExpression(exprIndex);
+            }}
+          />
+        </span>
+      ))}
+
+      {expressions.length === 0 && (
+        <Popover
+          open={open}
+          onOpenChange={setOpen}
+          trigger="click"
+          placement="bottom"
+          style={{ width: "100vh" }}
+          content={
+            <div className="p-2 flex flex-col gap-2">
+              {/* Relative period mode */}
+              <div className="flex gap-2 items-center flex-nowrap whitespace-nowrap">
+                <Select
+                  style={{ width: 130 }}
+                  value={relativeState.operator}
+                  options={[
+                    { value: "in", label: "in" },
+                    { value: "not in", label: "not in" },
+                  ]}
+                  onChange={(val) =>
+                    setRelativeState((prev) => ({ ...prev, operator: val }))
+                  }
+                />
+                <Select
+                  style={{ width: 120 }}
+                  value={relativeState.unit}
+                  options={[
+                    { value: "this week", label: "this week" },
+                    { value: "next week", label: "next week" },
+                  ]}
+                  onChange={(val) =>
+                    setRelativeState((prev) => ({ ...prev, unit: val }))
+                  }
+                />
+                <Button
+                  type="text"
+                  size="small"
+                  onClick={() => applyExpression("relative")}
+                >
+                  <Plus size={12} />
+                </Button>
+              </div>
+              <hr />
+
+              {/* Numeric mode */}
+              <div className="flex gap-2 items-center flex-nowrap whitespace-nowrap">
+                <Select
+                  style={{ width: 130 }}
+                  value={numericState.operator}
+                  options={[
+                    { value: "less than", label: "less than" },
+                    { value: "more than", label: "more than" },
+                    { value: "between", label: "between" },
+                  ]}
+                  onChange={(val) =>
+                    setNumericState((prev) => ({ ...prev, operator: val }))
+                  }
+                />
+                <Input
+                  style={{ width: 60 }}
+                  value={numericState.numberVal}
+                  type="number"
+                  onChange={(e) =>
+                    setNumericState((prev) => ({
+                      ...prev,
+                      numberVal: e.target.value,
+                    }))
+                  }
+                />
+                <Select
+                  style={{ width: 120 }}
+                  value={numericState.unit}
+                  options={[
+                    { value: "hours", label: "hours" },
+                    { value: "days", label: "days" },
+                    { value: "working days", label: "working days" },
+                    { value: "this month", label: "this month" },
+                  ]}
+                  onChange={(val) =>
+                    setNumericState((prev) => ({ ...prev, unit: val }))
+                  }
+                />
+                <Select
+                  style={{ width: 100 }}
+                  value={numericState.direction}
+                  options={[
+                    { value: "from now", label: "from now" },
+                    { value: "ago", label: "ago" },
+                  ]}
+                  onChange={(val) =>
+                    setNumericState((prev) => ({ ...prev, direction: val }))
+                  }
+                />
+                <Button
+                  type="text"
+                  size="small"
+                  onClick={() => applyExpression("numeric")}
+                >
+                  <Plus size={12} />
+                </Button>
+              </div>
+            </div>
+          }
+        >
+          <Button type="text" size="small" className="mx-2">
+            <Calendar size={14} />
+          </Button>
+        </Popover>
+      )}
+    </div>
+  );
+};
 
 // Component for the filter button
 const FilterButton = ({
@@ -81,9 +299,9 @@ const FilterButton = ({
       setTriggersData={setTriggersData}
       selectedIndex={selectedIndex}
       triggerEl={
-        <Button 
-          type="text" 
-          size="small" 
+        <Button
+          type="text"
+          size="small"
           className="mx-2"
           onClick={handleFilterClick}
         >
@@ -144,7 +362,11 @@ const SelectOption = ({
 
   const onUserChange = (selectedOption: GeneralOptions) => {
     let copyArr = [...triggersData];
-    (copyArr[groupIndex]?.items?.[index]?.[placeholder as keyof TriggerItems] as any).data = [selectedOption.value];
+    (
+      copyArr[groupIndex]?.items?.[index]?.[
+        placeholder as keyof TriggerItems
+      ] as any
+    ).data = [selectedOption.value];
     setTriggersData(copyArr);
   };
 
@@ -185,6 +407,7 @@ const SelectOption = ({
             onCustomFieldChange(option);
           }}
           className="mx-2"
+          filterTypes={(data as any)?.fieldTypeFilter}
         />
       </div>
     );
@@ -194,7 +417,7 @@ const SelectOption = ({
     const field = triggersData.find(
       (item) => item.label.toLowerCase() === EnumSelectionType.Fields
       // @ts-ignore
-    )?.items?.[0]?.fields?.value as any;
+    )?.items?.[2]?.fields?.value as any;
     return (
       <FieldValueInput
         key={`field-value-input-${itemType}-${placeholder}`}
@@ -209,7 +432,10 @@ const SelectOption = ({
     );
   }
 
-  if ( placeholder === EnumSelectionType.List || placeholder === EnumSelectionType.OptionalList) {
+  if (
+    placeholder === EnumSelectionType.List ||
+    placeholder === EnumSelectionType.OptionalList
+  ) {
     return (
       <span className="mx-2">
         <ListSelection
@@ -229,13 +455,25 @@ const SelectOption = ({
     );
   }
 
+  if (placeholder === EnumSelectionType.DateExpression) {
+    return (
+      <DateExpressionSelector
+        groupIndex={groupIndex}
+        index={index}
+        placeholder={placeholder}
+        triggersData={triggersData}
+        setTriggersData={setTriggersData}
+      />
+    );
+  }
+
   return (
     <>
       <Select
         key={`ant-select-${itemType}-${placeholder}`}
         value={
-          (triggersData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value
-            ?.value || ""
+          (triggersData[groupIndex]?.items?.[index] as any)?.[placeholder]
+            ?.value?.value || ""
         }
         options={options}
         style={{ width: 120, margin: "0 5px" }}
@@ -250,23 +488,25 @@ const SelectOption = ({
         }}
       />
 
-      {(placeholder == EnumSelectionType.OptionalBySubject || placeholder == EnumSelectionType.BySubject) 
-        &&  [
-          EnumOptionBySubject.BySpecificUser, 
-          EnumOptionBySubject.ByAnyoneExceptSpecificUser
-        ].includes((triggersData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value?.value)
-        && (
-        <UserSelection 
-          key={`user-select-${itemType}-${placeholder}`}
-          width={"fit-content"}
-          ref={useRef<SelectionRef>(null)}
-          onChange={(value: string, option: GeneralOptions) => {
-            onUserChange(option);
-          }}
-          className="mx-2"
-        />
-      )}
-
+      {(placeholder == EnumSelectionType.OptionalBySubject ||
+        placeholder == EnumSelectionType.BySubject) &&
+        [
+          EnumOptionBySubject.BySpecificUser,
+          EnumOptionBySubject.ByAnyoneExceptSpecificUser,
+        ].includes(
+          (triggersData[groupIndex]?.items?.[index] as any)?.[placeholder]
+            ?.value?.value
+        ) && (
+          <UserSelection
+            key={`user-select-${itemType}-${placeholder}`}
+            width={"fit-content"}
+            ref={useRef<SelectionRef>(null)}
+            onChange={(value: string, option: GeneralOptions) => {
+              onUserChange(option);
+            }}
+            className="mx-2"
+          />
+        )}
     </>
   );
 };
@@ -290,7 +530,7 @@ const LabelRenderer = ({
   const parts = item.label.split(/(<[^>]+>|\[[^\]]+\])/g);
 
   return (
-    <div className="flex items-center flex-wrap">
+    <div className="flex items-center flex-wrap gap-3">
       {parts.map((part: string) => {
         const trimmedPart = part.trim();
 
@@ -338,8 +578,129 @@ const LabelRenderer = ({
 
         if (trimmedPart.startsWith("[") && trimmedPart.endsWith("]")) {
           const placeholder = trimmedPart.slice(1, -1);
-          // Get the current value from selectedRule.triggerItem, default to empty string
-          const inputValue = (props.triggersData[groupIndex]?.items?.[index] as any)?.[placeholder] || "";
+
+          // Special handling for numeric comparison with additional range
+          if (placeholder === EnumInputType.Number) {
+            const itemState = props.triggersData[groupIndex]?.items?.[
+              index
+            ] as any;
+            const mainValue = itemState?.[placeholder] || "";
+
+            const handleMainValueChange = (val: string) => {
+              let copyArr = [...props.triggersData];
+              const itemRef = copyArr[groupIndex]?.items?.[index] as any;
+              if (itemRef) {
+                itemRef[placeholder] = val;
+                props.setTriggersData(copyArr);
+              }
+            };
+
+            const handleAddRange = () => {
+              let copyArr = [...props.triggersData];
+              const itemRef = copyArr[groupIndex]?.items?.[index] as any;
+              if (itemRef && !itemRef.additionalComparison) {
+                itemRef.additionalComparison = {
+                  operator: EnumOptionsNumberComparisonOperators.FewerThan,
+                  value: "",
+                };
+                props.setTriggersData(copyArr);
+              }
+            };
+
+            const handleRemoveRange = () => {
+              let copyArr = [...props.triggersData];
+              const itemRef = copyArr[groupIndex]?.items?.[index] as any;
+              if (itemRef) {
+                delete itemRef.additionalComparison;
+              }
+              props.setTriggersData(copyArr);
+            };
+
+            const handleOperatorChange = (value: string) => {
+              let copyArr = [...props.triggersData];
+              const itemRef = copyArr[groupIndex]?.items?.[index] as any;
+              if (itemRef?.additionalComparison) {
+                itemRef.additionalComparison.operator = value;
+              }
+              props.setTriggersData(copyArr);
+            };
+
+            const handleSecondValueChange = (val: string) => {
+              let copyArr = [...props.triggersData];
+              const itemRef = copyArr[groupIndex]?.items?.[index] as any;
+              if (itemRef?.additionalComparison) {
+                itemRef.additionalComparison.value = val;
+              }
+              props.setTriggersData(copyArr);
+            };
+
+            return (
+              <span
+                key={`input-${item.type}-${placeholder}-${index}`}
+                className="flex items-center gap-2"
+              >
+                <Input
+                  style={{ width: "70px" }}
+                  value={mainValue}
+                  type="number"
+                  onChange={(e) => handleMainValueChange(e.target.value)}
+                />
+                {itemState?.additionalComparison ? (
+                  <>
+                    <Typography.Text className="mx-1">and</Typography.Text>
+                    <Select
+                      style={{ width: 150 }}
+                      value={itemState.additionalComparison?.operator}
+                      onChange={handleOperatorChange}
+                      options={[
+                        {
+                          value: EnumOptionsNumberComparisonOperators.MoreThan,
+                          label: "greater than",
+                        },
+                        {
+                          value:
+                            EnumOptionsNumberComparisonOperators.MoreOrEqual,
+                          label: "greater or equal to",
+                        },
+                        {
+                          value: EnumOptionsNumberComparisonOperators.FewerThan,
+                          label: "lower than",
+                        },
+                        {
+                          value:
+                            EnumOptionsNumberComparisonOperators.FewerOrEqual,
+                          label: "lower or equal to",
+                        },
+                      ]}
+                    />
+                    <Input
+                      style={{ width: "70px" }}
+                      value={itemState.additionalComparison?.value}
+                      type="number"
+                      onChange={(e) => handleSecondValueChange(e.target.value)}
+                    />
+                    <Button
+                      size="small"
+                      type="text"
+                      onClick={handleRemoveRange}
+                    >
+                      <X size={12} />
+                    </Button>
+                  </>
+                ) : (
+                  <Button size="small" type="text" onClick={handleAddRange}>
+                    <Plus size={12} />
+                  </Button>
+                )}
+              </span>
+            );
+          }
+
+          // Default text/number input behaviour
+          const inputValue =
+            (props.triggersData[groupIndex]?.items?.[index] as any)?.[
+              placeholder
+            ] || "";
 
           return (
             <Input
@@ -351,7 +712,8 @@ const LabelRenderer = ({
               onChange={(e) => {
                 let copyArr = [...props.triggersData];
                 if (copyArr[groupIndex]?.items?.[index]) {
-                  copyArr[groupIndex].items[index][placeholder] = e.target.value;
+                  copyArr[groupIndex].items[index][placeholder] =
+                    e.target.value;
                 }
                 props.setTriggersData(copyArr);
               }}
@@ -381,22 +743,54 @@ const SelectTrigger: React.FC<SelectTriggerProps> = (props) => {
         label: selectedItem.label,
       };
 
-
       placeholders?.forEach((placeholder) => {
         // Handle GeneralOptions-based selections (e.g., <list>, <optionalList>)
         const items = triggersData[selectedGroupIndex]?.items;
-        
+
         if (items && items[index] && items[index][placeholder]) {
+          if (placeholder === EnumSelectionType.DateExpression) {
+            newTriggerItem[placeholder] =
+              (items[index][placeholder] as any)?.expressions || [];
+            return;
+          }
+
           if (typeof items[index][placeholder] == "object") {
-            newTriggerItem[placeholder] = (items[index][placeholder] as any)?.value;
+            newTriggerItem[placeholder] = (
+              items[index][placeholder] as any
+            )?.value;
             if ("data" in (items[index][placeholder] as any)) {
-              (newTriggerItem[placeholder] as any)["data"] = (items[index][placeholder] as any).data;
+              (newTriggerItem[placeholder] as any)["data"] = (
+                items[index][placeholder] as any
+              ).data;
             }
           } else {
             newTriggerItem[placeholder] = items[index][placeholder];
           }
         }
       });
+
+      // Include additional numeric comparison if present
+      const currentItem = triggersData[selectedGroupIndex]?.items?.[
+        index
+      ] as any;
+      if (currentItem?.additionalComparison) {
+        (newTriggerItem as any).additionalComparison =
+          currentItem.additionalComparison;
+      }
+
+      // After placeholder processing
+      // Include constant action if present but not in placeholders
+      const itemWithData = triggersData[selectedGroupIndex]?.items?.[
+        index
+      ] as any;
+      if (
+        itemWithData?.[EnumSelectionType.Action] &&
+        !newTriggerItem[EnumSelectionType.Action]
+      ) {
+        newTriggerItem[EnumSelectionType.Action] = (
+          itemWithData[EnumSelectionType.Action] as any
+        )?.value;
+      }
 
       setSelectedRule((prev: AutomationRule) => ({
         ...prev,

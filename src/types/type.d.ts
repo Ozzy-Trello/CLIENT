@@ -43,7 +43,13 @@ export interface SelectedTriggerItem {
   type?: string;
   label?: string;
   filter?: SelectedCardFilter;
-  [key: string]: GeneralOptions | string | undefined | null | ReactNode | number;
+  [key: string]:
+    | GeneralOptions
+    | string
+    | undefined
+    | null
+    | ReactNode
+    | number;
 }
 
 export interface SelectedCardFilter {
@@ -54,7 +60,7 @@ export interface SelectedCardFilter {
 export interface SelectedCardFilterItem {
   type: string;
   label: string;
-  [key: string]: GeneralOptions  | string | undefined | null | ReactNode;
+  [key: string]: GeneralOptions | string | undefined | null | ReactNode;
 }
 
 export interface SelectedAction {
@@ -65,7 +71,7 @@ export interface SelectedAction {
 export interface SelectedActionItem {
   type: string;
   label?: string;
-  [key: string]: GeneralOptions  | string | undefined;
+  [key: string]: GeneralOptions | string | undefined;
 }
 
 // Trigger interface to accomodate the static trigger data use to construct trigger UI
@@ -83,10 +89,11 @@ export interface TriggerItems {
 }
 
 export interface TriggerItemSelection {
-  options?: GeneralOptions[] // to store the options
-  value?: GeneralOptions | string | null | undefined // to store selected option or text input value
+  options?: GeneralOptions[]; // to store the options
+  value?: GeneralOptions | string | null | undefined; // to store selected option or text input value
   data?: any[];
   placeholder?: string; // for text input placeholder
+  [key: string]: any;
 }
 
 // Action interface to accomodate the static action data to construct acttionUI
@@ -100,7 +107,7 @@ export interface AutomationRuleAction {
 export interface ActionItems {
   type: string;
   label: string;
-  [key: string]: TriggerItemSelection  | string | undefined;
+  [key: string]: TriggerItemSelection | string | undefined;
 }
 
 export interface GeneralOptions {
@@ -120,13 +127,13 @@ export interface CardTriggerFilterType {
   type: string;
   icon: any;
   label: any;
-  items: CardTriggerFilterItem[]
+  items: CardTriggerFilterItem[];
 }
 
 export interface CardTriggerFilterItem {
   type: string;
   label: string;
-  [key: string]: TriggerItemSelection  | string | undefined;
+  [key: string]: TriggerItemSelection | string | undefined;
 }
 
 // Checklist item
@@ -155,7 +162,7 @@ export interface AutomationRuleApiData {
   workspaceId: string;
   action: AutomationRuleActionApiData[];
 }
-export interface AutomationRuleConditionApiData{
+export interface AutomationRuleConditionApiData {
   [key: string]: any | undefined;
 }
 export interface AutomationRuleActionApiData {

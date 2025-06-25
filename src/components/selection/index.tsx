@@ -179,7 +179,6 @@ export const UserSelection = forwardRef<SelectionRef, SelectionProps>(
   }
 );
 
-
 export const WorkspaceSelection: React.FC = () => {
   const [options, setOptions] = useState<
     { label: string | JSX.Element; value: string }[]
@@ -348,7 +347,10 @@ export const ListSelection = forwardRef<SelectionRef, SelectionProps>(
   }
 );
 
-export const CustomFieldSelection = forwardRef<SelectionRef, SelectionProps>(
+export const CustomFieldSelection = forwardRef<
+  SelectionRef,
+  SelectionProps & { filterTypes?: string | string[] }
+>(
   (
     {
       placeholder = "Select a Field",
@@ -358,6 +360,7 @@ export const CustomFieldSelection = forwardRef<SelectionRef, SelectionProps>(
       className = "",
       onChange,
       multi = false,
+      filterTypes,
     },
     ref
   ) => {
@@ -407,7 +410,15 @@ export const CustomFieldSelection = forwardRef<SelectionRef, SelectionProps>(
 
     useEffect(() => {
       if (customFields) {
-        const opt = customFields?.map((item) => ({
+        const filteredFields = filterTypes
+          ? customFields.filter((item: any) =>
+              Array.isArray(filterTypes)
+                ? filterTypes.includes(item.type)
+                : item.type === filterTypes
+            )
+          : customFields;
+
+        const opt = filteredFields.map((item: any) => ({
           label: item.name ?? "",
           value: item.id,
           option: item.options,
@@ -416,12 +427,13 @@ export const CustomFieldSelection = forwardRef<SelectionRef, SelectionProps>(
         }));
         setOptions(opt);
       }
-    }, [customFields]);
+    }, [customFields, filterTypes]);
 
     // When options change, update the selected object if value is already set
     useEffect(() => {
       if (selectedValue && options.length > 0) {
         const foundOption = options.find((opt) => opt.value === selectedValue);
+        console.log("foundOption", options);
         if (foundOption) {
           setSelectedObject(foundOption);
         }
@@ -434,7 +446,30 @@ export const CustomFieldSelection = forwardRef<SelectionRef, SelectionProps>(
         showSearch
         placeholder={placeholder}
         optionFilterProp="label"
+        popupMatchSelectWidth={false}
+        dropdownStyle={{ maxHeight: 300, overflowY: "auto" }}
         onChange={handleChange}
+        optionRender={(option: any) => {
+          const fieldType = option?.data?.type ?? option?.type;
+          return (
+            <div className="px-4 py-2  cursor-pointer w-100">
+              <div className="flex flex-col w-full">
+                <span className="text-white font-semibold text-sm leading-tight">
+                  {option.label}
+                </span>
+                <span
+                  style={{
+                    fontSize: "12px",
+                    marginLeft: "10px",
+                    color: "gray",
+                  }}
+                >
+                  {fieldType}
+                </span>
+              </div>
+            </div>
+          );
+        }}
         value={selectedValue}
         options={options}
         size={size}
@@ -582,15 +617,19 @@ export const CardPositionSelection = forwardRef<SelectionRef, SelectionProps>(
     },
     ref
   ) => {
-    const [options, setOptions] = useState<{ label: string; value: string }[]>([]);
-    const [selectedValue, setSelectedValue] = useState<string | undefined>(value);
+    const [options, setOptions] = useState<{ label: string; value: string }[]>(
+      []
+    );
+    const [selectedValue, setSelectedValue] = useState<string | undefined>(
+      value
+    );
     const [selectedObject, setSelectedObject] = useState<{
       label: string;
       value: string;
     }>();
     const { boardId } = useParams();
-    const [ cardsInList, setCardsInList ] = useState<Card[]>([]);
-    const [ isFetchingData, setIsFetchingData ] = useState<boolean>(false);
+    const [cardsInList, setCardsInList] = useState<Card[]>([]);
+    const [isFetchingData, setIsFetchingData] = useState<boolean>(false);
 
     useImperativeHandle(ref, () => ({
       getValue: () => selectedValue,
@@ -627,30 +666,36 @@ export const CardPositionSelection = forwardRef<SelectionRef, SelectionProps>(
       setCardsInList([]);
       setIsFetchingData(true);
       setOptions([]); // Clear options first
-    
+
       const data = await cards(listId, boardId as string);
       if (data && data.data) {
         if (data?.data?.length > 0) {
           setCardsInList(data?.data);
           const opt = data?.data?.map((item, index) => {
-            return { label: (index + 1).toString(), value: (index + 1).toString() };
+            return {
+              label: (index + 1).toString(),
+              value: (index + 1).toString(),
+            };
           });
-          
+
           // Work with the local opt array instead of the options state
           const copyOpt = [...opt];
           let nextPos = parseInt(copyOpt[copyOpt.length - 1].value) + 1;
-          copyOpt.push({label: nextPos.toString(), value: nextPos.toString()});
+          copyOpt.push({
+            label: nextPos.toString(),
+            value: nextPos.toString(),
+          });
           setOptions(copyOpt);
         } else {
           // If no cards, just set position 1
-          setOptions([{label: "1", value: "1"}]);
+          setOptions([{ label: "1", value: "1" }]);
         }
       } else {
         // If no data, just set position 1
-        setOptions([{label: "1", value: "1"}]);
+        setOptions([{ label: "1", value: "1" }]);
       }
       setIsFetchingData(false);
-    }
+    };
 
     useEffect(() => {
       if (listId) {

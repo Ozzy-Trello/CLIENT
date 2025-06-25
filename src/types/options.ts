@@ -9,6 +9,8 @@ export enum EnumOptionsNumberComparisonOperators {
   Exactly = "exactly",
   FewerThan = "fewer-than",
   MoreThan = "more-than",
+  FewerOrEqual = "lower-or-equal-to",
+  MoreOrEqual = "greater-or-equal-to",
 }
 
 export enum EnumOptionTextComparisonOperator {
@@ -22,7 +24,7 @@ export enum EnumOptionTextComparisonOperator {
 
 export enum EnumOptionSubject {
   Iam = "i-am",
-  SomeoneIs = "someone-is"
+  SomeoneIs = "someone-is",
 }
 
 export enum EnumOptionBySubject {
@@ -40,29 +42,45 @@ export enum EnumOptionsSet {
 
 export enum EnumOptionCardMarking {
   Complete = "complete",
-  Incomplete = "incomplete"
+  Incomplete = "incomplete",
 }
 
 export enum EnumOptionArticleType {
   The = "the",
-  Any = "any"
+  Any = "any",
 }
 
 export enum EnumInclusionOperator {
   In = "in",
   NotIn = "not-in",
   With = "with",
-  Without = "without"
+  Without = "without",
 }
 
 export enum EnumAssignmentOperator {
   AssignedTo = "assigned-to",
   AssignedOnlyTo = "assigned-only-to",
-  NotAssignedTo = "not-assigned-to"
+  NotAssignedTo = "not-assigned-to",
 }
 
 export enum EnumAssignmentSubjectOperator {
   Me = "me",
   Anyone = "anyone",
-  Member = "member"
+  Member = "member",
+}
+
+export enum EnumOptionCheckboxState {
+  Checked = "checked",
+  Unchecked = "unchecked",
+}
+
+export enum EnumTimeUnit {
+  Hours = "hours",
+  Days = "days",
+  WorkingDays = "working-days",
+}
+
+export enum EnumRelativeDirection {
+  FromNow = "from-now",
+  Ago = "ago",
 }

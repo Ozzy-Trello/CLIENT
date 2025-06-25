@@ -52,7 +52,10 @@ export enum EnumSelectionType {
   Inclusion = "inclusion",
   CardLabel = "card_label",
   Assignment = "assignment",
-  AssignmentSubject = "assignment_subject"
+  AssignmentSubject = "assignment_subject",
+  Direction = "direction",
+  DateExpression = "date_expression",
+  State = "state", // checkbox checked/unchecked state
 }
 
 export enum EnumInputType {
@@ -78,7 +81,6 @@ export enum TriggerType {
   // "when-list-<list*>-has-<number-comparison*>-[number]"
   WhenListHasCards = `when-list-<${EnumSelectionType.List}>-has-<${EnumSelectionType.NumberComparison}>-[${EnumInputType.Number}]`,
 
-
   // CARD CHANGES
   WhenCardCompletionChanges = `when-the-card-is-marked-<${EnumSelectionType.Marked}>-in-a-card-<${EnumSelectionType.OptionalFilter}>-<${EnumSelectionType.OptionalBySubject}>`,
   WhenCardLabelChanges = `when-<${EnumSelectionType.ArticleType}>-label-is-<${EnumSelectionType.Action}>-a-card-<${EnumSelectionType.OptionalFilter}>-<${EnumSelectionType.OptionalBySubject}>`,
@@ -91,6 +93,22 @@ export enum TriggerType {
 
   // "when-custom-fields-<fields>-is-<action>-<optional_by>"
   WhenCustomFieldsIsSet = `when-custom-fields-<${EnumSelectionType.Fields}>-is-<${EnumSelectionType.Action}>-<${EnumSelectionType.OptionalBySubject}>`,
+
+  // "when-custom-field-<fields>-is-<state>-<optional_by>"
+  WhenCustomFieldIsChecked = `when-custom-field-<${EnumSelectionType.Fields}>-is-<${EnumSelectionType.State}>-<${EnumSelectionType.OptionalBySubject}>`,
+
+  // "when-custom-field-<fields>-is-set-to-a-number-<number_comparison>-[number]-<optional_by>"
+  WhenCustomFieldNumberComparison = `when-custom-field-<${EnumSelectionType.Fields}>-is-set-to-a-number-<${EnumSelectionType.NumberComparison}>-[${EnumInputType.Number}]-<${EnumSelectionType.OptionalBySubject}>`,
+
+  // "when-custom-field-<fields>-is-set-to-a-date-<date_expression>-<optional_by>"
+  WhenCustomFieldDateCondition = `when-custom-field-<${EnumSelectionType.Fields}>-is-set-to-a-date-<${EnumSelectionType.DateExpression}>-<${EnumSelectionType.OptionalBySubject}>`,
+
+  // NEW TRIGGERS
+  // "when all the custom fields are completed"
+  WhenAllCustomFieldsAreCompleted = `when-all-the-custom-fields-are-completed`,
+
+  // "when custom fields <fields> are completed"
+  WhenCustomFieldsAreCompleted = `when-custom-fields-<${EnumSelectionType.Fields}>-are-completed`,
 
   // add more..
 }
@@ -117,5 +135,5 @@ export enum EnumTriggerCardFilterGroupType {
 export enum EnumTiggerCarFilterType {
   CardInclusionInList = `<${EnumSelectionType.Inclusion}>-list-<${EnumSelectionType.List}>`,
   LabelInclusionInCard = `<${EnumSelectionType.Inclusion}>-the-<${EnumSelectionType.CardLabel}>-label`,
-  CardAssignment = `<${EnumSelectionType.Assignment}>-<${EnumSelectionType.AssignmentSubject}>`
+  CardAssignment = `<${EnumSelectionType.Assignment}>-<${EnumSelectionType.AssignmentSubject}>`,
 }
