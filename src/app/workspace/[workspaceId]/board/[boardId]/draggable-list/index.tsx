@@ -6,6 +6,7 @@ import AddCard from "./add-card";
 import { UseMutateFunction } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { AnyList } from "@myTypes/list";
+import { usePermissions } from "@hooks/account";
 
 interface DraggableListProps {
   list: AnyList;
@@ -28,6 +29,7 @@ const DraggableList: React.FC<DraggableListProps> = ({
   updateList,
 }) => {
   const { cards, addCard, isLoading } = useCards(list.id || "", boardId);
+  const { canMove, canCreate } = usePermissions();
 
   useEffect(() => {
     setListsState((prev) =>
@@ -40,13 +42,18 @@ const DraggableList: React.FC<DraggableListProps> = ({
     );
   }, [cards]);
 
+  // Check if user can move lists and create cards
+  const canMoveList = canMove("list");
+  const canCreateCard = canCreate("card");
+
   return (
     <Draggable
       key={`draggable-list-${list.id}`}
       draggableId={`draggable-list-${list.id}`}
       index={index}
+      isDragDisabled={!canMoveList}
     >
-      {(provided) => (
+      {(provided, snapshot) => (
         <div
           ref={provided.innerRef}
           {...provided.dragHandleProps}
@@ -67,7 +74,13 @@ const DraggableList: React.FC<DraggableListProps> = ({
             max-h-[calc(100vh-130px)]
             flex 
             flex-col
+            ${canMoveList ? "cursor-move" : "cursor-default"}
+            ${!canMoveList ? "opacity-75" : ""}
+            ${snapshot.isDragging ? "shadow-lg" : ""}
           `}
+          title={
+            !canMoveList ? "You don't have permission to move lists" : undefined
+          }
         >
           <ListName list={list} boardId={boardId} updateList={updateList} />
           <Droppable
@@ -102,9 +115,11 @@ const DraggableList: React.FC<DraggableListProps> = ({
               </div>
             )}
           </Droppable>
-          <div className="px-2 py-2 border-t border-gray-200">
-            <AddCard listId={list.id || ""} addCard={addCard} />
-          </div>
+          {canCreateCard && (
+            <div className="px-2 py-2 border-t border-gray-200">
+              <AddCard listId={list.id || ""} addCard={addCard} />
+            </div>
+          )}
         </div>
       )}
     </Draggable>

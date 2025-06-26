@@ -24,6 +24,7 @@ import { Card, EnumCardType } from "@myTypes/card";
 import { AnyList } from "@myTypes/list";
 import { selectCurrentBoard } from "@store/workspace_slice";
 import { useRealtimeUpdates } from "@hooks/websocket";
+import { usePermissions } from "@hooks/account";
 
 const DragDropContext = dynamic(
   () => import("@hello-pangea/dnd").then((mod) => mod.DragDropContext),
@@ -51,6 +52,7 @@ const Board: React.FC = () => {
   const [dashcardConfig, setDashcardConfig] = useState<DashcardConfig>();
   const selectedBoard = useSelector(selectCurrentBoard);
   const { isConnected } = useRealtimeUpdates();
+  const { canCreate } = usePermissions();
 
   const onListDragEnd = useCallback(
     (result: DropResult) => {
@@ -182,6 +184,9 @@ const Board: React.FC = () => {
     setListData(lists);
   }, [lists]);
 
+  // Check if user can create lists
+  const canCreateList = canCreate("list");
+
   return (
     <div
       className="h-screen overflow-y-hidden mr-4"
@@ -229,35 +234,39 @@ const Board: React.FC = () => {
                     })}
                     {provided.placeholder}
 
-                    {/* Add list section*/}
-                    {isAddingList ? (
-                      <div className="add-list-wrapper p-4 rounded-sm bg-white shadow-sm">
-                        <Input
-                          type="text"
-                          placeholder="New List Title"
-                          value={newListName}
-                          onChange={(e) => setNewListName(e.target.value)}
-                          onPressEnter={handleAddList}
-                        />
-                        <div className="flex items-center gap-2 mt-2">
-                          <Button size="small" onClick={handleAddList}>
-                            Add List
-                          </Button>
+                    {/* Add list section - only show if user can create lists */}
+                    {canCreateList && (
+                      <>
+                        {isAddingList ? (
+                          <div className="add-list-wrapper p-4 rounded-sm bg-white shadow-sm">
+                            <Input
+                              type="text"
+                              placeholder="New List Title"
+                              value={newListName}
+                              onChange={(e) => setNewListName(e.target.value)}
+                              onPressEnter={handleAddList}
+                            />
+                            <div className="flex items-center gap-2 mt-2">
+                              <Button size="small" onClick={handleAddList}>
+                                Add List
+                              </Button>
+                              <Button
+                                size="small"
+                                onClick={() => setIsAddingList(false)}
+                                icon={<X size={15} />}
+                              />
+                            </div>
+                          </div>
+                        ) : (
                           <Button
-                            size="small"
-                            onClick={() => setIsAddingList(false)}
-                            icon={<X size={15} />}
-                          />
-                        </div>
-                      </div>
-                    ) : (
-                      <Button
-                        onClick={() => setIsAddingList(true)}
-                        className="mt-2"
-                        icon={<Plus size={15} />}
-                      >
-                        Add a list
-                      </Button>
+                            onClick={() => setIsAddingList(true)}
+                            className="mt-2"
+                            icon={<Plus size={15} />}
+                          >
+                            Add a list
+                          </Button>
+                        )}
+                      </>
                     )}
                   </div>
                 )}
@@ -283,8 +292,8 @@ const Board: React.FC = () => {
         />
       </CardDetailProvider>
 
-      <div style={{ position: 'fixed', bottom: 10, right: 10, zIndex: 1000 }}>
-        Debug WebSocket: {isConnected ? '🟢 Connected' : '🔴 Disconnected'}
+      <div style={{ position: "fixed", bottom: 10, right: 10, zIndex: 1000 }}>
+        Debug WebSocket: {isConnected ? "🟢 Connected" : "🔴 Disconnected"}
       </div>
     </div>
   );

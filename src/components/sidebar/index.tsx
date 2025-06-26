@@ -32,6 +32,7 @@ import {
 import { useBoards } from "@hooks/board";
 import { useParams, useRouter } from "next/navigation";
 import { Board } from "@myTypes/board";
+import { usePermissions } from "@hooks/account";
 
 const { Sider } = Layout;
 type MenuItem = Required<MenuProps>["items"][number];
@@ -51,6 +52,7 @@ const Sidebar = () => {
   const currentWorkspace = useSelector(selectCurrentWorkspace);
   const currentBoard = useSelector(selectCurrentBoard);
   const { boards } = useBoards(currentWorkspace?.id || "");
+  const { canCreate } = usePermissions();
 
   // Use refs to avoid dependency changes in useEffect
   const prevWorkspaceIdRef = useRef<string | null>(null);
@@ -102,6 +104,9 @@ const Sidebar = () => {
     ];
   }, [currentWorkspace]);
 
+  // Check if user can create boards
+  const canCreateBoard = canCreate("board");
+
   // Build menu items separately to avoid frequent render cycles
   useEffect(() => {
     // Skip if nothing significant has changed
@@ -148,9 +153,11 @@ const Sidebar = () => {
                 }
               >
                 <Typography.Text strong>Your boards</Typography.Text>
-                <Button size="small" onClick={handleOpenBoardModal}>
-                  +
-                </Button>
+                {canCreateBoard && (
+                  <Button size="small" onClick={handleOpenBoardModal}>
+                    +
+                  </Button>
+                )}
               </div>
             ),
             icon: <span></span>,
@@ -174,27 +181,35 @@ const Sidebar = () => {
                 </Tooltip>
               ),
               icon: (
-                <div style={{
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '4px',
-                  overflow: 'hidden',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: board?.background?.startsWith('http') ? '#f0f2f5' : (board?.background || '#f0f2f5'),
-                  backgroundImage: board?.cover || board?.background?.startsWith('http') ? 
-                    `url('${board.cover || board.background}')` : 'none',
-                  backgroundSize: 'cover',
-                  backgroundPosition: 'center',
-                  backgroundRepeat: 'no-repeat',
-                }}>
-                  {!board?.cover && !board?.background?.startsWith('http') && (
-                    <span style={{
-                      color: '#000',
-                      fontSize: '16px',
-                      fontWeight: 'bold',
-                    }}>
+                <div
+                  style={{
+                    width: "32px",
+                    height: "32px",
+                    borderRadius: "4px",
+                    overflow: "hidden",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: board?.background?.startsWith("http")
+                      ? "#f0f2f5"
+                      : board?.background || "#f0f2f5",
+                    backgroundImage:
+                      board?.cover || board?.background?.startsWith("http")
+                        ? `url('${board.cover || board.background}')`
+                        : "none",
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                    backgroundRepeat: "no-repeat",
+                  }}
+                >
+                  {!board?.cover && !board?.background?.startsWith("http") && (
+                    <span
+                      style={{
+                        color: "#000",
+                        fontSize: "16px",
+                        fontWeight: "bold",
+                      }}
+                    >
                       {board?.name?.charAt(0)?.toUpperCase()}
                     </span>
                   )}
@@ -225,7 +240,14 @@ const Sidebar = () => {
 
     // Execute the menu building
     buildMenus();
-  }, [baseMenus, collapsed, currentWorkspace, boards]);
+  }, [
+    baseMenus,
+    collapsed,
+    currentWorkspace,
+    boards,
+    canCreateBoard,
+    handleOpenBoardModal,
+  ]);
 
   const selectedKeys = useMemo(() => {
     if (boardId) {

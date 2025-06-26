@@ -18,6 +18,7 @@ import { useState } from "react";
 import BoardSettingsModal from "../../../../components/board-settings-modal";
 import { useBoards } from "../../../../hooks/board";
 import { useUpdateBoard } from "../../../../hooks/use-update-board";
+import { usePermissions } from "../../../../hooks/account";
 import { Board } from "../../../../types/board";
 import "./style.css";
 
@@ -37,6 +38,7 @@ const BoardsPage: React.FC = () => {
   );
   const { mutate: updateBoard } = useUpdateBoard();
   const queryClient = useQueryClient();
+  const { canUpdate } = usePermissions();
   const [filter] = useState({
     sortBy: "",
     filterBy: "",
@@ -135,57 +137,59 @@ const BoardsPage: React.FC = () => {
                         zIndex: 1,
                       }}
                     >
-                      <Dropdown
-                        overlay={
-                          <Menu>
-                            <Menu.Item
-                              key="settings"
-                              onClick={(e) => {
-                                e.domEvent.stopPropagation();
-                                handleSettingsClick(board);
-                              }}
-                            >
-                              <Space>
-                                <Settings size={14} />
-                                Settings
-                              </Space>
-                            </Menu.Item>
-                          </Menu>
-                        }
-                        trigger={["click"]}
-                        placement="bottomRight"
-                      >
-                        <div
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                          }}
-                          style={{
-                            display: "inline-block",
-                            padding: "4px",
-                            borderRadius: "3px",
-                            cursor: "pointer",
-                            backgroundColor: "transparent",
-                            transition: "background-color 0.2s",
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.backgroundColor =
-                              "rgba(0, 0, 0, 0.04)";
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.backgroundColor =
-                              "transparent";
-                          }}
+                      {canUpdate("board") && (
+                        <Dropdown
+                          overlay={
+                            <Menu>
+                              <Menu.Item
+                                key="settings"
+                                onClick={(e) => {
+                                  e.domEvent.stopPropagation();
+                                  handleSettingsClick(board);
+                                }}
+                              >
+                                <Space>
+                                  <Settings size={14} />
+                                  Settings
+                                </Space>
+                              </Menu.Item>
+                            </Menu>
+                          }
+                          trigger={["click"]}
+                          placement="bottomRight"
                         >
-                          <MoreHorizontal
-                            size={18}
-                            className="board-menu-icon"
-                            style={{
-                              color: "rgba(0, 0, 0, 0.45)",
+                          <div
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
                             }}
-                          />
-                        </div>
-                      </Dropdown>
+                            style={{
+                              display: "inline-block",
+                              padding: "4px",
+                              borderRadius: "3px",
+                              cursor: "pointer",
+                              backgroundColor: "transparent",
+                              transition: "background-color 0.2s",
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor =
+                                "rgba(0, 0, 0, 0.04)";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor =
+                                "transparent";
+                            }}
+                          >
+                            <MoreHorizontal
+                              size={18}
+                              className="board-menu-icon"
+                              style={{
+                                color: "rgba(0, 0, 0, 0.45)",
+                              }}
+                            />
+                          </div>
+                        </Dropdown>
+                      )}
                     </div>
                     <Typography.Title level={4} className="title m-0">
                       {board.name}

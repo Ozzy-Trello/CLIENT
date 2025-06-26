@@ -1,4 +1,3 @@
-
 import { useCardDetailContext } from "@providers/card-detail-context";
 import { Card, EnumCardType } from "@myTypes/card";
 import { AnyList } from "@myTypes/list";
@@ -7,6 +6,7 @@ import { CheckboxProps } from "antd";
 import { useState } from "react";
 import RegularCard from "./regular";
 import Dashcard from "./dashcard";
+import { usePermissions } from "@hooks/account";
 
 interface DraggableCardProps {
   card: Card;
@@ -14,29 +14,35 @@ interface DraggableCardProps {
   list: AnyList;
 }
 
-const DraggableCard: React.FC<DraggableCardProps> = ({
-  card, 
-  index, 
-  list,
-}) => {
-
+const DraggableCard: React.FC<DraggableCardProps> = ({ card, index, list }) => {
   const { openCardDetail } = useCardDetailContext();
   const [isComplete, setIsComplete] = useState<boolean>(false);
   const [isHovered, setIsHovered] = useState<boolean>(false);
   const [openAddMember, setOpenAddMember] = useState<boolean>(false);
-  
-  const onChange: CheckboxProps['onChange'] = (e) => {
+  const { canMove } = usePermissions();
+
+  const onChange: CheckboxProps["onChange"] = (e) => {
     e.stopPropagation();
     setIsComplete(e.target.checked);
   };
 
+  // Check if user can move cards
+  const canMoveCard = canMove("card");
+
   return (
-    <Draggable draggableId={card.id} index={index}>
-      {(provided) => (
+    <Draggable
+      draggableId={card.id}
+      index={index}
+      isDragDisabled={!canMoveCard}
+    >
+      {(provided, snapshot) => (
         <div
-          className="bg-white rounded-lg border border-gray-200 
+          className={`bg-white rounded-lg border border-gray-200 
             max-w-sm
-          hover:border-blue-500 transition-all duration-300 overflow-hidden cursor-move"
+          hover:border-blue-500 transition-all duration-300 overflow-hidden
+          ${canMoveCard ? "cursor-move" : "cursor-default"}
+          ${snapshot.isDragging ? "shadow-lg" : ""}
+          `}
           ref={provided.innerRef}
           {...provided.dragHandleProps}
           {...provided.draggableProps}
@@ -45,9 +51,12 @@ const DraggableCard: React.FC<DraggableCardProps> = ({
           }}
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
+          title={
+            !canMoveCard ? "You don't have permission to move cards" : undefined
+          }
         >
           {card.type == EnumCardType.Dashcard ? (
-            <Dashcard 
+            <Dashcard
               card={card}
               isHovered={isHovered}
               onChange={onChange}
@@ -64,7 +73,7 @@ const DraggableCard: React.FC<DraggableCardProps> = ({
         </div>
       )}
     </Draggable>
-  )
-}
+  );
+};
 
 export default DraggableCard;
