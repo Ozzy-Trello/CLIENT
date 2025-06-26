@@ -56,6 +56,8 @@ export enum EnumSelectionType {
   Direction = "direction",
   DateExpression = "date_expression",
   State = "state", // checkbox checked/unchecked state
+  ChecklistScope = "checklist_scope", // checklist / a checklist / all checklists
+  ItemScope = "item_scope",
 }
 
 export enum EnumInputType {
@@ -110,6 +112,21 @@ export enum TriggerType {
   // "when custom fields <fields> are completed"
   WhenCustomFieldsAreCompleted = `when-custom-fields-<${EnumSelectionType.Fields}>-are-completed`,
 
+  // "when checklist [text] is <action> to a card <filter> <optional_by>"
+  WhenChecklistIsAction = `when-checklist-[${EnumInputType.Text}]-is-<${EnumSelectionType.Action}>-to-a-card-<${EnumSelectionType.OptionalFilter}>-<${EnumSelectionType.OptionalBySubject}>`,
+
+  // "when checklist completion changes"
+  WhenChecklistCompletionChanges = `when-<${EnumSelectionType.ChecklistScope}>[${EnumInputType.Text}]-is-<${EnumSelectionType.Action}>-in-a-card-<${EnumSelectionType.OptionalFilter}>-<${EnumSelectionType.OptionalBySubject}>`,
+
+  // "when (the/an) [item_name] item is <action> <filter> <optional_by>"
+  WhenChecklistItemStateChanges = `when-<${EnumSelectionType.ItemScope}>[${EnumInputType.Text}]-item-is-<${EnumSelectionType.Action}>-<${EnumSelectionType.OptionalFilter}>-<${EnumSelectionType.OptionalBySubject}>`,
+
+  // "when a due date <date_expression> is <action> a checklist item"
+  WhenChecklistItemDueDateChanges = `when-a-due-date-<${EnumSelectionType.DateExpression}>-is-<${EnumSelectionType.Action}>-a-checklist-item`,
+
+  // "when an item <text_comparison> is <action> <checklist_scope> [text] <filter> <optional_by>"
+  WhenChecklistItemIsAddedTo = `when-an-item-<${EnumSelectionType.TextComparison}>-is-<${EnumSelectionType.Action}>-<${EnumSelectionType.ChecklistScope}>[${EnumInputType.Text}]-<${EnumSelectionType.OptionalFilter}>-<${EnumSelectionType.OptionalBySubject}>`,
+
   // add more..
 }
 
@@ -137,3 +154,5 @@ export enum EnumTiggerCarFilterType {
   LabelInclusionInCard = `<${EnumSelectionType.Inclusion}>-the-<${EnumSelectionType.CardLabel}>-label`,
   CardAssignment = `<${EnumSelectionType.Assignment}>-<${EnumSelectionType.AssignmentSubject}>`,
 }
+
+// (backend will handle trigger metadata mapping)

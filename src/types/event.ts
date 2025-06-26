@@ -27,6 +27,16 @@ export enum EnumUserActionEvent {
   ListUnarchived = "list.unarchived",
   ListUpdated = "list.updated",
   ListDeleted = "list.deleted",
+  ChecklistAdded = "checklist.added",
+  ChecklistCompleted = "checklist.completed",
+  ChecklistIncompleted = "checklist.incompleted",
+  ChecklistItemChecked = "checklist.item.checked",
+  ChecklistItemUnchecked = "checklist.item.unchecked",
+  ChecklistItemDueDateSet = "checklist.item.duedate.set",
+  ChecklistItemDueDateRemoved = "checklist.item.duedate.removed",
+  ChecklistItemAdded = "checklist.item.added",
+  ChecklistItemRemoved = "checklist.item.removed",
+  ChecklistRemoved = "checklist.removed",
 }
 
 export enum EnumActions {
