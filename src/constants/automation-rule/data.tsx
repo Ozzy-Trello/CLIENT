@@ -593,6 +593,250 @@ export const triggers: AutomationRuleTrigger[] = [
     type: TriggerGroupType.CardChecklist,
     label: "Checklists",
     icon: <Check />,
+    items: [
+      {
+        type: TriggerType.WhenChecklistIsAction,
+        label: TriggerType.WhenChecklistIsAction.replaceAll("-", " "),
+        [EnumSelectionType.Action]: {
+          options: [
+            {
+              value: "checklist.added", // temporary string action
+              label: "added to",
+            },
+            {
+              value: "checklist.removed",
+              label: "removed from",
+            },
+          ],
+          value: {
+            value: "checklist.added",
+            label: "added to",
+          },
+        },
+        [EnumInputType.Text]: "", // checklist name input
+        [EnumSelectionType.OptionalBySubject]: {
+          options: [
+            { value: EnumOptionBySubject.ByMe, label: "by me" },
+            { value: EnumOptionBySubject.ByAnyone, label: "by anyone" },
+            {
+              value: EnumOptionBySubject.BySpecificUser,
+              label: "by specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptMe,
+              label: "by anyone except me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
+              label: "by anyone except specific user",
+            },
+          ],
+          value: { value: EnumOptionBySubject.ByMe, label: "by me" },
+          data: [],
+        },
+      },
+      {
+        type: TriggerType.WhenChecklistCompletionChanges,
+        label: TriggerType.WhenChecklistCompletionChanges.replaceAll("-", " "),
+        [EnumSelectionType.ChecklistScope]: {
+          options: [
+            { value: "checklist", label: "checklist" },
+            { value: "a-checklist", label: "a checklist" },
+            { value: "all-checklists", label: "all checklists" },
+          ],
+          value: { value: "checklist", label: "checklist" },
+        },
+        [EnumInputType.Text]: "", // checklist name (used only when checklist scope is 'checklist')
+        [EnumSelectionType.Action]: {
+          options: [
+            {
+              value: EnumUserActionEvent.ChecklistCompleted,
+              label: "completed",
+            },
+            {
+              value: EnumUserActionEvent.ChecklistIncompleted,
+              label: "made incomplete",
+            },
+          ],
+          value: {
+            value: EnumUserActionEvent.ChecklistCompleted,
+            label: "completed",
+          },
+        },
+        [EnumSelectionType.OptionalBySubject]: {
+          options: [
+            { value: EnumOptionBySubject.ByMe, label: "by me" },
+            { value: EnumOptionBySubject.ByAnyone, label: "by anyone" },
+            {
+              value: EnumOptionBySubject.BySpecificUser,
+              label: "by specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptMe,
+              label: "by anyone except me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
+              label: "by anyone except specific user",
+            },
+          ],
+          value: { value: EnumOptionBySubject.ByMe, label: "by me" },
+          data: [],
+        },
+      },
+      {
+        type: TriggerType.WhenChecklistItemStateChanges,
+        label: TriggerType.WhenChecklistItemStateChanges.replaceAll("-", " "),
+        [EnumSelectionType.ItemScope]: {
+          options: [
+            { value: "the", label: "the" },
+            { value: "an", label: "an" },
+          ],
+          value: { value: "the", label: "the" },
+        },
+        [EnumInputType.Text]: "", // item name
+        [EnumSelectionType.Action]: {
+          options: [
+            {
+              value: EnumUserActionEvent.ChecklistItemChecked,
+              label: "checked",
+            },
+            {
+              value: EnumUserActionEvent.ChecklistItemUnchecked,
+              label: "unchecked",
+            },
+          ],
+          value: {
+            value: EnumUserActionEvent.ChecklistItemChecked,
+            label: "checked",
+          },
+        },
+        [EnumSelectionType.OptionalBySubject]: {
+          options: [
+            { value: EnumOptionBySubject.ByMe, label: "by me" },
+            { value: EnumOptionBySubject.ByAnyone, label: "by anyone" },
+            {
+              value: EnumOptionBySubject.BySpecificUser,
+              label: "by specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptMe,
+              label: "by anyone except me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
+              label: "by anyone except specific user",
+            },
+          ],
+          value: { value: EnumOptionBySubject.ByMe, label: "by me" },
+          data: [],
+        },
+      },
+      {
+        type: TriggerType.WhenChecklistItemDueDateChanges,
+        label: TriggerType.WhenChecklistItemDueDateChanges.replaceAll("-", " "),
+        [EnumSelectionType.Action]: {
+          options: [
+            {
+              value: EnumUserActionEvent.ChecklistItemDueDateSet,
+              label: "set on",
+            },
+            {
+              value: EnumUserActionEvent.ChecklistItemDueDateRemoved,
+              label: "removed from",
+            },
+          ],
+          value: {
+            value: EnumUserActionEvent.ChecklistItemDueDateSet,
+            label: "set on",
+          },
+        },
+        [EnumSelectionType.DateExpression]: {
+          options: [],
+          value: null,
+        },
+      },
+      {
+        type: TriggerType.WhenChecklistItemIsAddedTo,
+        label: TriggerType.WhenChecklistItemIsAddedTo.replaceAll("-", " "),
+        [EnumSelectionType.Action]: {
+          options: [
+            {
+              value: EnumUserActionEvent.ChecklistItemAdded,
+              label: "added to",
+            },
+            {
+              value: EnumUserActionEvent.ChecklistItemRemoved,
+              label: "removed from",
+            },
+          ],
+          value: {
+            value: EnumUserActionEvent.ChecklistItemAdded,
+            label: "added to",
+          },
+        },
+        [EnumSelectionType.ChecklistScope]: {
+          options: [
+            { value: "checklist", label: "checklist" },
+            { value: "a-checklist", label: "a checklist" },
+          ],
+          value: { value: "a-checklist", label: "a checklist" },
+        },
+        [EnumInputType.Text]: "", // checklist name (used only when checklist scope is 'checklist')
+        [EnumSelectionType.OptionalBySubject]: {
+          options: [
+            { value: EnumOptionBySubject.ByMe, label: "by me" },
+            { value: EnumOptionBySubject.ByAnyone, label: "by anyone" },
+            {
+              value: EnumOptionBySubject.BySpecificUser,
+              label: "by specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptMe,
+              label: "by anyone except me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
+              label: "by anyone except specific user",
+            },
+          ],
+          value: { value: EnumOptionBySubject.ByMe, label: "by me" },
+          data: [],
+        },
+        [EnumSelectionType.TextComparison]: {
+          options: [
+            {
+              value: EnumOptionTextComparisonOperator.StartingWith,
+              label: "starting with",
+            },
+            {
+              value: EnumOptionTextComparisonOperator.EndingWith,
+              label: "ending with",
+            },
+            {
+              value: EnumOptionTextComparisonOperator.Containing,
+              label: "containing",
+            },
+            {
+              value: EnumOptionTextComparisonOperator.NotStartingWith,
+              label: "not starting with",
+            },
+            {
+              value: EnumOptionTextComparisonOperator.NotEndingWith,
+              label: "not ending with",
+            },
+            {
+              value: EnumOptionTextComparisonOperator.NotContaining,
+              label: "not containing",
+            },
+          ],
+          value: {
+            value: EnumOptionTextComparisonOperator.StartingWith,
+            label: "starting with",
+          },
+        },
+      },
+    ],
   },
   {
     type: TriggerGroupType.CardContent,

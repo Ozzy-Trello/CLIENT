@@ -11,7 +11,8 @@ export function useWebSocket() {
 
   useEffect(() => {
     // Make sure the WebSocket URL is correctly formatted
-    const wsUrl =process.env.NEXT_PUBLIC_BE_BASE_URL?.replace("http", "ws") + "/ws";
+    const wsUrl =
+      process.env.NEXT_PUBLIC_BE_BASE_URL?.replace("http", "ws") + "/ws";
     console.log("Connecting to WebSocket:", wsUrl);
 
     const ws = new WebSocket(wsUrl);
@@ -70,12 +71,18 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
 
             // invalidate all related queries
             queryClient.invalidateQueries({ queryKey: queryKeys.lists.all });
-            queryClient.invalidateQueries({ queryKey: queryKeys.cards.list(fromListId) });
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.cards.list(fromListId),
+            });
             if (fromListId !== toListId) {
-              queryClient.invalidateQueries({ queryKey: queryKeys.cards.list(toListId) });
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.cards.list(toListId),
+              });
             }
             // Also invalidate the specific card detail
-            queryClient.invalidateQueries({ queryKey: queryKeys.cards.detail(card.id) });
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.cards.detail(card.id),
+            });
             break;
 
           case EnumUserActionEvent.CardUpdated:
@@ -84,8 +91,12 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
 
             // Invalidate relevant queries
             queryClient.invalidateQueries({ queryKey: queryKeys.lists.all });
-            queryClient.invalidateQueries({ queryKey: queryKeys.cards.list(listId) });
-            queryClient.invalidateQueries({ queryKey: queryKeys.cards.detail(updatedCard.id) });
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.cards.list(listId),
+            });
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.cards.detail(updatedCard.id),
+            });
             break;
 
           case EnumUserActionEvent.CardCreated:
@@ -96,7 +107,9 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
 
             // Invalidate relevant queries
             queryClient.invalidateQueries({ queryKey: queryKeys.lists.all });
-            queryClient.invalidateQueries({ queryKey: queryKeys.cards.list(newCardListId) });
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.cards.list(newCardListId),
+            });
             break;
 
           case EnumUserActionEvent.CardDeleted:
@@ -108,24 +121,38 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
 
             // Invalidate relevant queries
             queryClient.invalidateQueries({ queryKey: queryKeys.lists.all });
-            queryClient.invalidateQueries({ queryKey: queryKeys.cards.list(deletedCardListId) });
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.cards.list(deletedCardListId),
+            });
             // Remove the specific card from cache
-            queryClient.removeQueries({ queryKey: queryKeys.cards.detail(deletedCardId) });
+            queryClient.removeQueries({
+              queryKey: queryKeys.cards.detail(deletedCardId),
+            });
             break;
 
           case EnumUserActionEvent.CardArchived:
             const { card: archivedCard } = message.data;
-            console.log(`Card ${archivedCard.id} archived from list ${archivedCard.listId || archivedCard.list_id}`);
+            console.log(
+              `Card ${archivedCard.id} archived from list ${
+                archivedCard.listId || archivedCard.list_id
+              }`
+            );
 
             // Get the correct listId (handle both camelCase and snake_case)
             const archiveListId = archivedCard.listId || archivedCard.list_id;
-            
+
             // Invalidate relevant queries
             queryClient.invalidateQueries({ queryKey: queryKeys.lists.all });
-            queryClient.invalidateQueries({ queryKey: queryKeys.cards.list(archiveListId) });
-            queryClient.invalidateQueries({ queryKey: queryKeys.cards.detail(archivedCard.id) });
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.cards.list(archiveListId),
+            });
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.cards.detail(archivedCard.id),
+            });
             // Also invalidate archived cards query if it exists
-            queryClient.invalidateQueries({ queryKey: queryKeys.cards.archived() });
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.cards.archived(),
+            });
             break;
 
           case "custom_field:updated":
@@ -148,55 +175,148 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             queryClient.invalidateQueries({
               queryKey: ["cardCustomField", cardId],
             });
-            
+
             // Invalidate the card detail as well
-            queryClient.invalidateQueries({ queryKey: queryKeys.cards.detail(cardId) });
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.cards.detail(cardId),
+            });
             break;
 
           case EnumUserActionEvent.ListCreated:
-            const { list: createdList, boardId: createdBoardId, createdBy } = message.data;
-            console.log(`List ${createdList.id} created in board ${createdBoardId} by ${createdBy}`);
+            const {
+              list: createdList,
+              boardId: createdBoardId,
+              createdBy,
+            } = message.data;
+            console.log(
+              `List ${createdList.id} created in board ${createdBoardId} by ${createdBy}`
+            );
 
             // Invalidate relevant queries
-            queryClient.invalidateQueries({ queryKey: queryKeys.lists.board(createdBoardId) });
-            queryClient.invalidateQueries({ queryKey: queryKeys.boards.detail(createdBoardId) });
-            queryClient.invalidateQueries({ queryKey: queryKeys.boards.withLists(createdBoardId) });
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.lists.board(createdBoardId),
+            });
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.boards.detail(createdBoardId),
+            });
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.boards.withLists(createdBoardId),
+            });
             break;
 
           case EnumUserActionEvent.ListMoved:
-            const { list: movedList, boardId: movedBoardId, previousPosition, targetPosition, movedBy } = message.data;
-            console.log(`List ${movedList.id} moved from position ${previousPosition} to ${targetPosition} in board ${movedBoardId} by ${movedBy}`);
+            const {
+              list: movedList,
+              boardId: movedBoardId,
+              previousPosition,
+              targetPosition,
+              movedBy,
+            } = message.data;
+            console.log(
+              `List ${movedList.id} moved from position ${previousPosition} to ${targetPosition} in board ${movedBoardId} by ${movedBy}`
+            );
 
             // Invalidate relevant queries
-            queryClient.invalidateQueries({ queryKey: queryKeys.lists.board(movedBoardId) });
-            queryClient.invalidateQueries({ queryKey: queryKeys.boards.detail(movedBoardId) });
-            queryClient.invalidateQueries({ queryKey: queryKeys.boards.withLists(movedBoardId) });
-            queryClient.invalidateQueries({ queryKey: queryKeys.lists.detail(movedList.id) });
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.lists.board(movedBoardId),
+            });
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.boards.detail(movedBoardId),
+            });
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.boards.withLists(movedBoardId),
+            });
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.lists.detail(movedList.id),
+            });
             break;
 
           case EnumUserActionEvent.ListUpdated:
             const { list: updatedList, boardId: updatedBoardId } = message.data;
-            console.log(`List ${updatedList.id} updated in board ${updatedBoardId}`);
+            console.log(
+              `List ${updatedList.id} updated in board ${updatedBoardId}`
+            );
 
             // Invalidate relevant queries
-            queryClient.invalidateQueries({ queryKey: queryKeys.lists.board(updatedBoardId) });
-            queryClient.invalidateQueries({ queryKey: queryKeys.lists.detail(updatedList.id) });
-            queryClient.invalidateQueries({ queryKey: queryKeys.boards.detail(updatedBoardId) });
-            queryClient.invalidateQueries({ queryKey: queryKeys.boards.withLists(updatedBoardId) });
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.lists.board(updatedBoardId),
+            });
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.lists.detail(updatedList.id),
+            });
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.boards.detail(updatedBoardId),
+            });
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.boards.withLists(updatedBoardId),
+            });
             break;
 
           case EnumUserActionEvent.ListDeleted:
-            const { listId: deletedListId, boardId: deletedBoardId } = message.data;
-            console.log(`List ${deletedListId} deleted from board ${deletedBoardId}`);
+            const { listId: deletedListId, boardId: deletedBoardId } =
+              message.data;
+            console.log(
+              `List ${deletedListId} deleted from board ${deletedBoardId}`
+            );
 
             // Invalidate relevant queries
-            queryClient.invalidateQueries({ queryKey: queryKeys.lists.board(deletedBoardId) });
-            queryClient.invalidateQueries({ queryKey: queryKeys.boards.detail(deletedBoardId) });
-            queryClient.invalidateQueries({ queryKey: queryKeys.boards.withLists(deletedBoardId) });
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.lists.board(deletedBoardId),
+            });
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.boards.detail(deletedBoardId),
+            });
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.boards.withLists(deletedBoardId),
+            });
             // Remove the specific list from cache
-            queryClient.removeQueries({ queryKey: queryKeys.lists.detail(deletedListId) });
-            queryClient.removeQueries({ queryKey: queryKeys.cards.list(deletedListId) });
+            queryClient.removeQueries({
+              queryKey: queryKeys.lists.detail(deletedListId),
+            });
+            queryClient.removeQueries({
+              queryKey: queryKeys.cards.list(deletedListId),
+            });
             break;
+
+          // Checklist events
+          case "checklist:created":
+          case "checklist:updated": {
+            const { checklist } = message.data;
+            const cardIdForChecklist = checklist.cardId ?? checklist.card_id;
+            console.log(`Checklist ${checklist.id} ${message.event}`);
+
+            // Refresh checklist list for the card and checklist detail
+            queryClient.invalidateQueries({
+              queryKey: ["checklists", cardIdForChecklist],
+            });
+            queryClient.invalidateQueries({
+              queryKey: ["checklist", checklist.id],
+            });
+            break;
+          }
+
+          case "checklist:deleted": {
+            const { checklistId, cardId } = message.data;
+            console.log(`Checklist ${checklistId} deleted`);
+
+            // Remove detail cache
+            queryClient.removeQueries({
+              queryKey: ["checklist", checklistId],
+            });
+
+            if (cardId) {
+              queryClient.invalidateQueries({
+                queryKey: ["checklists", cardId],
+              });
+            } else {
+              // generic invalidation
+              queryClient.invalidateQueries({
+                queryKey: ["checklists"],
+                exact: false,
+              });
+            }
+            break;
+          }
 
           default:
             console.log("Unknown WebSocket event:", message.event);

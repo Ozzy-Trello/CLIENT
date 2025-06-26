@@ -6,7 +6,7 @@ import {
   UserSelection,
 } from "@components/selection";
 import { Button, Input, Select, Typography, Popover } from "antd";
-import { ListFilter, Plus, X, Calendar } from "lucide-react";
+import { ListFilter, Plus, X, Calendar, List, Type } from "lucide-react";
 import React, {
   Dispatch,
   SetStateAction,
@@ -31,10 +31,12 @@ import {
   EnumInputType,
   EnumSelectionType,
   EnumTextType,
+  TriggerType,
 } from "@myTypes/automation-rule";
 import Item from "antd/es/list/Item";
 import { EnumOptionBySubject } from "@myTypes/options";
 import { EnumOptionsNumberComparisonOperators } from "@myTypes/options";
+import { EnumOptionTextComparisonOperator } from "@myTypes/options";
 
 function extractPlaceholders(pattern: string): string[] {
   const regex = /<([^>]+)>|\[([^\]]+)\]/g; // Matches both <...> and [...]
@@ -57,6 +59,16 @@ interface SelectTriggerProps {
 }
 
 interface DateExpressionSelectorProps {
+  groupIndex: number;
+  index: number;
+  placeholder: string;
+  triggersData: AutomationRuleTrigger[];
+  setTriggersData: React.Dispatch<
+    React.SetStateAction<AutomationRuleTrigger[]>
+  >;
+}
+
+interface TextComparisonSelectorProps {
   groupIndex: number;
   index: number;
   placeholder: string;
@@ -273,6 +285,139 @@ const DateExpressionSelector: React.FC<DateExpressionSelectorProps> = ({
   );
 };
 
+const TextComparisonSelector: React.FC<TextComparisonSelectorProps> = ({
+  groupIndex,
+  index,
+  placeholder,
+  triggersData,
+  setTriggersData,
+}) => {
+  const itemState = triggersData[groupIndex]?.items?.[index] as any;
+  const expressions = itemState?.[placeholder]?.expressions || [];
+
+  const [open, setOpen] = useState(false);
+
+  const [operator, setOperator] = useState<string>(
+    EnumOptionTextComparisonOperator.StartingWith
+  );
+  const [textVal, setTextVal] = useState<string>("");
+
+  const applyExpression = () => {
+    if (!textVal.trim()) return;
+
+    const newExpr = { operator, text: textVal };
+
+    const copyArr = [...triggersData];
+    const trgItem = copyArr[groupIndex]?.items?.[index] as any;
+
+    if (trgItem) {
+      if (!trgItem[placeholder]) {
+        trgItem[placeholder] = {
+          options: [],
+          value: null,
+          expressions: [],
+        };
+      }
+      trgItem[placeholder].expressions = [...expressions, newExpr];
+    }
+
+    setTriggersData(copyArr);
+    setTextVal("");
+    setOperator(EnumOptionTextComparisonOperator.StartingWith);
+    setOpen(false);
+  };
+
+  const removeExpression = (idx: number) => {
+    const copyArr = [...triggersData];
+    const trgItem = copyArr[groupIndex]?.items?.[index] as any;
+    if (trgItem?.[placeholder]?.expressions) {
+      trgItem[placeholder].expressions = expressions.filter(
+        (_: any, i: number) => i !== idx
+      );
+      setTriggersData(copyArr);
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      {expressions.map((expr: any, i: number) => (
+        <span
+          key={i}
+          className="inline-flex items-center bg-gray-500 text-white rounded px-2 py-1 text-sm"
+        >
+          {expr.operator} "{expr.text}"
+          <X
+            size={12}
+            className="ml-1 cursor-pointer"
+            onClick={(e) => {
+              e.stopPropagation();
+              removeExpression(i);
+            }}
+          />
+        </span>
+      ))}
+
+      {expressions.length === 0 && (
+        <Popover
+          open={open}
+          onOpenChange={setOpen}
+          trigger="click"
+          placement="bottom"
+          content={
+            <div className="p-2 flex gap-2 items-center whitespace-nowrap">
+              <Select
+                style={{ width: 170 }}
+                value={operator}
+                options={[
+                  {
+                    value: EnumOptionTextComparisonOperator.StartingWith,
+                    label: "starting with",
+                  },
+                  {
+                    value: EnumOptionTextComparisonOperator.EndingWith,
+                    label: "ending with",
+                  },
+                  {
+                    value: EnumOptionTextComparisonOperator.Containing,
+                    label: "containing",
+                  },
+                  {
+                    value: EnumOptionTextComparisonOperator.NotStartingWith,
+                    label: "not starting with",
+                  },
+                  {
+                    value: EnumOptionTextComparisonOperator.NotEndingWith,
+                    label: "not ending with",
+                  },
+                  {
+                    value: EnumOptionTextComparisonOperator.NotContaining,
+                    label: "not containing",
+                  },
+                ]}
+                onChange={setOperator}
+              />
+              <Input
+                style={{ width: 150 }}
+                value={textVal}
+                placeholder="text"
+                onChange={(e) => setTextVal(e.target.value)}
+                onPressEnter={applyExpression}
+              />
+              <Button type="text" size="small" onClick={applyExpression}>
+                <Plus size={12} />
+              </Button>
+            </div>
+          }
+        >
+          <Button type="text" size="small" className="mx-2">
+            <Type size={14} />
+          </Button>
+        </Popover>
+      )}
+    </div>
+  );
+};
+
 // Component for the filter button
 const FilterButton = ({
   itemType,
@@ -309,6 +454,83 @@ const FilterButton = ({
         </Button>
       }
     />
+  );
+};
+
+// Component for the checklist name filter button
+const ChecklistFilterButton = ({
+  itemType,
+  selectedIndex,
+  props,
+}: {
+  itemType: string;
+  selectedIndex: number;
+  props: SelectTriggerProps;
+}) => {
+  const { triggersData, setTriggersData } = props;
+
+  // Only show for checklist item trigger
+  if (itemType !== TriggerType.WhenChecklistItemStateChanges) {
+    return null;
+  }
+
+  const checklistGroupIndex = 3; // Checklist group is at index 3
+  const triggerItem = triggersData[checklistGroupIndex]?.items?.[selectedIndex];
+  const hasChecklistFilter =
+    triggerItem && (triggerItem as any).checklist_name !== undefined;
+
+  const handleToggleChecklistFilter = () => {
+    let copyArr = [...triggersData];
+    const item = copyArr[checklistGroupIndex]?.items?.[selectedIndex] as any;
+    if (item) {
+      if (hasChecklistFilter) {
+        delete item.checklist_name;
+      } else {
+        item.checklist_name = "";
+      }
+      setTriggersData(copyArr);
+    }
+  };
+
+  const handleChecklistNameChange = (value: string) => {
+    let copyArr = [...triggersData];
+    const item = copyArr[checklistGroupIndex]?.items?.[selectedIndex] as any;
+    if (item) {
+      item.checklist_name = value;
+      setTriggersData(copyArr);
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      <Button
+        type="text"
+        size="small"
+        className="mx-2"
+        onClick={handleToggleChecklistFilter}
+      >
+        <List size={14} />
+      </Button>
+      {hasChecklistFilter && (
+        <div className="flex items-center gap-1 bg-blue-100 px-2 py-1 rounded">
+          <span className="text-sm">in a checklist named</span>
+          <Input
+            size="small"
+            style={{ width: "120px" }}
+            placeholder="Checklist name"
+            value={(triggerItem as any)?.checklist_name || ""}
+            onChange={(e) => handleChecklistNameChange(e.target.value)}
+          />
+          <Button
+            type="text"
+            size="small"
+            onClick={handleToggleChecklistFilter}
+          >
+            <X size={12} />
+          </Button>
+        </div>
+      )}
+    </div>
   );
 };
 
@@ -467,6 +689,18 @@ const SelectOption = ({
     );
   }
 
+  if (placeholder === EnumSelectionType.TextComparison) {
+    return (
+      <TextComparisonSelector
+        groupIndex={groupIndex}
+        index={index}
+        placeholder={placeholder}
+        triggersData={triggersData}
+        setTriggersData={setTriggersData}
+      />
+    );
+  }
+
   return (
     <>
       <Select
@@ -565,12 +799,21 @@ const LabelRenderer = ({
 
             if (placeholder === "filter") {
               return (
-                <FilterButton
-                  key={`filter-button-${item.type}-${index}`}
-                  itemType={item.type}
-                  selectedIndex={index}
-                  props={props}
-                />
+                <div
+                  key={`filter-buttons-${item.type}-${index}`}
+                  className="flex items-center gap-1"
+                >
+                  <FilterButton
+                    itemType={item.type}
+                    selectedIndex={index}
+                    props={props}
+                  />
+                  <ChecklistFilterButton
+                    itemType={item.type}
+                    selectedIndex={index}
+                    props={props}
+                  />
+                </div>
               );
             }
           }
@@ -696,7 +939,73 @@ const LabelRenderer = ({
             );
           }
 
-          // Default text/number input behaviour
+          // Hide name input based on trigger type and scope
+          if (placeholder === EnumInputType.Text) {
+            // For checklist completion trigger
+            if (item.type === TriggerType.WhenChecklistCompletionChanges) {
+              const scopeObj = (
+                props.triggersData[groupIndex]?.items?.[index] as any
+              )?.[EnumSelectionType.ChecklistScope];
+              let scopeVal: any = scopeObj;
+              if (scopeVal && typeof scopeVal === "object") {
+                scopeVal = "value" in scopeVal ? scopeVal.value : scopeVal;
+                if (
+                  scopeVal &&
+                  typeof scopeVal === "object" &&
+                  "value" in scopeVal
+                ) {
+                  scopeVal = scopeVal.value;
+                }
+              }
+              if (scopeVal && scopeVal !== "checklist") {
+                return null; // Skip rendering the text input
+              }
+            }
+
+            // For checklist item state trigger
+            if (item.type === TriggerType.WhenChecklistItemStateChanges) {
+              const scopeObj = (
+                props.triggersData[groupIndex]?.items?.[index] as any
+              )?.[EnumSelectionType.ItemScope];
+              let scopeVal: any = scopeObj;
+              if (scopeVal && typeof scopeVal === "object") {
+                scopeVal = "value" in scopeVal ? scopeVal.value : scopeVal;
+                if (
+                  scopeVal &&
+                  typeof scopeVal === "object" &&
+                  "value" in scopeVal
+                ) {
+                  scopeVal = scopeVal.value;
+                }
+              }
+              if (scopeVal && scopeVal !== "the") {
+                return null; // Skip rendering the text input
+              }
+            }
+
+            // For checklist item added/removed trigger
+            if (item.type === TriggerType.WhenChecklistItemIsAddedTo) {
+              const scopeObj = (
+                props.triggersData[groupIndex]?.items?.[index] as any
+              )?.[EnumSelectionType.ChecklistScope];
+              let scopeVal: any = scopeObj;
+              if (scopeVal && typeof scopeVal === "object") {
+                scopeVal = "value" in scopeVal ? scopeVal.value : scopeVal;
+                if (
+                  scopeVal &&
+                  typeof scopeVal === "object" &&
+                  "value" in scopeVal
+                ) {
+                  scopeVal = scopeVal.value;
+                }
+              }
+              if (scopeVal && scopeVal !== "checklist") {
+                return null; // Skip rendering the text input
+              }
+            }
+          }
+
+          // Conditional text input behaviour
           const inputValue =
             (props.triggersData[groupIndex]?.items?.[index] as any)?.[
               placeholder
@@ -722,6 +1031,28 @@ const LabelRenderer = ({
         }
 
         // Regular text part
+        if (
+          item.type === TriggerType.WhenChecklistCompletionChanges &&
+          trimmedPart === "is"
+        ) {
+          const scopeObj = (
+            props.triggersData[groupIndex]?.items?.[index] as any
+          )?.[EnumSelectionType.ChecklistScope];
+          let scopeVal: any = scopeObj;
+          if (scopeVal && typeof scopeVal === "object") {
+            scopeVal = "value" in scopeVal ? scopeVal.value : scopeVal;
+            if (
+              scopeVal &&
+              typeof scopeVal === "object" &&
+              "value" in scopeVal
+            ) {
+              scopeVal = scopeVal.value;
+            }
+          }
+          if (scopeVal === "all-checklists") {
+            return "are";
+          }
+        }
         return part;
       })}
     </div>
@@ -748,7 +1079,10 @@ const SelectTrigger: React.FC<SelectTriggerProps> = (props) => {
         const items = triggersData[selectedGroupIndex]?.items;
 
         if (items && items[index] && items[index][placeholder]) {
-          if (placeholder === EnumSelectionType.DateExpression) {
+          if (
+            placeholder === EnumSelectionType.DateExpression ||
+            placeholder === EnumSelectionType.TextComparison
+          ) {
             newTriggerItem[placeholder] =
               (items[index][placeholder] as any)?.expressions || [];
             return;
@@ -790,6 +1124,11 @@ const SelectTrigger: React.FC<SelectTriggerProps> = (props) => {
         newTriggerItem[EnumSelectionType.Action] = (
           itemWithData[EnumSelectionType.Action] as any
         )?.value;
+      }
+
+      // Include checklist_name if present
+      if (itemWithData?.checklist_name) {
+        (newTriggerItem as any).checklist_name = itemWithData.checklist_name;
       }
 
       setSelectedRule((prev: AutomationRule) => ({
