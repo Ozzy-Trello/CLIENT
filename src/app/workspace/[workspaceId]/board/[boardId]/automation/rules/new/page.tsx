@@ -17,7 +17,7 @@ import {
 import SelectTrigger from "./select-trigger";
 import { extractPlaceholders } from "@utils/general";
 import { createRule } from "@api/automation_rule";
-import { EnumSelectionType } from "@myTypes/automation-rule";
+import { EnumSelectionType, EnumInputType } from "@myTypes/automation-rule";
 
 const StepsItem = [
   {
@@ -135,13 +135,42 @@ const NewRulePage: React.FC = () => {
           action.selectedActionItem[placeholder]
         ) {
           const value = action.selectedActionItem[placeholder];
-          if (value && typeof value === "object" && "value" in value) {
+          if (
+            placeholder === EnumSelectionType.Fields ||
+            placeholder === EnumInputType.FieldValue
+          ) {
+            // Keep the full option object so backend has label/type etc.
+            actionCondition[placeholder] = value;
+          } else if (
+            placeholder === EnumInputType.DateValue &&
+            (action.selectedActionItem.type ===
+              "move-date-in-custom-field-<fields>-to-<date_value>" ||
+              action.selectedActionItem.type ===
+                "set-date-custom-field-<fields>-to-<date_value>")
+          ) {
+            // For MoveDateCustomField and SetDateCustomField, wrap expressions array in object
+            actionCondition[placeholder] = { expressions: value };
+          } else if (value && typeof value === "object" && "value" in value) {
             actionCondition[placeholder] = value.value;
           } else {
             actionCondition[placeholder] = value;
           }
         }
       });
+
+      // Ensure constant action field is included even if not in placeholders
+      if (
+        action.selectedActionItem &&
+        action.selectedActionItem[EnumSelectionType.Action] &&
+        !actionCondition[EnumSelectionType.Action]
+      ) {
+        const actionValue = action.selectedActionItem[EnumSelectionType.Action];
+        if (typeof actionValue === "object" && "value" in actionValue) {
+          actionCondition[EnumSelectionType.Action] = actionValue.value;
+        } else {
+          actionCondition[EnumSelectionType.Action] = actionValue;
+        }
+      }
 
       // Create action object in the expected format
       const formattedAction: AutomationRuleActionApiData = {

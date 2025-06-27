@@ -58,12 +58,14 @@ export enum EnumSelectionType {
   State = "state", // checkbox checked/unchecked state
   ChecklistScope = "checklist_scope", // checklist / a checklist / all checklists
   ItemScope = "item_scope",
+  DateValue = "date_value",
 }
 
 export enum EnumInputType {
   Number = "number",
   Text = "text",
   FieldValue = "field_value",
+  DateValue = "date_value",
 }
 
 export enum TriggerType {
@@ -137,6 +139,12 @@ export enum ActionType {
   NotifyTheCard = `<${EnumSelectionType.Action}>-the-user-via-<${EnumSelectionType.Channel}>-to-<${EnumSelectionType.User}>-with-message-<${EnumSelectionType.TextInput}>`,
   NotifySelectedUser = `<${EnumSelectionType.Action}>-the-user-via-<${EnumSelectionType.Channel}>-to-${EnumTextType.SelectedUser}-with-message-<${EnumSelectionType.TextInput}> and custom fields <${EnumSelectionType.MultiFields}>`,
   NotifyUserFromCustomFields = `<${EnumSelectionType.Action}>-the-user-via-<${EnumSelectionType.Channel}>-to-users-from-<${EnumSelectionType.Fields}>-with-message-<${EnumSelectionType.TextInput}> and custom fields <${EnumSelectionType.MultiFields}>`,
+  ClearCustomField = `<${EnumSelectionType.Action}>-custom-field-<${EnumSelectionType.Fields}>`,
+  SetCustomField = `<${EnumSelectionType.Action}>-custom-field-<${EnumSelectionType.Fields}>-to-<${EnumInputType.FieldValue}>`,
+  CheckCustomField = `<${EnumSelectionType.Action}>-custom-field-<${EnumSelectionType.Fields}>`,
+  IncrementCustomField = `<${EnumSelectionType.Action}>-the-number-in-custom-field-<${EnumSelectionType.Fields}>-by-[${EnumInputType.Number}]`,
+  SetDateCustomField = `set-date-custom-field-<${EnumSelectionType.Fields}>-to-<${EnumInputType.DateValue}>`,
+  MoveDateCustomField = `move-date-in-custom-field-<${EnumSelectionType.Fields}>-to-<${EnumInputType.DateValue}>`,
   //add more..
 }
 
