@@ -1,3 +1,5 @@
+"use client";
+
 import {
   AutoComplete,
   Avatar,
@@ -510,6 +512,8 @@ export const FieldValueInput = forwardRef<SelectionRef, FieldValueInputProps>(
       workspaceId: workspaceId as string,
       boardId: boardId as string,
     });
+
+    console.log(field, "field");
 
     // Only fetch users when needed
     useEffect(() => {

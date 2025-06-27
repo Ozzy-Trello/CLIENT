@@ -158,7 +158,7 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
           case "custom_field:updated":
             const { cardId, customField, workspaceId } = message.data;
             console.log(
-              `Custom field ${customField.id} updated for card ${cardId}`
+              `Custom field ${customField.id} updated for card ${cardId} in workspace ${workspaceId}`
             );
 
             // Invalidate relevant queries
@@ -171,7 +171,12 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
               exact: false,
             });
 
-            // Also invalidate the specific card's custom field data
+            // Also invalidate the specific card's custom field data with correct query key
+            queryClient.invalidateQueries({
+              queryKey: ["cardCustomField", cardId, workspaceId],
+            });
+
+            // Also invalidate any queries that might use just cardId (for backward compatibility)
             queryClient.invalidateQueries({
               queryKey: ["cardCustomField", cardId],
             });
@@ -179,6 +184,12 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             // Invalidate the card detail as well
             queryClient.invalidateQueries({
               queryKey: queryKeys.cards.detail(cardId),
+            });
+
+            // Invalidate all card list queries (card positions may depend on custom fields)
+            queryClient.invalidateQueries({
+              queryKey: ["cards"],
+              exact: false,
             });
             break;
 

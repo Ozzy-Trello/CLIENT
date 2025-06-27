@@ -22,6 +22,9 @@ import {
 import dayjs, { Dayjs } from "dayjs";
 import { setCardCustomFieldValue } from "@api/card_custom_field";
 
+// Note: Real-time updates are handled by the parent board component via useRealtimeUpdates()
+// This component automatically receives updates through React Query invalidation
+
 interface CustomFieldsProps {
   card: Card | null;
   setCard: React.Dispatch<React.SetStateAction<Card | null>>;

@@ -39,6 +39,7 @@ export interface Card {
   dashConfig?: DashcardConfig | undefined;
   createdAt?: string;
   updatedAt?: string;
+  boardId?: string;
   itemDashcard?: IItemDashcard[] | null;
 }
 

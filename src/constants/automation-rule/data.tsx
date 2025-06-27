@@ -1285,6 +1285,155 @@ export const actions: AutomationRuleAction[] = [
     type: "fields",
     label: "Fields",
     icon: <AlignJustify />,
+    items: [
+      {
+        type: ActionType.ClearCustomField,
+        label: "Clear custom field <fields>",
+        [EnumSelectionType.Action]: {
+          options: [
+            {
+              value: EnumActions.ClearCustomField,
+              label: "Clear",
+            },
+          ],
+          value: {
+            value: EnumActions.ClearCustomField,
+            label: "Clear",
+          },
+        },
+        [EnumSelectionType.Fields]: {
+          options: [],
+          value: null,
+        },
+      },
+      {
+        type: ActionType.SetCustomField,
+        label: "Set custom field <fields> to <field_value>",
+        [EnumSelectionType.Action]: {
+          options: [
+            {
+              value: EnumActions.SetCustomField,
+              label: "Set",
+            },
+          ],
+          value: {
+            value: EnumActions.SetCustomField,
+            label: "Set",
+          },
+        },
+        [EnumSelectionType.Fields]: {
+          options: [],
+          value: null,
+        },
+        [EnumInputType.FieldValue]: {
+          options: [],
+          value: null,
+        },
+      },
+      {
+        type: ActionType.CheckCustomField,
+        label: "<action> custom field <fields>",
+        [EnumSelectionType.Action]: {
+          options: [
+            { value: EnumActions.CheckCustomField, label: "check" },
+            { value: EnumActions.UncheckCustomField, label: "uncheck" },
+          ],
+          value: { value: EnumActions.CheckCustomField, label: "check" },
+        },
+        [EnumSelectionType.Fields]: {
+          options: [],
+          value: null,
+          fieldTypeFilter: "checkbox",
+        },
+      },
+      {
+        type: ActionType.IncrementCustomField,
+        label: "<action> the number in custom field <fields> by [number]",
+        [EnumSelectionType.Action]: {
+          options: [
+            { value: EnumActions.IncreaseNumberCustomField, label: "increase" },
+            { value: EnumActions.DecreaseNumberCustomField, label: "decrease" },
+          ],
+          value: {
+            value: EnumActions.IncreaseNumberCustomField,
+            label: "increase",
+          },
+        },
+        [EnumSelectionType.Fields]: {
+          options: [],
+          value: null,
+          fieldTypeFilter: "number",
+        },
+        [EnumInputType.Number]: "1",
+      },
+      {
+        type: ActionType.SetDateCustomField,
+        label: "set date custom field <fields> to <date_value>",
+        [EnumSelectionType.Fields]: {
+          options: [],
+          value: null,
+          fieldTypeFilter: "date",
+        },
+        [EnumInputType.DateValue]: {
+          options: [
+            { value: "now", label: "now" },
+            { value: "today", label: "today" },
+            { value: "tomorrow", label: "tomorrow" },
+            { value: "yesterday", label: "yesterday" },
+            { value: "next_working_day", label: "the next working day" },
+            {
+              value: "the_previous_working_day",
+              label: "the previous working day",
+            },
+            {
+              value: "the_same_day_next_week",
+              label: "the same day next week",
+            },
+            {
+              value: "the_same_day_next_month",
+              label: "the same day next month",
+            },
+            {
+              value: "the_same_day_next_year",
+              label: "the same day next year",
+            },
+          ],
+          value: null,
+        },
+        [EnumSelectionType.Action]: {
+          options: [{ value: EnumActions.SetDateCustomField, label: "set" }],
+          value: { value: EnumActions.SetDateCustomField, label: "set" },
+        },
+      },
+      {
+        type: ActionType.MoveDateCustomField,
+        label: "move the date in custom field <fields> to <date_value>",
+        [EnumSelectionType.Fields]: {
+          options: [],
+          value: null,
+          fieldTypeFilter: "date",
+        },
+        [EnumInputType.DateValue]: {
+          options: [
+            { value: "same_day_next_week", label: "the same day next week" },
+            { value: "plus_1_day", label: "by 1 day" },
+            { value: "plus_2_days", label: "by 2 days" },
+            { value: "next_monday", label: "the next monday" },
+            { value: "first_day_month", label: "the 1st of the month" },
+            {
+              value: "first_monday_month",
+              label: "the first monday of the month",
+            },
+            { value: "january_1st", label: "january 1st" },
+          ],
+          value: null,
+        },
+        [EnumSelectionType.Action]: {
+          options: [{ value: "cardfields.date.move", label: "move" }],
+          value: { value: "cardfields.date.move", label: "move" },
+        },
+      },
+    ],
   },
   {
     type: "sort",

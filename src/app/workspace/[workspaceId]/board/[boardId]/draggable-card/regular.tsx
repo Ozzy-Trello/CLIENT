@@ -16,6 +16,8 @@ import {
 } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import dayjs from "dayjs";
+import { useAccountList } from "@hooks/account";
 
 interface RegularCardProps {
   card: Card;
@@ -36,6 +38,15 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
     []
   );
   const { cardAttachments } = useCardAttachment(card.id);
+
+  // Fetch all users for this workspace/board (cached by react-query)
+  const usersQuery = useAccountList({
+    workspaceId: Array.isArray(workspaceId)
+      ? workspaceId[0]
+      : (workspaceId as string),
+    boardId: card?.boardId || "",
+  });
+  const allUsers = usersQuery.data?.data || [];
 
   useEffect(() => {
     if (cardCustomFields) {
@@ -176,30 +187,51 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
 
         {/* Custom fields */}
         <div className="space-y-2 mb-3">
-          {cardCustomFields?.map(
-            (item: CardCustomField, index) =>
-              item.isShowAtFront &&
-              (item.valueCheckbox ||
-                item.valueDate ||
-                item.valueNumber ||
-                item.valueOption ||
-                item.valueString ||
-                item.valueUserId) && (
-                <div
-                  key={`${card.id}-field-${index}`}
-                  className="text-gray-700 text-[11px]"
-                >
-                  <span className="font-medium">{item.name}:</span>
-                  {item.valueUserId ||
-                    item.valueString ||
-                    item.valueNumber ||
-                    item.valueOption ||
-                    item.valueCheckbox ||
-                    item?.valueDate?.toString() ||
-                    "-"}
-                </div>
-              )
-          )}
+          {cardCustomFields?.map((item: CardCustomField, index) => {
+            if (!item.isShowAtFront) return null;
+
+            const renderValue = () => {
+              if (item.type === "date") {
+                return item.valueDate
+                  ? dayjs(item.valueDate).format("DD/MM/YY")
+                  : "-";
+              }
+
+              if (item.type === "checkbox") {
+                if (
+                  item.valueCheckbox === undefined ||
+                  item.valueCheckbox === null
+                )
+                  return "-";
+                return item.valueCheckbox ? "Yes" : "No";
+              }
+
+              if (item.valueUserId) {
+                const user = allUsers.find(
+                  (u: any) => u.id === item.valueUserId
+                );
+                return user?.name || user?.username || "-";
+              }
+
+              // dropdown or text/number fallback
+              return (
+                item.valueOption || item.valueString || item.valueNumber || "-"
+              );
+            };
+
+            const valueToShow = renderValue();
+            if (valueToShow === "-" || valueToShow === undefined) return null;
+
+            return (
+              <div
+                key={`${card.id}-field-${index}`}
+                className="text-gray-700 text-[11px]"
+              >
+                <span className="font-medium mr-1">{item.name}:</span>
+                {valueToShow}
+              </div>
+            );
+          })}
         </div>
 
         {cardMembers && (
