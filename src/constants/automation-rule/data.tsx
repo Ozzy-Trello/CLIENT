@@ -1272,9 +1272,34 @@ export const actions: AutomationRuleAction[] = [
     icon: <Check />,
   },
   {
-    type: "members",
+    type: ActionGroupType.CardMembers,
     label: "Members",
     icon: <User />,
+    items: [
+      {
+        type: ActionType.AddCardMember,
+        label: "<action> member <user> on the card",
+        [EnumSelectionType.Action]: {
+          options: [
+            { value: EnumActions.AddCardMember, label: "add" },
+            { value: EnumActions.RemoveCardMember, label: "remove" },
+          ],
+          value: { value: EnumActions.AddCardMember, label: "add" },
+        },
+        [EnumSelectionType.User]: {
+          options: [],
+          value: null,
+        },
+      },
+      {
+        type: ActionType.RemoveAllCardMembers,
+        label: ActionType.RemoveAllCardMembers.replaceAll("-", " "),
+        [EnumSelectionType.Action]: {
+          options: [{ value: EnumActions.RemoveCardMember, label: "remove" }],
+          value: { value: EnumActions.RemoveCardMember, label: "remove" },
+        },
+      },
+    ],
   },
   {
     type: "card_content",

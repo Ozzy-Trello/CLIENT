@@ -147,6 +147,9 @@ export enum ActionType {
   MoveDateCustomField = `move-date-in-custom-field-<${EnumSelectionType.Fields}>-to-<date_value>`,
   RenameCard = `rename-the-card-to-<${EnumSelectionType.TextInput}>`,
   SetCardDescription = `set-the-card's-description-to-<${EnumSelectionType.TextInput}>`,
+  AddCardMember = `add-member-<${EnumSelectionType.User}>-to-the-card`,
+  RemoveCardMember = `remove-member-<${EnumSelectionType.User}>-from-the-card`,
+  RemoveAllCardMembers = `remove-all-the-members-from-the-card`,
   //add more..
 }
 

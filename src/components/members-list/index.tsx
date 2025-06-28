@@ -183,21 +183,22 @@ const MembersList: React.FC<MembersListProps> = ({
       )}
 
       {/* Add member button */}
-      {/* <Tooltip title="Add member">
+      <Tooltip title="Add member">
         <div className="ml-2">
-          {openAddMember !== undefined && setOpenAddMember !== undefined &&(
+          {openAddMember !== undefined && setOpenAddMember !== undefined && (
             <PopoverUser
               open={openAddMember}
               setOpen={setOpenAddMember}
               onUserSelectionChange={onUserSelectionChange}
+              excludeIds={members.map((m) => m.id)}
               triggerEl={
-                <Avatar 
+                <Avatar
                   size="small"
                   className="border-2 border-dashed border-gray-300 hover:border-gray-400 transition-all cursor-pointer hover:scale-105"
-                  style={{ 
-                    backgroundColor: 'transparent',
-                    color: '#6b7280',
-                    borderStyle: 'dashed'
+                  style={{
+                    backgroundColor: "transparent",
+                    color: "#6b7280",
+                    borderStyle: "dashed",
                   }}
                 >
                   <Plus size={12} />
@@ -206,7 +207,7 @@ const MembersList: React.FC<MembersListProps> = ({
             />
           )}
         </div>
-      </Tooltip> */}
+      </Tooltip>
     </div>
   );
 };

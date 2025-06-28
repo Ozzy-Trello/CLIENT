@@ -104,6 +104,7 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
           type: EnumCardAttributeType.CUSTOM_FIELD,
           value: "",
           operator: "equals" as FilterOperator,
+          field: item,
           options: [
             { label: "any", value: "any" },
             { label: "select", value: "select" },
@@ -188,6 +189,10 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
       filters: cleanedFilters,
     };
 
+    console.log(
+      "[Dashcard SAVE] payload:",
+      JSON.stringify(dashcardConfig, null, 2)
+    );
     onSave(dashcardConfig);
     setOpen(false);
   };
@@ -309,6 +314,78 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
                           />
                         ) : filter.type === EnumCardAttributeType.ASSIGNED ? (
                           <UserSelection onChange={onAssignedChange} />
+                        ) : filter.type ===
+                          EnumCardAttributeType.CUSTOM_FIELD ? (
+                          (() => {
+                            const field = (filter as any).field as
+                              | CustomField
+                              | undefined;
+                            if (!field) {
+                              return (
+                                <Input
+                                  size="small"
+                                  placeholder="Value"
+                                  value={(filter.value as string) || ""}
+                                  onChange={(e) =>
+                                    handleFilterValueChange(
+                                      filter.id,
+                                      e.target.value
+                                    )
+                                  }
+                                />
+                              );
+                            }
+
+                            // Dropdown type
+                            if (field.type === "dropdown") {
+                              if (field.source === "user") {
+                                return (
+                                  <UserSelection
+                                    width="100%"
+                                    size="small"
+                                    value={filter.value as string}
+                                    onChange={(val: string) =>
+                                      handleFilterValueChange(filter.id, val)
+                                    }
+                                  />
+                                );
+                              }
+
+                              // custom dropdown
+                              const opts = (field.options || []).map(
+                                (o: any) => ({
+                                  label: o.label,
+                                  value: o.value,
+                                })
+                              );
+                              return (
+                                <Select
+                                  size="small"
+                                  className="w-full"
+                                  options={opts}
+                                  value={filter.value as string}
+                                  onChange={(val: string) =>
+                                    handleFilterValueChange(filter.id, val)
+                                  }
+                                />
+                              );
+                            }
+
+                            // Fallback text input
+                            return (
+                              <Input
+                                size="small"
+                                placeholder="Value"
+                                value={(filter.value as string) || ""}
+                                onChange={(e) =>
+                                  handleFilterValueChange(
+                                    filter.id,
+                                    e.target.value
+                                  )
+                                }
+                              />
+                            );
+                          })()
                         ) : (
                           <Input
                             size="small"

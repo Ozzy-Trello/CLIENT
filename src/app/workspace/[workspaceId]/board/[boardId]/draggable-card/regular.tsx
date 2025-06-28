@@ -18,12 +18,29 @@ import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import dayjs from "dayjs";
 import { useAccountList } from "@hooks/account";
+import { useLabels } from "@hooks/label";
+import { CardLabel } from "@myTypes/label";
+import "./styles.css";
 
 interface RegularCardProps {
   card: Card;
   isHovered: boolean;
   onChange: (e: CheckboxChangeEvent) => void;
   isComplete: boolean;
+}
+
+// Utility: decide black/white text based on background color
+function getContrastTextColor(hex: string): string {
+  // Remove hash
+  const cleaned = hex.replace("#", "");
+  // Parse r,g,b
+  const bigint = parseInt(cleaned, 16);
+  const r = (bigint >> 16) & 255;
+  const g = (bigint >> 8) & 255;
+  const b = bigint & 255;
+  // Calculate relative luminance
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.5 ? "#000" : "#fff";
 }
 
 const RegularCard: React.FC<RegularCardProps> = (props) => {
@@ -47,6 +64,15 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
     boardId: card?.boardId || "",
   });
   const allUsers = usersQuery.data?.data || [];
+
+  // Fetch labels assigned to this card
+  const { cardLabels } = useLabels(
+    Array.isArray(workspaceId)
+      ? (workspaceId[0] as string)
+      : (workspaceId as string),
+    card.id,
+    { cardId: card.id }
+  );
 
   useEffect(() => {
     if (cardCustomFields) {
@@ -103,22 +129,44 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
 
       {/* Card content */}
       <div className="p-4">
+        {/* Labels */}
+        {cardLabels?.length > 0 && (
+          <div className="flex flex-wrap gap-1 mb-2">
+            {cardLabels.map((label: CardLabel) => {
+              const bg = label.value || "#CCCCCC";
+              const textColor = getContrastTextColor(bg);
+              return (
+                <span
+                  key={label.labelId || label.id}
+                  className="px-2 py-1 rounded leading-none"
+                  style={{
+                    backgroundColor: bg,
+                    color: textColor,
+                    fontSize: "12px",
+                  }}
+                >
+                  {label.name}
+                </span>
+              );
+            })}
+          </div>
+        )}
+
         {/* Card title */}
         <div className="flex items-center space-x-2 relative mb-3">
-          {isHovered && (
-            <Checkbox
-              className="custom-circular-checkbox absolute left-0 -ml-6 
-                          transition-all duration-300"
-              onChange={onChange}
-              onClick={(e) => e.stopPropagation()}
-              checked={isComplete}
-            />
-          )}
+          <Checkbox
+            className={`custom-circular-checkbox absolute left-0 -ml-6 transition-all duration-300 ${
+              isHovered || isComplete ? "opacity-100" : "opacity-0"
+            } ${isComplete ? "completed" : ""}`}
+            onChange={onChange}
+            onClick={(e) => e.stopPropagation()}
+            checked={isComplete}
+          />
           <h3
             className={`
               text-blue-800 font-semibold text-lg
               transition-all duration-300
-              ${isHovered ? "translate-x-6" : "translate-x-0"}
+              ${isHovered || isComplete ? "translate-x-6" : "translate-x-0"}
             `}
           >
             {card.name}
