@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { accountList, currentAccount, updateAccount } from "../api/account";
+import TokenStorage from "@utils/token-storage";
 
 export function useCurrentAccount() {
   return useQuery({
@@ -8,6 +9,7 @@ export function useCurrentAccount() {
     staleTime: 30 * 60 * 1000, // 30 minutes - data stays fresh
     refetchOnWindowFocus: true, // Auto-refresh when tab becomes active
     refetchOnMount: false, // Don't refetch if data is fresh
+    enabled: !!TokenStorage.getAccessToken(), // Only run if a valid access token exists
     retry: (failureCount, error: any) => {
       // Don't retry on auth errors
       if (error?.status === 401 || error?.status === 403) {
