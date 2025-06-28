@@ -15,6 +15,8 @@ import {
   RectangleEllipsis,
   QrCode,
   RotateCcw,
+  UserPlus,
+  UserMinus,
 } from "lucide-react";
 import PopoverCustomField from "@components/popover-custom-field";
 import PopoverUser from "@components/popover-user";
@@ -28,6 +30,9 @@ import PopoverAttach from "@components/popover-attach";
 import { useCardCopy, useCardMove, useCards } from "@hooks/card";
 import { useParams } from "next/navigation";
 import { useCardDetails } from "@hooks/card-details";
+import { useCurrentAccount } from "@hooks/account";
+import { useCardMembers } from "@hooks/card_member";
+import PopoverLabel from "@components/popover-label.tsx";
 
 const Actions: React.FC = () => {
   const [openCustomField, setOpenCustomField] = useState(false);
@@ -39,32 +44,106 @@ const Actions: React.FC = () => {
   const [openLocation, setOpenLocation] = useState(false);
   const [openAttach, setOpenAttach] = useState(false);
   const [openChecklist, setOpenChecklist] = useState(false);
-  const {boardId} = useParams();
+  const [openLabels, setOpenLabels] = useState(false);
+  const { boardId } = useParams();
   const { selectedCard } = useCardDetailContext();
-  const { archiveCard, unarchiveCard } = useCardDetails(selectedCard?.id || "", selectedCard?.listId || "", boardId as string);
+  const { archiveCard, unarchiveCard } = useCardDetails(
+    selectedCard?.id || "",
+    selectedCard?.listId || "",
+    boardId as string
+  );
+
+  // Get current user and card members
+  const { data: currentAccountData } = useCurrentAccount();
+  const currentUser = currentAccountData?.data;
+  const { isMember, toggleMember, isAddingMember, isRemovingMember } =
+    useCardMembers(selectedCard?.id || "");
+
+  // Handle join/leave card
+  const handleJoinLeave = async () => {
+    if (!currentUser?.id) {
+      message.error("Please log in to join this card");
+      return;
+    }
+
+    try {
+      await toggleMember(currentUser.id);
+      const action = isMember(currentUser.id) ? "left" : "joined";
+      message.success(`Successfully ${action} the card`);
+    } catch (error) {
+      message.error("Failed to update card membership");
+      console.error("Error toggling card membership:", error);
+    }
+  };
+
+  // Check if current user is a member
+  const isCurrentUserMember = currentUser?.id
+    ? isMember(currentUser.id)
+    : false;
 
   const menuItems = [
-    { icon: <Users size={14} />, label: "Join" },
     { icon: <Tag size={14} />, label: "Labels" },
     { icon: <CheckSquare size={14} />, label: "Checklist" },
   ];
 
-  const handleArchival = () =>{
+  const handleArchival = () => {
     if (selectedCard?.id) {
       if (selectedCard?.archive) {
-        unarchiveCard({cardId: selectedCard?.id});
+        unarchiveCard({ cardId: selectedCard?.id });
       } else {
         archiveCard({ cardId: selectedCard?.id });
       }
     }
-  }
+  };
 
   return (
     <div className="w-full rounded-lg">
+      {/* Join/Leave Button */}
+      <Tooltip
+        title={isCurrentUserMember ? "Leave this card" : "Join this card"}
+      >
+        <button
+          onClick={handleJoinLeave}
+          disabled={isAddingMember || isRemovingMember}
+          className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <span className="text-gray-600 text-xs">
+            {isCurrentUserMember ? (
+              <UserMinus size={14} />
+            ) : (
+              <UserPlus size={14} />
+            )}
+          </span>
+          <span className="text-xs">
+            {isAddingMember || isRemovingMember
+              ? "Loading..."
+              : isCurrentUserMember
+              ? "Leave"
+              : "Join"}
+          </span>
+        </button>
+      </Tooltip>
+
       {/* Menu Items */}
-      {/* Regular menu items (excluding Checklist) */}
+      {/* Labels Button */}
+      <PopoverLabel
+        open={openLabels}
+        setOpen={setOpenLabels}
+        triggerEl={
+          <Tooltip title="Manage card labels">
+            <button className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700">
+              <span className="text-gray-600 text-xs">
+                <Tag size={14} />
+              </span>
+              <span className="text-xs">Labels</span>
+            </button>
+          </Tooltip>
+        }
+      />
+
+      {/* Regular menu items (excluding Checklist and Labels) */}
       {menuItems
-        .filter(item => item.label !== "Checklist")
+        .filter((item) => item.label !== "Checklist" && item.label !== "Labels")
         .map((item, index) => (
           <button
             key={index}
@@ -73,9 +152,8 @@ const Actions: React.FC = () => {
             <span className="text-gray-600 text-xs">{item.icon}</span>
             <span className="text-xs">{item.label}</span>
           </button>
-        ))
-      }
-      
+        ))}
+
       {/* Checklist with Popover */}
       <PopoverChecklist
         open={openChecklist}
@@ -211,11 +289,11 @@ const Actions: React.FC = () => {
         </Tooltip>
 
         <Tooltip title="Archive this card">
-          <button 
+          <button
             className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700"
             onClick={handleArchival}
           >
-            { selectedCard?.archive ? (
+            {selectedCard?.archive ? (
               <>
                 <RotateCcw size={14} />
                 <span className="text-xs">Restore {selectedCard?.archive}</span>
@@ -225,11 +303,11 @@ const Actions: React.FC = () => {
                 <Archive size={14} />
                 <span className="text-xs">Archive {selectedCard?.archive}</span>
               </>
-            ) }
+            )}
           </button>
         </Tooltip>
 
-        { selectedCard?.archive && (
+        {selectedCard?.archive && (
           <Tooltip title="Delete this card">
             <button
               className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700"
@@ -239,7 +317,7 @@ const Actions: React.FC = () => {
               <span className="text-xs">Delete</span>
             </button>
           </Tooltip>
-        ) }
+        )}
 
         <Tooltip title="Share this card with others by copying the link">
           <button

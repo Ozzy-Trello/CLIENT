@@ -9,8 +9,8 @@ import { Card } from "@myTypes/card";
 import { useLabels } from "@hooks/label";
 
 interface LabelManagerProps {
-  popoverPage: 'home' | 'add' | 'update';
-  setPopoverPage: (page: 'home' | 'add' | 'update') => void;
+  popoverPage: "home" | "add" | "update";
+  setPopoverPage: (page: "home" | "add" | "update") => void;
   selectedLabel: CardLabel | undefined;
   setSelectedLabel: any;
   selectedCard: Card | null;
@@ -20,16 +20,21 @@ const Home: React.FC<LabelManagerProps> = (props) => {
   const { workspaceId } = useParams();
   const { setPopoverPage, setSelectedLabel, selectedCard } = props;
   const [searchTerm, setSearchTerm] = useState("");
-  const { labels, addCardLabel, removeCardLabel } = useLabels(workspaceId as string, selectedCard?.id, {cardId: selectedCard?.id});
+  const { labels, addCardLabel, removeCardLabel } = useLabels(
+    workspaceId as string,
+    selectedCard?.id,
+    { cardId: selectedCard?.id }
+  );
 
- const filteredLabels = useMemo(() => {
+  const filteredLabels = useMemo(() => {
     if (!labels) return [];
-    const unique = Array.from(new Map(labels.map(l => [l.labelId, l])).values());
-    return unique.filter(label =>
+    const unique = Array.from(
+      new Map(labels.map((l) => [l.labelId, l])).values()
+    );
+    return unique.filter((label) =>
       label.name?.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [searchTerm, labels]);
-
 
   const toggleCheck = async (isChecked: boolean, labelId: string) => {
     if (!selectedCard || !workspaceId) {
@@ -39,22 +44,22 @@ const Home: React.FC<LabelManagerProps> = (props) => {
 
     try {
       if (isChecked) {
-        addCardLabel({labelId});
+        addCardLabel({ labelId });
       } else {
-        removeCardLabel({labelId});
+        removeCardLabel({ labelId });
       }
     } catch (error) {
-      console.error("Failed to update label assignment:", error);      
+      console.error("Failed to update label assignment:", error);
     }
   };
 
   const handleEdit = (label: CardLabel) => {
     setSelectedLabel(label);
-    setPopoverPage('update');
+    setPopoverPage("update");
   };
 
   return (
-    <div className="w-64">
+    <div className="w-full">
       <Input
         placeholder="Search labels..."
         value={searchTerm}
@@ -63,17 +68,17 @@ const Home: React.FC<LabelManagerProps> = (props) => {
         size="small"
       />
 
-      <div className="space-y-2 max-h-64 overflow-y-auto">
+      <div className="space-y-1 max-h-64 overflow-y-auto">
         {filteredLabels?.map((label) => (
           <div
             key={label.id}
             className={`flex items-center justify-between px-2 py-1 rounded cursor-pointer transition ${
-              label.isAssigned 
-                ? "bg-blue-50 border border-blue-200" 
+              label.isAssigned
+                ? "bg-blue-50 border border-blue-200"
                 : "hover:bg-gray-100 border border-transparent"
             }`}
           >
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-1">
               <Checkbox
                 checked={!!label.isAssigned}
                 onChange={(e) => {
@@ -83,7 +88,7 @@ const Home: React.FC<LabelManagerProps> = (props) => {
                 }}
               />
               <div
-                className="px-2 py-0.5 text-sm text-black rounded"
+                className="px-3 py-1 text-sm text-black rounded-sm font-medium flex-1"
                 style={{ backgroundColor: label?.value }}
               >
                 {label.name}
@@ -92,7 +97,7 @@ const Home: React.FC<LabelManagerProps> = (props) => {
             <Tooltip title="Edit label">
               <button
                 onClick={() => handleEdit(label)}
-                className="p-1 hover:bg-gray-200 rounded-sm"
+                className="p-1 hover:bg-gray-200 rounded-sm transition-colors ml-2"
               >
                 <Pencil size={14} className="text-gray-500" />
               </button>
@@ -102,7 +107,7 @@ const Home: React.FC<LabelManagerProps> = (props) => {
       </div>
 
       <div className="mt-4 flex flex-col gap-2">
-        <Button block size="small" onClick={() => setPopoverPage('add')}>
+        <Button block size="small" onClick={() => setPopoverPage("add")}>
           Create a new label
         </Button>
         <Button block size="small" type="default">
