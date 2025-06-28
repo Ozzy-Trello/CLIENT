@@ -98,14 +98,14 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
         </Tooltip>
       ),
     },
-    {
-      key: "members",
-      label: "Members",
-    },
-    {
-      key: "share",
-      label: "Share",
-    },
+    // {
+    //   key: "members",
+    //   label: "Members",
+    // },
+    // {
+    //   key: "share",
+    //   label: "Share",
+    // },
   ];
 
   return (

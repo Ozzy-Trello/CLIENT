@@ -22,9 +22,11 @@ import ModalDashcard from "@components/dashcard/modal-dashcard";
 import { DashcardConfig } from "@myTypes/dashcard";
 import { Card, EnumCardType } from "@myTypes/card";
 import { AnyList } from "@myTypes/list";
-import { selectCurrentBoard } from "@store/workspace_slice";
+import { selectCurrentBoard, setCurrentBoard } from "@store/workspace_slice";
 import { useRealtimeUpdates } from "@hooks/websocket";
 import { usePermissions } from "@hooks/account";
+import { useBoardDetails } from "@hooks/board";
+import { useDispatch } from "react-redux";
 
 const DragDropContext = dynamic(
   () => import("@hello-pangea/dnd").then((mod) => mod.DragDropContext),
@@ -38,9 +40,18 @@ const Board: React.FC = () => {
   const { colors } = theme;
   const selectedUser = useSelector(selectUser);
   const { collapsed, siderSmall, siderWide } = useWorkspaceSidebar();
-  const { lists, addList, pagination, isLoading, updateList } = useLists(
-    Array.isArray(boardId) ? boardId[0] : boardId
-  );
+  const dispatch = useDispatch();
+
+  const resolvedBoardId = Array.isArray(boardId) ? boardId[0] : boardId;
+
+  const { lists, addList, pagination, isLoading, updateList } =
+    useLists(resolvedBoardId);
+
+  // Fetch board details and update Redux state when boardId changes
+  const { board: boardDetails } = useBoardDetails(resolvedBoardId || "", {
+    enabled: !!resolvedBoardId,
+  });
+
   const [listData, setListData] = useState<AnyList[]>();
   const [isAddingList, setIsAddingList] = useState<boolean>(false);
   const [newListName, setNewListName] = useState<string>("");
@@ -53,6 +64,13 @@ const Board: React.FC = () => {
   const selectedBoard = useSelector(selectCurrentBoard);
   const { isConnected } = useRealtimeUpdates();
   const { canCreate } = usePermissions();
+
+  // Update Redux state when board details are fetched (same pattern as sidebar)
+  useEffect(() => {
+    if (boardDetails && boardDetails.id !== selectedBoard?.id) {
+      dispatch(setCurrentBoard(boardDetails));
+    }
+  }, [boardDetails, selectedBoard?.id, dispatch]);
 
   const onListDragEnd = useCallback(
     (result: DropResult) => {
@@ -105,7 +123,7 @@ const Board: React.FC = () => {
       listId: listId,
       previousPosition: sourceIndex,
       targetPosition: destIndex,
-      boardId: Array.isArray(boardId) ? boardId[0] : boardId,
+      boardId: resolvedBoardId,
     });
   };
 
@@ -153,11 +171,11 @@ const Board: React.FC = () => {
   };
 
   const handleAddList = (): void => {
-    if (!newListName || !boardId) return;
+    if (!newListName || !resolvedBoardId) return;
 
     const newList: AnyList = {
       id: generateId(),
-      boardId: Array.isArray(boardId) ? boardId[0] : boardId,
+      boardId: resolvedBoardId,
       name: newListName,
     };
     addList(newList);
@@ -225,9 +243,7 @@ const Board: React.FC = () => {
                           list={list}
                           setListsState={setListData}
                           index={index}
-                          boardId={
-                            Array.isArray(boardId) ? boardId[0] : boardId
-                          }
+                          boardId={resolvedBoardId}
                           updateList={updateList}
                         />
                       );

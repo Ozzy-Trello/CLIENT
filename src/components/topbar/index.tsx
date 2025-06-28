@@ -17,14 +17,65 @@ import ModalRequestSent from "../modal-request-sent";
 import { searchCards } from "@api/card";
 import { Card } from "@myTypes/card";
 import TokenStorage from "@utils/token-storage";
+import { useCurrentAccount } from "@hooks/account";
+import {
+  useUnifiedSearch,
+  SearchResult,
+  GroupedSearchResults,
+} from "@hooks/search";
+import { selectCurrentWorkspace } from "@store/workspace_slice";
 
 const { Text } = Typography;
 
-enum MockRole {
-  Supervisor = "supervisor",
-  Warehouse = "warehouse",
-  Production = "production",
-}
+// Role categorization utility
+const getRoleCategory = (
+  roleName: string
+): "super_admin" | "supervisor" | "warehouse" | "production" => {
+  if (roleName === "Super Admin") {
+    return "super_admin";
+  }
+
+  if (roleName.includes("SPV") || roleName.includes("Supervisor")) {
+    return "supervisor";
+  }
+
+  if (roleName.includes("Warehouse")) {
+    return "warehouse";
+  }
+
+  // Everyone else is production
+  return "production";
+};
+
+// Check if user can access certain features based on role
+const canAccessFeature = (
+  userRole: string,
+  feature: "request" | "list_request" | "warehouse"
+): boolean => {
+  const roleCategory = getRoleCategory(userRole);
+
+  // Super Admin can access everything
+  if (roleCategory === "super_admin") {
+    return true;
+  }
+
+  switch (feature) {
+    case "request":
+      // Production can make requests
+      return roleCategory === "production";
+
+    case "list_request":
+      // Supervisors can view requests
+      return roleCategory === "supervisor";
+
+    case "warehouse":
+      // Warehouse roles can access warehouse features
+      return roleCategory === "warehouse";
+
+    default:
+      return false;
+  }
+};
 
 const TopBar: React.FC = React.memo(() => {
   const [notificationVisible, setNotificationVisible] = useState(false);
@@ -33,9 +84,7 @@ const TopBar: React.FC = React.memo(() => {
   const [modalListRequestOpen, setModalListRequestOpen] = useState(false);
   const [modalRequestSentOpen, setModalRequestSentOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<Card[]>([]);
   const [recentlyViewedCards, setRecentlyViewedCards] = useState<Card[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const theme = useSelector(selectTheme);
@@ -43,12 +92,26 @@ const TopBar: React.FC = React.memo(() => {
   const dispatch = useDispatch();
   const router = useRouter();
   const user = useSelector(selectUser);
+  const currentWorkspace = useSelector(selectCurrentWorkspace);
+
+  // Use unified search hook
+  const {
+    data: searchResults = { cards: [], boards: [] },
+    isLoading: isSearching,
+  } = useUnifiedSearch(searchQuery, currentWorkspace?.id, {
+    enabled: !!searchQuery && searchQuery.trim().length > 0,
+  });
   const notificationItems: MenuProps["items"] = [
     { key: "1", label: "Notification 1" },
     { key: "2", label: "Notification 2" },
     { key: "3", label: "Notification 3" },
   ];
-  const [mockRole, setMockRole] = useState(MockRole.Supervisor);
+  // Get current user and role
+  const { data: currentAccountData } = useCurrentAccount();
+  const currentUser = currentAccountData?.data;
+  const userRole = currentUser?.role?.name || "";
+  const roleCategory = getRoleCategory(userRole);
+
   const handleLogout = () => {
     router.push("/login");
     TokenStorage.clearTokens();
@@ -87,28 +150,14 @@ const TopBar: React.FC = React.memo(() => {
   ];
 
   // Handle search input change
-  const handleSearchChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
     setSearchQuery(query);
 
     if (query.trim()) {
-      setIsSearching(true);
       setShowSearchDropdown(true);
-
-      try {
-        const results = await searchCards({ name: query, desription: query });
-        if (results && results?.data) {
-          setSearchResults(results.data);
-        }
-      } catch (error) {
-        console.error("Search failed:", error);
-        setSearchResults([]);
-      } finally {
-        setIsSearching(false);
-      }
     } else {
       setShowSearchDropdown(false);
-      setSearchResults([]);
     }
   };
 
@@ -133,6 +182,23 @@ const TopBar: React.FC = React.memo(() => {
   const handleSearchFocus = () => {
     setShowSearchDropdown(true);
   };
+
+  // Handle clicking on search results
+  const handleSearchResultClick = (result: SearchResult) => {
+    setShowSearchDropdown(false);
+    setSearchQuery("");
+
+    if (result.type === "card") {
+      router.push(
+        `/workspace/${currentWorkspace?.id}/board/${result.boardId}?listId=${result.listId}&cardId=${result.id}`
+      );
+    } else if (result.type === "board") {
+      const workspaceId = result.workspace_id || currentWorkspace?.id;
+      if (workspaceId) {
+        router.push(`/workspace/${workspaceId}/board/${result.id}`);
+      }
+    }
+  };
   return (
     <div className="flex items-center justify-between h-[45px]">
       <div className="flex items-center gap-2">
@@ -145,44 +211,30 @@ const TopBar: React.FC = React.memo(() => {
             alt="Ozzy Clothing logo"
           />
         </Link>
-        <WorkspaceSelection />
+        {userRole && (
+          <div className="flex items-center gap-2">
+            <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+              {roleCategory.replace("_", " ").toUpperCase()}
+            </span>
+          </div>
+        )}
+        {/* <WorkspaceSelection /> */}
       </div>
 
       <div className="flex items-center gap-5 w-100vh">
-        <Dropdown
-          menu={{
-            items: [
-              {
-                key: "supervisor",
-                label: "Supervisor",
-                onClick: () => setMockRole(MockRole.Supervisor),
-              },
-              {
-                key: "warehouse",
-                label: "Warehouse",
-                onClick: () => setMockRole(MockRole.Warehouse),
-              },
-              {
-                key: "production",
-                label: "Production",
-                onClick: () => setMockRole(MockRole.Production),
-              },
-            ],
-          }}
-        >
-          <Button>{mockRole}</Button>
-        </Dropdown>
-        {mockRole === MockRole.Production && (
+        {canAccessFeature(userRole, "request") && (
           <Button onClick={() => setModalRequestOpen(true)}>
             Buat Request
           </Button>
         )}
-        {mockRole === MockRole.Supervisor && (
+
+        {canAccessFeature(userRole, "list_request") && (
           <Button onClick={() => setModalListRequestOpen(true)}>
             Lihat Request
           </Button>
         )}
-        {mockRole === MockRole.Warehouse && (
+
+        {canAccessFeature(userRole, "warehouse") && (
           <Button onClick={() => setModalRequestSentOpen(true)}>Gudang</Button>
         )}
 
@@ -190,14 +242,18 @@ const TopBar: React.FC = React.memo(() => {
           <Input
             placeholder="Search…"
             prefix={<i className="fi fi-rr-search" />}
-            className="w-[200px] rounded"
+            className={`rounded transition-all duration-200 ease-in-out`}
+            style={{ width: showSearchDropdown ? "500px" : "200px" }}
             value={searchQuery}
             onChange={handleSearchChange}
             onFocus={handleSearchFocus}
           />
 
           {showSearchDropdown && (
-            <div className="absolute z-50 top-full left-0 mt-1 w-80 bg-white rounded-md shadow-lg border border-gray-200">
+            <div
+              className="absolute z-50 top-full left-0 mt-1 bg-white rounded-md shadow-lg border border-gray-200"
+              style={{ width: showSearchDropdown ? "500px" : "200px" }}
+            >
               <div className="max-h-80 overflow-auto p-2">
                 {isSearching ? (
                   <div className="flex justify-center py-4">
@@ -206,46 +262,121 @@ const TopBar: React.FC = React.memo(() => {
                 ) : searchQuery ? (
                   <div className="w-full">
                     <Text strong>Search Results</Text>
-                    <List
-                      dataSource={searchResults}
-                      renderItem={(item) => (
-                        <List.Item
-                          key={item.id}
-                          className="w-full cursor-pointer hover:bg-gray-50 px-2 rounded"
-                        >
-                          <List.Item.Meta
-                            avatar={
-                              item.cover ? (
-                                <img
-                                  src={item.cover}
-                                  alt={item.name}
-                                  className="w-12 h-auto object-cover rounded"
-                                />
-                              ) : (
-                                <div className="flex justify-center items-center w-12 h-8 rounded bg-gray-200">
-                                  <Avatar
-                                    shape="square"
-                                    size="small"
-                                    src={`https://ui-avatars.com/api/?name=${item?.name}&background=random`}
-                                  ></Avatar>
-                                </div>
-                              )
-                            }
-                            title={item.name}
-                            description={
-                              <div
-                                className="prose prose-sm max-w-none text-[10px]"
-                                dangerouslySetInnerHTML={{
-                                  __html: item.description || "",
-                                }}
+
+                    {/* Cards Section */}
+                    {searchResults.cards.length > 0 && (
+                      <div className="mb-4">
+                        <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide px-2 py-1">
+                          Cards
+                        </div>
+                        <List
+                          dataSource={searchResults.cards}
+                          renderItem={(item) => (
+                            <List.Item
+                              key={item.id}
+                              className="w-full cursor-pointer hover:bg-gray-50 px-2 rounded py-1"
+                              onClick={() => handleSearchResultClick(item)}
+                            >
+                              <List.Item.Meta
+                                avatar={
+                                  item.cover ? (
+                                    <img
+                                      src={item.cover}
+                                      alt={item.name}
+                                      className="w-8 h-6 object-cover rounded"
+                                    />
+                                  ) : (
+                                    <div className="flex justify-center items-center w-8 h-6 rounded bg-gray-200">
+                                      <FileOutlined className="text-gray-500 text-xs" />
+                                    </div>
+                                  )
+                                }
+                                title={
+                                  <span className="text-sm">{item.name}</span>
+                                }
+                                description={
+                                  item.description ? (
+                                    <div
+                                      className="prose prose-sm max-w-none text-[10px] text-gray-500 line-clamp-1"
+                                      dangerouslySetInnerHTML={{
+                                        __html:
+                                          item.description.substring(0, 50) +
+                                          (item.description.length > 50
+                                            ? "..."
+                                            : ""),
+                                      }}
+                                    />
+                                  ) : null
+                                }
                               />
-                            }
-                          />
-                        </List.Item>
+                            </List.Item>
+                          )}
+                          className="border-0"
+                        />
+                      </div>
+                    )}
+
+                    {/* Separator */}
+                    {searchResults.cards.length > 0 &&
+                      searchResults.boards.length > 0 && (
+                        <div className="border-t border-gray-200 my-2"></div>
                       )}
-                      locale={{ emptyText: "No results found" }}
-                      className="max-h-48 overflow-auto"
-                    />
+
+                    {/* Boards Section */}
+                    {searchResults.boards.length > 0 && (
+                      <div>
+                        <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide px-2 py-1">
+                          Boards
+                        </div>
+                        <List
+                          dataSource={searchResults.boards}
+                          renderItem={(item) => (
+                            <List.Item
+                              key={item.id}
+                              className="w-full cursor-pointer hover:bg-gray-50 px-2 rounded py-1"
+                              onClick={() => handleSearchResultClick(item)}
+                            >
+                              <List.Item.Meta
+                                avatar={
+                                  <div className="flex justify-center items-center w-8 h-6 rounded bg-blue-100">
+                                    <i className="fi fi-rr-layout-fluid text-blue-600 text-xs"></i>
+                                  </div>
+                                }
+                                title={
+                                  <span className="text-sm font-medium">
+                                    {item.name}
+                                  </span>
+                                }
+                                description={
+                                  item.description ? (
+                                    <div
+                                      className="prose prose-sm max-w-none text-[10px] text-gray-500 line-clamp-1"
+                                      dangerouslySetInnerHTML={{
+                                        __html:
+                                          item.description.substring(0, 50) +
+                                          (item.description.length > 50
+                                            ? "..."
+                                            : ""),
+                                      }}
+                                    />
+                                  ) : null
+                                }
+                              />
+                            </List.Item>
+                          )}
+                          className="border-0"
+                        />
+                      </div>
+                    )}
+
+                    {/* No Results */}
+                    {searchResults.cards.length === 0 &&
+                      searchResults.boards.length === 0 &&
+                      !isSearching && (
+                        <div className="text-center py-4 text-gray-500 text-sm">
+                          No results found
+                        </div>
+                      )}
                   </div>
                 ) : (
                   <div className="w-full">
