@@ -349,6 +349,26 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
                                     }
                                   />
                                 );
+                              } else if (
+                                field.source?.startsWith("user-role:")
+                              ) {
+                                // Role-based user selection
+                                const roleIds = field.source
+                                  .slice(10)
+                                  .split(",")
+                                  .map((s) => s.trim())
+                                  .filter(Boolean);
+                                return (
+                                  <UserSelection
+                                    width="100%"
+                                    size="small"
+                                    value={filter.value as string}
+                                    onChange={(val: string) =>
+                                      handleFilterValueChange(filter.id, val)
+                                    }
+                                    roleIds={roleIds}
+                                  />
+                                );
                               }
 
                               // custom dropdown
