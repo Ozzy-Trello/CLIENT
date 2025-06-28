@@ -2,13 +2,14 @@ import { api } from ".";
 import { ApiResponse } from "../types/type";
 
 export interface SearchResult {
+  [x: string]: any;
   id: string;
   name: string;
   description?: string;
   type: "card" | "board";
-  board_id?: string;
+  boardId?: string;
   board_name?: string;
-  list_id?: string;
+  listId?: string;
   list_name?: string;
   workspace_id?: string;
   workspace_name?: string;
