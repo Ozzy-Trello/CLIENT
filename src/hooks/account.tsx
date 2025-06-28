@@ -34,13 +34,15 @@ export function useUpdateAccount() {
 export function useAccountList({
   workspaceId,
   boardId,
+  roleIds = [],
 }: {
   workspaceId: string;
   boardId: string;
+  roleIds?: string[];
 }) {
   return useQuery({
-    queryKey: ["accountList", workspaceId, boardId],
-    queryFn: () => accountList(workspaceId, boardId),
+    queryKey: ["accountList", workspaceId, boardId, roleIds],
+    queryFn: () => accountList(workspaceId, boardId, roleIds),
     enabled: !!workspaceId && !!boardId,
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: false,

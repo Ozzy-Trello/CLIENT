@@ -17,10 +17,12 @@ import {
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import dayjs from "dayjs";
-import { useAccountList } from "@hooks/account";
+import { LookupCache } from "@utils/lookup-cache";
 import { useLabels } from "@hooks/label";
 import { CardLabel } from "@myTypes/label";
 import "./styles.css";
+import { userDetails } from "@api/account";
+import { fetchLookups } from "@utils/fetch-lookups";
 
 interface RegularCardProps {
   card: Card;
@@ -55,15 +57,8 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
     []
   );
   const { cardAttachments } = useCardAttachment(card.id);
-
-  // Fetch all users for this workspace/board (cached by react-query)
-  const usersQuery = useAccountList({
-    workspaceId: Array.isArray(workspaceId)
-      ? workspaceId[0]
-      : (workspaceId as string),
-    boardId: card?.boardId || "",
-  });
-  const allUsers = usersQuery.data?.data || [];
+  // local version state to force re-render after lookups populate
+  const [lookupVersion, setLookupVersion] = useState(0);
 
   // Fetch labels assigned to this card
   const { cardLabels } = useLabels(
@@ -80,6 +75,29 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
       setfrontCustomFields(filtered);
     }
   }, cardCustomFields);
+
+  // Ensure any referenced userIds are cached for quick label lookup
+  useEffect(() => {
+    const userIds: string[] = [];
+    // from custom fields
+    cardCustomFields?.forEach((f) => {
+      if (f.valueUserId) userIds.push(f.valueUserId);
+    });
+    // from card members
+    cardMembers?.forEach((m: any) => {
+      if (m.id) userIds.push(m.id);
+    });
+
+    const unique = Array.from(new Set(userIds));
+    const unknown = unique.filter((id) => !LookupCache.label("user", id));
+
+    if (unknown.length) {
+      (async () => {
+        await fetchLookups("user", unknown, userDetails as any);
+        setLookupVersion((v) => v + 1);
+      })();
+    }
+  }, [cardCustomFields, cardMembers]);
 
   const imageCover = useMemo(() => {
     let url = "";
@@ -236,6 +254,7 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
         {/* Custom fields */}
         <div className="space-y-2 mb-3">
           {cardCustomFields?.map((item: CardCustomField, index) => {
+            console.log(item, "<< ini item");
             if (!item.isShowAtFront) return null;
 
             const renderValue = () => {
@@ -255,10 +274,10 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
               }
 
               if (item.valueUserId) {
-                const user = allUsers.find(
-                  (u: any) => u.id === item.valueUserId
-                );
-                return user?.name || user?.username || "-";
+                const name =
+                  LookupCache.label("user", item.valueUserId) ||
+                  LookupCache.any(item.valueUserId);
+                return name || "-";
               }
 
               // dropdown or text/number fallback

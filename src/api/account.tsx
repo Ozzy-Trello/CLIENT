@@ -16,9 +16,15 @@ export const updateAccount = async (
 
 export const accountList = async (
   workspaceId: string,
-  boardId: string
+  boardId: string,
+  roleIds: string[] = []
 ): Promise<ApiResponse<Account[]>> => {
-  const { data } = await api.get("/account/list", {
+  const params = new URLSearchParams();
+  if (roleIds.length > 0) {
+    params.append("roleIds", roleIds.join(","));
+  }
+
+  const { data } = await api.get(`/account/list?${params.toString()}`, {
     headers: { "workspace-id": workspaceId, "board-id": boardId },
   });
   return data as ApiResponse<Account[]>;

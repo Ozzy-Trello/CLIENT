@@ -46,12 +46,13 @@ export interface SelectionRef {
 interface SelectionProps {
   placeholder?: string;
   width?: string | number;
-  size?: "large" | "middle" | "small";
+  size?: "small" | "middle" | "large";
   style?: React.CSSProperties;
   className?: string;
   value?: string;
-  onChange?: (value: string, option?: any) => void;
+  onChange?: (value: string, option: any) => void;
   excludeIds?: string[];
+  roleIds?: string[];
   [key: string]: any; // Allow additional props
 }
 
@@ -66,6 +67,7 @@ export const UserSelection = forwardRef<SelectionRef, SelectionProps>(
       value,
       onChange,
       excludeIds = [],
+      roleIds = [],
     },
     ref
   ) => {
@@ -132,6 +134,7 @@ export const UserSelection = forwardRef<SelectionRef, SelectionProps>(
         boardId: Array.isArray(boardId)
           ? (boardId[0] as string)
           : (boardId as string),
+        roleIds: roleIds,
       });
 
     // Build Select options whenever the list or excludeIds change
@@ -514,21 +517,48 @@ export const FieldValueInput = forwardRef<SelectionRef, FieldValueInputProps>(
     const [userOptions, setUserOptions] = useState<
       Array<{ label: string; value: string }>
     >([]);
+
+    // Parse role IDs from source if it's role-based
+    const parseRoleSource = (source: string): string[] => {
+      if (source?.startsWith("user-role:")) {
+        return source
+          .slice(10)
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean);
+      }
+      return [];
+    };
+
+    const roleIds = field?.source?.startsWith("user-role:")
+      ? parseRoleSource(field.source)
+      : [];
+
     const usersQuery = useAccountList({
       workspaceId: workspaceId as string,
       boardId: boardId as string,
+      roleIds: roleIds, // Pass role IDs for filtering
     });
 
     console.log(field, "field");
 
     // Only fetch users when needed
     useEffect(() => {
-      if (field?.source !== "user" || !workspaceId || !boardId) return;
+      if (
+        (field?.source !== "user" &&
+          !field?.source?.startsWith("user-role:")) ||
+        !workspaceId ||
+        !boardId
+      )
+        return;
       usersQuery.refetch();
     }, [field?.source, workspaceId, boardId]);
 
     useEffect(() => {
-      if (field?.source === "user" && usersQuery.data?.data) {
+      if (
+        (field?.source === "user" || field?.source?.startsWith("user-role:")) &&
+        usersQuery.data?.data
+      ) {
         setUserOptions(
           usersQuery.data.data.map(
             (item: { username: string; id: string; name?: string }) => ({
@@ -564,7 +594,7 @@ export const FieldValueInput = forwardRef<SelectionRef, FieldValueInputProps>(
       onChange?.(val, option);
     };
 
-    if (field?.source === "user") {
+    if (field?.source === "user" || field?.source?.startsWith("user-role:")) {
       return (
         <Select
           style={{ width: "10%" }}

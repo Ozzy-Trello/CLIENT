@@ -12,6 +12,7 @@ import { Button, Checkbox, Form, Input, message, Select, Spin } from "antd";
 import { Trash } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { parse } from "path";
 
 interface AddUpdateFieldProps {
   popoverPage: string;
@@ -50,6 +51,21 @@ const AddUpdateField: React.FC<AddUpdateFieldProps> = (props) => {
   const [roles, setRoles] = useState<Role[]>([]);
   const [loadingRoles, setLoadingRoles] = useState<boolean>(false);
 
+  // state for role filter when source is user-role
+  const [roleFilterIds, setRoleFilterIds] = useState<string[]>([]);
+
+  // helper to parse source
+  const parseRoleSource = (src: string): string[] => {
+    if (src?.startsWith("user-role:")) {
+      return src
+        .slice(10)
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+    }
+    return [];
+  };
+
   const [newField, setNewField] = useState<CustomField>({
     id: generateId(),
     workspaceId: currentWorkspaceId || "",
@@ -66,6 +82,7 @@ const AddUpdateField: React.FC<AddUpdateFieldProps> = (props) => {
   useEffect(() => {
     if (popoverPage === "update" && selectedCustomField) {
       setNewField(selectedCustomField);
+      setRoleFilterIds(parseRoleSource(selectedCustomField.source));
     } else if (popoverPage === "add") {
       // Reset to default when adding new field
       setNewField({
@@ -79,6 +96,7 @@ const AddUpdateField: React.FC<AddUpdateFieldProps> = (props) => {
         canView: [],
         canEdit: [],
       });
+      setRoleFilterIds([]);
     }
   }, [popoverPage, selectedCustomField, currentWorkspaceId]); // Fixed dependencies
 
@@ -189,10 +207,31 @@ const AddUpdateField: React.FC<AddUpdateFieldProps> = (props) => {
   };
 
   const handleSave = async () => {
-    const fieldToSave = isAddMode ? newField : selectedCustomField;
+    const fieldToSave: CustomField | undefined = isAddMode
+      ? newField
+      : selectedCustomField;
+
+    if (!fieldToSave) {
+      message.error("Missing field data");
+      return;
+    }
+
+    // inject source with role IDs if needed
+    if (
+      fieldToSave.type === EnumCustomFieldType.Dropdown &&
+      fieldToSave.source === "user-role"
+    ) {
+      const roleEncoded = roleFilterIds.join(",");
+      const encodedSource = `user-role:${roleEncoded}`;
+      if (isAddMode) {
+        fieldToSave.source = encodedSource;
+      } else if (selectedCustomField) {
+        selectedCustomField.source = encodedSource;
+      }
+    }
 
     // Validation
-    if (!fieldToSave?.name) {
+    if (!fieldToSave.name) {
       message.error("Field name is required");
       return;
     }
@@ -217,6 +256,7 @@ const AddUpdateField: React.FC<AddUpdateFieldProps> = (props) => {
           canView: [],
           canEdit: [],
         });
+        setRoleFilterIds([]);
       }
     } else if (!isAddMode && selectedCustomField) {
       // Update existing field
@@ -327,12 +367,10 @@ const AddUpdateField: React.FC<AddUpdateFieldProps> = (props) => {
                 id="field-source"
                 className="w-full"
                 value={currentField?.source}
-                onChange={(value) => {
-                  if (typeof value === "string") {
-                    change("source", value);
-                  } else {
-                    change("source", JSON.stringify(value));
-                  }
+                onChange={(val: any) => {
+                  const v = typeof val === "string" ? val : val?.value ?? "";
+                  change("source", String(v));
+                  if (v !== "user-role") setRoleFilterIds([]);
                 }}
                 options={[
                   {
@@ -342,6 +380,10 @@ const AddUpdateField: React.FC<AddUpdateFieldProps> = (props) => {
                   {
                     value: EnumCustomFieldSource.User,
                     label: EnumCustomFieldSource.User.toWellFormed(),
+                  },
+                  {
+                    value: "user-role",
+                    label: "User (by role)",
                   },
                 ]}
               />
@@ -401,6 +443,27 @@ const AddUpdateField: React.FC<AddUpdateFieldProps> = (props) => {
                   </Button>
                 </Form.Item>
               </Form>
+            )}
+
+            {/* Role filter select */}
+            {currentField?.source === "user-role" && (
+              <div className="mb-3 text-xs">
+                <label className="block mb-1.5 font-medium text-gray-600">
+                  Allowed Roles
+                </label>
+                {loadingRoles ? (
+                  <Spin size="small" />
+                ) : (
+                  <Select
+                    mode="multiple"
+                    size="small"
+                    className="w-full"
+                    value={roleFilterIds}
+                    onChange={(vals) => setRoleFilterIds(vals as string[])}
+                    options={roles.map((r) => ({ value: r.id, label: r.name }))}
+                  />
+                )}
+              </div>
             )}
           </>
         )}
