@@ -1,0 +1,6 @@
+/* ... existing global styles ... */
+.custom-circular-checkbox.completed .ant-checkbox-inner,
+.custom-circular-checkbox.completed.ant-checkbox-checked .ant-checkbox-inner {
+  background-color: #22c55e; /* tailwind green-500 */
+  border-color: #22c55e;
+} 

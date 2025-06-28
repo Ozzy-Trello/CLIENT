@@ -11,19 +11,17 @@ import {
 import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
 
 import { useWorkspaces } from "@hooks/workspace";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import {
   selectCurrentWorkspace,
   setCurrentWorkspace,
 } from "@store/workspace_slice";
 import { useParams, useRouter } from "next/navigation";
-import { accountList } from "@api/account";
-import { useSelector } from "react-redux";
-import { useLists } from "@hooks/list";
-import { useCustomFields } from "@hooks/custom_field";
 import { useAccountList } from "@hooks/account";
 import { Card } from "@myTypes/card";
 import { cards } from "@api/card";
+import { useLists } from "@hooks/list";
+import { useCustomFields } from "@hooks/custom_field";
 
 // Global SELECTION props
 
@@ -53,6 +51,7 @@ interface SelectionProps {
   className?: string;
   value?: string;
   onChange?: (value: string, option?: any) => void;
+  excludeIds?: string[];
   [key: string]: any; // Allow additional props
 }
 
@@ -66,6 +65,7 @@ export const UserSelection = forwardRef<SelectionRef, SelectionProps>(
       className = "",
       value,
       onChange,
+      excludeIds = [],
     },
     ref
   ) => {
@@ -123,34 +123,40 @@ export const UserSelection = forwardRef<SelectionRef, SelectionProps>(
       }
     };
 
-    // Fetch user data
+    // Fetch user data via react-query (cached across components)
+    const { data: accountListData, isLoading: accountListLoading } =
+      useAccountList({
+        workspaceId: Array.isArray(workspaceId)
+          ? (workspaceId[0] as string)
+          : (workspaceId as string),
+        boardId: Array.isArray(boardId)
+          ? (boardId[0] as string)
+          : (boardId as string),
+      });
+
+    // Build Select options whenever the list or excludeIds change
     useEffect(() => {
-      const fetchData = async () => {
-        const wsId = Array.isArray(workspaceId) ? workspaceId[0] : workspaceId;
-        const bId = Array.isArray(boardId) ? boardId[0] : boardId;
-        const result = await accountList(wsId, bId);
+      if (!accountListData?.data) return;
 
-        if (result && result.data) {
-          const opt = result.data.map((item) => ({
-            value: item.id,
-            label: (
-              <div className="flex justify-start items-center gap-3">
-                <Avatar
-                  size={20}
-                  className="bg-blue-50 text-blue-500 border border-blue-100"
-                >
-                  {item.username?.substring(0, 2)?.toUpperCase()}
-                </Avatar>
-                <Typography.Text>{item.username}</Typography.Text>
-              </div>
-            ),
-          }));
-          setOptions(opt);
-        }
-      };
+      const opt = accountListData.data
+        .filter((u) => !excludeIds.includes(u.id))
+        .map((item) => ({
+          value: item.id,
+          label: (
+            <div className="flex justify-start items-center gap-3">
+              <Avatar
+                size={20}
+                className="bg-blue-50 text-blue-500 border border-blue-100"
+              >
+                {item.username?.substring(0, 2)?.toUpperCase()}
+              </Avatar>
+              <Typography.Text>{item.username}</Typography.Text>
+            </div>
+          ),
+        }));
 
-      fetchData();
-    }, [workspaceId, boardId]);
+      setOptions(opt);
+    }, [accountListData, excludeIds]);
 
     // When options change, update the selected object if value is already set
     useEffect(() => {

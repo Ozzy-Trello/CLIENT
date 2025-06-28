@@ -1012,11 +1012,13 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
       }
     });
 
-    // Ensure constant action field included when label lacks <action> placeholder
+    // Ensure constant action field included and base type filled even when no placeholders
     const itemConfig = (actionsData[groupIndex]?.items?.[index] as any) ?? {};
     if (itemConfig?.[EnumSelectionType.Action]) {
       if (!newActionItem.selectedActionItem)
         newActionItem.selectedActionItem = { type: "", label: "" } as any;
+      if (newActionItem.selectedActionItem)
+        newActionItem.selectedActionItem.type = itemConfig.type || "";
       const actionConfig = itemConfig[EnumSelectionType.Action];
       // Extract the actual enum value from the nested structure
       const actionValue = actionConfig?.value?.value || actionConfig?.value;

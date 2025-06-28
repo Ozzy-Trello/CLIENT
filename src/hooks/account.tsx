@@ -39,9 +39,11 @@ export function useAccountList({
   boardId: string;
 }) {
   return useQuery({
-    queryKey: ["accountList"],
+    queryKey: ["accountList", workspaceId, boardId],
     queryFn: () => accountList(workspaceId, boardId),
     enabled: !!workspaceId && !!boardId,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
   });
 }
 
