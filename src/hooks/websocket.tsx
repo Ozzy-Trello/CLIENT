@@ -99,6 +99,27 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             });
             break;
 
+          case EnumUserActionEvent.CardRenamed:
+            const {
+              card: renamedCard,
+              listId: renamedListId,
+              previousName,
+              renamedBy,
+            } = message.data;
+            console.log(
+              `Card ${renamedCard.id} renamed from "${previousName}" to "${renamedCard.name}" in list ${renamedListId} by ${renamedBy}`
+            );
+
+            // Invalidate relevant queries to refresh the UI
+            queryClient.invalidateQueries({ queryKey: queryKeys.lists.all });
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.cards.list(renamedListId),
+            });
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.cards.detail(renamedCard.id),
+            });
+            break;
+
           case EnumUserActionEvent.CardCreated:
             const { card: newCard, listId: newCardListId } = message.data;
             console.log(

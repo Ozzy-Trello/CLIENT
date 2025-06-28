@@ -1280,6 +1280,38 @@ export const actions: AutomationRuleAction[] = [
     type: "card_content",
     label: "Card Content",
     icon: <MessageSquare />,
+    items: [
+      {
+        type: ActionType.RenameCard,
+        label: "rename the card to <text_input>",
+        [EnumSelectionType.Action]: {
+          options: [{ value: EnumActions.RenameCard, label: "rename" }],
+          value: { value: EnumActions.RenameCard, label: "rename" },
+        },
+        [EnumSelectionType.TextInput]: {
+          placeholder: "New card title",
+          value: "",
+        },
+      },
+      {
+        type: ActionType.SetCardDescription,
+        label: "set the card's description to <text_input>",
+        [EnumSelectionType.Action]: {
+          options: [
+            { value: EnumActions.SetCardDescription, label: "set description" },
+          ],
+          value: {
+            value: EnumActions.SetCardDescription,
+            label: "set description",
+          },
+        },
+        [EnumSelectionType.TextInput]: {
+          placeholder: "Card description",
+          value: "",
+          isRichText: true, // Special flag to indicate this should use rich text editor
+        },
+      },
+    ],
   },
   {
     type: "fields",

@@ -24,6 +24,7 @@ import { EnumSelectionType, EnumTextType } from "@myTypes/automation-rule";
 import { EnumInputType } from "@myTypes/automation-rule";
 import { ActionType } from "@myTypes/automation-rule";
 import dayjs from "dayjs";
+import RichTextInput from "@components/rich-text-input";
 
 // Helper function to extract placeholders from a pattern
 function extractPlaceholders(pattern: string): string[] {
@@ -337,7 +338,35 @@ const renderLabelWithSelects = (
             const data = item[placeholder] as {
               placeholder?: string;
               value: string;
+              isRichText?: boolean;
             };
+
+            // Use RichTextInput for description fields
+            if (data?.isRichText) {
+              return (
+                <RichTextInput
+                  key={`action-rich-input-${indexPart}`}
+                  value={data?.value || ""}
+                  placeholder={data?.placeholder || "Enter description..."}
+                  onChange={(value) => {
+                    const updatedActions = [...props.actionsData];
+                    if (updatedActions[groupIndex]?.items?.[index]) {
+                      (updatedActions[groupIndex].items[index] as any)[
+                        placeholder
+                      ] = {
+                        ...(updatedActions[groupIndex].items[index] as any)[
+                          placeholder
+                        ],
+                        value,
+                      };
+                      props.setActionsData(updatedActions);
+                    }
+                  }}
+                  className="mx-2"
+                />
+              );
+            }
+
             return (
               <TextInput
                 key={`action-input-${indexPart}`}
