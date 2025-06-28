@@ -479,16 +479,17 @@ const ChecklistFilterButton = ({
   const checklistGroupIndex = 3; // Checklist group is at index 3
   const triggerItem = triggersData[checklistGroupIndex]?.items?.[selectedIndex];
   const hasChecklistFilter =
-    triggerItem && (triggerItem as any).checklist_name !== undefined;
+    triggerItem &&
+    (triggerItem as any)[EnumSelectionType.ChecklistName] !== undefined;
 
   const handleToggleChecklistFilter = () => {
     let copyArr = [...triggersData];
     const item = copyArr[checklistGroupIndex]?.items?.[selectedIndex] as any;
     if (item) {
       if (hasChecklistFilter) {
-        delete item.checklist_name;
+        delete item[EnumSelectionType.ChecklistName];
       } else {
-        item.checklist_name = "";
+        item[EnumSelectionType.ChecklistName] = "";
       }
       setTriggersData(copyArr);
     }
@@ -498,7 +499,7 @@ const ChecklistFilterButton = ({
     let copyArr = [...triggersData];
     const item = copyArr[checklistGroupIndex]?.items?.[selectedIndex] as any;
     if (item) {
-      item.checklist_name = value;
+      item[EnumSelectionType.ChecklistName] = value;
       setTriggersData(copyArr);
     }
   };
@@ -520,7 +521,9 @@ const ChecklistFilterButton = ({
             size="small"
             style={{ width: "120px" }}
             placeholder="Checklist name"
-            value={(triggerItem as any)?.checklist_name || ""}
+            value={
+              (triggerItem as any)?.[EnumSelectionType.ChecklistName] || ""
+            }
             onChange={(e) => handleChecklistNameChange(e.target.value)}
           />
           <Button

@@ -751,7 +751,7 @@ export const triggers: AutomationRuleTrigger[] = [
             label: "set on",
           },
         },
-        [EnumSelectionType.DateExpression]: {
+        [EnumInputType.DateValue]: {
           options: [],
           value: null,
         },
@@ -1270,6 +1270,115 @@ export const actions: AutomationRuleAction[] = [
     type: "checklists",
     label: "Checklists",
     icon: <Check />,
+    items: [
+      {
+        type: ActionType.AddChecklistToCard,
+        label: "Add an empty checklist named <text_input> to the card",
+        [EnumSelectionType.Action]: {
+          options: [
+            {
+              value: EnumActions.AddChecklist,
+              label: "Add",
+            },
+          ],
+          value: {
+            value: EnumActions.AddChecklist,
+            label: "Add",
+          },
+        },
+        [EnumSelectionType.TextInput]: {
+          placeholder: "Enter checklist name...",
+          value: "",
+        },
+      },
+      {
+        type: ActionType.ManageChecklistItem,
+        label: "<action> item <text_input> to checklist <checklist_name>",
+        [EnumSelectionType.Action]: {
+          options: [
+            {
+              value: EnumActions.AddChecklistItem,
+              label: "Add",
+            },
+            {
+              value: EnumActions.RemoveChecklistItem,
+              label: "Remove",
+            },
+          ],
+          value: {
+            value: EnumActions.AddChecklistItem,
+            label: "Add",
+          },
+        },
+        [EnumSelectionType.TextInput]: {
+          placeholder: "Enter item name...",
+          value: "",
+        },
+        [EnumSelectionType.ChecklistName]: {
+          placeholder: "Enter checklist name...",
+          value: "",
+        },
+      },
+      {
+        type: ActionType.ToggleChecklistItem,
+        label: "<action> item <text_input> in checklist <checklist_name>",
+        [EnumSelectionType.Action]: {
+          options: [
+            { value: EnumActions.CheckChecklistItem, label: "Check" },
+            { value: EnumActions.UncheckChecklistItem, label: "Uncheck" },
+          ],
+          value: { value: EnumActions.CheckChecklistItem, label: "Check" },
+        },
+        [EnumSelectionType.TextInput]: {
+          placeholder: "Item name",
+          value: "",
+        },
+        [EnumSelectionType.ChecklistName]: {
+          placeholder: "Checklist name (optional)",
+          value: "",
+        },
+      },
+      {
+        type: ActionType.SetChecklistItemDueDate,
+        label: "set the item due <date_value>",
+        [EnumSelectionType.Action]: {
+          options: [
+            {
+              value: EnumActions.SetChecklistItemDueDate,
+              label: "Set",
+            },
+          ],
+          value: {
+            value: EnumActions.SetChecklistItemDueDate,
+            label: "Set",
+          },
+        },
+        [EnumInputType.DateValue]: {
+          options: [],
+          value: null,
+        },
+      },
+      {
+        type: ActionType.MoveChecklistItemDueDate,
+        label: "move the item due date to <date_value>",
+        [EnumSelectionType.Action]: {
+          options: [
+            {
+              value: EnumActions.MoveChecklistItemDueDate,
+              label: "Move",
+            },
+          ],
+          value: {
+            value: EnumActions.MoveChecklistItemDueDate,
+            label: "Move",
+          },
+        },
+        [EnumInputType.DateValue]: {
+          options: [],
+          value: null,
+        },
+      },
+    ],
   },
   {
     type: "members",

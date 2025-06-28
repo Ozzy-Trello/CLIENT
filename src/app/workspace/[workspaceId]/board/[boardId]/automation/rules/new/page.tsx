@@ -109,8 +109,10 @@ const NewRulePage: React.FC = () => {
     }
 
     // === NEW: include checklist_name filter when provided ===
-    if ((triggerItem as any).checklist_name !== undefined) {
-      triggerCondition["checklist_name"] = (triggerItem as any).checklist_name;
+    if ((triggerItem as any)[EnumSelectionType.ChecklistName] !== undefined) {
+      triggerCondition[EnumSelectionType.ChecklistName] = (triggerItem as any)[
+        EnumSelectionType.ChecklistName
+      ];
     }
 
     // Build actions array

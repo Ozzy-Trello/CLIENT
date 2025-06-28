@@ -2,7 +2,12 @@ import { SelectionRef, UserSelection } from "@components/selection";
 import { useCardCustomField } from "@hooks/card_custom_field";
 import { useCardDetailContext } from "@providers/card-detail-context";
 import { Checkbox, DatePicker, Input, Select, Tooltip, message } from "antd";
-import { List, StretchHorizontal, TextCursorInput } from "lucide-react";
+import {
+  List,
+  StretchHorizontal,
+  TextCursorInput,
+  CheckSquare,
+} from "lucide-react";
 import SplitJobSlider from "@components/split-job/SplitJobSlider";
 import { Fragment, useEffect, useRef, useState } from "react";
 import { useLists } from "@hooks/list";
@@ -311,12 +316,14 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
     switch (field?.type) {
       case EnumCustomFieldType.Checkbox:
         return (
-          <Checkbox
-            checked={Boolean(field?.valueCheckbox)}
-            onChange={(e) =>
-              handleCheckboxValueChange(field.id!, e.target.checked)
-            }
-          />
+          <div className="w-full">
+            <Checkbox
+              checked={Boolean(field?.valueCheckbox)}
+              onChange={(e) =>
+                handleCheckboxValueChange(field.id!, e.target.checked)
+              }
+            />
+          </div>
         );
 
       case EnumCustomFieldType.Text:
@@ -404,6 +411,8 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
   const getFieldIcon = (field: CardCustomField) => {
     const fieldType: string = field.type || "select";
     switch (fieldType) {
+      case EnumCustomFieldType.Checkbox:
+        return <CheckSquare size={12} className="text-gray-500" />;
       case EnumCustomFieldType.Text:
       case "string":
         return <StretchHorizontal size={12} className="text-gray-500" />;
@@ -414,11 +423,6 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
       default:
         return <StretchHorizontal size={12} className="text-gray-500" />;
     }
-  };
-
-  // Check if field is a checkbox type
-  const isCheckboxField = (field: CardCustomField) => {
-    return field.type === EnumCustomFieldType.Checkbox;
   };
 
   // Show loading state
@@ -463,12 +467,10 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
           {getFieldRows().map((row, rowIndex) => (
             <Fragment key={`row-${rowIndex}`}>
               {row.map((field) => (
-                <div key={field.id} className="space-y-2 flex items-center">
+                <div key={field.id} className="space-y-2">
                   <div className="w-full">
-                    <div className="flex items-center gap-2 text-gray-700 font-medium">
-                      {isCheckboxField(field)
-                        ? renderFieldInput(field)
-                        : getFieldIcon(field)}
+                    <div className="flex items-center gap-2 text-gray-700 font-medium mb-1">
+                      {getFieldIcon(field)}
                       <Tooltip title={field.name}>
                         <span className="truncate" style={{ fontSize: "14px" }}>
                           {field.name}
@@ -476,9 +478,7 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
                       </Tooltip>
                     </div>
 
-                    {!isCheckboxField(field) && (
-                      <div>{renderFieldInput(field)}</div>
-                    )}
+                    <div className="w-full">{renderFieldInput(field)}</div>
                   </div>
                 </div>
               ))}

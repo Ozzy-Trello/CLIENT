@@ -208,9 +208,12 @@ const SelectOption = ({
   if (placeholder === EnumInputType.DateValue) {
     // If this action is MoveDateCustomField, render custom selector
     if (
-      [ActionType.MoveDateCustomField, ActionType.SetDateCustomField].includes(
-        actionsData[groupIndex]?.items?.[index]?.type as any
-      )
+      [
+        ActionType.MoveDateCustomField,
+        ActionType.SetDateCustomField,
+        ActionType.MoveChecklistItemDueDate,
+        ActionType.SetChecklistItemDueDate,
+      ].includes(actionsData[groupIndex]?.items?.[index]?.type as any)
     ) {
       return (
         <MoveDateSelector
@@ -332,7 +335,9 @@ const renderLabelWithSelects = (
 
           // Handle text input
           if (
-            placeholder === EnumSelectionType.TextInput &&
+            (placeholder === EnumSelectionType.TextInput ||
+              placeholder === EnumSelectionType.ChecklistName ||
+              placeholder === "text_input_2") &&
             item[placeholder]
           ) {
             const data = item[placeholder] as {

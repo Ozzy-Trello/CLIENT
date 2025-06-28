@@ -55,4 +55,11 @@ export enum EnumActions {
   MoveDateCustomField = "cardfields.date.move",
   RenameCard = "rename.card",
   SetCardDescription = "set.card.description",
+  AddChecklist = "add.checklist",
+  AddChecklistItem = "add.checklist.item",
+  RemoveChecklistItem = "remove.checklist.item",
+  CheckChecklistItem = "check.item",
+  UncheckChecklistItem = "uncheck.item",
+  SetChecklistItemDueDate = "set.item.due.date",
+  MoveChecklistItemDueDate = "move.item.due.date",
 }
