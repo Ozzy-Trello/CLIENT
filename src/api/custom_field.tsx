@@ -46,11 +46,18 @@ export const reorderCustomFields = async (
     `/custom-field/${customFieldId}/reorder`,
     {
       targetPosition, // Using camelCase to match backend
-      positionType,   // Using camelCase to match backend
+      positionType, // Using camelCase to match backend
     },
     {
       headers: { "workspace-id": workspaceId },
     }
   );
+  return data;
+};
+
+export const customFieldDetails = async (
+  customFieldId: string
+): Promise<ApiResponse<CustomField>> => {
+  const { data } = await api.get(`/custom-field/${customFieldId}`);
   return data;
 };

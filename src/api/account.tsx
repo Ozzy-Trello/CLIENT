@@ -23,3 +23,10 @@ export const accountList = async (
   });
   return data as ApiResponse<Account[]>;
 };
+
+export const userDetails = async (
+  userId: string
+): Promise<ApiResponse<Account>> => {
+  const { data } = await api.get(`/account/${userId}`);
+  return data;
+};
