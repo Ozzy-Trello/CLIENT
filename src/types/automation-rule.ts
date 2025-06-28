@@ -143,8 +143,10 @@ export enum ActionType {
   SetCustomField = `<${EnumSelectionType.Action}>-custom-field-<${EnumSelectionType.Fields}>-to-<${EnumInputType.FieldValue}>`,
   CheckCustomField = `<${EnumSelectionType.Action}>-custom-field-<${EnumSelectionType.Fields}>`,
   IncrementCustomField = `<${EnumSelectionType.Action}>-the-number-in-custom-field-<${EnumSelectionType.Fields}>-by-[${EnumInputType.Number}]`,
-  SetDateCustomField = `set-date-custom-field-<${EnumSelectionType.Fields}>-to-<${EnumInputType.DateValue}>`,
-  MoveDateCustomField = `move-date-in-custom-field-<${EnumSelectionType.Fields}>-to-<${EnumInputType.DateValue}>`,
+  SetDateCustomField = `set-date-custom-field-<${EnumSelectionType.Fields}>-to-<date_value>`,
+  MoveDateCustomField = `move-date-in-custom-field-<${EnumSelectionType.Fields}>-to-<date_value>`,
+  RenameCard = `rename-the-card-to-<${EnumSelectionType.TextInput}>`,
+  SetCardDescription = `set-the-card's-description-to-<${EnumSelectionType.TextInput}>`,
   //add more..
 }
 
