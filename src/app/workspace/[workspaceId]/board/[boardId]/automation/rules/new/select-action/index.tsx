@@ -322,25 +322,30 @@ const SelectOption = ({
     );
   }
 
-  // if (placeholder === EnumSelectionType.MultiLabels) {
-  //   return (
-  //     <LabelSelection
-  //       width={"fit-content"}
-  //       ref={labelSelectionRef}
-  //       value={
-  //         (actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value
-  //           ?.value || undefined
-  //       }
-  //       onChange={(option: any) => {
-  //         onListChange(option, placeholder);
-  //       }}
-  //       className="mx-2"
-  //       placeholder={data.placeholder}
-  //       key={`label-selection-${index}`}
-  //       mode="multiple"
-  //     />
-  //   );
-  // }
+  if (
+    placeholder === EnumSelectionType.MultiLabels ||
+    placeholder === EnumSelectionType.CardLabel
+  ) {
+    return (
+      <LabelSelection
+        width={"fit-content"}
+        ref={labelSelectionRef}
+        value={
+          (actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value
+            ?.value || undefined
+        }
+        onChange={(option: any) => {
+          onListChange(option, placeholder);
+        }}
+        className="mx-2"
+        placeholder={data.placeholder}
+        key={`label-selection-${index}`}
+        mode={
+          placeholder === EnumSelectionType.MultiLabels ? "multiple" : undefined
+        }
+      />
+    );
+  }
 
   if (placeholder === EnumSelectionType.MultiChecklists) {
     return (

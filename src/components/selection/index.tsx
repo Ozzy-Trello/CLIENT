@@ -472,12 +472,10 @@ export const LabelSelection = forwardRef<SelectionRef, SelectionProps>(
       className = "",
       value,
       onChange,
+      mode,
     },
     ref
   ) => {
-    const [options, setOptions] = useState<{ label: string; value: string }[]>(
-      []
-    );
     const [selectedValue, setSelectedValue] = useState<string | undefined>(
       value
     );
@@ -486,7 +484,14 @@ export const LabelSelection = forwardRef<SelectionRef, SelectionProps>(
       value: string;
     }>();
     const { workspaceId } = useParams();
-    const { labels } = useLabels(workspaceId as string);
+    const { allLabels } = useLabels(workspaceId as string);
+
+    const options = useMemo(() => {
+      return allLabels?.map((item) => ({
+        label: item.name ?? "",
+        value: item.id ?? "",
+      }));
+    }, [allLabels]);
 
     useImperativeHandle(ref, () => ({
       getValue: () => selectedValue,
@@ -519,16 +524,6 @@ export const LabelSelection = forwardRef<SelectionRef, SelectionProps>(
       }
     };
 
-    useEffect(() => {
-      if (labels) {
-        const opt = labels?.map((item) => ({
-          label: item.name ?? "",
-          value: item.id ?? "",
-        }));
-        setOptions(opt);
-      }
-    }, [labels]);
-
     // When options change, update the selected object if value is already set
     useEffect(() => {
       if (selectedValue && options.length > 0) {
@@ -550,8 +545,9 @@ export const LabelSelection = forwardRef<SelectionRef, SelectionProps>(
         options={options}
         size={size}
         className={`${className} min-w-[200px]`}
+        mode={mode}
         notFoundContent={
-          labels?.length === 0 ? "No label available" : "No match found"
+          allLabels?.length === 0 ? "No label available" : "No match found"
         }
       />
     );

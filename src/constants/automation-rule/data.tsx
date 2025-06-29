@@ -1497,7 +1497,7 @@ export const actions: AutomationRuleAction[] = [
             label: "Add",
           },
         },
-        [EnumSelectionType.MultiLabels]: {
+        [EnumSelectionType.CardLabel]: {
           options: [],
           value: null,
           placeholder: "Select Label",
