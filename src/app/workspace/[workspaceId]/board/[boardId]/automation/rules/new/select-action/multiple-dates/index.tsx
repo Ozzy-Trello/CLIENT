@@ -1,12 +1,46 @@
 import { Popover } from "antd";
 import { Calendar, Trash2 } from "lucide-react";
-import { FC } from "react";
+import { Dispatch, FC, SetStateAction, useEffect } from "react";
 import TypeDate from "./type-date";
 import { useMultipleDatesContext } from "./context";
+import { AutomationRule, AutomationRuleAction } from "@myTypes/type";
 
-const MultipleDates: FC = () => {
+interface MultipleDatesProps {
+  nextStep: () => void;
+  prevStep: () => void;
+  setSelectedRule: Dispatch<SetStateAction<AutomationRule>>;
+  selectedRule: AutomationRule;
+  actionsData: AutomationRuleAction[];
+  setActionsData: Dispatch<SetStateAction<AutomationRuleAction[]>>;
+  groupIndex: number;
+  index: number;
+  placeholder: string;
+}
+
+const MultipleDates: FC<MultipleDatesProps> = ({
+  nextStep,
+  prevStep,
+  setSelectedRule,
+  selectedRule,
+  actionsData,
+  setActionsData,
+  groupIndex,
+  index,
+  placeholder,
+}) => {
   const { open, setOpen, valueDates, removeValueDate } =
     useMultipleDatesContext();
+
+  useEffect(() => {
+    const handleChange = () => {
+      const copy = [...actionsData];
+
+      (copy[groupIndex]?.items?.[index][placeholder] as any).value = valueDates;
+      setActionsData(copy);
+    };
+
+    handleChange();
+  }, [valueDates]);
 
   return (
     <div className="flex items-center gap-2">

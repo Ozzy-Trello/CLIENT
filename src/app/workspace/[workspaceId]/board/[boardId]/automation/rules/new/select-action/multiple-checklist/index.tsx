@@ -1,11 +1,39 @@
 import { Form, Input } from "antd";
 import { Check, X } from "lucide-react";
-import { FC } from "react";
+import { FC, Dispatch, SetStateAction } from "react";
+import { AutomationRule, AutomationRuleAction } from "@myTypes/type";
+import { useDebouncedCallback } from "@hooks/useDebouncedCallback";
 
-const MultipleChecklist: FC = () => {
-  const onValuesChange = (value: any) => {
-    console.log(value);
-  };
+interface MultipleChecklistProps {
+  nextStep: () => void;
+  prevStep: () => void;
+  setSelectedRule: Dispatch<SetStateAction<AutomationRule>>;
+  selectedRule: AutomationRule;
+  actionsData: AutomationRuleAction[];
+  setActionsData: Dispatch<SetStateAction<AutomationRuleAction[]>>;
+  groupIndex: number;
+  index: number;
+  placeholder: string;
+}
+
+const MultipleChecklist: FC<MultipleChecklistProps> = ({
+  nextStep,
+  prevStep,
+  setSelectedRule,
+  selectedRule,
+  actionsData,
+  setActionsData,
+  groupIndex,
+  index,
+  placeholder,
+}) => {
+  const onValuesChange = useDebouncedCallback((_, values: any) => {
+    const copy = [...actionsData];
+
+    (copy[groupIndex]?.items?.[index][placeholder] as any).value =
+      values.checklist;
+    setActionsData(copy);
+  }, 500);
 
   return (
     <Form

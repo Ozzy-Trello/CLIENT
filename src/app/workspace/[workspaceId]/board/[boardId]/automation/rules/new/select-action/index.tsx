@@ -87,6 +87,7 @@ const SelectOption = ({
     let copyArr = [...actionsData];
     (copyArr[groupIndex]?.items?.[index]?.[placeholder] as any).value =
       selectedOption;
+
     setActionsData(copyArr);
   };
 
@@ -342,13 +343,25 @@ const SelectOption = ({
   // }
 
   if (placeholder === EnumSelectionType.MultiChecklists) {
-    return <MultipleChecklist />;
+    return (
+      <MultipleChecklist
+        {...props}
+        groupIndex={groupIndex}
+        index={index}
+        placeholder={placeholder}
+      />
+    );
   }
 
   if (placeholder === EnumSelectionType.MultiDates) {
     return (
       <MultipleDatesProvider>
-        <MultipleDates />
+        <MultipleDates
+          {...props}
+          groupIndex={groupIndex}
+          index={index}
+          placeholder={placeholder}
+        />
       </MultipleDatesProvider>
     );
   }
