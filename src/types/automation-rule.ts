@@ -59,6 +59,14 @@ export enum EnumSelectionType {
   ChecklistScope = "checklist_scope", // checklist / a checklist / all checklists
   ItemScope = "item_scope",
   DateValue = "date_value",
+  CreateType = "create_type", // new | unique
+  CreateTypeItem = "create_type_item", // regular | board | link | separator | mirror
+  MultiLabels = "multi_labels",
+  MultiChecklists = "multi_checklists",
+  MultiUsers = "multi_users",
+  MultiDates = "multi_dates",
+  AddRemove = "add_remove",
+  RemoveFromCard = "remove_from_card",
 }
 
 export enum EnumInputType {
@@ -66,6 +74,8 @@ export enum EnumInputType {
   Text = "text",
   FieldValue = "field_value",
   DateValue = "date_value",
+  TextDescription = "text_description",
+  TextTitle = "text_title",
 }
 
 export enum TriggerType {
@@ -151,6 +161,15 @@ export enum ActionType {
   RemoveCardMember = `remove-member-<${EnumSelectionType.User}>-from-the-card`,
   RemoveAllCardMembers = `remove-all-the-members-from-the-card`,
   //add more..
+
+  // create a <CardType> <CardTypeItem> card with title <TextTitle> <TextDescription> <Position> <List> <Board> <MultiLabels> <MultiChecklists> <MultiUsers> <MultiDates>
+  CreateItem = `create-a-<${EnumSelectionType.CreateType}>-card-with-title-<${EnumInputType.TextTitle}>-<${EnumInputType.TextDescription}>-<${EnumSelectionType.Position}>-<${EnumSelectionType.List}>-<${EnumSelectionType.Board}>-<${EnumSelectionType.MultiLabels}>-<${EnumSelectionType.MultiChecklists}>-<${EnumSelectionType.MultiUsers}>-<${EnumSelectionType.MultiDates}>`,
+
+  // <AddRemove> the <CardLabel> label to the card
+  AddRemoveLabel = `<${EnumSelectionType.AddRemove}>-the-<${EnumSelectionType.CardLabel}>-label-to-the-card`,
+
+  // remove <RemoveFromCard> from the card
+  RemoveFromCard = `remove-<${EnumSelectionType.RemoveFromCard}>-from-the-card`,
 }
 
 // filter type

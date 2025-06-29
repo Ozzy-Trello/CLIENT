@@ -40,6 +40,9 @@ import {
   EnumOptionCheckboxState,
   EnumOptionTextComparisonOperator,
   EnumOptionSubject,
+  EnumCreateType,
+  EnumAddRemove,
+  EnumRemoveFromCard,
 } from "@myTypes/options";
 
 // The constants used to contruct the UI
@@ -1260,6 +1263,150 @@ export const actions: AutomationRuleAction[] = [
         <Plus /> <Minus />{" "}
       </div>
     ),
+    items: [
+      {
+        type: ActionType.CreateItem,
+        label: ActionType.CreateItem.replaceAll("-", " "),
+        [EnumSelectionType.CreateType]: {
+          options: [
+            {
+              value: EnumCreateType.New,
+              label: "New",
+            },
+            {
+              value: EnumCreateType.Unique,
+              label: "Unique",
+            },
+          ],
+          value: {
+            value: EnumCreateType.New,
+            label: "New",
+          },
+        },
+        [EnumInputType.TextTitle]: {
+          placeholder: "Card Title",
+          value: null,
+        },
+        [EnumInputType.TextDescription]: {
+          placeholder: "Card Description",
+          value: null,
+        },
+        [EnumSelectionType.Position]: {
+          options: [
+            {
+              value: EnumOptionPosition.InList,
+              label: "In list",
+            },
+            {
+              value: EnumOptionPosition.TopOfList,
+              label: "The top of the list",
+            },
+            {
+              value: EnumOptionPosition.BottomOfList,
+              label: "The bottom of the list",
+            },
+          ],
+          value: {
+            value: EnumOptionPosition.InList,
+            label: "In list",
+          },
+        },
+        [EnumSelectionType.Board]: {
+          options: [],
+          value: null,
+          placeholder: "Select Board",
+        },
+        [EnumSelectionType.List]: {
+          options: [],
+          value: null,
+          placeholder: "Select List",
+        },
+        [EnumSelectionType.MultiLabels]: {
+          options: [],
+          value: null,
+        },
+        [EnumSelectionType.MultiChecklists]: {
+          options: [],
+          value: null,
+          placeholder: "Select List",
+        },
+        [EnumSelectionType.MultiUsers]: {
+          options: [],
+          value: null,
+          placeholder: "Select Users",
+        },
+        [EnumSelectionType.MultiDates]: {
+          options: [],
+          value: null,
+          placeholder: "Select Dates",
+        },
+      },
+      {
+        type: ActionType.AddRemoveLabel,
+        label: ActionType.AddRemoveLabel.replaceAll("-", " "),
+        [EnumSelectionType.AddRemove]: {
+          options: [
+            {
+              value: EnumAddRemove.Add,
+              label: "Add",
+            },
+            {
+              value: EnumAddRemove.Remove,
+              label: "Remove",
+            },
+          ],
+          value: {
+            value: EnumAddRemove.Add,
+            label: "Add",
+          },
+        },
+        [EnumSelectionType.CardLabel]: {
+          options: [],
+          value: null,
+          placeholder: "Select Label",
+        },
+      },
+      {
+        type: ActionType.RemoveFromCard,
+        label: ActionType.RemoveFromCard.replaceAll("-", " "),
+        [EnumSelectionType.RemoveFromCard]: {
+          options: [
+            {
+              value: EnumRemoveFromCard.DueDate,
+              label: "The Due Date",
+            },
+            {
+              value: EnumRemoveFromCard.StartDate,
+              label: "The Start Date",
+            },
+            {
+              value: EnumRemoveFromCard.CoverImage,
+              label: "The Cover Image",
+            },
+            {
+              value: EnumRemoveFromCard.AllLabels,
+              label: "All the labels",
+            },
+            {
+              value: EnumRemoveFromCard.AllStickers,
+              label: "All the stickers",
+            },
+            {
+              value: EnumRemoveFromCard.AllChecklist,
+              label: "All the checklists",
+            },
+            {
+              value: EnumRemoveFromCard.AllMembers,
+              label: "All the members",
+            },
+          ],
+          value: {
+            value: EnumRemoveFromCard.DueDate,
+            label: "The Due Date",
+          },
+        },
+      },
+    ],
   },
   {
     type: "card_dates",

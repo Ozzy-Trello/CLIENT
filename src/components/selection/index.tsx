@@ -20,6 +20,8 @@ import { useParams, useRouter } from "next/navigation";
 import { useAccountList } from "@hooks/account";
 import { Card } from "@myTypes/card";
 import { cards } from "@api/card";
+import { useBoards } from "@hooks/board";
+import { useLabels } from "@hooks/label";
 import { useLists } from "@hooks/list";
 import { useCustomFields } from "@hooks/custom_field";
 
@@ -50,7 +52,8 @@ interface SelectionProps {
   style?: React.CSSProperties;
   className?: string;
   value?: string;
-  onChange?: (value: string, option: any) => void;
+  onChange?: (value: string, option?: any) => void;
+  mode?: "multiple" | "tags" | undefined;
   excludeIds?: string[];
   roleIds?: string[];
   [key: string]: any; // Allow additional props
@@ -66,6 +69,7 @@ export const UserSelection = forwardRef<SelectionRef, SelectionProps>(
       className = "",
       value,
       onChange,
+      mode,
       excludeIds = [],
       roleIds = [],
     },
@@ -174,6 +178,7 @@ export const UserSelection = forwardRef<SelectionRef, SelectionProps>(
     return (
       <Select
         style={{ width, ...style }}
+        mode={mode}
         showSearch
         placeholder={placeholder}
         optionFilterProp="label"
@@ -181,7 +186,9 @@ export const UserSelection = forwardRef<SelectionRef, SelectionProps>(
         value={selectedValue}
         options={options}
         size={size}
-        className={className}
+        className={`${className} ${
+          mode === "multiple" ? "w-full" : ""
+        } min-w-[200px]`}
         notFoundContent={
           options.length === 0 ? "No user available" : "No match found"
         }
@@ -349,9 +356,201 @@ export const ListSelection = forwardRef<SelectionRef, SelectionProps>(
         value={selectedValue}
         options={options}
         size={size}
-        className={className}
+        className={`${className} min-w-[200px]`}
         notFoundContent={
           lists?.length === 0 ? "No list available" : "No match found"
+        }
+      />
+    );
+  }
+);
+
+export const BoardSelection = forwardRef<SelectionRef, SelectionProps>(
+  (
+    {
+      placeholder = "Select a Board",
+      width = "100%",
+      size = "middle",
+      style = {},
+      className = "",
+      value,
+      onChange,
+    },
+    ref
+  ) => {
+    const [options, setOptions] = useState<{ label: string; value: string }[]>(
+      []
+    );
+    const [selectedValue, setSelectedValue] = useState<string | undefined>(
+      value
+    );
+    const [selectedObject, setSelectedObject] = useState<{
+      label: string;
+      value: string;
+    }>();
+    const { workspaceId } = useParams();
+    const { boards } = useBoards(workspaceId as string);
+
+    useImperativeHandle(ref, () => ({
+      getValue: () => selectedValue,
+      getObject: () => selectedObject,
+      setValue: (value: string) => {
+        setSelectedValue(value);
+        const foundOption = options.find((opt) => opt.value === value);
+        if (foundOption) {
+          setSelectedObject(foundOption);
+        }
+      },
+    }));
+
+    const handleChange = (value: string, option: any) => {
+      setSelectedValue(value);
+      // Store the entire selected object
+      if (Array.isArray(option)) {
+        // Handle case if Select allows multiple selection
+        const selectedOptions = option.map((opt) => ({
+          label: opt.label,
+          value: opt.value,
+        }));
+        setSelectedObject(selectedOptions[0]);
+      } else {
+        setSelectedObject({ label: option.label, value: option.value });
+      }
+
+      if (onChange) {
+        onChange(value, option);
+      }
+    };
+
+    useEffect(() => {
+      if (boards) {
+        const opt = boards?.map((item) => ({
+          label: item.name ?? "",
+          value: item.id,
+        }));
+        setOptions(opt);
+      }
+    }, [boards]);
+
+    // When options change, update the selected object if value is already set
+    useEffect(() => {
+      if (selectedValue && options.length > 0) {
+        const foundOption = options.find((opt) => opt.value === selectedValue);
+        if (foundOption) {
+          setSelectedObject(foundOption);
+        }
+      }
+    }, [options, selectedValue]);
+
+    return (
+      <Select
+        style={{ width, ...style }}
+        showSearch
+        placeholder={placeholder}
+        optionFilterProp="label"
+        onChange={handleChange}
+        value={selectedValue}
+        options={options}
+        size={size}
+        className={`${className} min-w-[200px]`}
+        notFoundContent={
+          boards?.length === 0 ? "No board available" : "No match found"
+        }
+      />
+    );
+  }
+);
+
+export const LabelSelection = forwardRef<SelectionRef, SelectionProps>(
+  (
+    {
+      placeholder = "Select a Label",
+      width = "100%",
+      size = "middle",
+      style = {},
+      className = "",
+      value,
+      onChange,
+    },
+    ref
+  ) => {
+    const [options, setOptions] = useState<{ label: string; value: string }[]>(
+      []
+    );
+    const [selectedValue, setSelectedValue] = useState<string | undefined>(
+      value
+    );
+    const [selectedObject, setSelectedObject] = useState<{
+      label: string;
+      value: string;
+    }>();
+    const { workspaceId } = useParams();
+    const { labels } = useLabels(workspaceId as string);
+
+    useImperativeHandle(ref, () => ({
+      getValue: () => selectedValue,
+      getObject: () => selectedObject,
+      setValue: (value: string) => {
+        setSelectedValue(value);
+        const foundOption = options.find((opt) => opt.value === value);
+        if (foundOption) {
+          setSelectedObject(foundOption);
+        }
+      },
+    }));
+
+    const handleChange = (value: string, option: any) => {
+      setSelectedValue(value);
+      // Store the entire selected object
+      if (Array.isArray(option)) {
+        // Handle case if Select allows multiple selection
+        const selectedOptions = option.map((opt) => ({
+          label: opt.label,
+          value: opt.value,
+        }));
+        setSelectedObject(selectedOptions[0]);
+      } else {
+        setSelectedObject({ label: option.label, value: option.value });
+      }
+
+      if (onChange) {
+        onChange(value, option);
+      }
+    };
+
+    useEffect(() => {
+      if (labels) {
+        const opt = labels?.map((item) => ({
+          label: item.name ?? "",
+          value: item.id ?? "",
+        }));
+        setOptions(opt);
+      }
+    }, [labels]);
+
+    // When options change, update the selected object if value is already set
+    useEffect(() => {
+      if (selectedValue && options.length > 0) {
+        const foundOption = options.find((opt) => opt.value === selectedValue);
+        if (foundOption) {
+          setSelectedObject(foundOption);
+        }
+      }
+    }, [options, selectedValue]);
+
+    return (
+      <Select
+        style={{ width, ...style }}
+        showSearch
+        placeholder={placeholder}
+        optionFilterProp="label"
+        onChange={handleChange}
+        value={selectedValue}
+        options={options}
+        size={size}
+        className={`${className} min-w-[200px]`}
+        notFoundContent={
+          labels?.length === 0 ? "No label available" : "No match found"
         }
       />
     );
