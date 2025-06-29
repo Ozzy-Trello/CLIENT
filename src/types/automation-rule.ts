@@ -153,8 +153,13 @@ export enum ActionType {
   SetCustomField = `<${EnumSelectionType.Action}>-custom-field-<${EnumSelectionType.Fields}>-to-<${EnumInputType.FieldValue}>`,
   CheckCustomField = `<${EnumSelectionType.Action}>-custom-field-<${EnumSelectionType.Fields}>`,
   IncrementCustomField = `<${EnumSelectionType.Action}>-the-number-in-custom-field-<${EnumSelectionType.Fields}>-by-[${EnumInputType.Number}]`,
-  SetDateCustomField = `set-date-custom-field-<${EnumSelectionType.Fields}>-to-<${EnumInputType.DateValue}>`,
-  MoveDateCustomField = `move-date-in-custom-field-<${EnumSelectionType.Fields}>-to-<${EnumInputType.DateValue}>`,
+  SetDateCustomField = `set-date-custom-field-<${EnumSelectionType.Fields}>-to-<date_value>`,
+  MoveDateCustomField = `move-date-in-custom-field-<${EnumSelectionType.Fields}>-to-<date_value>`,
+  RenameCard = `rename-the-card-to-<${EnumSelectionType.TextInput}>`,
+  SetCardDescription = `set-the-card's-description-to-<${EnumSelectionType.TextInput}>`,
+  AddCardMember = `add-member-<${EnumSelectionType.User}>-to-the-card`,
+  RemoveCardMember = `remove-member-<${EnumSelectionType.User}>-from-the-card`,
+  RemoveAllCardMembers = `remove-all-the-members-from-the-card`,
   //add more..
 
   // create a <CardType> <CardTypeItem> card with title <TextTitle> <TextDescription> <Position> <List> <Board> <MultiLabels> <MultiChecklists> <MultiUsers> <MultiDates>

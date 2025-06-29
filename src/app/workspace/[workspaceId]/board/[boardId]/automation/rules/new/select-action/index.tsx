@@ -29,6 +29,7 @@ import dayjs from "dayjs";
 import MultipleChecklist from "./multiple-checklist";
 import MultipleDates from "./multiple-dates";
 import { MultipleDatesProvider } from "./multiple-dates/context";
+import RichTextInput from "@components/rich-text-input";
 
 // Helper function to extract placeholders from a pattern
 function extractPlaceholders(pattern: string): string[] {
@@ -405,7 +406,35 @@ const renderLabelWithSelects = (
             const data = item[placeholder] as {
               placeholder?: string;
               value: string;
+              isRichText?: boolean;
             };
+
+            // Use RichTextInput for description fields
+            if (data?.isRichText) {
+              return (
+                <RichTextInput
+                  key={`action-rich-input-${indexPart}`}
+                  value={data?.value || ""}
+                  placeholder={data?.placeholder || "Enter description..."}
+                  onChange={(value) => {
+                    const updatedActions = [...props.actionsData];
+                    if (updatedActions[groupIndex]?.items?.[index]) {
+                      (updatedActions[groupIndex].items[index] as any)[
+                        placeholder
+                      ] = {
+                        ...(updatedActions[groupIndex].items[index] as any)[
+                          placeholder
+                        ],
+                        value,
+                      };
+                      props.setActionsData(updatedActions);
+                    }
+                  }}
+                  className="mx-2"
+                />
+              );
+            }
+
             return (
               <TextInput
                 key={`action-input-${indexPart}`}
@@ -1051,11 +1080,13 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
       }
     });
 
-    // Ensure constant action field included when label lacks <action> placeholder
+    // Ensure constant action field included and base type filled even when no placeholders
     const itemConfig = (actionsData[groupIndex]?.items?.[index] as any) ?? {};
     if (itemConfig?.[EnumSelectionType.Action]) {
       if (!newActionItem.selectedActionItem)
         newActionItem.selectedActionItem = { type: "", label: "" } as any;
+      if (newActionItem.selectedActionItem)
+        newActionItem.selectedActionItem.type = itemConfig.type || "";
       const actionConfig = itemConfig[EnumSelectionType.Action];
       // Extract the actual enum value from the nested structure
       const actionValue = actionConfig?.value?.value || actionConfig?.value;

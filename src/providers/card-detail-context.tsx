@@ -18,6 +18,7 @@ import {
 import { useDebouncedCallback } from "@hooks/useDebouncedCallback";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useDashcardList } from "@hooks/dashcard-list";
+import { useCardDetails } from "@hooks/card-details";
 
 type CardDetailContextType = {
   selectedCard: Card | null;
@@ -94,6 +95,13 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
   const searchParams = useSearchParams();
   const handleUrlChange = useRef<boolean>(); // Track if URL change is handled
 
+  // Use React Query for card details when card is selected
+  const cardDetailsQuery = useCardDetails(
+    selectedCard?.id || "",
+    selectedCard?.listId || "",
+    boardId as string
+  );
+
   const [dashcardConfig, setDashcardConfig] = useState<
     DashcardConfig | undefined
   >();
@@ -102,10 +110,27 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
   const [openEditFilter, setOpenEditFilter] = useState<boolean>(false);
   const [currentFilter, setCurrentFilter] = useState<DashcardFilter[]>([]);
 
+  // Update selectedCard when React Query data changes (including from WebSocket events)
+  useEffect(() => {
+    if (
+      cardDetailsQuery.card &&
+      selectedCard?.id === cardDetailsQuery.card.id
+    ) {
+      setSelectedCard((prevCard) => {
+        if (!prevCard) return prevCard;
+        return {
+          ...prevCard,
+          ...cardDetailsQuery.card,
+          listId: prevCard.listId, // Preserve listId from context
+        };
+      });
+    }
+  }, [cardDetailsQuery.card, selectedCard?.id]);
+
   const openCardDetail = async (card: Card, list: AnyList) => {
     handleUrlChange.current = true; // Set to true when opening card detail
 
-    // First set the basic card data to show something immediately
+    // Set the basic card data - React Query will handle fetching the full details
     card.listId = list.id;
     setSelectedCard(card);
     setActiveList(list);
@@ -120,23 +145,8 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
       scroll: false,
     });
 
-    // Then fetch the full card data including requests
-    try {
-      const resp = await cardDetails(card.id, boardId as string);
-      if (resp.data) {
-        const fullCard = resp.data;
-        fullCard.listId = list.id;
-        setSelectedCard((prevCard) => {
-          if (!prevCard) return prevCard;
-          return {
-            ...prevCard,
-            ...fullCard,
-          };
-        });
-      }
-    } catch (error) {
-      console.error("Error fetching full card details:", error);
-    }
+    // React Query will automatically fetch the full card details
+    // and the useEffect above will update the selectedCard state
   };
 
   const { mutate, isPending } = useMutation({
@@ -249,17 +259,14 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
       const listId = searchParams.get("listId");
       if (cardId && listId) {
         setIsCardDetailOpen(true);
-        const resp = cardDetails(cardId, boardId as string);
-        resp.then((res) => {
-          if (res.data) {
-            const card: Card = res.data;
-            card.listId = listId;
-            const list: AnyList = { id: listId } as AnyList;
+        setIsOpenViaUrl(true);
 
-            setSelectedCard(card);
-            setActiveList(list);
-          }
-        });
+        // Set basic card data - React Query will fetch the full details
+        const card: Card = { id: cardId, listId: listId } as Card;
+        const list: AnyList = { id: listId } as AnyList;
+
+        setSelectedCard(card);
+        setActiveList(list);
       } else {
         closeCardDetail();
       }

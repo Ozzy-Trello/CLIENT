@@ -55,6 +55,7 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
         message = camelcaseKeys(message, { deep: true });
         console.log("WebSocket message received:", message);
 
+        let refreshDashcard = false;
         switch (message.event) {
           case "connection":
             console.log(
@@ -83,6 +84,7 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             queryClient.invalidateQueries({
               queryKey: queryKeys.cards.detail(card.id),
             });
+            refreshDashcard = true;
             break;
 
           case EnumUserActionEvent.CardUpdated:
@@ -97,6 +99,29 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             queryClient.invalidateQueries({
               queryKey: queryKeys.cards.detail(updatedCard.id),
             });
+            refreshDashcard = true;
+            break;
+
+          case EnumUserActionEvent.CardRenamed:
+            const {
+              card: renamedCard,
+              listId: renamedListId,
+              previousName,
+              renamedBy,
+            } = message.data;
+            console.log(
+              `Card ${renamedCard.id} renamed from "${previousName}" to "${renamedCard.name}" in list ${renamedListId} by ${renamedBy}`
+            );
+
+            // Invalidate relevant queries to refresh the UI
+            queryClient.invalidateQueries({ queryKey: queryKeys.lists.all });
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.cards.list(renamedListId),
+            });
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.cards.detail(renamedCard.id),
+            });
+            refreshDashcard = true;
             break;
 
           case EnumUserActionEvent.CardCreated:
@@ -110,6 +135,12 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             queryClient.invalidateQueries({
               queryKey: queryKeys.cards.list(newCardListId),
             });
+            // Dashcard counters may be affected (new card)
+            queryClient.invalidateQueries({
+              queryKey: ["dashcardCount"],
+              exact: false,
+            });
+            refreshDashcard = true;
             break;
 
           case EnumUserActionEvent.CardDeleted:
@@ -128,6 +159,7 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             queryClient.removeQueries({
               queryKey: queryKeys.cards.detail(deletedCardId),
             });
+            refreshDashcard = true;
             break;
 
           case EnumUserActionEvent.CardArchived:
@@ -153,6 +185,7 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             queryClient.invalidateQueries({
               queryKey: queryKeys.cards.archived(),
             });
+            refreshDashcard = true;
             break;
 
           case "custom_field:updated":
@@ -191,6 +224,7 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
               queryKey: ["cards"],
               exact: false,
             });
+            refreshDashcard = true;
             break;
 
           case EnumUserActionEvent.ListCreated:
@@ -213,6 +247,7 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             queryClient.invalidateQueries({
               queryKey: queryKeys.boards.withLists(createdBoardId),
             });
+            refreshDashcard = true;
             break;
 
           case EnumUserActionEvent.ListMoved:
@@ -240,6 +275,7 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             queryClient.invalidateQueries({
               queryKey: queryKeys.lists.detail(movedList.id),
             });
+            refreshDashcard = true;
             break;
 
           case EnumUserActionEvent.ListUpdated:
@@ -261,6 +297,7 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             queryClient.invalidateQueries({
               queryKey: queryKeys.boards.withLists(updatedBoardId),
             });
+            refreshDashcard = true;
             break;
 
           case EnumUserActionEvent.ListDeleted:
@@ -287,6 +324,7 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             queryClient.removeQueries({
               queryKey: queryKeys.cards.list(deletedListId),
             });
+            refreshDashcard = true;
             break;
 
           // Checklist events
@@ -303,6 +341,7 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             queryClient.invalidateQueries({
               queryKey: ["checklist", checklist.id],
             });
+            refreshDashcard = true;
             break;
           }
 
@@ -326,11 +365,34 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
                 exact: false,
               });
             }
+            refreshDashcard = true;
+            break;
+          }
+
+          case "card_member:updated": {
+            const { cardId, members } = message.data;
+            console.log(`Members updated for card ${cardId}`);
+            // invalidate any member-related queries
+            queryClient.invalidateQueries({
+              queryKey: ["cardMembers", cardId],
+            });
+            // also refresh card detail so member list in sidebar updates
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.cards.detail(cardId),
+            });
+            refreshDashcard = true;
             break;
           }
 
           default:
             console.log("Unknown WebSocket event:", message.event);
+        }
+
+        if (refreshDashcard) {
+          queryClient.invalidateQueries({
+            queryKey: ["dashcardCount"],
+            exact: false,
+          });
         }
       } catch (e) {
         console.error("Invalid WebSocket data:", e);

@@ -133,6 +133,10 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
       filters: selectedFilters,
     };
 
+    console.log(
+      "[Dashcard SAVE] payload:",
+      JSON.stringify(dashcardConfig, null, 2)
+    );
     onSave(dashcardConfig);
     message.success(
       `${initialData ? "Updated" : "Created"} dashcard successfully`

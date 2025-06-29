@@ -9,28 +9,62 @@ import { useLabels } from "@hooks/label";
 import { Card } from "@myTypes/card";
 
 interface LabelFormProps {
-  popoverPage: 'home' | 'add' | 'update';
-  setPopoverPage: (page: 'home' | 'add' | 'update') => void;
+  popoverPage: "home" | "add" | "update";
+  setPopoverPage: (page: "home" | "add" | "update") => void;
   selectedLabel: CardLabel | undefined;
   setSelectedLabel: any;
   selectedCard: Card | null;
 }
 
 const COLORS = [
-  "#B9FBC0", "#FAEDCD", "#FCD5CE", "#FEC5BB", "#E0BBE4",
-  "#A3D9A5", "#FFE066", "#FDBA74", "#FF6B6B", "#B39CD0",
-  "#2A9D8F", "#B08968", "#E76F51", "#E63946", "#7C83FD",
-  "#AEDFF7", "#C4F1F9", "#C1E1C1", "#F9C6D3", "#D3D3D3",
-  "#4DA8DA", "#6DD3CE", "#90BE6D", "#D291BC", "#6C757D",
-  "#007BFF", "#3182CE", "#2F855A", "#C53030", "#2D3748",
+  "#B9FBC0",
+  "#FAEDCD",
+  "#FCD5CE",
+  "#FEC5BB",
+  "#E0BBE4",
+  "#A3D9A5",
+  "#FFE066",
+  "#FDBA74",
+  "#FF6B6B",
+  "#B39CD0",
+  "#2A9D8F",
+  "#B08968",
+  "#E76F51",
+  "#E63946",
+  "#7C83FD",
+  "#AEDFF7",
+  "#C4F1F9",
+  "#C1E1C1",
+  "#F9C6D3",
+  "#D3D3D3",
+  "#4DA8DA",
+  "#6DD3CE",
+  "#90BE6D",
+  "#D291BC",
+  "#6C757D",
+  "#007BFF",
+  "#3182CE",
+  "#2F855A",
+  "#C53030",
+  "#2D3748",
 ];
 
 const LabelForm: React.FC<LabelFormProps> = (props) => {
-  const { popoverPage, setPopoverPage, setSelectedLabel, selectedLabel, selectedCard } = props;
-  const [ selectedColor, setSelectedColor ] = useState<string | null>(COLORS[29]);
-  const { workspaceId} = useParams();
-  const { createLabelAsync, updateLabelAsync, deleteLabelAsync } = useLabels(workspaceId as string, selectedCard?.id, {cardId: selectedCard?.id});
-  const [ newLabel, setNewLabel ] = useState<CardLabel>({
+  const {
+    popoverPage,
+    setPopoverPage,
+    setSelectedLabel,
+    selectedLabel,
+    selectedCard,
+  } = props;
+  const [selectedColor, setSelectedColor] = useState<string | null>(COLORS[29]);
+  const { workspaceId } = useParams();
+  const { createLabelAsync, updateLabelAsync, deleteLabelAsync } = useLabels(
+    workspaceId as string,
+    selectedCard?.id,
+    { cardId: selectedCard?.id }
+  );
+  const [newLabel, setNewLabel] = useState<CardLabel>({
     id: "",
     name: "",
     value: "",
@@ -40,44 +74,43 @@ const LabelForm: React.FC<LabelFormProps> = (props) => {
 
   const handleSave = () => {
     if (newLabel?.labelId) {
-      updateLabelAsync({id:newLabel?.labelId, updates: newLabel});
+      updateLabelAsync({ id: newLabel?.labelId, updates: newLabel });
     } else {
       createLabelAsync(newLabel);
     }
-    setPopoverPage('home');
+    setPopoverPage("home");
   };
 
   const handleDelete = () => {
     if (newLabel?.labelId) {
       deleteLabelAsync(newLabel?.labelId);
     }
-    setPopoverPage('home');
-  }
+    setPopoverPage("home");
+  };
 
   const onColorChange = (color: string) => {
     setSelectedColor(color);
     setNewLabel((prev) => ({
       ...prev,
       value: color,
-    }))
-  }
+    }));
+  };
 
   const onLabelNameChange = (labelName: string) => {
     setNewLabel((prev) => ({
       ...prev,
       name: labelName,
-    }))
-  }
+    }));
+  };
 
   useEffect(() => {
     if (selectedLabel) {
       setNewLabel(selectedLabel);
     }
-  }, [])
+  }, []);
 
   return (
     <div className="w-80 bg-white p-4 rounded shadow">
-
       {/* Preview */}
       <div
         className="h-10 rounded mb-4 transition-all duration-200"
@@ -90,20 +123,26 @@ const LabelForm: React.FC<LabelFormProps> = (props) => {
         <Input
           placeholder="Enter label title"
           value={newLabel === undefined ? "" : newLabel?.name}
-          onChange={(e) => {onLabelNameChange(e.target.value)}}
+          onChange={(e) => {
+            onLabelNameChange(e.target.value);
+          }}
           className="rounded"
         />
       </div>
 
       {/* Color Picker */}
       <div>
-        <label className="text-sm text-gray-600 block mb-2">Select a color</label>
+        <label className="text-sm text-gray-600 block mb-2">
+          Select a color
+        </label>
         <div className="grid grid-cols-5 gap-2">
           {COLORS.map((color) => (
             <button
               key={color}
               className={`h-6 w-6 rounded border-2 ${
-                selectedColor === color ? "border-blue-600" : "border-transparent"
+                selectedColor === color
+                  ? "border-blue-600"
+                  : "border-transparent"
               }`}
               style={{ backgroundColor: color }}
               onClick={() => onColorChange(color)}
@@ -127,18 +166,14 @@ const LabelForm: React.FC<LabelFormProps> = (props) => {
       {/* Create Button */}
       <div className="mt-4 pt-4 flex gap-2 justify-end">
         <Button
-          color="danger" 
+          color="danger"
           variant="solid"
           size="small"
           onClick={handleDelete}
         >
           Delete
         </Button>
-        <Button
-          type="primary"
-          onClick={handleSave}
-          size="small"
-        >
+        <Button type="primary" onClick={handleSave} size="small">
           Save
         </Button>
       </div>

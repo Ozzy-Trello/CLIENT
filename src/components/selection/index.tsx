@@ -11,21 +11,19 @@ import {
 import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
 
 import { useWorkspaces } from "@hooks/workspace";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import {
   selectCurrentWorkspace,
   setCurrentWorkspace,
 } from "@store/workspace_slice";
 import { useParams, useRouter } from "next/navigation";
-import { accountList } from "@api/account";
-import { useSelector } from "react-redux";
-import { useLists } from "@hooks/list";
-import { useCustomFields } from "@hooks/custom_field";
 import { useAccountList } from "@hooks/account";
 import { Card } from "@myTypes/card";
 import { cards } from "@api/card";
 import { useBoards } from "@hooks/board";
 import { useLabels } from "@hooks/label";
+import { useLists } from "@hooks/list";
+import { useCustomFields } from "@hooks/custom_field";
 
 // Global SELECTION props
 
@@ -50,12 +48,14 @@ export interface SelectionRef {
 interface SelectionProps {
   placeholder?: string;
   width?: string | number;
-  size?: "large" | "middle" | "small";
+  size?: "small" | "middle" | "large";
   style?: React.CSSProperties;
   className?: string;
   value?: string;
   onChange?: (value: string, option?: any) => void;
   mode?: "multiple" | "tags" | undefined;
+  excludeIds?: string[];
+  roleIds?: string[];
   [key: string]: any; // Allow additional props
 }
 
@@ -70,6 +70,8 @@ export const UserSelection = forwardRef<SelectionRef, SelectionProps>(
       value,
       onChange,
       mode,
+      excludeIds = [],
+      roleIds = [],
     },
     ref
   ) => {
@@ -127,34 +129,41 @@ export const UserSelection = forwardRef<SelectionRef, SelectionProps>(
       }
     };
 
-    // Fetch user data
+    // Fetch user data via react-query (cached across components)
+    const { data: accountListData, isLoading: accountListLoading } =
+      useAccountList({
+        workspaceId: Array.isArray(workspaceId)
+          ? (workspaceId[0] as string)
+          : (workspaceId as string),
+        boardId: Array.isArray(boardId)
+          ? (boardId[0] as string)
+          : (boardId as string),
+        roleIds: roleIds,
+      });
+
+    // Build Select options whenever the list or excludeIds change
     useEffect(() => {
-      const fetchData = async () => {
-        const wsId = Array.isArray(workspaceId) ? workspaceId[0] : workspaceId;
-        const bId = Array.isArray(boardId) ? boardId[0] : boardId;
-        const result = await accountList(wsId, bId);
+      if (!accountListData?.data) return;
 
-        if (result && result.data) {
-          const opt = result.data.map((item) => ({
-            value: item.id,
-            label: (
-              <div className="flex justify-start items-center gap-3">
-                <Avatar
-                  size={20}
-                  className="bg-blue-50 text-blue-500 border border-blue-100"
-                >
-                  {item.username?.substring(0, 2)?.toUpperCase()}
-                </Avatar>
-                <Typography.Text>{item.username}</Typography.Text>
-              </div>
-            ),
-          }));
-          setOptions(opt);
-        }
-      };
+      const opt = accountListData.data
+        .filter((u) => !excludeIds.includes(u.id))
+        .map((item) => ({
+          value: item.id,
+          label: (
+            <div className="flex justify-start items-center gap-3">
+              <Avatar
+                size={20}
+                className="bg-blue-50 text-blue-500 border border-blue-100"
+              >
+                {item.username?.substring(0, 2)?.toUpperCase()}
+              </Avatar>
+              <Typography.Text>{item.username}</Typography.Text>
+            </div>
+          ),
+        }));
 
-      fetchData();
-    }, [workspaceId, boardId]);
+      setOptions(opt);
+    }, [accountListData, excludeIds]);
 
     // When options change, update the selected object if value is already set
     useEffect(() => {
@@ -707,21 +716,48 @@ export const FieldValueInput = forwardRef<SelectionRef, FieldValueInputProps>(
     const [userOptions, setUserOptions] = useState<
       Array<{ label: string; value: string }>
     >([]);
+
+    // Parse role IDs from source if it's role-based
+    const parseRoleSource = (source: string): string[] => {
+      if (source?.startsWith("user-role:")) {
+        return source
+          .slice(10)
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean);
+      }
+      return [];
+    };
+
+    const roleIds = field?.source?.startsWith("user-role:")
+      ? parseRoleSource(field.source)
+      : [];
+
     const usersQuery = useAccountList({
       workspaceId: workspaceId as string,
       boardId: boardId as string,
+      roleIds: roleIds, // Pass role IDs for filtering
     });
 
     console.log(field, "field");
 
     // Only fetch users when needed
     useEffect(() => {
-      if (field?.source !== "user" || !workspaceId || !boardId) return;
+      if (
+        (field?.source !== "user" &&
+          !field?.source?.startsWith("user-role:")) ||
+        !workspaceId ||
+        !boardId
+      )
+        return;
       usersQuery.refetch();
     }, [field?.source, workspaceId, boardId]);
 
     useEffect(() => {
-      if (field?.source === "user" && usersQuery.data?.data) {
+      if (
+        (field?.source === "user" || field?.source?.startsWith("user-role:")) &&
+        usersQuery.data?.data
+      ) {
         setUserOptions(
           usersQuery.data.data.map(
             (item: { username: string; id: string; name?: string }) => ({
@@ -757,7 +793,7 @@ export const FieldValueInput = forwardRef<SelectionRef, FieldValueInputProps>(
       onChange?.(val, option);
     };
 
-    if (field?.source === "user") {
+    if (field?.source === "user" || field?.source?.startsWith("user-role:")) {
       return (
         <Select
           style={{ width: "10%" }}

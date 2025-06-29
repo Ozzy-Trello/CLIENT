@@ -1,13 +1,14 @@
 export enum EnumCustomFieldType {
-  Checkbox = 'checkbox',
-  Dropdown = 'dropdown',
-  Number = 'number',
-  Text = 'text',
-  Date = 'date'
+  Checkbox = "checkbox",
+  Dropdown = "dropdown",
+  Number = "number",
+  Text = "text",
+  Date = "date",
 }
 export enum EnumCustomFieldSource {
-  User = 'user',
-  Custom = 'custom'
+  User = "user",
+  Product = "product",
+  Custom = "custom",
 }
 export interface CustomField {
   id: string;
@@ -15,7 +16,7 @@ export interface CustomField {
   boardId?: string;
   name: string;
   description: string;
-  source: string | CustomOption;
+  source: string; // Can be EnumCustomFieldSource values or "user-role:roleIds"
   type?: EnumCustomFieldType;
   options?: CustomOption[] | undefined;
   isShowAtFront?: boolean;
