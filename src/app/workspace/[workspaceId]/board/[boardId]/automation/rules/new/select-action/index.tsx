@@ -19,11 +19,16 @@ import {
   CustomFieldSelection,
   UserSelection,
   FieldValueInput,
+  BoardSelection,
+  LabelSelection,
 } from "@components/selection";
 import { EnumSelectionType, EnumTextType } from "@myTypes/automation-rule";
 import { EnumInputType } from "@myTypes/automation-rule";
 import { ActionType } from "@myTypes/automation-rule";
 import dayjs from "dayjs";
+import MultipleChecklist from "./multiple-checklist";
+import MultipleDates from "./multiple-dates";
+import { MultipleDatesProvider } from "./multiple-dates/context";
 
 // Helper function to extract placeholders from a pattern
 function extractPlaceholders(pattern: string): string[] {
@@ -67,6 +72,8 @@ const SelectOption = ({
   const userSelectionRef = useRef<SelectionRef>(null);
   const customFieldSelectionRef = useRef<SelectionRef>(null);
   const fieldValueInputRef = useRef<SelectionRef>(null);
+  const boardSelectionRef = useRef<SelectionRef>(null);
+  const labelSelectionRef = useRef<SelectionRef>(null);
 
   const options = data?.options?.map((optionItem: GeneralOptions) => ({
     value: optionItem.value,
@@ -163,14 +170,17 @@ const SelectOption = ({
     return <span className="font-bold mx-1"> selected user </span>;
   }
 
-  if (placeholder === EnumSelectionType.User) {
+  if (
+    placeholder === EnumSelectionType.User ||
+    placeholder === EnumSelectionType.MultiUsers
+  ) {
     return (
       <UserSelection
         width={"fit-content"}
         ref={userSelectionRef}
         value={
           (actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value
-            ?.value || ""
+            ?.value || undefined
         }
         onChange={(option: any) => {
           console.log("UserSelection onChange called:", option);
@@ -178,6 +188,10 @@ const SelectOption = ({
         }}
         className="mx-2"
         key={`user-selection-${index}`}
+        placeholder={data.placeholder}
+        mode={
+          placeholder === EnumSelectionType.MultiUsers ? "multiple" : undefined
+        }
       />
     );
   }
@@ -193,12 +207,13 @@ const SelectOption = ({
         ref={listSelectionRef}
         value={
           (actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value
-            ?.value || ""
+            ?.value || undefined
         }
         onChange={(option: any) => {
           onListChange(option, placeholder);
         }}
         className="mx-2"
+        placeholder={data.placeholder}
         key={`list-selection-${index}`}
       />
     );
@@ -286,6 +301,57 @@ const SelectOption = ({
     );
   }
 
+  if (placeholder === EnumSelectionType.Board) {
+    return (
+      <BoardSelection
+        width={"fit-content"}
+        ref={boardSelectionRef}
+        value={
+          (actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value
+            ?.value || undefined
+        }
+        onChange={(option: any) => {
+          onListChange(option, placeholder);
+        }}
+        className="mx-2"
+        placeholder={data.placeholder}
+        key={`board-selection-${index}`}
+      />
+    );
+  }
+
+  // if (placeholder === EnumSelectionType.MultiLabels) {
+  //   return (
+  //     <LabelSelection
+  //       width={"fit-content"}
+  //       ref={labelSelectionRef}
+  //       value={
+  //         (actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value
+  //           ?.value || undefined
+  //       }
+  //       onChange={(option: any) => {
+  //         onListChange(option, placeholder);
+  //       }}
+  //       className="mx-2"
+  //       placeholder={data.placeholder}
+  //       key={`label-selection-${index}`}
+  //       mode="multiple"
+  //     />
+  //   );
+  // }
+
+  if (placeholder === EnumSelectionType.MultiChecklists) {
+    return <MultipleChecklist />;
+  }
+
+  if (placeholder === EnumSelectionType.MultiDates) {
+    return (
+      <MultipleDatesProvider>
+        <MultipleDates />
+      </MultipleDatesProvider>
+    );
+  }
+
   // Render regular Select
   return (
     <Select
@@ -331,7 +397,9 @@ const renderLabelWithSelects = (
 
           // Handle text input
           if (
-            placeholder === EnumSelectionType.TextInput &&
+            (placeholder === EnumSelectionType.TextInput ||
+              placeholder === EnumInputType.TextTitle ||
+              placeholder === EnumInputType.TextDescription) &&
             item[placeholder]
           ) {
             const data = item[placeholder] as {
