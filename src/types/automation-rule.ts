@@ -67,6 +67,10 @@ export enum EnumSelectionType {
   MultiDates = "multi_dates",
   AddRemove = "add_remove",
   RemoveFromCard = "remove_from_card",
+  TaskType = "task_type",
+  SetTask = "set_task",
+  CardContentType = "card_content_type",
+  CardContentText = "card_content_text",
 }
 
 export enum EnumInputType {
@@ -138,6 +142,12 @@ export enum TriggerType {
 
   // "when an item <text_comparison> is <action> <checklist_scope> [text] <filter> <optional_by>"
   WhenChecklistItemIsAddedTo = `when-an-item-<${EnumSelectionType.TextComparison}>-is-<${EnumSelectionType.Action}>-<${EnumSelectionType.ChecklistScope}>[${EnumInputType.Text}]-<${EnumSelectionType.OptionalFilter}>-<${EnumSelectionType.OptionalBySubject}>`,
+
+  // when a <TaskType> date <DateExpression> is <SetTask> a card <OptionalFilter> <OptionalBySubject>
+  WhenTaskDateIsSet = `when-a-<${EnumSelectionType.TaskType}>-date-<${EnumSelectionType.DateExpression}>-is-<${EnumSelectionType.SetTask}>-a-card-<${EnumSelectionType.OptionalFilter}>-<${EnumSelectionType.OptionalBySubject}>`,
+
+  // when <CardContentType> of a card <OptionalFilter> <CardContentText> <Text>
+  WhenCardContentTextIsSet = `when-<${EnumSelectionType.CardContentType}>-of-a-card-<${EnumSelectionType.OptionalFilter}>-<${EnumSelectionType.CardContentText}>-[${EnumInputType.Text}]`,
 
   // add more..
 }

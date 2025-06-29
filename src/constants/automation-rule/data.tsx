@@ -43,6 +43,10 @@ import {
   EnumCreateType,
   EnumAddRemove,
   EnumRemoveFromCard,
+  EnumSetDate,
+  EnumSetTask,
+  EnumCardContentType,
+  EnumCardContentText,
 } from "@myTypes/options";
 
 // The constants used to contruct the UI
@@ -591,6 +595,81 @@ export const triggers: AutomationRuleTrigger[] = [
     type: TriggerGroupType.CardDates,
     label: "Dates",
     icon: <Clock />,
+    items: [
+      {
+        type: TriggerType.WhenTaskDateIsSet,
+        label: TriggerType.WhenTaskDateIsSet.replaceAll("-", " "),
+        [EnumSelectionType.TaskType]: {
+          options: [
+            {
+              value: EnumSetDate.Due,
+              label: "Due",
+            },
+            {
+              value: EnumSetDate.Start,
+              label: "Start",
+            },
+          ],
+          value: {
+            value: EnumSetDate.Due,
+            label: "Due",
+          },
+        },
+        [EnumSelectionType.OptionalBySubject]: {
+          options: [
+            {
+              value: EnumOptionBySubject.ByMe,
+              label: "by me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyone,
+              label: "by anyone",
+            },
+            {
+              value: EnumOptionBySubject.BySpecificUser,
+              label: "by specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptMe,
+              label: "by anyone except me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
+              label: "by anyone except specific user",
+            },
+          ],
+          value: {
+            value: EnumOptionBySubject.ByMe,
+            label: "by me",
+          },
+          data: [],
+        },
+        [EnumSelectionType.DateExpression]: {
+          options: [],
+          value: null,
+        },
+        [EnumSelectionType.SetTask]: {
+          options: [
+            {
+              value: EnumSetTask.SetOn,
+              label: "set on",
+            },
+            {
+              value: EnumSetTask.MovedIn,
+              label: "moved in",
+            },
+            {
+              value: EnumSetTask.RemoveFrom,
+              label: "removed from",
+            },
+          ],
+          value: {
+            value: EnumSetTask.SetOn,
+            label: "set on",
+          },
+        },
+      },
+    ],
   },
   {
     type: TriggerGroupType.CardChecklist,
@@ -845,7 +924,65 @@ export const triggers: AutomationRuleTrigger[] = [
     type: TriggerGroupType.CardContent,
     label: "Card Content",
     icon: <MessageSquare />,
-    items: [],
+    items: [
+      {
+        type: TriggerType.WhenCardContentTextIsSet,
+        label: TriggerType.WhenCardContentTextIsSet.replaceAll("-", " "),
+        [EnumSelectionType.CardContentType]: {
+          options: [
+            {
+              value: EnumCardContentType.Name,
+              label: "name",
+            },
+            {
+              value: EnumCardContentType.Description,
+              label: "description",
+            },
+            {
+              value: EnumCardContentType.NameOrDescription,
+              label: "name or description",
+            },
+          ],
+          value: {
+            value: EnumCardContentType.Name,
+            label: "name",
+          },
+        },
+        [EnumSelectionType.CardContentText]: {
+          options: [
+            {
+              value: EnumCardContentText.StartsWith,
+              label: "starts with",
+            },
+            {
+              value: EnumCardContentText.EndsWith,
+              label: "ends with",
+            },
+            {
+              value: EnumCardContentText.Contains,
+              label: "contains",
+            },
+            {
+              value: EnumCardContentText.DoesNotStartWith,
+              label: "does not start with",
+            },
+            {
+              value: EnumCardContentText.DoesNotEndWith,
+              label: "does not end with",
+            },
+            {
+              value: EnumCardContentText.DoesNotContain,
+              label: "does not contain",
+            },
+          ],
+          value: {
+            value: EnumCardContentText.StartsWith,
+            label: "starts with",
+          },
+        },
+        [EnumInputType.Text]: "",
+      },
+    ],
   },
   {
     type: TriggerGroupType.CardFields,
@@ -1360,7 +1497,7 @@ export const actions: AutomationRuleAction[] = [
             label: "Add",
           },
         },
-        [EnumSelectionType.CardLabel]: {
+        [EnumSelectionType.MultiLabels]: {
           options: [],
           value: null,
           placeholder: "Select Label",

@@ -8,7 +8,13 @@ import {
   SelectProps,
   Typography,
 } from "antd";
-import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useState,
+} from "react";
 
 import { useWorkspaces } from "@hooks/workspace";
 import { useDispatch, useSelector } from "react-redux";
@@ -76,9 +82,6 @@ export const UserSelection = forwardRef<SelectionRef, SelectionProps>(
     ref
   ) => {
     const { workspaceId, boardId } = useParams();
-    const [options, setOptions] = useState<
-      { label: JSX.Element | string | undefined; value: string }[]
-    >([]);
     const [selectedValue, setSelectedValue] = useState<string | undefined>(
       value
     );
@@ -87,12 +90,44 @@ export const UserSelection = forwardRef<SelectionRef, SelectionProps>(
       value: string;
     }>();
 
+    const { data: accountListData, isLoading: accountListLoading } =
+      useAccountList({
+        workspaceId: Array.isArray(workspaceId)
+          ? (workspaceId[0] as string)
+          : (workspaceId as string),
+        boardId: Array.isArray(boardId)
+          ? (boardId[0] as string)
+          : (boardId as string),
+        roleIds: roleIds,
+      });
+
     // If the value prop changes, update our internal state
     useEffect(() => {
       if (value !== undefined && value !== selectedValue) {
         setSelectedValue(value);
       }
     }, [value]);
+
+    const options = useMemo(() => {
+      if (!accountListData?.data) return [];
+
+      return accountListData.data
+        .filter((u) => !excludeIds.includes(u.id))
+        .map((item) => ({
+          value: item.id,
+          label: (
+            <div className="flex justify-start items-center gap-3">
+              <Avatar
+                size={20}
+                className="bg-blue-50 text-blue-500 border border-blue-100"
+              >
+                {item.username?.substring(0, 2)?.toUpperCase()}
+              </Avatar>
+              <Typography.Text>{item.username}</Typography.Text>
+            </div>
+          ),
+        }));
+    }, [accountListData, excludeIds]);
 
     // Expose methods via ref
     useImperativeHandle(ref, () => ({
@@ -130,40 +165,6 @@ export const UserSelection = forwardRef<SelectionRef, SelectionProps>(
     };
 
     // Fetch user data via react-query (cached across components)
-    const { data: accountListData, isLoading: accountListLoading } =
-      useAccountList({
-        workspaceId: Array.isArray(workspaceId)
-          ? (workspaceId[0] as string)
-          : (workspaceId as string),
-        boardId: Array.isArray(boardId)
-          ? (boardId[0] as string)
-          : (boardId as string),
-        roleIds: roleIds,
-      });
-
-    // Build Select options whenever the list or excludeIds change
-    useEffect(() => {
-      if (!accountListData?.data) return;
-
-      const opt = accountListData.data
-        .filter((u) => !excludeIds.includes(u.id))
-        .map((item) => ({
-          value: item.id,
-          label: (
-            <div className="flex justify-start items-center gap-3">
-              <Avatar
-                size={20}
-                className="bg-blue-50 text-blue-500 border border-blue-100"
-              >
-                {item.username?.substring(0, 2)?.toUpperCase()}
-              </Avatar>
-              <Typography.Text>{item.username}</Typography.Text>
-            </div>
-          ),
-        }));
-
-      setOptions(opt);
-    }, [accountListData, excludeIds]);
 
     // When options change, update the selected object if value is already set
     useEffect(() => {

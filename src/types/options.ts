@@ -201,3 +201,24 @@ export enum EnumRemoveFromCard {
   AllChecklist = "all-checklist",
   AllMembers = "all-members",
 }
+
+export enum EnumSetTask {
+  SetOn = "set-on",
+  MovedIn = "moved-in",
+  RemoveFrom = "remove-from",
+}
+
+export enum EnumCardContentType {
+  Name = "name",
+  Description = "description",
+  NameOrDescription = "name-or-description",
+}
+
+export enum EnumCardContentText {
+  StartsWith = "starts-with",
+  EndsWith = "ends-with",
+  Contains = "contains",
+  DoesNotStartWith = "does-not-start-with",
+  DoesNotEndWith = "does-not-end-with",
+  DoesNotContain = "does-not-contain",
+}
