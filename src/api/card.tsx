@@ -91,6 +91,16 @@ export const cardUnarchive = async (
   return data;
 };
 
+export const cardComplete = async(cardId: string): Promise<ApiResponse<any>> => {
+  const { data } = await api.post(`/card/${cardId}/complete`);
+  return data;
+}
+
+export const cardIncomplete = async(cardId: string): Promise<ApiResponse<any>> => {
+  const { data } = await api.post(`/card/${cardId}/incomplete`);
+  return data;
+}
+
 /**
  * Card Label
  */

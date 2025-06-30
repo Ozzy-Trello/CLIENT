@@ -2,11 +2,13 @@ import { useCardDetailContext } from "@providers/card-detail-context";
 import { Card, EnumCardType } from "@myTypes/card";
 import { AnyList } from "@myTypes/list";
 import { Draggable } from "@hello-pangea/dnd";
-import { CheckboxProps } from "antd";
+import { CheckboxChangeEvent, CheckboxProps } from "antd";
 import { useState } from "react";
 import RegularCard from "./regular";
 import Dashcard from "./dashcard";
 import { usePermissions } from "@hooks/account";
+import { useCardDetails } from "@hooks/card-details";
+import { useParams } from "next/navigation";
 
 interface DraggableCardProps {
   card: Card;
@@ -16,14 +18,20 @@ interface DraggableCardProps {
 
 const DraggableCard: React.FC<DraggableCardProps> = ({ card, index, list }) => {
   const { openCardDetail } = useCardDetailContext();
-  const [isComplete, setIsComplete] = useState<boolean>(false);
+  const { workspaceId, boardId } = useParams();
   const [isHovered, setIsHovered] = useState<boolean>(false);
   const [openAddMember, setOpenAddMember] = useState<boolean>(false);
   const { canMove } = usePermissions();
+  const { completeCard, incompleteCard } = useCardDetails("", "", boardId as string);
 
-  const onChange: CheckboxProps["onChange"] = (e) => {
+  const onChange = (e: CheckboxChangeEvent, card: Card) => {
     e.stopPropagation();
-    setIsComplete(e.target.checked);
+    const isComplete = e.target.checked;
+    if (isComplete) {
+      completeCard({listId:card?.listId, cardId: card.id});
+    } else {
+      incompleteCard({listId:card?.listId, cardId: card.id});
+    }
   };
 
   // Check if user can move cards
@@ -59,15 +67,13 @@ const DraggableCard: React.FC<DraggableCardProps> = ({ card, index, list }) => {
             <Dashcard
               card={card}
               isHovered={isHovered}
-              onChange={onChange}
-              isComplete={isComplete}
+              onCompletionChange={onChange}
             />
           ) : (
             <RegularCard
               card={card}
               isHovered={isHovered}
-              onChange={onChange}
-              isComplete={isComplete}
+              onCompletionChange={onChange}
             />
           )}
         </div>

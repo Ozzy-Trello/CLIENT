@@ -30,6 +30,8 @@ export interface Card {
   activity?: CardActivity[];
   checklists?: Checklist[];
   isWatched?: boolean;
+  isComplete?: boolean;
+  completed_at?: string;
   archive?: boolean;
   position?: number;
   order?: number;

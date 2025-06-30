@@ -27,8 +27,7 @@ import { fetchLookups } from "@utils/fetch-lookups";
 interface RegularCardProps {
   card: Card;
   isHovered: boolean;
-  onChange: (e: CheckboxChangeEvent) => void;
-  isComplete: boolean;
+  onCompletionChange: (e: CheckboxChangeEvent, card: Card) => void;
 }
 
 // Utility: decide black/white text based on background color
@@ -46,7 +45,7 @@ function getContrastTextColor(hex: string): string {
 }
 
 const RegularCard: React.FC<RegularCardProps> = (props) => {
-  const { card, isHovered, onChange, isComplete } = props;
+  const { card, isHovered, onCompletionChange } = props;
   const { workspaceId } = useParams();
   const { cardMembers } = useCardMembers(card?.id);
   const { cardCustomFields } = useCardCustomField(
@@ -174,17 +173,17 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
         <div className="flex items-center space-x-2 relative mb-3">
           <Checkbox
             className={`custom-circular-checkbox absolute left-0 -ml-6 transition-all duration-300 ${
-              isHovered || isComplete ? "opacity-100" : "opacity-0"
-            } ${isComplete ? "completed" : ""}`}
-            onChange={onChange}
+              isHovered || card?.isComplete ? "opacity-100" : "opacity-0"
+            } ${card?.isComplete ? "completed" : ""}`}
+            onChange={(e) => {onCompletionChange(e, card)}}
             onClick={(e) => e.stopPropagation()}
-            checked={isComplete}
+            checked={card?.isComplete}
           />
           <h3
             className={`
               text-blue-800 font-semibold text-lg
               transition-all duration-300
-              ${isHovered || isComplete ? "translate-x-6" : "translate-x-0"}
+              ${isHovered || card?.isComplete ? "translate-x-6" : "translate-x-0"}
             `}
           >
             {card.name}

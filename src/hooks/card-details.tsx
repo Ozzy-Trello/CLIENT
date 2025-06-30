@@ -1,4 +1,4 @@
-import { cardArchive, cardDetails, cardUnarchive, updateCard } from "@api/card";
+import { cardArchive, cardComplete, cardDetails, cardIncomplete, cardUnarchive, updateCard } from "@api/card";
 import api from "@api/index";
 import { queryKeys } from "@constants/query-keys";
 import { Card } from "@myTypes/card";
@@ -373,6 +373,86 @@ export function useCardDetails(
     },
   });
 
+  // Mark card as complete
+  const completeCardMutation = useMutation({
+    mutationFn: ({ listId, cardId }: { listId: string; cardId: string }) => cardComplete(cardId),
+
+    onMutate: async ({ listId, cardId }) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.cards.detail(cardId) });
+
+      const previousCard = queryClient.getQueryData<ApiResponse<any>>(queryKeys.cards.detail(cardId));
+
+      queryClient.setQueryData<ApiResponse<any>>(queryKeys.cards.detail(cardId), (old) => {
+        if (!old) return old;
+        return {
+          ...old,
+          data: {
+            ...old.data,
+            completed: true,
+            completedAt: new Date().toISOString(),
+          },
+        };
+      });
+
+      return { previousCard, listId, cardId };
+    },
+
+    onError: (_err, _variables, context) => {
+      if (context?.previousCard && context?.cardId) {
+        queryClient.setQueryData(queryKeys.cards.detail(context.cardId), context.previousCard);
+      }
+    },
+
+    onSettled: (_data, _error, variables) => {
+      if (variables) {
+        const { cardId, listId } = variables;
+        queryClient.invalidateQueries({ queryKey: queryKeys.cards.detail(cardId) });
+        queryClient.invalidateQueries({ queryKey: queryKeys.cards.list(listId) });
+      }
+    },
+  });
+
+
+  // Mark card as incomplete
+  const incompleteCardMutation = useMutation({
+    mutationFn: ({ listId, cardId }: { listId: string; cardId: string }) => cardIncomplete(cardId),
+
+    onMutate: async ({ listId, cardId }) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.cards.detail(cardId) });
+
+      const previousCard = queryClient.getQueryData<ApiResponse<any>>(queryKeys.cards.detail(cardId));
+
+      queryClient.setQueryData<ApiResponse<any>>(queryKeys.cards.detail(cardId), (old) => {
+        if (!old) return old;
+        return {
+          ...old,
+          data: {
+            ...old.data,
+            completed: false,
+            completedAt: new Date().toISOString(),
+          },
+        };
+      });
+
+      return { previousCard, listId, cardId };
+    },
+
+    onError: (_err, _variables, context) => {
+      if (context?.previousCard && context?.cardId) {
+        queryClient.setQueryData(queryKeys.cards.detail(context.cardId), context.previousCard);
+      }
+    },
+
+    onSettled: (_data, _error, variables) => {
+      if (variables) {
+        const { cardId, listId } = variables;
+        queryClient.invalidateQueries({ queryKey: queryKeys.cards.detail(cardId) });
+        queryClient.invalidateQueries({ queryKey: queryKeys.cards.list(listId) });
+      }
+    },
+  });
+
+
   return {
     card: cardDetailsQuery.data?.data,
     isLoading: cardDetailsQuery.isLoading,
@@ -389,5 +469,10 @@ export function useCardDetails(
     unarchiveCard: unarchiveCardMutation.mutate,
     isArchivingCard: archiveCardMutation.isPending,
     isUnarchivingCard: unarchiveCardMutation.isPending,
+
+    completeCard: completeCardMutation.mutate,
+    incompleteCard: incompleteCardMutation.mutate,
+    isCompletingCard: completeCardMutation.isPending,
+    isIncompletingCard: incompleteCardMutation.isPending,
   };
 }

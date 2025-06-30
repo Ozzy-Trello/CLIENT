@@ -6,8 +6,7 @@ import "./styles.css";
 interface DashcardProps {
   card: Card;
   isHovered: boolean;
-  onChange: (e: CheckboxChangeEvent) => void;
-  isComplete: boolean;
+  onCompletionChange: (e: CheckboxChangeEvent, card: Card) => void;
 }
 
 // util to lighten color toward white
@@ -23,7 +22,7 @@ const lighten = (hex: string, amount = 0.8) => {
 };
 
 const Dashcard: React.FC<DashcardProps> = (props) => {
-  const { card, isHovered, onChange, isComplete } = props;
+  const { card, isHovered, onCompletionChange } = props;
 
   // Use our custom hook to fetch and manage dashcard count
   const { count } = useDashcardCount(card.id);
@@ -48,20 +47,20 @@ const Dashcard: React.FC<DashcardProps> = (props) => {
           {/* Checkbox: visible on hover or when completed */}
           <Checkbox
             className={`custom-circular-checkbox absolute left-0 -ml-6 transition-all duration-300 ${
-              isHovered || isComplete ? "opacity-100" : "opacity-0"
-            } ${isComplete ? "completed" : ""}`}
-            onChange={onChange}
+              isHovered || card?.isComplete ? "opacity-100" : "opacity-0"
+            } ${card?.isComplete ? "completed" : ""}`}
+            onChange={(e) => {onCompletionChange(e, card)}}
             style={{
               accentColor: "green",
             }}
             onClick={(e) => e.stopPropagation()}
-            checked={isComplete}
+            checked={card?.isComplete}
           />
           <h3
             className={`
               font-semibold text-xl
               transition-all duration-300
-              ${isHovered || isComplete ? "translate-x-6" : "translate-x-0"}
+              ${isHovered || card?.isComplete ? "translate-x-6" : "translate-x-0"}
             `}
           >
             {card.name}
