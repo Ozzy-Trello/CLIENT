@@ -64,4 +64,9 @@ export enum EnumActions {
   MoveChecklistItemDueDate = "move.item.due.date",
   AddCardMember = "add.card.member",
   RemoveCardMember = "remove.card.member",
+  FindCard = "cascade.find.card",
+  LookupCard = "cascade.lookup.card",
+  FindCardByTitle = "cascade.find.card.by.title",
+  LinkCards = "link.cards",
+  UnlinkCards = "unlink.cards",
 }

@@ -322,20 +322,20 @@ export const cardFilters: CardTriggerFilterType[] = [
         [EnumSelectionType.CardContentType]: {
           options: [
             {
-              value: EnumCardContentType.AName,
+              value: EnumCardContentType.Name,
               label: "a name"
             },
             {
-              value: EnumCardContentType.ADescription,
+              value: EnumCardContentType.Description,
               label: "a description"
             },
             {
-              value: EnumCardContentType.ANameOrDescription,
+              value: EnumCardContentType.NameOrDescription,
               label: "a name or a description"
             },
           ],
           value:  {
-            value: EnumCardContentType.AName,
+            value: EnumCardContentType.Name,
             label: "a name"
           },
         },

@@ -10,6 +10,7 @@ import {
   Plus,
   User,
   Hash,
+  Link,
 } from "lucide-react";
 import {
   AutomationRuleAction,
@@ -44,6 +45,8 @@ import {
   EnumSetTask,
   EnumCardContentType,
   EnumCardContentText,
+  EnumCascadeAction,
+  EnumCardOrder,
 } from "@myTypes/options";
 
 // The constants used to contruct the UI
@@ -780,7 +783,7 @@ export const triggers: AutomationRuleTrigger[] = [
             label: "set on",
           },
         },
-        [EnumInputType.DateValue]: {
+        [EnumSelectionType.DateExpression]: {
           options: [],
           value: null,
         },
@@ -1840,7 +1843,89 @@ export const actions: AutomationRuleAction[] = [
   {
     type: "cascade",
     label: "Cascade",
-    icon: <ArrowDownNarrowWide />,
+    icon: <Link />,
+    items: [
+      {
+        type: ActionType.FindCardLinkedInAttachments,
+        label: ActionType.FindCardLinkedInAttachments.replaceAll("-", " "),
+        [EnumSelectionType.CascadeAction]: {
+          options: [
+            {
+              value: EnumCascadeAction.Find,
+              label: "Find",
+            },
+            {
+              value: EnumCascadeAction.Lookup,
+              label: "Lookup",
+            },
+          ],
+          value: {
+            value: EnumCascadeAction.Find,
+            label: "Find",
+          },
+        },
+        [EnumSelectionType.CardOrder]: {
+          options: [
+            {
+              value: EnumCardOrder.First,
+              label: "First",
+            },
+            {
+              value: EnumCardOrder.Last,
+              label: "Last",
+            },
+          ],
+          value: {
+            value: EnumCardOrder.First,
+            label: "First",
+          },
+        },
+      },
+      {
+        type: ActionType.FindCardByTitle,
+        label: ActionType.FindCardByTitle.replaceAll("-", " "),
+        [EnumSelectionType.CascadeAction]: {
+          options: [
+            {
+              value: EnumCascadeAction.Find,
+              label: "Find",
+            },
+            {
+              value: EnumCascadeAction.Lookup,
+              label: "Lookup",
+            },
+          ],
+          value: {
+            value: EnumCascadeAction.Find,
+            label: "Find",
+          },
+        },
+        [EnumInputType.TextTitle]: {
+          placeholder: "Enter card title",
+          value: "",
+        },
+      },
+      {
+        type: ActionType.LinkUnlinkCards,
+        label: "<action>",
+        [EnumSelectionType.Action]: {
+          options: [
+            {
+              value: EnumActions.LinkCards,
+              label: "Link the cards together",
+            },
+            {
+              value: EnumActions.UnlinkCards,
+              label: "Unlink the cards together",
+            },
+          ],
+          value: {
+            value: EnumActions.LinkCards,
+            label: "Link",
+          },
+        },
+      },
+    ],
   },
   {
     type: "notify",

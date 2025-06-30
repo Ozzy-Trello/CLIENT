@@ -78,7 +78,11 @@ export enum EnumSelectionType {
   TimeRelativeReference = "time_relative_reference",
   ChecklistConditionOperator = "checklists_condition_oerator", // with all complete, with an incomplete, etc
   CustomField = "custom_field",
-  CustomFieldAction = "custom_field_action" // set, cleared
+  CustomFieldAction = "custom_field_action", // set, cleared
+  CascadeAction = "cascade_action", // find or lookup
+  CardOrder = "card_order", // first or last
+  SelectableList = "selectable_list", // for optional list selection like checklist filter
+  SelectableBoard = "selectable_board", // for optional board selection like checklist filter
 }
 
 export enum EnumInputType {
@@ -193,6 +197,16 @@ export enum ActionType {
 
   // remove <RemoveFromCard> from the card
   RemoveFromCard = `remove-<${EnumSelectionType.RemoveFromCard}>-from-the-card`,
+
+  // CASCADE ACTIONS
+  // <CascadeAction> the <CardOrder> card linked in the attachments
+  FindCardLinkedInAttachments = `<${EnumSelectionType.CascadeAction}>-the-<${EnumSelectionType.CardOrder}>-card-linked-in-the-attachments`,
+
+  // <CascadeAction> a card titled <TextTitle> in list <OptionalList> in board <OptionalBoard>
+  FindCardByTitle = `<${EnumSelectionType.CascadeAction}>-a-card-titled-<${EnumInputType.TextTitle}>`,
+
+  // <Action> the cards together
+  LinkUnlinkCards = `<${EnumSelectionType.Action}>-the-cards-together`,
 }
 
 // filter type
@@ -226,7 +240,7 @@ export enum EnumTiggerCarFilterType {
   CardCustomField5 = `<${EnumSelectionType.Inclusion}>-custom-field-<${EnumSelectionType.CustomField}>-<${EnumSelectionType.CheckboxState}>`,
   CardCustomField6 = `<${EnumSelectionType.Inclusion}>-custom-field-<${EnumSelectionType.CustomField}>-set-to-a-number-<${EnumSelectionType.NumberComparison}>-[${EnumInputType.Number}]`,
   CardCustomField7 = `<${EnumSelectionType.Inclusion}>-custom-field-<${EnumSelectionType.CustomField}>-set-to-a-date-<${EnumSelectionType.Inclusion}>-<${EnumSelectionType.TimeRange}>`,
-  CardCustomField8 = `<${EnumSelectionType.Inclusion}>-custom-field-<${EnumSelectionType.CustomField}>-set-to-a-date-<${EnumSelectionType.TimeComparison}>-[${EnumInputType.Number}]-<${EnumSelectionType.TimeUnit}>-<${EnumSelectionType.TimeRelativeReference}>`
+  CardCustomField8 = `<${EnumSelectionType.Inclusion}>-custom-field-<${EnumSelectionType.CustomField}>-set-to-a-date-<${EnumSelectionType.TimeComparison}>-[${EnumInputType.Number}]-<${EnumSelectionType.TimeUnit}>-<${EnumSelectionType.TimeRelativeReference}>`,
 }
 
 // (backend will handle trigger metadata mapping)
