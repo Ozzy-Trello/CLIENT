@@ -19,11 +19,11 @@ export function useLabels(
 
   // ---------- Queries ----------
 
-  // const labelsQuery = useQuery({
-  //   queryKey: ["labels", workspaceId, labelQueryParams],
-  //   queryFn: () => getLabels(workspaceId, labelQueryParams || {}),
-  //   enabled: !!workspaceId,
-  // });
+  const labelsQuery = useQuery({
+    queryKey: ["labels", workspaceId, labelQueryParams],
+    queryFn: () => getLabels(workspaceId, labelQueryParams || {}),
+    enabled: !!workspaceId,
+  });
 
   const allLabelsQuery = useQuery({
     queryKey: ["allLabels", workspaceId],
@@ -246,7 +246,7 @@ export function useLabels(
 
   return {
     // Queries
-    // labels: labelsQuery.data?.data || [],
+    labels: labelsQuery.data?.data || [],
     cardLabels: cardLabelsQuery.data?.data || [],
     allLabels: allLabelsQuery.data?.data || [],
     // isLoadingLabels: labelsQuery.isLoading,

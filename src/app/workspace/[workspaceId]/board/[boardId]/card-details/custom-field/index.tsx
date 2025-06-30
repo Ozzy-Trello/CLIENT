@@ -328,12 +328,14 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
     switch (field?.type) {
       case EnumCustomFieldType.Checkbox:
         return (
-          <Checkbox
-            checked={Boolean(field?.valueCheckbox)}
-            onChange={(e) =>
-              handleCheckboxValueChange(field.id!, e.target.checked)
-            }
-          />
+          <div className="w-full">
+            <Checkbox
+              checked={Boolean(field?.valueCheckbox)}
+              onChange={(e) =>
+                handleCheckboxValueChange(field.id!, e.target.checked)
+              }
+            />
+          </div>
         );
 
       case EnumCustomFieldType.Text:
@@ -442,6 +444,8 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
   const getFieldIcon = (field: CardCustomField) => {
     const fieldType: string = field.type || "select";
     switch (fieldType) {
+      case EnumCustomFieldType.Checkbox:
+        return <CheckSquare size={12} className="text-gray-500" />;
       case EnumCustomFieldType.Text:
       case "string":
         return <StretchHorizontal size={12} className="text-gray-500" />;
@@ -452,11 +456,6 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
       default:
         return <StretchHorizontal size={12} className="text-gray-500" />;
     }
-  };
-
-  // Check if field is a checkbox type
-  const isCheckboxField = (field: CardCustomField) => {
-    return field.type === EnumCustomFieldType.Checkbox;
   };
 
   // Show loading state
@@ -501,7 +500,7 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
           {getFieldRows().map((row, rowIndex) => (
             <Fragment key={`row-${rowIndex}`}>
               {row.map((field) => (
-                <div key={field.id} className="space-y-2 flex items-center">
+                <div key={field.id} className="space-y-2">
                   <div className="w-full">
                     <div className="flex items-center gap-2 text-gray-700 font-medium">
                       {getFieldIcon(field)}

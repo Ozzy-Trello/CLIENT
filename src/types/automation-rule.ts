@@ -58,6 +58,7 @@ export enum EnumSelectionType {
   ChecklistScope = "checklist_scope", // checklist / a checklist / all checklists
   ItemScope = "item_scope",
   DateValue = "date_value",
+  ChecklistName = "checklist_name",
   CreateType = "create_type", // new | unique
   CreateTypeItem = "create_type_item", // regular | board | link | separator | mirror
   MultiLabels = "multi_labels",
@@ -174,6 +175,11 @@ export enum ActionType {
   MoveDateCustomField = `move-date-in-custom-field-<${EnumSelectionType.Fields}>-to-<date_value>`,
   RenameCard = `rename-the-card-to-<${EnumSelectionType.TextInput}>`,
   SetCardDescription = `set-the-card's-description-to-<${EnumSelectionType.TextInput}>`,
+  AddChecklistToCard = `<${EnumSelectionType.Action}>-an-empty-checklist-named-<${EnumSelectionType.TextInput}>-to-the-card`,
+  ManageChecklistItem = `<${EnumSelectionType.Action}>-item-<${EnumSelectionType.TextInput}>-to-checklist-<${EnumSelectionType.ChecklistName}>`,
+  SetChecklistItemDueDate = `set-the-item-due-<${EnumInputType.DateValue}>`,
+  MoveChecklistItemDueDate = `move-the-item-due-date-to-<${EnumInputType.DateValue}>`,
+  ToggleChecklistItem = `<${EnumSelectionType.Action}>-item-<${EnumSelectionType.TextInput}>-in-checklist-<${EnumSelectionType.ChecklistName}>`,
   AddCardMember = `add-member-<${EnumSelectionType.User}>-to-the-card`,
   RemoveCardMember = `remove-member-<${EnumSelectionType.User}>-from-the-card`,
   RemoveAllCardMembers = `remove-all-the-members-from-the-card`,
