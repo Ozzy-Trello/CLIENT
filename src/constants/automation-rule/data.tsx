@@ -10,6 +10,7 @@ import {
   Plus,
   User,
   Hash,
+  Link,
 } from "lucide-react";
 import {
   AutomationRuleAction,
@@ -44,6 +45,8 @@ import {
   EnumSetTask,
   EnumCardContentType,
   EnumCardContentText,
+  EnumCascadeAction,
+  EnumCardOrder,
 } from "@myTypes/options";
 
 // The constants used to contruct the UI
@@ -1840,7 +1843,45 @@ export const actions: AutomationRuleAction[] = [
   {
     type: "cascade",
     label: "Cascade",
-    icon: <ArrowDownNarrowWide />,
+    icon: <Link />,
+    items: [
+      {
+        type: ActionType.FindCardLinkedInAttachments,
+        label: ActionType.FindCardLinkedInAttachments.replaceAll("-", " "),
+        [EnumSelectionType.CascadeAction]: {
+          options: [
+            {
+              value: EnumCascadeAction.Find,
+              label: "Find",
+            },
+            {
+              value: EnumCascadeAction.Lookup,
+              label: "Lookup",
+            },
+          ],
+          value: {
+            value: EnumCascadeAction.Find,
+            label: "Find",
+          },
+        },
+        [EnumSelectionType.CardOrder]: {
+          options: [
+            {
+              value: EnumCardOrder.First,
+              label: "First",
+            },
+            {
+              value: EnumCardOrder.Last,
+              label: "Last",
+            },
+          ],
+          value: {
+            value: EnumCardOrder.First,
+            label: "First",
+          },
+        },
+      },
+    ],
   },
   {
     type: "notify",
