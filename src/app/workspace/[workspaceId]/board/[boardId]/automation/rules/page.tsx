@@ -13,6 +13,7 @@ import {
 } from "@ant-design/icons";
 import { renderRulePatternHuman } from "@utils/rule-render";
 import { useRuleLookups } from "@hooks/useRuleLookups";
+import { renderType } from '@utils/automation-rule';
 
 const RulePage: React.FC = () => {
   const { workspaceId, boardId } = useParams();

@@ -1,12 +1,11 @@
 import { cardFilters } from "@constants/automation-rule/data-card-filter";
 import { Button, Input, Select, Typography } from "antd";
 import { Plus } from "lucide-react";
-import { Dispatch, SetStateAction, useCallback, useEffect, useRef, useState } from "react";
+import { Dispatch, SetStateAction, useCallback, useRef, useState } from "react";
 import { CustomFieldSelection, FieldValueInput, ListSelection, SelectionRef, UserSelection } from "../selection";
-import { AutomationRule, AutomationRuleTrigger, CardTriggerFilterItem, GeneralOptions, TriggerItemSelection } from "@myTypes/type";
+import { AutomationRuleTrigger, CardTriggerFilterItem, CardTriggerFilterType, GeneralOptions, SelectedTriggerItem, TriggerItemSelection } from "@myTypes/type";
 import { EnumInputType, EnumSelectionType } from "@myTypes/automation-rule";
 import { EnumOptionBySubject } from "@myTypes/options";
-import { filter } from "lodash";
 
 interface PopoverRuleCardFilterContentProps {
   setTriggersData: React.Dispatch<React.SetStateAction<AutomationRuleTrigger[]>>;
@@ -26,21 +25,22 @@ function extractPlaceholders(pattern: string): string[] {
 }
 
 const SelectOption = ({
-  props,
+  cardFiltersData,
+  setCardFiltersData,
   placeholder,
   data,
   itemType,
   groupIndex,
   index,
 }: {
-  props: PopoverRuleCardFilterContentProps;
+  cardFiltersData: CardTriggerFilterType[];
+  setCardFiltersData:  Dispatch<SetStateAction<CardTriggerFilterType[]>>;
   placeholder: string;
   data: TriggerItemSelection;
   itemType: string;
   groupIndex: number;
   index: number;
 }) => {
-  const { setTriggersData, triggersData } = props;
 
   const options = data?.options?.map((optionItem: GeneralOptions) => ({
     value: optionItem.value,
@@ -53,56 +53,56 @@ const SelectOption = ({
     label: React.ReactNode;
     option: GeneralOptions;
   }) => {
-    // let copyArr = [...triggersData];
-    // (
-    //   copyArr[groupIndex]?.items?.[index]?.[
-    //     placeholder as keyof TriggerItems
-    //   ] as any
-    // )["value"] = selectedAntOption.option;
-    // setTriggersData(copyArr);
+    let copyArr = [...cardFiltersData];
+    (
+      copyArr[groupIndex]?.items?.[index]?.[
+        placeholder as keyof CardTriggerFilterItem
+      ] as any
+    )["value"] = selectedAntOption.option;
+    setCardFiltersData(copyArr);
   };
 
   // Callback for ListSelection's onChange
   const onListChange = (selectedOption: GeneralOptions) => {
-    // let copyArr = [...triggersData];
-    // (
-    //   copyArr[groupIndex]?.items?.[index]?.[
-    //     placeholder as keyof TriggerItems
-    //   ] as any
-    // )["value"] = selectedOption;
-    // setTriggersData(copyArr);
+    let copyArr = [...cardFiltersData];
+    (
+      copyArr[groupIndex]?.items?.[index]?.[
+        placeholder as keyof CardTriggerFilterItem
+      ] as any
+    )["value"] = selectedOption;
+    setCardFiltersData(copyArr);
   };
 
   const onUserChange = (selectedOption: GeneralOptions) => {
-    // let copyArr = [...triggersData];
-    // (copyArr[groupIndex]?.items?.[index]?.[placeholder as keyof TriggerItems] as any).data = [selectedOption.value];
-    // setTriggersData(copyArr);
+    let copyArr = [...cardFiltersData];
+    (copyArr[groupIndex]?.items?.[index]?.[placeholder as keyof CardTriggerFilterItem] as any).data = [selectedOption.value];
+    setCardFiltersData(copyArr);
   };
 
   const onCustomFieldChange = (selectedOption: GeneralOptions) => {
-    // let copyArr = [...triggersData];
-    // (
-    //   copyArr[groupIndex]?.items?.[index]?.[
-    //     placeholder as keyof TriggerItems
-    //   ] as any
-    // )["value"] = selectedOption;
+    let copyArr = [...cardFiltersData];
+    (
+      copyArr[groupIndex]?.items?.[index]?.[
+        placeholder as keyof CardTriggerFilterItem
+      ] as any
+    )["value"] = selectedOption;
 
-    // setTriggersData(copyArr);
+    setCardFiltersData(copyArr);
   };
 
   const onFieldValueChange = (value: string) => {
-    // let copyArr = [...triggersData];
-    // (
-    //   copyArr[groupIndex]?.items?.[index]?.[
-    //     placeholder as keyof TriggerItems
-    //   ] as any
-    // )["value"] = value;
-    // setTriggersData(copyArr);
+    let copyArr = [...cardFiltersData];
+    (
+      copyArr[groupIndex]?.items?.[index]?.[
+        placeholder as keyof CardTriggerFilterItem
+      ] as any
+    )["value"] = value;
+    setCardFiltersData(copyArr);
   };
 
   if (placeholder === EnumSelectionType.Fields) {
     const currentValue =
-      (triggersData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value
+      (cardFiltersData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value
         ?.value || "";
 
     return (
@@ -122,7 +122,7 @@ const SelectOption = ({
   }
 
   if (placeholder === EnumInputType.FieldValue) {
-    const field = triggersData.find(
+    const field = cardFiltersData.find(
       (item) => item.label.toLowerCase() === EnumSelectionType.Fields
       // @ts-ignore
     )?.items?.[0]?.fields?.value as any;
@@ -148,7 +148,7 @@ const SelectOption = ({
           width={"fit-content"}
           ref={useRef<SelectionRef>(null)}
           value={
-            (triggersData[groupIndex]?.items?.[index] as any)?.[placeholder]
+            (cardFiltersData[groupIndex]?.items?.[index] as any)?.[placeholder]
               ?.value?.value || ""
           }
           onChange={(value: string, option: GeneralOptions) => {
@@ -163,6 +163,7 @@ const SelectOption = ({
   return (
     <>
       <Select
+        className="fit-content"
         key={`ant-select-${itemType}-${placeholder}`}
         value={
           (cardFilters[groupIndex]?.items?.[index] as any)?.[placeholder]?.value?.value || ""
@@ -184,7 +185,7 @@ const SelectOption = ({
         &&  [
           EnumOptionBySubject.BySpecificUser, 
           EnumOptionBySubject.ByAnyoneExceptSpecificUser
-        ].includes((triggersData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value?.value)
+        ].includes((cardFilters[groupIndex]?.items?.[index] as any)?.[placeholder]?.value?.value)
         && (
         <UserSelection 
           key={`user-select-${itemType}-${placeholder}`}
@@ -202,12 +203,14 @@ const SelectOption = ({
 };
 
 const LabelRenderer = ({
-  props,
+  cardFiltersData,
+  setCardFiltersData,
   item,
   groupIndex,
   index,
 }: {
-  props: PopoverRuleCardFilterContentProps;
+  cardFiltersData: CardTriggerFilterType[];
+  setCardFiltersData:  Dispatch<SetStateAction<CardTriggerFilterType[]>>;
   item: CardTriggerFilterItem;
   groupIndex: number;
   index: number;
@@ -218,7 +221,6 @@ const LabelRenderer = ({
   }
 
   const parts = item.label.split(/(<[^>]+>|\[[^\]]+\])/g);
-  console.log("filter: %o", parts);
 
   return (
     <div className="flex items-center flex-wrap">
@@ -244,7 +246,8 @@ const LabelRenderer = ({
               return (
                 <SelectOption
                   key={`select-option-${item.type}-${placeholder}-${groupIndex}-${index}`}
-                  props={props}
+                  cardFiltersData={cardFiltersData}
+                  setCardFiltersData={setCardFiltersData}
                   placeholder={placeholder}
                   data={data}
                   itemType={item.type}
@@ -259,7 +262,7 @@ const LabelRenderer = ({
         if (trimmedPart.startsWith("[") && trimmedPart.endsWith("]")) {
           const placeholder = trimmedPart.slice(1, -1);
           // Get the current value from selectedRule.triggerItem, default to empty string
-          const inputValue = (props.triggersData[groupIndex]?.items?.[index] as any)?.[placeholder] || "";
+          const inputValue = (cardFiltersData[groupIndex]?.items?.[index] as any)?.[placeholder] || "";
 
           return (
             <Input
@@ -269,11 +272,11 @@ const LabelRenderer = ({
               value={inputValue}
               type={placeholder === EnumInputType.Number ? "number" : "text"}
               onChange={(e) => {
-                let copyArr = [...props.triggersData];
+                let copyArr = [...cardFiltersData];
                 if (copyArr[groupIndex]?.items?.[index]) {
                   copyArr[groupIndex].items[index][placeholder] = e.target.value;
                 }
-                props.setTriggersData(copyArr);
+                setCardFiltersData(copyArr);
               }}
             />
           );
@@ -287,51 +290,29 @@ const LabelRenderer = ({
 };
 
 const PopoverRuleCardFilterContent: React.FC<PopoverRuleCardFilterContentProps> = (props) => {
-  const { triggersData, setTriggersData } = props;
+  const { triggersData, setTriggersData, selectedTriggersGroupIndex, selectedTriggerIndex, } = props;
   const [selectedGroupIndex, setSelectedGroupIndex] = useState<number>(0);
+  const [ cardFiltersData, setCardFiltersData ] = useState<CardTriggerFilterType[]>(cardFilters);
 
   // Callback for when a specific trigger item's '+' button is clicked
   const onSelectFilter = useCallback(
     (selectedItem: CardTriggerFilterItem, index: number) => {
-      const placeholders = extractPlaceholders(selectedItem.label);
-
-      // Initialize newTriggerItem based on the selectedItem's defaults
-      // const newTriggerItem: SelectedTriggerItem = {
-      //   type: selectedItem.type,
-      //   label: selectedItem.label,
-      // };
-
-
-      // placeholders?.forEach((placeholder) => {
-      //   // Handle GeneralOptions-based selections (e.g., <list>, <optionalList>)
-      //   const items = triggersData[selectedGroupIndex]?.items;
-        
-      //   if (items && items[index] && items[index][placeholder]) {
-      //     if (typeof items[index][placeholder] == "object") {
-      //       newTriggerItem[placeholder] = (items[index][placeholder] as any)?.value;
-      //       if ("data" in (items[index][placeholder] as any)) {
-      //         (newTriggerItem[placeholder] as any)["data"] = (items[index][placeholder] as any).data;
-      //       }
-      //     } else {
-      //       newTriggerItem[placeholder] = items[index][placeholder];
-      //     }
-      //   }
-      // });
-
-      // setSelectedRule((prev: AutomationRule) => ({
-      //   ...prev,
-      //   triggerItem: newTriggerItem,
-      //   triggerType: triggersData[selectedGroupIndex]?.type,
-      // }));
-
-      // nextStep();
+      let copyTrigger = [...triggersData];
+      let items = copyTrigger[selectedTriggersGroupIndex].items;
+      if (!items || !items[selectedTriggerIndex]) return;
+      let filters = items[selectedTriggerIndex].filters;
+      if (!Array.isArray(filters)) filters = [];
+      filters.push(selectedItem);
+      items[selectedTriggerIndex].filters = filters;
+      setTriggersData(copyTrigger);
+      console.log(triggersData);
     },
     [selectedGroupIndex]
   );
 
   return (
-    <div className="w-xl">
-      <Typography.Title level={5}>Select Trigger</Typography.Title>
+    <div className="w-lg h-fit-content">
+      <Typography.Title level={5}>Select Filter</Typography.Title>
       <div className="flex gap-2 my-4">
         {cardFilters.map((item, groupIndex) => (
           <div
@@ -339,7 +320,7 @@ const PopoverRuleCardFilterContent: React.FC<PopoverRuleCardFilterContentProps> 
             onClick={() => {
               setSelectedGroupIndex(groupIndex);
             }}
-            className={`flex flex-col justify-center items-center w-64 rounded p-2 cursor-pointer ${
+            className={`flex flex-col justify-center items-center w-40 rounded p-2 cursor-pointer ${
               selectedGroupIndex === groupIndex ? "bg-blue-100" : "bg-gray-300"
             }`}
           >
@@ -348,8 +329,8 @@ const PopoverRuleCardFilterContent: React.FC<PopoverRuleCardFilterContentProps> 
           </div>
         ))}
       </div>
-      <div>
-        {cardFilters[selectedGroupIndex]?.items?.map(
+      <div className="h-60 overflow-y-scroll p-2">
+        {cardFiltersData[selectedGroupIndex]?.items?.map(
           (item: CardTriggerFilterItem, index: number) => (
             <div
               key={item.type}
@@ -357,7 +338,8 @@ const PopoverRuleCardFilterContent: React.FC<PopoverRuleCardFilterContentProps> 
             >
               <div>
                 <LabelRenderer
-                  props={props}
+                  setCardFiltersData={setCardFiltersData}
+                  cardFiltersData={cardFilters}
                   item={item}
                   groupIndex={selectedGroupIndex}
                   index={index}

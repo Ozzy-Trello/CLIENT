@@ -28,7 +28,7 @@ export enum EnumTextType {
 export enum EnumSelectionType {
   OptionalFilter = "filter",
   Action = "action",
-  Marked = "marked",
+  Completion = "completion",
   OptionalAction = "optional_action",
   Position = "position",
   OptionalPosition = "optional_position",
@@ -53,9 +53,8 @@ export enum EnumSelectionType {
   CardLabel = "card_label",
   Assignment = "assignment",
   AssignmentSubject = "assignment_subject",
-  Direction = "direction",
   DateExpression = "date_expression",
-  State = "state", // checkbox checked/unchecked state
+  CheckboxState = "checkbox_state", // checkbox checked/unchecked state
   ChecklistScope = "checklist_scope", // checklist / a checklist / all checklists
   ItemScope = "item_scope",
   DateValue = "date_value",
@@ -71,6 +70,14 @@ export enum EnumSelectionType {
   SetTask = "set_task",
   CardContentType = "card_content_type",
   CardContentText = "card_content_text",
+  DateStatus = "date_status",
+  TimeRange = "time_range",
+  TimeComparison = "time_comparison",
+  TimeUnit = "time_unit",
+  TimeRelativeReference = "time_relative_reference",
+  ChecklistConditionOperator = "checklists_condition_oerator", // with all complete, with an incomplete, etc
+  CustomField = "custom_field",
+  CustomFieldAction = "custom_field_action" // set, cleared
 }
 
 export enum EnumInputType {
@@ -93,14 +100,14 @@ export enum TriggerType {
   // "when-a-<filter>-is-<action*>" archival action
   WhenACardHasArchivalAction = `when-a-<${EnumSelectionType.OptionalFilter}>-is-<${EnumSelectionType.Action}>`,
 
-  // "when-a-list-is-<action*>-<by>",
-  WhenAListIsAction = `when-a-list-is-${EnumSelectionType.Action}-<${EnumSelectionType.OptionalBySubject}>`,
+  // "when-a-list-is-<action*>-<by>", ga dipake
+  // WhenAListIsAction = `when-a-list-is-${EnumSelectionType.Action}-<${EnumSelectionType.OptionalBySubject}>`,
 
   // "when-list-<list*>-has-<number-comparison*>-[number]"
   WhenListHasCards = `when-list-<${EnumSelectionType.List}>-has-<${EnumSelectionType.NumberComparison}>-[${EnumInputType.Number}]`,
 
   // CARD CHANGES
-  WhenCardCompletionChanges = `when-the-card-is-marked-<${EnumSelectionType.Marked}>-in-a-card-<${EnumSelectionType.OptionalFilter}>-<${EnumSelectionType.OptionalBySubject}>`,
+  WhenCardCompletionChanges = `when-the-card-is-marked-<${EnumSelectionType.Completion}>-in-a-card-<${EnumSelectionType.OptionalFilter}>-<${EnumSelectionType.OptionalBySubject}>`,
   WhenCardLabelChanges = `when-<${EnumSelectionType.ArticleType}>-label-is-<${EnumSelectionType.Action}>-a-card-<${EnumSelectionType.OptionalFilter}>-<${EnumSelectionType.OptionalBySubject}>`,
   WhenCardAttachmentChanges = `when-an-attachment-<${EnumSelectionType.TextComparison}>-[${EnumInputType.Text}]-is-<${EnumSelectionType.Action}>-a-card-<${EnumSelectionType.OptionalFilter}>-<${EnumSelectionType.OptionalBySubject}>`,
   WhenCardMemberChanges = `when-<${EnumSelectionType.Subject}>-is-<${EnumSelectionType.Action}>-a-card-<${EnumSelectionType.OptionalFilter}>-<${EnumSelectionType.OptionalBySubject}>`,
@@ -113,7 +120,7 @@ export enum TriggerType {
   WhenCustomFieldsIsSet = `when-custom-fields-<${EnumSelectionType.Fields}>-is-<${EnumSelectionType.Action}>-<${EnumSelectionType.OptionalBySubject}>`,
 
   // "when-custom-field-<fields>-is-<state>-<optional_by>"
-  WhenCustomFieldIsChecked = `when-custom-field-<${EnumSelectionType.Fields}>-is-<${EnumSelectionType.State}>-<${EnumSelectionType.OptionalBySubject}>`,
+  WhenCustomFieldIsChecked = `when-custom-field-<${EnumSelectionType.Fields}>-is-<${EnumSelectionType.CheckboxState}>-<${EnumSelectionType.OptionalBySubject}>`,
 
   // "when-custom-field-<fields>-is-set-to-a-number-<number_comparison>-[number]-<optional_by>"
   WhenCustomFieldNumberComparison = `when-custom-field-<${EnumSelectionType.Fields}>-is-set-to-a-number-<${EnumSelectionType.NumberComparison}>-[${EnumInputType.Number}]-<${EnumSelectionType.OptionalBySubject}>`,
@@ -195,6 +202,25 @@ export enum EnumTiggerCarFilterType {
   CardInclusionInList = `<${EnumSelectionType.Inclusion}>-list-<${EnumSelectionType.List}>`,
   LabelInclusionInCard = `<${EnumSelectionType.Inclusion}>-the-<${EnumSelectionType.CardLabel}>-label`,
   CardAssignment = `<${EnumSelectionType.Assignment}>-<${EnumSelectionType.AssignmentSubject}>`,
+
+  CardDueDates = `<${EnumSelectionType.Inclusion}>-a-date`,
+  CardStartDate = `<${EnumSelectionType.Inclusion}>-a-start-date`,
+  CardDateStatus = `<${EnumSelectionType.DateStatus}>-<${EnumSelectionType.TimeRange}>`,
+  CardDateStatusWithSpecificDays = `<${EnumSelectionType.DateStatus}>-<${EnumSelectionType.TimeComparison}>-[${EnumInputType.Number}]-<${EnumSelectionType.TimeUnit}>`,
+
+  CardChecklist = `<${EnumSelectionType.ChecklistConditionOperator}>`,
+
+  CardContentTileDescription = `with-<${EnumSelectionType.CardContentType}>-<${EnumSelectionType.TextComparison}>-[${EnumInputType.Text}]`,
+  CardContentDescriptionInclusion = `<${EnumSelectionType.Inclusion}>-an-empty-description`,
+
+  CardCustomField1 = `<${EnumSelectionType.Inclusion}>-all-custom-fields-<${EnumSelectionType.Completion}>`,
+  CardCustomField2 = `<${EnumSelectionType.Inclusion}>-custom-field-<${EnumSelectionType.CustomField}>-<${EnumSelectionType.Completion}>`,
+  CardCustomField3 = `<${EnumSelectionType.Inclusion}>-custom-field-<${EnumSelectionType.CustomField}>-<${EnumSelectionType.CustomFieldAction}>`,
+  CardCustomField4 = `<${EnumSelectionType.Inclusion}>-custom-field-<${EnumSelectionType.CustomField}>-set-to-[${EnumInputType.Text}]`,
+  CardCustomField5 = `<${EnumSelectionType.Inclusion}>-custom-field-<${EnumSelectionType.CustomField}>-<${EnumSelectionType.CheckboxState}>`,
+  CardCustomField6 = `<${EnumSelectionType.Inclusion}>-custom-field-<${EnumSelectionType.CustomField}>-set-to-a-number-<${EnumSelectionType.NumberComparison}>-[${EnumInputType.Number}]`,
+  CardCustomField7 = `<${EnumSelectionType.Inclusion}>-custom-field-<${EnumSelectionType.CustomField}>-set-to-a-date-<${EnumSelectionType.Inclusion}>-<${EnumSelectionType.TimeRange}>`,
+  CardCustomField8 = `<${EnumSelectionType.Inclusion}>-custom-field-<${EnumSelectionType.CustomField}>-set-to-a-date-<${EnumSelectionType.TimeComparison}>-[${EnumInputType.Number}]-<${EnumSelectionType.TimeUnit}>-<${EnumSelectionType.TimeRelativeReference}>`
 }
 
 // (backend will handle trigger metadata mapping)

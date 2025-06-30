@@ -7,24 +7,22 @@ import {
   SelectionRef,
   UserSelection,
 } from "@components/selection";
-import { Button, Input, Select, Typography, Popover } from "antd";
+import { Button, Input, Select, Typography, Popover, Tag } from "antd";
 import { ListFilter, Plus, X, Calendar, List, Type } from "lucide-react";
 import React, {
   Dispatch,
   SetStateAction,
-  useEffect,
   useRef,
   useState,
   useCallback,
 } from "react";
-import { triggers } from "@constants/automation-rule/data";
 import PopoverRuleCardFilter from "@components/popover-rule-card-filter";
 
 import {
   AutomationRule,
   AutomationRuleTrigger,
   GeneralOptions,
-  SelectedCardFilter,
+  SelectedCardFilterItem,
   SelectedTriggerItem,
   TriggerItems,
   TriggerItemSelection,
@@ -35,10 +33,10 @@ import {
   EnumTextType,
   TriggerType,
 } from "@myTypes/automation-rule";
-import Item from "antd/es/list/Item";
 import { EnumOptionBySubject } from "@myTypes/options";
 import { EnumOptionsNumberComparisonOperators } from "@myTypes/options";
 import { EnumOptionTextComparisonOperator } from "@myTypes/options";
+import { renderType } from "@utils/automation-rule";
 
 function extractPlaceholders(pattern: string): string[] {
   const regex = /<([^>]+)>|\[([^\]]+)\]/g; // Matches both <...> and [...]
@@ -423,10 +421,12 @@ const TextComparisonSelector: React.FC<TextComparisonSelectorProps> = ({
 // Component for the filter button
 const FilterButton = ({
   itemType,
+  selectedGroupIndex,
   selectedIndex,
   props,
 }: {
   itemType: string;
+  selectedGroupIndex: number;
   selectedIndex: number;
   props: SelectTriggerProps;
 }) => {
@@ -434,28 +434,54 @@ const FilterButton = ({
   const { triggersData, setTriggersData } = props;
 
   const handleFilterClick = () => {
-    setOpenFilter(true);
+    setOpenFilter(!openFilter);
   };
 
+  const removeFilterItem = (filterIndex: number) => {
+    let copyTrigger = [...triggersData];
+    let copyFilters = copyTrigger?.[selectedGroupIndex]?.items?.[selectedIndex]?.filters;
+
+    if (copyFilters) {
+      copyFilters.splice(filterIndex, 1);
+    }
+    if (copyTrigger[selectedGroupIndex].items && copyTrigger[selectedGroupIndex].items[selectedIndex]) {
+      copyTrigger[selectedGroupIndex].items[selectedIndex].filters = copyFilters;
+    }
+
+    setTriggersData(copyTrigger);
+  }
+
   return (
-    <PopoverRuleCardFilter
-      key={`filter-button-${itemType}`}
-      open={openFilter}
-      setOpen={setOpenFilter}
-      triggersData={triggersData}
-      setTriggersData={setTriggersData}
-      selectedIndex={selectedIndex}
-      triggerEl={
-        <Button
-          type="text"
-          size="small"
-          className="mx-2"
-          onClick={handleFilterClick}
-        >
-          <ListFilter size={14} />
-        </Button>
-      }
-    />
+    <>
+      { props?.triggersData?.[selectedGroupIndex]?.items?.[selectedIndex].filters?.map((filterItem, filterIndex) => {
+        const s = renderType(filterItem.type, filterItem);
+        console.log("s: ", s);
+        return (
+          <Tag closeIcon={<X size={12} className="inline"/>} onClose={() => removeFilterItem(filterIndex)}>
+            {s}
+          </Tag>
+          )
+      }) }
+      <PopoverRuleCardFilter
+        key={`filter-button-${itemType}`}
+        open={openFilter}
+        setOpen={setOpenFilter}
+        triggersData={triggersData}
+        setTriggersData={setTriggersData}
+        selectedIndex={selectedIndex}
+        selectedGroupIndex={selectedGroupIndex}
+        triggerEl={
+          <Button 
+            type="text" 
+            size="small" 
+            className="mx-2"
+            onClick={handleFilterClick}
+          >
+            <ListFilter size={14} />
+          </Button>
+        }
+      />
+    </>
   );
 };
 
@@ -806,7 +832,9 @@ const LabelRenderer = ({
                   className="flex items-center gap-1"
                 >
                   <FilterButton
+                    key={`filter-button-${item.type}-${index}`}
                     itemType={item.type}
+                    selectedGroupIndex={groupIndex}
                     selectedIndex={index}
                     props={props}
                   />
@@ -1064,7 +1092,7 @@ const LabelRenderer = ({
 const SelectTrigger: React.FC<SelectTriggerProps> = (props) => {
   const { setSelectedRule, selectedRule, triggersData, nextStep } = props;
   const [selectedGroupIndex, setSelectedGroupIndex] = useState<number>(0);
-
+   [[[]]]
   // Callback for when a specific trigger item's '+' button is clicked
   const onSelectTrigger = useCallback(
     (selectedItem: TriggerItems, index: number) => {
@@ -1132,6 +1160,38 @@ const SelectTrigger: React.FC<SelectTriggerProps> = (props) => {
       if (itemWithData?.checklist_name) {
         (newTriggerItem as any).checklist_name = itemWithData.checklist_name;
       }
+      // handle the filter
+      if (selectedItem?.filters) {
+        let filtersArr: SelectedCardFilterItem[] = [];
+
+        selectedItem?.filters?.map((filterItem, filterIndex) => {
+          const placeholders = extractPlaceholders(filterItem.label);
+          // Initialize newTriggerItem based on the selectedItem's defaults
+          const newFilterItem: SelectedCardFilterItem = {
+            type: filterItem.type,
+            label: filterItem.label,
+          };
+
+          placeholders?.forEach((placeholder) => {
+            
+            if (filterItem && filterItem[placeholder]) {
+              if (typeof filterItem[placeholder] == "object") {
+                newFilterItem[placeholder] = (filterItem[placeholder] as any)?.value;
+                if ("data" in (filterItem[placeholder] as any)) {
+                  (newFilterItem[placeholder] as any)["data"] = (filterItem[placeholder] as any).data;
+                }
+              } else {
+                newFilterItem[placeholder] = filterItem[placeholder];
+              }
+            }
+          });
+
+          filtersArr.push(newFilterItem);
+        });
+
+        newTriggerItem.filter = filtersArr;
+      }
+
 
       setSelectedRule((prev: AutomationRule) => ({
         ...prev,

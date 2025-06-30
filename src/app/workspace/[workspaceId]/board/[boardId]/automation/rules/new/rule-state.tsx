@@ -1,6 +1,7 @@
 import { Button, Typography } from "antd";
 import { Dispatch, SetStateAction } from "react";
 import { AutomationRule } from "@myTypes/type";
+import { renderType } from "@utils/automation-rule";
 
 interface RuleStateProps {
   selectedRule: AutomationRule;
@@ -9,34 +10,11 @@ interface RuleStateProps {
   activeStep: number;
 }
 
+
 const RuleState: React.FC<RuleStateProps> = (props) => {
   const { selectedRule, goToSpecificStep, activeStep } = props;
   console.log("selectedRule adalah: %o", selectedRule);
   
-  const renderType = (type: string, condition: any): string => {
-    
-    // Replace the placeholders
-    let result = type
-      .replace(/-/g, ' ')
-      .replace(/<action>/, condition?.action?.label || condition?.action || '')
-      .replace(/<optional_action>/, condition?.optional_action?.label || condition?.optional_action || '')
-      .replace(/<by>/, condition?.by?.label || condition?.by || '')
-      .replace(/<optional_by>/, condition?.optional_by?.label || condition?.optional_by || '')
-      .replace(/<board>/, condition?.board?.label || condition?.board || '')
-      .replace(/<optional_board>/, condition?.optional_board?.label || condition?.optional_board || '')
-      .replace(/<list>/, condition?.list?.label || condition?.list || '')
-      .replace(/<optional_list>/, condition?.optional_list?.label || condition?.optional_list || '')
-      .replace(/<position>/, condition?.position?.label || condition?.position || '')
-      .replace(/<optional_position>/, condition?.optional_position?.label || condition?.optional_position || '')
-      .replace(/<filter>/, '') // remove placeholder
-      .replace(/<text_input>/, condition?.text_input?.value || condition?.text_input || '')
-      .replace(/<channel>/, condition?.channel?.label || condition?.channel || '')
-      .replace(/<user>/, condition?.user?.username || condition?.user || '')
-      .replace(/\s+/g, ' ') // clean extra spaces (fixed regex)
-      .trim();
-    
-    return result;
-  }
  
   return (
     <div className="mb-6 p-4 bg-gray-50 rounded border border-gray-200">

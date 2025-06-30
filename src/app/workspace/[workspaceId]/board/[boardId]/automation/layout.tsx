@@ -39,7 +39,6 @@ const AutomationLayout = ({ children }: { children: React.ReactNode }) => {
             <Link 
               className="block w-full" 
               href={`/workspace/${workspaceId}/board/${boardId}/automation/rules`}
-              
             >
               Rules
             </Link>

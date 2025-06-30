@@ -26,6 +26,7 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
   const [comment, setComment] = useState("");
   const [firstImage, setFirstImage] = useState<string | null>(null);
   const users =  useAccountList({workspaceId, boardId});
+  console.log("activities: %o", activities);
 
   const enableEditComment = (): void => {
     setIsEditingComment(true);
@@ -200,29 +201,33 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
           <Divider className="my-2" />
           {activities.map((item: CardActivity, index: number) => {
             
-            const foundUser = getUser(item.senderId);
+            // const foundUser = getUser(item.senderId);
 
             return (
               <div key={index} className="flex pt-2">
                 <div className="mr-3">
                   <Avatar size={28} className="bg-gray-100 text-gray-600 border border-gray-200">
-                    {foundUser?.username?.substring(0, 2)?.toUpperCase() || "0"}
+                    {item?.senderUserUsername?.substring(0, 2)?.toUpperCase() || "-"}
                   </Avatar>
                 </div>
                 <div className="flex-grow">
-                  <div className="mb-1 flex items-baseline">
-                    <span className="font-medium text-sm mr-2">{foundUser?.username}</span>
-                    {/* <span className="text-gray-400 text-xs">
-                      do {item.type} 
-                      {item.via && <span className="ml-1 italic">via {item.via}</span>}
-                    </span> */}
-                  </div>
-                  <div>
-                    {/* {formatTimestamp(item.timestamp || "2025-03-09T06:15:30.419Z")} */}
-                  </div>
-                  <div className="text-gray-700 text-xs mb-1 leading-relaxed">
-                    {/* {item.content || "Admin User created this counter card"} */}
-                  </div>
+
+                  {item.action ? (
+                    <>
+                      <div className="mb-1 flex items-baseline">
+                        <span className="font-medium text-sm mr-2">{item?.senderUserUsername}</span>
+                        <div className="text-xs">
+                          {item.action?.action} 
+                          {item?.triggeredBy != "user" && <span className="ml-1 italic">via {item.triggeredBy}</span>}
+                        </div>
+                      </div>
+                      <div>
+                        {formatTimestamp(item.createdAt || "2025-03-09T06:15:30.419Z")}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: item?.comment?.text || "" }} />
+                  )}
                   <div>
                     <Button
                       type="link"
