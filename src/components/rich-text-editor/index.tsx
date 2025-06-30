@@ -1,5 +1,5 @@
 import dynamic from 'next/dynamic';
-import React from 'react';
+import React, { Dispatch, SetStateAction } from 'react';
 import "./style.css";
 
 // Define the props interface here too so it's available for both components
@@ -14,6 +14,10 @@ interface RichTextEditorProps {
   readOnly?: boolean;
   workspaceId?: string;
   boardId?: string;
+  hasCustomImageSelector?: boolean;
+  openCustomImagesSelector?: boolean;
+  setOpenCustomImageSelector?: Dispatch<SetStateAction<boolean>>;
+  selectedAttachmentImageUrl?: string;
 }
 
 // Create a placeholder component to show while loading

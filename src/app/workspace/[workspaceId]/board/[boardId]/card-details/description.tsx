@@ -1,3 +1,4 @@
+import CardAttachmentImageListModal from "@components/modal-list-card-attachment-images";
 import RichTextEditor from "@components/rich-text-editor";
 import { useCards } from "@hooks/card";
 import { Card } from "@myTypes/card";
@@ -14,6 +15,9 @@ const Description: React.FC<{card: Card, setSelectedCard: Dispatch<SetStateActio
   const params = useParams();
   const boardId = Array.isArray(params.boardId) ? params.boardId[0] : params.boardId;
   const workspaceId = Array.isArray(params.workspaceId) ? params.workspaceId[0] : params.workspaceId;
+  const [ openCardAttachmentListModal, setOpenCardAttachmentListModal ] = useState<boolean>(false);
+  const [ selectedattachmentImageUrl, setSelectedAttachmentImageUrl ] = useState<string>("");
+
   const {updateCard} = useCards(card.listId, boardId || '');
 
   const enableEditDescription = () => {
@@ -81,6 +85,10 @@ const Description: React.FC<{card: Card, setSelectedCard: Dispatch<SetStateActio
             className="w-full"
             workspaceId={workspaceId}
             boardId={boardId}
+            hasCustomImageSelector={true}
+            setOpenCustomImageSelector={setOpenCardAttachmentListModal}
+            openCustomImagesSelector={openCardAttachmentListModal}
+            selectedAttachmentImageUrl={selectedattachmentImageUrl}
           />
           <div className="flex justify-end p-2 bg-gray-50 border-t">
             <Button 
@@ -112,6 +120,13 @@ const Description: React.FC<{card: Card, setSelectedCard: Dispatch<SetStateActio
           )}
         </div>
       )}
+
+      <CardAttachmentImageListModal
+        isVisible={openCardAttachmentListModal}
+        selectedCard={card}
+        setSelectedImageUrl={setSelectedAttachmentImageUrl}
+        handleCancel={() => { setOpenCardAttachmentListModal(false); }}
+      />
     </div>
   )
 }

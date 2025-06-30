@@ -44,6 +44,7 @@ import { useLabels } from "@hooks/label";
 import Dashcard from "./dashcard";
 import { Card } from "@myTypes/card";
 import { useCardDetails } from "@hooks/card-details";
+import CardAttachmentImageListModal from "@components/modal-list-card-attachment-images";
 
 const CardDetails: React.FC = (props) => {
   const params = useParams();
@@ -78,8 +79,7 @@ const CardDetails: React.FC = (props) => {
   const { cardActivities } = useCardActivity(selectedCard?.id || "");
   const [openAddMember, setOpenAddMember] = useState<boolean>(false);
   const [openLabel, setOpenLabel] = useState<boolean>(false);
-  const { completeCard, incompleteCard } = useCardDetails("", "", boardId as string);
-  
+  const { completeCard, incompleteCard } = useCardDetails("", "", boardId as string);  
 
  const onCompletionChange = (e: CheckboxChangeEvent) => {
     e.stopPropagation();

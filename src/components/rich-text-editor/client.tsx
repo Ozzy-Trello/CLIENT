@@ -4,6 +4,8 @@ import React, {
   useRef,
   useCallback,
   useMemo,
+  Dispatch,
+  SetStateAction,
 } from "react";
 import ReactQuill from "react-quill";
 import { message } from "antd";
@@ -85,6 +87,10 @@ interface RichTextEditorProps {
   readOnly?: boolean;
   workspaceId?: string;
   boardId?: string;
+  hasCustomImageSelector?: boolean;
+  openCustomImagesSelector?: boolean;
+  setOpenCustomImageSelector?: Dispatch<SetStateAction<boolean>>;
+  selectedAttachmentImageUrl?: string;
 }
 
 const RichTextEditorClient: React.FC<RichTextEditorProps> = ({
@@ -96,6 +102,10 @@ const RichTextEditorClient: React.FC<RichTextEditorProps> = ({
   maxHeight = "400px",
   className = "",
   readOnly = false,
+  hasCustomImageSelector = false,
+  openCustomImagesSelector = false,
+  setOpenCustomImageSelector,
+  selectedAttachmentImageUrl,
   workspaceId,
   boardId,
 }) => {
@@ -105,7 +115,17 @@ const RichTextEditorClient: React.FC<RichTextEditorProps> = ({
   
   // Initialize modules object immediately
   const modulesRef = useRef<any>({
-    toolbar: toolbarConfig,
+    toolbar: {
+      container: toolbarConfig,
+      handlers: {
+        image: function () {
+          if(setOpenCustomImageSelector) {
+            console.log("Custom Quill image handler triggered");
+            setOpenCustomImageSelector(true); 
+          }
+        }
+      },
+    },
     clipboard: {
       matchVisual: false,
     },
@@ -252,6 +272,33 @@ const RichTextEditorClient: React.FC<RichTextEditorProps> = ({
       setTimeout(handleMentionModule, 100);
     }
   }, [handleMentionModule]);
+
+  useEffect(() => {
+    if (!selectedAttachmentImageUrl) return;
+
+    const quillEditor = quillRef.current?.getEditor();
+    if (!quillEditor) return;
+
+    // Insert image at current cursor position or at the end
+    const range = quillEditor.getSelection() || {
+      index: quillEditor.getLength(),
+      length: 0,
+    };
+
+    quillEditor.insertEmbed(range.index, "image", selectedAttachmentImageUrl);
+    quillEditor.setSelection(range.index + 1, 0);
+
+    // Update internal state and parent
+    const updatedContent = quillEditor.root.innerHTML;
+    setValue(updatedContent);
+    if (onChange) onChange(updatedContent);
+
+    if (setOpenCustomImageSelector) {
+      // Reset the image URL to avoid re-inserting on re-renders
+      setOpenCustomImageSelector(false);
+    }
+  }, [selectedAttachmentImageUrl]);
+
 
   return (
     <>

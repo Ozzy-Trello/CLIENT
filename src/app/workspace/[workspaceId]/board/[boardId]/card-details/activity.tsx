@@ -10,6 +10,7 @@ import { Account } from '@dto/account';
 import { Card, CardActivity, EnumCardActivityType } from '@myTypes/card';
 import { User } from '@myTypes/user';
 import { useCardActivity } from '@hooks/card_activity';
+import CardAttachmentImageListModal from '@components/modal-list-card-attachment-images';
 
 interface ActivitySectionProps {
   card: Card;
@@ -27,6 +28,9 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
   const [comment, setComment] = useState("");
   const [firstImage, setFirstImage] = useState<string | null>(null);
   const { addCardActivity } = useCardActivity(card?.id);
+  const [ openCardAttachmentListModal, setOpenCardAttachmentListModal ] = useState<boolean>(false);
+  const [ selectedattachmentImageUrl, setSelectedAttachmentImageUrl ] = useState<string>("");
+
 
   const enableEditComment = (): void => {
     setIsEditingComment(true);
@@ -191,6 +195,10 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
                 onChange={handleContentChange}
                 workspaceId={workspaceId}
                 boardId={boardId}
+                hasCustomImageSelector={true}
+                setOpenCustomImageSelector={setOpenCardAttachmentListModal}
+                openCustomImagesSelector={openCardAttachmentListModal}
+                selectedAttachmentImageUrl={selectedattachmentImageUrl}
               />
               <div className="flex justify-end p-2 bg-gray-50 border-t">
                 <Button 
@@ -227,8 +235,6 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
           <Divider className="my-2" />
           {activities.map((item: CardActivity, index: number) => {
             
-            // const foundUser = getUser(item.senderId);
-
             return (
               <div key={index} className="flex pt-2">
                 <div className="mr-3">
@@ -269,6 +275,13 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
           })}
         </div>
       )}
+
+      <CardAttachmentImageListModal
+        isVisible={openCardAttachmentListModal}
+        selectedCard={card}
+        setSelectedImageUrl={setSelectedAttachmentImageUrl}
+        handleCancel={() => { setOpenCardAttachmentListModal(false); }}
+      />
     </div>
   );
 };
