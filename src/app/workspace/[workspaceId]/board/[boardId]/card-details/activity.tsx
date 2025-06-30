@@ -7,8 +7,9 @@ import { ListCollapse } from 'lucide-react';
 import { useAccountList } from '@hooks/account';
 import { useParams } from 'next/navigation';
 import { Account } from '@dto/account';
-import { Card, CardActivity } from '@myTypes/card';
+import { Card, CardActivity, EnumCardActivityType } from '@myTypes/card';
 import { User } from '@myTypes/user';
+import { useCardActivity } from '@hooks/card_activity';
 
 interface ActivitySectionProps {
   card: Card;
@@ -25,8 +26,7 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
   const [isEditingComment, setIsEditingComment] = useState<boolean>(false);
   const [comment, setComment] = useState("");
   const [firstImage, setFirstImage] = useState<string | null>(null);
-  const users =  useAccountList({workspaceId, boardId});
-  console.log("activities: %o", activities);
+  const { addCardActivity } = useCardActivity(card?.id);
 
   const enableEditComment = (): void => {
     setIsEditingComment(true);
@@ -37,18 +37,47 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
   };
   
   const handleSaveCommentClick = (): void => {
-    if (!currentUser) return;
+    console.log("handleSaveCommentClick: comment: %o", comment);
+    console.log("card?.id:", card?.id);
+    console.log("currentUser?.id:", currentUser?.id);
     
-    // const newComment: CardActivity = {
-    //   id: generateId(),
-    //   type: "text",
-    //   text: comment,
-    //   // user: currentUser,
-    //   // timestamp: new Date().toISOString()
-    // }
-    // taskService.updateCardDetails(card.id, {"activity": newComment})
+    // Add validation
+    if (!comment || comment.trim() === '') {
+      console.log("Comment is empty, not saving");
+      return;
+    }
+    
+    if (!card?.id) {
+      console.log("Card ID is missing");
+      return;
+    }
+    
+    if (!currentUser?.id) {
+      console.log("Current user ID is missing");
+      return;
+    }
+
+    const newComment: CardActivity = {
+      id: generateId(),
+      senderUserId: currentUser.id,
+      cardId: card.id,
+      activityType: EnumCardActivityType.Comment,
+      triggeredBy: "user",
+      comment: {
+        text: comment
+      }
+    };
+
+    console.log("About to call addCardActivity with:", newComment);
+    
+    // Call the mutation
+    addCardActivity(newComment);
+    
+    // Reset form after successful submission
+    setComment("");
     disableEditComment();
   };
+
 
   // Function to extract the first image
   const extractFirstImageFromRichText = (htmlContent: string): string | null => {
@@ -128,11 +157,6 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
       return timestamp;
     }
   };
-
-  const getUser = (senderId: string) => {
-    const foundUser = users?.data?.data?.find((item: Account) => item.id == senderId);
-    return foundUser;
-  }
   
   return (
     <div className="mt-4">
@@ -159,12 +183,14 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
         
         <div className="flex-grow">
           {isEditingComment ? (
-            <div className="border border-gray-200 rounded-md overflow-hidden mb-3">
+            <div className="border border-gray-200 rounded-md mb-3">
               <RichTextEditor
                 initialValue={comment ? comment : ""}
                 placeholder="Write your comment here..."
                 className="w-full text-sm"
                 onChange={handleContentChange}
+                workspaceId={workspaceId}
+                boardId={boardId}
               />
               <div className="flex justify-end p-2 bg-gray-50 border-t">
                 <Button 

@@ -70,15 +70,21 @@ export interface CardTimeInList {
   formattedTimeInList: string;
 }
 
+export enum EnumCardActivityType {
+  Action = 'action',
+  Comment = 'comment'
+}
+
 export interface CardActivity {
-  id: string;
-  senderUserUsername: string; // "comment", "update", "attachment", "move", etc.
-  senderId: string;
-  acitivityType: "text" | "action";
-  triggeredBy: string;
+  id?: string;
+  cardId?: string;
+  senderUserUsername?: string; // "comment", "update", "attachment", "move", etc.
+  senderUserId?: string;
+  activityType?: EnumCardActivityType;
+  triggeredBy?: string;
   action?: CardActivityAction,
   comment?: CardActivityComment,
-  createdAt: string;
+  createdAt?: string;
 }
 
 export interface CardActivityAction {

@@ -42,12 +42,37 @@ if (typeof window !== "undefined") {
   try {
     Quill.register("modules/mention", Mention, true);
     Quill.register(MentionBlot);
-
     console.log("Mention module registered at module level");
   } catch (error) {
     console.warn("Quill mention module registration error:", error);
   }
 }
+
+// Move toolbar configuration outside component to prevent recreation
+const toolbarConfig = [
+  [{ header: [1, 2, false] }],
+  ["bold", "italic", "underline", "strike", "blockquote"],
+  [
+    { list: "ordered" },
+    { list: "bullet" },
+    { indent: "-1" },
+    { indent: "+1" },
+  ],
+  ["link", "image"],
+  ["clean"],
+];
+
+const formats = [
+  "bold",
+  "italic",
+  "underline",
+  "strike",
+  "list",
+  "bullet",
+  "link",
+  "image",
+  "mention",
+];
 
 interface RichTextEditorProps {
   initialValue?: string;
@@ -77,6 +102,23 @@ const RichTextEditorClient: React.FC<RichTextEditorProps> = ({
   const [value, setValue] = useState<string>(initialValue);
   const quillRef = useRef<ReactQuill>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  
+  // Initialize modules object immediately
+  const modulesRef = useRef<any>({
+    toolbar: toolbarConfig,
+    clipboard: {
+      matchVisual: false,
+    },
+    mention: {
+      allowedChars: /^[A-Za-z\sÅÄÖåäö]*$/,
+      mentionDenotationChars: ["@"],
+      blotName: "mention",
+      source: (searchTerm: string, renderList: any) => {
+        console.log("Default mention source called");
+        renderList([], searchTerm); // Default empty function
+      },
+    },
+  });
 
   // Fetch account list only if workspaceId and boardId are provided
   const { data: accountListResponse } = useAccountList({
@@ -90,10 +132,44 @@ const RichTextEditorClient: React.FC<RichTextEditorProps> = ({
     setValue(initialValue);
   }, [initialValue]);
 
-  // Debug log to check if we have account data
-  useEffect(() => {
-    console.log("Account list updated:", accountList);
+  // Create mention source function that uses current accountList
+  const mentionSource = useCallback((
+    searchTerm: string,
+    renderList: (matches: any[], searchTerm: string) => void
+  ) => {
+    console.log("Mention source called with:", searchTerm, "accountList:", accountList);
+    
+    const values = accountList.map((account: Account) => {
+      return { id: account.id, value: account.name || account.username };
+    });
+
+    if (searchTerm.length === 0) {
+      renderList(values, searchTerm);
+    } else {
+      const matches = values.filter(
+        (item) =>
+          item.value.toLowerCase().indexOf(searchTerm.toLowerCase()) !== -1
+      );
+      renderList(matches, searchTerm);
+    }
   }, [accountList]);
+
+  // Update mention source when accountList changes
+  useEffect(() => {
+    if (modulesRef.current && modulesRef.current.mention) {
+      modulesRef.current.mention.source = mentionSource;
+      
+      // Also update the mention module in the editor if it exists
+      const editor = quillRef.current?.getEditor();
+      if (editor) {
+        const mentionModule = editor.getModule("mention");
+        if (mentionModule && mentionModule.options) {
+          mentionModule.options.source = mentionSource;
+          console.log("Updated mention module source");
+        }
+      }
+    }
+  }, [mentionSource]);
 
   // Handle image paste
   useEffect(() => {
@@ -136,9 +212,6 @@ const RichTextEditorClient: React.FC<RichTextEditorProps> = ({
               if (onChange) onChange(updatedContent);
 
               message.success("Image added");
-
-              // Allow time for image to load, then adjust editor height
-              setTimeout(adjustEditorHeight, 100);
             }
           };
           reader.readAsDataURL(file);
@@ -152,65 +225,6 @@ const RichTextEditorClient: React.FC<RichTextEditorProps> = ({
     };
   }, [readOnly, onChange]);
 
-  // Adjust editor height based on content
-  const adjustEditorHeight = useCallback(() => {
-    const quillEditor = quillRef.current?.getEditor();
-    if (!quillEditor || !quillEditor.root) return;
-
-    const editorContainer = quillEditor.root;
-    if (!editorContainer) return;
-
-    // Reset height to auto to get the actual content height
-    editorContainer.style.height = "auto";
-
-    // Get content height
-    const contentHeight = editorContainer.scrollHeight;
-
-    // Convert minHeight and maxHeight to numbers
-    const minHeightPx =
-      typeof minHeight === "string" ? parseInt(minHeight) : minHeight;
-
-    const maxHeightPx =
-      typeof maxHeight === "string" ? parseInt(maxHeight) : maxHeight;
-
-    // Set height based on content, within min/max bounds
-    if (contentHeight < minHeightPx) {
-      editorContainer.style.height = `${minHeightPx}px`;
-      editorContainer.style.overflowY = "hidden";
-    } else if (contentHeight > maxHeightPx) {
-      editorContainer.style.height = `${maxHeightPx}px`;
-      editorContainer.style.overflowY = "auto";
-    } else {
-      editorContainer.style.height = `${contentHeight}px`;
-      editorContainer.style.overflowY = "hidden";
-    }
-  }, [minHeight, maxHeight]);
-
-  // Adjust height when content changes
-  useEffect(() => {
-    if (quillRef.current) {
-      adjustEditorHeight();
-    }
-  }, [value]);
-
-  // Adjust height on initial render
-  useEffect(() => {
-    // Wait for editor to be fully initialized
-    setTimeout(adjustEditorHeight, 100);
-  }, []);
-
-  const handleMentionModule = () => {
-    const editor = quillRef.current?.getEditor();
-    if (editor) {
-      const mentionModule = editor.getModule("mention");
-      console.log("Mention module:", mentionModule);
-    }
-  };
-
-  useEffect(() => {
-    handleMentionModule();
-  }, [quillRef]);
-
   const handleChange = (content: string) => {
     setValue(content);
     if (onChange) {
@@ -218,76 +232,26 @@ const RichTextEditorClient: React.FC<RichTextEditorProps> = ({
     }
   };
 
-  const modules = useMemo(
-    () => ({
-      toolbar: [
-        [{ header: [1, 2, false] }],
-        ["bold", "italic", "underline", "strike", "blockquote"],
-        [
-          { list: "ordered" },
-          { list: "bullet" },
-          { indent: "-1" },
-          { indent: "+1" },
-        ],
-        ["link", "image"],
-        ["clean"],
-      ],
-      clipboard: {
-        matchVisual: false,
-      },
-      mention: {
-        allowedChars: /^[A-Za-z\sÅÄÖåäö]*$/,
-        mentionDenotationChars: ["@"],
-        blotName: "mention",
-        source: function (
-          searchTerm: string,
-          renderList: (matches: any[], searchTerm: string) => void
-        ) {
-          const values = accountList.map((account: Account) => {
-            return { id: account.id, value: account.name || account.username };
-          });
+  const handleMentionModule = useCallback(() => {
+    const editor = quillRef.current?.getEditor();
+    if (editor) {
+      const mentionModule = editor.getModule("mention");
+      console.log("Mention module:", mentionModule);
+      
+      // Ensure the mention module has the latest source function
+      if (mentionModule && mentionModule.options && accountList.length > 0) {
+        mentionModule.options.source = mentionSource;
+        console.log("Mention module source updated with", accountList.length, "accounts");
+      }
+    }
+  }, [mentionSource, accountList]);
 
-          console.log("Mention source called with:", searchTerm, "values:", values);
-
-          if (searchTerm.length === 0) {
-            renderList(values, searchTerm);
-          } else {
-            const matches = values.filter(
-              (item) =>
-                item.value.toLowerCase().indexOf(searchTerm.toLowerCase()) !==
-                -1
-            );
-            renderList(matches, searchTerm);
-          }
-        },
-      },
-    }),
-    [accountList]
-  );
-
-  const formats = [
-    "bold",
-    "italic",
-    "underline",
-    "strike",
-    "list",
-    "bullet",
-    "link",
-    "image",
-    "mention",
-  ];
-
-  // Define the custom styles inline
-  const customStyles = {
-    ".trello-editor-container .ql-container": {
-      fontSize: "14px",
-      fontFamily:
-        '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-    },
-    ".trello-editor-container .ql-editor": {
-      padding: "12px 15px",
-    },
-  };
+  useEffect(() => {
+    if (quillRef.current) {
+      // Delay to ensure editor is fully initialized
+      setTimeout(handleMentionModule, 100);
+    }
+  }, [handleMentionModule]);
 
   return (
     <>
@@ -300,13 +264,22 @@ const RichTextEditorClient: React.FC<RichTextEditorProps> = ({
         }
         .trello-editor-container .ql-editor {
           padding: 12px 15px;
+          min-height: ${typeof minHeight === 'string' ? minHeight : `${minHeight}px`};
+          max-height: ${typeof maxHeight === 'string' ? maxHeight : `${maxHeight}px`};
+          overflow-y: auto;
+        }
+        .trello-editor-container .ql-editor.ql-blank::before {
+          font-style: italic;
+          color: #999;
         }
       `}</style>
 
       <div
         ref={containerRef}
         className={`trello-editor-container ${className}`}
-        style={{ width }}
+        style={{
+          width,
+        }}
       >
         <ReactQuill
           key="rich-text-editor"
@@ -314,7 +287,7 @@ const RichTextEditorClient: React.FC<RichTextEditorProps> = ({
           theme="snow"
           value={value}
           onChange={handleChange}
-          modules={modules}
+          modules={modulesRef.current}
           formats={formats}
           placeholder={placeholder}
           readOnly={readOnly}
@@ -328,7 +301,6 @@ const RichTextEditorClient: React.FC<RichTextEditorProps> = ({
               }
             }
           }}
-          onFocus={handleMentionModule}
         />
       </div>
     </>

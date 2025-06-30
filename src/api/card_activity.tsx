@@ -6,3 +6,8 @@ export const cardAcitivities = async (cardId: string): Promise<ApiResponse<CardA
   const {data} = await api.get(`/card/${cardId}/activity`);
   return data;
 }
+
+export const addCardActivity = async (cardId: string, payload: CardActivity): Promise<ApiResponse<any>> => {
+  const { data } = await api.post(`/card/${cardId}/activity`, payload);
+  return data;
+}
