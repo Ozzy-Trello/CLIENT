@@ -81,6 +81,8 @@ export enum EnumSelectionType {
   CustomFieldAction = "custom_field_action", // set, cleared
   CascadeAction = "cascade_action", // find or lookup
   CardOrder = "card_order", // first or last
+  SelectableList = "selectable_list", // for optional list selection like checklist filter
+  SelectableBoard = "selectable_board", // for optional board selection like checklist filter
 }
 
 export enum EnumInputType {
@@ -199,6 +201,9 @@ export enum ActionType {
   // CASCADE ACTIONS
   // <CascadeAction> the <CardOrder> card linked in the attachments
   FindCardLinkedInAttachments = `<${EnumSelectionType.CascadeAction}>-the-<${EnumSelectionType.CardOrder}>-card-linked-in-the-attachments`,
+
+  // <CascadeAction> a card titled <TextTitle> in list <OptionalList> in board <OptionalBoard>
+  FindCardByTitle = `<${EnumSelectionType.CascadeAction}>-a-card-titled-<${EnumInputType.TextTitle}>`,
 }
 
 // filter type

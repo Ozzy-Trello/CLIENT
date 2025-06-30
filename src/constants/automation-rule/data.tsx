@@ -783,7 +783,7 @@ export const triggers: AutomationRuleTrigger[] = [
             label: "set on",
           },
         },
-        [EnumInputType.DateValue]: {
+        [EnumSelectionType.DateExpression]: {
           options: [],
           value: null,
         },
@@ -1879,6 +1879,30 @@ export const actions: AutomationRuleAction[] = [
             value: EnumCardOrder.First,
             label: "First",
           },
+        },
+      },
+      {
+        type: ActionType.FindCardByTitle,
+        label: ActionType.FindCardByTitle.replaceAll("-", " "),
+        [EnumSelectionType.CascadeAction]: {
+          options: [
+            {
+              value: EnumCascadeAction.Find,
+              label: "Find",
+            },
+            {
+              value: EnumCascadeAction.Lookup,
+              label: "Lookup",
+            },
+          ],
+          value: {
+            value: EnumCascadeAction.Find,
+            label: "Find",
+          },
+        },
+        [EnumInputType.TextTitle]: {
+          placeholder: "Enter card title",
+          value: "",
         },
       },
     ],

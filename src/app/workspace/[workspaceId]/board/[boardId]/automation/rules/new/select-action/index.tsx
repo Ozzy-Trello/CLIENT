@@ -404,7 +404,28 @@ const renderLabelWithSelects = (
 ) => {
   // If there's no placeholder in the label, just return the text
   if (!item.label.includes("<")) {
-    return <Typography.Text>{item.label}</Typography.Text>;
+    return (
+      <div className="flex items-center gap-2">
+        <Typography.Text>{item.label}</Typography.Text>
+        {/* Add filter buttons for FindCardByTitle after the label */}
+        {item.type === ActionType.FindCardByTitle && (
+          <>
+            <ListFilterButton
+              actionType={item.type}
+              groupIndex={groupIndex}
+              index={index}
+              props={props}
+            />
+            <BoardFilterButton
+              actionType={item.type}
+              groupIndex={groupIndex}
+              index={index}
+              props={props}
+            />
+          </>
+        )}
+      </div>
+    );
   }
 
   // Split the label by <...> or [...] placeholders
@@ -508,39 +529,91 @@ const renderLabelWithSelects = (
               />
             );
           }
+
+          // If no match found, just render the placeholder as text
+          return <span key={indexPart}>{"<" + placeholder + ">"}</span>;
         }
 
+        // Check if this part is a square bracket placeholder [...]
         if (part.startsWith("[") && part.endsWith("]")) {
-          const placeholderBr = part.slice(1, -1);
+          const placeholder = part.trim().slice(1, -1); // Remove [ and ]
 
-          if (placeholderBr === EnumInputType.Number) {
-            const currentVal =
-              (props.actionsData[groupIndex]?.items?.[index] as any)?.[
-                placeholderBr
-              ] ?? "1";
+          // Handle number input
+          if (placeholder === EnumInputType.Number) {
+            const value = (
+              props.actionsData[groupIndex]?.items?.[index] as any
+            )?.[EnumInputType.Number];
 
             return (
               <Input
                 key={`number-input-${indexPart}`}
                 type="number"
-                value={currentVal}
-                style={{ width: 60, margin: "0 5px" }}
+                value={value || ""}
+                placeholder="Enter number"
+                style={{ width: "100px", margin: "0 5px" }}
                 onChange={(e) => {
-                  const copyArr = [...props.actionsData];
-                  if (copyArr[groupIndex]?.items?.[index]) {
-                    (copyArr[groupIndex].items[index] as any)[placeholderBr] =
-                      e.target.value;
-                    props.setActionsData(copyArr);
+                  const updatedActions = [...props.actionsData];
+                  if (updatedActions[groupIndex]?.items?.[index]) {
+                    (updatedActions[groupIndex].items[index] as any)[
+                      EnumInputType.Number
+                    ] = parseInt(e.target.value) || 0;
+                    props.setActionsData(updatedActions);
                   }
                 }}
               />
             );
           }
+
+          // Handle text input
+          if (placeholder === EnumInputType.Text) {
+            const value = (
+              props.actionsData[groupIndex]?.items?.[index] as any
+            )?.[EnumInputType.Text];
+
+            return (
+              <Input
+                key={`text-input-${indexPart}`}
+                value={value || ""}
+                placeholder="Enter text"
+                style={{ width: "150px", margin: "0 5px" }}
+                onChange={(e) => {
+                  const updatedActions = [...props.actionsData];
+                  if (updatedActions[groupIndex]?.items?.[index]) {
+                    (updatedActions[groupIndex].items[index] as any)[
+                      EnumInputType.Text
+                    ] = e.target.value;
+                    props.setActionsData(updatedActions);
+                  }
+                }}
+              />
+            );
+          }
+
+          // If no match found, just render the placeholder as text
+          return <span key={indexPart}>{"[" + placeholder + "]"}</span>;
         }
 
-        // Regular text part
+        // For regular text parts, just render as text
         return <span key={indexPart}>{part}</span>;
       })}
+
+      {/* Add filter buttons at the end for FindCardByTitle actions */}
+      {item.type === ActionType.FindCardByTitle && (
+        <>
+          <ListFilterButton
+            actionType={item.type}
+            groupIndex={groupIndex}
+            index={index}
+            props={props}
+          />
+          <BoardFilterButton
+            actionType={item.type}
+            groupIndex={groupIndex}
+            index={index}
+            props={props}
+          />
+        </>
+      )}
     </div>
   );
 };
@@ -979,6 +1052,378 @@ const SetDateSelector: React.FC<SetDateSelectorProps> = ({
   );
 };
 
+// Component for list filter in cascade actions
+const ListFilterButton = ({
+  actionType,
+  groupIndex,
+  index,
+  props,
+}: {
+  actionType: string;
+  groupIndex: number;
+  index: number;
+  props: SelectActionProps;
+}) => {
+  const { actionsData, setActionsData } = props;
+
+  // Only show for FindCardByTitle action
+  if (actionType !== ActionType.FindCardByTitle) {
+    return null;
+  }
+
+  const actionItem = actionsData[groupIndex]?.items?.[index];
+  const hasListFilter =
+    actionItem &&
+    (actionItem as any)[EnumSelectionType.SelectableList] !== undefined;
+
+  const handleToggleListFilter = () => {
+    let copyArr = [...actionsData];
+    const item = copyArr[groupIndex]?.items?.[index] as any;
+    if (item) {
+      if (hasListFilter) {
+        delete item[EnumSelectionType.SelectableList];
+      } else {
+        item[EnumSelectionType.SelectableList] = null;
+      }
+      setActionsData(copyArr);
+    }
+  };
+
+  const handleListChange = (selectedOption: any) => {
+    let copyArr = [...actionsData];
+    const item = copyArr[groupIndex]?.items?.[index] as any;
+    if (item) {
+      item[EnumSelectionType.SelectableList] = selectedOption;
+      setActionsData(copyArr);
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      <Button
+        type="text"
+        size="small"
+        className="mx-2"
+        onClick={handleToggleListFilter}
+      >
+        <Plus size={14} />
+      </Button>
+      {hasListFilter && (
+        <div className="flex items-center gap-1 bg-blue-100 px-2 py-1 rounded">
+          <span className="text-sm">in list</span>
+          <ListSelection
+            width={"120px"}
+            value={
+              (actionItem as any)?.[EnumSelectionType.SelectableList]?.value ||
+              undefined
+            }
+            onChange={(option: any) => {
+              handleListChange(option);
+            }}
+            placeholder="Select list"
+          />
+          <Button type="text" size="small" onClick={handleToggleListFilter}>
+            <X size={12} />
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Component for board filter in cascade actions
+const BoardFilterButton = ({
+  actionType,
+  groupIndex,
+  index,
+  props,
+}: {
+  actionType: string;
+  groupIndex: number;
+  index: number;
+  props: SelectActionProps;
+}) => {
+  const { actionsData, setActionsData } = props;
+
+  // Only show for FindCardByTitle action
+  if (actionType !== ActionType.FindCardByTitle) {
+    return null;
+  }
+
+  const actionItem = actionsData[groupIndex]?.items?.[index];
+  const hasBoardFilter =
+    actionItem &&
+    (actionItem as any)[EnumSelectionType.SelectableBoard] !== undefined;
+
+  const handleToggleBoardFilter = () => {
+    let copyArr = [...actionsData];
+    const item = copyArr[groupIndex]?.items?.[index] as any;
+    if (item) {
+      if (hasBoardFilter) {
+        delete item[EnumSelectionType.SelectableBoard];
+      } else {
+        item[EnumSelectionType.SelectableBoard] = null;
+      }
+      setActionsData(copyArr);
+    }
+  };
+
+  const handleBoardChange = (selectedOption: any) => {
+    let copyArr = [...actionsData];
+    const item = copyArr[groupIndex]?.items?.[index] as any;
+    if (item) {
+      item[EnumSelectionType.SelectableBoard] = selectedOption;
+      setActionsData(copyArr);
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      <Button
+        type="text"
+        size="small"
+        className="mx-2"
+        onClick={handleToggleBoardFilter}
+      >
+        <Plus size={14} />
+      </Button>
+      {hasBoardFilter && (
+        <div className="flex items-center gap-1 bg-green-100 px-2 py-1 rounded">
+          <span className="text-sm">in board</span>
+          <BoardSelection
+            width={"120px"}
+            value={
+              (actionItem as any)?.[EnumSelectionType.SelectableBoard]?.value ||
+              undefined
+            }
+            onChange={(option: any) => {
+              handleBoardChange(option);
+            }}
+            placeholder="Select board"
+          />
+          <Button type="text" size="small" onClick={handleToggleBoardFilter}>
+            <X size={12} />
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Component for date expression selector in actions (similar to triggers)
+const DateExpressionSelector = ({
+  groupIndex,
+  index,
+  placeholder,
+  actionsData,
+  setActionsData,
+}: {
+  groupIndex: number;
+  index: number;
+  placeholder: string;
+  actionsData: AutomationRuleAction[];
+  setActionsData: Dispatch<SetStateAction<AutomationRuleAction[]>>;
+}) => {
+  const itemState = actionsData[groupIndex]?.items?.[index] as any;
+  const expressions = itemState?.[placeholder]?.expressions || [];
+
+  const [open, setOpen] = useState(false);
+
+  const [relativeState, setRelativeState] = useState({
+    operator: "in",
+    unit: "this week",
+  });
+
+  const [numericState, setNumericState] = useState({
+    operator: "less than",
+    numberVal: "1",
+    unit: "days",
+    direction: "from now",
+  });
+
+  const applyExpression = (type: "relative" | "numeric") => {
+    let text;
+    let meta;
+
+    if (type === "relative") {
+      text = `${relativeState.operator} ${relativeState.unit}`;
+      meta = { ...relativeState };
+    } else {
+      text = `${numericState.operator} ${numericState.numberVal} ${numericState.unit} ${numericState.direction}`;
+      meta = { ...numericState };
+    }
+
+    const newExpression = { text, meta };
+
+    const copyArr = [...actionsData];
+    const actionItem = copyArr[groupIndex]?.items?.[index] as any;
+
+    if (actionItem) {
+      if (!actionItem[placeholder]) {
+        actionItem[placeholder] = {
+          options: [],
+          value: null,
+          expressions: [],
+        };
+      }
+      actionItem[placeholder].expressions = [...expressions, newExpression];
+    }
+
+    setActionsData(copyArr);
+    setOpen(false);
+
+    // Reset states
+    setRelativeState({ operator: "in", unit: "this week" });
+    setNumericState({
+      operator: "less than",
+      numberVal: "1",
+      unit: "days",
+      direction: "from now",
+    });
+  };
+
+  const removeExpression = (indexToRemove: number) => {
+    const copyArr = [...actionsData];
+    const actionItem = copyArr[groupIndex]?.items?.[index] as any;
+    if (actionItem?.[placeholder]?.expressions) {
+      actionItem[placeholder].expressions = expressions.filter(
+        (_: unknown, i: number) => i !== indexToRemove
+      );
+    }
+    setActionsData(copyArr);
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      {expressions.map((expr: any, exprIndex: number) => (
+        <span
+          key={exprIndex}
+          className="inline-flex items-center bg-gray-500 text-white rounded px-2 py-1 text-sm"
+        >
+          {expr.text}
+          <X
+            size={12}
+            className="ml-1 cursor-pointer"
+            onClick={(e) => {
+              e.stopPropagation();
+              removeExpression(exprIndex);
+            }}
+          />
+        </span>
+      ))}
+
+      {expressions.length === 0 && (
+        <Popover
+          open={open}
+          onOpenChange={setOpen}
+          trigger="click"
+          placement="bottom"
+          style={{ width: "100vh" }}
+          content={
+            <div className="p-2 flex flex-col gap-2">
+              {/* Relative period mode */}
+              <div className="flex gap-2 items-center flex-nowrap whitespace-nowrap">
+                <Select
+                  style={{ width: 130 }}
+                  value={relativeState.operator}
+                  options={[
+                    { value: "in", label: "in" },
+                    { value: "not in", label: "not in" },
+                  ]}
+                  onChange={(val) =>
+                    setRelativeState((prev) => ({ ...prev, operator: val }))
+                  }
+                />
+                <Select
+                  style={{ width: 120 }}
+                  value={relativeState.unit}
+                  options={[
+                    { value: "this week", label: "this week" },
+                    { value: "next week", label: "next week" },
+                  ]}
+                  onChange={(val) =>
+                    setRelativeState((prev) => ({ ...prev, unit: val }))
+                  }
+                />
+                <Button
+                  type="text"
+                  size="small"
+                  onClick={() => applyExpression("relative")}
+                >
+                  <Plus size={12} />
+                </Button>
+              </div>
+              <hr />
+
+              {/* Numeric mode */}
+              <div className="flex gap-2 items-center flex-nowrap whitespace-nowrap">
+                <Select
+                  style={{ width: 130 }}
+                  value={numericState.operator}
+                  options={[
+                    { value: "less than", label: "less than" },
+                    { value: "more than", label: "more than" },
+                    { value: "between", label: "between" },
+                  ]}
+                  onChange={(val) =>
+                    setNumericState((prev) => ({ ...prev, operator: val }))
+                  }
+                />
+                <Input
+                  style={{ width: 60 }}
+                  value={numericState.numberVal}
+                  type="number"
+                  onChange={(e) =>
+                    setNumericState((prev) => ({
+                      ...prev,
+                      numberVal: e.target.value,
+                    }))
+                  }
+                />
+                <Select
+                  style={{ width: 120 }}
+                  value={numericState.unit}
+                  options={[
+                    { value: "hours", label: "hours" },
+                    { value: "days", label: "days" },
+                    { value: "working days", label: "working days" },
+                    { value: "this month", label: "this month" },
+                  ]}
+                  onChange={(val) =>
+                    setNumericState((prev) => ({ ...prev, unit: val }))
+                  }
+                />
+                <Select
+                  style={{ width: 100 }}
+                  value={numericState.direction}
+                  options={[
+                    { value: "from now", label: "from now" },
+                    { value: "ago", label: "ago" },
+                  ]}
+                  onChange={(val) =>
+                    setNumericState((prev) => ({ ...prev, direction: val }))
+                  }
+                />
+                <Button
+                  type="text"
+                  size="small"
+                  onClick={() => applyExpression("numeric")}
+                >
+                  <Plus size={12} />
+                </Button>
+              </div>
+            </div>
+          }
+        >
+          <Button type="text" size="small" className="mx-2">
+            <Calendar size={14} />
+          </Button>
+        </Popover>
+      )}
+    </div>
+  );
+};
+
 const SelectAction: React.FC<SelectActionProps> = (props) => {
   const { setSelectedRule, selectedRule, actionsData, nextStep } = props;
   const [actionItemsByActionType, setActionItemsByActionType] = useState<
@@ -1150,27 +1595,26 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
       <div>
         {actionsData[groupIndex]?.items?.map(
           (item: ActionItems, index: number) => (
-            <div
-              key={index}
-              className="flex justify-between items-start rounded p-2 mb-2 bg-gray-200"
-            >
-              <div>
-                {renderLabelWithSelects(
-                  props,
-                  item,
-                  lastActionIndex,
-                  groupIndex,
-                  index
-                )}
+            <div key={index}>
+              <div className="flex justify-between items-start rounded p-2 mb-2 bg-gray-200">
+                <div>
+                  {renderLabelWithSelects(
+                    props,
+                    item,
+                    lastActionIndex,
+                    groupIndex,
+                    index
+                  )}
+                </div>
+                <Button
+                  shape="circle"
+                  onClick={() => {
+                    onAddAction(index);
+                  }}
+                >
+                  <Plus />
+                </Button>
               </div>
-              <Button
-                shape="circle"
-                onClick={() => {
-                  onAddAction(index);
-                }}
-              >
-                <Plus />
-              </Button>
             </div>
           )
         )}
