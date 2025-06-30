@@ -1905,6 +1905,26 @@ export const actions: AutomationRuleAction[] = [
           value: "",
         },
       },
+      {
+        type: ActionType.LinkUnlinkCards,
+        label: "<action>",
+        [EnumSelectionType.Action]: {
+          options: [
+            {
+              value: EnumActions.LinkCards,
+              label: "Link the cards together",
+            },
+            {
+              value: EnumActions.UnlinkCards,
+              label: "Unlink the cards together",
+            },
+          ],
+          value: {
+            value: EnumActions.LinkCards,
+            label: "Link",
+          },
+        },
+      },
     ],
   },
   {

@@ -204,6 +204,9 @@ export enum ActionType {
 
   // <CascadeAction> a card titled <TextTitle> in list <OptionalList> in board <OptionalBoard>
   FindCardByTitle = `<${EnumSelectionType.CascadeAction}>-a-card-titled-<${EnumInputType.TextTitle}>`,
+
+  // <Action> the cards together
+  LinkUnlinkCards = `<${EnumSelectionType.Action}>-the-cards-together`,
 }
 
 // filter type
