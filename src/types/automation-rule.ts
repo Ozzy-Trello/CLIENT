@@ -60,6 +60,18 @@ export enum EnumSelectionType {
   ItemScope = "item_scope",
   DateValue = "date_value",
   ChecklistName = "checklist_name",
+  CreateType = "create_type", // new | unique
+  CreateTypeItem = "create_type_item", // regular | board | link | separator | mirror
+  MultiLabels = "multi_labels",
+  MultiChecklists = "multi_checklists",
+  MultiUsers = "multi_users",
+  MultiDates = "multi_dates",
+  AddRemove = "add_remove",
+  RemoveFromCard = "remove_from_card",
+  TaskType = "task_type",
+  SetTask = "set_task",
+  CardContentType = "card_content_type",
+  CardContentText = "card_content_text",
 }
 
 export enum EnumInputType {
@@ -67,6 +79,8 @@ export enum EnumInputType {
   Text = "text",
   FieldValue = "field_value",
   DateValue = "date_value",
+  TextDescription = "text_description",
+  TextTitle = "text_title",
 }
 
 export enum TriggerType {
@@ -130,6 +144,12 @@ export enum TriggerType {
   // "when an item <text_comparison> is <action> <checklist_scope> [text] <filter> <optional_by>"
   WhenChecklistItemIsAddedTo = `when-an-item-<${EnumSelectionType.TextComparison}>-is-<${EnumSelectionType.Action}>-<${EnumSelectionType.ChecklistScope}>[${EnumInputType.Text}]-<${EnumSelectionType.OptionalFilter}>-<${EnumSelectionType.OptionalBySubject}>`,
 
+  // when a <TaskType> date <DateExpression> is <SetTask> a card <OptionalFilter> <OptionalBySubject>
+  WhenTaskDateIsSet = `when-a-<${EnumSelectionType.TaskType}>-date-<${EnumSelectionType.DateExpression}>-is-<${EnumSelectionType.SetTask}>-a-card-<${EnumSelectionType.OptionalFilter}>-<${EnumSelectionType.OptionalBySubject}>`,
+
+  // when <CardContentType> of a card <OptionalFilter> <CardContentText> <Text>
+  WhenCardContentTextIsSet = `when-<${EnumSelectionType.CardContentType}>-of-a-card-<${EnumSelectionType.OptionalFilter}>-<${EnumSelectionType.CardContentText}>-[${EnumInputType.Text}]`,
+
   // add more..
 }
 
@@ -153,7 +173,19 @@ export enum ActionType {
   SetChecklistItemDueDate = `set-the-item-due-<${EnumInputType.DateValue}>`,
   MoveChecklistItemDueDate = `move-the-item-due-date-to-<${EnumInputType.DateValue}>`,
   ToggleChecklistItem = `<${EnumSelectionType.Action}>-item-<${EnumSelectionType.TextInput}>-in-checklist-<${EnumSelectionType.ChecklistName}>`,
+  AddCardMember = `add-member-<${EnumSelectionType.User}>-to-the-card`,
+  RemoveCardMember = `remove-member-<${EnumSelectionType.User}>-from-the-card`,
+  RemoveAllCardMembers = `remove-all-the-members-from-the-card`,
   //add more..
+
+  // create a <CardType> <CardTypeItem> card with title <TextTitle> <TextDescription> <Position> <List> <Board> <MultiLabels> <MultiChecklists> <MultiUsers> <MultiDates>
+  CreateItem = `create-a-<${EnumSelectionType.CreateType}>-card-with-title-<${EnumInputType.TextTitle}>-<${EnumInputType.TextDescription}>-<${EnumSelectionType.Position}>-<${EnumSelectionType.List}>-<${EnumSelectionType.Board}>-<${EnumSelectionType.MultiLabels}>-<${EnumSelectionType.MultiChecklists}>-<${EnumSelectionType.MultiUsers}>-<${EnumSelectionType.MultiDates}>`,
+
+  // <AddRemove> the <CardLabel> label to the card
+  AddRemoveLabel = `<${EnumSelectionType.AddRemove}>-the-<${EnumSelectionType.CardLabel}>-label-to-the-card`,
+
+  // remove <RemoveFromCard> from the card
+  RemoveFromCard = `remove-<${EnumSelectionType.RemoveFromCard}>-from-the-card`,
 }
 
 // filter type

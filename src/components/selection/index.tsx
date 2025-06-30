@@ -8,22 +8,28 @@ import {
   SelectProps,
   Typography,
 } from "antd";
-import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useState,
+} from "react";
 
 import { useWorkspaces } from "@hooks/workspace";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import {
   selectCurrentWorkspace,
   setCurrentWorkspace,
 } from "@store/workspace_slice";
 import { useParams, useRouter } from "next/navigation";
-import { accountList } from "@api/account";
-import { useSelector } from "react-redux";
-import { useLists } from "@hooks/list";
-import { useCustomFields } from "@hooks/custom_field";
 import { useAccountList } from "@hooks/account";
 import { Card } from "@myTypes/card";
 import { cards } from "@api/card";
+import { useBoards } from "@hooks/board";
+import { useLabels } from "@hooks/label";
+import { useLists } from "@hooks/list";
+import { useCustomFields } from "@hooks/custom_field";
 
 // Global SELECTION props
 
@@ -48,11 +54,14 @@ export interface SelectionRef {
 interface SelectionProps {
   placeholder?: string;
   width?: string | number;
-  size?: "large" | "middle" | "small";
+  size?: "small" | "middle" | "large";
   style?: React.CSSProperties;
   className?: string;
   value?: string;
   onChange?: (value: string, option?: any) => void;
+  mode?: "multiple" | "tags" | undefined;
+  excludeIds?: string[];
+  roleIds?: string[];
   [key: string]: any; // Allow additional props
 }
 
@@ -66,13 +75,13 @@ export const UserSelection = forwardRef<SelectionRef, SelectionProps>(
       className = "",
       value,
       onChange,
+      mode,
+      excludeIds = [],
+      roleIds = [],
     },
     ref
   ) => {
     const { workspaceId, boardId } = useParams();
-    const [options, setOptions] = useState<
-      { label: JSX.Element | string | undefined; value: string }[]
-    >([]);
     const [selectedValue, setSelectedValue] = useState<string | undefined>(
       value
     );
@@ -81,12 +90,44 @@ export const UserSelection = forwardRef<SelectionRef, SelectionProps>(
       value: string;
     }>();
 
+    const { data: accountListData, isLoading: accountListLoading } =
+      useAccountList({
+        workspaceId: Array.isArray(workspaceId)
+          ? (workspaceId[0] as string)
+          : (workspaceId as string),
+        boardId: Array.isArray(boardId)
+          ? (boardId[0] as string)
+          : (boardId as string),
+        roleIds: roleIds,
+      });
+
     // If the value prop changes, update our internal state
     useEffect(() => {
       if (value !== undefined && value !== selectedValue) {
         setSelectedValue(value);
       }
     }, [value]);
+
+    const options = useMemo(() => {
+      if (!accountListData?.data) return [];
+
+      return accountListData.data
+        .filter((u) => !excludeIds.includes(u.id))
+        .map((item) => ({
+          value: item.id,
+          label: (
+            <div className="flex justify-start items-center gap-3">
+              <Avatar
+                size={20}
+                className="bg-blue-50 text-blue-500 border border-blue-100"
+              >
+                {item.username?.substring(0, 2)?.toUpperCase()}
+              </Avatar>
+              <Typography.Text>{item.username}</Typography.Text>
+            </div>
+          ),
+        }));
+    }, [accountListData, excludeIds]);
 
     // Expose methods via ref
     useImperativeHandle(ref, () => ({
@@ -123,34 +164,7 @@ export const UserSelection = forwardRef<SelectionRef, SelectionProps>(
       }
     };
 
-    // Fetch user data
-    useEffect(() => {
-      const fetchData = async () => {
-        const wsId = Array.isArray(workspaceId) ? workspaceId[0] : workspaceId;
-        const bId = Array.isArray(boardId) ? boardId[0] : boardId;
-        const result = await accountList(wsId, bId);
-
-        if (result && result.data) {
-          const opt = result.data.map((item) => ({
-            value: item.id,
-            label: (
-              <div className="flex justify-start items-center gap-3">
-                <Avatar
-                  size={20}
-                  className="bg-blue-50 text-blue-500 border border-blue-100"
-                >
-                  {item.username?.substring(0, 2)?.toUpperCase()}
-                </Avatar>
-                <Typography.Text>{item.username}</Typography.Text>
-              </div>
-            ),
-          }));
-          setOptions(opt);
-        }
-      };
-
-      fetchData();
-    }, [workspaceId, boardId]);
+    // Fetch user data via react-query (cached across components)
 
     // When options change, update the selected object if value is already set
     useEffect(() => {
@@ -165,6 +179,7 @@ export const UserSelection = forwardRef<SelectionRef, SelectionProps>(
     return (
       <Select
         style={{ width, ...style }}
+        mode={mode}
         showSearch
         placeholder={placeholder}
         optionFilterProp="label"
@@ -172,7 +187,9 @@ export const UserSelection = forwardRef<SelectionRef, SelectionProps>(
         value={selectedValue}
         options={options}
         size={size}
-        className={className}
+        className={`${className} ${
+          mode === "multiple" ? "w-full" : ""
+        } min-w-[200px]`}
         notFoundContent={
           options.length === 0 ? "No user available" : "No match found"
         }
@@ -340,9 +357,197 @@ export const ListSelection = forwardRef<SelectionRef, SelectionProps>(
         value={selectedValue}
         options={options}
         size={size}
-        className={className}
+        className={`${className} min-w-[200px]`}
         notFoundContent={
           lists?.length === 0 ? "No list available" : "No match found"
+        }
+      />
+    );
+  }
+);
+
+export const BoardSelection = forwardRef<SelectionRef, SelectionProps>(
+  (
+    {
+      placeholder = "Select a Board",
+      width = "100%",
+      size = "middle",
+      style = {},
+      className = "",
+      value,
+      onChange,
+    },
+    ref
+  ) => {
+    const [options, setOptions] = useState<{ label: string; value: string }[]>(
+      []
+    );
+    const [selectedValue, setSelectedValue] = useState<string | undefined>(
+      value
+    );
+    const [selectedObject, setSelectedObject] = useState<{
+      label: string;
+      value: string;
+    }>();
+    const { workspaceId } = useParams();
+    const { boards } = useBoards(workspaceId as string);
+
+    useImperativeHandle(ref, () => ({
+      getValue: () => selectedValue,
+      getObject: () => selectedObject,
+      setValue: (value: string) => {
+        setSelectedValue(value);
+        const foundOption = options.find((opt) => opt.value === value);
+        if (foundOption) {
+          setSelectedObject(foundOption);
+        }
+      },
+    }));
+
+    const handleChange = (value: string, option: any) => {
+      setSelectedValue(value);
+      // Store the entire selected object
+      if (Array.isArray(option)) {
+        // Handle case if Select allows multiple selection
+        const selectedOptions = option.map((opt) => ({
+          label: opt.label,
+          value: opt.value,
+        }));
+        setSelectedObject(selectedOptions[0]);
+      } else {
+        setSelectedObject({ label: option.label, value: option.value });
+      }
+
+      if (onChange) {
+        onChange(value, option);
+      }
+    };
+
+    useEffect(() => {
+      if (boards) {
+        const opt = boards?.map((item) => ({
+          label: item.name ?? "",
+          value: item.id,
+        }));
+        setOptions(opt);
+      }
+    }, [boards]);
+
+    // When options change, update the selected object if value is already set
+    useEffect(() => {
+      if (selectedValue && options.length > 0) {
+        const foundOption = options.find((opt) => opt.value === selectedValue);
+        if (foundOption) {
+          setSelectedObject(foundOption);
+        }
+      }
+    }, [options, selectedValue]);
+
+    return (
+      <Select
+        style={{ width, ...style }}
+        showSearch
+        placeholder={placeholder}
+        optionFilterProp="label"
+        onChange={handleChange}
+        value={selectedValue}
+        options={options}
+        size={size}
+        className={`${className} min-w-[200px]`}
+        notFoundContent={
+          boards?.length === 0 ? "No board available" : "No match found"
+        }
+      />
+    );
+  }
+);
+
+export const LabelSelection = forwardRef<SelectionRef, SelectionProps>(
+  (
+    {
+      placeholder = "Select a Label",
+      width = "100%",
+      size = "middle",
+      style = {},
+      className = "",
+      value,
+      onChange,
+      mode,
+    },
+    ref
+  ) => {
+    const [selectedValue, setSelectedValue] = useState<string | undefined>(
+      value
+    );
+    const [selectedObject, setSelectedObject] = useState<{
+      label: string;
+      value: string;
+    }>();
+    const { workspaceId } = useParams();
+    const { allLabels } = useLabels(workspaceId as string);
+
+    const options = useMemo(() => {
+      return allLabels?.map((item) => ({
+        label: item.name ?? "",
+        value: item.id ?? "",
+      }));
+    }, [allLabels]);
+
+    useImperativeHandle(ref, () => ({
+      getValue: () => selectedValue,
+      getObject: () => selectedObject,
+      setValue: (value: string) => {
+        setSelectedValue(value);
+        const foundOption = options.find((opt) => opt.value === value);
+        if (foundOption) {
+          setSelectedObject(foundOption);
+        }
+      },
+    }));
+
+    const handleChange = (value: string, option: any) => {
+      setSelectedValue(value);
+      // Store the entire selected object
+      if (Array.isArray(option)) {
+        // Handle case if Select allows multiple selection
+        const selectedOptions = option.map((opt) => ({
+          label: opt.label,
+          value: opt.value,
+        }));
+        setSelectedObject(selectedOptions[0]);
+      } else {
+        setSelectedObject({ label: option.label, value: option.value });
+      }
+
+      if (onChange) {
+        onChange(value, option);
+      }
+    };
+
+    // When options change, update the selected object if value is already set
+    useEffect(() => {
+      if (selectedValue && options.length > 0) {
+        const foundOption = options.find((opt) => opt.value === selectedValue);
+        if (foundOption) {
+          setSelectedObject(foundOption);
+        }
+      }
+    }, [options, selectedValue]);
+
+    return (
+      <Select
+        style={{ width, ...style }}
+        showSearch
+        placeholder={placeholder}
+        optionFilterProp="label"
+        onChange={handleChange}
+        value={selectedValue}
+        options={options}
+        size={size}
+        className={`${className} min-w-[200px]`}
+        mode={mode}
+        notFoundContent={
+          allLabels?.length === 0 ? "No label available" : "No match found"
         }
       />
     );
@@ -508,21 +713,48 @@ export const FieldValueInput = forwardRef<SelectionRef, FieldValueInputProps>(
     const [userOptions, setUserOptions] = useState<
       Array<{ label: string; value: string }>
     >([]);
+
+    // Parse role IDs from source if it's role-based
+    const parseRoleSource = (source: string): string[] => {
+      if (source?.startsWith("user-role:")) {
+        return source
+          .slice(10)
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean);
+      }
+      return [];
+    };
+
+    const roleIds = field?.source?.startsWith("user-role:")
+      ? parseRoleSource(field.source)
+      : [];
+
     const usersQuery = useAccountList({
       workspaceId: workspaceId as string,
       boardId: boardId as string,
+      roleIds: roleIds, // Pass role IDs for filtering
     });
 
     console.log(field, "field");
 
     // Only fetch users when needed
     useEffect(() => {
-      if (field?.source !== "user" || !workspaceId || !boardId) return;
+      if (
+        (field?.source !== "user" &&
+          !field?.source?.startsWith("user-role:")) ||
+        !workspaceId ||
+        !boardId
+      )
+        return;
       usersQuery.refetch();
     }, [field?.source, workspaceId, boardId]);
 
     useEffect(() => {
-      if (field?.source === "user" && usersQuery.data?.data) {
+      if (
+        (field?.source === "user" || field?.source?.startsWith("user-role:")) &&
+        usersQuery.data?.data
+      ) {
         setUserOptions(
           usersQuery.data.data.map(
             (item: { username: string; id: string; name?: string }) => ({
@@ -558,7 +790,7 @@ export const FieldValueInput = forwardRef<SelectionRef, FieldValueInputProps>(
       onChange?.(val, option);
     };
 
-    if (field?.source === "user") {
+    if (field?.source === "user" || field?.source?.startsWith("user-role:")) {
       return (
         <Select
           style={{ width: "10%" }}

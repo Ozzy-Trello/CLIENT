@@ -19,11 +19,16 @@ import {
   CustomFieldSelection,
   UserSelection,
   FieldValueInput,
+  BoardSelection,
+  LabelSelection,
 } from "@components/selection";
 import { EnumSelectionType, EnumTextType } from "@myTypes/automation-rule";
 import { EnumInputType } from "@myTypes/automation-rule";
 import { ActionType } from "@myTypes/automation-rule";
 import dayjs from "dayjs";
+import MultipleChecklist from "./multiple-checklist";
+import MultipleDates from "./multiple-dates";
+import { MultipleDatesProvider } from "./multiple-dates/context";
 import RichTextInput from "@components/rich-text-input";
 
 // Helper function to extract placeholders from a pattern
@@ -68,6 +73,8 @@ const SelectOption = ({
   const userSelectionRef = useRef<SelectionRef>(null);
   const customFieldSelectionRef = useRef<SelectionRef>(null);
   const fieldValueInputRef = useRef<SelectionRef>(null);
+  const boardSelectionRef = useRef<SelectionRef>(null);
+  const labelSelectionRef = useRef<SelectionRef>(null);
 
   const options = data?.options?.map((optionItem: GeneralOptions) => ({
     value: optionItem.value,
@@ -80,6 +87,7 @@ const SelectOption = ({
     let copyArr = [...actionsData];
     (copyArr[groupIndex]?.items?.[index]?.[placeholder] as any).value =
       selectedOption;
+
     setActionsData(copyArr);
   };
 
@@ -164,14 +172,17 @@ const SelectOption = ({
     return <span className="font-bold mx-1"> selected user </span>;
   }
 
-  if (placeholder === EnumSelectionType.User) {
+  if (
+    placeholder === EnumSelectionType.User ||
+    placeholder === EnumSelectionType.MultiUsers
+  ) {
     return (
       <UserSelection
         width={"fit-content"}
         ref={userSelectionRef}
         value={
           (actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value
-            ?.value || ""
+            ?.value || undefined
         }
         onChange={(option: any) => {
           console.log("UserSelection onChange called:", option);
@@ -179,6 +190,10 @@ const SelectOption = ({
         }}
         className="mx-2"
         key={`user-selection-${index}`}
+        placeholder={data.placeholder}
+        mode={
+          placeholder === EnumSelectionType.MultiUsers ? "multiple" : undefined
+        }
       />
     );
   }
@@ -194,12 +209,13 @@ const SelectOption = ({
         ref={listSelectionRef}
         value={
           (actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value
-            ?.value || ""
+            ?.value || undefined
         }
         onChange={(option: any) => {
           onListChange(option, placeholder);
         }}
         className="mx-2"
+        placeholder={data.placeholder}
         key={`list-selection-${index}`}
       />
     );
@@ -290,6 +306,74 @@ const SelectOption = ({
     );
   }
 
+  if (placeholder === EnumSelectionType.Board) {
+    return (
+      <BoardSelection
+        width={"fit-content"}
+        ref={boardSelectionRef}
+        value={
+          (actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value
+            ?.value || undefined
+        }
+        onChange={(option: any) => {
+          onListChange(option, placeholder);
+        }}
+        className="mx-2"
+        placeholder={data.placeholder}
+        key={`board-selection-${index}`}
+      />
+    );
+  }
+
+  if (
+    placeholder === EnumSelectionType.MultiLabels ||
+    placeholder === EnumSelectionType.CardLabel
+  ) {
+    return (
+      <LabelSelection
+        width={"fit-content"}
+        ref={labelSelectionRef}
+        value={
+          (actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value
+            ?.value || undefined
+        }
+        onChange={(option: any) => {
+          onListChange(option, placeholder);
+        }}
+        className="mx-2"
+        placeholder={data.placeholder}
+        key={`label-selection-${index}`}
+        mode={
+          placeholder === EnumSelectionType.MultiLabels ? "multiple" : undefined
+        }
+      />
+    );
+  }
+
+  if (placeholder === EnumSelectionType.MultiChecklists) {
+    return (
+      <MultipleChecklist
+        {...props}
+        groupIndex={groupIndex}
+        index={index}
+        placeholder={placeholder}
+      />
+    );
+  }
+
+  if (placeholder === EnumSelectionType.MultiDates) {
+    return (
+      <MultipleDatesProvider>
+        <MultipleDates
+          {...props}
+          groupIndex={groupIndex}
+          index={index}
+          placeholder={placeholder}
+        />
+      </MultipleDatesProvider>
+    );
+  }
+
   // Render regular Select
   return (
     <Select
@@ -337,7 +421,9 @@ const renderLabelWithSelects = (
           if (
             (placeholder === EnumSelectionType.TextInput ||
               placeholder === EnumSelectionType.ChecklistName ||
-              placeholder === "text_input_2") &&
+              placeholder === "text_input_2" ||
+              placeholder === EnumInputType.TextTitle ||
+              placeholder === EnumInputType.TextDescription) &&
             item[placeholder]
           ) {
             const data = item[placeholder] as {
@@ -1017,11 +1103,13 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
       }
     });
 
-    // Ensure constant action field included when label lacks <action> placeholder
+    // Ensure constant action field included and base type filled even when no placeholders
     const itemConfig = (actionsData[groupIndex]?.items?.[index] as any) ?? {};
     if (itemConfig?.[EnumSelectionType.Action]) {
       if (!newActionItem.selectedActionItem)
         newActionItem.selectedActionItem = { type: "", label: "" } as any;
+      if (newActionItem.selectedActionItem)
+        newActionItem.selectedActionItem.type = itemConfig.type || "";
       const actionConfig = itemConfig[EnumSelectionType.Action];
       // Extract the actual enum value from the nested structure
       const actionValue = actionConfig?.value?.value || actionConfig?.value;

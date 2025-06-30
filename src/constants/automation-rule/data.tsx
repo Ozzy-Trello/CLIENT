@@ -40,6 +40,13 @@ import {
   EnumOptionCheckboxState,
   EnumOptionTextComparisonOperator,
   EnumOptionSubject,
+  EnumCreateType,
+  EnumAddRemove,
+  EnumRemoveFromCard,
+  EnumSetDate,
+  EnumSetTask,
+  EnumCardContentType,
+  EnumCardContentText,
 } from "@myTypes/options";
 
 // The constants used to contruct the UI
@@ -588,6 +595,81 @@ export const triggers: AutomationRuleTrigger[] = [
     type: TriggerGroupType.CardDates,
     label: "Dates",
     icon: <Clock />,
+    items: [
+      {
+        type: TriggerType.WhenTaskDateIsSet,
+        label: TriggerType.WhenTaskDateIsSet.replaceAll("-", " "),
+        [EnumSelectionType.TaskType]: {
+          options: [
+            {
+              value: EnumSetDate.Due,
+              label: "Due",
+            },
+            {
+              value: EnumSetDate.Start,
+              label: "Start",
+            },
+          ],
+          value: {
+            value: EnumSetDate.Due,
+            label: "Due",
+          },
+        },
+        [EnumSelectionType.OptionalBySubject]: {
+          options: [
+            {
+              value: EnumOptionBySubject.ByMe,
+              label: "by me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyone,
+              label: "by anyone",
+            },
+            {
+              value: EnumOptionBySubject.BySpecificUser,
+              label: "by specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptMe,
+              label: "by anyone except me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
+              label: "by anyone except specific user",
+            },
+          ],
+          value: {
+            value: EnumOptionBySubject.ByMe,
+            label: "by me",
+          },
+          data: [],
+        },
+        [EnumSelectionType.DateExpression]: {
+          options: [],
+          value: null,
+        },
+        [EnumSelectionType.SetTask]: {
+          options: [
+            {
+              value: EnumSetTask.SetOn,
+              label: "set on",
+            },
+            {
+              value: EnumSetTask.MovedIn,
+              label: "moved in",
+            },
+            {
+              value: EnumSetTask.RemoveFrom,
+              label: "removed from",
+            },
+          ],
+          value: {
+            value: EnumSetTask.SetOn,
+            label: "set on",
+          },
+        },
+      },
+    ],
   },
   {
     type: TriggerGroupType.CardChecklist,
@@ -842,7 +924,65 @@ export const triggers: AutomationRuleTrigger[] = [
     type: TriggerGroupType.CardContent,
     label: "Card Content",
     icon: <MessageSquare />,
-    items: [],
+    items: [
+      {
+        type: TriggerType.WhenCardContentTextIsSet,
+        label: TriggerType.WhenCardContentTextIsSet.replaceAll("-", " "),
+        [EnumSelectionType.CardContentType]: {
+          options: [
+            {
+              value: EnumCardContentType.Name,
+              label: "name",
+            },
+            {
+              value: EnumCardContentType.Description,
+              label: "description",
+            },
+            {
+              value: EnumCardContentType.NameOrDescription,
+              label: "name or description",
+            },
+          ],
+          value: {
+            value: EnumCardContentType.Name,
+            label: "name",
+          },
+        },
+        [EnumSelectionType.CardContentText]: {
+          options: [
+            {
+              value: EnumCardContentText.StartsWith,
+              label: "starts with",
+            },
+            {
+              value: EnumCardContentText.EndsWith,
+              label: "ends with",
+            },
+            {
+              value: EnumCardContentText.Contains,
+              label: "contains",
+            },
+            {
+              value: EnumCardContentText.DoesNotStartWith,
+              label: "does not start with",
+            },
+            {
+              value: EnumCardContentText.DoesNotEndWith,
+              label: "does not end with",
+            },
+            {
+              value: EnumCardContentText.DoesNotContain,
+              label: "does not contain",
+            },
+          ],
+          value: {
+            value: EnumCardContentText.StartsWith,
+            label: "starts with",
+          },
+        },
+        [EnumInputType.Text]: "",
+      },
+    ],
   },
   {
     type: TriggerGroupType.CardFields,
@@ -1260,6 +1400,150 @@ export const actions: AutomationRuleAction[] = [
         <Plus /> <Minus />{" "}
       </div>
     ),
+    items: [
+      {
+        type: ActionType.CreateItem,
+        label: ActionType.CreateItem.replaceAll("-", " "),
+        [EnumSelectionType.CreateType]: {
+          options: [
+            {
+              value: EnumCreateType.New,
+              label: "New",
+            },
+            {
+              value: EnumCreateType.Unique,
+              label: "Unique",
+            },
+          ],
+          value: {
+            value: EnumCreateType.New,
+            label: "New",
+          },
+        },
+        [EnumInputType.TextTitle]: {
+          placeholder: "Card Title",
+          value: null,
+        },
+        [EnumInputType.TextDescription]: {
+          placeholder: "Card Description",
+          value: null,
+        },
+        [EnumSelectionType.Position]: {
+          options: [
+            {
+              value: EnumOptionPosition.InList,
+              label: "In list",
+            },
+            {
+              value: EnumOptionPosition.TopOfList,
+              label: "The top of the list",
+            },
+            {
+              value: EnumOptionPosition.BottomOfList,
+              label: "The bottom of the list",
+            },
+          ],
+          value: {
+            value: EnumOptionPosition.InList,
+            label: "In list",
+          },
+        },
+        [EnumSelectionType.Board]: {
+          options: [],
+          value: null,
+          placeholder: "Select Board",
+        },
+        [EnumSelectionType.List]: {
+          options: [],
+          value: null,
+          placeholder: "Select List",
+        },
+        [EnumSelectionType.MultiLabels]: {
+          options: [],
+          value: null,
+        },
+        [EnumSelectionType.MultiChecklists]: {
+          options: [],
+          value: null,
+          placeholder: "Select List",
+        },
+        [EnumSelectionType.MultiUsers]: {
+          options: [],
+          value: null,
+          placeholder: "Select Users",
+        },
+        [EnumSelectionType.MultiDates]: {
+          options: [],
+          value: null,
+          placeholder: "Select Dates",
+        },
+      },
+      {
+        type: ActionType.AddRemoveLabel,
+        label: ActionType.AddRemoveLabel.replaceAll("-", " "),
+        [EnumSelectionType.AddRemove]: {
+          options: [
+            {
+              value: EnumAddRemove.Add,
+              label: "Add",
+            },
+            {
+              value: EnumAddRemove.Remove,
+              label: "Remove",
+            },
+          ],
+          value: {
+            value: EnumAddRemove.Add,
+            label: "Add",
+          },
+        },
+        [EnumSelectionType.CardLabel]: {
+          options: [],
+          value: null,
+          placeholder: "Select Label",
+        },
+      },
+      {
+        type: ActionType.RemoveFromCard,
+        label: ActionType.RemoveFromCard.replaceAll("-", " "),
+        [EnumSelectionType.RemoveFromCard]: {
+          options: [
+            {
+              value: EnumRemoveFromCard.DueDate,
+              label: "The Due Date",
+            },
+            {
+              value: EnumRemoveFromCard.StartDate,
+              label: "The Start Date",
+            },
+            {
+              value: EnumRemoveFromCard.CoverImage,
+              label: "The Cover Image",
+            },
+            {
+              value: EnumRemoveFromCard.AllLabels,
+              label: "All the labels",
+            },
+            {
+              value: EnumRemoveFromCard.AllStickers,
+              label: "All the stickers",
+            },
+            {
+              value: EnumRemoveFromCard.AllChecklist,
+              label: "All the checklists",
+            },
+            {
+              value: EnumRemoveFromCard.AllMembers,
+              label: "All the members",
+            },
+          ],
+          value: {
+            value: EnumRemoveFromCard.DueDate,
+            label: "The Due Date",
+          },
+        },
+      },
+    ],
   },
   {
     type: "card_dates",
@@ -1381,9 +1665,34 @@ export const actions: AutomationRuleAction[] = [
     ],
   },
   {
-    type: "members",
+    type: ActionGroupType.CardMembers,
     label: "Members",
     icon: <User />,
+    items: [
+      {
+        type: ActionType.AddCardMember,
+        label: "<action> member <user> on the card",
+        [EnumSelectionType.Action]: {
+          options: [
+            { value: EnumActions.AddCardMember, label: "add" },
+            { value: EnumActions.RemoveCardMember, label: "remove" },
+          ],
+          value: { value: EnumActions.AddCardMember, label: "add" },
+        },
+        [EnumSelectionType.User]: {
+          options: [],
+          value: null,
+        },
+      },
+      {
+        type: ActionType.RemoveAllCardMembers,
+        label: ActionType.RemoveAllCardMembers.replaceAll("-", " "),
+        [EnumSelectionType.Action]: {
+          options: [{ value: EnumActions.RemoveCardMember, label: "remove" }],
+          value: { value: EnumActions.RemoveCardMember, label: "remove" },
+        },
+      },
+    ],
   },
   {
     type: "card_content",

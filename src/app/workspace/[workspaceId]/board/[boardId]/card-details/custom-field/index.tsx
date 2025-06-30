@@ -300,6 +300,18 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
     setUserValue(fieldId, value);
   };
 
+  // Helper function to parse role-based source
+  const parseRoleSource = (source: string): string[] => {
+    if (source?.startsWith("user-role:")) {
+      return source
+        .slice(10)
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+    }
+    return [];
+  };
+
   // Group fields into rows of 3
   const getFieldRows = () => {
     const rows = [];
@@ -366,7 +378,9 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
         );
 
       case EnumCustomFieldType.Dropdown:
+        // Handle different source types for dropdown
         if (field.source === EnumCustomFieldSource.User) {
+          // Standard user selection (all users)
           return (
             <UserSelection
               ref={(ref) => {
@@ -382,7 +396,27 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
               className="w-full"
             />
           );
+        } else if (field.source?.startsWith("user-role:")) {
+          // Role-based user selection
+          const roleIds = parseRoleSource(field.source);
+          return (
+            <UserSelection
+              ref={(ref) => {
+                if (ref && field.id)
+                  userSelectionRefs.current.set(field.id, ref);
+              }}
+              value={field.valueUserId}
+              onChange={(value: string) =>
+                value && handleUserValueChange(field.id!, value)
+              }
+              placeholder={`Select ${field.name}...`}
+              size="middle"
+              className="w-full"
+              roleIds={roleIds} // Pass role IDs for filtering
+            />
+          );
         } else {
+          // Custom dropdown options
           return (
             <div>
               <Select
@@ -398,12 +432,11 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
           );
         }
 
+      case EnumCustomFieldType.Checkbox:
+        return <CheckSquare size={12} className="text-gray-500" />;
+
       default:
-        return (
-          <div className="text-red-500 text-sm">
-            Unknown field type: {field.type}
-          </div>
-        );
+        return <StretchHorizontal size={12} className="text-gray-500" />;
     }
   };
 
@@ -469,7 +502,7 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
               {row.map((field) => (
                 <div key={field.id} className="space-y-2">
                   <div className="w-full">
-                    <div className="flex items-center gap-2 text-gray-700 font-medium mb-1">
+                    <div className="flex items-center gap-2 text-gray-700 font-medium">
                       {getFieldIcon(field)}
                       <Tooltip title={field.name}>
                         <span className="truncate" style={{ fontSize: "14px" }}>
@@ -478,7 +511,7 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
                       </Tooltip>
                     </div>
 
-                    <div className="w-full">{renderFieldInput(field)}</div>
+                    <div>{renderFieldInput(field)}</div>
                   </div>
                 </div>
               ))}
