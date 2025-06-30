@@ -11,6 +11,7 @@ import {
   Typography,
   Divider,
   Tooltip,
+  CheckboxChangeEvent,
 } from "antd";
 import { useEffect, useRef, useState } from "react";
 import Cover from "./cover";
@@ -41,6 +42,8 @@ import PopoverLabel from "@components/popover-label.tsx";
 import { CardLabel } from "@myTypes/label";
 import { useLabels } from "@hooks/label";
 import Dashcard from "./dashcard";
+import { Card } from "@myTypes/card";
+import { useCardDetails } from "@hooks/card-details";
 
 const CardDetails: React.FC = (props) => {
   const params = useParams();
@@ -73,36 +76,18 @@ const CardDetails: React.FC = (props) => {
     cardId: selectedCard?.id || "",
   });
   const { cardActivities } = useCardActivity(selectedCard?.id || "");
-  const { lists } = useLists(boardId || "");
   const [openAddMember, setOpenAddMember] = useState<boolean>(false);
   const [openLabel, setOpenLabel] = useState<boolean>(false);
+  const { completeCard, incompleteCard } = useCardDetails("", "", boardId as string);
+  
 
-  const onCardComplete: CheckboxProps["onChange"] = (e) => {
+ const onCompletionChange = (e: CheckboxChangeEvent) => {
     e.stopPropagation();
-    const isChecked = e.target.checked;
-    setIsComplete(isChecked);
-
-    // If checked, move the card to next list
-    if (isChecked && selectedCard) {
-      // Find the current list index
-      const currentListIndex = lists.findIndex(
-        (list) => list.id === selectedCard.listId
-      );
-
-      // Get the next list if it exists
-      if (currentListIndex !== -1 && currentListIndex < lists.length - 1) {
-        const nextListId = lists[currentListIndex + 1].id;
-
-        // Move card to next list
-        updateCard({
-          cardId: selectedCard.id,
-          updates: {
-            listId: nextListId,
-          },
-          listId: selectedCard.listId,
-          destinationListId: nextListId,
-        });
-      }
+    const isComplete = e.target.checked;
+    if (isComplete) {
+      completeCard({listId:selectedCard?.listId || "", cardId: selectedCard?.id || ""});
+    } else {
+      incompleteCard({listId:selectedCard?.listId || "", cardId: selectedCard?.id || ""});
     }
   };
 
@@ -180,10 +165,13 @@ const CardDetails: React.FC = (props) => {
             <Col flex="0 1 75%">
               <div className="flex items-center gap-2 mb-4">
                 <Checkbox
-                  className="custom-circular-checkbox"
-                  onChange={onCardComplete}
+                  className={
+                    `custom-circular-checkbox absolute left-0 -ml-6 transition-all duration-300 
+                    ${selectedCard?.isComplete ? "completed" : ""}`
+                  }
+                  checked={selectedCard?.isComplete}
+                  onChange={(e) => {onCompletionChange(e)}}
                   onClick={(e) => e.stopPropagation()}
-                  checked={isComplete}
                 />
                 {isEditingTitle ? (
                   <input
