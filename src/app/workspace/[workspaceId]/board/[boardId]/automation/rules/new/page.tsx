@@ -13,6 +13,7 @@ import {
   TriggerItemSelection,
   AutomationRuleTrigger,
   AutomationRuleAction,
+  SelectedCardFilterItem,
 } from "@myTypes/type";
 import SelectTrigger from "./select-trigger";
 import { extractPlaceholders } from "@utils/general";
@@ -97,6 +98,7 @@ const NewRulePage: React.FC = () => {
       }
     });
     triggerCondition["board"] = boardId;
+    triggerCondition["filter"] = undefined;
 
     // ensure constant action is included even if not in placeholders
     const actVal: any = (triggerItem as any)[EnumSelectionType.Action];
@@ -113,9 +115,43 @@ const NewRulePage: React.FC = () => {
       triggerCondition["checklist_name"] = (triggerItem as any).checklist_name;
     }
 
+    // Build filter array
+    const newFilters: AutomationRuleActionApiData[] = [];
+    // Process each filters
+    triggerItem?.filter?.forEach((filter: SelectedCardFilterItem) => {
+      if (!filter.type) return;
+      
+      // Extract placeholders from action type
+      const filterPlaceholders = extractPlaceholders(filter.type || '');
+      
+      // Build condition object for this action
+      const filterCondition: Record<string, any> = {};
+      
+      // For each placeholder in the action, add to condition
+      filterPlaceholders.forEach((placeholder) => {
+        if (filter?.[placeholder]) {
+          const value = filter?.[placeholder];
+          if (value && typeof value === 'object' && 'value' in value) {
+            filterCondition[placeholder] = value.value;
+          } else {
+            filterCondition[placeholder] = value;
+          }
+        }
+      });
+      
+      // Create filter object in the expected format
+      const formattedFilter: AutomationRuleActionApiData = {
+        groupType: filter?.groupType || '',
+        type: filter?.type,
+        condition: filterCondition
+      };
+      
+      newFilters.push(formattedFilter);
+    });
+
+
     // Build actions array
     const newActions: AutomationRuleActionApiData[] = [];
-
     // Process each action
     actions.forEach((action) => {
       if (!action.selectedActionItem) return;
@@ -190,7 +226,8 @@ const NewRulePage: React.FC = () => {
       groupType: triggerType,
       type: triggerItem.type || "",
       condition: triggerCondition,
-      action: newActions,
+      filter: newFilters,
+      action: newActions
     };
 
     // post rule

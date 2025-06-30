@@ -50,14 +50,12 @@ export interface SelectedTriggerItem {
     | null
     | ReactNode
     | number;
-}
-
-export interface SelectedCardFilter {
-  type?: string;
-  selectedItem?: SelectedCardFilterItem;
+  filter?: SelectedCardFilterItem[];
+  [key: string]: GeneralOptions | string | undefined | null | ReactNode | number;
 }
 
 export interface SelectedCardFilterItem {
+  groupType?: string;
   type: string;
   label: string;
   [key: string]: GeneralOptions | string | undefined | null | ReactNode;
@@ -86,6 +84,7 @@ export interface TriggerItems {
   type: string;
   label: string;
   [key: string]: TriggerItemSelection | string | undefined | null;
+  filters?: CardTriggerFilterItem[] | null;
 }
 
 export interface TriggerItemSelection {
@@ -133,7 +132,7 @@ export interface CardTriggerFilterType {
 export interface CardTriggerFilterItem {
   type: string;
   label: string;
-  [key: string]: TriggerItemSelection | string | undefined;
+  [key: string]: TriggerItemSelection  | string | undefined | null;
 }
 
 // Checklist item
@@ -158,7 +157,7 @@ export interface AutomationRuleApiData {
   groupType: string;
   type: string;
   condition: AutomationRuleConditionApiData;
-  filter?: any;
+  filter?: AutomationRuleActionApiData[];
   workspaceId: string;
   action: AutomationRuleActionApiData[];
 }

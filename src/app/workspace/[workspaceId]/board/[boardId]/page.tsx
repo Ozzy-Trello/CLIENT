@@ -222,7 +222,7 @@ const Board: React.FC = () => {
         setOpenDashcardModal={setOpenDashcardModal}
       />
       <CardDetailProvider>
-        <div className="pt-[50px] h-[calc(100vh-30px)] overflow-x-auto overflow-y-hidden min-w-[200px]">
+        <div className="pt-[50px] h-[calc(100vh-30px)] overflow-x-scroll overflow-y-hidden min-w-[200px]">
           {!isLoading && (
             <DragDropContext onDragEnd={onListDragEnd}>
               <Droppable

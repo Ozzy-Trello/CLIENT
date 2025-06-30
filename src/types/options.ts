@@ -20,7 +20,7 @@ export enum EnumOptionTextComparisonOperator {
   Containing = "containing",
   NotStartingWith = "not-starting-with",
   NotEndingWith = "not-ending-with",
-  NotContaining = "containing",
+  NotContaining = "not-containing",
 }
 
 export enum EnumOptionSubject {
@@ -41,7 +41,7 @@ export enum EnumOptionsSet {
   Cleared = "cleared",
 }
 
-export enum EnumOptionCardMarking {
+export enum EnumOptionCompletion {
   Complete = "complete",
   Incomplete = "incomplete",
 }
@@ -81,7 +81,7 @@ export enum EnumTimeUnit {
   WorkingDays = "working-days",
 }
 
-export enum EnumRelativeDirection {
+export enum EnumTimeRelativeReference {
   FromNow = "from-now",
   Ago = "ago",
 }
@@ -221,4 +221,49 @@ export enum EnumCardContentText {
   DoesNotStartWith = "does-not-start-with",
   DoesNotEndWith = "does-not-end-with",
   DoesNotContain = "does-not-contain",
+}
+
+export enum EnumDateStatusOperator {
+  Due = "due",
+  NotDue = "not-due",
+  Starting = "starting",
+  NotStarting = "not-starting"
+}
+
+export enum EnumTimeComparisonOperator {
+  InLessThan = "in-less-than",
+  InMoreThan = "in-more-than",
+  In = "in",
+  InBeetween = "in-between",
+  LessThan = "less-than",
+  MoreThan = "more-than",
+  Between = "between"
+}
+
+export enum EnumTimeRangeOperator {
+  Today = "today",
+  Tomorrow = "tomorrow",
+  ThisWeek = "this-week",
+  NextWeek = "next-week",
+  ThisMonth = "this-month",
+  NextMonth = "next-month"
+}
+
+export enum EnumChecklistConditionOperator {
+  WithAllComplete = "with-all-checklists-complete",
+  WithAnIncompleteChecklists = "with-an-incomplete-checklist",
+  WithCheckists = "with-checklist",
+  WithoutChecklist = "without-checklists",
+  WithoutChecklists = "without-checklists"
+}
+
+export enum EnumCardContentType {
+  AName = "a-name",
+  ADescription = "a-description",
+  ANameOrDescription = "a-name-or-description"
+}
+
+export enum EnumCustomFieldAction {
+  Set = "set",
+  Cleared = "cleared"
 }

@@ -12,7 +12,7 @@ interface LabelManagerProps {
   popoverPage: "home" | "add" | "update";
   setPopoverPage: (page: "home" | "add" | "update") => void;
   selectedLabel: CardLabel | undefined;
-  setSelectedLabel: any;
+  setSelectedLabel: (label: CardLabel | undefined) => void;
   selectedCard: Card | null;
 }
 
@@ -20,25 +20,29 @@ const Home: React.FC<LabelManagerProps> = (props) => {
   const { workspaceId } = useParams();
   const { setPopoverPage, setSelectedLabel, selectedCard } = props;
   const [searchTerm, setSearchTerm] = useState("");
-  const { labels, addCardLabel, removeCardLabel } = useLabels(
+
+  const { cardLabels, addCardLabel, removeCardLabel } = useLabels(
     workspaceId as string,
     selectedCard?.id,
     { cardId: selectedCard?.id }
   );
 
-  const filteredLabels = useMemo(() => {
-    if (!labels) return [];
-    const unique = Array.from(
-      new Map(labels.map((l) => [l.labelId, l])).values()
-    );
+  const filteredLabels: CardLabel[] = useMemo(() => {
+    if (!cardLabels) return [];
+
+    const unique: CardLabel[] = Array.from(
+      new Map(cardLabels.map((l: CardLabel) => [l.labelId, l])).values()
+    ) as CardLabel[];
+
     return unique.filter((label) =>
       label.name?.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }, [searchTerm, labels]);
+  }, [searchTerm, cardLabels]);
+
 
   const toggleCheck = async (isChecked: boolean, labelId: string) => {
     if (!selectedCard || !workspaceId) {
-      console.error("No card selected, workspace ID, or label to assign to.");
+      console.error("No card selected or workspace ID.");
       return;
     }
 
@@ -69,7 +73,7 @@ const Home: React.FC<LabelManagerProps> = (props) => {
       />
 
       <div className="space-y-1 max-h-64 overflow-y-auto">
-        {filteredLabels?.map((label) => (
+        {filteredLabels.map((label: CardLabel) => (
           <div
             key={label.id}
             className={`flex items-center justify-between px-2 py-1 rounded cursor-pointer transition ${

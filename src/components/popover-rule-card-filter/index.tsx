@@ -1,4 +1,4 @@
-import { PropsWithChildren, ReactElement } from 'react';
+import { ReactElement } from 'react';
 import { Popover } from 'antd';
 import { AutomationRuleTrigger } from '@myTypes/type';
 import PopoverRuleCardFilterContent from './content';
@@ -9,6 +9,7 @@ interface PopoverRuleCardFilterProps {
   triggerEl: ReactElement;
   setTriggersData: React.Dispatch<React.SetStateAction<AutomationRuleTrigger[]>>;
   triggersData: AutomationRuleTrigger[];
+  selectedGroupIndex: number;
   selectedIndex: number;
 }
 
@@ -18,7 +19,8 @@ const PopoverRuleCardFilter: React.FC<PopoverRuleCardFilterProps> = ({
   triggerEl,
   triggersData,
   setTriggersData,
-  selectedIndex
+  selectedGroupIndex,
+  selectedIndex,
 }) => {
   const handleOpenChange = (newOpen: boolean) => {
     setOpen(newOpen);
@@ -28,9 +30,9 @@ const PopoverRuleCardFilter: React.FC<PopoverRuleCardFilterProps> = ({
     <Popover
       content={
         <PopoverRuleCardFilterContent 
-          selectedTriggersGroupIndex={selectedIndex}
           triggersData={triggersData}
           setTriggersData={setTriggersData}
+          selectedTriggersGroupIndex={selectedGroupIndex}
           selectedTriggerIndex={selectedIndex}
         />
       }

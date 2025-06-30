@@ -72,12 +72,28 @@ export interface CardTimeInList {
 
 export interface CardActivity {
   id: string;
-  senderUsername: string; // "comment", "update", "attachment", "move", etc.
+  senderUserUsername: string; // "comment", "update", "attachment", "move", etc.
   senderId: string;
-  type: "text" | "action";
-  text: string;
-  source: AcitivitySource;
+  acitivityType: "text" | "action";
+  triggeredBy: string;
+  action?: CardActivityAction,
+  comment?: CardActivityComment,
+  createdAt: string;
 }
+
+export interface CardActivityAction {
+  id?: string;
+  activity_id?: string;
+  action?: string;
+  old_value?: any;
+  new_value?: any;
+}
+
+export interface CardActivityComment {
+  id?:string;
+  text: string;
+}
+
 
 export interface CardCustomField {
   cardId?: string;

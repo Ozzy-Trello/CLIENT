@@ -29,14 +29,11 @@ import {
 } from "@myTypes/automation-rule";
 import {
   EnumOptionArticleType,
-  EnumOptionCardMarking,
+  EnumOptionCompletion,
   EnumOptionPosition,
   EnumOptionsNumberComparisonOperators,
   EnumOptionsSet,
   EnumOptionBySubject,
-  EnumInclusionOperator,
-  EnumTimeUnit,
-  EnumRelativeDirection,
   EnumOptionCheckboxState,
   EnumOptionTextComparisonOperator,
   EnumOptionSubject,
@@ -59,6 +56,7 @@ export const triggers: AutomationRuleTrigger[] = [
       {
         type: TriggerType.WhenACardActionOverBoard,
         label: TriggerType.WhenACardActionOverBoard.replaceAll("-", " "),
+        filters: null,
         [EnumSelectionType.Action]: {
           options: [
             {
@@ -120,6 +118,7 @@ export const triggers: AutomationRuleTrigger[] = [
       {
         type: TriggerType.WhenACardActionOverList,
         label: TriggerType.WhenACardActionOverList.replaceAll("-", " "),
+        filters: null,
         [EnumSelectionType.Action]: {
           options: [
             {
@@ -232,65 +231,9 @@ export const triggers: AutomationRuleTrigger[] = [
         },
       },
       {
-        type: TriggerType.WhenAListIsAction,
-        label: TriggerType.WhenAListIsAction.replaceAll("-", " "),
-        [EnumSelectionType.Action]: {
-          options: [
-            {
-              value: EnumUserActionEvent.ListCreated,
-              label: "Created",
-            },
-            {
-              value: EnumUserActionEvent.ListRenamed,
-              label: "Renamed",
-            },
-            {
-              value: EnumUserActionEvent.ListArchived,
-              label: "Archived",
-            },
-            {
-              value: EnumUserActionEvent.ListUnarchived,
-              label: "Unarchived",
-            },
-          ],
-          value: {
-            value: EnumUserActionEvent.ListCreated,
-            label: "Created",
-          },
-        },
-        [EnumSelectionType.OptionalBySubject]: {
-          options: [
-            {
-              value: EnumOptionBySubject.ByMe,
-              label: "by me",
-            },
-            {
-              value: EnumOptionBySubject.ByAnyone,
-              label: "by anyone",
-            },
-            {
-              value: EnumOptionBySubject.BySpecificUser,
-              label: "by specific user",
-            },
-            {
-              value: EnumOptionBySubject.ByAnyoneExceptMe,
-              label: "by anyone except me",
-            },
-            {
-              value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
-              label: "by anyone except specific user",
-            },
-          ],
-          value: {
-            value: EnumOptionBySubject.ByMe,
-            label: "by me",
-          },
-          data: [],
-        },
-      },
-      {
         type: TriggerType.WhenListHasCards,
         label: TriggerType.WhenListHasCards.replaceAll("-", " "),
+        filters: null,
         [EnumSelectionType.NumberComparison]: {
           options: [
             {
@@ -332,19 +275,20 @@ export const triggers: AutomationRuleTrigger[] = [
       {
         type: TriggerType.WhenCardCompletionChanges,
         label: TriggerType.WhenCardCompletionChanges.replaceAll("-", " "),
-        [EnumSelectionType.Marked]: {
+        filters: null,
+        [EnumSelectionType.Completion]: {
           options: [
             {
-              value: EnumOptionCardMarking.Complete,
+              value: EnumOptionCompletion.Complete,
               label: "Complete",
             },
             {
-              value: EnumOptionCardMarking.Incomplete,
+              value: EnumOptionCompletion.Incomplete,
               label: "Incomplete",
             },
           ],
           value: {
-            value: EnumOptionCardMarking.Complete,
+            value: EnumOptionCompletion.Complete,
             label: "Complete",
           },
         },
@@ -381,6 +325,7 @@ export const triggers: AutomationRuleTrigger[] = [
       {
         type: TriggerType.WhenCardLabelChanges,
         label: TriggerType.WhenCardLabelChanges.replaceAll("-", " "),
+        filters: null,
         [EnumSelectionType.ArticleType]: {
           options: [
             {
@@ -446,6 +391,7 @@ export const triggers: AutomationRuleTrigger[] = [
       {
         type: TriggerType.WhenCardAttachmentChanges,
         label: TriggerType.WhenCardAttachmentChanges.replaceAll("-", " "),
+        filters: null,
         [EnumSelectionType.TextComparison]: {
           options: [
             {
@@ -527,6 +473,7 @@ export const triggers: AutomationRuleTrigger[] = [
       {
         type: TriggerType.WhenCardMemberChanges,
         label: TriggerType.WhenCardMemberChanges.replaceAll("-", " "),
+        filters: null,
         [EnumSelectionType.Subject]: {
           options: [
             {
@@ -1120,7 +1067,7 @@ export const triggers: AutomationRuleTrigger[] = [
             label: EnumUserActionEvent.CardCustomFieldChange,
           },
         },
-        [EnumSelectionType.State]: {
+        [EnumSelectionType.CheckboxState]: {
           options: [
             {
               value: EnumOptionCheckboxState.Checked,
