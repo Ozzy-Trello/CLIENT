@@ -175,10 +175,11 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
             className={`custom-circular-checkbox absolute left-0 -ml-6 transition-all duration-300 ${
               isHovered || card?.isComplete ? "opacity-100" : "opacity-0"
             } ${card?.isComplete ? "completed" : ""}`}
-            onChange={(e) => {onCompletionChange(e, card)}}
-            onClick={(e) => e.stopPropagation()}
             checked={card?.isComplete}
+            onChange={(e) => onCompletionChange(e, card)}
+            onClick={(e) => e.stopPropagation()}
           />
+
           <h3
             className={`
               text-blue-800 font-semibold text-lg

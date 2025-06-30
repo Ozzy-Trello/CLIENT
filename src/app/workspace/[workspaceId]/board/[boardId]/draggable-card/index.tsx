@@ -54,7 +54,13 @@ const DraggableCard: React.FC<DraggableCardProps> = ({ card, index, list }) => {
           ref={provided.innerRef}
           {...provided.dragHandleProps}
           {...provided.draggableProps}
-          onClick={() => {
+          onClick={(e) => {
+            if (e.target instanceof HTMLElement) {
+              if (e.target.className.includes("checkbox")) {
+                return;
+              }
+            }
+
             openCardDetail(card, list);
           }}
           onMouseEnter={() => setIsHovered(true)}

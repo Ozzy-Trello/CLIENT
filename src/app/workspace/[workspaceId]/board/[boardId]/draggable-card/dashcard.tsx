@@ -49,12 +49,9 @@ const Dashcard: React.FC<DashcardProps> = (props) => {
             className={`custom-circular-checkbox absolute left-0 -ml-6 transition-all duration-300 ${
               isHovered || card?.isComplete ? "opacity-100" : "opacity-0"
             } ${card?.isComplete ? "completed" : ""}`}
-            onChange={(e) => {onCompletionChange(e, card)}}
-            style={{
-              accentColor: "green",
-            }}
-            onClick={(e) => e.stopPropagation()}
             checked={card?.isComplete}
+            onChange={(e) => onCompletionChange(e, card)}
+            onClick={(e) => e.stopPropagation()}
           />
           <h3
             className={`
