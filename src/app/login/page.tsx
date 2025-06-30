@@ -69,15 +69,15 @@ export default function LoginPage() {
 
           if (workspaceResponse?.data && workspaceResponse.data.length > 0) {
             const firstWorkspace = workspaceResponse.data[0];
-            router.push(`/workspace/${firstWorkspace.id}/board`);
+            window.location.href = `/workspace/${firstWorkspace.id}/board`;
           } else {
             // Fallback to workspace page if no workspaces available
-            router.push("/workspace");
+            window.location.href = "/workspace";
           }
         } catch (error) {
           console.error("Failed to fetch workspaces:", error);
           // Fallback to workspace page if workspace fetching fails
-          router.push("/workspace");
+          window.location.href = "/workspace";
         }
       }
     } catch (error) {
