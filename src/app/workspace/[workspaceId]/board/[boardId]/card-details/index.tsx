@@ -16,7 +16,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import Cover from "./cover";
 import { useCardDetailContext } from "@providers/card-detail-context";
-import { Clock, Eye, TimerIcon } from "lucide-react";
+import { Clock, Eye, Info, TimerIcon } from "lucide-react";
 import MembersList from "@components/members-list";
 import Description from "./description";
 import Attachments from "./attachments";
@@ -156,6 +156,21 @@ const CardDetails: React.FC = (props) => {
       <div className="overflow-x-hidden max-w-full">
         {/* Cover Image Section */}
         {selectedCard && <Cover card={selectedCard} />}
+
+        {selectedCard && selectedCard?.mirrorId && (
+          <div className="flex items-center justify-between bg-gray-100 px-4 py-2 rounded-md border border-gray-200 mb-4">
+            <div className="flex items-center gap-2 text-sm text-gray-700">
+              <Info size={20} className="text-yellow-600" />
+              <span>You are viewing this card outside of its original location</span>
+            </div>
+            <Button
+              size="small"
+              className="bg-gray-200 text-blue-800 font-medium hover:bg-gray-300 border-none rounded-sm px-3 py-1"
+            >
+              Remove from this board
+            </Button>
+          </div>
+        )}
 
         <div className="p-5">
           <Row>

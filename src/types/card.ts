@@ -155,13 +155,13 @@ export interface IItemDashcard {
 export interface CopycardPost {
   cardId: string;
   name: string;
-  isWithLabels: boolean;
-  isWithlabels?: boolean;
-  isWithMembers?: boolean;
-  isWithAttachments?: boolean;
-  isWtihCustomFields?: boolean;
-  isWithComments?: boolean;
-  isWithChecklist?: boolean;
+  withLabels: boolean;
+  withlabels?: boolean;
+  withMembers?: boolean;
+  withAttachments?: boolean;
+  withCustomFields?: boolean;
+  withComments?: boolean;
+  withChecklists?: boolean;
   targetBoardId?: string;
   targetListId?: string;
   position?: string | number | EnumOptionPosition;

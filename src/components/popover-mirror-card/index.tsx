@@ -3,7 +3,7 @@ import { Popover, Typography } from "antd";
 import { ChevronLeft, X } from "lucide-react";
 import { useParams } from "next/navigation";
 import { UserSelection } from "../selection";
-import ContentMoveCard from "./content";
+import ContentMirrorCard from "./content";
 
 interface PopoverMirrorCardProps {
   open: boolean;
@@ -20,7 +20,7 @@ const PopoverMirrorCard: React.FC<PopoverMirrorCardProps> = ({
  
   return (
     <Popover
-      content={<ContentMoveCard />}
+      content={<ContentMirrorCard />}
       title={
         <div className="flex justify-between items-center">
           <div className="flex justify-start items-center gap-2">
