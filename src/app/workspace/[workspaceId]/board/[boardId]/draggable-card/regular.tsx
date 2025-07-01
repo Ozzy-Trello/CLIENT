@@ -5,12 +5,13 @@ import { useCardCustomField } from "@hooks/card_custom_field";
 import { useCardMembers } from "@hooks/card_member";
 import { Card, CardCustomField } from "@myTypes/card";
 import { isImageFile } from "@utils/file";
-import { Checkbox, CheckboxChangeEvent, Tooltip } from "antd";
+import { Avatar, Checkbox, CheckboxChangeEvent, Tooltip, Typography } from "antd";
 import {
   Calendar,
   CalendarDays,
   Clock,
   MessageSquare,
+  MoveUpRight,
   Paperclip,
   Text,
 } from "lucide-react";
@@ -52,10 +53,7 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
     card.id,
     workspaceId as string
   );
-  const [frontCustomFields, setfrontCustomFields] = useState<CardCustomField[]>(
-    []
-  );
-  const { cardAttachments } = useCardAttachment(card.id);
+  const [frontCustomFields, setfrontCustomFields] = useState<CardCustomField[]>([]);
   // local version state to force re-render after lookups populate
   const [lookupVersion, setLookupVersion] = useState(0);
 
@@ -98,37 +96,15 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
     }
   }, [cardCustomFields, cardMembers]);
 
-  const imageCover = useMemo(() => {
-    let url = "";
-
-    if (card.cover) {
-      url = card.cover;
-      return url;
-    }
-
-    cardAttachments.forEach((item) => {
-      if (item.file) {
-        const isImage = isImageFile(item.file.name, item.file.mimeType);
-
-        if (isImage) {
-          url = item.file.url;
-          return url;
-        }
-      }
-    });
-
-    return url;
-  }, [cardAttachments, card]);
-
   return (
     <div className="w-full">
       {/* Cover image */}
-      {imageCover && (
+      {card?.cover && (
         <div className="w-full bg-white">
           <div
             className="relative bg-gray-100 bg-center bg-no-repeat h-36 flex justify-end items-end rounded-t-lg"
             style={{
-              backgroundImage: imageCover ? `url("${imageCover}")` : "none",
+              backgroundImage: card?.cover ? `url("${card?.cover}")` : "none",
               backgroundSize: "contain",
             }}
           ></div>
@@ -146,6 +122,28 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
 
       {/* Card content */}
       <div className="p-4">
+
+        {/* Main Card link */}
+        {card?.mirrorId && (
+          <Tooltip title={`${card?.sourceCard?.boardName}: ${card?.sourceCard?.listName}`}>
+            <div className="flex justify-between items-center rounded bg-gray-100 group hover:bg-gray-200 transition-colors">
+              <div className="flex items-center gap-2 p-2">
+                <Avatar shape="square" size={"small"}>
+                  <span>{card?.sourceCard?.name?.charAt(0) || ""}</span>
+                </Avatar>
+                <div className="text-[10px] flex flex-col">
+                  <div className="flex gap-1 items-center">
+                    <span className="font-semibold">{card?.sourceCard?.boardName}</span>
+                    <MoveUpRight size={12} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                  <span>{card?.sourceCard?.listName}</span>
+                </div>
+              </div>
+            </div>
+          </Tooltip>
+        )}
+
+
         {/* Labels */}
         {cardLabels?.length > 0 && (
           <div className="flex flex-wrap gap-1 mb-2">
