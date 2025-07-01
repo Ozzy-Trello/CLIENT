@@ -1,29 +1,22 @@
 import React, { useRef, useState } from 'react';
 import { Modal, Select, Button } from 'antd';
 import { X } from 'lucide-react';
-import { ListSelection, SelectionRef } from '../selection';
+import { BoardSelection, CardPositionSelection, ListSelection, SelectionRef } from '../selection';
 import { useCardDetailContext } from '@providers/card-detail-context';
 import { useCards } from '@hooks/card';
 import { useParams } from 'next/navigation';
 
 
 const ContentMoveCard: React.FC = () => {
+  const { boardId } = useParams();
   const {selectedCard, setSelectedCard,  isCardDetailOpen, openCardDetail, closeCardDetail } = useCardDetailContext();
-  const [selectedBoard, setSelectedBoard] = useState<string>("board1");
+  const [selectedBoard, setSelectedBoard] = useState<string>(boardId as string);
   const [selectedList, setSelectedList] = useState<string>(selectedCard?.listId || "");
   const [selectedPosition, setSelectedPosition] = useState<number>(1);
   const listSelectionRef = useRef<SelectionRef>(null);
-  const { boardId } = useParams();
+  const positionSelectionref = useRef<SelectionRef>(null);
+  const boardSelectionRef = useRef<SelectionRef>(null);
   const { updateCard } = useCards(selectedCard?.listId || '', Array.isArray(boardId) ? boardId[0] : boardId || '');
-  
-
-  const boardOptions = [
-    { value: 'board1', label: '4.7 Request Desain | Outlet' },
-  ];
-
-  const listOptions = [
-    { value: 'list1', label: 'Filter Desain Terhandle' },
-  ];
 
   const positionOptions = [
     { value: 1, label: '1' },
@@ -51,10 +44,16 @@ const ContentMoveCard: React.FC = () => {
   };
 
   const onListChange = (value: string, option: object) => {
-    console.log("List changed to: ", value, option);
     setSelectedList(value);
+  }
+  
+  const onBoardChange = (value: string, option: object) => {
+    setSelectedBoard(value);
   } 
   
+  const onPositionChange = (value: string, option: object) => {
+    setSelectedPosition(parseInt(value));
+  } 
 
   return (
     <div className="py-2">
@@ -62,12 +61,15 @@ const ContentMoveCard: React.FC = () => {
       
       <div className="mb-4">
         <h3 className="text-gray-800 font-medium mb-2">Board</h3>
-        <Select
-          className="w-full"
-          value={selectedBoard}
-          onChange={setSelectedBoard}
-          options={boardOptions}
-        />
+          <BoardSelection
+            width={"fit-content"}
+            ref={boardSelectionRef}
+            value={selectedBoard}
+            onChange={onBoardChange}
+            className="mx-2"
+            placeholder={"board"}
+            key={`board-selection`}
+          />
       </div>
       
       <div className="grid grid-cols-2 gap-4 mb-6">
@@ -77,19 +79,25 @@ const ContentMoveCard: React.FC = () => {
             ref={listSelectionRef} 
             size="small" 
             width={"fit-content"} 
-            value={selectedCard?.listId}
+            value={selectedList}
             onChange={onListChange}
+            selectedBoardId={selectedBoard}
           />
         </div>
         
         <div>
           <h3 className="text-gray-800 font-medium mb-2">Position</h3>
-          <Select
-            className="w-full"
-            value={selectedPosition}
-            onChange={setSelectedPosition}
-            options={positionOptions}
-          />
+           <CardPositionSelection
+              className="w-full"
+              value={selectedPosition}
+              onChange={onPositionChange}
+              options={positionOptions}
+              ref={positionSelectionref}
+              listId={selectedList}
+              selectedListId={selectedList}
+              size="small"
+              width="100px"
+            />
         </div>
       </div>
       

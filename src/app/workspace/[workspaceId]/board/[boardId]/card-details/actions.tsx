@@ -17,6 +17,7 @@ import {
   RotateCcw,
   UserPlus,
   UserMinus,
+  FlipHorizontal,
 } from "lucide-react";
 import PopoverCustomField from "@components/popover-custom-field";
 import PopoverUser from "@components/popover-user";
@@ -33,6 +34,7 @@ import { useCardDetails } from "@hooks/card-details";
 import { useCurrentAccount } from "@hooks/account";
 import { useCardMembers } from "@hooks/card_member";
 import PopoverLabel from "@components/popover-label.tsx";
+import PopoverMirrorCard from "@components/popover-mirror-card";
 
 const Actions: React.FC = () => {
   const [openCustomField, setOpenCustomField] = useState(false);
@@ -40,6 +42,7 @@ const Actions: React.FC = () => {
   const [openDates, setOpenDates] = useState(false);
   const [openMoveCard, setOpenMoveCard] = useState(false);
   const [openCopyCard, setOpenCopyCard] = useState(false);
+  const [openMirrorCard, setOpenMirrorCard] = useState(false);
   const [openQrModal, setOpenQrModal] = useState(false);
   const [openLocation, setOpenLocation] = useState(false);
   const [openAttach, setOpenAttach] = useState(false);
@@ -174,7 +177,7 @@ const Actions: React.FC = () => {
         triggerEl={
           <button className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700">
             <span className="text-gray-600 text-xs">
-              <MapPin size={14} />
+              <Paperclip size={14} />
             </span>
             <span className="text-xs">Attachment</span>
           </button>
@@ -282,6 +285,21 @@ const Actions: React.FC = () => {
                 <button className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700">
                   <Copy size={14} />
                   <span className="text-xs">Copy</span>
+                </button>
+              </Tooltip>
+            }
+          />
+        </Tooltip>
+
+        <Tooltip title="Miror this card">
+          <PopoverMirrorCard
+            open={openMirrorCard}
+            setOpen={setOpenMirrorCard}
+            triggerEl={
+              <Tooltip title={"Copy this card to another list"}>
+                <button className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700">
+                  <FlipHorizontal size={14} />
+                  <span className="text-xs">Mirror</span>
                 </button>
               </Tooltip>
             }
