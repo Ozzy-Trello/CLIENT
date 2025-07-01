@@ -1217,6 +1217,13 @@ const SelectTrigger: React.FC<SelectTriggerProps> = (props) => {
         };
       }
 
+      if (selectedItem.type === TriggerType.WhenTaskDateIsSet) {
+        (newTriggerItem.action as any) = {
+          value: TriggerGroupType.CardDates,
+          label: "Card Dates",
+        };
+      }
+
       setSelectedRule((prev: AutomationRule) => {
         return {
           ...prev,
