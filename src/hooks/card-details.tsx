@@ -412,7 +412,6 @@ export function useCardDetails(
     },
   });
 
-
   // Mark card as incomplete
   const incompleteCardMutation = useMutation({
     mutationFn: ({ listId, cardId }: { listId: string; cardId: string }) => cardIncomplete(cardId),

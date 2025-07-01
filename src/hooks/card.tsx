@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { addCardLabel, cardArchive, cards, cardUnarchive, copyCard, getCardLabels, moveCard, removeLabelFromCard, updateCard } from "../api/card";
+import { addCardLabel, cardArchive, cards, cardUnarchive, copyCard, getCardLabels, mirrorCard, moveCard, removeLabelFromCard, updateCard } from "../api/card";
 import { api } from "../api";
 import { ApiResponse } from "../types/type";
 import { Card, CopycardPost } from "../types/card";
@@ -530,6 +530,81 @@ export function useCardCopy() {
   };
 }
 
+export function useMirrorCard() {
+  const queryClient = useQueryClient();
+
+  const cardMirrorMutation = useMutation({
+    mutationFn: ({ boardId, id, targetListId, targetPosition }: {
+      boardId: string,
+      id: string;
+      targetListId: string;
+      targetPosition: number;
+    }) => mirrorCard(id, { id, targetListId, targetPositon: targetPosition }),
+
+    onMutate: async ({ boardId, id, targetListId, targetPosition }) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.cards.list(targetListId) });
+
+      const previousCards = queryClient.getQueryData(queryKeys.cards.list(targetListId));
+
+      const tempCard: Partial<Card> = {
+        id: `temp-mirror-${Date.now()}`,
+        name: "Mirrored card",
+        listId: targetListId,
+        createdAt: new Date().toISOString(),
+      };
+
+      // Optimistically update cards in the target list
+      queryClient.setQueryData(
+        queryKeys.cards.list(targetListId),
+        (old: any) => {
+          if (!old) return { data: [tempCard] };
+          return {
+            ...old,
+            data: [...(old.data ?? []), tempCard],
+          };
+        }
+      );
+
+      // Optimistically update cards inside list -> board query
+      queryClient.setQueriesData({ queryKey: queryKeys.lists.board(boardId) }, (old: any) => {
+        if (!old?.data) return old;
+        return {
+          ...old,
+          data: old.data.map((list: any) => {
+            if (list.id === targetListId) {
+              return {
+                ...list,
+                cards: [...(list.cards || []), tempCard],
+              };
+            }
+            return list;
+          }),
+        };
+      });
+
+      return { previousCards };
+    },
+
+    onError: (err, variables, context) => {
+      queryClient.setQueryData(
+        queryKeys.cards.list(variables.targetListId),
+        context?.previousCards
+      );
+    },
+
+    onSettled: (_data, _error, variables) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.cards.list(variables.targetListId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.lists.board(variables.boardId) });
+    },
+  });
+
+  return {
+    mirrorCard: cardMirrorMutation.mutate,
+    mirrorCardAsync: cardMirrorMutation.mutateAsync,
+    isMirroringCard: cardMirrorMutation.isPending,
+    mirrorCardError: cardMirrorMutation.error,
+  };
+}
 
 /**
  * Hook to get time a card has spent in a specific board

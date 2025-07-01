@@ -3,7 +3,7 @@ import { Modal, Select, Button } from 'antd';
 import { X } from 'lucide-react';
 import { BoardSelection, CardPositionSelection, ListSelection, SelectionRef } from '../selection';
 import { useCardDetailContext } from '@providers/card-detail-context';
-import { useCards } from '@hooks/card';
+import { useCards, useMirrorCard } from '@hooks/card';
 import { useParams } from 'next/navigation';
 
 
@@ -16,30 +16,20 @@ const ContentMoveCard: React.FC = () => {
   const listSelectionRef = useRef<SelectionRef>(null);
   const positionSelectionref = useRef<SelectionRef>(null);
   const boardSelectionRef = useRef<SelectionRef>(null);
-  const { updateCard } = useCards(selectedCard?.listId || '', Array.isArray(boardId) ? boardId[0] : boardId || '');
+  const { mirrorCard } = useMirrorCard();
   
   const positionOptions = [
     { value: 1, label: '1' },
   ];
 
-  const onMove = () => {
-
-  }
-
-  const onClose = () => {
-
-  }
-
-  const handleMove = () => {
+  const handleMirror = () => {
     if (selectedCard) {
-      updateCard({
-        cardId: selectedCard?.id,
-        updates: { 
-          listId: selectedList
-        },
-        listId: selectedCard?.listId,
-        destinationListId: selectedList
-      });
+      mirrorCard({
+        boardId: boardId as string,
+        id: selectedCard?.id,
+        targetListId: selectedList,
+        targetPosition: selectedPosition
+      })
     }
   };
 
@@ -103,7 +93,7 @@ const ContentMoveCard: React.FC = () => {
       
       <Button
         type="primary"
-        onClick={handleMove}
+        onClick={handleMirror}
         className="bg-blue-600 hover:bg-blue-700 h-10"
       >
         Mirror

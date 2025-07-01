@@ -101,6 +101,11 @@ export const cardIncomplete = async(cardId: string): Promise<ApiResponse<any>> =
   return data;
 }
 
+export const mirrorCard = async(cardId: string, payload: {id: string, targetListId: string, targetPositon: number}): Promise<ApiResponse<Card>> => {
+  const { data } = await api.post(`/card/${cardId}/make-mirror`, payload);
+  return data;
+}
+
 /**
  * Card Label
  */
