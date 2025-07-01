@@ -347,6 +347,10 @@ export const ListSelection = forwardRef<SelectionRef, SelectionProps>(
           value: item.id,
         }));
         setOptions(opt);
+
+        if (boardIdProp) {
+          setSelectedValue("");
+        }
       }
     }, [listData]);
 
@@ -365,7 +369,6 @@ export const ListSelection = forwardRef<SelectionRef, SelectionProps>(
         const data = await lists(selectedBoardId);
         if (data?.data) {
           setListData(data.data);
-          setSelectedValue(""); // this triggers useEffect below
         }
       };
 
@@ -373,7 +376,6 @@ export const ListSelection = forwardRef<SelectionRef, SelectionProps>(
         fetchData();
       }
     }, [selectedBoardId]);
-
 
     return (
       <Select

@@ -31,11 +31,9 @@ export function useCardAttachment(cardId: string) {
       attachableId: string;
       isCover: boolean;
     }) => {
-      console.log("API - Adding attachment:", {cardId, attachableType, attachableId, isCover});
       return createCardAttachment({cardId, attachableType, attachableId, isCover});
     },
     onMutate: async ({ cardId, attachableType, attachableId, isCover }) => {
-      console.log("Optimistically adding attachment:", { cardId, attachableId });
       
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ["cardAttachment", cardId] });

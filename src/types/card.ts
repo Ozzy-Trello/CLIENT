@@ -14,7 +14,10 @@ export enum EnumCardType {
 export type TCardType = EnumCardType.Regular | EnumCardType.Dashcard;
 export interface Card {
   id: string;
+  listName?: string;
   listId: string;
+  boardId?: string;
+  boardName?: string;
   type: TCardType;
   name: string;
   description?: string;
@@ -41,8 +44,9 @@ export interface Card {
   dashConfig?: DashcardConfig | undefined;
   createdAt?: string;
   updatedAt?: string;
-  boardId?: string;
   itemDashcard?: IItemDashcard[] | null;
+  mirrorId?: string;
+  sourceCard?: any;
 }
 
 export enum EnumAttachmentType {

@@ -42,9 +42,7 @@ import PopoverLabel from "@components/popover-label.tsx";
 import { CardLabel } from "@myTypes/label";
 import { useLabels } from "@hooks/label";
 import Dashcard from "./dashcard";
-import { Card } from "@myTypes/card";
 import { useCardDetails } from "@hooks/card-details";
-import CardAttachmentImageListModal from "@components/modal-list-card-attachment-images";
 
 const CardDetails: React.FC = (props) => {
   const params = useParams();
@@ -136,7 +134,6 @@ const CardDetails: React.FC = (props) => {
   };
 
   const onUserSelectionChange = (value: string, option: object) => {
-    console.log(`member: value: ${value}`);
     addMember(value);
   };
 
