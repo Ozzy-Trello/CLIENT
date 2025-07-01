@@ -31,6 +31,7 @@ import {
   EnumInputType,
   EnumSelectionType,
   EnumTextType,
+  TriggerGroupType,
   TriggerType,
 } from "@myTypes/automation-rule";
 import { EnumOptionBySubject } from "@myTypes/options";
@@ -439,29 +440,39 @@ const FilterButton = ({
 
   const removeFilterItem = (filterIndex: number) => {
     let copyTrigger = [...triggersData];
-    let copyFilters = copyTrigger?.[selectedGroupIndex]?.items?.[selectedIndex]?.filters;
+    let copyFilters =
+      copyTrigger?.[selectedGroupIndex]?.items?.[selectedIndex]?.filters;
 
     if (copyFilters) {
       copyFilters.splice(filterIndex, 1);
     }
-    if (copyTrigger[selectedGroupIndex].items && copyTrigger[selectedGroupIndex].items[selectedIndex]) {
-      copyTrigger[selectedGroupIndex].items[selectedIndex].filters = copyFilters;
+    if (
+      copyTrigger[selectedGroupIndex].items &&
+      copyTrigger[selectedGroupIndex].items[selectedIndex]
+    ) {
+      copyTrigger[selectedGroupIndex].items[selectedIndex].filters =
+        copyFilters;
     }
 
     setTriggersData(copyTrigger);
-  }
+  };
 
   return (
     <>
-      { props?.triggersData?.[selectedGroupIndex]?.items?.[selectedIndex].filters?.map((filterItem, filterIndex) => {
+      {props?.triggersData?.[selectedGroupIndex]?.items?.[
+        selectedIndex
+      ].filters?.map((filterItem, filterIndex) => {
         const s = renderType(filterItem.type, filterItem);
         console.log("s: ", s);
         return (
-          <Tag closeIcon={<X size={12} className="inline"/>} onClose={() => removeFilterItem(filterIndex)}>
+          <Tag
+            closeIcon={<X size={12} className="inline" />}
+            onClose={() => removeFilterItem(filterIndex)}
+          >
             {s}
           </Tag>
-          )
-      }) }
+        );
+      })}
       <PopoverRuleCardFilter
         key={`filter-button-${itemType}`}
         open={openFilter}
@@ -471,9 +482,9 @@ const FilterButton = ({
         selectedIndex={selectedIndex}
         selectedGroupIndex={selectedGroupIndex}
         triggerEl={
-          <Button 
-            type="text" 
-            size="small" 
+          <Button
+            type="text"
+            size="small"
             className="mx-2"
             onClick={handleFilterClick}
           >
@@ -1095,7 +1106,7 @@ const LabelRenderer = ({
 const SelectTrigger: React.FC<SelectTriggerProps> = (props) => {
   const { setSelectedRule, selectedRule, triggersData, nextStep } = props;
   const [selectedGroupIndex, setSelectedGroupIndex] = useState<number>(0);
-   [[[]]]
+  [[[]]];
   // Callback for when a specific trigger item's '+' button is clicked
   const onSelectTrigger = useCallback(
     (selectedItem: TriggerItems, index: number) => {
@@ -1125,6 +1136,7 @@ const SelectTrigger: React.FC<SelectTriggerProps> = (props) => {
             newTriggerItem[placeholder] = (
               items[index][placeholder] as any
             )?.value;
+
             if ("data" in (items[index][placeholder] as any)) {
               (newTriggerItem[placeholder] as any)["data"] = (
                 items[index][placeholder] as any
@@ -1176,12 +1188,15 @@ const SelectTrigger: React.FC<SelectTriggerProps> = (props) => {
           };
 
           placeholders?.forEach((placeholder) => {
-            
             if (filterItem && filterItem[placeholder]) {
               if (typeof filterItem[placeholder] == "object") {
-                newFilterItem[placeholder] = (filterItem[placeholder] as any)?.value;
+                newFilterItem[placeholder] = (
+                  filterItem[placeholder] as any
+                )?.value;
                 if ("data" in (filterItem[placeholder] as any)) {
-                  (newFilterItem[placeholder] as any)["data"] = (filterItem[placeholder] as any).data;
+                  (newFilterItem[placeholder] as any)["data"] = (
+                    filterItem[placeholder] as any
+                  ).data;
                 }
               } else {
                 newFilterItem[placeholder] = filterItem[placeholder];
@@ -1195,12 +1210,20 @@ const SelectTrigger: React.FC<SelectTriggerProps> = (props) => {
         newTriggerItem.filter = filtersArr;
       }
 
+      if (selectedItem.type === TriggerType.WhenCardContentTextIsSet) {
+        (newTriggerItem.action as any) = {
+          value: TriggerGroupType.CardContent,
+          label: "Card Content",
+        };
+      }
 
-      setSelectedRule((prev: AutomationRule) => ({
-        ...prev,
-        triggerItem: newTriggerItem,
-        triggerType: triggersData[selectedGroupIndex]?.type,
-      }));
+      setSelectedRule((prev: AutomationRule) => {
+        return {
+          ...prev,
+          triggerItem: newTriggerItem,
+          triggerType: triggersData[selectedGroupIndex]?.type,
+        };
+      });
 
       nextStep();
     },
