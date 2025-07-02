@@ -32,7 +32,7 @@ import {
 import { useBoards } from "@hooks/board";
 import { useParams, useRouter } from "next/navigation";
 import { Board } from "@myTypes/board";
-import { usePermissions } from "@hooks/account";
+import { usePermissions, useCurrentAccount } from "@hooks/account";
 
 const { Sider } = Layout;
 type MenuItem = Required<MenuProps>["items"][number];
@@ -51,8 +51,17 @@ const Sidebar = () => {
     useState<boolean>(false);
   const currentWorkspace = useSelector(selectCurrentWorkspace);
   const currentBoard = useSelector(selectCurrentBoard);
-  const { boards } = useBoards(currentWorkspace?.id || "");
+  const { boards } = useBoards(
+    Array.isArray(workspaceId) ? workspaceId[0] : workspaceId || ""
+  );
   const { canCreate } = usePermissions();
+
+  // Get current user and check if they are Super Admin
+  const { data: currentAccountData, isLoading: isLoadingAccount } =
+    useCurrentAccount();
+  const currentUser = currentAccountData?.data;
+  const userRole = currentUser?.role?.name || "";
+  const isSuperAdmin = userRole === "Super Admin";
 
   // Use refs to avoid dependency changes in useEffect
   const prevWorkspaceIdRef = useRef<string | null>(null);
@@ -69,40 +78,53 @@ const Sidebar = () => {
     if (board?.id !== currentBoard?.id) {
       dispatch(setCurrentBoard(board));
     }
-    router.push(`/workspace/${currentWorkspace?.id}/board/${board?.id}`);
+    const resolvedWorkspaceId = Array.isArray(workspaceId)
+      ? workspaceId[0]
+      : workspaceId;
+    router.push(`/workspace/${resolvedWorkspaceId}/board/${board?.id}`);
   };
 
   // Memoize the base menus
   const baseMenus = useMemo<MenuItem[]>(() => {
-    if (!currentWorkspace) return [];
+    if (!workspaceId) return [];
 
-    return [
+    const resolvedWorkspaceId = Array.isArray(workspaceId)
+      ? workspaceId[0]
+      : workspaceId;
+
+    const menus: MenuItem[] = [
       {
-        key: `/workspace/${workspaceId}/board`,
+        key: `/workspace/${resolvedWorkspaceId}/board`,
         label: (
           <Link
             className="block w-full"
-            href={`/workspace/${currentWorkspace.id}/board`}
+            href={`/workspace/${resolvedWorkspaceId}/board`}
           >
             Boards
           </Link>
         ),
         icon: <Trello size={16} />,
       },
-      {
-        key: `/workspace/${currentWorkspace.id}/members`,
+    ];
+
+    // Only show Members menu to Super Admin (and only if account data is loaded)
+    if (isSuperAdmin && !isLoadingAccount) {
+      menus.push({
+        key: `/workspace/${resolvedWorkspaceId}/members`,
         label: (
           <Link
             className="block w-full"
-            href={`/workspace/${currentWorkspace.id}/members`}
+            href={`/workspace/${resolvedWorkspaceId}/members`}
           >
             Members
           </Link>
         ),
         icon: <Users size={16} />,
-      },
-    ];
-  }, [currentWorkspace]);
+      });
+    }
+
+    return menus;
+  }, [workspaceId, isSuperAdmin, isLoadingAccount]);
 
   // Check if user can create boards
   const canCreateBoard = canCreate("board");
@@ -110,7 +132,10 @@ const Sidebar = () => {
   // Build menu items separately to avoid frequent render cycles
   useEffect(() => {
     // Skip if nothing significant has changed
-    const currentWorkspaceId = currentWorkspace?.id || null;
+    console.log(boards);
+    const currentWorkspaceId = Array.isArray(workspaceId)
+      ? workspaceId[0]
+      : workspaceId || null;
     const currentBoardsLength = boards?.length || 0;
 
     if (
@@ -133,7 +158,7 @@ const Sidebar = () => {
 
       try {
         // If no workspace, just use base menus
-        if (!currentWorkspace) {
+        if (!workspaceId) {
           setAllMenus(baseMenus);
           return;
         }
@@ -165,7 +190,7 @@ const Sidebar = () => {
         }
 
         // Add board items if we have any
-        if (boards?.length > 0 && currentWorkspace) {
+        if (boards?.length > 0 && workspaceId) {
           console.log("boards", boards);
           boards.forEach((board) => {
             fullMenus.push({
@@ -243,7 +268,7 @@ const Sidebar = () => {
   }, [
     baseMenus,
     collapsed,
-    currentWorkspace,
+    workspaceId,
     boards,
     canCreateBoard,
     handleOpenBoardModal,

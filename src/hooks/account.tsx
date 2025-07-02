@@ -1,6 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { accountList, currentAccount, updateAccount } from "../api/account";
+import {
+  accountList,
+  currentAccount,
+  updateAccount,
+  updateAccountById,
+} from "../api/account";
 import TokenStorage from "@utils/token-storage";
+import { Account } from "../dto/account";
 
 export function useCurrentAccount() {
   return useQuery({
@@ -27,6 +33,20 @@ export function useUpdateAccount() {
     mutationFn: updateAccount,
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["currentAccount"] });
+    },
+  });
+}
+
+export function useUpdateAnyAccount() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: {
+      userId: string;
+      updates: Partial<Account & { roleIds?: string[] }>;
+    }) => updateAccountById(payload.userId, payload.updates),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["accountList"] });
     },
   });
 }

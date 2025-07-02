@@ -1,32 +1,57 @@
 import React, { useState } from "react";
-import { Modal, Form, Input, Button, message } from "antd";
+import { Modal, Form, Input, Button, message, Select } from "antd";
 import {
   UserOutlined,
   MailOutlined,
   LockOutlined,
   PhoneOutlined,
 } from "@ant-design/icons";
-import { register } from "@api/auth";
+import { createAccount as apiCreateAccount } from "@api/account";
+import { useAllRoles } from "../../../../hooks/board";
+import { useParams } from "next/navigation";
 
 interface AddUserModalProps {
   visible: boolean;
   onCancel: () => void;
+  onSuccess?: () => void;
 }
 
-const AddUserModal: React.FC<AddUserModalProps> = ({ visible, onCancel }) => {
+const { Option } = Select;
+
+const AddUserModal: React.FC<AddUserModalProps> = ({
+  visible,
+  onCancel,
+  onSuccess,
+}) => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
+
+  // fetch roles
+  const { workspaceId } = useParams();
+  const resolvedWs = Array.isArray(workspaceId)
+    ? workspaceId[0]
+    : (workspaceId as string);
+  const { data: rolesRes, isLoading: rolesLoading } = useAllRoles(
+    resolvedWs || ""
+  );
+  const roles = rolesRes?.data || [];
 
   const handleSubmit = async () => {
     try {
       setLoading(true);
       const values = await form.validateFields();
-      const result = await register(values);
+      const payload = { ...values } as any;
+      if (values.role) {
+        payload.roleIds = [values.role];
+      }
+      delete payload.role;
+      const result = await apiCreateAccount(payload);
       if (result) {
         if (result?.message?.includes("success")) {
           message.success(result.message);
           form.resetFields();
           onCancel();
+          onSuccess && onSuccess();
         } else {
           message.error(result.message);
         }
@@ -134,6 +159,16 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ visible, onCancel }) => {
             prefix={<PhoneOutlined className="site-form-item-icon" />}
             placeholder="Enter phone number"
           />
+        </Form.Item>
+
+        <Form.Item name="role" label="Role">
+          <Select loading={rolesLoading} placeholder="Select role">
+            {roles.map((role: any) => (
+              <Option key={role.id} value={role.id}>
+                {role.name}
+              </Option>
+            ))}
+          </Select>
         </Form.Item>
 
         <Form.Item className="text-right">
