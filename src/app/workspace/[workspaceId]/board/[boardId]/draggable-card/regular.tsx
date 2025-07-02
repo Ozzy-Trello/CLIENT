@@ -5,7 +5,13 @@ import { useCardCustomField } from "@hooks/card_custom_field";
 import { useCardMembers } from "@hooks/card_member";
 import { Card, CardCustomField } from "@myTypes/card";
 import { isImageFile } from "@utils/file";
-import { Avatar, Checkbox, CheckboxChangeEvent, Tooltip, Typography } from "antd";
+import {
+  Avatar,
+  Checkbox,
+  CheckboxChangeEvent,
+  Tooltip,
+  Typography,
+} from "antd";
 import {
   Calendar,
   CalendarDays,
@@ -53,7 +59,9 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
     card.id,
     workspaceId as string
   );
-  const [frontCustomFields, setfrontCustomFields] = useState<CardCustomField[]>([]);
+  const [frontCustomFields, setfrontCustomFields] = useState<CardCustomField[]>(
+    []
+  );
   // local version state to force re-render after lookups populate
   const [lookupVersion, setLookupVersion] = useState(0);
 
@@ -122,10 +130,11 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
 
       {/* Card content */}
       <div className="p-4">
-
         {/* Main Card link */}
         {card?.mirrorId && (
-          <Tooltip title={`${card?.sourceCard?.boardName}: ${card?.sourceCard?.listName}`}>
+          <Tooltip
+            title={`${card?.sourceCard?.boardName}: ${card?.sourceCard?.listName}`}
+          >
             <div className="flex justify-between items-center rounded bg-gray-100 group hover:bg-gray-200 transition-colors">
               <div className="flex items-center gap-2 p-2">
                 <Avatar shape="square" size={"small"}>
@@ -133,8 +142,13 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
                 </Avatar>
                 <div className="text-[10px] flex flex-col">
                   <div className="flex gap-1 items-center">
-                    <span className="font-semibold">{card?.sourceCard?.boardName}</span>
-                    <MoveUpRight size={12} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <span className="font-semibold">
+                      {card?.sourceCard?.boardName}
+                    </span>
+                    <MoveUpRight
+                      size={12}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity"
+                    />
                   </div>
                   <span>{card?.sourceCard?.listName}</span>
                 </div>
@@ -142,7 +156,6 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
             </div>
           </Tooltip>
         )}
-
 
         {/* Labels */}
         {cardLabels?.length > 0 && (
@@ -182,7 +195,11 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
             className={`
               text-blue-800 font-semibold text-lg
               transition-all duration-300
-              ${isHovered || card?.isComplete ? "translate-x-6" : "translate-x-0"}
+              ${
+                isHovered || card?.isComplete
+                  ? "translate-x-6"
+                  : "translate-x-0"
+              }
             `}
           >
             {card.name}
@@ -252,7 +269,6 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
         {/* Custom fields */}
         <div className="space-y-2 mb-3">
           {cardCustomFields?.map((item: CardCustomField, index) => {
-            console.log(item, "<< ini item");
             if (!item.isShowAtFront) return null;
 
             const renderValue = () => {

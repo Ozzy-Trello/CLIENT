@@ -214,9 +214,10 @@ const BoardsPage: React.FC = () => {
         </Row>
       </div>
 
-      {selectedBoard && (
+      {isSettingsModalOpen && (
         <BoardSettingsModal
-          boardId={selectedBoard.id}
+          board={selectedBoard || undefined}
+          boardId={selectedBoard?.id || ""}
           workspaceId={
             Array.isArray(workspaceId) ? workspaceId[0] : workspaceId
           }

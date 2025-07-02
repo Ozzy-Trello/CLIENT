@@ -14,6 +14,14 @@ export const updateAccount = async (
   return data;
 };
 
+export const updateAccountById = async (
+  userId: string,
+  updates: Partial<Account & { roleIds?: string[] }>
+): Promise<ApiResponse<Account>> => {
+  const { data } = await api.patch(`/account/${userId}`, updates);
+  return data;
+};
+
 export const accountList = async (
   workspaceId: string,
   boardId: string,
@@ -34,5 +42,13 @@ export const userDetails = async (
   userId: string
 ): Promise<ApiResponse<Account>> => {
   const { data } = await api.get(`/account/${userId}`);
+  return data;
+};
+
+// create new account (admin)
+export const createAccount = async (
+  payload: Partial<Account> & { password: string; roleIds?: string[] }
+): Promise<ApiResponse<Account>> => {
+  const { data } = await api.post(`/account`, payload);
   return data;
 };

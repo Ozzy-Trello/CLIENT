@@ -9,47 +9,59 @@ import {
   MenuProps,
   Table,
   Typography,
+  Modal,
+  Form,
+  Input,
+  Select,
+  Space,
+  message,
+  Spin,
 } from "antd";
 import { useEffect, useState } from "react";
 import AddUserModal from "./add_user_modal";
-import { accountList } from "@api/account";
+import { accountList, userDetails } from "@api/account";
 import { useParams } from "next/navigation";
 import { Account } from "@dto/account";
+import { Settings, Trash } from "lucide-react";
+import { useAllRoles } from "../../../../hooks/board";
+import { useUpdateAnyAccount } from "@hooks/account";
 
 type MenuItem = Required<MenuProps>["items"][number];
-const items: MenuItem[] = [
-  {
-    key: "menu-workspace-members",
-    label: "Workspace Members (0)",
-  },
-  // {
-  //   key: 'menu-guest',
-  //   label: 'Guest (0)',
-  // },
-  // {
-  //   key: 'menu-join-request',
-  //   label: 'Join request (0)',
-  // }
-];
 
-const TableMembers: React.FC<{ dataSource?: Account[] }> = ({
-  dataSource = [],
-}) => {
+const { Option } = Select;
+
+const TableMembers: React.FC<{
+  dataSource?: Account[];
+  onEdit: (user: Account) => void;
+}> = ({ dataSource = [], onEdit }) => {
   const columns = [
     {
       title: "User",
       dataIndex: "name",
       key: "name",
-      render: (_: any, record: any) => {
+      render: (_: any, record: Account) => {
         return (
           <div className="flex items-center gap-4">
-            <Avatar size="small"  src={record?.avatar || `https://ui-avatars.com/api/?name=${record?.username}&background=random`}></Avatar>
+            <Avatar
+              size="small"
+              src={
+                record?.avatar ||
+                `https://ui-avatars.com/api/?name=${record?.username}&background=random`
+              }
+            />
             <div>
-              <Typography.Text strong={true}>{record.fullname}</Typography.Text>
-              <div className="flex items-center gap-2">
-                <Typography.Text>{record.username}</Typography.Text>
-                <i className="fi fi-ss-circle" style={{ fontSize: "3px" }}></i>
-                <Typography.Text>Last active recently</Typography.Text>
+              <Typography.Text strong>
+                {(record as any).fullname || record.name || record.username}
+              </Typography.Text>
+              <div className="flex flex-col">
+                {record.role?.name && (
+                  <Typography.Text
+                    type="secondary"
+                    style={{ fontSize: "12px" }}
+                  >
+                    {record.role.name}
+                  </Typography.Text>
+                )}
               </div>
             </div>
           </div>
@@ -57,19 +69,24 @@ const TableMembers: React.FC<{ dataSource?: Account[] }> = ({
       },
     },
     {
-      title: "Role",
-      dataIndex: "roleName",
-      key: "roleName",
+      title: "Email",
+      dataIndex: "email",
+      key: "email",
+      render: (_: any, record: Account) => record?.email || "-",
     },
     {
       title: "Action",
-      dataIndex: "action",
-      key: "-",
-      render: (_: any, record: any) => {
+      key: "action",
+      render: (_: any, record: Account) => {
         return (
-          <Button size="small">
-            <i className="fi fi-rr-cross"></i> Remove
-          </Button>
+          <Space size="middle">
+            <Button
+              type="text"
+              icon={<Settings size={16} />}
+              onClick={() => onEdit(record)}
+            />
+            <Button type="text" danger icon={<Trash size={16} />} />
+          </Space>
         );
       },
     },
@@ -80,19 +97,40 @@ const TableMembers: React.FC<{ dataSource?: Account[] }> = ({
       dataSource={dataSource}
       columns={columns}
       style={{ width: "100%" }}
+      rowKey={(record) => record.id}
     />
   );
 };
 
 const Members: React.FC = () => {
   const { workspaceId, boardId } = useParams();
+  const resolvedWorkspaceId = Array.isArray(workspaceId)
+    ? workspaceId[0]
+    : (workspaceId as string);
+  const { data: rolesResponse, isLoading: rolesLoading } = useAllRoles(
+    resolvedWorkspaceId || ""
+  );
+  const allRoles = rolesResponse?.data || [];
   const [isFetching, setIsFetching] = useState<boolean>(true);
   const [data, setData] = useState<Account[] | []>([]);
   const [activeMenu, setActiveMenu] = useState<string>(
     "menu-workspace-members"
   );
-  const [addUserModalVisible, setAddUserModalVisible] =
-    useState<boolean>(false);
+  const [addUserModalVisible, setAddUserModalVisible] = useState(false);
+  const [editUserModalVisible, setEditUserModalVisible] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<Account | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const updateAccountMutation = useUpdateAnyAccount();
+  const [editForm] = Form.useForm();
+
+  const memberCount = data.length;
+
+  const menuItems: MenuItem[] = [
+    {
+      key: "menu-workspace-members",
+      label: `Members (${memberCount})`,
+    },
+  ];
 
   const handleMenuClick: MenuProps["onClick"] = (e) => {
     setActiveMenu(e.key);
@@ -104,6 +142,60 @@ const Members: React.FC = () => {
 
   const closeAddUserModal = () => {
     setAddUserModalVisible(false);
+  };
+
+  const openEditUserModal = async (user: Account) => {
+    setEditUserModalVisible(true);
+    setDetailLoading(true);
+    try {
+      const res = await userDetails(user.id);
+      const detail = res.data;
+      const finalData = detail ?? user;
+      setSelectedUser(finalData);
+      editForm.setFieldsValue({
+        username: finalData.username,
+        email: finalData.email,
+        phone: finalData.phone,
+        role: finalData.role?.id,
+      });
+    } catch (err) {
+      message.error("Failed to fetch user detail");
+      setSelectedUser(user);
+      editForm.setFieldsValue({
+        username: user.username,
+        email: user.email,
+        phone: user.phone,
+        role: user.role?.id,
+      });
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const closeEditUserModal = () => {
+    setEditUserModalVisible(false);
+    setSelectedUser(null);
+  };
+
+  const handleSaveUser = async () => {
+    try {
+      const values = await editForm.validateFields();
+      if (!selectedUser) return;
+      await updateAccountMutation.mutateAsync({
+        userId: selectedUser.id,
+        updates: {
+          username: values.username || undefined,
+          email: values.email || undefined,
+          phone: values.phone || undefined,
+          roleIds: values.role ? [values.role] : undefined,
+        },
+      });
+      message.success("User updated successfully");
+      closeEditUserModal();
+      setIsFetching(true); // refresh list
+    } catch (error) {
+      message.error("Failed to update user");
+    }
   };
 
   useEffect(() => {
@@ -136,7 +228,7 @@ const Members: React.FC = () => {
           <Typography.Title level={4} className="m-0">
             Collaborators
           </Typography.Title>
-          <Badge count="3/10"></Badge>
+          {/* <Badge count={memberCount}></Badge> */}
         </div>
         <Button size="small" onClick={openAddUserModal}>
           <i className="fi fi-sr-user-add"></i> Add User
@@ -148,20 +240,20 @@ const Members: React.FC = () => {
           style={{ width: 256 }}
           defaultSelectedKeys={["menu-workspace-members"]}
           mode="inline"
-          items={items}
+          items={menuItems}
           onClick={handleMenuClick}
         />
         <div style={{ width: "100%" }}>
           {!isFetching && activeMenu === "menu-workspace-members" && (
-            <TableMembers dataSource={data} />
+            <TableMembers dataSource={data} onEdit={openEditUserModal} />
           )}
 
           {!isFetching && activeMenu === "menu-guest" && (
-            <TableMembers dataSource={data} />
+            <TableMembers dataSource={data} onEdit={openEditUserModal} />
           )}
 
           {!isFetching && activeMenu === "menu-join-request" && (
-            <TableMembers dataSource={data} />
+            <TableMembers dataSource={data} onEdit={openEditUserModal} />
           )}
 
           {/* skeleton */}
@@ -172,7 +264,71 @@ const Members: React.FC = () => {
       <AddUserModal
         visible={addUserModalVisible}
         onCancel={closeAddUserModal}
+        onSuccess={() => {
+          setIsFetching(true);
+        }}
       />
+
+      <Modal
+        title="Edit User"
+        open={editUserModalVisible}
+        onCancel={closeEditUserModal}
+        footer={null}
+        destroyOnClose
+        bodyStyle={{ padding: 24 }}
+        style={{ top: 40 }}
+      >
+        {detailLoading ? (
+          <div
+            className="flex justify-center items-center"
+            style={{ minHeight: 120 }}
+          >
+            <Spin />
+          </div>
+        ) : selectedUser ? (
+          <Form
+            form={editForm}
+            layout="vertical"
+            initialValues={{
+              username: selectedUser.username,
+              email: selectedUser.email,
+              phone: selectedUser.phone,
+              role: selectedUser.role?.id,
+            }}
+          >
+            <Form.Item label="Username" name="username">
+              <Input />
+            </Form.Item>
+            <Form.Item label="Email" name="email">
+              <Input />
+            </Form.Item>
+            <Form.Item label="Phone" name="phone">
+              <Input />
+            </Form.Item>
+            <Form.Item label="Role" name="role">
+              <Select loading={rolesLoading} placeholder="Select role">
+                {allRoles.map((role: any) => (
+                  <Option key={role.id} value={role.id}>
+                    {role.name}
+                  </Option>
+                ))}
+              </Select>
+            </Form.Item>
+            <Form.Item className="text-right">
+              <Button onClick={closeEditUserModal} style={{ marginRight: 8 }}>
+                Close
+              </Button>
+              <Button
+                type="primary"
+                loading={updateAccountMutation.isPending}
+                onClick={handleSaveUser}
+              >
+                Save
+              </Button>
+            </Form.Item>
+          </Form>
+        ) : null}
+      </Modal>
     </div>
   );
 };

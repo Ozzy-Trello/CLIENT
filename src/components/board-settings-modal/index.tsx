@@ -40,7 +40,7 @@ type BoardBackground = {
 };
 
 const { Option } = Select;
-const { Text, Title } = Typography;
+const { Text } = Typography;
 
 interface BoardSettingsModalProps {
   /** Whether the modal is visible */
@@ -71,7 +71,7 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
   workspaceId,
   onSuccess,
 }) => {
-  // If we have a board ID but no board object, fetch the board details
+  // Debug logging removed
 
   const [form] = Form.useForm();
   const currentWorkspace = useSelector(selectCurrentWorkspace);
@@ -100,6 +100,8 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
     enabled: open,
   });
 
+  // Debug board state removed
+
   const handleRefresh = async () => {
     await refetch();
   };
@@ -110,50 +112,58 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
     }
   }, [open]);
 
-  // Initialize form with board data whe  n it changes
+  // Initialize form with board data when it changes
   useEffect(() => {
-    if (board) {
-      console.log("Initializing form with board data:", board);
-      const background = board.background || DEFAULT_COLOR;
+    const currentBoard = board || initialBoard;
+    // Debug log removed
+    if (currentBoard) {
+      // Debug log removed
+      const background = currentBoard.background || DEFAULT_COLOR;
       const isImage = background && !background.startsWith("#");
 
       const formValues = {
-        title: board.name || "",
-        description: board.description || "",
+        title: currentBoard.name || "",
+        description: currentBoard.description || "",
         background: isImage ? DEFAULT_COLOR : background,
       };
 
-      console.log("Setting form values:", formValues);
+      // Debug log removed
       form.setFieldsValue(formValues);
 
       if (isImage) {
-        console.log("Setting background image:", background);
+        // Debug log removed
         setBackgroundImage(background);
         setBg("transparent");
       } else {
-        console.log("Setting background color:", background);
+        // Debug log removed
         setBackgroundImage("");
         setBg(background || DEFAULT_COLOR);
       }
 
-      if (board.roleIds) {
-        console.log("Setting selected roles:", board.roleIds);
-        setSelectedRoles(board.roleIds);
+      if (currentBoard.roleIds) {
+        // Debug log removed
+        setSelectedRoles(currentBoard.roleIds);
       }
     } else {
-      console.log("No board data available for form initialization");
+      // Debug log removed
     }
-  }, [board, form]);
+  }, [board, initialBoard, form]);
 
   // Show loading state while fetching board details
   if ((!initialBoard && isLoadingBoard) || (!board && !initialBoard)) {
+    // Debug log removed
     return <div>Loading board settings...</div>;
   }
 
+  // Get the current board (either fetched or passed in)
+  const currentBoard = board || initialBoard;
+
   // If we still don't have a board, don't render the modal
-  if (!board) {
+  if (!currentBoard) {
     return null;
   }
+
+  // Debug log removed
 
   const handleColorChange = (color: any, hex: any) => {
     setBackgroundImage("");
@@ -208,7 +218,7 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
   };
 
   const onFinish = async (values: FormValues) => {
-    if (!board?.id || !currentWorkspace?.id) {
+    if (!currentBoard?.id || !currentWorkspace?.id) {
       message.error("Board or workspace not found");
       return;
     }
@@ -216,7 +226,7 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
     setIsLoading(true);
 
     try {
-      console.log("Submitting form with values:", values);
+      // Debug log removed
 
       // Prepare updates
       const updates: Partial<Board> = {
@@ -230,16 +240,16 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
         updates.roleIds = selectedRoles;
       }
 
-      console.log("Sending board update:", { boardId: board.id, updates });
+      // Debug log removed
 
       // Call the updateBoard function with the required parameters
       await updateBoard({
-        boardId: board.id,
+        boardId: currentBoard.id,
         board: updates,
       });
 
       // Create updated board object with the changes
-      const updatedBoard = { ...board, ...updates };
+      const updatedBoard = { ...currentBoard, ...updates };
 
       onSuccess?.(updatedBoard);
 
