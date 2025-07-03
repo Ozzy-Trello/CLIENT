@@ -2,7 +2,7 @@ import { Button, Form, Input } from "antd";
 import { Plus } from "lucide-react";
 import { FC } from "react";
 import SelectSetDate from "../select/set-date";
-import { EnumSetDate, EnumTimeType } from "@myTypes/options";
+import { EnumDateStatus, EnumTimeType } from "@myTypes/options";
 import SelectTimeType from "../select/time-type";
 import { useMultipleDatesContext } from "../context";
 
@@ -21,7 +21,7 @@ const TypeDate2: FC = () => {
   return (
     <Form
       initialValues={{
-        setDate: EnumSetDate.Due,
+        setDate: EnumDateStatus.Due,
         in: "1",
         timeType: EnumTimeType.Hours,
       }}

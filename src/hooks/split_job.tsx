@@ -163,11 +163,11 @@ export const useSplitJobValuesByCustomField = (cardId?: string) => {
     queryFn: async () => {
       if (!cardId) return { data: {} };
       const response = await getSplitJobValuesByCustomField(cardId);
-      console.log('Raw API response for grouped split job values:', response);
+      // console.log('Raw API response for grouped split job values:', response);
       return response;
     },
     select: (data) => {
-      console.log('Selecting grouped data from response:', data);
+      // console.log('Selecting grouped data from response:', data);
       return data.data || {};
     },
     enabled: !!cardId,

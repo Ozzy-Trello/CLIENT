@@ -134,6 +134,7 @@ export const getCardLabels = async (
   workspaceId: string,
   cardId: string
 ): Promise<ApiResponse<any>> => {
+  console.log("Fetching card labels for cardId:", cardId, "workspaceId:", workspaceId);
   const { data } = await api.get(`/card/${cardId}/label`, {
     headers: { "workspace-id": workspaceId },
   });

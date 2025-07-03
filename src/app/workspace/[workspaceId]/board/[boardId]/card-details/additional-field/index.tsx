@@ -245,7 +245,7 @@ const AdditionalFields: React.FC = () => {
 
   // Load existing data when component mounts
   useEffect(() => {
-    console.log(additionalFieldData, "<< in iisinya apa");
+    // console.log(additionalFieldData, "<< in iisinya apa");
     if (additionalFieldData && additionalFieldData.length > 0) {
       const existingData = additionalFieldData[0];
       setAdditionalFieldId(existingData.id);

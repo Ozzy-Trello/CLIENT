@@ -41,7 +41,7 @@ import {
   EnumCreateType,
   EnumAddRemove,
   EnumRemoveFromCard,
-  EnumSetDate,
+  EnumDateStatus,
   EnumSetTask,
   EnumCardContentType,
   EnumCardContentText,
@@ -552,16 +552,16 @@ export const triggers: AutomationRuleTrigger[] = [
         [EnumSelectionType.TaskType]: {
           options: [
             {
-              value: EnumSetDate.Due,
+              value: EnumDateStatus.Due,
               label: "Due",
             },
             {
-              value: EnumSetDate.Start,
+              value: EnumDateStatus.Start,
               label: "Start",
             },
           ],
           value: {
-            value: EnumSetDate.Due,
+            value: EnumDateStatus.Due,
             label: "Due",
           },
         },
@@ -1499,6 +1499,70 @@ export const actions: AutomationRuleAction[] = [
     type: "card_dates",
     label: "Dates",
     icon: <Clock />,
+    items: [
+      {
+        type: ActionType.MarkCardCompletion,
+        label: ActionType.MarkCardCompletion.replaceAll("-", " "),
+        [EnumSelectionType.Completion]: {
+          options: [
+            {
+              value: EnumOptionCompletion.Complete,
+              label: "complete"
+            },
+            {
+              value: EnumOptionCompletion.Incomplete,
+              label: "incomplete"
+            }
+          ],
+          value: {
+            value: EnumOptionCompletion.Complete,
+            label: "complete"
+          }
+        },
+      },
+      {
+        type: ActionType.SetCardDateStartOrDue,
+        label: ActionType.SetCardDateStartOrDue.replaceAll("-", " "),
+        [EnumSelectionType.DateStatus]: {
+          options: [
+            {
+              value: EnumDateStatus.Due,
+              label: "due"
+            },
+            {
+              value: EnumDateStatus.Start,
+              label: "start"
+            },
+          ],
+          value: {
+            value: EnumDateStatus.Due,
+            label: "due"
+          }
+        },
+        [EnumInputType.DateValue]: undefined
+      },
+      {
+        type: ActionType.MoveCardDateStartOrDue,
+        label: ActionType.MoveCardDateStartOrDue.replaceAll("-", " "),
+         [EnumSelectionType.DateStatus]: {
+          options: [
+            {
+              value: EnumDateStatus.Due,
+              label: "due"
+            },
+            {
+              value: EnumDateStatus.Start,
+              label: "start"
+            },
+          ],
+          value: {
+            value: EnumDateStatus.Due,
+            label: "due"
+          }
+        },
+        [EnumInputType.DateValue]: undefined
+      },
+    ]
   },
   {
     type: "checklists",

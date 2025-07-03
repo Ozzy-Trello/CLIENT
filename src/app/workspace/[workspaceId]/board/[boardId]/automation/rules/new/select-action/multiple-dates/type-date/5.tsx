@@ -5,7 +5,7 @@ import SelectSetDate from "../select/set-date";
 import {
   EnumMonthPlacement,
   EnumPlacement,
-  EnumSetDate,
+  EnumDateStatus,
 } from "@myTypes/options";
 import SelectPlacement from "../select/placement";
 import SelectMonthPlacement from "../select/month-placement";
@@ -26,7 +26,7 @@ const TypeDate5: FC = () => {
   return (
     <Form
       initialValues={{
-        setDate: EnumSetDate.Due,
+        setDate: EnumDateStatus.Due,
         placement: EnumPlacement["1st"],
         of: EnumMonthPlacement.ThisMonth,
       }}

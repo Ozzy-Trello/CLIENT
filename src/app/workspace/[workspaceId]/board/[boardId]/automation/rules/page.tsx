@@ -39,7 +39,6 @@ const RulePage: React.FC = () => {
           const pg: any = result.paginate;
           setTotalPage(pg.total_page ?? pg.totalPage ?? 1);
         }
-        console.log("Fetched automation rules:", result.data);
       } else {
         console.error("Failed to fetch automation rules:", result.message);
       }

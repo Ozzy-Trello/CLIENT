@@ -3,6 +3,7 @@
 import {
   CustomFieldSelection,
   FieldValueInput,
+  LabelSelection,
   ListSelection,
   SelectionRef,
   UserSelection,
@@ -719,6 +720,23 @@ const SelectOption = ({
     );
   }
 
+  if (placeholder == EnumSelectionType.CardLabel) {
+    <span className="mx-2">
+      <LabelSelection
+        key={`list-select-${itemType}-${placeholder}`}
+        width={"fit-content"}
+        ref={useRef<SelectionRef>(null)}
+        value={
+          (triggersData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value?.value || ""
+        }
+        onChange={(value: string, option: GeneralOptions) => {
+          onListChange(option);
+        }}
+        className="mr-2 ml-2"
+      />
+    </span>
+  }
+
   if (placeholder === EnumSelectionType.DateExpression) {
     return (
       <DateExpressionSelector
@@ -1181,6 +1199,9 @@ const SelectTrigger: React.FC<SelectTriggerProps> = (props) => {
 
         selectedItem?.filters?.map((filterItem, filterIndex) => {
           const placeholders = extractPlaceholders(filterItem.label);
+          if (!placeholders.includes(EnumInputType.Text)) placeholders.push(EnumInputType.Text);
+          if (!placeholders.includes(EnumSelectionType.Completion)) placeholders.push(EnumSelectionType.Completion);
+
           // Initialize newTriggerItem based on the selectedItem's defaults
           const newFilterItem: SelectedCardFilterItem = {
             type: filterItem.type,

@@ -71,13 +71,6 @@ const ChecklistFields: React.FC = () => {
     refetch,
   } = useCardChecklists(selectedCard?.id || "");
 
-  // Debug checklist data
-  useEffect(() => {
-    if (checklists.length > 0) {
-      console.log("Checklist data:", JSON.stringify(checklists, null, 2));
-    }
-  }, [checklists]);
-
   // Mutations
   const deleteChecklistMutation = useDeleteChecklist(selectedCard?.id || "");
 

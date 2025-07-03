@@ -18,13 +18,6 @@ export const useCardMembers = (cardId: string) => {
     staleTime: 30000, // 30 seconds
   });
 
-  // Debug logging
-  useEffect(() => {
-    if (cardMembersQuery.data) {
-      console.log("Card members response:", cardMembersQuery.data);
-    }
-  }, [cardMembersQuery.data]);
-
   // Add member mutation with optimistic update
   const addMemberMutation = useMutation({
     mutationFn: ({ userIds }: { userIds: string[] }) =>

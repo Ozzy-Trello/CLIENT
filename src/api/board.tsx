@@ -39,7 +39,6 @@ export const updateBoard = async (
   board: Partial<Board> & { roleIds?: string[] },
   workspaceId: string
 ): Promise<ApiResponse<Board>> => {
-  console.log("updating board");
   const { data } = await api.put(`/board/${boardId}`, board, {
     headers: { "workspace-id": workspaceId },
   });

@@ -2,7 +2,7 @@ import { Button, Form } from "antd";
 import { Plus } from "lucide-react";
 import { FC } from "react";
 import SelectSetDate from "../select/set-date";
-import { EnumDay, EnumSetDate } from "@myTypes/options";
+import { EnumDay, EnumDateStatus } from "@myTypes/options";
 import SelectDay from "../select/day";
 import { useMultipleDatesContext } from "../context";
 
@@ -21,7 +21,7 @@ const TypeDate4: FC = () => {
   return (
     <Form
       initialValues={{
-        setDate: EnumSetDate.Due,
+        setDate: EnumDateStatus.Due,
         day: EnumDay.Monday,
       }}
       className="flex items-center gap-2 justify-between"

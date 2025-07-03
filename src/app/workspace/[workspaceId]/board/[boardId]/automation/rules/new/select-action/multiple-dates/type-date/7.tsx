@@ -2,7 +2,7 @@ import { Button, Form, Input } from "antd";
 import { Plus } from "lucide-react";
 import { FC } from "react";
 import SelectSetDate from "../select/set-date";
-import { EnumMonth, EnumPlacement, EnumSetDate } from "@myTypes/options";
+import { EnumMonth, EnumPlacement, EnumDateStatus } from "@myTypes/options";
 import SelectPlacement from "../select/placement";
 import SelectMonth from "../select/month";
 import { useMultipleDatesContext } from "../context";
@@ -22,7 +22,7 @@ const TypeDate7: FC = () => {
   return (
     <Form
       initialValues={{
-        setDate: EnumSetDate.Due,
+        setDate: EnumDateStatus.Due,
         placement: EnumPlacement["1st"],
         month: EnumMonth.January,
         year: new Date().getFullYear().toString(),

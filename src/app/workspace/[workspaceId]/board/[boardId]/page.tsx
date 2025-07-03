@@ -75,8 +75,6 @@ const Board: React.FC = () => {
   const onListDragEnd = useCallback(
     (result: DropResult) => {
       const { destination, source, type, draggableId } = result;
-      console.log("onListDragEnd", result);
-
       // Drop outside any droppable area
       if (!destination) return;
 

@@ -91,7 +91,7 @@ export enum EnumCreateType {
   Unique = "unique",
 }
 
-export enum EnumSetDate {
+export enum EnumDateStatus {
   Due = "due",
   Start = "start",
 }
@@ -252,8 +252,8 @@ export enum EnumTimeRangeOperator {
 export enum EnumChecklistConditionOperator {
   WithAllComplete = "with-all-checklists-complete",
   WithAnIncompleteChecklists = "with-an-incomplete-checklist",
-  WithCheckists = "with-checklist",
-  WithoutChecklist = "without-checklists",
+  WithChecklist = "with-checklist",
+  WithoutChecklist = "without-checklist",
   WithoutChecklists = "without-checklists",
 }
 

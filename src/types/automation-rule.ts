@@ -187,7 +187,12 @@ export enum ActionType {
   AddCardMember = `add-member-<${EnumSelectionType.User}>-to-the-card`,
   RemoveCardMember = `remove-member-<${EnumSelectionType.User}>-from-the-card`,
   RemoveAllCardMembers = `remove-all-the-members-from-the-card`,
-  //add more..
+  
+  
+  // Action Dates
+  MarkCardCompletion = `mark-the-card-as-<${EnumSelectionType.Completion}>`,
+  SetCardDateStartOrDue = `set-the-card's-<${EnumSelectionType.DateStatus}>-to-<${EnumSelectionType.DateValue}>`,
+  MoveCardDateStartOrDue = `move-the-<${EnumSelectionType.DateStatus}>-to-<${EnumSelectionType.DateValue}>`,
 
   // create a <CardType> <CardTypeItem> card with title <TextTitle> <TextDescription> <Position> <List> <Board> <MultiLabels> <MultiChecklists> <MultiUsers> <MultiDates>
   CreateItem = `create-a-<${EnumSelectionType.CreateType}>-card-with-title-<${EnumInputType.TextTitle}>-<${EnumInputType.TextDescription}>-<${EnumSelectionType.Position}>-<${EnumSelectionType.List}>-<${EnumSelectionType.Board}>-<${EnumSelectionType.MultiLabels}>-<${EnumSelectionType.MultiChecklists}>-<${EnumSelectionType.MultiUsers}>-<${EnumSelectionType.MultiDates}>`,

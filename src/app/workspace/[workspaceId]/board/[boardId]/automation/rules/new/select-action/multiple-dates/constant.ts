@@ -6,17 +6,17 @@ import {
   EnumMonthPlacement,
   EnumPlacement,
   EnumPlacement2,
-  EnumSetDate,
+  EnumDateStatus,
   EnumTimeType,
 } from "@myTypes/options";
 
-export const TYPE_SET_DATE: TOptionDate<EnumSetDate>[] = [
+export const TYPE_SET_DATE: TOptionDate<EnumDateStatus>[] = [
   {
-    value: EnumSetDate.Due,
+    value: EnumDateStatus.Due,
     label: "Due",
   },
   {
-    value: EnumSetDate.Start,
+    value: EnumDateStatus.Start,
     label: "Start",
   },
 ];

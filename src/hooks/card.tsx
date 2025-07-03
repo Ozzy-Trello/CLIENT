@@ -23,69 +23,88 @@ export function useCards(listId: string, boardId: string) {
         headers: { "list-id": listId },
       });
     },
-    // This runs before the API call to update the UI immediately
+
     onMutate: async ({ card, listId }) => {
       await queryClient.cancelQueries({ queryKey: queryKeys.cards.list(listId) });
+
       const previousCards = queryClient.getQueryData(queryKeys.cards.list(listId));
+      const tempId = `temp-card-${Date.now()}`;
 
-      // Create temporary card for optimistic update
-      const tempCard = {
+      const tempCard: Card = {
         ...card,
-        id: `temp-card-${Date.now()}`,
+        id: tempId,
         createdAt: new Date().toISOString(),
-        listId: listId,
-      };
+        listId,
+      } as Card;
 
-      // Update the UI optimistically
-      queryClient.setQueryData(
-        ["cards", listId],
-        (old: ApiResponse<Card[]> | undefined) => {
-          if (!old) return { data: [tempCard] };
-          return {
-            ...old,
-            data: [...(old.data ?? []), tempCard],
-          };
-        }
-      );
+      // Update individual list of cards
+      queryClient.setQueryData(queryKeys.cards.list(listId), (old: ApiResponse<Card[]> | undefined) => {
+        if (!old) return { data: [tempCard] };
+        return {
+          ...old,
+          data: [...(old.data ?? []), tempCard],
+        };
+      });
 
-      // Also update the cards in the list cache if it exists
-      // This ensures both the dedicated cards query and the list+cards query are in sync
-      queryClient.setQueriesData( { queryKey: queryKeys.lists.board(boardId) }, (old: any) => {
-        if (!old) return old;
-
-        // Only proceed if old is an object with data property that's an array
-        if (!old.data || !Array.isArray(old.data)) return old;
-
+      // Update board-level lists
+      queryClient.setQueriesData({ queryKey: queryKeys.lists.board(boardId) }, (old: any) => {
+        if (!old?.data || !Array.isArray(old.data)) return old;
         return {
           ...old,
           data: old.data.map((list: any) => {
-            if (list.id === listId) {
-              return {
-                ...list,
-                cards: [...(list.cards || []), tempCard],
-              };
-            }
-            return list;
+            if (list.id !== listId) return list;
+            return {
+              ...list,
+              cards: [...(list.cards || []), tempCard],
+            };
           }),
         };
       });
 
-      return { previousCards };
+      return { previousCards, tempId, listId };
     },
-    onError: (err, variables, context) => {
-       if (context?.previousCards) {
-        queryClient.setQueryData(
-          queryKeys.cards.list(variables.listId),
-          context.previousCards
-        );
+
+    onSuccess: (response, _variables, context) => {
+      const realCard = response.data;
+      const { tempId, listId } = context;
+
+      queryClient.setQueryData(queryKeys.cards.list(listId), (old: ApiResponse<Card[]> | undefined) => {
+        if (!old) return old;
+        return {
+          ...old,
+          data: old?.data?.map((card) => (card.id === tempId ? realCard : card)),
+        };
+      });
+
+      queryClient.setQueriesData({ queryKey: queryKeys.lists.board(boardId) }, (old: any) => {
+        if (!old?.data || !Array.isArray(old.data)) return old;
+        return {
+          ...old,
+          data: old.data.map((list: any) => {
+            if (list.id !== listId) return list;
+            return {
+              ...list,
+              cards: list.cards.map((card: any) =>
+                card.id === tempId ? realCard : card
+              ),
+            };
+          }),
+        };
+      });
+    },
+
+    onError: (_err, _variables, context) => {
+      if (context?.previousCards) {
+        queryClient.setQueryData(queryKeys.cards.list(context.listId), context.previousCards);
       }
     },
-    onSettled: (data, error, variables) => {
+
+    onSettled: (_data, _error, variables) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.cards.list(variables.listId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.lists.board(boardId) });
-
     },
   });
+
 
   // Update card mutation (for changing content, moving between lists, etc.)
   const updateCardMutation = useMutation({

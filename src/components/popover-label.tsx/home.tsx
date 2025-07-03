@@ -21,23 +21,23 @@ const Home: React.FC<LabelManagerProps> = (props) => {
   const { setPopoverPage, setSelectedLabel, selectedCard } = props;
   const [searchTerm, setSearchTerm] = useState("");
 
-  const { cardLabels, addCardLabel, removeCardLabel } = useLabels(
+  const { labels, addCardLabel, removeCardLabel } = useLabels(
     workspaceId as string,
     selectedCard?.id,
     { cardId: selectedCard?.id }
   );
 
   const filteredLabels: CardLabel[] = useMemo(() => {
-    if (!cardLabels) return [];
+    if (!labels) return [];
 
     const unique: CardLabel[] = Array.from(
-      new Map(cardLabels.map((l: CardLabel) => [l.labelId, l])).values()
+      new Map(labels.map((l: CardLabel) => [l.labelId, l])).values()
     ) as CardLabel[];
 
     return unique.filter((label) =>
       label.name?.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }, [searchTerm, cardLabels]);
+  }, [searchTerm, labels]);
 
 
   const toggleCheck = async (isChecked: boolean, labelId: string) => {

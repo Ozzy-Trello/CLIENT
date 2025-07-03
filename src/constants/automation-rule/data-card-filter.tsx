@@ -291,16 +291,16 @@ export const cardFilters: CardTriggerFilterType[] = [
               label: "with an incomplte checklist"
             },
             {
-              value: EnumChecklistConditionOperator.WithCheckists,
-              label: "with checklists"
-            },
-            {
-              value: EnumChecklistConditionOperator.WithoutChecklists,
-              label: "without checklists"
+              value: EnumChecklistConditionOperator.WithChecklist,
+              label: "with checklist"
             },
             {
               value: EnumChecklistConditionOperator.WithoutChecklist,
               label: "without checklist"
+            },
+            {
+              value: EnumChecklistConditionOperator.WithoutChecklists,
+              label: "without checklists"
             },
           ],
           value: {
@@ -308,6 +308,24 @@ export const cardFilters: CardTriggerFilterType[] = [
             label: "with all complete checklists"
           }
         },
+        [EnumInputType.Text]: null,
+        [EnumSelectionType.Completion]: {
+          options: [
+            {
+              value: EnumOptionCompletion.Complete,
+              label: "complete"
+            },
+            {
+              value: EnumOptionCompletion.Incomplete,
+              label: "incomplete"
+            },
+            
+          ],
+          value: {
+            value: EnumOptionCompletion.Complete,
+            label: "complete"
+          }
+        }
       },
     ]
   }, 

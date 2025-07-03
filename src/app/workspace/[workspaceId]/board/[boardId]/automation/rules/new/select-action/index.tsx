@@ -229,6 +229,8 @@ const SelectOption = ({
         ActionType.SetDateCustomField,
         ActionType.MoveChecklistItemDueDate,
         ActionType.SetChecklistItemDueDate,
+        ActionType.MoveCardDateStartOrDue,
+        ActionType.SetCardDateStartOrDue
       ].includes(actionsData[groupIndex]?.items?.[index]?.type as any)
     ) {
       return (
@@ -511,7 +513,8 @@ const renderLabelWithSelects = (
             placeholder in item ||
             placeholder === EnumSelectionType.List ||
             placeholder === EnumSelectionType.OptionalList ||
-            placeholder === EnumSelectionType.Channel
+            placeholder === EnumSelectionType.Channel ||
+            placeholder === EnumSelectionType.CardLabel
           ) {
             const data: TriggerItemSelection = item[
               placeholder

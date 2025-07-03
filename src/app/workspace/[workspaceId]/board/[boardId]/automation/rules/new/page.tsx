@@ -125,6 +125,9 @@ const NewRulePage: React.FC = () => {
       
       // Extract placeholders from action type
       const filterPlaceholders = extractPlaceholders(filter.type || '');
+      if (!filterPlaceholders.includes(EnumInputType.Text)) filterPlaceholders.push(EnumInputType.Text);
+      if (!filterPlaceholders.includes(EnumSelectionType.Completion)) filterPlaceholders.push(EnumSelectionType.Completion);
+
       
       // Build condition object for this action
       const filterCondition: Record<string, any> = {};

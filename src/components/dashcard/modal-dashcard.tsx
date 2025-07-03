@@ -68,14 +68,14 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
     const remaining = dashcardsFilter.filter(
       (filter) => !selectedIds.includes(filter.id)
     );
-    console.log(remaining, "<< ini remaining");
+    // console.log(remaining, "<< ini remaining");
     setAvailableFilters(remaining);
   }, [selectedFilters]);
 
   // Update form when initial data changes
   useEffect(() => {
     if (initialData) {
-      console.log(initialData, "<< initial data");
+      // console.log(initialData, "<< initial data");
       setBgColor(initialData.backgroundColor);
       setDashcardName(initialData.name);
       setSelectedFilters(initialData.filters);

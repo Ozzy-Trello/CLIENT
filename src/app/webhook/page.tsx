@@ -36,8 +36,8 @@ export default function WebhookPage() {
       return;
     }
     const data = parseFragment(fragment);
-    console.log(data);
-    console.log(fragment, "<< frag");
+    // console.log(data);
+    // console.log(fragment, "<< frag");
     fetch(`http://localhost:8872/v1/accurate/webhook`, {
       method: "POST",
       body: JSON.stringify(data),
