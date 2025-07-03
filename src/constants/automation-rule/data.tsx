@@ -1519,6 +1519,18 @@ export const actions: AutomationRuleAction[] = [
             label: "complete"
           }
         },
+        [EnumSelectionType.Action]: {
+          options: [
+            {
+              value: EnumActions.MarkCardCompletion,
+              label: "Mark",
+            },
+          ],
+          value: {
+            value: EnumActions.MarkCardCompletion,
+            label: "Mark",
+          },
+        }
       },
       {
         type: ActionType.SetCardDateStartOrDue,
@@ -1539,6 +1551,18 @@ export const actions: AutomationRuleAction[] = [
             label: "due"
           }
         },
+        [EnumSelectionType.Action]: {
+          options: [
+            {
+              value: EnumActions.SetCardDateStatus,
+              label: "Set",
+            },
+          ],
+          value: {
+            value: EnumActions.SetCardDateStatus,
+            label: "Set",
+          },
+        },
         [EnumInputType.DateValue]: undefined
       },
       {
@@ -1555,6 +1579,18 @@ export const actions: AutomationRuleAction[] = [
               label: "start"
             },
           ],
+          [EnumSelectionType.Action]: {
+            options: [
+              {
+                value: EnumActions.MoveCardDateStatus,
+                label: "Move",
+              },
+            ],
+            value: {
+              value: EnumActions.MoveCardDateStatus,
+              label: "Move",
+            },
+          },
           value: {
             value: EnumDateStatus.Due,
             label: "due"

@@ -114,7 +114,7 @@ export enum TriggerType {
   // CARD CHANGES
   WhenCardCompletionChanges = `when-the-card-is-marked-<${EnumSelectionType.Completion}>-in-a-card-<${EnumSelectionType.OptionalFilter}>-<${EnumSelectionType.OptionalBySubject}>`,
   WhenCardLabelChanges = `when-<${EnumSelectionType.ArticleType}>-label-is-<${EnumSelectionType.Action}>-a-card-<${EnumSelectionType.OptionalFilter}>-<${EnumSelectionType.OptionalBySubject}>`,
-  WhenCardAttachmentChanges = `when-an-attachment-<${EnumSelectionType.TextComparison}>-[${EnumInputType.Text}]-is-<${EnumSelectionType.Action}>-a-card-<${EnumSelectionType.OptionalFilter}>-<${EnumSelectionType.OptionalBySubject}>`,
+  WhenCardAttachmentChanges = `when-an-attachment-<${EnumSelectionType.TextComparison}>-is-<${EnumSelectionType.Action}>-a-card-<${EnumSelectionType.OptionalFilter}>-<${EnumSelectionType.OptionalBySubject}>`,
   WhenCardMemberChanges = `when-<${EnumSelectionType.Subject}>-is-<${EnumSelectionType.Action}>-a-card-<${EnumSelectionType.OptionalFilter}>-<${EnumSelectionType.OptionalBySubject}>`,
 
   // CUSTOM FIELDS
@@ -190,9 +190,9 @@ export enum ActionType {
   
   
   // Action Dates
-  MarkCardCompletion = `mark-the-card-as-<${EnumSelectionType.Completion}>`,
-  SetCardDateStartOrDue = `set-the-card's-<${EnumSelectionType.DateStatus}>-to-<${EnumSelectionType.DateValue}>`,
-  MoveCardDateStartOrDue = `move-the-<${EnumSelectionType.DateStatus}>-to-<${EnumSelectionType.DateValue}>`,
+  MarkCardCompletion = `<${EnumSelectionType.Action}>-the-card-as-<${EnumSelectionType.Completion}>`,
+  SetCardDateStartOrDue = `<${EnumSelectionType.Action}>-the-card's-<${EnumSelectionType.DateStatus}>-to-<${EnumSelectionType.DateValue}>`,
+  MoveCardDateStartOrDue = `<${EnumSelectionType.Action}>-the-<${EnumSelectionType.DateStatus}>-to-<${EnumSelectionType.DateValue}>`,
 
   // create a <CardType> <CardTypeItem> card with title <TextTitle> <TextDescription> <Position> <List> <Board> <MultiLabels> <MultiChecklists> <MultiUsers> <MultiDates>
   CreateItem = `create-a-<${EnumSelectionType.CreateType}>-card-with-title-<${EnumInputType.TextTitle}>-<${EnumInputType.TextDescription}>-<${EnumSelectionType.Position}>-<${EnumSelectionType.List}>-<${EnumSelectionType.Board}>-<${EnumSelectionType.MultiLabels}>-<${EnumSelectionType.MultiChecklists}>-<${EnumSelectionType.MultiUsers}>-<${EnumSelectionType.MultiDates}>`,

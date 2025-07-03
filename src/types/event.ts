@@ -69,4 +69,7 @@ export enum EnumActions {
   FindCardByTitle = "cascade.find.card.by.title",
   LinkCards = "link.cards",
   UnlinkCards = "unlink.cards",
+  MarkCardCompletion = "mark.card.completion",
+  SetCardDateStatus = "set.card.date.status",
+  MoveCardDateStatus = "move.card.date.status",
 }
