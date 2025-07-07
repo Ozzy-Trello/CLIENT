@@ -13,7 +13,9 @@ import {
 } from "@ant-design/icons";
 import { renderRulePatternHuman } from "@utils/rule-render";
 import { useRuleLookups } from "@hooks/useRuleLookups";
-import { renderType } from '@utils/automation-rule';
+import { renderType } from "@utils/automation-rule";
+import { useLabels } from "@hooks/label";
+import { LookupCache } from "@utils/lookup-cache";
 
 const RulePage: React.FC = () => {
   const { workspaceId, boardId } = useParams();
@@ -23,6 +25,18 @@ const RulePage: React.FC = () => {
   >([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPage, setTotalPage] = useState(1);
+
+  // Fetch and cache all labels for this workspace
+  const { allLabels } = useLabels(workspaceId as string);
+  if (allLabels) {
+    LookupCache.rememberMany(
+      "label",
+      allLabels.map((l: { id: string; name: string }) => ({
+        id: l.id,
+        name: l.name,
+      }))
+    );
+  }
 
   const toNewRulePage = () => {
     router.replace(

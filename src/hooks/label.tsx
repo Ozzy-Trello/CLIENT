@@ -9,6 +9,7 @@ import {
 import { addCardLabel, removeLabelFromCard, getCardLabels } from "@api/card";
 import { Label, CardLabel } from "@myTypes/label";
 import { ApiResponse } from "@myTypes/type";
+import { useState } from "react";
 
 export function useLabels(
   workspaceId: string,
@@ -273,5 +274,147 @@ export function useLabels(
     isDeleting: deleteLabelMutation.isPending,
     isAssigning: addCardLabelMutation.isPending,
     isUnassigning: removeCardLabelMutation.isPending,
+  };
+}
+
+export function usePaginatedLabels(
+  workspaceId: string,
+  labelQueryParams?: CardLabel,
+  cardId?: string
+) {
+  const [page, setPage] = useState(1);
+  const [labels, setLabels] = useState<any[]>([]);
+  const [hasMore, setHasMore] = useState(true);
+  const limit = 10;
+  const queryClient = useQueryClient();
+
+  const { isFetching } = useQuery({
+    queryKey: ["labels", workspaceId, labelQueryParams, page],
+    queryFn: async () => {
+      const params = { ...labelQueryParams, page, limit };
+      const res = await getLabels(workspaceId, params as any);
+      const newData = res.data ?? [];
+      setLabels((prev) => (page === 1 ? newData : [...prev, ...newData]));
+      setHasMore(newData.length === limit);
+      return newData;
+    },
+    enabled: !!workspaceId,
+  });
+
+  const addCardLabelMutation = useMutation({
+    mutationFn: ({ labelId, cardId }: { labelId: string; cardId: string }) => {
+      return addCardLabel(workspaceId, labelId, cardId);
+    },
+    onMutate: async ({ labelId, cardId }) => {
+      await queryClient.cancelQueries();
+
+      const labelKey = ["labels", workspaceId, labelQueryParams, page];
+      const cardLabelKey = ["cardLabels", workspaceId, cardId];
+
+      const updateIsAssigned = (queryKey: any) => {
+        const data =
+          queryClient.getQueryData<ApiResponse<CardLabel[]>>(queryKey);
+        if (data?.data) {
+          queryClient.setQueryData(queryKey, {
+            ...data,
+            data: data.data.map((label) =>
+              label.labelId === labelId ? { ...label, isAssigned: true } : label
+            ),
+          });
+        }
+      };
+
+      updateIsAssigned(labelKey);
+      updateIsAssigned(cardLabelKey);
+    },
+    onError: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["labels", workspaceId, labelQueryParams, page],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["cardLabels", workspaceId, cardId],
+      });
+    },
+    onSettled: () => {
+      // Invalidate both paginated labels and card labels queries
+      reset();
+      queryClient.invalidateQueries({
+        queryKey: ["labels", workspaceId, labelQueryParams, page],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["cardLabels", workspaceId, cardId],
+      });
+    },
+  });
+
+  const removeCardLabelMutation = useMutation({
+    mutationFn: ({ labelId, cardId }: { labelId: string; cardId: string }) => {
+      return removeLabelFromCard(labelId, cardId);
+    },
+    onMutate: async ({ labelId, cardId }) => {
+      await queryClient.cancelQueries();
+
+      const labelKey = ["labels", workspaceId, labelQueryParams, page];
+      const cardLabelKey = ["cardLabels", workspaceId, cardId];
+
+      const updateIsAssigned = (queryKey: any) => {
+        const data =
+          queryClient.getQueryData<ApiResponse<CardLabel[]>>(queryKey);
+        if (data?.data) {
+          queryClient.setQueryData(queryKey, {
+            ...data,
+            data: data.data.map((label) =>
+              label.labelId === labelId
+                ? { ...label, isAssigned: false }
+                : label
+            ),
+          });
+        }
+      };
+
+      updateIsAssigned(labelKey);
+      updateIsAssigned(cardLabelKey);
+    },
+    onError: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["labels", workspaceId, labelQueryParams, page],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["cardLabels", workspaceId, cardId],
+      });
+    },
+    onSettled: () => {
+      // Invalidate both paginated labels and card labels queries
+      reset();
+      queryClient.invalidateQueries({
+        queryKey: ["labels", workspaceId, labelQueryParams, page],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["cardLabels", workspaceId, cardId],
+      });
+    },
+  });
+
+  const loadMore = () => setPage((p) => p + 1);
+  const reset = () => {
+    setPage(1);
+    setLabels([]);
+    setHasMore(true);
+  };
+
+  return {
+    labels,
+    isFetching,
+    hasMore,
+    loadMore,
+    reset,
+    addCardLabel: (args: { labelId: string }) => {
+      if (!cardId) throw new Error("cardId is required for addCardLabel");
+      addCardLabelMutation.mutate({ ...args, cardId });
+    },
+    removeCardLabel: (args: { labelId: string }) => {
+      if (!cardId) throw new Error("cardId is required for removeCardLabel");
+      removeCardLabelMutation.mutate({ ...args, cardId });
+    },
   };
 }

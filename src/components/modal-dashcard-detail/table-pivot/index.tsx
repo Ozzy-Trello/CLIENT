@@ -49,7 +49,7 @@ const TablePivot: FC = () => {
     Record<string, boolean>
   >({});
   const [sorting, setSorting] = useState<SortingState>([]);
-  const { handleItemDashcard, itemDashcard } = useCardDetailContext();
+  const { handleItemDashcard, processedItemDashcard } = useCardDetailContext();
 
   const globalFilter = useDebounce(searchValue, 300);
 
@@ -58,10 +58,10 @@ const TablePivot: FC = () => {
   }, [searchValue]);
 
   const dynamicColumns = useMemo(() => {
-    if (!itemDashcard.length) return [];
+    if (!processedItemDashcard.length) return [];
 
     const allColumns = new Set<string>();
-    itemDashcard.forEach((item) => {
+    processedItemDashcard.forEach((item) => {
       item.columns.forEach((col) => {
         allColumns.add(col.column);
       });
@@ -81,7 +81,7 @@ const TablePivot: FC = () => {
     });
 
     return columns;
-  }, [itemDashcard]);
+  }, [processedItemDashcard]);
 
   console.log({ dynamicColumns });
 
@@ -184,7 +184,7 @@ const TablePivot: FC = () => {
   };
 
   const pivotData = useMemo(() => {
-    return itemDashcard.map((item) => {
+    return processedItemDashcard.map((item) => {
       const pivotedItem: any = {
         id: item.id,
         name: item.name,
@@ -200,7 +200,7 @@ const TablePivot: FC = () => {
 
       return pivotedItem;
     });
-  }, [itemDashcard]);
+  }, [processedItemDashcard]);
 
   const columnHelper = createColumnHelper<any>();
 
@@ -228,7 +228,7 @@ const TablePivot: FC = () => {
       column: string,
       value: string | boolean | number
     ) => {
-      const findColumn = itemDashcard.find((item) => item.id === id);
+      const findColumn = processedItemDashcard.find((item) => item.id === id);
 
       if (!findColumn) return value;
 
@@ -445,7 +445,7 @@ const TablePivot: FC = () => {
       ) || [];
 
     return [...baseColumns, ...dynamicColumnsDefinitions];
-  }, [itemDashcard, grouping, sorting]);
+  }, [processedItemDashcard, grouping, sorting]);
 
   const table = useReactTable({
     data: pivotData,

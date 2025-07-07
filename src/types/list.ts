@@ -13,6 +13,7 @@ export interface List {
   cardLimit?: number;
   position?: number;
   type?: string;
+  background?: string;
 }
 
 // Filter List/Column
@@ -26,4 +27,5 @@ export interface FilterList {
   cardLimit?: number;
   position?: number;
   filterCriteria?: any; // Define specific filter criteria structure
+  background?: string;
 }

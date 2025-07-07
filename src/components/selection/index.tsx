@@ -193,7 +193,7 @@ export const UserSelection = forwardRef<SelectionRef, SelectionProps>(
         size={size}
         className={`${className} ${
           mode === "multiple" ? "w-full" : ""
-        } min-w-[200px]`}
+        } min-w-[157px]`}
         notFoundContent={
           options.length === 0 ? "No user available" : "No match found"
         }
@@ -300,8 +300,9 @@ export const ListSelection = forwardRef<SelectionRef, SelectionProps>(
     }>();
     const [listData, setListData] = useState<AnyList[]>([]);
     const { boardId } = useParams();
-    const [selectedBoardId, setSelectedBoardId] = useState<string>(boardIdProp || boardId as string);
-
+    const [selectedBoardId, setSelectedBoardId] = useState<string>(
+      boardIdProp || (boardId as string)
+    );
 
     useImperativeHandle(ref, () => ({
       getValue: () => selectedValue,
@@ -464,14 +465,14 @@ export const BoardSelection = forwardRef<SelectionRef, SelectionProps>(
     }, [boardsData]);
 
     useEffect(() => {
-      const fetchData = async() => {
-        const result  = await boards(workspaceId as string);
+      const fetchData = async () => {
+        const result = await boards(workspaceId as string);
         if (result && result?.data) {
           setBoardsData(result?.data || []);
         }
-      }
+      };
       fetchData();
-    }, [])
+    }, []);
 
     // When options change, update the selected object if value is already set
     useEffect(() => {
@@ -528,8 +529,8 @@ export const CardPositionSelection = forwardRef<SelectionRef, SelectionProps>(
       value: string;
     }>();
     const { boardId } = useParams();
-    const [ cardsInList, setCardsInList ] = useState<Card[]>([]);
-    const [ isFetchingData, setIsFetchingData ] = useState<boolean>(false);
+    const [cardsInList, setCardsInList] = useState<Card[]>([]);
+    const [isFetchingData, setIsFetchingData] = useState<boolean>(false);
 
     useImperativeHandle(ref, () => ({
       getValue: () => selectedValue,
@@ -589,11 +590,10 @@ export const CardPositionSelection = forwardRef<SelectionRef, SelectionProps>(
           });
           setOptions(copyOpt);
         } else {
-          setOptions([{value: "1", label: "1"}]);
+          setOptions([{ value: "1", label: "1" }]);
         }
       }
     }, [cardsInList]);
-
 
     useEffect(() => {
       const fetchData = async () => {
@@ -608,11 +608,10 @@ export const CardPositionSelection = forwardRef<SelectionRef, SelectionProps>(
         setIsFetchingData(false);
       };
 
-
       if (selectedListId) {
         fetchData();
       }
-    }, [selectedListId])
+    }, [selectedListId]);
 
     return (
       <Select
@@ -725,7 +724,10 @@ export const LabelSelection = forwardRef<SelectionRef, SelectionProps>(
   }
 );
 
-export const CustomFieldSelection = forwardRef<SelectionRef, SelectionProps & { filterTypes?: string | string[] }>(
+export const CustomFieldSelection = forwardRef<
+  SelectionRef,
+  SelectionProps & { filterTypes?: string | string[] }
+>(
   (
     {
       placeholder = "Select a Field",
@@ -961,12 +963,16 @@ export const FieldValueInput = forwardRef<SelectionRef, FieldValueInputProps>(
     if (field?.source === "user" || field?.source?.startsWith("user-role:")) {
       return (
         <Select
-          style={{ width: "10%" }}
-          className={className}
+          style={{ width, ...style }}
+          size={size}
+          className={`${className} min-w-[157px]`}
           value={inputValue}
           onChange={(val, option) => handleChange(val, option)}
           placeholder={placeholder}
           options={userOptions}
+          showSearch
+          optionFilterProp="label"
+          notFoundContent="No users found"
         />
       );
     }
@@ -991,7 +997,10 @@ export const FieldValueInput = forwardRef<SelectionRef, FieldValueInputProps>(
 
     return (
       <Input
-        style={{ width, ...style }}
+        style={{
+          width: field ? width : "200px", // Use minimum width when no field is selected
+          ...style,
+        }}
         size={size}
         className={className}
         value={inputValue}

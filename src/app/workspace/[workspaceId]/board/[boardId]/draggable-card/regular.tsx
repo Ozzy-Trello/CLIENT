@@ -74,12 +74,12 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
     { cardId: card.id }
   );
 
-  useEffect(() => {
-    if (cardCustomFields) {
-      const filtered = cardCustomFields.filter((item) => item.isShowAtFront);
-      setfrontCustomFields(filtered);
-    }
-  }, cardCustomFields);
+  // useEffect(() => {
+  //   if (cardCustomFields) {
+  //     const filtered = cardCustomFields.filter((item) => item.isShowAtFront);
+  //     setfrontCustomFields(filtered);
+  //   }
+  // }, cardCustomFields);
 
   // Ensure any referenced userIds are cached for quick label lookup
   useEffect(() => {

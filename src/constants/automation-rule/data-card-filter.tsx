@@ -1,8 +1,35 @@
-import { AlignJustify, Check, Clock, MessageSquare, SwatchBook } from "lucide-react";
+import {
+  AlignJustify,
+  Check,
+  Clock,
+  MessageSquare,
+  SwatchBook,
+} from "lucide-react";
 // import { TriggerCardFilterTypeBasic, TriggerCardFilterTypeChecklists, TriggerCardFilterTypeContent, TriggerCardFilterTypeDates, TriggerCardFilterTypeFields } from "./automation-rule";
 import { CardTriggerFilterType } from "@myTypes/type";
-import { EnumInputType, EnumSelectionType, EnumTiggerCarFilterType, EnumTriggerCardFilterGroupType } from "@myTypes/automation-rule";
-import { EnumAssignmentOperator, EnumAssignmentSubjectOperator, EnumCardContentType, EnumChecklistConditionOperator, EnumCustomFieldAction, EnumDateStatusOperator, EnumInclusionOperator, EnumOptionCheckboxState, EnumOptionCompletion, EnumOptionsNumberComparisonOperators, EnumOptionTextComparisonOperator, EnumTimeComparisonOperator, EnumTimeRangeOperator, EnumTimeRelativeReference, EnumTimeUnit } from "@myTypes/options";
+import {
+  EnumInputType,
+  EnumSelectionType,
+  EnumTiggerCarFilterType,
+  EnumTriggerCardFilterGroupType,
+} from "@myTypes/automation-rule";
+import {
+  EnumAssignmentOperator,
+  EnumAssignmentSubjectOperator,
+  EnumCardContentType,
+  EnumChecklistConditionOperator,
+  EnumCustomFieldAction,
+  EnumDateStatusOperator,
+  EnumInclusionOperator,
+  EnumOptionCheckboxState,
+  EnumOptionCompletion,
+  EnumOptionsNumberComparisonOperators,
+  EnumOptionTextComparisonOperator,
+  EnumTimeComparisonOperator,
+  EnumTimeRangeOperator,
+  EnumTimeRelativeReference,
+  EnumTimeUnit,
+} from "@myTypes/options";
 
 export const cardFilters: CardTriggerFilterType[] = [
   {
@@ -17,21 +44,21 @@ export const cardFilters: CardTriggerFilterType[] = [
           options: [
             {
               value: EnumInclusionOperator.In,
-              label: "in"
+              label: "in",
             },
             {
               value: EnumInclusionOperator.NotIn,
-              label: "not in"
+              label: "not in",
             },
           ],
           value: {
             value: EnumInclusionOperator.In,
-            label: "in"
-          }
+            label: "in",
+          },
         },
         [EnumSelectionType.List]: {
           options: [],
-          value: null
+          value: null,
         },
       },
       {
@@ -41,22 +68,22 @@ export const cardFilters: CardTriggerFilterType[] = [
           options: [
             {
               value: EnumInclusionOperator.With,
-              label: "with"
+              label: "with",
             },
             {
               value: EnumInclusionOperator.Without,
-              label: "without"
+              label: "without",
             },
           ],
           value: {
             value: EnumInclusionOperator.With,
-            label: "with"
-          }
+            label: "with",
+          },
         },
         [EnumSelectionType.CardLabel]: {
           options: [],
-          value: null
-        }
+          value: null,
+        },
       },
       {
         type: EnumTiggerCarFilterType.CardAssignment,
@@ -65,44 +92,44 @@ export const cardFilters: CardTriggerFilterType[] = [
           options: [
             {
               value: EnumAssignmentOperator.AssignedTo,
-              label: "assigned to"
+              label: "assigned to",
             },
             {
               value: EnumAssignmentOperator.AssignedOnlyTo,
-              label: "assigned only to"
+              label: "assigned only to",
             },
             {
               value: EnumAssignmentOperator.NotAssignedTo,
-              label: "not assigned to"
+              label: "not assigned to",
             },
           ],
           value: {
             value: EnumAssignmentOperator.AssignedTo,
-            label: "assigned to"
-          }
+            label: "assigned to",
+          },
         },
         [EnumSelectionType.AssignmentSubject]: {
           options: [
             {
               value: EnumAssignmentSubjectOperator.Me,
-              label: "me"
+              label: "me",
             },
             {
               value: EnumAssignmentSubjectOperator.Anyone,
-              label: "anyone"
+              label: "anyone",
             },
             {
               value: EnumAssignmentSubjectOperator.Member,
-              label: "member"
+              label: "member",
             },
           ],
           value: {
             value: EnumAssignmentSubjectOperator.Me,
-            label: "me"
-          }
-        }
-      }
-    ]
+            label: "me",
+          },
+        },
+      },
+    ],
   },
   {
     type: EnumTriggerCardFilterGroupType.Dates,
@@ -116,17 +143,17 @@ export const cardFilters: CardTriggerFilterType[] = [
           options: [
             {
               value: EnumInclusionOperator.With,
-              label: "with"
+              label: "with",
             },
             {
               value: EnumInclusionOperator.Without,
-              label: "without"
+              label: "without",
             },
           ],
           value: {
             value: EnumInclusionOperator.With,
-            label: "with"
-          }
+            label: "with",
+          },
         },
       },
       {
@@ -136,17 +163,17 @@ export const cardFilters: CardTriggerFilterType[] = [
           options: [
             {
               value: EnumInclusionOperator.With,
-              label: "with"
+              label: "with",
             },
             {
               value: EnumInclusionOperator.Without,
-              label: "without"
+              label: "without",
             },
           ],
           value: {
             value: EnumInclusionOperator.With,
-            label: "with"
-          }
+            label: "with",
+          },
         },
       },
       {
@@ -156,121 +183,125 @@ export const cardFilters: CardTriggerFilterType[] = [
           options: [
             {
               value: EnumDateStatusOperator.Due,
-              label: "due"
+              label: "due",
             },
             {
               value: EnumDateStatusOperator.NotDue,
-              label: "not due"
+              label: "not due",
             },
             {
               value: EnumDateStatusOperator.Starting,
-              label: "starting"
+              label: "starting",
             },
             {
               value: EnumDateStatusOperator.NotStarting,
-              label: "not starting"
+              label: "not starting",
             },
           ],
           value: {
             value: EnumDateStatusOperator.Due,
-            label: "due"
-          }
+            label: "due",
+          },
         },
         [EnumSelectionType.TimeRange]: {
           options: [
             {
               value: EnumTimeRangeOperator.Today,
-              label: "today"
+              label: "today",
             },
             {
               value: EnumTimeRangeOperator.Tomorrow,
-              label: "tomorrow"
+              label: "tomorrow",
             },
             {
               value: EnumTimeRangeOperator.ThisWeek,
-              label: "this-week"
+              label: "this-week",
             },
             {
               value: EnumTimeRangeOperator.NextWeek,
-              label: "next-week"
+              label: "next-week",
             },
             {
               value: EnumTimeRangeOperator.ThisMonth,
-              label: "this-month"
+              label: "this-month",
             },
             {
               value: EnumTimeRangeOperator.NextMonth,
-              label: "next-month"
+              label: "next-month",
             },
           ],
           value: {
             value: EnumTimeRangeOperator.Today,
-            label: "today"
-          }
+            label: "today",
+          },
         },
       },
       {
         type: EnumTiggerCarFilterType.CardDateStatusWithSpecificDays,
-        label: EnumTiggerCarFilterType.CardDateStatusWithSpecificDays.replaceAll("-", " "),
+        label:
+          EnumTiggerCarFilterType.CardDateStatusWithSpecificDays.replaceAll(
+            "-",
+            " "
+          ),
         [EnumSelectionType.DateStatus]: {
           options: [
             {
               value: EnumDateStatusOperator.Due,
-              label: "due"
+              label: "due",
             },
             {
               value: EnumDateStatusOperator.Starting,
-              label: "starting"
+              label: "starting",
             },
           ],
           value: {
             value: EnumDateStatusOperator.Due,
-            label: "due"
-          }
+            label: "due",
+          },
         },
         [EnumSelectionType.TimeComparison]: {
           options: [
             {
               value: EnumTimeComparisonOperator.InLessThan,
-              label: "in less than"
+              label: "in less than",
             },
             {
               value: EnumTimeComparisonOperator.InMoreThan,
-              label: "in more than"
+              label: "in more than",
             },
             {
               value: EnumTimeComparisonOperator.In,
-              label: "in"
+              label: "in",
             },
             {
               value: EnumTimeComparisonOperator.InBeetween,
-              label: "in between"
+              label: "in between",
             },
           ],
           value: {
             value: EnumTimeComparisonOperator.InLessThan,
-            label: "in less than"
-          }
+            label: "in less than",
+          },
         },
         [EnumInputType.Number]: null,
         [EnumSelectionType.TimeUnit]: {
           options: [
             {
               value: EnumTimeUnit.Days,
-              label: "days"
+              label: "days",
             },
             {
               value: EnumTimeUnit.WorkingDays,
-              label: "working-days"
+              label: "working-days",
             },
           ],
           value: {
             value: EnumTimeUnit.Days,
-            label: "days"
-          }
-        }
-      }
-    ]
+            label: "days",
+          },
+        },
+      },
+    ],
   },
   {
     type: EnumTriggerCardFilterGroupType.Checklists,
@@ -284,51 +315,50 @@ export const cardFilters: CardTriggerFilterType[] = [
           options: [
             {
               value: EnumChecklistConditionOperator.WithAllComplete,
-              label: "with all complete checklists"
+              label: "with all complete checklists",
             },
             {
               value: EnumChecklistConditionOperator.WithAnIncompleteChecklists,
-              label: "with an incomplte checklist"
+              label: "with an incomplte checklist",
             },
             {
               value: EnumChecklistConditionOperator.WithChecklist,
-              label: "with checklist"
+              label: "with checklist",
             },
             {
               value: EnumChecklistConditionOperator.WithoutChecklist,
-              label: "without checklist"
+              label: "without checklist",
             },
             {
               value: EnumChecklistConditionOperator.WithoutChecklists,
-              label: "without checklists"
+              label: "without checklists",
             },
           ],
           value: {
             value: EnumChecklistConditionOperator.WithAllComplete,
-            label: "with all complete checklists"
-          }
+            label: "with all complete checklists",
+          },
         },
         [EnumInputType.Text]: null,
         [EnumSelectionType.Completion]: {
           options: [
             {
               value: EnumOptionCompletion.Complete,
-              label: "complete"
+              label: "complete",
             },
             {
               value: EnumOptionCompletion.Incomplete,
-              label: "incomplete"
+              label: "incomplete",
             },
-            
           ],
           value: {
             value: EnumOptionCompletion.Complete,
-            label: "complete"
-          }
-        }
+            label: "complete",
+          },
+        },
       },
-    ]
-  }, 
+    ],
+  },
   {
     type: EnumTriggerCardFilterGroupType.Content,
     label: "content",
@@ -336,82 +366,89 @@ export const cardFilters: CardTriggerFilterType[] = [
     items: [
       {
         type: EnumTiggerCarFilterType.CardContentTileDescription,
-        label: EnumTiggerCarFilterType.CardContentTileDescription.replaceAll("-", " "),
+        label: EnumTiggerCarFilterType.CardContentTileDescription.replaceAll(
+          "-",
+          " "
+        ),
         [EnumSelectionType.CardContentType]: {
           options: [
             {
               value: EnumCardContentType.Name,
-              label: "a name"
+              label: "a name",
             },
             {
               value: EnumCardContentType.Description,
-              label: "a description"
+              label: "a description",
             },
             {
               value: EnumCardContentType.NameOrDescription,
-              label: "a name or a description"
+              label: "a name or a description",
             },
           ],
-          value:  {
+          value: {
             value: EnumCardContentType.Name,
-            label: "a name"
+            label: "a name",
           },
         },
         [EnumSelectionType.TextComparison]: {
           options: [
             {
               value: EnumOptionTextComparisonOperator.StartingWith,
-              label: "starting with"
+              label: "starting with",
             },
             {
               value: EnumOptionTextComparisonOperator.EndingWith,
-              label: "ending with"
+              label: "ending with",
             },
             {
               value: EnumOptionTextComparisonOperator.Containing,
-              label: "containing"
+              label: "containing",
             },
             {
               value: EnumOptionTextComparisonOperator.NotStartingWith,
-              label: "not starting with"
+              label: "not starting with",
             },
             {
               value: EnumOptionTextComparisonOperator.NotEndingWith,
-              label: "not ending with"
+              label: "not ending with",
             },
             {
               value: EnumOptionTextComparisonOperator.NotContaining,
-              label: "not containing"
+              label: "not containing",
             },
           ],
-          value:  {
+          value: {
             value: EnumOptionTextComparisonOperator.StartingWith,
-            label: "starting with"
+            label: "starting with",
           },
         },
-        [EnumInputType.Text]: null
+        [EnumInputType.Text]: null,
       },
       {
         type: EnumTiggerCarFilterType.CardContentDescriptionInclusion,
-        label: EnumTiggerCarFilterType.CardContentDescriptionInclusion.replaceAll("-", " "),
+        label:
+          EnumTiggerCarFilterType.CardContentDescriptionInclusion.replaceAll(
+            "-",
+            " "
+          ),
         [EnumSelectionType.Inclusion]: {
           options: [
             {
               value: EnumInclusionOperator.With,
-              label: "with"
+              label: "with",
             },
             {
               value: EnumInclusionOperator.Without,
-              label: "without"
+              label: "without",
             },
           ],
-          value:  {
+          value: {
             value: EnumInclusionOperator.With,
-            label: "with"
+            label: "with",
           },
         },
       },
-    ]
+    ],
   },
   {
     type: EnumTriggerCardFilterGroupType.Fields,
@@ -425,30 +462,30 @@ export const cardFilters: CardTriggerFilterType[] = [
           options: [
             {
               value: EnumInclusionOperator.With,
-              label: "with"
+              label: "with",
             },
             {
               value: EnumInclusionOperator.Without,
-              label: "without"
+              label: "without",
             },
           ],
-          value:  {
+          value: {
             value: EnumInclusionOperator.With,
-            label: "with"
+            label: "with",
           },
         },
         [EnumSelectionType.Completion]: {
           options: [
             {
               value: EnumOptionCompletion.Complete,
-              label: "completed"
-            }
+              label: "completed",
+            },
           ],
           value: {
             value: EnumOptionCompletion.Complete,
-            label: "completed"
-          }
-        }
+            label: "completed",
+          },
+        },
       },
       {
         type: EnumTiggerCarFilterType.CardCustomField2,
@@ -457,16 +494,16 @@ export const cardFilters: CardTriggerFilterType[] = [
           options: [
             {
               value: EnumInclusionOperator.With,
-              label: "with"
+              label: "with",
             },
             {
               value: EnumInclusionOperator.Without,
-              label: "without"
+              label: "without",
             },
           ],
-          value:  {
+          value: {
             value: EnumInclusionOperator.With,
-            label: "with"
+            label: "with",
           },
         },
         [EnumSelectionType.CustomField]: {
@@ -477,14 +514,14 @@ export const cardFilters: CardTriggerFilterType[] = [
           options: [
             {
               value: EnumOptionCompletion.Complete,
-              label: "completed"
-            }
+              label: "completed",
+            },
           ],
           value: {
             value: EnumOptionCompletion.Complete,
-            label: "completed"
-          }
-        }
+            label: "completed",
+          },
+        },
       },
       {
         type: EnumTiggerCarFilterType.CardCustomField3,
@@ -493,16 +530,16 @@ export const cardFilters: CardTriggerFilterType[] = [
           options: [
             {
               value: EnumInclusionOperator.With,
-              label: "with"
+              label: "with",
             },
             {
               value: EnumInclusionOperator.Without,
-              label: "without"
+              label: "without",
             },
           ],
-          value:  {
+          value: {
             value: EnumInclusionOperator.With,
-            label: "with"
+            label: "with",
           },
         },
         [EnumSelectionType.CustomField]: {
@@ -513,16 +550,16 @@ export const cardFilters: CardTriggerFilterType[] = [
           options: [
             {
               value: EnumCustomFieldAction.Set,
-              label: "set"
+              label: "set",
             },
             {
               value: EnumCustomFieldAction.Cleared,
-              label: "cleared"
-            }
+              label: "cleared",
+            },
           ],
           value: {
             value: EnumCustomFieldAction.Set,
-            label: "set"
+            label: "set",
           },
         },
       },
@@ -533,23 +570,23 @@ export const cardFilters: CardTriggerFilterType[] = [
           options: [
             {
               value: EnumInclusionOperator.With,
-              label: "with"
+              label: "with",
             },
             {
               value: EnumInclusionOperator.Without,
-              label: "without"
+              label: "without",
             },
           ],
-          value:  {
+          value: {
             value: EnumInclusionOperator.With,
-            label: "with"
+            label: "with",
           },
         },
         [EnumSelectionType.CustomField]: {
           options: [],
           value: null,
         },
-        [EnumInputType.Text]: null
+        [EnumInputType.Text]: null,
       },
       {
         type: EnumTiggerCarFilterType.CardCustomField5,
@@ -558,16 +595,16 @@ export const cardFilters: CardTriggerFilterType[] = [
           options: [
             {
               value: EnumInclusionOperator.With,
-              label: "with"
+              label: "with",
             },
             {
               value: EnumInclusionOperator.Without,
-              label: "without"
+              label: "without",
             },
           ],
-          value:  {
+          value: {
             value: EnumInclusionOperator.With,
-            label: "with"
+            label: "with",
           },
         },
         [EnumSelectionType.CustomField]: {
@@ -578,18 +615,18 @@ export const cardFilters: CardTriggerFilterType[] = [
           options: [
             {
               value: EnumOptionCheckboxState.Checked,
-              label: "checked"
+              label: "checked",
             },
             {
               value: EnumOptionCheckboxState.Unchecked,
-              label: "unchecked"
+              label: "unchecked",
             },
           ],
           value: {
             value: EnumOptionCheckboxState.Checked,
-            label: "checked"
-          }
-        }
+            label: "checked",
+          },
+        },
       },
       {
         type: EnumTiggerCarFilterType.CardCustomField6,
@@ -598,16 +635,16 @@ export const cardFilters: CardTriggerFilterType[] = [
           options: [
             {
               value: EnumInclusionOperator.With,
-              label: "with"
+              label: "with",
             },
             {
               value: EnumInclusionOperator.Without,
-              label: "without"
+              label: "without",
             },
           ],
-          value:  {
+          value: {
             value: EnumInclusionOperator.With,
-            label: "with"
+            label: "with",
           },
         },
         [EnumSelectionType.CustomField]: {
@@ -618,27 +655,27 @@ export const cardFilters: CardTriggerFilterType[] = [
           options: [
             {
               value: EnumOptionsNumberComparisonOperators.MoreThan,
-              label: "more than"
+              label: "more than",
             },
             {
               value: EnumOptionsNumberComparisonOperators.MoreOrEqual,
-              label: "more or equal to"
+              label: "more or equal to",
             },
             {
               value: EnumOptionsNumberComparisonOperators.FewerThan,
-              label: "fewer than"
+              label: "fewer than",
             },
             {
               value: EnumOptionsNumberComparisonOperators.FewerOrEqual,
-              label: "fewer or equal to"
+              label: "fewer or equal to",
             },
           ],
           value: {
             value: EnumOptionsNumberComparisonOperators.MoreThan,
-            label: "more than"
-          }
+            label: "more than",
+          },
         },
-        [EnumInputType.Number]: null
+        [EnumInputType.Number]: null,
       },
       {
         type: EnumTiggerCarFilterType.CardCustomField7,
@@ -647,53 +684,53 @@ export const cardFilters: CardTriggerFilterType[] = [
           options: [
             {
               value: EnumInclusionOperator.With,
-              label: "with"
+              label: "with",
             },
             {
               value: EnumInclusionOperator.Without,
-              label: "without"
+              label: "without",
             },
           ],
-          value:  {
+          value: {
             value: EnumInclusionOperator.With,
-            label: "with"
+            label: "with",
           },
         },
         [EnumSelectionType.CustomField]: {
           options: [],
           value: null,
         },
-        [EnumSelectionType.Inclusion+"_2"]: {
+        [EnumSelectionType.Inclusion + "_2"]: {
           options: [
             {
               value: EnumInclusionOperator.In,
-              label: "in"
+              label: "in",
             },
             {
               value: EnumInclusionOperator.NotIn,
-              label: "not in"
+              label: "not in",
             },
           ],
           value: {
             value: EnumInclusionOperator.In,
-            label: "in"
-          }
+            label: "in",
+          },
         },
         [EnumSelectionType.TimeRange]: {
           options: [
             {
               value: EnumTimeRangeOperator.ThisWeek,
-              label: "this week"
+              label: "this week",
             },
             {
               value: EnumTimeRangeOperator.ThisMonth,
-              label: "this month"
+              label: "this month",
             },
           ],
           value: {
             value: EnumTimeRangeOperator.ThisWeek,
-            label: "this week"
-          }
+            label: "this week",
+          },
         },
       },
       {
@@ -703,16 +740,16 @@ export const cardFilters: CardTriggerFilterType[] = [
           options: [
             {
               value: EnumInclusionOperator.With,
-              label: "with"
+              label: "with",
             },
             {
               value: EnumInclusionOperator.Without,
-              label: "without"
+              label: "without",
             },
           ],
-          value:  {
+          value: {
             value: EnumInclusionOperator.With,
-            label: "with"
+            label: "with",
           },
         },
         [EnumSelectionType.CustomField]: {
@@ -723,56 +760,56 @@ export const cardFilters: CardTriggerFilterType[] = [
           options: [
             {
               value: EnumTimeComparisonOperator.LessThan,
-              label: "less than"
+              label: "less than",
             },
             {
               value: EnumTimeComparisonOperator.MoreThan,
-              label: "more than"
+              label: "more than",
             },
             {
               value: EnumTimeComparisonOperator.Between,
-              label: "between"
+              label: "between",
             },
           ],
           value: {
             value: EnumTimeComparisonOperator.LessThan,
-            label: "less than"
-          }
+            label: "less than",
+          },
         },
         [EnumInputType.Number]: null,
         [EnumSelectionType.TimeUnit]: {
           options: [
             {
               value: EnumTimeUnit.Days,
-              label: "days"
+              label: "days",
             },
-             {
+            {
               value: EnumTimeUnit.WorkingDays,
-              label: "working days"
-            }
+              label: "working days",
+            },
           ],
           value: {
             value: EnumTimeUnit.Days,
-            label: "days"
-          }
+            label: "days",
+          },
         },
         [EnumSelectionType.TimeRelativeReference]: {
           options: [
             {
               value: EnumTimeRelativeReference.FromNow,
-              label:"from now"
+              label: "from now",
             },
             {
               value: EnumTimeRelativeReference.Ago,
-              label:"ago"
-            }
+              label: "ago",
+            },
           ],
-          value:{
+          value: {
             value: EnumTimeRelativeReference.FromNow,
-            label:"from now"
-          }
-        }
+            label: "from now",
+          },
+        },
       },
-    ]
-  }
+    ],
+  },
 ];

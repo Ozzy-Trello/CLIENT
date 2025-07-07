@@ -77,8 +77,8 @@ export interface CardTimeInList {
 }
 
 export enum EnumCardActivityType {
-  Action = 'action',
-  Comment = 'comment'
+  Action = "action",
+  Comment = "comment",
 }
 
 export interface CardActivity {
@@ -88,8 +88,8 @@ export interface CardActivity {
   senderUserId?: string;
   activityType?: EnumCardActivityType;
   triggeredBy?: string;
-  action?: CardActivityAction,
-  comment?: CardActivityComment,
+  action?: CardActivityAction;
+  comment?: CardActivityComment;
   createdAt?: string;
 }
 
@@ -99,13 +99,13 @@ export interface CardActivityAction {
   action?: string;
   old_value?: any;
   new_value?: any;
+  newValue?: any;
 }
 
 export interface CardActivityComment {
-  id?:string;
+  id?: string;
   text: string;
 }
-
 
 export interface CardCustomField {
   cardId?: string;

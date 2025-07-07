@@ -1,6 +1,6 @@
 // Simple in-memory cache for friendly names of various entities (board, list, user, field).
 // This is per-tab (cleared on refresh) – good enough for UI rendering.
-export type Kind = "board" | "list" | "user" | "field";
+export type Kind = "board" | "list" | "user" | "field" | "label";
 
 class LookupCacheCls {
   private data: Record<Kind, Map<string, string>> = {
@@ -8,6 +8,7 @@ class LookupCacheCls {
     list: new Map(),
     user: new Map(),
     field: new Map(),
+    label: new Map(),
   } as any;
 
   rememberMany(kind: Kind, entries: Array<{ id: string; name: string }>) {

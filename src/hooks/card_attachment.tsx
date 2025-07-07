@@ -1,15 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createCardAttachment, deleteCardAttachment, getCardAttachments } from "../api/card_attachment";
+import {
+  createCardAttachment,
+  deleteCardAttachment,
+  getCardAttachments,
+} from "../api/card_attachment";
 import { ApiResponse } from "../types/type";
 import { TAttachableType, CardAttachment } from "../types/card";
-
+import { useEffect } from "react";
 
 /**
  * Hook to manage card attachments
  */
 export function useCardAttachment(cardId: string) {
   const queryClient = useQueryClient();
-  
+
   // Main query for card attachments
   const cardAttachmentQuery = useQuery({
     queryKey: ["cardAttachment", cardId],
@@ -18,29 +22,64 @@ export function useCardAttachment(cardId: string) {
     staleTime: 5000,
   });
 
+  // WebSocket real-time refetch
+  useEffect(() => {
+    if (!cardId) return;
+    const socket =
+      typeof window !== "undefined" ? (window as any).socket : null;
+    if (!socket) return;
+    const handler = (event: MessageEvent) => {
+      try {
+        const msg = JSON.parse(event.data);
+        console.log("Card attachment WebSocket event:", msg);
+        if (
+          msg.event === "card_attachment:updated" &&
+          msg.data?.cardId === cardId
+        ) {
+          console.log("Invalidating card attachment queries for card:", cardId);
+          queryClient.invalidateQueries({
+            queryKey: ["cardAttachment", cardId],
+          });
+        }
+      } catch (error) {
+        console.error("Error parsing WebSocket message:", error);
+      }
+    };
+    socket.addEventListener("message", handler);
+    return () => {
+      socket.removeEventListener("message", handler);
+    };
+  }, [cardId, queryClient]);
+
   // Create attachment mutation with optimistic updates
   const addAttachmentMutation = useMutation({
-    mutationFn: ({ 
+    mutationFn: ({
       cardId,
       attachableType,
       attachableId,
       isCover,
-    }: { 
-      cardId: string; 
+    }: {
+      cardId: string;
       attachableType: TAttachableType;
       attachableId: string;
       isCover: boolean;
     }) => {
-      return createCardAttachment({cardId, attachableType, attachableId, isCover});
+      return createCardAttachment({
+        cardId,
+        attachableType,
+        attachableId,
+        isCover,
+      });
     },
     onMutate: async ({ cardId, attachableType, attachableId, isCover }) => {
-      
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ["cardAttachment", cardId] });
-      
+
       // Snapshot previous value
-      const previousAttachments = queryClient.getQueryData<ApiResponse<CardAttachment[]>>(["cardAttachment", cardId]);
-      
+      const previousAttachments = queryClient.getQueryData<
+        ApiResponse<CardAttachment[]>
+      >(["cardAttachment", cardId]);
+
       // Create temporary attachment for optimistic update
       const tempAttachment: CardAttachment = {
         id: `temp-${Date.now()}`,
@@ -49,7 +88,7 @@ export function useCardAttachment(cardId: string) {
         attachableId: attachableId,
         isCover: isCover,
         createdBy: "current-user", // This will be replaced when the server responds
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
       };
 
       // Update the UI optimistically
@@ -57,28 +96,28 @@ export function useCardAttachment(cardId: string) {
         ["cardAttachment", cardId],
         (old) => {
           if (!old) return { data: [tempAttachment] };
-          
+
           const oldData = old.data || [];
           // Make sure old.data is an array
           const safeOldData = Array.isArray(oldData) ? oldData : [];
-          
+
           return {
             ...old,
-            data: [...safeOldData, tempAttachment]
+            data: [...safeOldData, tempAttachment],
           };
         }
       );
-      
+
       // Also update the card data in cache if it exists
       updateCardAttachmentsInCache(queryClient, cardId, tempAttachment, "add");
-      
+
       return { previousAttachments };
     },
     onError: (err, variables, context) => {
       console.error("Error adding attachment:", err);
       if (context?.previousAttachments) {
         queryClient.setQueryData(
-          ["cardAttachment", variables.cardId], 
+          ["cardAttachment", variables.cardId],
           context.previousAttachments
         );
       }
@@ -88,11 +127,11 @@ export function useCardAttachment(cardId: string) {
     },
     onSettled: (data, error, variables) => {
       console.log("Add attachment settled, invalidating queries");
-      queryClient.invalidateQueries({ 
-        queryKey: ["cardAttachment", variables.cardId] 
+      queryClient.invalidateQueries({
+        queryKey: ["cardAttachment", variables.cardId],
       });
-      queryClient.invalidateQueries({ 
-        queryKey: ["cards"]
+      queryClient.invalidateQueries({
+        queryKey: ["cards"],
       });
     },
   });
@@ -101,7 +140,7 @@ export function useCardAttachment(cardId: string) {
   const deleteAttachmentMutation = useMutation({
     mutationFn: ({
       attachmentId,
-      cardId
+      cardId,
     }: {
       attachmentId: string;
       cardId: string;
@@ -110,63 +149,85 @@ export function useCardAttachment(cardId: string) {
       return deleteCardAttachment(attachmentId);
     },
     onMutate: async ({ attachmentId, cardId }) => {
-      console.log("Optimistically deleting attachment:", { attachmentId, cardId });
-      
+      console.log("Optimistically deleting attachment:", {
+        attachmentId,
+        cardId,
+      });
+
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ["cardAttachment", cardId] });
-      
+
       // Snapshot previous value
-      const previousAttachments = queryClient.getQueryData<ApiResponse<CardAttachment[]>>(["cardAttachment", cardId]);
-      
+      const previousAttachments = queryClient.getQueryData<
+        ApiResponse<CardAttachment[]>
+      >(["cardAttachment", cardId]);
+
       // Find the attachment to be deleted for updating card cache
       let attachmentToDelete: CardAttachment | undefined;
       if (previousAttachments?.data) {
-        attachmentToDelete = previousAttachments.data.find(att => att.id === attachmentId);
+        attachmentToDelete = previousAttachments.data.find(
+          (att) => att.id === attachmentId
+        );
       }
-      
+
       // Update the UI optimistically
       queryClient.setQueryData<ApiResponse<CardAttachment[]>>(
         ["cardAttachment", cardId],
         (old) => {
           if (!old) return { data: [] };
-          
+
           const oldData = old.data || [];
           // Make sure old.data is an array
           const safeOldData = Array.isArray(oldData) ? oldData : [];
-          
+
           return {
             ...old,
-            data: safeOldData.filter(attachment => attachment.id !== attachmentId)
+            data: safeOldData.filter(
+              (attachment) => attachment.id !== attachmentId
+            ),
           };
         }
       );
-      
+
       // Also update the card data in cache if it exists
       if (attachmentToDelete) {
-        updateCardAttachmentsInCache(queryClient, cardId, attachmentToDelete, "delete");
+        updateCardAttachmentsInCache(
+          queryClient,
+          cardId,
+          attachmentToDelete,
+          "delete"
+        );
       }
-      
+
       return { previousAttachments };
     },
     onError: (err, variables, context) => {
       console.error("Error deleting attachment:", err);
       if (context?.previousAttachments) {
         queryClient.setQueryData(
-          ["cardAttachment", variables.cardId], 
+          ["cardAttachment", variables.cardId],
           context.previousAttachments
         );
       }
     },
     onSuccess: (data, variables) => {
-      console.log("Successfully deleted attachment:", data);
+      console.log(
+        "Successfully deleted attachment:",
+        data,
+        "for variables:",
+        variables
+      );
     },
     onSettled: (data, error, variables) => {
-      console.log("Delete attachment settled, invalidating queries");
-      queryClient.invalidateQueries({ 
-        queryKey: ["cardAttachment", variables.cardId] 
+      console.log(
+        "Delete attachment settled, invalidating queries for card:",
+        variables.cardId
+      );
+      queryClient.invalidateQueries({
+        queryKey: ["cardAttachment", variables.cardId],
       });
-      queryClient.invalidateQueries({ 
-        queryKey: ["cards"]
+      queryClient.invalidateQueries({
+        queryKey: ["cards"],
       });
     },
   });
@@ -180,109 +241,101 @@ export function useCardAttachment(cardId: string) {
   ) {
     try {
       // Update card data in the cards cache
-      queryClient.setQueriesData(
-        { queryKey: ["cards"] },
-        (old: any) => {
-          if (!old || !old.data) return old;
-          
-          const oldData = old.data || [];
-          // Ensure old.data is an array before mapping
-          const safeData = Array.isArray(oldData) ? oldData : [];
-          
-          return {
-            ...old,
-            data: safeData.map((card: any) => {
-              if (card.id === cardId) {
-                // Deep clone to avoid mutation
-                const updatedCard = { ...card };
-                
-                // Initialize attachments array if it doesn't exist
-                if (!updatedCard.attachments) {
-                  updatedCard.attachments = [];
-                }
-                
-                const cardAttachments = updatedCard.attachments || [];
-                // Ensure attachments is an array
-                const safeAttachments = Array.isArray(cardAttachments) ? cardAttachments : [];
-                
-                if (action === "delete") {
-                  // Remove the attachment
-                  updatedCard.attachments = safeAttachments.filter(
-                    (att: any) => att.id !== attachment.id
-                  );
-                } else if (action === "add") {
-                  // Add new attachment
-                  updatedCard.attachments = [
-                    ...safeAttachments,
-                    attachment
-                  ];
-                }
-                
-                return updatedCard;
+      queryClient.setQueriesData({ queryKey: ["cards"] }, (old: any) => {
+        if (!old || !old.data) return old;
+
+        const oldData = old.data || [];
+        // Ensure old.data is an array before mapping
+        const safeData = Array.isArray(oldData) ? oldData : [];
+
+        return {
+          ...old,
+          data: safeData.map((card: any) => {
+            if (card.id === cardId) {
+              // Deep clone to avoid mutation
+              const updatedCard = { ...card };
+
+              // Initialize attachments array if it doesn't exist
+              if (!updatedCard.attachments) {
+                updatedCard.attachments = [];
               }
-              return card;
-            })
-          };
-        }
-      );
+
+              const cardAttachments = updatedCard.attachments || [];
+              // Ensure attachments is an array
+              const safeAttachments = Array.isArray(cardAttachments)
+                ? cardAttachments
+                : [];
+
+              if (action === "delete") {
+                // Remove the attachment
+                updatedCard.attachments = safeAttachments.filter(
+                  (att: any) => att.id !== attachment.id
+                );
+              } else if (action === "add") {
+                // Add new attachment
+                updatedCard.attachments = [...safeAttachments, attachment];
+              }
+
+              return updatedCard;
+            }
+            return card;
+          }),
+        };
+      });
 
       // Also update lists cache if it contains cards
-      queryClient.setQueriesData(
-        { queryKey: ["lists"] },
-        (old: any) => {
-          if (!old || !old.data) return old;
-          
-          const oldData = old.data || [];
-          // Ensure old.data is an array before mapping
-          const safeData = Array.isArray(oldData) ? oldData : [];
-          
-          return {
-            ...old,
-            data: safeData.map((list: any) => {
-              if (!list.cards) return list;
-              
-              const listCards = list.cards || [];
-              // Ensure list.cards is an array
-              const safeCards = Array.isArray(listCards) ? listCards : [];
-              
-              return {
-                ...list,
-                cards: safeCards.map((card: any) => {
-                  if (card.id === cardId) {
-                    // Deep clone to avoid mutation
-                    const updatedCard = { ...card };
-                    
-                    // Initialize attachments array if it doesn't exist
-                    if (!updatedCard.attachments) {
-                      updatedCard.attachments = [];
-                    }
-                    
-                    const cardAttachments = updatedCard.attachments || [];
-                    // Ensure attachments is an array
-                    const safeAttachments = Array.isArray(cardAttachments) ? cardAttachments : [];
-                    
-                    if (action === "delete") {
-                      // Remove the attachment
-                      updatedCard.attachments = safeAttachments.filter(
-                        (att: any) => att.id !== attachment.id
-                      );
-                    } else if (action === "add") {
-                      // Add new attachment
-                      updatedCard.attachments = [
-                        ...safeAttachments,
-                        attachment
-                      ];
-                    }
-                    
-                    return updatedCard;
+      queryClient.setQueriesData({ queryKey: ["lists"] }, (old: any) => {
+        if (!old || !old.data) return old;
+
+        const oldData = old.data || [];
+        // Ensure old.data is an array before mapping
+        const safeData = Array.isArray(oldData) ? oldData : [];
+
+        return {
+          ...old,
+          data: safeData.map((list: any) => {
+            if (!list.cards) return list;
+
+            const listCards = list.cards || [];
+            // Ensure list.cards is an array
+            const safeCards = Array.isArray(listCards) ? listCards : [];
+
+            return {
+              ...list,
+              cards: safeCards.map((card: any) => {
+                if (card.id === cardId) {
+                  // Deep clone to avoid mutation
+                  const updatedCard = { ...card };
+
+                  // Initialize attachments array if it doesn't exist
+                  if (!updatedCard.attachments) {
+                    updatedCard.attachments = [];
                   }
-                  return card;
-                })
-              };
-            })
-          };
-        }
-      );
+
+                  const cardAttachments = updatedCard.attachments || [];
+                  // Ensure attachments is an array
+                  const safeAttachments = Array.isArray(cardAttachments)
+                    ? cardAttachments
+                    : [];
+
+                  if (action === "delete") {
+                    // Remove the attachment
+                    updatedCard.attachments = safeAttachments.filter(
+                      (att: any) => att.id !== attachment.id
+                    );
+                  } else if (action === "add") {
+                    // Add new attachment
+                    updatedCard.attachments = [...safeAttachments, attachment];
+                  }
+
+                  return updatedCard;
+                }
+                return card;
+              }),
+            };
+          }),
+        };
+      });
     } catch (error) {
       console.error("Error in updateCardAttachmentsInCache:", error);
     }

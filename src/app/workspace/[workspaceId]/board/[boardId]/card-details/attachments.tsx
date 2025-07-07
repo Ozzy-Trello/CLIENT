@@ -29,6 +29,7 @@ import {
   FileZipOutlined,
   FileTextOutlined,
   FileOutlined,
+  DeleteOutlined,
 } from "@ant-design/icons";
 import { useCardAttachment } from "@hooks/card_attachment";
 import UploadModal from "@components/modal-upload/modal-upload";
@@ -37,6 +38,7 @@ import { User } from "@myTypes/user";
 import { FileUpload } from "@myTypes/file-upload";
 import QRCode from "react-qr-code";
 import { uploadFile } from "@api/file";
+import { deleteCardAttachment } from "@api/card_attachment";
 
 interface AttachmentsProps {
   card: Card;
@@ -46,7 +48,8 @@ interface AttachmentsProps {
 
 const Attachments: React.FC<AttachmentsProps> = (props) => {
   const { card, setCard, currentUser } = props;
-  const { cardAttachments, addAttachment } = useCardAttachment(card?.id || "");
+  const { cardAttachments, addAttachment, deleteAttachment } =
+    useCardAttachment(card?.id || "");
   const [openUploadModal, setOpenUploadmodal] = useState<boolean>(false);
   const attachmentsRef = useRef<HTMLDivElement>(null);
   const [isDraggingOver, setIsDraggingOver] = useState<boolean>(false);
@@ -771,10 +774,21 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
                   />
                 )}
                 <Button
-                  icon={<EllipsisOutlined />}
+                  icon={<DeleteOutlined />}
                   size="small"
-                  title="More options"
+                  title="Delete attachment"
+                  danger
                   className="flex items-center justify-center border-0 shadow-none"
+                  onClick={async () => {
+                    console.log("Deleting attachment:", {
+                      attachmentId: item.id,
+                      cardId: card.id,
+                    });
+                    deleteAttachment({
+                      attachmentId: item.id,
+                      cardId: card.id || "",
+                    });
+                  }}
                 />
               </div>
             </List.Item>
@@ -831,10 +845,21 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
                       className="flex items-center justify-center border-0 shadow-none"
                     />
                     <Button
-                      icon={<EllipsisOutlined />}
+                      icon={<DeleteOutlined />}
                       size="small"
-                      title="More options"
+                      title="Delete attachment"
+                      danger
                       className="flex items-center justify-center border-0 shadow-none"
+                      onClick={async () => {
+                        console.log("Deleting card attachment:", {
+                          attachmentId: item.id,
+                          cardId: card.id,
+                        });
+                        deleteAttachment({
+                          attachmentId: item.id,
+                          cardId: card.id || "",
+                        });
+                      }}
                     />
                   </div>
                 </List.Item>

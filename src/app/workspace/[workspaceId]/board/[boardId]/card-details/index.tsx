@@ -70,6 +70,7 @@ const CardDetails: React.FC = (props) => {
     addMember,
     isAddingMember,
     refetch: refetchMember,
+    removeMember,
   } = useCardMembers(selectedCard?.id || "");
   const { cardLabels } = useLabels(workspaceId as string, selectedCard?.id, {
     cardId: selectedCard?.id || "",
@@ -77,15 +78,25 @@ const CardDetails: React.FC = (props) => {
   const { cardActivities } = useCardActivity(selectedCard?.id || "");
   const [openAddMember, setOpenAddMember] = useState<boolean>(false);
   const [openLabel, setOpenLabel] = useState<boolean>(false);
-  const { completeCard, incompleteCard } = useCardDetails("", "", boardId as string);  
+  const { completeCard, incompleteCard } = useCardDetails(
+    "",
+    "",
+    boardId as string
+  );
 
- const onCompletionChange = (e: CheckboxChangeEvent) => {
+  const onCompletionChange = (e: CheckboxChangeEvent) => {
     e.stopPropagation();
     const isComplete = e.target.checked;
     if (isComplete) {
-      completeCard({listId:selectedCard?.listId || "", cardId: selectedCard?.id || ""});
+      completeCard({
+        listId: selectedCard?.listId || "",
+        cardId: selectedCard?.id || "",
+      });
     } else {
-      incompleteCard({listId:selectedCard?.listId || "", cardId: selectedCard?.id || ""});
+      incompleteCard({
+        listId: selectedCard?.listId || "",
+        cardId: selectedCard?.id || "",
+      });
     }
   };
 
@@ -161,7 +172,9 @@ const CardDetails: React.FC = (props) => {
           <div className="flex items-center justify-between bg-gray-100 px-4 py-2 rounded-md border border-gray-200 mb-4">
             <div className="flex items-center gap-2 text-sm text-gray-700">
               <Info size={20} className="text-yellow-600" />
-              <span>You are viewing this card outside of its original location</span>
+              <span>
+                You are viewing this card outside of its original location
+              </span>
             </div>
             <Button
               size="small"
@@ -172,17 +185,24 @@ const CardDetails: React.FC = (props) => {
           </div>
         )}
 
+        {/* Archived badge */}
+        {selectedCard?.archive && (
+          <div className="w-full bg-red-100 text-red-800 px-4 py-3 rounded-md text-center font-bold text-base mb-4 border border-red-200 shadow">
+            This card is archived
+          </div>
+        )}
+
         <div className="p-5">
           <Row>
             <Col flex="0 1 75%">
               <div className="flex items-center gap-2 mb-4">
                 <Checkbox
-                  className={
-                    `custom-circular-checkbox absolute left-0 -ml-6 transition-all duration-300 
-                    ${selectedCard?.isComplete ? "completed" : ""}`
-                  }
+                  className={`custom-circular-checkbox absolute left-0 -ml-6 transition-all duration-300 
+                    ${selectedCard?.isComplete ? "completed" : ""}`}
                   checked={selectedCard?.isComplete}
-                  onChange={(e) => {onCompletionChange(e)}}
+                  onChange={(e) => {
+                    onCompletionChange(e);
+                  }}
                   onClick={(e) => e.stopPropagation()}
                 />
                 {isEditingTitle ? (
@@ -249,6 +269,7 @@ const CardDetails: React.FC = (props) => {
                         openAddMember={openAddMember}
                         setOpenAddMember={setOpenAddMember}
                         onUserSelectionChange={onUserSelectionChange}
+                        onRemoveMember={removeMember}
                       />
                     </div>
                   </div>
@@ -407,7 +428,6 @@ const CardDetails: React.FC = (props) => {
               {/* Activity Section */}
               {selectedCard && (
                 <Activity
-                  activities={cardActivities || []}
                   currentUser={currentUser}
                   card={selectedCard}
                   setCard={setSelectedCard}

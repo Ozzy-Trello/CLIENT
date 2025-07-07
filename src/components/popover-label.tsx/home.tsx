@@ -6,7 +6,7 @@ import { Pencil } from "lucide-react";
 import { CardLabel } from "@myTypes/label";
 import { useParams } from "next/navigation";
 import { Card } from "@myTypes/card";
-import { useLabels } from "@hooks/label";
+import { usePaginatedLabels } from "@hooks/label";
 
 interface LabelManagerProps {
   popoverPage: "home" | "add" | "update";
@@ -21,10 +21,17 @@ const Home: React.FC<LabelManagerProps> = (props) => {
   const { setPopoverPage, setSelectedLabel, selectedCard } = props;
   const [searchTerm, setSearchTerm] = useState("");
 
-  const { labels, addCardLabel, removeCardLabel } = useLabels(
+  const {
+    labels,
+    isFetching,
+    hasMore,
+    loadMore,
+    addCardLabel,
+    removeCardLabel,
+  } = usePaginatedLabels(
     workspaceId as string,
-    selectedCard?.id,
-    { cardId: selectedCard?.id }
+    { cardId: selectedCard?.id },
+    selectedCard?.id
   );
 
   const filteredLabels: CardLabel[] = useMemo(() => {
@@ -38,7 +45,6 @@ const Home: React.FC<LabelManagerProps> = (props) => {
       label.name?.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [searchTerm, labels]);
-
 
   const toggleCheck = async (isChecked: boolean, labelId: string) => {
     if (!selectedCard || !workspaceId) {
@@ -114,9 +120,17 @@ const Home: React.FC<LabelManagerProps> = (props) => {
         <Button block size="small" onClick={() => setPopoverPage("add")}>
           Create a new label
         </Button>
-        <Button block size="small" type="default">
-          Show more labels
-        </Button>
+        {hasMore && (
+          <Button
+            block
+            size="small"
+            type="default"
+            onClick={loadMore}
+            disabled={isFetching}
+          >
+            {isFetching ? "Loading..." : "Show more labels"}
+          </Button>
+        )}
       </div>
     </div>
   );

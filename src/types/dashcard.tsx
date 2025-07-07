@@ -65,9 +65,12 @@ export const dashcardsFilter: DashcardFilter[] = [
     type: EnumCardAttributeType.BOARD,
     operator: FilterOperator.ANY,
     options: [
-      { label: "any", value: FilterOperator.ANY },
-      { label: "starts with", value: FilterOperator.STARTS_WITH },
-      { label: "matches with", value: FilterOperator.MATCHES_WITH },
+      { label: "any", value: "any" },
+      { label: "on this board", value: "on_this_board" },
+      { label: "is one of", value: "is_one_of" },
+      { label: "is not one of", value: "is_not_one_of" },
+      { label: "name starts with", value: "name_starts_with" },
+      { label: "name matches", value: "name_matches" },
     ],
   },
   {
@@ -77,9 +80,12 @@ export const dashcardsFilter: DashcardFilter[] = [
     type: EnumCardAttributeType.LIST,
     operator: FilterOperator.ANY,
     options: [
-      { label: "any", value: FilterOperator.ANY },
-      { label: "starts with", value: FilterOperator.STARTS_WITH },
-      { label: "matches with", value: FilterOperator.MATCHES_WITH },
+      { label: "any", value: "any" },
+      { label: "on this list", value: "on_this_list" },
+      { label: "is one of", value: "is_one_of" },
+      { label: "is not one of", value: "is_not_one_of" },
+      { label: "name starts with", value: "name_starts_with" },
+      { label: "name matches", value: "name_matches" },
     ],
   },
   {

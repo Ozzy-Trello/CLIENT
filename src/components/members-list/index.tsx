@@ -1,5 +1,5 @@
 import { Avatar, Tooltip } from "antd";
-import { ChevronLeft, Plus } from "lucide-react";
+import { ChevronLeft, Plus, X } from "lucide-react";
 import { useState } from "react";
 import PopoverUser from "../popover-user";
 import { User } from "@myTypes/user";
@@ -11,6 +11,7 @@ interface MembersListProps {
   openAddMember?: boolean;
   setOpenAddMember?: (open: boolean) => void;
   onUserSelectionChange?: (value: string, option?: any) => void;
+  onRemoveMember?: (userId: string) => void;
 }
 
 const MembersList: React.FC<MembersListProps> = ({
@@ -20,6 +21,7 @@ const MembersList: React.FC<MembersListProps> = ({
   openAddMember,
   setOpenAddMember,
   onUserSelectionChange,
+  onRemoveMember,
 }) => {
   const [limit, setLimit] = useState<number>(membersLoopLimit);
 
@@ -110,7 +112,7 @@ const MembersList: React.FC<MembersListProps> = ({
               placement="top"
             >
               <div
-                className="relative transition-transform hover:scale-110 hover:z-10 cursor-pointer"
+                className="relative transition-transform hover:scale-110 hover:z-10 cursor-pointer group"
                 style={{ zIndex: members.length - index }}
               >
                 {member?.avatar ? (
@@ -132,6 +134,17 @@ const MembersList: React.FC<MembersListProps> = ({
                   >
                     {getInitials(member)}
                   </Avatar>
+                )}
+                {onRemoveMember && (
+                  <button
+                    className="absolute -top-1 -right-1 bg-white rounded-full p-0.5 shadow hidden group-hover:flex border border-gray-200 hover:bg-red-50"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRemoveMember(member.id);
+                    }}
+                  >
+                    <X size={6} className="text-gray-400 hover:text-red-500" />
+                  </button>
                 )}
               </div>
             </Tooltip>

@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Drawer, message } from "antd";
+import React, { useState, useEffect } from "react";
+import { Drawer, message, Input, Spin, Empty } from "antd";
 import {
   InfoCircleOutlined,
   InboxOutlined,
@@ -15,6 +15,10 @@ import BoardSettingsModal from "../board-settings-modal";
 import { useQueryClient } from "@tanstack/react-query";
 import { useUpdateBoard } from "../../hooks/board";
 import { Board } from "../../types/board";
+import { useArchivedCards } from "@hooks/archived_cards";
+import RegularCard from "@app/workspace/[workspaceId]/board/[boardId]/draggable-card/regular";
+import { Card } from "@myTypes/card";
+import { useCardDetailContext } from "@providers/card-detail-context";
 
 interface BoardMenuSidebarProps {
   visible: boolean;
@@ -64,9 +68,26 @@ const BoardScopeMenu: React.FC<BoardMenuSidebarProps> = ({
   const resolvedWorkspaceId =
     typeof workspaceId === "string" ? workspaceId : workspaceId?.[0] || "";
   const { mutate: updateBoard } = useUpdateBoard(resolvedWorkspaceId);
+  const { openCardDetail } = useCardDetailContext();
 
   // State for settings modal
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+
+  // Archived drawer state
+  const [archivedOpen, setArchivedOpen] = useState(false);
+  const [searchArchived, setSearchArchived] = useState("");
+
+  console.log(boardId, "<< boardId");
+
+  const boardIdString =
+    typeof boardId === "string" ? boardId : boardId?.[0] || "";
+  console.log(boardIdString, "<< boardIdString");
+  const {
+    data: archivedResp,
+    isLoading: archivedLoading,
+    refetch: refetchArchived,
+  } = useArchivedCards(boardIdString, searchArchived, archivedOpen);
+  const archivedCards: Card[] = archivedResp?.data || [];
 
   const onClose = () => {
     setIsVisible(false);
@@ -74,6 +95,10 @@ const BoardScopeMenu: React.FC<BoardMenuSidebarProps> = ({
 
   const handleSettingsClick = () => {
     setIsSettingsModalOpen(true);
+  };
+
+  const handleArchivedClick = () => {
+    setArchivedOpen(true);
   };
 
   const handleSettingsClose = () => {
@@ -104,6 +129,13 @@ const BoardScopeMenu: React.FC<BoardMenuSidebarProps> = ({
     );
   };
 
+  // Refetch whenever drawer opens
+  useEffect(() => {
+    if (archivedOpen) {
+      refetchArchived();
+    }
+  }, [archivedOpen, refetchArchived]);
+
   return (
     <>
       <Drawer
@@ -131,6 +163,7 @@ const BoardScopeMenu: React.FC<BoardMenuSidebarProps> = ({
           <MenuItem
             icon={<InboxOutlined size={16} />}
             text="Archived items"
+            onClick={handleArchivedClick}
             divider={true}
           />
 
@@ -166,6 +199,55 @@ const BoardScopeMenu: React.FC<BoardMenuSidebarProps> = ({
           {/* Make template section hidden for now */}
           {/* <MenuItem icon={<Trello size={16} />} text="Make template" /> */}
         </div>
+      </Drawer>
+
+      {/* Archived Cards Drawer */}
+      <Drawer
+        title="Archived cards"
+        placement="right"
+        width={360}
+        onClose={() => setArchivedOpen(false)}
+        open={archivedOpen}
+      >
+        <Input.Search
+          placeholder="Search archived cards"
+          allowClear
+          onChange={(e) => setSearchArchived(e.target.value)}
+          className="mb-4"
+        />
+
+        {archivedLoading ? (
+          <div className="flex justify-center items-center h-full">
+            <Spin />
+          </div>
+        ) : archivedCards.length === 0 ? (
+          <Empty description="No archived cards" />
+        ) : (
+          <div
+            className="flex flex-col gap-4 overflow-y-auto pr-2"
+            style={{ maxHeight: "calc(100vh - 200px)" }}
+          >
+            {archivedCards.map((card) => (
+              <div
+                key={card.id}
+                className="bg-white rounded-lg border border-gray-200 max-w-sm hover:border-blue-500 transition-all duration-300 overflow-hidden cursor-pointer shadow-sm"
+                onClick={() =>
+                  openCardDetail(card, {
+                    id: card.listId,
+                    name: card.listName,
+                    boardId: card.boardId || "",
+                  })
+                }
+              >
+                <RegularCard
+                  card={card as any}
+                  isHovered={false}
+                  onCompletionChange={() => {}}
+                />
+              </div>
+            ))}
+          </div>
+        )}
       </Drawer>
 
       {/* Board Settings Modal */}

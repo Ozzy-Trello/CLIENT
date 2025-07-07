@@ -1,9 +1,14 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { customFields, createCustomField, updateCustomField, deleteCustomField, reorderCustomFields as apiReorderCustomFields } from "../api/custom_field";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  customFields,
+  createCustomField,
+  updateCustomField,
+  deleteCustomField,
+  reorderCustomFields as apiReorderCustomFields,
+} from "../api/custom_field";
 import { ApiResponse } from "../types/type";
 import { CustomField } from "@myTypes/custom-field";
 import { useCardDetailContext } from "@providers/card-detail-context";
-
 
 export function useCustomFields(workspaceId: string) {
   const queryClient = useQueryClient();
@@ -16,25 +21,27 @@ export function useCustomFields(workspaceId: string) {
 
   const invalidateSpecificCardCustomFields = (cardId?: string) => {
     if (cardId) {
-      console.log("invalidating card cc nih: card: "+cardId);
+      console.log("invalidating card cc nih: card: " + cardId);
       queryClient.invalidateQueries({
-        queryKey: ["cardCustomField", cardId, workspaceId]
+        queryKey: ["cardCustomField", cardId, workspaceId],
       });
     }
   };
 
   // Create custom field mutation with optimistic update
   const createMutation = useMutation({
-    mutationFn: (customField: Partial<CustomField>) => 
-    createCustomField(customField, workspaceId),
+    mutationFn: (customField: Partial<CustomField>) =>
+      createCustomField(customField, workspaceId),
     onMutate: async (newCustomField) => {
       // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ["customFields", workspaceId] });
+      await queryClient.cancelQueries({
+        queryKey: ["customFields", workspaceId],
+      });
 
       // Snapshot the previous value
-      const previousCustomFields = queryClient.getQueryData<ApiResponse<CustomField[]>>(
-        ["customFields", workspaceId]
-      );
+      const previousCustomFields = queryClient.getQueryData<
+        ApiResponse<CustomField[]>
+      >(["customFields", workspaceId]);
 
       // Optimistically update to the new value
       if (previousCustomFields?.data) {
@@ -49,7 +56,7 @@ export function useCustomFields(workspaceId: string) {
           ["customFields", workspaceId],
           {
             ...previousCustomFields,
-            data: [...previousCustomFields.data, optimisticCustomField]
+            data: [...previousCustomFields.data, optimisticCustomField],
           }
         );
       }
@@ -68,24 +75,33 @@ export function useCustomFields(workspaceId: string) {
     },
     onSettled: () => {
       // Always refetch after error or success
-      queryClient.invalidateQueries({ queryKey: ["customFields", workspaceId] });
+      queryClient.invalidateQueries({
+        queryKey: ["customFields", workspaceId],
+      });
     },
   });
 
   // Update custom field mutation with optimistic update
   const updateMutation = useMutation({
-    mutationFn: ({ id, updates }: { id: string; updates: Partial<CustomField> }) =>
-    updateCustomField(id, updates),
+    mutationFn: ({
+      id,
+      updates,
+    }: {
+      id: string;
+      updates: Partial<CustomField>;
+    }) => updateCustomField(id, updates),
     onMutate: async ({ id, updates }) => {
-      await queryClient.cancelQueries({ queryKey: ["customFields", workspaceId] });
+      await queryClient.cancelQueries({
+        queryKey: ["customFields", workspaceId],
+      });
 
-      const previousCustomFields = queryClient.getQueryData<ApiResponse<CustomField[]>>(
-        ["customFields", workspaceId]
-      );
+      const previousCustomFields = queryClient.getQueryData<
+        ApiResponse<CustomField[]>
+      >(["customFields", workspaceId]);
 
       if (previousCustomFields?.data) {
-        const updatedData = previousCustomFields.data.map(field =>
-          field.id === id 
+        const updatedData = previousCustomFields.data.map((field) =>
+          field.id === id
             ? { ...field, ...updates, updatedAt: new Date().toISOString() }
             : field
         );
@@ -94,7 +110,7 @@ export function useCustomFields(workspaceId: string) {
           ["customFields", workspaceId],
           {
             ...previousCustomFields,
-            data: updatedData
+            data: updatedData,
           }
         );
       }
@@ -110,7 +126,9 @@ export function useCustomFields(workspaceId: string) {
       }
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["customFields", workspaceId] });
+      queryClient.invalidateQueries({
+        queryKey: ["customFields", workspaceId],
+      });
     },
   });
 
@@ -118,22 +136,24 @@ export function useCustomFields(workspaceId: string) {
   const deleteMutation = useMutation({
     mutationFn: (customFieldId: string) => deleteCustomField(customFieldId),
     onMutate: async (customFieldId) => {
-      await queryClient.cancelQueries({ queryKey: ["customFields", workspaceId] });
+      await queryClient.cancelQueries({
+        queryKey: ["customFields", workspaceId],
+      });
 
-      const previousCustomFields = queryClient.getQueryData<ApiResponse<CustomField[]>>(
-        ["customFields", workspaceId]
-      );
+      const previousCustomFields = queryClient.getQueryData<
+        ApiResponse<CustomField[]>
+      >(["customFields", workspaceId]);
 
       if (previousCustomFields?.data) {
         const filteredData = previousCustomFields.data.filter(
-          field => field.id !== customFieldId
+          (field) => field.id !== customFieldId
         );
 
         queryClient.setQueryData<ApiResponse<CustomField[]>>(
           ["customFields", workspaceId],
           {
             ...previousCustomFields,
-            data: filteredData
+            data: filteredData,
           }
         );
       }
@@ -149,54 +169,69 @@ export function useCustomFields(workspaceId: string) {
       }
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["customFields", workspaceId] });
+      queryClient.invalidateQueries({
+        queryKey: ["customFields", workspaceId],
+      });
     },
   });
 
   // Reorder custom fields mutation with optimistic update
   const reorderMutation = useMutation({
-    mutationFn: (params: { customFieldId: string; targetPosition: number; positionType?: 'top' | 'bottom' }) => 
-      apiReorderCustomFields(workspaceId, params.customFieldId, params.targetPosition, params.positionType),
+    mutationFn: (params: {
+      customFieldId: string;
+      targetPosition: number;
+      positionType?: "top" | "bottom";
+    }) =>
+      apiReorderCustomFields(
+        workspaceId,
+        params.customFieldId,
+        params.targetPosition,
+        params.positionType
+      ),
     onMutate: async (params) => {
-      await queryClient.cancelQueries({ queryKey: ["customFields", workspaceId] });
+      await queryClient.cancelQueries({
+        queryKey: ["customFields", workspaceId],
+      });
 
-      const previousCustomFields = queryClient.getQueryData<ApiResponse<CustomField[]>>(
-        ["customFields", workspaceId]
-      );
+      const previousCustomFields = queryClient.getQueryData<
+        ApiResponse<CustomField[]>
+      >(["customFields", workspaceId]);
 
       if (previousCustomFields?.data) {
         // Find the custom field being moved
-        const movedFieldIndex = previousCustomFields.data.findIndex(field => field.id === params.customFieldId);
+        const movedFieldIndex = previousCustomFields.data.findIndex(
+          (field) => field.id === params.customFieldId
+        );
         if (movedFieldIndex === -1) return { previousCustomFields };
-        
+
         const movedField = previousCustomFields.data[movedFieldIndex];
         const newData = [...previousCustomFields.data];
-        
+
         // Remove the moved field from its original position
         newData.splice(movedFieldIndex, 1);
-        
+
         // Calculate the new index based on target position and position type
         let newIndex = params.targetPosition;
-        if (params.positionType === 'top' && newIndex > 0) {
+        if (params.positionType === "top" && newIndex > 0) {
           newIndex = newIndex - 1; // Adjust for 0-based index when moving to top
-        } else if (params.positionType === 'bottom') {
+        } else if (params.positionType === "bottom") {
           newIndex = newIndex + 1; // Insert after the target when moving to bottom
         }
-        
+
         // Insert the moved field at the new position
         newData.splice(newIndex, 0, movedField);
-        
+
         // Update the order property based on the new position
         const reorderedData = newData.map((field, index) => ({
           ...field,
-          order: index * 10000 // Use the same large gap as backend
+          order: index * 10000, // Use the same large gap as backend
         }));
 
         queryClient.setQueryData<ApiResponse<CustomField[]>>(
           ["customFields", workspaceId],
           {
             ...previousCustomFields,
-            data: reorderedData
+            data: reorderedData,
           }
         );
       }
@@ -212,7 +247,9 @@ export function useCustomFields(workspaceId: string) {
       }
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["customFields", workspaceId] });
+      queryClient.invalidateQueries({
+        queryKey: ["customFields", workspaceId],
+      });
     },
   });
 
@@ -220,36 +257,44 @@ export function useCustomFields(workspaceId: string) {
   const reorderCustomFields = (startIndex: number, endIndex: number) => {
     const fields = [...(customFieldQuery.data?.data || [])];
     if (startIndex === endIndex) return;
-    
+
     const fieldId = fields[startIndex]?.id;
     if (!fieldId) return;
-    
+
     // Determine position type (top/bottom) based on movement direction
-    const positionType = endIndex === 0 ? 'top' : 
-                        endIndex >= fields.length - 1 ? 'bottom' : undefined;
-    
+    const positionType =
+      endIndex === 0
+        ? "top"
+        : endIndex >= fields.length - 1
+        ? "bottom"
+        : undefined;
+
     reorderMutation.mutate({
       customFieldId: fieldId,
       targetPosition: endIndex,
-      positionType
+      positionType,
     });
   };
 
   // Helper function to move a field to a specific position
   const moveCustomFieldToPosition = (fieldId: string, newPosition: number) => {
     const fields = [...(customFieldQuery.data?.data || [])];
-    const currentIndex = fields.findIndex(field => field.id === fieldId);
-    
+    const currentIndex = fields.findIndex((field) => field.id === fieldId);
+
     if (currentIndex === -1 || currentIndex === newPosition) return;
-    
+
     // Determine position type (top/bottom) based on target position
-    const positionType = newPosition === 0 ? 'top' : 
-                        newPosition >= fields.length - 1 ? 'bottom' : undefined;
-    
+    const positionType =
+      newPosition === 0
+        ? "top"
+        : newPosition >= fields.length - 1
+        ? "bottom"
+        : undefined;
+
     reorderMutation.mutate({
       customFieldId: fieldId,
       targetPosition: newPosition,
-      positionType
+      positionType,
     });
   };
 
@@ -260,20 +305,20 @@ export function useCustomFields(workspaceId: string) {
     isError: customFieldQuery.isError,
     error: customFieldQuery.error,
     invalidateSpecificCardCustomFields,
-    
+
     // Mutations
     createCustomField: createMutation.mutate,
     updateCustomField: updateMutation.mutate,
     deleteCustomField: deleteMutation.mutate,
     reorderCustomFields,
     moveCustomFieldToPosition,
-    
+
     // Mutation states
     isCreating: createMutation.isPending,
     isUpdating: updateMutation.isPending,
     isDeleting: deleteMutation.isPending,
     isReordering: reorderMutation.isPending,
-    
+
     // Async versions for when you need promises
     createCustomFieldAsync: createMutation.mutateAsync,
     updateCustomFieldAsync: updateMutation.mutateAsync,

@@ -1507,17 +1507,17 @@ export const actions: AutomationRuleAction[] = [
           options: [
             {
               value: EnumOptionCompletion.Complete,
-              label: "complete"
+              label: "complete",
             },
             {
               value: EnumOptionCompletion.Incomplete,
-              label: "incomplete"
-            }
+              label: "incomplete",
+            },
           ],
           value: {
             value: EnumOptionCompletion.Complete,
-            label: "complete"
-          }
+            label: "complete",
+          },
         },
         [EnumSelectionType.Action]: {
           options: [
@@ -1530,7 +1530,7 @@ export const actions: AutomationRuleAction[] = [
             value: EnumActions.MarkCardCompletion,
             label: "Mark",
           },
-        }
+        },
       },
       {
         type: ActionType.SetCardDateStartOrDue,
@@ -1539,17 +1539,17 @@ export const actions: AutomationRuleAction[] = [
           options: [
             {
               value: EnumDateStatus.Due,
-              label: "due"
+              label: "due",
             },
             {
               value: EnumDateStatus.Start,
-              label: "start"
+              label: "start",
             },
           ],
           value: {
             value: EnumDateStatus.Due,
-            label: "due"
-          }
+            label: "due",
+          },
         },
         [EnumSelectionType.Action]: {
           options: [
@@ -1563,20 +1563,20 @@ export const actions: AutomationRuleAction[] = [
             label: "Set",
           },
         },
-        [EnumInputType.DateValue]: undefined
+        [EnumInputType.DateValue]: undefined,
       },
       {
         type: ActionType.MoveCardDateStartOrDue,
         label: ActionType.MoveCardDateStartOrDue.replaceAll("-", " "),
-         [EnumSelectionType.DateStatus]: {
+        [EnumSelectionType.DateStatus]: {
           options: [
             {
               value: EnumDateStatus.Due,
-              label: "due"
+              label: "due",
             },
             {
               value: EnumDateStatus.Start,
-              label: "start"
+              label: "start",
             },
           ],
           [EnumSelectionType.Action]: {
@@ -1593,12 +1593,12 @@ export const actions: AutomationRuleAction[] = [
           },
           value: {
             value: EnumDateStatus.Due,
-            label: "due"
-          }
+            label: "due",
+          },
         },
-        [EnumInputType.DateValue]: undefined
+        [EnumInputType.DateValue]: undefined,
       },
-    ]
+    ],
   },
   {
     type: "checklists",

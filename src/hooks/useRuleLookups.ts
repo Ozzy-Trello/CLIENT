@@ -23,6 +23,27 @@ function collectIds(rules: RuleLike[]): Record<Kind, Set<string>> {
       result[kind].add(val);
   };
 
+  // Helper to extract possible option UUIDs from a condition object
+  const pushOptionValues = (cond: any) => {
+    if (!cond) return;
+    ["valueOption", "value_option", "optionValue", "option_value"].forEach(
+      (k) => {
+        if (cond[k]) {
+          console.log("[LOOKUP] Pushing option UUID:", cond[k]);
+          push("field", cond[k]);
+        }
+      }
+    );
+    if (cond.fields && typeof cond.fields === "object") {
+      ["valueOption", "value_option"].forEach((k) => {
+        if (cond.fields[k]) {
+          console.log("[LOOKUP] Pushing option UUID (fields):", cond.fields[k]);
+          push("field", cond.fields[k]);
+        }
+      });
+    }
+  };
+
   rules.forEach((r) => {
     push("board", r.condition?.board);
     push("field", (r.condition?.fields as any)?.value ?? r.condition?.fields);
@@ -32,6 +53,7 @@ function collectIds(rules: RuleLike[]): Record<Kind, Set<string>> {
     push("user", r.condition?.user);
     if (Array.isArray(r.condition?.optionalBy?.data))
       r.condition.optionalBy.data.forEach((uid: string) => push("user", uid));
+    pushOptionValues(r.condition);
 
     // also inspect each action's condition
     if (Array.isArray(r.action)) {
@@ -45,6 +67,7 @@ function collectIds(rules: RuleLike[]): Record<Kind, Set<string>> {
         push("user", c.user);
         if (Array.isArray(c?.optionalBy?.data))
           c.optionalBy.data.forEach((uid: string) => push("user", uid));
+        pushOptionValues(c);
       });
     }
   });
@@ -78,12 +101,12 @@ export function useRuleLookups(rules: RuleLike[]) {
             if (row && (row.name || row.username || row.label || row.title)) {
               const name = row.name || row.username || row.label || row.title;
               LookupCache.rememberMany(kind, [{ id, name }]);
-              // if this is a custom field fetch, also store its options label for value lookup
               if (kind === "field" && Array.isArray(row.options)) {
                 const opts = row.options.map((o: any) => ({
                   id: o.value,
                   name: o.label,
                 }));
+                console.log("[LOOKUP] Caching options for field", id, opts);
                 LookupCache.rememberMany("field", opts as any);
               }
               console.log("[LOOKUP] result", kind, row);

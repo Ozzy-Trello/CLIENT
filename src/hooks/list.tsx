@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { lists, moveList } from "../api/list";
 import { api } from "../api";
 import { AnyList } from "../types/list";
@@ -53,8 +53,16 @@ export function useLists(boardId: string) {
   });
 
   const updateListMutation = useMutation({
-    mutationFn: ({ listId, updates }: { listId: string; updates: Partial<AnyList> }) =>
-      api.put(`/list/${listId}`, updates),
+    mutationFn: ({
+      listId,
+      updates,
+    }: {
+      listId: string;
+      updates: Partial<AnyList>;
+    }) =>
+      api.put(`/list/${listId}`, updates, {
+        headers: { "board-id": boardId },
+      }),
     onMutate: async ({ listId, updates }) => {
       await queryClient.cancelQueries({ queryKey: ["lists", boardId] });
       const previousLists = queryClient.getQueryData(["lists", boardId]);
@@ -85,7 +93,9 @@ export function useLists(boardId: string) {
   });
 
   return {
-    lists: (listsQuery.data?.data || []).sort((a, b) => (a.position || 0) - (b.position || 0)),
+    lists: (listsQuery.data?.data || []).sort(
+      (a, b) => (a.position || 0) - (b.position || 0)
+    ),
     pagination: listsQuery.data?.paginate,
     isLoading: listsQuery.isLoading,
     isError: listsQuery.isError,
@@ -119,33 +129,42 @@ export function useListMove() {
     onMutate: async ({ listId, targetPosition, boardId }) => {
       await queryClient.cancelQueries({ queryKey: ["lists", boardId] });
 
-      const previousLists = queryClient.getQueryData<ApiResponse<AnyList[]>>(["lists", boardId]);
+      const previousLists = queryClient.getQueryData<ApiResponse<AnyList[]>>([
+        "lists",
+        boardId,
+      ]);
 
-      queryClient.setQueryData<ApiResponse<AnyList[]>>(["lists", boardId], (old) => {
-        if (!old?.data) return old;
+      queryClient.setQueryData<ApiResponse<AnyList[]>>(
+        ["lists", boardId],
+        (old) => {
+          if (!old?.data) return old;
 
-        const lists = [...old.data];
-        const fromIndex = lists.findIndex((l) => l.id === listId);
-        if (fromIndex === -1) return old;
+          const lists = [...old.data];
+          const fromIndex = lists.findIndex((l) => l.id === listId);
+          if (fromIndex === -1) return old;
 
-        const [moved] = lists.splice(fromIndex, 1);
-        const toIndex = Math.min(targetPosition, lists.length);
-        lists.splice(toIndex, 0, moved);
+          const [moved] = lists.splice(fromIndex, 1);
+          const toIndex = Math.min(targetPosition, lists.length);
+          lists.splice(toIndex, 0, moved);
 
-        // Recalculate position based on neighbors
-        for (let i = 0; i < lists.length; i++) {
-          lists[i].position = (i + 1) * 10000;
+          // Recalculate position based on neighbors
+          for (let i = 0; i < lists.length; i++) {
+            lists[i].position = (i + 1) * 10000;
+          }
+
+          return { ...old, data: lists };
         }
-
-        return { ...old, data: lists };
-      });
+      );
 
       return { previousLists };
     },
 
     onError: (_err, vars, context) => {
       if (context?.previousLists) {
-        queryClient.setQueryData(["lists", vars.boardId], context.previousLists);
+        queryClient.setQueryData(
+          ["lists", vars.boardId],
+          context.previousLists
+        );
       }
     },
 
@@ -161,4 +180,3 @@ export function useListMove() {
     moveListError: listMoveMutation.error,
   };
 }
-

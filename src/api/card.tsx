@@ -91,20 +91,27 @@ export const cardUnarchive = async (
   return data;
 };
 
-export const cardComplete = async(cardId: string): Promise<ApiResponse<any>> => {
+export const cardComplete = async (
+  cardId: string
+): Promise<ApiResponse<any>> => {
   const { data } = await api.post(`/card/${cardId}/complete`);
   return data;
-}
+};
 
-export const cardIncomplete = async(cardId: string): Promise<ApiResponse<any>> => {
+export const cardIncomplete = async (
+  cardId: string
+): Promise<ApiResponse<any>> => {
   const { data } = await api.post(`/card/${cardId}/incomplete`);
   return data;
-}
+};
 
-export const mirrorCard = async(cardId: string, payload: {id: string, targetListId: string, targetPositon: number}): Promise<ApiResponse<Card>> => {
+export const mirrorCard = async (
+  cardId: string,
+  payload: { id: string; targetListId: string; targetPositon: number }
+): Promise<ApiResponse<Card>> => {
   const { data } = await api.post(`/card/${cardId}/make-mirror`, payload);
   return data;
-}
+};
 
 /**
  * Card Label
@@ -134,7 +141,12 @@ export const getCardLabels = async (
   workspaceId: string,
   cardId: string
 ): Promise<ApiResponse<any>> => {
-  console.log("Fetching card labels for cardId:", cardId, "workspaceId:", workspaceId);
+  console.log(
+    "Fetching card labels for cardId:",
+    cardId,
+    "workspaceId:",
+    workspaceId
+  );
   const { data } = await api.get(`/card/${cardId}/label`, {
     headers: { "workspace-id": workspaceId },
   });
@@ -145,4 +157,17 @@ export const getListDashcard = async (workspaceId: string, id: string) => {
   const { data } = await api.get(`/card/${id}/list-dashcard/${workspaceId}`);
 
   return data as ApiResponse<ListDashcardDataResponse>;
+};
+
+// Fetch archived cards within a board (requires board-id header)
+export const archivedCards = async (
+  boardId: string,
+  page = 1,
+  limit = 100
+): Promise<ApiResponse<Card[]>> => {
+  const { data } = await api.get(`/card/archived`, {
+    headers: { "board-id": boardId },
+    params: { page, limit },
+  });
+  return data;
 };

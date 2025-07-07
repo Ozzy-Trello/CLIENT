@@ -187,8 +187,7 @@ export enum ActionType {
   AddCardMember = `add-member-<${EnumSelectionType.User}>-to-the-card`,
   RemoveCardMember = `remove-member-<${EnumSelectionType.User}>-from-the-card`,
   RemoveAllCardMembers = `remove-all-the-members-from-the-card`,
-  
-  
+
   // Action Dates
   MarkCardCompletion = `<${EnumSelectionType.Action}>-the-card-as-<${EnumSelectionType.Completion}>`,
   SetCardDateStartOrDue = `<${EnumSelectionType.Action}>-the-card's-<${EnumSelectionType.DateStatus}>-to-<${EnumSelectionType.DateValue}>`,

@@ -19,6 +19,7 @@ function stringify(val: any): string {
     const noTags = val.replace(/<[^>]*>/g, "");
     if (/^[0-9a-f]{8}-/i.test(noTags)) {
       const lbl = LookupCache.any(noTags);
+      console.log("[RULE-RENDER] UUID lookup:", noTags, "->", lbl);
       if (lbl) return lbl;
     }
     return noTags.replace(/\./g, " ");

@@ -393,7 +393,6 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
               }
               placeholder={`Select ${field.name}...`}
               size="middle"
-              className="w-full"
             />
           );
         } else if (field.source?.startsWith("user-role:")) {

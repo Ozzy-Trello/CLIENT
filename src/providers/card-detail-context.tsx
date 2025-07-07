@@ -46,6 +46,10 @@ type CardDetailContextType = {
 
   itemDashcard: IItemDashcard[];
   setItemDashcard: React.Dispatch<React.SetStateAction<IItemDashcard[]>>;
+  processedItemDashcard: IItemDashcard[];
+  setProcessedItemDashcard: React.Dispatch<
+    React.SetStateAction<IItemDashcard[]>
+  >;
 
   openEditFilter: boolean;
   setOpenEditFilter: React.Dispatch<React.SetStateAction<boolean>>;
@@ -68,6 +72,8 @@ const CardDetailContext = createContext<CardDetailContextType>({
   setDashcardConfig: () => {},
   itemDashcard: [],
   setItemDashcard: () => {},
+  processedItemDashcard: [],
+  setProcessedItemDashcard: () => {},
 
   openEditFilter: false,
   setOpenEditFilter: () => {},
@@ -107,6 +113,9 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
   >();
 
   const [itemDashcard, setItemDashcard] = useState<IItemDashcard[]>([]);
+  const [processedItemDashcard, setProcessedItemDashcard] = useState<
+    IItemDashcard[]
+  >([]);
   const [openEditFilter, setOpenEditFilter] = useState<boolean>(false);
   const [currentFilter, setCurrentFilter] = useState<DashcardFilter[]>([]);
 
@@ -287,6 +296,8 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
         setDashcardConfig,
         itemDashcard,
         setItemDashcard,
+        processedItemDashcard,
+        setProcessedItemDashcard,
         openEditFilter,
         setOpenEditFilter,
         currentFilter,

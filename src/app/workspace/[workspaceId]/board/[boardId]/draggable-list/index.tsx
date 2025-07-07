@@ -46,6 +46,10 @@ const DraggableList: React.FC<DraggableListProps> = ({
   const canMoveList = canMove("list");
   const canCreateCard = canCreate("card");
 
+  // Check if card limit is exceeded
+  const isLimitExceeded = list.cardLimit && cards.length > list.cardLimit;
+  const listColor = isLimitExceeded ? "#fbbf24" : list.background; // Yellow if limit exceeded
+
   return (
     <Draggable
       key={`draggable-list-${list.id}`}
@@ -58,6 +62,10 @@ const DraggableList: React.FC<DraggableListProps> = ({
           ref={provided.innerRef}
           {...provided.dragHandleProps}
           {...provided.draggableProps}
+          style={{
+            ...provided.draggableProps.style,
+            backgroundColor: listColor, // e.g., "#f87171"
+          }}
           className={`
             group 
             relative 
@@ -77,9 +85,14 @@ const DraggableList: React.FC<DraggableListProps> = ({
             ${canMoveList ? "cursor-move" : "cursor-default"}
             ${!canMoveList ? "opacity-75" : ""}
             ${snapshot.isDragging ? "shadow-lg" : ""}
+          
           `}
           title={
-            !canMoveList ? "You don't have permission to move lists" : undefined
+            !canMoveList
+              ? "You don't have permission to move lists"
+              : isLimitExceeded
+              ? `Card limit exceeded (${cards.length}/${list.cardLimit})`
+              : undefined
           }
         >
           <ListName list={list} boardId={boardId} updateList={updateList} />

@@ -188,44 +188,71 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             refreshDashcard = true;
             break;
 
-          case "custom_field:updated":
-            const { cardId, customField, workspaceId } = message.data;
-            console.log(
-              `Custom field ${customField.id} updated for card ${cardId} in workspace ${workspaceId}`
-            );
-
-            // Invalidate relevant queries
-            // For dashcard counts, we need to invalidate all dashcard count queries
-            // since we don't know which dashcards might be affected by this custom field change
-            queryClient.invalidateQueries({
-              queryKey: ["dashcardCount"],
-              // This will invalidate all dashcard count queries regardless of the specific dashcard ID
-              // which ensures all dashcards that depend on this custom field will be updated
-              exact: false,
+          case "custom_field:updated": {
+            const { customField, cardId, workspaceId } = message.data;
+            console.log(`Custom field updated for card ${cardId}`, {
+              customFieldId: customField?.custom_field_id,
+              workspaceId,
             });
 
-            // Also invalidate the specific card's custom field data with correct query key
+            // Invalidate custom field queries
             queryClient.invalidateQueries({
-              queryKey: ["cardCustomField", cardId, workspaceId],
+              queryKey: ["customFields", workspaceId, cardId],
+            });
+            queryClient.invalidateQueries({
+              queryKey: ["customField", workspaceId, cardId],
             });
 
-            // Also invalidate any queries that might use just cardId (for backward compatibility)
-            queryClient.invalidateQueries({
-              queryKey: ["cardCustomField", cardId],
-            });
-
-            // Invalidate the card detail as well
+            // Also invalidate card detail to refresh custom field display
             queryClient.invalidateQueries({
               queryKey: queryKeys.cards.detail(cardId),
             });
 
-            // Invalidate all card list queries (card positions may depend on custom fields)
+            console.log("Invalidated custom field queries for card:", cardId);
+            break;
+          }
+
+          case "card_activity:added": {
+            const { cardId, activity } = message.data;
+            console.log(`Card activity added for card ${cardId}`, {
+              activity,
+            });
+
+            // Invalidate card detail to refresh activity feed
             queryClient.invalidateQueries({
-              queryKey: ["cards"],
+              queryKey: queryKeys.cards.detail(cardId),
+            });
+
+            // Invalidate card activities queries
+            queryClient.invalidateQueries({
+              queryKey: ["cardActivities"],
               exact: false,
             });
-            refreshDashcard = true;
+
+            console.log("Invalidated card activity queries for card:", cardId);
             break;
+          }
+
+          case "card_member:updated": {
+            const { cardId, members } = message.data;
+            console.log(`Card members updated for card ${cardId}`, {
+              members,
+            });
+
+            // Invalidate card members queries
+            queryClient.invalidateQueries({
+              queryKey: ["cardMembers"],
+              exact: false,
+            });
+
+            // Also invalidate card detail to refresh member display
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.cards.detail(cardId),
+            });
+
+            console.log("Invalidated card member queries for card:", cardId);
+            break;
+          }
 
           case EnumUserActionEvent.ListCreated:
             const {
@@ -381,6 +408,339 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
               queryKey: queryKeys.cards.detail(cardId),
             });
             refreshDashcard = true;
+            break;
+          }
+
+          case "card_activity:added": {
+            const { cardId, activity } = message.data;
+            console.log(`Card activity added for card ${cardId}`, activity);
+
+            // Invalidate the card activity query to refresh the activity list
+            queryClient.invalidateQueries({
+              queryKey: ["cardActivity", cardId],
+            });
+
+            // Also invalidate card detail to ensure any activity-related UI updates
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.cards.detail(cardId),
+            });
+
+            console.log("Invalidated card activity queries for card:", cardId);
+            break;
+          }
+
+          case "card_attachment:updated": {
+            const { cardId } = message.data;
+            console.log(`Card attachments updated for card ${cardId}`);
+            queryClient.invalidateQueries({
+              queryKey: ["cardAttachment", cardId],
+            });
+            console.log(
+              "Invalidated card attachment queries for card:",
+              cardId
+            );
+            break;
+          }
+
+          case "card_label:added": {
+            const { cardId, labelId, label, workspaceId, addedBy } =
+              message.data;
+            console.log(
+              `Label ${labelId} added to card ${cardId} by ${addedBy}`
+            );
+
+            // Invalidate card labels queries
+            queryClient.invalidateQueries({
+              queryKey: ["cardLabels", workspaceId, cardId],
+            });
+            queryClient.invalidateQueries({
+              queryKey: ["labels", workspaceId],
+            });
+
+            // Also invalidate card detail to refresh label display
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.cards.detail(cardId),
+            });
+
+            console.log("Invalidated card label queries for card:", cardId);
+            break;
+          }
+
+          case "card_label:removed": {
+            const { cardId, labelId } = message.data;
+            console.log(`Label ${labelId} removed from card ${cardId}`);
+
+            // Invalidate card labels queries
+            queryClient.invalidateQueries({
+              queryKey: ["cardLabels"],
+              exact: false,
+            });
+            queryClient.invalidateQueries({
+              queryKey: ["labels"],
+              exact: false,
+            });
+
+            // Also invalidate card detail to refresh label display
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.cards.detail(cardId),
+            });
+
+            console.log("Invalidated card label queries for card:", cardId);
+            break;
+          }
+
+          case "label:created": {
+            const { label, workspaceId } = message.data;
+            console.log(
+              `Label ${label.id} created in workspace ${workspaceId}`
+            );
+
+            // Invalidate labels queries
+            queryClient.invalidateQueries({
+              queryKey: ["labels", workspaceId],
+            });
+            queryClient.invalidateQueries({
+              queryKey: ["allLabels", workspaceId],
+            });
+
+            console.log(
+              "Invalidated label queries for workspace:",
+              workspaceId
+            );
+            break;
+          }
+
+          case "label:updated": {
+            const { label, workspaceId } = message.data;
+            console.log(
+              `Label ${label.id} updated in workspace ${workspaceId}`
+            );
+
+            // Invalidate labels queries
+            queryClient.invalidateQueries({
+              queryKey: ["labels", workspaceId],
+            });
+            queryClient.invalidateQueries({
+              queryKey: ["allLabels", workspaceId],
+            });
+
+            console.log(
+              "Invalidated label queries for workspace:",
+              workspaceId
+            );
+            break;
+          }
+
+          case "label:deleted": {
+            const { labelId, workspaceId } = message.data;
+            console.log(
+              `Label ${labelId} deleted from workspace ${workspaceId}`
+            );
+
+            // Invalidate labels queries
+            queryClient.invalidateQueries({
+              queryKey: ["labels", workspaceId],
+            });
+            queryClient.invalidateQueries({
+              queryKey: ["allLabels", workspaceId],
+            });
+
+            console.log(
+              "Invalidated label queries for workspace:",
+              workspaceId
+            );
+            break;
+          }
+
+          case "card_labels:removed_all": {
+            const { cardId } = message.data;
+            console.log(`All labels removed from card ${cardId}`);
+
+            // Invalidate card labels queries
+            queryClient.invalidateQueries({
+              queryKey: ["cardLabels"],
+              exact: false,
+            });
+            queryClient.invalidateQueries({
+              queryKey: ["labels"],
+              exact: false,
+            });
+
+            // Also invalidate card detail to refresh label display
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.cards.detail(cardId),
+            });
+
+            console.log("Invalidated card label queries for card:", cardId);
+            break;
+          }
+
+          case "automation:rule_triggered": {
+            const {
+              ruleId,
+              cardId,
+              cardName,
+              triggerType,
+              actionCount,
+              triggeredBy,
+              workspaceId,
+            } = message.data;
+            console.log(
+              `Automation rule ${ruleId} triggered for card ${cardId} (${cardName})`,
+              {
+                triggerType,
+                actionCount,
+                triggeredBy,
+                workspaceId,
+              }
+            );
+
+            // Invalidate card detail to refresh any automation-related changes
+            if (cardId) {
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.cards.detail(cardId),
+              });
+            }
+
+            // Invalidate card labels queries to refresh label changes
+            queryClient.invalidateQueries({
+              queryKey: ["cardLabels"],
+              exact: false,
+            });
+
+            // Invalidate custom fields queries to refresh field changes
+            queryClient.invalidateQueries({
+              queryKey: ["customFields"],
+              exact: false,
+            });
+
+            console.log(
+              "Invalidated queries for automation rule triggered:",
+              ruleId
+            );
+            break;
+          }
+
+          case "automation:label_added": {
+            const { cardId, labelId, automationRuleId, triggeredBy, addedBy } =
+              message.data;
+            console.log(`Automation added label ${labelId} to card ${cardId}`, {
+              automationRuleId,
+              triggeredBy,
+              addedBy,
+            });
+
+            // Invalidate card labels queries
+            queryClient.invalidateQueries({
+              queryKey: ["cardLabels"],
+              exact: false,
+            });
+            queryClient.invalidateQueries({
+              queryKey: ["labels"],
+              exact: false,
+            });
+
+            // Also invalidate card detail to refresh label display
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.cards.detail(cardId),
+            });
+
+            console.log(
+              "Invalidated card label queries for automation label added:",
+              cardId
+            );
+            break;
+          }
+
+          case "automation:label_removed": {
+            const { cardId, labelId, automationRuleId, triggeredBy } =
+              message.data;
+            console.log(
+              `Automation removed label ${labelId} from card ${cardId}`,
+              {
+                automationRuleId,
+                triggeredBy,
+              }
+            );
+
+            // Invalidate card labels queries
+            queryClient.invalidateQueries({
+              queryKey: ["cardLabels"],
+              exact: false,
+            });
+            queryClient.invalidateQueries({
+              queryKey: ["labels"],
+              exact: false,
+            });
+
+            // Also invalidate card detail to refresh label display
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.cards.detail(cardId),
+            });
+
+            console.log(
+              "Invalidated card label queries for automation label removed:",
+              cardId
+            );
+            break;
+          }
+
+          case "custom_field:updated": {
+            const { customField, cardId, workspaceId } = message.data;
+            console.log(
+              `Custom field ${customField?.id} updated for card ${cardId}`,
+              {
+                customField,
+                workspaceId,
+              }
+            );
+
+            // Invalidate custom fields queries
+            queryClient.invalidateQueries({
+              queryKey: ["customFields"],
+              exact: false,
+            });
+
+            // Invalidate card custom fields queries
+            queryClient.invalidateQueries({
+              queryKey: ["cardCustomFields"],
+              exact: false,
+            });
+
+            // Also invalidate card detail to refresh custom field display
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.cards.detail(cardId),
+            });
+
+            // Invalidate workspace custom fields if workspaceId is provided
+            if (workspaceId) {
+              queryClient.invalidateQueries({
+                queryKey: ["customFields", workspaceId],
+              });
+            }
+
+            console.log("Invalidated custom field queries for card:", cardId);
+            break;
+          }
+
+          case "card_activity:added": {
+            const { cardId, activity } = message.data;
+            console.log(`Card activity added for card ${cardId}`, {
+              activity,
+            });
+
+            // Invalidate card detail to refresh activity feed
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.cards.detail(cardId),
+            });
+
+            // Invalidate card activities queries
+            queryClient.invalidateQueries({
+              queryKey: ["cardActivities"],
+              exact: false,
+            });
+
+            console.log("Invalidated card activity queries for card:", cardId);
             break;
           }
 

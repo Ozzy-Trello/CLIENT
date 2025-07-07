@@ -26,6 +26,9 @@ import { useCustomFields } from "@hooks/custom_field";
 import { useParams } from "next/navigation";
 import { CustomField } from "@myTypes/custom-field";
 import { UserSelection } from "@components/selection";
+import { useBoards } from "@hooks/board";
+import { useLists } from "@hooks/list";
+import { FilterOperator as DashcardFilterOperator } from "../../types/dashcard";
 
 const { Text } = Typography;
 
@@ -36,13 +39,31 @@ interface ModalDashcardProps {
   onSave: (config: DashcardConfig) => void;
 }
 
+const BOARD_LIST_OPERATORS = [
+  { label: "any", value: "any" },
+  { label: "on this board", value: "on_this_board" },
+  { label: "is one of", value: "is_one_of" },
+  { label: "is not one of", value: "is_not_one_of" },
+  { label: "name starts with", value: "name_starts_with" },
+  { label: "name matches", value: "name_matches" },
+];
+
+const LIST_OPERATORS = [
+  { label: "any", value: "any" },
+  { label: "on this list", value: "on_this_list" },
+  { label: "is one of", value: "is_one_of" },
+  { label: "is not one of", value: "is_not_one_of" },
+  { label: "name starts with", value: "name_starts_with" },
+  { label: "name matches", value: "name_matches" },
+];
+
 const ModalDashcard: React.FC<ModalDashcardProps> = ({
   open,
   setOpen,
   initialData,
   onSave,
 }) => {
-  const { workspaceId } = useParams();
+  const { workspaceId, boardId } = useParams();
   const [form] = Form.useForm();
   const [bgColor, setBgColor] = useState<string>(
     initialData?.backgroundColor || "#4e95ff"
@@ -60,6 +81,23 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
   const { customFields } = useCustomFields(
     Array.isArray(workspaceId) ? workspaceId[0] : workspaceId
   );
+  const { boards: boardsArr } = useBoards(
+    Array.isArray(workspaceId) ? workspaceId[0] : workspaceId
+  );
+  const boardOptions = (boardsArr || []).map((b: any) => ({
+    label: b.name || "",
+    value: b.id,
+  }));
+
+  // Get current board ID for list fetching
+  const currentBoardId = Array.isArray(boardId) ? boardId[0] : boardId;
+
+  // Fetch lists from the current board only
+  const { lists: currentBoardLists } = useLists(currentBoardId || "");
+  const listOptions = (currentBoardLists || []).map((l: any) => ({
+    label: l.name || "",
+    value: l.id,
+  }));
 
   // Initialize available filters
   useEffect(() => {
@@ -277,50 +315,180 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
             <div className="py-2 space-y-3 my-2">
               <table className="w-full">
                 <tbody>
-                  {selectedFilters.map((filter) => (
-                    <tr
-                      key={filter.id}
-                      className="border-b border-gray-100 last:border-b-0"
-                    >
-                      <td className="py-2 pr-2 w-24">
-                        <Text>{filter.label}</Text>
-                      </td>
-                      <td className="py-2 px-2">
-                        <Select
-                          size="small"
-                          className="min-w-32"
-                          options={filter.options}
-                          value={filter.operator}
-                          onChange={(value) =>
-                            handleFilterOperatorChange(filter.id, value)
-                          }
-                        />
-                      </td>
-                      <td className="py-2 px-2 flex-1">
-                        {filter.type === EnumCardAttributeType.IS_COMPLETED ? (
+                  {selectedFilters.map((filter) => {
+                    // Determine if this is a board/list filter
+                    const isBoard = filter.type === EnumCardAttributeType.BOARD;
+                    const isList = filter.type === EnumCardAttributeType.LIST;
+                    const operator = String(filter.operator);
+                    // Operator-specific input logic
+                    const isMultiSelect =
+                      operator === "is_one_of" || operator === "is_not_one_of";
+                    const isTextInput =
+                      operator === "name_starts_with" ||
+                      operator === "name_matches";
+                    const isNoValueInput =
+                      operator === "any" ||
+                      operator === "on_this_board" ||
+                      operator === "on_this_list";
+                    return (
+                      <tr
+                        key={filter.id}
+                        className="border-b border-gray-100 last:border-b-0"
+                      >
+                        <td className="py-2 pr-2 w-24">
+                          <Text>{filter.label}</Text>
+                        </td>
+                        <td className="py-2 px-2">
                           <Select
                             size="small"
-                            options={[
-                              { label: "No", value: "false" },
-                              { label: "Yes", value: "true" },
-                            ]}
-                            value={filter.value?.toString() || "false"}
+                            className="min-w-32"
+                            options={
+                              isBoard
+                                ? BOARD_LIST_OPERATORS
+                                : isList
+                                ? LIST_OPERATORS
+                                : filter.options
+                            }
+                            value={filter.operator}
                             onChange={(value) =>
-                              handleFilterValueChange(
-                                filter.id,
-                                value === "true"
-                              )
+                              handleFilterOperatorChange(filter.id, value)
                             }
                           />
-                        ) : filter.type === EnumCardAttributeType.ASSIGNED ? (
-                          <UserSelection onChange={onAssignedChange} />
-                        ) : filter.type ===
-                          EnumCardAttributeType.CUSTOM_FIELD ? (
-                          (() => {
-                            const field = (filter as any).field as
-                              | CustomField
-                              | undefined;
-                            if (!field) {
+                        </td>
+                        <td className="py-2 px-2 flex-1">
+                          {/* Board/List operator-specific value input */}
+                          {(isBoard || isList) && isMultiSelect ? (
+                            <Select
+                              mode="multiple"
+                              size="small"
+                              className="w-full"
+                              options={isBoard ? boardOptions : listOptions}
+                              value={
+                                Array.isArray(filter.value) ? filter.value : []
+                              }
+                              onChange={(val) =>
+                                handleFilterValueChange(filter.id, val)
+                              }
+                              placeholder={`Select ${
+                                isBoard ? "boards" : "lists"
+                              }`}
+                            />
+                          ) : (isBoard || isList) && isTextInput ? (
+                            <Input
+                              size="small"
+                              placeholder={
+                                operator === "name_starts_with"
+                                  ? "Name starts with..."
+                                  : "Exact name..."
+                              }
+                              value={
+                                typeof filter.value === "string"
+                                  ? filter.value
+                                  : ""
+                              }
+                              onChange={(e) =>
+                                handleFilterValueChange(
+                                  filter.id,
+                                  e.target.value
+                                )
+                              }
+                            />
+                          ) : (isBoard || isList) &&
+                            isNoValueInput ? null : filter.type ===
+                            EnumCardAttributeType.IS_COMPLETED ? (
+                            <Select
+                              size="small"
+                              options={[
+                                { label: "No", value: "false" },
+                                { label: "Yes", value: "true" },
+                              ]}
+                              value={filter.value?.toString() || "false"}
+                              onChange={(value) =>
+                                handleFilterValueChange(
+                                  filter.id,
+                                  value === "true"
+                                )
+                              }
+                            />
+                          ) : filter.type === EnumCardAttributeType.ASSIGNED ? (
+                            <UserSelection onChange={onAssignedChange} />
+                          ) : EnumCardAttributeType.CUSTOM_FIELD ? (
+                            (() => {
+                              const field = (filter as any).field as
+                                | CustomField
+                                | undefined;
+                              if (!field) {
+                                return (
+                                  <Input
+                                    size="small"
+                                    placeholder="Value"
+                                    value={(filter.value as string) || ""}
+                                    onChange={(e) =>
+                                      handleFilterValueChange(
+                                        filter.id,
+                                        e.target.value
+                                      )
+                                    }
+                                  />
+                                );
+                              }
+
+                              // Dropdown type
+                              if (field.type === "dropdown") {
+                                if (field.source === "user") {
+                                  return (
+                                    <UserSelection
+                                      width="100%"
+                                      size="small"
+                                      value={filter.value as string}
+                                      onChange={(val: string) =>
+                                        handleFilterValueChange(filter.id, val)
+                                      }
+                                    />
+                                  );
+                                } else if (
+                                  field.source?.startsWith("user-role:")
+                                ) {
+                                  // Role-based user selection
+                                  const roleIds = field.source
+                                    .slice(10)
+                                    .split(",")
+                                    .map((s) => s.trim())
+                                    .filter(Boolean);
+                                  return (
+                                    <UserSelection
+                                      width="100%"
+                                      size="small"
+                                      value={filter.value as string}
+                                      onChange={(val: string) =>
+                                        handleFilterValueChange(filter.id, val)
+                                      }
+                                      roleIds={roleIds}
+                                    />
+                                  );
+                                }
+
+                                // custom dropdown
+                                const opts = (field.options || []).map(
+                                  (o: any) => ({
+                                    label: o.label,
+                                    value: o.value,
+                                  })
+                                );
+                                return (
+                                  <Select
+                                    size="small"
+                                    className="w-full"
+                                    options={opts}
+                                    value={filter.value as string}
+                                    onChange={(val: string) =>
+                                      handleFilterValueChange(filter.id, val)
+                                    }
+                                  />
+                                );
+                              }
+
+                              // Fallback text input
                               return (
                                 <Input
                                   size="small"
@@ -334,99 +502,32 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
                                   }
                                 />
                               );
-                            }
-
-                            // Dropdown type
-                            if (field.type === "dropdown") {
-                              if (field.source === "user") {
-                                return (
-                                  <UserSelection
-                                    width="100%"
-                                    size="small"
-                                    value={filter.value as string}
-                                    onChange={(val: string) =>
-                                      handleFilterValueChange(filter.id, val)
-                                    }
-                                  />
-                                );
-                              } else if (
-                                field.source?.startsWith("user-role:")
-                              ) {
-                                // Role-based user selection
-                                const roleIds = field.source
-                                  .slice(10)
-                                  .split(",")
-                                  .map((s) => s.trim())
-                                  .filter(Boolean);
-                                return (
-                                  <UserSelection
-                                    width="100%"
-                                    size="small"
-                                    value={filter.value as string}
-                                    onChange={(val: string) =>
-                                      handleFilterValueChange(filter.id, val)
-                                    }
-                                    roleIds={roleIds}
-                                  />
-                                );
+                            })()
+                          ) : (
+                            <Input
+                              size="small"
+                              placeholder="Type and press enter"
+                              value={(filter.value as string) || ""}
+                              onChange={(e) =>
+                                handleFilterValueChange(
+                                  filter.id,
+                                  e.target.value
+                                )
                               }
-
-                              // custom dropdown
-                              const opts = (field.options || []).map(
-                                (o: any) => ({
-                                  label: o.label,
-                                  value: o.value,
-                                })
-                              );
-                              return (
-                                <Select
-                                  size="small"
-                                  className="w-full"
-                                  options={opts}
-                                  value={filter.value as string}
-                                  onChange={(val: string) =>
-                                    handleFilterValueChange(filter.id, val)
-                                  }
-                                />
-                              );
-                            }
-
-                            // Fallback text input
-                            return (
-                              <Input
-                                size="small"
-                                placeholder="Value"
-                                value={(filter.value as string) || ""}
-                                onChange={(e) =>
-                                  handleFilterValueChange(
-                                    filter.id,
-                                    e.target.value
-                                  )
-                                }
-                              />
-                            );
-                          })()
-                        ) : (
-                          <Input
+                            />
+                          )}
+                        </td>
+                        <td className="py-2 pl-2 w-8">
+                          <Button
+                            type="text"
                             size="small"
-                            placeholder="Type and press enter"
-                            value={(filter.value as string) || ""}
-                            onChange={(e) =>
-                              handleFilterValueChange(filter.id, e.target.value)
-                            }
+                            icon={<Trash2 size={16} />}
+                            onClick={() => removeFilter(filter.id)}
                           />
-                        )}
-                      </td>
-                      <td className="py-2 pl-2 w-8">
-                        <Button
-                          type="text"
-                          size="small"
-                          icon={<Trash2 size={16} />}
-                          onClick={() => removeFilter(filter.id)}
-                        />
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
