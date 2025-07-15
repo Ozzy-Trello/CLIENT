@@ -19,7 +19,14 @@ import React, {
   useCallback,
   useRef,
 } from "react";
-import { ChevronLeft, ChevronRight, Trello, Users, Shield } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Trello,
+  Users,
+  Shield,
+  Settings,
+} from "lucide-react";
 import ModalCreateBoard from "../modal-create-board";
 import { useDispatch } from "react-redux";
 import { MenuProps } from "antd";
@@ -134,6 +141,19 @@ const Sidebar = () => {
           </Link>
         ),
         icon: <Shield size={16} />,
+      });
+
+      menus.push({
+        key: `/workspace/${resolvedWorkspaceId}/custom-fields`,
+        label: (
+          <Link
+            className="block w-full"
+            href={`/workspace/${resolvedWorkspaceId}/custom-fields`}
+          >
+            Custom Fields
+          </Link>
+        ),
+        icon: <Settings size={16} />,
       });
     }
 
