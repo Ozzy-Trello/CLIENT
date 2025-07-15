@@ -213,7 +213,11 @@ export function useUpdateBoard(workspaceId: string) {
 export function useBoardDetails(
   boardId: string,
   workspaceId?: string,
-  options: { enabled?: boolean } = {}
+  options: {
+    enabled?: boolean;
+    refetchOnMount?: boolean;
+    refetchOnWindowFocus?: boolean;
+  } = {}
 ) {
   const queryClient = useQueryClient();
 
@@ -222,8 +226,8 @@ export function useBoardDetails(
     queryKey: ["boardDetails", boardId, workspaceId],
     queryFn: () => boardDetails(boardId, workspaceId),
     enabled: options.enabled !== false && !!boardId, // Only enable if boardId exists and not explicitly disabled
-    refetchOnMount: true, // Refetch when component mounts
-    refetchOnWindowFocus: false, // Don't refetch on window focus to reduce unnecessary requests
+    refetchOnMount: options.refetchOnMount ?? true, // Allow override
+    refetchOnWindowFocus: options.refetchOnWindowFocus ?? false, // Allow override
     staleTime: 0, // Data is considered stale immediately
   });
 

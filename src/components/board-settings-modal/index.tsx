@@ -105,14 +105,10 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
     }
   );
 
-  const handleRefresh = async () => {
-    await refetch();
-  };
-
   useEffect(() => {
     if (open) {
-      handleRefresh();
-      setIsInitialized(false); // Reset initialization flag when modal opens
+      setIsInitialized(false);
+      setSelectedRoles([]);
     }
   }, [open]);
 
@@ -147,20 +143,14 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
     }
   }, [board, initialBoard, form, isInitialized]);
 
-  // Only set selectedRoles if both board and roles are ready AND not yet initialized
+  // Update selected roles when both board and roles data are available
   useEffect(() => {
     const currentBoard = board || initialBoard;
 
-    if (
-      currentBoard?.roleIds &&
-      roles.length > 0 &&
-      !loadingRoles &&
-      !isInitialized
-    ) {
+    if (currentBoard?.roleIds && roles.length > 0 && !loadingRoles) {
       setSelectedRoles(currentBoard.roleIds);
-      setIsInitialized(true); // Mark as initialized
     }
-  }, [board, initialBoard, roles, loadingRoles, isInitialized]);
+  }, [board, initialBoard, roles, loadingRoles]);
 
   // Show loading state while fetching board details
   if (isLoadingBoard) {
