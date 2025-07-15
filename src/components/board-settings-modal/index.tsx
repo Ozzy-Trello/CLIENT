@@ -82,6 +82,7 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
   const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isInitialized, setIsInitialized] = useState<boolean>(false);
   const uploadRef = useRef<any>(null);
   const router = useRouter();
   const dispatch = useDispatch();
@@ -96,11 +97,13 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
     board,
     isLoading: isLoadingBoard,
     refetch,
-  } = useBoardDetails(initialBoard ? "" : boardId || "", {
-    enabled: open,
-  });
-
-  // Debug board state removed
+  } = useBoardDetails(
+    boardId || initialBoard?.id || "",
+    currentWorkspace?.id || "",
+    {
+      enabled: open && !!(boardId || initialBoard?.id),
+    }
+  );
 
   const handleRefresh = async () => {
     await refetch();
@@ -109,15 +112,15 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
   useEffect(() => {
     if (open) {
       handleRefresh();
+      setIsInitialized(false); // Reset initialization flag when modal opens
     }
   }, [open]);
 
-  // Initialize form with board data when it changes
+  // Initialize form with board data when it changes - but only once per modal open
   useEffect(() => {
     const currentBoard = board || initialBoard;
-    // Debug log removed
-    if (currentBoard) {
-      // Debug log removed
+
+    if (currentBoard && !isInitialized) {
       const background = currentBoard.background || DEFAULT_COLOR;
       const isImage = background && !background.startsWith("#");
 
@@ -127,32 +130,54 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
         background: isImage ? DEFAULT_COLOR : background,
       };
 
-      // Debug log removed
       form.setFieldsValue(formValues);
 
       if (isImage) {
-        // Debug log removed
         setBackgroundImage(background);
         setBg("transparent");
       } else {
-        // Debug log removed
         setBackgroundImage("");
         setBg(background || DEFAULT_COLOR);
       }
 
-      if (currentBoard.roleIds) {
-        // Debug log removed
-        setSelectedRoles(currentBoard.roleIds);
-      }
-    } else {
-      // Debug log removed
+      // Set selected roles from board data - only during initialization
+      const roleIds = currentBoard.roleIds || [];
+      setSelectedRoles(roleIds);
+      setIsInitialized(true); // Mark as initialized
     }
-  }, [board, initialBoard, form]);
+  }, [board, initialBoard, form, isInitialized]);
+
+  // Only set selectedRoles if both board and roles are ready AND not yet initialized
+  useEffect(() => {
+    const currentBoard = board || initialBoard;
+
+    if (
+      currentBoard?.roleIds &&
+      roles.length > 0 &&
+      !loadingRoles &&
+      !isInitialized
+    ) {
+      setSelectedRoles(currentBoard.roleIds);
+      setIsInitialized(true); // Mark as initialized
+    }
+  }, [board, initialBoard, roles, loadingRoles, isInitialized]);
 
   // Show loading state while fetching board details
-  if ((!initialBoard && isLoadingBoard) || (!board && !initialBoard)) {
-    // Debug log removed
-    return <div>Loading board settings...</div>;
+  if (isLoadingBoard) {
+    return (
+      <Modal
+        open={open}
+        onCancel={onClose}
+        title="Loading Board Settings"
+        footer={null}
+        width={520}
+        centered
+      >
+        <div className="flex justify-center items-center h-64">
+          <Spin size="large" />
+        </div>
+      </Modal>
+    );
   }
 
   // Get the current board (either fetched or passed in)
@@ -166,46 +191,36 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
   // Debug log removed
 
   const handleColorChange = (color: any, hex: any) => {
+    setBg(hex);
     setBackgroundImage("");
-    setFileList([]);
-    setBg(color.toHexString());
   };
 
   const beforeUpload = (file: RcFile) => {
-    const isImage = file.type.startsWith("image/");
-    if (!isImage) {
-      message.error("You can only upload image files!");
-      return false;
+    const isJpgOrPng = file.type === "image/jpeg" || file.type === "image/png";
+    if (!isJpgOrPng) {
+      message.error("You can only upload JPG/PNG file!");
     }
-
     const isLt2M = file.size / 1024 / 1024 < 2;
     if (!isLt2M) {
-      message.error("Image must be smaller than 2MB!");
-      return false;
+      message.error("Image must smaller than 2MB!");
     }
-
-    return true;
+    return isJpgOrPng && isLt2M;
   };
 
   const handleUpload = async (options: any) => {
-    const { file, onSuccess, onError } = options;
+    const { file } = options;
+    setIsUploading(true);
 
     try {
-      setIsUploading(true);
-      const result = await uploadFile(file);
-
-      if (result && result.data) {
-        setBackgroundImage(result.data.url);
-        setBg("transparent"); // Make the background transparent to show the image
-        message.success("Background image uploaded successfully!");
-        onSuccess(result, file);
-      } else {
-        throw new Error("Upload failed");
+      const response = await uploadFile(file);
+      if (response.data) {
+        setBackgroundImage(response.data.url);
+        setBg("transparent");
+        form.setFieldsValue({ background: response.data.url });
       }
     } catch (error) {
-      console.error("Error uploading file:", error);
-      message.error("Failed to upload background image");
-      onError(error);
+      console.error("Upload failed:", error);
+      message.error("Failed to upload image");
     } finally {
       setIsUploading(false);
     }
@@ -213,56 +228,45 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
 
   const handleRemoveImage = () => {
     setBackgroundImage("");
-    setFileList([]);
     setBg(DEFAULT_COLOR);
+    form.setFieldsValue({ background: DEFAULT_COLOR });
   };
 
   const onFinish = async (values: FormValues) => {
-    if (!currentBoard?.id || !currentWorkspace?.id) {
-      message.error("Board or workspace not found");
-      return;
-    }
-
     setIsLoading(true);
-
     try {
-      // Debug log removed
-
-      // Prepare updates
-      const updates: Partial<Board> = {
-        name: values.title?.trim(),
-        description: values.description?.trim() || "",
-        background: backgroundImage || bg,
-      };
-
-      // Only include roleIds if there are selected roles
-      if (selectedRoles.length > 0) {
-        updates.roleIds = selectedRoles;
+      const currentBoard = board || initialBoard;
+      if (!currentBoard) {
+        message.error("Board data not available");
+        return;
       }
 
-      // Debug log removed
-
-      // Call the updateBoard function with the required parameters
-      await updateBoard({
+      const finalBackground = backgroundImage || values.background;
+      const updateData = {
         boardId: currentBoard.id,
-        board: updates,
-      });
+        board: {
+          name: values.title,
+          description: values.description,
+          background: finalBackground,
+          roleIds: selectedRoles,
+        },
+      };
 
-      // Create updated board object with the changes
-      const updatedBoard = { ...currentBoard, ...updates };
-
-      onSuccess?.(updatedBoard);
-
-      form.resetFields();
-
+      await updateBoard(updateData);
+      message.success("Board updated successfully!");
       onClose();
-    } catch (error: any) {
-      console.error("Error updating board:", error);
-
-      // Show more detailed error message if available
-      const errorMessage =
-        error.response?.data?.message || "Failed to update board";
-      message.error(`Error: ${errorMessage}`);
+      if (onSuccess) {
+        onSuccess({
+          ...currentBoard,
+          name: values.title,
+          description: values.description,
+          background: finalBackground,
+          roleIds: selectedRoles,
+        });
+      }
+    } catch (error) {
+      console.error("Failed to update board:", error);
+      message.error("Failed to update board");
     } finally {
       setIsLoading(false);
     }

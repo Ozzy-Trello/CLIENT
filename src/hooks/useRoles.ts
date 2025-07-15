@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
-import { getRoles } from '@api/role';
-import { Role } from '@myTypes/role';
+import { useEffect, useState } from "react";
+import { getRoles } from "@api/role";
+import { Role } from "@myTypes/role";
 
 export const useRoles = (workspaceId: string) => {
   const [roles, setRoles] = useState<Role[]>([]);
@@ -10,7 +10,7 @@ export const useRoles = (workspaceId: string) => {
   useEffect(() => {
     const fetchRoles = async () => {
       if (!workspaceId) return;
-      
+
       setLoading(true);
       try {
         const response = await getRoles(workspaceId);
@@ -19,7 +19,7 @@ export const useRoles = (workspaceId: string) => {
         }
       } catch (err) {
         setError(err as Error);
-        console.error('Error fetching roles:', err);
+        console.error("Error fetching roles:", err);
       } finally {
         setLoading(false);
       }

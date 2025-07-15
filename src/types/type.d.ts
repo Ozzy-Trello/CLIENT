@@ -51,7 +51,13 @@ export interface SelectedTriggerItem {
     | ReactNode
     | number;
   filter?: SelectedCardFilterItem[];
-  [key: string]: GeneralOptions | string | undefined | null | ReactNode | number;
+  [key: string]:
+    | GeneralOptions
+    | string
+    | undefined
+    | null
+    | ReactNode
+    | number;
 }
 
 export interface SelectedCardFilterItem {
@@ -69,7 +75,7 @@ export interface SelectedAction {
 export interface SelectedActionItem {
   type: string;
   label?: string;
-  [key: string]: GeneralOptions | string | undefined;
+  [key: string]: GeneralOptions | string | any[] | undefined;
 }
 
 // Trigger interface to accomodate the static trigger data use to construct trigger UI
@@ -132,7 +138,7 @@ export interface CardTriggerFilterType {
 export interface CardTriggerFilterItem {
   type: string;
   label: string;
-  [key: string]: TriggerItemSelection  | string | undefined | null;
+  [key: string]: TriggerItemSelection | string | undefined | null;
 }
 
 // Checklist item

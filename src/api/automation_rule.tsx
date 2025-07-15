@@ -13,11 +13,19 @@ export const createRule = async (
 export const getRule = async (
   workspaceId: string,
   page: number = 1,
-  limit: number = 10
+  limit: number = 10,
+  boardId?: string // Add optional board_id parameter
 ): Promise<ApiResponse<any>> => {
+  const params: any = { page, limit };
+
+  // Add board_id to params if provided
+  if (boardId) {
+    params.board_id = boardId;
+  }
+
   const { data } = await api.get(`/automation-rule`, {
     headers: { "workspace-id": workspaceId },
-    params: { page, limit },
+    params,
   });
   return data;
 };

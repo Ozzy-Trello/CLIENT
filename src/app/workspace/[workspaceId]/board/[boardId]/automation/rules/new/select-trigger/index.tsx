@@ -7,6 +7,8 @@ import {
   ListSelection,
   SelectionRef,
   UserSelection,
+  RoleSelection,
+  MultiFieldValueInput,
 } from "@components/selection";
 import { Button, Input, Select, Typography, Popover, Tag } from "antd";
 import { ListFilter, Plus, X, Calendar, List, Type } from "lucide-react";
@@ -635,6 +637,27 @@ const SelectOption = ({
     setTriggersData(copyArr);
   };
 
+  const onRoleChange = (selectedOption: GeneralOptions | GeneralOptions[]) => {
+    let copyArr = [...triggersData];
+    // Handle both single and multiple selection
+    if (Array.isArray(selectedOption)) {
+      // Multiple selection - store array of role IDs
+      (
+        copyArr[groupIndex]?.items?.[index]?.[
+          placeholder as keyof TriggerItems
+        ] as any
+      ).data = selectedOption.map((option) => option.value);
+    } else {
+      // Single selection - store single role ID
+      (
+        copyArr[groupIndex]?.items?.[index]?.[
+          placeholder as keyof TriggerItems
+        ] as any
+      ).data = [selectedOption.value];
+    }
+    setTriggersData(copyArr);
+  };
+
   const onCustomFieldChange = (selectedOption: GeneralOptions) => {
     let copyArr = [...triggersData];
     (
@@ -720,22 +743,66 @@ const SelectOption = ({
     );
   }
 
-  if (placeholder == EnumSelectionType.CardLabel) {
-    <span className="mx-2">
-      <LabelSelection
-        key={`list-select-${itemType}-${placeholder}`}
-        width={"fit-content"}
-        ref={useRef<SelectionRef>(null)}
-        value={
-          (triggersData[groupIndex]?.items?.[index] as any)?.[placeholder]
-            ?.value?.value || ""
-        }
-        onChange={(value: string, option: GeneralOptions) => {
-          onListChange(option);
-        }}
-        className="mr-2 ml-2"
-      />
-    </span>;
+  if (placeholder === EnumSelectionType.MultiLists) {
+    return (
+      <span className="mx-2">
+        <ListSelection
+          key={`multi-list-select-${itemType}-${placeholder}`}
+          width={"fit-content"}
+          ref={useRef<SelectionRef>(null)}
+          mode="multiple"
+          value={
+            (triggersData[groupIndex]?.items?.[index] as any)?.[placeholder]
+              ?.value || []
+          }
+          onChange={(
+            value: string | string[],
+            option: GeneralOptions | GeneralOptions[]
+          ) => {
+            let copyArr = [...triggersData];
+            if (Array.isArray(option)) {
+              // Multiple selection - store array of options
+              (
+                copyArr[groupIndex]?.items?.[index]?.[
+                  placeholder as keyof TriggerItems
+                ] as any
+              )["value"] = option;
+            } else {
+              // Single selection - wrap in array for consistency
+              (
+                copyArr[groupIndex]?.items?.[index]?.[
+                  placeholder as keyof TriggerItems
+                ] as any
+              )["value"] = [option];
+            }
+            setTriggersData(copyArr);
+          }}
+          className="mr-2 ml-2"
+        />
+      </span>
+    );
+  }
+
+  if (placeholder === EnumSelectionType.CardLabel) {
+    return (
+      <span
+        className="mx-2"
+        key={`card-label-select-${itemType}-${placeholder}`}
+      >
+        <LabelSelection
+          width={"fit-content"}
+          ref={useRef<SelectionRef>(null)}
+          value={
+            (triggersData[groupIndex]?.items?.[index] as any)?.[placeholder]
+              ?.value?.value || ""
+          }
+          onChange={(value: string, option: GeneralOptions) => {
+            onListChange(option);
+          }}
+          className="mr-2 ml-2"
+        />
+      </span>
+    );
   }
 
   if (placeholder === EnumSelectionType.DateExpression) {
@@ -771,7 +838,11 @@ const SelectOption = ({
             ?.value?.value || ""
         }
         options={options}
-        style={{ width: 120, margin: "0 5px" }}
+        style={{
+          width:
+            placeholder === EnumSelectionType.OptionalBySubject ? 260 : 120,
+          margin: "0 5px",
+        }}
         onChange={(value, option) => {
           onSelectionChange(
             option as {
@@ -800,6 +871,28 @@ const SelectOption = ({
               onUserChange(option);
             }}
             className="mx-2"
+          />
+        )}
+
+      {(placeholder == EnumSelectionType.OptionalBySubject ||
+        placeholder == EnumSelectionType.BySubject) &&
+        [EnumOptionBySubject.ByRole].includes(
+          (triggersData[groupIndex]?.items?.[index] as any)?.[placeholder]
+            ?.value?.value
+        ) && (
+          <RoleSelection
+            key={`role-select-${itemType}-${placeholder}`}
+            width={"fit-content"}
+            ref={useRef<SelectionRef>(null)}
+            mode="multiple"
+            onChange={(
+              value: string | string[],
+              option: GeneralOptions | GeneralOptions[]
+            ) => {
+              onRoleChange(option);
+            }}
+            className="mx-2"
+            placeholder="Select roles"
           />
         )}
     </>
@@ -877,6 +970,40 @@ const LabelRenderer = ({
                     props={props}
                   />
                 </div>
+              );
+            }
+          }
+
+          // Handle EnumInputType values like FieldValue and MultiFieldValue
+          if (
+            Object.values(EnumInputType).includes(placeholder as EnumInputType)
+          ) {
+            // Handle EnumInputType.MultiFieldValue specially for multi-select
+            if (placeholder === EnumInputType.MultiFieldValue) {
+              // Get the selected custom field from the current item's fields property
+              const field = (
+                props.triggersData[groupIndex]?.items?.[index] as any
+              )?.[EnumSelectionType.Fields]?.value as any;
+
+              return (
+                <MultiFieldValueInput
+                  key={`multi-field-value-input-${item.type}-${placeholder}-${groupIndex}-${index}`}
+                  width={"fit-content"}
+                  ref={useRef<SelectionRef>(null)}
+                  field={field}
+                  value={
+                    (props.triggersData[groupIndex]?.items?.[index] as any)?.[
+                      placeholder
+                    ] || []
+                  }
+                  onChange={(values: string[]) => {
+                    let copyArr = [...props.triggersData];
+                    (copyArr[groupIndex]?.items?.[index] as any)[placeholder] =
+                      values;
+                    props.setTriggersData(copyArr);
+                  }}
+                  className="mx-2"
+                />
               );
             }
           }

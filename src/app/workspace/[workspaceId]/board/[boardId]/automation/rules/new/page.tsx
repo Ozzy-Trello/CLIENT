@@ -19,6 +19,7 @@ import SelectTrigger from "./select-trigger";
 import { extractPlaceholders } from "@utils/general";
 import { createRule } from "@api/automation_rule";
 import { EnumSelectionType, EnumInputType } from "@myTypes/automation-rule";
+import { useCustomFields } from "@hooks/custom_field";
 
 const StepsItem = [
   {
@@ -45,6 +46,11 @@ const NewRulePage: React.FC = () => {
     useState<AutomationRuleTrigger[]>(triggers); // data to construct the triggers UI
   const [actionsData, setActionsData] =
     useState<AutomationRuleAction[]>(actions); //data to construct the actions UI
+
+  const { customFields } = useCustomFields(workspaceId as string);
+  console.log("All custom fields:", customFields);
+  const numberFields = customFields.filter((f) => f.type === "number");
+  console.log("Number fields:", numberFields);
 
   const onCancel = () => {
     router.push(`/workspace/${workspaceId}/board/${boardId}/automation/rules`);
@@ -122,38 +128,38 @@ const NewRulePage: React.FC = () => {
     // Process each filters
     triggerItem?.filter?.forEach((filter: SelectedCardFilterItem) => {
       if (!filter.type) return;
-      
-      // Extract placeholders from action type
-      const filterPlaceholders = extractPlaceholders(filter.type || '');
-      if (!filterPlaceholders.includes(EnumInputType.Text)) filterPlaceholders.push(EnumInputType.Text);
-      if (!filterPlaceholders.includes(EnumSelectionType.Completion)) filterPlaceholders.push(EnumSelectionType.Completion);
 
-      
+      // Extract placeholders from action type
+      const filterPlaceholders = extractPlaceholders(filter.type || "");
+      if (!filterPlaceholders.includes(EnumInputType.Text))
+        filterPlaceholders.push(EnumInputType.Text);
+      if (!filterPlaceholders.includes(EnumSelectionType.Completion))
+        filterPlaceholders.push(EnumSelectionType.Completion);
+
       // Build condition object for this action
       const filterCondition: Record<string, any> = {};
-      
+
       // For each placeholder in the action, add to condition
       filterPlaceholders.forEach((placeholder) => {
         if (filter?.[placeholder]) {
           const value = filter?.[placeholder];
-          if (value && typeof value === 'object' && 'value' in value) {
+          if (value && typeof value === "object" && "value" in value) {
             filterCondition[placeholder] = value.value;
           } else {
             filterCondition[placeholder] = value;
           }
         }
       });
-      
+
       // Create filter object in the expected format
       const formattedFilter: AutomationRuleActionApiData = {
-        groupType: filter?.groupType || '',
+        groupType: filter?.groupType || "",
         type: filter?.type,
-        condition: filterCondition
+        condition: filterCondition,
       };
-      
+
       newFilters.push(formattedFilter);
     });
-
 
     // Build actions array
     const newActions: AutomationRuleActionApiData[] = [];
@@ -232,7 +238,7 @@ const NewRulePage: React.FC = () => {
       type: triggerItem.type || "",
       condition: triggerCondition,
       filter: newFilters,
-      action: newActions
+      action: newActions,
     };
 
     // post rule
@@ -325,6 +331,7 @@ const NewRulePage: React.FC = () => {
             setSelectedRule={setSelectedRule}
             actionsData={actionsData}
             setActionsData={setActionsData}
+            numberFields={numberFields}
           />
         ) : activeStep === 2 ? (
           <ReviewAndSave

@@ -34,6 +34,7 @@ export enum EnumOptionBySubject {
   BySpecificUser = "by-specific-user",
   ByAnyoneExceptMe = "by-anyone-except-me",
   ByAnyoneExceptSpecificUser = "by-anyone-except-specific-user",
+  ByRole = "by-role",
 }
 
 export enum EnumOptionsSet {

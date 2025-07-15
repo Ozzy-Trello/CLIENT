@@ -1,5 +1,5 @@
 "use client";
-import { Button, Input, Select, Typography, Popover } from "antd";
+import { Button, Input, Select, Typography, Popover, Modal } from "antd";
 import { actions } from "@constants/automation-rule/data";
 import { Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
 import { Plus, Calendar, X } from "lucide-react";
@@ -21,15 +21,18 @@ import {
   FieldValueInput,
   BoardSelection,
   LabelSelection,
+  RoleSelection,
 } from "@components/selection";
 import { EnumSelectionType, EnumTextType } from "@myTypes/automation-rule";
 import { EnumInputType } from "@myTypes/automation-rule";
 import { ActionType } from "@myTypes/automation-rule";
+import { EnumOptionBySubject } from "@myTypes/options";
 import dayjs from "dayjs";
 import MultipleChecklist from "./multiple-checklist";
 import MultipleDates from "./multiple-dates";
 import { MultipleDatesProvider } from "./multiple-dates/context";
 import RichTextInput from "@components/rich-text-input";
+import ExpressionBuilder from "@components/expression-builder";
 
 // Helper function to extract placeholders from a pattern
 function extractPlaceholders(pattern: string): string[] {
@@ -50,6 +53,7 @@ interface SelectActionProps {
   selectedRule: AutomationRule;
   actionsData: AutomationRuleAction[];
   setActionsData: Dispatch<SetStateAction<AutomationRuleAction[]>>;
+  numberFields: Array<{ id: string; name: string }>;
 }
 
 // Component for select dropdown in actions
@@ -91,6 +95,37 @@ const SelectOption = ({
     setActionsData(copyArr);
   };
 
+  const onBoardChange = (selectedOption: any, selectionName: string) => {
+    console.log("Board changed:", {
+      selectedOption,
+      selectionName,
+      groupIndex,
+      index,
+      currentData: actionsData[groupIndex]?.items?.[index],
+    });
+
+    let copyArr = [...actionsData];
+    // Set the selected board
+    (copyArr[groupIndex]?.items?.[index]?.[selectionName] as any).value =
+      selectedOption;
+
+    // Clear the list selection when board changes (handle both regular and optional types)
+    if (copyArr[groupIndex]?.items?.[index]?.[EnumSelectionType.List]) {
+      console.log("Clearing list selection due to board change");
+      (copyArr[groupIndex].items[index] as any)[EnumSelectionType.List].value =
+        null;
+    }
+    if (copyArr[groupIndex]?.items?.[index]?.[EnumSelectionType.OptionalList]) {
+      console.log("Clearing optional list selection due to board change");
+      (copyArr[groupIndex].items[index] as any)[
+        EnumSelectionType.OptionalList
+      ].value = null;
+    }
+
+    console.log("Updated action data:", copyArr[groupIndex]?.items?.[index]);
+    setActionsData(copyArr);
+  };
+
   const onUserChange = (selectedOption: any, selectionName: string) => {
     let copyArr = [...actionsData];
     (copyArr[groupIndex]?.items?.[index]?.[placeholder] as any).value =
@@ -102,6 +137,23 @@ const SelectOption = ({
     let copyArr = [...actionsData];
     (copyArr[groupIndex]?.items?.[index]?.[selectionName] as any).value =
       selectedOption;
+    setActionsData(copyArr);
+  };
+
+  // Handle role selection change
+  const onRoleChange = (selectedOption: any, selectionName: string) => {
+    let copyArr = [...actionsData];
+    // Handle both single and multiple selection
+    if (Array.isArray(selectedOption)) {
+      // Multiple selection - store the array directly
+      (copyArr[groupIndex]?.items?.[index]?.[placeholder] as any).value =
+        selectedOption;
+    } else {
+      // Single selection - wrap in array for consistency
+      (copyArr[groupIndex]?.items?.[index]?.[placeholder] as any).value = [
+        selectedOption,
+      ];
+    }
     setActionsData(copyArr);
   };
 
@@ -203,6 +255,32 @@ const SelectOption = ({
     placeholder === EnumSelectionType.List ||
     placeholder === EnumSelectionType.OptionalList
   ) {
+    // Get the selected board ID for cross-board actions - try multiple access patterns
+    const boardSelection =
+      (actionsData[groupIndex]?.items?.[index] as any)?.[
+        EnumSelectionType.Board
+      ] ||
+      (actionsData[groupIndex]?.items?.[index] as any)?.[
+        EnumSelectionType.OptionalBoard
+      ];
+    const selectedBoardId =
+      boardSelection?.value?.value || boardSelection?.value || boardSelection;
+
+    console.log("ListSelection Debug:", {
+      groupIndex,
+      index,
+      placeholder,
+      selectedBoardId,
+      boardSelection,
+      boardData: (actionsData[groupIndex]?.items?.[index] as any)?.[
+        EnumSelectionType.Board
+      ],
+      optionalBoardData: (actionsData[groupIndex]?.items?.[index] as any)?.[
+        EnumSelectionType.OptionalBoard
+      ],
+      fullActionData: actionsData[groupIndex]?.items?.[index],
+    });
+
     return (
       <ListSelection
         width={"fit-content"}
@@ -216,7 +294,8 @@ const SelectOption = ({
         }}
         className="mx-2"
         placeholder={data.placeholder}
-        key={`list-selection-${index}`}
+        key={`list-selection-${index}-${selectedBoardId || "no-board"}`} // Update key when board changes
+        boardIdProp={selectedBoardId} // Pass the selected board ID
       />
     );
   }
@@ -230,7 +309,7 @@ const SelectOption = ({
         ActionType.MoveChecklistItemDueDate,
         ActionType.SetChecklistItemDueDate,
         ActionType.MoveCardDateStartOrDue,
-        ActionType.SetCardDateStartOrDue
+        ActionType.SetCardDateStartOrDue,
       ].includes(actionsData[groupIndex]?.items?.[index]?.type as any)
     ) {
       return (
@@ -309,20 +388,65 @@ const SelectOption = ({
   }
 
   if (placeholder === EnumSelectionType.Board) {
+    const currentBoardValue = (
+      actionsData[groupIndex]?.items?.[index] as any
+    )?.[placeholder]?.value?.value;
+
+    console.log("BoardSelection Debug:", {
+      groupIndex,
+      index,
+      placeholder,
+      currentBoardValue,
+      boardData: (actionsData[groupIndex]?.items?.[index] as any)?.[
+        placeholder
+      ],
+      fullActionData: actionsData[groupIndex]?.items?.[index],
+    });
+
     return (
       <BoardSelection
         width={"fit-content"}
         ref={boardSelectionRef}
-        value={
-          (actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value
-            ?.value || undefined
-        }
+        value={currentBoardValue || undefined}
         onChange={(option: any) => {
-          onListChange(option, placeholder);
+          console.log("BoardSelection onChange:", option);
+          onBoardChange(option, placeholder);
         }}
         className="mx-2"
         placeholder={data.placeholder}
         key={`board-selection-${index}`}
+      />
+    );
+  }
+
+  if (placeholder === EnumSelectionType.OptionalBoard) {
+    const currentBoardValue = (
+      actionsData[groupIndex]?.items?.[index] as any
+    )?.[placeholder]?.value?.value;
+
+    console.log("OptionalBoardSelection Debug:", {
+      groupIndex,
+      index,
+      placeholder,
+      currentBoardValue,
+      boardData: (actionsData[groupIndex]?.items?.[index] as any)?.[
+        placeholder
+      ],
+      fullActionData: actionsData[groupIndex]?.items?.[index],
+    });
+
+    return (
+      <BoardSelection
+        width={"fit-content"}
+        ref={boardSelectionRef}
+        value={currentBoardValue || undefined}
+        onChange={(option: any) => {
+          console.log("OptionalBoardSelection onChange:", option);
+          onBoardChange(option, placeholder);
+        }}
+        className="mx-2"
+        placeholder={data.placeholder}
+        key={`optional-board-selection-${index}`}
       />
     );
   }
@@ -378,22 +502,70 @@ const SelectOption = ({
 
   // Render regular Select
   return (
-    <Select
-      key={`${placeholder}-${index}`}
-      value={
-        (actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value
-          ?.value || ""
-      }
-      options={options}
-      labelInValue={false}
-      style={{ width: 120, margin: "0 5px" }}
-      onChange={(value, option) => {
-        onSelectChange(
-          (option as { option: GeneralOptions }).option,
-          placeholder
-        );
-      }}
-    />
+    <>
+      <Select
+        key={`${placeholder}-${index}`}
+        value={
+          (actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value
+            ?.value || ""
+        }
+        options={options}
+        labelInValue={false}
+        style={{
+          width:
+            placeholder === EnumSelectionType.OptionalBySubject ? 260 : 120,
+          margin: "0 5px",
+        }}
+        onChange={(value, option) => {
+          onSelectChange(
+            (option as { option: GeneralOptions }).option,
+            placeholder
+          );
+        }}
+      />
+
+      {(placeholder == EnumSelectionType.OptionalBySubject ||
+        placeholder == EnumSelectionType.BySubject) &&
+        [
+          EnumOptionBySubject.BySpecificUser,
+          EnumOptionBySubject.ByAnyoneExceptSpecificUser,
+        ].includes(
+          (actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value
+            ?.value
+        ) && (
+          <UserSelection
+            key={`user-select-${item.type}-${placeholder}`}
+            width={"fit-content"}
+            ref={useRef<SelectionRef>(null)}
+            onChange={(value: string, option: GeneralOptions) => {
+              onUserChange(option, placeholder);
+            }}
+            className="mx-2"
+          />
+        )}
+
+      {(placeholder == EnumSelectionType.OptionalBySubject ||
+        placeholder == EnumSelectionType.BySubject) &&
+        [EnumOptionBySubject.ByRole].includes(
+          (actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value
+            ?.value
+        ) && (
+          <RoleSelection
+            key={`role-select-${item.type}-${placeholder}`}
+            width={"fit-content"}
+            ref={useRef<SelectionRef>(null)}
+            mode="multiple"
+            onChange={(
+              value: string | string[],
+              option: GeneralOptions | GeneralOptions[]
+            ) => {
+              onRoleChange(option, placeholder);
+            }}
+            className="mx-2"
+            placeholder="Select roles"
+          />
+        )}
+    </>
   );
 };
 
@@ -402,8 +574,125 @@ const renderLabelWithSelects = (
   item: ActionItems,
   lastActionIndex: number,
   groupIndex: number,
-  index: number
+  index: number,
+  isModalOpen?: boolean,
+  setIsModalOpen?: (open: boolean) => void
 ) => {
+  // PATCH: For CalculateCustomField, render only the custom UI and return immediately
+  if (item.type === ActionType.CalculateCustomField) {
+    // Always get the latest steps from parent state
+    const expressionSteps =
+      (props.actionsData[groupIndex]?.items?.[index] as any)?.[
+        EnumSelectionType.Expression
+      ]?.steps || [];
+    const availableFields = props.numberFields.map((f) => ({
+      value: f.id,
+      label: f.name,
+    }));
+    const targetFieldValue =
+      (props.actionsData[groupIndex]?.items?.[index] as any)?.[
+        EnumSelectionType.Target
+      ]?.value || null;
+
+    // Helper to render the expression as a readable string
+    const renderExpressionString = () => {
+      console.log("DEBUG expressionSteps:", expressionSteps);
+      if (!expressionSteps || expressionSteps.length === 0)
+        return <span style={{ color: "#aaa" }}>No expression</span>;
+      // Build a string by joining each step, handling spaces and operator placement
+      return (
+        <span style={{ fontWeight: 500 }}>
+          {expressionSteps.map((step: any, i: number) => {
+            // Robust: treat as operator if value is +, -, *, /
+            if (
+              (step.type && step.type === "operator") ||
+              (typeof step.value === "string" &&
+                ["+", "-", "*", "/"].includes(step.value))
+            ) {
+              return ` ${step.value} `;
+            }
+            if (step.type === "field") {
+              const field = availableFields.find((f) => f.value === step.value);
+              return field ? field.label : step.value;
+            }
+            if (step.type === "number") {
+              return step.value;
+            }
+            return "";
+          })}
+        </span>
+      );
+    };
+
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <span>calculate</span>
+        <Select
+          style={{ minWidth: 180 }}
+          placeholder="Select target field"
+          options={availableFields}
+          value={targetFieldValue}
+          onChange={(val) => {
+            const updatedActions = [...props.actionsData];
+            if (updatedActions[groupIndex]?.items?.[index]) {
+              (updatedActions[groupIndex].items[index] as any)[
+                EnumSelectionType.Target
+              ].value = val;
+            }
+            props.setActionsData(updatedActions);
+          }}
+        />
+        <span>using</span>
+        <Popover
+          content={
+            <ExpressionBuilder
+              key={`expression-builder-${groupIndex}-${index}`}
+              value={expressionSteps}
+              onChange={(steps) => {
+                const updatedActions = [...props.actionsData];
+                if (updatedActions[groupIndex]?.items?.[index]) {
+                  (updatedActions[groupIndex].items[index] as any)[
+                    EnumSelectionType.Expression
+                  ].steps = steps;
+                }
+                props.setActionsData(updatedActions);
+              }}
+              availableFields={availableFields}
+            />
+          }
+          trigger="click"
+          open={!!isModalOpen}
+          onOpenChange={(open) => setIsModalOpen && setIsModalOpen(open)}
+        >
+          <Button
+            icon={
+              <span role="img" aria-label="calculator">
+                🧮
+              </span>
+            }
+          >
+            Build expression
+          </Button>
+        </Popover>
+        {/* Show the built expression inline */}
+        <span>{renderExpressionString()}</span>
+      </div>
+    );
+  }
+  // Patch: Ensure CalculateCustomField <fields> options are populated
+  if (item.type === ActionType.CalculateCustomField && props.numberFields) {
+    const fieldsObj = item[EnumSelectionType.Fields];
+    if (fieldsObj && typeof fieldsObj === "object" && "options" in fieldsObj) {
+      (fieldsObj as any).options = props.numberFields.map((f) => ({
+        value: f.id,
+        label: f.name,
+      }));
+      console.log(
+        "[PATCH] Populated CalculateCustomField options:",
+        (fieldsObj as any).options
+      );
+    }
+  }
   // If there's no placeholder in the label, just return the text
   if (!item.label.includes("<")) {
     return (
@@ -439,6 +728,90 @@ const renderLabelWithSelects = (
         // Check if this part is a placeholder
         if (part.startsWith("<") && part.endsWith(">")) {
           const placeholder = part.trim().slice(1, -1); // Remove < and >
+
+          // PATCH: For CalculateCustomField, render: calculate <target> using <expression> with correct label parts and preserve builder state
+          if (item.type === ActionType.CalculateCustomField) {
+            const expressionSteps =
+              (props.actionsData[groupIndex]?.items?.[index] as any)?.[
+                EnumSelectionType.Expression
+              ]?.steps || [];
+            const availableFields = props.numberFields.map((f) => ({
+              value: f.id,
+              label: f.name,
+            }));
+            const targetFieldValue =
+              (props.actionsData[groupIndex]?.items?.[index] as any)?.[
+                EnumSelectionType.Target
+              ]?.value || null;
+            const handleTargetFieldChange = (val: string, option: any) => {
+              const updatedActions = [...props.actionsData];
+              if (updatedActions[groupIndex]?.items?.[index]) {
+                (updatedActions[groupIndex].items[index] as any)[
+                  EnumSelectionType.Target
+                ].value = val;
+                props.setActionsData(updatedActions);
+              }
+            };
+            return (
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                {parts.map((part: string, indexPart: number) => {
+                  if (part.startsWith("<") && part.endsWith(">")) {
+                    const placeholder = part.trim().slice(1, -1);
+                    if (placeholder === EnumSelectionType.Target) {
+                      return (
+                        <Select
+                          key={`target-select-${indexPart}`}
+                          style={{ width: 200 }}
+                          placeholder="Select target field"
+                          value={targetFieldValue}
+                          options={availableFields}
+                          onChange={handleTargetFieldChange}
+                        />
+                      );
+                    }
+                    if (placeholder === EnumSelectionType.Expression) {
+                      return (
+                        <ExpressionBuilder
+                          key={`expression-builder-calc`}
+                          value={expressionSteps}
+                          onChange={(steps) => {
+                            const updatedActions = [...props.actionsData];
+                            if (updatedActions[groupIndex]?.items?.[index]) {
+                              (updatedActions[groupIndex].items[index] as any)[
+                                EnumSelectionType.Expression
+                              ] = {
+                                ...(
+                                  updatedActions[groupIndex].items[index] as any
+                                )[EnumSelectionType.Expression],
+                                steps,
+                              };
+                              props.setActionsData(updatedActions);
+                            }
+                          }}
+                          availableFields={availableFields}
+                        />
+                      );
+                    }
+                    // skip any other placeholders
+                    return null;
+                  } else if (part.trim() !== "") {
+                    // Render non-placeholder text as-is, preserving spaces
+                    return <span key={`text-${indexPart}`}>{part}</span>;
+                  } else {
+                    return null;
+                  }
+                })}
+              </div>
+            );
+          }
+
+          // PATCH: For CalculateCustomField, skip rendering <target> as Select elsewhere
+          if (
+            item.type === ActionType.CalculateCustomField &&
+            placeholder === EnumSelectionType.Target
+          ) {
+            return null;
+          }
 
           // Handle text input
           if (
@@ -529,6 +902,60 @@ const renderLabelWithSelects = (
                 item={item}
                 groupIndex={groupIndex}
                 index={index}
+              />
+            );
+          }
+
+          // Handle expression builder
+          if (placeholder === EnumSelectionType.Expression) {
+            console.log("Expression Builder Debug:", {
+              placeholder,
+              groupIndex,
+              index,
+              actionType: (props.actionsData[groupIndex]?.items?.[index] as any)
+                ?.type,
+              expressionSteps:
+                (props.actionsData[groupIndex]?.items?.[index] as any)?.[
+                  EnumSelectionType.Expression
+                ]?.steps || [],
+              numberFields: props.numberFields,
+            });
+
+            const expressionSteps =
+              (props.actionsData[groupIndex]?.items?.[index] as any)?.[
+                EnumSelectionType.Expression
+              ]?.steps || [];
+
+            // Use real number fields from props
+            const availableFields = props.numberFields.map((f) => ({
+              value: f.id,
+              label: f.name,
+            }));
+
+            console.log(
+              "Expression Builder - Available Fields:",
+              availableFields
+            );
+
+            return (
+              <ExpressionBuilder
+                key={`expression-builder-${indexPart}`}
+                value={expressionSteps}
+                onChange={(steps) => {
+                  const updatedActions = [...props.actionsData];
+                  if (updatedActions[groupIndex]?.items?.[index]) {
+                    (updatedActions[groupIndex].items[index] as any)[
+                      EnumSelectionType.Expression
+                    ] = {
+                      ...(updatedActions[groupIndex].items[index] as any)[
+                        EnumSelectionType.Expression
+                      ],
+                      steps,
+                    };
+                    props.setActionsData(updatedActions);
+                  }
+                }}
+                availableFields={availableFields}
               />
             );
           }
@@ -1435,6 +1862,19 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
   const [lastActionIndex, setLastActionIndex] = useState<number>(0);
   const [groupIndex, setGroupIndex] = useState<number>(0);
 
+  // Modal state for each action index (object: { [index]: boolean })
+  const [modalOpenIndex, setModalOpenIndex] = useState<number | null>(null);
+
+  console.log("SelectAction Debug:", {
+    actionsData: actionsData?.map((group) => ({
+      type: group.type,
+      itemsCount: group.items?.length,
+    })),
+    selectedRule,
+    lastActionIndex,
+    groupIndex,
+  });
+
   useEffect(() => {
     // Initialize with first action type if no actions exist yet
     if (!selectedRule.actions || selectedRule.actions.length === 0) {
@@ -1495,6 +1935,52 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
   };
 
   const onAddAction = (index: number) => {
+    const actionType = actionsData[groupIndex]?.items?.[index]?.type;
+    // Special handling for CalculateCustomField
+    if (actionType === ActionType.CalculateCustomField) {
+      const item = actionsData[groupIndex]?.items?.[index];
+      // Type guard for Target
+      const targetObj = item?.[EnumSelectionType.Target];
+      const expressionObj = item?.[EnumSelectionType.Expression];
+      const target =
+        targetObj && typeof targetObj === "object" && "value" in targetObj
+          ? targetObj.value
+          : null;
+      const expression =
+        expressionObj &&
+        typeof expressionObj === "object" &&
+        "steps" in expressionObj
+          ? expressionObj.steps
+          : null;
+      // Validation: both must be present
+      if (
+        !target ||
+        !expression ||
+        !Array.isArray(expression) ||
+        expression.length === 0
+      ) {
+        alert(
+          "Please select a target field and build an expression for calculation."
+        );
+        return;
+      }
+      const newActionItem: SelectedAction = {
+        groupType: actionsData[groupIndex].type,
+        type: actionType,
+        selectedActionItem: {
+          type: actionType,
+          label: item?.label,
+          [EnumSelectionType.Target]: target,
+          [EnumSelectionType.Expression]: expression,
+        },
+      };
+      setSelectedRule((prev: AutomationRule) => ({
+        ...prev,
+        actions: [...(prev.actions || []), newActionItem],
+      }));
+      nextStep();
+      return;
+    }
     const newActionItem: SelectedAction = {
       groupType: actionsData[groupIndex].type,
       type: actionsData[groupIndex]?.items?.[index]?.type || "",
@@ -1606,7 +2092,9 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
                     item,
                     lastActionIndex,
                     groupIndex,
-                    index
+                    index,
+                    modalOpenIndex === index,
+                    (open: boolean) => setModalOpenIndex(open ? index : null)
                   )}
                 </div>
                 <Button

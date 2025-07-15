@@ -586,7 +586,7 @@ export const cardFilters: CardTriggerFilterType[] = [
           options: [],
           value: null,
         },
-        [EnumInputType.Text]: null,
+        [EnumInputType.FieldValue]: null,
       },
       {
         type: EnumTiggerCarFilterType.CardCustomField5,

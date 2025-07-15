@@ -1,8 +1,10 @@
 import { RoleResponse, SingleRoleResponse } from "@myTypes/role";
 import { api } from "./index";
 
-export const getRoles = async (): Promise<RoleResponse> => {
-  const response = await api.get("/roles");
+export const getRoles = async (workspaceId?: string): Promise<RoleResponse> => {
+  const response = await api.get("/roles", {
+    headers: workspaceId ? { "workspace-id": workspaceId } : {},
+  });
   return response.data;
 };
 

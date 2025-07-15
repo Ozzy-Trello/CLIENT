@@ -106,12 +106,20 @@ export const triggers: AutomationRuleTrigger[] = [
               value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
               label: "by anyone except specific user",
             },
+            {
+              value: EnumOptionBySubject.ByRole,
+              label: "by role",
+            },
           ],
           value: {
-            value: EnumOptionBySubject.ByMe,
-            label: "by me",
+            value: EnumOptionBySubject.ByAnyone,
+            label: "by anyone",
           },
           data: [],
+        },
+        [EnumSelectionType.Role]: {
+          options: [],
+          value: null,
         },
         [EnumSelectionType.OptionalBoard]: {
           options: [],
@@ -168,16 +176,98 @@ export const triggers: AutomationRuleTrigger[] = [
               value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
               label: "by anyone except specific user",
             },
+            {
+              value: EnumOptionBySubject.ByRole,
+              label: "by role",
+            },
           ],
           value: {
-            value: EnumOptionBySubject.ByMe,
-            label: "by me",
+            value: EnumOptionBySubject.ByAnyone,
+            label: "by anyone",
           },
           data: [],
+        },
+        [EnumSelectionType.Role]: {
+          options: [],
+          value: null,
         },
         [EnumSelectionType.List]: {
           options: [],
           value: null,
+        },
+      },
+      {
+        type: TriggerType.WhenACardActionOverMultipleLists,
+        label: TriggerType.WhenACardActionOverMultipleLists.replaceAll(
+          "-",
+          " "
+        ),
+        filters: null,
+        [EnumSelectionType.Action]: {
+          options: [
+            {
+              value: EnumUserActionEvent.CardAddedTo,
+              label: "Added to",
+            },
+            {
+              value: EnumUserActionEvent.CreatedIn,
+              label: "Created in",
+            },
+            {
+              value: EnumUserActionEvent.CardMovedInto,
+              label: "Moved into",
+            },
+            {
+              value: EnumUserActionEvent.CardMovedOutOf,
+              label: "Moved out of",
+            },
+          ],
+          value: {
+            value: EnumUserActionEvent.CardAddedTo,
+            label: "Added to",
+          },
+        },
+        [EnumSelectionType.OptionalBySubject]: {
+          options: [
+            {
+              value: EnumOptionBySubject.ByMe,
+              label: "by me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyone,
+              label: "by anyone",
+            },
+            {
+              value: EnumOptionBySubject.BySpecificUser,
+              label: "by specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptMe,
+              label: "by anyone except me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
+              label: "by anyone except specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByRole,
+              label: "by role",
+            },
+          ],
+          value: {
+            value: EnumOptionBySubject.ByAnyone,
+            label: "by anyone",
+          },
+          data: [],
+        },
+        [EnumSelectionType.Role]: {
+          options: [],
+          value: null,
+        },
+        [EnumSelectionType.MultiLists]: {
+          options: [],
+          value: null,
+          isMultiSelect: true,
         },
       },
       {
@@ -221,12 +311,20 @@ export const triggers: AutomationRuleTrigger[] = [
               value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
               label: "by anyone except specific user",
             },
+            {
+              value: EnumOptionBySubject.ByRole,
+              label: "by role",
+            },
           ],
           value: {
-            value: EnumOptionBySubject.ByMe,
-            label: "by me",
+            value: EnumOptionBySubject.ByAnyone,
+            label: "by anyone",
           },
           data: [],
+        },
+        [EnumSelectionType.Role]: {
+          options: [],
+          value: null,
         },
         [EnumSelectionType.List]: {
           options: [],
@@ -317,12 +415,20 @@ export const triggers: AutomationRuleTrigger[] = [
               value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
               label: "by anyone except specific user",
             },
+            {
+              value: EnumOptionBySubject.ByRole,
+              label: "by role",
+            },
           ],
           value: {
-            value: EnumOptionBySubject.ByMe,
-            label: "by me",
+            value: EnumOptionBySubject.ByAnyone,
+            label: "by anyone",
           },
           data: [],
+        },
+        [EnumSelectionType.Role]: {
+          options: [],
+          value: null,
         },
       },
       {
@@ -383,12 +489,25 @@ export const triggers: AutomationRuleTrigger[] = [
               value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
               label: "by anyone except specific user",
             },
+            {
+              value: EnumOptionBySubject.ByRole,
+              label: "by role",
+            },
           ],
           value: {
-            value: EnumOptionBySubject.ByMe,
-            label: "by me",
+            value: EnumOptionBySubject.ByAnyone,
+            label: "by anyone",
           },
           data: [],
+        },
+        [EnumSelectionType.Role]: {
+          options: [],
+          value: null,
+        },
+        [EnumSelectionType.CardLabel]: {
+          options: [],
+          value: null,
+          placeholder: "Select Label",
         },
       },
       {
@@ -430,16 +549,16 @@ export const triggers: AutomationRuleTrigger[] = [
         [EnumSelectionType.Action]: {
           options: [
             {
-              value: EnumUserActionEvent.CardLabelAdded,
+              value: EnumUserActionEvent.CardAttachmentAdded,
               label: "added to",
             },
             {
-              value: EnumUserActionEvent.CardLabelRemove,
+              value: EnumUserActionEvent.CardAttachmentRemoved,
               label: "removed from",
             },
           ],
           value: {
-            value: EnumUserActionEvent.CardLabelAdded,
+            value: EnumUserActionEvent.CardAttachmentAdded,
             label: "added to",
           },
         },
@@ -465,12 +584,20 @@ export const triggers: AutomationRuleTrigger[] = [
               value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
               label: "by anyone except specific user",
             },
+            {
+              value: EnumOptionBySubject.ByRole,
+              label: "by role",
+            },
           ],
           value: {
-            value: EnumOptionBySubject.ByMe,
-            label: "by me",
+            value: EnumOptionBySubject.ByAnyone,
+            label: "by anyone",
           },
           data: [],
+        },
+        [EnumSelectionType.Role]: {
+          options: [],
+          value: null,
         },
       },
       {
@@ -496,16 +623,16 @@ export const triggers: AutomationRuleTrigger[] = [
         [EnumSelectionType.Action]: {
           options: [
             {
-              value: EnumUserActionEvent.CardLabelAdded,
+              value: EnumUserActionEvent.CardMemberAdded,
               label: "added to",
             },
             {
-              value: EnumUserActionEvent.CardLabelRemove,
+              value: EnumUserActionEvent.CardMemberRemoved,
               label: "removed from",
             },
           ],
           value: {
-            value: EnumUserActionEvent.CardLabelAdded,
+            value: EnumUserActionEvent.CardMemberAdded,
             label: "added to",
           },
         },
@@ -531,12 +658,20 @@ export const triggers: AutomationRuleTrigger[] = [
               value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
               label: "by anyone except specific user",
             },
+            {
+              value: EnumOptionBySubject.ByRole,
+              label: "by role",
+            },
           ],
           value: {
-            value: EnumOptionBySubject.ByMe,
-            label: "by me",
+            value: EnumOptionBySubject.ByAnyone,
+            label: "by anyone",
           },
           data: [],
+        },
+        [EnumSelectionType.Role]: {
+          options: [],
+          value: null,
         },
       },
     ],
@@ -587,12 +722,20 @@ export const triggers: AutomationRuleTrigger[] = [
               value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
               label: "by anyone except specific user",
             },
+            {
+              value: EnumOptionBySubject.ByRole,
+              label: "by role",
+            },
           ],
           value: {
-            value: EnumOptionBySubject.ByMe,
-            label: "by me",
+            value: EnumOptionBySubject.ByAnyone,
+            label: "by anyone",
           },
           data: [],
+        },
+        [EnumSelectionType.Role]: {
+          options: [],
+          value: null,
         },
         [EnumSelectionType.DateExpression]: {
           options: [],
@@ -662,9 +805,17 @@ export const triggers: AutomationRuleTrigger[] = [
               value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
               label: "by anyone except specific user",
             },
+            {
+              value: EnumOptionBySubject.ByRole,
+              label: "by role",
+            },
           ],
-          value: { value: EnumOptionBySubject.ByMe, label: "by me" },
+          value: { value: EnumOptionBySubject.ByAnyone, label: "by anyone" },
           data: [],
+        },
+        [EnumSelectionType.Role]: {
+          options: [],
+          value: null,
         },
       },
       {
@@ -711,9 +862,17 @@ export const triggers: AutomationRuleTrigger[] = [
               value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
               label: "by anyone except specific user",
             },
+            {
+              value: EnumOptionBySubject.ByRole,
+              label: "by role",
+            },
           ],
-          value: { value: EnumOptionBySubject.ByMe, label: "by me" },
+          value: { value: EnumOptionBySubject.ByAnyone, label: "by anyone" },
           data: [],
+        },
+        [EnumSelectionType.Role]: {
+          options: [],
+          value: null,
         },
       },
       {
@@ -759,9 +918,17 @@ export const triggers: AutomationRuleTrigger[] = [
               value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
               label: "by anyone except specific user",
             },
+            {
+              value: EnumOptionBySubject.ByRole,
+              label: "by role",
+            },
           ],
-          value: { value: EnumOptionBySubject.ByMe, label: "by me" },
+          value: { value: EnumOptionBySubject.ByAnyone, label: "by anyone" },
           data: [],
+        },
+        [EnumSelectionType.Role]: {
+          options: [],
+          value: null,
         },
       },
       {
@@ -831,9 +998,17 @@ export const triggers: AutomationRuleTrigger[] = [
               value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
               label: "by anyone except specific user",
             },
+            {
+              value: EnumOptionBySubject.ByRole,
+              label: "by role",
+            },
           ],
-          value: { value: EnumOptionBySubject.ByMe, label: "by me" },
+          value: { value: EnumOptionBySubject.ByAnyone, label: "by anyone" },
           data: [],
+        },
+        [EnumSelectionType.Role]: {
+          options: [],
+          value: null,
         },
         [EnumSelectionType.TextComparison]: {
           options: [
@@ -942,14 +1117,57 @@ export const triggers: AutomationRuleTrigger[] = [
       {
         type: TriggerType.WhenAllCustomFieldsAreCompleted,
         label: TriggerType.WhenAllCustomFieldsAreCompleted.replaceAll("-", " "),
+        filters: null,
+        [EnumSelectionType.OptionalBySubject]: {
+          options: [
+            { value: EnumOptionBySubject.ByMe, label: "by me" },
+            { value: EnumOptionBySubject.ByAnyone, label: "by anyone" },
+            {
+              value: EnumOptionBySubject.BySpecificUser,
+              label: "by specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptMe,
+              label: "by anyone except me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
+              label: "by anyone except specific user",
+            },
+            { value: EnumOptionBySubject.ByRole, label: "by role" },
+          ],
+          value: { value: EnumOptionBySubject.ByAnyone, label: "by anyone" },
+          data: [],
+        },
+        [EnumSelectionType.Role]: { options: [], value: null },
       },
       {
         type: TriggerType.WhenCustomFieldsAreCompleted,
         label: TriggerType.WhenCustomFieldsAreCompleted.replaceAll("-", " "),
-        [EnumSelectionType.Fields]: {
-          options: [],
-          value: null,
+        [EnumSelectionType.Fields]: { options: [], value: null },
+        filters: null,
+        [EnumSelectionType.OptionalBySubject]: {
+          options: [
+            { value: EnumOptionBySubject.ByMe, label: "by me" },
+            { value: EnumOptionBySubject.ByAnyone, label: "by anyone" },
+            {
+              value: EnumOptionBySubject.BySpecificUser,
+              label: "by specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptMe,
+              label: "by anyone except me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
+              label: "by anyone except specific user",
+            },
+            { value: EnumOptionBySubject.ByRole, label: "by role" },
+          ],
+          value: { value: EnumOptionBySubject.ByAnyone, label: "by anyone" },
+          data: [],
         },
+        [EnumSelectionType.Role]: { options: [], value: null },
       },
       {
         type: TriggerType.WhenCustomFieldsIsSetToFieldValue,
@@ -957,6 +1175,7 @@ export const triggers: AutomationRuleTrigger[] = [
           "-",
           " "
         ),
+        filters: null,
         [EnumSelectionType.Action]: {
           options: [],
           value: {
@@ -994,12 +1213,104 @@ export const triggers: AutomationRuleTrigger[] = [
               value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
               label: "by anyone except specific user",
             },
+            {
+              value: EnumOptionBySubject.ByRole,
+              label: "by role",
+            },
           ],
           value: {
-            value: EnumOptionBySubject.ByMe,
-            label: "by me",
+            value: EnumOptionBySubject.ByAnyone,
+            label: "by anyone",
           },
           data: [],
+        },
+        [EnumSelectionType.Role]: {
+          options: [],
+          value: null,
+        },
+      },
+      {
+        type: TriggerType.WhenCustomFieldsIncludesAnyValue,
+        label: TriggerType.WhenCustomFieldsIncludesAnyValue.replaceAll(
+          "-",
+          " "
+        ),
+        [EnumSelectionType.Action]: {
+          options: [],
+          value: {
+            value: EnumUserActionEvent.CardCustomFieldChange,
+            label: EnumUserActionEvent.CardCustomFieldChange,
+          },
+        },
+        [EnumSelectionType.Fields]: {
+          options: [],
+          value: null,
+        },
+        [EnumSelectionType.FieldValueOperator]: {
+          options: [
+            {
+              value: "includes_any",
+              label: "includes any of",
+            },
+            {
+              value: "includes_all",
+              label: "includes all of",
+            },
+            {
+              value: "excludes_any",
+              label: "excludes any of",
+            },
+            {
+              value: "excludes_all",
+              label: "excludes all of",
+            },
+          ],
+          value: {
+            value: "includes_any",
+            label: "includes any of",
+          },
+        },
+        [EnumInputType.MultiFieldValue]: {
+          options: [],
+          value: [],
+          isMultiSelect: true,
+        },
+        [EnumSelectionType.OptionalBySubject]: {
+          options: [
+            {
+              value: EnumOptionBySubject.ByMe,
+              label: "by me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyone,
+              label: "by anyone",
+            },
+            {
+              value: EnumOptionBySubject.BySpecificUser,
+              label: "by specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptMe,
+              label: "by anyone except me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
+              label: "by anyone except specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByRole,
+              label: "by role",
+            },
+          ],
+          value: {
+            value: EnumOptionBySubject.ByAnyone,
+            label: "by anyone",
+          },
+          data: [],
+        },
+        [EnumSelectionType.Role]: {
+          options: [],
+          value: null,
         },
       },
       {
@@ -1047,12 +1358,20 @@ export const triggers: AutomationRuleTrigger[] = [
               value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
               label: "by anyone except specific user",
             },
+            {
+              value: EnumOptionBySubject.ByRole,
+              label: "by role",
+            },
           ],
           value: {
-            value: EnumOptionBySubject.ByMe,
-            label: "by me",
+            value: EnumOptionBySubject.ByAnyone,
+            label: "by anyone",
           },
           data: [],
+        },
+        [EnumSelectionType.Role]: {
+          options: [],
+          value: null,
         },
       },
       {
@@ -1108,12 +1427,20 @@ export const triggers: AutomationRuleTrigger[] = [
               value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
               label: "by anyone except specific user",
             },
+            {
+              value: EnumOptionBySubject.ByRole,
+              label: "by role",
+            },
           ],
           value: {
-            value: EnumOptionBySubject.ByMe,
-            label: "by me",
+            value: EnumOptionBySubject.ByAnyone,
+            label: "by anyone",
           },
           data: [],
+        },
+        [EnumSelectionType.Role]: {
+          options: [],
+          value: null,
         },
       },
       {
@@ -1178,12 +1505,20 @@ export const triggers: AutomationRuleTrigger[] = [
               value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
               label: "by anyone except specific user",
             },
+            {
+              value: EnumOptionBySubject.ByRole,
+              label: "by role",
+            },
           ],
           value: {
-            value: EnumOptionBySubject.ByMe,
-            label: "by me",
+            value: EnumOptionBySubject.ByAnyone,
+            label: "by anyone",
           },
           data: [],
+        },
+        [EnumSelectionType.Role]: {
+          options: [],
+          value: null,
         },
       },
       {
@@ -1221,9 +1556,17 @@ export const triggers: AutomationRuleTrigger[] = [
               value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
               label: "by anyone except specific user",
             },
+            {
+              value: EnumOptionBySubject.ByRole,
+              label: "by role",
+            },
           ],
-          value: { value: EnumOptionBySubject.ByMe, label: "by me" },
+          value: { value: EnumOptionBySubject.ByAnyone, label: "by anyone" },
           data: [],
+        },
+        [EnumSelectionType.Role]: {
+          options: [],
+          value: null,
         },
       },
     ],
@@ -1337,6 +1680,52 @@ export const actions: AutomationRuleAction[] = [
             value: EnumActions.ArchiveCard,
             label: "archived",
           },
+        },
+      },
+      {
+        type: ActionType.ActionTheCardToBoardList,
+        label: ActionType.ActionTheCardToBoardList.replaceAll("-", " "),
+        [EnumSelectionType.Action]: {
+          options: [
+            {
+              value: EnumActions.MoveCardToBoard,
+              label: "Move",
+            },
+            {
+              value: EnumActions.CopyCard,
+              label: "Copy",
+            },
+          ],
+          value: {
+            value: EnumActions.MoveCardToBoard,
+            label: "Move",
+          },
+        },
+        [EnumSelectionType.Position]: {
+          options: [
+            {
+              value: EnumOptionPosition.TopOfList,
+              label: "The top of the list",
+            },
+            {
+              value: EnumOptionPosition.BottomOfList,
+              label: "The bottom of the list",
+            },
+          ],
+          value: {
+            value: EnumOptionPosition.TopOfList,
+            label: "The top of the list",
+          },
+        },
+        [EnumSelectionType.Board]: {
+          options: [],
+          value: null,
+          placeholder: "Select Board",
+        },
+        [EnumSelectionType.List]: {
+          options: [],
+          value: null,
+          placeholder: "Select List",
         },
       },
     ],
@@ -1933,6 +2322,19 @@ export const actions: AutomationRuleAction[] = [
           value: { value: "cardfields.date.move", label: "move" },
         },
       },
+      {
+        type: ActionType.CalculateCustomField,
+        label: "calculate <target> using <expression>",
+        [EnumSelectionType.Target]: {
+          options: [],
+          value: null,
+          fieldTypeFilter: "number", // Target field (number only)
+        },
+        [EnumSelectionType.Expression]: {
+          steps: [], // Will be populated by the expression builder
+          value: null,
+        },
+      },
     ],
   },
   {
@@ -2003,6 +2405,16 @@ export const actions: AutomationRuleAction[] = [
         [EnumInputType.TextTitle]: {
           placeholder: "Enter card title",
           value: "",
+        },
+        [EnumSelectionType.OptionalBoard]: {
+          options: [],
+          value: null,
+          placeholder: "Select Board (optional)",
+        },
+        [EnumSelectionType.OptionalList]: {
+          options: [],
+          value: null,
+          placeholder: "Select List (optional)",
         },
       },
       {

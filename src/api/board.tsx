@@ -18,9 +18,12 @@ export const boards = async (
 };
 
 export const boardDetails = async (
-  boardId: string
+  boardId: string,
+  workspaceId?: string
 ): Promise<ApiResponse<Board>> => {
-  const { data } = await api.get(`/board/${boardId}`);
+  const { data } = await api.get(`/board/${boardId}`, {
+    headers: workspaceId ? { "workspace-id": workspaceId } : {},
+  });
   return data;
 };
 

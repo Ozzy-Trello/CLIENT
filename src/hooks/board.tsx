@@ -212,14 +212,15 @@ export function useUpdateBoard(workspaceId: string) {
 
 export function useBoardDetails(
   boardId: string,
+  workspaceId?: string,
   options: { enabled?: boolean } = {}
 ) {
   const queryClient = useQueryClient();
 
   // Main query for board details with refetchOnMount and refetchOnWindowFocus
   const boardDetailsQuery = useQuery({
-    queryKey: ["boardDetails", boardId],
-    queryFn: () => boardDetails(boardId),
+    queryKey: ["boardDetails", boardId, workspaceId],
+    queryFn: () => boardDetails(boardId, workspaceId),
     enabled: options.enabled !== false && !!boardId, // Only enable if boardId exists and not explicitly disabled
     refetchOnMount: true, // Refetch when component mounts
     refetchOnWindowFocus: false, // Don't refetch on window focus to reduce unnecessary requests
@@ -230,7 +231,7 @@ export function useBoardDetails(
   const refetch = async () => {
     if (boardId) {
       await queryClient.invalidateQueries({
-        queryKey: ["boardDetails", boardId],
+        queryKey: ["boardDetails", boardId, workspaceId],
         refetchType: "active", // Only refetch active queries
       });
       return boardDetailsQuery.refetch();
