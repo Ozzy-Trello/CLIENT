@@ -34,7 +34,7 @@ const DragDropContext = dynamic(
 );
 
 const Board: React.FC = () => {
-  const { boardId } = useParams();
+  const { boardId, workspaceId } = useParams();
   const searchParams = useSearchParams();
   const theme = useSelector(selectTheme);
   const { colors } = theme;
@@ -43,14 +43,21 @@ const Board: React.FC = () => {
   const dispatch = useDispatch();
 
   const resolvedBoardId = Array.isArray(boardId) ? boardId[0] : boardId;
+  const resolvedWorkspaceId = Array.isArray(workspaceId)
+    ? workspaceId[0]
+    : workspaceId;
 
   const { lists, addList, pagination, isLoading, updateList } =
     useLists(resolvedBoardId);
 
   // Fetch board details and update Redux state when boardId changes
-  const { board: boardDetails } = useBoardDetails(resolvedBoardId || "", {
-    enabled: !!resolvedBoardId,
-  });
+  const { board: boardDetails } = useBoardDetails(
+    resolvedBoardId || "",
+    resolvedWorkspaceId,
+    {
+      enabled: !!resolvedBoardId,
+    }
+  );
 
   const [listData, setListData] = useState<AnyList[]>();
   const [isAddingList, setIsAddingList] = useState<boolean>(false);

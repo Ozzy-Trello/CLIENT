@@ -101,6 +101,7 @@ const EnterToSaveInput: React.FC<{
   className?: string;
   type?: string;
   fieldName?: string; // For debugging
+  disabled?: boolean;
 }> = ({
   placeholder,
   initialValue,
@@ -108,6 +109,7 @@ const EnterToSaveInput: React.FC<{
   className,
   type = "text",
   fieldName,
+  disabled = false,
 }) => {
   const { value, hasChanges, onChange, onKeyPress, onBlur } = useEnterToSave(
     initialValue,
@@ -125,6 +127,7 @@ const EnterToSaveInput: React.FC<{
         onChange={(e) => onChange(e.target.value)}
         onKeyPress={onKeyPress}
         onBlur={onBlur}
+        disabled={disabled}
       />
       {hasChanges && (
         <div className="absolute right-2 top-1/2 transform -translate-y-1/2 pointer-events-none">
@@ -143,6 +146,7 @@ const EnterToSaveNumberInput: React.FC<{
   className?: string;
   fieldName?: string; // For debugging
   customFieldId?: string; // Added for split job integration
+  disabled?: boolean;
 }> = ({
   placeholder,
   initialValue,
@@ -150,6 +154,7 @@ const EnterToSaveNumberInput: React.FC<{
   className,
   fieldName,
   customFieldId,
+  disabled = false,
 }) => {
   const params = useParams();
   const { selectedCard } = useCardDetailContext();
@@ -175,6 +180,7 @@ const EnterToSaveNumberInput: React.FC<{
         onChange={(e) => onChange(e.target.value)}
         onKeyPress={onKeyPress}
         onBlur={onBlur}
+        disabled={disabled}
         suffix={
           <SplitJobSlider
             workspaceId={params.workspaceId as string}
@@ -325,6 +331,17 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
   const renderFieldInput = (field: CardCustomField) => {
     if (!field.id) return null;
 
+    // Check if user can view and edit this field
+    // If canView/canEdit is undefined, it means the backend didn't send the permission info
+    // In that case, we should default to allowing access (for backward compatibility)
+    const canView = field.canView !== undefined ? field.canView : true;
+    const canEdit = field.canEdit !== undefined ? field.canEdit : true;
+
+    // If user can't view this field, don't render it
+    if (!canView) {
+      return null;
+    }
+
     switch (field?.type) {
       case EnumCustomFieldType.Checkbox:
         return (
@@ -332,8 +349,11 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
             <Checkbox
               checked={Boolean(field?.valueCheckbox)}
               onChange={(e) =>
-                handleCheckboxValueChange(field.id!, e.target.checked)
+                canEdit
+                  ? handleCheckboxValueChange(field.id!, e.target.checked)
+                  : undefined
               }
+              disabled={!canEdit}
             />
           </div>
         );
@@ -343,9 +363,14 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
           <EnterToSaveInput
             fieldName={field.name}
             placeholder={`Add ${field.name}...`}
-            className="w-full"
+            className={`w-full ${
+              !canEdit ? "bg-gray-100 cursor-not-allowed" : ""
+            }`}
             initialValue={field.valueString || ""}
-            onSave={(value) => handleStringValueChange(field.id!, value)}
+            onSave={(value) =>
+              canEdit ? handleStringValueChange(field.id!, value) : undefined
+            }
+            disabled={!canEdit}
           />
         );
 
@@ -354,10 +379,15 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
           <EnterToSaveNumberInput
             fieldName={field.name}
             placeholder={`Add ${field.name}...`}
-            className="w-full"
+            className={`w-full ${
+              !canEdit ? "bg-gray-100 cursor-not-allowed" : ""
+            }`}
             initialValue={field.valueNumber}
             customFieldId={field.id}
-            onSave={(value) => handleNumberValueChange(field.id!, value)}
+            onSave={(value) =>
+              canEdit ? handleNumberValueChange(field.id!, value) : undefined
+            }
+            disabled={!canEdit}
           />
         );
 
@@ -365,15 +395,20 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
         const dateValue = field.valueDate ? dayjs(field.valueDate) : null;
         return (
           <DatePicker
-            className="w-full"
+            className={`w-full ${
+              !canEdit ? "bg-gray-100 cursor-not-allowed" : ""
+            }`}
             placeholder={`Select ${field.name}...`}
             value={dateValue}
             onChange={(date: Dayjs | null) => {
-              const dateValue = date ? date.toDate() : null;
-              handleDateValueChange(field.id!, dateValue);
+              if (canEdit) {
+                const dateValue = date ? date.toDate() : null;
+                handleDateValueChange(field.id!, dateValue);
+              }
             }}
             format="YYYY-MM-DD"
             allowClear
+            disabled={!canEdit}
           />
         );
 
@@ -389,10 +424,13 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
               }}
               value={field.valueUserId}
               onChange={(value: string) =>
-                value && handleUserValueChange(field.id!, value)
+                canEdit && value
+                  ? handleUserValueChange(field.id!, value)
+                  : undefined
               }
               placeholder={`Select ${field.name}...`}
               size="middle"
+              disabled={!canEdit}
             />
           );
         } else if (field.source?.startsWith("user-role:")) {
@@ -406,12 +444,17 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
               }}
               value={field.valueUserId}
               onChange={(value: string) =>
-                value && handleUserValueChange(field.id!, value)
+                canEdit && value
+                  ? handleUserValueChange(field.id!, value)
+                  : undefined
               }
               placeholder={`Select ${field.name}...`}
               size="middle"
-              className="w-full"
+              className={`w-full ${
+                !canEdit ? "bg-gray-100 cursor-not-allowed" : ""
+              }`}
               roleIds={roleIds} // Pass role IDs for filtering
+              disabled={!canEdit}
             />
           );
         } else {
@@ -419,13 +462,18 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
           return (
             <div>
               <Select
-                className="w-full"
+                className={`w-full ${
+                  !canEdit ? "bg-gray-100 cursor-not-allowed" : ""
+                }`}
                 placeholder={`Select ${field.name}...`}
                 value={(field.valueOption as string) || undefined}
                 onChange={(value) =>
-                  value && handleOptionValueChange(field.id!, value)
+                  canEdit && value
+                    ? handleOptionValueChange(field.id!, value)
+                    : undefined
                 }
                 options={field?.options}
+                disabled={!canEdit}
               />
             </div>
           );
@@ -498,22 +546,36 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
         <div className="grid grid-cols-3 gap-4 ml-8">
           {getFieldRows().map((row, rowIndex) => (
             <Fragment key={`row-${rowIndex}`}>
-              {row.map((field) => (
-                <div key={field.id} className="space-y-2">
-                  <div className="w-full">
-                    <div className="flex items-center gap-2 text-gray-700 font-medium">
-                      {getFieldIcon(field)}
-                      <Tooltip title={field.name}>
-                        <span className="truncate" style={{ fontSize: "14px" }}>
-                          {field.name}
-                        </span>
-                      </Tooltip>
-                    </div>
+              {row.map((field) => {
+                // Use the permission flags directly (backend already handles public fields)
+                const canView = field.canView !== false;
+                const canEdit = field.canEdit !== false;
 
-                    <div>{renderFieldInput(field)}</div>
+                // Hide fields that user can't view
+                if (!canView) {
+                  return null;
+                }
+
+                return (
+                  <div key={field.id} className="space-y-2">
+                    <div className="w-full">
+                      <div className="flex items-center gap-2 text-gray-700 font-medium">
+                        {getFieldIcon(field)}
+                        <Tooltip title={field.name}>
+                          <span
+                            className="truncate"
+                            style={{ fontSize: "14px" }}
+                          >
+                            {field.name}
+                          </span>
+                        </Tooltip>
+                      </div>
+
+                      <div>{renderFieldInput(field)}</div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </Fragment>
           ))}
         </div>

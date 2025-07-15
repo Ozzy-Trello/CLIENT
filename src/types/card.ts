@@ -122,6 +122,9 @@ export interface CardCustomField {
   valueCheckbox?: boolean;
   valueDate?: Date;
   valueUserId?: string;
+  canView?: boolean;
+  canEdit?: boolean;
+  isPublic?: boolean;
 }
 
 export interface CardMember {

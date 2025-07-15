@@ -19,7 +19,7 @@ import React, {
   useCallback,
   useRef,
 } from "react";
-import { ChevronLeft, ChevronRight, Trello, Users } from "lucide-react";
+import { ChevronLeft, ChevronRight, Trello, Users, Shield } from "lucide-react";
 import ModalCreateBoard from "../modal-create-board";
 import { useDispatch } from "react-redux";
 import { MenuProps } from "antd";
@@ -107,8 +107,9 @@ const Sidebar = () => {
       },
     ];
 
-    // Only show Members menu to Super Admin (and only if account data is loaded)
-    if (isSuperAdmin && !isLoadingAccount) {
+    // Show Members and Roles menu to Super Admin
+    // Show if we know they're super admin (either from loaded data or if we have user data)
+    if (isSuperAdmin) {
       menus.push({
         key: `/workspace/${resolvedWorkspaceId}/members`,
         label: (
@@ -120,6 +121,19 @@ const Sidebar = () => {
           </Link>
         ),
         icon: <Users size={16} />,
+      });
+
+      menus.push({
+        key: `/workspace/${resolvedWorkspaceId}/roles`,
+        label: (
+          <Link
+            className="block w-full"
+            href={`/workspace/${resolvedWorkspaceId}/roles`}
+          >
+            Roles
+          </Link>
+        ),
+        icon: <Shield size={16} />,
       });
     }
 

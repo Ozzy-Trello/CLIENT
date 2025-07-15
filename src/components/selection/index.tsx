@@ -96,6 +96,8 @@ export const UserSelection = forwardRef<SelectionRef, SelectionProps>(
       mode,
       excludeIds = [],
       roleIds = [],
+      disabled,
+      ...restProps
     },
     ref
   ) => {
@@ -211,6 +213,8 @@ export const UserSelection = forwardRef<SelectionRef, SelectionProps>(
         notFoundContent={
           options.length === 0 ? "No user available" : "No match found"
         }
+        disabled={disabled}
+        {...restProps}
       />
     );
   }
@@ -1326,7 +1330,7 @@ export const MultiFieldValueInput = forwardRef<
           size={size}
           className={`${className} min-w-[200px]`}
           value={inputValues}
-          onChange={(vals, options) => handleChange(vals, options)}
+          onChange={(vals, options) => handleChange(vals, options as any[])}
           placeholder={placeholder}
           options={userOptions}
           showSearch
@@ -1348,7 +1352,7 @@ export const MultiFieldValueInput = forwardRef<
           size={size}
           className={`${className} min-w-[200px]`}
           value={inputValues}
-          onChange={(vals, options) => handleChange(vals, options)}
+          onChange={(vals, options) => handleChange(vals, options as any[])}
           placeholder={placeholder}
           options={field?.option}
           showSearch
