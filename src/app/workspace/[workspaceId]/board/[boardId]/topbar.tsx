@@ -5,6 +5,9 @@ import {
   Tooltip,
   Typography,
   message,
+  Popover,
+  Input,
+  Space,
 } from "antd";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import { useWorkspaceSidebar } from "@providers/workspace-sidebar-context";
@@ -18,11 +21,14 @@ import {
   UserPlus,
   Users,
   QrCode,
+  FileText,
 } from "lucide-react";
 import { useSelector } from "react-redux";
 import { selectCurrentBoard } from "@store/workspace_slice";
 import { useRouter } from "next/navigation";
 import { Scanner } from "@yudiel/react-qr-scanner";
+import api from "@api/index";
+import { useWebSocket } from "@hooks/websocket";
 
 interface BoardTopbarProps {
   boardScopeMenuOpen: boolean;
@@ -45,7 +51,11 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
   const [openAddMember, setOpenAddMember] = useState<boolean>(false);
   const [showScanner, setShowScanner] = useState(false);
   const [scanResult, setScanResult] = useState<string | null>(null);
+  const [showInvoiceInput, setShowInvoiceInput] = useState<boolean>(false);
+  const [invoiceNumber, setInvoiceNumber] = useState<string>("");
+  const [isLoadingInvoice, setIsLoadingInvoice] = useState<boolean>(false);
   const router = useRouter();
+  const { socket } = useWebSocket();
 
   // Handle responsive behavior for tablet devices
   useEffect(() => {
@@ -75,6 +85,48 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
     // getUserById('4'),
     // getUserById('5')
   ]);
+
+  const handleInvoiceSubmit = async () => {
+    if (!invoiceNumber.trim()) {
+      message.error("Please enter an invoice number");
+      return;
+    }
+
+    // Format invoice number: convert slashes to dashes for backend
+    const formattedInvoiceNumber = invoiceNumber.replace(/\//g, "-");
+
+    setIsLoadingInvoice(true);
+    try {
+      const response = await api.get(
+        `/accurate/invoice/${formattedInvoiceNumber}`
+      );
+
+      if (response.data.message === "Invoice added!") {
+        message.success("Invoice processed successfully! Card created.");
+        setInvoiceNumber("");
+        setShowInvoiceInput(false);
+      } else if (
+        response.data.message === "Card with this invoice already exists!"
+      ) {
+        message.warning("Card with this invoice already exists!");
+        setInvoiceNumber("");
+        setShowInvoiceInput(false);
+      } else {
+        message.info(response.data.message);
+        setInvoiceNumber("");
+        setShowInvoiceInput(false);
+      }
+    } catch (error: any) {
+      console.error("Error processing invoice:", error);
+      if (error.response?.data?.message) {
+        message.error(error.response.data.message);
+      } else {
+        message.error("Failed to process invoice. Please try again.");
+      }
+    } finally {
+      setIsLoadingInvoice(false);
+    }
+  };
 
   const rightMenu: MenuProps["items"] = [
     {
@@ -161,6 +213,7 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
           </div>
         </div>
       )}
+
       <div className="flex items-center gap-2 ml-5">
         <Typography.Title level={4} className="m-0">
           {currentBoard?.name}
@@ -191,7 +244,7 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
                 <span>Track</span>
               </Button>
             </Tooltip>
-            <Tooltip title={"filter"}>
+            {/* <Tooltip title={"filter"}>
               <Button
                 size="small"
                 shape="default"
@@ -199,8 +252,64 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
               >
                 <span>Filter</span>
               </Button>
-            </Tooltip>
-            <div>
+            </Tooltip> */}
+            <Popover
+              content={
+                <div className="p-2">
+                  <Space
+                    direction="vertical"
+                    size="small"
+                    style={{ width: "100%" }}
+                  >
+                    <Typography.Text strong>
+                      Enter Invoice Number
+                    </Typography.Text>
+                    <Input
+                      placeholder="Invoice Number"
+                      value={invoiceNumber}
+                      onChange={(e) => setInvoiceNumber(e.target.value)}
+                      onPressEnter={handleInvoiceSubmit}
+                      style={{ width: "200px" }}
+                    />
+                    <Space>
+                      <Button
+                        type="primary"
+                        size="small"
+                        loading={isLoadingInvoice}
+                        onClick={handleInvoiceSubmit}
+                      >
+                        Add
+                      </Button>
+                      <Button
+                        size="small"
+                        onClick={() => {
+                          setShowInvoiceInput(false);
+                          setInvoiceNumber("");
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                    </Space>
+                  </Space>
+                </div>
+              }
+              trigger="click"
+              open={showInvoiceInput}
+              onOpenChange={setShowInvoiceInput}
+              placement="bottomRight"
+            >
+              <Tooltip title="Add Invoice">
+                <Button
+                  size="small"
+                  icon={<FileText size={16} />}
+                  onClick={() => setShowInvoiceInput(true)}
+                >
+                  <span>Invoice</span>
+                </Button>
+              </Tooltip>
+            </Popover>
+
+            {/* <div>
               <MembersList
                 members={members}
                 membersLength={members.length}
@@ -213,7 +322,7 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
               <Button size="small" icon={<UserPlus size={16} />}>
                 <span>Share</span>
               </Button>
-            </Tooltip>
+            </Tooltip> */}
             <Tooltip title="Scan QR Code">
               <Button
                 size="small"

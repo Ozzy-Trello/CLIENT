@@ -7,6 +7,7 @@ import {
   StretchHorizontal,
   TextCursorInput,
   CheckSquare,
+  Search,
 } from "lucide-react";
 import SplitJobSlider from "@components/split-job/SplitJobSlider";
 import { Fragment, useEffect, useRef, useState } from "react";
@@ -225,11 +226,19 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
   } = useCardCustomField(card?.id || "", workspaceId);
 
   const [messageApi, contextHolder] = message.useMessage();
+  const [searchTerm, setSearchTerm] = useState<string>("");
 
   const { lists } = useLists(boardId || "");
 
   // Create a map of refs for user selection fields
   const userSelectionRefs = useRef<Map<string, SelectionRef>>(new Map());
+
+  // Filter custom fields based on search term
+  const filteredCustomFields =
+    cardCustomFields?.filter((field) => {
+      if (!searchTerm) return true;
+      return field.name?.toLowerCase().includes(searchTerm.toLowerCase());
+    }) || [];
 
   // Handle value changes for different field types
   const handleStringValueChange = (fieldId: string, value: string) => {
@@ -321,8 +330,8 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
   // Group fields into rows of 3
   const getFieldRows = () => {
     const rows = [];
-    for (let i = 0; i < cardCustomFields.length; i += 3) {
-      rows.push(cardCustomFields.slice(i, i + 3));
+    for (let i = 0; i < filteredCustomFields.length; i += 3) {
+      rows.push(filteredCustomFields.slice(i, i + 3));
     }
     return rows;
   };
@@ -541,6 +550,18 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
           {isUpdating && (
             <span className="text-sm text-blue-500 ml-2">Saving...</span>
           )}
+        </div>
+
+        {/* Search Bar */}
+        <div className="ml-8 mb-4">
+          <Input
+            placeholder="Search custom fields..."
+            prefix={<Search size={16} className="text-gray-400" />}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            allowClear
+            className="max-w-md"
+          />
         </div>
 
         <div className="grid grid-cols-3 gap-4 ml-8">
