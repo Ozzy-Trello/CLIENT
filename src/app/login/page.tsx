@@ -62,20 +62,19 @@ export default function LoginPage() {
           dispatch(setUser(result?.data?.data));
         }
 
-        // Fetch workspaces after authentication and redirect to board list
+        // Fetch default workspace after authentication and redirect to board list
         try {
-          const { workspaces } = await import("@api/workspace");
-          const workspaceResponse = await workspaces();
+          const { workspaceDefault } = await import("@api/workspace");
+          const defaultWorkspaceResponse = await workspaceDefault();
 
-          if (workspaceResponse?.data && workspaceResponse.data.length > 0) {
-            const firstWorkspace = workspaceResponse.data[0];
-            window.location.href = `/workspace/${firstWorkspace.id}/board`;
+          if (defaultWorkspaceResponse?.data) {
+            window.location.href = `/workspace/${defaultWorkspaceResponse.data.id}/board`;
           } else {
-            // Fallback to workspace page if no workspaces available
+            // Fallback to workspace page if no default workspace available
             window.location.href = "/workspace";
           }
         } catch (error) {
-          console.error("Failed to fetch workspaces:", error);
+          console.error("Failed to fetch default workspace:", error);
           // Fallback to workspace page if workspace fetching fails
           window.location.href = "/workspace";
         }
