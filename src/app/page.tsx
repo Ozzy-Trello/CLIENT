@@ -23,14 +23,11 @@ export default function Home() {
     });
 
     if (accessToken) {
-      if (defaultWorkspace && !isLoading) {
+      if (defaultWorkspace) {
         console.log("Redirecting to default workspace:", defaultWorkspace.id);
         router.push(`/workspace/${defaultWorkspace.id}/board`);
-      } else if (!isLoading) {
-        console.log("No default workspace found, redirecting to /workspace");
-        router.push("/workspace");
       } else {
-        console.log("Still loading default workspace...");
+        console.log("No default workspace available");
       }
     } else {
       console.log("No access token, redirecting to login");
