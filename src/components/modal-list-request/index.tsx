@@ -1,10 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Modal, Table, Button, message, Space, Tag } from "antd";
-import {
-  getAllRequests,
-  verifyRequest,
-  rejectRequest,
-} from "@api/accurate";
+import { getAllRequests, verifyRequest, rejectRequest } from "@api/accurate";
 
 interface ModalListRequestProps {
   open: boolean;

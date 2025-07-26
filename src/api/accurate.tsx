@@ -5,14 +5,14 @@ export const getAllItemCategories = async () => {
   return data;
 };
 
-export const getAllAdjustmentItems = async () => {
-  const { data } = await api.get("/accurate/glaccount-list");
+export const getAllAdjustmentItems = async (source?: string) => {
+  const params = source ? { source } : {};
+  const { data } = await api.get("/accurate/glaccount-list", { params });
   return data;
 };
 
-export const getAllItemList = async (search?: string) => {
-  const params = search ? { search } : {};
-  const { data } = await api.get("/accurate/item-list", { params });
+export const getAllItemList = async () => {
+  const { data } = await api.get("/accurate/item-list");
   return data;
 };
 
@@ -95,5 +95,10 @@ export const markRequestDone = async (id: string) => {
 
 export const getItemDetail = async (id: string) => {
   const { data } = await api.get(`/accurate/item/${id}`);
+  return data;
+};
+
+export const getHikmatItemList = async () => {
+  const { data } = await api.get("/accurate/hikmat-item-list");
   return data;
 };

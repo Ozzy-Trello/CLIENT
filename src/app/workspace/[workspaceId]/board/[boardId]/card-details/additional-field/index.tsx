@@ -1,3 +1,7 @@
+"use client";
+
+import type React from "react";
+
 import { getItemDetail } from "@api/accurate";
 import {
   useCardAdditionalFields,
@@ -7,13 +11,36 @@ import {
 } from "@hooks/additional-field";
 import { useCardDetailContext } from "@providers/card-detail-context";
 import type { AdditionalFieldItem } from "@myTypes/additional-field";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Scanner } from "@yudiel/react-qr-scanner";
-import { Tabs } from "antd";
-import { useEffect, useState } from "react";
+import { Tabs, Modal, Button, Input, Popover, message, Table } from "antd";
+import { useEffect, useState, useRef } from "react";
+import { Plus, X, Ruler, BarChart3 } from "lucide-react";
+import QRCodeLib from "qrcode";
+import jsPDF from "jspdf";
+import type { InputRef } from "antd/lib/input/Input";
+import { scanQRCode } from "@api/additional-field";
+
+// Import extracted components
+import SummaryModalComponent from "./components/SummaryModalComponent";
+import SizesModalComponent from "./components/SizesModalComponent";
+import CustomSizePopoverComponent from "./components/CustomSizePopoverComponent";
+import JumlahPOComponent from "./components/JumlahPOComponent";
+import ScannerModalComponent from "./components/ScannerModalComponent";
+import TabContentComponent from "./components/TabContentComponent";
+import type {
+  SizeBreakdown,
+  SizesModalState,
+  SummaryModalState,
+  QRCodeModalState,
+  ItemDetail,
+  AdditionalTab,
+} from "./components/types";
+
+// Using the type from our types file instead of local interface
+// type ItemDetail = AdditionalFieldItem; // Removed duplicate declaration
 
 // --- Calculation utility functions ---
-
 /**
  * Est Bahan (Estimated Material)
  * Formula (provided by user):
@@ -41,7 +68,7 @@ function calculateEstBahan(item: ItemDetail): number {
 
   const get = (tab: string, field: string): number => {
     // Ensure the value is a valid number with 3 decimal places
-    return parseFloat(
+    return Number.parseFloat(
       Number(item.additionalFields?.[tab]?.[field] ?? 0).toFixed(2)
     );
   };
@@ -53,17 +80,17 @@ function calculateEstBahan(item: ItemDetail): number {
     get("2", "oblongTpd") / 4.35 +
     get("2", "oblongTpj") / 3.65 +
     get("2", "oblongTpk") / 3 +
-    get("5", "hoodieTotal") / 1.33 +
+    get("5", "hoodie") / 1.33 +
     get("3", "kemejaTpd") * 1.3 +
     get("3", "kemejaTpj") * 1.5 +
-    get("4", "jaketTotal") * 1.5 +
-    get("7", "rompiTotal") * 1.2 +
-    get("6", "celanaTotal") * 1.2 +
-    get("14", "apronTotal") * 1.5 +
-    get("9", "jerseyTotal") / 4;
+    get("4", "jaket") * 1.5 +
+    get("7", "rompi") * 1.2 +
+    get("6", "celana") * 1.2 +
+    get("9", "apron") * 1.5 +
+    get("8", "jersey") / 4;
 
   // Return the result with exactly 3 decimal places
-  return parseFloat(result.toFixed(2));
+  return Number.parseFloat(result.toFixed(2));
 }
 
 /**
@@ -84,14 +111,10 @@ function calculateBahanTerpakai(item: ItemDetail): number {
  */
 function calculateEfisiensi(item: ItemDetail): number {
   const estBahan = calculateEstBahan(item);
-  return parseFloat((estBahan - (item.remainingAmount || 0)).toFixed(2));
+  return Number.parseFloat((estBahan - (item.remainingAmount || 0)).toFixed(2));
 }
 
-interface AdditionalTab {
-  key: string;
-  fields: Record<string, any>;
-  label: string;
-}
+// Tab names configuration
 const tabNames: AdditionalTab[] = [
   {
     key: "1",
@@ -199,26 +222,98 @@ const tabNames: AdditionalTab[] = [
 
 const baseInputClass =
   "w-full rounded-lg border border-gray-200 bg-white px-4 text-xs py-2 text-gray-900 text-base focus:outline-none focus:ring-2 focus:ring-blue-200 transition placeholder-gray-400 shadow-none appearance-none";
+
 const labelClass =
   "block text-[15px] font-medium text-gray-800 mb-1 flex items-center gap-2";
+
 const sectionTitleClass =
   "text-[20px] font-semibold text-gray-900 mb-2 flex items-center gap-2";
-
-// Using the type from our types file instead of local interface
-type ItemDetail = AdditionalFieldItem;
 
 const AdditionalFields: React.FC = () => {
   const { selectedCard } = useCardDetailContext();
   const cardId: string = selectedCard?.id || "";
+  const queryClient = useQueryClient();
 
   const [scannedItems, setScannedItems] = useState<ItemDetail[]>([]);
+  const [poScannedItems, setPoScannedItems] = useState<
+    Record<number, ItemDetail[]>
+  >({});
   const [currentScannedId, setCurrentScannedId] = useState<string | null>(null);
+  const [butuhBahan, setButuhBahan] = useState<Record<number, boolean>>({});
+
+  // Save butuhBahan state when it changes
+  const handleButuhBahanChange = (poId: number, value: boolean) => {
+    setButuhBahan((prev) => ({ ...prev, [poId]: value }));
+
+    // Save to database immediately when butuhBahan changes
+    const currentData = {
+      poScannedItems: poScannedItems,
+      butuhBahan: { ...butuhBahan, [poId]: value },
+    };
+
+    if (additionalFieldId) {
+      updateMutation.mutate(currentData);
+    } else {
+      createMutation.mutate(currentData);
+    }
+  };
   const [showScanner, setShowScanner] = useState(false);
+  const [currentPoForScan, setCurrentPoForScan] = useState<number>(1);
   const [additionalFieldId, setAdditionalFieldId] = useState<string | null>(
     null
   );
 
+  // Sizes modal state
+  const [sizesModal, setSizesModal] = useState<SizesModalState>({
+    isOpen: false,
+    itemIndex: 0,
+    tabKey: "",
+    fieldKey: "",
+    totalQuantity: 0,
+  });
+
+  // Summary modal state
+  const [summaryModal, setSummaryModal] = useState<SummaryModalState>({
+    isOpen: false,
+    itemIndex: 0,
+  });
+
+  // QR Scanner state
+  const [qrScannerBuffer, setQrScannerBuffer] = useState("");
+  const qrScannerTimeoutRef = useRef<NodeJS.Timeout>();
+  const qrScannerBufferRef = useRef("");
+
+  // Jumlah PO state
+  const [jumlahPO, setJumlahPO] = useState<number>(1);
+
   const { data: additionalFieldData } = useCardAdditionalFields(cardId);
+
+  // Load data from additionalFieldData
+  useEffect(() => {
+    if (additionalFieldData && additionalFieldData.length > 0) {
+      try {
+        const firstItem = additionalFieldData[0];
+        const savedData =
+          typeof firstItem.data === "string"
+            ? JSON.parse(firstItem.data)
+            : firstItem.data;
+
+        // Handle both old and new data structures
+        if (savedData.poScannedItems) {
+          // New structure with poScannedItems
+          setPoScannedItems(savedData.poScannedItems);
+          if (savedData.butuhBahan) {
+            setButuhBahan(savedData.butuhBahan);
+          }
+        } else if (Array.isArray(savedData)) {
+          // Old structure - array of items
+          setScannedItems(savedData);
+        }
+      } catch (error) {
+        console.error("Error loading additional field data:", error);
+      }
+    }
+  }, [additionalFieldData]);
 
   const { data: itemDetail, error } = useQuery({
     queryKey: ["itemDetail", currentScannedId],
@@ -231,7 +326,6 @@ const AdditionalFields: React.FC = () => {
   });
 
   const createMutation = useCreateAdditionalField(cardId);
-
   const updateMutation = useUpdateAdditionalField(
     additionalFieldId || "",
     cardId
@@ -243,13 +337,263 @@ const AdditionalFields: React.FC = () => {
     cardId
   );
 
+  // QR Scanner handler - only active when summary modal is open
+  useEffect(() => {
+    const handleQRScanner = (e: KeyboardEvent) => {
+      // Only handle QR scanning when summary modal is open
+      if (!summaryModal.isOpen) return;
+
+      // Clear any existing timeout
+      if (qrScannerTimeoutRef.current) {
+        clearTimeout(qrScannerTimeoutRef.current);
+      }
+
+      if (e.key === "Enter") {
+        e.preventDefault();
+        processQRScan(qrScannerBufferRef.current);
+        qrScannerBufferRef.current = "";
+      } else if (e.key.length === 1) {
+        // Add character to buffer
+        qrScannerBufferRef.current += e.key;
+
+        // Clear buffer after 100ms of no input (typical for external scanners)
+        qrScannerTimeoutRef.current = setTimeout(() => {
+          qrScannerBufferRef.current = "";
+        }, 100);
+      }
+    };
+
+    // Only add listener when summary modal is open
+    if (summaryModal.isOpen) {
+      document.addEventListener("keydown", handleQRScanner);
+    }
+
+    return () => {
+      document.removeEventListener("keydown", handleQRScanner);
+      if (qrScannerTimeoutRef.current) {
+        clearTimeout(qrScannerTimeoutRef.current);
+      }
+    };
+  }, [summaryModal.isOpen]); // Removed qrScannerBuffer from dependencies
+
+  const processQRScan = async (scannedData: string) => {
+    if (!scannedData.trim()) return;
+
+    try {
+      console.log("=== FRONTEND QR SCAN DEBUG ===");
+      console.log("Raw scanned data:", scannedData);
+
+      // Parse the scanned data: cardId|scannedData|action
+      const parts = scannedData.split("|");
+      let cardId, data, action;
+
+      console.log("Split parts:", parts);
+
+      if (parts.length >= 2) {
+        cardId = parts[0];
+        data = parts[1];
+        action = parts[2] || "mark_complete";
+      } else {
+        throw new Error("Invalid QR scan format");
+      }
+
+      console.log("Parsed parameters:");
+      console.log("- cardId:", cardId);
+      console.log("- data:", data);
+      console.log("- action:", action);
+
+      if (!cardId || !data) {
+        throw new Error("Missing cardId or scannedData");
+      }
+
+      console.log("Calling scanQRCode API...");
+
+      // Call the QR scan API
+      const response = await scanQRCode(cardId, data, action as any);
+
+      console.log("API response:", response);
+      console.log("=== END FRONTEND QR SCAN DEBUG ===");
+
+      if (response.statusCode === 200) {
+        message.success("Item scanned successfully!");
+
+        // Invalidate the additional fields query to refresh the data
+        await queryClient.invalidateQueries({
+          queryKey: ["additionalFields", cardId],
+        });
+
+        // Optionally refetch the data immediately
+        await queryClient.refetchQueries({
+          queryKey: ["additionalFields", cardId],
+        });
+      } else {
+        message.error(response.message || "Failed to process scan");
+      }
+    } catch (error) {
+      console.error("QR scan error:", error);
+      message.error("Failed to process QR scan. Please try again.");
+    }
+  };
+
+  // Helper functions for sizes
+  const updateSizeBreakdown = (
+    itemIndex: number,
+    tabKey: string,
+    fieldKey: string,
+    size: string,
+    quantity: number,
+    customSizeName?: string
+  ) => {
+    setScannedItems((prevItems) => {
+      const updatedItems = [...prevItems];
+      const sizesKey = `sizes_${tabKey}_${fieldKey}`;
+
+      if (!updatedItems[itemIndex].additionalFields) {
+        updatedItems[itemIndex].additionalFields = {};
+      }
+
+      if (!updatedItems[itemIndex].additionalFields[sizesKey]) {
+        updatedItems[itemIndex].additionalFields[sizesKey] = {
+          XS: 0,
+          S: 0,
+          M: 0,
+          L: 0,
+          XL: 0,
+          XXL: 0,
+          XXXL: 0,
+          XXXXL: 0,
+          XXXXXL: 0,
+          custom: {},
+        } as unknown as Record<string, any>;
+      }
+
+      if (size === "custom" && customSizeName) {
+        // Handle custom size
+        const currentSizes = updatedItems[itemIndex].additionalFields[
+          sizesKey
+        ] as any;
+        currentSizes.custom = {
+          ...currentSizes.custom,
+          [customSizeName]: quantity,
+        };
+      } else if (size !== "custom") {
+        // Handle standard size
+        const currentSizes = updatedItems[itemIndex].additionalFields[
+          sizesKey
+        ] as any;
+        currentSizes[size] = quantity;
+      }
+
+      // Save to database
+      if (additionalFieldId) {
+        updateMutation.mutate(updatedItems);
+      }
+
+      return updatedItems;
+    });
+  };
+
+  const removeCustomSize = (
+    itemIndex: number,
+    tabKey: string,
+    fieldKey: string,
+    customSizeName: string
+  ) => {
+    setScannedItems((prevItems) => {
+      const updatedItems = [...prevItems];
+      const sizesKey = `sizes_${tabKey}_${fieldKey}`;
+
+      const currentSizes = updatedItems[itemIndex].additionalFields?.[
+        sizesKey
+      ] as any;
+
+      if (currentSizes?.custom) {
+        delete currentSizes.custom[customSizeName];
+      }
+
+      // Save to database
+      if (additionalFieldId) {
+        updateMutation.mutate(updatedItems);
+      }
+
+      return updatedItems;
+    });
+  };
+
+  // Sizes modal handlers
+  const openSizesModal = (
+    itemIndex: number,
+    tabKey: string,
+    fieldKey: string,
+    totalQuantity: number,
+    poIdentifier?: number
+  ) => {
+    setSizesModal({
+      isOpen: true,
+      itemIndex,
+      tabKey: poIdentifier ? `${poIdentifier}_${tabKey}` : tabKey,
+      fieldKey,
+      totalQuantity,
+    });
+  };
+
+  const closeSizesModal = () => {
+    setSizesModal({
+      isOpen: false,
+      itemIndex: 0,
+      tabKey: "",
+      fieldKey: "",
+      totalQuantity: 0,
+    });
+  };
+
+  // Summary modal handlers
+  const openSummaryModal = (itemIndex: number) => {
+    setSummaryModal({
+      isOpen: true,
+      itemIndex,
+    });
+  };
+
+  const closeSummaryModal = () => {
+    setSummaryModal({
+      isOpen: false,
+      itemIndex: 0,
+    });
+  };
+
   // Load existing data when component mounts
   useEffect(() => {
     // console.log(additionalFieldData, "<< in iisinya apa");
     if (additionalFieldData && additionalFieldData.length > 0) {
       const existingData = additionalFieldData[0];
       setAdditionalFieldId(existingData.id);
-      setScannedItems(JSON.parse(existingData.data) || []);
+
+      // Handle data that might be a string or already an object
+      let parsedData;
+      if (typeof existingData.data === "string") {
+        parsedData = JSON.parse(existingData.data);
+      } else {
+        parsedData = existingData.data;
+      }
+
+      // For backward compatibility, if the data is an array (old single-PO format),
+      // convert it to the new multi-PO format
+      if (Array.isArray(parsedData)) {
+        // Old format: array of items
+        setScannedItems(parsedData || []);
+        // Convert to new format: PO-specific items
+        setPoScannedItems({ 1: parsedData || [] });
+      } else if (parsedData && typeof parsedData === "object") {
+        // New format: PO-specific items
+        setPoScannedItems(parsedData);
+        // For backward compatibility, flatten all PO items into scannedItems
+        const allItems = Object.values(parsedData).flat() as ItemDetail[];
+        setScannedItems(allItems);
+      } else {
+        setScannedItems([]);
+        setPoScannedItems({});
+      }
     }
   }, [additionalFieldData]);
 
@@ -257,6 +601,7 @@ const AdditionalFields: React.FC = () => {
   useEffect(() => {
     if (itemDetail && currentScannedId) {
       const initialFields: Record<string, Record<string, number>> = {};
+
       tabNames.forEach((tab) => {
         initialFields[tab.key] = {};
         Object.keys(tab.fields).forEach((fieldKey) => {
@@ -276,95 +621,408 @@ const AdditionalFields: React.FC = () => {
         additionalFields: initialFields,
       };
 
-      const updatedItems = [...scannedItems, newItem];
-      setScannedItems(updatedItems);
+      // Add to the specific PO that's currently being scanned
+      setPoScannedItems((prevPoItems) => {
+        const currentPoItems = prevPoItems[currentPoForScan] || [];
+        const updatedPoItems = [...currentPoItems, newItem];
+        const updatedPoScannedItems = {
+          ...prevPoItems,
+          [currentPoForScan]: updatedPoItems,
+        };
 
-      // Save to database
-      if (additionalFieldId) {
-        // Update existing record
-        updateMutation.mutate(updatedItems);
-      } else {
-        // Create new record
-        createMutation.mutate(updatedItems);
-      }
+        // Save to database - save the multi-PO structure with butuhBahan state
+        const dataToSave = {
+          poScannedItems: updatedPoScannedItems,
+          butuhBahan: butuhBahan,
+        };
+
+        if (additionalFieldId) {
+          // Update existing record with multi-PO data
+          updateMutation.mutate(dataToSave);
+        } else {
+          // Create new record with multi-PO data
+          createMutation.mutate(dataToSave);
+        }
+
+        return updatedPoScannedItems;
+      });
+
+      // Also update the legacy scannedItems for backward compatibility
+      setScannedItems((prevItems) => {
+        const updatedItems = [...(prevItems || []), newItem];
+        return updatedItems;
+      });
 
       setCurrentScannedId(null);
     }
-  }, [itemDetail, currentScannedId, additionalFieldId, cardId]);
+  }, [
+    itemDetail,
+    currentScannedId,
+    additionalFieldId,
+    cardId,
+    updateMutation,
+    createMutation,
+    currentPoForScan,
+  ]);
+
+  // Global keyboard listener for external scanner - DISABLED when summary modal is open
+  useEffect(() => {
+    let scannedBuffer = "";
+    let bufferTimeout: NodeJS.Timeout;
+
+    const handleKeyPress = (e: KeyboardEvent) => {
+      // Skip if summary modal is open (QR scanning is active)
+      if (summaryModal.isOpen) return;
+
+      // Reset buffer if too much time has passed
+      clearTimeout(bufferTimeout);
+
+      if (e.key === "Enter") {
+        e.preventDefault();
+        if (scannedBuffer.trim()) {
+          const scannedValue = scannedBuffer.trim();
+
+          // Check if the scanned value is a URL
+          if (
+            scannedValue.startsWith("http://") ||
+            scannedValue.startsWith("https://")
+          ) {
+            // It's a URL - open it in a new tab
+            window.open(scannedValue, "_blank");
+            scannedBuffer = "";
+            return;
+          }
+
+          // If it's not a URL, treat it as an item ID
+          setCurrentScannedId(scannedValue);
+          scannedBuffer = "";
+        }
+      } else if (e.key.length === 1) {
+        // Add character to buffer
+        scannedBuffer += e.key;
+
+        // Clear buffer after 100ms of no input (typical for external scanners)
+        bufferTimeout = setTimeout(() => {
+          scannedBuffer = "";
+        }, 100);
+      }
+    };
+
+    // Only listen when scanner is not active and summary modal is closed
+    if (!showScanner && !summaryModal.isOpen) {
+      document.addEventListener("keydown", handleKeyPress);
+    }
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyPress);
+      clearTimeout(bufferTimeout);
+    };
+  }, [showScanner, summaryModal.isOpen]);
 
   const handleFieldChange = (
     itemIndex: number,
     tabKey: string,
     fieldKey: string,
-    value: string
+    value: string,
+    poIdentifier?: number
   ) => {
-    const updatedItems = [...scannedItems];
-    // Accept comma or dot as decimal separator
-    const numericValue = parseFloat(value.replace(",", "."));
-    // Store raw string for editing (only for these fields)
-    if (!updatedItems[itemIndex].__rawInputs)
-      updatedItems[itemIndex].__rawInputs = {};
-    updatedItems[itemIndex].__rawInputs[`${tabKey}.${fieldKey}`] = value;
+    if (poIdentifier) {
+      // Handle PO-specific data
+      setPoScannedItems((prevPoItems) => {
+        const currentPoItems = prevPoItems[poIdentifier] || [];
+        const updatedItems = [...currentPoItems];
 
-    // Update nested additionalFields
-    if (updatedItems[itemIndex].additionalFields) {
-      updatedItems[itemIndex].additionalFields[tabKey] = {
-        ...updatedItems[itemIndex].additionalFields[tabKey],
-        [fieldKey]: numericValue,
-      };
-    }
+        // Accept comma or dot as decimal separator
+        const numericValue = Number.parseFloat(value.replace(",", "."));
 
-    // Special handling for Terloading (usedAmount) and Sisa Bahan (remainingAmount)
-    if (
-      (tabKey === "materialUsage" && fieldKey === "bahanTerpakai") ||
-      (tabKey === "materialUsage" && fieldKey === "usedAmount")
-    ) {
-      updatedItems[itemIndex].usedAmount = numericValue;
-    }
-    if (
-      (tabKey === "remainingAmount" && fieldKey === "remainingAmount") ||
-      (tabKey === "materialUsage" && fieldKey === "sisaBahan")
-    ) {
-      updatedItems[itemIndex].remainingAmount = numericValue;
-    }
+        // Store raw string for editing (only for these fields)
+        if (!updatedItems[itemIndex].__rawInputs)
+          updatedItems[itemIndex].__rawInputs = {};
 
-    // Update total fields for tabs < 4
-    tabNames.forEach((tab) => {
-      if (tab.key === tabKey) {
-        Object.keys(tab.fields).forEach((key) => {
-          if (key.toLowerCase().includes("total") && +tab.key < 4) {
-            updatedItems[itemIndex].additionalFields[tabKey][key] =
-              calculateTotalForField(tabKey, key, itemIndex);
+        // Include PO identifier in the key if provided
+        const rawInputKey = poIdentifier
+          ? `${poIdentifier}_${tabKey}.${fieldKey}`
+          : `${tabKey}.${fieldKey}`;
+        updatedItems[itemIndex].__rawInputs[rawInputKey] = value;
+
+        // Update nested additionalFields
+        if (updatedItems[itemIndex].additionalFields) {
+          // Create PO-specific key if PO identifier is provided
+          const actualTabKey = poIdentifier
+            ? `${poIdentifier}_${tabKey}`
+            : tabKey;
+
+          if (!updatedItems[itemIndex].additionalFields[actualTabKey]) {
+            updatedItems[itemIndex].additionalFields[actualTabKey] = {};
+          }
+
+          updatedItems[itemIndex].additionalFields[actualTabKey] = {
+            ...updatedItems[itemIndex].additionalFields[actualTabKey],
+            [fieldKey]: numericValue,
+          };
+        }
+
+        // Clean up old status entries when quantity changes
+        const sizesKey = poIdentifier
+          ? `sizes_${poIdentifier}_${tabKey}_${fieldKey}`
+          : `sizes_${tabKey}_${fieldKey}`;
+        const sizeData = updatedItems[itemIndex].additionalFields?.[
+          sizesKey
+        ] as any;
+        if (sizeData?.status) {
+          const newQuantity = numericValue;
+          const currentStatusEntries = Object.keys(sizeData.status);
+
+          // Remove status entries that exceed the new quantity
+          currentStatusEntries.forEach((statusKey) => {
+            // Extract the unique ID from status key (e.g., "xs15" -> 15)
+            const match = statusKey.match(/\d+$/);
+            if (match) {
+              const uniqueId = parseInt(match[0]);
+              if (uniqueId > newQuantity) {
+                delete sizeData.status[statusKey];
+              }
+            }
+          });
+        }
+
+        // Reset size breakdown quantities when main quantity changes
+        if (sizeData) {
+          const newQuantity = numericValue;
+          const oldTotal = Object.entries(sizeData).reduce(
+            (total, [key, value]) => {
+              if (
+                key !== "status" &&
+                key !== "custom" &&
+                typeof value === "number"
+              ) {
+                return total + value;
+              }
+              return total;
+            },
+            0
+          );
+
+          // If the total has changed, reset all size quantities to 0
+          if (oldTotal !== newQuantity) {
+            Object.keys(sizeData).forEach((key) => {
+              if (key !== "status" && key !== "custom") {
+                sizeData[key] = 0;
+              }
+            });
+            // Clear status entries since quantities are reset
+            if (sizeData.status) {
+              sizeData.status = {};
+            }
+          }
+        }
+
+        // Special handling for Terloading (usedAmount) and Sisa Bahan (remainingAmount)
+        if (
+          (tabKey === "materialUsage" && fieldKey === "bahanTerpakai") ||
+          (tabKey === "materialUsage" && fieldKey === "usedAmount")
+        ) {
+          updatedItems[itemIndex].usedAmount = numericValue;
+        }
+
+        if (
+          (tabKey === "remainingAmount" && fieldKey === "remainingAmount") ||
+          (tabKey === "materialUsage" && fieldKey === "sisaBahan")
+        ) {
+          updatedItems[itemIndex].remainingAmount = numericValue;
+        }
+
+        // Update total fields for tabs < 4
+        tabNames.forEach((tab) => {
+          if (tab.key === tabKey) {
+            const actualTabKey = poIdentifier
+              ? `${poIdentifier}_${tabKey}`
+              : tabKey;
+            Object.keys(tab.fields).forEach((key) => {
+              if (key.toLowerCase().includes("total") && +tab.key < 4) {
+                updatedItems[itemIndex].additionalFields[actualTabKey][key] =
+                  calculateTotalForField(actualTabKey, key, itemIndex);
+              }
+            });
           }
         });
-      }
-    });
 
-    setScannedItems(updatedItems);
+        return {
+          ...prevPoItems,
+          [poIdentifier]: updatedItems,
+        };
+      });
+    } else {
+      // Handle legacy data (fallback)
+      setScannedItems((prevItems) => {
+        const updatedItems = [...prevItems];
 
-    // Save to database
-    if (additionalFieldId) {
-      updateMutation.mutate(updatedItems);
+        // Accept comma or dot as decimal separator
+        const numericValue = Number.parseFloat(value.replace(",", "."));
+
+        // Store raw string for editing (only for these fields)
+        if (!updatedItems[itemIndex].__rawInputs)
+          updatedItems[itemIndex].__rawInputs = {};
+
+        // Include PO identifier in the key if provided
+        const rawInputKey = poIdentifier
+          ? `${poIdentifier}_${tabKey}.${fieldKey}`
+          : `${tabKey}.${fieldKey}`;
+        updatedItems[itemIndex].__rawInputs[rawInputKey] = value;
+
+        // Update nested additionalFields
+        if (updatedItems[itemIndex].additionalFields) {
+          // Create PO-specific key if PO identifier is provided
+          const actualTabKey = poIdentifier
+            ? `${poIdentifier}_${tabKey}`
+            : tabKey;
+
+          if (!updatedItems[itemIndex].additionalFields[actualTabKey]) {
+            updatedItems[itemIndex].additionalFields[actualTabKey] = {};
+          }
+
+          updatedItems[itemIndex].additionalFields[actualTabKey] = {
+            ...updatedItems[itemIndex].additionalFields[actualTabKey],
+            [fieldKey]: numericValue,
+          };
+        }
+
+        // Clean up old status entries when quantity changes
+        const sizesKey = poIdentifier
+          ? `sizes_${poIdentifier}_${tabKey}_${fieldKey}`
+          : `sizes_${tabKey}_${fieldKey}`;
+        const sizeData = updatedItems[itemIndex].additionalFields?.[
+          sizesKey
+        ] as any;
+        if (sizeData?.status) {
+          const newQuantity = numericValue;
+          const currentStatusEntries = Object.keys(sizeData.status);
+
+          // Remove status entries that exceed the new quantity
+          currentStatusEntries.forEach((statusKey) => {
+            // Extract the unique ID from status key (e.g., "xs15" -> 15)
+            const match = statusKey.match(/\d+$/);
+            if (match) {
+              const uniqueId = parseInt(match[0]);
+              if (uniqueId > newQuantity) {
+                delete sizeData.status[statusKey];
+              }
+            }
+          });
+        }
+
+        // Reset size breakdown quantities when main quantity changes
+        if (sizeData) {
+          const newQuantity = numericValue;
+          const oldTotal = Object.entries(sizeData).reduce(
+            (total, [key, value]) => {
+              if (
+                key !== "status" &&
+                key !== "custom" &&
+                typeof value === "number"
+              ) {
+                return total + value;
+              }
+              return total;
+            },
+            0
+          );
+
+          // If the total has changed, reset all size quantities to 0
+          if (oldTotal !== newQuantity) {
+            Object.keys(sizeData).forEach((key) => {
+              if (key !== "status" && key !== "custom") {
+                sizeData[key] = 0;
+              }
+            });
+            // Clear status entries since quantities are reset
+            if (sizeData.status) {
+              sizeData.status = {};
+            }
+          }
+        }
+
+        // Special handling for Terloading (usedAmount) and Sisa Bahan (remainingAmount)
+        if (
+          (tabKey === "materialUsage" && fieldKey === "bahanTerpakai") ||
+          (tabKey === "materialUsage" && fieldKey === "usedAmount")
+        ) {
+          updatedItems[itemIndex].usedAmount = numericValue;
+        }
+
+        if (
+          (tabKey === "remainingAmount" && fieldKey === "remainingAmount") ||
+          (tabKey === "materialUsage" && fieldKey === "sisaBahan")
+        ) {
+          updatedItems[itemIndex].remainingAmount = numericValue;
+        }
+
+        // Update total fields for tabs < 4
+        tabNames.forEach((tab) => {
+          if (tab.key === tabKey) {
+            const actualTabKey = poIdentifier
+              ? `${poIdentifier}_${tabKey}`
+              : tabKey;
+            Object.keys(tab.fields).forEach((key) => {
+              if (key.toLowerCase().includes("total") && +tab.key < 4) {
+                updatedItems[itemIndex].additionalFields[actualTabKey][key] =
+                  calculateTotalForField(actualTabKey, key, itemIndex);
+              }
+            });
+          }
+        });
+
+        return updatedItems;
+      });
     }
   };
 
   const handleScan = (codes: any) => {
     if (codes.length > 0) {
-      const scannedId = codes[0].rawValue;
-      setCurrentScannedId(scannedId);
+      const scannedValue = codes[0].rawValue;
+
+      // Check if the scanned value is a URL
+      if (
+        scannedValue.startsWith("http://") ||
+        scannedValue.startsWith("https://")
+      ) {
+        // It's a URL - open it in a new tab
+        window.open(scannedValue, "_blank");
+        setShowScanner(false);
+        return;
+      }
+
+      // If it's not a URL, treat it as an item ID
+      setCurrentScannedId(scannedValue);
       setShowScanner(false);
     }
   };
 
   const handleRemoveTab = (targetKey: string) => {
-    const updatedItems = scannedItems.filter(
-      (_, index) => String(index + 1) !== targetKey
-    );
-    setScannedItems(updatedItems);
+    // Extract PO identifier and item index from targetKey (e.g., "1-2" -> PO 1, item 2)
+    const match = targetKey.match(/^(\d+)-(\d+)$/);
+    if (match) {
+      const poIdentifier = parseInt(match[1]);
+      const itemIndex = parseInt(match[2]) - 1;
 
-    // Save to database
-    if (additionalFieldId) {
-      updateMutation.mutate(updatedItems);
+      setPoScannedItems((prevPoItems) => {
+        const currentPoItems = prevPoItems[poIdentifier] || [];
+        const updatedPoItems = [...currentPoItems];
+        updatedPoItems.splice(itemIndex, 1);
+
+        return {
+          ...prevPoItems,
+          [poIdentifier]: updatedPoItems,
+        };
+      });
+    } else {
+      // Fallback for non-PO specific keys
+      const itemIndex = parseInt(targetKey) - 1;
+      setScannedItems((prevItems) => {
+        const updatedItems = [...prevItems];
+        updatedItems.splice(itemIndex, 1);
+        return updatedItems;
+      });
     }
   };
 
@@ -412,7 +1070,13 @@ const AdditionalFields: React.FC = () => {
       };
     });
 
-    console.log(JSON.stringify(dataToSave, null, 2)); // Save the data in JSON format (you can replace this with an API call to save the data)
+    // Include butuhBahan state in the saved data
+    const dataWithButuhBahan = {
+      items: dataToSave,
+      butuhBahan: butuhBahan,
+    };
+
+    console.log(JSON.stringify(dataWithButuhBahan, null, 2)); // Save the data in JSON format (you can replace this with an API call to save the data)
   };
 
   const calculateTotalForField = (
@@ -420,14 +1084,25 @@ const AdditionalFields: React.FC = () => {
     fieldKey: string,
     itemIndex: number
   ): number => {
+    // Check if this is a PO-specific tab key (e.g., "1_1" for PO 1, tab 1)
+    const poMatch = tabKey.match(/^(\d+)_(.+)$/);
+    const actualTabKey = poMatch ? poMatch[2] : tabKey;
+
     // Get the current tab's fields
-    const currentTab = tabNames.find((tab) => tab.key === tabKey);
+    const currentTab = tabNames.find((tab) => tab.key === actualTabKey);
     if (!currentTab) return 0;
 
     // Get all non-total field keys for this tab
     const nonTotalFieldKeys = Object.keys(currentTab.fields).filter(
       (key) => !key.toLowerCase().includes("total")
     );
+
+    // Check if the item exists at the given index
+    if (!scannedItems[itemIndex]) {
+      // When no scanned items, we can't calculate totals
+      // This will be handled by the component's local state
+      return 0;
+    }
 
     // Sum up all non-total fields for this item in this tab
     return nonTotalFieldKeys.reduce((sum, key) => {
@@ -455,241 +1130,75 @@ const AdditionalFields: React.FC = () => {
         </span>
         <span className="text-[18px] font-semibold text-gray-900">Bahan</span>
       </div>
-      <div className="ml-8 grid grid-cols-3 gap-x-6 gap-y-3 mb-3">
-        <div>
-          <label className={labelClass}>Produk</label>
-          <input className={baseInputClass} readOnly />
-        </div>
+
+      {/* Jumlah PO Input */}
+
+      <JumlahPOComponent
+        jumlahPO={jumlahPO}
+        setJumlahPO={setJumlahPO}
+        labelClass={labelClass}
+        baseInputClass={baseInputClass}
+      />
+
+      {/* Render TabContentComponent based on jumlahPO */}
+      <div className="space-y-6">
+        {Array.from({ length: jumlahPO }, (_, index) => (
+          <TabContentComponent
+            key={`po-${index + 1}`}
+            poIdentifier={index + 1}
+            showScanner={showScanner}
+            setShowScanner={setShowScanner}
+            error={error}
+            scannedItems={poScannedItems[index + 1] || []}
+            handleRemoveTab={handleRemoveTab}
+            handleFieldChange={handleFieldChange}
+            openSizesModal={openSizesModal}
+            openSummaryModal={openSummaryModal}
+            calculateTotalForField={calculateTotalForField}
+            calculateEstBahan={calculateEstBahan}
+            calculateBahanTerpakai={calculateBahanTerpakai}
+            calculateEfisiensi={calculateEfisiensi}
+            tabNames={tabNames}
+            labelClass={labelClass}
+            baseInputClass={baseInputClass}
+            sectionTitleClass={sectionTitleClass}
+            onScanButtonClick={() => setCurrentPoForScan(index + 1)}
+            setCurrentScannedId={setCurrentScannedId}
+            butuhBahan={butuhBahan[index + 1] ?? true}
+            setButuhBahan={(value) => handleButuhBahanChange(index + 1, value)}
+          />
+        ))}
       </div>
-      <div className="ml-8">
-        <button
-          type="button"
-          onClick={() => setShowScanner(true)}
-          className="mb-2 px-3 py-1 rounded border border-gray-200 bg-white text-gray-700 text-xs font-medium"
-        >
-          SCAN BAHAN
-        </button>
 
-        {error && (
-          <div className="text-red-600 text-xs mt-2">
-            {(error as Error).message}
-          </div>
-        )}
-
-        <Tabs
-          type="editable-card"
-          hideAdd
-          onEdit={(targetKey, action) => {
-            if (action === "remove") {
-              handleRemoveTab(targetKey as string);
-            }
-          }}
-          items={scannedItems.map((item, index) => ({
-            key: String(index + 1),
-            label: (
-              <span className="flex justify-between items-center">
-                {item.name}
-              </span>
-            ),
-            tabKey: String(index + 1),
-            children: (
-              <div>
-                <div className={sectionTitleClass}>Detail Produk</div>
-
-                <div className="grid grid-cols-3 gap-x-6 gap-y-3 mb-3">
-                  <div>
-                    <label className={labelClass}>Warna</label>
-                    <input
-                      className={baseInputClass}
-                      value={item.name || ""}
-                      readOnly
-                    />
-                  </div>
-                  <div>
-                    <label className={labelClass}>Varian</label>
-                    <input
-                      className={baseInputClass}
-                      value={item.variant || ""}
-                      readOnly
-                    />
-                  </div>
-                  <div>
-                    <label className={labelClass}>Variasi Pola</label>
-                    <input
-                      className={baseInputClass}
-                      value={item.pattern || ""}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-x-6 gap-y-3 mb-3">
-                  <div>
-                    <label className={labelClass}>Terloading (kg/m)</label>
-                    <input
-                      className={baseInputClass}
-                      value={
-                        item.__rawInputs?.["materialUsage.bahanTerpakai"] ??
-                        item.additionalFields?.materialUsage?.bahanTerpakai ??
-                        item.usedAmount ??
-                        ""
-                      }
-                      onChange={(e) => {
-                        // cannot pass if its alphabetical
-                        if (!isNaN(Number(e.target.value))) {
-                          handleFieldChange(
-                            index,
-                            "materialUsage",
-                            "bahanTerpakai",
-                            e.target.value
-                          );
-                        }
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <label className={labelClass}>Sisa Bahan (kg/m)</label>
-                    <input
-                      className={baseInputClass}
-                      value={
-                        item.__rawInputs?.["remainingAmount.remainingAmount"] ??
-                        item.additionalFields?.remainingAmount
-                          ?.remainingAmount ??
-                        item.remainingAmount ??
-                        ""
-                      }
-                      onChange={(e) => {
-                        // cannot pass if its alphabetical
-                        if (!isNaN(Number(e.target.value))) {
-                          handleFieldChange(
-                            index,
-                            "remainingAmount",
-                            "remainingAmount",
-                            e.target.value
-                          );
-                        }
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <label className={labelClass}>Jml. Produksi (+/-)</label>
-                    <input
-                      className={baseInputClass}
-                      // value={
-                      //   (item.usedAmount || 0) - (item.remainingAmount || 0)
-                      // }
-                      readOnly
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <div className={sectionTitleClass}>Penggunaan Kain</div>
-
-                  <div className="grid grid-cols-3 gap-x-4 gap-y-3">
-                    <div>
-                      <label className={labelClass}>Est. Bahan</label>
-                      <input
-                        className={baseInputClass}
-                        value={calculateEstBahan(item)}
-                        readOnly
-                      />
-                    </div>
-                    <div>
-                      <label className={labelClass}>Bahan Terpakai</label>
-                      <input
-                        className={baseInputClass}
-                        value={calculateBahanTerpakai(item)}
-                        readOnly
-                      />
-                    </div>
-                    <div>
-                      <label className={labelClass}>Efisiensi</label>
-                      <input
-                        className={baseInputClass}
-                        value={calculateEfisiensi(item)}
-                        readOnly
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mb-4">
-                  <Tabs
-                    tabPosition="top"
-                    tabBarGutter={10}
-                    items={tabNames.map((tab) => ({
-                      key: tab.key,
-                      label: tab.label,
-                      children: (
-                        <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-                          {Object.entries(tab.fields).map(
-                            ([fieldKey, field]) => {
-                              const isTotalField = fieldKey
-                                .toLowerCase()
-                                .includes("total");
-                              const fieldValue = isTotalField
-                                ? calculateTotalForField(
-                                    tab.key,
-                                    fieldKey,
-                                    index
-                                  )
-                                : scannedItems[index].additionalFields?.[
-                                    tab.key
-                                  ]?.[fieldKey] ?? "";
-
-                              return (
-                                <div key={fieldKey}>
-                                  <label className={labelClass}>
-                                    {field.label}
-                                  </label>
-                                  <input
-                                    className={baseInputClass}
-                                    placeholder="0"
-                                    value={fieldValue}
-                                    disabled={isTotalField}
-                                    readOnly={isTotalField}
-                                    onChange={
-                                      isTotalField
-                                        ? undefined
-                                        : (e) =>
-                                            handleFieldChange(
-                                              index,
-                                              tab.key,
-                                              fieldKey,
-                                              e.target.value
-                                            )
-                                    }
-                                  />
-                                </div>
-                              );
-                            }
-                          )}
-                        </div>
-                      ),
-                    }))}
-                  />
-                </div>
-              </div>
-            ),
-          }))}
-        />
-      </div>
       {/* Save button removed since data is saved automatically */}
+
       {showScanner && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-4 rounded-lg shadow-lg">
-            <Scanner
-              onScan={handleScan}
-              onError={() => setShowScanner(false)}
-            />
-            <button
-              onClick={() => setShowScanner(false)}
-              className="mt-2 px-4 py-1 rounded bg-gray-200 text-gray-700"
-            >
-              Close
-            </button>
-          </div>
-        </div>
+        <ScannerModalComponent
+          isOpen={showScanner}
+          onClose={() => setShowScanner(false)}
+          onScan={handleScan}
+        />
+      )}
+
+      {sizesModal.isOpen && (
+        <SizesModalComponent
+          modalState={sizesModal}
+          onClose={closeSizesModal}
+          scannedItems={scannedItems}
+          onUpdateSize={updateSizeBreakdown}
+          onRemoveCustomSize={removeCustomSize}
+          tabNames={tabNames}
+        />
+      )}
+
+      {summaryModal.isOpen && (
+        <SummaryModalComponent
+          modalState={summaryModal}
+          onClose={closeSummaryModal}
+          scannedItems={scannedItems}
+          tabNames={tabNames}
+          selectedCard={selectedCard}
+        />
       )}
     </div>
   );

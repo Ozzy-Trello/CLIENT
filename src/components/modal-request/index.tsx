@@ -33,12 +33,13 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
     React.useState<boolean>(false);
   const [barangSearchValue, setBarangSearchValue] = React.useState<string>("");
   const [cardSearchValue, setCardSearchValue] = React.useState<string>("");
-  const [isSearchingBarang, setIsSearchingBarang] =
-    React.useState<boolean>(false);
   const [selectedItemUnit, setSelectedItemUnit] = React.useState<string>("");
   const [availableUnits, setAvailableUnits] = React.useState<
     { label: string; value: string }[]
   >([]);
+  const [selectedItemSource, setSelectedItemSource] =
+    React.useState<string>("");
+
   const queries = useQueries({
     queries: [
       {
@@ -47,14 +48,14 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
         enabled: open, // Only run when modal is open
       },
       {
-        queryKey: ["items", barangSearchValue],
-        queryFn: () => getAllItemList(barangSearchValue),
-        enabled: open && (barangSearchValue !== "" || barangSearchValue === ""), // Always run when modal is open
+        queryKey: ["items"],
+        queryFn: () => getAllItemList(),
+        enabled: open, // Only run when modal is open
       },
       {
-        queryKey: ["glaccounts"],
-        queryFn: () => getAllAdjustmentItems(),
-        enabled: open, // Only run when modal is open
+        queryKey: ["glaccounts", selectedItemSource],
+        queryFn: () => getAllAdjustmentItems(selectedItemSource),
+        enabled: open && !!selectedItemSource, // Only run when modal is open and source is selected
       },
     ],
   });
@@ -63,24 +64,15 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
     if (queries[0].data?.data) setCards(queries[0].data.data);
     if (queries[1].data?.data) {
       setItems(queries[1].data.data);
-      setIsSearchingBarang(false);
     }
-    if (queries[2].data?.data) setGlaccounts(queries[2].data.data);
+    if (queries[2].data?.data) {
+      console.log(
+        "🔍 [FRONTEND GL ACCOUNTS] Received GL accounts:",
+        queries[2].data.data
+      );
+      setGlaccounts(queries[2].data.data);
+    }
   }, [queries[0].data, queries[1].data, queries[2].data]);
-
-  // Handle barang search loading state
-  useEffect(() => {
-    if (queries[1].isLoading) {
-      setIsSearchingBarang(true);
-    }
-  }, [queries[1].isLoading]);
-
-  // This effect is no longer needed as we're using React Query with enabled: open
-  // useEffect(() => {
-  //   if (open) {
-  //     searchCards({}).then((res) => setCards(res.data || []));
-  //   }
-  // }, [open]);
 
   const listPO = cards.map((card: any) => ({
     value: card.id,
@@ -96,53 +88,27 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
 
   const barangList = useMemo(() => {
     if (!items || !Array.isArray(items)) return [];
-    // Flatten to AntD AutoComplete grouped options
-    return items.map((item: any) => ({
-      value: item.no,
-      label: item.name,
-    }));
-    // return items.flatMap((cat: any) => {
-    //   const hasChildren =
-    //     Array.isArray(cat.children) && cat.children.length > 0;
-    //   const childrenOptions = hasChildren
-    //     ? cat.children.map((child: any) => ({
-    //         value: child.id,
-    //         label: child.name,
-    //         key: `child-${child.id}`,
-    //       }))
-    //     : [
-    //         {
-    //           value: cat.id,
-    //           label: cat.name,
-    //           key: `child-${cat.id}`,
-    //         },
-    //       ];
-    //   return [
-    //     // Header (not selectable)
-    //     {
-    //       value: `__header__${cat.id}`,
-    //       label: (
-    //         <div
-    //           style={{ fontWeight: 600, color: "#888", pointerEvents: "none" }}
-    //         >
-    //           {cat.name}
-    //         </div>
-    //       ),
-    //       disabled: true,
-    //       key: `header-${cat.id}`,
-    //     },
-    //     ...childrenOptions,
-    //   ];
-    // });
-  }, [items]);
 
-  const akunPenyesuaianList = useMemo(() => {
-    if (!glaccounts || !glaccounts.d) return [];
-    return glaccounts.d.map((acc: any) => ({
-      value: acc.no,
-      label: acc.name,
+    // Filter items based on search value
+    const filteredItems = barangSearchValue
+      ? items.filter(
+          (item: any) =>
+            item.name.toLowerCase().includes(barangSearchValue.toLowerCase()) ||
+            item.no.toLowerCase().includes(barangSearchValue.toLowerCase()) ||
+            (item.source &&
+              item.source
+                .toLowerCase()
+                .includes(barangSearchValue.toLowerCase()))
+        )
+      : items;
+
+    // Map to AutoComplete options
+    return filteredItems.map((item: any) => ({
+      value: item.no,
+      label: `${item.name} (${item.source || "Unknown"})`,
+      item: item, // Store the full item object for later use
     }));
-  }, [glaccounts]);
+  }, [items, barangSearchValue]);
 
   const [form] = Form.useForm();
   const [formValid, setFormValid] = React.useState<boolean>(false);
@@ -157,6 +123,120 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
       .catch(() => setFormValid(false));
   }, [formValues]);
 
+  // Set akun penyesuaian when GL accounts are loaded and we have a selected item
+  React.useEffect(() => {
+    console.log("useEffect triggered with:", {
+      glaccounts: glaccounts?.d?.length,
+      selectedItemSource,
+      items: items?.length,
+    });
+
+    if (glaccounts && glaccounts.d && selectedItemSource) {
+      // Find the currently selected item from the form
+      const selectedBarangValue = form.getFieldValue("barang");
+      console.log("Selected barang value:", selectedBarangValue);
+
+      if (selectedBarangValue) {
+        // Find the selected item from the items array
+        const selectedItem = items.find(
+          (item: any) =>
+            `${item.name} (${item.source || "Unknown"})` === selectedBarangValue
+        );
+
+        console.log("Found selected item:", selectedItem);
+
+        if (selectedItem && selectedItem.itemCategory) {
+          // Get the COGS GL account from the item's category
+          const cogsGlAccountId =
+            selectedItem.itemCategory.parent?.cogsGlAccountId;
+
+          console.log("COGS GL Account ID:", cogsGlAccountId);
+          console.log("Item category structure:", selectedItem.itemCategory);
+
+          if (cogsGlAccountId) {
+            // Find the matching GL account
+            const matchingGlAccount = glaccounts.d.find(
+              (acc: any) => acc.id === cogsGlAccountId
+            );
+
+            console.log("Matching GL account:", matchingGlAccount);
+
+            if (matchingGlAccount) {
+              const fullLabel = `${matchingGlAccount.name} (${
+                matchingGlAccount.source || "Unknown"
+              })`;
+              console.log("Setting akun penyesuaian to:", fullLabel);
+              // Set the akun penyesuaian field value with proper display label
+              form.setFieldsValue({
+                akunPenyesuaian: fullLabel,
+              });
+              setIsAkunPenyesuaianDisabled(true);
+            } else {
+              console.log(
+                "No matching GL account found for ID:",
+                cogsGlAccountId
+              );
+              console.log(
+                "Available GL accounts:",
+                glaccounts.d.map((acc: any) => ({ id: acc.id, name: acc.name }))
+              );
+            }
+          } else {
+            console.log("No COGS GL Account ID found in item category");
+
+            // Fallback: Try to find a suitable GL account based on item category name
+            const itemCategoryName =
+              selectedItem.itemCategory.name?.toLowerCase();
+            console.log("Item category name:", itemCategoryName);
+
+            if (itemCategoryName) {
+              // Try to find a GL account that matches the item category
+              const suitableAccount = glaccounts.d.find((acc: any) => {
+                const accountName = acc.name.toLowerCase();
+                return (
+                  accountName.includes(itemCategoryName) ||
+                  itemCategoryName.includes(
+                    accountName.replace("hpp ", "").replace("beban ", "")
+                  )
+                );
+              });
+
+              if (suitableAccount) {
+                const fullLabel = `${suitableAccount.name} (${
+                  suitableAccount.source || "Unknown"
+                })`;
+                console.log(
+                  "Found suitable account by category name:",
+                  fullLabel
+                );
+                form.setFieldsValue({
+                  akunPenyesuaian: fullLabel,
+                });
+                setIsAkunPenyesuaianDisabled(true);
+              } else {
+                console.log("No suitable account found by category name");
+                console.log(
+                  "Available GL accounts:",
+                  glaccounts.d.map((acc: any) => acc.name)
+                );
+              }
+            }
+          }
+        } else {
+          console.log("No item category found for selected item");
+        }
+      } else {
+        console.log("No selected barang value found");
+      }
+    } else {
+      console.log("Missing required data:", {
+        hasGlaccounts: !!glaccounts,
+        hasGlaccountsData: !!glaccounts?.d,
+        selectedItemSource,
+      });
+    }
+  }, [glaccounts, selectedItemSource, items, form]);
+
   const filterOption = (
     inputValue: string,
     option?: { value: string; label: string | React.ReactNode }
@@ -164,6 +244,25 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
     if (!option || typeof option.label !== "string") return false;
     return option.label.toLowerCase().includes(inputValue.toLowerCase());
   };
+
+  const akunPenyesuaianList = useMemo(() => {
+    if (!glaccounts || !glaccounts.d) return [];
+
+    console.log(
+      "🔍 [FRONTEND GL ACCOUNTS] Processing GL accounts:",
+      glaccounts.d
+    );
+    console.log(
+      "🔍 [FRONTEND GL ACCOUNTS] First account structure:",
+      glaccounts.d[0]
+    );
+
+    return glaccounts.d.map((acc: any) => ({
+      value: acc.no,
+      label: `${acc.name} (${acc.source || "Unknown"})`,
+      account: acc, // Store the full account object for later use
+    }));
+  }, [glaccounts]);
 
   const handleOk = async () => {
     try {
@@ -174,10 +273,52 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
         (opt: any) =>
           typeof opt.label === "string" && opt.label === values.barang
       );
-      const adjustment = akunPenyesuaianList.find(
-        (opt: any) =>
-          typeof opt.label === "string" && opt.label === values.akunPenyesuaian
+      const adjustment = akunPenyesuaianList.find((opt: any) => {
+        if (
+          typeof opt.label === "string" &&
+          typeof values.akunPenyesuaian === "string"
+        ) {
+          // Extract account name from form value (remove source suffix)
+          const formValue = values.akunPenyesuaian.replace(/\s*\([^)]*\)$/, "");
+          const optionLabel = opt.label.replace(/\s*\([^)]*\)$/, "");
+          return optionLabel === formValue;
+        }
+        return false;
+      });
+
+      console.log("🔍 [ADJUSTMENT DEBUG] Selected adjustment:", adjustment);
+      console.log(
+        "🔍 [ADJUSTMENT DEBUG] All available adjustments:",
+        akunPenyesuaianList
       );
+      console.log(
+        "🔍 [ADJUSTMENT DEBUG] Form value (akunPenyesuaian):",
+        values.akunPenyesuaian
+      );
+      console.log("🔍 [ADJUSTMENT DEBUG] Adjustment found:", !!adjustment);
+
+      // Debug the matching process
+      if (typeof values.akunPenyesuaian === "string") {
+        const formValue = values.akunPenyesuaian.replace(/\s*\([^)]*\)$/, "");
+        console.log("🔍 [ADJUSTMENT DEBUG] Extracted form value:", formValue);
+        console.log(
+          "🔍 [ADJUSTMENT DEBUG] Available option labels:",
+          akunPenyesuaianList.map((opt: any) =>
+            opt.label.replace(/\s*\([^)]*\)$/, "")
+          )
+        );
+
+        // Debug each option to see why matching fails
+        console.log("🔍 [ADJUSTMENT DEBUG] Checking each option:");
+        akunPenyesuaianList.forEach((opt: any, index: number) => {
+          const optionLabel = opt.label.replace(/\s*\([^)]*\)$/, "");
+          const matches = optionLabel === formValue;
+          console.log(
+            `  Option ${index}: "${optionLabel}" === "${formValue}" = ${matches}`
+          );
+        });
+      }
+
       const payload = {
         card_id: selectedCardId || (card ? card.value : values.listPO),
         request_type: values.actionType,
@@ -188,8 +329,12 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
         item_name: item ? item.label : values.barang,
         adjustment_name: adjustment ? adjustment.label : values.akunPenyesuaian,
         satuan: selectedItemUnit || "", // Add the selected unit (satuan) to the payload
+        source: selectedItemSource || "", // Add the source field to the payload
+        type: item ? item.item?.itemTypeName || null : null, // Add the itemTypeName as type
       };
 
+      console.log("🔍 [REQUEST PAYLOAD] Type being sent:", payload.type);
+      console.log("🔍 [REQUEST PAYLOAD] Full payload:", payload);
       await submitRequest(payload);
       message.success("Request submitted successfully");
       await form.resetFields();
@@ -210,6 +355,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
       setAvailableUnits([]);
       setBarangSearchValue("");
       setSelectedCardId(null);
+      setSelectedItemSource("");
     }
   }, [open]);
 
@@ -291,10 +437,8 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
             <AutoComplete
               options={barangList}
               placeholder="Cari atau pilih Barang"
-              filterOption={false} // Disable client-side filtering as we're using server-side search
-              notFoundContent={
-                isSearchingBarang ? "Searching..." : "No items found"
-              }
+              filterOption={false} // Disable client-side filtering as we're using local search
+              notFoundContent="No items found"
               onSelect={(value, option) => {
                 if (
                   typeof value === "string" &&
@@ -305,10 +449,13 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
                 } else if (typeof option.label === "string") {
                   form.setFieldsValue({ barang: option.label });
 
-                  // Find the selected item from the items array
-                  const selectedItem = items.find(
-                    (item: any) => item.name === option.label
-                  );
+                  // Find the selected item from the items array using the stored item object
+                  const selectedItem = option.item;
+
+                  // Set the selected item source to trigger GL accounts fetch
+                  if (selectedItem && selectedItem.source) {
+                    setSelectedItemSource(selectedItem.source);
+                  }
 
                   // Store available units
                   if (selectedItem) {
@@ -377,7 +524,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
                 }
               }}
               onChange={(input) => {
-                // Update the search value state which will trigger the query
+                // Update the search value state which will trigger local filtering
                 setBarangSearchValue(input);
                 form.setFieldsValue({ barang: input });
 

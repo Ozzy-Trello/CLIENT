@@ -7,25 +7,15 @@ import {
 } from "../api/account";
 import TokenStorage from "@utils/token-storage";
 import { Account } from "../dto/account";
-import { useRouter } from "next/navigation";
-import { useDispatch } from "react-redux";
-import { setUser } from "@store/app_slice";
-import { useEffect } from "react";
 
 export function useCurrentAccount() {
-  // Check if we're on the client side
-  const isClient = typeof window !== "undefined";
-
-  const router = useRouter();
-  const dispatch = useDispatch();
-
-  const query = useQuery({
+  return useQuery({
     queryKey: ["currentAccount"],
     queryFn: currentAccount,
     staleTime: 30 * 60 * 1000, // 30 minutes - data stays fresh
     refetchOnWindowFocus: true, // Auto-refresh when tab becomes active
     refetchOnMount: false, // Don't refetch if data is fresh
-    enabled: isClient && !!TokenStorage.getAccessToken(), // Only run if we're on client and have a valid access token
+    enabled: !!TokenStorage.getAccessToken(), // Only run if a valid access token exists
     retry: (failureCount, error: any) => {
       // Don't retry on auth errors
       if (error?.status === 401 || error?.status === 403) {
@@ -34,22 +24,6 @@ export function useCurrentAccount() {
       return failureCount < 3;
     },
   });
-
-  // Handle errors by clearing tokens and redirecting to login
-  useEffect(() => {
-    if (isClient && query.isError && query.error) {
-      const error = query.error as any;
-      // Only clear tokens and redirect on authentication errors (401, 403)
-      if (error?.status === 401 || error?.status === 403) {
-        console.error("Authentication error:", error);
-        TokenStorage.clearTokens();
-        dispatch(setUser(null));
-        router.push("/login");
-      }
-    }
-  }, [query.isError, query.error, dispatch, router, isClient]);
-
-  return query;
 }
 
 export function useUpdateAccount() {
