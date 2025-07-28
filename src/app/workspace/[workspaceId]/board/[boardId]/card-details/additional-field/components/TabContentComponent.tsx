@@ -323,9 +323,19 @@ const TabContentComponent: React.FC<TabContentComponentProps> = ({
     }
 
     try {
+      console.log("=== DROPDOWN SELECT DEBUG ===");
+      console.log("Selected ID:", selectedId);
+      console.log("Current PO Identifier:", poIdentifier);
+
+      // Set the current PO for scanning to this PO
+      onScanButtonClick();
+      console.log("Called onScanButtonClick()");
+
       // Use the same logic as scanning - set the current scanned ID
       // This will trigger the useEffect that processes the scanned item
       setCurrentScannedId(selectedId);
+      console.log("Set currentScannedId to:", selectedId);
+
       // Reset the dropdown immediately
       setManualBahanId("");
       console.log("Dropdown reset to:", ""); // Debug log
@@ -851,88 +861,89 @@ const TabContentComponent: React.FC<TabContentComponentProps> = ({
 
           {/* Always show tabs regardless of butuhBahan or scanned items */}
           <div className="mb-4">
-            <Tabs
-              tabPosition="top"
-              tabBarGutter={10}
-              className="max-w-full overflow-x-auto"
-              style={{
-                maxWidth: "100%",
-                overflowX: "auto",
-              }}
-              items={tabNames.map((tab) => ({
-                key: tab.key,
-                label: (
-                  <span className="max-w-32 truncate" title={tab.label}>
-                    {tab.label}
-                  </span>
-                ),
-                children: (
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-                    {Object.entries(tab.fields).map(([fieldKey, field]) => {
-                      const isTotalField = fieldKey
-                        .toLowerCase()
-                        .includes("total");
-                      const fieldValue = getFieldValue(
-                        tab.key,
-                        fieldKey,
-                        isTotalField,
-                        selectedItemIndex
-                      );
+            <div className="max-w-2xl">
+              <Tabs
+                tabPosition="top"
+                tabBarGutter={10}
+                className="overflow-x-auto"
+                style={{
+                  overflowX: "auto",
+                }}
+                items={tabNames.map((tab) => ({
+                  key: tab.key,
+                  label: (
+                    <span className="max-w-32 truncate" title={tab.label}>
+                      {tab.label}
+                    </span>
+                  ),
+                  children: (
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                      {Object.entries(tab.fields).map(([fieldKey, field]) => {
+                        const isTotalField = fieldKey
+                          .toLowerCase()
+                          .includes("total");
+                        const fieldValue = getFieldValue(
+                          tab.key,
+                          fieldKey,
+                          isTotalField,
+                          selectedItemIndex
+                        );
 
-                      return (
-                        <div key={fieldKey} className="relative">
-                          <label className={labelClass}>{field.label}</label>
-                          <div className="relative">
-                            <input
-                              className={`${baseInputClass} ${
-                                !isTotalField ? "pr-10" : ""
-                              }`}
-                              placeholder="0"
-                              value={fieldValue}
-                              disabled={true}
-                              readOnly={true}
-                              onChange={undefined}
-                            />
-                            {!isTotalField && (
-                              <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    // Allow opening sizes modal even when no scanned items
-                                    // Users will enter sizes first, then the total will be calculated
-                                    if (scannedItems.length > 0) {
-                                      openSizesModal(
-                                        selectedItemIndex, // Use selected item index
-                                        tab.key,
-                                        fieldKey,
-                                        0, // Start with 0, users will add sizes
-                                        poIdentifier
-                                      );
-                                    } else {
-                                      // Open local sizes modal
-                                      setLocalSizesModal({
-                                        isOpen: true,
-                                        tabKey: tab.key,
-                                        fieldKey: fieldKey,
-                                      });
-                                    }
-                                  }}
-                                  disabled={false}
-                                  className="p-1 transition-colors text-gray-500 hover:text-blue-600"
-                                  title="Size Breakdown"
-                                >
-                                  <Ruler size={14} />
-                                </button>
-                              </div>
-                            )}
+                        return (
+                          <div key={fieldKey} className="relative">
+                            <label className={labelClass}>{field.label}</label>
+                            <div className="relative">
+                              <input
+                                className={`${baseInputClass} ${
+                                  !isTotalField ? "pr-10" : ""
+                                }`}
+                                placeholder="0"
+                                value={fieldValue}
+                                disabled={true}
+                                readOnly={true}
+                                onChange={undefined}
+                              />
+                              {!isTotalField && (
+                                <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      // Allow opening sizes modal even when no scanned items
+                                      // Users will enter sizes first, then the total will be calculated
+                                      if (scannedItems.length > 0) {
+                                        openSizesModal(
+                                          selectedItemIndex, // Use selected item index
+                                          tab.key,
+                                          fieldKey,
+                                          0, // Start with 0, users will add sizes
+                                          poIdentifier
+                                        );
+                                      } else {
+                                        // Open local sizes modal
+                                        setLocalSizesModal({
+                                          isOpen: true,
+                                          tabKey: tab.key,
+                                          fieldKey: fieldKey,
+                                        });
+                                      }
+                                    }}
+                                    disabled={false}
+                                    className="p-1 transition-colors text-gray-500 hover:text-blue-600"
+                                    title="Size Breakdown"
+                                  >
+                                    <Ruler size={14} />
+                                  </button>
+                                </div>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ),
-              }))}
-            />
+                        );
+                      })}
+                    </div>
+                  ),
+                }))}
+              />
+            </div>
           </div>
 
           {/* Summary Button - moved here to be under the tabs */}

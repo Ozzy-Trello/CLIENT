@@ -161,7 +161,7 @@ const CardDetails: React.FC = (props) => {
       onCancel={closeCardDetail}
       footer={null}
       className="modal-card-form full-height-modal"
-      width={750}
+      width={900}
       destroyOnClose
     >
       <div className="overflow-x-hidden max-w-full">

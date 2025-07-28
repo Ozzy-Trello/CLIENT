@@ -15,6 +15,28 @@ const JumlahPOComponent: React.FC<JumlahPOComponentProps> = ({
   labelClass,
   baseInputClass,
 }) => {
+  const [localValue, setLocalValue] = React.useState(jumlahPO.toString());
+
+  // Update local value when jumlahPO prop changes
+  React.useEffect(() => {
+    setLocalValue(jumlahPO.toString());
+  }, [jumlahPO]);
+
+  const handleBlur = () => {
+    const numValue = Number(localValue);
+    if (numValue >= 1) {
+      setJumlahPO(numValue);
+    } else {
+      setLocalValue(jumlahPO.toString()); // Reset to current value if invalid
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleBlur();
+    }
+  };
+
   return (
     <div className="ml-8 grid grid-cols-3 gap-x-6 gap-y-3 mb-3">
       <div>
@@ -27,8 +49,10 @@ const JumlahPOComponent: React.FC<JumlahPOComponentProps> = ({
           type="number"
           min="1"
           className={baseInputClass}
-          value={jumlahPO}
-          onChange={(e) => setJumlahPO(Number(e.target.value) || 1)}
+          value={localValue}
+          onChange={(e) => setLocalValue(e.target.value)}
+          onBlur={handleBlur}
+          onKeyDown={handleKeyDown}
           placeholder="1"
         />
       </div>

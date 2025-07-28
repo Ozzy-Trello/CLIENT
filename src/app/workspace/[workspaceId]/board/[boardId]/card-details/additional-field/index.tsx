@@ -249,6 +249,25 @@ const AdditionalFields: React.FC = () => {
     const currentData = {
       poScannedItems: poScannedItems,
       butuhBahan: { ...butuhBahan, [poId]: value },
+      jumlahPO: jumlahPO,
+    };
+
+    if (additionalFieldId) {
+      updateMutation.mutate(currentData);
+    } else {
+      createMutation.mutate(currentData);
+    }
+  };
+
+  // Save jumlahPO state when it changes
+  const handleJumlahPOChange = (value: number) => {
+    setJumlahPO(value);
+
+    // Save to database immediately when jumlahPO changes
+    const currentData = {
+      poScannedItems: poScannedItems,
+      butuhBahan: butuhBahan,
+      jumlahPO: value,
     };
 
     if (additionalFieldId) {
@@ -304,6 +323,9 @@ const AdditionalFields: React.FC = () => {
           setPoScannedItems(savedData.poScannedItems);
           if (savedData.butuhBahan) {
             setButuhBahan(savedData.butuhBahan);
+          }
+          if (savedData.jumlahPO) {
+            setJumlahPO(savedData.jumlahPO);
           }
         } else if (Array.isArray(savedData)) {
           // Old structure - array of items
@@ -586,10 +608,27 @@ const AdditionalFields: React.FC = () => {
         setPoScannedItems({ 1: parsedData || [] });
       } else if (parsedData && typeof parsedData === "object") {
         // New format: PO-specific items
-        setPoScannedItems(parsedData);
-        // For backward compatibility, flatten all PO items into scannedItems
-        const allItems = Object.values(parsedData).flat() as ItemDetail[];
-        setScannedItems(allItems);
+        if (parsedData.poScannedItems) {
+          // New structure with poScannedItems, butuhBahan, jumlahPO
+          setPoScannedItems(parsedData.poScannedItems);
+          if (parsedData.butuhBahan) {
+            setButuhBahan(parsedData.butuhBahan);
+          }
+          if (parsedData.jumlahPO) {
+            setJumlahPO(parsedData.jumlahPO);
+          }
+          // For backward compatibility, flatten all PO items into scannedItems
+          const allItems = Object.values(
+            parsedData.poScannedItems
+          ).flat() as ItemDetail[];
+          setScannedItems(allItems);
+        } else {
+          // Old format: direct PO items
+          setPoScannedItems(parsedData);
+          // For backward compatibility, flatten all PO items into scannedItems
+          const allItems = Object.values(parsedData).flat() as ItemDetail[];
+          setScannedItems(allItems);
+        }
       } else {
         setScannedItems([]);
         setPoScannedItems({});
@@ -600,6 +639,11 @@ const AdditionalFields: React.FC = () => {
   // Handle new scanned items
   useEffect(() => {
     if (itemDetail && currentScannedId) {
+      console.log("=== PROCESS SCANNED ITEM DEBUG ===");
+      console.log("itemDetail:", itemDetail);
+      console.log("currentScannedId:", currentScannedId);
+      console.log("currentPoForScan:", currentPoForScan);
+
       const initialFields: Record<string, Record<string, number>> = {};
 
       tabNames.forEach((tab) => {
@@ -621,19 +665,36 @@ const AdditionalFields: React.FC = () => {
         additionalFields: initialFields,
       };
 
+      console.log("New item to add:", newItem);
+
       // Add to the specific PO that's currently being scanned
       setPoScannedItems((prevPoItems) => {
+        console.log("Previous PO items:", prevPoItems);
         const currentPoItems = prevPoItems[currentPoForScan] || [];
+        console.log(
+          "Current PO items for PO",
+          currentPoForScan,
+          ":",
+          currentPoItems
+        );
         const updatedPoItems = [...currentPoItems, newItem];
+        console.log(
+          "Updated PO items for PO",
+          currentPoForScan,
+          ":",
+          updatedPoItems
+        );
         const updatedPoScannedItems = {
           ...prevPoItems,
           [currentPoForScan]: updatedPoItems,
         };
+        console.log("Final updated PO scanned items:", updatedPoScannedItems);
 
         // Save to database - save the multi-PO structure with butuhBahan state
         const dataToSave = {
           poScannedItems: updatedPoScannedItems,
           butuhBahan: butuhBahan,
+          jumlahPO: jumlahPO,
         };
 
         if (additionalFieldId) {
@@ -981,6 +1042,12 @@ const AdditionalFields: React.FC = () => {
     if (codes.length > 0) {
       const scannedValue = codes[0].rawValue;
 
+      // Check if scannedValue exists and is a string
+      if (!scannedValue || typeof scannedValue !== "string") {
+        console.error("Invalid scanned value:", scannedValue);
+        return;
+      }
+
       // Check if the scanned value is a URL
       if (
         scannedValue.startsWith("http://") ||
@@ -996,6 +1063,13 @@ const AdditionalFields: React.FC = () => {
       setCurrentScannedId(scannedValue);
       setShowScanner(false);
     }
+  };
+
+  // Wrapper function for camera scanner that converts string to expected format
+  const handleCameraScan = (scannedValue: string) => {
+    // Convert string to the format expected by handleScan
+    const codes = [{ rawValue: scannedValue }];
+    handleScan(codes);
   };
 
   const handleRemoveTab = (targetKey: string) => {
@@ -1135,7 +1209,7 @@ const AdditionalFields: React.FC = () => {
 
       <JumlahPOComponent
         jumlahPO={jumlahPO}
-        setJumlahPO={setJumlahPO}
+        setJumlahPO={handleJumlahPOChange}
         labelClass={labelClass}
         baseInputClass={baseInputClass}
       />
@@ -1162,7 +1236,11 @@ const AdditionalFields: React.FC = () => {
             labelClass={labelClass}
             baseInputClass={baseInputClass}
             sectionTitleClass={sectionTitleClass}
-            onScanButtonClick={() => setCurrentPoForScan(index + 1)}
+            onScanButtonClick={() => {
+              console.log("=== SCAN BUTTON CLICK DEBUG ===");
+              console.log("Setting currentPoForScan to:", index + 1);
+              setCurrentPoForScan(index + 1);
+            }}
             setCurrentScannedId={setCurrentScannedId}
             butuhBahan={butuhBahan[index + 1] ?? true}
             setButuhBahan={(value) => handleButuhBahanChange(index + 1, value)}
@@ -1176,7 +1254,7 @@ const AdditionalFields: React.FC = () => {
         <ScannerModalComponent
           isOpen={showScanner}
           onClose={() => setShowScanner(false)}
-          onScan={handleScan}
+          onScan={handleCameraScan}
         />
       )}
 
