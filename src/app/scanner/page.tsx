@@ -89,7 +89,7 @@ export default function ScannerPage() {
 
       const response = await scanQRCode(cardId, data, action as any);
 
-      if (response.success) {
+      if (response.status_code === 200 || response.data?.success) {
         setStatus("success");
         const scanResult = {
           data: scannedData,

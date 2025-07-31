@@ -430,43 +430,85 @@ const SummaryModalComponent: React.FC<SummaryModalComponentProps> = ({
     return { summaryData, itemsWithoutSizes, itemsWithIncompleteSizes };
   };
 
-  // Define table columns
-  const columns = [
-    {
-      title: "Item",
-      dataIndex: "item",
-      key: "item",
-      width: 150,
-    },
-    {
-      title: "Product",
-      dataIndex: "product",
-      key: "product",
-      width: 150,
-    },
-    {
-      title: "Size",
-      dataIndex: "size",
-      key: "size",
-      width: 100,
-    },
-    {
-      title: "Status",
-      dataIndex: "status",
-      key: "status",
-      width: 100,
-      render: (status: string) => (
-        <span
-          className={`px-2 py-1 text-xs rounded-full ${
-            status === "completed"
-              ? "bg-green-100 text-green-800"
-              : "bg-yellow-100 text-yellow-800"
-          }`}
-        >
-          {status === "completed" ? "Completed" : "Pending"}
-        </span>
-      ),
-    },
+  // --- Size Summary Mapping Utility ---
+  function mapSizeSummaryForPO(
+    items: ItemDetail[],
+    poIdentifier: number,
+    tabNames: any[]
+  ) {
+    const materialGroups: { [materialName: string]: { ukuran: string; kode: string; scanned: boolean }[] } = {};
+    
+    items.forEach((item, itemIndex) => {
+      tabNames.forEach((tab) => {
+        Object.entries(tab.fields).forEach(([fieldKey, field]) => {
+          const isTotalField = fieldKey.toLowerCase().includes("total");
+          if (!isTotalField) {
+            const sizesKey = `sizes_${poIdentifier}_${tab.key}_${fieldKey}`;
+            const sizeData = item.additionalFields?.[sizesKey];
+            if (sizeData) {
+              // Create material name from tab and field
+              const materialName = `${tab.label} ${(field as any).label}`;
+              
+              if (!materialGroups[materialName]) {
+                materialGroups[materialName] = [];
+              }
+
+              // Standard sizes
+              Object.entries(sizeData).forEach(([size, quantity]) => {
+                if (
+                  size !== "custom" &&
+                  size !== "status" &&
+                  typeof quantity === "number" &&
+                  quantity > 0
+                ) {
+                  for (let i = 0; i < quantity; i++) {
+                    const kode = `${item.id}-${size}-${i + 1}`;
+                    const statusKey = `${size.toLowerCase()}${i + 1}`;
+                    const scanned = sizeData.status?.[statusKey] === "completed";
+                    
+                    materialGroups[materialName].push({
+                      ukuran: size,
+                      kode,
+                      scanned,
+                    });
+                  }
+                }
+              });
+              
+              // Custom sizes
+              if (sizeData.custom) {
+                Object.entries(sizeData.custom).forEach(
+                  ([customSize, quantity]) => {
+                    if (typeof quantity === "number" && quantity > 0) {
+                      for (let i = 0; i < quantity; i++) {
+                        const kode = `${item.id}-${customSize}-${i + 1}`;
+                        const statusKey = `${customSize.toLowerCase()}${i + 1}`;
+                        const scanned = sizeData.status?.[statusKey] === "completed";
+                        
+                        materialGroups[materialName].push({
+                          ukuran: customSize,
+                          kode,
+                          scanned,
+                        });
+                      }
+                    }
+                  }
+                );
+              }
+            }
+          }
+        });
+      });
+    });
+    
+    return materialGroups;
+  }
+
+  // --- Table columns for size summary ---
+  const sizeSummaryColumns = [
+    { title: "Nama", dataIndex: "nama", key: "nama" },
+    { title: "Kode", dataIndex: "kode", key: "kode" },
+    { title: "Scanned", dataIndex: "scanned", key: "scanned" },
   ];
 
   const summaryDataResult = generateSummaryData();
@@ -857,166 +899,68 @@ const SummaryModalComponent: React.FC<SummaryModalComponentProps> = ({
     <Modal
       open={modalState.isOpen}
       onCancel={onClose}
-      width={1000}
-      footer={[
-        <Button key="close" onClick={onClose}>
-          Close
-        </Button>,
-      ]}
-      destroyOnClose={false}
-      maskClosable={false}
+      footer={null}
+      width={900}
     >
-      <div className="p-4">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-semibold text-gray-900">
-            Size Summary - PO {poIdentifier}
-          </h2>
-          <Button
-            key="qr"
-            type="primary"
-            onClick={() => {
-              if (summaryData.length === 0) {
-                message.warning(
-                  "No size breakdowns found to generate QR codes."
-                );
-                return;
-              }
-              openPDFInNewTab();
-            }}
-          >
-            Generate QR Codes
-          </Button>
-        </div>
-
-        {/* Filter Tabs */}
-        <div className="mb-4">
-          <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
-            <button
-              onClick={() => setActiveFilter("all")}
-              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                activeFilter === "all"
-                  ? "bg-white text-blue-600 shadow-sm"
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
-            >
-              All ({currentPoItems?.length || 0})
-            </button>
-            <button
-              onClick={() => setActiveFilter("scanned")}
-              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                activeFilter === "scanned"
-                  ? "bg-white text-green-600 shadow-sm"
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
-            >
-              Scanned ({currentPoItems?.filter((item) => item.id).length || 0})
-            </button>
-            <button
-              onClick={() => setActiveFilter("pending")}
-              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                activeFilter === "pending"
-                  ? "bg-white text-orange-600 shadow-sm"
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
-            >
-              Pending ({currentPoItems?.filter((item) => !item.id).length || 0})
-            </button>
-          </div>
-        </div>
-
-        {/* Generate summary data for table */}
-        {(() => {
-          const { summaryData, itemsWithoutSizes, itemsWithIncompleteSizes } =
-            generateSummaryData();
-
-          console.log("=== SUMMARY MODAL DEBUG ===");
-          console.log("summaryData:", summaryData);
-          console.log("itemsWithoutSizes:", itemsWithoutSizes);
-          console.log("itemsWithIncompleteSizes:", itemsWithIncompleteSizes);
-          console.log("activeFilter:", activeFilter);
-
-          const filteredSummaryData = summaryData.filter((item: any) => {
-            if (activeFilter === "all") return true;
-            if (activeFilter === "scanned") return item.status === "scanned";
-            if (activeFilter === "pending") return item.status === "pending";
-            return true;
-          });
-
-          console.log("filteredSummaryData:", filteredSummaryData);
-          console.log("=== END SUMMARY MODAL DEBUG ===");
-
-          return (
-            <>
-              {/* Warning for items without sizes */}
-              {itemsWithoutSizes.length > 0 && (
-                <div className="mb-4 p-4 bg-orange-50 border border-orange-200 rounded-lg">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                    <span className="font-medium text-orange-800">
-                      Belum memasukkan ukuran untuk:
-                    </span>
-                  </div>
-                  <div className="space-y-1">
-                    {itemsWithoutSizes.map((item, index) => (
-                      <div key={index} className="text-sm text-orange-700">
-                        • {item.field} ({item.quantity} pcs)
-                      </div>
-                    ))}
-                  </div>
-                  <div className="mt-2 text-xs text-orange-600">
-                    Klik ikon penggaris untuk memasukkan breakdown ukuran
-                  </div>
-                </div>
-              )}
-
-              {/* Warning for items with incomplete sizes */}
-              {itemsWithIncompleteSizes.length > 0 && (
-                <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                    <span className="font-medium text-yellow-800">
-                      Masih kurang ukuran untuk dilengkapi:
-                    </span>
-                  </div>
-                  <div className="space-y-1">
-                    {itemsWithIncompleteSizes.map((item, index) => (
-                      <div key={index} className="text-sm text-yellow-700">
-                        • {item.field} - masih kurang {item.missing} ukuran (
-                        {item.current}/{item.required})
-                      </div>
-                    ))}
-                  </div>
-                  <div className="mt-2 text-xs text-yellow-600">
-                    Klik ikon penggaris untuk melengkapi breakdown ukuran
-                  </div>
-                </div>
-              )}
-
-              {filteredSummaryData.length > 0 ? (
+      <h2 style={{ fontWeight: 700, fontSize: 20, marginBottom: 16 }}>Size Summary</h2>
+      
+      {(() => {
+        const materialGroups = mapSizeSummaryForPO(currentPoItems, poIdentifier, tabNames);
+        
+        return (
+          <div style={{ maxHeight: '600px', overflowY: 'auto' }}>
+            {Object.entries(materialGroups).map(([materialName, items]) => (
+              <div key={materialName} style={{ marginBottom: 24 }}>
+                <h3 style={{ fontWeight: 600, fontSize: 16, marginBottom: 12, color: '#1890ff' }}>
+                  {materialName}
+                </h3>
                 <Table
-                  columns={columns}
-                  dataSource={filteredSummaryData}
+                  columns={[
+                    { 
+                      title: "Ukuran", 
+                      dataIndex: "ukuran", 
+                      key: "ukuran",
+                      width: 100
+                    },
+                    { 
+                      title: "Kode", 
+                      dataIndex: "kode", 
+                      key: "kode",
+                      width: 200
+                    },
+                    { 
+                      title: "Scanned", 
+                      dataIndex: "scanned", 
+                      key: "scanned",
+                      width: 100,
+                      render: (scanned: boolean) => (
+                        <span style={{ 
+                          color: scanned ? '#52c41a' : '#ff4d4f',
+                          fontWeight: 600
+                        }}>
+                          {scanned ? 'True' : 'False'}
+                        </span>
+                      )
+                    },
+                  ]}
+                  dataSource={items}
+                  rowKey="kode"
                   pagination={false}
                   size="small"
-                  className="summary-table"
+                  style={{ marginBottom: 16 }}
                 />
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <BarChart3 size={48} className="mx-auto mb-4 text-gray-300" />
-                  <p>No size breakdowns found</p>
-                  <p className="text-sm">
-                    Add size breakdowns to fields to see them here
-                  </p>
-                  <div className="mt-4 text-xs text-gray-400">
-                    Debug: {summaryData.length} items found,{" "}
-                    {filteredSummaryData.length} after filtering
-                  </div>
-                </div>
-              )}
-            </>
-          );
-        })()}
-      </div>
+              </div>
+            ))}
+            
+            {Object.keys(materialGroups).length === 0 && (
+              <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>
+                <div style={{ fontSize: 48, marginBottom: 16 }}>📦</div>
+                <div>No data</div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
     </Modal>
   );
 };

@@ -3,223 +3,10 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Tabs, Button, Input, Modal, message, Select } from "antd";
 import { ChevronDown, ChevronRight, Ruler, BarChart3, X } from "lucide-react";
-import type { AdditionalTab, ItemDetail } from "./types";
+import type { AdditionalTab, ItemDetail, SizeBreakdown } from "../types";
 import { manualInputBahanId } from "@api/additional-field";
 import { useHikmatItemList } from "@hooks/accurate";
-
-// Local Sizes Modal Component
-interface LocalSizesModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  tabKey: string;
-  fieldKey: string;
-  tabNames: AdditionalTab[];
-  poIdentifier: number;
-  localSizesData: Record<string, Record<string, any>>;
-  setLocalSizesData: React.Dispatch<
-    React.SetStateAction<Record<string, Record<string, any>>>
-  >;
-}
-
-const LocalSizesModal: React.FC<LocalSizesModalProps> = ({
-  isOpen,
-  onClose,
-  tabKey,
-  fieldKey,
-  tabNames,
-  poIdentifier,
-  localSizesData,
-  setLocalSizesData,
-}) => {
-  const [showCustomSizePopover, setShowCustomSizePopover] = useState(false);
-
-  if (!isOpen) return null;
-
-  const sizesKey = `sizes_${poIdentifier}_${tabKey}_${fieldKey}`;
-  const currentSizes = localSizesData[sizesKey] || {
-    XS: 0,
-    S: 0,
-    M: 0,
-    L: 0,
-    XL: 0,
-    XXL: 0,
-    XXXL: 0,
-    XXXXL: 0,
-    XXXXXL: 0,
-    custom: {},
-  };
-
-  const getTotalSizes = (): number => {
-    const standardSizes = [
-      currentSizes.XS || 0,
-      currentSizes.S || 0,
-      currentSizes.M || 0,
-      currentSizes.L || 0,
-      currentSizes.XL || 0,
-      currentSizes.XXL || 0,
-      currentSizes.XXXL || 0,
-      currentSizes.XXXXL || 0,
-      currentSizes.XXXXXL || 0,
-    ];
-    const customSizes = currentSizes.custom
-      ? Object.values(currentSizes.custom).map((val) => Number(val) || 0)
-      : [];
-    return [...standardSizes, ...customSizes].reduce(
-      (sum, value) => sum + value,
-      0
-    );
-  };
-
-  const handleSizeChange = (size: string, quantity: number) => {
-    setLocalSizesData((prev) => ({
-      ...prev,
-      [sizesKey]: {
-        ...prev[sizesKey],
-        [size]: quantity,
-      },
-    }));
-  };
-
-  const handleAddCustomSize = (name: string, quantity: number) => {
-    setLocalSizesData((prev) => ({
-      ...prev,
-      [sizesKey]: {
-        ...prev[sizesKey],
-        custom: {
-          ...prev[sizesKey]?.custom,
-          [name]: quantity,
-        },
-      },
-    }));
-    setShowCustomSizePopover(false);
-  };
-
-  const handleRemoveCustomSize = (customSizeName: string) => {
-    setLocalSizesData((prev) => {
-      const updatedSizes = { ...prev[sizesKey] };
-      if (updatedSizes.custom) {
-        delete updatedSizes.custom[customSizeName];
-      }
-      return {
-        ...prev,
-        [sizesKey]: updatedSizes,
-      };
-    });
-  };
-
-  const standardSizes = [
-    { key: "XS", label: "XS" },
-    { key: "S", label: "S" },
-    { key: "M", label: "M" },
-    { key: "L", label: "L" },
-    { key: "XL", label: "XL" },
-    { key: "XXL", label: "XXL" },
-    { key: "XXXL", label: "XXXL" },
-    { key: "XXXXL", label: "XXXXL" },
-    { key: "XXXXXL", label: "XXXXXL" },
-  ];
-
-  return (
-    <Modal
-      open={isOpen}
-      onCancel={onClose}
-      title={`Size Breakdown - ${
-        tabNames.find((tab) => tab.key === tabKey)?.label || ""
-      } ${
-        tabNames.find((tab) => tab.key === tabKey)?.fields[fieldKey]?.label ||
-        ""
-      }`}
-      width={600}
-      footer={
-        [
-          <Button key="close" onClick={onClose}>
-            Close
-          </Button>,
-        ] as React.ReactNode[]
-      }
-      destroyOnClose={false}
-      maskClosable={false}
-    >
-      <div className="space-y-6 p-4">
-        <div className="flex justify-between items-center p-4 bg-gray-50 rounded-lg">
-          <span className="font-medium">Total Quantity: {getTotalSizes()}</span>
-          <span className="font-medium text-blue-600">
-            Calculated from sizes
-          </span>
-        </div>
-
-        <div className="grid grid-cols-3 gap-6">
-          {standardSizes.map((size) => (
-            <div key={size.key} className="space-y-3">
-              <label className="block text-sm font-medium text-gray-700">
-                {size.label}
-              </label>
-              <input
-                type="number"
-                min={0}
-                value={currentSizes[size.key] || ""}
-                onChange={(e) => {
-                  const value = Number.parseInt(e.target.value) || 0;
-                  handleSizeChange(size.key, value);
-                }}
-                placeholder="0"
-                className="text-center border border-gray-300 rounded px-3 py-2"
-                onBlur={(e) => {
-                  const value = Number.parseInt(e.target.value) || 0;
-                  handleSizeChange(size.key, value);
-                }}
-              />
-            </div>
-          ))}
-        </div>
-
-        {/* Custom Sizes */}
-        <div className="border-t pt-6">
-          <div className="flex items-center justify-between mb-4">
-            <h4 className="font-medium text-gray-900">Custom Sizes</h4>
-            <Button
-              type="default"
-              size="small"
-              icon={<Ruler size={14} />}
-              onClick={() => setShowCustomSizePopover(true)}
-            >
-              Custom Size
-            </Button>
-          </div>
-
-          {/* Custom Sizes List */}
-          {currentSizes.custom &&
-            Object.keys(currentSizes.custom).length > 0 && (
-              <div className="space-y-3">
-                {Object.entries(currentSizes.custom).map(
-                  ([name, quantity]: [string, any]) => (
-                    <div
-                      key={name}
-                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                    >
-                      <span className="font-medium">{name}</span>
-                      <div className="flex items-center gap-3">
-                        <span className="text-sm text-gray-600">
-                          {quantity}
-                        </span>
-                        <Button
-                          type="text"
-                          size="small"
-                          danger
-                          icon={<X size={14} />}
-                          onClick={() => handleRemoveCustomSize(name)}
-                        />
-                      </div>
-                    </div>
-                  )
-                )}
-              </div>
-            )}
-        </div>
-      </div>
-    </Modal>
-  );
-};
+import LocalSizesModal from "./LocalSizesModal";
 
 interface TabContentComponentProps {
   poIdentifier: number; // Add PO identifier
@@ -260,6 +47,7 @@ interface TabContentComponentProps {
   setCurrentScannedId: (id: string | null) => void;
   butuhBahan: boolean;
   setButuhBahan: (value: boolean) => void;
+  onSaveLocalSizes: (sizesData: Record<string, SizeBreakdown>) => void;
 }
 
 const TabContentComponent: React.FC<TabContentComponentProps> = ({
@@ -284,6 +72,7 @@ const TabContentComponent: React.FC<TabContentComponentProps> = ({
   setCurrentScannedId,
   butuhBahan,
   setButuhBahan,
+  onSaveLocalSizes,
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [manualBahanId, setManualBahanId] = useState<string>("");
@@ -291,7 +80,7 @@ const TabContentComponent: React.FC<TabContentComponentProps> = ({
     Record<string, Record<string, string>>
   >({});
   const [localSizesData, setLocalSizesData] = useState<
-    Record<string, Record<string, any>>
+    Record<string, SizeBreakdown>
   >({});
   const [localSizesModal, setLocalSizesModal] = useState<{
     isOpen: boolean;
@@ -480,7 +269,7 @@ const TabContentComponent: React.FC<TabContentComponentProps> = ({
         };
       } else if (size !== "custom") {
         // Handle standard size
-        updatedData[sizesKey][size] = quantity;
+        (updatedData[sizesKey] as any)[size] = quantity;
       }
 
       return updatedData;
@@ -904,7 +693,12 @@ const TabContentComponent: React.FC<TabContentComponentProps> = ({
                                 onChange={undefined}
                               />
                               {!isTotalField && (
-                                <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
+                                <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-2">
+                                  {fieldValue > 0 && (
+                                    <span className="text-xs font-medium text-gray-500">
+                                      Total: {fieldValue}
+                                    </span>
+                                  )}
                                   <button
                                     type="button"
                                     onClick={() => {
@@ -915,7 +709,7 @@ const TabContentComponent: React.FC<TabContentComponentProps> = ({
                                           selectedItemIndex, // Use selected item index
                                           tab.key,
                                           fieldKey,
-                                          0, // Start with 0, users will add sizes
+                                          Number(fieldValue) || 0, // Pass current total as initial value
                                           poIdentifier
                                         );
                                       } else {
@@ -928,8 +722,10 @@ const TabContentComponent: React.FC<TabContentComponentProps> = ({
                                       }
                                     }}
                                     disabled={false}
-                                    className="p-1 transition-colors text-gray-500 hover:text-blue-600"
-                                    title="Size Breakdown"
+                                    className={`p-1 transition-colors ${
+                                      fieldValue > 0 ? 'text-blue-600' : 'text-gray-500'
+                                    } hover:text-blue-600`}
+                                    title={fieldValue > 0 ? `Total: ${fieldValue}` : 'Size Breakdown'}
                                   >
                                     <Ruler size={14} />
                                   </button>
@@ -982,6 +778,7 @@ const TabContentComponent: React.FC<TabContentComponentProps> = ({
           poIdentifier={poIdentifier}
           localSizesData={localSizesData}
           setLocalSizesData={setLocalSizesData}
+          onSave={onSaveLocalSizes}
         />
       )}
     </div>

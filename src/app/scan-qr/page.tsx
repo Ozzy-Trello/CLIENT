@@ -31,7 +31,7 @@ export default function ScanQRPage() {
       try {
         const response = await scanQRCode(cardId, scannedData, action as any);
 
-        if (response.success) {
+        if (response.status_code === 200 || response.data?.success) {
           setStatus("success");
           setMessage(response.message || "Item scanned successfully!");
         } else {

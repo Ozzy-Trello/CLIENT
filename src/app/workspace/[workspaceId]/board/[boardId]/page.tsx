@@ -106,7 +106,7 @@ const Board: React.FC = () => {
           );
       }
     },
-    [listData, updateCard]
+    [updateCard]
   );
 
   const handleListDragEnd = (

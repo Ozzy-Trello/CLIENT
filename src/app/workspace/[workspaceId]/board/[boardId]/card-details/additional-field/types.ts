@@ -11,12 +11,28 @@ export interface SizeBreakdown {
   custom?: { [key: string]: number };
 }
 
+export interface SizeBreakdownItem {
+  label: string; // e.g., "xs-1", "m-3", "custom-size-2"
+  size: string; // e.g., "XS", "M", "custom-size"
+  uniqueId: string; // e.g., "1", "3", "2"
+  isScanned: boolean;
+  category: string; // e.g., "polo"
+  field: string; // e.g., "tpj"
+}
+
 export interface SizesModalState {
   isOpen: boolean;
   itemIndex: number;
   tabKey: string;
   fieldKey: string;
   totalQuantity: number;
+}
+
+export interface SizeBreakdownModalState {
+  isOpen: boolean;
+  categoryKey: string;
+  fieldKey: string;
+  sizeData?: SizeBreakdown;
 }
 
 export interface SummaryModalState {
@@ -33,12 +49,14 @@ export interface ItemDetail {
   id: string;
   name: string;
   additionalFields: any;
+  sizeBreakdowns?: SizeBreakdownItem[]; // New unified structure
   __rawInputs?: any;
   usedAmount?: number;
   remainingAmount?: number;
   variant?: string;
   pattern?: string;
   estimatedProduction?: number;
+  butuhBahan?: boolean;
 }
 
 export interface AdditionalTab {

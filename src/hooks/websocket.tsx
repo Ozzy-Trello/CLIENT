@@ -188,6 +188,31 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             refreshDashcard = true;
             break;
 
+          case "additional_field:updated": {
+            const { cardId, additionalFieldId, updatedItem, action, newStatus, scannedCount, totalCount } = message.data;
+            console.log(`Additional field updated for card ${cardId}`, {
+              additionalFieldId,
+              updatedItem,
+              action,
+              newStatus,
+              scannedCount,
+              totalCount,
+            });
+
+            // Invalidate additional field queries to refresh the UI
+            queryClient.invalidateQueries({
+              queryKey: ["additionalFields", cardId],
+            });
+
+            // Also invalidate card detail to refresh any related displays
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.cards.detail(cardId),
+            });
+
+            console.log("Invalidated additional field queries for card:", cardId);
+            break;
+          }
+
           case "custom_field:updated": {
             const { customField, cardId, workspaceId } = message.data;
             console.log(`Custom field updated for card ${cardId}`, {

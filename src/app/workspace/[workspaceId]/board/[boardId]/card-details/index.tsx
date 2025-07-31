@@ -387,7 +387,7 @@ const CardDetails: React.FC = (props) => {
                 <Dashcard card={selectedCard} />
               )}
 
-              <AdditionalFields />
+              <AdditionalFields cardId={selectedCard?.id} />
 
               <RequestFields />
 

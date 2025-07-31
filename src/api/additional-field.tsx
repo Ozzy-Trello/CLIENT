@@ -33,10 +33,19 @@ export const createAdditionalField = async (
   card_id: string,
   data: any
 ): Promise<AdditionalFieldResponse> => {
-  const { data: responseData } = await api.post("/additional-field", {
-    card_id,
+  // Use camelCase for the payload so the axios interceptor converts it to snake_case correctly
+  const payload = {
+    cardId: card_id, // This will be converted to card_id by the interceptor
     data: JSON.stringify(data),
-  });
+  };
+  
+  console.log("=== CREATE ADDITIONAL FIELD DEBUG ===");
+  console.log("card_id:", card_id);
+  console.log("data:", data);
+  console.log("payload before interceptor:", payload);
+  console.log("=== END DEBUG ===");
+  
+  const { data: responseData } = await api.post("/additional-field", payload);
   return responseData;
 };
 

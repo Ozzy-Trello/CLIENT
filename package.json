@@ -45,7 +45,8 @@
     "redux-persist-transform-encrypt": "^5.1.1",
     "snakecase-keys": "^8.0.1",
     "styled-components": "^6.1.14",
-    "uuid": "^11.1.0"
+    "uuid": "^11.1.0",
+    "zustand": "^5.0.6"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.0.12",
