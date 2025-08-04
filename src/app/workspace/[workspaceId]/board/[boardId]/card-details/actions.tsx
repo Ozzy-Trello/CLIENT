@@ -21,6 +21,7 @@ import {
   UserMinus,
   FlipHorizontal,
   Trash2,
+  FileCheck,
 } from "lucide-react";
 import PopoverCustomField from "@components/popover-custom-field";
 import PopoverUser from "@components/popover-user";
@@ -38,6 +39,11 @@ import { useCurrentAccount, usePermissions } from "@hooks/account";
 import { useCardMembers } from "@hooks/card_member";
 import PopoverLabel from "@components/popover-label.tsx";
 import PopoverMirrorCard from "@components/popover-mirror-card";
+import UploadModal from "@components/modal-upload/modal-upload";
+import { useCardAttachment } from "@hooks/card_attachment";
+import { EnumAttachmentType } from "@myTypes/card";
+import { FileUpload } from "@myTypes/file-upload";
+import { uploadFile } from "@api/file";
 
 // Helper component for permission-controlled buttons - moved outside to prevent re-creation
 const PermissionButton: React.FC<{
@@ -92,6 +98,7 @@ const Actions: React.FC = () => {
   const [openAttach, setOpenAttach] = useState(false);
   const [openChecklist, setOpenChecklist] = useState(false);
   const [openLabels, setOpenLabels] = useState(false);
+  const [openBuktiModal, setOpenBuktiModal] = useState(false);
   const { boardId } = useParams();
   const { selectedCard } = useCardDetailContext();
   const theme = useSelector(selectTheme);
@@ -112,6 +119,9 @@ const Actions: React.FC = () => {
   const currentUser = currentAccountData?.data;
   const { isMember, toggleMember, isAddingMember, isRemovingMember } =
     useCardMembers(selectedCard?.id || "");
+
+  // Get card attachments for Bukti functionality
+  const { cardAttachments, addAttachment } = useCardAttachment(selectedCard?.id || "");
 
   // Get permissions
   const {
@@ -154,6 +164,46 @@ const Actions: React.FC = () => {
   const isCurrentUserMember = currentUser?.id
     ? isMember(currentUser.id)
     : false;
+
+  // Check if bukti attachment already exists
+  const hasBuktiAttachment = () => {
+    return cardAttachments.some(
+      (attachment) =>
+        attachment.attachableType === EnumAttachmentType.File &&
+        attachment.file?.name === "bukti"
+    );
+  };
+
+  // Handle bukti upload
+  const handleBuktiUpload = async (file: File, result: FileUpload) => {
+    try {
+      // Create a new file with the name "bukti" but keep the original extension
+      const originalExtension = file.name.split('.').pop();
+      const buktiFileName = originalExtension ? `bukti.${originalExtension}` : "bukti";
+      
+      // Create a new file object with the bukti name
+      const buktiFile = new File([file], buktiFileName, { type: file.type });
+      
+      // Upload the file with the new name
+      const buktiResult = await uploadFile(buktiFile);
+      
+      if (buktiResult?.data && selectedCard) {
+        // Add the attachment with the bukti file
+        addAttachment({
+          cardId: selectedCard.id,
+          attachableType: EnumAttachmentType.File,
+          attachableId: buktiResult.data.id,
+          isCover: false,
+        });
+        
+        message.success("Bukti uploaded successfully!");
+        setOpenBuktiModal(false);
+      }
+    } catch (error) {
+      console.error("Error uploading bukti:", error);
+      message.error("Failed to upload bukti. Please try again.");
+    }
+  };
 
   // Theme-aware button styles
   const buttonStyle = {
@@ -362,6 +412,21 @@ const Actions: React.FC = () => {
           <span className="text-xs">Attachment</span>
         </PermissionButton>
       )}
+
+      {/* Bukti Button */}
+      <PermissionButton
+        canPerform={canManageCardAttachments()}
+        onClick={() => setOpenBuktiModal(true)}
+        tooltip={hasBuktiAttachment() ? "Bukti already exists" : "Upload bukti file"}
+        permissionLevel={permissionLevel}
+        buttonStyle={buttonStyle}
+        disabled={hasBuktiAttachment()}
+      >
+        <span className="text-xs" style={iconStyle}>
+          <FileCheck size={14} />
+        </span>
+        <span className="text-xs">Bukti</span>
+      </PermissionButton>
 
       {/* Location */}
       {canManageCardLocation() ? (
@@ -681,6 +746,14 @@ const Actions: React.FC = () => {
         </PermissionButton>
 
         <QRModal isOpen={openQrModal} onClose={() => setOpenQrModal(false)} />
+
+        {/* Bukti Upload Modal */}
+      <UploadModal
+        isVisible={openBuktiModal}
+        onClose={() => setOpenBuktiModal(false)}
+        onUploadComplete={handleBuktiUpload}
+        title="Upload Bukti"
+      />
       </div>
     </div>
   );
