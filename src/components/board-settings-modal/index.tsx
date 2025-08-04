@@ -6,6 +6,7 @@ import {
 } from "@ant-design/icons";
 import { uploadFile } from "@api/file";
 import boardsImage from "@assets/images/boards.png";
+import { usePermissions } from "@hooks/account";
 import { useRoles } from "@hooks/useRoles";
 import { Role } from "@myTypes/role";
 import { selectCurrentWorkspace } from "@store/workspace_slice";
@@ -92,6 +93,15 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
   const { mutateAsync: updateBoard } = useUpdateBoard(
     currentWorkspace?.id || ""
   );
+
+  // Get permissions
+  const {
+    canManageBoardSettings,
+    canUpdateBoard,
+    canManageRoles,
+    permissionLevel,
+    isObserver
+  } = usePermissions();
 
   const {
     board,
@@ -266,6 +276,24 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
     message.error("Please check your input and try again.");
   };
 
+  // Helper component for permission-controlled form items
+  const PermissionFormItem: React.FC<{
+    children: React.ReactNode;
+    hasPermission: boolean;
+    tooltipTitle?: string;
+  }> = ({ children, hasPermission, tooltipTitle = "Insufficient permissions" }) => {
+    if (!hasPermission) {
+      return (
+        <Tooltip title={tooltipTitle}>
+          <div style={{ opacity: 0.5, pointerEvents: 'none' }}>
+            {children}
+          </div>
+        </Tooltip>
+      );
+    }
+    return <>{children}</>;
+  };
+
   return (
     <Modal
       className="modal-create-board modal-cust-footer"
@@ -323,135 +351,180 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
           </div>
 
           <div className="background-actions">
-            <Upload
-              name="file"
-              showUploadList={false}
-              beforeUpload={beforeUpload}
-              customRequest={handleUpload}
-              fileList={fileList}
-              onChange={({ fileList }) => setFileList(fileList)}
-              ref={uploadRef}
+            <PermissionFormItem 
+              hasPermission={canUpdateBoard()} 
+              tooltipTitle="You don't have permission to change board background"
             >
-              <Tooltip title="Choose image">
-                <Button
-                  type="text"
-                  shape="circle"
-                  icon={<PictureOutlined />}
-                  className="background-action-button"
-                  disabled={isUploading}
-                />
-              </Tooltip>
-            </Upload>
+              <Upload
+                name="file"
+                showUploadList={false}
+                beforeUpload={beforeUpload}
+                customRequest={handleUpload}
+                fileList={fileList}
+                onChange={({ fileList }) => setFileList(fileList)}
+                ref={uploadRef}
+                disabled={!canUpdateBoard()}
+              >
+                <Tooltip title={canUpdateBoard() ? "Choose image" : "You don't have permission to change board background"}>
+                  <Button
+                    type="text"
+                    shape="circle"
+                    icon={<PictureOutlined />}
+                    className="background-action-button"
+                    disabled={isUploading || !canUpdateBoard()}
+                  />
+                </Tooltip>
+              </Upload>
+            </PermissionFormItem>
 
             {backgroundImage && (
-              <Tooltip title="Remove image">
+              <PermissionFormItem 
+                hasPermission={canUpdateBoard()} 
+                tooltipTitle="You don't have permission to change board background"
+              >
+                <Tooltip title={canUpdateBoard() ? "Remove image" : "You don't have permission to change board background"}>
+                  <Button
+                    type="text"
+                    shape="circle"
+                    icon={<UploadOutlined />}
+                    className="background-action-button"
+                    onClick={handleRemoveImage}
+                    disabled={isUploading || !canUpdateBoard()}
+                  />
+                </Tooltip>
+              </PermissionFormItem>
+            )}
+
+            <PermissionFormItem 
+              hasPermission={canUpdateBoard()} 
+              tooltipTitle="You don't have permission to save favorites"
+            >
+              <Tooltip title={canUpdateBoard() ? "Save as favorite" : "You don't have permission to save favorites"}>
                 <Button
                   type="text"
                   shape="circle"
-                  icon={<UploadOutlined />}
+                  icon={<StarOutlined />}
                   className="background-action-button"
-                  onClick={handleRemoveImage}
-                  disabled={isUploading}
+                  disabled={isUploading || !canUpdateBoard()}
                 />
               </Tooltip>
-            )}
-
-            <Tooltip title="Save as favorite">
-              <Button
-                type="text"
-                shape="circle"
-                icon={<StarOutlined />}
-                className="background-action-button"
-                disabled={isUploading}
-              />
-            </Tooltip>
+            </PermissionFormItem>
           </div>
         </div>
 
         <div className="board-form-content">
-          <Form.Item name="background" label={<Text strong>Background</Text>}>
-            <div className="background-selection">
-              <div className="color-picker-container">
-                <div
-                  className="color-preview"
-                  style={
-                    {
-                      "--selected-color": bg,
-                      background: backgroundImage
-                        ? `url(${backgroundImage}) center/cover`
-                        : bg,
-                    } as React.CSSProperties
-                  }
-                />
-                <ColorPicker
-                  defaultFormat="hex"
-                  format="hex"
-                  disabledAlpha={false}
-                  value={backgroundImage ? "transparent" : bg}
-                  onChange={handleColorChange}
-                  showText={false}
-                  disabled={isUploading}
-                />
+          <PermissionFormItem 
+            hasPermission={canUpdateBoard()} 
+            tooltipTitle="You don't have permission to change board background"
+          >
+            <Form.Item name="background" label={<Text strong>Background</Text>}>
+              <div className="background-selection">
+                <div className="color-picker-container">
+                  <div
+                    className="color-preview"
+                    style={
+                      {
+                        "--selected-color": bg,
+                        background: backgroundImage
+                          ? `url(${backgroundImage}) center/cover`
+                          : bg,
+                      } as React.CSSProperties
+                    }
+                  />
+                  <ColorPicker
+                    defaultFormat="hex"
+                    format="hex"
+                    disabledAlpha={false}
+                    value={backgroundImage ? "transparent" : bg}
+                    onChange={handleColorChange}
+                    showText={false}
+                    disabled={isUploading || !canUpdateBoard()}
+                  />
+                </div>
+                {backgroundImage && (
+                  <span className="background-image-text">Image selected</span>
+                )}
               </div>
-              {backgroundImage && (
-                <span className="background-image-text">Image selected</span>
-              )}
-            </div>
-          </Form.Item>
+            </Form.Item>
+          </PermissionFormItem>
 
-          <Form.Item
-            name="title"
-            label={<Text strong>Board Title</Text>}
-            rules={[{ required: true, message: "Please enter a board title" }]}
+          <PermissionFormItem 
+            hasPermission={canManageBoardSettings()} 
+            tooltipTitle="You don't have permission to change board title"
           >
-            <Input placeholder="Enter board title" size="large" />
-          </Form.Item>
-
-          <Form.Item
-            label="Description"
-            name="description"
-            rules={[
-              { max: 500, message: "Description cannot exceed 500 characters" },
-            ]}
-          >
-            <Input.TextArea rows={3} placeholder="Add a description..." />
-          </Form.Item>
-
-          <Form.Item
-            label="Roles"
-            help="Select roles that can access this board (leave empty for public access)"
-          >
-            <Select
-              mode="multiple"
-              placeholder="Select roles (leave empty for public)"
-              value={selectedRoles}
-              onChange={setSelectedRoles}
-              loading={loadingRoles}
-              optionLabelProp="label"
-              tagRender={({ label, value, onClose }) => (
-                <Tag
-                  color="blue"
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                  }}
-                  closable
-                  onClose={onClose}
-                  style={{ marginRight: 3 }}
-                >
-                  {label}
-                </Tag>
-              )}
+            <Form.Item
+              name="title"
+              label={<Text strong>Board Title</Text>}
+              rules={[{ required: true, message: "Please enter a board title" }]}
             >
-              {roles.map((role: Role) => (
-                <Option key={role.id} value={role.id} label={role.name}>
-                  <div className="flex items-center">
-                    <span>{role.name}</span>
-                  </div>
-                </Option>
-              ))}
-            </Select>
-          </Form.Item>
+              <Input 
+                placeholder="Enter board title" 
+                size="large" 
+                disabled={!canManageBoardSettings()}
+              />
+            </Form.Item>
+          </PermissionFormItem>
+
+          <PermissionFormItem 
+            hasPermission={canManageBoardSettings()} 
+            tooltipTitle="You don't have permission to change board description"
+          >
+            <Form.Item
+              label="Description"
+              name="description"
+              rules={[
+                { max: 500, message: "Description cannot exceed 500 characters" },
+              ]}
+            >
+              <Input.TextArea 
+                rows={3} 
+                placeholder="Add a description..." 
+                disabled={!canManageBoardSettings()}
+              />
+            </Form.Item>
+          </PermissionFormItem>
+
+          <PermissionFormItem 
+            hasPermission={canManageRoles()} 
+            tooltipTitle="You don't have permission to manage board roles"
+          >
+            <Form.Item
+              label="Roles"
+              help="Select roles that can access this board (leave empty for public access)"
+            >
+              <Select
+                mode="multiple"
+                placeholder="Select roles (leave empty for public)"
+                value={selectedRoles}
+                onChange={setSelectedRoles}
+                loading={loadingRoles}
+                optionLabelProp="label"
+                disabled={!canManageRoles()}
+                tagRender={({ label, value, onClose }) => (
+                  <Tag
+                    color="blue"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }}
+                    closable
+                    onClose={onClose}
+                    style={{ marginRight: 3 }}
+                  >
+                    {label}
+                  </Tag>
+                )}
+              >
+                {roles.map((role: Role) => (
+                  <Option key={role.id} value={role.id} label={role.name}>
+                    <div className="flex items-center">
+                      <span>{role.name}</span>
+                    </div>
+                  </Option>
+                ))}
+              </Select>
+            </Form.Item>
+          </PermissionFormItem>
 
           <Form.Item name="workspace" label={<Text strong>Workspace</Text>}>
             <WorkspaceSelection />
@@ -464,14 +537,19 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
               </Button>
             </Form.Item>
             <Form.Item>
-              <Button
-                type="primary"
-                htmlType="submit"
-                size="small"
-                loading={isLoading}
+              <Tooltip 
+                title={!canManageBoardSettings() ? "You don't have permission to save board changes" : ""}
               >
-                Save Changes
-              </Button>
+                <Button
+                  type="primary"
+                  htmlType="submit"
+                  size="small"
+                  loading={isLoading}
+                  disabled={!canManageBoardSettings() || isObserver()}
+                >
+                  Save Changes
+                </Button>
+              </Tooltip>
             </Form.Item>
           </div>
         </div>

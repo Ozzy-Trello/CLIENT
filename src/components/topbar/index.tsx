@@ -7,7 +7,8 @@ import React, { useState, useEffect, useRef } from "react";
 import logo from "@assets/images/Logo_Ozzy_Clothing_png.png";
 import ImageDynamicContrast from "../image-dynamic-contrast";
 import { useSelector } from "react-redux";
-import { selectTheme, selectUser, setUser } from "@store/app_slice";
+import { selectTheme, selectUser, selectIsDarkMode, setUser, toggleTheme } from "@store/app_slice";
+import { Sun, Moon } from "lucide-react";
 import { useDispatch } from "react-redux";
 import { useRouter } from "next/navigation";
 import { WorkspaceSelection } from "../selection";
@@ -88,11 +89,17 @@ const TopBar: React.FC = React.memo(() => {
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const theme = useSelector(selectTheme);
+  const isDarkMode = useSelector(selectIsDarkMode);
   const { colors } = theme;
   const dispatch = useDispatch();
   const router = useRouter();
   const user = useSelector(selectUser);
   const currentWorkspace = useSelector(selectCurrentWorkspace);
+
+  // Handle theme toggle
+  const handleThemeToggle = () => {
+    dispatch(toggleTheme());
+  };
 
   // Use unified search hook
   const {
@@ -421,6 +428,41 @@ const TopBar: React.FC = React.memo(() => {
             <BellOutlined className="text-xl cursor-pointer" />
           </Badge>
         </Dropdown> */}
+        
+        {/* Theme Toggle Button */}
+        <div
+          onClick={handleThemeToggle}
+          className="relative inline-flex items-center w-12 h-6 rounded-full cursor-pointer transition-all duration-300 ease-in-out mb-1 pb-2"
+          style={{
+            backgroundColor: isDarkMode ? `rgb(${colors.primary})` : `rgb(${colors.muted})`,
+            border: `1px solid rgb(${colors.border})`,
+          }}
+          title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+        >
+          {/* Toggle Circle */}
+          <div
+            className="absolute w-5 h-5 rounded-full transition-all duration-300 ease-in-out flex items-center justify-center"
+            style={{
+              backgroundColor: `rgb(${colors.surface})`,
+              left: isDarkMode ? '26px' : '2px',
+              top: '2px',
+              boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
+            }}
+          >
+            {isDarkMode ? (
+              <Moon 
+                size={12} 
+                style={{ color: `rgb(${colors.primary})` }}
+              />
+            ) : (
+              <Sun 
+                size={12} 
+                style={{ color: `rgb(${colors.primary})` }}
+              />
+            )}
+          </div>
+        </div>
+        
         <Dropdown
           menu={{ items: avatarMenuItems }}
           trigger={["click"]}

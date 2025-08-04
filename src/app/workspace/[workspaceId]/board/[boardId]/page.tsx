@@ -13,7 +13,8 @@ import { Droppable, DropResult } from "@hello-pangea/dnd";
 import List from "./draggable-list";
 import { Button, Input } from "antd";
 import { Plus, X } from "lucide-react";
-import { CardDetailProvider } from "@providers/card-detail-context";
+import { CardDetailProvider, useCardDetailContext } from "@providers/card-detail-context";
+import { CardFocusProvider, useCardFocus } from "@providers/card-focus-context";
 import CardDetails from "./card-details";
 import ListSkeleton from "./list-skeleton.tsx";
 import BoardScopeMenu from "@components/board-scope-menu";
@@ -226,8 +227,9 @@ const Board: React.FC = () => {
         openDashcardModal={openDashcardModal}
         setOpenDashcardModal={setOpenDashcardModal}
       />
-      <CardDetailProvider>
-        <div className="pt-[50px] h-[calc(100vh-30px)] overflow-x-scroll overflow-y-hidden min-w-[200px]">
+      <CardFocusProvider>
+        <CardDetailProvider>
+          <div className="pt-[50px] h-[calc(100vh-30px)] overflow-x-scroll overflow-y-hidden min-w-[200px]">
           {!isLoading && (
             <DragDropContext onDragEnd={onListDragEnd}>
               <Droppable
@@ -311,7 +313,8 @@ const Board: React.FC = () => {
           onSave={onDashcardSave}
           initialData={dashcardConfig}
         />
-      </CardDetailProvider>
+        </CardDetailProvider>
+      </CardFocusProvider>
 
       <div style={{ position: "fixed", bottom: 10, right: 10, zIndex: 1000 }}>
         Debug WebSocket: {isConnected ? "🟢 Connected" : "🔴 Disconnected"}

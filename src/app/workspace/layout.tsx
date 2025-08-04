@@ -1,5 +1,5 @@
 "use client";
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { Layout, Menu } from "antd";
 import TopBar from "@components/topbar";
 import Sidebar from "@components/sidebar";
@@ -13,8 +13,12 @@ interface BaseLayoutProps {
 }
 
 const WorkspaceLayout: React.FC<BaseLayoutProps> = ({ children }) => {
-  const isClient = typeof window !== "undefined";
+  const [isClient, setIsClient] = useState(false);
   const { collapsed, siderSmall, siderWide } = useWorkspaceSidebar();
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   // Don't render the layout during SSR
   if (!isClient) {

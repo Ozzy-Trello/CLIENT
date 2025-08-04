@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { ConfigProvider } from "antd";
 import { usePathname } from "next/navigation";
@@ -17,11 +17,36 @@ export function ThemeProvider({
 }) {
   const theme = useSelector(selectTheme);
   const selectedBoard = useSelector(selectCurrentBoard);
-  const pathname = usePathname();
+  const [isMounted, setIsMounted] = useState(false);
+  const [currentPathname, setCurrentPathname] = useState<string | null>(null);
+  
+  // Get pathname safely
+  let pathname: string | null = null;
+  try {
+    pathname = usePathname();
+  } catch (error) {
+    // Fallback if usePathname fails
+    pathname = null;
+  }
+  
   const { colors, fontSizes } = theme;
   let root: HTMLElement;
 
+  // Set mounted state after component mounts
   useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // Update pathname state when it changes
+  useEffect(() => {
+    if (isMounted && pathname) {
+      setCurrentPathname(pathname);
+    }
+  }, [isMounted, pathname]);
+
+  useEffect(() => {
+    if (!isMounted) return; // Only run after component is mounted
+    
     if (!root) root = document.documentElement;
 
     // Reset all background properties first to avoid persistence issues
@@ -34,11 +59,11 @@ export function ThemeProvider({
     document.body.style.backgroundAttachment = "scroll";
     // Check if we're on a specific board page by looking for /board/{id} pattern
     const isSpecificBoardPage = /\/workspace\/[\w-]+\/board\/[\w-]+$/.test(
-      pathname || ""
+      currentPathname || ""
     );
     console.log(
       "Current path:",
-      pathname,
+      currentPathname,
       "Is specific board page:",
       isSpecificBoardPage
     );
@@ -152,7 +177,7 @@ export function ThemeProvider({
         document.body.getAttribute("style")
       );
     }
-  }, [selectedBoard, pathname]);
+  }, [selectedBoard, currentPathname, isMounted]);
 
   // Apply theme to CSS variables
   useEffect(() => {
@@ -186,39 +211,65 @@ export function ThemeProvider({
     <ConfigProvider
       theme={{
         token: {
-          colorPrimary: colors?.primary,
-          colorBgContainer: "rgba(255, 255, 255, 0.85)",
-          colorBgElevated: "rgba(255, 255, 255, 0.85)",
+          colorPrimary: `rgb(${colors?.primary})`,
+          colorBgContainer: `rgb(${colors?.surface})`,
+          colorBgElevated: `rgb(${colors?.surface})`,
+          colorText: `rgb(${colors?.text})`,
+          colorTextSecondary: `rgb(${colors?.['text-muted']})`,
+          colorBorder: `rgb(${colors?.border})`,
+          colorBgBase: `rgb(${colors?.background})`,
         },
         components: {
           Layout: {
-            // Apply transparent background to sider
-            siderBg: "rgba(255, 255, 255, 0.85)",
-            colorBgContainer: "rgba(255, 255, 255, 0.85)",
+            // Apply dark background to sider
+            siderBg: `rgb(${colors?.surface})`,
+            colorBgContainer: `rgb(${colors?.surface})`,
+            colorText: `rgb(${colors?.text})`,
           },
           Menu: {
-            // Match the sider styling for menu
+            // Dark theme menu styling
             colorBgContainer: "transparent", // Fully transparent to inherit from parent
             colorItemBg: "transparent", // Transparent item background
-            colorItemTextHover: colors?.primary, // Hover text color
-            colorItemBgSelected: "rgba(255, 255, 255, 0.8)", // Very subtle background for selected items
-            colorItemBgHover: "rgba(255, 255, 255, 0.8)", // Subtle background for hover
+            colorItemText: `rgb(${colors?.text})`, // Light text color
+            colorItemTextHover: `rgb(${colors?.primary})`, // Hover text color
+            colorItemBgSelected: `rgba(${colors?.primary}, 0.1)`, // Subtle background for selected items
+            colorItemBgHover: `rgba(${colors?.primary}, 0.1)`, // Subtle background for hover
             colorActiveBarWidth: 0, // Remove active bar
           },
           Modal: {
-            // Ensure modals have solid background
-            contentBg: "#ffffff", // Solid white background for modal content
-            headerBg: "#ffffff", // Solid white background for modal header
-            footerBg: "#ffffff", // Solid white background for modal footer
-            titleColor: "rgba(0, 0, 0, 0.88)", // Default dark text for title
+            // Dark theme modals
+            contentBg: `rgb(${colors?.surface})`, // Dark background for modal content
+            headerBg: `rgb(${colors?.surface})`, // Dark background for modal header
+            footerBg: `rgb(${colors?.surface})`, // Dark background for modal footer
+            titleColor: `rgb(${colors?.text})`, // Light text for title
+            colorText: `rgb(${colors?.text})`, // Light text color
           },
           Card: {
-            // Ensure cards have proper background
-            colorBgContainer: "#ffffff", // Solid white background for cards
+            // Dark theme cards
+            colorBgContainer: `rgb(${colors?.surface})`, // Dark background for cards
+            colorText: `rgb(${colors?.text})`, // Light text color
           },
           Drawer: {
-            // Ensure drawers have solid background
-            colorBgElevated: "#ffffff", // Solid white background for drawers
+            // Dark theme drawers
+            colorBgElevated: `rgb(${colors?.surface})`, // Dark background for drawers
+            colorText: `rgb(${colors?.text})`, // Light text color
+          },
+          Input: {
+            // Dark theme inputs
+            colorBgContainer: `rgb(${colors?.background})`,
+            colorText: `rgb(${colors?.text})`,
+            colorBorder: `rgb(${colors?.border})`,
+          },
+          Select: {
+            // Dark theme selects
+            colorBgContainer: `rgb(${colors?.background})`,
+            colorText: `rgb(${colors?.text})`,
+            colorBorder: `rgb(${colors?.border})`,
+          },
+          Button: {
+            // Dark theme buttons
+            colorText: `rgb(${colors?.text})`,
+            colorBorder: `rgb(${colors?.border})`,
           },
         },
       }}

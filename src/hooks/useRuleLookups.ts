@@ -4,6 +4,7 @@ import { boardDetails } from "../api/board";
 import { listDetails } from "../api/list";
 import { customFieldDetails } from "../api/custom_field";
 import { userDetails } from "../api/account";
+import { labelDetails } from "../api/label";
 import { api } from "../api";
 
 // Simple role details function
@@ -32,6 +33,7 @@ function collectIds(rules: RuleLike[]): Record<Kind, Set<string>> {
     list: new Set(),
     user: new Set(),
     field: new Set(),
+    label: new Set(),
     role: new Set(),
   } as any;
 
@@ -112,6 +114,12 @@ function collectIds(rules: RuleLike[]): Record<Kind, Set<string>> {
         push("list", c.optionalList);
         push("board", c.opationalBoard);
 
+        // Add label ID collection
+        push("label", c.card_label);
+        if (c.card_label) {
+          console.log(`[LOOKUP] Found label ID in action: ${c.card_label} (type: ${typeof c.card_label})`);
+        }
+
         // Debug list collection in actions
         if (c.list) {
           console.log(`[LOOKUP] Found list ID in action: ${c.list}`);
@@ -180,6 +188,7 @@ export function useRuleLookups(rules: RuleLike[]) {
       lists: Array.from(ids.list),
       users: Array.from(ids.user),
       fields: Array.from(ids.field),
+      labels: Array.from(ids.label),
       roles: Array.from(ids.role),
     });
 
@@ -195,7 +204,10 @@ export function useRuleLookups(rules: RuleLike[]) {
       await Promise.all(
         unknown.map(async (id) => {
           try {
-            console.log(`[LOOKUP] fetching ${kind} ${id}`);
+            console.log(`[LOOKUP] fetching ${kind} ${id} (type: ${typeof id})`);
+            if (kind === "label") {
+              console.log(`[LOOKUP] About to call labelDetails with ID: ${id}`);
+            }
             const res = await fn(id);
             const row = res?.data;
             console.log(`[LOOKUP] ${kind} API response for ${id}:`, res);
@@ -229,6 +241,7 @@ export function useRuleLookups(rules: RuleLike[]) {
         fetchForSingle("list", listDetails as any, ids.list),
         fetchForSingle("field", customFieldDetails as any, ids.field),
         fetchForSingle("user", userDetails as any, ids.user),
+        fetchForSingle("label", labelDetails as any, ids.label),
         fetchForSingle("role", roleDetails as any, ids.role),
       ]);
       setLoading(false);

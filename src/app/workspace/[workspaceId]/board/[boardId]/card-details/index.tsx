@@ -43,6 +43,7 @@ import { CardLabel } from "@myTypes/label";
 import { useLabels } from "@hooks/label";
 import Dashcard from "./dashcard";
 import { useCardDetails } from "@hooks/card-details";
+import { LookupCache } from "@utils/lookup-cache";
 
 const CardDetails: React.FC = (props) => {
   const params = useParams();
@@ -72,7 +73,7 @@ const CardDetails: React.FC = (props) => {
     refetch: refetchMember,
     removeMember,
   } = useCardMembers(selectedCard?.id || "");
-  const { cardLabels } = useLabels(workspaceId as string, selectedCard?.id, {
+  const { cardLabels, allLabels } = useLabels(workspaceId as string, selectedCard?.id, {
     cardId: selectedCard?.id || "",
   });
   const { cardActivities } = useCardActivity(selectedCard?.id || "");
@@ -111,7 +112,6 @@ const CardDetails: React.FC = (props) => {
       },
       {
         onSuccess: (data) => {
-          console.log("Title update successful:", data);
           if (setSelectedCard) {
             setSelectedCard((prevCard) => {
               if (!prevCard) return prevCard;
@@ -131,7 +131,6 @@ const CardDetails: React.FC = (props) => {
   };
 
   const onListChange = (value: string, option: object) => {
-    console.log("List changed to: ", value, option);
     if (selectedCard) {
       const result = updateCard({
         cardId: selectedCard?.id,
@@ -153,6 +152,16 @@ const CardDetails: React.FC = (props) => {
       refetchMember();
     }
   }, [isAddingMember]);
+
+  // Populate LookupCache with labels data
+  useEffect(() => {
+    if (allLabels && allLabels.length > 0) {
+      LookupCache.rememberMany("label", allLabels.map((label: any) => ({ 
+        id: label.id, 
+        name: label.name 
+      })));
+    }
+  }, [allLabels]);
 
   return (
     <Modal
@@ -387,7 +396,9 @@ const CardDetails: React.FC = (props) => {
                 <Dashcard card={selectedCard} />
               )}
 
-              <AdditionalFields cardId={selectedCard?.id} />
+              {selectedCard?.id && (
+                <AdditionalFields cardId={selectedCard.id} />
+              )}
 
               <RequestFields />
 

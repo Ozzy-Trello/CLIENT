@@ -58,7 +58,6 @@ const convertBreakdownsToModalFormat = (
       "XXXXXL",
     ];
 
-
     if (standardSizes.includes(item.size)) {
       sizeCounts[item.size] = (sizeCounts[item.size] || 0) + 1;
     } else {
@@ -80,6 +79,8 @@ const convertBreakdownsToModalFormat = (
 import { message, Tabs } from "antd";
 import { debounce } from "lodash";
 import { useQuery } from "@tanstack/react-query";
+import { useSelector } from "react-redux";
+import { selectTheme, selectIsDarkMode } from "@store/app_slice";
 
 interface AdditionalFieldsProps {
   cardId: string;
@@ -116,6 +117,10 @@ const createNewBahanItem = (index: number): BahanItem => ({
 });
 
 const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
+  const theme = useSelector(selectTheme);
+  const isDarkMode = useSelector(selectIsDarkMode);
+  const { colors } = theme;
+
   const [produk, setProduk] = useState<string>("Sample Product Name");
   const [jumlahPOInput, setJumlahPOInput] = useState<string>("1");
   const [summaryModal, setSummaryModal] = useState<{
@@ -190,11 +195,28 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
           if (parsedData.storeData) {
             console.log("Loading storeData:", parsedData.storeData);
             console.log("=== LOAD DEBUG ===");
-            console.log("Loaded PO data with sizeBreakdowns:", parsedData.storeData.data?.map((po: any) => ({
-              id: po.id,
-              sizeBreakdownsCount: po.sizeBreakdowns?.length || 0,
-              customSizes: po.sizeBreakdowns?.filter((sb: any) => !['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL', 'XXXXL', 'XXXXXL'].includes(sb.size)) || []
-            })));
+            console.log(
+              "Loaded PO data with sizeBreakdowns:",
+              parsedData.storeData.data?.map((po: any) => ({
+                id: po.id,
+                sizeBreakdownsCount: po.sizeBreakdowns?.length || 0,
+                customSizes:
+                  po.sizeBreakdowns?.filter(
+                    (sb: any) =>
+                      ![
+                        "XS",
+                        "S",
+                        "M",
+                        "L",
+                        "XL",
+                        "XXL",
+                        "XXXL",
+                        "XXXXL",
+                        "XXXXXL",
+                      ].includes(sb.size)
+                  ) || [],
+              }))
+            );
             console.log("=== END LOAD DEBUG ===");
             // Load the complete data into the store
             loadData({
@@ -220,7 +242,7 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
       const currentState = useAdditionalFieldsStore.getState();
       const freshData = currentState.data;
       const freshQty = currentState.qty;
-      
+
       const dataToSave = {
         storeData: {
           qty: freshQty,
@@ -230,23 +252,53 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
 
       console.log("=== DEBOUNCED SAVE DEBUG ===");
       console.log("Saving data:", dataToSave);
-      console.log("PO data with sizeBreakdowns:", freshData.map((po: any) => ({
-        id: po.id,
-        sizeBreakdownsCount: po.sizeBreakdowns?.length || 0,
-        customSizes: po.sizeBreakdowns?.filter((sb: any) => !['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL', 'XXXXL', 'XXXXXL'].includes(sb.size)) || []
-      })));
-      
+      console.log(
+        "PO data with sizeBreakdowns:",
+        freshData.map((po: any) => ({
+          id: po.id,
+          sizeBreakdownsCount: po.sizeBreakdowns?.length || 0,
+          customSizes:
+            po.sizeBreakdowns?.filter(
+              (sb: any) =>
+                ![
+                  "XS",
+                  "S",
+                  "M",
+                  "L",
+                  "XL",
+                  "XXL",
+                  "XXXL",
+                  "XXXXL",
+                  "XXXXXL",
+                ].includes(sb.size)
+            ) || [],
+        }))
+      );
+
       // Detailed breakdown of all size breakdowns being saved
       freshData.forEach((po: any, index: number) => {
-        console.log(`PO ${index + 1} (${po.id}) size breakdowns:`, po.sizeBreakdowns?.map((sb: any) => ({
-          label: sb.label,
-          size: sb.size,
-          category: sb.category,
-          field: sb.field,
-          isCustom: !['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL', 'XXXXL', 'XXXXXL'].includes(sb.size)
-        })) || []);
+        console.log(
+          `PO ${index + 1} (${po.id}) size breakdowns:`,
+          po.sizeBreakdowns?.map((sb: any) => ({
+            label: sb.label,
+            size: sb.size,
+            category: sb.category,
+            field: sb.field,
+            isCustom: ![
+              "XS",
+              "S",
+              "M",
+              "L",
+              "XL",
+              "XXL",
+              "XXXL",
+              "XXXXL",
+              "XXXXXL",
+            ].includes(sb.size),
+          })) || []
+        );
       });
-      
+
       console.log("=== END SAVE DEBUG ===");
 
       if (additionalFieldId) {
@@ -319,9 +371,7 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
         {
           key: "jaket",
           label: "Jaket",
-          fields: [
-            { key: "jaketTotal", label: "Total Jaket", isTotal: true },
-          ],
+          fields: [{ key: "jaketTotal", label: "Total Jaket", isTotal: true }],
         },
         {
           key: "hoodie",
@@ -332,10 +382,10 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
         },
       ];
 
-      updatePOData(poId, { 
-        butuhBahan: value, 
+      updatePOData(poId, {
+        butuhBahan: value,
         bahan: [createNewBahanItem(0)],
-        categories: defaultCategories
+        categories: defaultCategories,
       });
     } else {
       // When turning off butuhBahan, clear bahan items but keep categories
@@ -369,27 +419,31 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
 
   const handleRemoveBahanTab = (targetKey: string, poId: string) => {
     // Extract the bahan index from the target key (format: "poId-index")
-    const keyParts = targetKey.split('-');
+    const keyParts = targetKey.split("-");
     if (keyParts.length >= 2) {
       const bahanIndex = parseInt(keyParts[keyParts.length - 1]) - 1; // Convert to 0-based index
-      
+
       // Get current PO data
-      const currentPO = data.find(po => po.id === poId);
+      const currentPO = data.find((po) => po.id === poId);
       if (currentPO && currentPO.bahan && currentPO.bahan[bahanIndex]) {
         // Remove the bahan item at the specified index
-        const updatedBahan = currentPO.bahan.filter((_, index) => index !== bahanIndex);
-        
+        const updatedBahan = currentPO.bahan.filter(
+          (_, index) => index !== bahanIndex
+        );
+
         // Update the store
         updatePOData(poId, {
           ...currentPO,
-          bahan: updatedBahan
+          bahan: updatedBahan,
         });
-        
+
         // Save changes
         debouncedSave();
-        
-        console.log(`Removed bahan item at index ${bahanIndex} from PO ${poId}`);
-        message.success('Bahan item removed successfully');
+
+        console.log(
+          `Removed bahan item at index ${bahanIndex} from PO ${poId}`
+        );
+        message.success("Bahan item removed successfully");
       }
     }
   };
@@ -404,10 +458,7 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
     });
   };
 
-  const openSizesModal = (
-    categoryKey: string,
-    fieldKey: string
-  ) => {
+  const openSizesModal = (categoryKey: string, fieldKey: string) => {
     const modalSizeData = convertBreakdownsToModalFormat(
       currentPO?.sizeBreakdowns || [],
       categoryKey,
@@ -499,18 +550,20 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
         message.success(response.message || "Item scanned successfully!");
 
         // MANUAL QUERY INVALIDATION FOR REAL-TIME UPDATES
-        console.log("🔄 [REAL-TIME] Invalidating queries for real-time updates...");
-        
+        console.log(
+          "🔄 [REAL-TIME] Invalidating queries for real-time updates..."
+        );
+
         // Invalidate additional fields queries to trigger UI refresh
         queryClient.invalidateQueries({
           queryKey: ["additionalFields", cardId],
         });
-        
+
         // Also invalidate card detail queries in case they depend on additional field data
         queryClient.invalidateQueries({
           queryKey: ["cards", "detail", cardId],
         });
-        
+
         console.log("🔄 [REAL-TIME] Query invalidation completed");
 
         // Refetch the data from backend and reload into store
@@ -776,7 +829,8 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
       key: "oblong",
       label: "Oblong",
       fields: [
-        { key: "s", label: "S", type: "number" },        { key: "m", label: "M", type: "number" },
+        { key: "s", label: "S", type: "number" },
+        { key: "m", label: "M", type: "number" },
         { key: "l", label: "L", type: "number" },
         { key: "xl", label: "XL", type: "number" },
         { key: "xxl", label: "XXL", type: "number" },
@@ -842,50 +896,56 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
   ];
 
   // Calculate efficiency functions (from legacy)
-const calculateEstBahan = (po: POData, bahanItem?: BahanItem): number => {
-  const source = bahanItem || po;
-  const detailProdukSum = Object.values(source.detailProduk || {}).reduce(
-    (sum, category) =>
-      sum +
-      Object.values(category || {}).reduce(
-        (catSum, field) => catSum + (field.total || 0),
-        0
-      ),
-    0
-  );
-  const sizeBreakdownSum = (source.sizeBreakdowns || []).length;
-  return detailProdukSum + sizeBreakdownSum;
-};
+  const calculateEstBahan = (po: POData, bahanItem?: BahanItem): number => {
+    const source = bahanItem || po;
+    const detailProdukSum = Object.values(source.detailProduk || {}).reduce(
+      (sum, category) =>
+        sum +
+        Object.values(category || {}).reduce(
+          (catSum, field) => catSum + (field.total || 0),
+          0
+        ),
+      0
+    );
+    const sizeBreakdownSum = (source.sizeBreakdowns || []).length;
+    return detailProdukSum + sizeBreakdownSum;
+  };
 
-const calculateBahanTerpakai = (po: POData, bahanItem?: BahanItem): number => {
-  const source = bahanItem || po;
-  const detailProdukSum = Object.values(source.detailProduk || {}).reduce(
-    (sum, category) =>
-      sum +
-      Object.values(category || {}).reduce(
-        (catSum, field) => catSum + (field.total || 0),
-        0
-      ),
-    0
-  );
-  const sizeBreakdownSum = (source.sizeBreakdowns || []).length;
-  return detailProdukSum + sizeBreakdownSum;
-};
+  const calculateBahanTerpakai = (
+    po: POData,
+    bahanItem?: BahanItem
+  ): number => {
+    const source = bahanItem || po;
+    const detailProdukSum = Object.values(source.detailProduk || {}).reduce(
+      (sum, category) =>
+        sum +
+        Object.values(category || {}).reduce(
+          (catSum, field) => catSum + (field.total || 0),
+          0
+        ),
+      0
+    );
+    const sizeBreakdownSum = (source.sizeBreakdowns || []).length;
+    return detailProdukSum + sizeBreakdownSum;
+  };
 
-const calculateEfisiensi = (po: POData, bahanItem?: BahanItem): number => {
-  const estBahan = calculateEstBahan(po, bahanItem);
-  const bahanTerpakai = calculateBahanTerpakai(po, bahanItem);
+  const calculateEfisiensi = (po: POData, bahanItem?: BahanItem): number => {
+    const estBahan = calculateEstBahan(po, bahanItem);
+    const bahanTerpakai = calculateBahanTerpakai(po, bahanItem);
 
-  if (estBahan === 0) return 0;
+    if (estBahan === 0) return 0;
 
-  return ((bahanTerpakai - estBahan) / estBahan) * 100;
-};
+    return ((bahanTerpakai - estBahan) / estBahan) * 100;
+  };
 
   return (
     <div className="mt-6">
       {/* Header */}
       <div className="flex items-center gap-2 mb-4">
-        <span className="inline-flex items-center justify-center text-gray-700">
+        <span 
+          className="inline-flex items-center justify-center"
+          style={{ color: `rgb(${colors['text-muted']})` }}
+        >
           <svg
             width="18"
             height="18"
@@ -898,27 +958,43 @@ const calculateEfisiensi = (po: POData, bahanItem?: BahanItem): number => {
             <path d="M9 9h6v6H9z"></path>
           </svg>
         </span>
-        <span className="text-[16px] font-semibold text-gray-900">Bahan</span>
+        <span 
+          className="text-[16px] font-semibold"
+          style={{ color: `rgb(${colors.text})` }}
+        >
+          Bahan
+        </span>
       </div>
 
       {/* Form Fields */}
       <div className="grid grid-cols-3 gap-3 mb-4">
         {/* Produk Field */}
         <div className="col-span-2">
-          <label className="block text-xs font-medium text-gray-700 mb-1">
+          <label 
+            className="block text-xs font-medium mb-1"
+            style={{ color: `rgb(${colors['text-muted']})` }}
+          >
             Produk
           </label>
           <input
             type="text"
             value={produk}
             disabled
-            className="w-full px-3 py-1.5 border border-gray-300 rounded-md bg-gray-50 text-gray-500 cursor-not-allowed text-sm"
+            className="w-full px-3 py-1.5 rounded-md cursor-not-allowed text-sm"
+            style={{ 
+              border: `1px solid rgb(${colors.border})`,
+              backgroundColor: `rgb(${colors.muted})`,
+              color: `rgb(${colors['text-muted']})`
+            }}
           />
         </div>
 
         {/* Jml PO Field */}
         <div>
-          <label className="block text-xs font-medium text-gray-700 mb-1">
+          <label 
+            className="block text-xs font-medium mb-1"
+            style={{ color: `rgb(${colors['text-muted']})` }}
+          >
             Jml PO
           </label>
           <input
@@ -926,7 +1002,12 @@ const calculateEfisiensi = (po: POData, bahanItem?: BahanItem): number => {
             value={jumlahPOInput}
             onChange={(e) => handleJumlahPOChange(e.target.value)}
             onBlur={handleJumlahPOBlur}
-            className="w-full px-3 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+            className="w-full px-3 py-1.5 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+            style={{ 
+              border: `1px solid rgb(${colors.border})`,
+              backgroundColor: `rgb(${colors.surface})`,
+              color: `rgb(${colors.text})`
+            }}
           />
         </div>
       </div>
@@ -934,11 +1015,21 @@ const calculateEfisiensi = (po: POData, bahanItem?: BahanItem): number => {
       {/* PO Sections */}
       <div className="space-y-8">
         {data.map((po, index) => (
-          <div key={po.id} className="border border-gray-200 rounded-lg p-6">
+          <div 
+            key={po.id} 
+            className="rounded-lg p-6"
+            style={{ 
+              border: `1px solid rgb(${colors.border})`,
+              backgroundColor: `rgb(${colors.surface})`
+            }}
+          >
             {/* PO Header */}
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-4">
-                <h3 className="text-base font-semibold text-gray-900">
+                <h3 
+                  className="text-base font-semibold"
+                  style={{ color: `rgb(${colors.text})` }}
+                >
                   PO {index + 1}
                 </h3>
 
@@ -953,7 +1044,10 @@ const calculateEfisiensi = (po: POData, bahanItem?: BahanItem): number => {
 
               {/* Butuh Bahan Toggle */}
               <div className="flex items-center gap-2">
-                <span className="text-xs font-medium text-gray-700">
+                <span 
+                  className="text-xs font-medium"
+                  style={{ color: `rgb(${colors['text-muted']})` }}
+                >
                   Butuh Bahan
                 </span>
                 <button
@@ -1000,135 +1094,193 @@ const calculateEfisiensi = (po: POData, bahanItem?: BahanItem): number => {
             )}
 
             {/* Bahan Tabs - Always show tabs for each selected/scanned bahan item */}
-            <div className="border border-gray-200 rounded-lg p-4 bg-gray-50 mt-6">
-                {po.bahan && po.bahan.length > 0 ? (
-                  <div className="max-w-2xl">
-                    <Tabs
-                      type="editable-card"
-                      hideAdd
-                      tabPosition="top"
-                      tabBarGutter={10}
-                      className="overflow-x-auto"
-                      style={{
-                        overflowX: "auto",
-                      }}
-                      onEdit={(targetKey, action) => {
-                        if (action === 'remove' && typeof targetKey === 'string') {
-                          handleRemoveBahanTab(targetKey, po.id);
-                        }
-                      }}
-                      items={po.bahan.map((bahanItem, index) => ({
-                        key: `${po.id}-${index + 1}`,
-                        label: (
-                          <span className="flex justify-between items-center">
-                            {bahanItem.name || `Bahan ${index + 1}`}
-                          </span>
-                        ),
-                        children: (
-                          <div>
-                            <div className="text-sm font-medium text-gray-700 mb-3">Detail Produk</div>
+            <div 
+              className="rounded-lg p-4 mt-6"
+              style={{ 
+                border: `1px solid rgb(${colors.border})`,
+                backgroundColor: `rgb(${colors.muted})`
+              }}
+            >
+              {po.bahan && po.bahan.length > 0 ? (
+                <div className="max-w-2xl">
+                  <Tabs
+                    type="editable-card"
+                    hideAdd
+                    tabPosition="top"
+                    tabBarGutter={10}
+                    className="overflow-x-auto"
+                    style={{
+                      overflowX: "auto",
+                    }}
+                    onEdit={(targetKey, action) => {
+                      if (
+                        action === "remove" &&
+                        typeof targetKey === "string"
+                      ) {
+                        handleRemoveBahanTab(targetKey, po.id);
+                      }
+                    }}
+                    items={po.bahan.map((bahanItem, index) => ({
+                      key: `${po.id}-${index + 1}`,
+                      label: (
+                        <span className="flex justify-between items-center">
+                          {bahanItem.name || `Bahan ${index + 1}`}
+                        </span>
+                      ),
+                      children: (
+                        <div>
+                          <div 
+                            className="text-sm font-medium mb-3"
+                            style={{ color: `rgb(${colors['text-muted']})` }}
+                          >
+                            Detail Produk
+                          </div>
 
-                            <div className="grid grid-cols-3 gap-x-6 gap-y-3 mb-3">
+                          <div className="grid grid-cols-3 gap-x-6 gap-y-3 mb-3">
+                            <div>
+                              <label 
+                                className="block text-xs font-medium mb-1"
+                                style={{ color: `rgb(${colors['text-muted']})` }}
+                              >
+                                Terloading (kg/m)
+                              </label>
+                              <input
+                                className="w-full px-3 py-2 rounded-md text-sm"
+                                style={{ 
+                                  border: `1px solid rgb(${colors.border})`,
+                                  backgroundColor: `rgb(${colors.surface})`,
+                                  color: `rgb(${colors.text})`
+                                }}
+                                value={0}
+                                readOnly
+                              />
+                            </div>
+                            <div>
+                              <label 
+                                className="block text-xs font-medium mb-1"
+                                style={{ color: `rgb(${colors['text-muted']})` }}
+                              >
+                                Sisa Bahan (kg/m)
+                              </label>
+                              <input
+                                className="w-full px-3 py-2 rounded-md text-sm"
+                                style={{ 
+                                  border: `1px solid rgb(${colors.border})`,
+                                  backgroundColor: `rgb(${colors.surface})`,
+                                  color: `rgb(${colors.text})`
+                                }}
+                                value={0}
+                                readOnly
+                              />
+                            </div>
+                            <div>
+                              <label 
+                                className="block text-xs font-medium mb-1"
+                                style={{ color: `rgb(${colors['text-muted']})` }}
+                              >
+                                Jml. Produksi (+/-)
+                              </label>
+                              <input
+                                className="w-full px-3 py-2 rounded-md text-sm"
+                                style={{ 
+                                  border: `1px solid rgb(${colors.border})`,
+                                  backgroundColor: `rgb(${colors.surface})`,
+                                  color: `rgb(${colors.text})`
+                                }}
+                                value={0}
+                                readOnly
+                              />
+                            </div>
+                          </div>
+
+                          {/* Show efisiensi calculation only when butuh bahan is ON */}
+                          {po.butuhBahan && (
+                            <div className="grid grid-cols-3 gap-x-6 gap-y-3 mb-6">
                               <div>
-                                <label className="block text-xs font-medium text-gray-700 mb-1">
-                                  Terloading (kg/m)
+                                <label 
+                                  className="block text-xs font-medium mb-1"
+                                  style={{ color: `rgb(${colors['text-muted']})` }}
+                                >
+                                  Est Bahan
                                 </label>
                                 <input
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                                  className="w-full px-3 py-2 rounded-md text-sm"
+                                  style={{ 
+                                    border: `1px solid rgb(${colors.border})`,
+                                    backgroundColor: `rgb(${colors.surface})`,
+                                    color: `rgb(${colors.text})`
+                                  }}
                                   value={0}
                                   readOnly
                                 />
                               </div>
                               <div>
-                                <label className="block text-xs font-medium text-gray-700 mb-1">
-                                  Sisa Bahan (kg/m)
+                                <label 
+                                  className="block text-xs font-medium mb-1"
+                                  style={{ color: `rgb(${colors['text-muted']})` }}
+                                >
+                                  Bahan Terpakai
                                 </label>
                                 <input
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                                  className="w-full px-3 py-2 rounded-md text-sm"
+                                  style={{ 
+                                    border: `1px solid rgb(${colors.border})`,
+                                    backgroundColor: `rgb(${colors.surface})`,
+                                    color: `rgb(${colors.text})`
+                                  }}
                                   value={0}
                                   readOnly
                                 />
                               </div>
                               <div>
-                                <label className="block text-xs font-medium text-gray-700 mb-1">
-                                  Jml. Produksi (+/-)
+                                <label 
+                                  className="block text-xs font-medium mb-1"
+                                  style={{ color: `rgb(${colors['text-muted']})` }}
+                                >
+                                  Efisiensi
                                 </label>
                                 <input
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                                  className="w-full px-3 py-2 rounded-md text-sm"
+                                  style={{ 
+                                    border: `1px solid rgb(${colors.border})`,
+                                    backgroundColor: `rgb(${colors.surface})`,
+                                    color: `rgb(${colors.text})`
+                                  }}
                                   value={0}
                                   readOnly
                                 />
                               </div>
                             </div>
+                          )}
 
-                            {/* Show efisiensi calculation only when butuh bahan is ON */}
-                            {po.butuhBahan && (
-                              <div className="grid grid-cols-3 gap-x-6 gap-y-3 mb-6">
-                                <div>
-                                  <label className="block text-xs font-medium text-gray-700 mb-1">Est Bahan</label>
-                                  <input
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                                    value={0}
-                                    readOnly
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-xs font-medium text-gray-700 mb-1">Bahan Terpakai</label>
-                                  <input
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                                    value={0}
-                                    readOnly
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-xs font-medium text-gray-700 mb-1">Efisiensi</label>
-                                  <input
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                                    value={0}
-                                    readOnly
-                                  />
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Product Category Tabs for this bahan item */}
-                            <ProductCategoriesTabs
-                              poId={po.id}
-                              poData={po}
-                              currentPO={currentPO}
-                              debouncedSave={debouncedSave}
-                              openSizesModal={openSizesModal}
-                              closeSizesModal={closeSizesModal}
-                              bahanItem={bahanItem}
-                            />
-                          </div>
-                        ),
-                      }))}
-                    />
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-between mb-4">
-                    <h4 className="text-sm font-medium text-gray-700">No bahan items selected yet</h4>
-                  </div>
-                )}
-              </div>
+                          {/* Product Category Tabs for this bahan item */}
+                          <ProductCategoriesTabs
+                            poId={po.id}
+                            poData={po}
+                            currentPO={currentPO}
+                            debouncedSave={debouncedSave}
+                            openSizesModal={openSizesModal}
+                            closeSizesModal={closeSizesModal}
+                            bahanItem={bahanItem}
+                          />
+                        </div>
+                      ),
+                    }))}
+                  />
+                </div>
+              ) : (
+                <div className="flex items-center justify-between mb-4">
+                  <h4 
+                    className="text-sm font-medium"
+                    style={{ color: `rgb(${colors['text-muted']})` }}
+                  >
+                    No bahan items selected yet
+                  </h4>
+                </div>
+              )}
             </div>
-        ))}
-      </div>
-
-      {/* Debug info */}
-      <div className="mt-6 p-4 bg-gray-50 rounded-md">
-        <div className="text-sm text-gray-600 mb-2">Debug Info:</div>
-        <div className="text-sm text-gray-500">
-          <div>Store Qty: {qty}</div>
-          <div>Data Length: {data.length}</div>
-          <div>
-            PO States:{" "}
-            {data
-              .map((po: POData) => `${po.id}: ${po.butuhBahan ? "ON" : "OFF"}`)
-              .join(", ")}
           </div>
-        </div>
+        ))}
       </div>
 
       {/* Summary Modal */}
@@ -1154,12 +1306,12 @@ const calculateEfisiensi = (po: POData, bahanItem?: BahanItem): number => {
       />
 
       {/* Scanner Modal */}
-       <ScannerModalComponent
-         isOpen={scannerModal.isOpen}
-         onClose={handleCloseScanner}
-         onScan={handleScanResult}
-         poIdentifier={parseInt(scannerModal.poId) || 1}
-       />
+      <ScannerModalComponent
+        isOpen={scannerModal.isOpen}
+        onClose={handleCloseScanner}
+        onScan={handleScanResult}
+        poIdentifier={parseInt(scannerModal.poId) || 1}
+      />
     </div>
   );
 };
@@ -1172,7 +1324,14 @@ const ProductDropdown: React.FC<{
   debouncedSave: () => void;
   openSizesModal: (categoryKey: string, fieldKey: string) => void;
   closeSizesModal: () => void;
-}> = ({ poId, poData, currentPO, debouncedSave, openSizesModal, closeSizesModal }) => {
+}> = ({
+  poId,
+  poData,
+  currentPO,
+  debouncedSave,
+  openSizesModal,
+  closeSizesModal,
+}) => {
   const [selectedProductId, setSelectedProductId] = useState<string>("");
   const { updatePOData } = useAdditionalFieldsStore();
 
@@ -1185,10 +1344,12 @@ const ProductDropdown: React.FC<{
 
   const handleProductSelect = (productId: string) => {
     setSelectedProductId(productId);
-    
+
     // Find the selected product from hikmat items
-    const selectedProduct = hikmatItems?.data?.find((item: any) => item.id.toString() === productId);
-    
+    const selectedProduct = hikmatItems?.data?.find(
+      (item: any) => item.id.toString() === productId
+    );
+
     if (selectedProduct) {
       // Create a new bahan item from the selected product
       const newBahanItem: BahanItem = {
@@ -1238,9 +1399,7 @@ const ProductDropdown: React.FC<{
         {
           key: "jaket",
           label: "Jaket",
-          fields: [
-            { key: "jaketTotal", label: "Total Jaket", isTotal: true },
-          ],
+          fields: [{ key: "jaketTotal", label: "Total Jaket", isTotal: true }],
         },
         {
           key: "hoodie",
@@ -1257,7 +1416,7 @@ const ProductDropdown: React.FC<{
         categories: defaultCategories,
       });
     }
-    
+
     debouncedSave();
   };
 
@@ -1299,7 +1458,15 @@ const ProductCategoriesTabs: React.FC<{
   debouncedSave: () => void;
   openSizesModal: (categoryKey: string, fieldKey: string) => void;
   closeSizesModal: () => void;
-}> = ({ poId, poData, currentPO, bahanItem, debouncedSave, openSizesModal, closeSizesModal }) => {
+}> = ({
+  poId,
+  poData,
+  currentPO,
+  bahanItem,
+  debouncedSave,
+  openSizesModal,
+  closeSizesModal,
+}) => {
   const [activeTab, setActiveTab] = useState<string>("polo");
   const [sizeBreakdownModal, setSizeBreakdownModal] =
     useState<SizeBreakdownModalState>({
@@ -1314,18 +1481,19 @@ const ProductCategoriesTabs: React.FC<{
   // Determine which data source to use
   const currentDataSource = bahanItem || poData;
 
-  
-
-
   // Calculate total for a category
   const calculateTotal = (categoryKey: string) => {
     if (!currentPO) return 0;
 
-    const category = (poData.categories || []).find((cat: any) => cat.key === categoryKey);
+    const category = (poData.categories || []).find(
+      (cat: any) => cat.key === categoryKey
+    );
     if (!category) return 0;
 
     // Sum all non-total fields using sizeBreakdowns
-    const nonTotalFields = category.fields.filter((field: any) => !field.isTotal);
+    const nonTotalFields = category.fields.filter(
+      (field: any) => !field.isTotal
+    );
     return nonTotalFields.reduce((sum: number, field: any) => {
       // Count items in sizeBreakdowns for this category/field
       const fieldTotal = (currentPO.sizeBreakdowns || []).filter(
@@ -1355,15 +1523,15 @@ const ProductCategoriesTabs: React.FC<{
   };
 
   // Check if field should be editable (only total fields when they're the only field in category)
-  const isFieldEditable = (category: { fields: any[]; }, field: { isTotal: any; }) => {
+  const isFieldEditable = (
+    category: { fields: any[] },
+    field: { isTotal: any }
+  ) => {
     return field.isTotal && category.fields.length === 1;
   };
 
   // Handle size breakdown popup
-  const handleSizeBreakdown = (
-    categoryKey: string,
-    fieldKey: string
-  ) => {
+  const handleSizeBreakdown = (categoryKey: string, fieldKey: string) => {
     // Convert sizeBreakdowns to modal format for display
     const modalSizeData = convertBreakdownsToModalFormat(
       currentPO?.sizeBreakdowns || [],
@@ -1629,8 +1797,6 @@ const ProductCategoriesTabs: React.FC<{
     updatePOData(poId, { ...currentPO, detailProduk: updatedDetailProduk });
   };
 
-
-
   return (
     <div>
       {/* Tab Headers */}
@@ -1673,40 +1839,79 @@ const ProductCategoriesTabs: React.FC<{
                 <div className="relative">
                   <input
                     type="text"
-                    value={getFieldValue(category.key, field.key, field.isTotal)}
+                    value={getFieldValue(
+                      category.key,
+                      field.key,
+                      field.isTotal
+                    )}
                     onChange={(e) =>
                       handleFieldChange(category.key, field.key, e.target.value)
                     }
                     onBlur={() => debouncedSave()}
                     className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm ${
                       !field.isTotal ? "pr-10" : ""
-                    } ${field.isTotal ? "bg-gray-50 text-gray-500 cursor-not-allowed" : "bg-gray-50 text-gray-500 cursor-not-allowed"}`}
+                    } ${
+                      field.isTotal
+                        ? "bg-gray-50 text-gray-500 cursor-not-allowed"
+                        : "bg-gray-50 text-gray-500 cursor-not-allowed"
+                    }`}
                     disabled={field.isTotal}
                     readOnly={true}
                   />
                   {!field.isTotal && (
                     <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-2">
-                      {getFieldValue(category.key, field.key, field.isTotal) > 0 && (
+                      {getFieldValue(category.key, field.key, field.isTotal) >
+                        0 && (
                         <span className="text-xs font-medium text-gray-500">
-                          Total: {getFieldValue(category.key, field.key, field.isTotal)}
+                          Total:{" "}
+                          {getFieldValue(
+                            category.key,
+                            field.key,
+                            field.isTotal
+                          )}
                         </span>
                       )}
                       <button
                         type="button"
-                        onClick={() =>
-                          openSizesModal(category.key, field.key)
-                        }
+                        onClick={() => openSizesModal(category.key, field.key)}
                         className={`p-1 transition-colors ${
-                          getFieldValue(category.key, field.key, field.isTotal) > 0 ? 'text-blue-600' : 'text-gray-500'
+                          getFieldValue(
+                            category.key,
+                            field.key,
+                            field.isTotal
+                          ) > 0
+                            ? "text-blue-600"
+                            : "text-gray-500"
                         } hover:text-blue-600`}
-                        title={getFieldValue(category.key, field.key, field.isTotal) > 0 ? `Total: ${getFieldValue(category.key, field.key, field.isTotal)}` : 'Size Breakdown'}
+                        title={
+                          getFieldValue(
+                            category.key,
+                            field.key,
+                            field.isTotal
+                          ) > 0
+                            ? `Total: ${getFieldValue(
+                                category.key,
+                                field.key,
+                                field.isTotal
+                              )}`
+                            : "Size Breakdown"
+                        }
                       >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.41 2.41 0 0 1 0-3.4l2.6-2.6a2.4 2.4 0 0 1 3.4 0Z"/>
-                          <path d="m14.5 12.5 2-2"/>
-                          <path d="m11.5 9.5 2-2"/>
-                          <path d="m8.5 6.5 2-2"/>
-                          <path d="m17.5 15.5 2-2"/>
+                        <svg
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.41 2.41 0 0 1 0-3.4l2.6-2.6a2.4 2.4 0 0 1 3.4 0Z" />
+                          <path d="m14.5 12.5 2-2" />
+                          <path d="m11.5 9.5 2-2" />
+                          <path d="m8.5 6.5 2-2" />
+                          <path d="m17.5 15.5 2-2" />
                         </svg>
                       </button>
                     </div>

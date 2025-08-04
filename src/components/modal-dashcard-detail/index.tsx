@@ -2,6 +2,7 @@ import { Modal, TabsProps, Tabs } from "antd";
 import { Dispatch, SetStateAction, FC } from "react";
 import TablePivot from "./table-pivot";
 import Detail from "./detail";
+import Metrics from "./metrics";
 import { useCardDetailContext } from "@providers/card-detail-context";
 interface ModalDashcardDetailProps {
   open: boolean;
@@ -21,6 +22,11 @@ const ModalDashcardDetail: FC<ModalDashcardDetailProps> = ({
         <div>Table {itemDashcard?.length && `(${itemDashcard.length})`}</div>
       ),
       children: <TablePivot />,
+    },
+    {
+      key: "2",
+      label: <div>Metrics</div>,
+      children: <Metrics />,
     },
   ];
 

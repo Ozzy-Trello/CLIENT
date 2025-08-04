@@ -2,7 +2,7 @@
 import { Button, Input, Select, Typography, Popover, Modal } from "antd";
 import { actions } from "@constants/automation-rule/data";
 import { Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
-import { Plus, Calendar, X } from "lucide-react";
+import { Plus, Calendar, X, Check } from "lucide-react";
 import {
   ActionItems,
   AutomationRule,
@@ -54,6 +54,8 @@ interface SelectActionProps {
   actionsData: AutomationRuleAction[];
   setActionsData: Dispatch<SetStateAction<AutomationRuleAction[]>>;
   numberFields: Array<{ id: string; name: string }>;
+  isEditMode?: boolean;
+  onSaveAndClose?: (updatedRule: AutomationRule) => Promise<void>;
 }
 
 // Component for select dropdown in actions
@@ -88,10 +90,8 @@ const SelectOption = ({
 
   // Handle ListSelection change - use the actual placeholder as key
   const onListChange = (selectedOption: any, selectionName: string) => {
-    let copyArr = [...actionsData];
-    (copyArr[groupIndex]?.items?.[index]?.[placeholder] as any).value =
-      selectedOption;
-
+      let copyArr = [...actionsData];
+    (copyArr[groupIndex]?.items?.[index]?.[placeholder] as any).value = selectedOption;
     setActionsData(copyArr);
   };
 
@@ -106,20 +106,16 @@ const SelectOption = ({
 
     let copyArr = [...actionsData];
     // Set the selected board
-    (copyArr[groupIndex]?.items?.[index]?.[selectionName] as any).value =
-      selectedOption;
+    (copyArr[groupIndex]?.items?.[index]?.[selectionName] as any).value = selectedOption;
 
     // Clear the list selection when board changes (handle both regular and optional types)
     if (copyArr[groupIndex]?.items?.[index]?.[EnumSelectionType.List]) {
       console.log("Clearing list selection due to board change");
-      (copyArr[groupIndex].items[index] as any)[EnumSelectionType.List].value =
-        null;
+      (copyArr[groupIndex].items[index] as any)[EnumSelectionType.List].value = null;
     }
     if (copyArr[groupIndex]?.items?.[index]?.[EnumSelectionType.OptionalList]) {
       console.log("Clearing optional list selection due to board change");
-      (copyArr[groupIndex].items[index] as any)[
-        EnumSelectionType.OptionalList
-      ].value = null;
+      (copyArr[groupIndex].items[index] as any)[EnumSelectionType.OptionalList].value = null;
     }
 
     console.log("Updated action data:", copyArr[groupIndex]?.items?.[index]);
@@ -128,15 +124,13 @@ const SelectOption = ({
 
   const onUserChange = (selectedOption: any, selectionName: string) => {
     let copyArr = [...actionsData];
-    (copyArr[groupIndex]?.items?.[index]?.[placeholder] as any).value =
-      selectedOption;
+    (copyArr[groupIndex]?.items?.[index]?.[placeholder] as any).value = selectedOption;
     setActionsData(copyArr);
   };
 
   const onCustomFieldChange = (selectedOption: any, selectionName: string) => {
     let copyArr = [...actionsData];
-    (copyArr[groupIndex]?.items?.[index]?.[selectionName] as any).value =
-      selectedOption;
+    (copyArr[groupIndex]?.items?.[index]?.[selectionName] as any).value = selectedOption;
     setActionsData(copyArr);
   };
 
@@ -146,42 +140,30 @@ const SelectOption = ({
     // Handle both single and multiple selection
     if (Array.isArray(selectedOption)) {
       // Multiple selection - store the array directly
-      (copyArr[groupIndex]?.items?.[index]?.[placeholder] as any).value =
-        selectedOption;
+      (copyArr[groupIndex]?.items?.[index]?.[placeholder] as any).value = selectedOption;
     } else {
       // Single selection - wrap in array for consistency
-      (copyArr[groupIndex]?.items?.[index]?.[placeholder] as any).value = [
-        selectedOption,
-      ];
+      (copyArr[groupIndex]?.items?.[index]?.[placeholder] as any).value = [selectedOption];
     }
     setActionsData(copyArr);
   };
 
   // Handle regular Select change
-  const onSelectChange = (
-    selectedOption: GeneralOptions,
-    selectionName: string
-  ) => {
+  const onSelectChange = (selectedOption: GeneralOptions, selectionName: string) => {
     let copyArr = [...actionsData];
-
-    (copyArr[groupIndex]?.items?.[index]?.[selectionName] as any).value =
-      selectedOption;
+    (copyArr[groupIndex]?.items?.[index]?.[selectionName] as any).value = selectedOption;
     setActionsData(copyArr);
   };
 
   // Handle field value input change
   const onFieldValueChange = (value: any) => {
     let copyArr = [...actionsData];
-    (
-      copyArr[groupIndex]?.items?.[index]?.[EnumInputType.FieldValue] as any
-    ).value = value;
+    (copyArr[groupIndex]?.items?.[index]?.[EnumInputType.FieldValue] as any).value = value;
     setActionsData(copyArr);
   };
 
   if (placeholder === EnumInputType.FieldValue) {
-    const field = (actionsData[groupIndex]?.items?.[index] as any)?.[
-      EnumSelectionType.Fields
-    ]?.value as any;
+    const field = (actionsData[groupIndex]?.items?.[index] as any)?.[EnumSelectionType.Fields]?.value as any;
     return (
       <FieldValueInput
         key={`field-value-input-${item.type}-${placeholder}`}
@@ -204,10 +186,7 @@ const SelectOption = ({
       <CustomFieldSelection
         width={"fit-content"}
         ref={customFieldSelectionRef}
-        value={
-          (actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value
-            ?.value || ""
-        }
+        value={(actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value?.value || ""}
         onChange={(val: string, option: any) => {
           console.log("CustomFieldSelection onChange called:", option);
           onCustomFieldChange(option, placeholder);
@@ -232,10 +211,7 @@ const SelectOption = ({
       <UserSelection
         width={"fit-content"}
         ref={userSelectionRef}
-        value={
-          (actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value
-            ?.value || undefined
-        }
+        value={(actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value?.value || undefined}
         onChange={(option: any) => {
           console.log("UserSelection onChange called:", option);
           onUserChange(option, placeholder);
@@ -256,15 +232,8 @@ const SelectOption = ({
     placeholder === EnumSelectionType.OptionalList
   ) {
     // Get the selected board ID for cross-board actions - try multiple access patterns
-    const boardSelection =
-      (actionsData[groupIndex]?.items?.[index] as any)?.[
-        EnumSelectionType.Board
-      ] ||
-      (actionsData[groupIndex]?.items?.[index] as any)?.[
-        EnumSelectionType.OptionalBoard
-      ];
-    const selectedBoardId =
-      boardSelection?.value?.value || boardSelection?.value || boardSelection;
+    const boardSelection = (actionsData[groupIndex]?.items?.[index] as any)?.[EnumSelectionType.Board] || (actionsData[groupIndex]?.items?.[index] as any)?.[EnumSelectionType.OptionalBoard];
+    const selectedBoardId = boardSelection?.value?.value || boardSelection?.value || boardSelection;
 
     console.log("ListSelection Debug:", {
       groupIndex,
@@ -272,12 +241,8 @@ const SelectOption = ({
       placeholder,
       selectedBoardId,
       boardSelection,
-      boardData: (actionsData[groupIndex]?.items?.[index] as any)?.[
-        EnumSelectionType.Board
-      ],
-      optionalBoardData: (actionsData[groupIndex]?.items?.[index] as any)?.[
-        EnumSelectionType.OptionalBoard
-      ],
+      boardData: (actionsData[groupIndex]?.items?.[index] as any)?.[EnumSelectionType.Board],
+      optionalBoardData: (actionsData[groupIndex]?.items?.[index] as any)?.[EnumSelectionType.OptionalBoard],
       fullActionData: actionsData[groupIndex]?.items?.[index],
     });
 
@@ -285,10 +250,7 @@ const SelectOption = ({
       <ListSelection
         width={"fit-content"}
         ref={listSelectionRef}
-        value={
-          (actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value
-            ?.value || undefined
-        }
+        value={(actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value?.value || undefined}
         onChange={(option: any) => {
           onListChange(option, placeholder);
         }}
@@ -346,18 +308,13 @@ const SelectOption = ({
       { value: "next_working_day", label: "the next working day" },
     ];
 
-    const presetOptionsRaw: any = (item as any)?.[EnumInputType.DateValue]
-      ?.options;
-    const presetOptions: any[] = Array.isArray(presetOptionsRaw)
-      ? presetOptionsRaw
-      : defaultOptions;
+    const presetOptionsRaw: any = (item as any)?.[EnumInputType.DateValue]?.options;
+    const presetOptions: any[] = Array.isArray(presetOptionsRaw) ? presetOptionsRaw : defaultOptions;
 
     const defaultValue = presetOptions.length > 0 ? presetOptions[0] : null;
 
     // @ts-ignore
-    const currentVal =
-      (actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value ??
-      defaultValue;
+    const currentVal = (actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value ?? defaultValue;
 
     const handleSelect = (opt: any) => {
       let copy = [...actionsData];
@@ -388,18 +345,14 @@ const SelectOption = ({
   }
 
   if (placeholder === EnumSelectionType.Board) {
-    const currentBoardValue = (
-      actionsData[groupIndex]?.items?.[index] as any
-    )?.[placeholder]?.value?.value;
+    const currentBoardValue = (actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value?.value;
 
     console.log("BoardSelection Debug:", {
       groupIndex,
       index,
       placeholder,
       currentBoardValue,
-      boardData: (actionsData[groupIndex]?.items?.[index] as any)?.[
-        placeholder
-      ],
+      boardData: (actionsData[groupIndex]?.items?.[index] as any)?.[placeholder],
       fullActionData: actionsData[groupIndex]?.items?.[index],
     });
 
@@ -420,18 +373,14 @@ const SelectOption = ({
   }
 
   if (placeholder === EnumSelectionType.OptionalBoard) {
-    const currentBoardValue = (
-      actionsData[groupIndex]?.items?.[index] as any
-    )?.[placeholder]?.value?.value;
+    const currentBoardValue = (actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value?.value;
 
     console.log("OptionalBoardSelection Debug:", {
       groupIndex,
       index,
       placeholder,
       currentBoardValue,
-      boardData: (actionsData[groupIndex]?.items?.[index] as any)?.[
-        placeholder
-      ],
+      boardData: (actionsData[groupIndex]?.items?.[index] as any)?.[placeholder],
       fullActionData: actionsData[groupIndex]?.items?.[index],
     });
 
@@ -459,10 +408,7 @@ const SelectOption = ({
       <LabelSelection
         width={"fit-content"}
         ref={labelSelectionRef}
-        value={
-          (actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value
-            ?.value || undefined
-        }
+        value={(actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value?.value || undefined}
         onChange={(option: any) => {
           onListChange(option, placeholder);
         }}
@@ -505,22 +451,15 @@ const SelectOption = ({
     <>
       <Select
         key={`${placeholder}-${index}`}
-        value={
-          (actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value
-            ?.value || ""
-        }
+        value={(actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value?.value || ""}
         options={options}
         labelInValue={false}
         style={{
-          width:
-            placeholder === EnumSelectionType.OptionalBySubject ? 260 : 120,
+          width: placeholder === EnumSelectionType.OptionalBySubject ? 260 : 120,
           margin: "0 5px",
         }}
         onChange={(value, option) => {
-          onSelectChange(
-            (option as { option: GeneralOptions }).option,
-            placeholder
-          );
+          onSelectChange((option as { option: GeneralOptions }).option, placeholder);
         }}
       />
 
@@ -529,10 +468,7 @@ const SelectOption = ({
         [
           EnumOptionBySubject.BySpecificUser,
           EnumOptionBySubject.ByAnyoneExceptSpecificUser,
-        ].includes(
-          (actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value
-            ?.value
-        ) && (
+        ].includes((actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value?.value) && (
           <UserSelection
             key={`user-select-${item.type}-${placeholder}`}
             width={"fit-content"}
@@ -546,19 +482,13 @@ const SelectOption = ({
 
       {(placeholder == EnumSelectionType.OptionalBySubject ||
         placeholder == EnumSelectionType.BySubject) &&
-        [EnumOptionBySubject.ByRole].includes(
-          (actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value
-            ?.value
-        ) && (
+        [EnumOptionBySubject.ByRole].includes((actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value?.value) && (
           <RoleSelection
             key={`role-select-${item.type}-${placeholder}`}
             width={"fit-content"}
             ref={useRef<SelectionRef>(null)}
             mode="multiple"
-            onChange={(
-              value: string | string[],
-              option: GeneralOptions | GeneralOptions[]
-            ) => {
+            onChange={(value: string | string[], option: GeneralOptions | GeneralOptions[]) => {
               onRoleChange(option, placeholder);
             }}
             className="mx-2"
@@ -581,18 +511,12 @@ const renderLabelWithSelects = (
   // PATCH: For CalculateCustomField, render only the custom UI and return immediately
   if (item.type === ActionType.CalculateCustomField) {
     // Always get the latest steps from parent state
-    const expressionSteps =
-      (props.actionsData[groupIndex]?.items?.[index] as any)?.[
-        EnumSelectionType.Expression
-      ]?.steps || [];
+    const expressionSteps = (props.actionsData[groupIndex]?.items?.[index] as any)?.[EnumSelectionType.Expression]?.steps || [];
     const availableFields = props.numberFields.map((f) => ({
       value: f.id,
       label: f.name,
     }));
-    const targetFieldValue =
-      (props.actionsData[groupIndex]?.items?.[index] as any)?.[
-        EnumSelectionType.Target
-      ]?.value || null;
+    const targetFieldValue = (props.actionsData[groupIndex]?.items?.[index] as any)?.[EnumSelectionType.Target]?.value || null;
 
     // Helper to render the expression as a readable string
     const renderExpressionString = () => {
@@ -604,11 +528,7 @@ const renderLabelWithSelects = (
         <span style={{ fontWeight: 500 }}>
           {expressionSteps.map((step: any, i: number) => {
             // Robust: treat as operator if value is +, -, *, /
-            if (
-              (step.type && step.type === "operator") ||
-              (typeof step.value === "string" &&
-                ["+", "-", "*", "/"].includes(step.value))
-            ) {
+            if ((step.type && step.type === "operator") || (typeof step.value === "string" && ["+", "-", "*", "/"].includes(step.value))) {
               return ` ${step.value} `;
             }
             if (step.type === "field") {
@@ -958,6 +878,13 @@ const renderLabelWithSelects = (
                 availableFields={availableFields}
               />
             );
+          }
+
+          // Handle action placeholder specifically
+          if (placeholder === "action") {
+            const actionData = (item as any)?.[EnumSelectionType.Action];
+            const actionLabel = actionData?.value?.label || actionData?.label || "move";
+            return <span key={indexPart}>{actionLabel}</span>;
           }
 
           // If no match found, just render the placeholder as text
@@ -1855,7 +1782,14 @@ const DateExpressionSelector = ({
 };
 
 const SelectAction: React.FC<SelectActionProps> = (props) => {
-  const { setSelectedRule, selectedRule, actionsData, nextStep } = props;
+  const {
+    setSelectedRule,
+    selectedRule,
+    actionsData,
+    nextStep,
+    isEditMode,
+    onSaveAndClose,
+  } = props;
   const [actionItemsByActionType, setActionItemsByActionType] = useState<
     ActionItems[]
   >([]);
@@ -1864,6 +1798,11 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
 
   // Modal state for each action index (object: { [index]: boolean })
   const [modalOpenIndex, setModalOpenIndex] = useState<number | null>(null);
+
+  // Track which action is being configured for better UX
+  const [configuringActionIndex, setConfiguringActionIndex] = useState<
+    number | null
+  >(null);
 
   console.log("SelectAction Debug:", {
     actionsData: actionsData?.map((group) => ({
@@ -1935,7 +1874,19 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
   };
 
   const onAddAction = (index: number) => {
+    // In create mode, don't set configuring state. In edit mode, set it for check/cancel flow
+    if (isEditMode) {
+      setConfiguringActionIndex(index);
+    }
+
     const actionType = actionsData[groupIndex]?.items?.[index]?.type;
+
+    // Get the existing action if in edit mode
+    const existingAction =
+      isEditMode && selectedRule.actions && lastActionIndex >= 0
+        ? selectedRule.actions[lastActionIndex]
+        : null;
+
     // Special handling for CalculateCustomField
     if (actionType === ActionType.CalculateCustomField) {
       const item = actionsData[groupIndex]?.items?.[index];
@@ -1965,6 +1916,8 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
         return;
       }
       const newActionItem: SelectedAction = {
+        // Preserve ID if editing existing action
+        ...(existingAction?.id && { id: existingAction.id }),
         groupType: actionsData[groupIndex].type,
         type: actionType,
         selectedActionItem: {
@@ -1974,14 +1927,32 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
           [EnumSelectionType.Expression]: expression,
         },
       };
-      setSelectedRule((prev: AutomationRule) => ({
-        ...prev,
-        actions: [...(prev.actions || []), newActionItem],
-      }));
-      nextStep();
+
+      let updatedRule;
+      if (isEditMode && existingAction) {
+        // Update existing action
+        const updatedActions = [...(selectedRule.actions || [])];
+        updatedActions[lastActionIndex] = newActionItem;
+        updatedRule = {
+          ...selectedRule,
+          actions: updatedActions,
+        };
+      } else {
+        // Add new action
+        updatedRule = {
+          ...selectedRule,
+          actions: [...(selectedRule.actions || []), newActionItem],
+        };
+      }
+
+      setSelectedRule(updatedRule);
+
+      // Don't automatically proceed - let user click Save
       return;
     }
     const newActionItem: SelectedAction = {
+      // Preserve ID if editing existing action
+      ...(existingAction?.id && { id: existingAction.id }),
       groupType: actionsData[groupIndex].type,
       type: actionsData[groupIndex]?.items?.[index]?.type || "",
     };
@@ -2052,64 +2023,171 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
     }
 
     let copy = { ...selectedRule };
-    copy.actions?.push(newActionItem);
-    const filtered = copy.actions?.filter(
-      (item) => item.type && item.selectedActionItem?.type
-    );
-    copy.actions = filtered;
+
+    if (isEditMode && existingAction) {
+      // Update existing action
+      const updatedActions = [...(copy.actions || [])];
+      updatedActions[lastActionIndex] = newActionItem;
+      copy.actions = updatedActions;
+    } else {
+      // Add new action
+      copy.actions?.push(newActionItem);
+      const filtered = copy.actions?.filter(
+        (item) => item.type && item.selectedActionItem?.type
+      );
+      copy.actions = filtered;
+    }
+
     setSelectedRule(copy);
-    nextStep();
+
+    // In create mode, proceed directly. In edit mode, wait for user to click Save
+    if (!isEditMode) {
+      nextStep();
+    }
+  };
+
+  const onSaveAction = async () => {
+    // Reset configuring state and proceed with save
+    setConfiguringActionIndex(null);
+    if (isEditMode && onSaveAndClose) {
+      await onSaveAndClose(selectedRule);
+    } else {
+      nextStep();
+    }
+  };
+
+  const onCancelAction = () => {
+    // Reset configuring state and revert changes if needed
+    setConfiguringActionIndex(null);
+    // Could add logic here to revert changes if needed
   };
 
   return (
-    <div>
-      <Typography.Title level={5}>Select Action</Typography.Title>
-      <div className="flex gap-2 my-4">
-        {actionsData?.map((item: AutomationRuleAction, index: number) => (
-          <div
-            key={index}
-            onClick={() => onActionTypeClick(item.type)}
-            className={`flex flex-col justify-center items-center w-64 rounded p-2 cursor-pointer ${
-              selectedRule?.actions?.[lastActionIndex]?.type === item.type
-                ? "bg-blue-100"
-                : "bg-gray-300"
-            }`}
-          >
-            <div>{item?.icon}</div>
-            <Typography.Text>{item.label}</Typography.Text>
+    <div className="space-y-6">
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <div>
+            <Typography.Title level={4} className="text-gray-800 font-semibold">
+              Select Action
+            </Typography.Title>
+            <Typography.Text className="text-gray-600">
+              Choose what happens when your trigger conditions are met
+            </Typography.Text>
           </div>
-        ))}
-      </div>
-
-      <div>
-        {actionsData[groupIndex]?.items?.map(
-          (item: ActionItems, index: number) => (
-            <div key={index}>
-              <div className="flex justify-between items-start rounded p-2 mb-2 bg-gray-200">
-                <div>
-                  {renderLabelWithSelects(
-                    props,
-                    item,
-                    lastActionIndex,
-                    groupIndex,
-                    index,
-                    modalOpenIndex === index,
-                    (open: boolean) => setModalOpenIndex(open ? index : null)
-                  )}
-                </div>
-                <Button
-                  shape="circle"
-                  onClick={() => {
-                    onAddAction(index);
-                  }}
-                >
-                  <Plus />
-                </Button>
-              </div>
+          {isEditMode && (
+            <div className="text-xs bg-blue-50 text-blue-700 px-3 py-1 rounded-full border border-blue-200">
+              Edit Mode
             </div>
-          )
-        )}
+          )}
+        </div>
       </div>
+        
+        {/* Action Groups */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 max-w-4xl mx-auto">
+          {actionsData?.map((item: AutomationRuleAction, index: number) => (
+            <div
+              key={index}
+              onClick={() => onActionTypeClick(item.type)}
+              className={`group flex flex-col justify-center items-center rounded-lg p-4 cursor-pointer transition-all duration-200 hover:shadow-md ${
+                selectedRule?.actions?.[lastActionIndex]?.type === item.type
+                  ? "bg-white border-2 border-blue-400 shadow-sm"
+                  : "bg-white border border-gray-200 hover:border-gray-300"
+              }`}
+            >
+              <div className={`mb-2 text-lg transition-colors duration-200 ${
+                selectedRule?.actions?.[lastActionIndex]?.type === item.type
+                  ? "text-blue-600"
+                  : "text-gray-600 group-hover:text-gray-700"
+              }`}>{item?.icon}</div>
+              <Typography.Text 
+                className={`text-sm font-medium text-center transition-colors duration-200 ${
+                  selectedRule?.actions?.[lastActionIndex]?.type === item.type
+                    ? "text-blue-700"
+                    : "text-gray-700 group-hover:text-gray-800"
+                }`}
+              >
+                {item.label}
+              </Typography.Text>
+            </div>
+          ))}
+        </div>
+
+        {/* Action Items */}
+        <div className="space-y-4">
+          {actionsData[groupIndex]?.items?.map(
+            (item: ActionItems, index: number) => (
+              <div key={index}>
+                <div
+                  className={`group flex justify-between items-start rounded-xl p-6 transition-all duration-300 hover:shadow-lg ${
+                    configuringActionIndex === index
+                      ? "bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 shadow-md"
+                      : "bg-white hover:bg-gradient-to-r hover:from-gray-50 hover:to-blue-50 shadow-md border border-gray-200 hover:border-blue-200"
+                  }`}
+                >
+                  <div className="flex-1">
+                    {renderLabelWithSelects(
+                      props,
+                      item,
+                      lastActionIndex,
+                      groupIndex,
+                      index,
+                      modalOpenIndex === index,
+                      (open: boolean) => setModalOpenIndex(open ? index : null)
+                    )}
+                  </div>
+                  <div className="flex gap-3 ml-4">
+                    {configuringActionIndex === index ? (
+                      // Show Save/Cancel buttons when configuring this action
+                      <>
+                        <Button
+                          shape="circle"
+                          type="primary"
+                          onClick={onSaveAction}
+                          title="Save Action"
+                          className="bg-gradient-to-r from-green-500 to-emerald-600 border-none hover:from-green-600 hover:to-emerald-700 shadow-md hover:shadow-lg transition-all duration-200"
+                          size="large"
+                        >
+                          <Check size={18} />
+                        </Button>
+                        <Button
+                          shape="circle"
+                          onClick={onCancelAction}
+                          title="Cancel"
+                          className="bg-gradient-to-r from-red-500 to-rose-600 border-none hover:from-red-600 hover:to-rose-700 text-white shadow-md hover:shadow-lg transition-all duration-200"
+                          size="large"
+                        >
+                          <X size={18} />
+                        </Button>
+                      </>
+                    ) : (
+                      // Show + button (disabled if another action is being configured)
+                      <Button
+                        shape="circle"
+                        onClick={() => {
+                          onAddAction(index);
+                        }}
+                        disabled={configuringActionIndex !== null}
+                        title={
+                          configuringActionIndex !== null
+                            ? "Complete current action first"
+                            : "Add Action"
+                        }
+                        className={`${
+                          configuringActionIndex !== null
+                            ? "bg-gray-300 border-gray-300 text-gray-500"
+                            : "bg-gradient-to-r from-blue-500 to-indigo-600 border-none hover:from-blue-600 hover:to-indigo-700 text-white shadow-md hover:shadow-lg"
+                        } transition-all duration-200`}
+                        size="large"
+                      >
+                        <Plus size={18} />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )
+          )}
+        </div>
     </div>
   );
 };

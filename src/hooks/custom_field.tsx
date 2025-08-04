@@ -9,15 +9,59 @@ import {
 import { ApiResponse } from "../types/type";
 import { CustomField } from "@myTypes/custom-field";
 import { useCardDetailContext } from "@providers/card-detail-context";
+import { LookupCache } from "@utils/lookup-cache";
+import { useEffect } from "react";
 
 export function useCustomFields(workspaceId: string) {
   const queryClient = useQueryClient();
+  
+  console.log("useCustomFields called with workspaceId:", workspaceId);
+  
   // The main query for custom fields
   const customFieldQuery = useQuery({
     queryKey: ["customFields", workspaceId],
-    queryFn: () => customFields(workspaceId),
+    queryFn: () => {
+      console.log("Fetching custom fields for workspace:", workspaceId);
+      return customFields(workspaceId);
+    },
     enabled: !!workspaceId,
   });
+
+  console.log("Custom fields query result:", {
+    data: customFieldQuery.data?.data,
+    isLoading: customFieldQuery.isLoading,
+    isError: customFieldQuery.isError,
+    error: customFieldQuery.error,
+  });
+
+  // Cache custom fields in LookupCache when data is available
+  useEffect(() => {
+    if (customFieldQuery.data?.data) {
+      const customFieldsData = customFieldQuery.data.data;
+      
+      // Cache custom field names
+      LookupCache.rememberMany(
+        "field",
+        customFieldsData.map((field) => ({
+          id: field.id,
+          name: field.name,
+        }))
+      );
+
+      // Cache custom field options for dropdown fields
+      customFieldsData.forEach((field) => {
+        if (field.options && Array.isArray(field.options)) {
+          field.options.forEach((option: any) => {
+            if (option.value && option.label) {
+              LookupCache.rememberMany("field", [
+                { id: option.value, name: option.label }
+              ]);
+            }
+          });
+        }
+      });
+    }
+  }, [customFieldQuery.data?.data]);
 
   const invalidateSpecificCardCustomFields = (cardId?: string) => {
     if (cardId) {

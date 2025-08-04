@@ -17,7 +17,8 @@ interface RuleStateProps {
 
 const RuleState: React.FC<RuleStateProps> = (props) => {
   const { selectedRule, goToSpecificStep, activeStep } = props;
-  const { workspaceId } = useParams();
+  const params = useParams();
+  const workspaceId = decodeURIComponent(params.workspaceId as string);
 
   // Fetch and cache all necessary data for rule rendering
   const { allLabels } = useLabels(workspaceId as string);

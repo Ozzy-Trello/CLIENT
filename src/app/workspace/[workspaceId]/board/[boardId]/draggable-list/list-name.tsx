@@ -21,6 +21,7 @@ interface ListNameProps {
     { listId: string; updates: Partial<AnyList> },
     unknown
   >;
+  cardsCount: number;
 }
 
 const colorOptions = [
@@ -36,7 +37,12 @@ const colorOptions = [
   "#616161", // gray
 ];
 
-const ListName: React.FC<ListNameProps> = ({ list, boardId, updateList }) => {
+const ListName: React.FC<ListNameProps> = ({
+  list,
+  boardId,
+  updateList,
+  cardsCount,
+}) => {
   const [isEditListName, setIsEditListName] = useState<boolean>(false);
   const [newListName, setNewListName] = useState<string>("");
   const inputRef = useRef<HTMLDivElement | null>(null);
@@ -124,7 +130,10 @@ const ListName: React.FC<ListNameProps> = ({ list, boardId, updateList }) => {
     if (tempLimit && tempLimit > 0 && tempLimit !== list.cardLimit) {
       updateList({
         listId: list.id,
-        updates: { cardLimit: tempLimit },
+        updates: {
+          ...list,
+          cardLimit: tempLimit,
+        },
       });
       message.success(`List limit set to ${tempLimit}`);
     } else if (tempLimit === list.cardLimit) {
@@ -162,8 +171,7 @@ const ListName: React.FC<ListNameProps> = ({ list, boardId, updateList }) => {
   };
 
   // Check if card limit is exceeded for yellow color
-  const isLimitExceeded =
-    list.cardLimit && list.cards && list.cards.length > list.cardLimit;
+  const isLimitExceeded = list.cardLimit && cardsCount > list.cardLimit;
   const headerColor = list.background;
 
   useEffect(() => {
@@ -250,13 +258,19 @@ const ListName: React.FC<ListNameProps> = ({ list, boardId, updateList }) => {
   return (
     <div
       className={`px-4 py-3 border-b flex items-center justify-between ${
-        isLimitExceeded ? "bg-yellow-200 border-yellow-300" : ""
+        isLimitExceeded ? "rounded-t-xl border-2" : ""
       }`}
       style={{
-        backgroundColor:
-          !isLimitExceeded && headerColor ? `${headerColor}20` : undefined,
-        borderColor:
-          !isLimitExceeded && headerColor ? `${headerColor}30` : undefined,
+        // backgroundColor: isLimitExceeded
+        //   ? "#fef3c7"
+        //   : headerColor
+        //   ? `${headerColor}20`
+        //   : undefined,
+        borderColor: isLimitExceeded
+          ? "#f59e0b"
+          : headerColor
+          ? `${headerColor}30`
+          : undefined,
       }}
     >
       {isEditListName ? (
@@ -288,20 +302,17 @@ const ListName: React.FC<ListNameProps> = ({ list, boardId, updateList }) => {
 
       <div className="flex items-center justify-end gap-1">
         <div
-          className={`rounded-full px-2 py-1 text-xs ${
-            isLimitExceeded ? "bg-yellow-300" : ""
-          }`}
+          className="rounded-full px-2 py-1 text-xs font-medium"
           style={{
-            backgroundColor:
-              !isLimitExceeded && headerColor
-                ? `${headerColor}40`
-                : !isLimitExceeded
-                ? "#e5e7eb"
-                : undefined,
-            color: isLimitExceeded ? "#000000" : "black",
+            backgroundColor: isLimitExceeded
+              ? "#f59e0b"
+              : headerColor
+              ? `${headerColor}40`
+              : "#e5e7eb",
+            color: isLimitExceeded ? "#ffffff" : "black",
           }}
         >
-          {list.cards?.length || 0}/{list.cardLimit || 0}
+          {cardsCount}/{list.cardLimit || 0}
         </div>
         {/* Collapse list button */}
         <Tooltip title={"collapse list"}>

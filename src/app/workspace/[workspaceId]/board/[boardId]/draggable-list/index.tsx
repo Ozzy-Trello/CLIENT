@@ -95,7 +95,7 @@ const DraggableList: React.FC<DraggableListProps> = ({
               : undefined
           }
         >
-          <ListName list={list} boardId={boardId} updateList={updateList} />
+          <ListName list={list} boardId={boardId} updateList={updateList} cardsCount={cards.length} />
           <Droppable
             droppableId={`droppable-card-area-${list.id}`}
             direction="vertical"

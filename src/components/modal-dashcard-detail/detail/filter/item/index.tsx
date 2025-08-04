@@ -13,19 +13,19 @@ interface ItemFilterProps {
 }
 
 const ItemFilter: FC<ItemFilterProps> = ({ item }) => {
-  if (item.type === "board") return <BoardItemFilter {...item} />;
+  if (item.type === "board") return <BoardItemFilter {...item} id={item.id} label={item.label} />;
 
-  if (item.type === "list") return <ListItemFilter {...item} />;
+  if (item.type === "list") return <ListItemFilter {...item} id={item.id} label={item.label} />;
 
-  if (item.type === "assigned") return <AssignedItemFilter {...item} />;
+  if (item.type === "assigned") return <AssignedItemFilter {...item} id={item.id} label={item.label} />;
 
-  if (item.type === "custom_field") return <CustomFieldItemFilter {...item} />;
+  if (item.type === "custom_field") return <CustomFieldItemFilter {...item} id={item.id} label={item.label} />;
 
-  if (item.type === "due_date") return <DueItemFilter {...item} />;
+  if (item.type === "due_date") return <DueItemFilter {...item} id={item.id} label={item.label} />;
 
-  if (item.type === "labels") return <LabelsItemFilter {...item} />;
+  if (item.type === "labels") return <LabelsItemFilter {...item} id={item.id} label={item.label} />;
 
-  if (item.type === "is_completed") return <CompleteItemFilter {...item} />;
+  if (item.type === "is_completed") return <CompleteItemFilter {...item} id={item.id} label={item.label} />;
 
   return null;
 };

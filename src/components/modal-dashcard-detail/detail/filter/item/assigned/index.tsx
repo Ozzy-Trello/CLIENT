@@ -7,8 +7,9 @@ import { useParams } from "next/navigation";
 import { Account } from "@dto/account";
 import { Button, Input, Select } from "antd";
 import { DeleteOutlined } from "@ant-design/icons";
+import { UserSelection } from "@components/selection";
 
-const AssignedItemFilter: FC<DashcardFilter> = ({ operator, value }) => {
+const AssignedItemFilter: FC<DashcardFilter> = ({ id, operator, value, label }) => {
   const {
     openEditFilter,
     currentFilter,
@@ -34,8 +35,8 @@ const AssignedItemFilter: FC<DashcardFilter> = ({ operator, value }) => {
   }, [data]);
 
   const valueEdit = useMemo(() => {
-    return currentFilter.find((filter) => filter.id === "assigned");
-  }, [currentFilter]);
+    return currentFilter.find((filter) => filter.id === id);
+  }, [currentFilter, id]);
 
   const options = useMemo(() => {
     return (
@@ -47,37 +48,38 @@ const AssignedItemFilter: FC<DashcardFilter> = ({ operator, value }) => {
     return (
       <div className="flex items-center gap-3 justify-between">
         <div className="flex gap-3 items-center">
-          <div className="font-semibold min-w-16">Assigned</div>
+          <div className="font-semibold min-w-16">{label || "Assigned"}</div>
           <div className="p-2 rounded-lg w-full">
             <Select
               options={options}
               value={valueEdit?.operator}
               onChange={(value) =>
-                handleChangeFilter({ id: "assigned", operator: value })
+                handleChangeFilter({ id, operator: value })
               }
               className="w-full"
             />
           </div>
           <div className="p-2 rounded-lg">
-            <Select
-              options={user?.options ?? []}
-              value={valueEdit?.value}
-              onChange={(value) =>
-                handleChangeFilter({ id: "assigned", value: value as string })
+            <UserSelection
+              value={valueEdit?.value as string}
+              onChange={(selectedValue: string) =>
+                handleChangeFilter({ id, value: selectedValue })
               }
+              placeholder="Select user"
+              size="small"
             />
           </div>
         </div>
         <Button
           icon={<DeleteOutlined />}
-          onClick={() => handleDeleteFilter("assigned")}
+          onClick={() => handleDeleteFilter("assigned", id)}
         />
       </div>
     );
 
   return (
     <div className="flex items-center gap-3">
-      <div className="font-semibold min-w-16">Assigned</div>
+      <div className="font-semibold min-w-16">{label || "Assigned"}</div>
       <div className="border p-2 rounded-lg border-gray-200">
         {convertOperatorToText(operator ?? "")}
       </div>

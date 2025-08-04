@@ -12,20 +12,168 @@ export const createRule = async (
 
 export const getRule = async (
   workspaceId: string,
-  page: number = 1,
-  limit: number = 10,
-  boardId?: string // Add optional board_id parameter
+  boardId?: string,
+  page?: number,
+  limit?: number,
+  fetchAll?: boolean // New parameter to fetch all data for search
 ): Promise<ApiResponse<any>> => {
-  const params: any = { page, limit };
+  const params: any = {};
 
-  // Add board_id to params if provided
   if (boardId) {
     params.board_id = boardId;
   }
 
+  // If fetchAll is true, use high limit to get all data for frontend search
+  if (fetchAll) {
+    params.limit = 10000;
+    params.page = 1;
+  } else if (page !== undefined && limit !== undefined) {
+    // Use provided pagination parameters
+    params.page = page;
+    params.limit = limit;
+  }
+  // If no pagination params provided, backend will use defaults
+
   const { data } = await api.get(`/automation-rule`, {
     headers: { "workspace-id": workspaceId },
     params,
+  });
+  return data;
+};
+
+export const getRuleById = async (
+  workspaceId: string,
+  ruleId: string
+): Promise<ApiResponse<any>> => {
+  const { data } = await api.get(`/automation-rule/${ruleId}`, {
+    headers: { "workspace-id": workspaceId },
+  });
+  return data;
+};
+
+export const updateRule = async (
+  workspaceId: string,
+  ruleId: string,
+  rule: any
+): Promise<ApiResponse<any>> => {
+  const { data } = await api.put(`/automation-rule/${ruleId}`, rule, {
+    headers: { "workspace-id": workspaceId },
+  });
+  return data;
+};
+
+export const deleteRule = async (
+  workspaceId: string,
+  ruleId: string
+): Promise<ApiResponse<any>> => {
+  const { data } = await api.delete(`/automation-rule/${ruleId}`, {
+    headers: { "workspace-id": workspaceId },
+  });
+  return data;
+};
+
+// New granular API functions
+export const updateTrigger = async (
+  workspaceId: string,
+  ruleId: string,
+  triggerData: {
+    condition: any;
+    type?: string;
+    group_type?: string;
+  }
+): Promise<ApiResponse<any>> => {
+  const { data } = await api.patch(
+    `/automation-rule/${ruleId}/trigger`,
+    triggerData,
+    {
+      headers: { "workspace-id": workspaceId },
+    }
+  );
+  return data;
+};
+
+export const updateAction = async (
+  workspaceId: string,
+  ruleId: string,
+  actionIndex: number,
+  action: any,
+  boardId?: string
+): Promise<ApiResponse<any>> => {
+  const headers: any = { "workspace-id": workspaceId };
+  if (boardId) {
+    headers["board-id"] = boardId;
+  }
+
+  const { data } = await api.patch(
+    `/automation-rule/${ruleId}/actions/${actionIndex}`,
+    { action },
+    { headers }
+  );
+  return data;
+};
+
+export const addAction = async (
+  workspaceId: string,
+  ruleId: string,
+  action: any,
+  boardId?: string
+): Promise<ApiResponse<any>> => {
+  const headers: any = { "workspace-id": workspaceId };
+  if (boardId) {
+    headers["board-id"] = boardId;
+  }
+
+  const { data } = await api.post(
+    `/automation-rule/${ruleId}/actions`,
+    { action },
+    { headers }
+  );
+  return data;
+};
+
+export const deleteAction = async (
+  workspaceId: string,
+  ruleId: string,
+  actionIndex: number,
+  boardId?: string
+): Promise<ApiResponse<any>> => {
+  const headers: any = { "workspace-id": workspaceId };
+  if (boardId) {
+    headers["board-id"] = boardId;
+  }
+
+  const { data } = await api.delete(
+    `/automation-rule/${ruleId}/actions/${actionIndex}`,
+    {
+      headers,
+    }
+  );
+  return data;
+};
+
+// Direct action update by action ID - simpler approach
+export const updateActionById = async (
+  workspaceId: string,
+  actionId: string,
+  action: any
+): Promise<ApiResponse<any>> => {
+  const { data } = await api.patch(
+    `/automation-rule/actions/${actionId}`,
+    action,
+    {
+      headers: { "workspace-id": workspaceId },
+    }
+  );
+  return data;
+};
+
+// Direct action deletion by action ID - simpler approach
+export const deleteActionById = async (
+  workspaceId: string,
+  actionId: string
+): Promise<ApiResponse<any>> => {
+  const { data } = await api.delete(`/automation-rule/actions/${actionId}`, {
+    headers: { "workspace-id": workspaceId },
   });
   return data;
 };

@@ -1,46 +1,65 @@
 import React, { useRef, useState } from 'react';
-import { Button } from 'antd';
+import { Button, message } from 'antd';
 import {
   BoardSelection,
-  CardPositionSelection,
   ListSelection,
   SelectionRef
 } from '../selection';
 import { useCardDetailContext } from '@providers/card-detail-context';
 import { useCards } from '@hooks/card';
 import { useParams } from 'next/navigation';
+import { Card } from '@myTypes/card';
+import { AnyList } from '@myTypes/list';
 
-const ContentMoveCard: React.FC = () => {
+interface ContentMoveCardProps {
+  card?: Card;
+  list?: AnyList;
+  onClose?: () => void;
+}
+
+const ContentMoveCard: React.FC<ContentMoveCardProps> = ({ card: propCard, list: propList, onClose }) => {
   const { boardId } = useParams();
   const {
     selectedCard,
     closeCardDetail
   } = useCardDetailContext();
 
+  // Use prop card if available, otherwise fall back to context card
+  const currentCard = propCard || selectedCard;
+  const currentList = propList;
+
   const [selectedBoard, setSelectedBoard] = useState<string>(boardId as string);
-  const [selectedList, setSelectedList] = useState<string>(selectedCard?.listId || '');
-  const [selectedPosition, setSelectedPosition] = useState<number>(1);
+  const [selectedList, setSelectedList] = useState<string>(currentCard?.listId || '');
 
   const listSelectionRef = useRef<SelectionRef>(null);
-  const positionSelectionRef = useRef<SelectionRef>(null);
   const boardSelectionRef = useRef<SelectionRef>(null);
 
   const { updateCard } = useCards(
-    selectedCard?.listId || '',
+    currentCard?.listId || '',
     Array.isArray(boardId) ? boardId[0] : boardId || ''
   );
 
-  const positionOptions = [{ value: 1, label: '1' }];
-
   const handleMove = () => {
-    if (!selectedCard || !selectedList) return;
+    if (!currentCard || !selectedList) return;
+    
     updateCard({
-      cardId: selectedCard.id,
+      cardId: currentCard.id,
       updates: { listId: selectedList },
-      listId: selectedCard.listId,
+      listId: currentCard.listId,
       destinationListId: selectedList
     });
-    closeCardDetail(); // Optional: Close the card detail modal after move
+    
+    // Close the popover
+    if (onClose) {
+      onClose();
+    }
+    
+    // Show success message
+    message.success('Card moved successfully!');
+    
+    if (selectedCard) {
+      closeCardDetail(); // Only close card detail modal if it was opened from context
+    }
   };
 
   return (
@@ -61,33 +80,17 @@ const ContentMoveCard: React.FC = () => {
           />
         </div>
 
-        {/* List + Position */}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block mb-1">List</label>
-            <ListSelection
-              ref={listSelectionRef}
-              size="small"
-              width="100%"
-              value={selectedList}
-              onChange={setSelectedList}
-              selectedBoardId={selectedBoard}
-            />
-          </div>
-          <div>
-            <label className="block mb-1">Position</label>
-            <CardPositionSelection
-              className="w-full"
-              value={selectedPosition}
-              onChange={(val:any) => setSelectedPosition(parseInt(val))}
-              options={positionOptions}
-              ref={positionSelectionRef}
-              listId={selectedList}
-              selectedListId={selectedList}
-              size="small"
-              width="100%"
-            />
-          </div>
+        {/* List */}
+        <div>
+          <label className="block mb-1">List</label>
+          <ListSelection
+            ref={listSelectionRef}
+            size="small"
+            width="100%"
+            value={selectedList}
+            onChange={setSelectedList}
+            selectedBoardId={selectedBoard}
+          />
         </div>
 
         {/* Submit Button */}

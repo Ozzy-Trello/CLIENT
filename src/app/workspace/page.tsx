@@ -1,14 +1,18 @@
 "use client";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import TokenStorage from "@utils/token-storage";
 import { useDefaultWorkspace } from "@hooks/workspace";
 
 const WorkspacePage: React.FC = () => {
   const router = useRouter();
-  const isClient = typeof window !== "undefined";
+  const [isClient, setIsClient] = useState(false);
   const accessToken = isClient ? TokenStorage.getAccessToken() : null;
   const { defaultWorkspace, isLoading } = useDefaultWorkspace();
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   useEffect(() => {
     if (!isClient) return; // Don't run on server side

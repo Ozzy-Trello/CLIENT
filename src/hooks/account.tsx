@@ -72,24 +72,137 @@ export function useAccountList({
 // Permission helpers hook
 export function usePermissions() {
   const { data: account } = useCurrentAccount();
+  const permissionLevel = account?.data?.role?.permission?.level;
+  const permissions = account?.data?.role?.permission?.permissions;
+
+  // Role level checks
+  const isObserver = () => permissionLevel === "OBSERVER";
+  const isMember = () => permissionLevel === "MEMBER";
+  const isModerator = () => ["MODERATOR", "ADMIN"].includes(permissionLevel || "");
+  const isAdmin = () => permissionLevel === "ADMIN";
+
+  // Basic CRUD permissions
+  const canCreate = (resource: "board" | "list" | "card") =>
+    permissions?.[resource]?.create ?? false;
+  const canRead = (resource: "board" | "list" | "card") =>
+    permissions?.[resource]?.read ?? false;
+  const canUpdate = (resource: "board" | "list" | "card") =>
+    permissions?.[resource]?.update ?? false;
+  const canDelete = (resource: "board" | "list" | "card") =>
+    permissions?.[resource]?.delete ?? false;
+  const canMove = (resource: "list" | "card") =>
+    permissions?.[resource]?.move ?? false;
+
+  // Specific action permissions
+  const canArchiveCard = () => canUpdate("card") || isModerator();
+  const canDeleteCard = () => canDelete("card");
+  const canCopyCard = () => canCreate("card");
+  const canMoveCard = () => canMove("card");
+  const canMirrorCard = () => canCreate("card");
+  
+  const canManageCardMembers = () => canUpdate("card");
+  const canManageCardLabels = () => canUpdate("card");
+  const canManageCardDates = () => canUpdate("card");
+  const canManageCardAttachments = () => canUpdate("card");
+  const canManageCardChecklists = () => canUpdate("card");
+  const canManageCardCustomFields = () => canUpdate("card");
+  const canManageCardLocation = () => canUpdate("card");
+
+  const canCreateList = () => canCreate("list");
+  const canUpdateList = () => canUpdate("list");
+  const canDeleteList = () => canDelete("list");
+  const canMoveList = () => canMove("list");
+  const canArchiveList = () => canUpdate("list") || isModerator();
+
+  const canCreateBoard = () => canCreate("board");
+  const canUpdateBoard = () => canUpdate("board");
+  const canDeleteBoard = () => canDelete("board") || isAdmin();
+  const canManageBoardSettings = () => canUpdate("board") || isModerator();
+  const canManageBoardAutomation = () => isModerator();
+  const canManageBoardCustomFields = () => isModerator();
+  const canManageBoardLabels = () => canUpdate("board") || isModerator();
+  const canViewArchivedItems = () => canRead("card") && canRead("list");
+
+  // Share and export permissions
+  const canShareCard = () => canRead("card");
+  const canGenerateQR = () => canRead("card");
+  const canExportBoard = () => canRead("board");
+
+  // Administrative permissions
+  const canManageWorkspace = () => isAdmin();
+  const canManageRoles = () => isAdmin();
+  const canManageUsers = () => isAdmin();
 
   return {
-    permissions: account?.data?.role?.permission?.permissions,
-    canCreate: (resource: "board" | "list" | "card") =>
-      account?.data?.role?.permission?.permissions?.[resource]?.create ?? false,
-    canUpdate: (resource: "board" | "list" | "card") =>
-      account?.data?.role?.permission?.permissions?.[resource]?.update ?? false,
-    canDelete: (resource: "board" | "list" | "card") =>
-      account?.data?.role?.permission?.permissions?.[resource]?.delete ?? false,
-    canMove: (resource: "list" | "card") =>
-      account?.data?.role?.permission?.permissions?.[resource]?.move ?? false,
-    isAdmin: () => account?.data?.role?.permission?.level === "ADMIN",
-    isModerator: () =>
-      ["ADMIN", "MODERATOR"].includes(
-        account?.data?.role?.permission?.level || ""
-      ),
+    // Raw data
+    permissions,
     user: account?.data,
     role: account?.data?.role,
-    permissionLevel: account?.data?.role?.permission?.level,
+    permissionLevel,
+
+    // Role checks
+    isObserver,
+    isMember,
+    isModerator,
+    isAdmin,
+
+    // Basic CRUD
+    canCreate,
+    canRead,
+    canUpdate,
+    canDelete,
+    canMove,
+
+    // Card permissions
+    canArchiveCard,
+    canDeleteCard,
+    canCopyCard,
+    canMoveCard,
+    canMirrorCard,
+    canManageCardMembers,
+    canManageCardLabels,
+    canManageCardDates,
+    canManageCardAttachments,
+    canManageCardChecklists,
+    canManageCardCustomFields,
+    canManageCardLocation,
+
+    // List permissions
+    canCreateList,
+    canUpdateList,
+    canDeleteList,
+    canMoveList,
+    canArchiveList,
+
+    // Board permissions
+    canCreateBoard,
+    canUpdateBoard,
+    canDeleteBoard,
+    canManageBoardSettings,
+    canManageBoardAutomation,
+    canManageBoardCustomFields,
+    canManageBoardLabels,
+    canViewArchivedItems,
+
+    // Share/Export permissions
+    canShareCard,
+    canGenerateQR,
+    canExportBoard,
+
+    // Administrative permissions
+    canManageWorkspace,
+    canManageRoles,
+    canManageUsers,
+
+    // Utility functions
+    hasAnyPermission: (resource: "board" | "list" | "card") => 
+      canCreate(resource) || canRead(resource) || canUpdate(resource) || canDelete(resource),
+    
+    hasMinimumRole: (minRole: "OBSERVER" | "MEMBER" | "MODERATOR" | "ADMIN") => {
+      const roleHierarchy = { OBSERVER: 1, MEMBER: 2, MODERATOR: 3, ADMIN: 4 };
+      const currentRoleLevel = roleHierarchy[permissionLevel as keyof typeof roleHierarchy] || 0;
+      const minRoleLevel = roleHierarchy[minRole];
+      return currentRoleLevel >= minRoleLevel;
+    }
   };
 }

@@ -1,5 +1,7 @@
 import React, { useRef, useState } from "react";
 import { useCardDetailContext } from "@providers/card-detail-context";
+import { useSelector } from "react-redux";
+import { selectTheme, selectIsDarkMode } from "@store/app_slice";
 import PopoverChecklist from "@components/popover-checklist";
 import {
   Users,
@@ -18,23 +20,65 @@ import {
   UserPlus,
   UserMinus,
   FlipHorizontal,
+  Trash2,
 } from "lucide-react";
 import PopoverCustomField from "@components/popover-custom-field";
 import PopoverUser from "@components/popover-user";
 import PopoverDates from "@components/popover-dates.tsx";
 import PopoverMoveCard from "@components/popover-move-card";
 import PopoverCopyCard from "@components/popover-copy-card";
-import { message, Tooltip } from "antd";
+import { message, Tooltip, Modal } from "antd";
 import QRModal from "./qr-modal/qr-modal";
 import PopoverLocation from "@components/popover-location";
 import PopoverAttach from "@components/popover-attach";
 import { useCardCopy, useCardMove, useCards } from "@hooks/card";
 import { useParams } from "next/navigation";
 import { useCardDetails } from "@hooks/card-details";
-import { useCurrentAccount } from "@hooks/account";
+import { useCurrentAccount, usePermissions } from "@hooks/account";
 import { useCardMembers } from "@hooks/card_member";
 import PopoverLabel from "@components/popover-label.tsx";
 import PopoverMirrorCard from "@components/popover-mirror-card";
+
+// Helper component for permission-controlled buttons - moved outside to prevent re-creation
+const PermissionButton: React.FC<{
+  canPerform: boolean;
+  children: React.ReactNode;
+  onClick?: () => void;
+  tooltip?: string;
+  className?: string;
+  disabled?: boolean;
+  permissionLevel?: string;
+  buttonStyle?: React.CSSProperties;
+}> = ({
+  canPerform,
+  children,
+  onClick,
+  tooltip,
+  className = "",
+  disabled = false,
+  permissionLevel = "unknown",
+  buttonStyle = {},
+}) => {
+  const isDisabled = disabled || !canPerform;
+  const tooltipText = !canPerform
+    ? `Insufficient permissions (${permissionLevel} role)`
+    : tooltip;
+
+  return (
+    <Tooltip title={tooltipText}>
+      <button
+        onClick={canPerform ? onClick : undefined}
+        disabled={isDisabled}
+        className={`text-xs flex items-center gap-3 w-full text-left py-2 px-2 rounded-md transition-colors mb-1 hover:opacity-80 ${
+          isDisabled ? "opacity-50 cursor-not-allowed" : ""
+        } ${className}`}
+        style={buttonStyle}
+      >
+        {children}
+      </button>
+    </Tooltip>
+  );
+};
 
 const Actions: React.FC = () => {
   const [openCustomField, setOpenCustomField] = useState(false);
@@ -50,8 +94,15 @@ const Actions: React.FC = () => {
   const [openLabels, setOpenLabels] = useState(false);
   const { boardId } = useParams();
   const { selectedCard } = useCardDetailContext();
+  const theme = useSelector(selectTheme);
+  const isDarkMode = useSelector(selectIsDarkMode);
+  const { colors } = theme;
   const { archiveCard, unarchiveCard } = useCardDetails(
     selectedCard?.id || "",
+    selectedCard?.listId || "",
+    boardId as string
+  );
+  const { deleteCard } = useCards(
     selectedCard?.listId || "",
     boardId as string
   );
@@ -61,6 +112,26 @@ const Actions: React.FC = () => {
   const currentUser = currentAccountData?.data;
   const { isMember, toggleMember, isAddingMember, isRemovingMember } =
     useCardMembers(selectedCard?.id || "");
+
+  // Get permissions
+  const {
+    canManageCardMembers,
+    canManageCardLabels,
+    canManageCardDates,
+    canManageCardAttachments,
+    canManageCardChecklists,
+    canManageCardCustomFields,
+    canManageCardLocation,
+    canMoveCard,
+    canCopyCard,
+    canMirrorCard,
+    canArchiveCard,
+    canDeleteCard,
+    canShareCard,
+    canGenerateQR,
+    permissionLevel,
+    isObserver,
+  } = usePermissions();
 
   // Handle join/leave card
   const handleJoinLeave = async () => {
@@ -84,6 +155,21 @@ const Actions: React.FC = () => {
     ? isMember(currentUser.id)
     : false;
 
+  // Theme-aware button styles
+  const buttonStyle = {
+    backgroundColor: `rgb(${colors.muted})`,
+    color: `rgb(${colors.text})`,
+    border: `1px solid rgb(${colors.border})`,
+  };
+
+  const buttonHoverStyle = {
+    backgroundColor: `rgb(${colors.surface})`,
+  };
+
+  const iconStyle = {
+    color: `rgb(${colors["text-muted"]})`,
+  };
+
   const menuItems = [
     { icon: <Tag size={14} />, label: "Labels" },
     { icon: <CheckSquare size={14} />, label: "Checklist" },
@@ -99,6 +185,39 @@ const Actions: React.FC = () => {
     }
   };
 
+  const handleDeleteCard = () => {
+    if (!selectedCard?.id || !selectedCard?.listId) return;
+
+    Modal.confirm({
+      title: "Delete Card",
+      content: (
+        <div className="py-4">
+          <p className="mb-0">
+            Are you sure you want to delete{" "}
+            <strong>"{selectedCard.name}"</strong>?
+          </p>
+          <p className="mb-0 text-gray-600 mt-2">
+            This action cannot be undone.
+          </p>
+        </div>
+      ),
+      okText: "Delete",
+      okType: "danger",
+      cancelText: "Cancel",
+      styles: {
+        body: {
+          padding: "4rem",
+        },
+      },
+      width: 450,
+      centered: true,
+      onOk: () => {
+        deleteCard({ cardId: selectedCard.id, listId: selectedCard.listId });
+        message.success("Card deleted successfully!");
+      },
+    });
+  };
+
   return (
     <div className="w-full rounded-lg">
       {/* Join/Leave Button */}
@@ -108,9 +227,10 @@ const Actions: React.FC = () => {
         <button
           onClick={handleJoinLeave}
           disabled={isAddingMember || isRemovingMember}
-          className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 rounded-md transition-colors mb-1 disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-80"
+          style={buttonStyle}
         >
-          <span className="text-gray-600 text-xs">
+          <span className="text-xs" style={iconStyle}>
             {isCurrentUserMember ? (
               <UserMinus size={14} />
             ) : (
@@ -129,20 +249,37 @@ const Actions: React.FC = () => {
 
       {/* Menu Items */}
       {/* Labels Button */}
-      <PopoverLabel
-        open={openLabels}
-        setOpen={setOpenLabels}
-        triggerEl={
-          <Tooltip title="Manage card labels">
-            <button className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700">
-              <span className="text-gray-600 text-xs">
+      {canManageCardLabels() ? (
+        <PopoverLabel
+          open={openLabels}
+          setOpen={setOpenLabels}
+          triggerEl={
+            <PermissionButton
+              canPerform={canManageCardLabels()}
+              tooltip="Manage card labels"
+              permissionLevel={permissionLevel}
+              buttonStyle={buttonStyle}
+            >
+              <span className="text-xs" style={iconStyle}>
                 <Tag size={14} />
               </span>
               <span className="text-xs">Labels</span>
-            </button>
-          </Tooltip>
-        }
-      />
+            </PermissionButton>
+          }
+        />
+      ) : (
+        <PermissionButton
+          canPerform={canManageCardLabels()}
+          tooltip="Manage card labels"
+          permissionLevel={permissionLevel}
+          buttonStyle={buttonStyle}
+        >
+          <span className="text-xs" style={iconStyle}>
+            <Tag size={14} />
+          </span>
+          <span className="text-xs">Labels</span>
+        </PermissionButton>
+      )}
 
       {/* Regular menu items (excluding Checklist and Labels) */}
       {menuItems
@@ -150,91 +287,213 @@ const Actions: React.FC = () => {
         .map((item, index) => (
           <button
             key={index}
-            className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700"
+            className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 rounded-md transition-colors mb-1 hover:opacity-80"
+            style={buttonStyle}
           >
-            <span className="text-gray-600 text-xs">{item.icon}</span>
+            <span className="text-xs" style={iconStyle}>
+              {item.icon}
+            </span>
             <span className="text-xs">{item.label}</span>
           </button>
         ))}
 
       {/* Checklist with Popover */}
-      <PopoverChecklist
-        open={openChecklist}
-        setOpen={setOpenChecklist}
-        triggerEl={
-          <button className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700">
-            <span className="text-gray-600 text-xs">
-              <CheckSquare size={14} />
-            </span>
-            <span className="text-xs">Checklist</span>
-          </button>
-        }
-      />
+      {canManageCardChecklists() ? (
+        <PopoverChecklist
+          open={openChecklist}
+          setOpen={setOpenChecklist}
+          triggerEl={
+            <PermissionButton
+              canPerform={canManageCardChecklists()}
+              tooltip="Manage card checklists"
+              permissionLevel={permissionLevel}
+              buttonStyle={buttonStyle}
+            >
+              <span className="text-xs" style={iconStyle}>
+                <CheckSquare size={14} />
+              </span>
+              <span className="text-xs">Checklist</span>
+            </PermissionButton>
+          }
+        />
+      ) : (
+        <PermissionButton
+          canPerform={canManageCardChecklists()}
+          tooltip="Manage card checklists"
+          permissionLevel={permissionLevel}
+          buttonStyle={buttonStyle}
+        >
+          <span className="text-xs" style={iconStyle}>
+            <CheckSquare size={14} />
+          </span>
+          <span className="text-xs">Checklist</span>
+        </PermissionButton>
+      )}
 
-      <PopoverAttach
-        open={openAttach}
-        setOpen={setOpenAttach}
-        triggerEl={
-          <button className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700">
-            <span className="text-gray-600 text-xs">
-              <Paperclip size={14} />
-            </span>
-            <span className="text-xs">Attachment</span>
-          </button>
-        }
-      />
+      {/* Attachment */}
+      {canManageCardAttachments() ? (
+        <PopoverAttach
+          open={openAttach}
+          setOpen={setOpenAttach}
+          triggerEl={
+            <PermissionButton
+              canPerform={canManageCardAttachments()}
+              tooltip="Manage card attachments"
+              permissionLevel={permissionLevel}
+              buttonStyle={buttonStyle}
+            >
+              <span className="text-xs" style={iconStyle}>
+                <Paperclip size={14} />
+              </span>
+              <span className="text-xs">Attachment</span>
+            </PermissionButton>
+          }
+        />
+      ) : (
+        <PermissionButton
+          canPerform={canManageCardAttachments()}
+          tooltip="Manage card attachments"
+          permissionLevel={permissionLevel}
+          buttonStyle={buttonStyle}
+        >
+          <span className="text-xs" style={iconStyle}>
+            <Paperclip size={14} />
+          </span>
+          <span className="text-xs">Attachment</span>
+        </PermissionButton>
+      )}
 
-      <PopoverLocation
-        open={openLocation}
-        setOpen={setOpenLocation}
-        triggerEl={
-          <button className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700">
-            <span className="text-gray-600 text-xs">
-              <MapPin size={14} />
-            </span>
-            <span className="text-xs">Location</span>
-          </button>
-        }
-      />
+      {/* Location */}
+      {canManageCardLocation() ? (
+        <PopoverLocation
+          open={openLocation}
+          setOpen={setOpenLocation}
+          triggerEl={
+            <PermissionButton
+              canPerform={canManageCardLocation()}
+              tooltip="Manage card location"
+              permissionLevel={permissionLevel}
+              buttonStyle={buttonStyle}
+            >
+              <span className="text-xs" style={iconStyle}>
+                <MapPin size={14} />
+              </span>
+              <span className="text-xs">Location</span>
+            </PermissionButton>
+          }
+        />
+      ) : (
+        <PermissionButton
+          canPerform={canManageCardLocation()}
+          tooltip="Manage card location"
+          permissionLevel={permissionLevel}
+          buttonStyle={buttonStyle}
+        >
+          <span className="text-xs" style={iconStyle}>
+            <MapPin size={14} />
+          </span>
+          <span className="text-xs">Location</span>
+        </PermissionButton>
+      )}
 
-      <PopoverUser
-        open={openMembers}
-        setOpen={setOpenMembers}
-        triggerEl={
-          <button className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700">
-            <span className="text-gray-600 text-xs">
-              <Users size={14} />
-            </span>
-            <span className="text-xs">Members</span>
-          </button>
-        }
-      />
+      {/* Members */}
+      {canManageCardMembers() ? (
+        <PopoverUser
+          open={openMembers}
+          setOpen={setOpenMembers}
+          triggerEl={
+            <PermissionButton
+              canPerform={canManageCardMembers()}
+              tooltip="Manage card members"
+              permissionLevel={permissionLevel}
+              buttonStyle={buttonStyle}
+            >
+              <span className="text-xs" style={iconStyle}>
+                <Users size={14} />
+              </span>
+              <span className="text-xs">Members</span>
+            </PermissionButton>
+          }
+        />
+      ) : (
+        <PermissionButton
+          canPerform={canManageCardMembers()}
+          tooltip="Manage card members"
+          permissionLevel={permissionLevel}
+          buttonStyle={buttonStyle}
+        >
+          <span className="text-xs" style={iconStyle}>
+            <Users size={14} />
+          </span>
+          <span className="text-xs">Members</span>
+        </PermissionButton>
+      )}
 
-      <PopoverDates
-        open={openDates}
-        setOpen={setOpenDates}
-        triggerEl={
-          <button className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700">
-            <span className="text-gray-600 text-xs">
-              <Clock size={14} />
-            </span>
-            <span className="text-xs">Dates</span>
-          </button>
-        }
-      />
+      {/* Dates */}
+      {canManageCardDates() ? (
+        <PopoverDates
+          open={openDates}
+          setOpen={setOpenDates}
+          triggerEl={
+            <PermissionButton
+              canPerform={canManageCardDates()}
+              tooltip="Manage card dates"
+              permissionLevel={permissionLevel}
+              buttonStyle={buttonStyle}
+            >
+              <span className="text-xs" style={iconStyle}>
+                <Clock size={14} />
+              </span>
+              <span className="text-xs">Dates</span>
+            </PermissionButton>
+          }
+        />
+      ) : (
+        <PermissionButton
+          canPerform={canManageCardDates()}
+          tooltip="Manage card dates"
+          permissionLevel={permissionLevel}
+          buttonStyle={buttonStyle}
+        >
+          <span className="text-xs" style={iconStyle}>
+            <Clock size={14} />
+          </span>
+          <span className="text-xs">Dates</span>
+        </PermissionButton>
+      )}
 
-      <PopoverCustomField
-        open={openCustomField}
-        setOpen={setOpenCustomField}
-        triggerEl={
-          <button className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700">
-            <span className="text-gray-600 text-xs">
-              <RectangleEllipsis size={14} />
-            </span>
-            <span className="text-xs">Custom fields</span>
-          </button>
-        }
-      />
+      {/* Custom Fields */}
+      {canManageCardCustomFields() ? (
+        <PopoverCustomField
+          open={openCustomField}
+          setOpen={setOpenCustomField}
+          triggerEl={
+            <PermissionButton
+              canPerform={canManageCardCustomFields()}
+              tooltip="Manage custom fields"
+              permissionLevel={permissionLevel}
+              buttonStyle={buttonStyle}
+            >
+              <span className="text-xs" style={iconStyle}>
+                <RectangleEllipsis size={14} />
+              </span>
+              <span className="text-xs">Custom fields</span>
+            </PermissionButton>
+          }
+        />
+      ) : (
+        <PermissionButton
+          canPerform={canManageCardCustomFields()}
+          tooltip="Manage custom fields"
+          permissionLevel={permissionLevel}
+          buttonStyle={buttonStyle}
+        >
+          <span className="text-xs" style={iconStyle}>
+            <RectangleEllipsis size={14} />
+          </span>
+          <span className="text-xs">Custom fields</span>
+        </PermissionButton>
+      )}
 
       {/* Power-Ups Section */}
       {/* <div className="mt-4 mb-2">
@@ -261,109 +520,165 @@ const Actions: React.FC = () => {
 
       {/* Actions Section */}
       <div className="mt-4 mb-2">
-        <h3 className="text-sm font-medium text-gray-600 px-4 mb-2">Actions</h3>
+        <h3
+          className="text-sm font-medium px-4 mb-2"
+          style={{ color: `rgb(${colors["text-muted"]})` }}
+        >
+          Actions
+        </h3>
 
-        <PopoverMoveCard
-          open={openMoveCard}
-          setOpen={setOpenMoveCard}
-          triggerEl={
-            <Tooltip title={"Move this card to another card"}>
-              <button className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700">
+        {/* Move Card */}
+        {canMoveCard() ? (
+          <PopoverMoveCard
+            open={openMoveCard}
+            setOpen={setOpenMoveCard}
+            triggerEl={
+              <PermissionButton
+                canPerform={canMoveCard()}
+                tooltip="Move this card to another list"
+                permissionLevel={permissionLevel}
+                buttonStyle={buttonStyle}
+              >
                 <MoveRight size={14} />
                 <span className="text-xs">Move</span>
-              </button>
-            </Tooltip>
-          }
-        />
+              </PermissionButton>
+            }
+          />
+        ) : (
+          <PermissionButton
+            canPerform={canMoveCard()}
+            tooltip="Move this card to another list"
+            permissionLevel={permissionLevel}
+            buttonStyle={buttonStyle}
+          >
+            <MoveRight size={14} />
+            <span className="text-xs">Move</span>
+          </PermissionButton>
+        )}
 
-        <Tooltip title="Copy this card to another list">
+        {/* Copy Card */}
+        {canCopyCard() ? (
           <PopoverCopyCard
             open={openCopyCard}
             setOpen={setOpenCopyCard}
             triggerEl={
-              <Tooltip title={"Copy this card to another list"}>
-                <button className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700">
-                  <Copy size={14} />
-                  <span className="text-xs">Copy</span>
-                </button>
-              </Tooltip>
+              <PermissionButton
+                canPerform={canCopyCard()}
+                tooltip="Copy this card to another list"
+                permissionLevel={permissionLevel}
+                buttonStyle={buttonStyle}
+              >
+                <Copy size={14} />
+                <span className="text-xs">Copy</span>
+              </PermissionButton>
             }
           />
-        </Tooltip>
+        ) : (
+          <PermissionButton
+            canPerform={canCopyCard()}
+            tooltip="Copy this card to another list"
+            permissionLevel={permissionLevel}
+            buttonStyle={buttonStyle}
+          >
+            <Copy size={14} />
+            <span className="text-xs">Copy</span>
+          </PermissionButton>
+        )}
 
-        <Tooltip title="Miror this card">
+        {/* Mirror Card */}
+        {canMirrorCard() ? (
           <PopoverMirrorCard
             open={openMirrorCard}
             setOpen={setOpenMirrorCard}
             triggerEl={
-              <Tooltip title={"Copy this card to another list"}>
-                <button className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700">
-                  <FlipHorizontal size={14} />
-                  <span className="text-xs">Mirror</span>
-                </button>
-              </Tooltip>
+              <PermissionButton
+                canPerform={canMirrorCard()}
+                tooltip="Mirror this card"
+                permissionLevel={permissionLevel}
+                buttonStyle={buttonStyle}
+              >
+                <FlipHorizontal size={14} />
+                <span className="text-xs">Mirror</span>
+              </PermissionButton>
             }
           />
-        </Tooltip>
-
-        <Tooltip title="Archive this card">
-          <button
-            className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700"
-            onClick={handleArchival}
+        ) : (
+          <PermissionButton
+            canPerform={canMirrorCard()}
+            tooltip="Mirror this card"
+            permissionLevel={permissionLevel}
+            buttonStyle={buttonStyle}
           >
-            {selectedCard?.archive ? (
-              <>
-                <RotateCcw size={14} />
-                <span className="text-xs">Restore {selectedCard?.archive}</span>
-              </>
-            ) : (
-              <>
-                <Archive size={14} />
-                <span className="text-xs">Archive {selectedCard?.archive}</span>
-              </>
-            )}
-          </button>
-        </Tooltip>
-
-        {selectedCard?.archive && (
-          <Tooltip title="Delete this card">
-            <button
-              className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700"
-              color="danger"
-            >
-              <QrCode size={14} />
-              <span className="text-xs">Delete</span>
-            </button>
-          </Tooltip>
+            <FlipHorizontal size={14} />
+            <span className="text-xs">Mirror</span>
+          </PermissionButton>
         )}
 
-        <Tooltip title="Share this card with others by copying the link">
-          <button
-            onClick={() => {
-              const url = `${
-                window.location.href
-              }?listId=${"listId"}&cardId=${"cardId"}`;
-              navigator.clipboard.writeText(url);
-              message.info("Copied to clipboard");
-            }}
-            className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700"
-          >
-            <Share2 size={14} />
-            <span className="text-xs">Share</span>
-          </button>
-        </Tooltip>
+        {/* Archive/Restore Card */}
+        <PermissionButton
+          canPerform={canArchiveCard()}
+          onClick={handleArchival}
+          tooltip={
+            selectedCard?.archive ? "Restore this card" : "Archive this card"
+          }
+          permissionLevel={permissionLevel}
+          buttonStyle={buttonStyle}
+        >
+          {selectedCard?.archive ? (
+            <>
+              <RotateCcw size={14} />
+              <span className="text-xs">Restore</span>
+            </>
+          ) : (
+            <>
+              <Archive size={14} />
+              <span className="text-xs">Archive</span>
+            </>
+          )}
+        </PermissionButton>
 
-        <Tooltip title="Generate this card QR code">
-          <button
-            onClick={() => {
-              setOpenQrModal(true);
-            }}
-            className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors mb-1 text-gray-700"
+        {/* Delete Card (only for archived cards) */}
+        {selectedCard?.archive && (
+          <PermissionButton
+            canPerform={canDeleteCard()}
+            onClick={handleDeleteCard}
+            tooltip="Delete this card permanently"
+            className="text-red-600"
+            permissionLevel={permissionLevel}
+            buttonStyle={buttonStyle}
           >
-            <QrCode size={14} />
-            <span className="text-xs">Generate QR</span>
-          </button>
-        </Tooltip>
+            <Trash2 size={14} />
+            <span className="text-xs">Delete</span>
+          </PermissionButton>
+        )}
+
+        {/* Share Card */}
+        <PermissionButton
+          canPerform={canShareCard()}
+          onClick={() => {
+            const url = `${window.location.href}?listId=${selectedCard?.listId}&cardId=${selectedCard?.id}`;
+            navigator.clipboard.writeText(url);
+            message.info("Copied to clipboard");
+          }}
+          tooltip="Share this card with others by copying the link"
+          permissionLevel={permissionLevel}
+          buttonStyle={buttonStyle}
+        >
+          <Share2 size={14} />
+          <span className="text-xs">Share</span>
+        </PermissionButton>
+
+        {/* Generate QR Code */}
+        <PermissionButton
+          canPerform={canGenerateQR()}
+          onClick={() => setOpenQrModal(true)}
+          tooltip="Generate this card QR code"
+          permissionLevel={permissionLevel}
+          buttonStyle={buttonStyle}
+        >
+          <QrCode size={14} />
+          <span className="text-xs">Generate QR</span>
+        </PermissionButton>
 
         <QRModal isOpen={openQrModal} onClose={() => setOpenQrModal(false)} />
       </div>

@@ -16,15 +16,16 @@ import {
   Space,
   message,
   Spin,
+  Tooltip,
 } from "antd";
 import { useEffect, useState } from "react";
 import AddUserModal from "./add_user_modal";
 import { accountList, userDetails } from "@api/account";
 import { useParams } from "next/navigation";
 import { Account } from "@dto/account";
-import { Settings, Trash } from "lucide-react";
+import { Edit, Plus, Settings, Trash, Trash2, Users } from "lucide-react";
 import { useAllRoles } from "../../../../hooks/board";
-import { useUpdateAnyAccount } from "@hooks/account";
+import { useUpdateAnyAccount, usePermissions } from "@hooks/account";
 
 type MenuItem = Required<MenuProps>["items"][number];
 
@@ -34,6 +35,7 @@ const TableMembers: React.FC<{
   dataSource?: Account[];
   onEdit: (user: Account) => void;
 }> = ({ dataSource = [], onEdit }) => {
+  const { canManageUsers, permissionLevel } = usePermissions();
   const columns = [
     {
       title: "User",
@@ -80,12 +82,34 @@ const TableMembers: React.FC<{
       render: (_: any, record: Account) => {
         return (
           <Space size="middle">
-            <Button
-              type="text"
-              icon={<Settings size={16} />}
-              onClick={() => onEdit(record)}
-            />
-            <Button type="text" danger icon={<Trash size={16} />} />
+            <Tooltip
+              title={
+                !canManageUsers()
+                  ? `Insufficient permissions to edit users (${permissionLevel})`
+                  : "Edit user"
+              }
+            >
+              <Button
+                type="text"
+                icon={<Settings size={16} />}
+                onClick={() => onEdit(record)}
+                disabled={!canManageUsers()}
+              />
+            </Tooltip>
+            <Tooltip
+              title={
+                !canManageUsers()
+                  ? `Insufficient permissions to delete users (${permissionLevel})`
+                  : "Delete user"
+              }
+            >
+              <Button 
+                type="text" 
+                danger 
+                icon={<Trash size={16} />} 
+                disabled={!canManageUsers()}
+              />
+            </Tooltip>
           </Space>
         );
       },
@@ -107,6 +131,11 @@ const Members: React.FC = () => {
   const resolvedWorkspaceId = Array.isArray(workspaceId)
     ? workspaceId[0]
     : (workspaceId as string);
+  
+  // Get permissions
+  const { canManageUsers, permissionLevel } = usePermissions();
+  
+  // All hooks must be declared before any conditional returns
   const { data: rolesResponse, isLoading: rolesLoading } = useAllRoles(
     resolvedWorkspaceId || ""
   );
@@ -218,6 +247,26 @@ const Members: React.FC = () => {
     }
   }, [isFetching]);
 
+  // Check if user has access to this page
+  if (!canManageUsers()) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full">
+        <div className="text-center">
+          <Typography.Title level={3} type="secondary">
+            Access Denied
+          </Typography.Title>
+          <Typography.Text type="secondary">
+            You don't have permission to manage members in this workspace.
+          </Typography.Text>
+          <br />
+          <Typography.Text type="secondary" className="text-sm">
+            Current permission level: {permissionLevel}
+          </Typography.Text>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="page scrollable-page">
       <div
@@ -230,9 +279,21 @@ const Members: React.FC = () => {
           </Typography.Title>
           {/* <Badge count={memberCount}></Badge> */}
         </div>
-        <Button size="small" onClick={openAddUserModal}>
-          <i className="fi fi-sr-user-add"></i> Add User
-        </Button>
+        <Tooltip
+          title={
+            !canManageUsers()
+              ? `Insufficient permissions to add users (${permissionLevel})`
+              : "Add a new user to the workspace"
+          }
+        >
+          <Button 
+            size="small" 
+            onClick={openAddUserModal}
+            disabled={!canManageUsers()}
+          >
+            <i className="fi fi-sr-user-add"></i> Add User
+          </Button>
+        </Tooltip>
       </div>
 
       <div className="flex">

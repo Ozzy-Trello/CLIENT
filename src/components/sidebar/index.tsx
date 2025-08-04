@@ -36,6 +36,7 @@ import {
   selectCurrentWorkspace,
   setCurrentBoard,
 } from "@store/workspace_slice";
+import { selectTheme, selectIsDarkMode } from "@store/app_slice";
 import { useBoards } from "@hooks/board";
 import { useParams, useRouter } from "next/navigation";
 import { Board } from "@myTypes/board";
@@ -58,6 +59,9 @@ const Sidebar = () => {
     useState<boolean>(false);
   const currentWorkspace = useSelector(selectCurrentWorkspace);
   const currentBoard = useSelector(selectCurrentBoard);
+  const theme = useSelector(selectTheme);
+  const isDarkMode = useSelector(selectIsDarkMode);
+  const { colors } = theme;
   const { boards } = useBoards(
     Array.isArray(workspaceId) ? workspaceId[0] : workspaceId || ""
   );
@@ -212,11 +216,17 @@ const Sidebar = () => {
                 }
               >
                 <Typography.Text strong>Your boards</Typography.Text>
-                {canCreateBoard && (
-                  <Button size="small" onClick={handleOpenBoardModal}>
+                <Tooltip
+                  title={!canCreateBoard ? "Insufficient permissions to create boards" : "Create new board"}
+                >
+                  <Button 
+                    size="small" 
+                    onClick={canCreateBoard ? handleOpenBoardModal : undefined}
+                    disabled={!canCreateBoard}
+                  >
                     +
                   </Button>
-                )}
+                </Tooltip>
               </div>
             ),
             icon: <span></span>,
@@ -250,8 +260,8 @@ const Sidebar = () => {
                     alignItems: "center",
                     justifyContent: "center",
                     backgroundColor: board?.background?.startsWith("http")
-                      ? "#f0f2f5"
-                      : board?.background || "#f0f2f5",
+                      ? `rgb(${colors.muted})`
+                      : board?.background || `rgb(${colors.muted})`,
                     backgroundImage:
                       board?.cover || board?.background?.startsWith("http")
                         ? `url('${board.cover || board.background}')`
@@ -264,7 +274,7 @@ const Sidebar = () => {
                   {!board?.cover && !board?.background?.startsWith("http") && (
                     <span
                       style={{
-                        color: "#000",
+                        color: `rgb(${colors.text})`,
                         fontSize: "16px",
                         fontWeight: "bold",
                       }}
@@ -325,7 +335,7 @@ const Sidebar = () => {
       style={{ width: collapsed ? siderSmall : siderWide }}
     >
       <Sider
-        className={`transition-all duration-200 ease-in-out border-r border-gray-200 ${
+        className={`transition-all duration-200 ease-in-out ${
           collapsed ? "w-3 scrollbar-none" : ""
         }`}
         collapsed={collapsed}
@@ -335,8 +345,9 @@ const Sidebar = () => {
           left: 0,
           top: 45,
           overflow: "visible",
-          backgroundColor: "rgba(255, 255, 255, 0.85)", // Semi-transparent background
+          backgroundColor: `rgba(${colors.surface}, 0.85)`, // Theme-aware semi-transparent background
           backdropFilter: "blur(5px)", // Add blur effect for better readability
+          borderRight: `1px solid rgb(${colors.border})`, // Theme-aware border
           zIndex: 101,
         }}
         width={collapsed ? siderSmall : siderWide}
@@ -349,7 +360,10 @@ const Sidebar = () => {
         >
           {!collapsed && (
             <>
-              <div className="flex justify-between items-center p-2.5 border-b border-gray-100">
+              <div 
+                className="flex justify-between items-center p-2.5"
+                style={{ borderBottom: `1px solid rgb(${colors.border})` }}
+              >
                 <div className="flex items-center gap-2">
                   <Avatar shape="square" size={"small"}>
                     {currentWorkspace ? currentWorkspace.name.charAt(0) : ""}
@@ -400,7 +414,7 @@ const Sidebar = () => {
         placement="right"
       >
         <Button
-          className={`absolute top-[58px] flex items-center justify-center rounded-full w-6 h-6 bg-white shadow-md border border-gray-200 p-0 transition-all duration-200 ease-in-out hover:shadow-lg ${
+          className={`absolute top-[58px] flex items-center justify-center rounded-full w-6 h-6 p-0 transition-all duration-200 ease-in-out hover:shadow-lg ${
             isHovered ? "scale-105" : ""
           }`}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
@@ -415,6 +429,10 @@ const Sidebar = () => {
               ? `calc(${siderSmall}px - 10px)`
               : `calc(${siderWide}px - 30px)`,
             zIndex: 102,
+            backgroundColor: `rgb(${colors.surface})`,
+            border: `1px solid rgb(${colors.border})`,
+            color: `rgb(${colors.text})`,
+            boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)",
           }}
         />
       </Tooltip>

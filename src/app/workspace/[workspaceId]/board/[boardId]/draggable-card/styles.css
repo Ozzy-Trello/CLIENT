@@ -7,9 +7,9 @@
     z-index: 1;
   }
   
-  /* White checkmark */
+  /* Light checkmark */
   .custom-circular-checkbox .ant-checkbox-checked .ant-checkbox-inner::after {
-    border-color: white !important;
+    border-color: rgb(var(--color-background)) !important;
     top: 50%;
     left: 50%;
     width: 4px;

@@ -317,7 +317,8 @@ export const ListSelection = forwardRef<SelectionRef, ListSelectionProps>(
       { label: string; value: string } | { label: string; value: string }[]
     >();
     const [listData, setListData] = useState<AnyList[]>([]);
-    const { boardId } = useParams();
+    const params = useParams();
+    const boardId = params.boardId ? decodeURIComponent(params.boardId as string) : undefined;
     const [selectedBoardId, setSelectedBoardId] = useState<string>(
       boardIdProp || (boardId as string)
     );
@@ -417,14 +418,23 @@ export const ListSelection = forwardRef<SelectionRef, ListSelectionProps>(
 
     useEffect(() => {
       const fetchData = async () => {
-        const data = await lists(selectedBoardId);
-        if (data?.data) {
-          setListData(data.data);
+        console.log("[LIST SELECTION] Fetching lists for boardId:", selectedBoardId, "type:", typeof selectedBoardId);
+        try {
+          const data = await lists(selectedBoardId);
+          if (data?.data) {
+            setListData(data.data);
+          }
+        } catch (error) {
+          console.error("[LIST SELECTION] Error fetching lists:", error);
+          setListData([]);
         }
       };
 
-      if (selectedBoardId) {
+      // Only fetch if selectedBoardId is valid (not empty, null, undefined, or just whitespace)
+      if (selectedBoardId && typeof selectedBoardId === 'string' && selectedBoardId.trim() && selectedBoardId !== "undefined" && selectedBoardId !== "null") {
         fetchData();
+      } else {
+        setListData([]);
       }
     }, [selectedBoardId]);
 
@@ -471,7 +481,8 @@ export const BoardSelection = forwardRef<SelectionRef, SelectionProps>(
       label: string;
       value: string;
     }>();
-    const { workspaceId } = useParams();
+    const params = useParams();
+    const workspaceId = params.workspaceId ? decodeURIComponent(params.workspaceId as string) : undefined;
     const [boardsData, setBoardsData] = useState<Board[]>([]);
 
     useImperativeHandle(ref, () => ({
@@ -579,7 +590,8 @@ export const CardPositionSelection = forwardRef<SelectionRef, SelectionProps>(
       label: string;
       value: string;
     }>();
-    const { boardId } = useParams();
+    const params = useParams();
+    const boardId = params.boardId ? decodeURIComponent(params.boardId as string) : undefined;
     const [cardsInList, setCardsInList] = useState<Card[]>([]);
     const [isFetchingData, setIsFetchingData] = useState<boolean>(false);
 
@@ -704,7 +716,8 @@ export const LabelSelection = forwardRef<SelectionRef, SelectionProps>(
       label: string;
       value: string;
     }>();
-    const { workspaceId } = useParams();
+    const params = useParams();
+    const workspaceId = decodeURIComponent(params.workspaceId as string);
     const { allLabels } = useLabels(workspaceId as string);
 
     const options = useMemo(() => {
@@ -800,7 +813,9 @@ export const CustomFieldSelection = forwardRef<
       label: string;
       value: string;
     }>();
-    const { workspaceId, boardId } = useParams();
+    const params = useParams();
+    const workspaceId = decodeURIComponent(params.workspaceId as string);
+    const boardId = decodeURIComponent(params.boardId as string);
     const { customFields } = useCustomFields(
       Array.isArray(workspaceId) ? workspaceId[0] : workspaceId
     );

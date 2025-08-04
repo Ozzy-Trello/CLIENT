@@ -3,24 +3,30 @@ import { Popover, Typography } from "antd";
 import { ChevronLeft, X } from "lucide-react";
 import { useParams } from "next/navigation";
 import { UserSelection } from "../selection";
-import ContentMoveCard from "./content";
+import ContentCopyCard from "./content";
+import { Card } from "@myTypes/card";
+import { AnyList } from "@myTypes/list";
 
 interface PopoverCopyCardProps {
   open: boolean;
   setOpen: (open: boolean) => void;
   triggerEl?: ReactNode;
+  card?: Card;
+  list?: AnyList;
 }
 
 const PopoverCopyCard: React.FC<PopoverCopyCardProps> = ({ 
   open, 
   setOpen, 
-  triggerEl 
+  triggerEl,
+  card,
+  list
 }) => {
   const { workspaceId } = useParams();
  
   return (
     <Popover
-      content={<ContentMoveCard />}
+      content={<ContentCopyCard card={card} list={list} onClose={() => setOpen(false)} />}
       title={
         <div className="flex justify-between items-center">
           <div className="flex justify-start items-center gap-2">

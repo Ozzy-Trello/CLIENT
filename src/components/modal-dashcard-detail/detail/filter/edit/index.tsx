@@ -57,21 +57,47 @@ const EditFilter: FC = () => {
     // Convert Map to array
     const allFilters = Array.from(uniqueFiltersMap.values());
 
-    // Filter out items already in currentFilter
-    const availableFilters = allFilters.filter(
-      (filter) =>
-        !currentFilter?.some(
-          (currentFilterItem) => currentFilterItem.id === filter.id
-        )
-    );
+    // For custom fields, filter out already selected ones to prevent duplicates
+    // For other filter types, always keep them available for multiple instances
+    const availableFilters = allFilters.filter((filter) => {
+      if (filter.type === EnumCardAttributeType.CUSTOM_FIELD) {
+        // For custom fields, check if base ID is already selected
+        const selectedCustomFieldIds = currentFilter
+          ?.filter((f) => f.type === EnumCardAttributeType.CUSTOM_FIELD)
+          .map((f) => f.id.split('_')[0]); // Get base ID without instance suffix
+        return !selectedCustomFieldIds?.includes(filter.id);
+      }
+      // For other filter types, always keep them available for multiple instances
+      return true;
+    });
 
     return availableFilters;
   }, [customFields, currentFilter]);
 
   const addFilter = (id: string) => {
-    const findFilter = availableFilters.find((filter) => filter.id === id);
-    if (!findFilter) return;
-    setCurrentFilter([...currentFilter, findFilter]);
+    const filterTemplate = availableFilters.find((filter) => filter.id === id);
+    if (!filterTemplate) return;
+
+    // Create a new instance with a unique ID while preserving the original type
+    const timestamp = Date.now();
+    const instanceId = `${id}_${timestamp}`;
+    
+    // Count existing instances of this filter type for display purposes
+    const existingInstances = currentFilter.filter(f => f.type === filterTemplate.type).length;
+    const instanceNumber = existingInstances + 1;
+    
+    const newFilterInstance: DashcardFilter = {
+      ...filterTemplate,
+      id: instanceId,
+      label: existingInstances > 0 ? `${filterTemplate.label} #${instanceNumber}` : filterTemplate.label,
+      // Keep the original type for backend compatibility
+      type: filterTemplate.type,
+      // Reset operator and value for new instance
+      operator: filterTemplate.operator,
+      value: undefined,
+    };
+    
+    setCurrentFilter([...currentFilter, newFilterInstance]);
   };
 
   return (
@@ -85,6 +111,10 @@ const EditFilter: FC = () => {
           className="w-48 mt-2"
           placeholder="Add more filters"
           size="small"
+          showSearch
+          filterOption={(input, option) =>
+            (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+          }
           options={availableFilters.map((f) => ({
             label: f.label,
             value: f.id,

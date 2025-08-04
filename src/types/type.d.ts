@@ -68,6 +68,7 @@ export interface SelectedCardFilterItem {
 }
 
 export interface SelectedAction {
+  id?: string; // Add ID field for direct action updates
   groupType?: string;
   type?: string;
   selectedActionItem?: SelectedActionItem;
@@ -171,6 +172,7 @@ export interface AutomationRuleConditionApiData {
   [key: string]: any | undefined;
 }
 export interface AutomationRuleActionApiData {
+  id?: string; // Add ID field for direct action updates
   groupType: string;
   type: string;
   condition: AutomationRuleConditionApiData;

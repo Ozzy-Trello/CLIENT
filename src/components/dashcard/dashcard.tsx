@@ -18,7 +18,12 @@ import {
   DashcardConfig,
   EnumCardAttributeType,
   DashcardFilter,
+  DashcardDisplayType,
 } from "@myTypes/dashcard";
+import { LookupCache } from "@utils/lookup-cache";
+import { useDashcardCount } from "@hooks/dashcard";
+import { useCustomFields } from "@hooks/custom_field";
+import { useParams } from "next/navigation";
 
 const { Title, Text } = Typography;
 
@@ -51,7 +56,25 @@ const Dashcard: React.FC<DashcardProps> = ({
   onDelete,
   onClick,
 }) => {
+  const { workspaceId } = useParams();
   const [showActions, setShowActions] = useState(false);
+  const { customFields } = useCustomFields(
+    Array.isArray(workspaceId) ? workspaceId[0] : workspaceId
+  );
+
+  // Get display label based on display type
+  const getDisplayLabel = () => {
+    if (!config.displayConfig || config.displayConfig.type === DashcardDisplayType.CARD_COUNT) {
+      return config.name;
+    }
+    
+    if (config.displayConfig.type === DashcardDisplayType.CUSTOM_FIELD_SUM && config.displayConfig.customFieldId) {
+      const customField = customFields?.find(field => field.id === config.displayConfig?.customFieldId);
+      return customField ? `${customField.name} Total` : config.name;
+    }
+    
+    return config.name;
+  };
   const { id, name, backgroundColor, filters } = config;
 
   // Calculate text color based on background brightness
@@ -81,13 +104,32 @@ const Dashcard: React.FC<DashcardProps> = ({
       return filter.value ? "Yes" : "No";
     }
 
-    if (Array.isArray(filter.value)) {
-      return filter.value.length > 0
-        ? `${filter.value.length} selected`
-        : "None";
+    // Handle complex due date objects for "later than" and "earlier than"
+    if (typeof filter.value === "object" && !Array.isArray(filter.value)) {
+      const value = filter.value as any;
+      if (value.type && value.number && value.unit && value.reference) {
+        const displayReference = value.reference === 'from_now' ? 'from now' : value.reference;
+        return `${value.number} ${value.unit}${value.number > 1 ? 's' : ''} ${displayReference}`;
+      }
     }
 
-    return filter.value;
+    if (Array.isArray(filter.value)) {
+      if (filter.value.length === 0) return "None";
+      
+      // Try to get friendly names for array values
+      const friendlyNames = filter.value.map((val: any) => {
+        const friendlyName = LookupCache.any(val);
+        return friendlyName || val;
+      });
+      
+      return friendlyNames.length > 3 
+        ? `${friendlyNames.slice(0, 3).join(", ")} +${friendlyNames.length - 3} more`
+        : friendlyNames.join(", ");
+    }
+
+    // For single values, try to get friendly name from LookupCache
+    const friendlyName = LookupCache.any(filter.value as string);
+    return friendlyName || String(filter.value);
   };
 
   return (
@@ -109,7 +151,7 @@ const Dashcard: React.FC<DashcardProps> = ({
         style={{ backgroundColor, color: textColor }}
       >
         <div className="text-6xl font-bold">{count}</div>
-        <div className="text-xl mt-2">{name}</div>
+        <div className="text-xl mt-2">{getDisplayLabel()}</div>
 
         {/* Action buttons */}
         {showActions && (

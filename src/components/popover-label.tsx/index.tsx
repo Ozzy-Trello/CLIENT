@@ -34,7 +34,7 @@ const PopoverLabel: React.FC<PopoverLabel> = ({ open, setOpen, triggerEl }) => {
     if (open) {
       reset();
     }
-  }, [open]);
+  }, [open, reset]);
 
   const onCancel = () => {
     setOpen(false);

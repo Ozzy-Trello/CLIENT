@@ -23,7 +23,7 @@ export function useLabels(
   const labelsQuery = useQuery({
     queryKey: ["labels", workspaceId, labelQueryParams],
     queryFn: () => getLabels(workspaceId, labelQueryParams || {}),
-    enabled: !!workspaceId,
+    enabled: !!workspaceId && !!labelQueryParams,
   });
 
   const allLabelsQuery = useQuery({

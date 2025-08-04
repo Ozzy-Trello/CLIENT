@@ -44,3 +44,10 @@ export const getAllLabels = async (
   });
   return data;
 };
+
+export const labelDetails = async (
+  labelId: string
+): Promise<ApiResponse<LabelAttributes>> => {
+  const { data } = await api.get(`/label/${labelId}`);
+  return data;
+};

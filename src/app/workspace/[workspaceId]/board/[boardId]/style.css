@@ -1,19 +1,19 @@
-HEADER component
+/* HEADER component */
 .board-page header {
-  background-color: rgba(0, 0, 0, 0.09) !important;
-  border-color: rgba(0, 0, 0, 0.09) !important;
+  background-color: rgba(var(--color-surface), 0.8) !important;
+  border-color: rgba(var(--color-border), 0.5) !important;
 }
 
 
 /* SIDEBAR component */
 .board-page .sidebar {
-  background-color: rgba(0, 0, 0, 0.05) !important;
-  border-color: rgba(0, 0, 0, 0.05) !important;
+  background-color: rgba(var(--color-surface), 0.8) !important;
+  border-color: rgba(var(--color-border), 0.5) !important;
 }
 
 .board-page .sidebar .sidebar-title {
-  background-color: rgba(0, 0, 0, 0.05) !important;
-  border-color: rgba(0, 0, 0, 0.05) !important;
+  background-color: rgba(var(--color-surface), 0.8) !important;
+  border-color: rgba(var(--color-border), 0.5) !important;
 }
 
 .board-page .sidebar ul {
@@ -22,17 +22,17 @@ HEADER component
 
 /* topbar */
 .board-page .board-page-topbar {
-  background-color: rgba(0, 0, 0, 0.05) !important;
-  border-color: rgba(0, 0, 0, 0.05) !important;
+  background-color: rgba(var(--color-surface), 0.8) !important;
+  border-color: rgba(var(--color-border), 0.5) !important;
 }
 
 button {
-  background-color: rgba(0, 0, 0, 0.05) !important;
-  border-color: rgba(0, 0, 0, 0.05) !important;
+  background-color: rgba(var(--color-surface), 0.8) !important;
+  border-color: rgba(var(--color-border), 0.5) !important;
 }
 
 .add-list-wrapper {
-  background-color: white !important;
+  background-color: rgb(var(--color-surface)) !important;
   padding: 10px;
   border-radius: 7px;
 }

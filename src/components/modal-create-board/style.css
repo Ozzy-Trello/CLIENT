@@ -129,7 +129,7 @@
   right: 12px;
   display: flex;
   gap: 8px;
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(var(--color-surface), 0.9);
   padding: 6px;
   border-radius: 20px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -141,8 +141,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: white;
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: rgb(var(--color-surface));
+  border: 1px solid rgba(var(--color-border), 0.5);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
   transition: all 0.2s;
 }

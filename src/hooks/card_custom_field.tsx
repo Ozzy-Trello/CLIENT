@@ -256,7 +256,7 @@ export const useCardCustomField = (cardId: string, workspaceId: string) => {
 
   const getNumberValue = (customFieldId: string): number | null => {
     const field = getCustomField(customFieldId);
-    return field?.valueNumber || null;
+    return field?.valueNumber !== undefined && field?.valueNumber !== null ? field.valueNumber : null;
   };
 
   const getOptionValue = (customFieldId: string): string | null => {
@@ -266,7 +266,7 @@ export const useCardCustomField = (cardId: string, workspaceId: string) => {
 
   const getCheckboxValue = (customFieldId: string): boolean | null => {
     const field = getCustomField(customFieldId);
-    return field?.valueCheckbox || null;
+    return field?.valueCheckbox !== undefined && field?.valueCheckbox !== null ? field.valueCheckbox : null;
   };
 
   const getDateValue = (customFieldId: string): Date | null => {

@@ -294,10 +294,38 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
                 return name || "-";
               }
 
-              // dropdown or text/number fallback
-              return (
-                item.valueOption || item.valueString || item.valueNumber || "-"
-              );
+              // Prioritize correct value type based on custom field type
+              if (item.type === "number") {
+                if (item.valueNumber !== null && item.valueNumber !== undefined) {
+                  // Format number with separators
+                  return typeof item.valueNumber === 'number' 
+                    ? item.valueNumber.toLocaleString() 
+                    : parseFloat(item.valueNumber).toLocaleString();
+                }
+              } else if (item.type === "dropdown") {
+                if (item.valueOption !== null && item.valueOption !== undefined) {
+                  return item.valueOption;
+                }
+              } else if (item.type === "text") {
+                if (item.valueString !== null && item.valueString !== undefined) {
+                  return item.valueString;
+                }
+              }
+              
+              // Fallback to original order for other types or if primary value is null
+              if (item.valueOption !== null && item.valueOption !== undefined) {
+                return item.valueOption;
+              }
+              if (item.valueString !== null && item.valueString !== undefined) {
+                return item.valueString;
+              }
+              if (item.valueNumber !== null && item.valueNumber !== undefined) {
+                // Format number with separators for fallback case too
+                return typeof item.valueNumber === 'number' 
+                  ? item.valueNumber.toLocaleString() 
+                  : parseFloat(item.valueNumber).toLocaleString();
+              }
+              return "-";
             };
 
             const valueToShow = renderValue();

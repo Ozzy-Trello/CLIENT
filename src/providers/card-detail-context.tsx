@@ -5,6 +5,7 @@ import React, {
   ReactNode,
   useEffect,
   useRef,
+  useCallback,
 } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { cardDetails, updateCard } from "../api/card";
@@ -14,6 +15,7 @@ import {
   DashcardConfig,
   DashcardFilter,
   FilterOperator,
+  FilterValue,
 } from "@myTypes/dashcard";
 import { useDebouncedCallback } from "@hooks/useDebouncedCallback";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -35,9 +37,11 @@ type CardDetailContextType = {
   }: {
     id: string;
     operator?: string;
-    value?: string | boolean;
+    value?: FilterValue;
   }) => void;
   handleDeleteFilter: (type: string, id?: string) => void;
+  updateDisplayConfig: (displayConfig: any) => void;
+  updateBackgroundColor: (backgroundColor: string) => void;
 
   dashcardConfig: DashcardConfig | undefined;
   setDashcardConfig: React.Dispatch<
@@ -83,6 +87,8 @@ const CardDetailContext = createContext<CardDetailContextType>({
 
   handleChangeFilter: () => {},
   handleDeleteFilter: () => {},
+  updateDisplayConfig: () => {},
+  updateBackgroundColor: () => {},
 
   isUpdatingCard: false,
 });
@@ -159,7 +165,25 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
   };
 
   const { mutate, isPending } = useMutation({
-    mutationFn: (data: Partial<Card>) => updateCard(selectedCard!.id, data),
+    mutationFn: (data: Partial<Card>) => {
+      // For dashcard configuration updates, we don't need to send listId
+      // Only include listId if we're actually moving the card to a different list
+      const isDashcardConfigUpdate = data.dashConfig && Object.keys(data).length === 1;
+      
+      let updateData: Partial<Card>;
+      if (isDashcardConfigUpdate) {
+        // Only send dashConfig, no listId
+        updateData = { dashConfig: data.dashConfig };
+      } else {
+        // For other updates, include listId for the backend header requirement
+        updateData = {
+          ...data,
+          listId: selectedCard?.listId || activeList?.id,
+        };
+      }
+      
+      return updateCard(selectedCard!.id, updateData);
+    },
     onSuccess: async () => {
       queryClient.refetchQueries({
         queryKey: ["list-dashcard", selectedCard?.id, workspaceId],
@@ -168,10 +192,13 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
         queryKey: ["dashcardCount", selectedCard?.id],
       });
     },
-    onError: () => {},
+    onError: (error) => {
+      console.error("Error updating dashcard:", error);
+      // You can add a toast notification here if needed
+    },
   });
 
-  const closeCardDetail = () => {
+  const closeCardDetail = useCallback(() => {
     setSelectedCard(null);
     setActiveList(null);
     setIsCardDetailOpen(false);
@@ -187,7 +214,7 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
       ? `${window.location.pathname}?${params.toString()}`
       : window.location.pathname;
     router.replace(newUrl, { scroll: false });
-  };
+  }, [router, searchParams]);
 
   const handleItemDashcard = (
     cardId: string,
@@ -223,36 +250,39 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
   }: {
     id: string;
     operator?: string;
-    value?: string | boolean;
+    value?: FilterValue;
   }) => {
-    const findFilter = currentFilter.find((filter) => filter.id === id);
-
-    if (!findFilter) return;
-
-    if (operator || operator === "")
-      findFilter.operator = operator as FilterOperator;
-    if (value || value === "") findFilter.value = value;
-
     setCurrentFilter((prev) => {
-      handleFilter(prev);
-      return [...prev];
+      const updatedFilters = prev.map((filter) => {
+        if (filter.id === id) {
+          return {
+            ...filter,
+            ...(operator !== undefined && { operator: operator as FilterOperator }),
+            ...(value !== undefined && { value }),
+          };
+        }
+        return filter;
+      });
+      
+      handleFilter(updatedFilters);
+      return updatedFilters;
     });
   };
 
   const handleDeleteFilter = (type: string, id?: string) => {
-    const findFilter = currentFilter.find((filter) => filter.type === type);
-
-    if (!findFilter) return;
-
-    if (findFilter.type === "custom_field" && id) {
+    // If id is provided, delete the specific filter instance
+    if (id) {
       setCurrentFilter((prev) => {
         const result = prev.filter((filter) => filter.id !== id);
         handleFilter(result);
         return [...result];
       });
-
       return;
     }
+
+    // Legacy behavior: if no id provided, delete by type (for backward compatibility)
+    const findFilter = currentFilter.find((filter) => filter.type === type);
+    if (!findFilter) return;
 
     setCurrentFilter((prev) => {
       const result = prev.filter((filter) => filter.type !== type);
@@ -261,11 +291,58 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
     });
   };
 
+  const updateDisplayConfig = (displayConfig: any) => {
+    if (!selectedCard || !dashcardConfig) {
+      console.error("Cannot update display config: missing selectedCard or dashcardConfig", {
+        selectedCard: !!selectedCard,
+        dashcardConfig: !!dashcardConfig,
+      });
+      return;
+    }
+
+    console.log("Updating display config:", {
+      displayConfig,
+      currentDashcardConfig: dashcardConfig,
+      selectedCard: selectedCard.id,
+    });
+
+    mutate({
+      dashConfig: {
+        ...dashcardConfig,
+        displayConfig,
+      },
+    });
+  };
+
+  const updateBackgroundColor = (backgroundColor: string) => {
+    if (!selectedCard || !dashcardConfig) {
+      console.error("Cannot update background color: missing selectedCard or dashcardConfig", {
+        selectedCard: !!selectedCard,
+        dashcardConfig: !!dashcardConfig,
+      });
+      return;
+    }
+
+    console.log("Updating background color:", {
+      backgroundColor,
+      currentDashcardConfig: dashcardConfig,
+      selectedCard: selectedCard.id,
+    });
+
+    mutate({
+      dashConfig: {
+        ...dashcardConfig,
+        backgroundColor,
+      },
+    });
+  };
+
   // Handle URL changes
   useEffect(() => {
     if (handleUrlChange.current == undefined) {
       const cardId = searchParams.get("cardId");
       const listId = searchParams.get("listId");
+      
       if (cardId && listId) {
         setIsCardDetailOpen(true);
         setIsOpenViaUrl(true);
@@ -280,7 +357,7 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
         closeCardDetail();
       }
     }
-  }, [searchParams]);
+  }, [searchParams, closeCardDetail]);
 
   return (
     <CardDetailContext.Provider
@@ -304,6 +381,8 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
         setCurrentFilter,
         handleChangeFilter,
         handleDeleteFilter,
+        updateDisplayConfig,
+        updateBackgroundColor,
         isUpdatingCard: isPending,
       }}
     >

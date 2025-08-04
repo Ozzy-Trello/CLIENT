@@ -5,6 +5,7 @@ import { ApiResponse } from "../types/type";
 export const lists = async (
   boardId: string
 ): Promise<ApiResponse<AnyList[]>> => {
+  console.log("[LISTS API] Called with boardId:", boardId, "type:", typeof boardId);
   const { data } = await api.get("/list", { headers: { "board-id": boardId } });
   return data;
 };

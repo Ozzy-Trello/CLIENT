@@ -21,12 +21,14 @@ import {
   Card,
   Row,
   Col,
+  Tooltip,
 } from "antd";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Settings, Trash, Shield, Eye, Edit } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../../../api";
+import { usePermissions } from "@hooks/account";
 
 type MenuItem = Required<MenuProps>["items"][number];
 
@@ -70,7 +72,9 @@ interface RolePermissions {
 const TableRoles: React.FC<{
   dataSource?: Role[];
   onEdit: (role: Role) => void;
-}> = ({ dataSource = [], onEdit }) => {
+  canManageRoles: () => boolean;
+  permissionLevel: string;
+}> = ({ dataSource = [], onEdit, canManageRoles, permissionLevel }) => {
   const columns = [
     {
       title: "Role Name",
@@ -145,14 +149,19 @@ const TableRoles: React.FC<{
       key: "actions",
       render: (record: Role) => (
         <Space>
-          <Button
-            type="text"
-            size="small"
-            icon={<Settings size={14} />}
-            onClick={() => onEdit(record)}
+          <Tooltip
+            title={!canManageRoles() ? `Insufficient permissions (${permissionLevel} role)` : "Edit role"}
           >
-            Edit
-          </Button>
+            <Button
+              type="text"
+              size="small"
+              icon={<Settings size={14} />}
+              onClick={() => onEdit(record)}
+              disabled={!canManageRoles()}
+            >
+              Edit
+            </Button>
+          </Tooltip>
         </Space>
       ),
     },
@@ -181,6 +190,9 @@ const RolesPage = () => {
   const [boardStates, setBoardStates] = useState<Record<string, boolean>>({});
   const [form] = Form.useForm();
   const queryClient = useQueryClient();
+
+  // Get permissions
+  const { canManageRoles, permissionLevel } = usePermissions();
 
   // Fetch roles data
   const {
@@ -543,6 +555,26 @@ const RolesPage = () => {
   console.log("Is creating:", isCreating);
   console.log("Is modal visible:", isModalVisible);
 
+  // Check if user has access to this page
+  if (!canManageRoles()) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full">
+        <div className="text-center">
+          <Typography.Title level={3} type="secondary">
+            Access Denied
+          </Typography.Title>
+          <Typography.Text type="secondary">
+            You don't have permission to manage roles in this workspace.
+          </Typography.Text>
+          <br />
+          <Typography.Text type="secondary" className="text-sm">
+            Current permission level: {permissionLevel}
+          </Typography.Text>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 h-full overflow-auto">
       <div className="flex justify-between items-center mb-6">
@@ -554,19 +586,33 @@ const RolesPage = () => {
             Manage user roles and permissions for this workspace
           </Typography.Text>
         </div>
-        <Button
-          type="primary"
-          icon={<Shield size={16} />}
-          onClick={handleCreate}
+        <Tooltip
+          title={
+            !canManageRoles()
+              ? `Insufficient permissions to create roles (${permissionLevel})`
+              : "Create a new role"
+          }
         >
-          Add New Role
-        </Button>
+          <Button
+            type="primary"
+            icon={<Shield size={16} />}
+            onClick={handleCreate}
+            disabled={!canManageRoles()}
+          >
+            Add New Role
+          </Button>
+        </Tooltip>
       </div>
 
       {isLoading ? (
         <SkeletonTable />
       ) : (
-        <TableRoles dataSource={rolesData?.data || []} onEdit={handleEdit} />
+        <TableRoles 
+                dataSource={rolesData?.data || []} 
+                onEdit={handleEdit}
+                canManageRoles={canManageRoles}
+                permissionLevel={permissionLevel || "OBSERVER"}
+              />
       )}
 
       <Modal

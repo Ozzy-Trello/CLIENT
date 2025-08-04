@@ -3,6 +3,8 @@
 import React, { useState } from "react";
 import { Modal, Button, Input, Popover, message } from "antd";
 import { Plus, X } from "lucide-react";
+import { useSelector } from "react-redux";
+import { selectTheme, selectIsDarkMode } from "@store/app_slice";
 import { SizeBreakdown, SizeBreakdownModalState, SizeBreakdownItem } from "../types";
 import { 
   useAdditionalFieldsStore,
@@ -19,6 +21,10 @@ const CustomSizePopover: React.FC<CustomSizePopoverProps> = ({
   onAddCustomSize,
   onCancel,
 }) => {
+  const theme = useSelector(selectTheme);
+  const isDarkMode = useSelector(selectIsDarkMode);
+  const { colors } = theme;
+  
   const [customSizeName, setCustomSizeName] = useState("");
   const [customSizeQuantity, setCustomSizeQuantity] = useState("");
 
@@ -58,7 +64,10 @@ const CustomSizePopover: React.FC<CustomSizePopoverProps> = ({
   return (
     <div className="p-4 space-y-3 w-64">
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label 
+          className="block text-sm font-medium mb-1"
+          style={{ color: `rgb(${colors['text-muted']})` }}
+        >
           Custom Size Name
         </label>
         <Input
@@ -70,7 +79,10 @@ const CustomSizePopover: React.FC<CustomSizePopoverProps> = ({
         />
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label 
+          className="block text-sm font-medium mb-1"
+          style={{ color: `rgb(${colors['text-muted']})` }}
+        >
           Quantity
         </label>
         <Input
@@ -154,7 +166,13 @@ const SizeBreakdownModal: React.FC<SizeBreakdownModalProps> = ({
   bahanItem,
   debouncedSave,
 }) => {
-  const [breakdown, setBreakdown] = useState<SizeBreakdown>({});
+  const theme = useSelector(selectTheme);
+  const isDarkMode = useSelector(selectIsDarkMode);
+  const { colors } = theme;
+  
+  const [breakdown, setBreakdown] = useState<SizeBreakdown>({
+    XS: 0, S: 0, M: 0, L: 0, XL: 0, XXL: 0, XXXL: 0, XXXXL: 0, XXXXXL: 0, custom: {}
+  });
   const [showCustomSizePopover, setShowCustomSizePopover] = useState(false);
   const { updatePOData } = useAdditionalFieldsStore();
 
@@ -339,9 +357,20 @@ const SizeBreakdownModal: React.FC<SizeBreakdownModalProps> = ({
       width={600}
     >
       <div className="space-y-6 p-4">
-        <div className="flex justify-between items-center p-4 bg-gray-50 rounded-lg">
-          <span className="font-medium">Total Quantity: {totalSizes}</span>
-          <span className="font-medium text-blue-600">
+        <div 
+          className="flex justify-between items-center p-4 rounded-lg"
+          style={{ backgroundColor: `rgb(${colors.muted})` }}
+        >
+          <span 
+            className="font-medium"
+            style={{ color: `rgb(${colors.text})` }}
+          >
+            Total Quantity: {totalSizes}
+          </span>
+          <span 
+            className="font-medium"
+            style={{ color: `rgb(${colors.primary})` }}
+          >
             Calculated from sizes
           </span>
         </div>
@@ -349,7 +378,10 @@ const SizeBreakdownModal: React.FC<SizeBreakdownModalProps> = ({
         <div className="grid grid-cols-3 gap-6">
           {standardSizes.map((size) => (
             <div key={size.key} className="space-y-3">
-              <label className="block text-sm font-medium text-gray-700">
+              <label 
+                className="block text-sm font-medium"
+                style={{ color: `rgb(${colors['text-muted']})` }}
+              >
                 {size.label}
               </label>
               <Input
@@ -378,9 +410,17 @@ const SizeBreakdownModal: React.FC<SizeBreakdownModalProps> = ({
         </div>
 
         {/* Custom Sizes */}
-        <div className="border-t pt-6">
+        <div 
+          className="pt-6"
+          style={{ borderTop: `1px solid rgb(${colors.border})` }}
+        >
           <div className="flex items-center justify-between mb-4">
-            <h4 className="font-medium text-gray-900">Custom Sizes</h4>
+            <h4 
+              className="font-medium"
+              style={{ color: `rgb(${colors.text})` }}
+            >
+              Custom Sizes
+            </h4>
             <Popover
               content={
                 <CustomSizePopover
@@ -407,9 +447,15 @@ const SizeBreakdownModal: React.FC<SizeBreakdownModalProps> = ({
               {Object.entries(breakdown.custom).map(([name, quantity]) => (
                 <div
                   key={name}
-                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                  className="flex items-center justify-between p-3 rounded-lg"
+                  style={{ backgroundColor: `rgb(${colors.muted})` }}
                 >
-                  <span className="font-medium">{name}</span>
+                  <span 
+                    className="font-medium"
+                    style={{ color: `rgb(${colors.text})` }}
+                  >
+                    {name}
+                  </span>
                   <div className="flex items-center gap-3">
                     <Input
                       type="number"

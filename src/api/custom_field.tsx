@@ -5,9 +5,11 @@ import { ApiResponse } from "../types/type";
 export const customFields = async (
   workspaceId: string
 ): Promise<ApiResponse<CustomField[]>> => {
+  console.log("API: Fetching custom fields with workspaceId:", workspaceId);
   const { data } = await api.get("/custom-field", {
     headers: { "workspace-id": workspaceId },
   });
+  console.log("API: Custom fields response:", data);
   return data;
 };
 

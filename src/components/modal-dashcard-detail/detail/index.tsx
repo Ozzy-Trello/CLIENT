@@ -9,6 +9,12 @@ import { boardDetails } from "@api/board";
 import { listDetails } from "@api/list";
 import { userDetails } from "@api/account";
 import { customFieldDetails } from "@api/custom_field";
+import { DashcardDisplayType, DashcardDisplayConfig } from "@myTypes/dashcard";
+import { useCustomFields } from "@hooks/custom_field";
+import { useParams } from "next/navigation";
+import { Select, Button, ColorPicker } from "antd";
+import { EnumCustomFieldType } from "@myTypes/custom-field";
+import { Edit } from "lucide-react";
 
 const Detail: FC = () => {
   const {
@@ -18,9 +24,72 @@ const Detail: FC = () => {
     openEditFilter,
     setProcessedItemDashcard,
     processedItemDashcard,
+    isUpdatingCard,
+    updateDisplayConfig,
+    updateBackgroundColor,
   } = useCardDetailContext();
 
+  const { workspaceId } = useParams();
+  const { customFields } = useCustomFields(
+    Array.isArray(workspaceId) ? workspaceId[0] : workspaceId
+  );
+
   const [lookupVersion, setLookupVersion] = useState(0);
+  const [isEditingDisplay, setIsEditingDisplay] = useState(false);
+  const [displayConfig, setDisplayConfig] = useState<DashcardDisplayConfig>(
+    dashcardConfig?.displayConfig || { type: DashcardDisplayType.CARD_COUNT }
+  );
+  const [bgColor, setBgColor] = useState(dashcardConfig?.backgroundColor || "#4096ff");
+
+  const handleColorChange = (color: any) => {
+    setBgColor(color.toHexString());
+  };
+
+  // Calculate display value based on configuration
+  const getDisplayValue = () => {
+    if (displayConfig.type === DashcardDisplayType.CUSTOM_FIELD_SUM && displayConfig.customFieldId) {
+      // Find the custom field to get its name
+      const customField = customFields?.find(field => field.id === displayConfig.customFieldId);
+      if (!customField) return processedItemDashcard?.length || 0;
+      
+      // Calculate sum of the custom field using the field name
+      const sum = processedItemDashcard.reduce((total, item) => {
+        const customFieldColumn = item.columns?.find(
+          (col) => col.column === customField.name
+        );
+        if (!customFieldColumn) return total;
+        
+        const value = customFieldColumn.value;
+        const numValue = typeof value === 'string' ? parseFloat(value) : (typeof value === 'number' ? value : 0);
+        return total + (isNaN(numValue) ? 0 : numValue);
+      }, 0);
+      return Math.round(sum).toString();
+    }
+    return processedItemDashcard?.length || 0;
+  };
+
+  // Get display label based on configuration
+  const getDisplayLabel = () => {
+    if (displayConfig.type === DashcardDisplayType.CUSTOM_FIELD_SUM && displayConfig.customFieldId) {
+      const customField = customFields?.find(field => field.id === displayConfig.customFieldId);
+      return customField ? `${customField.name} Total` : 'Custom Field Total';
+    }
+    return 'Card';
+  };
+
+  // Handle display configuration save
+  const handleSaveDisplayConfig = () => {
+    updateDisplayConfig(displayConfig);
+    updateBackgroundColor(bgColor);
+    setIsEditingDisplay(false);
+  };
+
+  // Sync display config when dashcard config changes
+  useEffect(() => {
+    if (dashcardConfig?.displayConfig) {
+      setDisplayConfig(dashcardConfig.displayConfig);
+    }
+  }, [dashcardConfig]);
 
   // Process items and cache lookups
   useEffect(() => {
@@ -165,16 +234,46 @@ const Detail: FC = () => {
       <div className="flex flex-col gap-3">
         <div
           style={{
-            backgroundColor: dashcardConfig?.backgroundColor || "#1890ff",
+            backgroundColor: bgColor,
           }}
-          className="w-60 h-40 rounded-lg flex items-center justify-center text-white font-bold text-xl relative"
+          className="w-60 h-40 rounded-lg flex flex-col items-center justify-center text-white font-bold text-xl relative"
         >
-          {processedItemDashcard?.length || 0}
-          <div className="absolute top-3 left-3 text-sm">Card</div>
-          <div className="absolute bottom-3 left-3 text-sm">
-            {selectedCard?.name}
-          </div>
+          <Button
+            type="text"
+            size="small"
+            icon={<Edit size={14} />}
+            className="absolute top-2 right-2 text-white hover:text-gray-200"
+            onClick={() => setIsEditingDisplay(true)}
+          />
+          <div className="text-4xl font-bold mb-2">{getDisplayValue()}</div>
+          <div className="text-sm opacity-90 mb-1">{getDisplayLabel()}</div>
+          <div className="text-sm opacity-75">{selectedCard?.name}</div>
         </div>
+
+        {isEditingDisplay && (
+          <div className="bg-white p-4 rounded-lg border shadow-sm">
+            <div className="mb-3">
+              <label className="block text-sm font-medium mb-2">Background Color</label>
+              <ColorPicker
+                defaultFormat="hex"
+                format="hex"
+                value={bgColor}
+                disabledAlpha={false}
+                onChange={handleColorChange}
+                showText={true}
+              />
+            </div>
+
+            <div className="flex gap-2">
+              <Button type="primary" size="small" onClick={handleSaveDisplayConfig}>
+                Save
+              </Button>
+              <Button size="small" onClick={() => setIsEditingDisplay(false)}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {openEditFilter ? <EditFilter /> : <ShowFilter />}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Drawer, message, Input, Spin, Empty } from "antd";
+import { Drawer, message, Input, Spin, Empty, Tooltip } from "antd";
 import {
   InfoCircleOutlined,
   InboxOutlined,
@@ -11,6 +11,7 @@ import { Bot } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
 import { selectCurrentBoard } from "@store/workspace_slice";
+import { usePermissions } from "@hooks/account";
 import BoardSettingsModal from "../board-settings-modal";
 import { useQueryClient } from "@tanstack/react-query";
 import { useUpdateBoard } from "../../hooks/board";
@@ -31,6 +32,8 @@ interface MenuItemProps {
   badge?: number | null;
   onClick?: () => void;
   divider?: boolean;
+  disabled?: boolean;
+  tooltipTitle?: string;
 }
 
 const MenuItem: React.FC<MenuItemProps> = ({
@@ -39,11 +42,17 @@ const MenuItem: React.FC<MenuItemProps> = ({
   badge,
   onClick,
   divider = false,
-}) => (
-  <>
+  disabled = false,
+  tooltipTitle,
+}) => {
+  const menuItem = (
     <div
-      className="flex items-center py-3 px-4 hover:bg-gray-100 cursor-pointer"
-      onClick={onClick}
+      className={`flex items-center py-3 px-4 ${
+        disabled 
+          ? 'opacity-50 cursor-not-allowed' 
+          : 'hover:bg-gray-100 cursor-pointer'
+      }`}
+      onClick={disabled ? undefined : onClick}
     >
       <div className="text-gray-700 mr-4">{icon}</div>
       <span className="text-gray-800 flex-grow">{text}</span>
@@ -53,9 +62,21 @@ const MenuItem: React.FC<MenuItemProps> = ({
         </div>
       )}
     </div>
-    {divider && <div className="h-px w-full bg-gray-200 my-2"></div>}
-  </>
-);
+  );
+
+  return (
+    <>
+      {disabled && tooltipTitle ? (
+        <Tooltip title={tooltipTitle}>
+          {menuItem}
+        </Tooltip>
+      ) : (
+        menuItem
+      )}
+      {divider && <div className="h-px w-full bg-gray-200 my-2"></div>}
+    </>
+  );
+};
 
 const BoardScopeMenu: React.FC<BoardMenuSidebarProps> = ({
   visible,
@@ -69,6 +90,17 @@ const BoardScopeMenu: React.FC<BoardMenuSidebarProps> = ({
     typeof workspaceId === "string" ? workspaceId : workspaceId?.[0] || "";
   const { mutate: updateBoard } = useUpdateBoard(resolvedWorkspaceId);
   const { openCardDetail } = useCardDetailContext();
+
+  // Get permissions
+  const {
+    canManageBoardSettings,
+    canManageBoardAutomation,
+    canManageBoardCustomFields,
+    canManageBoardLabels,
+    canViewArchivedItems,
+    permissionLevel,
+    isObserver
+  } = usePermissions();
 
   // State for settings modal
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
@@ -165,12 +197,16 @@ const BoardScopeMenu: React.FC<BoardMenuSidebarProps> = ({
             text="Archived items"
             onClick={handleArchivedClick}
             divider={true}
+            disabled={!canViewArchivedItems()}
+            tooltipTitle={!canViewArchivedItems() ? "You don't have permission to view archived items" : undefined}
           />
 
           <MenuItem
             icon={<SettingOutlined size={16} />}
             text="Settings"
             onClick={handleSettingsClick}
+            disabled={!canManageBoardSettings()}
+            tooltipTitle={!canManageBoardSettings() ? "You don't have permission to access board settings" : undefined}
           />
 
           {/* Change background section hidden for now */}
@@ -179,19 +215,33 @@ const BoardScopeMenu: React.FC<BoardMenuSidebarProps> = ({
             text="Change background"
           /> */}
 
-          <MenuItem icon={<FormOutlined size={16} />} text="Custom Fields" />
+          <MenuItem 
+            icon={<FormOutlined size={16} />} 
+            text="Custom Fields" 
+            disabled={!canManageBoardCustomFields()}
+            tooltipTitle={!canManageBoardCustomFields() ? "You don't have permission to manage custom fields" : undefined}
+          />
 
           <MenuItem
             icon={<Bot size={16} />}
             text="Automation"
             onClick={() => {
-              router.push(
-                `/workspace/${workspaceId}/board/${boardId}/automation`
-              );
+              if (canManageBoardAutomation()) {
+                router.push(
+                  `/workspace/${workspaceId}/board/${boardId}/automation`
+                );
+              }
             }}
+            disabled={!canManageBoardAutomation()}
+            tooltipTitle={!canManageBoardAutomation() ? "You don't have permission to manage automation" : undefined}
           />
 
-          <MenuItem icon={<TagOutlined size={16} />} text="Labels" />
+          <MenuItem 
+            icon={<TagOutlined size={16} />} 
+            text="Labels" 
+            disabled={!canManageBoardLabels()}
+            tooltipTitle={!canManageBoardLabels() ? "You don't have permission to manage labels" : undefined}
+          />
 
           {/* Stickers section hidden for now */}
           {/* <MenuItem icon={<SmileOutlined size={16} />} text="Stickers" /> */}

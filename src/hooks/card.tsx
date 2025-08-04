@@ -253,7 +253,9 @@ export function useCards(listId: string, boardId: string) {
   // Delete card mutation
   const deleteCardMutation = useMutation({
     mutationFn: ({ cardId, listId }: { cardId: string; listId: string }) => {
-      return api.delete(`/card/${cardId}`);
+      return api.delete(`/card/${cardId}`, {
+        headers: { "list-id": listId },
+      });
     },
     onMutate: async ({ cardId, listId }) => {
       await queryClient.cancelQueries({ queryKey: queryKeys.cards.list(listId) });

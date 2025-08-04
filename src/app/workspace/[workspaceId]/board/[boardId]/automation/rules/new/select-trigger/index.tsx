@@ -11,7 +11,7 @@ import {
   MultiFieldValueInput,
 } from "@components/selection";
 import { Button, Input, Select, Typography, Popover, Tag } from "antd";
-import { ListFilter, Plus, X, Calendar, List, Type } from "lucide-react";
+import { ListFilter, Plus, X, Calendar, List, Type, Check } from "lucide-react";
 import React, {
   Dispatch,
   SetStateAction,
@@ -60,6 +60,8 @@ interface SelectTriggerProps {
   selectedRule: AutomationRule;
   triggersData: AutomationRuleTrigger[];
   setTriggersData: Dispatch<SetStateAction<AutomationRuleTrigger[]>>;
+  isEditMode?: boolean;
+  onSaveAndClose?: (updatedRule: AutomationRule) => Promise<void>;
 }
 
 interface DateExpressionSelectorProps {
@@ -163,12 +165,12 @@ const DateExpressionSelector: React.FC<DateExpressionSelectorProps> = ({
       {expressions.map((expr: any, exprIndex: number) => (
         <span
           key={exprIndex}
-          className="inline-flex items-center bg-gray-500 text-white rounded px-2 py-1 text-sm"
+          className="inline-flex items-center bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg px-3 py-1.5 text-sm font-medium shadow-sm hover:shadow-md transition-all duration-200"
         >
           {expr.text}
           <X
-            size={12}
-            className="ml-1 cursor-pointer"
+            size={14}
+            className="ml-2 cursor-pointer hover:bg-white hover:bg-opacity-20 rounded-full p-0.5 transition-all duration-200"
             onClick={(e) => {
               e.stopPropagation();
               removeExpression(exprIndex);
@@ -185,102 +187,116 @@ const DateExpressionSelector: React.FC<DateExpressionSelectorProps> = ({
           placement="bottom"
           style={{ width: "100vh" }}
           content={
-            <div className="p-2 flex flex-col gap-2">
-              {/* Relative period mode */}
-              <div className="flex gap-2 items-center flex-nowrap whitespace-nowrap">
-                <Select
-                  style={{ width: 130 }}
-                  value={relativeState.operator}
-                  options={[
-                    { value: "in", label: "in" },
-                    { value: "not in", label: "not in" },
-                  ]}
-                  onChange={(val) =>
-                    setRelativeState((prev) => ({ ...prev, operator: val }))
-                  }
-                />
-                <Select
-                  style={{ width: 120 }}
-                  value={relativeState.unit}
-                  options={[
-                    { value: "this week", label: "this week" },
-                    { value: "next week", label: "next week" },
-                  ]}
-                  onChange={(val) =>
-                    setRelativeState((prev) => ({ ...prev, unit: val }))
-                  }
-                />
-                <Button
-                  type="text"
-                  size="small"
-                  onClick={() => applyExpression("relative")}
-                >
-                  <Plus size={12} />
-                </Button>
-              </div>
-              <hr />
+            <div className="p-4 bg-white rounded-lg shadow-lg border border-gray-200">
+              <div className="space-y-4">
+                {/* Relative period mode */}
+                <div className="space-y-2">
+                  <Typography.Text className="text-sm font-medium text-gray-700">Relative Period</Typography.Text>
+                  <div className="flex gap-2 items-center flex-nowrap whitespace-nowrap">
+                    <Select
+                      style={{ width: 130 }}
+                      value={relativeState.operator}
+                      options={[
+                        { value: "in", label: "in" },
+                        { value: "not in", label: "not in" },
+                      ]}
+                      onChange={(val) =>
+                        setRelativeState((prev) => ({ ...prev, operator: val }))
+                      }
+                    />
+                    <Select
+                      style={{ width: 120 }}
+                      value={relativeState.unit}
+                      options={[
+                        { value: "this week", label: "this week" },
+                        { value: "next week", label: "next week" },
+                      ]}
+                      onChange={(val) =>
+                        setRelativeState((prev) => ({ ...prev, unit: val }))
+                      }
+                    />
+                    <Button
+                      type="text"
+                      size="small"
+                      onClick={() => applyExpression("relative")}
+                      className="hover:bg-blue-50 rounded-lg transition-colors duration-200"
+                    >
+                      <Plus size={12} />
+                    </Button>
+                  </div>
+                </div>
+                <hr className="border-gray-200" />
 
-              {/* Numeric mode */}
-              <div className="flex gap-2 items-center flex-nowrap whitespace-nowrap">
-                <Select
-                  style={{ width: 130 }}
-                  value={numericState.operator}
-                  options={[
-                    { value: "less than", label: "less than" },
-                    { value: "more than", label: "more than" },
-                    { value: "between", label: "between" },
-                  ]}
-                  onChange={(val) =>
-                    setNumericState((prev) => ({ ...prev, operator: val }))
-                  }
-                />
-                <Input
-                  style={{ width: 60 }}
-                  value={numericState.numberVal}
-                  type="number"
-                  onChange={(e) =>
-                    setNumericState((prev) => ({
-                      ...prev,
-                      numberVal: e.target.value,
-                    }))
-                  }
-                />
-                <Select
-                  style={{ width: 120 }}
-                  value={numericState.unit}
-                  options={[
-                    { value: "hours", label: "hours" },
-                    { value: "days", label: "days" },
-                    { value: "working days", label: "working days" },
-                    { value: "this month", label: "this month" },
-                  ]}
-                  onChange={(val) =>
-                    setNumericState((prev) => ({ ...prev, unit: val }))
-                  }
-                />
-                <Select
-                  style={{ width: 100 }}
-                  value={numericState.direction}
-                  options={[
-                    { value: "from now", label: "from now" },
-                    { value: "ago", label: "ago" },
-                  ]}
-                  onChange={(val) =>
-                    setNumericState((prev) => ({ ...prev, direction: val }))
-                  }
-                />
-                <Button
-                  type="text"
-                  size="small"
-                  onClick={() => applyExpression("numeric")}
-                >
-                  <Plus size={12} />
-                </Button>
+                {/* Numeric mode */}
+                <div className="space-y-2">
+                  <Typography.Text className="text-sm font-medium text-gray-700">Numeric Period</Typography.Text>
+                  <div className="flex gap-2 items-center flex-nowrap whitespace-nowrap">
+                    <Select
+                      style={{ width: 130 }}
+                      value={numericState.operator}
+                      options={[
+                        { value: "less than", label: "less than" },
+                        { value: "more than", label: "more than" },
+                        { value: "between", label: "between" },
+                      ]}
+                      onChange={(val) =>
+                        setNumericState((prev) => ({ ...prev, operator: val }))
+                      }
+                    />
+                    <Input
+                      style={{ width: 60 }}
+                      value={numericState.numberVal}
+                      type="number"
+                      onChange={(e) =>
+                        setNumericState((prev) => ({
+                          ...prev,
+                          numberVal: e.target.value,
+                        }))
+                      }
+                    />
+                    <Select
+                      style={{ width: 120 }}
+                      value={numericState.unit}
+                      options={[
+                        { value: "hours", label: "hours" },
+                        { value: "days", label: "days" },
+                        { value: "working days", label: "working days" },
+                        { value: "this month", label: "this month" },
+                      ]}
+                      onChange={(val) =>
+                        setNumericState((prev) => ({ ...prev, unit: val }))
+                      }
+                    />
+                    <Select
+                      style={{ width: 100 }}
+                      value={numericState.direction}
+                      options={[
+                        { value: "from now", label: "from now" },
+                        { value: "ago", label: "ago" },
+                      ]}
+                      onChange={(val) =>
+                        setNumericState((prev) => ({ ...prev, direction: val }))
+                      }
+                    />
+                    <Button
+                      type="text"
+                      size="small"
+                      onClick={() => applyExpression("numeric")}
+                      className="hover:bg-blue-50 rounded-lg transition-colors duration-200"
+                    >
+                      <Plus size={12} />
+                    </Button>
+                  </div>
+                </div>
               </div>
             </div>
           }
         >
-          <Button type="text" size="small" className="mx-2">
+          <Button 
+            type="text" 
+            size="small" 
+            className="mx-2 hover:bg-blue-50 rounded-lg transition-colors duration-200"
+          >
             <Calendar size={14} />
           </Button>
         </Popover>
@@ -347,12 +363,12 @@ const TextComparisonSelector: React.FC<TextComparisonSelectorProps> = ({
       {expressions.map((expr: any, i: number) => (
         <span
           key={i}
-          className="inline-flex items-center bg-gray-500 text-white rounded px-2 py-1 text-sm"
+          className="inline-flex items-center bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg px-3 py-1.5 text-sm font-medium shadow-sm hover:shadow-md transition-all duration-200"
         >
           {expr.operator} "{expr.text}"
           <X
-            size={12}
-            className="ml-1 cursor-pointer"
+            size={14}
+            className="ml-2 cursor-pointer hover:bg-white hover:bg-opacity-20 rounded-full p-0.5 transition-all duration-200"
             onClick={(e) => {
               e.stopPropagation();
               removeExpression(i);
@@ -368,52 +384,66 @@ const TextComparisonSelector: React.FC<TextComparisonSelectorProps> = ({
           trigger="click"
           placement="bottom"
           content={
-            <div className="p-2 flex gap-2 items-center whitespace-nowrap">
-              <Select
-                style={{ width: 170 }}
-                value={operator}
-                options={[
-                  {
-                    value: EnumOptionTextComparisonOperator.StartingWith,
-                    label: "starting with",
-                  },
-                  {
-                    value: EnumOptionTextComparisonOperator.EndingWith,
-                    label: "ending with",
-                  },
-                  {
-                    value: EnumOptionTextComparisonOperator.Containing,
-                    label: "containing",
-                  },
-                  {
-                    value: EnumOptionTextComparisonOperator.NotStartingWith,
-                    label: "not starting with",
-                  },
-                  {
-                    value: EnumOptionTextComparisonOperator.NotEndingWith,
-                    label: "not ending with",
-                  },
-                  {
-                    value: EnumOptionTextComparisonOperator.NotContaining,
-                    label: "not containing",
-                  },
-                ]}
-                onChange={setOperator}
-              />
-              <Input
-                style={{ width: 150 }}
-                value={textVal}
-                placeholder="text"
-                onChange={(e) => setTextVal(e.target.value)}
-                onPressEnter={applyExpression}
-              />
-              <Button type="text" size="small" onClick={applyExpression}>
-                <Plus size={12} />
-              </Button>
+            <div className="p-4 bg-white rounded-lg shadow-lg border border-gray-200">
+              <div className="space-y-3">
+                <Typography.Text className="text-sm font-medium text-gray-700">Text Comparison</Typography.Text>
+                <div className="flex gap-2 items-center whitespace-nowrap">
+                  <Select
+                    style={{ width: 170 }}
+                    value={operator}
+                    options={[
+                      {
+                        value: EnumOptionTextComparisonOperator.StartingWith,
+                        label: "starting with",
+                      },
+                      {
+                        value: EnumOptionTextComparisonOperator.EndingWith,
+                        label: "ending with",
+                      },
+                      {
+                        value: EnumOptionTextComparisonOperator.Containing,
+                        label: "containing",
+                      },
+                      {
+                        value: EnumOptionTextComparisonOperator.NotStartingWith,
+                        label: "not starting with",
+                      },
+                      {
+                        value: EnumOptionTextComparisonOperator.NotEndingWith,
+                        label: "not ending with",
+                      },
+                      {
+                        value: EnumOptionTextComparisonOperator.NotContaining,
+                        label: "not containing",
+                      },
+                    ]}
+                    onChange={setOperator}
+                  />
+                  <Input
+                    style={{ width: 150 }}
+                    value={textVal}
+                    placeholder="Enter text..."
+                    onChange={(e) => setTextVal(e.target.value)}
+                    onPressEnter={applyExpression}
+                  />
+                  <Button 
+                    type="text" 
+                    size="small" 
+                    onClick={applyExpression}
+                    className="hover:bg-green-50 rounded-lg transition-colors duration-200"
+                  >
+                    <Plus size={12} />
+                  </Button>
+                </div>
+              </div>
             </div>
           }
         >
-          <Button type="text" size="small" className="mx-2">
+          <Button 
+            type="text" 
+            size="small" 
+            className="mx-2 hover:bg-green-50 rounded-lg transition-colors duration-200"
+          >
             <Type size={14} />
           </Button>
         </Popover>
@@ -488,7 +518,7 @@ const FilterButton = ({
           <Button
             type="text"
             size="small"
-            className="mx-2"
+            className="mx-2 hover:bg-purple-50 rounded-lg transition-colors duration-200"
             onClick={handleFilterClick}
           >
             <ListFilter size={14} />
@@ -1250,8 +1280,11 @@ const LabelRenderer = ({
 };
 
 const SelectTrigger: React.FC<SelectTriggerProps> = (props) => {
-  const { setSelectedRule, selectedRule, triggersData, nextStep } = props;
+  const { setSelectedRule, selectedRule, triggersData, nextStep, isEditMode = false, onSaveAndClose } = props;
   const [selectedGroupIndex, setSelectedGroupIndex] = useState<number>(0);
+  const [configuringTriggerIndex, setConfiguringTriggerIndex] = useState<
+    number | null
+  >(null);
   [[[]]];
   // Callback for when a specific trigger item's '+' button is clicked
   const onSelectTrigger = useCallback(
@@ -1383,53 +1416,150 @@ const SelectTrigger: React.FC<SelectTriggerProps> = (props) => {
         };
       });
 
-      nextStep();
+      // In create mode, go directly to next step. In edit mode, show check/cancel buttons
+      if (!isEditMode) {
+        nextStep();
+      } else {
+        setConfiguringTriggerIndex(index);
+      }
     },
     [selectedRule.triggerItem, nextStep, setSelectedRule, selectedGroupIndex]
   );
 
+  const onSaveTrigger = useCallback(async () => {
+    setConfiguringTriggerIndex(null);
+    if (isEditMode && onSaveAndClose) {
+      await onSaveAndClose(selectedRule);
+    } else {
+      nextStep();
+    }
+  }, [nextStep, isEditMode, onSaveAndClose, selectedRule]);
+
+  const onCancelTrigger = useCallback(() => {
+    setConfiguringTriggerIndex(null);
+    setSelectedRule((prev: AutomationRule) => ({
+      ...prev,
+      triggerItem: undefined,
+      triggerType: "",
+    }));
+  }, [setSelectedRule]);
+
   return (
-    <div>
-      <Typography.Title level={5}>Select Trigger</Typography.Title>
-      <div className="flex gap-2 my-4">
+    <div className="space-y-6">
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <div>
+            <Typography.Title level={4} className="text-gray-800 font-semibold">
+              Select Trigger
+            </Typography.Title>
+            <Typography.Text className="text-gray-600">
+              Choose the event that will start your automation
+            </Typography.Text>
+          </div>
+          {isEditMode && (
+            <div className="text-xs bg-blue-50 text-blue-700 px-3 py-1 rounded-full border border-blue-200">
+              Edit Mode
+            </div>
+          )}
+        </div>
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
         {triggersData.map((item, index) => (
           <div
             key={item.type}
             onClick={() => {
               setSelectedGroupIndex(index);
             }}
-            className={`flex flex-col justify-center items-center w-64 rounded p-2 cursor-pointer ${
-              selectedGroupIndex === index ? "bg-blue-100" : "bg-gray-300"
+            className={`group relative overflow-hidden rounded-lg p-4 cursor-pointer transition-all duration-200 hover:shadow-md ${
+              selectedGroupIndex === index 
+                ? "bg-white border-2 border-blue-400 shadow-sm" 
+                : "bg-white border border-gray-200 hover:border-gray-300"
             }`}
           >
-            <div>{item.icon}</div>
-            <Typography.Text>{item.label}</Typography.Text>
+            <div className="flex flex-col items-center space-y-2">
+              <div className={`p-2 rounded-lg transition-colors duration-200 ${
+                selectedGroupIndex === index 
+                  ? "bg-blue-50 text-blue-600" 
+                  : "bg-gray-50 text-gray-600 group-hover:bg-gray-100"
+              }`}>
+                {item.icon}
+              </div>
+              <Typography.Text className={`text-sm font-medium text-center transition-colors duration-200 ${
+                selectedGroupIndex === index 
+                  ? "text-blue-700" 
+                  : "text-gray-700 group-hover:text-gray-800"
+              }`}>
+                {item.label}
+              </Typography.Text>
+            </div>
+            {selectedGroupIndex === index && (
+              <div className="absolute top-2 right-2">
+                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+              </div>
+            )}
           </div>
         ))}
       </div>
-      <div>
+      
+      <div className="space-y-3">
         {triggersData[selectedGroupIndex]?.items?.map(
           (item: TriggerItems, index: number) => (
             <div
               key={item.type}
-              className="flex justify-between items-start rounded p-2 mb-2 bg-gray-200"
+              className={`group relative overflow-hidden rounded-xl border-2 transition-all duration-300 ${
+                configuringTriggerIndex === index
+                  ? "bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 shadow-md"
+                  : "bg-white border-gray-200 hover:border-gray-300 hover:shadow-sm"
+              }`}
             >
-              <div>
-                <LabelRenderer
-                  props={props}
-                  item={item}
-                  groupIndex={selectedGroupIndex}
-                  index={index}
-                />
+              <div className="flex justify-between items-start p-6">
+                <div className="flex-1 min-w-0">
+                  <LabelRenderer
+                    props={props}
+                    item={item}
+                    groupIndex={selectedGroupIndex}
+                    index={index}
+                  />
+                </div>
+                <div className="flex gap-2 ml-4">
+                  {configuringTriggerIndex === index ? (
+                    <>
+                      <Button
+                        shape="circle"
+                        onClick={onSaveTrigger}
+                        className="bg-emerald-500 hover:bg-emerald-600 border-emerald-500 hover:border-emerald-600 shadow-sm hover:shadow-md transition-all duration-200"
+                        size="large"
+                      >
+                        <Check className="text-white w-4 h-4" />
+                      </Button>
+                      <Button
+                        shape="circle"
+                        onClick={onCancelTrigger}
+                        className="bg-red-500 hover:bg-red-600 border-red-500 hover:border-red-600 shadow-sm hover:shadow-md transition-all duration-200"
+                        size="large"
+                      >
+                        <X className="text-white w-4 h-4" />
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      shape="circle"
+                      onClick={() => {
+                        onSelectTrigger(item, index);
+                      }}
+                      disabled={configuringTriggerIndex !== null}
+                      className="bg-blue-500 hover:bg-blue-600 border-blue-500 hover:border-blue-600 text-white shadow-sm hover:shadow-md transition-all duration-200 disabled:bg-gray-300 disabled:border-gray-300"
+                      size="large"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
               </div>
-              <Button
-                shape="circle"
-                onClick={() => {
-                  onSelectTrigger(item, index);
-                }}
-              >
-                <Plus />
-              </Button>
+              {configuringTriggerIndex === index && (
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-400 to-indigo-500"></div>
+              )}
             </div>
           )
         )}

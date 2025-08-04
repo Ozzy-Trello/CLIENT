@@ -112,14 +112,56 @@ function stringify(val: any): string {
 
 function lookup(condition: any, key: string): any {
   if (!condition) return undefined;
-  if (key in condition) return condition[key];
+  
+  // Try direct key lookup
+  let value = condition[key];
+  if (value !== undefined) {
+    // If the value looks like a UUID, try to resolve it using LookupCache
+    if (typeof value === 'string' && isUUID(value)) {
+      const resolved = LookupCache.any(value);
+      if (resolved) {
+        console.log(`[RULE-RENDER] Resolved UUID ${value} to ${resolved}`);
+        return resolved;
+      }
+    }
+    return value;
+  }
+  
   // snake_case -> camelCase
   const camel = key.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
-  if (camel in condition) return condition[camel];
+  if (camel in condition) {
+    value = condition[camel];
+    if (typeof value === 'string' && isUUID(value)) {
+      const resolved = LookupCache.any(value);
+      if (resolved) {
+        console.log(`[RULE-RENDER] Resolved UUID ${value} to ${resolved} (camelCase)`);
+        return resolved;
+      }
+    }
+    return value;
+  }
+  
   // camelCase -> snake_case
   const snake = key.replace(/([A-Z])/g, "_$1").toLowerCase();
-  if (snake in condition) return condition[snake];
+  if (snake in condition) {
+    value = condition[snake];
+    if (typeof value === 'string' && isUUID(value)) {
+      const resolved = LookupCache.any(value);
+      if (resolved) {
+        console.log(`[RULE-RENDER] Resolved UUID ${value} to ${resolved} (snake_case)`);
+        return resolved;
+      }
+    }
+    return value;
+  }
+  
   return undefined;
+}
+
+// Helper function to check if a string looks like a UUID
+function isUUID(str: string): boolean {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
 }
 
 function renderFiltersHuman(filters: any[]): string {

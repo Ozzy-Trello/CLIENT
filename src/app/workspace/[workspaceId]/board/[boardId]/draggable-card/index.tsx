@@ -1,4 +1,5 @@
 import { useCardDetailContext } from "@providers/card-detail-context";
+import { useCardFocus } from "@providers/card-focus-context";
 import { Card, EnumCardType } from "@myTypes/card";
 import { AnyList } from "@myTypes/list";
 import { Draggable } from "@hello-pangea/dnd";
@@ -9,6 +10,7 @@ import Dashcard from "./dashcard";
 import { usePermissions } from "@hooks/account";
 import { useCardDetails } from "@hooks/card-details";
 import { useParams } from "next/navigation";
+import CardContextMenu from "@components/card-context-menu";
 
 interface DraggableCardProps {
   card: Card;
@@ -18,6 +20,7 @@ interface DraggableCardProps {
 
 const DraggableCard: React.FC<DraggableCardProps> = ({ card, index, list }) => {
   const { openCardDetail } = useCardDetailContext();
+  const { focusedCardId, setFocusedCardId, isCardFocused, clearFocus } = useCardFocus();
   const { workspaceId, boardId } = useParams();
   const [isHovered, setIsHovered] = useState<boolean>(false);
   const [openAddMember, setOpenAddMember] = useState<boolean>(false);
@@ -37,6 +40,23 @@ const DraggableCard: React.FC<DraggableCardProps> = ({ card, index, list }) => {
   // Check if user can move cards
   const canMoveCard = canMove("card");
 
+  // Determine if this card should be blurred
+  const shouldBlur = focusedCardId !== null && !isCardFocused(card.id);
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    setFocusedCardId(card.id);
+  };
+
+  const handleClick = (e: React.MouseEvent) => {
+    if (e.target instanceof HTMLElement) {
+      if (e.target.className.includes("checkbox")) {
+        return;
+      }
+    }
+
+    openCardDetail(card, list);
+  };
+
   return (
     <Draggable
       draggableId={card.id}
@@ -44,45 +64,42 @@ const DraggableCard: React.FC<DraggableCardProps> = ({ card, index, list }) => {
       isDragDisabled={!canMoveCard}
     >
       {(provided, snapshot) => (
-        <div
-          className={`bg-white rounded-lg border border-gray-200 
-            max-w-sm
-          hover:border-blue-500 transition-all duration-300 overflow-hidden
-          ${canMoveCard ? "cursor-move" : "cursor-default"}
-          ${snapshot.isDragging ? "shadow-lg" : ""}
-          `}
-          ref={provided.innerRef}
-          {...provided.dragHandleProps}
-          {...provided.draggableProps}
-          onClick={(e) => {
-            if (e.target instanceof HTMLElement) {
-              if (e.target.className.includes("checkbox")) {
-                return;
-              }
+        <CardContextMenu onContextMenu={handleContextMenu} card={card} list={list}>
+          <div
+            className={`bg-white rounded-lg border border-gray-200 
+              max-w-sm
+            hover:border-blue-500 transition-all duration-300 overflow-hidden
+            ${canMoveCard ? "cursor-move" : "cursor-default"}
+            ${snapshot.isDragging ? "shadow-lg" : ""}
+            ${shouldBlur ? "opacity-30 blur-sm" : ""}
+            ${isCardFocused(card.id) ? "ring-2 ring-blue-500 shadow-lg" : ""}
+            `}
+            ref={provided.innerRef}
+            {...provided.dragHandleProps}
+            {...provided.draggableProps}
+            onClick={handleClick}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+            data-card-id={card.id}
+            title={
+              !canMoveCard ? "You don't have permission to move cards" : undefined
             }
-
-            openCardDetail(card, list);
-          }}
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
-          title={
-            !canMoveCard ? "You don't have permission to move cards" : undefined
-          }
-        >
-          {card.type == EnumCardType.Dashcard ? (
-            <Dashcard
-              card={card}
-              isHovered={isHovered}
-              onCompletionChange={onChange}
-            />
-          ) : (
-            <RegularCard
-              card={card}
-              isHovered={isHovered}
-              onCompletionChange={onChange}
-            />
-          )}
-        </div>
+          >
+            {card.type == EnumCardType.Dashcard ? (
+              <Dashcard
+                card={card}
+                isHovered={isHovered}
+                onCompletionChange={onChange}
+              />
+            ) : (
+              <RegularCard
+                card={card}
+                isHovered={isHovered}
+                onCompletionChange={onChange}
+              />
+            )}
+          </div>
+        </CardContextMenu>
       )}
     </Draggable>
   );

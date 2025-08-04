@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { Modal, Table, Tabs, Button, message } from "antd";
 import { QrcodeOutlined } from "@ant-design/icons";
+import { useSelector } from "react-redux";
+import { selectTheme, selectIsDarkMode } from "@store/app_slice";
 import { useCardDetailContext } from "@providers/card-detail-context";
 import QRCode from "react-qr-code";
 import { createRoot } from "react-dom/client";
@@ -42,6 +44,10 @@ const SummaryModal: React.FC<SummaryModalProps> = ({
   poId, // Add poId parameter
   lastRefetchTime, // Add lastRefetchTime parameter
 }): JSX.Element => {
+  const theme = useSelector(selectTheme);
+  const isDarkMode = useSelector(selectIsDarkMode);
+  const { colors } = theme;
+  
   const [activeTab, setActiveTab] = useState<string>("all");
   const { selectedCard } = useCardDetailContext();
 
@@ -753,11 +759,13 @@ const SummaryModal: React.FC<SummaryModalProps> = ({
       width: "10%",
       render: (scanned: string) => (
         <span
-          className={`px-2 py-1 rounded-full text-xs font-medium ${
-            scanned === "Yes"
-              ? "bg-green-100 text-green-800"
-              : "bg-red-100 text-red-800"
-          }`}
+          className="px-2 py-1 rounded-full text-xs font-medium"
+          style={{
+            backgroundColor: scanned === "Yes" 
+              ? `rgb(${colors.success})` 
+              : `rgb(${colors.destructive})`,
+            color: `rgb(${colors.surface})`
+          }}
         >
           {scanned}
         </span>
@@ -842,16 +850,33 @@ const SummaryModal: React.FC<SummaryModalProps> = ({
       className="summary-modal"
     >
       {/* QR Scanner Status */}
-      <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+      <div 
+        className="mb-4 p-3 rounded-lg"
+        style={{ 
+          backgroundColor: `rgb(${colors.muted})`,
+          border: `1px solid rgb(${colors.border})`
+        }}
+      >
         <div className="flex items-center gap-2 mb-2">
-          <QrcodeOutlined className="text-blue-600" />
-          <span className="font-medium text-blue-800">Pemindai QR Aktif</span>
+          <QrcodeOutlined style={{ color: `rgb(${colors.primary})` }} />
+          <span 
+            className="font-medium"
+            style={{ color: `rgb(${colors.text})` }}
+          >
+            Pemindai QR Aktif
+          </span>
         </div>
-        <p className="text-sm text-blue-700">
+        <p 
+          className="text-sm"
+          style={{ color: `rgb(${colors['text-muted']})` }}
+        >
           Gunakan pemindai QR eksternal Anda untuk memindai kode QR yang
           dihasilkan. Item yang dipindai akan otomatis ditandai sebagai selesai.
         </p>
-        <p className="text-xs text-blue-600 mt-1">
+        <p 
+          className="text-xs mt-1"
+          style={{ color: `rgb(${colors['text-muted']})` }}
+        >
           Hasilkan kode QR terlebih dahulu, lalu pindai menggunakan pemindai
           eksternal Anda untuk memperbarui status item sambil membiarkan ini
           tetap terbuka.

@@ -7,8 +7,13 @@ import { AlignLeft, Edit } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useCallback } from "react";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
+import { useSelector } from "react-redux";
+import { selectTheme, selectIsDarkMode } from "@store/app_slice";
 
 const Description: React.FC<{card: Card, setSelectedCard: Dispatch<SetStateAction<Card | null>>}> = ({card, setSelectedCard}) => {
+  const theme = useSelector(selectTheme);
+  const isDarkMode = useSelector(selectIsDarkMode);
+  const { colors } = theme;
 
   const [isEditingDescription, setIsEditingDescription] = useState<boolean>(false);
   const [newDescription, setNewDescription] = useState<string>(card?.description || "");
@@ -67,7 +72,11 @@ const Description: React.FC<{card: Card, setSelectedCard: Dispatch<SetStateActio
             type="text" 
             size="small" 
             onClick={enableEditDescription} 
-            className="text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-md"
+            className="rounded-md hover:opacity-80"
+            style={{ 
+              color: `rgb(${colors['text-muted']})`,
+              backgroundColor: 'transparent'
+            }}
           >
             Edit
           </Button>
@@ -75,7 +84,13 @@ const Description: React.FC<{card: Card, setSelectedCard: Dispatch<SetStateActio
       </div>
       
       {isEditingDescription ? (
-        <div className="border rounded-md overflow-hidden ml-8">
+        <div 
+          className="rounded-md overflow-hidden ml-8"
+          style={{ 
+            border: `1px solid rgb(${colors.border})`,
+            backgroundColor: `rgb(${colors.surface})`
+          }}
+        >
           <RichTextEditor
             initialValue={newDescription}
             onChange={(content: string) => {
@@ -90,7 +105,13 @@ const Description: React.FC<{card: Card, setSelectedCard: Dispatch<SetStateActio
             openCustomImagesSelector={openCardAttachmentListModal}
             selectedAttachmentImageUrl={selectedattachmentImageUrl}
           />
-          <div className="flex justify-end p-2 bg-gray-50 border-t">
+          <div 
+            className="flex justify-end p-2"
+            style={{ 
+              backgroundColor: `rgb(${colors.muted})`,
+              borderTop: `1px solid rgb(${colors.border})`
+            }}
+          >
             <Button 
               onClick={disableEditDescription} 
               size="middle" 
@@ -110,13 +131,17 @@ const Description: React.FC<{card: Card, setSelectedCard: Dispatch<SetStateActio
         </div>
       ) : (
         <div 
-          className="ml-8 p-3 bg-gray-50 rounded-md min-h-20 cursor-pointer hover:bg-gray-100 transition-colors" 
+          className="ml-8 p-3 rounded-md min-h-20 cursor-pointer transition-colors hover:opacity-80" 
+          style={{ 
+            backgroundColor: `rgb(${colors.muted})`,
+            color: `rgb(${colors.text})`
+          }}
           onClick={enableEditDescription}
         >
           {card.description ? (
             <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: newDescription }} />
           ) : (
-            <span className="text-gray-400">Add a more detailed description...</span>
+            <span style={{ color: `rgb(${colors['text-muted']})` }}>Add a more detailed description...</span>
           )}
         </div>
       )}

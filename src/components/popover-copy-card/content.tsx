@@ -1,16 +1,15 @@
 import React, { useRef, useState } from 'react';
-import { Select, Button, Input, Checkbox } from 'antd';
+import { Select, Button, Input, Checkbox, message } from 'antd';
 import {
   BoardSelection,
-  CardPositionSelection,
   ListSelection,
   SelectionRef
 } from '../selection';
 import { useCardDetailContext } from '@providers/card-detail-context';
 import { useCardCopy, useCards } from '@hooks/card';
 import { useParams } from 'next/navigation';
-import { CopycardPost } from '@myTypes/card';
-import { EnumOptionPosition } from '@myTypes/options';
+import { CopycardPost, Card } from '@myTypes/card';
+import { AnyList } from '@myTypes/list';
 
 interface CopyEntitiesOption {
   withChecklists: boolean;
@@ -21,25 +20,33 @@ interface CopyEntitiesOption {
   withCustomFields: boolean;
 }
 
-const ContentCopyCard: React.FC = () => {
+interface ContentCopyCardProps {
+  card?: Card;
+  list?: AnyList;
+  onClose?: () => void;
+}
+
+const ContentCopyCard: React.FC<ContentCopyCardProps> = ({ card: propCard, list: propList, onClose }) => {
   const { boardId } = useParams();
   const {
     selectedCard,
     closeCardDetail
   } = useCardDetailContext();
 
+  // Use prop card if available, otherwise fall back to context card
+  const currentCard = propCard || selectedCard;
+  const currentList = propList;
+
   const [selectedBoard, setSelectedBoard] = useState<string>(
     boardId as string
   );
   const [selectedList, setSelectedList] = useState<string>(
-    selectedCard?.listId || ''
+    currentCard?.listId || ''
   );
-  const [selectedPosition, setSelectedPosition] = useState<number>(1);
   const listSelectionRef = useRef<SelectionRef>(null);
-  const positionSelectionRef = useRef<SelectionRef>(null);
   const boardSelectionRef = useRef<SelectionRef>(null);
   const [cardName, setCardName] = useState<string>(
-    selectedCard?.name || ''
+    currentCard?.name || ''
   );
 
   const { copyCard } = useCardCopy();
@@ -55,12 +62,10 @@ const ContentCopyCard: React.FC = () => {
     }
   );
 
-  const positionOptions = [{ value: 1, label: '1' }];
-
   const handleCopy = () => {
-    if (selectedCard && selectedList) {
+    if (currentCard && selectedList) {
       const cardToCopy: CopycardPost = {
-        cardId: selectedCard.id,
+        cardId: currentCard.id,
         name: cardName,
         targetListId: selectedList,
         withChecklists: copyEntitiesOption.withChecklists,
@@ -68,17 +73,26 @@ const ContentCopyCard: React.FC = () => {
         withMembers: copyEntitiesOption.withMembers,
         withAttachments: copyEntitiesOption.withAttachments,
         withComments: copyEntitiesOption.withComments,
-        withCustomFields: copyEntitiesOption.withCustomFields,
-        position: EnumOptionPosition.TopOfList
+        withCustomFields: copyEntitiesOption.withCustomFields
       };
 
       copyCard({
         boardId: selectedBoard,
-        cardId: selectedCard.id,
+        cardId: currentCard.id,
         cardCopyData: cardToCopy
       });
 
-      closeCardDetail(); // Optional: auto-close modal
+      // Close the popover
+      if (onClose) {
+        onClose();
+      }
+      
+      // Show success message
+      message.success('Card copied successfully!');
+
+      if (selectedCard) {
+        closeCardDetail(); // Only close card detail modal if it was opened from context
+      }
     }
   };
 
@@ -146,33 +160,17 @@ const ContentCopyCard: React.FC = () => {
               />
             </div>
 
-            {/* List and Position */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block mb-1">List</label>
-                <ListSelection
-                  ref={listSelectionRef}
-                  size="small"
-                  width="100%"
-                  value={selectedList}
-                  onChange={(val:any) => setSelectedList(val)}
-                  selectedBoardId={selectedBoard}
-                />
-              </div>
-              <div>
-                <label className="block mb-1">Position</label>
-                <CardPositionSelection
-                  className="w-full"
-                  value={selectedPosition}
-                  onChange={(val:any) => setSelectedPosition(parseInt(val))}
-                  options={positionOptions}
-                  ref={positionSelectionRef}
-                  listId={selectedList}
-                  selectedListId={selectedList}
-                  size="small"
-                  width="100%"
-                />
-              </div>
+            {/* List */}
+            <div>
+              <label className="block mb-1">List</label>
+              <ListSelection
+                ref={listSelectionRef}
+                size="small"
+                width="100%"
+                value={selectedList}
+                onChange={(val:any) => setSelectedList(val)}
+                selectedBoardId={selectedBoard}
+              />
             </div>
           </div>
         </div>
