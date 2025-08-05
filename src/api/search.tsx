@@ -11,7 +11,8 @@ export interface SearchResult {
   board_name?: string;
   listId?: string;
   list_name?: string;
-  workspace_id?: string;
+  workspace_id?: string; // Backend returns snake_case
+  workspaceId?: string; // Frontend expects camelCase
   workspace_name?: string;
   cover?: string;
   created_at?: Date;

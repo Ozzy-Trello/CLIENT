@@ -220,7 +220,7 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
         (item: CustomField) => {
           // Define options based on field type
           let options: FilterOption[] = [];
-          let defaultOperator: FilterOperator = FilterOperator.EQUALS;
+          let defaultOperator: FilterOperator = FilterOperator.ANY_VALUE;
 
           if (item.type === EnumCustomFieldType.Number) {
             options = [
@@ -245,8 +245,8 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
             defaultOperator = "today" as FilterOperator;
           } else {
             options = [
-              { label: "any", value: "any" },
-              { label: "select", value: "select" },
+              { label: "has a value", value: FilterOperator.ANY_VALUE },
+              { label: "has no value", value: FilterOperator.NO_VALUE },
             ];
           }
 
@@ -560,7 +560,7 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
                       <td className="py-2 px-2">
                         <Select
                           size="small"
-                          className="min-w-32"
+                          className="min-w-36 max-w-48"
                           options={filter.options}
                           value={filter.operator}
                           onChange={(value) =>
@@ -572,7 +572,7 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
                         {filter.type === EnumCardAttributeType.BOARD ? (
                           <Select
                             size="small"
-                            className="min-w-32"
+                            className="w-full"
                             options={boardOptions}
                             value={filter.value as string}
                             onChange={(value: string) =>
@@ -583,7 +583,7 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
                         ) : filter.type === EnumCardAttributeType.LIST ? (
                           <Select
                             size="small"
-                            className="min-w-32"
+                            className="w-full"
                             options={listOptions}
                             value={filter.value as string}
                             onChange={(value: string) =>
@@ -658,7 +658,7 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
                                  return (
                                    <Select
                                      size="small"
-                                     className="min-w-32"
+                                     className="w-full"
                                      options={opts}
                                      value={filter.value as string}
                                      onChange={(value: string) =>
@@ -672,7 +672,7 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
                                  return (
                                    <Select
                                      size="small"
-                                     className="min-w-32"
+                                     className="w-full"
                                      options={[
                                        { label: "Unchecked", value: "false" },
                                        { label: "Checked", value: "true" },

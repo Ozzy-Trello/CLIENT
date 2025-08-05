@@ -35,6 +35,7 @@ interface RegularCardProps {
   card: Card;
   isHovered: boolean;
   onCompletionChange: (e: CheckboxChangeEvent, card: Card) => void;
+  isDragging?: boolean;
 }
 
 // Utility: decide black/white text based on background color
@@ -52,7 +53,7 @@ function getContrastTextColor(hex: string): string {
 }
 
 const RegularCard: React.FC<RegularCardProps> = (props) => {
-  const { card, isHovered, onCompletionChange } = props;
+  const { card, isHovered, onCompletionChange, isDragging = false } = props;
   const { workspaceId } = useParams();
   const { cardMembers } = useCardMembers(card?.id);
   const { cardCustomFields } = useCardCustomField(
@@ -135,7 +136,7 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
           <Tooltip
             title={`${card?.sourceCard?.boardName}: ${card?.sourceCard?.listName}`}
           >
-            <div className="flex justify-between items-center rounded bg-gray-100 group hover:bg-gray-200 transition-colors">
+            <div className="flex justify-between items-center rounded bg-gray-100 group hover:bg-gray-200">
               <div className="flex items-center gap-2 p-2">
                 <Avatar shape="square" size={"small"}>
                   <span>{card?.sourceCard?.name?.charAt(0) || ""}</span>
@@ -147,7 +148,7 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
                     </span>
                     <MoveUpRight
                       size={12}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="opacity-0 group-hover:opacity-100"
                     />
                   </div>
                   <span>{card?.sourceCard?.listName}</span>
@@ -183,7 +184,7 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
         {/* Card title */}
         <div className="flex items-center space-x-2 relative mb-3">
           <Checkbox
-            className={`custom-circular-checkbox absolute left-0 -ml-6 transition-all duration-300 ${
+            className={`custom-circular-checkbox absolute left-0 -ml-6 ${
               isHovered || card?.isComplete ? "opacity-100" : "opacity-0"
             } ${card?.isComplete ? "completed" : ""}`}
             checked={card?.isComplete}
@@ -194,7 +195,6 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
           <h3
             className={`
               text-blue-800 font-semibold text-lg
-              transition-all duration-300
               ${
                 isHovered || card?.isComplete
                   ? "translate-x-6"
@@ -296,22 +296,31 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
 
               // Prioritize correct value type based on custom field type
               if (item.type === "number") {
-                if (item.valueNumber !== null && item.valueNumber !== undefined) {
+                if (
+                  item.valueNumber !== null &&
+                  item.valueNumber !== undefined
+                ) {
                   // Format number with separators
-                  return typeof item.valueNumber === 'number' 
-                    ? item.valueNumber.toLocaleString() 
+                  return typeof item.valueNumber === "number"
+                    ? item.valueNumber.toLocaleString()
                     : parseFloat(item.valueNumber).toLocaleString();
                 }
               } else if (item.type === "dropdown") {
-                if (item.valueOption !== null && item.valueOption !== undefined) {
+                if (
+                  item.valueOption !== null &&
+                  item.valueOption !== undefined
+                ) {
                   return item.valueOption;
                 }
               } else if (item.type === "text") {
-                if (item.valueString !== null && item.valueString !== undefined) {
+                if (
+                  item.valueString !== null &&
+                  item.valueString !== undefined
+                ) {
                   return item.valueString;
                 }
               }
-              
+
               // Fallback to original order for other types or if primary value is null
               if (item.valueOption !== null && item.valueOption !== undefined) {
                 return item.valueOption;
@@ -321,8 +330,8 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
               }
               if (item.valueNumber !== null && item.valueNumber !== undefined) {
                 // Format number with separators for fallback case too
-                return typeof item.valueNumber === 'number' 
-                  ? item.valueNumber.toLocaleString() 
+                return typeof item.valueNumber === "number"
+                  ? item.valueNumber.toLocaleString()
                   : parseFloat(item.valueNumber).toLocaleString();
               }
               return "-";

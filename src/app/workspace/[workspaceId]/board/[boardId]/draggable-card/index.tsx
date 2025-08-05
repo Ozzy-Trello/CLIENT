@@ -20,20 +20,25 @@ interface DraggableCardProps {
 
 const DraggableCard: React.FC<DraggableCardProps> = ({ card, index, list }) => {
   const { openCardDetail } = useCardDetailContext();
-  const { focusedCardId, setFocusedCardId, isCardFocused, clearFocus } = useCardFocus();
+  const { focusedCardId, setFocusedCardId, isCardFocused, clearFocus } =
+    useCardFocus();
   const { workspaceId, boardId } = useParams();
   const [isHovered, setIsHovered] = useState<boolean>(false);
   const [openAddMember, setOpenAddMember] = useState<boolean>(false);
   const { canMove } = usePermissions();
-  const { completeCard, incompleteCard } = useCardDetails("", "", boardId as string);
+  const { completeCard, incompleteCard } = useCardDetails(
+    "",
+    "",
+    boardId as string
+  );
 
   const onChange = (e: CheckboxChangeEvent, card: Card) => {
     e.stopPropagation();
     const isComplete = e.target.checked;
     if (isComplete) {
-      completeCard({listId:card?.listId, cardId: card.id});
+      completeCard({ listId: card?.listId, cardId: card.id });
     } else {
-      incompleteCard({listId:card?.listId, cardId: card.id});
+      incompleteCard({ listId: card?.listId, cardId: card.id });
     }
   };
 
@@ -64,13 +69,17 @@ const DraggableCard: React.FC<DraggableCardProps> = ({ card, index, list }) => {
       isDragDisabled={!canMoveCard}
     >
       {(provided, snapshot) => (
-        <CardContextMenu onContextMenu={handleContextMenu} card={card} list={list}>
+        <CardContextMenu
+          onContextMenu={handleContextMenu}
+          card={card}
+          list={list}
+        >
           <div
             className={`bg-white rounded-lg border border-gray-200 
               max-w-sm
-            hover:border-blue-500 transition-all duration-300 overflow-hidden
-            ${canMoveCard ? "cursor-move" : "cursor-default"}
+            hover:border-blue-500 overflow-hidden
             ${snapshot.isDragging ? "shadow-lg" : ""}
+            ${canMoveCard ? "cursor-move" : "cursor-default"}
             ${shouldBlur ? "opacity-30 blur-sm" : ""}
             ${isCardFocused(card.id) ? "ring-2 ring-blue-500 shadow-lg" : ""}
             `}
@@ -82,7 +91,9 @@ const DraggableCard: React.FC<DraggableCardProps> = ({ card, index, list }) => {
             onMouseLeave={() => setIsHovered(false)}
             data-card-id={card.id}
             title={
-              !canMoveCard ? "You don't have permission to move cards" : undefined
+              !canMoveCard
+                ? "You don't have permission to move cards"
+                : undefined
             }
           >
             {card.type == EnumCardType.Dashcard ? (
@@ -90,12 +101,14 @@ const DraggableCard: React.FC<DraggableCardProps> = ({ card, index, list }) => {
                 card={card}
                 isHovered={isHovered}
                 onCompletionChange={onChange}
+                isDragging={snapshot.isDragging}
               />
             ) : (
               <RegularCard
                 card={card}
                 isHovered={isHovered}
                 onCompletionChange={onChange}
+                isDragging={snapshot.isDragging}
               />
             )}
           </div>

@@ -43,7 +43,6 @@ interface ModalDashcardProps {
 }
 
 const BOARD_LIST_OPERATORS = [
-  { label: "any", value: "any" },
   { label: "on this board", value: "on_this_board" },
   { label: "is one of", value: "is_one_of" },
   { label: "is not one of", value: "is_not_one_of" },
@@ -52,7 +51,6 @@ const BOARD_LIST_OPERATORS = [
 ];
 
 const LIST_OPERATORS = [
-  { label: "any", value: "any" },
   { label: "on this list", value: "on_this_list" },
   { label: "is one of", value: "is_one_of" },
   { label: "is not one of", value: "is_not_one_of" },
@@ -198,7 +196,6 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
           
           if (item.type === "dropdown") {
             options = [
-              { label: "any", value: "any" },
               { label: "is one of", value: "is_one_of" },
               { label: "is not one of", value: "is_not_one_of" },
               { label: "has a value", value: "any_value" },
@@ -208,8 +205,6 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
             ];
           } else if (item.type === "number") {
             options = [
-              { label: "any", value: "any" },
-              { label: "equals", value: "equals" },
               { label: "not equals", value: "not_equals" },
               { label: "greater than", value: "greater_than" },
               { label: "less than", value: "less_than" },
@@ -219,15 +214,12 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
             ];
           } else if (item.type === "checkbox") {
             options = [
-              { label: "any", value: "any" },
               { label: "Checked", value: "checked" },
               { label: "Unchecked", value: "unchecked" },
             ];
           } else {
             // Default for text and other types
             options = [
-              { label: "any", value: "any" },
-              { label: "equals", value: "equals" },
               { label: "not equals", value: "not_equals" },
               { label: "contains", value: "contains" },
               { label: "does not contain", value: "does_not_contain" },
@@ -244,7 +236,7 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
             groupType: "custom",
             type: EnumCardAttributeType.CUSTOM_FIELD,
             value: "",
-            operator: "equals" as FilterOperator,
+            operator: "any_value" as FilterOperator,
             field: item,
             options,
           };
@@ -587,7 +579,6 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
                       operator === "name_starts_with" ||
                       operator === "name_matches";
                     const isNoValueInput =
-                      operator === "any" ||
                       operator === "on_this_board" ||
                       operator === "on_this_list";
                     return (
@@ -606,7 +597,7 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
                         <td className="py-2 px-2">
                           <Select
                             size="small"
-                            className="min-w-32"
+                            className="min-w-36 max-w-48"
                             options={
                               isBoard
                                 ? BOARD_LIST_OPERATORS
@@ -683,7 +674,6 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
                             (() => {
                               const operator = String(filter.operator);
                               const isNoValueInput =
-                                operator === "any" ||
                                 operator === "any_value" ||
                                 operator === "no_value";
                               const isMultiSelect =
@@ -733,7 +723,6 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
                               
                               // Operator-specific logic for custom fields
                               const isNoValueInput =
-                                operator === "any" ||
                                 operator === "any_value" ||
                                 operator === "no_value" ||
                                 (field?.type === "number" && (operator === "any_value" || operator === "no_value")) ||

@@ -3,4 +3,17 @@
 .custom-circular-checkbox.completed.ant-checkbox-checked .ant-checkbox-inner {
   background-color: #22c55e; /* tailwind green-500 */
   border-color: #22c55e;
-} 
+}
+
+/* Disable transitions during drag operations to prevent glitches */
+/* Target both card and list elements */
+body.dragging [data-rbd-droppable-id*="droppable-card-area"] *,
+body.dragging [data-rbd-draggable-id*="card-"] *,
+body.dragging [data-rbd-droppable-id*="droppable-list-area"] *,
+body.dragging [data-rbd-draggable-id*="draggable-list-"] *,
+body.dragging .custom-circular-checkbox,
+body.dragging .card-title,
+body.dragging .card-hover-effects {
+  transition: none !important;
+  animation: none !important;
+}

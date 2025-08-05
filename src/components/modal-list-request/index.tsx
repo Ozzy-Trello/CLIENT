@@ -1,6 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Modal, Table, Button, message, Space, Tag } from "antd";
-import { getAllRequests, verifyRequest, rejectRequest } from "@api/accurate";
+import {
+  useRequestsOptimized,
+  useVerifyRequest,
+  useRejectRequest,
+} from "@hooks/accurate";
 
 interface ModalListRequestProps {
   open: boolean;
@@ -11,72 +15,45 @@ const ModalListRequest: React.FC<ModalListRequestProps> = ({
   open,
   onClose,
 }) => {
-  const [loading, setLoading] = useState(false);
-  const [dataSource, setDataSource] = useState<any[]>([]);
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 10,
-    total: 0,
   });
-  const [verifying, setVerifying] = useState<string | null>(null);
-  const [rejecting, setRejecting] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    setLoading(true);
-    // Pass an empty filter object to ensure consistent API behavior
-    getAllRequests(pagination.page, pagination.limit, {})
-      .then((res) => {
-        setDataSource(res.data || []);
-        setPagination((prev) => ({
-          ...prev,
-          total: res.pagination?.total || 0,
-        }));
-      })
-      .finally(() => setLoading(false));
-  }, [open, pagination.page, pagination.limit]);
+  // Use optimized hooks
+  const {
+    data: requestsData,
+    isLoading,
+    error,
+  } = useRequestsOptimized(
+    pagination.page,
+    pagination.limit,
+    open ? {} : undefined // Only fetch when modal is open
+  );
+
+  const verifyMutation = useVerifyRequest();
+  const rejectMutation = useRejectRequest();
 
   const handleVerify = async (id: string) => {
-    setVerifying(id);
     try {
-      await verifyRequest(id);
+      await verifyMutation.mutateAsync(id);
       message.success("Request verified!");
-      // Refresh table
-      setLoading(true);
-      const res = await getAllRequests(pagination.page, pagination.limit, {});
-      setDataSource(res.data || []);
-      setPagination((prev) => ({
-        ...prev,
-        total: res.pagination?.total || 0,
-      }));
     } catch (err) {
       message.error("Failed to verify request");
-    } finally {
-      setVerifying(null);
-      setLoading(false);
     }
   };
 
   const handleReject = async (id: string) => {
-    setRejecting(id);
     try {
-      await rejectRequest(id);
+      await rejectMutation.mutateAsync(id);
       message.success("Request rejected!");
-      // Refresh table
-      setLoading(true);
-      const res = await getAllRequests(pagination.page, pagination.limit, {});
-      setDataSource(res.data || []);
-      setPagination((prev) => ({
-        ...prev,
-        total: res.pagination?.total || 0,
-      }));
     } catch (err) {
       message.error("Failed to reject request");
-    } finally {
-      setRejecting(null);
-      setLoading(false);
     }
   };
+
+  const dataSource = requestsData?.data || [];
+  const total = requestsData?.pagination?.total || 0;
 
   const columns = [
     { title: "Nama PO", dataIndex: "cardName", key: "card_name" },
@@ -116,7 +93,7 @@ const ModalListRequest: React.FC<ModalListRequestProps> = ({
             disabled={record.isVerified || record.isRejected}
             type="primary"
             icon={<span className="fi fi-rr-check" />}
-            loading={verifying === record.id}
+            loading={verifyMutation.isPending}
             onClick={() => handleVerify(record.id)}
           >
             Accept
@@ -125,7 +102,7 @@ const ModalListRequest: React.FC<ModalListRequestProps> = ({
             disabled={record.isVerified || record.isRejected}
             type="primary"
             danger
-            loading={rejecting === record.id}
+            loading={rejectMutation.isPending}
             onClick={() => handleReject(record.id)}
           >
             X
@@ -152,13 +129,13 @@ const ModalListRequest: React.FC<ModalListRequestProps> = ({
       <Table
         dataSource={dataSource}
         columns={columns}
-        loading={loading}
+        loading={isLoading}
         pagination={{
           current: pagination.page,
           pageSize: pagination.limit,
-          total: pagination.total,
+          total: total,
           onChange: (page, pageSize) =>
-            setPagination({ ...pagination, page, limit: pageSize }),
+            setPagination({ page, limit: pageSize || pagination.limit }),
           showSizeChanger: true,
         }}
         rowKey="id"

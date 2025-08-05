@@ -14,6 +14,7 @@ interface DashcardProps {
   card: Card;
   isHovered: boolean;
   onCompletionChange: (e: CheckboxChangeEvent, card: Card) => void;
+  isDragging?: boolean;
 }
 
 // util to lighten color toward white (light mode)
@@ -46,7 +47,7 @@ const getFadeColor = (hex: string, isDarkMode: boolean, amount = 0.8) => {
 };
 
 const Dashcard: React.FC<DashcardProps> = (props) => {
-  const { card, isHovered, onCompletionChange } = props;
+  const { card, isHovered, onCompletionChange, isDragging = false } = props;
   const isDarkMode = useSelector(selectIsDarkMode);
   const { workspaceId } = useParams();
   const { customFields } = useCustomFields(
@@ -55,7 +56,7 @@ const Dashcard: React.FC<DashcardProps> = (props) => {
 
   // Use our custom hook to fetch and manage dashcard count
   const { count } = useDashcardCount(card.id);
-  
+
   // Use dashcard list hook to get items with custom field data
   const { resultData } = useDashcardList(card);
   const items = resultData?.items || [];
@@ -63,28 +64,38 @@ const Dashcard: React.FC<DashcardProps> = (props) => {
   // Calculate display value based on configuration
   const getDisplayValue = () => {
     const displayConfig = card?.dashConfig?.displayConfig;
-    
-    if (displayConfig?.type === DashcardDisplayType.CUSTOM_FIELD_SUM && displayConfig.customFieldId) {
+
+    if (
+      displayConfig?.type === DashcardDisplayType.CUSTOM_FIELD_SUM &&
+      displayConfig.customFieldId
+    ) {
       // Find the custom field to get its name
-      const customField = customFields?.find(field => field.id === displayConfig.customFieldId);
+      const customField = customFields?.find(
+        (field) => field.id === displayConfig.customFieldId
+      );
       if (!customField) return count;
-      
+
       // Calculate sum of the custom field using the field name
       const sum = items.reduce((total, item) => {
         const customFieldColumn = item.columns?.find(
           (col) => col.column === customField.name
         );
         if (!customFieldColumn) return total;
-        
+
         const value = customFieldColumn.value;
-        const numValue = typeof value === 'string' ? parseFloat(value) : (typeof value === 'number' ? value : 0);
+        const numValue =
+          typeof value === "string"
+            ? parseFloat(value)
+            : typeof value === "number"
+            ? value
+            : 0;
         return total + (isNaN(numValue) ? 0 : numValue);
       }, 0);
-      
+
       // Format number with separators
       return Math.round(sum).toLocaleString();
     }
-    
+
     // Default to card count (also format with separators)
     return parseInt(count).toLocaleString();
   };
@@ -92,13 +103,18 @@ const Dashcard: React.FC<DashcardProps> = (props) => {
   // Get display label based on configuration
   const getDisplayLabel = () => {
     const displayConfig = card?.dashConfig?.displayConfig;
-    
-    if (displayConfig?.type === DashcardDisplayType.CUSTOM_FIELD_SUM && displayConfig.customFieldId) {
-      const customField = customFields?.find(field => field.id === displayConfig.customFieldId);
-      return customField ? `${customField.name} Total` : 'Custom Field Total';
+
+    if (
+      displayConfig?.type === DashcardDisplayType.CUSTOM_FIELD_SUM &&
+      displayConfig.customFieldId
+    ) {
+      const customField = customFields?.find(
+        (field) => field.id === displayConfig.customFieldId
+      );
+      return customField ? `${customField.name} Total` : "Custom Field Total";
     }
-    
-    return 'Cards';
+
+    return "Cards";
   };
 
   return (
@@ -108,27 +124,34 @@ const Dashcard: React.FC<DashcardProps> = (props) => {
         backgroundImage: card?.dashConfig?.backgroundColor
           ? `linear-gradient(180deg, ${
               card.dashConfig.backgroundColor
-            } 0%, ${getFadeColor(card.dashConfig.backgroundColor, isDarkMode, 1)} 110%)`
+            } 0%, ${getFadeColor(
+              card.dashConfig.backgroundColor,
+              isDarkMode,
+              1
+            )} 110%)`
           : undefined,
         backgroundColor: card?.dashConfig?.backgroundColor,
         minHeight: "110px",
         paddingBlock: "1rem",
       }}
     >
-      <Typography.Title 
+      <Typography.Title
         className="text-center"
-        style={{ color: isDarkMode ? 'white' : undefined }}
+        style={{ color: isDarkMode ? "white" : undefined }}
       >
         {getDisplayValue()}
       </Typography.Title>
-      <div className="text-center text-sm opacity-75 -mt-2 mb-2" style={{ color: isDarkMode ? 'white' : undefined }}>
+      <div
+        className="text-center text-sm opacity-75 -mt-2 mb-2"
+        style={{ color: isDarkMode ? "white" : undefined }}
+      >
         {getDisplayLabel()}
       </div>
       <div className="">
         <div className="flex items-center space-x-2 relative mt-5">
           {/* Checkbox: visible on hover or when completed */}
           <Checkbox
-            className={`custom-circular-checkbox absolute left-0 -ml-6 transition-all duration-300 ${
+            className={`custom-circular-checkbox absolute left-0 -ml-6 ${
               isHovered || card?.isComplete ? "opacity-100" : "opacity-0"
             } ${card?.isComplete ? "completed" : ""}`}
             checked={card?.isComplete}
@@ -137,11 +160,14 @@ const Dashcard: React.FC<DashcardProps> = (props) => {
           />
           <h3
             className={`
-              font-semibold text-xl
-              transition-all duration-300
-              ${isHovered || card?.isComplete ? "translate-x-6" : "translate-x-0"}
+              text-blue-800 font-semibold text-lg
+              ${
+                isHovered || card?.isComplete
+                  ? "translate-x-6"
+                  : "translate-x-0"
+              }
             `}
-            style={{ color: isDarkMode ? 'white' : undefined }}
+            style={{ color: isDarkMode ? "white" : undefined }}
           >
             {card.name}
           </h3>

@@ -73,6 +73,11 @@ export function useCardDetails(
       }
     },
     onSettled: () => {
+      // Don't invalidate queries during drag operations to prevent state conflicts
+      if ((window as any).__DRAG_IN_PROGRESS__) {
+        return;
+      }
+      
       queryClient.invalidateQueries({ queryKey: queryKeys.cards.detail(cardId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.cards.list(listId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.lists.all });
@@ -110,6 +115,11 @@ export function useCardDetails(
       }
     },
     onSettled: () => {
+      // Don't invalidate queries during drag operations to prevent state conflicts
+      if ((window as any).__DRAG_IN_PROGRESS__) {
+        return;
+      }
+      
       queryClient.invalidateQueries({ queryKey: queryKeys.cards.list(listId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.lists.all });
     },
@@ -231,6 +241,11 @@ export function useCardDetails(
       }
     },
     onSettled: () => {
+      // Don't invalidate queries during drag operations to prevent state conflicts
+      if ((window as any).__DRAG_IN_PROGRESS__) {
+        return;
+      }
+      
       queryClient.invalidateQueries({ queryKey: queryKeys.cards.detail(cardId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.cards.list(listId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.lists.all });
@@ -299,6 +314,11 @@ export function useCardDetails(
       }
     },
     onSettled: () => {
+      // Don't invalidate queries during drag operations to prevent state conflicts
+      if ((window as any).__DRAG_IN_PROGRESS__) {
+        return;
+      }
+      
       queryClient.invalidateQueries({ queryKey: queryKeys.cards.detail(cardId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.cards.list(listId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.lists.all });
@@ -367,6 +387,11 @@ export function useCardDetails(
       }
     },
     onSettled: () => {
+      // Don't invalidate queries during drag operations to prevent state conflicts
+      if ((window as any).__DRAG_IN_PROGRESS__) {
+        return;
+      }
+      
       queryClient.invalidateQueries({ queryKey: queryKeys.cards.detail(cardId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.cards.list(listId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.lists.all });
@@ -404,6 +429,11 @@ export function useCardDetails(
     },
 
     onSettled: (_data, _error, variables) => {
+      // Don't invalidate queries during drag operations to prevent state conflicts
+      if ((window as any).__DRAG_IN_PROGRESS__) {
+        return;
+      }
+      
       if (variables) {
         const { cardId, listId } = variables;
         queryClient.invalidateQueries({ queryKey: queryKeys.cards.detail(cardId) });
@@ -443,6 +473,11 @@ export function useCardDetails(
     },
 
     onSettled: (_data, _error, variables) => {
+      // Don't invalidate queries during drag operations to prevent state conflicts
+      if ((window as any).__DRAG_IN_PROGRESS__) {
+        return;
+      }
+      
       if (variables) {
         const { cardId, listId } = variables;
         queryClient.invalidateQueries({ queryKey: queryKeys.cards.detail(cardId) });

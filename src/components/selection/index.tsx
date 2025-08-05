@@ -721,10 +721,12 @@ export const LabelSelection = forwardRef<SelectionRef, SelectionProps>(
     const { allLabels } = useLabels(workspaceId as string);
 
     const options = useMemo(() => {
-      return allLabels?.map((item) => ({
-        label: item.name ?? "",
-        value: item.id ?? "",
-      }));
+      return allLabels
+        ?.filter((item) => item.name && item.name.trim() !== "")
+        ?.map((item) => ({
+          label: item.name ?? "",
+          value: item.id ?? "",
+        }));
     }, [allLabels]);
 
     useImperativeHandle(ref, () => ({

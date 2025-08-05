@@ -89,7 +89,6 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
 
           case EnumUserActionEvent.CardUpdated:
             const { card: updatedCard, listId } = message.data;
-            console.log(`Card ${updatedCard.id} updated in list ${listId}`);
 
             // Invalidate relevant queries
             queryClient.invalidateQueries({ queryKey: queryKeys.lists.all });
@@ -126,9 +125,6 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
 
           case EnumUserActionEvent.CardCreated:
             const { card: newCard, listId: newCardListId } = message.data;
-            console.log(
-              `New card ${newCard.id} created in list ${newCardListId}`
-            );
 
             // Invalidate relevant queries
             queryClient.invalidateQueries({ queryKey: queryKeys.lists.all });

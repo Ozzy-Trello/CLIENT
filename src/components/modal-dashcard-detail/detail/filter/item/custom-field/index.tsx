@@ -96,7 +96,6 @@ const CustomFieldItemFilter: FC<DashcardFilter> = ({
     
     if (item?.type === EnumCustomFieldType.Dropdown) {
       return [
-        { label: "any", value: FilterOperator.ANY },
         { label: "is one of", value: FilterOperator.IS_ONE_OF },
         { label: "is not one of", value: FilterOperator.IS_NOT_ONE_OF },
         { label: "has a value", value: FilterOperator.ANY_VALUE },
@@ -107,8 +106,8 @@ const CustomFieldItemFilter: FC<DashcardFilter> = ({
     }
     // For other types, use the default options
     return [
-      { label: "any", value: "any" },
-      { label: "select", value: "select" },
+      { label: "has a value", value: FilterOperator.ANY_VALUE },
+      { label: "has no value", value: FilterOperator.NO_VALUE },
     ];
   }, [item?.type, isDateField]);
 
@@ -131,7 +130,7 @@ const CustomFieldItemFilter: FC<DashcardFilter> = ({
       return true;
     }
     
-    return op === FilterOperator.ANY || op === FilterOperator.ANY_VALUE || op === FilterOperator.NO_VALUE;
+    return op === FilterOperator.ANY_VALUE || op === FilterOperator.NO_VALUE;
   }, [valueEdit?.operator, isDateField, item?.type]);
 
   // Get icon based on custom field type
@@ -308,7 +307,7 @@ const CustomFieldItemFilter: FC<DashcardFilter> = ({
                     return (
                       <Select
                         size="small"
-                        className="min-w-32"
+                        className="w-full"
                         options={opts}
                         value={isMultiSelect ? (Array.isArray(valueEdit?.value) ? valueEdit.value : []) : (valueEdit?.value as string)}
                         onChange={(value: string | string[]) =>
@@ -323,7 +322,7 @@ const CustomFieldItemFilter: FC<DashcardFilter> = ({
                   return (
                     <Select
                       size="small"
-                      className="min-w-32"
+                      className="w-full"
                       options={[
                         { label: "Unchecked", value: "false" },
                         { label: "Checked", value: "true" },

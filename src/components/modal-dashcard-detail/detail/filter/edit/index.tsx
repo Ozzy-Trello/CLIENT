@@ -33,10 +33,10 @@ const EditFilter: FC = () => {
         groupType: "custom",
         type: EnumCardAttributeType.CUSTOM_FIELD,
         value: "",
-        operator: "equals" as FilterOperator,
+        operator: "any_value" as FilterOperator,
         options: [
-          { label: "any", value: "any" },
-          { label: "select", value: "select" },
+          { label: "has a value", value: "any_value" },
+          { label: "has no value", value: "no_value" },
         ],
       })
     );

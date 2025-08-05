@@ -12,6 +12,9 @@ export function useLists(boardId: string) {
     queryFn: () => lists(boardId),
     enabled: !!boardId,
     staleTime: 5000,
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
+    retry: 3,
   });
 
   const addListMutation = useMutation({

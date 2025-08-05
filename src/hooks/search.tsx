@@ -11,10 +11,22 @@ export const useUnifiedSearch = (
 ) => {
   return useQuery({
     queryKey: ["unifiedSearch", query, workspaceId],
-    queryFn: () => unifiedSearch(query, workspaceId),
+    queryFn: async () => {
+      console.log("[SEARCH HOOK] Making search request:", {
+        query,
+        workspaceId,
+      });
+      const result = await unifiedSearch(query, workspaceId);
+      console.log("[SEARCH HOOK] Search response:", result);
+      return result;
+    },
     enabled: options?.enabled ?? (!!query && query.trim().length > 0),
     staleTime: options?.staleTime ?? 30000, // 30 seconds
-    select: (data) => data?.data || { cards: [], boards: [] },
+    select: (data) => {
+      const searchData = data?.data || { cards: [], boards: [] };
+      console.log("[SEARCH HOOK] Selected search data:", searchData);
+      return searchData;
+    },
   });
 };
 

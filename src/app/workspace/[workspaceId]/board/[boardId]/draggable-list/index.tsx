@@ -11,7 +11,6 @@ import { usePermissions } from "@hooks/account";
 interface DraggableListProps {
   list: AnyList;
   index: number;
-  setListsState: React.Dispatch<React.SetStateAction<AnyList[] | undefined>>;
   boardId: string;
   updateList: UseMutateFunction<
     any,
@@ -24,23 +23,11 @@ interface DraggableListProps {
 const DraggableList: React.FC<DraggableListProps> = ({
   list,
   index,
-  setListsState,
   boardId,
   updateList,
 }) => {
-  const { cards, addCard, isLoading } = useCards(list.id || "", boardId);
+  const { cards, addCard, isLoading, isError } = useCards(list.id, boardId);
   const { canMove, canCreate } = usePermissions();
-
-  useEffect(() => {
-    setListsState((prev) =>
-      prev?.map((item, i) => {
-        if (i === index) {
-          return { ...item, cards };
-        }
-        return item;
-      })
-    );
-  }, [cards]);
 
   // Check if user can move lists and create cards
   const canMoveList = canMove("list");
@@ -48,16 +35,35 @@ const DraggableList: React.FC<DraggableListProps> = ({
 
   // Check if card limit is exceeded
   const isLimitExceeded = list.cardLimit && cards.length > list.cardLimit;
-  const listColor = isLimitExceeded ? "#fbbf24" : list.background; // Yellow if limit exceeded
+  const listColor = isLimitExceeded ? "#fbbf24" : (list.background || "#f9fafb"); // Yellow if limit exceeded, fallback to light gray
+
+  // Debug logging for drag issues
+  console.log(`[LIST DEBUG] List "${list.name}" (ID: ${list.id}):`, {
+    canMoveList,
+    isDragDisabled: !canMoveList,
+    listBackground: list.background,
+    listColor,
+    isLimitExceeded,
+    cardCount: cards.length,
+    cardLimit: list.cardLimit,
+    index,
+    draggableId: `draggable-list-${list.id}`,
+    permissions: { canMove: canMove("list"), canCreate: canCreate("card") }
+  });
 
   return (
     <Draggable
-      key={`draggable-list-${list.id}`}
-      draggableId={`draggable-list-${list.id}`}
-      index={index}
-      isDragDisabled={!canMoveList}
-    >
-      {(provided, snapshot) => (
+          draggableId={`draggable-list-${list.id}`}
+          index={index}
+          isDragDisabled={!canMoveList}
+        >
+        {(provided, snapshot) => {
+          // Debug logging for drag state changes
+          if (snapshot.isDragging) {
+            console.log(`[DRAG] Currently dragging list "${list.name}" (ID: ${list.id})`);
+          }
+          
+          return (
         <div
           ref={provided.innerRef}
           {...provided.dragHandleProps}
@@ -65,6 +71,15 @@ const DraggableList: React.FC<DraggableListProps> = ({
           style={{
             ...provided.draggableProps.style,
             backgroundColor: listColor, // e.g., "#f87171"
+          }}
+          onMouseDown={(e) => {
+            console.log(`[MOUSE DEBUG] MouseDown on list "${list.name}" (ID: ${list.id}), Index: ${index}`);
+          }}
+          onMouseMove={(e) => {
+            // Only log if mouse is pressed (dragging)
+            if (e.buttons === 1) {
+              console.log(`[MOUSE DEBUG] MouseMove while dragging list "${list.name}" (ID: ${list.id})`);
+            }
           }}
           className={`
             group 
@@ -74,17 +89,15 @@ const DraggableList: React.FC<DraggableListProps> = ({
             border 
             border-gray-200 
             shadow-sm 
-            transition-all 
-            duration-300
             hover:shadow-md 
             min-w-[270px] 
             h-fit
             max-h-[calc(100vh-130px)]
             flex 
             flex-col
+            ${snapshot.isDragging ? "shadow-lg" : ""}
             ${canMoveList ? "cursor-move" : "cursor-default"}
             ${!canMoveList ? "opacity-75" : ""}
-            ${snapshot.isDragging ? "shadow-lg" : ""}
           
           `}
           title={
@@ -95,7 +108,12 @@ const DraggableList: React.FC<DraggableListProps> = ({
               : undefined
           }
         >
-          <ListName list={list} boardId={boardId} updateList={updateList} cardsCount={cards.length} />
+          <ListName
+            list={list}
+            boardId={boardId}
+            updateList={updateList}
+            cardsCount={cards.length}
+          />
           <Droppable
             droppableId={`droppable-card-area-${list.id}`}
             direction="vertical"
@@ -110,8 +128,7 @@ const DraggableList: React.FC<DraggableListProps> = ({
                   custom-scrollbar
                   px-3
                   py-2
-                  min-h-[50px]
-                  overflow-y-auto              
+                  min-h-[50px]             
                 `}
               >
                 <div className="space-y-3">
@@ -134,9 +151,10 @@ const DraggableList: React.FC<DraggableListProps> = ({
             </div>
           )}
         </div>
-      )}
-    </Draggable>
-  );
-};
+          );
+        }}
+      </Draggable>
+    );
+  };
 
 export default DraggableList;

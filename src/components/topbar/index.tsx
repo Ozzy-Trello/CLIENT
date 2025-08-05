@@ -7,10 +7,16 @@ import React, { useState, useEffect, useRef } from "react";
 import logo from "@assets/images/Logo_Ozzy_Clothing_png.png";
 import ImageDynamicContrast from "../image-dynamic-contrast";
 import { useSelector } from "react-redux";
-import { selectTheme, selectUser, selectIsDarkMode, setUser, toggleTheme } from "@store/app_slice";
+import {
+  selectTheme,
+  selectUser,
+  selectIsDarkMode,
+  setUser,
+  toggleTheme,
+} from "@store/app_slice";
 import { Sun, Moon } from "lucide-react";
 import { useDispatch } from "react-redux";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { WorkspaceSelection } from "../selection";
 import ModalRequest from "../modal-request";
 import ModalListRequest from "../modal-list-request";
@@ -93,19 +99,58 @@ const TopBar: React.FC = React.memo(() => {
   const { colors } = theme;
   const dispatch = useDispatch();
   const router = useRouter();
+  const params = useParams();
   const user = useSelector(selectUser);
   const currentWorkspace = useSelector(selectCurrentWorkspace);
+
+  // Get workspaceId with fallback to URL params
+  const getWorkspaceId = (): string | undefined => {
+    // First try to get from Redux store
+    if (currentWorkspace?.id) {
+      return currentWorkspace.id;
+    }
+
+    // Fallback to URL params if Redux store is not yet populated
+    if (params.workspaceId) {
+      const urlWorkspaceId = Array.isArray(params.workspaceId)
+        ? params.workspaceId[0]
+        : params.workspaceId;
+      console.log(
+        "[TOPBAR] Using workspaceId from URL params:",
+        urlWorkspaceId
+      );
+      return urlWorkspaceId;
+    }
+
+    console.warn(
+      "[TOPBAR] No workspaceId available from Redux store or URL params"
+    );
+    return undefined;
+  };
+
+  const workspaceId = getWorkspaceId();
+
+  // Debug log for search functionality
+  useEffect(() => {
+    if (searchQuery && !workspaceId) {
+      console.warn("[TOPBAR] Search attempted without workspaceId:", {
+        searchQuery,
+        currentWorkspace: currentWorkspace?.id,
+        urlParams: params.workspaceId,
+      });
+    }
+  }, [searchQuery, workspaceId, currentWorkspace?.id, params.workspaceId]);
 
   // Handle theme toggle
   const handleThemeToggle = () => {
     dispatch(toggleTheme());
   };
 
-  // Use unified search hook
+  // Use unified search hook with fallback workspaceId
   const {
     data: searchResults = { cards: [], boards: [] },
     isLoading: isSearching,
-  } = useUnifiedSearch(searchQuery, currentWorkspace?.id, {
+  } = useUnifiedSearch(searchQuery, workspaceId, {
     enabled: !!searchQuery && searchQuery.trim().length > 0,
   });
   const notificationItems: MenuProps["items"] = [
@@ -192,17 +237,40 @@ const TopBar: React.FC = React.memo(() => {
 
   // Handle clicking on search results
   const handleSearchResultClick = (result: SearchResult) => {
+    console.log("[TOPBAR] Search result clicked:", result);
+
     setShowSearchDropdown(false);
     setSearchQuery("");
 
     if (result.type === "card") {
-      router.push(
-        `/workspace/${currentWorkspace?.id}/board/${result.boardId}?listId=${result.listId}&cardId=${result.id}`
-      );
+      // Get workspace ID with fallback priority:
+      // 1. result.workspace_id (snake_case - from backend, now properly returned)
+      // 2. result.workspaceId (camelCase - if frontend transforms it)
+      // 3. currentWorkspace?.id (from Redux store)
+      // 4. workspaceId (from URL params)
+      const targetWorkspaceId =
+        result.workspaceId || currentWorkspace?.id || workspaceId;
+
+      if (targetWorkspaceId) {
+        router.push(
+          `/workspace/${targetWorkspaceId}/board/${result.boardId}?listId=${result.listId}&cardId=${result.id}`
+        );
+      } else {
+        console.error("No workspace ID available for navigation");
+      }
     } else if (result.type === "board") {
-      const workspaceId = result.workspace_id || currentWorkspace?.id;
-      if (workspaceId) {
-        router.push(`/workspace/${workspaceId}/board/${result.id}`);
+      // Get workspace ID with fallback priority:
+      // 1. result.workspace_id (snake_case - from backend, now properly returned)
+      // 2. result.workspaceId (camelCase - if frontend transforms it)
+      // 3. currentWorkspace?.id (from Redux store)
+      // 4. workspaceId (from URL params)
+      const targetWorkspaceId =
+        result.workspaceId || currentWorkspace?.id || workspaceId;
+
+      if (targetWorkspaceId) {
+        router.push(`/workspace/${targetWorkspaceId}/board/${result.id}`);
+      } else {
+        console.error("No workspace ID available for navigation");
       }
     }
   };
@@ -428,13 +496,15 @@ const TopBar: React.FC = React.memo(() => {
             <BellOutlined className="text-xl cursor-pointer" />
           </Badge>
         </Dropdown> */}
-        
+
         {/* Theme Toggle Button */}
         <div
           onClick={handleThemeToggle}
           className="relative inline-flex items-center w-12 h-6 rounded-full cursor-pointer transition-all duration-300 ease-in-out mb-1 pb-2"
           style={{
-            backgroundColor: isDarkMode ? `rgb(${colors.primary})` : `rgb(${colors.muted})`,
+            backgroundColor: isDarkMode
+              ? `rgb(${colors.primary})`
+              : `rgb(${colors.muted})`,
             border: `1px solid rgb(${colors.border})`,
           }}
           title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
@@ -444,25 +514,19 @@ const TopBar: React.FC = React.memo(() => {
             className="absolute w-5 h-5 rounded-full transition-all duration-300 ease-in-out flex items-center justify-center"
             style={{
               backgroundColor: `rgb(${colors.surface})`,
-              left: isDarkMode ? '26px' : '2px',
-              top: '2px',
-              boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
+              left: isDarkMode ? "26px" : "2px",
+              top: "2px",
+              boxShadow: "0 2px 4px rgba(0, 0, 0, 0.2)",
             }}
           >
             {isDarkMode ? (
-              <Moon 
-                size={12} 
-                style={{ color: `rgb(${colors.primary})` }}
-              />
+              <Moon size={12} style={{ color: `rgb(${colors.primary})` }} />
             ) : (
-              <Sun 
-                size={12} 
-                style={{ color: `rgb(${colors.primary})` }}
-              />
+              <Sun size={12} style={{ color: `rgb(${colors.primary})` }} />
             )}
           </div>
         </div>
-        
+
         <Dropdown
           menu={{ items: avatarMenuItems }}
           trigger={["click"]}

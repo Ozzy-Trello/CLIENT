@@ -39,15 +39,16 @@ export const updateCard = async (
   dataToUpdate: Partial<Card>
 ): Promise<ApiResponse<Card>> => {
   const headers: any = {};
-  
+
   // Add list-id header only if listId is available and we're not just updating dashcard config
   // If only dashConfig is being updated, don't send list-id header to avoid "card is already on this list" error
-  const isDashcardOnlyUpdate = dataToUpdate.dashConfig && Object.keys(dataToUpdate).length === 1;
-  
+  const isDashcardOnlyUpdate =
+    dataToUpdate.dashConfig && Object.keys(dataToUpdate).length === 1;
+
   if (dataToUpdate.listId && !isDashcardOnlyUpdate) {
     headers["list-id"] = dataToUpdate.listId;
   }
-  
+
   const { data } = await api.put(`/card/${cardId}`, dataToUpdate, {
     headers: Object.keys(headers).length > 0 ? headers : undefined,
   });

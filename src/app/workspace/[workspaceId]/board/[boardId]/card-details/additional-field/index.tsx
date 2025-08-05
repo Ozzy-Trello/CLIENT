@@ -942,9 +942,9 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
     <div className="mt-6">
       {/* Header */}
       <div className="flex items-center gap-2 mb-4">
-        <span 
+        <span
           className="inline-flex items-center justify-center"
-          style={{ color: `rgb(${colors['text-muted']})` }}
+          style={{ color: `rgb(${colors["text-muted"]})` }}
         >
           <svg
             width="18"
@@ -958,7 +958,7 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
             <path d="M9 9h6v6H9z"></path>
           </svg>
         </span>
-        <span 
+        <span
           className="text-[16px] font-semibold"
           style={{ color: `rgb(${colors.text})` }}
         >
@@ -970,9 +970,9 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
       <div className="grid grid-cols-3 gap-3 mb-4">
         {/* Produk Field */}
         <div className="col-span-2">
-          <label 
+          <label
             className="block text-xs font-medium mb-1"
-            style={{ color: `rgb(${colors['text-muted']})` }}
+            style={{ color: `rgb(${colors["text-muted"]})` }}
           >
             Produk
           </label>
@@ -981,19 +981,19 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
             value={produk}
             disabled
             className="w-full px-3 py-1.5 rounded-md cursor-not-allowed text-sm"
-            style={{ 
+            style={{
               border: `1px solid rgb(${colors.border})`,
               backgroundColor: `rgb(${colors.muted})`,
-              color: `rgb(${colors['text-muted']})`
+              color: `rgb(${colors["text-muted"]})`,
             }}
           />
         </div>
 
         {/* Jml PO Field */}
         <div>
-          <label 
+          <label
             className="block text-xs font-medium mb-1"
-            style={{ color: `rgb(${colors['text-muted']})` }}
+            style={{ color: `rgb(${colors["text-muted"]})` }}
           >
             Jml PO
           </label>
@@ -1003,10 +1003,10 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
             onChange={(e) => handleJumlahPOChange(e.target.value)}
             onBlur={handleJumlahPOBlur}
             className="w-full px-3 py-1.5 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-            style={{ 
+            style={{
               border: `1px solid rgb(${colors.border})`,
               backgroundColor: `rgb(${colors.surface})`,
-              color: `rgb(${colors.text})`
+              color: `rgb(${colors.text})`,
             }}
           />
         </div>
@@ -1015,18 +1015,18 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
       {/* PO Sections */}
       <div className="space-y-8">
         {data.map((po, index) => (
-          <div 
-            key={po.id} 
+          <div
+            key={po.id}
             className="rounded-lg p-6"
-            style={{ 
+            style={{
               border: `1px solid rgb(${colors.border})`,
-              backgroundColor: `rgb(${colors.surface})`
+              backgroundColor: `rgb(${colors.surface})`,
             }}
           >
             {/* PO Header */}
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-4">
-                <h3 
+                <h3
                   className="text-base font-semibold"
                   style={{ color: `rgb(${colors.text})` }}
                 >
@@ -1044,9 +1044,9 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
 
               {/* Butuh Bahan Toggle */}
               <div className="flex items-center gap-2">
-                <span 
+                <span
                   className="text-xs font-medium"
-                  style={{ color: `rgb(${colors['text-muted']})` }}
+                  style={{ color: `rgb(${colors["text-muted"]})` }}
                 >
                   Butuh Bahan
                 </span>
@@ -1094,11 +1094,11 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
             )}
 
             {/* Bahan Tabs - Always show tabs for each selected/scanned bahan item */}
-            <div 
+            <div
               className="rounded-lg p-4 mt-6"
-              style={{ 
+              style={{
                 border: `1px solid rgb(${colors.border})`,
-                backgroundColor: `rgb(${colors.muted})`
+                backgroundColor: `rgb(${colors.muted})`,
               }}
             >
               {po.bahan && po.bahan.length > 0 ? (
@@ -1129,63 +1129,69 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
                       ),
                       children: (
                         <div>
-                          <div 
+                          <div
                             className="text-sm font-medium mb-3"
-                            style={{ color: `rgb(${colors['text-muted']})` }}
+                            style={{ color: `rgb(${colors["text-muted"]})` }}
                           >
                             Detail Produk
                           </div>
 
                           <div className="grid grid-cols-3 gap-x-6 gap-y-3 mb-3">
                             <div>
-                              <label 
+                              <label
                                 className="block text-xs font-medium mb-1"
-                                style={{ color: `rgb(${colors['text-muted']})` }}
+                                style={{
+                                  color: `rgb(${colors["text-muted"]})`,
+                                }}
                               >
                                 Terloading (kg/m)
                               </label>
                               <input
                                 className="w-full px-3 py-2 rounded-md text-sm"
-                                style={{ 
+                                style={{
                                   border: `1px solid rgb(${colors.border})`,
                                   backgroundColor: `rgb(${colors.surface})`,
-                                  color: `rgb(${colors.text})`
+                                  color: `rgb(${colors.text})`,
                                 }}
                                 value={0}
                                 readOnly
                               />
                             </div>
                             <div>
-                              <label 
+                              <label
                                 className="block text-xs font-medium mb-1"
-                                style={{ color: `rgb(${colors['text-muted']})` }}
+                                style={{
+                                  color: `rgb(${colors["text-muted"]})`,
+                                }}
                               >
                                 Sisa Bahan (kg/m)
                               </label>
                               <input
                                 className="w-full px-3 py-2 rounded-md text-sm"
-                                style={{ 
+                                style={{
                                   border: `1px solid rgb(${colors.border})`,
                                   backgroundColor: `rgb(${colors.surface})`,
-                                  color: `rgb(${colors.text})`
+                                  color: `rgb(${colors.text})`,
                                 }}
                                 value={0}
                                 readOnly
                               />
                             </div>
                             <div>
-                              <label 
+                              <label
                                 className="block text-xs font-medium mb-1"
-                                style={{ color: `rgb(${colors['text-muted']})` }}
+                                style={{
+                                  color: `rgb(${colors["text-muted"]})`,
+                                }}
                               >
                                 Jml. Produksi (+/-)
                               </label>
                               <input
                                 className="w-full px-3 py-2 rounded-md text-sm"
-                                style={{ 
+                                style={{
                                   border: `1px solid rgb(${colors.border})`,
                                   backgroundColor: `rgb(${colors.surface})`,
-                                  color: `rgb(${colors.text})`
+                                  color: `rgb(${colors.text})`,
                                 }}
                                 value={0}
                                 readOnly
@@ -1197,54 +1203,60 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
                           {po.butuhBahan && (
                             <div className="grid grid-cols-3 gap-x-6 gap-y-3 mb-6">
                               <div>
-                                <label 
+                                <label
                                   className="block text-xs font-medium mb-1"
-                                  style={{ color: `rgb(${colors['text-muted']})` }}
+                                  style={{
+                                    color: `rgb(${colors["text-muted"]})`,
+                                  }}
                                 >
                                   Est Bahan
                                 </label>
                                 <input
                                   className="w-full px-3 py-2 rounded-md text-sm"
-                                  style={{ 
+                                  style={{
                                     border: `1px solid rgb(${colors.border})`,
                                     backgroundColor: `rgb(${colors.surface})`,
-                                    color: `rgb(${colors.text})`
+                                    color: `rgb(${colors.text})`,
                                   }}
                                   value={0}
                                   readOnly
                                 />
                               </div>
                               <div>
-                                <label 
+                                <label
                                   className="block text-xs font-medium mb-1"
-                                  style={{ color: `rgb(${colors['text-muted']})` }}
+                                  style={{
+                                    color: `rgb(${colors["text-muted"]})`,
+                                  }}
                                 >
                                   Bahan Terpakai
                                 </label>
                                 <input
                                   className="w-full px-3 py-2 rounded-md text-sm"
-                                  style={{ 
+                                  style={{
                                     border: `1px solid rgb(${colors.border})`,
                                     backgroundColor: `rgb(${colors.surface})`,
-                                    color: `rgb(${colors.text})`
+                                    color: `rgb(${colors.text})`,
                                   }}
                                   value={0}
                                   readOnly
                                 />
                               </div>
                               <div>
-                                <label 
+                                <label
                                   className="block text-xs font-medium mb-1"
-                                  style={{ color: `rgb(${colors['text-muted']})` }}
+                                  style={{
+                                    color: `rgb(${colors["text-muted"]})`,
+                                  }}
                                 >
                                   Efisiensi
                                 </label>
                                 <input
                                   className="w-full px-3 py-2 rounded-md text-sm"
-                                  style={{ 
+                                  style={{
                                     border: `1px solid rgb(${colors.border})`,
                                     backgroundColor: `rgb(${colors.surface})`,
-                                    color: `rgb(${colors.text})`
+                                    color: `rgb(${colors.text})`,
                                   }}
                                   value={0}
                                   readOnly
@@ -1270,9 +1282,9 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
                 </div>
               ) : (
                 <div className="flex items-center justify-between mb-4">
-                  <h4 
+                  <h4
                     className="text-sm font-medium"
-                    style={{ color: `rgb(${colors['text-muted']})` }}
+                    style={{ color: `rgb(${colors["text-muted"]})` }}
                   >
                     No bahan items selected yet
                   </h4>
