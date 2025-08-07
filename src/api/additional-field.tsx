@@ -113,14 +113,14 @@ export const removeAdditionalFieldItem = async (
 /**
  * Scan QR code and update item status
  * Can also be used for manual ID input by passing the ID as scannedData
+ * Updated to use new endpoint structure with cardId as URL parameter
  */
 export const scanQRCode = async (
   cardId: string,
   scannedData: string,
   action: "mark_complete" | "mark_pending" | "toggle_status" = "mark_complete"
 ): Promise<any> => {
-  const { data } = await api.post("/additional-field/scan", {
-    card_id: cardId,
+  const { data } = await api.post(`/additional-field/${cardId}/scan`, {
     scanned_data: scannedData,
     action,
   });

@@ -4,8 +4,10 @@ import { useEffect, useState, useRef } from "react";
 import { scanQRCode } from "@api/additional-field";
 import { message } from "antd";
 import { CheckCircle, XCircle, Loader2, Scan } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function ScannerPage() {
+  const queryClient = useQueryClient();
   const [status, setStatus] = useState<
     "idle" | "loading" | "success" | "error"
   >("idle");

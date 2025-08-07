@@ -71,13 +71,84 @@ export interface AdditionalFieldsStore extends AdditionalFieldsState {
 }
 
 // Helper function to create a new PO with default structure
-const createNewPO = (index: number): POData => ({
-  id: `po-${Date.now()}-${index}`, // unique ID with timestamp
-  butuhBahan: true, // Default to true for new POs
-  detailProduk: {}, // Initialize as empty, will be populated if butuhBahan is false
-  bahan: [], // Initialize bahan as an empty array
-  categories: [], // Initialize categories as an empty array
-});
+const createNewPO = (index: number): POData => {
+  // Define all product categories that should always be available
+  const defaultCategories = [
+    {
+      key: "polo",
+      label: "Polo",
+      fields: [
+        { key: "poloTpj", label: "Polo TPJ", isTotal: false },
+        { key: "poloTnk", label: "Polo TNK", isTotal: false },
+        { key: "poloTpd", label: "Polo TPD", isTotal: false },
+        { key: "poloTotal", label: "Total Polo", isTotal: true },
+      ],
+    },
+    {
+      key: "oblong",
+      label: "Oblong",
+      fields: [
+        { key: "oblongTpj", label: "Oblong TPJ", isTotal: false },
+        { key: "oblongTnk", label: "Oblong TNK", isTotal: false },
+        { key: "oblongTpd", label: "Oblong TPD", isTotal: false },
+        { key: "oblongTotal", label: "Total Oblong", isTotal: true },
+      ],
+    },
+    {
+      key: "kemeja",
+      label: "Kemeja",
+      fields: [
+        { key: "kemejaTpj", label: "Kemeja TPJ", isTotal: false },
+        { key: "kemejaTpd", label: "Kemeja TPD", isTotal: false },
+        { key: "kemejaTotal", label: "Total Kemeja", isTotal: true },
+      ],
+    },
+    {
+      key: "jaket",
+      label: "Jaket",
+      fields: [{ key: "jaket", label: "Total Jaket", isTotal: true }],
+    },
+    {
+      key: "hoodie",
+      label: "Hoodie",
+      fields: [{ key: "hoodie", label: "Total Hoodie", isTotal: true }],
+    },
+    {
+      key: "celana",
+      label: "Celana",
+      fields: [{ key: "celana", label: "Total Celana", isTotal: true }],
+    },
+    {
+      key: "rompi",
+      label: "Rompi",
+      fields: [{ key: "rompi", label: "Total Rompi", isTotal: true }],
+    },
+    {
+      key: "jersey",
+      label: "Jersey",
+      fields: [{ key: "jersey", label: "Total Jersey", isTotal: true }],
+    },
+    {
+      key: "apron",
+      label: "Apron",
+      fields: [{ key: "apron", label: "Total Apron", isTotal: true }],
+    },
+    {
+      key: "topi",
+      label: "Topi",
+      fields: [{ key: "topi", label: "Total Topi", isTotal: true }],
+    },
+  ];
+
+  return {
+    id: `po-${Date.now()}-${index}`, // unique ID with timestamp
+    butuhBahan: true, // Default to true for new POs
+    detailProduk: {}, // Initialize as empty, will be populated if butuhBahan is false
+    sizeBreakdowns: [], // Initialize sizeBreakdowns as an empty array
+    bahan: [], // Initialize bahan as an empty array
+    categories: defaultCategories, // Initialize with all categories
+  };
+};
 
 const createNewBahanItem = (index: number): BahanItem => ({
   id: `bahan-${Date.now()}-${index}`,
@@ -110,9 +181,9 @@ const createNewBahanItem = (index: number): BahanItem => ({
 
 export const useAdditionalFieldsStore = create<AdditionalFieldsStore>(
   (set, get) => ({
-    // Initial state
-    qty: 1,
-    data: [createNewPO(0)],
+    // Initial state - start with empty data, will be initialized by loadData or setQty
+    qty: 0,
+    data: [],
 
     // Actions
     setQty: (qty: number) => {
@@ -137,12 +208,45 @@ export const useAdditionalFieldsStore = create<AdditionalFieldsStore>(
     },
 
     updatePOData: (poId: string, updates: Partial<POData>) => {
-      set((state) => ({
-        ...state,
-        data: state.data.map((po) =>
-          po.id === poId ? { ...po, ...updates } : po
-        ),
-      }));
+      // Debug logging for Polo TPJ related updates
+      if (updates.sizeBreakdowns) {
+        const poloTpjItems = updates.sizeBreakdowns.filter(
+          (item) => item.category === "polo" && item.field === "poloTpj"
+        );
+        if (poloTpjItems.length > 0) {
+          console.log("[Polo TPJ] Store updatePOData called:", {
+            poId,
+            poloTpjItems,
+            totalSizeBreakdowns: updates.sizeBreakdowns.length,
+          });
+        }
+      }
+
+      set((state) => {
+        const newState = {
+          ...state,
+          data: state.data.map((po) =>
+            po.id === poId ? { ...po, ...updates } : po
+          ),
+        };
+
+        // Debug logging for Polo TPJ after update
+        if (updates.sizeBreakdowns) {
+          const updatedPO = newState.data.find((po) => po.id === poId);
+          const poloTpjItems = updatedPO?.sizeBreakdowns?.filter(
+            (item) => item.category === "polo" && item.field === "poloTpj"
+          );
+          if (poloTpjItems && poloTpjItems.length > 0) {
+            console.log("[Polo TPJ] Store state after update:", {
+              poId,
+              poloTpjItems,
+              totalSizeBreakdowns: updatedPO?.sizeBreakdowns?.length,
+            });
+          }
+        }
+
+        return newState;
+      });
     },
 
     addPO: () => {
@@ -176,29 +280,28 @@ export const useAdditionalFieldsStore = create<AdditionalFieldsStore>(
 
     loadData: (savedData: { qty: number; data: POData[] }) => {
       set((state) => {
-        // Create a map of existing POs for efficient lookup
-        const existingPOs = new Map(state.data.map((po) => [po.id, po]));
+        // If there's saved data, use it completely (no merging)
+        if (savedData.data && savedData.data.length > 0) {
+          const migratedData = savedData.data.map((po) => ({
+            ...po,
+            sizeBreakdowns: po.sizeBreakdowns || [], // Ensure sizeBreakdowns is initialized (migration for existing data)
+          }));
 
-        // Iterate over the new data and merge it into the existing state
-        savedData.data.forEach((newPO) => {
-          if (existingPOs.has(newPO.id)) {
-            // If the PO already exists, merge its properties
-            const existingPO = existingPOs.get(newPO.id)!;
-            existingPOs.set(newPO.id, { ...existingPO, ...newPO });
-          } else {
-            // If it's a new PO, add it to the map
-            existingPOs.set(newPO.id, newPO);
-          }
-        });
-
-        // Convert the map back to an array
-        const mergedData = Array.from(existingPOs.values());
-
-        return {
-          ...state,
-          qty: mergedData.length, // Update qty to reflect the merged data size
-          data: mergedData,
-        };
+          return {
+            ...state,
+            qty: savedData.qty,
+            data: migratedData,
+          };
+        } else {
+          // If no saved data, initialize with the specified qty and create new POs
+          const newData = Array.from({ length: savedData.qty }, (_, index) => createNewPO(index));
+          
+          return {
+            ...state,
+            qty: savedData.qty,
+            data: newData,
+          };
+        }
       });
     },
     reset: () => set({ qty: 0, data: [] }),

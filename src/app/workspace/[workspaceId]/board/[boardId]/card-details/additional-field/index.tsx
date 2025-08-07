@@ -81,6 +81,109 @@ import { debounce } from "lodash";
 import { useQuery } from "@tanstack/react-query";
 import { useSelector } from "react-redux";
 import { selectTheme, selectIsDarkMode } from "@store/app_slice";
+import { useRealtimeUpdates } from "@hooks/websocket";
+
+// Product categories definition - following legacy tabNames structure
+const productCategories = [
+  {
+    key: "polo",
+    label: "Polo",
+    fields: [
+      { key: "poloTpj", label: "Polo TPJ", type: "number" },
+      { key: "poloTnk", label: "Polo TNK", type: "number" },
+      { key: "poloTpd", label: "Polo TPD", type: "number" },
+      { key: "poloTotal", label: "Total Polo", type: "number", isTotal: true },
+      { key: "custom", label: "Custom", type: "sizeBreakdown" },
+    ],
+  },
+  {
+    key: "oblong",
+    label: "Oblong",
+    fields: [
+      { key: "oblongTpj", label: "Oblong TPJ", type: "number" },
+      { key: "oblongTnk", label: "Oblong TNK", type: "number" },
+      { key: "oblongTpd", label: "Oblong TPD", type: "number" },
+      {
+        key: "oblongTotal",
+        label: "Total Oblong",
+        type: "number",
+        isTotal: true,
+      },
+      { key: "custom", label: "Custom", type: "sizeBreakdown" },
+    ],
+  },
+  {
+    key: "kemeja",
+    label: "Kemeja",
+    fields: [
+      { key: "kemejaTpj", label: "Kemeja TPJ", type: "number" },
+      { key: "kemejaTpd", label: "Kemeja TPD", type: "number" },
+      {
+        key: "kemejaTotal",
+        label: "Total Kemeja",
+        type: "number",
+        isTotal: true,
+      },
+      { key: "custom", label: "Custom", type: "sizeBreakdown" },
+    ],
+  },
+  {
+    key: "jaket",
+    label: "Jaket",
+    fields: [
+      { key: "jaket", label: "Total Jaket", type: "number", isTotal: true },
+      { key: "custom", label: "Custom", type: "sizeBreakdown" },
+    ],
+  },
+  {
+    key: "hoodie",
+    label: "Hoodie",
+    fields: [
+      { key: "hoodie", label: "Total Hoodie", type: "number", isTotal: true },
+      { key: "custom", label: "Custom", type: "sizeBreakdown" },
+    ],
+  },
+  {
+    key: "celana",
+    label: "Celana",
+    fields: [
+      { key: "celana", label: "Total Celana", type: "number", isTotal: true },
+      { key: "custom", label: "Custom", type: "sizeBreakdown" },
+    ],
+  },
+  {
+    key: "rompi",
+    label: "Rompi",
+    fields: [
+      { key: "rompi", label: "Total Rompi", type: "number", isTotal: true },
+      { key: "custom", label: "Custom", type: "sizeBreakdown" },
+    ],
+  },
+  {
+    key: "jersey",
+    label: "Jersey",
+    fields: [
+      { key: "jersey", label: "Total Jersey", type: "number", isTotal: true },
+      { key: "custom", label: "Custom", type: "sizeBreakdown" },
+    ],
+  },
+  {
+    key: "apron",
+    label: "Apron",
+    fields: [
+      { key: "apron", label: "Total Apron", type: "number", isTotal: true },
+      { key: "custom", label: "Custom", type: "sizeBreakdown" },
+    ],
+  },
+  {
+    key: "topi",
+    label: "Topi",
+    fields: [
+      { key: "topi", label: "Total Topi", type: "number", isTotal: true },
+      { key: "custom", label: "Custom", type: "sizeBreakdown" },
+    ],
+  },
+];
 
 interface AdditionalFieldsProps {
   cardId: string;
@@ -139,7 +242,8 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
     categoryKey: string;
     fieldKey: string;
     sizeData: any; // You might want to define a more specific type for sizeData
-  }>({ isOpen: false, categoryKey: "", fieldKey: "", sizeData: undefined });
+    bahanItem?: any; // The current bahan item being edited
+  }>({ isOpen: false, categoryKey: "", fieldKey: "", sizeData: undefined, bahanItem: undefined });
   const [additionalFieldId, setAdditionalFieldId] = useState<string | null>(
     null
   );
@@ -149,7 +253,6 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
   const [qrScannerBuffer, setQrScannerBuffer] = useState("");
   const qrScannerTimeoutRef = useRef<NodeJS.Timeout>();
   const qrScannerBufferRef = useRef("");
-  const isRefetchingRef = useRef(false); // Track if we're in the middle of a QR refetch
 
   // Zustand store
   const { qty, data, setQty, updatePOData, loadData, reset } =
@@ -167,15 +270,24 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
     cardId
   );
 
-  // Load existing data when component mounts
-  useEffect(() => {
-    // Skip loading if we're in the middle of a QR refetch
-    if (isRefetchingRef.current) {
-      return;
-    }
+  // WebSocket for real-time updates
+  const { socket, isConnected } = useRealtimeUpdates();
 
-    // Reset store before loading new data
-    reset();
+  // Debug WebSocket connection status
+  useEffect(() => {
+    console.log(
+      `🔌 WebSocket connection status: ${
+        isConnected ? "Connected" : "Disconnected"
+      }`
+    );
+  }, [isConnected]);
+
+  // Load existing data when component mounts or when fresh data arrives
+  useEffect(() => {
+    console.log(
+      "🔄 [DATA LOADING] Effect triggered, additionalFieldData:",
+      additionalFieldData
+    );
 
     if (additionalFieldData && additionalFieldData.length > 0) {
       const savedData = additionalFieldData[0];
@@ -190,18 +302,26 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
         if (parsedData && typeof parsedData === "object") {
           // Load the store data if it exists
           if (parsedData.storeData) {
-            // Load the complete data into the store
+            console.log(
+              "🔄 [DATA LOADING] Loading fresh data into store:",
+              parsedData.storeData
+            );
+
+            // Always load fresh data - this ensures WebSocket updates are reflected
             loadData({
               qty: parsedData.storeData.qty || 1,
               data: parsedData.storeData.data || [],
             });
+
+            console.log("🔄 [DATA LOADING] Store updated with fresh data");
           }
         }
       } catch (error) {
         console.error("Error loading additional field data:", error);
       }
     } else {
-      // No saved data, initialize with default
+      // Initialize with default data if no saved data exists
+      console.log("🔄 [DATA LOADING] No saved data, initializing with default");
       loadData({ qty: 1, data: [] });
     }
   }, [additionalFieldData, cardId]);
@@ -257,50 +377,18 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
 
   const handleButuhBahanChange = (poId: string, value: boolean) => {
     if (value) {
-      // When turning on butuhBahan, initialize with categories and bahan items
-      const defaultCategories = [
-        {
-          key: "polo",
-          label: "Polo",
-          fields: [
-            { key: "poloTpj", label: "Polo TPJ", isTotal: false },
-            { key: "poloTnk", label: "Polo TNK", isTotal: false },
-            { key: "poloTpd", label: "Polo TPD", isTotal: false },
-            { key: "poloTotal", label: "Total Polo", isTotal: true },
-          ],
-        },
-        {
-          key: "oblong",
-          label: "Oblong",
-          fields: [
-            { key: "oblongTpj", label: "Oblong TPJ", isTotal: false },
-            { key: "oblongTnk", label: "Oblong TNK", isTotal: false },
-            { key: "oblongTpd", label: "Oblong TPD", isTotal: false },
-            { key: "oblongTotal", label: "Total Oblong", isTotal: true },
-          ],
-        },
-        {
-          key: "kemeja",
-          label: "Kemeja",
-          fields: [
-            { key: "kemejaTpj", label: "Kemeja TPJ", isTotal: false },
-            { key: "kemejaTpd", label: "Kemeja TPD", isTotal: false },
-            { key: "kemejaTotal", label: "Total Kemeja", isTotal: true },
-          ],
-        },
-        {
-          key: "jaket",
-          label: "Jaket",
-          fields: [{ key: "jaketTotal", label: "Total Jaket", isTotal: true }],
-        },
-        {
-          key: "hoodie",
-          label: "Hoodie",
-          fields: [
-            { key: "hoodieTotal", label: "Total Hoodie", isTotal: true },
-          ],
-        },
-      ];
+      // When turning on butuhBahan, initialize with all categories from productCategories
+      const defaultCategories = productCategories.map((category) => ({
+        key: category.key,
+        label: category.label,
+        fields: category.fields
+          .filter((field) => field.type !== "sizeBreakdown")
+          .map((field) => ({
+            key: field.key,
+            label: field.label,
+            isTotal: field.isTotal || false,
+          })),
+      }));
 
       updatePOData(poId, {
         butuhBahan: value,
@@ -386,6 +474,7 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
       categoryKey,
       fieldKey,
       sizeData: modalSizeData,
+      bahanItem: undefined, // No specific bahan item for PO-level breakdowns
     });
   };
 
@@ -395,6 +484,7 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
       categoryKey: "",
       fieldKey: "",
       sizeData: undefined,
+      bahanItem: undefined,
     });
   };
 
@@ -409,8 +499,14 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
 
   // QR Scanner processing function
   const processQRScan = async (scannedData: string) => {
-    if (!scannedData.trim()) return;
+    console.log("🚀 [PROCESS QR SCAN] Function called with data:", scannedData);
 
+    if (!scannedData.trim()) {
+      console.log("🚀 [PROCESS QR SCAN] Empty data, returning early");
+      return;
+    }
+
+    console.log("🚀 [PROCESS QR SCAN] Processing scan data...");
     try {
       // Clean the scanned data by removing unwanted characters
       // Remove common scanner artifacts like "Shift", "Control", "Alt", etc.
@@ -424,92 +520,42 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
         .replace(/CapsLock/g, "")
         .trim();
 
-      // Parse the cleaned data: cardId|scannedData|action
-      const parts = cleanedData.split("|");
-      let scanCardId, data, action;
+      // New short format with separators: poNum-categoryCode-fieldCode-size-seq
+      // Example: "1-PO-TJ-M-001" instead of "cardId|po456-polo-tpj-M-001-1|mark_complete"
+      // Use current card ID from component context
+      const data = cleanedData;
+      const action = "mark_complete"; // Default action since removed from QR
 
-      if (parts.length >= 2) {
-        scanCardId = parts[0];
-        data = parts[1];
-        action = parts[2] || "mark_complete";
-      } else {
-        throw new Error("Invalid QR scan format");
+      if (!cardId) {
+        throw new Error("No card ID available in current context");
       }
 
-      if (!scanCardId || !data) {
-        throw new Error("Missing cardId or scannedData");
+      if (!data) {
+        throw new Error("Missing scanned data");
       }
 
-      // Call the QR scan API
-      const response = await scanQRCode(scanCardId, data, action as any);
+      // Call the QR scan API using current card ID
+      const response = await scanQRCode(cardId, data, action as any);
+      console.log("🚀 [PROCESS QR SCAN] Backend response:", response);
 
       // Check if the response is successful
       // Backend returns: { status_code: 200, message: "...", data: { success: true, ... } }
       if (response.status_code === 200 || response.data?.success) {
         message.success(response.message || "Item scanned successfully!");
+        console.log(
+          "🚀 [PROCESS QR SCAN] Scan successful! Triggering manual refetch for immediate UI update."
+        );
 
-        // MANUAL QUERY INVALIDATION FOR REAL-TIME UPDATES
-        // Invalidate additional fields queries to trigger UI refresh
+        // Manual refetch to ensure immediate UI update
+        // While WebSocket will also trigger updates, manual refetch ensures immediate response
+        await refetchAdditionalFields();
+
+        // Also invalidate the query cache to ensure fresh data
         queryClient.invalidateQueries({
           queryKey: ["additionalFields", cardId],
         });
 
-        // Also invalidate card detail queries in case they depend on additional field data
-        queryClient.invalidateQueries({
-          queryKey: ["cards", "detail", cardId],
-        });
-
-        // Refetch the data from backend and reload into store
-        if (additionalFieldId) {
-          try {
-            // Set refetch flag to prevent useEffect interference
-            isRefetchingRef.current = true;
-
-            const refetchStartTime = Date.now();
-
-            const { data: freshData } = await refetchAdditionalFields();
-
-            // Reload the fresh data into the Zustand store
-            if (freshData && freshData.length > 0) {
-              const savedData = freshData[0];
-
-              try {
-                const parsedData =
-                  typeof savedData.data === "string"
-                    ? JSON.parse(savedData.data)
-                    : savedData.data;
-
-                if (parsedData && parsedData.storeData) {
-                  loadData({
-                    qty: parsedData.storeData.qty || qty,
-                    data: parsedData.storeData.data || data,
-                  });
-
-                  // Update the refetch timestamp to force re-renders
-                  setLastRefetchTime(Date.now());
-
-                  // Clear refetch flag after everything is done
-                  setTimeout(() => {
-                    isRefetchingRef.current = false;
-                  }, 100);
-                }
-              } catch (parseError) {
-                console.error(
-                  "🔄 [REFETCH] Error parsing fresh data:",
-                  parseError
-                );
-                isRefetchingRef.current = false;
-              }
-            } else {
-              isRefetchingRef.current = false;
-            }
-          } catch (refetchError) {
-            console.error("🔄 [REFETCH] Error during refetch:", refetchError);
-            isRefetchingRef.current = false;
-          }
-        } else {
-          isRefetchingRef.current = false;
-        }
+        console.log("🚀 [PROCESS QR SCAN] Manual refetch completed.");
       } else {
         message.error(response.message || "Failed to process scan");
       }
@@ -521,9 +567,24 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
 
   // QR Scanner keyboard handler - only active when summary modal is open
   useEffect(() => {
+    console.log(
+      "🔍 [QR SCANNER] useEffect triggered, summaryModal.isOpen:",
+      summaryModal.isOpen
+    );
+
     const handleQRScanner = (e: KeyboardEvent) => {
+      console.log(
+        "🔍 [QR SCANNER] Key pressed:",
+        e.key,
+        "summaryModal.isOpen:",
+        summaryModal.isOpen
+      );
+
       // Only handle QR scanning when summary modal is open
-      if (!summaryModal.isOpen) return;
+      if (!summaryModal.isOpen) {
+        console.log("🔍 [QR SCANNER] Summary modal not open, ignoring key");
+        return;
+      }
 
       // Filter out unwanted keys that external scanners might send
       const unwantedKeys = [
@@ -559,6 +620,7 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
       ];
 
       if (unwantedKeys.includes(e.key)) {
+        console.log("🔍 [QR SCANNER] Ignoring unwanted key:", e.key);
         return; // Ignore these keys
       }
 
@@ -568,8 +630,22 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
       }
 
       if (e.key === "Enter") {
+        console.log(
+          "🔍 [QR SCANNER] Enter pressed! Buffer content:",
+          qrScannerBufferRef.current
+        );
         e.preventDefault();
-        processQRScan(qrScannerBufferRef.current);
+        if (qrScannerBufferRef.current.trim()) {
+          console.log(
+            "🔍 [QR SCANNER] Calling processQRScan with:",
+            qrScannerBufferRef.current
+          );
+          processQRScan(qrScannerBufferRef.current);
+        } else {
+          console.log(
+            "🔍 [QR SCANNER] Buffer is empty, not calling processQRScan"
+          );
+        }
         qrScannerBufferRef.current = "";
         return;
       }
@@ -577,110 +653,41 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
       // Only add printable characters to the buffer
       if (e.key.length === 1) {
         qrScannerBufferRef.current += e.key;
+        console.log(
+          "🔍 [QR SCANNER] Added to buffer:",
+          e.key,
+          "Current buffer:",
+          qrScannerBufferRef.current
+        );
       }
 
       // Clear buffer after 100ms of no input (typical for external scanners)
       qrScannerTimeoutRef.current = setTimeout(() => {
+        console.log(
+          "🔍 [QR SCANNER] Buffer timeout, clearing buffer. Was:",
+          qrScannerBufferRef.current
+        );
         qrScannerBufferRef.current = "";
       }, 100);
     };
 
     if (summaryModal.isOpen) {
+      console.log("🔍 [QR SCANNER] Adding event listener");
       document.addEventListener("keydown", handleQRScanner);
+    } else {
+      console.log(
+        "🔍 [QR SCANNER] Summary modal closed, not adding event listener"
+      );
     }
 
     return () => {
+      console.log("🔍 [QR SCANNER] Cleanup - removing event listener");
       document.removeEventListener("keydown", handleQRScanner);
       if (qrScannerTimeoutRef.current) {
         clearTimeout(qrScannerTimeoutRef.current);
       }
     };
   }, [summaryModal.isOpen]);
-
-  // Product categories definition
-  const productCategories = [
-    {
-      key: "polo",
-      label: "Polo",
-      fields: [
-        { key: "s", label: "S", type: "number" },
-        { key: "m", label: "M", type: "number" },
-        { key: "l", label: "L", type: "number" },
-        { key: "xl", label: "XL", type: "number" },
-        { key: "xxl", label: "XXL", type: "number" },
-        { key: "xxxl", label: "XXXL", type: "number" },
-        { key: "custom", label: "Custom", type: "sizeBreakdown" },
-      ],
-    },
-    {
-      key: "oblong",
-      label: "Oblong",
-      fields: [
-        { key: "s", label: "S", type: "number" },
-        { key: "m", label: "M", type: "number" },
-        { key: "l", label: "L", type: "number" },
-        { key: "xl", label: "XL", type: "number" },
-        { key: "xxl", label: "XXL", type: "number" },
-        { key: "xxxl", label: "XXXL", type: "number" },
-        { key: "custom", label: "Custom", type: "sizeBreakdown" },
-      ],
-    },
-    {
-      key: "kemeja",
-      label: "Kemeja",
-      fields: [
-        { key: "s", label: "S", type: "number" },
-        { key: "m", label: "M", type: "number" },
-        { key: "l", label: "L", type: "number" },
-        { key: "xl", label: "XL", type: "number" },
-        { key: "xxl", label: "XXL", type: "number" },
-        { key: "xxxl", label: "XXXL", type: "number" },
-        { key: "custom", label: "Custom", type: "sizeBreakdown" },
-      ],
-    },
-    {
-      key: "jaket",
-      label: "Jaket",
-      fields: [
-        { key: "s", label: "S", type: "number" },
-        { key: "m", label: "M", type: "number" },
-        { key: "l", label: "L", type: "number" },
-        { key: "xl", label: "XL", type: "number" },
-        { key: "xxl", label: "XXL", type: "number" },
-        { key: "xxxl", label: "XXXL", type: "number" },
-        { key: "custom", label: "Custom", type: "sizeBreakdown" },
-      ],
-    },
-    {
-      key: "celana",
-      label: "Celana",
-      fields: [
-        { key: "s", label: "S", type: "number" },
-        { key: "m", label: "M", type: "number" },
-        { key: "l", label: "L", type: "number" },
-        { key: "xl", label: "XL", type: "number" },
-        { key: "xxl", label: "XXL", type: "number" },
-        { key: "xxxl", label: "XXXL", type: "number" },
-        { key: "custom", label: "Custom", type: "sizeBreakdown" },
-      ],
-    },
-    {
-      key: "topi",
-      label: "Topi",
-      fields: [
-        { key: "allsize", label: "All Size", type: "number" },
-        { key: "custom", label: "Custom", type: "sizeBreakdown" },
-      ],
-    },
-    {
-      key: "lainlain",
-      label: "Lain-lain",
-      fields: [
-        { key: "satuan", label: "Satuan", type: "number" },
-        { key: "custom", label: "Custom", type: "sizeBreakdown" },
-      ],
-    },
-  ];
 
   // Calculate efficiency functions (from legacy)
   const calculateEstBahan = (po: POData, bahanItem?: BahanItem): number => {
@@ -819,6 +826,48 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
                 >
                   PO {index + 1}
                 </h3>
+
+                {/* Scanning Status Indicator */}
+                {(() => {
+                  // Get all size breakdowns for this PO
+                  const poSizeBreakdowns = po.sizeBreakdowns || [];
+                  
+                  // Also get size breakdowns from bahan items
+                  const bahanSizeBreakdowns = po.bahan?.flatMap(bahanItem => 
+                    bahanItem.sizeBreakdowns || []
+                  ) || [];
+                  
+                  const allSizeBreakdowns = [...poSizeBreakdowns, ...bahanSizeBreakdowns];
+                  
+                  if (allSizeBreakdowns.length === 0) {
+                    return null; // No items to scan
+                  }
+                  
+                  const scannedCount = allSizeBreakdowns.filter(item => item.isScanned).length;
+                  const totalCount = allSizeBreakdowns.length;
+                  const allScanned = scannedCount === totalCount;
+                  const progressPercentage = totalCount > 0 ? Math.round((scannedCount / totalCount) * 100) : 0;
+                  
+                  return (
+                    <div className="flex items-center gap-2">
+                      <div className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium ${
+                        allScanned 
+                          ? 'bg-green-100 text-green-700 border border-green-200' 
+                          : 'bg-orange-100 text-orange-700 border border-orange-200'
+                      }`}>
+                        <span className="text-sm">
+                          {allScanned ? '✓' : '⚠'}
+                        </span>
+                        <span>
+                          {allScanned ? 'Sudah scan semua' : 'Belum selesai scan'}
+                        </span>
+                      </div>
+                      <span className="text-xs text-gray-500">
+                        {scannedCount}/{totalCount} ({progressPercentage}%)
+                      </span>
+                    </div>
+                  );
+                })()}
 
                 {/* Summary Button */}
                 <button
@@ -1087,7 +1136,11 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
         isOpen={summaryModal.isOpen}
         onClose={handleCloseSummary}
         poIndex={summaryModal.poIndex}
-        poData={summaryModal.poData}
+        poData={
+          summaryModal.isOpen
+            ? data[summaryModal.poIndex] || summaryModal.poData
+            : summaryModal.poData
+        }
         poId={summaryModal.poId}
         lastRefetchTime={lastRefetchTime}
       />
@@ -1164,50 +1217,18 @@ const ProductDropdown: React.FC<{
       const currentBahan = poData.bahan || [];
       const updatedBahan = [...currentBahan, newBahanItem];
 
-      // Initialize categories for the selected product - include all categories like legacy
-      const defaultCategories = [
-        {
-          key: "polo",
-          label: "Polo",
-          fields: [
-            { key: "poloTpj", label: "Polo TPJ", isTotal: false },
-            { key: "poloTnk", label: "Polo TNK", isTotal: false },
-            { key: "poloTpd", label: "Polo TPD", isTotal: false },
-            { key: "poloTotal", label: "Total Polo", isTotal: true },
-          ],
-        },
-        {
-          key: "oblong",
-          label: "Oblong",
-          fields: [
-            { key: "oblongTpj", label: "Oblong TPJ", isTotal: false },
-            { key: "oblongTnk", label: "Oblong TNK", isTotal: false },
-            { key: "oblongTpd", label: "Oblong TPD", isTotal: false },
-            { key: "oblongTotal", label: "Total Oblong", isTotal: true },
-          ],
-        },
-        {
-          key: "kemeja",
-          label: "Kemeja",
-          fields: [
-            { key: "kemejaTpj", label: "Kemeja TPJ", isTotal: false },
-            { key: "kemejaTpd", label: "Kemeja TPD", isTotal: false },
-            { key: "kemejaTotal", label: "Total Kemeja", isTotal: true },
-          ],
-        },
-        {
-          key: "jaket",
-          label: "Jaket",
-          fields: [{ key: "jaketTotal", label: "Total Jaket", isTotal: true }],
-        },
-        {
-          key: "hoodie",
-          label: "Hoodie",
-          fields: [
-            { key: "hoodieTotal", label: "Total Hoodie", isTotal: true },
-          ],
-        },
-      ];
+      // Initialize categories for the selected product - use all categories from productCategories
+      const defaultCategories = productCategories.map((category) => ({
+        key: category.key,
+        label: category.label,
+        fields: category.fields
+          .filter((field) => field.type !== "sizeBreakdown")
+          .map((field) => ({
+            key: field.key,
+            label: field.label,
+            isTotal: field.isTotal || false,
+          })),
+      }));
 
       // Update PO data with the new bahan array and categories
       updatePOData(poId, {
@@ -1280,7 +1301,7 @@ const ProductCategoriesTabs: React.FC<{
   // Determine which data source to use
   const currentDataSource = bahanItem || poData;
 
-  // Calculate total for a category
+  // Calculate total for a category (bahan-specific)
   const calculateTotal = (categoryKey: string) => {
     if (!currentPO) return 0;
 
@@ -1295,45 +1316,122 @@ const ProductCategoriesTabs: React.FC<{
     );
     return nonTotalFields.reduce((sum: number, field: any) => {
       // Count items in sizeBreakdowns for this category/field
-      const fieldTotal = (currentPO.sizeBreakdowns || []).filter(
-        (item: any) => item.category === categoryKey && item.field === field.key
-      ).length;
-
-      return sum + fieldTotal;
+      // Use bahan-specific size breakdowns if bahanItem is provided
+      if (bahanItem) {
+        // Only count size breakdowns from the current bahan item
+        const bahanFieldTotal = (bahanItem.sizeBreakdowns || []).filter(
+          (item: any) =>
+            item.category === categoryKey && item.field === field.key
+        ).length;
+        return sum + bahanFieldTotal;
+      } else {
+        // Fallback to PO level if no specific bahan item
+        const poFieldTotal = (currentPO.sizeBreakdowns || []).filter(
+          (item: any) => item.category === categoryKey && item.field === field.key
+        ).length;
+        return sum + poFieldTotal;
+      }
     }, 0);
   };
 
-  // Get field value for display
+  // Get field value for display (bahan-specific)
   const getFieldValue = (
     categoryKey: string,
     fieldKey: string,
     isTotal: boolean
   ) => {
+    // Debug logging specifically for Polo TPJ
+    if (categoryKey === "polo" && fieldKey === "poloTpj") {
+      console.log("[Polo TPJ] getFieldValue called:", {
+        categoryKey,
+        fieldKey,
+        isTotal,
+        currentPO_id: currentPO?.id,
+        bahanItem_id: bahanItem?.id,
+        bahanItem_name: bahanItem?.name,
+        bahanSizeBreakdowns: bahanItem?.sizeBreakdowns,
+        bahanSizeBreakdownsLength: bahanItem?.sizeBreakdowns?.length || 0,
+      });
+    }
+
     if (isTotal) {
-      return calculateTotal(categoryKey).toString();
+      const totalValue = calculateTotal(categoryKey).toString();
+      if (categoryKey === "polo") {
+        console.log("[Polo TPJ] Total calculation for polo:", totalValue);
+      }
+      return totalValue;
     }
 
     // Count items in sizeBreakdowns for this category/field
-    const total = (currentPO?.sizeBreakdowns || []).filter(
-      (item: any) => item.category === categoryKey && item.field === fieldKey
-    ).length;
+    // Use bahan-specific size breakdowns if bahanItem is provided
+    let filteredItems: any[] = [];
+    
+    if (bahanItem) {
+      // Only count size breakdowns from the current bahan item
+      filteredItems = (bahanItem.sizeBreakdowns || []).filter(
+        (item: any) => item.category === categoryKey && item.field === fieldKey
+      );
+    } else {
+      // Fallback to PO level if no specific bahan item
+      filteredItems = (currentPO?.sizeBreakdowns || []).filter(
+        (item: any) => item.category === categoryKey && item.field === fieldKey
+      );
+    }
+
+    const total = filteredItems.length;
+
+    // Debug logging specifically for Polo TPJ
+    if (categoryKey === "polo" && fieldKey === "poloTpj") {
+      console.log("[Polo TPJ] Filtered items:", {
+        filteredItems,
+        total,
+        dataSource: bahanItem ? 'bahan-specific' : 'PO-level',
+        bahanItem_id: bahanItem?.id,
+      });
+    }
 
     return total.toString();
   };
 
-  // Check if field should be editable (only total fields when they're the only field in category)
+  // Check if field should be editable - ALL fields are disabled, only size breakdown can change values
   const isFieldEditable = (
     category: { fields: any[] },
     field: { isTotal: any }
   ) => {
-    return field.isTotal && category.fields.length === 1;
+    // All fields are disabled - only size breakdown can change values
+    return false;
   };
 
-  // Handle size breakdown popup
+  // Check if field can have size breakdown
+  const canHaveSizeBreakdown = (
+    category: { fields: any[] },
+    field: { isTotal: any }
+  ) => {
+    // Filter out sizeBreakdown fields to get actual data fields
+    const dataFields = category.fields.filter(
+      (f) => f.type !== "sizeBreakdown"
+    );
+
+    // For non-total fields: can have size breakdown if in multi-field category
+    if (!field.isTotal) {
+      return dataFields.length > 1;
+    }
+
+    // For total fields: can only have size breakdown if it's the ONLY field in category
+    // (single total field categories like Jaket, Hoodie, etc.)
+    return dataFields.length === 1;
+  };
+
+  // Handle size breakdown popup (bahan-specific)
   const handleSizeBreakdown = (categoryKey: string, fieldKey: string) => {
     // Convert sizeBreakdowns to modal format for display
+    // Use bahan-specific size breakdowns if bahanItem is provided
+    const sizeBreakdowns = bahanItem 
+      ? (bahanItem.sizeBreakdowns || [])
+      : (currentPO?.sizeBreakdowns || []);
+      
     const modalSizeData = convertBreakdownsToModalFormat(
-      currentPO?.sizeBreakdowns || [],
+      sizeBreakdowns,
       categoryKey,
       fieldKey
     );
@@ -1343,6 +1441,7 @@ const ProductCategoriesTabs: React.FC<{
       categoryKey,
       fieldKey,
       sizeData: modalSizeData,
+      bahanItem: bahanItem, // Include the current bahan item context
     });
   };
 
@@ -1551,12 +1650,21 @@ const ProductCategoriesTabs: React.FC<{
   };
 
   const closeSizeBreakdownModal = () => {
+    console.log("🚪 Closing size breakdown modal", {
+      currentModalState: sizeBreakdownModal,
+      currentPO_sizeBreakdowns: currentPO?.sizeBreakdowns,
+    });
+
     setSizeBreakdownModal({
       isOpen: false,
       categoryKey: "",
       fieldKey: "",
       sizeData: undefined,
+      bahanItem: undefined,
     });
+
+    console.log("🚪 Modal closed, triggering save...");
+    debouncedSave();
   };
 
   const handleFieldChange = (
@@ -1579,6 +1687,7 @@ const ProductCategoriesTabs: React.FC<{
     };
 
     updatePOData(poId, { ...currentPO, detailProduk: updatedDetailProduk });
+    debouncedSave();
   };
 
   return (
@@ -1609,6 +1718,7 @@ const ProductCategoriesTabs: React.FC<{
               (cat: any) => cat.key === activeTab
             )!;
             const isEditable = isFieldEditable(category, field);
+            const canBreakdown = canHaveSizeBreakdown(category, field);
             const fieldValue = getFieldValue(
               activeTab,
               field.key,
@@ -1629,20 +1739,26 @@ const ProductCategoriesTabs: React.FC<{
                       field.isTotal
                     )}
                     onChange={(e) =>
-                      handleFieldChange(category.key, field.key, e.target.value)
+                      isEditable
+                        ? handleFieldChange(
+                            category.key,
+                            field.key,
+                            e.target.value
+                          )
+                        : undefined
                     }
                     onBlur={() => debouncedSave()}
                     className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm ${
-                      !field.isTotal ? "pr-10" : ""
+                      canBreakdown ? "pr-10" : ""
                     } ${
-                      field.isTotal
-                        ? "bg-gray-50 text-gray-500 cursor-not-allowed"
+                      isEditable
+                        ? "bg-white text-gray-900"
                         : "bg-gray-50 text-gray-500 cursor-not-allowed"
                     }`}
-                    disabled={field.isTotal}
-                    readOnly={true}
+                    disabled={!isEditable}
+                    readOnly={!isEditable}
                   />
-                  {!field.isTotal && (
+                  {canBreakdown && (
                     <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-2">
                       {getFieldValue(category.key, field.key, field.isTotal) >
                         0 && (
@@ -1657,7 +1773,9 @@ const ProductCategoriesTabs: React.FC<{
                       )}
                       <button
                         type="button"
-                        onClick={() => openSizesModal(category.key, field.key)}
+                        onClick={() =>
+                          handleSizeBreakdown(category.key, field.key)
+                        }
                         className={`p-1 transition-colors ${
                           getFieldValue(
                             category.key,
@@ -1715,7 +1833,7 @@ const ProductCategoriesTabs: React.FC<{
         sizeData={sizeBreakdownModal.sizeData}
         poId={poId}
         poData={poData}
-        bahanItem={bahanItem} // Pass bahanItem to the modal
+        bahanItem={sizeBreakdownModal.bahanItem} // Use bahanItem from modal state
         debouncedSave={debouncedSave}
       />
     </div>

@@ -106,6 +106,7 @@ div[data-rfd-droppable-id="all-columns"] {
   min-height: 50px;
   max-height: calc(100vh - 10px);
   margin-bottom: 10px;
+  overflow-y: auto;
 }
 
 .modal-cust-footer .ant-modal-body {
@@ -149,12 +150,14 @@ div[data-rfd-droppable-id="all-columns"] {
   height: 100% !important;
   max-height: 100% !important;
   margin-bottom: 0;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 .ant-modal-content.full-height-modal {
   max-height: 100% !important;
   height: 100% !important;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .custom-circular-checkbox .ant-checkbox-inner {

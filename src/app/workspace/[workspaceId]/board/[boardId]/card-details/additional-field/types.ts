@@ -33,6 +33,7 @@ export interface SizeBreakdownModalState {
   categoryKey: string;
   fieldKey: string;
   sizeData?: SizeBreakdown;
+  bahanItem?: any; // The current bahan item being edited
 }
 
 export interface SummaryModalState {

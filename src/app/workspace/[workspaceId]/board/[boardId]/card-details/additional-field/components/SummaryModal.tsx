@@ -25,6 +25,8 @@ interface SummaryItem {
   displayId: string; // Readable format for UI (e.g., "XXXXL-1")
   size: string;
   scanned: string;
+  bahanId?: string; // Add bahan ID for grouping
+  bahanName?: string; // Add bahan name for display
 }
 
 interface QRItem {
@@ -59,6 +61,34 @@ const SummaryModal: React.FC<SummaryModalProps> = ({
   const stickerHeight = 283.46;
   const pageWidth = stickerWidth * 3; // 3 stickers side by side
 
+  // Helper functions to avoid conflicts in QR codes
+  const getCategoryCode = (label: string): string => {
+    const labelLower = label.toLowerCase();
+    if (labelLower.includes('polo')) return 'PO';
+    if (labelLower.includes('jaket')) return 'JK';
+    if (labelLower.includes('kemeja')) return 'KM';
+    if (labelLower.includes('oblong')) return 'OB';
+    if (labelLower.includes('hoodie')) return 'HD';
+    if (labelLower.includes('celana')) return 'CL';
+    if (labelLower.includes('rompi')) return 'RP';
+    if (labelLower.includes('jersey')) return 'JS';
+    if (labelLower.includes('apron')) return 'AP';
+    return label.substring(0, 2).toUpperCase();
+  };
+  
+  const getFieldCode = (key: string): string => {
+    const keyUpper = key.toUpperCase();
+    // Handle specific polo variants
+    if (keyUpper === 'POLOTPJ' || keyUpper === 'TPJ') return 'TJ';
+    if (keyUpper === 'POLOTNK' || keyUpper === 'TNK') return 'TK';
+    if (keyUpper === 'POLOTPD' || keyUpper === 'TPD') return 'TD';
+    // Handle other common patterns
+    if (keyUpper.startsWith('POLO')) return keyUpper.substring(4, 6) || keyUpper.substring(0, 2);
+    if (keyUpper === 'CUSTOM') return 'CU';
+    if (keyUpper === 'TOTAL') return 'TO';
+    return keyUpper.substring(0, 2);
+  };
+
   // Generate QR data for printing
   const generateQRData = (): QRItem[] => {
     const qrItems: QRItem[] = [];
@@ -87,17 +117,26 @@ const SummaryModal: React.FC<SummaryModalProps> = ({
         const size = uniqueIdParts[3]; // M
         const sequenceNumber = uniqueIdParts[4]; // 001
 
-        // Create the backend expected format: itemId-tabLabel-fieldLabel-size-uniqueId-poIdentifier
-        // Use the actual PO ID from the Zustand store instead of fake item ID
-        const itemId = poId; // Use actual PO ID
-        const tabLabel = categoryLabel.toLowerCase(); // polo
-        const fieldLabel = fieldKey.toLowerCase(); // tpj
-        const poIdentifier = poNumber.replace("PO", ""); // 1
-
-        const backendFormat = `${itemId}-${tabLabel}-${fieldLabel}-${size}-${sequenceNumber}-${poIdentifier}`;
-
-        // Create QR value in the format: cardId|backendFormat|action
-        const qrValue = `${cardId}|${backendFormat}|mark_complete`;
+        // Create short format with separators for readability and flexibility
+        // Use minimal separators while maintaining readability
+        const categoryCode = getCategoryCode(categoryLabel);
+        const fieldCode = getFieldCode(fieldKey);
+        const poNum = poNumber.replace("PO", ""); // 1, 10, 100, etc.
+        
+        // Enhanced format with bahan ID: poNum-bahanId-categoryCode-fieldCode-size-seq
+        // Example: 1-B001-PO-TJ-M-001 (PO1, Bahan B001, Polo, TPJ, size M, sequence 001)
+        // If no bahan ID, use "B000" as default for backward compatibility
+        const bahanId = item.bahanId || "B000";
+        const shortFormat = `${poNum}-${bahanId}-${categoryCode}-${fieldCode}-${size}-${sequenceNumber}`;
+        const qrValue = shortFormat; // No card ID - passed as parameter during scan
+        
+        // Backend parsing format:
+        // 1. Split by '-' to get: [poNum, bahanId, categoryCode, fieldCode, size, sequenceNumber]
+        // 2. Map codes: PO=Polo, JK=Jaket, TJ=TPJ, TK=TNK, TD=TPD, etc.
+        // 3. Default action to "mark_complete"
+        // 4. Card ID will be passed as parameter during scanning (not in QR data)
+        // 5. Supports any length PO numbers (1, 10, 100, etc.)
+        // 6. Supports bahan-specific scanning with bahan ID
 
         qrItems.push({
           key: item.key,
@@ -146,7 +185,7 @@ const SummaryModal: React.FC<SummaryModalProps> = ({
           size: size,
           bgColor: "#FFFFFF",
           fgColor: "#000000",
-          level: "M",
+          level: "L", // Low error correction for simpler QR codes with fewer dots
         });
 
         root.render(QRElement);
@@ -166,6 +205,8 @@ const SummaryModal: React.FC<SummaryModalProps> = ({
               const img = new Image();
 
               img.onload = () => {
+                // Improve rendering quality
+                ctx.imageSmoothingEnabled = false; // Disable smoothing for crisp pixels
                 ctx.fillStyle = "#FFFFFF";
                 ctx.fillRect(0, 0, size, size);
                 ctx.drawImage(img, 0, 0, size, size);
@@ -221,8 +262,8 @@ const SummaryModal: React.FC<SummaryModalProps> = ({
     // Layout: 3 stickers horizontally (3 columns, 1 row)
     const itemsPerPage = 3;
 
-    // QR code size - adjusted for balance
-    const qrSize = stickerHeight * 0.65; // Make QR smaller for more gap
+    // QR code size - keeping original size, relying on data reduction for better readability
+    const qrSize = stickerHeight * 0.65; // Original QR size
 
     const qrPromises = items
       .slice(0, itemsPerPage)
@@ -454,12 +495,39 @@ const SummaryModal: React.FC<SummaryModalProps> = ({
     // Use size-specific counters instead of global counter
     const sizeCounters: { [sizeKey: string]: number } = {};
 
-    // Check if we have the new sizeBreakdowns format
+    // Collect all size breakdowns from both PO level and bahan items
+    const allSizeBreakdowns: any[] = [];
+    
+    // Add PO-level size breakdowns
     if (poData.sizeBreakdowns && Array.isArray(poData.sizeBreakdowns)) {
+      console.log("[Polo TPJ] SummaryModal - Found PO-level sizeBreakdowns:", poData.sizeBreakdowns);
+      allSizeBreakdowns.push(...poData.sizeBreakdowns);
+    }
+    
+    // Add bahan-level size breakdowns with bahan information
+    if (poData.bahan && Array.isArray(poData.bahan)) {
+      poData.bahan.forEach((bahanItem: any, index: number) => {
+        if (bahanItem.sizeBreakdowns && Array.isArray(bahanItem.sizeBreakdowns)) {
+          console.log(`[Polo TPJ] SummaryModal - Found bahan[${index}] sizeBreakdowns:`, bahanItem.sizeBreakdowns);
+          // Add bahan information to each size breakdown
+          const bahanSizeBreakdowns = bahanItem.sizeBreakdowns.map((breakdown: any) => ({
+            ...breakdown,
+            bahanId: bahanItem.bahanId || bahanItem.id || `B${String(index + 1).padStart(3, "0")}`,
+            bahanName: bahanItem.name || `Bahan ${index + 1}`
+          }));
+          allSizeBreakdowns.push(...bahanSizeBreakdowns);
+        }
+      });
+    }
+    
+    console.log("[Polo TPJ] SummaryModal - Total collected sizeBreakdowns:", allSizeBreakdowns);
+
+    // Check if we have any size breakdowns
+    if (allSizeBreakdowns.length > 0) {
       // Group size breakdowns by category and field for display
       const groupedBreakdowns: { [key: string]: any[] } = {};
 
-      poData.sizeBreakdowns.forEach((breakdown: any) => {
+      allSizeBreakdowns.forEach((breakdown: any) => {
         const key = `${breakdown.category}_${breakdown.field}`;
         if (!groupedBreakdowns[key]) {
           groupedBreakdowns[key] = [];
@@ -503,6 +571,8 @@ const SummaryModal: React.FC<SummaryModalProps> = ({
               ),
               size: breakdown.size,
               scanned: breakdown.isScanned ? "Yes" : "No",
+              bahanId: breakdown.bahanId,
+              bahanName: breakdown.bahanName,
             });
 
             sizeCounters[sizeKey]++;
@@ -684,30 +754,53 @@ const SummaryModal: React.FC<SummaryModalProps> = ({
 
   const filteredData = getFilteredData();
 
+  // Group data by bahan
+  const groupDataByBahan = (data: SummaryItem[]) => {
+    const groups: { [key: string]: { name: string; items: SummaryItem[] } } = {};
+    
+    data.forEach((item) => {
+      const groupKey = item.bahanId || 'po-level';
+      const groupName = item.bahanName || 'PO Level';
+      
+      if (!groups[groupKey]) {
+        groups[groupKey] = {
+          name: groupName,
+          items: []
+        };
+      }
+      
+      groups[groupKey].items.push(item);
+    });
+    
+    return groups;
+  };
+
+  const groupedData = groupDataByBahan(filteredData);
+
   const columns = [
     {
       title: "Product Name",
       dataIndex: "productName",
       key: "productName",
-      width: "30%",
+      width: "35%",
     },
     {
       title: "Unique ID",
       dataIndex: "displayId",
       key: "displayId",
-      width: "45%",
+      width: "30%",
     },
     {
       title: "Size",
       dataIndex: "size",
       key: "size",
-      width: "15%",
+      width: "20%",
     },
     {
       title: "Scanned",
       dataIndex: "scanned",
       key: "scanned",
-      width: "10%",
+      width: "15%",
       render: (scanned: string) => (
         <span
           className="px-2 py-1 rounded-full text-xs font-medium"
@@ -725,20 +818,45 @@ const SummaryModal: React.FC<SummaryModalProps> = ({
     },
   ];
 
+  // Custom grouped table component
+  const GroupedTable = () => (
+    <div style={{ marginTop: "1rem", maxHeight: "400px", overflowY: "auto" }}>
+      {Object.entries(groupedData).map(([groupKey, group], index) => (
+        <div key={groupKey} style={{ marginBottom: index < Object.keys(groupedData).length - 1 ? "1.5rem" : "0" }}>
+          {/* Bahan Header */}
+          <div
+            className="px-3 py-2 font-medium text-sm rounded-t-lg"
+            style={{
+              backgroundColor: `rgb(${colors.muted})`,
+              borderBottom: `1px solid rgb(${colors.border})`,
+              color: `rgb(${colors.text})`,
+            }}
+          >
+            {group.name} ({group.items.length} items)
+          </div>
+          
+          {/* Table for this group */}
+          <Table
+            columns={columns}
+            dataSource={group.items}
+            pagination={false}
+            size="middle"
+            showHeader={index === 0} // Only show header for first group
+            className="summary-table"
+            style={{
+              marginTop: "0",
+            }}
+          />
+        </div>
+      ))}
+    </div>
+  );
+
   const tabItems = [
     {
       key: "all",
       label: `All (${allSummaryData.length})`,
-      children: (
-        <Table
-          columns={columns}
-          dataSource={filteredData}
-          pagination={false}
-          size="small"
-          scroll={{ y: 400 }}
-          className="summary-table"
-        />
-      ),
+      children: <GroupedTable />,
     },
     {
       key: "scanned",
@@ -746,16 +864,7 @@ const SummaryModal: React.FC<SummaryModalProps> = ({
         allSummaryData.filter((item: SummaryItem) => item.scanned === "Yes")
           .length
       })`,
-      children: (
-        <Table
-          columns={columns}
-          dataSource={filteredData}
-          pagination={false}
-          size="small"
-          scroll={{ y: 400 }}
-          className="summary-table"
-        />
-      ),
+      children: <GroupedTable />,
     },
     {
       key: "pending",
@@ -763,16 +872,7 @@ const SummaryModal: React.FC<SummaryModalProps> = ({
         allSummaryData.filter((item: SummaryItem) => item.scanned === "No")
           .length
       })`,
-      children: (
-        <Table
-          columns={columns}
-          dataSource={filteredData}
-          pagination={false}
-          size="small"
-          scroll={{ y: 400 }}
-          className="summary-table"
-        />
-      ),
+      children: <GroupedTable />,
     },
   ];
 
@@ -795,15 +895,18 @@ const SummaryModal: React.FC<SummaryModalProps> = ({
           Generate QR
         </Button>,
       ]}
-      width={800}
+      width={900}
       style={{
         padding: "2rem",
+      }}
+      bodyStyle={{
+        padding: "1.5rem",
       }}
       className="summary-modal"
     >
       {/* QR Scanner Status */}
       <div
-        className="mb-4 p-3 rounded-lg"
+        className="mb-6 p-4 rounded-lg"
         style={{
           backgroundColor: `rgb(${colors.muted})`,
           border: `1px solid rgb(${colors.border})`,
@@ -834,6 +937,67 @@ const SummaryModal: React.FC<SummaryModalProps> = ({
           tetap terbuka.
         </p>
       </div>
+
+      {/* Scanning Progress Status */}
+      {(() => {
+        const totalItems = allSummaryData.length;
+        const scannedItems = allSummaryData.filter((item: SummaryItem) => item.scanned === "Yes").length;
+        const isAllScanned = totalItems > 0 && scannedItems === totalItems;
+        const progressPercentage = totalItems > 0 ? Math.round((scannedItems / totalItems) * 100) : 0;
+
+        return (
+          <div
+            className="mb-4 p-3 rounded-lg flex items-center justify-between"
+            style={{
+              backgroundColor: isAllScanned 
+                ? `rgba(${colors.success}, 0.1)` 
+                : `rgba(${colors.warning}, 0.1)`,
+              border: `1px solid ${isAllScanned 
+                ? `rgb(${colors.success})` 
+                : `rgb(${colors.warning})`}`,
+            }}
+          >
+            <div className="flex items-center gap-3">
+              <div
+                className="w-3 h-3 rounded-full"
+                style={{
+                  backgroundColor: isAllScanned 
+                    ? `rgb(${colors.success})` 
+                    : `rgb(${colors.warning})`,
+                }}
+              />
+              <span
+                className="font-medium"
+                style={{ 
+                  color: isAllScanned 
+                    ? `rgb(${colors.success})` 
+                    : `rgb(${colors.warning})` 
+                }}
+              >
+                {isAllScanned ? "✓ Sudah scan semua" : "⚠ Belum selesai scan"}
+              </span>
+            </div>
+            <div className="text-right">
+              <div
+                className="text-sm font-medium"
+                style={{ 
+                  color: isAllScanned 
+                    ? `rgb(${colors.success})` 
+                    : `rgb(${colors.warning})` 
+                }}
+              >
+                {scannedItems}/{totalItems} items ({progressPercentage}%)
+              </div>
+              <div
+                className="text-xs"
+                style={{ color: `rgb(${colors["text-muted"]})` }}
+              >
+                {isAllScanned ? "Semua item telah dipindai" : `${totalItems - scannedItems} item belum dipindai`}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       <Tabs
         activeKey={activeTab}

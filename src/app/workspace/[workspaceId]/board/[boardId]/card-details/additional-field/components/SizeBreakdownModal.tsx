@@ -194,8 +194,12 @@ const SizeBreakdownModal: React.FC<SizeBreakdownModalProps> = ({
   const { updatePOData } = useAdditionalFieldsStore();
 
   React.useEffect(() => {
-    if (isOpen) {
-      const initialBreakdown = sizeData || {
+    if (isOpen && sizeData) {
+      // Sync local state with the latest sizeData from parent
+      setBreakdown(sizeData);
+    } else if (isOpen) {
+      // Initialize with empty breakdown if no sizeData
+      const initialBreakdown = {
         XS: 0,
         S: 0,
         M: 0,
@@ -207,25 +211,10 @@ const SizeBreakdownModal: React.FC<SizeBreakdownModalProps> = ({
         XXXXXL: 0,
         custom: {},
       };
-
       setBreakdown(initialBreakdown);
-    } else {
-      setBreakdown({
-        XS: 0,
-        S: 0,
-        M: 0,
-        L: 0,
-        XL: 0,
-        XXL: 0,
-        XXXL: 0,
-        XXXXL: 0,
-        XXXXXL: 0,
-        custom: {},
-      });
     }
-    // We only want to sync from props when the modal opens.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen]);
+    // Sync whenever modal opens or sizeData changes
+  }, [isOpen, sizeData]);
 
   if (!isOpen) return null;
 
@@ -265,9 +254,30 @@ const SizeBreakdownModal: React.FC<SizeBreakdownModalProps> = ({
   ];
 
   const handleUpdateSizeBreakdown = (updatedBreakdown: SizeBreakdown) => {
-    const newSizeBreakdowns = (poData.sizeBreakdowns || []).filter(
+    // Debug logging specifically for Polo TPJ
+    if (categoryKey === "polo" && fieldKey === "poloTpj") {
+      console.log("[Polo TPJ] handleUpdateSizeBreakdown called:", {
+        categoryKey,
+        fieldKey,
+        updatedBreakdown,
+        poId,
+      });
+    }
+
+    // Get existing breakdowns from the correct location
+    const existingBreakdowns = bahanItem 
+      ? (bahanItem.sizeBreakdowns || [])
+      : (poData.sizeBreakdowns || []);
+
+    const newSizeBreakdowns = existingBreakdowns.filter(
       (item) => !(item.category === categoryKey && item.field === fieldKey)
     );
+
+    if (categoryKey === "polo" && (fieldKey === "poloTpj" || fieldKey === "poloTnk")) {
+      console.log(`[Polo TPJ] ${fieldKey} - Existing breakdowns:`, existingBreakdowns);
+      console.log(`[Polo TPJ] ${fieldKey} - Filtered breakdowns (after removing existing):`, newSizeBreakdowns);
+      console.log(`[Polo TPJ] ${fieldKey} - Reading from:`, bahanItem ? 'bahan item level' : 'PO level');
+    }
 
     // Add updated sizes if quantity > 0
     Object.entries(updatedBreakdown).forEach(([size, quantity]) => {
@@ -304,17 +314,33 @@ const SizeBreakdownModal: React.FC<SizeBreakdownModalProps> = ({
       }
     });
 
+    if (categoryKey === "polo" && fieldKey === "poloTpj") {
+      console.log("[Polo TPJ] New breakdowns to add:", newSizeBreakdowns);
+    }
+
     if (bahanItem) {
-      updatePOData(poId, {
+      const updatedPoData = {
         ...poData,
         bahan: poData.bahan.map((b) =>
           b.id === bahanItem.id
             ? { ...b, sizeBreakdowns: newSizeBreakdowns }
             : b
         ),
-      });
+      };
+      if (categoryKey === "polo" && fieldKey === "poloTpj") {
+        console.log("[Polo TPJ] Updating bahan item with sizeBreakdowns:", newSizeBreakdowns);
+      }
+      updatePOData(poId, updatedPoData);
     } else {
-      updatePOData(poId, { ...poData, sizeBreakdowns: newSizeBreakdowns });
+      const updatedPoData = { ...poData, sizeBreakdowns: newSizeBreakdowns };
+      if (categoryKey === "polo" && fieldKey === "poloTpj") {
+        console.log("[Polo TPJ] Updating PO data with sizeBreakdowns:", newSizeBreakdowns);
+      }
+      updatePOData(poId, updatedPoData);
+    }
+    
+    if (categoryKey === "polo" && fieldKey === "poloTpj") {
+      console.log("[Polo TPJ] Calling debouncedSave...");
     }
     debouncedSave();
   };
