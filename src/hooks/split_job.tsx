@@ -78,11 +78,9 @@ export const useSplitJobValues = (templateId?: string, cardId?: string, customFi
         card_id: cardId,
         custom_field_id: customFieldId 
       });
-      console.log('Raw API response for split job values:', response);
       return response;
     },
     select: (data) => {
-      console.log('Selecting data from response:', data);
       return data.data || [];
     },
     // Enable if we have at least cardId (to get all values for a card) or templateId
@@ -163,11 +161,9 @@ export const useSplitJobValuesByCustomField = (cardId?: string) => {
     queryFn: async () => {
       if (!cardId) return { data: {} };
       const response = await getSplitJobValuesByCustomField(cardId);
-      // console.log('Raw API response for grouped split job values:', response);
       return response;
     },
     select: (data) => {
-      // console.log('Selecting grouped data from response:', data);
       return data.data || {};
     },
     enabled: !!cardId,

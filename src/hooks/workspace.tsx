@@ -34,12 +34,6 @@ export const useDefaultWorkspace = () => {
     slug: "ozzy-production",
   };
 
-  console.log("useDefaultWorkspace debug:", {
-    isClient,
-    hasAccessToken: !!accessToken,
-    defaultWorkspace: defaultWorkspace.id,
-  });
-
   return {
     defaultWorkspace: accessToken ? defaultWorkspace : null,
     isLoading: false,

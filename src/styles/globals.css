@@ -17,3 +17,10 @@ body.dragging .card-hover-effects {
   transition: none !important;
   animation: none !important;
 }
+
+/* Simple touch-action fix for tablets - let DnD library handle everything else */
+@media (pointer: coarse) {
+  .board-scroll-container {
+    touch-action: pan-x pan-y;
+  }
+}

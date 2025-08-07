@@ -5,12 +5,12 @@ import {
   Avatar,
   Button,
   Menu,
-  Tooltip,
   Typography,
   Layout,
   Skeleton,
   Space,
 } from "antd";
+import TouchAwareTooltip from "@components/touch-aware-tooltip";
 import Link from "next/link";
 import React, {
   useEffect,
@@ -165,12 +165,11 @@ const Sidebar = () => {
   }, [workspaceId, isSuperAdmin, isLoadingAccount]);
 
   // Check if user can create boards
-  const canCreateBoard = canCreate("board");
+    const canCreateBoard = canCreate("board");
 
-  // Build menu items separately to avoid frequent render cycles
-  useEffect(() => {
-    // Skip if nothing significant has changed
-    console.log(boards);
+    // Build menu items separately to avoid frequent render cycles
+    useEffect(() => {
+      // Skip if nothing significant has changed
     const currentWorkspaceId = Array.isArray(workspaceId)
       ? workspaceId[0]
       : workspaceId || null;
@@ -216,7 +215,7 @@ const Sidebar = () => {
                 }
               >
                 <Typography.Text strong>Your boards</Typography.Text>
-                <Tooltip
+                <TouchAwareTooltip
                   title={!canCreateBoard ? "Insufficient permissions to create boards" : "Create new board"}
                 >
                   <Button 
@@ -226,7 +225,7 @@ const Sidebar = () => {
                   >
                     +
                   </Button>
-                </Tooltip>
+                </TouchAwareTooltip>
               </div>
             ),
             icon: <span></span>,
@@ -235,19 +234,18 @@ const Sidebar = () => {
 
         // Add board items if we have any
         if (boards?.length > 0 && workspaceId) {
-          console.log("boards", boards);
           boards.forEach((board) => {
             fullMenus.push({
               key: `menu-board-${board.id}`,
               label: (
-                <Tooltip title={board.name}>
+                <TouchAwareTooltip title={board.name}>
                   <Typography.Text
                     style={{ fontSize: "14px" }}
                     className="block w-full text-left"
                   >
                     {board.name}
                   </Typography.Text>
-                </Tooltip>
+                </TouchAwareTooltip>
               ),
               icon: (
                 <div
@@ -409,7 +407,7 @@ const Sidebar = () => {
         </div>
       </Sider>
 
-      <Tooltip
+      <TouchAwareTooltip
         title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         placement="right"
       >
@@ -435,7 +433,7 @@ const Sidebar = () => {
             boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)",
           }}
         />
-      </Tooltip>
+      </TouchAwareTooltip>
       <ModalCreateBoard
         open={openCreateBoardModal}
         setOpen={setOpenCreateBoardModal}

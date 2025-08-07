@@ -83,7 +83,7 @@ const TablePivot: FC = () => {
     return columns;
   }, [processedItemDashcard]);
 
-  console.log({ dynamicColumns });
+
 
   const columnVisibilityMenu = {
     items: dynamicColumns.map((columnId) => ({

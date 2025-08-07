@@ -9,14 +9,11 @@ import { api } from "../api";
 
 // Simple role details function
 const roleDetails = async (id: string) => {
-  console.log(`[LOOKUP] Fetching role details for ID: ${id}`);
   try {
     const response = await api.get(`/roles/${id}`);
-    console.log(`[LOOKUP] Role API response for ${id}:`, response.data);
     // The role API returns { data: { id, name, description, default } }
     return response.data.data || response.data;
   } catch (error) {
-    console.error(`[LOOKUP] Error fetching role ${id}:`, error);
     throw error;
   }
 };
@@ -48,7 +45,6 @@ function collectIds(rules: RuleLike[]): Record<Kind, Set<string>> {
     ["valueOption", "value_option", "optionValue", "option_value"].forEach(
       (k) => {
         if (cond[k]) {
-          console.log("[LOOKUP] Pushing option UUID:", cond[k]);
           push("field", cond[k]);
         }
       }
@@ -56,7 +52,6 @@ function collectIds(rules: RuleLike[]): Record<Kind, Set<string>> {
     if (cond.fields && typeof cond.fields === "object") {
       ["valueOption", "value_option"].forEach((k) => {
         if (cond.fields[k]) {
-          console.log("[LOOKUP] Pushing option UUID (fields):", cond.fields[k]);
           push("field", cond.fields[k]);
         }
       });
@@ -64,13 +59,6 @@ function collectIds(rules: RuleLike[]): Record<Kind, Set<string>> {
   };
 
   rules.forEach((r) => {
-    console.log("[LOOKUP] Processing rule:", {
-      hasAction: !!r.action,
-      actionCount: r.action?.length || 0,
-      hasFilter: !!r.filter,
-      filterCount: r.filter?.length || 0,
-    });
-
     push("board", r.condition?.board);
     push("field", (r.condition?.fields as any)?.value ?? r.condition?.fields);
     push("field", r.condition?.fieldValue);
@@ -78,18 +66,7 @@ function collectIds(rules: RuleLike[]): Record<Kind, Set<string>> {
     push("list", r.condition?.list);
     push("user", r.condition?.user);
 
-    // Debug role collection
-    console.log("[LOOKUP] Checking for roles in condition:", {
-      hasOptionalBy: !!r.condition?.optionalBy,
-      optionalByData: r.condition?.optionalBy?.data,
-      isArray: Array.isArray(r.condition?.optionalBy?.data),
-    });
-
     if (Array.isArray(r.condition?.optionalBy?.data)) {
-      console.log(
-        "[LOOKUP] Found role IDs in condition:",
-        r.condition.optionalBy.data
-      );
       r.condition.optionalBy.data.forEach((uid: string) => push("role", uid));
     }
     pushOptionValues(r.condition);
@@ -97,11 +74,6 @@ function collectIds(rules: RuleLike[]): Record<Kind, Set<string>> {
     // also inspect each action's condition
     if (Array.isArray(r.action)) {
       r.action.forEach((act, index) => {
-        console.log(`[LOOKUP] Processing action ${index}:`, {
-          type: act.type,
-          condition: act.condition,
-        });
-
         const c = act?.condition || {};
         push("board", c.board);
         push("field", (c?.fields as any)?.value ?? c?.fields);
@@ -116,39 +88,8 @@ function collectIds(rules: RuleLike[]): Record<Kind, Set<string>> {
 
         // Add label ID collection
         push("label", c.card_label);
-        if (c.card_label) {
-          console.log(`[LOOKUP] Found label ID in action: ${c.card_label} (type: ${typeof c.card_label})`);
-        }
-
-        // Debug list collection in actions
-        if (c.list) {
-          console.log(`[LOOKUP] Found list ID in action: ${c.list}`);
-        }
-        if (c.optionalList) {
-          console.log(
-            `[LOOKUP] Found optionalList ID in action: ${c.optionalList}`
-          );
-        }
-
-        // Debug all properties in action condition
-        if (c.list || c.board || c.optionalList || c.opationalBoard) {
-          console.log(`[LOOKUP] Action condition properties:`, {
-            list: c.list,
-            board: c.board,
-            optionalList: c.optionalList,
-            opationalBoard: c.opationalBoard,
-          });
-        }
-
-        // Debug role collection in actions
-        console.log("[LOOKUP] Checking for roles in action:", {
-          hasOptionalBy: !!c?.optionalBy,
-          optionalByData: c?.optionalBy?.data,
-          isArray: Array.isArray(c?.optionalBy?.data),
-        });
 
         if (Array.isArray(c?.optionalBy?.data)) {
-          console.log("[LOOKUP] Found role IDs in action:", c.optionalBy.data);
           c.optionalBy.data.forEach((uid: string) => push("role", uid));
         }
         pushOptionValues(c);
@@ -161,13 +102,6 @@ function collectIds(rules: RuleLike[]): Record<Kind, Set<string>> {
         const c = filter?.condition || {};
         push("list", c.list);
         push("board", c.board);
-
-        if (c.list) {
-          console.log(`[LOOKUP] Found list ID in filter: ${c.list}`);
-        }
-        if (c.board) {
-          console.log(`[LOOKUP] Found board ID in filter: ${c.board}`);
-        }
       });
     }
   });
@@ -183,15 +117,6 @@ export function useRuleLookups(rules: RuleLike[]) {
     if (!rules?.length) return;
     const ids = collectIds(rules);
 
-    console.log("[LOOKUP] Collected IDs:", {
-      boards: Array.from(ids.board),
-      lists: Array.from(ids.list),
-      users: Array.from(ids.user),
-      fields: Array.from(ids.field),
-      labels: Array.from(ids.label),
-      roles: Array.from(ids.role),
-    });
-
     const fetchForSingle = async (
       kind: Kind,
       fn: (id: string) => Promise<any>,
@@ -200,35 +125,24 @@ export function useRuleLookups(rules: RuleLike[]) {
       const unknown = Array.from(idSet).filter(
         (id) => !LookupCache.label(kind, id)
       );
-      console.log(`[LOOKUP] unknown ${kind}:`, unknown);
       await Promise.all(
         unknown.map(async (id) => {
           try {
-            console.log(`[LOOKUP] fetching ${kind} ${id} (type: ${typeof id})`);
-            if (kind === "label") {
-              console.log(`[LOOKUP] About to call labelDetails with ID: ${id}`);
-            }
             const res = await fn(id);
             const row = res?.data;
-            console.log(`[LOOKUP] ${kind} API response for ${id}:`, res);
             if (row && (row.name || row.username || row.label || row.title)) {
               const name = row.name || row.username || row.label || row.title;
               LookupCache.rememberMany(kind, [{ id, name }]);
-              console.log(`[LOOKUP] Cached ${kind} ${id} -> ${name}`);
               if (kind === "field" && Array.isArray(row.options)) {
                 const opts = row.options.map((o: any) => ({
                   id: o.value,
                   name: o.label,
                 }));
-                console.log("[LOOKUP] Caching options for field", id, opts);
                 LookupCache.rememberMany("field", opts as any);
               }
-              console.log("[LOOKUP] result", kind, row);
-            } else {
-              console.log(`[LOOKUP] No name found for ${kind} ${id}:`, row);
             }
           } catch (err) {
-            console.error("[LOOKUP] failed", kind, id, err);
+            // Error handling without logging
           }
         })
       );

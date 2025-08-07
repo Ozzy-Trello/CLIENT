@@ -15,28 +15,17 @@ const WorkspacePage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (!isClient) return; // Don't run on server side
-
-    console.log("Workspace page redirection debug:", {
-      accessToken: !!accessToken,
-      defaultWorkspace: defaultWorkspace?.id,
-      isLoading,
-    });
-
-    if (accessToken) {
-      if (defaultWorkspace && !isLoading) {
-        console.log("Redirecting to default workspace:", defaultWorkspace.id);
-        router.push(`/workspace/${defaultWorkspace.id}/board`);
-      } else if (!isLoading) {
-        console.log("No default workspace found, staying on workspace page");
-      } else {
-        console.log("Still loading default workspace...");
-      }
-    } else {
-      console.log("No access token, redirecting to login");
+    if (!accessToken) {
       router.push("/login");
+      return;
     }
-  }, [router, defaultWorkspace, isLoading, accessToken, isClient]);
+
+    if (!isLoading) {
+      if (defaultWorkspace) {
+        router.push(`/workspace/${defaultWorkspace.id}`);
+      }
+    }
+  }, [accessToken, defaultWorkspace, isLoading, router]);
 
   return (
     <div className="p-6 h-full overflow-y-auto">

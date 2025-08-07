@@ -111,15 +111,11 @@ const Metrics: FC = () => {
 
   // Handle metric card click to set as dashcard display
   const handleMetricClick = (field: NumericField) => {
-    console.log("Metric clicked:", field);
-    
     const newDisplayConfig = {
       type: DashcardDisplayType.CUSTOM_FIELD_SUM,
       customFieldId: field.id,
       customFieldName: field.name,
     };
-    
-    console.log("New display config:", newDisplayConfig);
     
     updateDisplayConfig(newDisplayConfig);
     message.success(`Dashcard display set to "${field.name} ${selectedStatistic}"`);

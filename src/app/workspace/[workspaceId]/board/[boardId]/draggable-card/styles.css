@@ -73,4 +73,54 @@
       opacity: 0;
     }
   }
+
+  /* Basic draggable card styles */
+
+  /* More options button - visible on all devices */
+  .more-options-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    padding: 6px;
+    cursor: pointer;
+    z-index: 10;
+    opacity: 0.7; /* Always visible but subtle */
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 28px;
+    min-height: 28px;
+    color: #64748b;
+  }
+
+  .more-options-btn:hover,
+  .more-options-btn:focus {
+    background: rgba(255, 255, 255, 0.8);
+    color: #334155;
+    transform: scale(1.05);
+    opacity: 1;
+  }
+
+  /* Show button on hover/focus for desktop devices */
+  .draggable-card-container:hover .more-options-btn,
+  .draggable-card-container:focus-within .more-options-btn {
+    opacity: 1;
+  }
+
+  /* Always visible on touch devices for better accessibility */
+  @media (pointer: coarse) {
+    .more-options-btn {
+      opacity: 0.8; /* More visible on touch devices */
+      background: rgba(255, 255, 255, 0.6);
+    }
+    
+    .more-options-btn:active {
+      background: rgba(255, 255, 255, 0.9);
+      transform: scale(0.95);
+    }
+  }
   

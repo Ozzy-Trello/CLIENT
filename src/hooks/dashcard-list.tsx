@@ -28,7 +28,6 @@ export const useDashcardList = (card: Card) => {
 
   useEffect(() => {
     if (result.isSuccess) {
-      console.log("masuuk");
       setItemDashcard(result.data?.data?.items || []);
       setDashcardConfig(result.data?.data?.dashConfig);
     }

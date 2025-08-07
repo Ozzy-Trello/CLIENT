@@ -90,7 +90,6 @@ function stringify(val: any): string {
     const noTags = val.replace(/<[^>]*>/g, "");
     if (/^[0-9a-f]{8}-/i.test(noTags)) {
       const lbl = LookupCache.any(noTags);
-      console.log("[RULE-RENDER] UUID lookup:", noTags, "->", lbl);
       if (lbl) return lbl;
     }
     return noTags.replace(/\./g, " ");
@@ -120,7 +119,6 @@ function lookup(condition: any, key: string): any {
     if (typeof value === 'string' && isUUID(value)) {
       const resolved = LookupCache.any(value);
       if (resolved) {
-        console.log(`[RULE-RENDER] Resolved UUID ${value} to ${resolved}`);
         return resolved;
       }
     }
@@ -134,7 +132,6 @@ function lookup(condition: any, key: string): any {
     if (typeof value === 'string' && isUUID(value)) {
       const resolved = LookupCache.any(value);
       if (resolved) {
-        console.log(`[RULE-RENDER] Resolved UUID ${value} to ${resolved} (camelCase)`);
         return resolved;
       }
     }
@@ -148,7 +145,6 @@ function lookup(condition: any, key: string): any {
     if (typeof value === 'string' && isUUID(value)) {
       const resolved = LookupCache.any(value);
       if (resolved) {
-        console.log(`[RULE-RENDER] Resolved UUID ${value} to ${resolved} (snake_case)`);
         return resolved;
       }
     }
@@ -222,16 +218,8 @@ export function renderRulePattern(
 
       if (key === "filter") return; // skip filters
 
-      console.log("[RULE-RENDER] Processing placeholder:", { tok, raw, key });
-
       // Special handling for text_comparison
       if (key === "text_comparison" || key === "text comparison") {
-        console.log("[RULE-RENDER] Processing text_comparison:", {
-          key,
-          condition: condition.text_comparison,
-          fullCondition: condition,
-        });
-
         // Try multiple possible locations for text_comparison data
         let textComp = condition.text_comparison;
         if (!textComp && condition.textComparison) {
@@ -281,61 +269,10 @@ export function renderRulePattern(
           textComp = condition[EnumSelectionType.TextComparison];
         }
 
-        console.log("[RULE-RENDER] Found text_comparison data:", textComp);
-        console.log(
-          "[RULE-RENDER] All condition keys:",
-          Object.keys(condition)
-        );
-        console.log(
-          "[RULE-RENDER] Condition structure:",
-          JSON.stringify(condition, null, 2)
-        );
-
-        // Debug: Check if text_comparison exists in different formats
-        console.log("[RULE-RENDER] Debug text_comparison access:");
-        console.log(
-          "  - condition.text_comparison:",
-          condition.text_comparison
-        );
-        console.log("  - condition.textComparison:", condition.textComparison);
-        console.log(
-          "  - condition.text_comparison?.expressions:",
-          condition.text_comparison?.expressions
-        );
-        console.log(
-          "  - condition.textComparison?.expressions:",
-          condition.textComparison?.expressions
-        );
-        console.log(
-          "  - condition[EnumSelectionType.TextComparison]:",
-          condition[EnumSelectionType.TextComparison]
-        );
-        console.log(
-          "  - condition.condition?.text_comparison:",
-          condition.condition?.text_comparison
-        );
-        console.log(
-          "  - condition.condition?.textComparison:",
-          condition.condition?.textComparison
-        );
-        console.log(
-          "  - condition.data?.text_comparison:",
-          condition.data?.text_comparison
-        );
-        console.log(
-          "  - condition.data?.textComparison:",
-          condition.data?.textComparison
-        );
-
         if (textComp && Array.isArray(textComp) && textComp.length === 0) {
-          console.log("[RULE-RENDER] Empty text_comparison array, skipping");
           return;
         }
         if (textComp && Array.isArray(textComp) && textComp.length > 0) {
-          console.log(
-            "[RULE-RENDER] Processing text_comparison array:",
-            textComp
-          );
           // Handle array of text comparisons
           const comparisons = textComp.map((comp: any) => {
             const { operator, text, value } = comp;
@@ -365,7 +302,6 @@ export function renderRulePattern(
           } else {
             parts.push(comparisons.join(" or "));
           }
-          console.log("[RULE-RENDER] Text comparison result:", comparisons);
           return;
         }
         // If text_comparison exists but is not an array, try to handle it as a single object
@@ -374,10 +310,6 @@ export function renderRulePattern(
           typeof textComp === "object" &&
           !Array.isArray(textComp)
         ) {
-          console.log(
-            "[RULE-RENDER] Processing single text_comparison object:",
-            textComp
-          );
           const { operator, text, value } = textComp;
           const textValue = text || value;
           if (textValue) {
@@ -416,10 +348,6 @@ export function renderRulePattern(
           textComp.operator &&
           textComp.text
         ) {
-          console.log(
-            "[RULE-RENDER] Processing single comparison object:",
-            textComp
-          );
           const { operator, text } = textComp;
           switch (operator) {
             case "contains":
@@ -449,7 +377,6 @@ export function renderRulePattern(
         }
 
         // If no text_comparison data found, don't add anything (just "attachment")
-        console.log("[RULE-RENDER] No text_comparison data found, skipping");
         return;
       }
 
@@ -497,7 +424,6 @@ export function renderRulePattern(
   });
 
   const result = parts.join(" ").replace(/\s+/g, " ").trim();
-  console.log(`[RULE-RENDER] renderRulePattern: "${pattern}" -> "${result}"`);
   return result;
 }
 
@@ -505,15 +431,12 @@ export function renderRulePatternHuman(
   pattern: string,
   condition: Record<string, any>
 ): string {
-  console.log("[RULE-RENDER] Input:", { pattern, condition });
-
   if (!pattern) {
     console.warn("[RULE-RENDER] Empty pattern provided");
     return "";
   }
 
   let sentence = renderRulePattern(pattern, condition);
-  console.log("[RULE-RENDER] After renderRulePattern:", sentence);
 
   // Handle special cases and complex placeholders
   if (condition) {
@@ -537,9 +460,7 @@ export function renderRulePatternHuman(
     // Handle roles in optional_by (check both snake_case and camelCase)
     const optionalBy = condition.optional_by || condition.optionalBy;
     if (optionalBy && optionalBy.data) {
-      console.log("[RULE-RENDER] Found optionalBy data:", optionalBy);
       const roleText = renderOptionalByHuman(optionalBy);
-      console.log("[RULE-RENDER] Role text result:", roleText);
       // Replace "by specific users" with the actual role text
       sentence = sentence.replace(/\bby specific users\b/gi, roleText);
       sentence = sentence.replace(/\bby-role\b/gi, roleText);
@@ -603,7 +524,6 @@ export function renderRulePatternHuman(
 
   // Capitalize first letter and ensure proper sentence structure
   const result = sentence.charAt(0).toUpperCase() + sentence.slice(1);
-  console.log("[RULE-RENDER] Final result:", result);
 
   return result;
 }
@@ -707,63 +627,38 @@ function renderTextComparisonHuman(textComparison: any): string {
 // Helper function to render optional_by in human-readable format
 function renderOptionalByHuman(optionalBy: any): string {
   if (!optionalBy || typeof optionalBy !== "object") {
-    console.log("[RULE-RENDER] renderOptionalByHuman: no optionalBy object");
     return "by anyone";
   }
 
   const { operator, data } = optionalBy;
 
-  console.log("[RULE-RENDER] renderOptionalByHuman:", { operator, data });
-
   if (operator === "by-anyone" || !data || data.length === 0) {
-    console.log("[RULE-RENDER] renderOptionalByHuman: by-anyone or no data");
     return "by anyone";
   }
 
   if (operator === "by-role" && data && data.length > 0) {
-    console.log("[RULE-RENDER] Processing by-role with data:", data);
-
     // Try to resolve role names from UUIDs
     const roleNames = data.map((roleId: string) => {
-      console.log(`[RULE-RENDER] Looking up role ID: ${roleId}`);
-
-      // Debug: Check what's in the cache
-      console.log(`[RULE-RENDER] Cache state for role ${roleId}:`, {
-        roleLabel: LookupCache.label("role", roleId),
-        anyLookup: LookupCache.any(roleId),
-      });
-
       const roleName = LookupCache.label("role", roleId);
-      console.log(`[RULE-RENDER] Role lookup result: ${roleId} -> ${roleName}`);
 
       // Also try the general any() lookup as fallback
       if (!roleName) {
         const fallbackName = LookupCache.any(roleId);
-        console.log(
-          `[RULE-RENDER] Fallback lookup: ${roleId} -> ${fallbackName}`
-        );
         return fallbackName || roleId;
       }
 
       return roleName;
     });
 
-    console.log("[RULE-RENDER] Final resolved role names:", roleNames);
-
     if (roleNames.length === 1) {
       const result = `by users with ${roleNames[0]} role`;
-      console.log("[RULE-RENDER] Single role result:", result);
       return result;
     } else {
       const result = `by users with ${roleNames.join(" or ")} roles`;
-      console.log("[RULE-RENDER] Multiple roles result:", result);
       return result;
     }
   }
 
-  console.log(
-    "[RULE-RENDER] renderOptionalByHuman: falling back to 'by specific users'"
-  );
   return "by specific users";
 }
 

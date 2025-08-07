@@ -137,15 +137,6 @@ export const useAdditionalFieldsStore = create<AdditionalFieldsStore>(
     },
 
     updatePOData: (poId: string, updates: Partial<POData>) => {
-      console.log("=== STORE UPDATE DEBUG ===");
-      console.log("Updating PO:", poId);
-      console.log("Updates:", updates);
-      if (updates.sizeBreakdowns) {
-        console.log("Size breakdowns being updated:", updates.sizeBreakdowns.length);
-        console.log("Custom sizes in update:", updates.sizeBreakdowns.filter(sb => !['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL', 'XXXXL', 'XXXXXL'].includes(sb.size)));
-      }
-      console.log("=== END STORE UPDATE DEBUG ===");
-      
       set((state) => ({
         ...state,
         data: state.data.map((po) =>

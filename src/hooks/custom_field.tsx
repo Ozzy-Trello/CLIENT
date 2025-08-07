@@ -15,23 +15,13 @@ import { useEffect } from "react";
 export function useCustomFields(workspaceId: string) {
   const queryClient = useQueryClient();
   
-  console.log("useCustomFields called with workspaceId:", workspaceId);
-  
   // The main query for custom fields
   const customFieldQuery = useQuery({
     queryKey: ["customFields", workspaceId],
     queryFn: () => {
-      console.log("Fetching custom fields for workspace:", workspaceId);
       return customFields(workspaceId);
     },
     enabled: !!workspaceId,
-  });
-
-  console.log("Custom fields query result:", {
-    data: customFieldQuery.data?.data,
-    isLoading: customFieldQuery.isLoading,
-    isError: customFieldQuery.isError,
-    error: customFieldQuery.error,
   });
 
   // Cache custom fields in LookupCache when data is available
@@ -65,7 +55,6 @@ export function useCustomFields(workspaceId: string) {
 
   const invalidateSpecificCardCustomFields = (cardId?: string) => {
     if (cardId) {
-      console.log("invalidating card cc nih: card: " + cardId);
       queryClient.invalidateQueries({
         queryKey: ["cardCustomField", cardId, workspaceId],
       });

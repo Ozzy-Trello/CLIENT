@@ -50,11 +50,7 @@ class PerformanceMonitor {
     metric.endTime = endTime;
     metric.duration = duration;
 
-    // Log the metric
-    console.log(
-      `🚀 Performance: ${name} took ${duration.toFixed(2)}ms`,
-      metric.metadata
-    );
+
 
     return duration;
   }
@@ -181,7 +177,7 @@ export function trackWebVitals() {
     new PerformanceObserver((list) => {
       const entries = list.getEntries();
       const lastEntry = entries[entries.length - 1];
-      console.log("🎯 LCP:", lastEntry.startTime);
+      
     }).observe({ entryTypes: ["largest-contentful-paint"] });
 
     // Track First Input Delay (FID)
@@ -189,7 +185,7 @@ export function trackWebVitals() {
       const entries = list.getEntries();
       entries.forEach((entry) => {
         const fidEntry = entry as any; // Type assertion for FID-specific properties
-        console.log("⚡ FID:", fidEntry.processingStart - fidEntry.startTime);
+
       });
     }).observe({ entryTypes: ["first-input"] });
 
@@ -200,7 +196,7 @@ export function trackWebVitals() {
       entries.forEach((entry: any) => {
         if (!entry.hadRecentInput) {
           clsValue += entry.value;
-          console.log("📐 CLS:", clsValue);
+  
         }
       });
     }).observe({ entryTypes: ["layout-shift"] });

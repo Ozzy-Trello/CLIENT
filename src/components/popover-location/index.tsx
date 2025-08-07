@@ -34,7 +34,7 @@ const PopoverLocation: React.FC<PopoverLocationProps> = ({
         destinationListId: activeList?.id || ''
       }, {
         onSuccess: (data) => {
-          console.log("Location update successful:", data);
+    
           if (setSelectedCard) {
             setSelectedCard(prevCard => {
               if (!prevCard) return prevCard;

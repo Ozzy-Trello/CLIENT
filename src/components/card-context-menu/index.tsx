@@ -6,7 +6,8 @@ import React, {
   useMemo,
   useCallback,
 } from "react";
-import { Dropdown, MenuProps, Modal, Tooltip, message } from "antd";
+import { Dropdown, MenuProps, Modal, message } from "antd";
+import TouchAwareTooltip from "@components/touch-aware-tooltip";
 import { MoveRight, Copy, Trash2 } from "lucide-react";
 import PopoverMoveCard from "@components/popover-move-card";
 import PopoverCopyCard from "@components/popover-copy-card";
@@ -38,6 +39,8 @@ const CardContextMenu: React.FC<CardContextMenuProps> = ({
     y: 0,
   });
 
+
+
   // Create refs for the trigger elements
   const moveButtonRef = useRef<HTMLDivElement>(null);
   const copyButtonRef = useRef<HTMLDivElement>(null);
@@ -64,6 +67,8 @@ const CardContextMenu: React.FC<CardContextMenuProps> = ({
       onContextMenu(e);
     }
   };
+
+
 
   const handleDeleteCard = useCallback(() => {
     if (!card || !list) return;
@@ -145,12 +150,12 @@ const CardContextMenu: React.FC<CardContextMenuProps> = ({
           label: canPerform ? (
             content
           ) : (
-            <Tooltip
+            <TouchAwareTooltip
               title={`Insufficient permissions (${permissionLevel} role)`}
               placement="right"
             >
               {content}
-            </Tooltip>
+            </TouchAwareTooltip>
           ),
           onClick: canPerform ? onClick : undefined,
           disabled: isDisabled,
@@ -210,11 +215,33 @@ const CardContextMenu: React.FC<CardContextMenuProps> = ({
     }
   }, [contextMenuVisible]);
 
+  // Add ref for the wrapper div
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  // Listen for synthetic contextmenu events (from MoreHorizontal button)
+  useEffect(() => {
+    const handleSyntheticContextMenu = (e: Event) => {
+      // Only handle synthetic events (not real right-clicks)
+      if (e.isTrusted === false) {
+        const mouseEvent = e as MouseEvent;
+        handleContextMenu(mouseEvent as any);
+      }
+    };
+
+    const wrapper = wrapperRef.current;
+    if (wrapper) {
+      wrapper.addEventListener('contextmenu', handleSyntheticContextMenu);
+      return () => wrapper.removeEventListener('contextmenu', handleSyntheticContextMenu);
+    }
+  }, []);
+
+
+
   return (
     <>
       <Dropdown
         menu={{ items }}
-        trigger={["contextMenu"]}
+        trigger={[]}
         open={contextMenuVisible}
         onOpenChange={setContextMenuVisible}
         overlayStyle={{
@@ -223,7 +250,9 @@ const CardContextMenu: React.FC<CardContextMenuProps> = ({
           top: contextMenuPosition.y,
         }}
       >
-        <div onContextMenu={handleContextMenu}>{children}</div>
+        <div ref={wrapperRef}>
+          {children}
+        </div>
       </Dropdown>
 
       {/* Move Card Popover */}

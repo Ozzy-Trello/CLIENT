@@ -47,7 +47,7 @@ const SummaryModal: React.FC<SummaryModalProps> = ({
   const theme = useSelector(selectTheme);
   const isDarkMode = useSelector(selectIsDarkMode);
   const { colors } = theme;
-  
+
   const [activeTab, setActiveTab] = useState<string>("all");
   const { selectedCard } = useCardDetailContext();
 
@@ -76,15 +76,9 @@ const SummaryModal: React.FC<SummaryModalProps> = ({
 
     const summaryData = generateSummaryData();
 
-    console.log("=== QR GENERATION DEBUG ===");
-    console.log("Summary data:", summaryData);
-    console.log("PO ID:", poId);
-    console.log("Card ID:", cardId);
-
     summaryData.forEach((item) => {
       // Parse the uniqueId to extract components: PO1-Polo-TPJ-M-001
       const uniqueIdParts = item.uniqueId.split("-");
-      console.log(`Processing item: ${item.uniqueId}`, uniqueIdParts);
 
       if (uniqueIdParts.length >= 5) {
         const poNumber = uniqueIdParts[0]; // PO1
@@ -105,20 +99,6 @@ const SummaryModal: React.FC<SummaryModalProps> = ({
         // Create QR value in the format: cardId|backendFormat|action
         const qrValue = `${cardId}|${backendFormat}|mark_complete`;
 
-        console.log(`Generated QR for ${item.uniqueId}:`, {
-          poNumber,
-          categoryLabel,
-          fieldKey,
-          size,
-          sequenceNumber,
-          itemId,
-          tabLabel,
-          fieldLabel,
-          poIdentifier,
-          backendFormat,
-          qrValue,
-        });
-
         qrItems.push({
           key: item.key,
           qrValue,
@@ -132,9 +112,6 @@ const SummaryModal: React.FC<SummaryModalProps> = ({
       }
     });
 
-    console.log("=== END QR GENERATION DEBUG ===");
-
-    console.log("Generated QR items:", qrItems);
     return qrItems;
   };
 
@@ -477,19 +454,8 @@ const SummaryModal: React.FC<SummaryModalProps> = ({
     // Use size-specific counters instead of global counter
     const sizeCounters: { [sizeKey: string]: number } = {};
 
-    console.log(`🔍 [SummaryModal] PO Data:`, poData);
-    console.log(
-      `🔍 [SummaryModal] Available keys in poData:`,
-      Object.keys(poData)
-    );
-
     // Check if we have the new sizeBreakdowns format
     if (poData.sizeBreakdowns && Array.isArray(poData.sizeBreakdowns)) {
-      console.log(
-        `🔍 [SummaryModal] Using new sizeBreakdowns format:`,
-        poData.sizeBreakdowns
-      );
-
       // Group size breakdowns by category and field for display
       const groupedBreakdowns: { [key: string]: any[] } = {};
 
@@ -545,9 +511,6 @@ const SummaryModal: React.FC<SummaryModalProps> = ({
       });
     } else {
       // Fallback to old format for backward compatibility
-      console.log(
-        `🔍 [SummaryModal] Using legacy format - checking for old size keys`
-      );
 
       // Process categories if available
       if (poData.categories && Array.isArray(poData.categories)) {
@@ -558,11 +521,6 @@ const SummaryModal: React.FC<SummaryModalProps> = ({
             // Use snake_case format (backend normalizes everything to this format)
             const sizesKeySnake = `sizes_${category.key}_${field.key}`;
             const sizeBreakdownData = poData[sizesKeySnake];
-
-            console.log(
-              `🔍 [SummaryModal] Checking legacy key: ${sizesKeySnake}`,
-              sizeBreakdownData
-            );
 
             if (sizeBreakdownData && typeof sizeBreakdownData === "object") {
               // Handle both uppercase and lowercase size formats
@@ -624,11 +582,6 @@ const SummaryModal: React.FC<SummaryModalProps> = ({
                     )}`;
                     const isScanned =
                       sizeBreakdownData.status?.[statusKey] === "completed";
-
-                    console.log(
-                      `🔍 [SummaryModal] Checking status for ${normalizedSize}-${i}: statusKey=${statusKey}, isScanned=${isScanned}, status=`,
-                      sizeBreakdownData.status?.[statusKey]
-                    );
 
                     const currentCounter = sizeCounters[sizeKey];
                     const fullUniqueId = `PO${poIndex + 1}-${
@@ -708,8 +661,6 @@ const SummaryModal: React.FC<SummaryModalProps> = ({
       }
     }
 
-    console.log(`🔍 [SummaryModal] Generated summary items:`, summaryItems);
-    console.log(`🔍 [SummaryModal] Size counters used:`, sizeCounters);
     return summaryItems;
   };
 
@@ -761,10 +712,11 @@ const SummaryModal: React.FC<SummaryModalProps> = ({
         <span
           className="px-2 py-1 rounded-full text-xs font-medium"
           style={{
-            backgroundColor: scanned === "Yes" 
-              ? `rgb(${colors.success})` 
-              : `rgb(${colors.destructive})`,
-            color: `rgb(${colors.surface})`
+            backgroundColor:
+              scanned === "Yes"
+                ? `rgb(${colors.success})`
+                : `rgb(${colors.destructive})`,
+            color: `rgb(${colors.surface})`,
           }}
         >
           {scanned}
@@ -850,32 +802,32 @@ const SummaryModal: React.FC<SummaryModalProps> = ({
       className="summary-modal"
     >
       {/* QR Scanner Status */}
-      <div 
+      <div
         className="mb-4 p-3 rounded-lg"
-        style={{ 
+        style={{
           backgroundColor: `rgb(${colors.muted})`,
-          border: `1px solid rgb(${colors.border})`
+          border: `1px solid rgb(${colors.border})`,
         }}
       >
         <div className="flex items-center gap-2 mb-2">
           <QrcodeOutlined style={{ color: `rgb(${colors.primary})` }} />
-          <span 
+          <span
             className="font-medium"
             style={{ color: `rgb(${colors.text})` }}
           >
             Pemindai QR Aktif
           </span>
         </div>
-        <p 
+        <p
           className="text-sm"
-          style={{ color: `rgb(${colors['text-muted']})` }}
+          style={{ color: `rgb(${colors["text-muted"]})` }}
         >
           Gunakan pemindai QR eksternal Anda untuk memindai kode QR yang
           dihasilkan. Item yang dipindai akan otomatis ditandai sebagai selesai.
         </p>
-        <p 
+        <p
           className="text-xs mt-1"
-          style={{ color: `rgb(${colors['text-muted']})` }}
+          style={{ color: `rgb(${colors["text-muted"]})` }}
         >
           Hasilkan kode QR terlebih dahulu, lalu pindai menggunakan pemindai
           eksternal Anda untuk memperbarui status item sambil membiarkan ini

@@ -9,14 +9,15 @@ import {
   Avatar,
   Checkbox,
   CheckboxChangeEvent,
-  Tooltip,
   Typography,
 } from "antd";
+import TouchAwareTooltip from "@components/touch-aware-tooltip";
 import {
   Calendar,
   CalendarDays,
   Clock,
   MessageSquare,
+  MoreHorizontal,
   MoveUpRight,
   Paperclip,
   Text,
@@ -133,7 +134,7 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
       <div className="p-4">
         {/* Main Card link */}
         {card?.mirrorId && (
-          <Tooltip
+          <TouchAwareTooltip
             title={`${card?.sourceCard?.boardName}: ${card?.sourceCard?.listName}`}
           >
             <div className="flex justify-between items-center rounded bg-gray-100 group hover:bg-gray-200">
@@ -155,7 +156,7 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
                 </div>
               </div>
             </div>
-          </Tooltip>
+          </TouchAwareTooltip>
         )}
 
         {/* Labels */}
@@ -209,12 +210,12 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
         {/* Dates */}
         {card?.startDate && (
           <div className="mb-2">
-            <Tooltip title={"Dates"}>
+            <TouchAwareTooltip title={"Dates"}>
               <div className="flex items-center gap-1 text-[10px]">
                 <Clock size={12} strokeWidth={2} />
                 <CardDateDisplay card={card} />
               </div>
-            </Tooltip>
+            </TouchAwareTooltip>
           </div>
         )}
 
@@ -239,7 +240,7 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
         {/* Icons row */}
         <div className="flex items-center gap-4 text-gray-600 mb-3">
           <div className="flex items-center gap-1 text-[10px]">
-            <Tooltip
+            <TouchAwareTooltip
               title={
                 card?.description
                   ? "this card has description"
@@ -247,20 +248,20 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
               }
             >
               <Text size={12} strokeWidth={3} />
-            </Tooltip>
+            </TouchAwareTooltip>
           </div>
-          <Tooltip title={"comments"}>
+          <TouchAwareTooltip title={"comments"}>
             <div className="flex items-center gap-1 text-[10px]">
               <MessageSquare size={12} strokeWidth={2} className="font-bold" />
               <span className="text-sm">{card?.activity?.length || 0}</span>
             </div>
-          </Tooltip>
-          <Tooltip title={"attachments"}>
+          </TouchAwareTooltip>
+          <TouchAwareTooltip title={"attachments"}>
             <div className="flex items-center gap-1 text-[10px]">
               <Paperclip size={12} strokeWidth={2} />
               <span className="text-sm">{card?.attachments?.length || 0}</span>
             </div>
-          </Tooltip>
+          </TouchAwareTooltip>
           {/* <div className="text-green-600 text-[14px]">
             Cabang: {card.location}
           </div> */}

@@ -21,6 +21,7 @@ import { WorkspaceSelection } from "../selection";
 import ModalRequest from "../modal-request";
 import ModalListRequest from "../modal-list-request";
 import ModalRequestSent from "../modal-request-sent";
+import WebSocketDebugModal from "../websocket-debug-modal";
 import { searchCards } from "@api/card";
 import { Card } from "@myTypes/card";
 import TokenStorage from "@utils/token-storage";
@@ -90,6 +91,7 @@ const TopBar: React.FC = React.memo(() => {
   const [modalRequestOpen, setModalRequestOpen] = useState(false);
   const [modalListRequestOpen, setModalListRequestOpen] = useState(false);
   const [modalRequestSentOpen, setModalRequestSentOpen] = useState(false);
+  const [wsDebugModalOpen, setWsDebugModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [recentlyViewedCards, setRecentlyViewedCards] = useState<Card[]>([]);
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
@@ -115,31 +117,15 @@ const TopBar: React.FC = React.memo(() => {
       const urlWorkspaceId = Array.isArray(params.workspaceId)
         ? params.workspaceId[0]
         : params.workspaceId;
-      console.log(
-        "[TOPBAR] Using workspaceId from URL params:",
-        urlWorkspaceId
-      );
       return urlWorkspaceId;
     }
 
-    console.warn(
-      "[TOPBAR] No workspaceId available from Redux store or URL params"
-    );
     return undefined;
   };
 
   const workspaceId = getWorkspaceId();
 
-  // Debug log for search functionality
-  useEffect(() => {
-    if (searchQuery && !workspaceId) {
-      console.warn("[TOPBAR] Search attempted without workspaceId:", {
-        searchQuery,
-        currentWorkspace: currentWorkspace?.id,
-        urlParams: params.workspaceId,
-      });
-    }
-  }, [searchQuery, workspaceId, currentWorkspace?.id, params.workspaceId]);
+
 
   // Handle theme toggle
   const handleThemeToggle = () => {
@@ -237,8 +223,6 @@ const TopBar: React.FC = React.memo(() => {
 
   // Handle clicking on search results
   const handleSearchResultClick = (result: SearchResult) => {
-    console.log("[TOPBAR] Search result clicked:", result);
-
     setShowSearchDropdown(false);
     setSearchQuery("");
 
@@ -255,8 +239,6 @@ const TopBar: React.FC = React.memo(() => {
         router.push(
           `/workspace/${targetWorkspaceId}/board/${result.boardId}?listId=${result.listId}&cardId=${result.id}`
         );
-      } else {
-        console.error("No workspace ID available for navigation");
       }
     } else if (result.type === "board") {
       // Get workspace ID with fallback priority:
@@ -269,8 +251,6 @@ const TopBar: React.FC = React.memo(() => {
 
       if (targetWorkspaceId) {
         router.push(`/workspace/${targetWorkspaceId}/board/${result.id}`);
-      } else {
-        console.error("No workspace ID available for navigation");
       }
     }
   };
@@ -311,6 +291,18 @@ const TopBar: React.FC = React.memo(() => {
 
         {canAccessFeature(userRole, "warehouse") && (
           <Button onClick={() => setModalRequestSentOpen(true)}>Gudang</Button>
+        )}
+
+        {/* WebSocket Debug Button - Only show in development */}
+        {process.env.NODE_ENV === 'development' && (
+          <Button 
+            type="dashed" 
+            size="small"
+            onClick={() => setWsDebugModalOpen(true)}
+            title="WebSocket Debug"
+          >
+            WS Debug
+          </Button>
         )}
 
         <div className="relative" ref={searchRef}>
@@ -558,6 +550,10 @@ const TopBar: React.FC = React.memo(() => {
       <ModalRequestSent
         open={modalRequestSentOpen}
         onClose={() => setModalRequestSentOpen(false)}
+      />
+      <WebSocketDebugModal
+        open={wsDebugModalOpen}
+        onClose={() => setWsDebugModalOpen(false)}
       />
     </div>
   );

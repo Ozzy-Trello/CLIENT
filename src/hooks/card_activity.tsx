@@ -53,13 +53,11 @@ export const useCardActivity = (cardId: string) => {
     const handler = (event: MessageEvent) => {
       try {
         const message = JSON.parse(event.data);
-        console.log("Card activity WebSocket event:", message);
 
         if (
           message.event === "card_activity:added" &&
           message.data?.cardId === cardId
         ) {
-          console.log("Refreshing card activities for card:", cardId);
           // Reset to page 1 and refetch
           setPage(1);
           refetch();

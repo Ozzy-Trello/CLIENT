@@ -21,11 +21,7 @@ const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
 }) => {
   const [open, setOpen] = useState(false);
 
-  console.log("ExpressionBuilder Debug:", {
-    value,
-    availableFields,
-    open,
-  });
+
 
   const operations = [
     { value: "+", label: "+" },

@@ -58,23 +58,16 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
   };
 
   const handleSaveCommentClick = (): void => {
-    console.log("handleSaveCommentClick: comment: %o", comment);
-    console.log("card?.id:", card?.id);
-    console.log("currentUser?.id:", currentUser?.id);
-
     // Add validation
     if (!comment || comment.trim() === "") {
-      console.log("Comment is empty, not saving");
       return;
     }
 
     if (!card?.id) {
-      console.log("Card ID is missing");
       return;
     }
 
     if (!currentUser?.id) {
-      console.log("Current user ID is missing");
       return;
     }
 
@@ -88,8 +81,6 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
         text: comment,
       },
     };
-
-    console.log("About to call addCardActivity with:", newComment);
 
     // Call the mutation
     addCardActivity(newComment);

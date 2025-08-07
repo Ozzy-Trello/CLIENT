@@ -3,7 +3,7 @@ import { useCardFocus } from "@providers/card-focus-context";
 import { Card, EnumCardType } from "@myTypes/card";
 import { AnyList } from "@myTypes/list";
 import { Draggable } from "@hello-pangea/dnd";
-import { CheckboxChangeEvent, CheckboxProps } from "antd";
+import { CheckboxChangeEvent } from "antd";
 import { useState } from "react";
 import RegularCard from "./regular";
 import Dashcard from "./dashcard";
@@ -11,6 +11,7 @@ import { usePermissions } from "@hooks/account";
 import { useCardDetails } from "@hooks/card-details";
 import { useParams } from "next/navigation";
 import CardContextMenu from "@components/card-context-menu";
+import { MoreHorizontal } from "lucide-react";
 
 interface DraggableCardProps {
   card: Card;
@@ -20,17 +21,17 @@ interface DraggableCardProps {
 
 const DraggableCard: React.FC<DraggableCardProps> = ({ card, index, list }) => {
   const { openCardDetail } = useCardDetailContext();
-  const { focusedCardId, setFocusedCardId, isCardFocused, clearFocus } =
-    useCardFocus();
-  const { workspaceId, boardId } = useParams();
+  const { focusedCardId, setFocusedCardId, isCardFocused } = useCardFocus();
+  const { boardId } = useParams();
   const [isHovered, setIsHovered] = useState<boolean>(false);
-  const [openAddMember, setOpenAddMember] = useState<boolean>(false);
   const { canMove } = usePermissions();
   const { completeCard, incompleteCard } = useCardDetails(
     "",
     "",
     boardId as string
   );
+
+
 
   const onChange = (e: CheckboxChangeEvent, card: Card) => {
     e.stopPropagation();
@@ -48,18 +49,33 @@ const DraggableCard: React.FC<DraggableCardProps> = ({ card, index, list }) => {
   // Determine if this card should be blurred
   const shouldBlur = focusedCardId !== null && !isCardFocused(card.id);
 
-  const handleContextMenu = (e: React.MouseEvent) => {
-    setFocusedCardId(card.id);
-  };
-
   const handleClick = (e: React.MouseEvent) => {
     if (e.target instanceof HTMLElement) {
-      if (e.target.className.includes("checkbox")) {
+      if (e.target.className.includes("checkbox") || e.target.closest(".more-options-btn")) {
         return;
       }
     }
 
     openCardDetail(card, list);
+  };
+
+  const handleMoreOptions = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    setFocusedCardId(card.id);
+    
+    // Dispatch a synthetic contextmenu event on the card container
+    const cardContainer = e.currentTarget.closest('.draggable-card-container');
+    if (cardContainer) {
+      const syntheticEvent = new MouseEvent('contextmenu', {
+        bubbles: true,
+        cancelable: true,
+        clientX: e.clientX,
+        clientY: e.clientY,
+      });
+      cardContainer.dispatchEvent(syntheticEvent);
+    }
   };
 
   return (
@@ -70,13 +86,12 @@ const DraggableCard: React.FC<DraggableCardProps> = ({ card, index, list }) => {
     >
       {(provided, snapshot) => (
         <CardContextMenu
-          onContextMenu={handleContextMenu}
           card={card}
           list={list}
         >
           <div
             className={`bg-white rounded-lg border border-gray-200 
-              max-w-sm
+              w-full draggable-card-container relative
             hover:border-blue-500 overflow-hidden
             ${snapshot.isDragging ? "shadow-lg" : ""}
             ${canMoveCard ? "cursor-move" : "cursor-default"}
@@ -111,6 +126,15 @@ const DraggableCard: React.FC<DraggableCardProps> = ({ card, index, list }) => {
                 isDragging={snapshot.isDragging}
               />
             )}
+            
+            {/* More options button - visible on all devices */}
+            <button
+              className="more-options-btn"
+              onClick={handleMoreOptions}
+              aria-label="More options"
+            >
+              <MoreHorizontal size={14} />
+            </button>
           </div>
         </CardContextMenu>
       )}

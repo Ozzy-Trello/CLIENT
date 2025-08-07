@@ -46,7 +46,7 @@ if (typeof window !== "undefined") {
   try {
     Quill.register("modules/mention", Mention, true);
     Quill.register(MentionBlot);
-    console.log("Mention module registered at module level");
+  
   } catch (error) {
     console.warn("Quill mention module registration error:", error);
   }

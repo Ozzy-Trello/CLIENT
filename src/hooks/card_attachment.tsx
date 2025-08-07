@@ -31,12 +31,10 @@ export function useCardAttachment(cardId: string) {
     const handler = (event: MessageEvent) => {
       try {
         const msg = JSON.parse(event.data);
-        console.log("Card attachment WebSocket event:", msg);
         if (
           msg.event === "card_attachment:updated" &&
           msg.data?.cardId === cardId
         ) {
-          console.log("Invalidating card attachment queries for card:", cardId);
           queryClient.invalidateQueries({
             queryKey: ["cardAttachment", cardId],
           });
@@ -123,10 +121,9 @@ export function useCardAttachment(cardId: string) {
       }
     },
     onSuccess: (data, variables) => {
-      console.log("Successfully added attachment:", data);
+      // Successfully added attachment
     },
     onSettled: (data, error, variables) => {
-      console.log("Add attachment settled, invalidating queries");
       queryClient.invalidateQueries({
         queryKey: ["cardAttachment", variables.cardId],
       });
@@ -145,14 +142,9 @@ export function useCardAttachment(cardId: string) {
       attachmentId: string;
       cardId: string;
     }) => {
-      console.log("API - Deleting attachment:", { attachmentId, cardId });
       return deleteCardAttachment(attachmentId);
     },
     onMutate: async ({ attachmentId, cardId }) => {
-      console.log("Optimistically deleting attachment:", {
-        attachmentId,
-        cardId,
-      });
 
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ["cardAttachment", cardId] });
@@ -211,18 +203,9 @@ export function useCardAttachment(cardId: string) {
       }
     },
     onSuccess: (data, variables) => {
-      console.log(
-        "Successfully deleted attachment:",
-        data,
-        "for variables:",
-        variables
-      );
+      // Successfully deleted attachment
     },
     onSettled: (data, error, variables) => {
-      console.log(
-        "Delete attachment settled, invalidating queries for card:",
-        variables.cardId
-      );
       queryClient.invalidateQueries({
         queryKey: ["cardAttachment", variables.cardId],
       });

@@ -35,53 +35,25 @@ const DraggableList: React.FC<DraggableListProps> = ({
 
   // Check if card limit is exceeded
   const isLimitExceeded = list.cardLimit && cards.length > list.cardLimit;
-  const listColor = isLimitExceeded ? "#fbbf24" : (list.background || "#f9fafb"); // Yellow if limit exceeded, fallback to light gray
-
-  // Debug logging for drag issues
-  console.log(`[LIST DEBUG] List "${list.name}" (ID: ${list.id}):`, {
-    canMoveList,
-    isDragDisabled: !canMoveList,
-    listBackground: list.background,
-    listColor,
-    isLimitExceeded,
-    cardCount: cards.length,
-    cardLimit: list.cardLimit,
-    index,
-    draggableId: `draggable-list-${list.id}`,
-    permissions: { canMove: canMove("list"), canCreate: canCreate("card") }
-  });
+  const listColor = isLimitExceeded ? "#fbbf24" : list.background || "#f9fafb"; // Yellow if limit exceeded, fallback to light gray
 
   return (
     <Draggable
-          draggableId={`draggable-list-${list.id}`}
-          index={index}
-          isDragDisabled={!canMoveList}
-        >
-        {(provided, snapshot) => {
-          // Debug logging for drag state changes
-          if (snapshot.isDragging) {
-            console.log(`[DRAG] Currently dragging list "${list.name}" (ID: ${list.id})`);
-          }
-          
-          return (
-        <div
-          ref={provided.innerRef}
-          {...provided.dragHandleProps}
-          {...provided.draggableProps}
-          style={{
-            ...provided.draggableProps.style,
-            backgroundColor: listColor, // e.g., "#f87171"
-          }}
-          onMouseDown={(e) => {
-            console.log(`[MOUSE DEBUG] MouseDown on list "${list.name}" (ID: ${list.id}), Index: ${index}`);
-          }}
-          onMouseMove={(e) => {
-            // Only log if mouse is pressed (dragging)
-            if (e.buttons === 1) {
-              console.log(`[MOUSE DEBUG] MouseMove while dragging list "${list.name}" (ID: ${list.id})`);
-            }
-          }}
-          className={`
+      draggableId={`draggable-list-${list.id}`}
+      index={index}
+      isDragDisabled={!canMoveList}
+    >
+      {(provided, snapshot) => {
+        return (
+          <div
+            ref={provided.innerRef}
+            {...provided.dragHandleProps}
+            {...provided.draggableProps}
+            style={{
+              ...provided.draggableProps.style,
+              backgroundColor: listColor, // e.g., "#f87171"
+            }}
+            className={`
             group 
             relative 
             bg-gray-50 
@@ -90,71 +62,73 @@ const DraggableList: React.FC<DraggableListProps> = ({
             border-gray-200 
             shadow-sm 
             hover:shadow-md 
-            min-w-[270px] 
+            w-[270px] 
             h-fit
             max-h-[calc(100vh-130px)]
             flex 
             flex-col
+            flex-shrink-0
             ${snapshot.isDragging ? "shadow-lg" : ""}
             ${canMoveList ? "cursor-move" : "cursor-default"}
             ${!canMoveList ? "opacity-75" : ""}
           
           `}
-          title={
-            !canMoveList
-              ? "You don't have permission to move lists"
-              : isLimitExceeded
-              ? `Card limit exceeded (${cards.length}/${list.cardLimit})`
-              : undefined
-          }
-        >
-          <ListName
-            list={list}
-            boardId={boardId}
-            updateList={updateList}
-            cardsCount={cards.length}
-          />
-          <Droppable
-            droppableId={`droppable-card-area-${list.id}`}
-            direction="vertical"
-            type={`card`}
+            title={
+              !canMoveList
+                ? "You don't have permission to move lists"
+                : isLimitExceeded
+                ? `Card limit exceeded (${cards.length}/${list.cardLimit})`
+                : undefined
+            }
           >
-            {(provided) => (
-              <div
-                {...provided.droppableProps}
-                ref={provided.innerRef}
-                className={`
-                  flex-grow
-                  custom-scrollbar
-                  px-3
-                  py-2
-                  min-h-[50px]             
-                `}
-              >
-                <div className="space-y-3">
-                  {cards.map((card, index) => (
-                    <DraggableCard
-                      key={card.id}
-                      card={card}
-                      list={list}
-                      index={index}
-                    />
-                  ))}
-                  {provided.placeholder}
+            <ListName
+              list={list}
+              boardId={boardId}
+              updateList={updateList}
+              cardsCount={cards.length}
+            />
+            <Droppable
+              droppableId={`droppable-card-area-${list.id}`}
+              direction="vertical"
+              type={`card`}
+            >
+              {(provided) => (
+                <div
+                  {...provided.droppableProps}
+                  ref={provided.innerRef}
+                  className={`
+                   flex-grow
+                   custom-scrollbar
+                   px-3
+                   py-2
+                   min-h-[50px]
+                   overflow-y-auto              
+                 `}
+                >
+                  <div className="space-y-3">
+                    {cards.map((card, index) => (
+                      <DraggableCard
+                        key={card.id}
+                        card={card}
+                        list={list}
+                        index={index}
+                      />
+                    ))}
+                    {provided.placeholder}
+                  </div>
                 </div>
+              )}
+            </Droppable>
+            {canCreateCard && (
+              <div className="px-2 py-2 border-t border-gray-200">
+                <AddCard listId={list.id || ""} addCard={addCard} />
               </div>
             )}
-          </Droppable>
-          {canCreateCard && (
-            <div className="px-2 py-2 border-t border-gray-200">
-              <AddCard listId={list.id || ""} addCard={addCard} />
-            </div>
-          )}
-        </div>
-          );
-        }}
-      </Draggable>
-    );
-  };
+          </div>
+        );
+      }}
+    </Draggable>
+  );
+};
 
 export default DraggableList;

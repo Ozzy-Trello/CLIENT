@@ -6,6 +6,7 @@ const __dirname = path.dirname(__filename);
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'standalone',
   swcMinify: true,
   compress: true,
   poweredByHeader: false,
@@ -16,7 +17,7 @@ const nextConfig = {
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
   experimental: {
-    optimizeCss: true,
+    optimizeCss: true, // Disable CSS optimization to avoid SCSS parser
     optimizePackageImports: [
       '@tanstack/react-query', 
       'lucide-react',
@@ -25,10 +26,13 @@ const nextConfig = {
       'clsx',
       'tailwind-merge'
     ],
-    webpackBuildWorker: true,
+    webpackBuildWorker: false,
     gzipSize: true,
   },
   webpack: (config, { dev, isServer }) => {
+    // Docker-specific optimizations
+ 
+
     // Optimize bundle splitting
     if (!dev && !isServer) {
       config.optimization.splitChunks = {
@@ -60,12 +64,32 @@ const nextConfig = {
           },
         },
       };
+      
+      // Additional CSS minimization prevention
+      if (process.env.DISABLE_CSS_MINIFICATION === 'true') {
+        config.optimization.minimizer = config.optimization.minimizer.filter(
+          plugin => plugin.constructor.name !== 'CssMinimizerPlugin'
+        );
+      }
     }
 
-    // Optimize module resolution
+    // Let Next.js handle CSS imports natively
+
+    // Optimize module resolution - match tsconfig.json paths
     config.resolve.alias = {
       ...config.resolve.alias,
       '@': path.resolve(__dirname, './src'),
+      '@api': path.resolve(__dirname, './src/api'),
+      '@app': path.resolve(__dirname, './src/app'),
+      '@assets': path.resolve(__dirname, './src/assets'),
+      '@components': path.resolve(__dirname, './src/components'),
+      '@constants': path.resolve(__dirname, './src/constants'),
+      '@dto': path.resolve(__dirname, './src/dto'),
+      '@hooks': path.resolve(__dirname, './src/hooks'),
+      '@providers': path.resolve(__dirname, './src/providers'),
+      '@store': path.resolve(__dirname, './src/store'),
+      '@myTypes': path.resolve(__dirname, './src/types'),
+      '@utils': path.resolve(__dirname, './src/utils'),
     };
 
     return config;

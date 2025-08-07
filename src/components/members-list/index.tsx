@@ -1,4 +1,5 @@
-import { Avatar, Tooltip } from "antd";
+import { Avatar } from "antd";
+import TouchAwareTooltip from "@components/touch-aware-tooltip";
 import { ChevronLeft, Plus, X } from "lucide-react";
 import { useState } from "react";
 import PopoverUser from "../popover-user";
@@ -106,7 +107,7 @@ const MembersList: React.FC<MembersListProps> = ({
       <div className="flex -space-x-1">
         {Array.isArray(members) &&
           members.slice(0, limit).map((member, index) => (
-            <Tooltip
+            <TouchAwareTooltip
               key={member.id || index}
               title={getDisplayName(member)}
               placement="top"
@@ -143,17 +144,17 @@ const MembersList: React.FC<MembersListProps> = ({
                       onRemoveMember(member.id);
                     }}
                   >
-                    <X size={6} className="text-gray-400 hover:text-red-500" />
+                    <X size={6} className="text-gray-400 hover:text-red-50" />
                   </button>
                 )}
               </div>
-            </Tooltip>
+            </TouchAwareTooltip>
           ))}
       </div>
 
       {/* Show more button */}
       {shouldShowExpandButton && (
-        <Tooltip
+        <TouchAwareTooltip
           title={`Show ${remainingCount} more member${
             remainingCount > 1 ? "s" : ""
           }`}
@@ -173,12 +174,12 @@ const MembersList: React.FC<MembersListProps> = ({
               +{remainingCount}
             </Avatar>
           </div>
-        </Tooltip>
+        </TouchAwareTooltip>
       )}
 
       {/* Show less button */}
       {shouldShowCollapseButton && (
-        <Tooltip title="Show fewer members">
+        <TouchAwareTooltip title="Show fewer members">
           <div className="ml-1">
             <Avatar
               size="small"
@@ -192,11 +193,11 @@ const MembersList: React.FC<MembersListProps> = ({
               <ChevronLeft size={12} />
             </Avatar>
           </div>
-        </Tooltip>
+        </TouchAwareTooltip>
       )}
 
       {/* Add member button */}
-      <Tooltip title="Add member">
+      <TouchAwareTooltip title="Add member">
         <div className="ml-2">
           {openAddMember !== undefined && setOpenAddMember !== undefined && (
             <PopoverUser
@@ -220,7 +221,7 @@ const MembersList: React.FC<MembersListProps> = ({
             />
           )}
         </div>
-      </Tooltip>
+      </TouchAwareTooltip>
     </div>
   );
 };

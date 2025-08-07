@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { Drawer, message, Input, Spin, Empty, Tooltip } from "antd";
+import { Drawer, message, Input, Spin, Empty } from "antd";
+import TouchAwareTooltip from "@components/touch-aware-tooltip";
 import {
   InfoCircleOutlined,
   InboxOutlined,
@@ -67,9 +68,9 @@ const MenuItem: React.FC<MenuItemProps> = ({
   return (
     <>
       {disabled && tooltipTitle ? (
-        <Tooltip title={tooltipTitle}>
+        <TouchAwareTooltip title={tooltipTitle}>
           {menuItem}
-        </Tooltip>
+        </TouchAwareTooltip>
       ) : (
         menuItem
       )}

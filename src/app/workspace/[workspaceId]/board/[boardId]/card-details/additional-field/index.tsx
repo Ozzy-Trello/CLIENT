@@ -171,7 +171,6 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
   useEffect(() => {
     // Skip loading if we're in the middle of a QR refetch
     if (isRefetchingRef.current) {
-      console.log("Skipping useEffect data loading - QR refetch in progress");
       return;
     }
 
@@ -188,36 +187,9 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
             ? JSON.parse(savedData.data)
             : savedData.data;
 
-        console.log("Loading saved data:", parsedData);
-
         if (parsedData && typeof parsedData === "object") {
           // Load the store data if it exists
           if (parsedData.storeData) {
-            console.log("Loading storeData:", parsedData.storeData);
-            console.log("=== LOAD DEBUG ===");
-            console.log(
-              "Loaded PO data with sizeBreakdowns:",
-              parsedData.storeData.data?.map((po: any) => ({
-                id: po.id,
-                sizeBreakdownsCount: po.sizeBreakdowns?.length || 0,
-                customSizes:
-                  po.sizeBreakdowns?.filter(
-                    (sb: any) =>
-                      ![
-                        "XS",
-                        "S",
-                        "M",
-                        "L",
-                        "XL",
-                        "XXL",
-                        "XXXL",
-                        "XXXXL",
-                        "XXXXXL",
-                      ].includes(sb.size)
-                  ) || [],
-              }))
-            );
-            console.log("=== END LOAD DEBUG ===");
             // Load the complete data into the store
             loadData({
               qty: parsedData.storeData.qty || 1,
@@ -230,7 +202,6 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
       }
     } else {
       // No saved data, initialize with default
-      console.log("No saved data found, initializing default");
       loadData({ qty: 1, data: [] });
     }
   }, [additionalFieldData, cardId]);
@@ -249,57 +220,6 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
           data: freshData,
         },
       };
-
-      console.log("=== DEBOUNCED SAVE DEBUG ===");
-      console.log("Saving data:", dataToSave);
-      console.log(
-        "PO data with sizeBreakdowns:",
-        freshData.map((po: any) => ({
-          id: po.id,
-          sizeBreakdownsCount: po.sizeBreakdowns?.length || 0,
-          customSizes:
-            po.sizeBreakdowns?.filter(
-              (sb: any) =>
-                ![
-                  "XS",
-                  "S",
-                  "M",
-                  "L",
-                  "XL",
-                  "XXL",
-                  "XXXL",
-                  "XXXXL",
-                  "XXXXXL",
-                ].includes(sb.size)
-            ) || [],
-        }))
-      );
-
-      // Detailed breakdown of all size breakdowns being saved
-      freshData.forEach((po: any, index: number) => {
-        console.log(
-          `PO ${index + 1} (${po.id}) size breakdowns:`,
-          po.sizeBreakdowns?.map((sb: any) => ({
-            label: sb.label,
-            size: sb.size,
-            category: sb.category,
-            field: sb.field,
-            isCustom: ![
-              "XS",
-              "S",
-              "M",
-              "L",
-              "XL",
-              "XXL",
-              "XXXL",
-              "XXXXL",
-              "XXXXXL",
-            ].includes(sb.size),
-          })) || []
-        );
-      });
-
-      console.log("=== END SAVE DEBUG ===");
 
       if (additionalFieldId) {
         updateMutation.mutate(dataToSave);
@@ -411,7 +331,6 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
   };
 
   const handleScanResult = (scannedData: string) => {
-    console.log("Scanned data:", scannedData);
     // TODO: Process the scanned data and add it to the bahan items
     message.success(`Scanned: ${scannedData}`);
     handleCloseScanner();
@@ -440,9 +359,6 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
         // Save changes
         debouncedSave();
 
-        console.log(
-          `Removed bahan item at index ${bahanIndex} from PO ${poId}`
-        );
         message.success("Bahan item removed successfully");
       }
     }
@@ -496,9 +412,6 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
     if (!scannedData.trim()) return;
 
     try {
-      console.log("=== FRONTEND QR SCAN DEBUG ===");
-      console.log("Raw scanned data:", scannedData);
-
       // Clean the scanned data by removing unwanted characters
       // Remove common scanner artifacts like "Shift", "Control", "Alt", etc.
       const cleanedData = scannedData
@@ -511,13 +424,9 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
         .replace(/CapsLock/g, "")
         .trim();
 
-      console.log("Cleaned scanned data:", cleanedData);
-
       // Parse the cleaned data: cardId|scannedData|action
       const parts = cleanedData.split("|");
       let scanCardId, data, action;
-
-      console.log("Split parts:", parts);
 
       if (parts.length >= 2) {
         scanCardId = parts[0];
@@ -527,22 +436,12 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
         throw new Error("Invalid QR scan format");
       }
 
-      console.log("Parsed data:");
-      console.log("- cardId:", scanCardId);
-      console.log("- data:", data);
-      console.log("- action:", action);
-
       if (!scanCardId || !data) {
         throw new Error("Missing cardId or scannedData");
       }
 
-      console.log("Calling scanQRCode API...");
-
       // Call the QR scan API
       const response = await scanQRCode(scanCardId, data, action as any);
-
-      console.log("API Response:", response);
-      console.log("=== END FRONTEND QR SCAN DEBUG ===");
 
       // Check if the response is successful
       // Backend returns: { status_code: 200, message: "...", data: { success: true, ... } }
@@ -550,10 +449,6 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
         message.success(response.message || "Item scanned successfully!");
 
         // MANUAL QUERY INVALIDATION FOR REAL-TIME UPDATES
-        console.log(
-          "🔄 [REAL-TIME] Invalidating queries for real-time updates..."
-        );
-
         // Invalidate additional fields queries to trigger UI refresh
         queryClient.invalidateQueries({
           queryKey: ["additionalFields", cardId],
@@ -564,8 +459,6 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
           queryKey: ["cards", "detail", cardId],
         });
 
-        console.log("🔄 [REAL-TIME] Query invalidation completed");
-
         // Refetch the data from backend and reload into store
         if (additionalFieldId) {
           try {
@@ -573,45 +466,12 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
             isRefetchingRef.current = true;
 
             const refetchStartTime = Date.now();
-            console.log(
-              `🔄 [REFETCH] Starting refetch at ${new Date().toISOString()}`
-            );
-            console.log(`🔄 [REFETCH] Current store data before refetch:`, {
-              qty,
-              dataLength: Array.isArray(data) ? data.length : 0,
-            });
-
-            // Log current isScanned status before refetch
-            if (Array.isArray(data)) {
-              data.forEach((po: any, index: number) => {
-                if (po.sizeBreakdowns) {
-                  const scannedItems = po.sizeBreakdowns.filter(
-                    (b: any) => b.isScanned
-                  );
-                  console.log(
-                    `🔄 [REFETCH] PO ${
-                      index + 1
-                    } - Scanned items before refetch: ${scannedItems.length}/${
-                      po.sizeBreakdowns.length
-                    }`
-                  );
-                }
-              });
-            }
 
             const { data: freshData } = await refetchAdditionalFields();
-            const refetchEndTime = Date.now();
-            console.log(
-              `🔄 [REFETCH] Refetch completed in ${
-                refetchEndTime - refetchStartTime
-              }ms`
-            );
-            console.log(`🔄 [REFETCH] Fresh data received:`, freshData);
 
             // Reload the fresh data into the Zustand store
             if (freshData && freshData.length > 0) {
               const savedData = freshData[0];
-              console.log(`🔄 [REFETCH] Raw saved data:`, savedData);
 
               try {
                 const parsedData =
@@ -619,43 +479,7 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
                     ? JSON.parse(savedData.data)
                     : savedData.data;
 
-                console.log(`🔄 [REFETCH] Parsed data:`, parsedData);
-
                 if (parsedData && parsedData.storeData) {
-                  console.log(`🔄 [REFETCH] Loading fresh data into store...`);
-                  console.log(`🔄 [REFETCH] Fresh store data:`, {
-                    qty: parsedData.storeData.qty,
-                    dataLength: parsedData.storeData.data?.length,
-                  });
-
-                  // Log fresh isScanned status
-                  if (
-                    parsedData.storeData.data &&
-                    Array.isArray(parsedData.storeData.data)
-                  ) {
-                    parsedData.storeData.data.forEach(
-                      (po: any, index: number) => {
-                        if (po.sizeBreakdowns) {
-                          const scannedItems = po.sizeBreakdowns.filter(
-                            (b: any) => b.isScanned
-                          );
-                          console.log(
-                            `🔄 [REFETCH] Fresh PO ${
-                              index + 1
-                            } - Scanned items: ${scannedItems.length}/${
-                              po.sizeBreakdowns.length
-                            }`
-                          );
-                          scannedItems.forEach((item: any) => {
-                            console.log(
-                              `🔄 [REFETCH] - Scanned: ${item.label} ${item.size} (${item.uniqueId})`
-                            );
-                          });
-                        }
-                      }
-                    );
-                  }
-
                   loadData({
                     qty: parsedData.storeData.qty || qty,
                     data: parsedData.storeData.data || data,
@@ -664,45 +488,9 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
                   // Update the refetch timestamp to force re-renders
                   setLastRefetchTime(Date.now());
 
-                  const loadEndTime = Date.now();
-                  console.log(
-                    `🔄 [REFETCH] Data loaded into store at ${new Date().toISOString()}`
-                  );
-                  console.log(
-                    `🔄 [REFETCH] Total process time: ${
-                      loadEndTime - refetchStartTime
-                    }ms`
-                  );
-                  console.log(
-                    `🔄 [REFETCH] Refetch timestamp updated: ${lastRefetchTime}`
-                  );
-
-                  // Log final store state after loading
+                  // Clear refetch flag after everything is done
                   setTimeout(() => {
-                    console.log(`🔄 [REFETCH] Final store state after load:`, {
-                      qty,
-                      dataLength: Array.isArray(data) ? data.length : 0,
-                    });
-                    if (Array.isArray(data)) {
-                      data.forEach((po: any, index: number) => {
-                        if (po.sizeBreakdowns) {
-                          const scannedItems = po.sizeBreakdowns.filter(
-                            (b: any) => b.isScanned
-                          );
-                          console.log(
-                            `🔄 [REFETCH] Final PO ${
-                              index + 1
-                            } - Scanned items: ${scannedItems.length}/${
-                              po.sizeBreakdowns.length
-                            }`
-                          );
-                        }
-                      });
-                    }
-
-                    // Clear refetch flag after everything is done
                     isRefetchingRef.current = false;
-                    console.log(`🔄 [REFETCH] Refetch flag cleared`);
                   }, 100);
                 }
               } catch (parseError) {
@@ -713,7 +501,6 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
                 isRefetchingRef.current = false;
               }
             } else {
-              console.log(`🔄 [REFETCH] No fresh data received or empty array`);
               isRefetchingRef.current = false;
             }
           } catch (refetchError) {
@@ -721,7 +508,7 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
             isRefetchingRef.current = false;
           }
         } else {
-          console.log(`🔄 [REFETCH] No additionalFieldId, skipping refetch`);
+          isRefetchingRef.current = false;
         }
       } else {
         message.error(response.message || "Failed to process scan");
@@ -1567,10 +1354,6 @@ const ProductCategoriesTabs: React.FC<{
     quantity: number,
     customSizeName?: string
   ) => {
-    console.log(
-      `🔍 [handleUpdateSize] Updating size: ${size}, quantity: ${quantity}, category: ${categoryKey}, field: ${fieldKey}`
-    );
-
     // Initialize sizeBreakdowns array if it doesn't exist
     if (!currentPO?.sizeBreakdowns) {
       updatePOData(poId, {
@@ -1702,12 +1485,6 @@ const ProductCategoriesTabs: React.FC<{
       (item) => item.category === categoryKey && item.field === fieldKey
     ).length;
 
-    console.log(`🔍 [handleUpdateSize] Updated breakdowns:`, updatedBreakdowns);
-    console.log(
-      `🔍 [handleUpdateSize] New total for ${categoryKey}_${fieldKey}:`,
-      total
-    );
-
     // Update the store with new sizeBreakdowns and total
     updatePOData(poId, {
       sizeBreakdowns: updatedBreakdowns,
@@ -1751,11 +1528,6 @@ const ProductCategoriesTabs: React.FC<{
     const total = updatedBreakdowns.filter(
       (item) => item.category === categoryKey && item.field === fieldKey
     ).length;
-
-    console.log(
-      `🔍 [handleRemoveCustomSize] Removed custom size ${customSizeName} for ${categoryKey}_${fieldKey}`
-    );
-    console.log(`🔍 [handleRemoveCustomSize] New total:`, total);
 
     // Update the store with new sizeBreakdowns and total
     updatePOData(poId, {

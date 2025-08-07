@@ -486,7 +486,7 @@ const PopoverRuleCardFilterContent: React.FC<
 
       let filters = items[selectedTriggerIndex].filters;
       if (!Array.isArray(filters)) filters = []; // init array
-      console.log("selected filter adalah: %o", filters);
+  
 
       filters.push(selectedItem);
       items[selectedTriggerIndex].filters = filters;

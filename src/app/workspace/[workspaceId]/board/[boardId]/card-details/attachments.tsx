@@ -780,10 +780,6 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
                   danger
                   className="flex items-center justify-center border-0 shadow-none"
                   onClick={async () => {
-                    console.log("Deleting attachment:", {
-                      attachmentId: item.id,
-                      cardId: card.id,
-                    });
                     deleteAttachment({
                       attachmentId: item.id,
                       cardId: card.id || "",
@@ -851,10 +847,6 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
                       danger
                       className="flex items-center justify-center border-0 shadow-none"
                       onClick={async () => {
-                        console.log("Deleting card attachment:", {
-                          attachmentId: item.id,
-                          cardId: card.id,
-                        });
                         deleteAttachment({
                           attachmentId: item.id,
                           cardId: card.id || "",

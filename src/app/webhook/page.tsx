@@ -40,26 +40,21 @@ export default function WebhookPage() {
       return;
     }
     const data = parseFragment(fragment);
-    console.log("Parsed data:", data);
 
     // Extract id from user object if it exists
     let id = null;
     if (data.user) {
       try {
-        console.log("Raw user string:", data.user);
         // The user object might be URL-encoded, so let's try to decode it properly
         let userString = data.user;
         // If it's still URL-encoded, decode it
         if (userString.includes("%")) {
           userString = decodeURIComponent(userString);
         }
-        console.log("Decoded user string:", userString);
         const userObj = JSON.parse(userString);
-        console.log("Parsed user object:", userObj);
         id = userObj.id;
       } catch (e) {
-        console.error("Failed to parse user object:", e);
-        console.error("User string was:", data.user);
+        // Failed to parse user object
       }
     }
 
@@ -72,7 +67,7 @@ export default function WebhookPage() {
       id: id, // Add the extracted id
     };
 
-    console.log(payload, "<< payload");
+
     fetch(`http://localhost:8872/v1/accurate/webhook`, {
       method: "POST",
       body: JSON.stringify(payload),

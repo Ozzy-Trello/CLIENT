@@ -462,6 +462,16 @@ export function useCardMove(boardId?: string) {
       queryClient.invalidateQueries({
         queryKey: queryKeys.cards.list(variables.targetListId),
       });
+
+      // Small delay to catch any missed WebSocket updates during drag
+      setTimeout(() => {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.cards.list(variables.previousListId),
+        });
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.cards.list(variables.targetListId),
+        });
+      }, 100);
     },
   });
 
