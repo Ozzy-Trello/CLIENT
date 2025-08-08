@@ -63,13 +63,10 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
   useEffect(() => {
     if (queries[0].data?.data) setCards(queries[0].data.data);
     if (queries[1].data?.data) {
-      setItems(queries[1].data.data);
+      const itemsData = queries[1].data.data;
+      setItems(itemsData);
     }
     if (queries[2].data?.data) {
-      console.log(
-        "🔍 [FRONTEND GL ACCOUNTS] Received GL accounts:",
-        queries[2].data.data
-      );
       setGlaccounts(queries[2].data.data);
     }
   }, [queries[0].data, queries[1].data, queries[2].data]);
@@ -125,16 +122,9 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
 
   // Set akun penyesuaian when GL accounts are loaded and we have a selected item
   React.useEffect(() => {
-    console.log("useEffect triggered with:", {
-      glaccounts: glaccounts?.d?.length,
-      selectedItemSource,
-      items: items?.length,
-    });
-
     if (glaccounts && glaccounts.d && selectedItemSource) {
       // Find the currently selected item from the form
       const selectedBarangValue = form.getFieldValue("barang");
-      console.log("Selected barang value:", selectedBarangValue);
 
       if (selectedBarangValue) {
         // Find the selected item from the items array
@@ -143,15 +133,10 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
             `${item.name} (${item.source || "Unknown"})` === selectedBarangValue
         );
 
-        console.log("Found selected item:", selectedItem);
-
         if (selectedItem && selectedItem.itemCategory) {
           // Get the COGS GL account from the item's category
           const cogsGlAccountId =
             selectedItem.itemCategory.parent?.cogsGlAccountId;
-
-          console.log("COGS GL Account ID:", cogsGlAccountId);
-          console.log("Item category structure:", selectedItem.itemCategory);
 
           if (cogsGlAccountId) {
             // Find the matching GL account
@@ -159,83 +144,94 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
               (acc: any) => acc.id === cogsGlAccountId
             );
 
-            console.log("Matching GL account:", matchingGlAccount);
-
             if (matchingGlAccount) {
               const fullLabel = `${matchingGlAccount.name} (${
                 matchingGlAccount.source || "Unknown"
               })`;
-              console.log("Setting akun penyesuaian to:", fullLabel);
               // Set the akun penyesuaian field value with proper display label
               form.setFieldsValue({
                 akunPenyesuaian: fullLabel,
               });
               setIsAkunPenyesuaianDisabled(true);
-            } else {
-              console.log(
-                "No matching GL account found for ID:",
-                cogsGlAccountId
-              );
-              console.log(
-                "Available GL accounts:",
-                glaccounts.d.map((acc: any) => ({ id: acc.id, name: acc.name }))
-              );
             }
           } else {
-            console.log("No COGS GL Account ID found in item category");
-
-            // Fallback: Try to find a suitable GL account based on item category name
+            // Enhanced fallback logic for GL account selection
             const itemCategoryName =
               selectedItem.itemCategory.name?.toLowerCase();
-            console.log("Item category name:", itemCategoryName);
+            const itemSource = selectedItem.source;
+
+            let suitableAccount = null;
 
             if (itemCategoryName) {
-              // Try to find a GL account that matches the item category
-              const suitableAccount = glaccounts.d.find((acc: any) => {
+              // First, try to find a GL account that matches the item category
+              suitableAccount = glaccounts.d.find((acc: any) => {
                 const accountName = acc.name.toLowerCase();
-                return (
-                  accountName.includes(itemCategoryName) ||
-                  itemCategoryName.includes(
-                    accountName.replace("hpp ", "").replace("beban ", "")
-                  )
-                );
+                const cleanAccountName = accountName.replace("hpp ", "").replace("beban ", "");
+                
+                const directMatch = accountName.includes(itemCategoryName);
+                const reverseMatch = itemCategoryName.includes(cleanAccountName);
+                
+                return directMatch || reverseMatch;
               });
+
+              // If no match found and this is a Hikmat item, try Hikmat-specific matching
+              if (!suitableAccount && itemSource === "Hikmat") {
+                // Define Hikmat category keywords
+                const hikmatCategoryKeywords = ["krah", "manset", "rib", "bahan", "kain"];
+                
+                // Check if item category contains any Hikmat-specific keywords
+                const matchingKeyword = hikmatCategoryKeywords.find(keyword => 
+                  itemCategoryName.includes(keyword)
+                );
+
+                if (matchingKeyword) {
+                  // Try to find GL account with matching keyword
+                  suitableAccount = glaccounts.d.find((acc: any) => {
+                    const accountName = acc.name.toLowerCase();
+                    return accountName.includes(matchingKeyword) || 
+                           accountName.includes("penyesuaian " + matchingKeyword) ||
+                           accountName.includes("beban penyesuaian " + matchingKeyword);
+                  });
+                }
+
+                // If still no match, try broader Hikmat-specific accounts
+                if (!suitableAccount) {
+                  suitableAccount = glaccounts.d.find((acc: any) => {
+                    const accountName = acc.name.toLowerCase();
+                    return accountName.includes("hikmat") || 
+                           accountName.includes("adjustment hikmat") ||
+                           accountName.includes("bahan hikmat");
+                  });
+                }
+              }
+
+              // General fallback: Use the first available account from the same source
+              if (!suitableAccount && itemSource) {
+                suitableAccount = glaccounts.d.find((acc: any) => 
+                  acc.source === itemSource
+                );
+              }
+
+              // Last resort: Use the first available account
+              if (!suitableAccount && glaccounts.d.length > 0) {
+                suitableAccount = glaccounts.d[0];
+              }
 
               if (suitableAccount) {
                 const fullLabel = `${suitableAccount.name} (${
                   suitableAccount.source || "Unknown"
                 })`;
-                console.log(
-                  "Found suitable account by category name:",
-                  fullLabel
-                );
                 form.setFieldsValue({
                   akunPenyesuaian: fullLabel,
                 });
                 setIsAkunPenyesuaianDisabled(true);
-              } else {
-                console.log("No suitable account found by category name");
-                console.log(
-                  "Available GL accounts:",
-                  glaccounts.d.map((acc: any) => acc.name)
-                );
               }
             }
           }
-        } else {
-          console.log("No item category found for selected item");
         }
-      } else {
-        console.log("No selected barang value found");
       }
-    } else {
-      console.log("Missing required data:", {
-        hasGlaccounts: !!glaccounts,
-        hasGlaccountsData: !!glaccounts?.d,
-        selectedItemSource,
-      });
     }
-  }, [glaccounts, selectedItemSource, items, form]);
+  }, [glaccounts, selectedItemSource, items, form, formValues]);
 
   const filterOption = (
     inputValue: string,
@@ -247,15 +243,6 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
 
   const akunPenyesuaianList = useMemo(() => {
     if (!glaccounts || !glaccounts.d) return [];
-
-    console.log(
-      "🔍 [FRONTEND GL ACCOUNTS] Processing GL accounts:",
-      glaccounts.d
-    );
-    console.log(
-      "🔍 [FRONTEND GL ACCOUNTS] First account structure:",
-      glaccounts.d[0]
-    );
 
     return glaccounts.d.map((acc: any) => ({
       value: acc.no,
@@ -488,7 +475,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
 
                     setAvailableUnits(units);
 
-                    console.log("units", units);
+  
 
                     // Set default unit if available
                     if (units.length > 0) {
@@ -501,26 +488,8 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
                     setSelectedItemUnit("");
                   }
 
-                  if (selectedItem && selectedItem.itemCategory) {
-                    // Get the inventory GL account from the item's category
-                    const cogsGlAccountId =
-                      selectedItem.itemCategory.parent?.cogsGlAccountId;
-
-                    if (cogsGlAccountId && glaccounts && glaccounts.d) {
-                      // Find the matching GL account
-                      const matchingGlAccount = glaccounts.d.find(
-                        (acc: any) => acc.id === cogsGlAccountId
-                      );
-
-                      if (matchingGlAccount) {
-                        // Set the akun penyesuaian field value
-                        form.setFieldsValue({
-                          akunPenyesuaian: matchingGlAccount.name,
-                        });
-                        setIsAkunPenyesuaianDisabled(true);
-                      }
-                    }
-                  }
+                  // GL account selection is now handled by the useEffect
+                  // to ensure proper fallback logic for Hikmat items
                 }
               }}
               onChange={(input) => {
