@@ -62,22 +62,26 @@ export default function LoginPage() {
           dispatch(setUser(result?.data?.data));
         }
 
-        // Fetch default workspace after authentication and redirect to board list
-        try {
-          const { workspaceDefault } = await import("@api/workspace");
-          const defaultWorkspaceResponse = await workspaceDefault();
+        // Fix: Add timing safety to ensure authentication state is fully established
+         // Wait for Redux state to be persisted before redirecting
+         setTimeout(async () => {
+           // Fetch default workspace after authentication and redirect to board list
+           try {
+             const { workspaceDefault } = await import("@api/workspace");
+             const defaultWorkspaceResponse = await workspaceDefault();
 
-          if (defaultWorkspaceResponse?.data) {
-            window.location.href = `/workspace/${defaultWorkspaceResponse.data.id}/board`;
-          } else {
-            // Fallback to workspace page if no default workspace available
-            window.location.href = "/workspace";
-          }
-        } catch (error) {
-          console.error("Failed to fetch default workspace:", error);
-          // Fallback to workspace page if workspace fetching fails
-          window.location.href = "/workspace";
-        }
+             if (defaultWorkspaceResponse?.data) {
+               window.location.href = `/workspace/${defaultWorkspaceResponse.data.id}/board`;
+             } else {
+               // Fallback to workspace page if no default workspace available
+               window.location.href = "/workspace";
+             }
+           } catch (error) {
+             console.error("Failed to fetch default workspace:", error);
+             // Fallback to workspace page if workspace fetching fails
+             window.location.href = "/workspace";
+           }
+         }, 200); // Small delay to ensure state persistence
       }
     } catch (error) {
       console.error(error);

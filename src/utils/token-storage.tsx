@@ -39,7 +39,11 @@ class TokenStorage {
   private static setCookie(name: string, value: string, days: number): void {
     const expires = new Date();
     expires.setTime(expires.getTime() + days * 24 * 60 * 60 * 1000);
-    document.cookie = `${name}=${value}; expires=${expires.toUTCString()}; path=/; secure; samesite=strict`;
+    
+    // Fix: Use samesite=lax for better mobile compatibility and conditional secure flag
+    const isSecure = window.location.protocol === 'https:';
+    const secureFlag = isSecure ? '; secure' : '';
+    document.cookie = `${name}=${value}; expires=${expires.toUTCString()}; path=/${secureFlag}; samesite=lax`;
   }
 
   private static getCookie(name: string): string | null {
