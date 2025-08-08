@@ -17,7 +17,7 @@ export function useWebSocket() {
       process.env.NEXT_PUBLIC_BE_BASE_URL?.replace("http", "ws") + "/ws";
 
     const ws = new WebSocket(wsUrl);
-    setConnectionAttempts(prev => prev + 1);
+    setConnectionAttempts((prev) => prev + 1);
 
     ws.onopen = () => {
       setIsConnected(true);
@@ -52,13 +52,14 @@ export function useWebSocket() {
 
     return () => {
       clearTimeout(connectionTimeout);
-      if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+      if (
+        ws.readyState === WebSocket.OPEN ||
+        ws.readyState === WebSocket.CONNECTING
+      ) {
         ws.close();
       }
     };
   }, []);
-
-
 
   return { socket, isConnected, connectionAttempts, lastError };
 }
@@ -192,7 +193,15 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             break;
 
           case "additional_field:updated": {
-            const { cardId, additionalFieldId, updatedItem, action, newStatus, scannedCount, totalCount } = message.data;
+            const {
+              cardId,
+              additionalFieldId,
+              updatedItem,
+              action,
+              newStatus,
+              scannedCount,
+              totalCount,
+            } = message.data;
 
             // Invalidate additional field queries to refresh the UI
             queryClient.invalidateQueries({
@@ -207,24 +216,7 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             break;
           }
 
-          case "custom_field:updated": {
-            const { customField, cardId, workspaceId } = message.data;
 
-            // Invalidate custom field queries
-            queryClient.invalidateQueries({
-              queryKey: ["customFields", workspaceId, cardId],
-            });
-            queryClient.invalidateQueries({
-              queryKey: ["customField", workspaceId, cardId],
-            });
-
-            // Also invalidate card detail to refresh custom field display
-            queryClient.invalidateQueries({
-              queryKey: queryKeys.cards.detail(cardId),
-            });
-
-            break;
-          }
 
           case "card_activity:added": {
             const { cardId, activity } = message.data;
@@ -443,6 +435,8 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
               queryKey: queryKeys.cards.detail(cardId),
             });
 
+            // Label changes might affect dashcard filtering/counting
+            refreshDashcard = true;
             break;
           }
 
@@ -464,6 +458,8 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
               queryKey: queryKeys.cards.detail(cardId),
             });
 
+            // Label changes might affect dashcard filtering/counting
+            refreshDashcard = true;
             break;
           }
 
@@ -527,6 +523,8 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
               queryKey: queryKeys.cards.detail(cardId),
             });
 
+            // Label changes might affect dashcard filtering/counting
+            refreshDashcard = true;
             break;
           }
 
@@ -560,6 +558,8 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
               exact: false,
             });
 
+            // Automation can change card properties that affect dashcards
+            refreshDashcard = true;
             break;
           }
 
@@ -582,6 +582,8 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
               queryKey: queryKeys.cards.detail(cardId),
             });
 
+            // Automation label changes affect dashcards
+            refreshDashcard = true;
             break;
           }
 
@@ -604,6 +606,8 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
               queryKey: queryKeys.cards.detail(cardId),
             });
 
+            // Automation label changes affect dashcards
+            refreshDashcard = true;
             break;
           }
 
@@ -634,6 +638,8 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
               });
             }
 
+            // Custom field changes affect dashcard calculations
+            refreshDashcard = true;
             break;
           }
 
@@ -687,6 +693,10 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
         if (refreshDashcard) {
           queryClient.invalidateQueries({
             queryKey: ["dashcardCount"],
+            exact: false,
+          });
+          queryClient.invalidateQueries({
+            queryKey: ["list-dashcard"],
             exact: false,
           });
         }
