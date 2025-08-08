@@ -42,6 +42,26 @@ import { useParams, useRouter } from "next/navigation";
 import { Board } from "@myTypes/board";
 import { usePermissions, useCurrentAccount } from "@hooks/account";
 
+// Role categorization utility
+const getRoleCategory = (
+  roleName: string
+): "super_admin" | "supervisor" | "warehouse" | "production" => {
+  if (roleName === "Super Admin") {
+    return "super_admin";
+  }
+
+  if (roleName.includes("SPV") || roleName.includes("Supervisor")) {
+    return "supervisor";
+  }
+
+  if (roleName.includes("Warehouse")) {
+    return "warehouse";
+  }
+
+  // Everyone else is production
+  return "production";
+};
+
 const { Sider } = Layout;
 type MenuItem = Required<MenuProps>["items"][number];
 
@@ -73,6 +93,7 @@ const Sidebar = () => {
   const currentUser = currentAccountData?.data;
   const userRole = currentUser?.role?.name || "";
   const isSuperAdmin = userRole === "Super Admin";
+  const roleCategory = getRoleCategory(userRole);
 
   // Use refs to avoid dependency changes in useEffect
   const prevWorkspaceIdRef = useRef<string | null>(null);
@@ -165,11 +186,16 @@ const Sidebar = () => {
   }, [workspaceId, isSuperAdmin, isLoadingAccount]);
 
   // Check if user can create boards
-    const canCreateBoard = canCreate("board");
+  const canCreateBoard = canCreate("board");
 
-    // Build menu items separately to avoid frequent render cycles
-    useEffect(() => {
-      // Skip if nothing significant has changed
+  // Build menu items separately to avoid frequent render cycles
+  useEffect(() => {
+    // Skip if user data is still loading
+    if (isLoadingAccount) {
+      return;
+    }
+
+    // Skip if nothing significant has changed
     const currentWorkspaceId = Array.isArray(workspaceId)
       ? workspaceId[0]
       : workspaceId || null;
@@ -179,7 +205,8 @@ const Sidebar = () => {
       currentWorkspaceId === prevWorkspaceIdRef.current &&
       currentBoardsLength === prevBoardsLengthRef.current &&
       collapsed === prevCollapsedRef.current &&
-      allMenus.length > 0
+      allMenus.length > 0 &&
+      !isLoadingAccount // Ensure we rebuild when loading completes
     ) {
       return;
     }
@@ -216,10 +243,14 @@ const Sidebar = () => {
               >
                 <Typography.Text strong>Your boards</Typography.Text>
                 <TouchAwareTooltip
-                  title={!canCreateBoard ? "Insufficient permissions to create boards" : "Create new board"}
+                  title={
+                    !canCreateBoard
+                      ? "Insufficient permissions to create boards"
+                      : "Create new board"
+                  }
                 >
-                  <Button 
-                    size="small" 
+                  <Button
+                    size="small"
                     onClick={canCreateBoard ? handleOpenBoardModal : undefined}
                     disabled={!canCreateBoard}
                   >
@@ -314,6 +345,9 @@ const Sidebar = () => {
     boards,
     canCreateBoard,
     handleOpenBoardModal,
+    isLoadingAccount,
+    isSuperAdmin,
+    userRole,
   ]);
 
   const selectedKeys = useMemo(() => {
@@ -352,20 +386,61 @@ const Sidebar = () => {
         collapsedWidth={12}
         trigger={null}
       >
+        {/* Role Display - Centered both horizontally and vertically */}
+        {userRole && !collapsed && (
+          <div
+            className="absolute top-0 left-2 right-8 z-10 flex items-center justify-center"
+            style={{ height: "60px" }}
+          >
+            <span
+              className="text-xs px-2 py-1 rounded-full font-medium"
+              style={{
+                backgroundColor: `rgba(${colors.primary}, 0.1)`,
+                color: `rgb(${colors.primary})`,
+                border: `1px solid rgba(${colors.primary}, 0.2)`,
+              }}
+            >
+              {roleCategory.replace("_", " ").toUpperCase()}
+            </span>
+          </div>
+        )}
+
+        {/* Collapsed role display */}
+        {userRole && collapsed && (
+          <div
+            className="absolute top-0 left-0 right-0 z-10 flex items-center justify-center"
+            style={{ height: "48px" }}
+          >
+            <span
+              className="text-xs rounded-full font-medium flex items-center justify-center"
+              style={{
+                backgroundColor: `rgba(${colors.primary}, 0.1)`,
+                color: `rgb(${colors.primary})`,
+                border: `1px solid rgba(${colors.primary}, 0.2)`,
+                width: "20px",
+                height: "20px",
+                fontSize: "10px",
+              }}
+            >
+              {roleCategory.charAt(0).toUpperCase()}
+            </span>
+          </div>
+        )}
+
         <div
           className="transition-opacity duration-200 ease-in-out"
-          style={{ opacity: collapsed ? 0 : 1 }}
+          style={{
+            opacity: collapsed ? 0 : 1,
+            marginTop: userRole ? "40px" : "0", // Add margin when role is displayed
+          }}
         >
           {!collapsed && (
             <>
-              <div 
+              <div
                 className="flex justify-between items-center p-2.5"
                 style={{ borderBottom: `1px solid rgb(${colors.border})` }}
               >
-                <div className="flex items-center gap-2">
-                  <Avatar shape="square" size={"small"}>
-                    {currentWorkspace ? currentWorkspace.name.charAt(0) : ""}
-                  </Avatar>
+                <div className="flex items-center">
                   <Typography className="font-semibold">
                     {currentWorkspace?.name}
                   </Typography>

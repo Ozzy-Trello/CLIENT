@@ -266,13 +266,6 @@ const TopBar: React.FC = React.memo(() => {
             alt="Ozzy Clothing logo"
           />
         </Link>
-        {userRole && (
-          <div className="flex items-center gap-2">
-            <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-              {roleCategory.replace("_", " ").toUpperCase()}
-            </span>
-          </div>
-        )}
         {/* <WorkspaceSelection /> */}
       </div>
 

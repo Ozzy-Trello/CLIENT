@@ -315,7 +315,7 @@ const ListName: React.FC<ListNameProps> = ({
           {cardsCount}/{list.cardLimit || 0}
         </div>
         {/* Collapse list button */}
-        <Tooltip title={"collapse list"}>
+        {/* <Tooltip title={"collapse list"}>
           <Button
             type="text"
             size="small"
@@ -349,7 +349,7 @@ const ListName: React.FC<ListNameProps> = ({
               </svg>
             </span>
           </Button>
-        </Tooltip>
+        </Tooltip> */}
 
         <Popover
           content={actionsContent}

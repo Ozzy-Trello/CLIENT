@@ -218,14 +218,14 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
         <Typography.Title level={4} className="m-0">
           {currentBoard?.name}
         </Typography.Title>
-        <Tooltip
+        {/* <Tooltip
           title={"Starred boards showed up at the top of your baord list"}
         >
           <Star size={16} className="cursor-pointer" />
         </Tooltip>
         <Tooltip title={"Change board visibility"}>
           <Users size={16} className="cursor-pointer" />
-        </Tooltip>
+        </Tooltip> */}
       </div>
 
       <div>
