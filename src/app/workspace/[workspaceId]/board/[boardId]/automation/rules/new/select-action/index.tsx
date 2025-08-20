@@ -235,7 +235,7 @@ const SelectOption = ({
     const boardSelection = (actionsData[groupIndex]?.items?.[index] as any)?.[EnumSelectionType.Board] || (actionsData[groupIndex]?.items?.[index] as any)?.[EnumSelectionType.OptionalBoard];
     const selectedBoardId = boardSelection?.value?.value || boardSelection?.value || boardSelection;
 
-    console.log("ListSelection Debug:", {
+    console.log("[SEIZURE DEBUG] ListSelection Debug:", {
       groupIndex,
       index,
       placeholder,
@@ -347,7 +347,7 @@ const SelectOption = ({
   if (placeholder === EnumSelectionType.Board) {
     const currentBoardValue = (actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value?.value;
 
-    console.log("BoardSelection Debug:", {
+    console.log("[SEIZURE DEBUG] BoardSelection Debug:", {
       groupIndex,
       index,
       placeholder,
@@ -375,7 +375,7 @@ const SelectOption = ({
   if (placeholder === EnumSelectionType.OptionalBoard) {
     const currentBoardValue = (actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value?.value;
 
-    console.log("OptionalBoardSelection Debug:", {
+    console.log("[SEIZURE DEBUG] OptionalBoardSelection Debug:", {
       groupIndex,
       index,
       placeholder,
@@ -1803,8 +1803,11 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
   const [configuringActionIndex, setConfiguringActionIndex] = useState<
     number | null
   >(null);
+  
+  // Track if we've initialized actions to prevent infinite loop
+  const hasInitializedActions = useRef(false);
 
-  console.log("SelectAction Debug:", {
+  console.log("[SEIZURE DEBUG] SelectAction Debug:", {
     actionsData: actionsData?.map((group) => ({
       type: group.type,
       itemsCount: group.items?.length,
@@ -1812,25 +1815,18 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
     selectedRule,
     lastActionIndex,
     groupIndex,
+    hasInitializedActions: hasInitializedActions.current,
   });
 
   useEffect(() => {
-    // Initialize with first action type if no actions exist yet
-    if (!selectedRule.actions || selectedRule.actions.length === 0) {
-      const newAction: SelectedAction = {
-        type: actions[0].type,
-      };
-
-      setSelectedRule((prev: AutomationRule) => ({
-        ...prev,
-        actions: [newAction],
-      }));
-
-      setLastActionIndex(0);
-    } else {
+    // Only update lastActionIndex, don't initialize actions here to prevent loops
+    if (selectedRule.actions && selectedRule.actions.length > 0) {
       setLastActionIndex(selectedRule.actions.length - 1);
+    } else {
+      setLastActionIndex(0);
     }
-  }, []);
+  }, [selectedRule.actions]);
+  
 
   useEffect(() => {
     // Update the action items based on the selected action type
@@ -1853,24 +1849,7 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
       setGroupIndex(actionGroupIndex);
     }
 
-    setSelectedRule((prev: AutomationRule) => {
-      const updatedActions = [...(prev.actions || [])];
 
-      // Create or update the action at lastActionIndex
-      if (updatedActions[lastActionIndex]) {
-        updatedActions[lastActionIndex] = {
-          ...updatedActions[lastActionIndex],
-          type,
-        };
-      } else {
-        updatedActions[lastActionIndex] = { type };
-      }
-
-      return {
-        ...prev,
-        actions: updatedActions,
-      };
-    });
   };
 
   const onAddAction = (index: number) => {
@@ -2030,9 +2009,9 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
       updatedActions[lastActionIndex] = newActionItem;
       copy.actions = updatedActions;
     } else {
-      // Add new action
-      copy.actions?.push(newActionItem);
-      const filtered = copy.actions?.filter(
+      // Add new action (initialize array if needed)
+      const updatedActions = [...(copy.actions || []), newActionItem];
+      const filtered = updatedActions.filter(
         (item) => item.type && item.selectedActionItem?.type
       );
       copy.actions = filtered;

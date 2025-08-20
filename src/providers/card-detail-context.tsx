@@ -42,6 +42,7 @@ type CardDetailContextType = {
   handleDeleteFilter: (type: string, id?: string) => void;
   updateDisplayConfig: (displayConfig: any) => void;
   updateBackgroundColor: (backgroundColor: string) => void;
+  refetchCardDetails: () => void;
 
   dashcardConfig: DashcardConfig | undefined;
   setDashcardConfig: React.Dispatch<
@@ -89,6 +90,7 @@ const CardDetailContext = createContext<CardDetailContextType>({
   handleDeleteFilter: () => {},
   updateDisplayConfig: () => {},
   updateBackgroundColor: () => {},
+  refetchCardDetails: () => {},
 
   isUpdatingCard: false,
 });
@@ -136,7 +138,7 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
         return {
           ...prevCard,
           ...cardDetailsQuery.card,
-          listId: prevCard.listId, // Preserve listId from context
+          // Use the updated listId from the fetched card data
         };
       });
     }
@@ -168,8 +170,9 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
     mutationFn: (data: Partial<Card>) => {
       // For dashcard configuration updates, we don't need to send listId
       // Only include listId if we're actually moving the card to a different list
-      const isDashcardConfigUpdate = data.dashConfig && Object.keys(data).length === 1;
-      
+      const isDashcardConfigUpdate =
+        data.dashConfig && Object.keys(data).length === 1;
+
       let updateData: Partial<Card>;
       if (isDashcardConfigUpdate) {
         // Only send dashConfig, no listId
@@ -181,7 +184,7 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
           listId: selectedCard?.listId || activeList?.id,
         };
       }
-      
+
       return updateCard(selectedCard!.id, updateData);
     },
     onSuccess: async () => {
@@ -257,13 +260,15 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
         if (filter.id === id) {
           return {
             ...filter,
-            ...(operator !== undefined && { operator: operator as FilterOperator }),
+            ...(operator !== undefined && {
+              operator: operator as FilterOperator,
+            }),
             ...(value !== undefined && { value }),
           };
         }
         return filter;
       });
-      
+
       handleFilter(updatedFilters);
       return updatedFilters;
     });
@@ -293,10 +298,13 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
 
   const updateDisplayConfig = (displayConfig: any) => {
     if (!selectedCard || !dashcardConfig) {
-      console.error("Cannot update display config: missing selectedCard or dashcardConfig", {
-        selectedCard: !!selectedCard,
-        dashcardConfig: !!dashcardConfig,
-      });
+      console.error(
+        "Cannot update display config: missing selectedCard or dashcardConfig",
+        {
+          selectedCard: !!selectedCard,
+          dashcardConfig: !!dashcardConfig,
+        }
+      );
       return;
     }
 
@@ -316,10 +324,13 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
 
   const updateBackgroundColor = (backgroundColor: string) => {
     if (!selectedCard || !dashcardConfig) {
-      console.error("Cannot update background color: missing selectedCard or dashcardConfig", {
-        selectedCard: !!selectedCard,
-        dashcardConfig: !!dashcardConfig,
-      });
+      console.error(
+        "Cannot update background color: missing selectedCard or dashcardConfig",
+        {
+          selectedCard: !!selectedCard,
+          dashcardConfig: !!dashcardConfig,
+        }
+      );
       return;
     }
 
@@ -342,7 +353,7 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
     if (handleUrlChange.current == undefined) {
       const cardId = searchParams.get("cardId");
       const listId = searchParams.get("listId");
-      
+
       if (cardId && listId) {
         setIsCardDetailOpen(true);
         setIsOpenViaUrl(true);
@@ -383,6 +394,7 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
         handleDeleteFilter,
         updateDisplayConfig,
         updateBackgroundColor,
+        refetchCardDetails: cardDetailsQuery.refetch,
         isUpdatingCard: isPending,
       }}
     >

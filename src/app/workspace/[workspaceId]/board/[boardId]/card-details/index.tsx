@@ -73,9 +73,13 @@ const CardDetails: React.FC = (props) => {
     refetch: refetchMember,
     removeMember,
   } = useCardMembers(selectedCard?.id || "");
-  const { cardLabels, allLabels } = useLabels(workspaceId as string, selectedCard?.id, {
-    cardId: selectedCard?.id || "",
-  });
+  const { cardLabels, allLabels } = useLabels(
+    workspaceId as string,
+    selectedCard?.id,
+    {
+      cardId: selectedCard?.id || "",
+    }
+  );
   const { cardActivities } = useCardActivity(selectedCard?.id || "");
   const [openAddMember, setOpenAddMember] = useState<boolean>(false);
   const [openLabel, setOpenLabel] = useState<boolean>(false);
@@ -124,7 +128,7 @@ const CardDetails: React.FC = (props) => {
           setIsEditingTitle(false);
         },
         onError: (error) => {
-          console.error("Title update failed:", error);
+          // Title update failed
         },
       }
     );
@@ -156,10 +160,13 @@ const CardDetails: React.FC = (props) => {
   // Populate LookupCache with labels data
   useEffect(() => {
     if (allLabels && allLabels.length > 0) {
-      LookupCache.rememberMany("label", allLabels.map((label: any) => ({ 
-        id: label.id, 
-        name: label.name 
-      })));
+      LookupCache.rememberMany(
+        "label",
+        allLabels.map((label: any) => ({
+          id: label.id,
+          name: label.name,
+        }))
+      );
     }
   }, [allLabels]);
 

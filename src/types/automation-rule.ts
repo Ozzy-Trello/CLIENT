@@ -7,6 +7,7 @@ export const enum TriggerGroupType {
   CardChecklist = "card.checklists",
   CardContent = "card.content",
   CardFields = "card.fields",
+  CardButton = "card.button",
 }
 
 export const enum ActionGroupType {

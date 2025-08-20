@@ -11,13 +11,19 @@ import {
   getSortedRowModel,
 } from "@tanstack/react-table";
 import { Button, Dropdown, Input, MenuProps, Checkbox } from "antd";
-import { ChevronDown, ChevronRight, MoreHorizontal } from "lucide-react";
+import { ChevronDown, ChevronRight, MoreHorizontal, Download } from "lucide-react";
 import { useDebounce } from "@hooks/debounce";
 import { IItemDashcard } from "@myTypes/card";
 import { ItemType } from "antd/es/menu/interface";
 import { useCardDetailContext } from "@providers/card-detail-context";
 import MembersList from "@components/members-list";
 import { useDashcardList } from "@hooks/dashcard-list";
+import { useParams } from "next/navigation";
+import { useCustomFields } from "@hooks/custom_field";
+import { LookupCache } from "@utils/lookup-cache";
+import * as XLSX from 'xlsx';
+import { useSelector } from "react-redux";
+import { selectCurrentWorkspace } from "@store/workspace_slice";
 
 type ColumnType = {
   type: string;
@@ -48,8 +54,20 @@ const TablePivot: FC = () => {
   const [columnVisibility, setColumnVisibility] = useState<
     Record<string, boolean>
   >({});
+  const [columnsDropdownOpen, setColumnsDropdownOpen] = useState(false);
+  const [columnSearchValue, setColumnSearchValue] = useState("");
   const [sorting, setSorting] = useState<SortingState>([]);
   const { handleItemDashcard, processedItemDashcard } = useCardDetailContext();
+
+  // Get workspace ID from URL params and Redux store
+  const { workspaceId } = useParams();
+  const currentWorkspace = useSelector(selectCurrentWorkspace);
+  const currentWorkspaceId = Array.isArray(workspaceId)
+    ? workspaceId[0]
+    : workspaceId || currentWorkspace?.id;
+
+  // Fetch all custom fields for the workspace
+  const { customFields } = useCustomFields(currentWorkspaceId || "");
 
   const globalFilter = useDebounce(searchValue, 300);
 
@@ -58,22 +76,37 @@ const TablePivot: FC = () => {
   }, [searchValue]);
 
   const dynamicColumns = useMemo(() => {
-    if (!processedItemDashcard.length) return [];
-
-    const allColumns = new Set<string>();
+    // Get columns from dashcard data
+    const dashcardColumns = new Set<string>();
     processedItemDashcard.forEach((item) => {
       item.columns.forEach((col) => {
-        allColumns.add(col.column);
+        dashcardColumns.add(col.column);
       });
     });
 
+    // Get all custom fields from workspace
+    const workspaceCustomFields = new Set<string>();
+    if (customFields && customFields.length > 0) {
+      customFields.forEach((field) => {
+        workspaceCustomFields.add(field.name);
+      });
+    }
+
+    // Combine both sets to get all possible columns
+    const allColumns = new Set([
+      ...Array.from(dashcardColumns),
+      ...Array.from(workspaceCustomFields),
+    ]);
     const columns = Array.from(allColumns);
 
     setColumnVisibility((prev) => {
       const newVisibility = { ...prev };
+      const baseColumnNames = ['name', 'members', 'description'];
+      
       columns.forEach((col) => {
         if (newVisibility[col] === undefined) {
-          newVisibility[col] = true;
+          // Show base columns by default, hide custom fields
+          newVisibility[col] = baseColumnNames.includes(col);
         }
       });
 
@@ -81,28 +114,62 @@ const TablePivot: FC = () => {
     });
 
     return columns;
-  }, [processedItemDashcard]);
+  }, [processedItemDashcard, customFields]);
 
-
+  const filteredColumns = useMemo(() => {
+    if (!columnSearchValue) return dynamicColumns;
+    return dynamicColumns.filter((columnId) =>
+      columnId.toLowerCase().includes(columnSearchValue.toLowerCase())
+    );
+  }, [dynamicColumns, columnSearchValue]);
 
   const columnVisibilityMenu = {
-    items: dynamicColumns.map((columnId) => ({
-      key: columnId,
-      label: (
-        <div className="flex items-center gap-2">
-          <Checkbox
-            checked={columnVisibility[columnId] !== false}
-            onChange={(e) => {
-              setColumnVisibility((prev) => ({
-                ...prev,
-                [columnId]: e.target.checked,
-              }));
-            }}
-          />
-          <span>{columnId}</span>
-        </div>
-      ),
-    })),
+    items: [
+      {
+        key: "search",
+        label: (
+          <div className="p-2 border-b">
+            <Input
+              placeholder="Search columns..."
+              value={columnSearchValue}
+              onChange={(e) => setColumnSearchValue(e.target.value)}
+              onClick={(e) => e.stopPropagation()}
+              size="small"
+            />
+          </div>
+        ),
+        disabled: true,
+      },
+      ...(filteredColumns.length > 0
+        ? filteredColumns.map((columnId) => ({
+            key: columnId,
+            label: (
+              <div
+                className="flex items-center gap-2"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Checkbox
+                  checked={columnVisibility[columnId] !== false}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    setColumnVisibility((prev) => ({
+                      ...prev,
+                      [columnId]: e.target.checked,
+                    }));
+                  }}
+                />
+                <span>{columnId}</span>
+              </div>
+            ),
+          }))
+        : [
+            {
+              key: "no-results",
+              label: "No columns found",
+              disabled: true,
+            },
+          ]),
+    ],
   };
 
   const handleMenuClick = (key: string, columnId: string) => {
@@ -194,13 +261,23 @@ const TablePivot: FC = () => {
         description: item.description,
       };
 
+      // Add existing column values
       item.columns.forEach((col) => {
         pivotedItem[col.column] = col.value;
       });
 
+      // Add all custom fields from workspace, setting empty values for missing ones
+      if (customFields && customFields.length > 0) {
+        customFields.forEach((field) => {
+          if (pivotedItem[field.name] === undefined) {
+            pivotedItem[field.name] = "";
+          }
+        });
+      }
+
       return pivotedItem;
     });
-  }, [processedItemDashcard]);
+  }, [processedItemDashcard, customFields]);
 
   const columnHelper = createColumnHelper<any>();
 
@@ -230,18 +307,28 @@ const TablePivot: FC = () => {
     ) => {
       const findColumn = processedItemDashcard.find((item) => item.id === id);
 
-      if (!findColumn) return value;
+      if (!findColumn) {
+        // Try to get human-readable value from lookup cache
+        const humanValue = LookupCache.any(String(value));
+        return humanValue || value;
+      }
 
       const findColumnValue = findColumn.columns.find(
         (col) => col.column === column
       );
 
-      if (!findColumnValue) return value;
+      if (!findColumnValue) {
+        // Try to get human-readable value from lookup cache
+        const humanValue = LookupCache.any(String(value));
+        return humanValue || value;
+      }
 
       const type = findColumnValue.type;
 
       if (type === "text") {
-        return value;
+        // Try to get human-readable value from lookup cache for text fields
+        const humanValue = LookupCache.any(String(value));
+        return humanValue || value;
       }
 
       if (type === "checkbox") {
@@ -256,7 +343,9 @@ const TablePivot: FC = () => {
         }).format(new Date(value as string));
       }
 
-      return value;
+      // For any other type, try lookup cache first
+      const humanValue = LookupCache.any(String(value));
+      return humanValue || value;
     };
 
     const baseColumns = [
@@ -324,9 +413,16 @@ const TablePivot: FC = () => {
           if (row.getIsGrouped()) {
             return `${row.subRows.length} items`;
           }
-          return info.getValue();
+          const description = info.getValue() as string;
+          return (
+            <div
+              dangerouslySetInnerHTML={{ __html: description || "" }}
+              className="max-w-xs overflow-hidden"
+            />
+          );
         },
       }),
+
     ];
 
     // Add dynamic columns from all unique columns collected
@@ -472,6 +568,84 @@ const TablePivot: FC = () => {
     onSortingChange: setSorting,
   });
 
+  // Excel export function
+  const exportToExcel = useCallback(() => {
+    // Get visible columns only
+    const visibleColumns = dynamicColumns.filter(col => columnVisibility[col] !== false);
+    
+    // Create headers
+    const headers = ['Name', 'Members', 'Description', 'URL', ...visibleColumns];
+    
+    // Process data with human-readable values
+    const excelData = table.getFilteredRowModel().rows.map(row => {
+      const rowData: any = {};
+      
+      // Add basic columns
+      rowData['Name'] = row.original.name || '';
+      
+      // Process members
+      if (row.original.members && Array.isArray(row.original.members)) {
+        rowData['Members'] = row.original.members
+          .map((member: any) => LookupCache.label('user', member.id) || member.name || member.id)
+          .join(', ');
+      } else {
+        rowData['Members'] = '';
+      }
+      
+      // Process description (strip HTML tags for Excel)
+      if (row.original.description) {
+        rowData['Description'] = row.original.description.replace(/<[^>]*>/g, '');
+      } else {
+        rowData['Description'] = '';
+      }
+      
+      // Process URL
+      const cardData = row.original;
+      const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+      rowData['URL'] = `${baseUrl}/workspace/${currentWorkspaceId}/board/${cardData.boardId}?listId=${cardData.listId}&cardId=${cardData.id}`;
+      
+      // Process dynamic columns with LookupCache
+      visibleColumns.forEach(col => {
+        let value = row.original[col];
+        
+        if (value === null || value === undefined) {
+          rowData[col] = '';
+        } else if (typeof value === 'string') {
+          // Try to get human-readable value from cache
+          const cachedValue = LookupCache.any(value);
+          rowData[col] = cachedValue || value;
+        } else if (Array.isArray(value)) {
+          rowData[col] = value.map(v => {
+            if (typeof v === 'string') {
+              return LookupCache.any(v) || v;
+            }
+            return String(v);
+          }).join(', ');
+        } else if (typeof value === 'boolean') {
+          rowData[col] = value ? 'Yes' : 'No';
+        } else {
+          rowData[col] = String(value);
+        }
+      });
+      
+      return rowData;
+    });
+    
+    // Create worksheet
+    const worksheet = XLSX.utils.json_to_sheet(excelData, { header: headers });
+    
+    // Create workbook
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Table Data');
+    
+    // Generate filename with timestamp
+    const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+    const filename = `table-export-${timestamp}.xlsx`;
+    
+    // Save file
+    XLSX.writeFile(workbook, filename);
+  }, [dynamicColumns, columnVisibility, table]);
+
   useEffect(() => {
     const handlePageSize = () => {
       if (grouping.length > 0) {
@@ -499,10 +673,26 @@ const TablePivot: FC = () => {
           />
         </div>
         <div>
+          <Button
+            icon={<Download className="h-4 w-4" />}
+            onClick={exportToExcel}
+            type="default"
+          >
+            Export to Excel
+          </Button>
+        </div>
+        <div>
           <Dropdown
             menu={columnVisibilityMenu}
             trigger={["click"]}
             placement="bottomRight"
+            open={columnsDropdownOpen}
+            onOpenChange={setColumnsDropdownOpen}
+            overlayStyle={{
+              maxHeight: "100px",
+              overflowY: "auto",
+              minWidth: "250px",
+            }}
           >
             <Button>Columns</Button>
           </Dropdown>

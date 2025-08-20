@@ -27,6 +27,17 @@ const AutomationLayout = ({ children }: { children: React.ReactNode }) => {
   const pathname = usePathname();
   const router = useRouter();
 
+  // Determine which menu item should be selected based on current path
+  const getSelectedKeys = () => {
+    if (pathname.includes('/automation/custom-buttons')) {
+      return ['card-button-1'];
+    }
+    if (pathname.includes('/automation/rules')) {
+      return ['automation-1'];
+    }
+    return ['automation-1']; // default to rules
+  };
+
   const items: MenuItem[] = [
     {
       key: "automation",
@@ -47,25 +58,25 @@ const AutomationLayout = ({ children }: { children: React.ReactNode }) => {
         },
       ],
     },
-    // {
-    //   key: "custom-buttons",
-    //   label: "Custom Buttons",
-    //   type: "group",
-    //   children: [
-    //     {
-    //       key: `custom-button-1`,
-    //       label: (
-    //         <Link
-    //           className="block w-full"
-    //           href={`/workspace/${workspaceId}/board/${boardId}/automation/custom-buttons`}
-    //         >
-    //           Custom Buttons
-    //         </Link>
-    //       ),
-    //       icon: <SlidersHorizontal size={16} />,
-    //     },
-    //   ],
-    // },
+    {
+      key: "custom-buttons",
+      label: "Card Buttons",
+      type: "group",
+      children: [
+        {
+          key: `card-button-1`,
+          label: (
+            <Link
+              className="block w-full"
+              href={`/workspace/${workspaceId}/board/${boardId}/automation/custom-buttons`}
+            >
+              Card Buttons
+            </Link>
+          ),
+          icon: <SlidersHorizontal size={16} />,
+        },
+      ],
+    },
   ];
 
   return (
@@ -88,7 +99,7 @@ const AutomationLayout = ({ children }: { children: React.ReactNode }) => {
         <Menu
           className="automation-page-menu"
           mode="inline"
-          defaultSelectedKeys={["automation-1"]}
+          selectedKeys={getSelectedKeys()}
           items={items}
           style={{ background: "transparent" }}
         />

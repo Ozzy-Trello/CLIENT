@@ -254,16 +254,6 @@ const SizeBreakdownModal: React.FC<SizeBreakdownModalProps> = ({
   ];
 
   const handleUpdateSizeBreakdown = (updatedBreakdown: SizeBreakdown) => {
-    // Debug logging specifically for Polo TPJ
-    if (categoryKey === "polo" && fieldKey === "poloTpj") {
-      console.log("[Polo TPJ] handleUpdateSizeBreakdown called:", {
-        categoryKey,
-        fieldKey,
-        updatedBreakdown,
-        poId,
-      });
-    }
-
     // Get existing breakdowns from the correct location
     const existingBreakdowns = bahanItem 
       ? (bahanItem.sizeBreakdowns || [])
@@ -272,12 +262,6 @@ const SizeBreakdownModal: React.FC<SizeBreakdownModalProps> = ({
     const newSizeBreakdowns = existingBreakdowns.filter(
       (item) => !(item.category === categoryKey && item.field === fieldKey)
     );
-
-    if (categoryKey === "polo" && (fieldKey === "poloTpj" || fieldKey === "poloTnk")) {
-      console.log(`[Polo TPJ] ${fieldKey} - Existing breakdowns:`, existingBreakdowns);
-      console.log(`[Polo TPJ] ${fieldKey} - Filtered breakdowns (after removing existing):`, newSizeBreakdowns);
-      console.log(`[Polo TPJ] ${fieldKey} - Reading from:`, bahanItem ? 'bahan item level' : 'PO level');
-    }
 
     // Add updated sizes if quantity > 0
     Object.entries(updatedBreakdown).forEach(([size, quantity]) => {
@@ -314,10 +298,6 @@ const SizeBreakdownModal: React.FC<SizeBreakdownModalProps> = ({
       }
     });
 
-    if (categoryKey === "polo" && fieldKey === "poloTpj") {
-      console.log("[Polo TPJ] New breakdowns to add:", newSizeBreakdowns);
-    }
-
     if (bahanItem) {
       const updatedPoData = {
         ...poData,
@@ -327,21 +307,12 @@ const SizeBreakdownModal: React.FC<SizeBreakdownModalProps> = ({
             : b
         ),
       };
-      if (categoryKey === "polo" && fieldKey === "poloTpj") {
-        console.log("[Polo TPJ] Updating bahan item with sizeBreakdowns:", newSizeBreakdowns);
-      }
       updatePOData(poId, updatedPoData);
     } else {
       const updatedPoData = { ...poData, sizeBreakdowns: newSizeBreakdowns };
-      if (categoryKey === "polo" && fieldKey === "poloTpj") {
-        console.log("[Polo TPJ] Updating PO data with sizeBreakdowns:", newSizeBreakdowns);
-      }
       updatePOData(poId, updatedPoData);
     }
     
-    if (categoryKey === "polo" && fieldKey === "poloTpj") {
-      console.log("[Polo TPJ] Calling debouncedSave...");
-    }
     debouncedSave();
   };
 

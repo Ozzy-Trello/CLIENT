@@ -492,6 +492,7 @@ export function useCardDetails(
     isLoading: cardDetailsQuery.isLoading,
     isError: cardDetailsQuery.isError,
     error: cardDetailsQuery.error,
+    refetch: cardDetailsQuery.refetch,
     updateCard: updateCardMutation.mutate,
     isUpdating: updateCardMutation.isPending,
     deleteCard: deleteCardMutation.mutate,

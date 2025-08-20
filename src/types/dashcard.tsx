@@ -34,12 +34,18 @@ export enum FilterOperator {
 }
 
 // Filter value types
-export type FilterValue = string | string[] | boolean | null | { from?: string; to?: string } | {
-  type: string;
-  number: number;
-  unit: string;
-  reference: string;
-};
+export type FilterValue =
+  | string
+  | string[]
+  | boolean
+  | null
+  | { from?: string; to?: string }
+  | {
+      type: string;
+      number: number;
+      unit: string;
+      reference: string;
+    };
 
 // Base filter interface
 export interface FilterOption {

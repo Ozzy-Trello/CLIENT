@@ -44,6 +44,7 @@ import { useCardAttachment } from "@hooks/card_attachment";
 import { EnumAttachmentType } from "@myTypes/card";
 import { FileUpload } from "@myTypes/file-upload";
 import { uploadFile } from "@api/file";
+import AutomateButtons from "./automate-buttons";
 
 // Helper component for permission-controlled buttons - moved outside to prevent re-creation
 const PermissionButton: React.FC<{
@@ -156,7 +157,6 @@ const Actions: React.FC = () => {
       message.success(`Successfully ${action} the card`);
     } catch (error) {
       message.error("Failed to update card membership");
-      console.error("Error toggling card membership:", error);
     }
   };
 
@@ -200,7 +200,6 @@ const Actions: React.FC = () => {
         setOpenBuktiModal(false);
       }
     } catch (error) {
-      console.error("Error uploading bukti:", error);
       message.error("Failed to upload bukti. Please try again.");
     }
   };
@@ -591,6 +590,9 @@ const Actions: React.FC = () => {
         >
           Actions
         </h3>
+
+        {/* Automate Buttons */}
+        <AutomateButtons />
 
         {/* Move Card */}
         {canMoveCard() ? (

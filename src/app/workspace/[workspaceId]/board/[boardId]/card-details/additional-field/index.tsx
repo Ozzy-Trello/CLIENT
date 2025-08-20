@@ -275,19 +275,11 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
 
   // Debug WebSocket connection status
   useEffect(() => {
-    console.log(
-      `🔌 WebSocket connection status: ${
-        isConnected ? "Connected" : "Disconnected"
-      }`
-    );
+    // WebSocket connection status tracking
   }, [isConnected]);
 
   // Load existing data when component mounts or when fresh data arrives
   useEffect(() => {
-    console.log(
-      "🔄 [DATA LOADING] Effect triggered, additionalFieldData:",
-      additionalFieldData
-    );
 
     if (additionalFieldData && additionalFieldData.length > 0) {
       const savedData = additionalFieldData[0];
@@ -302,26 +294,18 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
         if (parsedData && typeof parsedData === "object") {
           // Load the store data if it exists
           if (parsedData.storeData) {
-            console.log(
-              "🔄 [DATA LOADING] Loading fresh data into store:",
-              parsedData.storeData
-            );
-
             // Always load fresh data - this ensures WebSocket updates are reflected
             loadData({
               qty: parsedData.storeData.qty || 1,
               data: parsedData.storeData.data || [],
             });
-
-            console.log("🔄 [DATA LOADING] Store updated with fresh data");
           }
         }
       } catch (error) {
-        console.error("Error loading additional field data:", error);
+        // Error loading additional field data
       }
     } else {
       // Initialize with default data if no saved data exists
-      console.log("🔄 [DATA LOADING] No saved data, initializing with default");
       loadData({ qty: 1, data: [] });
     }
   }, [additionalFieldData, cardId]);
@@ -499,14 +483,9 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
 
   // QR Scanner processing function
   const processQRScan = async (scannedData: string) => {
-    console.log("🚀 [PROCESS QR SCAN] Function called with data:", scannedData);
-
     if (!scannedData.trim()) {
-      console.log("🚀 [PROCESS QR SCAN] Empty data, returning early");
       return;
     }
-
-    console.log("🚀 [PROCESS QR SCAN] Processing scan data...");
     try {
       // Clean the scanned data by removing unwanted characters
       // Remove common scanner artifacts like "Shift", "Control", "Alt", etc.
@@ -536,15 +515,11 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
 
       // Call the QR scan API using current card ID
       const response = await scanQRCode(cardId, data, action as any);
-      console.log("🚀 [PROCESS QR SCAN] Backend response:", response);
 
       // Check if the response is successful
       // Backend returns: { status_code: 200, message: "...", data: { success: true, ... } }
       if (response.status_code === 200 || response.data?.success) {
         message.success(response.message || "Item scanned successfully!");
-        console.log(
-          "🚀 [PROCESS QR SCAN] Scan successful! Triggering manual refetch for immediate UI update."
-        );
 
         // Manual refetch to ensure immediate UI update
         // While WebSocket will also trigger updates, manual refetch ensures immediate response
@@ -554,35 +529,19 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
         queryClient.invalidateQueries({
           queryKey: ["additionalFields", cardId],
         });
-
-        console.log("🚀 [PROCESS QR SCAN] Manual refetch completed.");
       } else {
         message.error(response.message || "Failed to process scan");
       }
     } catch (error) {
-      console.error("QR scan error:", error);
       message.error("Failed to process QR scan. Please try again.");
     }
   };
 
   // QR Scanner keyboard handler - only active when summary modal is open
   useEffect(() => {
-    console.log(
-      "🔍 [QR SCANNER] useEffect triggered, summaryModal.isOpen:",
-      summaryModal.isOpen
-    );
-
     const handleQRScanner = (e: KeyboardEvent) => {
-      console.log(
-        "🔍 [QR SCANNER] Key pressed:",
-        e.key,
-        "summaryModal.isOpen:",
-        summaryModal.isOpen
-      );
-
       // Only handle QR scanning when summary modal is open
       if (!summaryModal.isOpen) {
-        console.log("🔍 [QR SCANNER] Summary modal not open, ignoring key");
         return;
       }
 
@@ -620,7 +579,6 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
       ];
 
       if (unwantedKeys.includes(e.key)) {
-        console.log("🔍 [QR SCANNER] Ignoring unwanted key:", e.key);
         return; // Ignore these keys
       }
 
@@ -630,21 +588,9 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
       }
 
       if (e.key === "Enter") {
-        console.log(
-          "🔍 [QR SCANNER] Enter pressed! Buffer content:",
-          qrScannerBufferRef.current
-        );
         e.preventDefault();
         if (qrScannerBufferRef.current.trim()) {
-          console.log(
-            "🔍 [QR SCANNER] Calling processQRScan with:",
-            qrScannerBufferRef.current
-          );
           processQRScan(qrScannerBufferRef.current);
-        } else {
-          console.log(
-            "🔍 [QR SCANNER] Buffer is empty, not calling processQRScan"
-          );
         }
         qrScannerBufferRef.current = "";
         return;
@@ -653,35 +599,19 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
       // Only add printable characters to the buffer
       if (e.key.length === 1) {
         qrScannerBufferRef.current += e.key;
-        console.log(
-          "🔍 [QR SCANNER] Added to buffer:",
-          e.key,
-          "Current buffer:",
-          qrScannerBufferRef.current
-        );
       }
 
       // Clear buffer after 100ms of no input (typical for external scanners)
       qrScannerTimeoutRef.current = setTimeout(() => {
-        console.log(
-          "🔍 [QR SCANNER] Buffer timeout, clearing buffer. Was:",
-          qrScannerBufferRef.current
-        );
         qrScannerBufferRef.current = "";
       }, 100);
     };
 
     if (summaryModal.isOpen) {
-      console.log("🔍 [QR SCANNER] Adding event listener");
       document.addEventListener("keydown", handleQRScanner);
-    } else {
-      console.log(
-        "🔍 [QR SCANNER] Summary modal closed, not adding event listener"
-      );
     }
 
     return () => {
-      console.log("🔍 [QR SCANNER] Cleanup - removing event listener");
       document.removeEventListener("keydown", handleQRScanner);
       if (qrScannerTimeoutRef.current) {
         clearTimeout(qrScannerTimeoutRef.current);
@@ -1340,25 +1270,11 @@ const ProductCategoriesTabs: React.FC<{
     fieldKey: string,
     isTotal: boolean
   ) => {
-    // Debug logging specifically for Polo TPJ
-    if (categoryKey === "polo" && fieldKey === "poloTpj") {
-      console.log("[Polo TPJ] getFieldValue called:", {
-        categoryKey,
-        fieldKey,
-        isTotal,
-        currentPO_id: currentPO?.id,
-        bahanItem_id: bahanItem?.id,
-        bahanItem_name: bahanItem?.name,
-        bahanSizeBreakdowns: bahanItem?.sizeBreakdowns,
-        bahanSizeBreakdownsLength: bahanItem?.sizeBreakdowns?.length || 0,
-      });
-    }
+
 
     if (isTotal) {
       const totalValue = calculateTotal(categoryKey).toString();
-      if (categoryKey === "polo") {
-        console.log("[Polo TPJ] Total calculation for polo:", totalValue);
-      }
+
       return totalValue;
     }
 
@@ -1380,15 +1296,7 @@ const ProductCategoriesTabs: React.FC<{
 
     const total = filteredItems.length;
 
-    // Debug logging specifically for Polo TPJ
-    if (categoryKey === "polo" && fieldKey === "poloTpj") {
-      console.log("[Polo TPJ] Filtered items:", {
-        filteredItems,
-        total,
-        dataSource: bahanItem ? 'bahan-specific' : 'PO-level',
-        bahanItem_id: bahanItem?.id,
-      });
-    }
+
 
     return total.toString();
   };
@@ -1650,11 +1558,6 @@ const ProductCategoriesTabs: React.FC<{
   };
 
   const closeSizeBreakdownModal = () => {
-    console.log("🚪 Closing size breakdown modal", {
-      currentModalState: sizeBreakdownModal,
-      currentPO_sizeBreakdowns: currentPO?.sizeBreakdowns,
-    });
-
     setSizeBreakdownModal({
       isOpen: false,
       categoryKey: "",
@@ -1663,7 +1566,6 @@ const ProductCategoriesTabs: React.FC<{
       bahanItem: undefined,
     });
 
-    console.log("🚪 Modal closed, triggering save...");
     debouncedSave();
   };
 

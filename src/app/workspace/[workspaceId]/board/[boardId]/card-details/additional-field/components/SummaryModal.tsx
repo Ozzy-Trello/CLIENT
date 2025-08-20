@@ -95,12 +95,10 @@ const SummaryModal: React.FC<SummaryModalProps> = ({
     const cardId = selectedCard?.id;
 
     if (!cardId) {
-      console.error("No card ID available for QR generation");
       return qrItems;
     }
 
     if (!poId) {
-      console.error("No PO ID available for QR generation");
       return qrItems;
     }
 
@@ -147,7 +145,6 @@ const SummaryModal: React.FC<SummaryModalProps> = ({
           size: item.size,
         });
       } else {
-        console.warn("Invalid uniqueId format:", item.uniqueId);
       }
     });
 
@@ -233,7 +230,6 @@ const SummaryModal: React.FC<SummaryModalProps> = ({
           }
         }, 100);
       } catch (error) {
-        console.error("QR generation error:", error);
         document.body.removeChild(tempDiv);
         resolve(document.createElement("canvas"));
       }
@@ -471,7 +467,6 @@ const SummaryModal: React.FC<SummaryModalProps> = ({
         `Generated ${qrItems.length} QR codes across ${pages.length} page(s) (3 items per page)`
       );
     } catch (error) {
-      console.error("QR generation error:", error);
       message.error("Failed to generate QR codes. Please try again.");
     }
   };
@@ -500,7 +495,6 @@ const SummaryModal: React.FC<SummaryModalProps> = ({
     
     // Add PO-level size breakdowns
     if (poData.sizeBreakdowns && Array.isArray(poData.sizeBreakdowns)) {
-      console.log("[Polo TPJ] SummaryModal - Found PO-level sizeBreakdowns:", poData.sizeBreakdowns);
       allSizeBreakdowns.push(...poData.sizeBreakdowns);
     }
     
@@ -508,7 +502,6 @@ const SummaryModal: React.FC<SummaryModalProps> = ({
     if (poData.bahan && Array.isArray(poData.bahan)) {
       poData.bahan.forEach((bahanItem: any, index: number) => {
         if (bahanItem.sizeBreakdowns && Array.isArray(bahanItem.sizeBreakdowns)) {
-          console.log(`[Polo TPJ] SummaryModal - Found bahan[${index}] sizeBreakdowns:`, bahanItem.sizeBreakdowns);
           // Add bahan information to each size breakdown
           const bahanSizeBreakdowns = bahanItem.sizeBreakdowns.map((breakdown: any) => ({
             ...breakdown,
@@ -520,7 +513,7 @@ const SummaryModal: React.FC<SummaryModalProps> = ({
       });
     }
     
-    console.log("[Polo TPJ] SummaryModal - Total collected sizeBreakdowns:", allSizeBreakdowns);
+
 
     // Check if we have any size breakdowns
     if (allSizeBreakdowns.length > 0) {

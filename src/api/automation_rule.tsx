@@ -1,5 +1,5 @@
 import api from ".";
-import { ApiResponse, AutomationRuleApiData } from "../types/type";
+import { ApiResponse, AutomationRuleApiData, AutomationRuleActionApiData } from "../types/type";
 
 export const createRule = async (
   rule: AutomationRuleApiData
@@ -175,5 +175,58 @@ export const deleteActionById = async (
   const { data } = await api.delete(`/automation-rule/actions/${actionId}`, {
     headers: { "workspace-id": workspaceId },
   });
+  return data;
+};
+
+// Get card buttons for a specific board
+export const getCardButtonsForBoard = async (
+  workspaceId: string,
+  boardId: string
+): Promise<ApiResponse<any>> => {
+  const { data } = await api.get(
+    `/automation-rule/card-buttons/${workspaceId}/${boardId}`,
+    {
+      headers: { "workspace-id": workspaceId },
+    }
+  );
+  return data;
+};
+
+// Create a card button (automation rule with type "when-button-clicked")
+export const createCardButton = async (
+  workspaceId: string,
+  boardId: string,
+  buttonData: {
+    label: string;
+    actions: AutomationRuleActionApiData[];
+  }
+): Promise<ApiResponse<any>> => {
+  const rule: AutomationRuleApiData = {
+    workspaceId,
+    groupType: "card.button",
+    type: "when-button-clicked",
+    condition: {
+      button_label: buttonData.label,
+      board_id: boardId,
+    },
+    action: buttonData.actions,
+  };
+
+  return createRule(rule);
+};
+
+// Execute a card button (trigger automation rule)
+export const executeCardButton = async (
+  workspaceId: string,
+  boardId: string,
+  ruleId: string,
+  cardId: string
+): Promise<ApiResponse<any>> => {
+  const { data } = await api.get(
+    `/automation-rule/card-buttons/${workspaceId}/${boardId}/${ruleId}/${cardId}`,
+    {
+      headers: { "workspace-id": workspaceId },
+    }
+  );
   return data;
 };

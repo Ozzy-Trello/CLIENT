@@ -32,6 +32,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@constants/query-keys";
 import { ApiResponse } from "@myTypes/api";
 import { useRealtimeUpdates } from "@hooks/websocket";
+import HorizontalSlider from "@components/horizontal-slider";
 
 const DragDropContext = dynamic(
   () => import("@hello-pangea/dnd").then((mod) => mod.DragDropContext),
@@ -429,98 +430,100 @@ const Board: React.FC = () => {
       />
       <CardFocusProvider>
         <CardDetailProvider>
-          <div
-            ref={boardScrollContainerRef}
-            className="h-auto min-h-[500px] min-w-[200px] overflow-x-auto overflow-y-hidden custom-horizontal-scrollbar board-scroll-container"
-            style={{
-              scrollbarWidth: "thin", // For Firefox
-              scrollbarGutter: "stable", // Reserve space for scrollbar
-              scrollbarColor: "#cbd5e1 #f1f5f9", // thumb and track colors for Firefox
-              WebkitOverflowScrolling: "touch",
-            }}
-          >
-            {shouldRenderLists && (
-              <DragDropContext
-                onDragEnd={onListDragEnd}
-                onDragStart={onDragStart}
-                onDragUpdate={onDragUpdate}
-              >
-                <Droppable
-                  droppableId="droppable-list-area"
-                  direction="horizontal"
-                  type="list"
+          <div className="relative">
+            {/* Horizontal Slider for manual navigation - positioned inside board area */}
+
+            <div
+              ref={boardScrollContainerRef}
+              className="h-auto min-h-[770px] w-full overflow-x-auto overflow-y-hidden custom-horizontal-scrollbar board-scroll-container"
+            >
+              {shouldRenderLists && (
+                <DragDropContext
+                  onDragEnd={onListDragEnd}
+                  onDragStart={onDragStart}
+                  onDragUpdate={onDragUpdate}
                 >
-                  {(provided, snapshot) => {
-                    return (
-                      <div
-                        {...provided.droppableProps}
-                        ref={provided.innerRef}
-                        className="flex gap-4 p-4 items-start"
-                        style={{
-                          backgroundColor: snapshot.isDraggingOver
-                            ? "#e3f2fd"
-                            : "transparent",
-                          minWidth: "calc(100% + 100px)", // Force content to be wider than container
-                          width: "max-content", // Allow content to expand beyond container width
-                        }}
-                      >
-                        {lists?.map((list: AnyList, index: number) => {
-                          return (
-                            <List
-                              key={list.id}
-                              list={list}
-                              index={index}
-                              boardId={resolvedBoardId}
-                              updateList={updateList}
-                            />
-                          );
-                        })}
-                        {provided.placeholder}
+                  <Droppable
+                    droppableId="droppable-list-area"
+                    direction="horizontal"
+                    type="list"
+                  >
+                    {(provided, snapshot) => {
+                      return (
+                        <div
+                          {...provided.droppableProps}
+                          ref={provided.innerRef}
+                          className="flex gap-4 p-4 items-start"
+                          style={{
+                            backgroundColor: snapshot.isDraggingOver
+                              ? "#e3f2fd"
+                              : "transparent",
+                            minWidth: "calc(100% + 100px)", // Force content to be wider than container
+                            width: "max-content", // Allow content to expand beyond container width
+                          }}
+                        >
+                          {lists?.map((list: AnyList, index: number) => {
+                            return (
+                              <List
+                                key={list.id}
+                                list={list}
+                                index={index}
+                                boardId={resolvedBoardId}
+                                updateList={updateList}
+                              />
+                            );
+                          })}
+                          {provided.placeholder}
 
-                        {/* Add list section - only show if user can create lists */}
-                        {canCreateList && (
-                          <>
-                            {isAddingList ? (
-                              <div className="add-list-wrapper p-4 rounded-sm bg-white shadow-sm">
-                                <Input
-                                  type="text"
-                                  placeholder="New List Title"
-                                  value={newListName}
-                                  onChange={(e) =>
-                                    setNewListName(e.target.value)
-                                  }
-                                  onPressEnter={handleAddList}
-                                />
-                                <div className="flex items-center gap-2 mt-2">
-                                  <Button size="small" onClick={handleAddList}>
-                                    Add List
-                                  </Button>
-                                  <Button
-                                    size="small"
-                                    onClick={() => setIsAddingList(false)}
-                                    icon={<X size={15} />}
+                          {/* Add list section - only show if user can create lists */}
+                          {canCreateList && (
+                            <>
+                              {isAddingList ? (
+                                <div className="add-list-wrapper p-4 rounded-sm bg-white shadow-sm">
+                                  <Input
+                                    type="text"
+                                    placeholder="New List Title"
+                                    value={newListName}
+                                    onChange={(e) =>
+                                      setNewListName(e.target.value)
+                                    }
+                                    onPressEnter={handleAddList}
                                   />
+                                  <div className="flex items-center gap-2 mt-2">
+                                    <Button
+                                      size="small"
+                                      onClick={handleAddList}
+                                    >
+                                      Add List
+                                    </Button>
+                                    <Button
+                                      size="small"
+                                      onClick={() => setIsAddingList(false)}
+                                      icon={<X size={15} />}
+                                    />
+                                  </div>
                                 </div>
-                              </div>
-                            ) : (
-                              <Button
-                                onClick={() => setIsAddingList(true)}
-                                className="mt-2"
-                                icon={<Plus size={15} />}
-                              >
-                                Add a list
-                              </Button>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    );
-                  }}
-                </Droppable>
-              </DragDropContext>
-            )}
+                              ) : (
+                                <Button
+                                  onClick={() => setIsAddingList(true)}
+                                  className="mt-2"
+                                  icon={<Plus size={15} />}
+                                >
+                                  Add a list
+                                </Button>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      );
+                    }}
+                  </Droppable>
+                </DragDropContext>
+              )}
 
-            {!shouldRenderLists && <ListSkeleton />}
+              {!shouldRenderLists && <ListSkeleton />}
+            </div>
+            <HorizontalSlider containerRef={boardScrollContainerRef} />
           </div>
 
           <CardDetails />
