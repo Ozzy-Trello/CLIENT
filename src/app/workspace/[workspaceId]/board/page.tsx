@@ -14,13 +14,14 @@ import {
 import { Earth, Lock, MoreHorizontal, Settings, Users } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useParams, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import BoardSettingsModal from "../../../../components/board-settings-modal";
 import { useBoards } from "../../../../hooks/board";
 import { useUpdateBoard } from "../../../../hooks/use-update-board";
 import { usePermissions } from "../../../../hooks/account";
 import { Board } from "../../../../types/board";
 import "./style.css";
+
 
 const { Item: MenuItem } = Menu;
 const { Title, Text } = Typography;
@@ -46,6 +47,7 @@ const BoardsPage: React.FC = () => {
   });
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [selectedBoard, setSelectedBoard] = useState<Board | null>(null);
+
 
   const handleBoardClick = (boardId: string) => {
     router.push(`/workspace/${workspaceId}/board/${boardId}`);
@@ -78,6 +80,8 @@ const BoardsPage: React.FC = () => {
       }
     );
   };
+
+
 
   return (
     <div className="page scrollable-page">
@@ -203,29 +207,31 @@ const BoardsPage: React.FC = () => {
                 </Card>
               </Col>
             ))}
+
           {isLoading &&
-            [1, 2, 3, 4, 5].map((item) => (
-              <Col key={item}>
-                <Space style={{ margin: "5px" }}>
-                  <Skeleton.Input active={isLoading} size={"large"} />
-                </Space>
+            Array.from({ length: 5 }).map((_, index) => (
+              <Col
+                key={`skeleton-${index}`}
+                xs={{ flex: "100%" }}
+                sm={{ flex: "50%" }}
+                md={{ flex: "40%" }}
+                lg={{ flex: "30%" }}
+                xl={{ flex: "20%" }}
+              >
+                <Skeleton.Input active style={{ width: "100%", height: "120px" }} />
               </Col>
             ))}
         </Row>
       </div>
 
-      {isSettingsModalOpen && (
-        <BoardSettingsModal
-          board={selectedBoard || undefined}
-          boardId={selectedBoard?.id || ""}
-          workspaceId={
-            Array.isArray(workspaceId) ? workspaceId[0] : workspaceId
-          }
-          open={isSettingsModalOpen}
-          onClose={handleSettingsClose}
-          onSuccess={handleBoardUpdate}
-        />
-      )}
+
+
+      <BoardSettingsModal
+        open={isSettingsModalOpen}
+        onClose={handleSettingsClose}
+        board={selectedBoard || undefined}
+        onSuccess={handleBoardUpdate}
+      />
     </div>
   );
 };

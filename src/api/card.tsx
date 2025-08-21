@@ -4,10 +4,13 @@ import { ApiResponse } from "../types/type";
 
 export const cards = async (
   listId: string,
-  boardId: string
+  boardId: string,
+  page: number = 1,
+  limit: number = 20
 ): Promise<ApiResponse<Card[]>> => {
   const { data } = await api.get("/card", {
     headers: { "list-id": listId, "board-id": boardId },
+    params: { page, limit },
   });
   return data;
 };
@@ -176,5 +179,10 @@ export const archivedCards = async (
     headers: { "board-id": boardId },
     params: { page, limit },
   });
+  return data;
+};
+
+export const moveOldCards = async (): Promise<ApiResponse<any>> => {
+  const { data } = await api.post(`/card/move-old-cards`);
   return data;
 };

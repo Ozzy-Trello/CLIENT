@@ -153,6 +153,8 @@ export interface IItemDashcard {
   boardId: string;
   listId: string;
   columns: TDynamicColumnDashcard[];
+  dueDate?: Date | null;
+  listName?: string;
 }
 
 export interface CopycardPost {

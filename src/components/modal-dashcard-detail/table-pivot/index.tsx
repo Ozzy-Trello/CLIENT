@@ -259,6 +259,8 @@ const TablePivot: FC = () => {
         boardId: item.boardId,
         members: item.member,
         description: item.description,
+        dueDate: item.dueDate,
+        listName: item.listName,
       };
 
       // Add existing column values
@@ -574,11 +576,14 @@ const TablePivot: FC = () => {
     const visibleColumns = dynamicColumns.filter(col => columnVisibility[col] !== false);
     
     // Create headers
-    const headers = ['Name', 'Members', 'Description', 'URL', ...visibleColumns];
+    const headers = ['Name', 'Members', 'Description', 'Due Date', 'List', 'URL', ...visibleColumns];
     
     // Process data with human-readable values
     const excelData = table.getFilteredRowModel().rows.map(row => {
       const rowData: any = {};
+      
+      // Debug: Log the row data structure
+      console.log('Excel Export - Row original data:', row.original);
       
       // Add basic columns
       rowData['Name'] = row.original.name || '';
@@ -598,6 +603,19 @@ const TablePivot: FC = () => {
       } else {
         rowData['Description'] = '';
       }
+      
+      // Process due date
+      console.log('Excel Export - dueDate value:', row.original.dueDate);
+      if (row.original.dueDate) {
+        const dueDate = new Date(row.original.dueDate);
+        rowData['Due Date'] = dueDate.toLocaleDateString();
+      } else {
+        rowData['Due Date'] = '';
+      }
+      
+      // Process list name
+      console.log('Excel Export - listName value:', row.original.listName);
+      rowData['List'] = row.original.listName || '';
       
       // Process URL
       const cardData = row.original;

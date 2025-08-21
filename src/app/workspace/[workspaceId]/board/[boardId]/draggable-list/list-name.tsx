@@ -22,6 +22,7 @@ interface ListNameProps {
     unknown
   >;
   cardsCount: number;
+  totalCards: number;
 }
 
 const colorOptions = [
@@ -42,6 +43,7 @@ const ListName: React.FC<ListNameProps> = ({
   boardId,
   updateList,
   cardsCount,
+  totalCards,
 }) => {
   const [isEditListName, setIsEditListName] = useState<boolean>(false);
   const [newListName, setNewListName] = useState<string>("");
@@ -312,7 +314,7 @@ const ListName: React.FC<ListNameProps> = ({
             color: isLimitExceeded ? "#ffffff" : "black",
           }}
         >
-          {cardsCount}/{list.cardLimit || 0}
+          {cardsCount} of {totalCards} / {list.cardLimit || 0}
         </div>
         {/* Collapse list button */}
         {/* <Tooltip title={"collapse list"}>

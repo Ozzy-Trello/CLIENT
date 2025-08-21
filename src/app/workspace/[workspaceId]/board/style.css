@@ -9,6 +9,33 @@
   padding: 5px 20px;
 }
 
+.floating-button {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background-color: #1890ff; /* Ant Design primary color */
+  color: white;
+  border: none;
+  border-radius: 50px;
+  padding: 15px 25px;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  transition: background-color 0.3s ease;
+  z-index: 1000;
+}
+
+.floating-button:hover {
+  background-color: #40a9ff; /* Lighter shade on hover */
+}
+
+.floating-button:disabled {
+  background-color: #91d5ff;
+  cursor: not-allowed;
+}
 .board-item {
   cursor: pointer;
   padding: 10px;

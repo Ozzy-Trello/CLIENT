@@ -1,6 +1,6 @@
 import { Draggable, Droppable, DroppableProvided } from "@hello-pangea/dnd";
 import ListName from "./list-name";
-import { useCards } from "@hooks/card";
+import { useCardsPaginated } from "@hooks/card";
 import DraggableCard from "../draggable-card";
 import AddCard from "./add-card";
 import { UseMutateFunction } from "@tanstack/react-query";
@@ -26,7 +26,7 @@ const DraggableList: React.FC<DraggableListProps> = ({
   boardId,
   updateList,
 }) => {
-  const { cards, addCard, isLoading, isError } = useCards(list.id, boardId);
+  const { cards, addCard, isLoading, isError, hasMoreCards, isLoadingMore, loadMoreCards, loadMoreError, retryLoadMore, totalCards } = useCardsPaginated(list.id, boardId);
   const { canMove, canCreate } = usePermissions();
 
   // Check if user can move lists and create cards
@@ -86,6 +86,7 @@ const DraggableList: React.FC<DraggableListProps> = ({
               boardId={boardId}
               updateList={updateList}
               cardsCount={cards.length}
+              totalCards={totalCards}
             />
             <Droppable
               droppableId={`droppable-card-area-${list.id}`}
@@ -115,6 +116,49 @@ const DraggableList: React.FC<DraggableListProps> = ({
                       />
                     ))}
                     {provided.placeholder}
+                    
+                    {/* Load More Button */}
+                    {(hasMoreCards || loadMoreError) && (
+                      <div className="flex flex-col items-center py-2 space-y-2">
+                        {loadMoreError && (
+                          <div className="text-xs text-red-500 text-center px-2">
+                            {loadMoreError}
+                          </div>
+                        )}
+                        <button
+                          onClick={loadMoreError ? retryLoadMore : loadMoreCards}
+                          disabled={isLoadingMore}
+                          className="
+                            px-4 py-2 
+                            text-sm 
+                            text-gray-600 
+                            bg-gray-100 
+                            hover:bg-gray-200 
+                            disabled:bg-gray-50 
+                            disabled:text-gray-400 
+                            rounded-lg 
+                            border 
+                            border-gray-200 
+                            transition-colors 
+                            duration-200
+                            flex 
+                            items-center 
+                            gap-2
+                          "
+                        >
+                          {isLoadingMore ? (
+                            <>
+                              <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+                              Loading...
+                            </>
+                          ) : loadMoreError ? (
+                            'Retry'
+                          ) : (
+                            'Load More'
+                          )}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

@@ -8,13 +8,14 @@ import {
   getCardLabels,
   mirrorCard,
   moveCard,
+  moveOldCards,
   removeLabelFromCard,
   updateCard,
 } from "../api/card";
 import { api } from "../api";
 import { ApiResponse } from "../types/type";
 import { Card, CopycardPost } from "../types/card";
-import { useEffect } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { queryKeys } from "@constants/query-keys";
 
 export function useCards(listId: string, boardId: string) {
@@ -388,6 +389,162 @@ export function useCards(listId: string, boardId: string) {
 }
 
 /**
+ * Hook for paginated cards with load more functionality
+ */
+export function useCardsPaginated(listId: string, boardId: string) {
+  const queryClient = useQueryClient();
+  const [currentPage, setCurrentPage] = useState(1);
+  const [allCards, setAllCards] = useState<Card[]>([]);
+  const [hasMoreCards, setHasMoreCards] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
+  const [totalCards, setTotalCards] = useState<number>(0);
+  const limit = 20;
+
+  // Initial query for first page
+  const cardsQuery = useQuery({
+    queryKey: queryKeys.cards.list(listId),
+    queryFn: () => cards(listId, boardId, 1, limit),
+    enabled: !!listId,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    retry: 3,
+    staleTime: 60000,
+  });
+
+  // Update allCards when initial query data changes
+  useEffect(() => {
+    if (cardsQuery.data?.data) {
+      setAllCards(cardsQuery.data.data);
+      setHasMoreCards(cardsQuery.data.data.length === limit);
+      setCurrentPage(1);
+      
+      // Extract total count from pagination data
+      const totalCount = cardsQuery.data.paginate?.totalData || cardsQuery.data.data.length;
+      setTotalCards(totalCount);
+      
+      // Ensure query cache is updated with initial data
+      queryClient.setQueryData<ApiResponse<Card[]>>(
+        queryKeys.cards.list(listId),
+        cardsQuery.data
+      );
+      setLoadMoreError(null); // Clear any previous errors
+    }
+  }, [cardsQuery.data?.data, limit]);
+
+  // Reset pagination when listId changes
+  useEffect(() => {
+    setCurrentPage(1);
+    setAllCards([]);
+    setHasMoreCards(true);
+    setIsLoadingMore(false);
+    setLoadMoreError(null);
+    setTotalCards(0);
+  }, [listId]);
+
+  // Load more cards function
+  const loadMoreCards = useCallback(async () => {
+    if (!hasMoreCards || isLoadingMore) return;
+    
+    setIsLoadingMore(true);
+    setLoadMoreError(null); // Clear previous errors
+    
+    try {
+      const nextPage = currentPage + 1;
+      const response = await cards(listId, boardId, nextPage, limit);
+      
+      const responseData = response.data;
+       if (responseData && Array.isArray(responseData) && responseData.length > 0) {
+          const newAllCards = [...allCards, ...responseData];
+          setAllCards(newAllCards);
+          setCurrentPage(nextPage);
+          setHasMoreCards(responseData.length === limit);
+          
+          // Update the query cache with all cards for drag-and-drop compatibility
+          queryClient.setQueryData<ApiResponse<Card[]>>(
+            queryKeys.cards.list(listId),
+            (old) => ({
+              ...old,
+              status_code: 200,
+              message: "Success",
+              data: newAllCards,
+            })
+          );
+        } else {
+          setHasMoreCards(false);
+        }
+    } catch (error) {
+      console.error('Error loading more cards:', error);
+      setLoadMoreError('Failed to load more cards. Please try again.');
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [listId, boardId, currentPage, limit, hasMoreCards, isLoadingMore, allCards, queryClient]);
+
+  // Add card mutation with optimistic updates for paginated cards
+  const addCardMutation = useMutation({
+    mutationFn: ({ card, listId }: { card: Partial<Card>; listId: string }) => {
+      return api.post(`/card`, card, {
+        headers: { "list-id": listId },
+      });
+    },
+    onMutate: async ({ card, listId }) => {
+      const tempId = `temp-card-${Date.now()}`;
+      const tempCard: Card = {
+        ...card,
+        id: tempId,
+        createdAt: new Date().toISOString(),
+        listId,
+      } as Card;
+
+      // Add to the end of allCards
+      setAllCards(prev => [...prev, tempCard]);
+      
+      return { tempId, listId };
+    },
+    onSuccess: (response, _variables, context) => {
+      const realCard = response.data;
+      const { tempId } = context;
+
+      // Replace temp card with real card
+      setAllCards(prev => 
+        prev.map(card => card.id === tempId ? realCard : card)
+      );
+    },
+    onError: (err, _variables, context) => {
+       if (context?.tempId) {
+         // Remove temp card on error
+         setAllCards(prev => prev.filter(card => card.id !== context.tempId));
+       }
+     },
+  });
+
+  // Retry function for failed load more attempts
+  const retryLoadMore = useCallback(() => {
+    if (loadMoreError) {
+      setLoadMoreError(null);
+      loadMoreCards();
+    }
+  }, [loadMoreError, loadMoreCards]);
+
+  return {
+      cards: allCards,
+      isLoading: cardsQuery.isLoading,
+      isError: cardsQuery.isError,
+      error: cardsQuery.error,
+      hasMoreCards,
+      isLoadingMore,
+      loadMoreCards,
+      loadMoreError,
+      retryLoadMore,
+      addCard: addCardMutation.mutate,
+      isAddingCard: addCardMutation.isPending,
+      totalCards,
+    };
+  }
+
+/**
  * Hook to manage card movement between lists or within a list
  */
 export function useCardMove(boardId?: string) {
@@ -695,4 +852,17 @@ export function useCardTimeInBoard(cardId: string, boardId: string) {
     error: cardTimeInBoardQuery.error,
     refetch: cardTimeInBoardQuery.refetch,
   };
+}
+
+export function useMoveOldCards() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: moveOldCards,
+    onSuccess: () => {
+      // Invalidate all card-related queries to refresh the UI
+      queryClient.invalidateQueries({ queryKey: queryKeys.cards.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.lists.all });
+    },
+  });
 }

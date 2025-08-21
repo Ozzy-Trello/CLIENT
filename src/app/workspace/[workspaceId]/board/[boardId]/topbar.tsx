@@ -22,6 +22,7 @@ import {
   Users,
   QrCode,
   FileText,
+  ArrowRight,
 } from "lucide-react";
 import { useSelector } from "react-redux";
 import { selectCurrentBoard } from "@store/workspace_slice";
@@ -29,6 +30,7 @@ import { useRouter } from "next/navigation";
 import { Scanner } from "@yudiel/react-qr-scanner";
 import api from "@api/index";
 import { useWebSocket } from "@hooks/websocket";
+import { useMoveOldCards } from "@hooks/card";
 
 interface BoardTopbarProps {
   boardScopeMenuOpen: boolean;
@@ -56,6 +58,14 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
   const [isLoadingInvoice, setIsLoadingInvoice] = useState<boolean>(false);
   const router = useRouter();
   const { socket } = useWebSocket();
+
+  // Move Old Cards functionality
+  const { mutate: moveOldCards, isPending: isMoveCardsPending } =
+    useMoveOldCards();
+  const REQUEST_DESAIN_BOARD_ID = "1b582fc3-c18e-4e99-8d9f-b8be5793f707";
+  const showMoveCardsButton = currentBoard?.id === REQUEST_DESAIN_BOARD_ID;
+
+  // alert(currentBoard?.id);
 
   // Handle responsive behavior for tablet devices
   useEffect(() => {
@@ -126,6 +136,18 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
     } finally {
       setIsLoadingInvoice(false);
     }
+  };
+
+  const handleMoveCards = () => {
+    moveOldCards(undefined, {
+      onSuccess: () => {
+        message.success("Cards moved successfully!");
+      },
+      onError: (error: any) => {
+        console.error("Error moving cards:", error);
+        message.error("Failed to move cards. Please try again.");
+      },
+    });
   };
 
   const rightMenu: MenuProps["items"] = [
@@ -330,6 +352,20 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
                 onClick={() => setShowScanner(true)}
               />
             </Tooltip>
+            {showMoveCardsButton && (
+              <Tooltip title="Closing Terpending">
+                <Button
+                  size="small"
+                  icon={<ArrowRight size={16} />}
+                  onClick={handleMoveCards}
+                  loading={isMoveCardsPending}
+                >
+                  <span>
+                    {isMoveCardsPending ? "Moving..." : "Closing Terpending"}
+                  </span>
+                </Button>
+              </Tooltip>
+            )}
             <Tooltip title="more">
               <Button
                 type="text"
