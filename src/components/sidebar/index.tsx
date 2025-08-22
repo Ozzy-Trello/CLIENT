@@ -376,7 +376,8 @@ const Sidebar = () => {
           position: "fixed",
           left: 0,
           top: 45,
-          overflow: "visible",
+          overflow: "hidden", // Prevent horizontal scrolling
+          overflowY: "auto", // Allow vertical scrolling when needed
           backgroundColor: `rgba(${colors.surface}, 0.85)`, // Theme-aware semi-transparent background
           backdropFilter: "blur(5px)", // Add blur effect for better readability
           borderRight: `1px solid rgb(${colors.border})`, // Theme-aware border

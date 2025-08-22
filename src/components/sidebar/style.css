@@ -79,6 +79,16 @@
   -ms-overflow-style: none;
 }
 
+/* Tailwind-style scrollbar-none utility */
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
 /* Ant Design Menu overrides */
 .ant-menu-inline {
   border-right: none !important;
