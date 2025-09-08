@@ -88,7 +88,7 @@ function stringify(val: any): string {
   if (val == null) return "";
   if (typeof val === "string") {
     const noTags = val.replace(/<[^>]*>/g, "");
-    if (/^[0-9a-f]{8}-/i.test(noTags)) {
+    if (isUUID(noTags)) {
       const lbl = LookupCache.any(noTags);
       if (lbl) return lbl;
     }

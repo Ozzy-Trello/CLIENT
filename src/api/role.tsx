@@ -1,4 +1,4 @@
-import { RoleResponse, SingleRoleResponse } from "@myTypes/role";
+import { RoleResponse, SingleRoleResponse } from "../types/role";
 import { api } from "./index";
 
 export const getRoles = async (workspaceId?: string): Promise<RoleResponse> => {

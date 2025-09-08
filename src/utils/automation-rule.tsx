@@ -18,7 +18,16 @@ export const renderType = (type: string, condition: any): string => {
     .replace(/<channel>/, condition?.channel?.label || condition?.channel || '')
     .replace(/<user>/, condition?.user?.username || condition?.user || '')
     .replace(/<inclusion>/, condition?.inclusion?.value?.label || condition?.inclusion?.label || condition?.inclusion || '')
-    .replace(/<card_label>/, condition?.label?.value?.label || condition?.label?.label || condition?.assignment || '')
+    .replace(/<card_label>/, (() => {
+      // Try multiple field variations and use lookup cache for UUIDs
+      const labelValue = condition?.label?.value?.label || condition?.label?.label || condition?.assignment || condition?.card_label || condition?.cardLabel;
+      if (typeof labelValue === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(labelValue)) {
+        const { LookupCache } = require('@utils/lookup-cache');
+        const resolved = LookupCache.any(labelValue);
+        return resolved || labelValue;
+      }
+      return labelValue || '';
+    })())
     .replace(/<assignment>/, condition?.assignment?.value?.label || condition?.assignment?.label || condition?.assignment || '')
     .replace(/<assignment_subject>/, condition?.assignment_subject?.value?.label || condition?.assignment_subject?.label || condition?.assignment_subject || '')
     .replace(/<date_status>/, condition?.date_status?.value?.label || condition?.date_status?.label || condition?.date_status || '')

@@ -6,8 +6,8 @@ import { useMultipleDatesContext } from "./context";
 import { AutomationRule, AutomationRuleAction } from "@myTypes/type";
 
 interface MultipleDatesProps {
-  nextStep: () => void;
-  prevStep: () => void;
+  nextStep?: () => void;
+  prevStep?: () => void;
   setSelectedRule: Dispatch<SetStateAction<AutomationRule>>;
   selectedRule: AutomationRule;
   actionsData: AutomationRuleAction[];

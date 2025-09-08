@@ -131,6 +131,14 @@ const CardButtonsPage: React.FC = () => {
               className="hover:shadow-md transition-shadow"
               actions={[
                 <Button
+                  key="edit"
+                  type="text"
+                  icon={<Settings size={16} />}
+                  onClick={() => handleEditButton(button.id)}
+                >
+                  Edit
+                </Button>,
+                <Button
                   key="delete"
                   type="text"
                   danger

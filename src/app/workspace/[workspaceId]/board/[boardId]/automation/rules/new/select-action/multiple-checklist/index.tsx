@@ -5,8 +5,8 @@ import { AutomationRule, AutomationRuleAction } from "@myTypes/type";
 import { useDebouncedCallback } from "@hooks/useDebouncedCallback";
 
 interface MultipleChecklistProps {
-  nextStep: () => void;
-  prevStep: () => void;
+  nextStep?: () => void;
+  prevStep?: () => void;
   setSelectedRule: Dispatch<SetStateAction<AutomationRule>>;
   selectedRule: AutomationRule;
   actionsData: AutomationRuleAction[];

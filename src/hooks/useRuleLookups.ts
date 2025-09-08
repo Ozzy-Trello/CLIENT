@@ -86,8 +86,9 @@ function collectIds(rules: RuleLike[]): Record<Kind, Set<string>> {
         push("list", c.optionalList);
         push("board", c.opationalBoard);
 
-        // Add label ID collection
+        // Add label ID collection (both snake_case and camelCase)
         push("label", c.card_label);
+        push("label", c.cardLabel);
 
         if (Array.isArray(c?.optionalBy?.data)) {
           c.optionalBy.data.forEach((uid: string) => push("role", uid));

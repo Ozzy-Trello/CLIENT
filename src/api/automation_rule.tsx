@@ -215,6 +215,35 @@ export const createCardButton = async (
   return createRule(rule);
 };
 
+// Get a specific card button by ID
+export const getCardButtonById = async (
+  workspaceId: string,
+  buttonId: string
+): Promise<ApiResponse<any>> => {
+  return getRuleById(workspaceId, buttonId);
+};
+
+// Update a card button (automation rule)
+export const updateCardButton = async (
+  workspaceId: string,
+  boardId: string,
+  buttonId: string,
+  buttonData: {
+    label: string;
+    actions: AutomationRuleActionApiData[];
+  }
+): Promise<ApiResponse<any>> => {
+  const rule: Partial<AutomationRuleApiData> = {
+    condition: {
+      button_label: buttonData.label,
+      board_id: boardId,
+    },
+    action: buttonData.actions,
+  };
+
+  return updateRule(workspaceId, buttonId, rule);
+};
+
 // Execute a card button (trigger automation rule)
 export const executeCardButton = async (
   workspaceId: string,
