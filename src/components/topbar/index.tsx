@@ -125,8 +125,6 @@ const TopBar: React.FC = React.memo(() => {
 
   const workspaceId = getWorkspaceId();
 
-
-
   // Handle theme toggle
   const handleThemeToggle = () => {
     dispatch(toggleTheme());
@@ -153,13 +151,12 @@ const TopBar: React.FC = React.memo(() => {
   const handleLogout = () => {
     router.push("/login");
     TokenStorage.clearTokens();
-    dispatch(setUser({}));
   };
   const avatarMenuItems: MenuProps["items"] = [
     {
       key: "manage-profile",
       label: (
-        <Link href="/workspace/account">
+        <Link href="/account">
           <div className="flex items-center gap-2">
             {user?.avatar ? (
               <Avatar size="small" src={user.avatar} />
@@ -257,7 +254,7 @@ const TopBar: React.FC = React.memo(() => {
   return (
     <div className="flex items-center justify-between h-[45px]">
       <div className="flex items-center gap-2">
-        <Link href="/dashboard">
+        <Link href="/">
           <ImageDynamicContrast
             imageSrc={logo}
             rgbColor={`rgb(${colors.background})`}
@@ -287,9 +284,9 @@ const TopBar: React.FC = React.memo(() => {
         )}
 
         {/* WebSocket Debug Button - Only show in development */}
-        {process.env.NODE_ENV === 'development' && (
-          <Button 
-            type="dashed" 
+        {process.env.NODE_ENV === "development" && (
+          <Button
+            type="dashed"
             size="small"
             onClick={() => setWsDebugModalOpen(true)}
             title="WebSocket Debug"

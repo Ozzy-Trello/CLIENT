@@ -15,11 +15,6 @@ const WorkspacePage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (!accessToken) {
-      router.push("/login");
-      return;
-    }
-
     if (!isLoading) {
       if (defaultWorkspace) {
         router.push(`/workspace/${defaultWorkspace.id}`);

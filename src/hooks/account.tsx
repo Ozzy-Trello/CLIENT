@@ -7,6 +7,7 @@ import {
 } from "../api/account";
 import TokenStorage from "@utils/token-storage";
 import { Account } from "../dto/account";
+import { message } from "antd";
 
 export function useCurrentAccount() {
   return useQuery({
@@ -33,6 +34,10 @@ export function useUpdateAccount() {
     mutationFn: updateAccount,
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["currentAccount"] });
+      message.success('Profile updated successfully!');
+    },
+    onError: (error) => {
+      message.error('Failed to update profile. Please try again.');
     },
   });
 }

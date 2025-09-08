@@ -8,7 +8,7 @@ export const currentAccount = async (): Promise<ApiResponse<Account>> => {
 };
 
 export const updateAccount = async (
-  params: Account
+  params: Partial<Account> & { password?: string }
 ): Promise<ApiResponse<Account>> => {
   const { data } = await api.put("/account", params);
   return data;

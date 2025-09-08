@@ -6,6 +6,8 @@ import { Account } from "@dto/account";
 import { ApiResponse } from "@myTypes/type";
 import { useRouter, usePathname } from "next/navigation";
 import TokenStorage from "@utils/token-storage";
+import { useDispatch } from "react-redux";
+import { setUser } from "@store/app_slice";
 
 interface UserContextType {
   user: Account | null;
@@ -20,6 +22,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const { data, isLoading, error, refetch } = useCurrentAccount();
   const router = useRouter();
   const pathname = usePathname();
+  const dispatch = useDispatch();
 
   // Fix: Add client-side authentication checking for localStorage fallback
   useEffect(() => {
@@ -46,6 +49,13 @@ export function UserProvider({ children }: { children: ReactNode }) {
       }
     }
   }, [pathname, router, isLoading]);
+
+  // Sync API data with Redux store
+  useEffect(() => {
+    if (data?.data) {
+      dispatch(setUser(data.data));
+    }
+  }, [data, dispatch]);
 
   const value: UserContextType = {
     user: data?.data || null,

@@ -14,6 +14,7 @@ export default function Home() {
   useEffect(() => {
     if (!accessToken) {
       router.push("/login");
+      TokenStorage.clearTokens();
       return;
     }
 
