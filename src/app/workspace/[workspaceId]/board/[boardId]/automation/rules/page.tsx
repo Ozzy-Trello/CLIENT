@@ -1,5 +1,4 @@
 "use client";
-import { getRule, deleteRule } from "@api/automation_rule";
 import { AutomationRuleApiData } from "@myTypes/type";
 import {
   Button,
@@ -30,18 +29,57 @@ import { useBoards } from "@hooks/board";
 import { useLists } from "@hooks/list";
 import { useRoles } from "@hooks/useRoles";
 import { LookupCache } from "@utils/lookup-cache";
+import { useAutomationRules, useDeleteAutomationRule } from "@hooks/automation-rule";
 
 const RulePage: React.FC = () => {
   const params = useParams();
   const workspaceId = decodeURIComponent(params.workspaceId as string);
   const boardId = decodeURIComponent(params.boardId as string);
   const router = useRouter();
-  const [allAutomationRules, setAllAutomationRules] = useState<
-    AutomationRuleApiData[]
-  >([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+
+  // Use React Query hook for automation rules
+  const {
+    data: automationRulesResponse,
+    isLoading,
+    error,
+    refetch,
+    isFetching,
+    dataUpdatedAt,
+  } = useAutomationRules(workspaceId, boardId, undefined, undefined, true);
+
+  console.log("🔄 [REFETCH DEBUG] Query state:", {
+    isLoading,
+    isFetching,
+    dataUpdatedAt: new Date(dataUpdatedAt || 0).toISOString(),
+    hasData: !!automationRulesResponse,
+    rulesCount: (automationRulesResponse as any)?.data?.length || 0,
+    workspaceId,
+    boardId
+  });
+
+  // Use delete mutation hook
+  const deleteRuleMutation = useDeleteAutomationRule();
+
+  console.log("🗑️ [REFETCH DEBUG] Delete mutation state:", {
+    isPending: deleteRuleMutation.isPending,
+    isSuccess: deleteRuleMutation.isSuccess,
+    isError: deleteRuleMutation.isError,
+    error: deleteRuleMutation.error
+  });
+
+  // Extract rules data from response
+  const allAutomationRules = (automationRulesResponse as any)?.data || [];
+  
+  // Debug log when rules data changes
+  useEffect(() => {
+    console.log("📋 [REFETCH DEBUG] Rules data updated:", {
+      rulesCount: allAutomationRules.length,
+      timestamp: new Date().toISOString(),
+      rules: allAutomationRules.map((rule: AutomationRuleApiData) => ({ id: rule.id, type: rule.type || 'unknown' }))
+    });
+  }, [allAutomationRules]);
 
   // Client-side pagination settings
   const pageSize = 10;
@@ -153,60 +191,33 @@ const RulePage: React.FC = () => {
       okText: "Delete",
       okType: "danger",
       cancelText: "Cancel",
-      onOk: async () => {
-        try {
-          await deleteRule(workspaceId as string, ruleId);
-          message.success("Automation rule deleted successfully");
-          // Refresh the rules list by re-fetching data
-          await fetchAllData();
-        } catch (error) {
-          console.error("Failed to delete rule:", error);
-          message.error("Failed to delete automation rule");
-          setIsLoading(false);
-        }
-      },
+      onOk: () => {
+         deleteRuleMutation.mutate({
+           workspaceId: workspaceId as string,
+           ruleId: ruleId
+         });
+       },
     });
   };
 
-  // Function to fetch all rules data
-  const fetchAllData = async () => {
-    setIsLoading(true);
-    try {
-      // Fetch all rules without pagination parameters, using fetchAll parameter
-      const result = await getRule(
-        workspaceId as string,
-        boardId as string,
-        undefined,
-        undefined,
-        true
-      );
-      if (result && result.data) {
-        console.log("All rules fetched for board:", boardId);
-        console.log("Total rules count:", result.data.length);
+  // Handle error state
+  if (error) {
+    console.error("Error fetching automation rules:", error);
+  }
 
-        setAllAutomationRules(result.data || []);
-        // Reset to first page when data changes
-        setCurrentPage(1);
-      } else {
-        console.error("Failed to fetch automation rules:", result.message);
-      }
-    } catch (error) {
-      console.error("Error fetching automation rules:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Fetch all data once - removed currentPage dependency
+  // Log data for debugging
   useEffect(() => {
-    fetchAllData();
-  }, [workspaceId, boardId]); // Removed currentPage dependency
+    if (allAutomationRules.length > 0) {
+      console.log("All rules fetched for board:", boardId);
+      console.log("Total rules count:", allAutomationRules.length);
+    }
+  }, [allAutomationRules, boardId]);
 
   // Add window focus event listener to refresh data when user returns to the page
   useEffect(() => {
     const handleWindowFocus = () => {
       // Refresh data when window regains focus (e.g., when navigating back from new rule page)
-      fetchAllData();
+      refetch();
     };
 
     window.addEventListener("focus", handleWindowFocus);
@@ -215,7 +226,7 @@ const RulePage: React.FC = () => {
     return () => {
       window.removeEventListener("focus", handleWindowFocus);
     };
-  }, [workspaceId, boardId]);
+  }, [refetch]);
 
   const renderRuleHuman = (type: string, condition: any): string => {
     return renderRulePatternHuman(type, condition);
@@ -274,7 +285,7 @@ const RulePage: React.FC = () => {
     }
 
     const searchLower = searchTerm.toLowerCase();
-    return allAutomationRules.filter((rule) => {
+    return allAutomationRules.filter((rule: AutomationRuleApiData) => {
       const description = generateRuleDescription(rule);
       return description.toLowerCase().includes(searchLower);
     });

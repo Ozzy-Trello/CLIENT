@@ -96,12 +96,6 @@ const AutomateButtons: React.FC = () => {
 
   return (
     <div className="w-full rounded-lg">
-      {/* Section Title */}
-      <div className="flex items-center gap-2 mb-3 text-sm font-medium">
-        <Zap size={16} style={iconStyle} />
-        <span style={{ color: `rgb(${colors.text})` }}>Automate Buttons</span>
-      </div>
-
       {/* Card Buttons */}
       {cardButtons.map((button) => (
         <Tooltip key={button.id} title={`Execute automation: ${button.label}`}>

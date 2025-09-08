@@ -126,7 +126,7 @@ const DraggableList: React.FC<DraggableListProps> = ({
                     {provided.placeholder}
                     
                     {/* Load More Button */}
-                    {(hasMoreCards || loadMoreError) && (
+                    {!isLoading && cards.length > 0 && (hasMoreCards || loadMoreError) && (
                       <div className="flex flex-col items-center py-2 space-y-2">
                         {loadMoreError && (
                           <div className="text-xs text-red-500 text-center px-2">
