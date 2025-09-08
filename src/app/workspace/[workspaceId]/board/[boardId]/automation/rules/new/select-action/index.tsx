@@ -1987,11 +1987,17 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
       }
     });
 
+    // Ensure selectedActionItem is always initialized with proper type
+    if (!newActionItem.selectedActionItem) {
+      newActionItem.selectedActionItem = {
+        type: actionsData[groupIndex]?.items?.[index]?.type || "",
+        label: actionsData[groupIndex]?.items?.[index]?.label || ""
+      };
+    }
+    
     // Ensure constant action field included and base type filled even when no placeholders
     const itemConfig = (actionsData[groupIndex]?.items?.[index] as any) ?? {};
     if (itemConfig?.[EnumSelectionType.Action]) {
-      if (!newActionItem.selectedActionItem)
-        newActionItem.selectedActionItem = { type: "", label: "" } as any;
       if (newActionItem.selectedActionItem)
         newActionItem.selectedActionItem.type = itemConfig.type || "";
       const actionConfig = itemConfig[EnumSelectionType.Action];
@@ -2011,18 +2017,19 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
     } else {
       // Add new action (initialize array if needed)
       const updatedActions = [...(copy.actions || []), newActionItem];
+      // Only filter out actions that are completely invalid (no type at all)
+      // Allow actions with type but missing selectedActionItem.type to pass through
       const filtered = updatedActions.filter(
-        (item) => item.type && item.selectedActionItem?.type
+        (item) => item.type && (item.selectedActionItem?.type || item.type)
       );
       copy.actions = filtered;
     }
 
     setSelectedRule(copy);
 
-    // In create mode, proceed directly. In edit mode, wait for user to click Save
-    if (!isEditMode) {
-      nextStep();
-    }
+    // Always proceed to close the action selection after adding an action
+    // This ensures the card button workflow works seamlessly
+    nextStep();
   };
 
   const onSaveAction = async () => {

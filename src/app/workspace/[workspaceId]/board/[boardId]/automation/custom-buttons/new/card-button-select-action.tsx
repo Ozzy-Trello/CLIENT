@@ -52,10 +52,11 @@ export function CardButtonSelectAction({
     setIsAddingAction(true);
     setEditingActionIndex(null);
     
-    // Reset selectedRule for new action
+    // Initialize selectedRule for new action configuration without adding empty action
+    // This prevents premature count updates
     setSelectedRule({
       triggerType: "",
-      actions: []
+      actions: selectedActions // Keep existing actions only
     });
   };
 
@@ -83,7 +84,7 @@ export function CardButtonSelectAction({
     setIsAddingAction(false);
     setEditingActionIndex(null);
     
-    // Reset selectedRule to show all actions
+    // Reset selectedRule to show all existing actions (no changes)
     setSelectedRule({
       triggerType: "",
       actions: selectedActions
@@ -93,10 +94,21 @@ export function CardButtonSelectAction({
   // Handle saving action (called when action is configured)
   const handleSaveAction = () => {
     if (selectedRule.actions && selectedRule.actions.length > 0) {
-      const configuredAction = selectedRule.actions[0];
+      let configuredAction: SelectedAction;
+      
+      if (editingActionIndex !== null) {
+        // When editing, get the configured action from selectedRule
+        configuredAction = selectedRule.actions[0];
+      } else {
+        // When adding new, find the properly configured action
+        // Look for the action that has both type and selectedActionItem.type
+        configuredAction = selectedRule.actions.find(action => 
+          action.type && action.selectedActionItem?.type
+        ) || selectedRule.actions[selectedRule.actions.length - 1];
+      }
       
       // Ensure action has a unique ID for stable rendering
-      if (configuredAction.selectedActionItem && !configuredAction.selectedActionItem.id) {
+      if (configuredAction && configuredAction.selectedActionItem && !configuredAction.selectedActionItem.id) {
         configuredAction.selectedActionItem.id = uuidv4();
       }
       
@@ -107,8 +119,13 @@ export function CardButtonSelectAction({
         updatedActions = [...selectedActions];
         updatedActions[editingActionIndex] = configuredAction;
       } else {
-        // Add new action
-        updatedActions = [...selectedActions, configuredAction];
+        // Add new action - only add if it's properly configured
+        if (configuredAction && configuredAction.type && configuredAction.selectedActionItem?.type) {
+          updatedActions = [...selectedActions, configuredAction];
+        } else {
+          // Don't add incomplete actions
+          updatedActions = selectedActions;
+        }
       }
       
       // Update actions first
@@ -123,6 +140,10 @@ export function CardButtonSelectAction({
         triggerType: "",
         actions: updatedActions
       });
+    } else {
+      // If no actions in selectedRule, just close the interface
+      setIsAddingAction(false);
+      setEditingActionIndex(null);
     }
   };
 

@@ -18,13 +18,14 @@ const ButtonActionsList: React.FC<ButtonActionsListProps> = ({
 }) => {
   // Function to render action in human readable format
   const renderActionHuman = (action: SelectedAction) => {
-    if (!action?.selectedActionItem?.type) {
+    const actionType = action?.selectedActionItem?.type || action?.type;
+    if (!actionType) {
       return "No action configured";
     }
 
     return renderRuleStateHuman(
-      action.selectedActionItem.type,
-      action.selectedActionItem
+      actionType,
+      action.selectedActionItem || {}
     );
   };
 
@@ -44,15 +45,18 @@ const ButtonActionsList: React.FC<ButtonActionsListProps> = ({
         {selectedActions.map((action: SelectedAction, index: number) => {
           // Generate stable key for each action to prevent glitching
           const actionId = action.selectedActionItem?.id;
-          const actionType = action.selectedActionItem?.type || "unknown";
+          const actionType = action.selectedActionItem?.type || action.type || "unknown";
           const actionKey =
             typeof actionId === "string"
               ? actionId
               : `action-${index}-${actionType}`;
 
+          // Check if action has a valid type (either in selectedActionItem or action itself)
+          const hasValidAction = action?.selectedActionItem?.type || action?.type;
+
           return (
             <div key={actionKey}>
-              {action?.selectedActionItem?.type && (
+              {hasValidAction && (
                 <div className="flex items-start gap-2 p-3 bg-white rounded border border-gray-100">
                   <span className="text-gray-600 mt-1">•</span>
                   <div className="flex-1 flex items-center gap-2">
@@ -77,12 +81,18 @@ const ButtonActionsList: React.FC<ButtonActionsListProps> = ({
         })}
       </div>
 
-      {selectedActions.length > 0 && (
-        <div className="mt-3 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-700">
-          ✓ {selectedActions.length} action
-          {selectedActions.length > 1 ? "s" : ""} configured
-        </div>
-      )}
+      {(() => {
+        const validActionsCount = selectedActions.filter(action => 
+          action?.selectedActionItem?.type || action?.type
+        ).length;
+        
+        return validActionsCount > 0 && (
+          <div className="mt-3 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-700">
+            ✓ {validActionsCount} action
+            {validActionsCount > 1 ? "s" : ""} configured
+          </div>
+        );
+      })()}
     </div>
   );
 };

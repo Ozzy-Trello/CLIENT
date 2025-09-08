@@ -55,7 +55,7 @@ const Board: React.FC = () => {
     ? workspaceId[0]
     : workspaceId;
 
-  const { lists, addList, isLoading, updateList } = useLists(resolvedBoardId);
+  const { lists, addList, isLoading, updateList, deleteList } = useLists(resolvedBoardId);
 
   // Fetch board details and update Redux state when boardId changes
   const { board: boardDetails } = useBoardDetails(
@@ -470,6 +470,7 @@ const Board: React.FC = () => {
                                 index={index}
                                 boardId={resolvedBoardId}
                                 updateList={updateList}
+                                deleteList={deleteList}
                               />
                             );
                           })}

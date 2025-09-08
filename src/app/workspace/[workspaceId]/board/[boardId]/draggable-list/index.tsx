@@ -18,6 +18,12 @@ interface DraggableListProps {
     { listId: string; updates: Partial<AnyList> },
     unknown
   >;
+  deleteList: UseMutateFunction<
+    any,
+    Error,
+    { listId: string },
+    unknown
+  >;
 }
 
 const DraggableList: React.FC<DraggableListProps> = ({
@@ -25,6 +31,7 @@ const DraggableList: React.FC<DraggableListProps> = ({
   index,
   boardId,
   updateList,
+  deleteList,
 }) => {
   const { cards, addCard, isLoading, isError, hasMoreCards, isLoadingMore, loadMoreCards, loadMoreError, retryLoadMore, totalCards } = useCardsPaginated(list.id, boardId);
   const { canMove, canCreate } = usePermissions();
@@ -85,6 +92,7 @@ const DraggableList: React.FC<DraggableListProps> = ({
               list={list}
               boardId={boardId}
               updateList={updateList}
+              deleteList={deleteList}
               cardsCount={cards.length}
               totalCards={totalCards}
             />

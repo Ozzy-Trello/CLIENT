@@ -25,16 +25,20 @@ export default function NewCardButtonPage({ params }: NewCardButtonPageProps) {
   const [isLoading, setIsLoading] = useState(false);
 
   // Use rule lookups to cache UUID data for proper rendering
-  const ruleLikeActions = useMemo(() => 
-    selectedActions.map(action => ({
-      condition: action.selectedActionItem || {}
-    })), [selectedActions]
+  const ruleLikeActions = useMemo(
+    () =>
+      selectedActions.map((action) => ({
+        condition: action.selectedActionItem || {},
+      })),
+    [selectedActions]
   );
   useRuleLookups(ruleLikeActions);
 
   // Handle navigation back to custom buttons list
   const handleNavigateBack = () => {
-    router.push(`/workspace/${params.workspaceId}/board/${params.boardId}/automation/custom-buttons`);
+    router.push(
+      `/workspace/${params.workspaceId}/board/${params.boardId}/automation/custom-buttons`
+    );
   };
 
   const handleActionsChange = (actions: SelectedAction[]) => {
@@ -46,11 +50,13 @@ export default function NewCardButtonPage({ params }: NewCardButtonPageProps) {
 
     setIsLoading(true);
     try {
-      const actionsData: AutomationRuleActionApiData[] = selectedActions.map((action) => ({
-        groupType: action.groupType || "",
-        type: action.selectedActionItem?.type || "",
-        condition: action.selectedActionItem || {},
-      }));
+      const actionsData: AutomationRuleActionApiData[] = selectedActions.map(
+        (action) => ({
+          groupType: action.groupType || "",
+          type: action.selectedActionItem?.type || "",
+          condition: action.selectedActionItem || {},
+        })
+      );
 
       await createCardButton(params.workspaceId, params.boardId, {
         label: buttonLabel,
@@ -62,21 +68,25 @@ export default function NewCardButtonPage({ params }: NewCardButtonPageProps) {
       handleNavigateBack();
     } catch (error: any) {
       console.error("Error creating card button:", error);
-      message.error(error?.response?.data?.message || "Failed to create card button");
+      message.error(
+        error?.response?.data?.message || "Failed to create card button"
+      );
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div style={{ padding: '24px', maxWidth: '800px', margin: '0 auto' }}>
+    <div style={{ padding: "24px", maxWidth: "800px", margin: "0 auto" }}>
       <Card>
-        <div style={{ padding: '24px' }}>
+        <div style={{ padding: "24px" }}>
           <Title level={2}>Create New Card Button</Title>
-          
-          <div style={{ marginBottom: '24px' }}>
-            <div style={{ marginBottom: '8px' }}>
-              <label htmlFor="buttonLabel" style={{ fontWeight: 500 }}>Button Label</label>
+
+          <div style={{ marginBottom: "24px" }}>
+            <div style={{ marginBottom: "8px" }}>
+              <label htmlFor="buttonLabel" style={{ fontWeight: 500 }}>
+                Button Label
+              </label>
             </div>
             <Input
               id="buttonLabel"
@@ -87,7 +97,7 @@ export default function NewCardButtonPage({ params }: NewCardButtonPageProps) {
             />
           </div>
 
-          <div style={{ marginBottom: '24px' }}>
+          <div style={{ marginBottom: "24px" }}>
             <Title level={3}>Actions</Title>
             <CardButtonSelectAction
               selectedActions={selectedActions}
@@ -95,14 +105,16 @@ export default function NewCardButtonPage({ params }: NewCardButtonPageProps) {
             />
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-            <Button onClick={handleNavigateBack}>
-              Cancel
-            </Button>
-            <Button 
-              type="primary" 
-              onClick={handleSubmit} 
-              disabled={!buttonLabel.trim() || selectedActions.length === 0 || isLoading}
+          <div
+            style={{ display: "flex", justifyContent: "flex-end", gap: "12px" }}
+          >
+            <Button onClick={handleNavigateBack}>Cancel</Button>
+            <Button
+              type="primary"
+              onClick={handleSubmit}
+              disabled={
+                !buttonLabel.trim() || selectedActions.length === 0 || isLoading
+              }
               loading={isLoading}
             >
               {isLoading ? "Creating..." : "Create Card Button"}

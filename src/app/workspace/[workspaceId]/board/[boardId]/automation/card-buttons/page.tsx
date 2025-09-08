@@ -35,39 +35,48 @@ const CardButtonsPage: React.FC = () => {
         workspaceId as string,
         boardId as string
       );
-      
+
       // Transform automation rules to card buttons format
-      const buttons: CardButton[] = (response.data || []).map((rule: AutomationRuleApiData) => {
-        // Generate human-readable description for actions
-        let actionDescriptions = "";
-        if (rule.action && Array.isArray(rule.action) && rule.action.length > 0) {
-          const actionTexts = rule.action
-            .map((action: any) => {
-              if (!action.type || !action.condition) {
-                return "";
-              }
-              return renderRulePatternHuman(action.type, action.condition);
-            })
-            .filter((text: string) => text && text.trim() !== "");
+      const buttons: CardButton[] = (response.data || []).map(
+        (rule: AutomationRuleApiData) => {
+          // Generate human-readable description for actions
+          let actionDescriptions = "";
+          if (
+            rule.action &&
+            Array.isArray(rule.action) &&
+            rule.action.length > 0
+          ) {
+            const actionTexts = rule.action
+              .map((action: any) => {
+                if (!action.type || !action.condition) {
+                  return "";
+                }
+                return renderRulePatternHuman(action.type, action.condition);
+              })
+              .filter((text: string) => text && text.trim() !== "");
 
-          actionDescriptions = actionTexts.length > 0 
-            ? actionTexts.join(", ") 
-            : `${rule.action.length} action${rule.action.length > 1 ? 's' : ''} (details unavailable)`;
+            actionDescriptions =
+              actionTexts.length > 0
+                ? actionTexts.join(", ")
+                : `${rule.action.length} action${
+                    rule.action.length > 1 ? "s" : ""
+                  } (details unavailable)`;
+          }
+
+          return {
+            id: rule.id,
+            label: rule.condition?.label || "Unnamed Button",
+            description: actionDescriptions || "No actions configured",
+            actionsCount: rule.action?.length || 0,
+            actions: rule.action || [],
+          };
         }
+      );
 
-        return {
-          id: rule.id,
-          label: rule.condition?.label || 'Unnamed Button',
-          description: actionDescriptions || 'No actions configured',
-          actionsCount: rule.action?.length || 0,
-          actions: rule.action || [],
-        };
-      });
-      
       setCardButtons(buttons);
     } catch (error) {
-      console.error('Failed to fetch card buttons:', error);
-      message.error('Failed to load card buttons');
+      console.error("Failed to fetch card buttons:", error);
+      message.error("Failed to load card buttons");
     } finally {
       setIsLoading(false);
     }
@@ -95,9 +104,7 @@ const CardButtonsPage: React.FC = () => {
             Are you sure you want to delete this card button?
           </p>
           <div className="mt-2 p-3 bg-gray-50 rounded border">
-            <Text className="text-sm text-gray-700">
-              {buttonLabel}
-            </Text>
+            <Text className="text-sm text-gray-700">{buttonLabel}</Text>
           </div>
           <p className="mt-3 text-red-600 text-sm">
             This action cannot be undone.
@@ -129,7 +136,11 @@ const CardButtonsPage: React.FC = () => {
             Create card action buttons that appear on your cards
           </Text>
         </div>
-        <Button type="primary" icon={<Plus size={16} />} onClick={handleCreateNew}>
+        <Button
+          type="primary"
+          icon={<Plus size={16} />}
+          onClick={handleCreateNew}
+        >
           Create New Card Button
         </Button>
       </div>
@@ -165,12 +176,15 @@ const CardButtonsPage: React.FC = () => {
               ]}
             >
               <Card.Meta
-                title={<span className="text-lg font-semibold">{button.label}</span>}
+                title={
+                  <span className="text-lg font-semibold">{button.label}</span>
+                }
                 description={
                   <div>
                     <div className="mb-2">
                       <Text className="text-xs text-gray-500">
-                        {button.actionsCount} action{button.actionsCount !== 1 ? 's' : ''}
+                        {button.actionsCount} action
+                        {button.actionsCount !== 1 ? "s" : ""}
                       </Text>
                     </div>
                     {button.description && (
@@ -197,13 +211,18 @@ const CardButtonsPage: React.FC = () => {
           <Text type="secondary" className="text-lg mb-6 block">
             Create your first card button to add quick actions to your cards.
           </Text>
-          <Button type="primary" size="large" icon={<Plus size={16} />} onClick={handleCreateNew}>
+          <Button
+            type="primary"
+            size="large"
+            icon={<Plus size={16} />}
+            onClick={handleCreateNew}
+          >
             Create Your First Card Button
           </Button>
         </div>
       )}
     </div>
   );
-}
+};
 
 export default CardButtonsPage;

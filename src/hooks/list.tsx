@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { lists, moveList } from "../api/list";
+import { lists, moveList, deleteList } from "../api/list";
 import { api } from "../api";
 import { AnyList } from "../types/list";
 import { ApiResponse } from "../types/type";
@@ -95,6 +95,35 @@ export function useLists(boardId: string) {
     },
   });
 
+  const deleteListMutation = useMutation({
+    mutationFn: ({ listId }: { listId: string }) => deleteList(listId, boardId),
+    onMutate: async ({ listId }) => {
+      await queryClient.cancelQueries({ queryKey: ["lists", boardId] });
+      const previousLists = queryClient.getQueryData(["lists", boardId]);
+
+      queryClient.setQueryData(
+        ["lists", boardId],
+        (old: ApiResponse<AnyList[]> | undefined) => {
+          if (!old) return { data: [] };
+          return {
+            ...old,
+            data: old.data?.filter((list) => list.id !== listId),
+          };
+        }
+      );
+
+      return { previousLists };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previousLists) {
+        queryClient.setQueryData(["lists", boardId], context.previousLists);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["lists", boardId] });
+    },
+  });
+
   return {
     lists: (listsQuery.data?.data || []).sort(
       (a, b) => (a.position || 0) - (b.position || 0)
@@ -105,8 +134,10 @@ export function useLists(boardId: string) {
     error: listsQuery.error,
     addList: addListMutation.mutate,
     updateList: updateListMutation.mutate,
+    deleteList: deleteListMutation.mutate,
     isAddingList: addListMutation.isPending,
     isUpdatingList: updateListMutation.isPending,
+    isDeletingList: deleteListMutation.isPending,
   };
 }
 

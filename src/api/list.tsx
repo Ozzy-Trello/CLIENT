@@ -51,3 +51,13 @@ export const listDetails = async (
   const { data } = await api.get(`/list/${listId}`);
   return data;
 };
+
+export const deleteList = async (
+  listId: string,
+  boardId: string
+): Promise<ApiResponse<any>> => {
+  const { data } = await api.delete(`/list/${listId}`, {
+    headers: { "board-id": boardId },
+  });
+  return data;
+};

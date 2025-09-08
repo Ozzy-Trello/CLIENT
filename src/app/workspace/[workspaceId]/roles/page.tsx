@@ -72,9 +72,16 @@ interface RolePermissions {
 const TableRoles: React.FC<{
   dataSource?: Role[];
   onEdit: (role: Role) => void;
+  onDelete: (role: Role) => void;
   canManageRoles: () => boolean;
   permissionLevel: string;
-}> = ({ dataSource = [], onEdit, canManageRoles, permissionLevel }) => {
+}> = ({
+  dataSource = [],
+  onEdit,
+  onDelete,
+  canManageRoles,
+  permissionLevel,
+}) => {
   const columns = [
     {
       title: "Role Name",
@@ -150,7 +157,11 @@ const TableRoles: React.FC<{
       render: (record: Role) => (
         <Space>
           <Tooltip
-            title={!canManageRoles() ? `Insufficient permissions (${permissionLevel} role)` : "Edit role"}
+            title={
+              !canManageRoles()
+                ? `Insufficient permissions (${permissionLevel} role)`
+                : "Edit role"
+            }
           >
             <Button
               type="text"
@@ -160,6 +171,26 @@ const TableRoles: React.FC<{
               disabled={!canManageRoles()}
             >
               Edit
+            </Button>
+          </Tooltip>
+          <Tooltip
+            title={
+              !canManageRoles()
+                ? `Insufficient permissions (${permissionLevel} role)`
+                : record.default
+                ? "Cannot delete default role"
+                : "Delete role"
+            }
+          >
+            <Button
+              type="text"
+              size="small"
+              icon={<Trash size={14} />}
+              onClick={() => onDelete(record)}
+              disabled={!canManageRoles() || record.default}
+              danger
+            >
+              Delete
             </Button>
           </Tooltip>
         </Space>
@@ -330,6 +361,48 @@ const RolesPage = () => {
       permissionLevel: role.permission?.level || "MEMBER",
     });
     setIsModalVisible(true);
+  };
+
+  const handleDelete = (role: Role) => {
+    Modal.confirm({
+      title: "Delete Role",
+      content: (
+        <div
+          style={{
+            padding: "20px 0 16px 0",
+            fontSize: "14px",
+            lineHeight: "1.5",
+          }}
+        >
+          Are you sure you want to delete the role "{role.name}"? This action
+          cannot be undone.
+        </div>
+      ),
+      styles: {
+        body: {
+          padding: "1rem",
+        },
+      },
+      okText: "Delete",
+      okType: "danger",
+      cancelText: "Cancel",
+      width: 450,
+      centered: true,
+      onOk: async () => {
+        try {
+          await api.delete(`/roles/${role.id}`);
+          message.success("Role deleted successfully");
+          // Refetch the roles list with correct query key including workspaceId
+
+          queryClient.invalidateQueries({ queryKey: ["roles"] });
+        } catch (error: any) {
+          const errorMessage =
+            error.response?.data?.message || "Failed to delete role";
+          message.error(errorMessage);
+          console.error("Error deleting role:", error);
+        }
+      },
+    });
   };
 
   const handleCreate = () => {
@@ -607,12 +680,13 @@ const RolesPage = () => {
       {isLoading ? (
         <SkeletonTable />
       ) : (
-        <TableRoles 
-                dataSource={rolesData?.data || []} 
-                onEdit={handleEdit}
-                canManageRoles={canManageRoles}
-                permissionLevel={permissionLevel || "OBSERVER"}
-              />
+        <TableRoles
+          dataSource={rolesData?.data || []}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          canManageRoles={canManageRoles}
+          permissionLevel={permissionLevel || "OBSERVER"}
+        />
       )}
 
       <Modal

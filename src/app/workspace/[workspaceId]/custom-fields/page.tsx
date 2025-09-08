@@ -259,6 +259,8 @@ const CustomFieldsPage = () => {
     },
   ];
 
+  const [pageSize, setPageSize] = useState(10);
+
   return (
     <div className="page scrollable-page">
       <div className="section-workspace">
@@ -294,7 +296,10 @@ const CustomFieldsPage = () => {
             rowKey="id"
             loading={isLoading}
             pagination={{
-              pageSize: 10,
+              pageSize,
+              onChange: (page, size) => {
+                setPageSize(size);
+              },
               showSizeChanger: true,
               showQuickJumper: true,
               showTotal: (total, range) =>

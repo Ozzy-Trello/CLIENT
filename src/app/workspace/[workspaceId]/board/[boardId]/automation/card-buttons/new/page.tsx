@@ -33,25 +33,25 @@ const NewCardButtonPage: React.FC = () => {
 
     try {
       setIsSubmitting(true);
-      
-      // Transform selected actions to API format
-      const actionsData: AutomationRuleActionApiData[] = selectedActions.map((action) => ({
-        groupType: action.groupType || "",
-        type: action.selectedActionItem?.type || "",
-        condition: action.selectedActionItem || {},
-      }));
 
-      await createCardButton(
-        workspaceId as string,
-        boardId as string,
-        {
-          label: buttonLabel.trim(),
-          actions: actionsData
-        }
+      // Transform selected actions to API format
+      const actionsData: AutomationRuleActionApiData[] = selectedActions.map(
+        (action) => ({
+          groupType: action.groupType || "",
+          type: action.selectedActionItem?.type || "",
+          condition: action.selectedActionItem || {},
+        })
       );
 
+      await createCardButton(workspaceId as string, boardId as string, {
+        label: buttonLabel.trim(),
+        actions: actionsData,
+      });
+
       message.success("Card button created successfully!");
-      router.push(`/workspace/${workspaceId}/board/${boardId}/automation/card-buttons`);
+      router.push(
+        `/workspace/${workspaceId}/board/${boardId}/automation/card-buttons`
+      );
     } catch (error) {
       console.error("Failed to create card button:", error);
       message.error("Failed to create card button. Please try again.");
@@ -61,7 +61,9 @@ const NewCardButtonPage: React.FC = () => {
   };
 
   const handleBack = () => {
-    router.push(`/workspace/${workspaceId}/board/${boardId}/automation/card-buttons`);
+    router.push(
+      `/workspace/${workspaceId}/board/${boardId}/automation/card-buttons`
+    );
   };
 
   return (
