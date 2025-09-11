@@ -11,6 +11,7 @@ body.dragging [data-rbd-droppable-id*="droppable-card-area"] *,
 body.dragging [data-rbd-draggable-id*="card-"] *,
 body.dragging [data-rbd-droppable-id*="droppable-list-area"] *,
 body.dragging [data-rbd-draggable-id*="draggable-list-"] *,
+body.dragging [data-rbd-droppable-id*="sidebar-boards"] *,
 body.dragging .custom-circular-checkbox,
 body.dragging .card-title,
 body.dragging .card-hover-effects {
@@ -18,9 +19,228 @@ body.dragging .card-hover-effects {
   animation: none !important;
 }
 
+/* Sidebar drag and drop styles */
+body.dragging [data-rbd-droppable-id="sidebar-boards"] {
+  background-color: rgba(24, 144, 255, 0.05);
+  border-radius: 8px;
+  min-height: 200px;
+  position: relative;
+}
+
+/* Drag placeholder styling */
+[data-rbd-droppable-id="sidebar-boards"] [data-rbd-placeholder-context-id] {
+  background-color: rgba(24, 144, 255, 0.1) !important;
+  border: 2px dashed rgba(24, 144, 255, 0.3) !important;
+  border-radius: 8px !important;
+  margin: 4px 8px !important;
+  transition: all 0.2s ease !important;
+}
+
+/* Enhanced drag feedback for sidebar items */
+[data-rbd-draggable-id][data-rbd-drag-handle-draggable-id] {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Dragging state for sidebar items */
+[data-rbd-draggable-id][data-rbd-drag-handle-draggable-id][style*="transform"] {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  border: 2px solid rgba(24, 144, 255, 0.3) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15) !important;
+  z-index: 1000 !important;
+}
+
+/* Smooth drop animation */
+[data-rbd-draggable-id]:not([style*="transform"]) {
+  transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1) !important;
+}
+
+/* Board page drag and drop styles */
+/* Enhanced visual feedback for card drags (vertical) */
+body.dragging [data-rbd-droppable-id*="droppable-card-area"] {
+  background-color: rgba(24, 144, 255, 0.03);
+  border-radius: 8px;
+  min-height: 100px;
+  position: relative;
+}
+
+/* Card drag placeholder styling */
+[data-rbd-droppable-id*="droppable-card-area"] [data-rbd-placeholder-context-id],
+[data-rbd-droppable-id*="droppable-card-area"] .react-beautiful-dnd-placeholder {
+  background-color: rgba(24, 144, 255, 0.08) !important;
+  border: 2px dashed rgba(24, 144, 255, 0.25) !important;
+  border-radius: 8px !important;
+  margin: 8px 0 !important;
+  transition: all 0.2s ease !important;
+  min-height: 60px !important;
+}
+
+/* More specific placeholder targeting for cards */
+[data-rbd-droppable-id*="droppable-card-area"] > div > [data-rbd-placeholder-context-id] {
+  background-color: rgba(24, 144, 255, 0.12) !important;
+  border: 2px dashed rgba(24, 144, 255, 0.4) !important;
+  border-radius: 8px !important;
+  margin: 8px 0 !important;
+  min-height: 80px !important;
+  display: block !important;
+  visibility: visible !important;
+}
+
+/* Enhanced visual feedback for list drags (horizontal) */
+body.dragging [data-rbd-droppable-id*="droppable-list-area"] {
+  background-color: rgba(24, 144, 255, 0.03);
+  border-radius: 12px;
+  min-height: 200px;
+  position: relative;
+}
+
+/* List drag placeholder styling */
+[data-rbd-droppable-id*="droppable-list-area"] [data-rbd-placeholder-context-id],
+[data-rbd-droppable-id*="droppable-list-area"] .react-beautiful-dnd-placeholder {
+  background-color: rgba(24, 144, 255, 0.08) !important;
+  border: 2px dashed rgba(24, 144, 255, 0.25) !important;
+  border-radius: 12px !important;
+  margin: 0 8px !important;
+  min-width: 280px !important;
+  min-height: 400px !important;
+  display: block !important;
+  visibility: visible !important;
+  transition: all 0.2s ease !important;
+  min-width: 280px !important;
+  min-height: 200px !important;
+}
+
+/* Dragging state for cards */
+[data-rbd-draggable-id*="card-"][style*="transform"] {
+  background-color: rgba(255, 255, 255, 0.98) !important;
+  border: 2px solid rgba(24, 144, 255, 0.4) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15) !important;
+  z-index: 1000 !important;
+  transform-origin: center !important;
+}
+
+/* Dragging state for lists */
+[data-rbd-draggable-id*="draggable-list-"][style*="transform"] {
+  background-color: rgba(255, 255, 255, 0.98) !important;
+  border: 2px solid rgba(24, 144, 255, 0.4) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2) !important;
+  z-index: 1000 !important;
+  transform-origin: center !important;
+}
+
+/* Smooth drop animation for cards and lists */
+[data-rbd-draggable-id*="card-"]:not([style*="transform"]),
+[data-rbd-draggable-id*="draggable-list-"]:not([style*="transform"]) {
+  transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1) !important;
+}
+
 /* Simple touch-action fix for tablets - let DnD library handle everything else */
 @media (pointer: coarse) {
   .board-scroll-container {
     touch-action: pan-x pan-y;
+  }
+}
+
+/* React Beautiful DND Placeholder Enhancement */
+/* Target the actual placeholder div that react-beautiful-dnd creates */
+[data-rbd-droppable-id] [data-rbd-placeholder-context-id] {
+  background-color: rgba(24, 144, 255, 0.1) !important;
+  border: 2px dashed rgba(24, 144, 255, 0.3) !important;
+  border-radius: 8px !important;
+  margin: 8px 0 !important;
+  transition: all 0.2s ease !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: block !important;
+  height: auto !important;
+  min-height: 60px !important;
+}
+
+/* Ensure placeholder takes up space during drag */
+body.dragging [data-rbd-droppable-id] [data-rbd-placeholder-context-id] {
+  background-color: rgba(24, 144, 255, 0.15) !important;
+  border: 2px dashed rgba(24, 144, 255, 0.5) !important;
+  box-shadow: inset 0 0 10px rgba(24, 144, 255, 0.1) !important;
+}
+
+/* Card-specific placeholder styling */
+[data-rbd-droppable-id*="droppable-card-area"] [data-rbd-placeholder-context-id] {
+  min-height: 80px !important;
+  margin: 12px 0 !important;
+}
+
+/* List-specific placeholder styling */
+[data-rbd-droppable-id*="droppable-list-area"] [data-rbd-placeholder-context-id] {
+  min-width: 280px !important;
+  min-height: 400px !important;
+  margin: 0 12px !important;
+  border-radius: 12px !important;
+}
+
+/* Enhanced dragging card visual feedback */
+[data-rbd-draggable-id][data-rbd-drag-handle-draggable-id] {
+  transform-origin: center !important;
+}
+
+/* Card being dragged */
+body.dragging [data-rbd-draggable-id][style*="transform"] {
+  transform: rotate(3deg) scale(1.02) !important;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15) !important;
+  z-index: 1000 !important;
+  opacity: 0.95 !important;
+  border: 2px solid rgba(24, 144, 255, 0.3) !important;
+  border-radius: 8px !important;
+}
+
+/* Ensure space is maintained for other cards during drag */
+body.dragging .draggable-card-container:not([style*="transform"]) {
+  transition: transform 0.2s ease, margin 0.2s ease !important;
+}
+
+/* Override space-y-3 for drag placeholders */
+.space-y-3 > [data-rbd-placeholder-context-id] {
+  margin-top: 12px !important;
+  margin-bottom: 12px !important;
+}
+
+/* Make sure the space-y-3 gap is maintained during drag */
+body.dragging .space-y-3 > *:not([data-rbd-placeholder-context-id]) {
+  margin-bottom: 12px !important;
+}
+
+/* Ensure placeholder is always visible and takes space */
+[data-rbd-placeholder-context-id] {
+  pointer-events: none !important;
+  position: relative !important;
+  z-index: 1 !important;
+  display: block !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* Force placeholder visibility during drag operations */
+body.dragging [data-rbd-placeholder-context-id] {
+  opacity: 1 !important;
+  visibility: visible !important;
+  height: auto !important;
+  min-height: 80px !important;
+  background-color: rgba(24, 144, 255, 0.12) !important;
+  border: 2px dashed rgba(24, 144, 255, 0.4) !important;
+  border-radius: 8px !important;
+  margin: 12px 0 !important;
+  animation: placeholder-pulse 1.5s ease-in-out infinite alternate !important;
+}
+
+/* Placeholder pulse animation */
+@keyframes placeholder-pulse {
+  0% {
+    background-color: rgba(24, 144, 255, 0.08);
+    border-color: rgba(24, 144, 255, 0.3);
+  }
+  100% {
+    background-color: rgba(24, 144, 255, 0.15);
+    border-color: rgba(24, 144, 255, 0.5);
   }
 }

@@ -109,3 +109,87 @@ li:has(.menu-group-title):hover {
   background-color: transparent !important;
   cursor: pointer !important;
 }
+
+/* Drag and Drop Styles for Sidebar */
+.sidebar-draggable-boards {
+  padding: 8px 0;
+}
+
+.sidebar-board-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 16px;
+  margin: 2px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: transparent;
+  border: 1px solid transparent;
+}
+
+.sidebar-board-item:hover {
+  background-color: rgba(24, 144, 255, 0.08);
+  border-color: rgba(24, 144, 255, 0.2);
+}
+
+.sidebar-board-item.selected {
+  background-color: rgba(24, 144, 255, 0.1);
+  border-color: rgba(24, 144, 255, 0.3);
+  border-left: 3px solid #1890ff;
+}
+
+.sidebar-board-item.dragging {
+  transform: rotate(2deg);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  background-color: rgba(24, 144, 255, 0.1);
+  border-color: #1890ff;
+  z-index: 1000;
+}
+
+.sidebar-board-item .board-icon {
+  margin-right: 8px;
+  font-size: 16px;
+  color: #666;
+}
+
+.sidebar-board-item .board-title {
+  flex: 1;
+  font-size: 14px;
+  color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-board-item.dragging .board-title {
+  color: #1890ff;
+  font-weight: 500;
+}
+
+/* Drag handle */
+.sidebar-drag-handle {
+  cursor: grab;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  color: #999;
+  margin-right: 4px;
+}
+
+.sidebar-board-item:hover .sidebar-drag-handle {
+  opacity: 1;
+}
+
+.sidebar-drag-handle:active {
+  cursor: grabbing;
+}
+
+/* Droppable area */
+.sidebar-boards-droppable {
+  min-height: 40px;
+  transition: background-color 0.2s ease;
+}
+
+.sidebar-boards-droppable.drag-over {
+  background-color: rgba(24, 144, 255, 0.05);
+  border-radius: 8px;
+}

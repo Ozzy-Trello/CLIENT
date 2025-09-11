@@ -27,6 +27,14 @@ import {
   Shield,
   Settings,
 } from "lucide-react";
+import { Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
+import dynamic from "next/dynamic";
+
+// Dynamically import DragDropContext to avoid SSR issues
+const DragDropContext = dynamic(
+  () => import("@hello-pangea/dnd").then((mod) => mod.DragDropContext),
+  { ssr: false }
+);
 import ModalCreateBoard from "../modal-create-board";
 import { useDispatch } from "react-redux";
 import { MenuProps } from "antd";
@@ -41,6 +49,7 @@ import { useBoards } from "@hooks/board";
 import { useParams, useRouter } from "next/navigation";
 import { Board } from "@myTypes/board";
 import { usePermissions, useCurrentAccount } from "@hooks/account";
+import { useUserBoardOrder } from "@hooks/user-board-order";
 
 // Role categorization utility
 const getRoleCategory = (
@@ -86,6 +95,18 @@ const Sidebar = () => {
     Array.isArray(workspaceId) ? workspaceId[0] : workspaceId || ""
   );
   const { canCreate } = usePermissions();
+
+  // Get workspace ID as string for user board order
+  const workspaceIdStr = Array.isArray(workspaceId)
+    ? workspaceId[0]
+    : workspaceId;
+
+  // Use user board order hook for drag-and-drop functionality
+  const { getSortedBoards, handleBoardReorder, isSettingOrder } =
+    useUserBoardOrder(workspaceIdStr || "");
+
+  // Get sorted boards based on user preferences
+  const sortedBoards = getSortedBoards(boards || []);
 
   // Get current user and check if they are Super Admin
   const { data: currentAccountData, isLoading: isLoadingAccount } =
@@ -199,7 +220,7 @@ const Sidebar = () => {
     const currentWorkspaceId = Array.isArray(workspaceId)
       ? workspaceId[0]
       : workspaceId || null;
-    const currentBoardsLength = boards?.length || 0;
+    const currentBoardsLength = sortedBoards?.length || 0;
 
     if (
       currentWorkspaceId === prevWorkspaceIdRef.current &&
@@ -263,59 +284,8 @@ const Sidebar = () => {
           });
         }
 
-        // Add board items if we have any
-        if (boards?.length > 0 && workspaceId) {
-          boards.forEach((board) => {
-            fullMenus.push({
-              key: `menu-board-${board.id}`,
-              label: (
-                <TouchAwareTooltip title={board.name}>
-                  <Typography.Text
-                    style={{ fontSize: "14px" }}
-                    className="block w-full text-left"
-                  >
-                    {board.name}
-                  </Typography.Text>
-                </TouchAwareTooltip>
-              ),
-              icon: (
-                <div
-                  style={{
-                    width: "32px",
-                    height: "32px",
-                    borderRadius: "4px",
-                    overflow: "hidden",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    backgroundColor: board?.background?.startsWith("http")
-                      ? `rgb(${colors.muted})`
-                      : board?.background || `rgb(${colors.muted})`,
-                    backgroundImage:
-                      board?.cover || board?.background?.startsWith("http")
-                        ? `url('${board.cover || board.background}')`
-                        : "none",
-                    backgroundSize: "cover",
-                    backgroundPosition: "center",
-                    backgroundRepeat: "no-repeat",
-                  }}
-                >
-                  {!board?.cover && !board?.background?.startsWith("http") && (
-                    <span
-                      style={{
-                        color: `rgb(${colors.text})`,
-                        fontSize: "16px",
-                        fontWeight: "bold",
-                      }}
-                    >
-                      {board?.name?.charAt(0)?.toUpperCase()}
-                    </span>
-                  )}
-                </div>
-              ),
-            });
-          });
-        }
+        // Note: Board items will be rendered separately with drag-and-drop functionality
+        // Static menu items only include base navigation
 
         // Only update state if values have actually changed
         setAllMenus((prevMenus) => {
@@ -342,7 +312,7 @@ const Sidebar = () => {
     baseMenus,
     collapsed,
     workspaceId,
-    boards,
+    sortedBoards,
     canCreateBoard,
     handleOpenBoardModal,
     isLoadingAccount,
@@ -357,6 +327,39 @@ const Sidebar = () => {
       return [`/workspace/${workspaceId}/board`];
     }
   }, [boardId, workspaceId]);
+
+  // Handle drag start for visual feedback
+  const onDragStart = useCallback(() => {
+    document.body.classList.add("dragging");
+  }, []);
+
+  // Handle drag update for visual feedback
+  const onDragUpdate = useCallback(() => {
+    // Add any additional visual feedback during drag if needed
+  }, []);
+
+  // Handle drag end for board reordering
+  const onDragEnd = useCallback(
+    (result: DropResult) => {
+      // Clean up drag state
+      document.body.classList.remove("dragging");
+
+      if (!result.destination) {
+        return;
+      }
+
+      const sourceIndex = result.source.index;
+      const destinationIndex = result.destination.index;
+
+      if (sourceIndex === destinationIndex) {
+        return;
+      }
+
+      // Use the sorted boards and pass them to handleBoardReorder
+      handleBoardReorder(sortedBoards, sourceIndex, destinationIndex);
+    },
+    [handleBoardReorder, sortedBoards]
+  );
 
   // Render the sidebar
   return (
@@ -448,21 +451,131 @@ const Sidebar = () => {
                 </div>
               </div>
 
+              {/* Static menu items (non-draggable) */}
               <Menu
                 mode="inline"
                 defaultSelectedKeys={["1"]}
                 style={{ borderRight: 0, fontSize: "12px" }}
                 items={allMenus}
-                onClick={(e) => {
-                  const selectedBoard = boards?.find(
-                    (board) => `menu-board-${board.id}` === e.key
-                  );
-                  if (selectedBoard) {
-                    handleSelectBoardItem(selectedBoard);
-                  }
-                }}
                 className="[&_.ant-menu-item]:my-1 [&_.ant-menu-item-icon]:flex [&_.ant-menu-item-icon]:items-center text-[10px]"
               />
+
+              {/* Draggable board items */}
+              {sortedBoards?.length > 0 && (
+                <DragDropContext
+                  onDragStart={onDragStart}
+                  onDragUpdate={onDragUpdate}
+                  onDragEnd={onDragEnd}
+                >
+                  <Droppable droppableId="sidebar-boards">
+                    {(provided, snapshot) => (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.droppableProps}
+                        style={{ marginTop: "8px" }}
+                      >
+                        {sortedBoards.map((board, index) => (
+                          <Draggable
+                            key={board.id}
+                            draggableId={board.id.toString()}
+                            index={index}
+                          >
+                            {(provided, snapshot) => (
+                              <div
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                {...provided.dragHandleProps}
+                                className={`flex items-center p-2 mx-2 my-1 rounded cursor-pointer transition-colors ${
+                                  boardId === board.id.toString()
+                                    ? "bg-blue-100 dark:bg-white-500 border-l-4 border-blue-500"
+                                    : "hover:bg-gray-100"
+                                }`}
+                                style={{
+                                  ...provided.draggableProps.style,
+                                }}
+                                onClick={() =>
+                                  router.push(
+                                    `/workspace/${workspaceId}/board/${board.id}`
+                                  )
+                                }
+                              >
+                                {/* Drag handle indicator */}
+                                <div className="opacity-30 hover:opacity-60 transition-opacity mr-2">
+                                  <svg
+                                    width="12"
+                                    height="12"
+                                    viewBox="0 0 12 12"
+                                    fill="currentColor"
+                                  >
+                                    <circle cx="2" cy="2" r="1" />
+                                    <circle cx="6" cy="2" r="1" />
+                                    <circle cx="10" cy="2" r="1" />
+                                    <circle cx="2" cy="6" r="1" />
+                                    <circle cx="6" cy="6" r="1" />
+                                    <circle cx="10" cy="6" r="1" />
+                                    <circle cx="2" cy="10" r="1" />
+                                    <circle cx="6" cy="10" r="1" />
+                                    <circle cx="10" cy="10" r="1" />
+                                  </svg>
+                                </div>
+                                <div
+                                  style={{
+                                    width: "32px",
+                                    height: "32px",
+                                    borderRadius: "6px",
+                                    overflow: "hidden",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    backgroundColor:
+                                      board?.background?.startsWith("http")
+                                        ? `rgb(${colors.muted})`
+                                        : board?.background ||
+                                          `rgb(${colors.muted})`,
+                                    backgroundImage:
+                                      board?.cover ||
+                                      board?.background?.startsWith("http")
+                                        ? `url('${
+                                            board.cover || board.background
+                                          }')`
+                                        : "none",
+                                    backgroundSize: "cover",
+                                    backgroundPosition: "center",
+                                    backgroundRepeat: "no-repeat",
+                                    marginRight: "12px",
+                                  }}
+                                >
+                                  {!board?.cover &&
+                                    !board?.background?.startsWith("http") && (
+                                      <span
+                                        style={{
+                                          color: `rgb(${colors.text})`,
+                                          fontSize: "16px",
+                                          fontWeight: "bold",
+                                        }}
+                                      >
+                                        {board?.name?.charAt(0)?.toUpperCase()}
+                                      </span>
+                                    )}
+                                </div>
+                                <TouchAwareTooltip title={board.name}>
+                                  <Typography.Text
+                                    style={{ fontSize: "14px" }}
+                                    className="block w-full text-left truncate"
+                                  >
+                                    {board.name}
+                                  </Typography.Text>
+                                </TouchAwareTooltip>
+                              </div>
+                            )}
+                          </Draggable>
+                        ))}
+                        {provided.placeholder}
+                      </div>
+                    )}
+                  </Droppable>
+                </DragDropContext>
+              )}
 
               {isFetching &&
                 [1, 2, 3].map((item) => (

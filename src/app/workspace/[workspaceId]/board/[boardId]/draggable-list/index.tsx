@@ -19,12 +19,7 @@ interface DraggableListProps {
     { listId: string; updates: Partial<AnyList> },
     unknown
   >;
-  deleteList: UseMutateFunction<
-    any,
-    Error,
-    { listId: string },
-    unknown
-  >;
+  deleteList: UseMutateFunction<any, Error, { listId: string }, unknown>;
 }
 
 const DraggableList: React.FC<DraggableListProps> = ({
@@ -34,7 +29,18 @@ const DraggableList: React.FC<DraggableListProps> = ({
   updateList,
   deleteList,
 }) => {
-  const { cards, addCard, isLoading, isError, hasMoreCards, isLoadingMore, loadMoreCards, loadMoreError, retryLoadMore, totalCards } = useCardsPaginated(list.id, boardId);
+  const {
+    cards,
+    addCard,
+    isLoading,
+    isError,
+    hasMoreCards,
+    isLoadingMore,
+    loadMoreCards,
+    loadMoreError,
+    retryLoadMore,
+    totalCards,
+  } = useCardsPaginated(list.id, boardId);
   const { canMove, canCreate } = usePermissions();
   const { canMoveList, canCreateCard } = useBoardPermissionsContext();
 
@@ -69,6 +75,8 @@ const DraggableList: React.FC<DraggableListProps> = ({
             rounded-xl 
             border 
             border-gray-200 
+            transition-all 
+            duration-200 
             shadow-sm 
             hover:shadow-md 
             w-[270px] 
@@ -90,6 +98,28 @@ const DraggableList: React.FC<DraggableListProps> = ({
                 : undefined
             }
           >
+            {/* Drag handle indicator for lists */}
+            {canMoveListPermission && (
+              <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-60 transition-opacity duration-200 pointer-events-none z-10">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 14 14"
+                  className="text-gray-400"
+                >
+                  <circle cx="2" cy="2" r="1" fill="currentColor" />
+                  <circle cx="7" cy="2" r="1" fill="currentColor" />
+                  <circle cx="12" cy="2" r="1" fill="currentColor" />
+                  <circle cx="2" cy="7" r="1" fill="currentColor" />
+                  <circle cx="7" cy="7" r="1" fill="currentColor" />
+                  <circle cx="12" cy="7" r="1" fill="currentColor" />
+                  <circle cx="2" cy="12" r="1" fill="currentColor" />
+                  <circle cx="7" cy="12" r="1" fill="currentColor" />
+                  <circle cx="12" cy="12" r="1" fill="currentColor" />
+                </svg>
+              </div>
+            )}
+
             <ListName
               list={list}
               boardId={boardId}
@@ -126,19 +156,23 @@ const DraggableList: React.FC<DraggableListProps> = ({
                       />
                     ))}
                     {provided.placeholder}
-                    
+
                     {/* Load More Button */}
-                    {!isLoading && cards.length > 0 && (hasMoreCards || loadMoreError) && (
-                      <div className="flex flex-col items-center py-2 space-y-2">
-                        {loadMoreError && (
-                          <div className="text-xs text-red-500 text-center px-2">
-                            {loadMoreError}
-                          </div>
-                        )}
-                        <button
-                          onClick={loadMoreError ? retryLoadMore : loadMoreCards}
-                          disabled={isLoadingMore}
-                          className="
+                    {!isLoading &&
+                      cards.length > 0 &&
+                      (hasMoreCards || loadMoreError) && (
+                        <div className="flex flex-col items-center py-2 space-y-2">
+                          {loadMoreError && (
+                            <div className="text-xs text-red-500 text-center px-2">
+                              {loadMoreError}
+                            </div>
+                          )}
+                          <button
+                            onClick={
+                              loadMoreError ? retryLoadMore : loadMoreCards
+                            }
+                            disabled={isLoadingMore}
+                            className="
                             px-4 py-2 
                             text-sm 
                             text-gray-600 
@@ -155,20 +189,20 @@ const DraggableList: React.FC<DraggableListProps> = ({
                             items-center 
                             gap-2
                           "
-                        >
-                          {isLoadingMore ? (
-                            <>
-                              <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
-                              Loading...
-                            </>
-                          ) : loadMoreError ? (
-                            'Retry'
-                          ) : (
-                            'Load More'
-                          )}
-                        </button>
-                      </div>
-                    )}
+                          >
+                            {isLoadingMore ? (
+                              <>
+                                <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+                                Loading...
+                              </>
+                            ) : loadMoreError ? (
+                              "Retry"
+                            ) : (
+                              "Load More"
+                            )}
+                          </button>
+                        </div>
+                      )}
                   </div>
                 </div>
               )}

@@ -89,9 +89,9 @@ const DraggableCard: React.FC<DraggableCardProps> = ({ card, index, list }) => {
         <CardContextMenu card={card} list={list}>
           <div
             className={`bg-white rounded-lg border border-gray-200 
-              w-full draggable-card-container relative
-            hover:border-blue-500 overflow-hidden
-            ${snapshot.isDragging ? "shadow-lg" : ""}
+              w-full draggable-card-container relative group
+            hover:border-blue-500 overflow-hidden transition-all duration-200
+            ${snapshot.isDragging ? "" : ""}
             ${canMoveCard ? "cursor-move" : "cursor-default"}
             ${shouldBlur ? "opacity-30 blur-sm" : ""}
             ${isCardFocused(card.id) ? "ring-2 ring-blue-500 shadow-lg" : ""}
@@ -99,6 +99,9 @@ const DraggableCard: React.FC<DraggableCardProps> = ({ card, index, list }) => {
             ref={provided.innerRef}
             {...provided.dragHandleProps}
             {...provided.draggableProps}
+            style={{
+              ...provided.draggableProps.style,
+            }}
             onClick={handleClick}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
@@ -123,6 +126,28 @@ const DraggableCard: React.FC<DraggableCardProps> = ({ card, index, list }) => {
                 onCompletionChange={onChange}
                 isDragging={snapshot.isDragging}
               />
+            )}
+
+            {/* Drag handle indicator */}
+            {canMoveCard && (
+              <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-60 transition-opacity duration-200 pointer-events-none">
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 12 12"
+                  className="text-gray-400"
+                >
+                  <circle cx="2" cy="2" r="1" fill="currentColor" />
+                  <circle cx="6" cy="2" r="1" fill="currentColor" />
+                  <circle cx="10" cy="2" r="1" fill="currentColor" />
+                  <circle cx="2" cy="6" r="1" fill="currentColor" />
+                  <circle cx="6" cy="6" r="1" fill="currentColor" />
+                  <circle cx="10" cy="6" r="1" fill="currentColor" />
+                  <circle cx="2" cy="10" r="1" fill="currentColor" />
+                  <circle cx="6" cy="10" r="1" fill="currentColor" />
+                  <circle cx="10" cy="10" r="1" fill="currentColor" />
+                </svg>
+              </div>
             )}
 
             {/* More options button - visible on all devices */}
