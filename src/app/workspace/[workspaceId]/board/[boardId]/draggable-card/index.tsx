@@ -31,8 +31,6 @@ const DraggableCard: React.FC<DraggableCardProps> = ({ card, index, list }) => {
     boardId as string
   );
 
-
-
   const onChange = (e: CheckboxChangeEvent, card: Card) => {
     e.stopPropagation();
     const isComplete = e.target.checked;
@@ -51,7 +49,10 @@ const DraggableCard: React.FC<DraggableCardProps> = ({ card, index, list }) => {
 
   const handleClick = (e: React.MouseEvent) => {
     if (e.target instanceof HTMLElement) {
-      if (e.target.className.includes("checkbox") || e.target.closest(".more-options-btn")) {
+      if (
+        e.target.className.includes("checkbox") ||
+        e.target.closest(".more-options-btn")
+      ) {
         return;
       }
     }
@@ -62,13 +63,13 @@ const DraggableCard: React.FC<DraggableCardProps> = ({ card, index, list }) => {
   const handleMoreOptions = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     setFocusedCardId(card.id);
-    
+
     // Dispatch a synthetic contextmenu event on the card container
-    const cardContainer = e.currentTarget.closest('.draggable-card-container');
+    const cardContainer = e.currentTarget.closest(".draggable-card-container");
     if (cardContainer) {
-      const syntheticEvent = new MouseEvent('contextmenu', {
+      const syntheticEvent = new MouseEvent("contextmenu", {
         bubbles: true,
         cancelable: true,
         clientX: e.clientX,
@@ -85,10 +86,7 @@ const DraggableCard: React.FC<DraggableCardProps> = ({ card, index, list }) => {
       isDragDisabled={!canMoveCard}
     >
       {(provided, snapshot) => (
-        <CardContextMenu
-          card={card}
-          list={list}
-        >
+        <CardContextMenu card={card} list={list}>
           <div
             className={`bg-white rounded-lg border border-gray-200 
               w-full draggable-card-container relative
@@ -126,7 +124,7 @@ const DraggableCard: React.FC<DraggableCardProps> = ({ card, index, list }) => {
                 isDragging={snapshot.isDragging}
               />
             )}
-            
+
             {/* More options button - visible on all devices */}
             <button
               className="more-options-btn"

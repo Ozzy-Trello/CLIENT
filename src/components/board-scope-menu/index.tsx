@@ -99,7 +99,6 @@ const BoardScopeMenu: React.FC<BoardMenuSidebarProps> = ({
     canManageBoardCustomFields,
     canManageBoardLabels,
     canViewArchivedItems,
-    permissionLevel,
     isObserver
   } = usePermissions();
 

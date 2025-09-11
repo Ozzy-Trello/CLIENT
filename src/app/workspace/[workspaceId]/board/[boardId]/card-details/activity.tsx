@@ -11,6 +11,7 @@ import { Card, CardActivity, EnumCardActivityType } from "@myTypes/card";
 import { User } from "@myTypes/user";
 import { useCardActivity } from "@hooks/card_activity";
 import CardAttachmentImageListModal from "@components/modal-list-card-attachment-images";
+import { useBoardPermissionsContext } from "@providers/board-permissions-context";
 
 interface ActivitySectionProps {
   card: Card;
@@ -49,8 +50,13 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
     username: string;
   } | null>(null);
 
+  // Get board permissions
+  const { canCommentOnCard } = useBoardPermissionsContext();
+
   const enableEditComment = (): void => {
-    setIsEditingComment(true);
+    if (canCommentOnCard()) {
+      setIsEditingComment(true);
+    }
   };
 
   const disableEditComment = (): void => {
@@ -320,10 +326,15 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
             </div>
           ) : (
             <Input
-              placeholder="Write a comment..."
+              placeholder={canCommentOnCard() ? "Write a comment..." : "You don't have permission to comment"}
               onClick={enableEditComment}
               readOnly={true}
-              className="text-sm cursor-pointer rounded-full px-4 bg-gray-50 hover:bg-white border border-gray-200 hover:border-gray-300 transition-all"
+              disabled={!canCommentOnCard()}
+              className={`text-sm rounded-full px-4 border border-gray-200 transition-all ${
+                canCommentOnCard() 
+                  ? "cursor-pointer bg-gray-50 hover:bg-white hover:border-gray-300" 
+                  : "cursor-not-allowed bg-gray-100 opacity-60"
+              }`}
               prefix={<MessageOutlined className="text-gray-400" />}
             />
           )}

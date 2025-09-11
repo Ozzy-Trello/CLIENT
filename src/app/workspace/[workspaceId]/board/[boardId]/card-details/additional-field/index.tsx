@@ -82,6 +82,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useSelector } from "react-redux";
 import { selectTheme, selectIsDarkMode } from "@store/app_slice";
 import { useRealtimeUpdates } from "@hooks/websocket";
+import { useBoardPermissionsContext } from "@providers/board-permissions-context";
 
 // Product categories definition - following legacy tabNames structure
 const productCategories = [
@@ -272,6 +273,9 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
 
   // WebSocket for real-time updates
   const { socket, isConnected } = useRealtimeUpdates();
+
+  // Board permissions
+  const { canManageCardCustomFields } = useBoardPermissionsContext();
 
   // Debug WebSocket connection status
   useEffect(() => {
@@ -818,7 +822,8 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
                 </span>
                 <button
                   onClick={() => handleButuhBahanChange(po.id, !po.butuhBahan)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                  disabled={!canManageCardCustomFields()}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${
                     po.butuhBahan ? "bg-blue-600" : "bg-gray-200"
                   }`}
                 >
@@ -837,7 +842,8 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
                 <div className="mb-6">
                   <button
                     onClick={() => handleOpenScanner(po.id)}
-                    className="mb-2 px-3 py-1 rounded border border-gray-200 bg-green-600 text-white text-xs font-medium hover:bg-green-700"
+                    disabled={!canManageCardCustomFields()}
+                    className="mb-2 px-3 py-1 rounded border border-gray-200 bg-green-600 text-white text-xs font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-green-600"
                   >
                     Scan Bahan
                   </button>
@@ -855,6 +861,7 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
                   debouncedSave={debouncedSave}
                   openSizesModal={openSizesModal}
                   closeSizesModal={closeSizesModal}
+                  canEdit={canManageCardCustomFields()}
                 />
               </div>
             )}
@@ -1040,6 +1047,7 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
                             openSizesModal={openSizesModal}
                             closeSizesModal={closeSizesModal}
                             bahanItem={bahanItem}
+                            canEdit={canManageCardCustomFields()}
                           />
                         </div>
                       ),
@@ -1106,6 +1114,7 @@ const ProductDropdown: React.FC<{
   debouncedSave: () => void;
   openSizesModal: (categoryKey: string, fieldKey: string) => void;
   closeSizesModal: () => void;
+  canEdit: boolean;
 }> = ({
   poId,
   poData,
@@ -1113,6 +1122,7 @@ const ProductDropdown: React.FC<{
   debouncedSave,
   openSizesModal,
   closeSizesModal,
+  canEdit,
 }) => {
   const [selectedProductId, setSelectedProductId] = useState<string>("");
   const { updatePOData } = useAdditionalFieldsStore();
@@ -1182,8 +1192,8 @@ const ProductDropdown: React.FC<{
         <select
           value={selectedProductId}
           onChange={(e) => handleProductSelect(e.target.value)}
-          className="w-64 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          disabled={isLoadingProducts}
+          className="w-64 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={isLoadingProducts || !canEdit}
         >
           <option value="">
             {isLoadingProducts ? "Loading products..." : "Select a product"}
@@ -1208,6 +1218,7 @@ const ProductCategoriesTabs: React.FC<{
   debouncedSave: () => void;
   openSizesModal: (categoryKey: string, fieldKey: string) => void;
   closeSizesModal: () => void;
+  canEdit: boolean;
 }> = ({
   poId,
   poData,
@@ -1216,6 +1227,7 @@ const ProductCategoriesTabs: React.FC<{
   debouncedSave,
   openSizesModal,
   closeSizesModal,
+  canEdit,
 }) => {
   const [activeTab, setActiveTab] = useState<string>("polo");
   const [sizeBreakdownModal, setSizeBreakdownModal] =
@@ -1653,12 +1665,14 @@ const ProductCategoriesTabs: React.FC<{
                     className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm ${
                       canBreakdown ? "pr-10" : ""
                     } ${
-                      isEditable
+                      isEditable && canEdit
                         ? "bg-white text-gray-900"
                         : "bg-gray-50 text-gray-500 cursor-not-allowed"
+                    } ${
+                      !canEdit ? "disabled:opacity-50 disabled:cursor-not-allowed" : ""
                     }`}
-                    disabled={!isEditable}
-                    readOnly={!isEditable}
+                    disabled={!isEditable || !canEdit}
+                    readOnly={!isEditable || !canEdit}
                   />
                   {canBreakdown && (
                     <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-2">
@@ -1676,17 +1690,20 @@ const ProductCategoriesTabs: React.FC<{
                       <button
                         type="button"
                         onClick={() =>
-                          handleSizeBreakdown(category.key, field.key)
+                          canEdit ? handleSizeBreakdown(category.key, field.key) : undefined
                         }
+                        disabled={!canEdit}
                         className={`p-1 transition-colors ${
                           getFieldValue(
                             category.key,
                             field.key,
                             field.isTotal
-                          ) > 0
+                          ) > 0 && canEdit
                             ? "text-blue-600"
                             : "text-gray-500"
-                        } hover:text-blue-600`}
+                        } ${
+                          canEdit ? "hover:text-blue-600" : "cursor-not-allowed opacity-50"
+                        }`}
                         title={
                           getFieldValue(
                             category.key,

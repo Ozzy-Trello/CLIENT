@@ -44,6 +44,7 @@ import { useLabels } from "@hooks/label";
 import Dashcard from "./dashcard";
 import { useCardDetails } from "@hooks/card-details";
 import { LookupCache } from "@utils/lookup-cache";
+import { useBoardPermissionsContext } from "@providers/board-permissions-context";
 
 const CardDetails: React.FC = (props) => {
   const params = useParams();
@@ -89,8 +90,14 @@ const CardDetails: React.FC = (props) => {
     boardId as string
   );
 
+  // Get board permissions
+  const { canUpdateCard } = useBoardPermissionsContext();
+
   const onCompletionChange = (e: CheckboxChangeEvent) => {
     e.stopPropagation();
+    if (!canUpdateCard()) {
+      return;
+    }
     const isComplete = e.target.checked;
     if (isComplete) {
       completeCard({
@@ -135,6 +142,9 @@ const CardDetails: React.FC = (props) => {
   };
 
   const onListChange = (value: string, option: object) => {
+    if (!canUpdateCard()) {
+      return;
+    }
     if (selectedCard) {
       const result = updateCard({
         cardId: selectedCard?.id,
@@ -148,7 +158,17 @@ const CardDetails: React.FC = (props) => {
   };
 
   const onUserSelectionChange = (value: string, option: object) => {
+    if (!canUpdateCard()) {
+      return;
+    }
     addMember(value);
+  };
+
+  const handleRemoveMember = (memberId: string) => {
+    if (!canUpdateCard()) {
+      return;
+    }
+    removeMember(memberId);
   };
 
   useEffect(() => {
@@ -214,8 +234,11 @@ const CardDetails: React.FC = (props) => {
               <div className="flex items-center gap-2 mb-4">
                 <Checkbox
                   className={`custom-circular-checkbox absolute left-0 -ml-6 transition-all duration-300 
-                    ${selectedCard?.isComplete ? "completed" : ""}`}
+                    ${selectedCard?.isComplete ? "completed" : ""} ${
+                    !canUpdateCard() ? "opacity-50 cursor-not-allowed" : ""
+                  }`}
                   checked={selectedCard?.isComplete}
+                  disabled={!canUpdateCard()}
                   onChange={(e) => {
                     onCompletionChange(e);
                   }}
@@ -239,10 +262,16 @@ const CardDetails: React.FC = (props) => {
                   />
                 ) : (
                   <h1
-                    className="text-5xl font-bold mb-0 ml-2 cursor-pointer hover:bg-gray-50 px-2 py-1 rounded-md"
+                    className={`text-5xl font-bold mb-0 ml-2 px-2 py-1 rounded-md ${
+                      canUpdateCard()
+                        ? "cursor-pointer hover:bg-gray-50"
+                        : "cursor-not-allowed opacity-60"
+                    }`}
                     onClick={() => {
-                      setNewTitle(selectedCard?.name || "");
-                      setIsEditingTitle(true);
+                      if (canUpdateCard()) {
+                        setNewTitle(selectedCard?.name || "");
+                        setIsEditingTitle(true);
+                      }
                     }}
                   >
                     {selectedCard?.name}
@@ -261,14 +290,15 @@ const CardDetails: React.FC = (props) => {
                       width={"fit-content"}
                       value={selectedCard?.listId}
                       onChange={onListChange}
+                      disabled={!canUpdateCard()}
                     />
                   </div>
 
-                  <Button
+                  {/* <Button
                     icon={<Eye size={14} />}
                     size="small"
                     className="rounded-md hover:bg-gray-50"
-                  />
+                  /> */}
                 </div>
 
                 <Flex wrap gap="middle">
@@ -282,10 +312,10 @@ const CardDetails: React.FC = (props) => {
                         members={cardMembers || []}
                         membersLength={cardMembers?.length || 0}
                         membersLoopLimit={3}
-                        openAddMember={openAddMember}
+                        openAddMember={openAddMember && canUpdateCard()}
                         setOpenAddMember={setOpenAddMember}
                         onUserSelectionChange={onUserSelectionChange}
-                        onRemoveMember={removeMember}
+                        onRemoveMember={handleRemoveMember}
                       />
                     </div>
                   </div>
@@ -323,7 +353,7 @@ const CardDetails: React.FC = (props) => {
                   </div>
 
                   {/* Notifications & Watch */}
-                  <div className="space-y-2 text-xs">
+                  {/* <div className="space-y-2 text-xs">
                     <span className="text-gray-300 font-semibold text-xs block">
                       Notifications
                     </span>
@@ -334,7 +364,7 @@ const CardDetails: React.FC = (props) => {
                     >
                       Watch
                     </Button>
-                  </div>
+                  </div> */}
 
                   {/* Time in List */}
                   <div className="space-y-2 text-xs">

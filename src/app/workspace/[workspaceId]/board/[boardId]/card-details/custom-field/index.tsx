@@ -1,6 +1,7 @@
 import { SelectionRef, UserSelection } from "@components/selection";
 import { useCardCustomField } from "@hooks/card_custom_field";
 import { useCardDetailContext } from "@providers/card-detail-context";
+import { useBoardPermissionsContext } from "@providers/board-permissions-context";
 import { Checkbox, DatePicker, Input, Select, Tooltip, message } from "antd";
 import {
   List,
@@ -225,6 +226,9 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
     isLoading,
   } = useCardCustomField(card?.id || "", workspaceId);
 
+  // Get board-level permissions
+  const { canManageCardCustomFields } = useBoardPermissionsContext();
+
   const [messageApi, contextHolder] = message.useMessage();
   const [searchTerm, setSearchTerm] = useState<string>("");
 
@@ -341,10 +345,12 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
     if (!field.id) return null;
 
     // Check if user can view and edit this field
+    // Combine board-level permissions with field-level permissions
     // If canView/canEdit is undefined, it means the backend didn't send the permission info
     // In that case, we should default to allowing access (for backward compatibility)
     const canView = field.canView !== undefined ? field.canView : true;
-    const canEdit = field.canEdit !== undefined ? field.canEdit : true;
+    const fieldCanEdit = field.canEdit !== undefined ? field.canEdit : true;
+    const canEdit = canManageCardCustomFields() && fieldCanEdit;
 
     // If user can't view this field, don't render it
     if (!canView) {

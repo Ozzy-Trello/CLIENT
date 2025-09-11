@@ -8,6 +8,7 @@ import {
   Popover,
   Input,
   Space,
+  Tag,
 } from "antd";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import { useWorkspaceSidebar } from "@providers/workspace-sidebar-context";
@@ -31,12 +32,35 @@ import { Scanner } from "@yudiel/react-qr-scanner";
 import api from "@api/index";
 import { useWebSocket } from "@hooks/websocket";
 import { useMoveOldCards } from "@hooks/card";
+import { FineGrainedPermissions } from "../../../../../types/board";
+
+// Helper function to derive permission level from fine-grained permissions
+const getPermissionLevelFromFineGrained = (permissions: FineGrainedPermissions | null): string => {
+  if (!permissions) return "OBSERVER";
+  
+  const { board, list, card } = permissions;
+  
+  // Admin: Can delete board
+  if (board.delete) return "ADMIN";
+  
+  // Moderator: Can update board but not delete
+  if (board.update) return "MODERATOR";
+  
+  // Member: Can create/update/delete lists and cards
+  if (list.create && list.update && list.delete && card.create && card.update && card.delete) {
+    return "MEMBER";
+  }
+  
+  // Observer: Limited permissions
+  return "OBSERVER";
+};
 
 interface BoardTopbarProps {
   boardScopeMenuOpen: boolean;
   setBoardScopeMenuOpen: any;
   openDashcardModal: boolean;
   setOpenDashcardModal: Dispatch<SetStateAction<boolean>>;
+  board?: any; // Board data from API response
 }
 
 const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
@@ -49,7 +73,8 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
   const { collapsed, siderSmall, siderWide } = useWorkspaceSidebar();
   const [showRightColMenu, setIsShowRighColtMenu] = useState(true);
   const [openRightMenu, setOpenRightMenu] = useState(false);
-  const currentBoard = useSelector(selectCurrentBoard);
+  const reduxBoard = useSelector(selectCurrentBoard);
+  const currentBoard = props.board || reduxBoard;
   const [openAddMember, setOpenAddMember] = useState<boolean>(false);
   const [showScanner, setShowScanner] = useState(false);
   const [scanResult, setScanResult] = useState<string | null>(null);

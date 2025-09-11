@@ -62,6 +62,7 @@ interface Board {
   name: string;
   description: string;
   isAssigned: boolean;
+  permissionLevel?: string;
 }
 
 interface RolePermissions {
@@ -74,14 +75,8 @@ const TableRoles: React.FC<{
   onEdit: (role: Role) => void;
   onDelete: (role: Role) => void;
   canManageRoles: () => boolean;
-  permissionLevel: string;
-}> = ({
-  dataSource = [],
-  onEdit,
-  onDelete,
-  canManageRoles,
-  permissionLevel,
-}) => {
+  isSuperAdmin: () => boolean;
+}> = ({ dataSource = [], onEdit, onDelete, canManageRoles, isSuperAdmin }) => {
   const columns = [
     {
       title: "Role Name",
@@ -123,29 +118,16 @@ const TableRoles: React.FC<{
       ),
     },
     {
-      title: "Permission Level",
-      key: "permission",
+      title: "Board Access",
+      key: "boardAccess",
       render: (record: Role) => {
-        if (!record.permission) return "-";
         return (
           <div>
-            <Badge
-              count={record.permission.level}
-              style={{
-                backgroundColor:
-                  record.permission.level === "ADMIN"
-                    ? "#ff4d4f"
-                    : record.permission.level === "MODERATOR"
-                    ? "#faad14"
-                    : record.permission.level === "MEMBER"
-                    ? "#52c41a"
-                    : "#d9d9d9",
-                color: "white",
-                fontSize: "10px",
-              }}
-            />
-            <div className="text-xs text-gray-500 mt-1">
-              {record.permission.description}
+            <Typography.Text type="secondary" className="text-xs">
+              Board-specific permissions
+            </Typography.Text>
+            <div className="text-xs text-gray-400 mt-1">
+              Configure in role settings
             </div>
           </div>
         );
@@ -159,7 +141,7 @@ const TableRoles: React.FC<{
           <Tooltip
             title={
               !canManageRoles()
-                ? `Insufficient permissions (${permissionLevel} role)`
+                ? "Insufficient permissions (requires super admin)"
                 : "Edit role"
             }
           >
@@ -176,7 +158,7 @@ const TableRoles: React.FC<{
           <Tooltip
             title={
               !canManageRoles()
-                ? `Insufficient permissions (${permissionLevel} role)`
+                ? "Insufficient permissions (requires super admin)"
                 : record.default
                 ? "Cannot delete default role"
                 : "Delete role"
@@ -218,12 +200,14 @@ const RolesPage = () => {
   const [customFieldStates, setCustomFieldStates] = useState<
     Record<string, { view: boolean; edit: boolean }>
   >({});
-  const [boardStates, setBoardStates] = useState<Record<string, boolean>>({});
+  const [boardStates, setBoardStates] = useState<
+    Record<string, { assigned: boolean; permissionLevel?: string }>
+  >({});
   const [form] = Form.useForm();
   const queryClient = useQueryClient();
 
   // Get permissions
-  const { canManageRoles, permissionLevel } = usePermissions();
+  const { canManageRoles, isSuperAdmin } = usePermissions();
 
   // Fetch roles data
   const {
@@ -436,7 +420,20 @@ const RolesPage = () => {
       if (isCreating) {
         // Get selected custom fields and boards from local state
         const selectedCustomFields = customFieldStates;
-        const selectedBoards = boardStates;
+
+        // Transform boardStates to the format expected by backend
+        const selectedBoards: Record<
+          string,
+          { assigned: boolean; permissionLevel?: string }
+        > = {};
+        Object.entries(boardStates).forEach(([boardId, boardState]) => {
+          if (boardState.assigned) {
+            selectedBoards[boardId] = {
+              assigned: true,
+              permissionLevel: boardState.permissionLevel || "MEMBER",
+            };
+          }
+        });
 
         console.log(
           "Creating role with permission level:",
@@ -581,7 +578,14 @@ const RolesPage = () => {
 
     const updatedBoards = rolePermissions?.data?.boards.map((board: Board) => {
       if (board.id === boardId) {
-        return { ...board, isAssigned: checked };
+        return {
+          ...board,
+          isAssigned: checked,
+          // Reset permission level to default when unchecking
+          permissionLevel: checked
+            ? board.permissionLevel || "MEMBER"
+            : undefined,
+        };
       }
       return board;
     });
@@ -594,6 +598,63 @@ const RolesPage = () => {
         boards: updatedBoards,
       },
     });
+  };
+
+  const handleBoardPermissionLevelChange = (
+    boardId: string,
+    permissionLevel: string
+  ) => {
+    if (!rolePermissions?.data?.boards) return;
+
+    const updatedBoards = rolePermissions?.data?.boards.map((board: Board) => {
+      if (board.id === boardId) {
+        return { ...board, permissionLevel };
+      }
+      return board;
+    });
+
+    // Update the query cache
+    queryClient.setQueryData(["role-permissions", editingRole?.id], {
+      ...rolePermissions,
+      data: {
+        ...rolePermissions.data,
+        boards: updatedBoards,
+      },
+    });
+  };
+
+  // Handlers for create modal board states
+  const handleCreateBoardAssignmentChange = (
+    boardId: string,
+    checked: boolean
+  ) => {
+    const newBoards = {
+      ...boardStates,
+      [boardId]: {
+        assigned: checked,
+        permissionLevel: checked
+          ? boardStates[boardId]?.permissionLevel || "MEMBER"
+          : undefined,
+      },
+    };
+    setBoardStates(newBoards);
+    form.setFieldsValue({ boards: newBoards });
+  };
+
+  const handleCreateBoardPermissionLevelChange = (
+    boardId: string,
+    permissionLevel: string
+  ) => {
+    const newBoards = {
+      ...boardStates,
+      [boardId]: {
+        ...boardStates[boardId],
+        assigned: true, // Auto-assign when setting permission level
+        permissionLevel,
+      },
+    };
+    setBoardStates(newBoards);
+    form.setFieldsValue({ boards: newBoards });
   };
 
   const handleSavePermissions = async () => {
@@ -641,7 +702,7 @@ const RolesPage = () => {
           </Typography.Text>
           <br />
           <Typography.Text type="secondary" className="text-sm">
-            Current permission level: {permissionLevel}
+            Access level: {isSuperAdmin() ? "Super Admin" : "Regular User"}
           </Typography.Text>
         </div>
       </div>
@@ -662,7 +723,7 @@ const RolesPage = () => {
         <Tooltip
           title={
             !canManageRoles()
-              ? `Insufficient permissions to create roles (${permissionLevel})`
+              ? "Insufficient permissions to create roles (requires super admin)"
               : "Create a new role"
           }
         >
@@ -685,7 +746,7 @@ const RolesPage = () => {
           onEdit={handleEdit}
           onDelete={handleDelete}
           canManageRoles={canManageRoles}
-          permissionLevel={permissionLevel || "OBSERVER"}
+          isSuperAdmin={isSuperAdmin}
         />
       )}
 
@@ -756,31 +817,6 @@ const RolesPage = () => {
                     placeholder="Enter role description"
                     rows={3}
                   />
-                </Form.Item>
-                <Form.Item
-                  name="permissionLevel"
-                  label="Permission Level"
-                  rules={[
-                    {
-                      required: true,
-                      message: "Please select permission level",
-                    },
-                  ]}
-                >
-                  <Select placeholder="Select permission level">
-                    <Select.Option value="MEMBER">
-                      Member - Can view and interact with boards
-                    </Select.Option>
-                    <Select.Option value="OBSERVER">
-                      Observer - Can view boards but not modify
-                    </Select.Option>
-                    <Select.Option value="MODERATOR">
-                      Moderator - Can manage board content and members
-                    </Select.Option>
-                    <Select.Option value="ADMIN">
-                      Admin - Full control over the board
-                    </Select.Option>
-                  </Select>
                 </Form.Item>
               </Form>
             </Card>
@@ -877,50 +913,75 @@ const RolesPage = () => {
               )}
             </Card>
 
-            {/* Board Access Selection */}
-            <Card title="Board Access" size="small">
+            {/* Board Permission Level Matrix */}
+            <Card title="Board Permission Levels" size="small">
               {isLoadingCreateData ? (
                 <div className="flex justify-center items-center py-8">
                   <Spin size="large" />
                 </div>
               ) : createData?.boards && createData.boards.length > 0 ? (
                 <div className="overflow-y-auto">
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-3">
                     {createData.boards.map((board: any) => (
                       <div
                         key={board.id}
-                        className="border border-gray-200 rounded-lg p-3 hover:bg-gray-50"
+                        className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50"
                       >
-                        <div className="mb-2">
-                          <Typography.Text strong className="text-sm">
-                            {board.name}
-                          </Typography.Text>
-                          <Typography.Text
-                            type="secondary"
-                            className="text-xs block mt-1"
-                          >
-                            {board.description}
-                          </Typography.Text>
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <Typography.Text strong className="text-sm">
+                              {board.name}
+                            </Typography.Text>
+                            <Typography.Text
+                              type="secondary"
+                              className="text-xs block mt-1"
+                            >
+                              {board.description}
+                            </Typography.Text>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <Checkbox
+                              checked={boardStates[board.id]?.assigned || false}
+                              onChange={(e) => {
+                                handleCreateBoardAssignmentChange(
+                                  board.id,
+                                  e.target.checked
+                                );
+                              }}
+                            >
+                              Assign
+                            </Checkbox>
+                            {boardStates[board.id]?.assigned && (
+                              <Select
+                                value={
+                                  boardStates[board.id]?.permissionLevel ||
+                                  "MEMBER"
+                                }
+                                onChange={(value) => {
+                                  handleCreateBoardPermissionLevelChange(
+                                    board.id,
+                                    value
+                                  );
+                                }}
+                                style={{ width: 140 }}
+                                size="small"
+                              >
+                                <Select.Option value="MEMBER">
+                                  Member
+                                </Select.Option>
+                                <Select.Option value="OBSERVER">
+                                  Observer
+                                </Select.Option>
+                                <Select.Option value="MODERATOR">
+                                  Moderator
+                                </Select.Option>
+                                <Select.Option value="ADMIN">
+                                  Admin
+                                </Select.Option>
+                              </Select>
+                            )}
+                          </div>
                         </div>
-                        <Checkbox
-                          checked={boardStates[board.id] || false}
-                          onChange={(e) => {
-                            console.log(
-                              "Board checkbox clicked:",
-                              board.id,
-                              e.target.checked
-                            );
-                            const newBoards = {
-                              ...boardStates,
-                              [board.id]: e.target.checked,
-                            };
-                            setBoardStates(newBoards);
-                            form.setFieldsValue({ boards: newBoards });
-                            console.log("Updated boards:", newBoards);
-                          }}
-                        >
-                          Access
-                        </Checkbox>
                       </div>
                     ))}
                   </div>
@@ -964,31 +1025,16 @@ const RolesPage = () => {
                     rows={3}
                   />
                 </Form.Item>
-                <Form.Item
-                  name="permissionLevel"
-                  label="Permission Level"
-                  rules={[
-                    {
-                      required: true,
-                      message: "Please select permission level",
-                    },
-                  ]}
-                >
-                  <Select placeholder="Select permission level">
-                    <Select.Option value="MEMBER">
-                      Member - Can view and interact with boards
-                    </Select.Option>
-                    <Select.Option value="OBSERVER">
-                      Observer - Can view boards but not modify
-                    </Select.Option>
-                    <Select.Option value="MODERATOR">
-                      Moderator - Can manage board content and members
-                    </Select.Option>
-                    <Select.Option value="ADMIN">
-                      Admin - Full control over the board
-                    </Select.Option>
-                  </Select>
-                </Form.Item>
+                {/* Global permission levels have been removed */}
+                {/* Permissions are now managed per-board in the Board Permissions section below */}
+                <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                  <Typography.Text type="secondary" className="text-sm">
+                    <strong>Note:</strong> Global permission levels have been
+                    removed. Users now require explicit board assignments for
+                    access. Configure board-specific permissions in the "Board
+                    Permissions" section below.
+                  </Typography.Text>
+                </div>
               </Form>
             </Card>
 
@@ -1051,18 +1097,18 @@ const RolesPage = () => {
               </div>
             </Card>
 
-            {/* Board Assignments */}
-            <Card title="Board Access" size="small">
+            {/* Board Assignments with Permission Levels */}
+            <Card title="Board Access & Permission Levels" size="small">
               <div className="overflow-y-auto">
                 {rolePermissions?.data?.boards &&
                 rolePermissions?.data?.boards.length > 0 ? (
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-4">
                     {rolePermissions?.data?.boards.map((board: Board) => (
                       <div
                         key={board.id}
-                        className="border border-gray-200 rounded-lg p-3 hover:bg-gray-50"
+                        className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50"
                       >
-                        <div className="mb-2">
+                        <div className="mb-3">
                           <Typography.Text strong className="text-sm">
                             {board.name}
                           </Typography.Text>
@@ -1073,17 +1119,50 @@ const RolesPage = () => {
                             {board.description}
                           </Typography.Text>
                         </div>
-                        <Checkbox
-                          checked={board.isAssigned}
-                          onChange={(e) =>
-                            handleBoardAssignmentChange(
-                              board.id,
-                              e.target.checked
-                            )
-                          }
-                        >
-                          Access
-                        </Checkbox>
+                        <div className="flex items-center gap-4">
+                          <Checkbox
+                            checked={board.isAssigned}
+                            onChange={(e) =>
+                              handleBoardAssignmentChange(
+                                board.id,
+                                e.target.checked
+                              )
+                            }
+                          >
+                            Access
+                          </Checkbox>
+                          {board.isAssigned && (
+                            <div className="flex items-center gap-2">
+                              <Typography.Text className="text-xs">
+                                Permission Level:
+                              </Typography.Text>
+                              <Select
+                                size="small"
+                                value={board.permissionLevel || "MEMBER"}
+                                onChange={(value) =>
+                                  handleBoardPermissionLevelChange(
+                                    board.id,
+                                    value
+                                  )
+                                }
+                                style={{ width: 120 }}
+                              >
+                                <Select.Option value="OBSERVER">
+                                  Observer
+                                </Select.Option>
+                                <Select.Option value="MEMBER">
+                                  Member
+                                </Select.Option>
+                                <Select.Option value="MODERATOR">
+                                  Moderator
+                                </Select.Option>
+                                <Select.Option value="ADMIN">
+                                  Admin
+                                </Select.Option>
+                              </Select>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>

@@ -7,6 +7,7 @@ import { UseMutateFunction } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { AnyList } from "@myTypes/list";
 import { usePermissions } from "@hooks/account";
+import { useBoardPermissionsContext } from "@providers/board-permissions-context";
 
 interface DraggableListProps {
   list: AnyList;
@@ -35,10 +36,11 @@ const DraggableList: React.FC<DraggableListProps> = ({
 }) => {
   const { cards, addCard, isLoading, isError, hasMoreCards, isLoadingMore, loadMoreCards, loadMoreError, retryLoadMore, totalCards } = useCardsPaginated(list.id, boardId);
   const { canMove, canCreate } = usePermissions();
+  const { canMoveList, canCreateCard } = useBoardPermissionsContext();
 
-  // Check if user can move lists and create cards
-  const canMoveList = canMove("list");
-  const canCreateCard = canCreate("card");
+  // Check if user can move lists and create cards using board-specific permissions
+  const canMoveListPermission = canMoveList();
+  const canCreateCardPermission = canCreateCard();
 
   // Check if card limit is exceeded
   const isLimitExceeded = list.cardLimit && cards.length > list.cardLimit;
@@ -48,7 +50,7 @@ const DraggableList: React.FC<DraggableListProps> = ({
     <Draggable
       draggableId={`draggable-list-${list.id}`}
       index={index}
-      isDragDisabled={!canMoveList}
+      isDragDisabled={!canMoveListPermission}
     >
       {(provided, snapshot) => {
         return (
@@ -76,12 +78,12 @@ const DraggableList: React.FC<DraggableListProps> = ({
             flex-col
             flex-shrink-0
             ${snapshot.isDragging ? "shadow-lg" : ""}
-            ${canMoveList ? "cursor-move" : "cursor-default"}
-            ${!canMoveList ? "opacity-75" : ""}
+            ${canMoveListPermission ? "cursor-move" : "cursor-default"}
+            ${!canMoveListPermission ? "opacity-75" : ""}
           
           `}
             title={
-              !canMoveList
+              !canMoveListPermission
                 ? "You don't have permission to move lists"
                 : isLimitExceeded
                 ? `Card limit exceeded (${cards.length}/${list.cardLimit})`
@@ -171,7 +173,7 @@ const DraggableList: React.FC<DraggableListProps> = ({
                 </div>
               )}
             </Droppable>
-            {canCreateCard && (
+            {canCreateCardPermission && (
               <div className="px-2 py-2 border-t border-gray-200">
                 <AddCard listId={list.id || ""} addCard={addCard} />
               </div>

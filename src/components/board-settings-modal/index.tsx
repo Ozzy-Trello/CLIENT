@@ -7,6 +7,7 @@ import {
 import { uploadFile } from "@api/file";
 import boardsImage from "@assets/images/boards.png";
 import { usePermissions } from "@hooks/account";
+import { useBoardPermissions } from "@hooks/useBoardPermissions";
 import { useRoles } from "@hooks/useRoles";
 import { Role } from "@myTypes/role";
 import { selectCurrentWorkspace } from "@store/workspace_slice";
@@ -82,6 +83,7 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
+  const [rolePermissionLevels, setRolePermissionLevels] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
   const uploadRef = useRef<any>(null);
@@ -94,17 +96,13 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
     currentWorkspace?.id || ""
   );
 
-  // Get permissions
+  // Get global permissions for workspace-level actions
   const {
-    canManageBoardSettings,
-    canUpdateBoard,
     canManageRoles,
-    permissionLevel,
-    isObserver
   } = usePermissions();
 
   const {
-    board,
+    board: fetchedBoard,
     isLoading: isLoadingBoard,
     refetch,
   } = useBoardDetails(
@@ -115,16 +113,37 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
     }
   );
 
+  // Get board-specific permissions using the most current board data
+  const currentBoardForPermissions = fetchedBoard || initialBoard;
+  const boardPermissions = useBoardPermissions(currentBoardForPermissions);
+  const {
+    canManageBoardSettings,
+    canUpdateBoard,
+  } = boardPermissions;
+
+  // Check if user has observer-level permissions (read-only)
+  const isObserver = () => {
+    if (!currentBoardForPermissions) return true;
+    if (currentBoardForPermissions?.user_permissions) {
+      const { board: boardPerms, list, card } = currentBoardForPermissions.user_permissions;
+      // Observer: can only read, cannot create/update/delete
+      return !boardPerms.update && !boardPerms.delete && !list.create && !card.create;
+    }
+    // Fallback to old permission system
+    return currentBoardForPermissions?.user_permission === 'OBSERVER';
+  };
+
   useEffect(() => {
     if (open) {
       setIsInitialized(false);
       setSelectedRoles([]);
+      setRolePermissionLevels({});
     }
   }, [open]);
 
   // Initialize form with board data when it changes - but only once per modal open
   useEffect(() => {
-    const currentBoard = board || initialBoard;
+    const currentBoard = fetchedBoard || initialBoard;
 
     if (currentBoard && !isInitialized) {
       const background = currentBoard.background || DEFAULT_COLOR;
@@ -149,18 +168,23 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
       // Set selected roles from board data - only during initialization
       const roleIds = currentBoard.roleIds || [];
       setSelectedRoles(roleIds);
+      
+      // Initialize role permission levels if available
+      const rolePermissions = (currentBoard as any).rolePermissions || {};
+      setRolePermissionLevels(rolePermissions);
+      
       setIsInitialized(true); // Mark as initialized
     }
-  }, [board, initialBoard, form, isInitialized]);
+  }, [fetchedBoard, initialBoard, form, isInitialized]);
 
   // Update selected roles when both board and roles data are available
   useEffect(() => {
-    const currentBoard = board || initialBoard;
+    const currentBoard = fetchedBoard || initialBoard;
 
     if (currentBoard?.roleIds && roles.length > 0 && !loadingRoles) {
       setSelectedRoles(currentBoard.roleIds);
     }
-  }, [board, initialBoard, roles, loadingRoles]);
+  }, [fetchedBoard, initialBoard, roles, loadingRoles]);
 
   // Show loading state while fetching board details
   if (isLoadingBoard) {
@@ -181,7 +205,7 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
   }
 
   // Get the current board (either fetched or passed in)
-  const currentBoard = board || initialBoard;
+  const currentBoard = fetchedBoard || initialBoard;
 
   // If we still don't have a board, don't render the modal
   if (!currentBoard) {
@@ -235,7 +259,7 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
   const onFinish = async (values: FormValues) => {
     setIsLoading(true);
     try {
-      const currentBoard = board || initialBoard;
+      const currentBoard = fetchedBoard || initialBoard;
       if (!currentBoard) {
         message.error("Board data not available");
         return;
@@ -249,6 +273,7 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
           description: values.description,
           background: finalBackground,
           roleIds: selectedRoles,
+          rolePermissions: rolePermissionLevels,
         },
       };
 
@@ -274,6 +299,37 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
 
   const onFinishFailed = () => {
     message.error("Please check your input and try again.");
+  };
+
+  const handleRoleAssignmentChange = (roleId: string, assigned: boolean) => {
+    if (assigned) {
+      setSelectedRoles(prev => [...prev, roleId]);
+      // Set default permission level when assigning a role
+      setRolePermissionLevels(prev => ({
+        ...prev,
+        [roleId]: "MEMBER"
+      }));
+    } else {
+      setSelectedRoles(prev => prev.filter(id => id !== roleId));
+      // Remove permission level when unassigning
+      setRolePermissionLevels(prev => {
+        const updated = { ...prev };
+        delete updated[roleId];
+        return updated;
+      });
+    }
+  };
+
+  const handleRolePermissionLevelChange = (roleId: string, permissionLevel: string) => {
+    setRolePermissionLevels(prev => ({
+      ...prev,
+      [roleId]: permissionLevel
+    }));
+    
+    // Auto-assign role if setting permission level
+    if (!selectedRoles.includes(roleId)) {
+      setSelectedRoles(prev => [...prev, roleId]);
+    }
   };
 
   // Helper component for permission-controlled form items
@@ -489,40 +545,49 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
             tooltipTitle="You don't have permission to manage board roles"
           >
             <Form.Item
-              label="Roles"
-              help="Select roles that can access this board (leave empty for public access)"
+              label="Role Permissions"
+              help="Configure role access and permission levels for this board (leave empty for public access)"
             >
-              <Select
-                mode="multiple"
-                placeholder="Select roles (leave empty for public)"
-                value={selectedRoles}
-                onChange={setSelectedRoles}
-                loading={loadingRoles}
-                optionLabelProp="label"
-                disabled={!canManageRoles()}
-                tagRender={({ label, value, onClose }) => (
-                  <Tag
-                    color="blue"
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                    }}
-                    closable
-                    onClose={onClose}
-                    style={{ marginRight: 3 }}
-                  >
-                    {label}
-                  </Tag>
-                )}
-              >
-                {roles.map((role: Role) => (
-                  <Option key={role.id} value={role.id} label={role.name}>
-                    <div className="flex items-center">
-                      <span>{role.name}</span>
+              <div className="grid grid-cols-1 gap-3 max-h-64 overflow-y-auto">
+                {roles.map((role: Role) => {
+                  const isAssigned = selectedRoles.includes(role.id);
+                  const permissionLevel = rolePermissionLevels[role.id] || "MEMBER";
+                  
+                  return (
+                    <div key={role.id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <input
+                          type="checkbox"
+                          checked={isAssigned}
+                          onChange={(e) => handleRoleAssignmentChange(role.id, e.target.checked)}
+                          disabled={!canManageRoles()}
+                          className="w-4 h-4"
+                        />
+                        <div>
+                          <div className="font-medium">{role.name}</div>
+                          {role.description && (
+                            <div className="text-sm text-gray-500">{role.description}</div>
+                          )}
+                        </div>
+                      </div>
+                      {isAssigned && (
+                        <Select
+                          value={permissionLevel}
+                          onChange={(value) => handleRolePermissionLevelChange(role.id, value)}
+                          disabled={!canManageRoles()}
+                          className="w-32"
+                          size="small"
+                        >
+                          <Option value="OBSERVER">Observer</Option>
+                          <Option value="MEMBER">Member</Option>
+                          <Option value="MODERATOR">Moderator</Option>
+                          <Option value="ADMIN">Admin</Option>
+                        </Select>
+                      )}
                     </div>
-                  </Option>
-                ))}
-              </Select>
+                  );
+                })}
+              </div>
             </Form.Item>
           </PermissionFormItem>
 

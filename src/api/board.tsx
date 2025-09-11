@@ -21,10 +21,11 @@ export const boardDetails = async (
   boardId: string,
   workspaceId?: string
 ): Promise<ApiResponse<Board>> => {
-  const { data } = await api.get(`/board/${boardId}`, {
+  const response = await api.get(`/board/${boardId}`, {
     headers: workspaceId ? { "workspace-id": workspaceId } : {},
   });
-  return data;
+  
+  return response.data;
 };
 
 export const createBoard = async (

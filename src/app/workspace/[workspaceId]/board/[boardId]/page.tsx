@@ -27,17 +27,146 @@ import { selectCurrentBoard, setCurrentBoard } from "@store/workspace_slice";
 
 import { usePermissions } from "@hooks/account";
 import { useBoardDetails } from "@hooks/board";
+import { useBoardPermissionsContext } from "@providers/board-permissions-context";
 import { useDispatch } from "react-redux";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@constants/query-keys";
 import { ApiResponse } from "@myTypes/api";
 import { useRealtimeUpdates } from "@hooks/websocket";
 import HorizontalSlider from "@components/horizontal-slider";
+import { BoardPermissionsProvider } from "@providers/board-permissions-context";
 
 const DragDropContext = dynamic(
   () => import("@hello-pangea/dnd").then((mod) => mod.DragDropContext),
   { ssr: false }
 );
+
+// Component that uses BoardPermissionsContext - must be inside the provider
+const BoardContentWithPermissions: React.FC<{
+  lists: AnyList[] | undefined;
+  isLoading: boolean;
+  shouldRenderLists: boolean;
+  onListDragEnd: (result: DropResult) => void;
+  onDragStart: (start: any) => void;
+  onDragUpdate: (update: DragUpdate) => void;
+  boardScrollContainerRef: React.RefObject<HTMLDivElement>;
+  resolvedBoardId: string;
+  updateList: any;
+  deleteList: any;
+  isAddingList: boolean;
+  setIsAddingList: (value: boolean) => void;
+  newListName: string;
+  setNewListName: (value: string) => void;
+  handleAddList: () => void;
+}> = ({
+  lists,
+  isLoading,
+  shouldRenderLists,
+  onListDragEnd,
+  onDragStart,
+  onDragUpdate,
+  boardScrollContainerRef,
+  resolvedBoardId,
+  updateList,
+  deleteList,
+  isAddingList,
+  setIsAddingList,
+  newListName,
+  setNewListName,
+  handleAddList,
+}) => {
+  // Now we can safely use the context hook inside the provider
+  const { canCreateList } = useBoardPermissionsContext();
+
+  return (
+    <div
+      ref={boardScrollContainerRef}
+      className="h-auto min-h-[770px] w-full overflow-x-auto overflow-y-hidden custom-horizontal-scrollbar board-scroll-container"
+    >
+      {shouldRenderLists && (
+        <DragDropContext
+          onDragEnd={onListDragEnd}
+          onDragStart={onDragStart}
+          onDragUpdate={onDragUpdate}
+        >
+          <Droppable
+            droppableId="droppable-list-area"
+            direction="horizontal"
+            type="list"
+          >
+            {(provided, snapshot) => {
+              return (
+                <div
+                  {...provided.droppableProps}
+                  ref={provided.innerRef}
+                  className="flex gap-4 p-4 items-start"
+                  style={{
+                    backgroundColor: snapshot.isDraggingOver
+                      ? "#e3f2fd"
+                      : "transparent",
+                    minWidth: "calc(100% + 100px)", // Force content to be wider than container
+                    width: "max-content", // Allow content to expand beyond container width
+                  }}
+                >
+                  {lists?.map((list: AnyList, index: number) => {
+                    return (
+                      <List
+                        key={list.id}
+                        list={list}
+                        index={index}
+                        boardId={resolvedBoardId}
+                        updateList={updateList}
+                        deleteList={deleteList}
+                      />
+                    );
+                  })}
+                  {provided.placeholder}
+
+                  {/* Add list section - only show if user can create lists */}
+                   {canCreateList() && (
+                    <>
+                      {isAddingList ? (
+                        <div className="add-list-wrapper p-4 rounded-sm bg-white shadow-sm">
+                          <Input
+                            type="text"
+                            placeholder="New List Title"
+                            value={newListName}
+                            onChange={(e) => setNewListName(e.target.value)}
+                            onPressEnter={handleAddList}
+                          />
+                          <div className="flex items-center gap-2 mt-2">
+                            <Button size="small" onClick={handleAddList}>
+                              Add List
+                            </Button>
+                            <Button
+                              size="small"
+                              onClick={() => setIsAddingList(false)}
+                              icon={<X size={15} />}
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <Button
+                          onClick={() => setIsAddingList(true)}
+                          className="mt-2"
+                          icon={<Plus size={15} />}
+                        >
+                          Add a list
+                        </Button>
+                      )}
+                    </>
+                  )}
+                </div>
+              );
+            }}
+          </Droppable>
+        </DragDropContext>
+      )}
+
+      {!shouldRenderLists && <ListSkeleton />}
+    </div>
+  );
+};
 
 const Board: React.FC = () => {
   const { boardId, workspaceId } = useParams();
@@ -409,9 +538,6 @@ const Board: React.FC = () => {
     }
   };
 
-  // Check if user can create lists
-  const canCreateList = canCreate("list");
-
   return (
     <div
       className="h-auto min-h-[600px] mr-4 pt-[50px]"
@@ -422,126 +548,54 @@ const Board: React.FC = () => {
         // Background is now applied at the body level for full-page effect
       }}
     >
-      <BoardTopbar
-        boardScopeMenuOpen={boardScopeMenu}
-        setBoardScopeMenuOpen={setBoardScopeMenu}
-        openDashcardModal={openDashcardModal}
-        setOpenDashcardModal={setOpenDashcardModal}
-      />
-      <CardFocusProvider>
-        <CardDetailProvider>
-          <div className="relative">
-            {/* Horizontal Slider for manual navigation - positioned inside board area */}
-
-            <div
-              ref={boardScrollContainerRef}
-              className="h-auto min-h-[770px] w-full overflow-x-auto overflow-y-hidden custom-horizontal-scrollbar board-scroll-container"
-            >
-              {shouldRenderLists && (
-                <DragDropContext
-                  onDragEnd={onListDragEnd}
-                  onDragStart={onDragStart}
-                  onDragUpdate={onDragUpdate}
-                >
-                  <Droppable
-                    droppableId="droppable-list-area"
-                    direction="horizontal"
-                    type="list"
-                  >
-                    {(provided, snapshot) => {
-                      return (
-                        <div
-                          {...provided.droppableProps}
-                          ref={provided.innerRef}
-                          className="flex gap-4 p-4 items-start"
-                          style={{
-                            backgroundColor: snapshot.isDraggingOver
-                              ? "#e3f2fd"
-                              : "transparent",
-                            minWidth: "calc(100% + 100px)", // Force content to be wider than container
-                            width: "max-content", // Allow content to expand beyond container width
-                          }}
-                        >
-                          {lists?.map((list: AnyList, index: number) => {
-                            return (
-                              <List
-                                key={list.id}
-                                list={list}
-                                index={index}
-                                boardId={resolvedBoardId}
-                                updateList={updateList}
-                                deleteList={deleteList}
-                              />
-                            );
-                          })}
-                          {provided.placeholder}
-
-                          {/* Add list section - only show if user can create lists */}
-                          {canCreateList && (
-                            <>
-                              {isAddingList ? (
-                                <div className="add-list-wrapper p-4 rounded-sm bg-white shadow-sm">
-                                  <Input
-                                    type="text"
-                                    placeholder="New List Title"
-                                    value={newListName}
-                                    onChange={(e) =>
-                                      setNewListName(e.target.value)
-                                    }
-                                    onPressEnter={handleAddList}
-                                  />
-                                  <div className="flex items-center gap-2 mt-2">
-                                    <Button
-                                      size="small"
-                                      onClick={handleAddList}
-                                    >
-                                      Add List
-                                    </Button>
-                                    <Button
-                                      size="small"
-                                      onClick={() => setIsAddingList(false)}
-                                      icon={<X size={15} />}
-                                    />
-                                  </div>
-                                </div>
-                              ) : (
-                                <Button
-                                  onClick={() => setIsAddingList(true)}
-                                  className="mt-2"
-                                  icon={<Plus size={15} />}
-                                >
-                                  Add a list
-                                </Button>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      );
-                    }}
-                  </Droppable>
-                </DragDropContext>
-              )}
-
-              {!shouldRenderLists && <ListSkeleton />}
+      <BoardPermissionsProvider board={boardDetails}>
+        <BoardTopbar
+          boardScopeMenuOpen={boardScopeMenu}
+          setBoardScopeMenuOpen={setBoardScopeMenu}
+          openDashcardModal={openDashcardModal}
+          setOpenDashcardModal={setOpenDashcardModal}
+          board={boardDetails}
+        />
+        <CardFocusProvider>
+          <CardDetailProvider>
+            <div className="relative">
+              {/* Horizontal Slider for manual navigation - positioned inside board area */}
+              <BoardContentWithPermissions
+                lists={lists}
+                isLoading={isLoading}
+                shouldRenderLists={shouldRenderLists}
+                onListDragEnd={onListDragEnd}
+                onDragStart={onDragStart}
+                onDragUpdate={onDragUpdate}
+                boardScrollContainerRef={boardScrollContainerRef}
+                resolvedBoardId={resolvedBoardId}
+                updateList={updateList}
+                deleteList={deleteList}
+                isAddingList={isAddingList}
+                setIsAddingList={setIsAddingList}
+                newListName={newListName}
+                setNewListName={setNewListName}
+                handleAddList={handleAddList}
+              />
+              <HorizontalSlider containerRef={boardScrollContainerRef} />
             </div>
-            <HorizontalSlider containerRef={boardScrollContainerRef} />
-          </div>
 
-          <CardDetails />
+            <CardDetails />
 
-          <BoardScopeMenu
-            visible={boardScopeMenu}
-            setIsVisible={setBoardScopeMenu}
-          />
+            <BoardScopeMenu
+              visible={boardScopeMenu}
+              setIsVisible={setBoardScopeMenu}
+            />
 
-          <ModalDashcard
-            open={openDashcardModal}
-            setOpen={setOpenDashcardModal}
-            onSave={onDashcardSave}
-            initialData={dashcardConfig}
-          />
-        </CardDetailProvider>
-      </CardFocusProvider>
+            <ModalDashcard
+              open={openDashcardModal}
+              setOpen={setOpenDashcardModal}
+              onSave={onDashcardSave}
+              initialData={dashcardConfig}
+            />
+          </CardDetailProvider>
+        </CardFocusProvider>
+      </BoardPermissionsProvider>
     </div>
   );
 };

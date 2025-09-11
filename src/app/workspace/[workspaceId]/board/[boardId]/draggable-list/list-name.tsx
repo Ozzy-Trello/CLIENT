@@ -97,8 +97,6 @@ const ListName: React.FC<ListNameProps> = ({
     setNewListName("");
   };
 
-
-
   const handleDeleteList = () => {
     Modal.confirm({
       title: "Delete List",
@@ -170,46 +168,46 @@ const ListName: React.FC<ListNameProps> = ({
     };
   }, [isEditListName, newListName]);
 
-
-
   const actionsContent = (
     <div className="w-64 p-2">
       {/* Color Selection */}
       <div className="mb-4">
         <div className="text-sm font-medium mb-2">List Color</div>
         <div className="grid grid-cols-5 gap-2">
-           {colorOptions.map((color) => (
-             <button
-               key={color}
-               className={`w-8 h-8 rounded border-2 ${
-                 list.background === color ? "border-gray-800" : "border-gray-300"
-               }`}
-               style={{ backgroundColor: color }}
-               onClick={() => {
-                 updateList({
-                   listId: list.id,
-                   updates: { background: color },
-                 });
-                 setActionsPopoverOpen(false);
-               }}
-             />
-           ))}
-         </div>
-         <button
-           onClick={() => {
-             updateList({
-               listId: list.id,
-               updates: { background: "#ffffff" },
-             });
-             message.success("List color removed!");
-             setActionsPopoverOpen(false);
-           }}
-           className="w-full mt-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded flex items-center justify-center gap-2"
-         >
-           <span>✕</span> Remove color
-         </button>
+          {colorOptions.map((color) => (
+            <button
+              key={color}
+              className={`w-8 h-8 rounded border-2 ${
+                list.background === color
+                  ? "border-gray-800"
+                  : "border-gray-300"
+              }`}
+              style={{ backgroundColor: color }}
+              onClick={() => {
+                updateList({
+                  listId: list.id,
+                  updates: { background: color },
+                });
+                setActionsPopoverOpen(false);
+              }}
+            />
+          ))}
+        </div>
+        <button
+          onClick={() => {
+            updateList({
+              listId: list.id,
+              updates: { background: "#ffffff" },
+            });
+            message.success("List color removed!");
+            setActionsPopoverOpen(false);
+          }}
+          className="w-full mt-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded flex items-center justify-center gap-2"
+        >
+          <span>✕</span> Remove color
+        </button>
       </div>
-      
+
       {/* Limit Setting */}
       <div className="mb-4">
         <div className="text-sm font-medium mb-2">Card Limit</div>
@@ -226,21 +224,21 @@ const ListName: React.FC<ListNameProps> = ({
             size="small"
             type="primary"
             onClick={() => {
-               if (tempLimit !== null) {
-                 updateList({
-                   listId: list.id,
-                   updates: { cardLimit: tempLimit },
-                 });
-                 message.success(`List limit set to ${tempLimit}`);
-                 setActionsPopoverOpen(false);
-               }
-             }}
+              if (tempLimit !== null) {
+                updateList({
+                  listId: list.id,
+                  updates: { cardLimit: tempLimit },
+                });
+                message.success(`List limit set to ${tempLimit}`);
+                setActionsPopoverOpen(false);
+              }
+            }}
           >
             Set
           </Button>
         </div>
       </div>
-      
+
       <div className="border-t pt-2">
         <Button
           type="text"

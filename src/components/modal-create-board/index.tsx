@@ -63,6 +63,7 @@ const CreateBoard: React.FC<ModalCreateBoardForm> = (
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
+  const [rolePermissionLevels, setRolePermissionLevels] = useState<Record<string, string>>({});
   const uploadRef = useRef<any>(null);
   const router = useRouter();
   const dispatch = useDispatch();
@@ -123,6 +124,27 @@ const CreateBoard: React.FC<ModalCreateBoardForm> = (
     setBg(DEFAULT_COLOR);
   };
 
+  const handleRoleAssignmentChange = (roleId: string, isAssigned: boolean) => {
+    if (isAssigned) {
+      setSelectedRoles(prev => [...prev, roleId]);
+      setRolePermissionLevels(prev => ({ ...prev, [roleId]: "MEMBER" }));
+    } else {
+      setSelectedRoles(prev => prev.filter(id => id !== roleId));
+      setRolePermissionLevels(prev => {
+        const newLevels = { ...prev };
+        delete newLevels[roleId];
+        return newLevels;
+      });
+    }
+  };
+
+  const handleRolePermissionLevelChange = (roleId: string, permissionLevel: string) => {
+    setRolePermissionLevels(prev => ({ ...prev, [roleId]: permissionLevel }));
+    if (!selectedRoles.includes(roleId)) {
+      setSelectedRoles(prev => [...prev, roleId]);
+    }
+  };
+
   const onFinish = async (values: any) => {
     const tempId = generateId();
     let board: Partial<Board>;
@@ -137,6 +159,7 @@ const CreateBoard: React.FC<ModalCreateBoardForm> = (
         createdAt: "",
         upatedAt: "",
         roleIds: selectedRoles.length > 0 ? selectedRoles : undefined,
+        rolePermissions: rolePermissionLevels,
       };
 
       createBoard(
@@ -163,6 +186,8 @@ const CreateBoard: React.FC<ModalCreateBoardForm> = (
             form.resetFields();
             setBg(DEFAULT_COLOR);
             setBackgroundImage("");
+            setSelectedRoles([]);
+            setRolePermissionLevels({});
             setOpen(false);
           },
         }
@@ -329,39 +354,47 @@ const CreateBoard: React.FC<ModalCreateBoardForm> = (
           </Form.Item>
 
           <Form.Item
-            label="Roles"
-            help="Select roles that can access this board (leave empty for public access)"
+            label="Role Permissions"
+            help="Configure role access and permission levels for this board (leave empty for public access)"
           >
-            <Select
-              mode="multiple"
-              placeholder="Select roles (leave empty for public)"
-              value={selectedRoles}
-              onChange={setSelectedRoles}
-              loading={loadingRoles}
-              optionLabelProp="label"
-              tagRender={({ label, value, onClose }) => (
-                <Tag
-                  color="blue"
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                  }}
-                  closable
-                  onClose={onClose}
-                  style={{ marginRight: 3 }}
-                >
-                  {label}
-                </Tag>
-              )}
-            >
-              {roles.map((role: Role) => (
-                <Option key={role.id} value={role.id} label={role.name}>
-                  <div className="flex items-center">
-                    <span>{role.name}</span>
+            <div className="grid grid-cols-1 gap-3 max-h-64 overflow-y-auto">
+              {roles.map((role: Role) => {
+                const isAssigned = selectedRoles.includes(role.id);
+                const permissionLevel = rolePermissionLevels[role.id] || "MEMBER";
+                
+                return (
+                  <div key={role.id} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <input
+                        type="checkbox"
+                        checked={isAssigned}
+                        onChange={(e) => handleRoleAssignmentChange(role.id, e.target.checked)}
+                        className="w-4 h-4"
+                      />
+                      <div>
+                        <div className="font-medium">{role.name}</div>
+                        {role.description && (
+                          <div className="text-sm text-gray-500">{role.description}</div>
+                        )}
+                      </div>
+                    </div>
+                    {isAssigned && (
+                      <Select
+                        value={permissionLevel}
+                        onChange={(value) => handleRolePermissionLevelChange(role.id, value)}
+                        className="w-32"
+                        size="small"
+                      >
+                        <Option value="OBSERVER">Observer</Option>
+                        <Option value="MEMBER">Member</Option>
+                        <Option value="MODERATOR">Moderator</Option>
+                        <Option value="ADMIN">Admin</Option>
+                      </Select>
+                    )}
                   </div>
-                </Option>
-              ))}
-            </Select>
+                );
+              })}
+            </div>
           </Form.Item>
 
           <Form.Item name="workspace" label={<Text strong>Workspace</Text>}>

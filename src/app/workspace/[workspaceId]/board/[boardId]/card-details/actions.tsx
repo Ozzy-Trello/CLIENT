@@ -36,6 +36,7 @@ import { useCardCopy, useCardMove, useCards } from "@hooks/card";
 import { useParams } from "next/navigation";
 import { useCardDetails } from "@hooks/card-details";
 import { useCurrentAccount, usePermissions } from "@hooks/account";
+import { useBoardPermissionsContext } from "@providers/board-permissions-context";
 import { useCardMembers } from "@hooks/card_member";
 import PopoverLabel from "@components/popover-label.tsx";
 import PopoverMirrorCard from "@components/popover-mirror-card";
@@ -124,7 +125,7 @@ const Actions: React.FC = () => {
   // Get card attachments for Bukti functionality
   const { cardAttachments, addAttachment } = useCardAttachment(selectedCard?.id || "");
 
-  // Get permissions
+  // Get board-specific permissions
   const {
     canManageCardMembers,
     canManageCardLabels,
@@ -140,9 +141,11 @@ const Actions: React.FC = () => {
     canDeleteCard,
     canShareCard,
     canGenerateQR,
-    permissionLevel,
-    isObserver,
-  } = usePermissions();
+  } = useBoardPermissionsContext();
+  
+  // Keep global permissions for observer status
+  const { isObserver } = usePermissions();
+  const permissionLevel = "BOARD_SPECIFIC"; // Use board-specific permissions
 
   // Handle join/leave card
   const handleJoinLeave = async () => {
@@ -275,7 +278,7 @@ const Actions: React.FC = () => {
       >
         <button
           onClick={handleJoinLeave}
-          disabled={isAddingMember || isRemovingMember}
+          disabled={isAddingMember || isRemovingMember || !canManageCardMembers()}
           className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 rounded-md transition-colors mb-1 disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-80"
           style={buttonStyle}
         >

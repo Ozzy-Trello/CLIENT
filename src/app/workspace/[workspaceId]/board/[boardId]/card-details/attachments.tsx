@@ -39,6 +39,7 @@ import { FileUpload } from "@myTypes/file-upload";
 import QRCode from "react-qr-code";
 import { uploadFile } from "@api/file";
 import { deleteCardAttachment } from "@api/card_attachment";
+import { useBoardPermissionsContext } from "@providers/board-permissions-context";
 
 interface AttachmentsProps {
   card: Card;
@@ -55,12 +56,15 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
   const [isDraggingOver, setIsDraggingOver] = useState<boolean>(false);
   const [attachedCards, setAttachedCards] = useState<Card[]>([]);
   const [attachedFiles, setAttachedFiles] = useState<FileUpload[]>([]);
+  const { canUpdateCard } = useBoardPermissionsContext();
   const handleCloseModal = () => {
     setOpenUploadmodal(false);
   };
 
   const handleOpenModal = () => {
-    setOpenUploadmodal(true);
+    if (canUpdateCard()) {
+      setOpenUploadmodal(true);
+    }
   };
 
   const handleUpload = (file: File, result: FileUpload) => {
@@ -516,6 +520,11 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
       e.preventDefault();
       e.stopPropagation();
 
+      // Check permissions before allowing drag operations
+      if (!canUpdateCard()) {
+        return;
+      }
+
       // Increment counter on drag enter
       dragCounter++;
 
@@ -548,6 +557,11 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
       // Reset drag state
       dragCounter = 0;
       setIsDraggingOver(false);
+
+      // Check permissions before processing file drops
+      if (!canUpdateCard()) {
+        return;
+      }
 
       if (!e.dataTransfer) return;
 
@@ -645,8 +659,11 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
             type="default"
             size="small"
             icon={<PlusOutlined />}
-            className="flex items-center"
+            className={`flex items-center ${
+              !canUpdateCard() ? "opacity-50 cursor-not-allowed" : ""
+            }`}
             onClick={handleOpenModal}
+            disabled={!canUpdateCard()}
           >
             Add
           </Button>

@@ -53,7 +53,7 @@ const CardContextMenu: React.FC<CardContextMenuProps> = ({
   );
 
   // Get permissions
-  const { canMoveCard, canCopyCard, canDeleteCard, permissionLevel } =
+  const { canMoveCard, canCopyCard, canDeleteCard } =
     usePermissions();
 
   const handleContextMenu = (e: React.MouseEvent) => {
@@ -151,7 +151,7 @@ const CardContextMenu: React.FC<CardContextMenuProps> = ({
             content
           ) : (
             <TouchAwareTooltip
-              title={`Insufficient permissions (${permissionLevel} role)`}
+              title="Insufficient permissions"
               placement="right"
             >
               {content}
@@ -161,7 +161,7 @@ const CardContextMenu: React.FC<CardContextMenuProps> = ({
           disabled: isDisabled,
         };
       },
-    [permissionLevel]
+    []
   );
 
   const items: MenuProps["items"] = useMemo(

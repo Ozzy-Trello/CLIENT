@@ -75,28 +75,29 @@ export function useAccountList({
 }
 
 // Permission helpers hook
+// Note: Global permission levels have been removed. This hook now provides
+// basic permission checks that work with board-specific permissions.
 export function usePermissions() {
   const { data: account } = useCurrentAccount();
-  const permissionLevel = account?.data?.role?.permission?.level;
-  const permissions = account?.data?.role?.permission?.permissions;
+  const user = account?.data;
+  
+  // Check if user is super admin (has access to everything)
+  const isSuperAdmin = () => user?.role?.id === "f97c942c-5d0c-49c3-b74d-5b149c08634f";
 
-  // Role level checks
-  const isObserver = () => permissionLevel === "OBSERVER";
-  const isMember = () => permissionLevel === "MEMBER";
-  const isModerator = () => ["MODERATOR", "ADMIN"].includes(permissionLevel || "");
-  const isAdmin = () => permissionLevel === "ADMIN";
+  // Role level checks - now based on super admin status only
+  // Board-specific permissions are handled at the board level
+  const isObserver = () => false; // No global observer role
+  const isMember = () => !isSuperAdmin(); // Regular users are members by default
+  const isModerator = () => isSuperAdmin(); // Only super admin has moderator privileges globally
+  const isAdmin = () => isSuperAdmin();
 
-  // Basic CRUD permissions
-  const canCreate = (resource: "board" | "list" | "card") =>
-    permissions?.[resource]?.create ?? false;
-  const canRead = (resource: "board" | "list" | "card") =>
-    permissions?.[resource]?.read ?? false;
-  const canUpdate = (resource: "board" | "list" | "card") =>
-    permissions?.[resource]?.update ?? false;
-  const canDelete = (resource: "board" | "list" | "card") =>
-    permissions?.[resource]?.delete ?? false;
-  const canMove = (resource: "list" | "card") =>
-    permissions?.[resource]?.move ?? false;
+  // Basic CRUD permissions - now defaults to false for global actions
+  // Board-specific permissions should be checked at the board component level
+  const canCreate = (resource: "board" | "list" | "card") => isSuperAdmin();
+  const canRead = (resource: "board" | "list" | "card") => true; // Reading is generally allowed
+  const canUpdate = (resource: "board" | "list" | "card") => isSuperAdmin();
+  const canDelete = (resource: "board" | "list" | "card") => isSuperAdmin();
+  const canMove = (resource: "list" | "card") => isSuperAdmin();
 
   // Specific action permissions
   const canArchiveCard = () => canUpdate("card") || isModerator();
@@ -140,10 +141,9 @@ export function usePermissions() {
 
   return {
     // Raw data
-    permissions,
     user: account?.data,
     role: account?.data?.role,
-    permissionLevel,
+    isSuperAdmin,
 
     // Role checks
     isObserver,
@@ -203,9 +203,12 @@ export function usePermissions() {
     hasAnyPermission: (resource: "board" | "list" | "card") => 
       canCreate(resource) || canRead(resource) || canUpdate(resource) || canDelete(resource),
     
+    // Note: hasMinimumRole is now based on super admin status only
     hasMinimumRole: (minRole: "OBSERVER" | "MEMBER" | "MODERATOR" | "ADMIN") => {
+      if (isSuperAdmin()) return true;
+      // Non-super admins only have MEMBER level access globally
       const roleHierarchy = { OBSERVER: 1, MEMBER: 2, MODERATOR: 3, ADMIN: 4 };
-      const currentRoleLevel = roleHierarchy[permissionLevel as keyof typeof roleHierarchy] || 0;
+      const currentRoleLevel = 2; // MEMBER level for regular users
       const minRoleLevel = roleHierarchy[minRole];
       return currentRoleLevel >= minRoleLevel;
     }

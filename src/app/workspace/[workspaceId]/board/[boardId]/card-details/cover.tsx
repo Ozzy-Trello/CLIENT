@@ -5,6 +5,7 @@ import { FileUpload } from "@myTypes/file-upload";
 import { isImageFile } from "@utils/file";
 import { Button, Image, Upload } from "antd";
 import { useMemo, useState } from "react";
+import { useBoardPermissionsContext } from "@providers/board-permissions-context";
 
 interface CoverProps {
   card: Card;
@@ -14,13 +15,16 @@ const Cover: React.FC<CoverProps> = (props) => {
   const { card } = props;
   const [openUploadModal, setOpenUploadmodal] = useState<boolean>(false);
   const { cardAttachments, addAttachment } = useCardAttachment(card.id);
+  const { canUpdateCard } = useBoardPermissionsContext();
 
   const handleCloseModal = () => {
     setOpenUploadmodal(false);
   };
 
   const handleOpenModal = () => {
-    setOpenUploadmodal(true);
+    if (canUpdateCard()) {
+      setOpenUploadmodal(true);
+    }
   };
 
   const handleUpload = (file: File, result: FileUpload) => {
@@ -74,8 +78,13 @@ const Cover: React.FC<CoverProps> = (props) => {
       <Button
         icon={<Upload />}
         size="small"
-        className="m-3 hover:bg-white/90 bg-white/80 shadow-sm border-0"
+        className={`m-3 shadow-sm border-0 ${
+          canUpdateCard()
+            ? "hover:bg-white/90 bg-white/80"
+            : "bg-gray-300/80 cursor-not-allowed opacity-50"
+        }`}
         onClick={handleOpenModal}
+        disabled={!canUpdateCard()}
       >
         Cover
       </Button>

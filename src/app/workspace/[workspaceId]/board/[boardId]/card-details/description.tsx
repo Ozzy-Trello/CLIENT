@@ -9,6 +9,7 @@ import { useCallback } from "react";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { selectTheme, selectIsDarkMode } from "@store/app_slice";
+import { useBoardPermissionsContext } from "@providers/board-permissions-context";
 
 const Description: React.FC<{
   card: Card;
@@ -37,8 +38,13 @@ const Description: React.FC<{
 
   const { updateCard } = useCards(card.listId, boardId || "");
 
+  // Get board permissions
+  const { canUpdateCard } = useBoardPermissionsContext();
+
   const enableEditDescription = () => {
-    setIsEditingDescription(true);
+    if (canUpdateCard()) {
+      setIsEditingDescription(true);
+    }
   };
 
   const disableEditDescription = () => {
@@ -144,7 +150,9 @@ const Description: React.FC<{
         </div>
       ) : (
         <div
-          className="ml-8 p-3 rounded-md min-h-20 cursor-pointer transition-colors hover:opacity-80"
+          className={`ml-8 p-3 rounded-md min-h-20 transition-colors ${
+            canUpdateCard() ? "cursor-pointer hover:opacity-80" : "cursor-not-allowed opacity-60"
+          }`}
           style={{
             backgroundColor: `rgb(${colors.muted})`,
             color: `rgb(${colors.text})`,

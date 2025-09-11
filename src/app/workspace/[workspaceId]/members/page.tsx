@@ -35,7 +35,7 @@ const TableMembers: React.FC<{
   dataSource?: Account[];
   onEdit: (user: Account) => void;
 }> = ({ dataSource = [], onEdit }) => {
-  const { canManageUsers, permissionLevel } = usePermissions();
+  const { canManageUsers, isSuperAdmin } = usePermissions();
   const columns = [
     {
       title: "User",
@@ -85,7 +85,7 @@ const TableMembers: React.FC<{
             <Tooltip
               title={
                 !canManageUsers()
-                  ? `Insufficient permissions to edit users (${permissionLevel})`
+                  ? "Insufficient permissions to edit users (requires super admin)"
                   : "Edit user"
               }
             >
@@ -99,7 +99,7 @@ const TableMembers: React.FC<{
             <Tooltip
               title={
                 !canManageUsers()
-                  ? `Insufficient permissions to delete users (${permissionLevel})`
+                  ? "Insufficient permissions to delete users (requires super admin)"
                   : "Delete user"
               }
             >
@@ -133,7 +133,7 @@ const Members: React.FC = () => {
     : (workspaceId as string);
   
   // Get permissions
-  const { canManageUsers, permissionLevel } = usePermissions();
+  const { canManageUsers, isSuperAdmin } = usePermissions();
   
   // All hooks must be declared before any conditional returns
   const { data: rolesResponse, isLoading: rolesLoading } = useAllRoles(
@@ -260,7 +260,7 @@ const Members: React.FC = () => {
           </Typography.Text>
           <br />
           <Typography.Text type="secondary" className="text-sm">
-            Current permission level: {permissionLevel}
+            Access level: {isSuperAdmin() ? "Super Admin" : "Regular User"}
           </Typography.Text>
         </div>
       </div>
@@ -282,7 +282,7 @@ const Members: React.FC = () => {
         <Tooltip
           title={
             !canManageUsers()
-              ? `Insufficient permissions to add users (${permissionLevel})`
+              ? "Insufficient permissions to add users (requires super admin)"
               : "Add a new user to the workspace"
           }
         >

@@ -53,15 +53,15 @@ interface SelectActionProps {
   setSelectedRule: Dispatch<SetStateAction<AutomationRule>>;
   actionsData: AutomationRuleAction[];
   setActionsData: Dispatch<SetStateAction<AutomationRuleAction[]>>;
-  
+
   // Navigation props (for step-based contexts like rule creation)
   nextStep?: () => void;
   prevStep?: () => void;
-  
+
   // Edit mode props (for modal-based contexts like rule editing)
   isEditMode?: boolean;
   onSaveAndClose?: (updatedRule: AutomationRule) => Promise<void>;
-  
+
   // Additional context props
   numberFields?: Array<{ id: string; name: string }>;
 }
@@ -98,22 +98,27 @@ const SelectOption = ({
 
   // Handle ListSelection change - use the actual placeholder as key
   const onListChange = (selectedOption: any, selectionName: string) => {
-      let copyArr = [...actionsData];
-    (copyArr[groupIndex]?.items?.[index]?.[placeholder] as any).value = selectedOption;
+    let copyArr = [...actionsData];
+    (copyArr[groupIndex]?.items?.[index]?.[placeholder] as any).value =
+      selectedOption;
     setActionsData(copyArr);
   };
 
   const onBoardChange = (selectedOption: any, selectionName: string) => {
     let copyArr = [...actionsData];
     // Set the selected board
-    (copyArr[groupIndex]?.items?.[index]?.[selectionName] as any).value = selectedOption;
+    (copyArr[groupIndex]?.items?.[index]?.[selectionName] as any).value =
+      selectedOption;
 
     // Clear the list selection when board changes (handle both regular and optional types)
     if (copyArr[groupIndex]?.items?.[index]?.[EnumSelectionType.List]) {
-      (copyArr[groupIndex].items[index] as any)[EnumSelectionType.List].value = null;
+      (copyArr[groupIndex].items[index] as any)[EnumSelectionType.List].value =
+        null;
     }
     if (copyArr[groupIndex]?.items?.[index]?.[EnumSelectionType.OptionalList]) {
-      (copyArr[groupIndex].items[index] as any)[EnumSelectionType.OptionalList].value = null;
+      (copyArr[groupIndex].items[index] as any)[
+        EnumSelectionType.OptionalList
+      ].value = null;
     }
 
     setActionsData(copyArr);
@@ -121,13 +126,15 @@ const SelectOption = ({
 
   const onUserChange = (selectedOption: any, selectionName: string) => {
     let copyArr = [...actionsData];
-    (copyArr[groupIndex]?.items?.[index]?.[placeholder] as any).value = selectedOption;
+    (copyArr[groupIndex]?.items?.[index]?.[placeholder] as any).value =
+      selectedOption;
     setActionsData(copyArr);
   };
 
   const onCustomFieldChange = (selectedOption: any, selectionName: string) => {
     let copyArr = [...actionsData];
-    (copyArr[groupIndex]?.items?.[index]?.[selectionName] as any).value = selectedOption;
+    (copyArr[groupIndex]?.items?.[index]?.[selectionName] as any).value =
+      selectedOption;
     setActionsData(copyArr);
   };
 
@@ -137,30 +144,41 @@ const SelectOption = ({
     // Handle both single and multiple selection
     if (Array.isArray(selectedOption)) {
       // Multiple selection - store the array directly
-      (copyArr[groupIndex]?.items?.[index]?.[placeholder] as any).value = selectedOption;
+      (copyArr[groupIndex]?.items?.[index]?.[placeholder] as any).value =
+        selectedOption;
     } else {
       // Single selection - wrap in array for consistency
-      (copyArr[groupIndex]?.items?.[index]?.[placeholder] as any).value = [selectedOption];
+      (copyArr[groupIndex]?.items?.[index]?.[placeholder] as any).value = [
+        selectedOption,
+      ];
     }
     setActionsData(copyArr);
   };
 
   // Handle regular Select change
-  const onSelectChange = (selectedOption: GeneralOptions, selectionName: string) => {
+  const onSelectChange = (
+    selectedOption: GeneralOptions,
+    selectionName: string
+  ) => {
     let copyArr = [...actionsData];
-    (copyArr[groupIndex]?.items?.[index]?.[selectionName] as any).value = selectedOption;
+    (copyArr[groupIndex]?.items?.[index]?.[selectionName] as any).value =
+      selectedOption;
     setActionsData(copyArr);
   };
 
   // Handle field value input change
   const onFieldValueChange = (value: any) => {
     let copyArr = [...actionsData];
-    (copyArr[groupIndex]?.items?.[index]?.[EnumInputType.FieldValue] as any).value = value;
+    (
+      copyArr[groupIndex]?.items?.[index]?.[EnumInputType.FieldValue] as any
+    ).value = value;
     setActionsData(copyArr);
   };
 
   if (placeholder === EnumInputType.FieldValue) {
-    const field = (actionsData[groupIndex]?.items?.[index] as any)?.[EnumSelectionType.Fields]?.value as any;
+    const field = (actionsData[groupIndex]?.items?.[index] as any)?.[
+      EnumSelectionType.Fields
+    ]?.value as any;
     return (
       <FieldValueInput
         key={`field-value-input-${item.type}-${placeholder}`}
@@ -183,7 +201,10 @@ const SelectOption = ({
       <CustomFieldSelection
         width={"fit-content"}
         ref={customFieldSelectionRef}
-        value={(actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value?.value || ""}
+        value={
+          (actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value
+            ?.value || ""
+        }
         onChange={(val: string, option: any) => {
           onCustomFieldChange(option, placeholder);
         }}
@@ -207,7 +228,10 @@ const SelectOption = ({
       <UserSelection
         width={"fit-content"}
         ref={userSelectionRef}
-        value={(actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value?.value || undefined}
+        value={
+          (actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value
+            ?.value || undefined
+        }
         onChange={(option: any) => {
           onUserChange(option, placeholder);
         }}
@@ -227,14 +251,24 @@ const SelectOption = ({
     placeholder === EnumSelectionType.OptionalList
   ) {
     // Get the selected board ID for cross-board actions - try multiple access patterns
-    const boardSelection = (actionsData[groupIndex]?.items?.[index] as any)?.[EnumSelectionType.Board] || (actionsData[groupIndex]?.items?.[index] as any)?.[EnumSelectionType.OptionalBoard];
-    const selectedBoardId = boardSelection?.value?.value || boardSelection?.value || boardSelection;
+    const boardSelection =
+      (actionsData[groupIndex]?.items?.[index] as any)?.[
+        EnumSelectionType.Board
+      ] ||
+      (actionsData[groupIndex]?.items?.[index] as any)?.[
+        EnumSelectionType.OptionalBoard
+      ];
+    const selectedBoardId =
+      boardSelection?.value?.value || boardSelection?.value || boardSelection;
 
     return (
       <ListSelection
         width={"fit-content"}
         ref={listSelectionRef}
-        value={(actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value?.value || undefined}
+        value={
+          (actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value
+            ?.value || undefined
+        }
         onChange={(option: any) => {
           onListChange(option, placeholder);
         }}
@@ -292,13 +326,18 @@ const SelectOption = ({
       { value: "next_working_day", label: "the next working day" },
     ];
 
-    const presetOptionsRaw: any = (item as any)?.[EnumInputType.DateValue]?.options;
-    const presetOptions: any[] = Array.isArray(presetOptionsRaw) ? presetOptionsRaw : defaultOptions;
+    const presetOptionsRaw: any = (item as any)?.[EnumInputType.DateValue]
+      ?.options;
+    const presetOptions: any[] = Array.isArray(presetOptionsRaw)
+      ? presetOptionsRaw
+      : defaultOptions;
 
     const defaultValue = presetOptions.length > 0 ? presetOptions[0] : null;
 
     // @ts-ignore
-    const currentVal = (actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value ?? defaultValue;
+    const currentVal =
+      (actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value ??
+      defaultValue;
 
     const handleSelect = (opt: any) => {
       let copy = [...actionsData];
@@ -329,7 +368,9 @@ const SelectOption = ({
   }
 
   if (placeholder === EnumSelectionType.Board) {
-    const currentBoardValue = (actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value?.value;
+    const currentBoardValue = (
+      actionsData[groupIndex]?.items?.[index] as any
+    )?.[placeholder]?.value?.value;
 
     return (
       <BoardSelection
@@ -347,7 +388,9 @@ const SelectOption = ({
   }
 
   if (placeholder === EnumSelectionType.OptionalBoard) {
-    const currentBoardValue = (actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value?.value;
+    const currentBoardValue = (
+      actionsData[groupIndex]?.items?.[index] as any
+    )?.[placeholder]?.value?.value;
 
     return (
       <BoardSelection
@@ -372,7 +415,10 @@ const SelectOption = ({
       <LabelSelection
         width={"fit-content"}
         ref={labelSelectionRef}
-        value={(actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value?.value || undefined}
+        value={
+          (actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value
+            ?.value || undefined
+        }
         onChange={(option: any) => {
           onListChange(option, placeholder);
         }}
@@ -415,15 +461,22 @@ const SelectOption = ({
     <>
       <Select
         key={`${placeholder}-${index}`}
-        value={(actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value?.value || ""}
+        value={
+          (actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value
+            ?.value || ""
+        }
         options={options}
         labelInValue={false}
         style={{
-          width: placeholder === EnumSelectionType.OptionalBySubject ? 260 : 120,
+          width:
+            placeholder === EnumSelectionType.OptionalBySubject ? 260 : 120,
           margin: "0 5px",
         }}
         onChange={(value, option) => {
-          onSelectChange((option as { option: GeneralOptions }).option, placeholder);
+          onSelectChange(
+            (option as { option: GeneralOptions }).option,
+            placeholder
+          );
         }}
       />
 
@@ -432,7 +485,10 @@ const SelectOption = ({
         [
           EnumOptionBySubject.BySpecificUser,
           EnumOptionBySubject.ByAnyoneExceptSpecificUser,
-        ].includes((actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value?.value) && (
+        ].includes(
+          (actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value
+            ?.value
+        ) && (
           <UserSelection
             key={`user-select-${item.type}-${placeholder}`}
             width={"fit-content"}
@@ -446,13 +502,19 @@ const SelectOption = ({
 
       {(placeholder == EnumSelectionType.OptionalBySubject ||
         placeholder == EnumSelectionType.BySubject) &&
-        [EnumOptionBySubject.ByRole].includes((actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value?.value) && (
+        [EnumOptionBySubject.ByRole].includes(
+          (actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value
+            ?.value
+        ) && (
           <RoleSelection
             key={`role-select-${item.type}-${placeholder}`}
             width={"fit-content"}
             ref={useRef<SelectionRef>(null)}
             mode="multiple"
-            onChange={(value: string | string[], option: GeneralOptions | GeneralOptions[]) => {
+            onChange={(
+              value: string | string[],
+              option: GeneralOptions | GeneralOptions[]
+            ) => {
               onRoleChange(option, placeholder);
             }}
             className="mx-2"
@@ -475,12 +537,18 @@ const renderLabelWithSelects = (
   // PATCH: For CalculateCustomField, render only the custom UI and return immediately
   if (item.type === ActionType.CalculateCustomField) {
     // Always get the latest steps from parent state
-    const expressionSteps = (props.actionsData[groupIndex]?.items?.[index] as any)?.[EnumSelectionType.Expression]?.steps || [];
+    const expressionSteps =
+      (props.actionsData[groupIndex]?.items?.[index] as any)?.[
+        EnumSelectionType.Expression
+      ]?.steps || [];
     const availableFields = (props.numberFields || []).map((f) => ({
       value: f.id,
       label: f.name,
     }));
-    const targetFieldValue = (props.actionsData[groupIndex]?.items?.[index] as any)?.[EnumSelectionType.Target]?.value || null;
+    const targetFieldValue =
+      (props.actionsData[groupIndex]?.items?.[index] as any)?.[
+        EnumSelectionType.Target
+      ]?.value || null;
 
     // Helper to render the expression as a readable string
     const renderExpressionString = () => {
@@ -491,7 +559,11 @@ const renderLabelWithSelects = (
         <span style={{ fontWeight: 500 }}>
           {expressionSteps.map((step: any, i: number) => {
             // Robust: treat as operator if value is +, -, *, /
-            if ((step.type && step.type === "operator") || (typeof step.value === "string" && ["+", "-", "*", "/"].includes(step.value))) {
+            if (
+              (step.type && step.type === "operator") ||
+              (typeof step.value === "string" &&
+                ["+", "-", "*", "/"].includes(step.value))
+            ) {
               return ` ${step.value} `;
             }
             if (step.type === "field") {
@@ -833,7 +905,8 @@ const renderLabelWithSelects = (
           // Handle action placeholder specifically
           if (placeholder === "action") {
             const actionData = (item as any)?.[EnumSelectionType.Action];
-            const actionLabel = actionData?.value?.label || actionData?.label || "move";
+            const actionLabel =
+              actionData?.value?.label || actionData?.label || "move";
             return <span key={indexPart}>{actionLabel}</span>;
           }
 
@@ -1753,7 +1826,7 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
   const [configuringActionIndex, setConfiguringActionIndex] = useState<
     number | null
   >(null);
-  
+
   // Track if we've initialized actions to prevent infinite loop
   const hasInitializedActions = useRef(false);
 
@@ -1776,7 +1849,6 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
       setLastActionIndex(0);
     }
   }, [selectedRule.actions]);
-  
 
   useEffect(() => {
     // Update the action items based on the selected action type
@@ -1798,8 +1870,6 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
     if (actionGroupIndex !== -1) {
       setGroupIndex(actionGroupIndex);
     }
-
-
   };
 
   const onAddAction = (index: number) => {
@@ -1869,54 +1939,73 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
       } else {
         // Add new action with duplicate check
         const existingActions = selectedRule.actions || [];
-        const isDuplicate = existingActions.some(
-          (existingAction) => {
-            const existingType = existingAction.type || existingAction.selectedActionItem?.type;
-            
-            console.log('[CARD BUTTON LOG] Edit mode - Comparing action:', {
-              existingType,
-              actionType,
-              typesMatch: existingType === actionType
-            });
-            
-            if (!existingType || !actionType || existingType !== actionType) {
-              return false;
-            }
-            
-            // For AddRemoveLabel actions, also check the Add/Remove configuration
-             if (itemConfig.type === ActionType.AddRemoveLabel) {
-               const existingAddRemove = existingAction.selectedActionItem?.[EnumSelectionType.AddRemove];
-               const newAddRemove = newActionItem.selectedActionItem?.[EnumSelectionType.AddRemove];
-               const existingCardLabel = existingAction.selectedActionItem?.[EnumSelectionType.CardLabel];
-               const newCardLabel = newActionItem.selectedActionItem?.[EnumSelectionType.CardLabel];
-               
-               console.log('[CARD BUTTON LOG] Edit mode - AddRemoveLabel comparison:', {
-                 existingAddRemove,
-                 newAddRemove,
-                 existingCardLabel,
-                 newCardLabel,
-                 isDuplicate: existingAddRemove === newAddRemove && JSON.stringify(existingCardLabel) === JSON.stringify(newCardLabel)
-               });
-               
-               // Only consider duplicate if both Add/Remove action AND the target label are the same
-               return existingAddRemove === newAddRemove && JSON.stringify(existingCardLabel) === JSON.stringify(newCardLabel);
-             }
-            
-            console.log('[CARD BUTTON LOG] Edit mode - Other action type - comparing configurations');
-            // For other action types, compare their main configuration values
-            const existingConfig = JSON.stringify(existingAction.selectedActionItem);
-            const newConfig = JSON.stringify(newActionItem.selectedActionItem);
-            
-            console.log('[CARD BUTTON LOG] Edit mode - Configuration comparison:', {
+        const isDuplicate = existingActions.some((existingAction) => {
+          const existingType =
+            existingAction.type || existingAction.selectedActionItem?.type;
+
+          console.log("[CARD BUTTON LOG] Edit mode - Comparing action:", {
+            existingType,
+            actionType,
+            typesMatch: existingType === actionType,
+          });
+
+          if (!existingType || !actionType || existingType !== actionType) {
+            return false;
+          }
+
+          // For AddRemoveLabel actions, also check the Add/Remove configuration
+          if (itemConfig.type === ActionType.AddRemoveLabel) {
+            const existingAddRemove =
+              existingAction.selectedActionItem?.[EnumSelectionType.AddRemove];
+            const newAddRemove =
+              newActionItem.selectedActionItem?.[EnumSelectionType.AddRemove];
+            const existingCardLabel =
+              existingAction.selectedActionItem?.[EnumSelectionType.CardLabel];
+            const newCardLabel =
+              newActionItem.selectedActionItem?.[EnumSelectionType.CardLabel];
+
+            console.log(
+              "[CARD BUTTON LOG] Edit mode - AddRemoveLabel comparison:",
+              {
+                existingAddRemove,
+                newAddRemove,
+                existingCardLabel,
+                newCardLabel,
+                isDuplicate:
+                  existingAddRemove === newAddRemove &&
+                  JSON.stringify(existingCardLabel) ===
+                    JSON.stringify(newCardLabel),
+              }
+            );
+
+            // Only consider duplicate if both Add/Remove action AND the target label are the same
+            return (
+              existingAddRemove === newAddRemove &&
+              JSON.stringify(existingCardLabel) === JSON.stringify(newCardLabel)
+            );
+          }
+
+          console.log(
+            "[CARD BUTTON LOG] Edit mode - Other action type - comparing configurations"
+          );
+          // For other action types, compare their main configuration values
+          const existingConfig = JSON.stringify(
+            existingAction.selectedActionItem
+          );
+          const newConfig = JSON.stringify(newActionItem.selectedActionItem);
+
+          console.log(
+            "[CARD BUTTON LOG] Edit mode - Configuration comparison:",
+            {
               existingConfig,
               newConfig,
-              isDuplicate: existingConfig === newConfig
-            });
-            
-            return existingConfig === newConfig;
-          }
-        );
-        
+              isDuplicate: existingConfig === newConfig,
+            }
+          );
+
+          return existingConfig === newConfig;
+        });
+
         if (!isDuplicate) {
           updatedRule = {
             ...selectedRule,
@@ -1929,20 +2018,21 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
       }
 
       setSelectedRule(updatedRule);
-      
+
       // Hide action selection after adding for better UX
       setConfiguringActionIndex(-1);
       return;
     }
-    
+
     // Get item configuration first
     const itemConfig = (actionsData[groupIndex]?.items?.[index] as any) ?? {};
-    
+
     const newActionItem: SelectedAction = {
       // Preserve ID if editing existing action
       ...(existingAction?.id && { id: existingAction.id }),
       groupType: actionsData[groupIndex].type,
-      type: itemConfig.type || actionsData[groupIndex]?.items?.[index]?.type || "",
+      type:
+        itemConfig.type || actionsData[groupIndex]?.items?.[index]?.type || "",
     };
 
     const placeholders = extractPlaceholders(
@@ -2000,10 +2090,10 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
     if (!newActionItem.selectedActionItem) {
       newActionItem.selectedActionItem = {
         type: actionsData[groupIndex]?.items?.[index]?.type || "",
-        label: actionsData[groupIndex]?.items?.[index]?.label || ""
+        label: actionsData[groupIndex]?.items?.[index]?.label || "",
       };
     }
-    
+
     // Ensure constant action field included and base type filled even when no placeholders
     if (itemConfig?.[EnumSelectionType.Action]) {
       if (newActionItem.selectedActionItem)
@@ -2025,69 +2115,85 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
     } else {
       // Add new action (initialize array if needed)
       const existingActions = copy.actions || [];
-      
+
       // Check for duplicate actions using both type and configuration
       // Use the actual action type from itemConfig, not the template string
-      const actionType = itemConfig.type || newActionItem.type || newActionItem.selectedActionItem?.type;
-      
-      console.log('[CARD BUTTON LOG] Checking for duplicates:', {
+      const actionType =
+        itemConfig.type ||
+        newActionItem.type ||
+        newActionItem.selectedActionItem?.type;
+
+      console.log("[CARD BUTTON LOG] Checking for duplicates:", {
         actionType,
         itemConfigType: itemConfig.type,
         newActionItem,
-        existingActions: existingActions.map(a => ({
+        existingActions: existingActions.map((a) => ({
           type: a.type || a.selectedActionItem?.type,
-          selectedActionItem: a.selectedActionItem
-        }))
+          selectedActionItem: a.selectedActionItem,
+        })),
       });
-      
-      const isDuplicate = existingActions.some(
-        (existingAction) => {
-          const existingType = existingAction.type || existingAction.selectedActionItem?.type;
-          
-          console.log('[CARD BUTTON LOG] Comparing action:', {
-            existingType,
-            actionType,
-            typesMatch: existingType === actionType
-          });
-          
-          if (!existingType || !actionType || existingType !== actionType) {
-            return false;
-          }
-          
-          // For AddRemoveLabel actions, also check the Add/Remove configuration
-           if (actionType === ActionType.AddRemoveLabel) {
-             const existingAddRemove = existingAction.selectedActionItem?.[EnumSelectionType.AddRemove];
-             const newAddRemove = newActionItem.selectedActionItem?.[EnumSelectionType.AddRemove];
-             const existingCardLabel = existingAction.selectedActionItem?.[EnumSelectionType.CardLabel];
-             const newCardLabel = newActionItem.selectedActionItem?.[EnumSelectionType.CardLabel];
-             
-             console.log('[CARD BUTTON LOG] AddRemoveLabel comparison:', {
-               existingAddRemove,
-               newAddRemove,
-               existingCardLabel,
-               newCardLabel,
-               isDuplicate: existingAddRemove === newAddRemove && JSON.stringify(existingCardLabel) === JSON.stringify(newCardLabel)
-             });
-             
-             // Only consider duplicate if both Add/Remove action AND the target label are the same
-             return existingAddRemove === newAddRemove && JSON.stringify(existingCardLabel) === JSON.stringify(newCardLabel);
-           }
-          
-          console.log('[CARD BUTTON LOG] Other action type - comparing configurations');
-          // For other action types, compare their main configuration values
-          const existingConfig = JSON.stringify(existingAction.selectedActionItem);
-          const newConfig = JSON.stringify(newActionItem.selectedActionItem);
-          
-          console.log('[CARD BUTTON LOG] Configuration comparison:', {
-            existingConfig,
-            newConfig,
-            isDuplicate: existingConfig === newConfig
-          });
-          
-          return existingConfig === newConfig;
+
+      const isDuplicate = existingActions.some((existingAction) => {
+        const existingType =
+          existingAction.type || existingAction.selectedActionItem?.type;
+
+        console.log("[CARD BUTTON LOG] Comparing action:", {
+          existingType,
+          actionType,
+          typesMatch: existingType === actionType,
+        });
+
+        if (!existingType || !actionType || existingType !== actionType) {
+          return false;
         }
-      );
-      
+
+        // For AddRemoveLabel actions, also check the Add/Remove configuration
+        if (actionType === ActionType.AddRemoveLabel) {
+          const existingAddRemove =
+            existingAction.selectedActionItem?.[EnumSelectionType.AddRemove];
+          const newAddRemove =
+            newActionItem.selectedActionItem?.[EnumSelectionType.AddRemove];
+          const existingCardLabel =
+            existingAction.selectedActionItem?.[EnumSelectionType.CardLabel];
+          const newCardLabel =
+            newActionItem.selectedActionItem?.[EnumSelectionType.CardLabel];
+
+          console.log("[CARD BUTTON LOG] AddRemoveLabel comparison:", {
+            existingAddRemove,
+            newAddRemove,
+            existingCardLabel,
+            newCardLabel,
+            isDuplicate:
+              existingAddRemove === newAddRemove &&
+              JSON.stringify(existingCardLabel) ===
+                JSON.stringify(newCardLabel),
+          });
+
+          // Only consider duplicate if both Add/Remove action AND the target label are the same
+          return (
+            existingAddRemove === newAddRemove &&
+            JSON.stringify(existingCardLabel) === JSON.stringify(newCardLabel)
+          );
+        }
+
+        console.log(
+          "[CARD BUTTON LOG] Other action type - comparing configurations"
+        );
+        // For other action types, compare their main configuration values
+        const existingConfig = JSON.stringify(
+          existingAction.selectedActionItem
+        );
+        const newConfig = JSON.stringify(newActionItem.selectedActionItem);
+
+        console.log("[CARD BUTTON LOG] Configuration comparison:", {
+          existingConfig,
+          newConfig,
+          isDuplicate: existingConfig === newConfig,
+        });
+
+        return existingConfig === newConfig;
+      });
+
       if (!isDuplicate && actionType) {
         copy.actions = [...existingActions, newActionItem];
       }
@@ -2123,7 +2229,10 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <div>
-                <Typography.Title level={4} className="text-gray-800 font-semibold">
+                <Typography.Title
+                  level={4}
+                  className="text-gray-800 font-semibold"
+                >
                   Select Action
                 </Typography.Title>
                 <Typography.Text className="text-gray-600">
@@ -2137,44 +2246,48 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
               )}
             </div>
           </div>
-            
+
           {/* Action Groups */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3 max-w-4xl mx-auto">
             {actionsData?.map((item: AutomationRuleAction, index: number) => (
-            <div
-              key={index}
-              onClick={() => onActionTypeClick(item.type)}
-              className={`group flex flex-col justify-center items-center rounded-lg p-4 cursor-pointer transition-all duration-200 hover:shadow-md ${
-                selectedRule?.actions?.[lastActionIndex]?.type === item.type
-                  ? "bg-white border-2 border-blue-400 shadow-sm"
-                  : "bg-white border border-gray-200 hover:border-gray-300"
-              }`}
-            >
-              <div className={`mb-2 text-lg transition-colors duration-200 ${
-                selectedRule?.actions?.[lastActionIndex]?.type === item.type
-                  ? "text-blue-600"
-                  : "text-gray-600 group-hover:text-gray-700"
-              }`}>{item?.icon}</div>
-              <Typography.Text 
-                className={`text-sm font-medium text-center transition-colors duration-200 ${
+              <div
+                key={index}
+                onClick={() => onActionTypeClick(item.type)}
+                className={`group flex flex-col justify-center items-center rounded-lg p-4 cursor-pointer transition-all duration-200 hover:shadow-md ${
                   selectedRule?.actions?.[lastActionIndex]?.type === item.type
-                    ? "text-blue-700"
-                    : "text-gray-700 group-hover:text-gray-800"
+                    ? "bg-white border-2 border-blue-400 shadow-sm"
+                    : "bg-white border border-gray-200 hover:border-gray-300"
                 }`}
               >
-                {item.label}
-              </Typography.Text>
-            </div>
-          ))}
-        </div>
+                <div
+                  className={`mb-2 text-lg transition-colors duration-200 ${
+                    selectedRule?.actions?.[lastActionIndex]?.type === item.type
+                      ? "text-blue-600"
+                      : "text-gray-600 group-hover:text-gray-700"
+                  }`}
+                >
+                  {item?.icon}
+                </div>
+                <Typography.Text
+                  className={`text-sm font-medium text-center transition-colors duration-200 ${
+                    selectedRule?.actions?.[lastActionIndex]?.type === item.type
+                      ? "text-blue-700"
+                      : "text-gray-700 group-hover:text-gray-800"
+                  }`}
+                >
+                  {item.label}
+                </Typography.Text>
+              </div>
+            ))}
+          </div>
         </>
       )}
 
-        {/* Action Items */}
-        {configuringActionIndex !== -1 && (
-          <div className="space-y-4">
-            {actionsData[groupIndex]?.items?.map(
-              (item: ActionItems, index: number) => (
+      {/* Action Items */}
+      {configuringActionIndex !== -1 && (
+        <div className="space-y-4">
+          {actionsData[groupIndex]?.items?.map(
+            (item: ActionItems, index: number) => (
               <div key={index}>
                 <div
                   className={`group flex justify-between items-start rounded-xl p-6 transition-all duration-300 hover:shadow-lg ${
@@ -2246,24 +2359,35 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
                   </div>
                 </div>
               </div>
-              )
-            )}
-          </div>
-        )}
-        
-        {/* Display Added Actions */}
-        {configuringActionIndex === -1 && selectedRule.actions && selectedRule.actions.length > 0 && (
+            )
+          )}
+        </div>
+      )}
+
+      {/* Display Added Actions */}
+      {configuringActionIndex === -1 &&
+        selectedRule.actions &&
+        selectedRule.actions.length > 0 && (
           <div className="mb-6">
-            <Typography.Title level={5} className="mb-4">Added Actions</Typography.Title>
+            <Typography.Title level={5} className="mb-4">
+              Added Actions
+            </Typography.Title>
             <div className="space-y-3">
               {selectedRule.actions.map((action: any, index: number) => (
-                <div key={index} className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
+                <div
+                  key={index}
+                  className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg shadow-sm"
+                >
                   <div className="flex-1">
                     <Typography.Text className="text-gray-900">
-                      {action.selectedActionItem?.type ? 
-                        renderRuleStateHuman(action.selectedActionItem.type, action.selectedActionItem) : 
-                        (action.selectedActionItem?.label || action.type || 'Configured Action')
-                      }
+                      {action.selectedActionItem?.type
+                        ? renderRuleStateHuman(
+                            action.selectedActionItem.type,
+                            action.selectedActionItem
+                          )
+                        : action.selectedActionItem?.label ||
+                          action.type ||
+                          "Configured Action"}
                     </Typography.Text>
                   </div>
                   <div className="flex gap-2">
@@ -2282,8 +2406,13 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
                       type="link"
                       danger
                       onClick={() => {
-                        const updatedActions = selectedRule.actions?.filter((_, i) => i !== index) || [];
-                        setSelectedRule({ ...selectedRule, actions: updatedActions });
+                        const updatedActions =
+                          selectedRule.actions?.filter((_, i) => i !== index) ||
+                          [];
+                        setSelectedRule({
+                          ...selectedRule,
+                          actions: updatedActions,
+                        });
                       }}
                     >
                       Remove
@@ -2294,21 +2423,21 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
             </div>
           </div>
         )}
-        
-        {/* Add Action Button - shown when interface is hidden */}
-        {configuringActionIndex === -1 && (
-          <div className="flex justify-center mt-6">
-            <Button
-              type="dashed"
-              icon={<Plus size={18} />}
-              onClick={() => setConfiguringActionIndex(null)}
-              className="bg-gradient-to-r from-blue-500 to-indigo-600 border-none hover:from-blue-600 hover:to-indigo-700 text-white shadow-md hover:shadow-lg transition-all duration-200"
-              size="large"
-            >
-              Add Action
-            </Button>
-          </div>
-        )}
+
+      {/* Add Action Button - shown when interface is hidden */}
+      {configuringActionIndex === -1 && (
+        <div className="flex justify-center mt-6">
+          <Button
+            type="dashed"
+            icon={<Plus size={18} />}
+            onClick={() => setConfiguringActionIndex(null)}
+            className="bg-gradient-to-r from-blue-500 to-indigo-600 border-none hover:from-blue-600 hover:to-indigo-700 text-white shadow-md hover:shadow-lg transition-all duration-200"
+            size="large"
+          >
+            Add Action
+          </Button>
+        </div>
+      )}
     </div>
   );
 };
