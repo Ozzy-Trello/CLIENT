@@ -110,105 +110,87 @@ li:has(.menu-group-title):hover {
   cursor: pointer !important;
 }
 
-/* Drag and Drop Styles for Sidebar */
-.sidebar-draggable-boards {
-  padding: 8px 0;
+/* Drag and Drop Styles */
+.sidebar-boards-droppable {
+  min-height: 8px;
+  transition: background-color 0.2s ease;
+}
+
+.sidebar-boards-droppable.drag-over {
+  background-color: rgba(59, 130, 246, 0.1);
+  border-radius: 4px;
 }
 
 .sidebar-board-item {
   display: flex;
   align-items: center;
-  padding: 8px 16px;
-  margin: 2px 8px;
+  padding: 8px 12px;
+  margin: 2px 0;
   border-radius: 6px;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.2s ease;
   background: transparent;
-  border: 1px solid transparent;
-  position: relative;
-  will-change: transform, opacity;
 }
 
 .sidebar-board-item:hover {
-  background-color: rgba(24, 144, 255, 0.08);
-  border-color: rgba(24, 144, 255, 0.2);
-  transform: translateY(-1px);
+  background-color: rgba(0, 0, 0, 0.05);
 }
 
 .sidebar-board-item.selected {
-  background-color: rgba(24, 144, 255, 0.1);
-  border-color: rgba(24, 144, 255, 0.3);
-  border-left: 3px solid #1890ff;
+  background-color: rgba(59, 130, 246, 0.1);
+  border-left: 3px solid #3b82f6;
 }
 
 .sidebar-board-item.dragging {
-  transform: rotate(2deg) scale(1.02);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15), 0 4px 10px rgba(0, 0, 0, 0.1);
-  background-color: rgba(24, 144, 255, 0.12);
-  border-color: #1890ff;
-  z-index: 1000;
-  opacity: 0.9;
-  transition: none !important;
+  opacity: 0.8;
+  background-color: rgba(59, 130, 246, 0.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transform: rotate(2deg);
 }
 
-.sidebar-board-item .board-icon {
-  margin-right: 8px;
-  font-size: 16px;
-  color: #666;
-  transition: color 0.2s ease;
-}
-
-.sidebar-board-item .board-title {
-  flex: 1;
-  font-size: 14px;
-  color: #333;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  transition: color 0.2s ease;
-}
-
-.sidebar-board-item.dragging .board-title {
-  color: #1890ff;
-  font-weight: 500;
-}
-
-.sidebar-board-item.dragging .board-icon {
-  color: #1890ff;
-}
-
-/* Drag handle */
 .sidebar-drag-handle {
-  cursor: grab;
   opacity: 0;
-  transition: opacity 0.3s ease, transform 0.2s ease;
-  color: #999;
-  margin-right: 4px;
-  transform: scale(0.9);
+  margin-right: 8px;
+  color: #9ca3af;
+  transition: opacity 0.2s ease;
+  cursor: grab;
 }
 
 .sidebar-board-item:hover .sidebar-drag-handle {
   opacity: 1;
-  transform: scale(1);
 }
 
 .sidebar-drag-handle:active {
   cursor: grabbing;
-  transform: scale(1.1);
 }
 
-/* Droppable area */
-.sidebar-boards-droppable {
-  min-height: 40px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  border-radius: 8px;
+.board-icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  background-color: #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  margin-right: 8px;
+  flex-shrink: 0;
 }
 
-.sidebar-boards-droppable.drag-over {
-  background-color: rgba(24, 144, 255, 0.05);
-  border: 2px dashed rgba(24, 144, 255, 0.3);
-  transform: scale(1.01);
+.board-title {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
+
+
+
+
 
 /* Global dragging state */
 body.dragging {

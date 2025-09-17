@@ -1,7 +1,10 @@
 #!/bin/bash
 
 # Production Deployment Script for Ozzy Frontend
-# Usage: ./deploy.sh [--no-cache] [--env-file=.env.production] [--debug] [--compose]
+# Usage: ./deploy.sh [--no-cache] [--env-file=.env.production] [--debug] [--standalone]
+# 
+# Recommended: Use Docker Compose (default) for better service management and networking
+# Use --standalone flag only if you need individual container control
 
 set -e  # Exit on any error
 
@@ -10,13 +13,13 @@ CONTAINER_NAME="ozzy-frontend"
 IMAGE_NAME="ozzy-frontend-image"
 HOST_PORT=3000
 CONTAINER_PORT=3000
-ENV_FILE=".env.production"
+ENV_FILE=".env"
 NETWORK_NAME="ozzy-network"
 
 # Parse command line arguments
 NO_CACHE=""
 DEBUG_MODE=""
-USE_COMPOSE=""
+USE_COMPOSE="true"  # Default to Docker Compose for better service management
 while [[ $# -gt 0 ]]; do
   case $1 in
     --no-cache)
@@ -31,13 +34,37 @@ while [[ $# -gt 0 ]]; do
       DEBUG_MODE="true"
       shift
       ;;
+    --standalone)
+      USE_COMPOSE=""
+      echo -e "${YELLOW}⚠️  Using standalone mode. Consider Docker Compose for better service management.${NC}"
+      shift
+      ;;
     --compose)
+      # Keep for backward compatibility
       USE_COMPOSE="true"
       shift
       ;;
+    --help)
+      echo "Usage: $0 [OPTIONS]"
+      echo ""
+      echo "Options:"
+      echo "  --no-cache              Build without cache"
+      echo "  --env-file=FILE         Use specific environment file (default: .env.production)"
+      echo "  --debug                 Enable debug output"
+      echo "  --standalone            Use standalone containers (not recommended)"
+      echo "  --compose               Use Docker Compose (default, kept for compatibility)"
+      echo "  --help                  Show this help message"
+      echo ""
+      echo "Examples:"
+      echo "  $0                      # Deploy with Docker Compose (recommended)"
+      echo "  $0 --standalone         # Deploy with standalone containers"
+      echo "  $0 --no-cache           # Clean build with Docker Compose"
+      exit 0
+      ;;
     *)
       echo "Unknown option $1"
-      echo "Usage: $0 [--no-cache] [--env-file=.env.production] [--debug] [--compose]"
+      echo "Usage: $0 [--no-cache] [--env-file=.env.production] [--debug] [--standalone]"
+      echo "Use --help for detailed options"
       exit 1
       ;;
   esac
@@ -51,8 +78,21 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 echo -e "${BLUE}🚀 Starting Ozzy Frontend Production Deployment...${NC}"
-echo "Container: $CONTAINER_NAME"
-echo "Image: $IMAGE_NAME"
+
+# Show deployment method
+if [ "$USE_COMPOSE" = "true" ]; then
+    echo -e "${GREEN}📦 Deployment Method: Docker Compose (Recommended)${NC}"
+    echo -e "${BLUE}✨ Benefits: Integrated service management, automatic networking, easier scaling${NC}"
+else
+    echo -e "${YELLOW}📦 Deployment Method: Standalone Containers${NC}"
+    echo -e "${YELLOW}💡 Recommendation: Use Docker Compose for better service management${NC}"
+    echo -e "${YELLOW}   Run without --standalone flag for Docker Compose deployment${NC}"
+fi
+
+if [ "$USE_COMPOSE" != "true" ]; then
+    echo "Container: $CONTAINER_NAME"
+    echo "Image: $IMAGE_NAME"
+fi
 echo "Port: $HOST_PORT:$CONTAINER_PORT"
 echo "Environment file: $ENV_FILE"
 echo ""
@@ -66,26 +106,34 @@ if [ ! -f "$ENV_FILE" ]; then
     exit 1
 fi
 
-# Create network if it doesn't exist
-echo -e "${BLUE}🔗 Creating Docker network if not exists...${NC}"
-docker network create $NETWORK_NAME 2>/dev/null || true
-
-# Stop and remove existing container
-echo -e "${YELLOW}🛑 Stopping and removing existing container...${NC}"
-if docker ps -q -f name=$CONTAINER_NAME | grep -q .; then
-    docker stop $CONTAINER_NAME
-    echo "✓ Container stopped"
+# Create network if it doesn't exist (standalone mode only)
+if [ "$USE_COMPOSE" != "true" ]; then
+    echo -e "${BLUE}🔗 Creating Docker network for standalone mode...${NC}"
+    docker network create $NETWORK_NAME 2>/dev/null || true
 fi
 
-if docker ps -aq -f name=$CONTAINER_NAME | grep -q .; then
-    docker rm $CONTAINER_NAME
-    echo "✓ Container removed"
-fi
+# Stop and remove existing containers
+if [ "$USE_COMPOSE" = "true" ]; then
+    echo -e "${YELLOW}🛑 Stopping existing Docker Compose services...${NC}"
+    docker-compose down 2>/dev/null || true
+    echo "✓ Docker Compose services stopped"
+else
+    echo -e "${YELLOW}🛑 Stopping and removing existing container...${NC}"
+    if docker ps -q -f name=$CONTAINER_NAME | grep -q .; then
+        docker stop $CONTAINER_NAME
+        echo "✓ Container stopped"
+    fi
 
-# Remove old image if exists (optional cleanup)
-if docker images -q $IMAGE_NAME | grep -q .; then
-    echo -e "${YELLOW}🗑️  Removing old image...${NC}"
-    docker rmi $IMAGE_NAME 2>/dev/null || true
+    if docker ps -aq -f name=$CONTAINER_NAME | grep -q .; then
+        docker rm $CONTAINER_NAME
+        echo "✓ Container removed"
+    fi
+
+    # Remove old image if exists (optional cleanup)
+    if docker images -q $IMAGE_NAME | grep -q .; then
+        echo -e "${YELLOW}🗑️  Removing old image...${NC}"
+        docker rmi $IMAGE_NAME 2>/dev/null || true
+    fi
 fi
 
 # Build Docker image or use docker-compose
@@ -250,15 +298,32 @@ fi
 echo ""
 echo -e "${GREEN}✅ Deployment complete!${NC}"
 echo -e "${BLUE}📋 Summary:${NC}"
-echo "  • Container: $CONTAINER_NAME"
-echo "  • Image: $IMAGE_NAME"
+if [ "$USE_COMPOSE" = "true" ]; then
+    echo "  • Deployment: Docker Compose"
+    echo "  • Service: frontend"
+else
+    echo "  • Container: $CONTAINER_NAME"
+    echo "  • Image: $IMAGE_NAME"
+fi
 echo "  • URL: http://localhost:$HOST_PORT"
 echo "  • Health: http://localhost:$HOST_PORT/api/health"
 echo ""
 echo -e "${YELLOW}📚 Useful commands:${NC}"
-echo "  • View logs: docker logs -f $CONTAINER_NAME"
-echo "  • Stop container: docker stop $CONTAINER_NAME"
-echo "  • Restart container: docker restart $CONTAINER_NAME"
-echo "  • Remove container: docker rm -f $CONTAINER_NAME"
+if [ "$USE_COMPOSE" = "true" ]; then
+    echo "  • View logs: docker-compose logs -f frontend"
+    echo "  • Stop services: docker-compose down"
+    echo "  • Restart services: docker-compose restart"
+    echo "  • View all services: docker-compose ps"
+else
+    echo "  • View logs: docker logs -f $CONTAINER_NAME"
+    echo "  • Stop container: docker stop $CONTAINER_NAME"
+    echo "  • Restart container: docker restart $CONTAINER_NAME"
+    echo "  • Remove container: docker rm -f $CONTAINER_NAME"
+fi
 echo ""
+if [ "$USE_COMPOSE" = "true" ]; then
+    echo -e "${GREEN}✨ Using Docker Compose (recommended method)${NC}"
+else
+    echo -e "${YELLOW}💡 Consider using Docker Compose: ./deploy.sh (without --standalone)${NC}"
+fi
 echo -e "${GREEN}🎉 Happy coding!${NC}"

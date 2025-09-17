@@ -28,6 +28,7 @@ interface LoginFormValues {
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
+  const [form] = Form.useForm();
   const router = useRouter();
   const dispatch = useDispatch();
   const login = useLogin();
@@ -37,25 +38,45 @@ export default function LoginPage() {
     try {
       const result = await login.mutateAsync({ identity, password });
       if (result.data?.accessToken) {
-        await message.success(result.message);
+        message.success(result.message || "Login successful!");
         return true;
       } else {
-        await message.error(result.message);
+        message.error(result.message || "Login failed");
+        return false;
       }
-      return false;
-    } catch (error) {
-      message.error("An unexpected error occurred");
+    } catch (error: any) {
+      console.error("Login validation error:", error);
+      // Handle different types of errors
+      let errorMessage = "An unexpected error occurred";
+
+      if (error?.response?.data?.message) {
+        // API error with specific message
+        errorMessage = error.response.data.message;
+      } else if (error?.message) {
+        // General error message
+        errorMessage = error.message;
+      } else if (typeof error === "string") {
+        // String error
+        errorMessage = error;
+      }
+
+      message.error(errorMessage);
       return false;
     }
   };
 
   const onFinish = async (values: LoginFormValues) => {
+    console.log("Form submitted with values:", values);
     setLoading(true);
+
     try {
       const isValid = await validateCredentials(
         values.identity,
         values.password
       );
+
+      console.log("Login validation result:", isValid);
+
       if (isValid) {
         const result = await refetch();
         if (result) {
@@ -63,35 +84,51 @@ export default function LoginPage() {
         }
 
         // Fix: Add timing safety to ensure authentication state is fully established
-         // Wait for Redux state to be persisted before redirecting
-         setTimeout(async () => {
-           // Fetch default workspace after authentication and redirect to board list
-           try {
-             const { workspaceDefault } = await import("@api/workspace");
-             const defaultWorkspaceResponse = await workspaceDefault();
+        // Wait for Redux state to be persisted before redirecting
+        setTimeout(async () => {
+          // Fetch default workspace after authentication and redirect to board list
+          try {
+            const { workspaceDefault } = await import("@api/workspace");
+            const defaultWorkspaceResponse = await workspaceDefault();
 
-             if (defaultWorkspaceResponse?.data) {
-               window.location.href = `/workspace/${defaultWorkspaceResponse.data.id}/board`;
-             } else {
-               // Fallback to workspace page if no default workspace available
-               window.location.href = "/workspace";
-             }
-           } catch (error) {
-             console.error("Failed to fetch default workspace:", error);
-             // Fallback to workspace page if workspace fetching fails
-             window.location.href = "/workspace";
-           }
-         }, 200); // Small delay to ensure state persistence
+            if (defaultWorkspaceResponse?.data) {
+              window.location.href = `/workspace/${defaultWorkspaceResponse.data.id}/board`;
+            } else {
+              // Fallback to workspace page if no default workspace available
+              window.location.href = "/workspace";
+            }
+          } catch (error) {
+            console.error("Failed to fetch default workspace:", error);
+            // Fallback to workspace page if workspace fetching fails
+            window.location.href = "/workspace";
+          }
+        }, 200); // Small delay to ensure state persistence
+      } else {
+        // Login failed, but error message already shown in validateCredentials
+        console.log("Login failed - error message already displayed");
       }
-    } catch (error) {
-      console.error(error);
+    } catch (error: any) {
+      console.error("Unexpected login error:", error);
+      // Display error message if not already handled by validateCredentials
+      let errorMessage = "Login failed. Please try again.";
+
+      if (error?.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+
+      message.error(errorMessage);
     } finally {
       setLoading(false);
+      console.log("Login process completed, loading set to false");
     }
   };
 
-  const onFinishFailed = () => {
+  const onFinishFailed = (errorInfo: any) => {
+    console.log("Form validation failed:", errorInfo);
     message.error("Please check your input and try again.");
+    setLoading(false); // Ensure loading state is reset
   };
 
   return (
@@ -104,11 +141,13 @@ export default function LoginPage() {
           <Text type="secondary">Please login to your account</Text>
           <div className="mb-2"></div>
           <Form
+            form={form}
             name="login-form"
             onFinish={onFinish}
             onFinishFailed={onFinishFailed}
             layout="vertical"
             className="w-72"
+            preserve={false}
           >
             <Form.Item
               name="identity"
