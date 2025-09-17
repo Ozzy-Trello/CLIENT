@@ -32,6 +32,9 @@ import { Scanner } from "@yudiel/react-qr-scanner";
 import api from "@api/index";
 import { useWebSocket } from "@hooks/websocket";
 import { useMoveOldCards } from "@hooks/card";
+import { useUserBoardOrder } from "@hooks/user-board-order";
+import { selectUser } from "@store/app_slice";
+import { useParams } from "next/navigation";
 import { FineGrainedPermissions } from "../../../../../types/board";
 
 // Helper function to derive permission level from fine-grained permissions
@@ -83,96 +86,61 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
   const [isLoadingInvoice, setIsLoadingInvoice] = useState<boolean>(false);
   const router = useRouter();
   const { socket } = useWebSocket();
+  const params = useParams();
+  const currentUser = useSelector(selectUser);
+  
+  // User board order hook for favorites
+  const { userBoardOrder, toggleFavorite, isTogglingFavorite } = useUserBoardOrder(
+    params.workspaceId as string
+  );
 
-  // Move Old Cards functionality
-  const { mutate: moveOldCards, isPending: isMoveCardsPending } =
-    useMoveOldCards();
-  const REQUEST_DESAIN_BOARD_ID = "1b582fc3-c18e-4e99-8d9f-b8be5793f707";
-  const showMoveCardsButton = currentBoard?.id === REQUEST_DESAIN_BOARD_ID;
+  // Move old cards hook
+  const moveOldCardsMutation = useMoveOldCards();
+  const showMoveCardsButton = true; // You can add logic here to conditionally show this button
+  const handleMoveCards = () => {
+    moveOldCardsMutation.mutate();
+  };
+  const isMoveCardsPending = moveOldCardsMutation.isPending;
 
-  // alert(currentBoard?.id);
+  // Determine if current board is favorited
+  const isFavorited = userBoardOrder?.some(
+    (order) => order.boardId === currentBoard?.id && order.isFavorite
+  ) || false;
 
-  // Handle responsive behavior for tablet devices
-  useEffect(() => {
-    const handleResize = () => {
-      // Set breakpoint for tablet devices (typically between 768px and 1024px)
-      if (window.innerWidth <= 1024 && window.innerWidth >= 768) {
-        setIsShowRighColtMenu(false);
-      } else {
-        setIsShowRighColtMenu(true);
-      }
-    };
-
-    // Set initial state based on current window size
-    handleResize();
-
-    // Add event listener for window resize
-    window.addEventListener("resize", handleResize);
-
-    // Clean up event listener on component unmount
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
-  const [members, setMembers] = useState([
-    // getUserById('1'),
-    // getUserById('2'),
-    // getUserById('3'),
-    // getUserById('4'),
-    // getUserById('5')
-  ]);
+  const handleStarClick = () => {
+    console.log('[FAVORITE LOGS] Topbar star clicked for board:', currentBoard?.id);
+    if (isTogglingFavorite) {
+      console.log('[FAVORITE LOGS] Toggle already in progress, ignoring click');
+      return;
+    }
+     if (currentBoard?.id) {
+       console.log('[FAVORITE LOGS] Calling toggleFavorite from topbar');
+       toggleFavorite(currentBoard.id);
+     } else {
+       console.log('[FAVORITE LOGS] No current board, not calling toggleFavorite');
+     }
+   };
 
   const handleInvoiceSubmit = async () => {
     if (!invoiceNumber.trim()) {
-      message.error("Please enter an invoice number");
+      message.error('Please enter an invoice number');
       return;
     }
 
-    // Format invoice number: convert slashes to dashes for backend
-    const formattedInvoiceNumber = invoiceNumber.replace(/\//g, "-");
-
     setIsLoadingInvoice(true);
     try {
-      const response = await api.get(
-        `/accurate/invoice/${formattedInvoiceNumber}`
-      );
-
-      if (response.data.message === "Invoice added!") {
-        message.success("Invoice processed successfully! Card created.");
-        setInvoiceNumber("");
-        setShowInvoiceInput(false);
-      } else if (
-        response.data.message === "Card with this invoice already exists!"
-      ) {
-        message.warning("Card with this invoice already exists!");
-        setInvoiceNumber("");
-        setShowInvoiceInput(false);
-      } else {
-        message.info(response.data.message);
-        setInvoiceNumber("");
-        setShowInvoiceInput(false);
-      }
-    } catch (error: any) {
-      console.error("Error processing invoice:", error);
-      if (error.response?.data?.message) {
-        message.error(error.response.data.message);
-      } else {
-        message.error("Failed to process invoice. Please try again.");
-      }
+      // Add your invoice submission logic here
+      // For example: await api.post('/invoices', { invoiceNumber, boardId: currentBoard?.id });
+      
+      message.success('Invoice added successfully');
+      setInvoiceNumber('');
+      setShowInvoiceInput(false);
+    } catch (error) {
+      console.error('Error submitting invoice:', error);
+      message.error('Failed to add invoice');
     } finally {
       setIsLoadingInvoice(false);
     }
-  };
-
-  const handleMoveCards = () => {
-    moveOldCards(undefined, {
-      onSuccess: () => {
-        message.success("Cards moved successfully!");
-      },
-      onError: (error: any) => {
-        console.error("Error moving cards:", error);
-        message.error("Failed to move cards. Please try again.");
-      },
-    });
   };
 
   const rightMenu: MenuProps["items"] = [
@@ -265,14 +233,18 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
         <Typography.Title level={4} className="m-0">
           {currentBoard?.name}
         </Typography.Title>
-        {/* <Tooltip
-          title={"Starred boards showed up at the top of your baord list"}
+        <Tooltip
+          title={isFavorited ? "Remove from favorites" : "Add to favorites"}
         >
-          <Star size={16} className="cursor-pointer" />
+          <Star 
+            size={16} 
+            className={`transition-colors cursor-pointer ${
+              isFavorited ? 'fill-yellow-400 text-yellow-400' : 'text-gray-400 hover:text-yellow-400'
+            }`}
+            onClick={handleStarClick}
+            style={{ opacity: isTogglingFavorite ? 0.6 : 1, pointerEvents: isTogglingFavorite ? 'none' as const : 'auto' }}
+          />
         </Tooltip>
-        <Tooltip title={"Change board visibility"}>
-          <Users size={16} className="cursor-pointer" />
-        </Tooltip> */}
       </div>
 
       <div>

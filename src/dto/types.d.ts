@@ -41,6 +41,9 @@ export interface Board {
   createdAt: string;
   updatedBy?: User;
   upatedAt?: string;
+  isFavorite?: boolean;
+  orderIndex?: number;
+  favoriteOrderIndex?: number;
 }
 
 export interface Color {

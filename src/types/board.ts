@@ -42,4 +42,7 @@ export interface Board {
   user_permissions?: FineGrainedPermissions | null;
   userPermission?: "OBSERVER" | "MEMBER" | "MODERATOR" | "ADMIN" | null;
   userPermissions?: FineGrainedPermissions | null;
+  isFavorite?: boolean;
+  orderIndex?: number;
+  favoriteOrderIndex?: number;
 }

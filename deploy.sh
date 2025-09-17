@@ -163,6 +163,7 @@ if [ "$USE_COMPOSE" != "true" ]; then
       --env-file $ENV_FILE \
       --network $NETWORK_NAME \
       --restart unless-stopped \
+      --cpus="1" \
       --health-cmd="node healthcheck.js" \
       --health-interval=30s \
       --health-timeout=10s \

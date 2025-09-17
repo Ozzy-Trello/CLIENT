@@ -686,6 +686,29 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             break;
           }
 
+          case "board_favorite:toggled": {
+            const { userId, boardId, isFavorite } = message.data;
+            console.log('[FAVORITE LOGS] WebSocket board_favorite:toggled received (ignored real-time):', { userId, boardId, isFavorite });
+
+            // Real-time favorite updates are disabled per requirement.
+            // We rely on explicit refetches after user actions instead.
+            break;
+          }
+
+          case "board_favorite:order_updated": {
+            const { userId, favoriteOrders } = message.data;
+
+            // Invalidate user board order query to refresh sidebar order
+            queryClient.invalidateQueries({
+              queryKey: ["userBoardOrder", userId],
+            });
+            // Also invalidate boards list to ensure consistent ordering
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.boards.all,
+            });
+            break;
+          }
+
           default:
             break;
         }
