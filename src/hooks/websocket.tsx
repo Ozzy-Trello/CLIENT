@@ -216,8 +216,6 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             break;
           }
 
-
-
           case "card_activity:added": {
             const { cardId, activity } = message.data;
 
@@ -688,7 +686,10 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
 
           case "board_favorite:toggled": {
             const { userId, boardId, isFavorite } = message.data;
-            console.log('[FAVORITE LOGS] WebSocket board_favorite:toggled received (ignored real-time):', { userId, boardId, isFavorite });
+            console.log(
+              "[FAVORITE LOGS] WebSocket board_favorite:toggled received (ignored real-time):",
+              { userId, boardId, isFavorite }
+            );
 
             // Real-time favorite updates are disabled per requirement.
             // We rely on explicit refetches after user actions instead.

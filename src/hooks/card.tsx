@@ -419,11 +419,12 @@ export function useCardsPaginated(listId: string, boardId: string) {
       setAllCards(cardsQuery.data.data);
       setHasMoreCards(cardsQuery.data.data.length === limit);
       setCurrentPage(1);
-      
+
       // Extract total count from pagination data
-      const totalCount = cardsQuery.data.paginate?.totalData || cardsQuery.data.data.length;
+      const totalCount =
+        cardsQuery.data.paginate?.totalData || cardsQuery.data.data.length;
       setTotalCards(totalCount);
-      
+
       // Ensure query cache is updated with initial data
       queryClient.setQueryData<ApiResponse<Card[]>>(
         queryKeys.cards.list(listId),
@@ -446,41 +447,54 @@ export function useCardsPaginated(listId: string, boardId: string) {
   // Load more cards function
   const loadMoreCards = useCallback(async () => {
     if (!hasMoreCards || isLoadingMore) return;
-    
+
     setIsLoadingMore(true);
     setLoadMoreError(null); // Clear previous errors
-    
+
     try {
       const nextPage = currentPage + 1;
       const response = await cards(listId, boardId, nextPage, limit);
-      
+
       const responseData = response.data;
-       if (responseData && Array.isArray(responseData) && responseData.length > 0) {
-          const newAllCards = [...allCards, ...responseData];
-          setAllCards(newAllCards);
-          setCurrentPage(nextPage);
-          setHasMoreCards(responseData.length === limit);
-          
-          // Update the query cache with all cards for drag-and-drop compatibility
-          queryClient.setQueryData<ApiResponse<Card[]>>(
-            queryKeys.cards.list(listId),
-            (old) => ({
-              ...old,
-              status_code: 200,
-              message: "Success",
-              data: newAllCards,
-            })
-          );
-        } else {
-          setHasMoreCards(false);
-        }
+      if (
+        responseData &&
+        Array.isArray(responseData) &&
+        responseData.length > 0
+      ) {
+        const newAllCards = [...allCards, ...responseData];
+        setAllCards(newAllCards);
+        setCurrentPage(nextPage);
+        setHasMoreCards(responseData.length === limit);
+
+        // Update the query cache with all cards for drag-and-drop compatibility
+        queryClient.setQueryData<ApiResponse<Card[]>>(
+          queryKeys.cards.list(listId),
+          (old) => ({
+            ...old,
+            status_code: 200,
+            message: "Success",
+            data: newAllCards,
+          })
+        );
+      } else {
+        setHasMoreCards(false);
+      }
     } catch (error) {
-      console.error('Error loading more cards:', error);
-      setLoadMoreError('Failed to load more cards. Please try again.');
+      console.error("Error loading more cards:", error);
+      setLoadMoreError("Failed to load more cards. Please try again.");
     } finally {
       setIsLoadingMore(false);
     }
-  }, [listId, boardId, currentPage, limit, hasMoreCards, isLoadingMore, allCards, queryClient]);
+  }, [
+    listId,
+    boardId,
+    currentPage,
+    limit,
+    hasMoreCards,
+    isLoadingMore,
+    allCards,
+    queryClient,
+  ]);
 
   // Add card mutation with optimistic updates for paginated cards
   const addCardMutation = useMutation({
@@ -499,8 +513,8 @@ export function useCardsPaginated(listId: string, boardId: string) {
       } as Card;
 
       // Add to the end of allCards
-      setAllCards(prev => [...prev, tempCard]);
-      
+      setAllCards((prev) => [...prev, tempCard]);
+
       return { tempId, listId };
     },
     onSuccess: (response, _variables, context) => {
@@ -508,16 +522,18 @@ export function useCardsPaginated(listId: string, boardId: string) {
       const { tempId } = context;
 
       // Replace temp card with real card
-      setAllCards(prev => 
-        prev.map(card => card.id === tempId ? realCard : card)
+      setAllCards((prev) =>
+        prev.map((card) => (card.id === tempId ? realCard : card))
       );
     },
     onError: (err, _variables, context) => {
-       if (context?.tempId) {
-         // Remove temp card on error
-         setAllCards(prev => prev.filter(card => card.id !== context.tempId));
-       }
-     },
+      if (context?.tempId) {
+        // Remove temp card on error
+        setAllCards((prev) =>
+          prev.filter((card) => card.id !== context.tempId)
+        );
+      }
+    },
   });
 
   // Retry function for failed load more attempts
@@ -529,20 +545,20 @@ export function useCardsPaginated(listId: string, boardId: string) {
   }, [loadMoreError, loadMoreCards]);
 
   return {
-      cards: allCards,
-      isLoading: cardsQuery.isLoading,
-      isError: cardsQuery.isError,
-      error: cardsQuery.error,
-      hasMoreCards,
-      isLoadingMore,
-      loadMoreCards,
-      loadMoreError,
-      retryLoadMore,
-      addCard: addCardMutation.mutate,
-      isAddingCard: addCardMutation.isPending,
-      totalCards,
-    };
-  }
+    cards: allCards,
+    isLoading: cardsQuery.isLoading,
+    isError: cardsQuery.isError,
+    error: cardsQuery.error,
+    hasMoreCards,
+    isLoadingMore,
+    loadMoreCards,
+    loadMoreError,
+    retryLoadMore,
+    addCard: addCardMutation.mutate,
+    isAddingCard: addCardMutation.isPending,
+    totalCards,
+  };
+}
 
 /**
  * Hook to manage card movement between lists or within a list

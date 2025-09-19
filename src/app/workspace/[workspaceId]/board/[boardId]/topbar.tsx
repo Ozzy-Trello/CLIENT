@@ -36,6 +36,7 @@ import { useUserBoardOrder } from "@hooks/user-board-order";
 import { selectUser } from "@store/app_slice";
 import { useParams } from "next/navigation";
 import { FineGrainedPermissions } from "../../../../../types/board";
+import ModalDelivery from "@components/modal-delivery";
 
 // Helper function to derive permission level from fine-grained permissions
 const getPermissionLevelFromFineGrained = (permissions: FineGrainedPermissions | null): string => {
@@ -84,6 +85,7 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
   const [showInvoiceInput, setShowInvoiceInput] = useState<boolean>(false);
   const [invoiceNumber, setInvoiceNumber] = useState<string>("");
   const [isLoadingInvoice, setIsLoadingInvoice] = useState<boolean>(false);
+  const [modalDeliveryOpen, setModalDeliveryOpen] = useState<boolean>(false);
   const router = useRouter();
   const { socket } = useWebSocket();
   const params = useParams();
@@ -177,7 +179,7 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
 
   return (
     <div
-      className="flex items-center justify-between h-[45px] absolute top-[45px] border-b border-gray-200 px-2"
+      className="flex items-center justify-between h-[45px] absolute top-[45px] border-b border-gray-200 px-4"
       style={{
         width: collapsed
           ? `calc(100% - ${siderSmall}px)`
@@ -328,6 +330,17 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
               </Tooltip>
             </Popover>
 
+            <Tooltip title="Delivery">
+              <Button
+                type="primary"
+                size="small"
+                onClick={() => setModalDeliveryOpen(true)}
+                style={{ backgroundColor: '#1890ff', borderColor: '#1890ff' }}
+              >
+                <span>Delivery</span>
+              </Button>
+            </Tooltip>
+
             {/* <div>
               <MembersList
                 members={members}
@@ -389,6 +402,11 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
           </Dropdown>
         )}
       </div>
+      
+      <ModalDelivery
+        open={modalDeliveryOpen}
+        onClose={() => setModalDeliveryOpen(false)}
+      />
     </div>
   );
 };

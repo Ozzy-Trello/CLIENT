@@ -5,12 +5,7 @@ import { useCardCustomField } from "@hooks/card_custom_field";
 import { useCardMembers } from "@hooks/card_member";
 import { Card, CardCustomField } from "@myTypes/card";
 import { isImageFile } from "@utils/file";
-import {
-  Avatar,
-  Checkbox,
-  CheckboxChangeEvent,
-  Typography,
-} from "antd";
+import { Avatar, Checkbox, CheckboxChangeEvent, Typography } from "antd";
 import TouchAwareTooltip from "@components/touch-aware-tooltip";
 import {
   Calendar,
@@ -311,7 +306,7 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
                   item.valueOption !== null &&
                   item.valueOption !== undefined
                 ) {
-                  return item.valueOption;
+                  return LookupCache.any(item.valueOption);
                 }
               } else if (item.type === "text") {
                 if (
