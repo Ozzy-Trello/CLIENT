@@ -413,36 +413,61 @@ export function useCardsPaginated(listId: string, boardId: string) {
     staleTime: 60000,
   });
 
-  // Update allCards when initial query data changes
-  useEffect(() => {
-    if (cardsQuery.data?.data) {
-      setAllCards(cardsQuery.data.data);
-      setHasMoreCards(cardsQuery.data.data.length === limit);
-      setCurrentPage(1);
-
-      // Extract total count from pagination data
-      const totalCount =
-        cardsQuery.data.paginate?.totalData || cardsQuery.data.data.length;
-      setTotalCards(totalCount);
-
-      // Ensure query cache is updated with initial data
-      queryClient.setQueryData<ApiResponse<Card[]>>(
-        queryKeys.cards.list(listId),
-        cardsQuery.data
-      );
-      setLoadMoreError(null); // Clear any previous errors
-    }
-  }, [cardsQuery.data?.data, limit]);
-
-  // Reset pagination when listId changes
+  // Reset pagination when listId changes and initialize from cache if available
   useEffect(() => {
     setCurrentPage(1);
-    setAllCards([]);
-    setHasMoreCards(true);
     setIsLoadingMore(false);
     setLoadMoreError(null);
     setTotalCards(0);
-  }, [listId]);
+    
+    // Check if we have cached data for this listId
+    const cachedData = queryClient.getQueryData<ApiResponse<Card[]>>(
+      queryKeys.cards.list(listId)
+    );
+    
+    if (cachedData?.data && Array.isArray(cachedData.data)) {
+      // Initialize from cached data
+      setAllCards(cachedData.data);
+      setHasMoreCards(cachedData.data.length === limit);
+      
+      // Extract total count from cached pagination data
+      const totalCount = cachedData.paginate?.totalData || cachedData.data.length;
+      setTotalCards(totalCount);
+    } else {
+      // No cached data, reset to empty state
+      setAllCards([]);
+      setHasMoreCards(true);
+    }
+  }, [listId, queryClient, limit]);
+
+  // Update allCards when initial query data changes (for fresh data)
+  useEffect(() => {
+    if (cardsQuery.data?.data && !cardsQuery.isLoading) {
+      // Only update if we don't already have the same data
+      const currentDataIds = allCards.map(card => card.id).sort();
+      const newDataIds = cardsQuery.data.data.map(card => card.id).sort();
+      const isSameData = currentDataIds.length === newDataIds.length && 
+        currentDataIds.every((id, index) => id === newDataIds[index]);
+      
+      if (!isSameData) {
+        setAllCards(cardsQuery.data.data);
+        setHasMoreCards(cardsQuery.data.data.length === limit);
+        setCurrentPage(1);
+
+        // Extract total count from pagination data
+        const totalCount =
+          cardsQuery.data.paginate?.totalData || cardsQuery.data.data.length;
+        setTotalCards(totalCount);
+
+        // Ensure query cache is updated with initial data
+        queryClient.setQueryData<ApiResponse<Card[]>>(
+          queryKeys.cards.list(listId),
+          cardsQuery.data
+        );
+      }
+      setLoadMoreError(null); // Clear any previous errors
+    }
+  }, [cardsQuery.data?.data, cardsQuery.isLoading, limit, allCards, queryClient, listId]);
 
   // Load more cards function
   const loadMoreCards = useCallback(async () => {
