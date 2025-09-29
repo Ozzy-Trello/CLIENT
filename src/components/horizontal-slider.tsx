@@ -64,7 +64,7 @@ const HorizontalSlider: React.FC<HorizontalSliderProps> = ({
   const thumbWidth =
     maxScroll > 0
       ? Math.max(
-          20,
+          100,
           ((containerRef.current?.clientWidth || 0) /
             (containerRef.current?.scrollWidth || 1)) *
             100

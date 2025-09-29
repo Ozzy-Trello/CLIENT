@@ -115,6 +115,8 @@ const Sidebar = () => {
   const [allMenus, setAllMenus] = useState<MenuItem[]>([]);
   const [isFetching, setIsFetching] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [hoveredBoardId, setHoveredBoardId] = useState<number | null>(null);
+
   const [openCreateBoardModal, setOpenCreateBoardModal] =
     useState<boolean>(false);
   const currentWorkspace = useSelector(selectCurrentWorkspace);
@@ -740,15 +742,25 @@ const Sidebar = () => {
                                     aria-disabled={isTogglingFavorite}
                                   >
                                     <Star
+                                      key={index}
                                       size={14}
-                                      onMouseEnter={(e) => {
-                                        e.currentTarget.style.color = "#eab308";
-                                        e.currentTarget.style.fill = "#eab308";
-                                      }}
-                                      onMouseLeave={(e) => {
-                                        e.currentTarget.style.color = "#d1d5db";
-                                        e.currentTarget.style.fill = "#d1d5db";
-                                      }}
+                                      color={
+                                        hoveredBoardId === index
+                                          ? "#eab308"
+                                          : "#d1d5db"
+                                      }
+                                      fill={
+                                        hoveredBoardId === index
+                                          ? "#eab308"
+                                          : "none"
+                                      }
+                                      className="transition-colors"
+                                      onMouseEnter={() =>
+                                        setHoveredBoardId(index)
+                                      }
+                                      onMouseLeave={() =>
+                                        setHoveredBoardId(null)
+                                      }
                                     />
                                   </button>
                                 </div>

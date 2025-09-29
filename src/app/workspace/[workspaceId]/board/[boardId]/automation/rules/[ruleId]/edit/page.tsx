@@ -27,6 +27,8 @@ import {
   AutomationRuleTrigger,
   AutomationRuleAction,
   SelectedCardFilterItem,
+  SelectedAction,
+  SelectedTriggerItem,
 } from "@myTypes/type";
 import SelectTrigger from "../../new/select-trigger";
 import { extractPlaceholders } from "@utils/general";
@@ -61,11 +63,14 @@ export default function EditRulePage() {
   const [actionsData, setActionsData] =
     useState<AutomationRuleAction[]>(actions);
 
-  // Modal states
-  const [editTriggerModal, setEditTriggerModal] = useState(false);
-  const [editActionModal, setEditActionModal] = useState(false);
+  // Inline editing states
+  const [isEditingTrigger, setIsEditingTrigger] = useState(false);
+  const [isEditingAction, setIsEditingAction] = useState(false);
   const [editingActionIndex, setEditingActionIndex] = useState<number | null>(
     null
+  );
+  const [editingActionId, setEditingActionId] = useState<string | undefined>(
+    undefined
   );
 
   const { customFields } = useCustomFields(workspaceId as string);
@@ -101,31 +106,51 @@ export default function EditRulePage() {
   // Use the lookup hook to populate cache
   const { loading: lookupsLoading } = useRuleLookups(ruleLikeObjects);
 
-  // Load existing rule data
+  // Escape key to cancel editing
   useEffect(() => {
-    const loadRule = async () => {
-      try {
-        setIsLoadingRule(true);
-        const response = await getRuleById(
-          workspaceId as string,
-          ruleId as string
-        );
-        const ruleData = response.data;
-
-        // Convert backend rule data to frontend format
-        const convertedRule = convertBackendRuleToFrontend(ruleData);
-        setSelectedRule(convertedRule);
-      } catch (error) {
-        console.error("Failed to load rule:", error);
-        message.error("Failed to load rule data");
-        router.push(
-          `/workspace/${workspaceId}/board/${boardId}/automation/rules`
-        );
-      } finally {
-        setIsLoadingRule(false);
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        if (isEditingTrigger) {
+          setIsEditingTrigger(false);
+        } else if (isEditingAction) {
+          setIsEditingAction(false);
+          setEditingActionIndex(null);
+        }
       }
     };
 
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isEditingTrigger, isEditingAction]);
+
+  // Function to load/refresh rule data
+  const loadRule = async () => {
+    try {
+      setIsLoadingRule(true);
+      const response = await getRuleById(
+        workspaceId as string,
+        ruleId as string
+      );
+      const ruleData = response.data;
+
+      // Convert backend rule data to frontend format
+      const convertedRule = convertBackendRuleToFrontend(ruleData);
+      setSelectedRule(convertedRule);
+    } catch (error) {
+      console.error("Failed to load rule:", error);
+      message.error("Failed to load rule data");
+      router.push(
+        `/workspace/${workspaceId}/board/${boardId}/automation/rules`
+      );
+    } finally {
+      setIsLoadingRule(false);
+    }
+  };
+
+  // Load existing rule data on component mount
+  useEffect(() => {
     if (ruleId && workspaceId) {
       loadRule();
     }
@@ -391,17 +416,70 @@ export default function EditRulePage() {
   };
 
   const openEditTrigger = () => {
-    setEditTriggerModal(true);
+    setIsEditingTrigger(true);
+    setIsEditingAction(false);
   };
 
-  const openEditAction = (index: number) => {
+  const openEditAction = (action: SelectedAction) => {
+    // Find the index of this action in the array
+    const index = selectedRule.actions?.findIndex(a => a.id === action.id) ?? -1;
     setEditingActionIndex(index);
-    setEditActionModal(true);
+    setEditingActionId(action.id); // Store the action ID
+    setIsEditingAction(true);
+    setIsEditingTrigger(false);
+    
+    // Initialize actionsData with the existing action's data
+    const existingAction = action;
+    if (existingAction) {
+      // Find the action group that matches the existing action's type
+      const actionGroup = actions.find(group => group.type === existingAction.type);
+      if (actionGroup) {
+        // Find the specific action item within the group
+        const actionItem = actionGroup.items?.find(item => 
+          item.type === existingAction.selectedActionItem?.type
+        );
+        
+        if (actionItem) {
+          // Create a copy of the action item and populate it with existing data
+          const populatedActionItem = { ...actionItem };
+          
+          // Populate the form fields with existing action data
+          if (existingAction.selectedActionItem) {
+            Object.keys(existingAction.selectedActionItem).forEach(key => {
+              if (key !== 'type' && key !== 'label') {
+                populatedActionItem[key] = existingAction.selectedActionItem![key];
+              }
+            });
+          }
+          
+          // Create the actionsData structure with the populated item
+          const editActionsData = actions.map(group => {
+            if (group.type === existingAction.type) {
+              return {
+                ...group,
+                items: group.items?.map(item => 
+                  item.type === existingAction.selectedActionItem?.type 
+                    ? populatedActionItem 
+                    : item
+                ) || []
+              };
+            }
+            return group;
+          });
+          
+          setActionsData(editActionsData);
+        }
+      }
+    }
   };
 
   const openAddAction = () => {
     setEditingActionIndex(null);
-    setEditActionModal(true);
+    setEditingActionId(undefined);
+    setIsEditingAction(true);
+    setIsEditingTrigger(false);
+    // Reset actionsData to default state for adding new action
+    setActionsData(actions);
   };
 
   const handleDeleteAction = async (index: number) => {
@@ -444,15 +522,26 @@ export default function EditRulePage() {
   // Helper function to determine group type from trigger type
   const getGroupTypeFromTriggerType = (triggerType: string): string => {
     // Custom fields triggers
-    if (triggerType.includes("custom-field") || triggerType.includes("custom-fields")) {
+    if (
+      triggerType.includes("custom-field") ||
+      triggerType.includes("custom-fields")
+    ) {
       return "card.fields";
     }
     // Card move triggers
-    else if (triggerType.includes("when-a-card") && (triggerType.includes("added") || triggerType.includes("moved") || triggerType.includes("list"))) {
+    else if (
+      triggerType.includes("when-a-card") &&
+      (triggerType.includes("added") ||
+        triggerType.includes("moved") ||
+        triggerType.includes("list"))
+    ) {
       return "card.move";
     }
     // Checklist triggers
-    else if (triggerType.includes("checklist") || triggerType.includes("item")) {
+    else if (
+      triggerType.includes("checklist") ||
+      triggerType.includes("item")
+    ) {
       return "card.checklists";
     }
     // Date triggers
@@ -460,21 +549,31 @@ export default function EditRulePage() {
       return "card.dates";
     }
     // Content triggers
-    else if (triggerType.includes("content") || triggerType.includes("title") || triggerType.includes("description")) {
+    else if (
+      triggerType.includes("content") ||
+      triggerType.includes("title") ||
+      triggerType.includes("description")
+    ) {
       return "card.content";
     }
     // Card changes triggers (completion, archival, labels, attachments, members)
-    else if (triggerType.includes("completion") || triggerType.includes("archive") || 
-             triggerType.includes("label") || triggerType.includes("attachment") || 
-             triggerType.includes("member")) {
+    else if (
+      triggerType.includes("completion") ||
+      triggerType.includes("archive") ||
+      triggerType.includes("label") ||
+      triggerType.includes("attachment") ||
+      triggerType.includes("member")
+    ) {
       return "card.changes";
     }
     // Default fallback
     return "card.move";
   };
 
-  const saveTrigger = async () => {
-    if (!selectedRule.triggerItem) {
+  const saveTriggerWithData = async (
+    updatedTriggerItem: SelectedTriggerItem
+  ) => {
+    if (!updatedTriggerItem) {
       message.error("No trigger configured");
       return;
     }
@@ -483,41 +582,64 @@ export default function EditRulePage() {
       setIsLoading(true);
 
       // Extract the proper condition format from triggerItem
-      const triggerItem = selectedRule.triggerItem as any;
+      const triggerItem = updatedTriggerItem as any;
       let condition = {};
 
       // If triggerItem has a nested condition structure, extract the inner condition
-      if (triggerItem.condition && typeof triggerItem.condition === 'object') {
+      if (triggerItem.condition && typeof triggerItem.condition === "object") {
         const innerCondition = triggerItem.condition as any;
-        
+
         // Build the proper condition format expected by the backend
         condition = {
           board: triggerItem.board || innerCondition.board,
-          action: (innerCondition.action && typeof innerCondition.action === 'object' && innerCondition.action.value) 
-                  || innerCondition.action 
-                  || "card.customfield.changed",
-          fields: (innerCondition.fields && typeof innerCondition.fields === 'object' && innerCondition.fields.value) 
-                  || innerCondition.fields,
+          action:
+            (innerCondition.action &&
+              typeof innerCondition.action === "object" &&
+              innerCondition.action.value) ||
+            innerCondition.action ||
+            "card.customfield.changed",
+          fields:
+            (innerCondition.fields &&
+              typeof innerCondition.fields === "object" &&
+              innerCondition.fields.value) ||
+            innerCondition.fields,
           field_value: innerCondition.field_value,
           optional_by: {
-            data: (innerCondition.optional_by && innerCondition.optional_by.data) || [],
-            operator: (innerCondition.optional_by && (innerCondition.optional_by.value || innerCondition.optional_by.operator)) || "by-anyone"
-          }
+            data:
+              (innerCondition.optional_by && innerCondition.optional_by.data) ||
+              [],
+            operator:
+              (innerCondition.optional_by &&
+                (innerCondition.optional_by.value ||
+                  innerCondition.optional_by.operator)) ||
+              "by-anyone",
+          },
         };
       } else {
         // If it's already in the correct format, use it directly
         condition = {
           board: triggerItem.board,
-          action: (triggerItem.action && typeof triggerItem.action === 'object' && triggerItem.action.value) 
-                  || triggerItem.action 
-                  || "card.customfield.changed",
-          fields: (triggerItem.fields && typeof triggerItem.fields === 'object' && triggerItem.fields.value) 
-                  || triggerItem.fields,
+          action:
+            (triggerItem.action &&
+              typeof triggerItem.action === "object" &&
+              triggerItem.action.value) ||
+            triggerItem.action ||
+            "card.customfield.changed",
+          fields:
+            (triggerItem.fields &&
+              typeof triggerItem.fields === "object" &&
+              triggerItem.fields.value) ||
+            triggerItem.fields,
           field_value: triggerItem.field_value,
           optional_by: {
-            data: (triggerItem.optional_by && triggerItem.optional_by.data) || [],
-            operator: (triggerItem.optional_by && (triggerItem.optional_by.value || triggerItem.optional_by.operator)) || "by-anyone"
-          }
+            data:
+              (triggerItem.optional_by && triggerItem.optional_by.data) || [],
+            operator:
+              (triggerItem.optional_by &&
+                (triggerItem.optional_by.value ||
+                  triggerItem.optional_by.operator)) ||
+              "by-anyone",
+          },
         };
       }
 
@@ -535,6 +657,103 @@ export default function EditRulePage() {
       await updateTrigger(workspaceId as string, ruleId as string, triggerData);
 
       message.success("Trigger updated successfully");
+      // Refresh rule data to show updated trigger
+      await loadRule();
+    } catch (e: any) {
+      console.error("Failed to update trigger:", e);
+      message.error(e?.response?.data?.message || "Failed to update trigger");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const saveTrigger = async () => {
+    if (!selectedRule.triggerItem) {
+      message.error("No trigger configured");
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+
+      // Extract the proper condition format from triggerItem
+      const triggerItem = selectedRule.triggerItem as any;
+      let condition = {};
+
+      // If triggerItem has a nested condition structure, extract the inner condition
+      if (triggerItem.condition && typeof triggerItem.condition === "object") {
+        const innerCondition = triggerItem.condition as any;
+
+        // Build the proper condition format expected by the backend
+        condition = {
+          board: triggerItem.board || innerCondition.board,
+          action:
+            (innerCondition.action &&
+              typeof innerCondition.action === "object" &&
+              innerCondition.action.value) ||
+            innerCondition.action ||
+            "card.customfield.changed",
+          fields:
+            (innerCondition.fields &&
+              typeof innerCondition.fields === "object" &&
+              innerCondition.fields.value) ||
+            innerCondition.fields,
+          field_value: innerCondition.field_value,
+          optional_by: {
+            data:
+              (innerCondition.optional_by && innerCondition.optional_by.data) ||
+              [],
+            operator:
+              (innerCondition.optional_by &&
+                (innerCondition.optional_by.value ||
+                  innerCondition.optional_by.operator)) ||
+              "by-anyone",
+          },
+        };
+      } else {
+        // If it's already in the correct format, use it directly
+        condition = {
+          board: triggerItem.board,
+          action:
+            (triggerItem.action &&
+              typeof triggerItem.action === "object" &&
+              triggerItem.action.value) ||
+            triggerItem.action ||
+            "card.customfield.changed",
+          fields:
+            (triggerItem.fields &&
+              typeof triggerItem.fields === "object" &&
+              triggerItem.fields.value) ||
+            triggerItem.fields,
+          field_value: triggerItem.field_value,
+          optional_by: {
+            data:
+              (triggerItem.optional_by && triggerItem.optional_by.data) || [],
+            operator:
+              (triggerItem.optional_by &&
+                (triggerItem.optional_by.value ||
+                  triggerItem.optional_by.operator)) ||
+              "by-anyone",
+          },
+        };
+      }
+
+      // Get the trigger type and determine the group type
+      const triggerType = triggerItem.type;
+      const groupType = getGroupTypeFromTriggerType(triggerType);
+
+      // Send the complete trigger data including type and group_type
+      const triggerData = {
+        condition,
+        type: triggerType,
+        group_type: groupType,
+      };
+
+      await updateTrigger(workspaceId as string, ruleId as string, triggerData);
+
+      message.success("Trigger updated successfully");
+      // Refresh rule data to show updated trigger
+      await loadRule();
     } catch (e: any) {
       console.error("Failed to update trigger:", e);
       message.error(e?.response?.data?.message || "Failed to update trigger");
@@ -554,9 +773,9 @@ export default function EditRulePage() {
 
       const action = selectedRule.actions[actionIndex];
 
-      // Convert action data to API format
+      // Convert action data to API format (snake_case for backend)
       const actionData = {
-        groupType: action.groupType,
+        group_type: action.groupType,
         type: action.selectedActionItem?.type || "",
         condition: action.selectedActionItem || {},
       };
@@ -575,6 +794,74 @@ export default function EditRulePage() {
       }
 
       message.success("Action updated successfully");
+      
+      // Update local state instead of reloading entire rule to preserve action positions
+      setSelectedRule(prevRule => {
+        const updatedRule = { ...prevRule };
+        if (updatedRule.actions && actionIndex >= 0 && actionIndex < updatedRule.actions.length) {
+          // Update the specific action while preserving its position and ID
+          updatedRule.actions[actionIndex] = {
+            ...updatedRule.actions[actionIndex],
+            // Preserve existing data since this function doesn't modify the action content
+          };
+        }
+        return updatedRule;
+      });
+    } catch (e: any) {
+      console.error("Failed to update action:", e);
+      message.error(e?.response?.data?.message || "Failed to update action");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const saveActionWithData = async (
+    actionIndex: number,
+    updatedAction: SelectedAction
+  ) => {
+    try {
+      setIsLoading(true);
+
+      // Convert action data to API format (snake_case for backend)
+      const actionData = {
+        group_type: updatedAction.groupType,
+        type: updatedAction.selectedActionItem?.type || "",
+        condition: updatedAction.selectedActionItem || {},
+      };
+
+      // Use updateActionById if action has an ID, otherwise use the index-based update
+      if (updatedAction.id) {
+        await updateActionById(
+          workspaceId as string,
+          updatedAction.id,
+          actionData
+        );
+      } else {
+        await updateAction(
+          workspaceId as string,
+          ruleId as string,
+          actionIndex,
+          actionData,
+          boardId as string
+        );
+      }
+
+      message.success("Action updated successfully");
+      
+      // Update local state instead of reloading entire rule to preserve action positions
+      setSelectedRule(prevRule => {
+        const updatedRule = { ...prevRule };
+        if (updatedRule.actions && actionIndex >= 0 && actionIndex < updatedRule.actions.length) {
+          // Update the specific action while preserving its position and ID
+          updatedRule.actions[actionIndex] = {
+            ...updatedRule.actions[actionIndex],
+            ...updatedAction,
+            // Ensure ID is preserved if it exists
+            id: updatedRule.actions[actionIndex].id || updatedAction.id
+          };
+        }
+        return updatedRule;
+      });
     } catch (e: any) {
       console.error("Failed to update action:", e);
       message.error(e?.response?.data?.message || "Failed to update action");
@@ -587,9 +874,9 @@ export default function EditRulePage() {
     try {
       setIsLoading(true);
 
-      // Convert action data to API format
+      // Convert action data to API format (snake_case for backend)
       const actionData = {
-        groupType: newAction.groupType,
+        group_type: newAction.groupType,
         type: newAction.selectedActionItem?.type || "",
         condition: newAction.selectedActionItem || {},
       };
@@ -601,12 +888,9 @@ export default function EditRulePage() {
         boardId as string
       );
 
-      // Update local state
-      const updatedActions = [...(selectedRule.actions || []), newAction];
-      const updatedRule = { ...selectedRule, actions: updatedActions };
-      setSelectedRule(updatedRule);
-
       message.success("Action added successfully");
+      // Refresh rule data to show new action
+      await loadRule();
     } catch (e: any) {
       console.error("Failed to add action:", e);
       message.error(e?.response?.data?.message || "Failed to add action");
@@ -675,207 +959,191 @@ export default function EditRulePage() {
             >
               Back to Rules
             </Button>
-            <Title level={2} className="text-gray-900 mb-0">
-              Edit Rule
-            </Title>
+            <div>
+              <Title level={2} className="text-gray-900 mb-0">
+                Edit Rule
+              </Title>
+            </div>
           </div>
         </div>
 
         {/* Rule Components */}
         <div className="space-y-6">
           {/* Trigger Section */}
-          <Card className="shadow-sm border border-gray-200">
-            <div className="flex items-center justify-between mb-4">
-              <Title level={4} className="text-gray-900 mb-0">
-                Trigger
-              </Title>
-              <Button
-                icon={<EditOutlined />}
-                onClick={openEditTrigger}
-                type="primary"
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                Edit Trigger
-              </Button>
-            </div>
-            <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
-              <div className="flex items-start gap-3">
-                <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
-                <Text className="text-gray-800 leading-relaxed">
-                  {formatTriggerDescription()}
-                </Text>
+          {!isEditingTrigger && (
+            <Card className="shadow-sm border border-gray-200">
+              <div className="flex items-center justify-between mb-4">
+                <Title level={4} className="text-gray-900 mb-0">
+                  Trigger
+                </Title>
+                <Button
+                  icon={<EditOutlined />}
+                  onClick={openEditTrigger}
+                  type="primary"
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  Edit Trigger
+                </Button>
               </div>
-            </div>
-          </Card>
+              <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+                  <Text className="text-gray-800 leading-relaxed">
+                    {formatTriggerDescription()}
+                  </Text>
+                </div>
+              </div>
+            </Card>
+          )}
+
+          {/* Inline Trigger Editing */}
+          {isEditingTrigger && (
+            <Card className="shadow-sm border border-gray-200">
+              <div className="flex items-center justify-between mb-4">
+                <Title level={4} className="text-gray-900 mb-0">
+                  Edit Trigger
+                </Title>
+                <Button
+                  onClick={() => {
+                    setIsEditingTrigger(false);
+                  }}
+                >
+                  Cancel
+                </Button>
+              </div>
+              <SelectTrigger
+                nextStep={() => {}}
+                prevStep={() => {}}
+                selectedRule={selectedRule}
+                setSelectedRule={setSelectedRule}
+                triggersData={triggersData}
+                setTriggersData={setTriggersData}
+                isEditMode={true}
+                onSaveAndClose={async (updatedRule: AutomationRule) => {
+                  if (updatedRule.triggerItem) {
+                    await saveTriggerWithData(updatedRule.triggerItem);
+                  }
+                  setIsEditingTrigger(false);
+                }}
+              />
+            </Card>
+          )}
 
           {/* Actions Section */}
-          <Card className="shadow-sm border border-gray-200">
-            <div className="flex items-center justify-between mb-4">
-              <Title level={4} className="text-gray-900 mb-0">
-                Actions
-              </Title>
-              <Button
-                icon={<PlusOutlined />}
-                onClick={openAddAction}
-                type="primary"
-                className="bg-green-600 hover:bg-green-700"
-              >
-                Add Action
-              </Button>
-            </div>
-            <div className="space-y-3">
-              {(selectedRule.actions || []).map((action, index) => (
-                <div
-                  key={index}
-                  className="bg-green-50 border border-green-200 p-4 rounded-lg"
+          {!isEditingAction && (
+            <Card className="shadow-sm border border-gray-200">
+              <div className="flex items-center justify-between mb-4">
+                <Title level={4} className="text-gray-900 mb-0">
+                  Actions
+                </Title>
+                <Button
+                  icon={<PlusOutlined />}
+                  onClick={openAddAction}
+                  type="primary"
+                  className="bg-green-600 hover:bg-green-700"
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start gap-3 flex-1">
-                      <div className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
-                      <Text className="text-gray-800 leading-relaxed">
-                        {index + 1}. {formatActionDescription(action, index)}
-                      </Text>
-                    </div>
-                    <Space>
-                      <Button
-                        size="small"
-                        icon={<EditOutlined />}
-                        onClick={() => {
-                          openEditAction(index);
-                        }}
-                        className="bg-blue-600 text-white hover:bg-blue-700 border-blue-600"
-                      >
-                        Edit
-                      </Button>
-                      {(selectedRule.actions?.length || 0) > 1 && (
+                  Add Action
+                </Button>
+              </div>
+              <div className="space-y-3">
+                {(selectedRule.actions || []).map((action, index) => (
+                  <div
+                    key={index}
+                    className="bg-green-50 border border-green-200 p-4 rounded-lg"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start gap-3 flex-1">
+                        <div className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
+                        <Text className="text-gray-800 leading-relaxed">
+                          {index + 1}. {formatActionDescription(action, index)}
+                        </Text>
+                      </div>
+                      <Space>
                         <Button
                           size="small"
-                          icon={<DeleteOutlined />}
-                          onClick={() => handleDeleteAction(index)}
-                          className="bg-red-600 text-white hover:bg-red-700 border-red-600"
-                          loading={isLoading}
+                          icon={<EditOutlined />}
+                          onClick={() => {
+                            openEditAction(action);
+                          }}
+                          className="bg-blue-600 text-white hover:bg-blue-700 border-blue-600"
                         >
-                          Delete
+                          Edit
                         </Button>
-                      )}
-                    </Space>
+                        {(selectedRule.actions?.length || 0) > 1 && (
+                          <Button
+                            size="small"
+                            icon={<DeleteOutlined />}
+                            onClick={() => handleDeleteAction(index)}
+                            className="bg-red-600 text-white hover:bg-red-700 border-red-600"
+                            loading={isLoading}
+                          >
+                            Delete
+                          </Button>
+                        )}
+                      </Space>
+                    </div>
                   </div>
-                </div>
-              ))}
-              {(!selectedRule.actions || selectedRule.actions.length === 0) && (
-                <div className="bg-gray-50 border border-gray-200 p-4 rounded-lg text-center">
-                  <Text className="text-gray-500">No actions configured</Text>
-                </div>
-              )}
-            </div>
-          </Card>
+                ))}
+                {(!selectedRule.actions ||
+                  selectedRule.actions.length === 0) && (
+                  <div className="bg-gray-50 border border-gray-200 p-4 rounded-lg text-center">
+                    <Text className="text-gray-500">No actions configured</Text>
+                  </div>
+                )}
+              </div>
+            </Card>
+          )}
         </div>
 
-        {/* Edit Trigger Modal */}
-        <Modal
-          title="Edit Trigger"
-          open={editTriggerModal}
-          onCancel={() => setEditTriggerModal(false)}
-          width={800}
-          footer={[
-            <Button key="cancel" onClick={() => setEditTriggerModal(false)}>
-              Cancel
-            </Button>,
-            <Button
-              key="save"
-              type="primary"
-              onClick={async () => {
-                await saveTrigger();
-                setEditTriggerModal(false);
-              }}
-              loading={isLoading}
-              disabled={!selectedRule.triggerItem}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              Save Trigger
-            </Button>,
-          ]}
-        >
-          <SelectTrigger
-            nextStep={() => {}}
-            prevStep={() => {}}
-            selectedRule={selectedRule}
-            setSelectedRule={setSelectedRule}
-            triggersData={triggersData}
-            setTriggersData={setTriggersData}
-          />
-        </Modal>
-
-        {/* Edit Action Modal */}
-        <Modal
-          title={editingActionIndex !== null ? "Edit Action" : "Add Action"}
-          open={editActionModal}
-          onCancel={() => {
-            setEditActionModal(false);
-            setEditingActionIndex(null);
-          }}
-          width={800}
-          footer={[
-            <Button
-              key="cancel"
-              onClick={() => {
-                setEditActionModal(false);
-                setEditingActionIndex(null);
-              }}
-            >
-              Cancel
-            </Button>,
-            <Button
-              key="save"
-              type="primary"
-              onClick={async () => {
-                if (editingActionIndex !== null) {
-                  // Edit mode - update existing action
-                  await saveAction(editingActionIndex);
+        {/* Inline Action Editing */}
+        {isEditingAction && (
+          <Card className="shadow-sm border border-green-300 bg-green-50">
+            <div className="flex items-center justify-between mb-4">
+              <Title level={4} className="text-green-900 mb-0">
+                {editingActionIndex !== null ? "Edit Action" : "Add Action"}
+              </Title>
+              <Button
+                onClick={() => {
+                  setIsEditingAction(false);
+                  setEditingActionIndex(null);
+                }}
+              >
+                Cancel
+              </Button>
+            </div>
+            <SelectAction
+              nextStep={() => {}}
+              prevStep={() => {}}
+              selectedRule={selectedRule}
+              setSelectedRule={setSelectedRule}
+              actionsData={actionsData}
+              setActionsData={setActionsData}
+              numberFields={numberFields}
+              isEditMode={editingActionIndex !== null}
+              editingActionIndex={editingActionIndex}
+              onSaveAndClose={async (updatedRule: AutomationRule) => {
+                if (editingActionIndex !== null && editingActionId) {
+                  // Edit mode - update existing action with updated data
+                  const updatedAction =
+                    updatedRule.actions?.[editingActionIndex];
+                  if (updatedAction) {
+                    await saveActionWithData(editingActionIndex, updatedAction);
+                  }
                 } else {
                   // Add mode - add new action
-                  // Find the new action (should be the last one)
                   const newAction =
-                    selectedRule.actions?.[selectedRule.actions.length - 1];
+                    updatedRule.actions?.[updatedRule.actions.length - 1];
                   if (newAction) {
                     await saveNewAction(newAction);
-                  } else {
-                    message.error("No action configured to save");
-                    return;
                   }
                 }
-                setEditActionModal(false);
+                setIsEditingAction(false);
                 setEditingActionIndex(null);
+                setEditingActionId(undefined);
               }}
-              loading={isLoading}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              {editingActionIndex !== null ? "Save Action" : "Add Action"}
-            </Button>,
-          ]}
-        >
-          <SelectAction
-            nextStep={() => {}}
-            prevStep={() => {}}
-            selectedRule={selectedRule}
-            setSelectedRule={setSelectedRule}
-            actionsData={actionsData}
-            setActionsData={setActionsData}
-            numberFields={numberFields}
-            isEditMode={editingActionIndex !== null}
-            onSaveAndClose={async (updatedRule: AutomationRule) => {
-              // Find the new action (should be the last one)
-              const newAction =
-                updatedRule.actions?.[updatedRule.actions.length - 1];
-              if (newAction) {
-                await saveNewAction(newAction);
-              }
-
-              setEditActionModal(false);
-              setEditingActionIndex(null);
-            }}
-          />
-        </Modal>
+            />
+          </Card>
+        )}
       </div>
     </div>
   );

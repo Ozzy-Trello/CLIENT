@@ -3,6 +3,7 @@ export interface Label {
   name?: string;
   value?: string;
   valueType?: string;
+  color?: string;
   workspaceId?: string;
   createdBy?: string;
   createdAt?: Date;

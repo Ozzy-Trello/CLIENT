@@ -48,9 +48,7 @@ const NewRulePage: React.FC = () => {
     useState<AutomationRuleAction[]>(actions); //data to construct the actions UI
 
   const { customFields } = useCustomFields(workspaceId as string);
-  console.log("All custom fields:", customFields);
   const numberFields = customFields.filter((f) => f.type === "number");
-  console.log("Number fields:", numberFields);
 
   const onCancel = () => {
     router.push(`/workspace/${workspaceId}/board/${boardId}/automation/rules`);
@@ -67,7 +65,7 @@ const NewRulePage: React.FC = () => {
       return;
     }
 
-    console.log("selectedRule: %o", selectedRule);
+
 
     const { actions, triggerItem, triggerType } = selectedRule;
 

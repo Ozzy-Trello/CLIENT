@@ -21,6 +21,9 @@ import { useDebouncedCallback } from "@hooks/useDebouncedCallback";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useDashcardList } from "@hooks/dashcard-list";
 import { useCardDetails } from "@hooks/card-details";
+import { useRecentlyViewed } from "@hooks/recently-viewed";
+import { useSelector } from "react-redux";
+import { selectCurrentBoard, selectCurrentWorkspace } from "@store/workspace_slice";
 
 type CardDetailContextType = {
   selectedCard: Card | null;
@@ -101,6 +104,9 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
   const queryClient = useQueryClient();
   const TIMEOUT = 300;
   const { boardId, workspaceId } = useParams();
+  const { addRecentlyViewedCard } = useRecentlyViewed();
+  const currentBoard = useSelector(selectCurrentBoard);
+  const currentWorkspace = useSelector(selectCurrentWorkspace);
   const [isOpenViaUrl, setIsOpenViaUrl] = useState(false); //determine if the modal is open via URL or not
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [activeList, setActiveList] = useState<AnyList | null>(null);
@@ -153,6 +159,17 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
     setActiveList(list);
     setIsCardDetailOpen(true);
     setIsOpenViaUrl(false);
+
+    // Add to recently viewed cards
+    addRecentlyViewedCard({
+      id: card.id,
+      name: card.name,
+      boardId: boardId as string,
+      boardName: currentBoard?.name || 'Untitled Board',
+      listId: list.id,
+      listName: list.name || 'Untitled List',
+      workspaceId: workspaceId as string,
+    });
 
     // Update URL without full navigation
     const params = new URLSearchParams(searchParams.toString());

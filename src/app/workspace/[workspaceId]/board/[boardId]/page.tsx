@@ -23,7 +23,7 @@ import ModalDashcard from "@components/dashcard/modal-dashcard";
 import { DashcardConfig } from "@myTypes/dashcard";
 import { Card, EnumCardType } from "@myTypes/card";
 import { AnyList } from "@myTypes/list";
-import { selectCurrentBoard, setCurrentBoard } from "@store/workspace_slice";
+import { selectCurrentBoard, selectCurrentWorkspace, setCurrentBoard } from "@store/workspace_slice";
 
 import { usePermissions } from "@hooks/account";
 import { useBoardDetails } from "@hooks/board";
@@ -35,6 +35,7 @@ import { ApiResponse } from "@myTypes/api";
 import { useRealtimeUpdates } from "@hooks/websocket";
 import HorizontalSlider from "@components/horizontal-slider";
 import { BoardPermissionsProvider } from "@providers/board-permissions-context";
+import { useRecentlyViewed } from "@hooks/recently-viewed";
 
 const DragDropContext = dynamic(
   () => import("@hello-pangea/dnd").then((mod) => mod.DragDropContext),
@@ -123,7 +124,7 @@ const BoardContentWithPermissions: React.FC<{
                   {provided.placeholder}
 
                   {/* Add list section - only show if user can create lists */}
-                   {canCreateList() && (
+                  {canCreateList() && (
                     <>
                       {isAddingList ? (
                         <div className="add-list-wrapper p-4 rounded-sm bg-white shadow-sm">
@@ -184,7 +185,8 @@ const Board: React.FC = () => {
     ? workspaceId[0]
     : workspaceId;
 
-  const { lists, addList, isLoading, updateList, deleteList } = useLists(resolvedBoardId);
+  const { lists, addList, isLoading, updateList, deleteList } =
+    useLists(resolvedBoardId);
 
   // Fetch board details and update Redux state when boardId changes
   const { board: boardDetails } = useBoardDetails(
@@ -205,7 +207,9 @@ const Board: React.FC = () => {
   const [openDashcardModal, setOpenDashcardModal] = useState<boolean>(false);
   const [dashcardConfig, setDashcardConfig] = useState<DashcardConfig>();
   const selectedBoard = useSelector(selectCurrentBoard);
+  const currentWorkspace = useSelector(selectCurrentWorkspace);
   const { canCreate } = usePermissions();
+  const { addRecentlyViewedBoard } = useRecentlyViewed();
 
   // Enable real-time updates via WebSocket
   useRealtimeUpdates();
@@ -228,8 +232,16 @@ const Board: React.FC = () => {
   useEffect(() => {
     if (boardDetails && boardDetails.id !== selectedBoard?.id) {
       dispatch(setCurrentBoard(boardDetails));
+      
+      // Add to recently viewed boards
+      addRecentlyViewedBoard({
+        id: boardDetails.id,
+        name: boardDetails.name || 'Untitled Board',
+        workspaceId: resolvedWorkspaceId,
+        workspaceName: currentWorkspace?.name || 'Untitled Workspace',
+      });
     }
-  }, [boardDetails, selectedBoard?.id, dispatch]);
+  }, [boardDetails, selectedBoard?.id, dispatch, addRecentlyViewedBoard, resolvedWorkspaceId]);
 
   const onListDragEnd = useCallback(
     (result: DropResult) => {

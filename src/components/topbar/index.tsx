@@ -32,6 +32,7 @@ import {
   GroupedSearchResults,
 } from "@hooks/search";
 import { selectCurrentWorkspace } from "@store/workspace_slice";
+import { useRecentlyViewed } from "@hooks/recently-viewed";
 
 const { Text } = Typography;
 
@@ -93,7 +94,6 @@ const TopBar: React.FC = React.memo(() => {
   const [modalRequestSentOpen, setModalRequestSentOpen] = useState(false);
   const [wsDebugModalOpen, setWsDebugModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [recentlyViewedCards, setRecentlyViewedCards] = useState<Card[]>([]);
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const theme = useSelector(selectTheme);
@@ -137,12 +137,12 @@ const TopBar: React.FC = React.memo(() => {
   } = useUnifiedSearch(searchQuery, workspaceId, {
     enabled: !!searchQuery && searchQuery.trim().length > 0,
   });
-  const notificationItems: MenuProps["items"] = [
-    { key: "1", label: "Notification 1" },
-    { key: "2", label: "Notification 2" },
-    { key: "3", label: "Notification 3" },
-  ];
-  // Get current user and role
+
+  console.log(searchResults, "<< ini search result");
+
+  // Recently viewed hook
+  const { recentlyViewedItems } = useRecentlyViewed();
+
   const { data: currentAccountData } = useCurrentAccount();
   const currentUser = currentAccountData?.data;
   const userRole = currentUser?.role?.name || "";
@@ -238,11 +238,6 @@ const TopBar: React.FC = React.memo(() => {
         );
       }
     } else if (result.type === "board") {
-      // Get workspace ID with fallback priority:
-      // 1. result.workspace_id (snake_case - from backend, now properly returned)
-      // 2. result.workspaceId (camelCase - if frontend transforms it)
-      // 3. currentWorkspace?.id (from Redux store)
-      // 4. workspaceId (from URL params)
       const targetWorkspaceId =
         result.workspaceId || currentWorkspace?.id || workspaceId;
 
@@ -352,18 +347,31 @@ const TopBar: React.FC = React.memo(() => {
                                   <span className="text-sm">{item.name}</span>
                                 }
                                 description={
-                                  item.description ? (
-                                    <div
-                                      className="prose prose-sm max-w-none text-[10px] text-gray-500 line-clamp-1"
-                                      dangerouslySetInnerHTML={{
-                                        __html:
-                                          item.description.substring(0, 50) +
-                                          (item.description.length > 50
-                                            ? "..."
-                                            : ""),
-                                      }}
-                                    />
-                                  ) : null
+                                  <div className="text-[10px] text-gray-500">
+                                    {/* Board and List info */}
+                                    <div className="flex items-center gap-1 mb-1">
+                                      <span className="font-medium">
+                                        {item.boardName || "Unknown Board"}
+                                      </span>
+                                      <span>•</span>
+                                      <span>
+                                        {item.listName || "Unknown List"}
+                                      </span>
+                                    </div>
+                                    {/* Description */}
+                                    {item.description && (
+                                      <div
+                                        className="prose prose-sm max-w-none line-clamp-1"
+                                        dangerouslySetInnerHTML={{
+                                          __html:
+                                            item.description.substring(0, 50) +
+                                            (item.description.length > 50
+                                              ? "..."
+                                              : ""),
+                                        }}
+                                      />
+                                    )}
+                                  </div>
                                 }
                               />
                             </List.Item>
@@ -405,18 +413,28 @@ const TopBar: React.FC = React.memo(() => {
                                   </span>
                                 }
                                 description={
-                                  item.description ? (
-                                    <div
-                                      className="prose prose-sm max-w-none text-[10px] text-gray-500 line-clamp-1"
-                                      dangerouslySetInnerHTML={{
-                                        __html:
-                                          item.description.substring(0, 50) +
-                                          (item.description.length > 50
-                                            ? "..."
-                                            : ""),
-                                      }}
-                                    />
-                                  ) : null
+                                  <div className="text-[10px] text-gray-500">
+                                    {/* Workspace info */}
+                                    <div className="flex items-center gap-1 mb-1">
+                                      <span className="font-medium">
+                                        {item.workspaceName ||
+                                          "Unknown Workspace"}
+                                      </span>
+                                    </div>
+                                    {/* Description */}
+                                    {item.description && (
+                                      <div
+                                        className="prose prose-sm max-w-none line-clamp-1"
+                                        dangerouslySetInnerHTML={{
+                                          __html:
+                                            item.description.substring(0, 50) +
+                                            (item.description.length > 50
+                                              ? "..."
+                                              : ""),
+                                        }}
+                                      />
+                                    )}
+                                  </div>
                                 }
                               />
                             </List.Item>
@@ -439,19 +457,27 @@ const TopBar: React.FC = React.memo(() => {
                   <div className="w-full">
                     <Text strong>Recently Viewed</Text>
                     <List
-                      dataSource={recentlyViewedCards}
+                      dataSource={recentlyViewedItems}
                       renderItem={(item) => (
                         <List.Item
-                          key={item.id}
+                          key={`${item.type}-${item.id}`}
                           className="cursor-pointer hover:bg-gray-50 px-2 rounded"
                         >
                           <List.Item.Meta
-                            avatar={<FileOutlined className="text-blue-500" />}
+                            avatar={
+                              item.type === "card" ? (
+                                <FileOutlined className="text-blue-500" />
+                              ) : (
+                                <UserOutlined className="text-green-500" />
+                              )
+                            }
                             title={item.name}
                             description={
                               <div>
                                 <Text type="secondary" className="text-xs">
-                                  Viewed {item.createdAt}
+                                  {item.type === "card" ? "Card" : "Board"} •
+                                  Viewed{" "}
+                                  {new Date(item.viewedAt).toLocaleDateString()}
                                 </Text>
                               </div>
                             }

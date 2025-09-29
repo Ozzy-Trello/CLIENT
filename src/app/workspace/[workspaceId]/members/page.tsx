@@ -103,10 +103,10 @@ const TableMembers: React.FC<{
                   : "Delete user"
               }
             >
-              <Button 
-                type="text" 
-                danger 
-                icon={<Trash size={16} />} 
+              <Button
+                type="text"
+                danger
+                icon={<Trash size={16} />}
                 disabled={!canManageUsers()}
               />
             </Tooltip>
@@ -131,10 +131,10 @@ const Members: React.FC = () => {
   const resolvedWorkspaceId = Array.isArray(workspaceId)
     ? workspaceId[0]
     : (workspaceId as string);
-  
+
   // Get permissions
   const { canManageUsers, isSuperAdmin } = usePermissions();
-  
+
   // All hooks must be declared before any conditional returns
   const { data: rolesResponse, isLoading: rolesLoading } = useAllRoles(
     resolvedWorkspaceId || ""
@@ -222,8 +222,8 @@ const Members: React.FC = () => {
       message.success("User updated successfully");
       closeEditUserModal();
       setIsFetching(true); // refresh list
-    } catch (error) {
-      message.error("Failed to update user");
+    } catch (error: any) {
+      message.error(error.response?.data?.message || "Unknown error occurred");
     }
   };
 
@@ -286,8 +286,8 @@ const Members: React.FC = () => {
               : "Add a new user to the workspace"
           }
         >
-          <Button 
-            size="small" 
+          <Button
+            size="small"
             onClick={openAddUserModal}
             disabled={!canManageUsers()}
           >

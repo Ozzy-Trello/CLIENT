@@ -61,6 +61,7 @@ interface SelectActionProps {
   // Edit mode props (for modal-based contexts like rule editing)
   isEditMode?: boolean;
   onSaveAndClose?: (updatedRule: AutomationRule) => Promise<void>;
+  editingActionIndex?: number | null; // Index of the action being edited
 
   // Additional context props
   numberFields?: Array<{ id: string; name: string }>;
@@ -101,6 +102,7 @@ const SelectOption = ({
     let copyArr = [...actionsData];
     (copyArr[groupIndex]?.items?.[index]?.[placeholder] as any).value =
       selectedOption;
+    
     setActionsData(copyArr);
   };
 
@@ -528,7 +530,7 @@ const SelectOption = ({
 const renderLabelWithSelects = (
   props: SelectActionProps,
   item: ActionItems,
-  lastActionIndex: number,
+  actionIndex: number,
   groupIndex: number,
   index: number,
   isModalOpen?: boolean,
@@ -642,10 +644,6 @@ const renderLabelWithSelects = (
         value: f.id,
         label: f.name,
       }));
-      console.log(
-        "[PATCH] Populated CalculateCustomField options:",
-        (fieldsObj as any).options
-      );
     }
   }
   // If there's no placeholder in the label, just return the text
@@ -873,11 +871,6 @@ const renderLabelWithSelects = (
               value: f.id,
               label: f.name,
             }));
-
-            console.log(
-              "Expression Builder - Available Fields:",
-              availableFields
-            );
 
             return (
               <ExpressionBuilder
@@ -1812,6 +1805,7 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
     nextStep,
     isEditMode,
     onSaveAndClose,
+    editingActionIndex,
   } = props;
   const [actionItemsByActionType, setActionItemsByActionType] = useState<
     ActionItems[]
@@ -1829,17 +1823,6 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
 
   // Track if we've initialized actions to prevent infinite loop
   const hasInitializedActions = useRef(false);
-
-  console.log("[SEIZURE DEBUG] SelectAction Debug:", {
-    actionsData: actionsData?.map((group) => ({
-      type: group.type,
-      itemsCount: group.items?.length,
-    })),
-    selectedRule,
-    lastActionIndex,
-    groupIndex,
-    hasInitializedActions: hasInitializedActions.current,
-  });
 
   useEffect(() => {
     // Only update lastActionIndex, don't initialize actions here to prevent loops
@@ -1861,6 +1844,31 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
     }
   }, [selectedRule.actions, lastActionIndex]);
 
+  // Initialize configuringActionIndex for edit mode
+  useEffect(() => {
+    if (isEditMode && editingActionIndex !== null && editingActionIndex !== undefined && actionsData.length > 0 && selectedRule.actions) {
+      const existingAction = selectedRule.actions[editingActionIndex];
+      if (existingAction) {
+        // Find the group that contains the action being edited
+        const actionGroup = actionsData.find(group => group.type === existingAction.type);
+        if (actionGroup && actionGroup.items) {
+          // Find the index of the action item that matches the existing action
+          const actionItemIndex = actionGroup.items.findIndex(item => 
+            item.type === existingAction.selectedActionItem?.type
+          );
+          if (actionItemIndex !== -1) {
+            setConfiguringActionIndex(actionItemIndex);
+            // Also set the correct group index
+            const groupIndex = actionsData.findIndex(group => group.type === existingAction.type);
+            if (groupIndex !== -1) {
+              setGroupIndex(groupIndex);
+            }
+          }
+        }
+      }
+    }
+  }, [isEditMode, editingActionIndex, actionsData, selectedRule.actions]);
+
   // Function to handle action type selection
   const onActionTypeClick = (type: string) => {
     // Find the group index for this action type
@@ -1872,18 +1880,13 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
     }
   };
 
-  const onAddAction = (index: number) => {
-    // In create mode, don't set configuring state. In edit mode, set it for check/cancel flow
-    if (isEditMode) {
-      setConfiguringActionIndex(index);
-    }
-
+  const onAddAction = async (index: number) => {
     const actionType = actionsData[groupIndex]?.items?.[index]?.type;
 
     // Get the existing action if in edit mode
     const existingAction =
-      isEditMode && selectedRule.actions && lastActionIndex >= 0
-        ? selectedRule.actions[lastActionIndex]
+      isEditMode && selectedRule.actions && editingActionIndex !== null && editingActionIndex !== undefined && editingActionIndex >= 0
+        ? selectedRule.actions[editingActionIndex]
         : null;
 
     // Special handling for CalculateCustomField
@@ -1928,10 +1931,10 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
       };
 
       let updatedRule;
-      if (isEditMode && existingAction) {
+      if (isEditMode && existingAction && editingActionIndex !== null && editingActionIndex !== undefined) {
         // Update existing action
         const updatedActions = [...(selectedRule.actions || [])];
-        updatedActions[lastActionIndex] = newActionItem;
+        updatedActions[editingActionIndex] = newActionItem;
         updatedRule = {
           ...selectedRule,
           actions: updatedActions,
@@ -1942,12 +1945,6 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
         const isDuplicate = existingActions.some((existingAction) => {
           const existingType =
             existingAction.type || existingAction.selectedActionItem?.type;
-
-          console.log("[CARD BUTTON LOG] Edit mode - Comparing action:", {
-            existingType,
-            actionType,
-            typesMatch: existingType === actionType,
-          });
 
           if (!existingType || !actionType || existingType !== actionType) {
             return false;
@@ -1964,20 +1961,6 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
             const newCardLabel =
               newActionItem.selectedActionItem?.[EnumSelectionType.CardLabel];
 
-            console.log(
-              "[CARD BUTTON LOG] Edit mode - AddRemoveLabel comparison:",
-              {
-                existingAddRemove,
-                newAddRemove,
-                existingCardLabel,
-                newCardLabel,
-                isDuplicate:
-                  existingAddRemove === newAddRemove &&
-                  JSON.stringify(existingCardLabel) ===
-                    JSON.stringify(newCardLabel),
-              }
-            );
-
             // Only consider duplicate if both Add/Remove action AND the target label are the same
             return (
               existingAddRemove === newAddRemove &&
@@ -1985,23 +1968,11 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
             );
           }
 
-          console.log(
-            "[CARD BUTTON LOG] Edit mode - Other action type - comparing configurations"
-          );
           // For other action types, compare their main configuration values
           const existingConfig = JSON.stringify(
             existingAction.selectedActionItem
           );
           const newConfig = JSON.stringify(newActionItem.selectedActionItem);
-
-          console.log(
-            "[CARD BUTTON LOG] Edit mode - Configuration comparison:",
-            {
-              existingConfig,
-              newConfig,
-              isDuplicate: existingConfig === newConfig,
-            }
-          );
 
           return existingConfig === newConfig;
         });
@@ -2019,6 +1990,12 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
 
       setSelectedRule(updatedRule);
 
+      // In edit mode, auto-save the changes immediately
+      if (isEditMode && onSaveAndClose) {
+        await onSaveAndClose(updatedRule);
+      }
+
+      // Don't auto-save in create mode - let user configure the action first
       // Hide action selection after adding for better UX
       setConfiguringActionIndex(-1);
       return;
@@ -2027,90 +2004,185 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
     // Get item configuration first
     const itemConfig = (actionsData[groupIndex]?.items?.[index] as any) ?? {};
 
-    const newActionItem: SelectedAction = {
-      // Preserve ID if editing existing action
-      ...(existingAction?.id && { id: existingAction.id }),
-      groupType: actionsData[groupIndex].type,
-      type:
-        itemConfig.type || actionsData[groupIndex]?.items?.[index]?.type || "",
-    };
+    let newActionItem: SelectedAction;
 
-    const placeholders = extractPlaceholders(
-      actionsData[groupIndex]?.items?.[index]?.type || ""
-    );
-
-    placeholders?.forEach((placeholder) => {
-      const items = actionsData[groupIndex]?.items;
-      if (items && items[index][placeholder]) {
-        if (!newActionItem.selectedActionItem) {
-          newActionItem.selectedActionItem = { type: "", label: "" };
-        }
-        newActionItem.selectedActionItem.type = items?.[index]?.type || "";
-        newActionItem.selectedActionItem.label = items?.[index]?.label;
-        const placeholderData = items?.[index]?.[placeholder] as any;
-        const rawVal =
-          typeof placeholderData === "object" &&
-          placeholderData &&
-          "value" in placeholderData
-            ? placeholderData.value
-            : placeholderData;
-
-        if (
-          placeholder === EnumSelectionType.Fields ||
-          placeholder === EnumInputType.FieldValue ||
-          placeholder === EnumInputType.DateValue
-        ) {
-          // Handle DateValue for MoveDateCustomField (expressions format) - like triggers
-          if (
-            placeholder === EnumInputType.DateValue &&
-            [
-              ActionType.MoveDateCustomField,
-              ActionType.SetDateCustomField,
-            ].includes(actionsData[groupIndex]?.items?.[index]?.type as any)
-          ) {
-            // Copy expressions array directly like in triggers
-            newActionItem.selectedActionItem[placeholder] =
-              (items?.[index]?.[placeholder] as any)?.expressions || [];
-            return;
-          } else {
-            // Preserve the full option/object when available (contains label, value, type, etc.)
-            newActionItem.selectedActionItem[placeholder] = rawVal;
-          }
-        } else {
-          // For simple scalar selections keep just the primitive
-          newActionItem.selectedActionItem[placeholder] =
-            typeof rawVal === "object" && rawVal !== null && "value" in rawVal
-              ? (rawVal as any).value
-              : rawVal;
-        }
-      }
-    });
-
-    // Ensure selectedActionItem is always initialized with proper type
-    if (!newActionItem.selectedActionItem) {
-      newActionItem.selectedActionItem = {
-        type: actionsData[groupIndex]?.items?.[index]?.type || "",
-        label: actionsData[groupIndex]?.items?.[index]?.label || "",
+    if (isEditMode && existingAction) {
+      // In edit mode, preserve existing action data and only update what's changed
+      newActionItem = {
+        ...existingAction,
+        // Update the action type if it's different
+        groupType: actionsData[groupIndex].type,
+        type:
+          itemConfig.type ||
+          actionsData[groupIndex]?.items?.[index]?.type ||
+          existingAction.type,
       };
-    }
 
-    // Ensure constant action field included and base type filled even when no placeholders
-    if (itemConfig?.[EnumSelectionType.Action]) {
-      if (newActionItem.selectedActionItem)
-        newActionItem.selectedActionItem.type = itemConfig.type || "";
-      const actionConfig = itemConfig[EnumSelectionType.Action];
-      // Extract the actual enum value from the nested structure
-      const actionValue = actionConfig?.value?.value || actionConfig?.value;
-      (newActionItem.selectedActionItem as any)[EnumSelectionType.Action] =
-        actionValue;
+      // Preserve existing selectedActionItem but update the current selection
+      if (existingAction.selectedActionItem) {
+        newActionItem.selectedActionItem = {
+          ...existingAction.selectedActionItem,
+          // Update type and label from the new selection
+          type:
+            itemConfig.type ||
+            actionsData[groupIndex]?.items?.[index]?.type ||
+            existingAction.selectedActionItem.type,
+          label:
+            actionsData[groupIndex]?.items?.[index]?.label ||
+            existingAction.selectedActionItem.label,
+        };
+      } else {
+        newActionItem.selectedActionItem = {
+          type:
+            itemConfig.type ||
+            actionsData[groupIndex]?.items?.[index]?.type ||
+            "",
+          label: actionsData[groupIndex]?.items?.[index]?.label || "",
+        };
+      }
+
+      // Update only the placeholders that have new values from the current selection
+      const placeholders = extractPlaceholders(
+        actionsData[groupIndex]?.items?.[index]?.type || ""
+      );
+
+      placeholders?.forEach((placeholder) => {
+        const items = actionsData[groupIndex]?.items;
+
+        if (items && items[index] && items[index][placeholder]) {
+          const placeholderData = items[index][placeholder] as any;
+
+          // Get the user's selection from the .value property
+          const userSelection = placeholderData?.value;
+
+          // Only update if there's a user selection (not null/undefined)
+          if (userSelection !== null && userSelection !== undefined) {
+            if (
+              placeholder === EnumSelectionType.Fields ||
+              placeholder === EnumInputType.FieldValue ||
+              placeholder === EnumInputType.DateValue
+            ) {
+              // Handle DateValue for MoveDateCustomField (expressions format) - like triggers
+              if (
+                placeholder === EnumInputType.DateValue &&
+                [
+                  ActionType.MoveDateCustomField,
+                  ActionType.SetDateCustomField,
+                ].includes(actionsData[groupIndex]?.items?.[index]?.type as any)
+              ) {
+                // Copy expressions array directly like in triggers
+                newActionItem.selectedActionItem![placeholder] =
+                  placeholderData?.expressions || [];
+                return;
+              } else {
+                // Use the user's selection directly
+                newActionItem.selectedActionItem![placeholder] = userSelection;
+              }
+            } else {
+              // For simple scalar selections, use the user's selection
+              newActionItem.selectedActionItem![placeholder] = userSelection;
+            }
+          }
+        }
+      });
+
+      // Update constant action field if present
+      if (itemConfig?.[EnumSelectionType.Action]) {
+        const actionConfig = itemConfig[EnumSelectionType.Action];
+        // Extract the actual enum value from the nested structure
+        const actionValue = actionConfig?.value?.value || actionConfig?.value;
+        (newActionItem.selectedActionItem as any)[EnumSelectionType.Action] =
+          actionValue;
+      }
+    } else {
+      // In add mode, create new action from template data
+      newActionItem = {
+        // Preserve ID if editing existing action
+        ...(existingAction?.id && { id: existingAction.id }),
+        groupType: actionsData[groupIndex].type,
+        type:
+          itemConfig.type ||
+          actionsData[groupIndex]?.items?.[index]?.type ||
+          "",
+      };
+
+      const placeholders = extractPlaceholders(
+        actionsData[groupIndex]?.items?.[index]?.type || ""
+      );
+
+      placeholders?.forEach((placeholder) => {
+        const items = actionsData[groupIndex]?.items;
+        if (items && items[index][placeholder]) {
+          if (!newActionItem.selectedActionItem) {
+            newActionItem.selectedActionItem = { type: "", label: "" };
+          }
+          newActionItem.selectedActionItem.type = items?.[index]?.type || "";
+          newActionItem.selectedActionItem.label = items?.[index]?.label;
+          const placeholderData = items?.[index]?.[placeholder] as any;
+          const rawVal =
+            typeof placeholderData === "object" &&
+            placeholderData &&
+            "value" in placeholderData
+              ? placeholderData.value
+              : placeholderData;
+
+          if (
+            placeholder === EnumSelectionType.Fields ||
+            placeholder === EnumInputType.FieldValue ||
+            placeholder === EnumInputType.DateValue
+          ) {
+            // Handle DateValue for MoveDateCustomField (expressions format) - like triggers
+            if (
+              placeholder === EnumInputType.DateValue &&
+              [
+                ActionType.MoveDateCustomField,
+                ActionType.SetDateCustomField,
+              ].includes(actionsData[groupIndex]?.items?.[index]?.type as any)
+            ) {
+              // Copy expressions array directly like in triggers
+              newActionItem.selectedActionItem[placeholder] =
+                (items?.[index]?.[placeholder] as any)?.expressions || [];
+              return;
+            } else {
+              // Preserve the full option/object when available (contains label, value, type, etc.)
+              newActionItem.selectedActionItem[placeholder] = rawVal;
+            }
+          } else {
+            // For simple scalar selections keep just the primitive
+            newActionItem.selectedActionItem[placeholder] =
+              typeof rawVal === "object" && rawVal !== null && "value" in rawVal
+                ? (rawVal as any).value
+                : rawVal;
+          }
+        }
+      });
+
+      // Ensure selectedActionItem is always initialized with proper type
+      if (!newActionItem.selectedActionItem) {
+        newActionItem.selectedActionItem = {
+          type: actionsData[groupIndex]?.items?.[index]?.type || "",
+          label: actionsData[groupIndex]?.items?.[index]?.label || "",
+        };
+      }
+
+      // Ensure constant action field included and base type filled even when no placeholders
+      if (itemConfig?.[EnumSelectionType.Action]) {
+        if (newActionItem.selectedActionItem)
+          newActionItem.selectedActionItem.type = itemConfig.type || "";
+        const actionConfig = itemConfig[EnumSelectionType.Action];
+        // Extract the actual enum value from the nested structure
+        const actionValue = actionConfig?.value?.value || actionConfig?.value;
+        (newActionItem.selectedActionItem as any)[EnumSelectionType.Action] =
+          actionValue;
+      }
     }
 
     let copy = { ...selectedRule };
 
-    if (isEditMode && existingAction) {
+    if (isEditMode && existingAction && editingActionIndex !== null && editingActionIndex !== undefined) {
       // Update existing action
       const updatedActions = [...(copy.actions || [])];
-      updatedActions[lastActionIndex] = newActionItem;
+      updatedActions[editingActionIndex] = newActionItem;
       copy.actions = updatedActions;
     } else {
       // Add new action (initialize array if needed)
@@ -2123,25 +2195,9 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
         newActionItem.type ||
         newActionItem.selectedActionItem?.type;
 
-      console.log("[CARD BUTTON LOG] Checking for duplicates:", {
-        actionType,
-        itemConfigType: itemConfig.type,
-        newActionItem,
-        existingActions: existingActions.map((a) => ({
-          type: a.type || a.selectedActionItem?.type,
-          selectedActionItem: a.selectedActionItem,
-        })),
-      });
-
       const isDuplicate = existingActions.some((existingAction) => {
         const existingType =
           existingAction.type || existingAction.selectedActionItem?.type;
-
-        console.log("[CARD BUTTON LOG] Comparing action:", {
-          existingType,
-          actionType,
-          typesMatch: existingType === actionType,
-        });
 
         if (!existingType || !actionType || existingType !== actionType) {
           return false;
@@ -2158,17 +2214,6 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
           const newCardLabel =
             newActionItem.selectedActionItem?.[EnumSelectionType.CardLabel];
 
-          console.log("[CARD BUTTON LOG] AddRemoveLabel comparison:", {
-            existingAddRemove,
-            newAddRemove,
-            existingCardLabel,
-            newCardLabel,
-            isDuplicate:
-              existingAddRemove === newAddRemove &&
-              JSON.stringify(existingCardLabel) ===
-                JSON.stringify(newCardLabel),
-          });
-
           // Only consider duplicate if both Add/Remove action AND the target label are the same
           return (
             existingAddRemove === newAddRemove &&
@@ -2176,20 +2221,11 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
           );
         }
 
-        console.log(
-          "[CARD BUTTON LOG] Other action type - comparing configurations"
-        );
         // For other action types, compare their main configuration values
         const existingConfig = JSON.stringify(
           existingAction.selectedActionItem
         );
         const newConfig = JSON.stringify(newActionItem.selectedActionItem);
-
-        console.log("[CARD BUTTON LOG] Configuration comparison:", {
-          existingConfig,
-          newConfig,
-          isDuplicate: existingConfig === newConfig,
-        });
 
         return existingConfig === newConfig;
       });
@@ -2201,15 +2237,94 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
 
     setSelectedRule(copy);
 
+    // Auto-save for both new actions and edit mode to prevent stuck confirmation state
+    if (onSaveAndClose) {
+      await onSaveAndClose(copy);
+    }
+
     // Hide action selection after adding for better UX
     setConfiguringActionIndex(-1);
   };
 
   const onSaveAction = async () => {
+    
     // Reset configuring state and proceed with save
     setConfiguringActionIndex(null);
-    if (isEditMode && onSaveAndClose) {
-      await onSaveAndClose(selectedRule);
+
+    if (isEditMode && onSaveAndClose && editingActionIndex !== null) {
+      // Sync actionsData back to selectedRule before saving
+      const updatedRule = { ...selectedRule };
+
+      // Ensure actions array exists
+      if (!updatedRule.actions) {
+        updatedRule.actions = [];
+      }
+
+      // Find the current form data from actionsData using both groupIndex and configuringActionIndex
+      let currentFormData: ActionItems | null = null;
+      let currentGroupIndex = -1;
+      let currentItemIndex = -1;
+
+      // Use the specific group and item indices to find the correct form data
+      if (groupIndex >= 0 && groupIndex < actionsData.length && 
+          configuringActionIndex !== null && configuringActionIndex >= 0) {
+        const targetGroup = actionsData[groupIndex];
+        if (targetGroup && targetGroup.items && configuringActionIndex < targetGroup.items.length) {
+          currentFormData = targetGroup.items[configuringActionIndex];
+          currentGroupIndex = groupIndex;
+          currentItemIndex = configuringActionIndex;
+        }
+      }
+
+      // If we found the form data, update the specific action being edited
+      if (currentFormData && editingActionIndex !== null && editingActionIndex !== undefined && editingActionIndex < updatedRule.actions.length) {
+        
+        const actionToUpdate = { ...updatedRule.actions[editingActionIndex] };
+
+        // Update selectedActionItem with user selections
+        const placeholders = extractPlaceholders(currentFormData.type || "");
+
+        placeholders?.forEach((placeholder) => {
+          const userSelection = currentFormData![placeholder];
+          if (userSelection) {
+            if (!actionToUpdate.selectedActionItem) {
+              actionToUpdate.selectedActionItem = { type: "", label: "" };
+            }
+
+            // Handle different types of user selections
+            let value;
+            if (typeof userSelection === 'object' && userSelection !== null && 'value' in userSelection) {
+              value = (userSelection as any).value;
+            } else {
+              value = userSelection;
+            }
+
+            // Update the placeholder with user's selection
+            (actionToUpdate.selectedActionItem as any)[placeholder] = value;
+          }
+        });
+
+        // Update constant action field if present
+        if (currentFormData[EnumSelectionType.Action]) {
+          const actionConfig = currentFormData[EnumSelectionType.Action];
+          let actionValue;
+          if (typeof actionConfig === 'object' && actionConfig !== null && 'value' in actionConfig) {
+            actionValue = (actionConfig as any).value?.value || (actionConfig as any).value;
+          } else {
+            actionValue = actionConfig;
+          }
+          
+          if (!actionToUpdate.selectedActionItem) {
+            actionToUpdate.selectedActionItem = { type: "", label: "" };
+          }
+          (actionToUpdate.selectedActionItem as any)[EnumSelectionType.Action] = actionValue;
+        }
+
+        // Update the specific action in the array
+        updatedRule.actions[editingActionIndex] = actionToUpdate;
+      }
+
+      await onSaveAndClose(updatedRule);
     } else if (nextStep) {
       nextStep();
     }
@@ -2249,36 +2364,43 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
 
           {/* Action Groups */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3 max-w-4xl mx-auto">
-            {actionsData?.map((item: AutomationRuleAction, index: number) => (
-              <div
-                key={index}
-                onClick={() => onActionTypeClick(item.type)}
-                className={`group flex flex-col justify-center items-center rounded-lg p-4 cursor-pointer transition-all duration-200 hover:shadow-md ${
-                  selectedRule?.actions?.[lastActionIndex]?.type === item.type
-                    ? "bg-white border-2 border-blue-400 shadow-sm"
-                    : "bg-white border border-gray-200 hover:border-gray-300"
-                }`}
-              >
+            {actionsData?.map((item: AutomationRuleAction, index: number) => {
+              // In edit mode, use editingActionIndex; otherwise use lastActionIndex
+              const currentActionIndex = isEditMode && editingActionIndex !== null && editingActionIndex !== undefined ? editingActionIndex : lastActionIndex;
+              const isSelected = currentActionIndex >= 0 && selectedRule?.actions?.[currentActionIndex]?.type === item.type;
+              
+              return (
                 <div
-                  className={`mb-2 text-lg transition-colors duration-200 ${
-                    selectedRule?.actions?.[lastActionIndex]?.type === item.type
-                      ? "text-blue-600"
-                      : "text-gray-600 group-hover:text-gray-700"
+                  key={index}
+                  onClick={() => onActionTypeClick(item.type)}
+                  className={`group flex flex-col justify-center items-center rounded-lg p-4 cursor-pointer transition-all duration-200 hover:shadow-md ${
+                    isSelected
+                      ? "bg-white border-2 border-blue-400 shadow-sm"
+                      : "bg-white border border-gray-200 hover:border-gray-300"
                   }`}
                 >
-                  {item?.icon}
+                  <div
+                    className={`mb-2 text-lg transition-colors duration-200 ${
+                      isSelected
+                        ? "text-blue-600"
+                        : "text-gray-600 group-hover:text-gray-700"
+                    }`}
+                  >
+                    {item?.icon}
+                  </div>
+                  <Typography.Text
+                    className={`text-sm font-medium text-center transition-colors duration-200 ${
+                      isSelected
+                        ? "text-blue-700"
+                        : "text-gray-700 group-hover:text-gray-800"
+                    }`}
+                  >
+                    {item.label}
+                  </Typography.Text>
                 </div>
-                <Typography.Text
-                  className={`text-sm font-medium text-center transition-colors duration-200 ${
-                    selectedRule?.actions?.[lastActionIndex]?.type === item.type
-                      ? "text-blue-700"
-                      : "text-gray-700 group-hover:text-gray-800"
-                  }`}
-                >
-                  {item.label}
-                </Typography.Text>
-              </div>
-            ))}
+              );
+            }
+          )}
           </div>
         </>
       )}
@@ -2287,7 +2409,13 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
       {configuringActionIndex !== -1 && (
         <div className="space-y-4">
           {actionsData[groupIndex]?.items?.map(
-            (item: ActionItems, index: number) => (
+            (item: ActionItems, index: number) => {
+              // In edit mode, use editingActionIndex; otherwise use lastActionIndex
+              const currentActionIndex = isEditMode && editingActionIndex !== null && editingActionIndex !== undefined ? editingActionIndex : lastActionIndex;
+              
+
+              
+              return (
               <div key={index}>
                 <div
                   className={`group flex justify-between items-start rounded-xl p-6 transition-all duration-300 hover:shadow-lg ${
@@ -2300,7 +2428,7 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
                     {renderLabelWithSelects(
                       props,
                       item,
-                      lastActionIndex,
+                      currentActionIndex,
                       groupIndex,
                       index,
                       modalOpenIndex === index,
@@ -2335,10 +2463,10 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
                       // Show + button (disabled if another action is being configured)
                       <Button
                         shape="circle"
-                        onClick={() => {
+                        onClick={async () => {
                           // Reset state to show action selection interface
                           setConfiguringActionIndex(null);
-                          onAddAction(index);
+                          await onAddAction(index);
                         }}
                         disabled={configuringActionIndex !== null}
                         title={
@@ -2359,9 +2487,9 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
                   </div>
                 </div>
               </div>
-            )
-          )}
-        </div>
+              );
+            })}
+          </div>
       )}
 
       {/* Display Added Actions */}
@@ -2373,7 +2501,8 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
               Added Actions
             </Typography.Title>
             <div className="space-y-3">
-              {selectedRule.actions.map((action: any, index: number) => (
+              {selectedRule.actions.map((action: any, index: number) => {
+                return (
                 <div
                   key={index}
                   className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg shadow-sm"
@@ -2419,7 +2548,8 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
                     </Button>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}

@@ -41,6 +41,7 @@ const CustomFieldsPage = () => {
   const [selectedField, setSelectedField] = useState<CustomField | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [pageSize, setPageSize] = useState(10);
 
   const { customFields, isLoading, deleteCustomField, isDeleting } =
     useCustomFields(
@@ -258,8 +259,6 @@ const CustomFieldsPage = () => {
       ),
     },
   ];
-
-  const [pageSize, setPageSize] = useState(10);
 
   return (
     <div className="page scrollable-page">

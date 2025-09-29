@@ -28,6 +28,15 @@ const PopoverAttach: React.FC<PopoverAttachProps> = ({
   
   
   const handleAttachFile = (file: File, result: FileUpload) => {
+    if (selectedCard && result?.id) {
+      addAttachment({
+        cardId: selectedCard.id,
+        attachableType: EnumAttachmentType.File,
+        attachableId: result.id,
+        isCover: false,
+      });
+      message.success(`File "${file.name}" attached successfully!`);
+    }
     setOpen(false);
   };
   

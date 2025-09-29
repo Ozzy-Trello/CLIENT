@@ -58,8 +58,8 @@ const AddUserModal: React.FC<AddUserModalProps> = ({
       } else {
         message.error("Failed to add user");
       }
-    } catch (error) {
-      message.error("Failed to add user");
+    } catch (error: any) {
+      message.error(error.response?.data?.message || "Failed to add user");
     } finally {
       setLoading(false);
     }

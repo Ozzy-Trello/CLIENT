@@ -1408,22 +1408,25 @@ const SelectTrigger: React.FC<SelectTriggerProps> = (props) => {
         };
       }
 
-      setSelectedRule((prev: AutomationRule) => {
-        return {
-          ...prev,
-          triggerItem: newTriggerItem,
-          triggerType: triggersData[selectedGroupIndex]?.type,
-        };
-      });
+      const updatedRule = {
+        ...selectedRule,
+        triggerItem: newTriggerItem,
+        triggerType: triggersData[selectedGroupIndex]?.type,
+      };
 
-      // In create mode, go directly to next step. In edit mode, show check/cancel buttons
+      setSelectedRule(updatedRule);
+
+      // In create mode, go directly to next step. In edit mode, auto-save immediately
       if (!isEditMode) {
         nextStep();
       } else {
-        setConfiguringTriggerIndex(index);
+        // Auto-save immediately in edit mode
+        if (onSaveAndClose) {
+          onSaveAndClose(updatedRule);
+        }
       }
     },
-    [selectedRule.triggerItem, nextStep, setSelectedRule, selectedGroupIndex]
+    [selectedRule, nextStep, setSelectedRule, selectedGroupIndex, isEditMode, onSaveAndClose, triggersData]
   );
 
   const onSaveTrigger = useCallback(async () => {

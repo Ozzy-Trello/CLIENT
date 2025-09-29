@@ -98,28 +98,6 @@ const DraggableList: React.FC<DraggableListProps> = ({
                 : undefined
             }
           >
-            {/* Drag handle indicator for lists */}
-            {canMoveListPermission && (
-              <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-60 transition-opacity duration-200 pointer-events-none z-10">
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 14 14"
-                  className="text-gray-400"
-                >
-                  <circle cx="2" cy="2" r="1" fill="currentColor" />
-                  <circle cx="7" cy="2" r="1" fill="currentColor" />
-                  <circle cx="12" cy="2" r="1" fill="currentColor" />
-                  <circle cx="2" cy="7" r="1" fill="currentColor" />
-                  <circle cx="7" cy="7" r="1" fill="currentColor" />
-                  <circle cx="12" cy="7" r="1" fill="currentColor" />
-                  <circle cx="2" cy="12" r="1" fill="currentColor" />
-                  <circle cx="7" cy="12" r="1" fill="currentColor" />
-                  <circle cx="12" cy="12" r="1" fill="currentColor" />
-                </svg>
-              </div>
-            )}
-
             <ListName
               list={list}
               boardId={boardId}

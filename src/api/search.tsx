@@ -8,15 +8,14 @@ export interface SearchResult {
   description?: string;
   type: "card" | "board";
   boardId?: string;
-  board_name?: string;
+  boardName?: string; // Converted from backend board_name
   listId?: string;
-  list_name?: string;
-  workspace_id?: string; // Backend returns snake_case
-  workspaceId?: string; // Frontend expects camelCase
-  workspace_name?: string;
+  listName?: string; // Converted from backend list_name
+  workspaceId?: string; // Converted from backend workspace_id
+  workspaceName?: string; // Converted from backend workspace_name
   cover?: string;
-  created_at?: Date;
-  updated_at?: Date;
+  createdAt?: Date; // Converted from backend created_at
+  updatedAt?: Date; // Converted from backend updated_at
 }
 
 export interface GroupedSearchResults {

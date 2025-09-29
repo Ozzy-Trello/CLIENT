@@ -24,7 +24,7 @@ import {
 import { useCustomFields } from "@hooks/custom_field";
 import { useRoles } from "@hooks/useRoles";
 import { Role } from "@myTypes/role";
-import { Trash } from "lucide-react";
+import { Trash, Edit, Check, X } from "lucide-react";
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -52,6 +52,10 @@ const CustomFieldModal: React.FC<CustomFieldModalProps> = ({
   const [source, setSource] = useState<string>(EnumCustomFieldSource.Custom);
   const [options, setOptions] = useState<CustomOption[]>([]);
   const [roleFilterIds, setRoleFilterIds] = useState<string[]>([]);
+  const [editingOptionValue, setEditingOptionValue] = useState<string | null>(
+    null
+  );
+  const [editingOptionText, setEditingOptionText] = useState<string>("");
 
   const { createCustomField, updateCustomField } = useCustomFields(workspaceId);
   const { roles, loading: loadingRoles } = useRoles(workspaceId);
@@ -66,6 +70,8 @@ const CustomFieldModal: React.FC<CustomFieldModalProps> = ({
       setSource(field.source);
       setOptions(field.options || []);
       setRoleFilterIds([]); // Reset role filters
+      setEditingOptionValue(null); // Reset editing state
+      setEditingOptionText("");
 
       form.setFieldsValue({
         name: field.name,
@@ -83,6 +89,8 @@ const CustomFieldModal: React.FC<CustomFieldModalProps> = ({
       setSource(EnumCustomFieldSource.Custom);
       setOptions([]);
       setRoleFilterIds([]);
+      setEditingOptionValue(null); // Reset editing state
+      setEditingOptionText("");
       form.resetFields();
       optionForm.resetFields();
     }
@@ -107,6 +115,35 @@ const CustomFieldModal: React.FC<CustomFieldModalProps> = ({
     let newOptions = [...options];
     newOptions = newOptions.filter((item) => item.value !== valueToDelete);
     setOptions(newOptions);
+  };
+
+  const startEditOption = (option: CustomOption) => {
+    setEditingOptionValue(option.value);
+    setEditingOptionText(option.label);
+  };
+
+  const saveEditOption = () => {
+    if (!editingOptionValue || !editingOptionText.trim()) return;
+
+    const newOptions = options.map((option) => {
+      if (option.value === editingOptionValue) {
+        return {
+          ...option,
+          label: editingOptionText.trim(),
+          value: editingOptionText.trim().replaceAll(" ", "-"),
+        };
+      }
+      return option;
+    });
+
+    setOptions(newOptions);
+    setEditingOptionValue(null);
+    setEditingOptionText("");
+  };
+
+  const cancelEditOption = () => {
+    setEditingOptionValue(null);
+    setEditingOptionText("");
   };
 
   const handleSubmit = async (values: any) => {
@@ -163,6 +200,8 @@ const CustomFieldModal: React.FC<CustomFieldModalProps> = ({
   const handleCancel = () => {
     form.resetFields();
     optionForm.resetFields();
+    setEditingOptionValue(null); // Reset editing state
+    setEditingOptionText("");
     onClose();
   };
 
@@ -271,16 +310,55 @@ const CustomFieldModal: React.FC<CustomFieldModalProps> = ({
                             {options.map((item: CustomOption) => (
                               <div
                                 key={item.value}
-                                className="flex gap-2 mb-1 bg-gray-100 rounded px-2 py-1"
+                                className="flex gap-2 mb-1 bg-gray-100 rounded px-2 py-1 items-center"
                               >
-                                <span className="w-full">{item.label}</span>
-                                <Button
-                                  size="small"
-                                  type="text"
-                                  onClick={() => deleteOption(item.value)}
-                                >
-                                  <Trash size={12} />
-                                </Button>
+                                {editingOptionValue === item.value ? (
+                                  <>
+                                    <Input
+                                      size="small"
+                                      value={editingOptionText}
+                                      onChange={(e) =>
+                                        setEditingOptionText(e.target.value)
+                                      }
+                                      onPressEnter={saveEditOption}
+                                      className="flex-1"
+                                      autoFocus
+                                    />
+                                    <Button
+                                      size="small"
+                                      type="text"
+                                      onClick={saveEditOption}
+                                      disabled={!editingOptionText.trim()}
+                                    >
+                                      <Check size={12} />
+                                    </Button>
+                                    <Button
+                                      size="small"
+                                      type="text"
+                                      onClick={cancelEditOption}
+                                    >
+                                      <X size={12} />
+                                    </Button>
+                                  </>
+                                ) : (
+                                  <>
+                                    <span className="flex-1">{item.label}</span>
+                                    <Button
+                                      size="small"
+                                      type="text"
+                                      onClick={() => startEditOption(item)}
+                                    >
+                                      <Edit size={12} />
+                                    </Button>
+                                    <Button
+                                      size="small"
+                                      type="text"
+                                      onClick={() => deleteOption(item.value)}
+                                    >
+                                      <Trash size={12} />
+                                    </Button>
+                                  </>
+                                )}
                               </div>
                             ))}
                           </div>

@@ -40,6 +40,7 @@ import QRCode from "react-qr-code";
 import { uploadFile } from "@api/file";
 import { deleteCardAttachment } from "@api/card_attachment";
 import { useBoardPermissionsContext } from "@providers/board-permissions-context";
+import AttachedCard from "./attached-card";
 
 interface AttachmentsProps {
   card: Card;
@@ -814,66 +815,30 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
             <div className="text-xs text-gray-500 font-medium uppercase mt-4 mb-2">
               Cards
             </div>
-            <List
-              className="space-y-3"
-              dataSource={attachedCards}
-              locale={{ emptyText: "No attached cards yet" }}
-              renderItem={(item) => (
-                <List.Item className="flex items-center hover:bg-gray-50 rounded">
-                  <div className="flex-shrink-0 mr-3 w-20 h-10 flex items-center justify-center">
-                    {item.cover ? (
-                      <img
-                        src={item.cover}
-                        alt={item.name}
-                        className="w-20 h-15 object-cover rounded"
-                      />
-                    ) : (
-                      <div className="flex justify-center items-center w-20 h-10 rounded bg-gray-200">
-                        <Avatar
-                          shape="square"
-                          src={`https://ui-avatars.com/api/?name=${item?.name}&background=random`}
-                        ></Avatar>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex-grow">
-                    <div className="text-sm font-medium">{item.name}</div>
-                    <div className="text-xs text-gray-500 flex items-center space-x-2">
-                      <div
-                        className="prose prose-sm max-w-none text-[10px]"
-                        dangerouslySetInnerHTML={{
-                          __html: item.description || "",
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex-shrink-0 flex space-x-1">
-                    <Button
-                      icon={<ExportOutlined />}
-                      size="small"
-                      title="Download"
-                      onClick={() => window.open(item.cover, "_blank")}
-                      className="flex items-center justify-center border-0 shadow-none"
-                    />
-                    <Button
-                      icon={<DeleteOutlined />}
-                      size="small"
-                      title="Delete attachment"
-                      danger
-                      className="flex items-center justify-center border-0 shadow-none"
-                      onClick={async () => {
-                        deleteAttachment({
-                          attachmentId: item.id,
-                          cardId: card.id || "",
-                        });
-                      }}
-                    />
-                  </div>
-                </List.Item>
-              )}
-            />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 auto-rows-max">
+              {attachedCards.map((attachedCard) => {
+                // Find the corresponding attachment to get the attachment ID for deletion
+                const attachment = cardAttachments?.find(
+                  (att) => att.targetCard?.id === attachedCard.id
+                );
+                
+                return (
+                  <AttachedCard
+                    key={attachedCard.id}
+                    card={attachedCard}
+                    onDelete={
+                      attachment
+                        ? () =>
+                            deleteAttachment({
+                              attachmentId: attachment.id,
+                              cardId: card.id || "",
+                            })
+                        : undefined
+                    }
+                  />
+                );
+              })}
+            </div>
           </>
         )}
 
