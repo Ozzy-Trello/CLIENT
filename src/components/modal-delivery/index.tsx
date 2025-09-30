@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Modal,
   Form,
@@ -113,12 +113,15 @@ const ModalDelivery: React.FC<ModalDeliveryProps> = ({ open, onClose }) => {
     enabled: open,
   });
 
+  // Memoize products to prevent unnecessary re-renders
+  const memoizedProducts = useMemo(() => products, [products.length, products.map(p => p.id).join(',')]);
+
   // Initialize validation items when SO is selected
   useEffect(() => {
-    if (currentSOForValidation?.purchaseOrderItems && products.length > 0) {
+    if (currentSOForValidation?.purchaseOrderItems && memoizedProducts.length > 0) {
       const items: ValidationItem[] = currentSOForValidation.purchaseOrderItems.map((item, index) => {
         // Find the actual product data
-        const productData = products.find(p => p.id === item.whProductId);
+        const productData = memoizedProducts.find(p => p.id === item.whProductId);
         
         return {
           id: item.id?.toString() || index.toString(),
@@ -135,7 +138,7 @@ const ModalDelivery: React.FC<ModalDeliveryProps> = ({ open, onClose }) => {
     } else {
       setValidationItems([]);
     }
-  }, [currentSOForValidation, products]);
+  }, [currentSOForValidation, memoizedProducts]);
 
   // Filter sales orders based on search
   const filteredSalesOrders = salesOrders?.filter((so) =>
@@ -274,7 +277,7 @@ const ModalDelivery: React.FC<ModalDeliveryProps> = ({ open, onClose }) => {
     }
     
     // Find product by barcode
-    const scannedProduct = products.find(p => 
+    const scannedProduct = memoizedProducts.find(p => 
       p.barcode === barcodeInput.trim() || 
       p.sku === barcodeInput.trim()
     );

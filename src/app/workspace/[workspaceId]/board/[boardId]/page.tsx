@@ -59,6 +59,14 @@ const BoardContentWithPermissions: React.FC<{
   newListName: string;
   setNewListName: (value: string) => void;
   handleAddList: () => void;
+  isDraggingToScroll: boolean;
+  onMouseDown: (e: React.MouseEvent) => void;
+  onMouseMove: (e: React.MouseEvent) => void;
+  onMouseUp: () => void;
+  onMouseLeave: () => void;
+  onTouchStart: (e: React.TouchEvent) => void;
+  onTouchMove: (e: React.TouchEvent) => void;
+  onTouchEnd: () => void;
 }> = ({
   lists,
   isLoading,
@@ -75,6 +83,14 @@ const BoardContentWithPermissions: React.FC<{
   newListName,
   setNewListName,
   handleAddList,
+  isDraggingToScroll,
+  onMouseDown,
+  onMouseMove,
+  onMouseUp,
+  onMouseLeave,
+  onTouchStart,
+  onTouchMove,
+  onTouchEnd,
 }) => {
   // Now we can safely use the context hook inside the provider
   const { canCreateList } = useBoardPermissionsContext();
@@ -82,7 +98,16 @@ const BoardContentWithPermissions: React.FC<{
   return (
     <div
       ref={boardScrollContainerRef}
-      className="h-auto min-h-[770px] w-full overflow-x-auto overflow-y-hidden custom-horizontal-scrollbar board-scroll-container"
+      className={`h-auto min-h-[770px] w-full overflow-x-auto overflow-y-hidden custom-horizontal-scrollbar board-scroll-container ${
+        isDraggingToScroll ? 'cursor-grabbing select-none' : 'cursor-grab'
+      }`}
+      onMouseDown={onMouseDown}
+      onMouseMove={onMouseMove}
+      onMouseUp={onMouseUp}
+      onMouseLeave={onMouseLeave}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
     >
       {shouldRenderLists && (
         <DragDropContext
@@ -179,6 +204,94 @@ const Board: React.FC = () => {
 
   // Ref for the scrollable board container to control scrolling during drag
   const boardScrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Drag-to-scroll state management
+  const [isDraggingToScroll, setIsDraggingToScroll] = useState(false);
+  const dragScrollState = useRef({
+    isDown: false,
+    startX: 0,
+    scrollLeft: 0,
+  });
+
+  // Mouse event handlers for drag-to-scroll
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    // Only start drag-to-scroll if clicking on the background (not on draggable elements)
+    const target = e.target as HTMLElement;
+    if (target.closest('[data-rbd-draggable-id]') || target.closest('[data-rbd-droppable-id]')) {
+      return;
+    }
+
+    const container = boardScrollContainerRef.current;
+    if (!container) return;
+
+    dragScrollState.current.isDown = true;
+    dragScrollState.current.startX = e.pageX - container.offsetLeft;
+    dragScrollState.current.scrollLeft = container.scrollLeft;
+    setIsDraggingToScroll(true);
+    
+    // Prevent text selection during drag
+    e.preventDefault();
+  }, []);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!dragScrollState.current.isDown) return;
+    
+    const container = boardScrollContainerRef.current;
+    if (!container) return;
+
+    e.preventDefault();
+    const x = e.pageX - container.offsetLeft;
+    const walk = (x - dragScrollState.current.startX) * 2; // Multiply by 2 for faster scrolling
+    container.scrollLeft = dragScrollState.current.scrollLeft - walk;
+  }, []);
+
+  const handleMouseUp = useCallback(() => {
+    dragScrollState.current.isDown = false;
+    setIsDraggingToScroll(false);
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    dragScrollState.current.isDown = false;
+    setIsDraggingToScroll(false);
+  }, []);
+
+  // Touch event handlers for mobile drag-to-scroll
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    // Only start drag-to-scroll if touching the background (not on draggable elements)
+    const target = e.target as HTMLElement;
+    if (target.closest('[data-rbd-draggable-id]') || target.closest('[data-rbd-droppable-id]')) {
+      return;
+    }
+
+    const container = boardScrollContainerRef.current;
+    if (!container || e.touches.length !== 1) return;
+
+    const touch = e.touches[0];
+    dragScrollState.current.isDown = true;
+    dragScrollState.current.startX = touch.pageX - container.offsetLeft;
+    dragScrollState.current.scrollLeft = container.scrollLeft;
+    setIsDraggingToScroll(true);
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!dragScrollState.current.isDown || e.touches.length !== 1) return;
+    
+    const container = boardScrollContainerRef.current;
+    if (!container) return;
+
+    const touch = e.touches[0];
+    const x = touch.pageX - container.offsetLeft;
+    const walk = (x - dragScrollState.current.startX) * 2; // Multiply by 2 for faster scrolling
+    container.scrollLeft = dragScrollState.current.scrollLeft - walk;
+    
+    // Prevent default touch behavior only when actively scrolling
+    e.preventDefault();
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    dragScrollState.current.isDown = false;
+    setIsDraggingToScroll(false);
+  }, []);
 
   const resolvedBoardId = Array.isArray(boardId) ? boardId[0] : boardId;
   const resolvedWorkspaceId = Array.isArray(workspaceId)
@@ -588,6 +701,14 @@ const Board: React.FC = () => {
                 newListName={newListName}
                 setNewListName={setNewListName}
                 handleAddList={handleAddList}
+                isDraggingToScroll={isDraggingToScroll}
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={handleMouseLeave}
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
               />
               <HorizontalSlider containerRef={boardScrollContainerRef} />
             </div>

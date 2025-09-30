@@ -22,6 +22,7 @@ import {
   FlipHorizontal,
   Trash2,
   FileCheck,
+  FileText,
 } from "lucide-react";
 import PopoverCustomField from "@components/popover-custom-field";
 import PopoverUser from "@components/popover-user";
@@ -123,7 +124,9 @@ const Actions: React.FC = () => {
     useCardMembers(selectedCard?.id || "");
 
   // Get card attachments for Bukti functionality
-  const { cardAttachments, addAttachment } = useCardAttachment(selectedCard?.id || "");
+  const { cardAttachments, addAttachment } = useCardAttachment(
+    selectedCard?.id || ""
+  );
 
   // Get board-specific permissions
   const {
@@ -142,7 +145,7 @@ const Actions: React.FC = () => {
     canShareCard,
     canGenerateQR,
   } = useBoardPermissionsContext();
-  
+
   // Keep global permissions for observer status
   const { isObserver } = usePermissions();
   const permissionLevel = "BOARD_SPECIFIC"; // Use board-specific permissions
@@ -181,15 +184,17 @@ const Actions: React.FC = () => {
   const handleBuktiUpload = async (file: File, result: FileUpload) => {
     try {
       // Create a new file with the name "bukti" but keep the original extension
-      const originalExtension = file.name.split('.').pop();
-      const buktiFileName = originalExtension ? `bukti.${originalExtension}` : "bukti";
-      
+      const originalExtension = file.name.split(".").pop();
+      const buktiFileName = originalExtension
+        ? `bukti.${originalExtension}`
+        : "bukti";
+
       // Create a new file object with the bukti name
       const buktiFile = new File([file], buktiFileName, { type: file.type });
-      
+
       // Upload the file with the new name
       const buktiResult = await uploadFile(buktiFile);
-      
+
       if (buktiResult?.data && selectedCard) {
         // Add the attachment with the bukti file
         addAttachment({
@@ -198,7 +203,7 @@ const Actions: React.FC = () => {
           attachableId: buktiResult.data.id,
           isCover: false,
         });
-        
+
         message.success("Bukti uploaded successfully!");
         setOpenBuktiModal(false);
       }
@@ -278,7 +283,9 @@ const Actions: React.FC = () => {
       >
         <button
           onClick={handleJoinLeave}
-          disabled={isAddingMember || isRemovingMember || !canManageCardMembers()}
+          disabled={
+            isAddingMember || isRemovingMember || !canManageCardMembers()
+          }
           className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 rounded-md transition-colors mb-1 disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-80"
           style={buttonStyle}
         >
@@ -419,7 +426,9 @@ const Actions: React.FC = () => {
       <PermissionButton
         canPerform={canManageCardAttachments()}
         onClick={() => setOpenBuktiModal(true)}
-        tooltip={hasBuktiAttachment() ? "Bukti already exists" : "Upload bukti file"}
+        tooltip={
+          hasBuktiAttachment() ? "Bukti already exists" : "Upload bukti file"
+        }
         permissionLevel={permissionLevel}
         buttonStyle={buttonStyle}
         disabled={hasBuktiAttachment()}
@@ -428,6 +437,23 @@ const Actions: React.FC = () => {
           <FileCheck size={14} />
         </span>
         <span className="text-xs">Bukti</span>
+      </PermissionButton>
+
+      {/* Buat SO Button */}
+      <PermissionButton
+        canPerform={canManageCardAttachments()}
+        onClick={() => {
+          // TODO: Implement Buat SO functionality
+          message.info("Buat SO functionality will be implemented later");
+        }}
+        tooltip="Create Sales Order"
+        permissionLevel={permissionLevel}
+        buttonStyle={buttonStyle}
+      >
+        <span className="text-xs" style={iconStyle}>
+          <FileText size={14} />
+        </span>
+        <span className="text-xs">Buat SO (wip)</span>
       </PermissionButton>
 
       {/* Location */}
@@ -753,12 +779,12 @@ const Actions: React.FC = () => {
         <QRModal isOpen={openQrModal} onClose={() => setOpenQrModal(false)} />
 
         {/* Bukti Upload Modal */}
-      <UploadModal
-        isVisible={openBuktiModal}
-        onClose={() => setOpenBuktiModal(false)}
-        onUploadComplete={handleBuktiUpload}
-        title="Upload Bukti"
-      />
+        <UploadModal
+          isVisible={openBuktiModal}
+          onClose={() => setOpenBuktiModal(false)}
+          onUploadComplete={handleBuktiUpload}
+          title="Upload Bukti"
+        />
       </div>
     </div>
   );

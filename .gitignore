@@ -38,3 +38,6 @@ yarn-error.log*
 next-env.d.ts
 
 .vscode
+
+# PDF.js worker file (copied from node_modules)
+/public/pdf.worker.min.js
