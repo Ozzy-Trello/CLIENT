@@ -41,6 +41,7 @@ import { uploadFile } from "@api/file";
 import { deleteCardAttachment } from "@api/card_attachment";
 import { useBoardPermissionsContext } from "@providers/board-permissions-context";
 import AttachedCard from "./attached-card";
+import TokenStorage from "@utils/token-storage";
 
 interface AttachmentsProps {
   card: Card;
@@ -131,38 +132,48 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
   // Canvas reference for generating QR code images
   const qrCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  // Function to convert external image URL to base64 to avoid CORS issues
+  // Function to convert image URL to base64
   const getBase64FromUrl = async (url: string): Promise<string> => {
     try {
-      // Use a server-side proxy to fetch the image if it's from an external domain
-      // This assumes you have an API endpoint that can proxy the request
-      if (url.startsWith("http") && !url.includes(window.location.hostname)) {
-        // Create a proxy URL through your Next.js API
-        const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(url)}`;
-        const response = await fetch(proxyUrl);
+      let fetchUrl = url;
+      const headers: HeadersInit = {};
 
-        if (!response.ok) {
-          throw new Error(`Failed to fetch image: ${response.statusText}`);
+      // Check if this is a file from our backend that needs authentication
+      if (url.includes(process.env.NEXT_PUBLIC_BE_BASE_URL || '')) {
+        // For backend files, add auth headers
+        const accessToken = TokenStorage.getAccessToken();
+        if (accessToken) {
+          headers.Authorization = `Bearer ${accessToken}`;
         }
-
-        const blob = await response.blob();
-        return new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(blob);
-        });
+        fetchUrl = url;
+      } else if (url.startsWith('/api/file-proxy/')) {
+        // Already a proxy URL, use as is with auth
+        const accessToken = TokenStorage.getAccessToken();
+        if (accessToken) {
+          headers.Authorization = `Bearer ${accessToken}`;
+        }
+        fetchUrl = url;
+      } else if (url.startsWith('http') && !url.includes(window.location.hostname)) {
+        // For external images, use the proxy endpoint to avoid CORS issues
+        fetchUrl = `/api/proxy-image?url=${encodeURIComponent(url)}`;
       } else {
         // For same-origin images, fetch directly
-        const response = await fetch(url);
-        const blob = await response.blob();
-        return new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(blob);
-        });
+        fetchUrl = url;
       }
+
+      const response = await fetch(fetchUrl, Object.keys(headers).length > 0 ? { headers } : {});
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch image: ${response.statusText}`);
+      }
+
+      const blob = await response.blob();
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
     } catch (error) {
       console.error("Error converting image to base64:", error);
       throw error;
@@ -208,9 +219,9 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
         // Draw original image
         ctx.drawImage(img, 0, 0, img.width, img.height);
 
-        // Calculate QR code position (30% from left, 10% from top)
+        // Calculate QR code position (30% from left, 0.5% from top)
         const qrX = Math.floor(img.width * 0.3);
-        const qrY = Math.floor(img.height * 0.1);
+        const qrY = Math.floor(img.height * 0.005);
 
         // Draw white background for QR code with slight transparency
         ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
