@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Modal,
   Form,
@@ -11,27 +11,61 @@ import {
   Table,
   Typography,
   Space,
+  InputNumber,
+  Spin,
+  Card,
+  Divider,
 } from "antd";
-import { CalendarOutlined, TruckOutlined, DeleteOutlined } from "@ant-design/icons";
+import { CalendarOutlined, TruckOutlined, DeleteOutlined, SearchOutlined } from "@ant-design/icons";
+import { useQuery } from "@tanstack/react-query";
+import {
+  getOzzyBranches,
+  getOzzyProducts,
+  getOzzyCustomers,
+  getOzzySalesOrders,
+  getOzzySalesOrderById,
+  createOzzyDeliveryOrder,
+  type OzzyBranch,
+  type OzzyProduct,
+  type OzzyCustomer,
+  type OzzySalesOrder,
+  type OzzySalesOrderItem,
+  type CreateDeliveryOrderPayload,
+} from "@api/ozzy-warehouse";
+import dayjs from "dayjs";
 
 interface ModalDeliveryProps {
   open: boolean;
   onClose: () => void;
 }
 
-interface SOItem {
+interface SelectedProduct {
   id: string;
+  productId: string;
+  name: string;
   sku: string;
+  quantity: number;
+  unitType: string;
+  unitPrice: string;
+}
+
+interface SelectedSalesOrder {
+  soNumber: string;
+  customerName: string;
+  shippingAddress: string;
+  date: string;
+  products: SelectedProduct[];
+}
+
+interface ValidationItem {
+  id: string;
+  sesuai: boolean;
   namaBarang: string;
+  sku: string;
   kuantitasReal: number;
   kuantitasScan: number;
   satuan: string;
-  aksi?: string;
-}
-
-interface ValidationModalData {
-  soNumber: string;
-  items: SOItem[];
+  originalItem: OzzySalesOrderItem;
 }
 
 const { Option } = Select;
@@ -41,88 +75,135 @@ const ModalDelivery: React.FC<ModalDeliveryProps> = ({ open, onClose }) => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [soSearchValue, setSOSearchValue] = useState("");
-  const [validationModalOpen, setValidationModalOpen] = useState(false);
-  const [currentValidationData, setCurrentValidationData] = useState<ValidationModalData | null>(null);
-  const [selectedItems, setSelectedItems] = useState<SOItem[]>([]);
+  const [selectedSalesOrders, setSelectedSalesOrders] = useState<SelectedSalesOrder[]>([]);
+  const [selectedProducts, setSelectedProducts] = useState<SelectedProduct[]>([]);
+  const [showSOValidationModal, setShowSOValidationModal] = useState(false);
+  const [currentSOForValidation, setCurrentSOForValidation] = useState<OzzySalesOrder | null>(null);
+  const [loadingSODetails, setLoadingSODetails] = useState(false);
+  
+  // State for SO detail modal (simple view)
+  const [showSODetailModal, setShowSODetailModal] = useState(false);
+  const [currentSOForDetail, setCurrentSOForDetail] = useState<SelectedSalesOrder | null>(null);
+  
+  const [validationItems, setValidationItems] = useState<ValidationItem[]>([]);
+  const [barcodeInput, setBarcodeInput] = useState("");
 
-  // Mock data for dropdowns - replace with actual data later
-  const cabangOptions = [
-    { value: "jakarta", label: "Jakarta" },
-    { value: "bandung", label: "Bandung" },
-    { value: "surabaya", label: "Surabaya" },
-    { value: "medan", label: "Medan" },
-    { value: "semarang", label: "Semarang" },
-  ];
+  // Fetch data using React Query
+  const { data: branches = [], isLoading: branchesLoading } = useQuery({
+    queryKey: ["ozzy-branches"],
+    queryFn: () => getOzzyBranches(),
+    enabled: open,
+  });
 
-  const kirimKeOptions = [
-    { value: "customer", label: "Customer" },
-    { value: "warehouse", label: "Warehouse" },
-    { value: "distributor", label: "Distributor" },
-    { value: "retail", label: "Retail Store" },
-  ];
+  const { data: products = [], isLoading: productsLoading } = useQuery({
+    queryKey: ["ozzy-products"],
+    queryFn: () => getOzzyProducts(),
+    enabled: open,
+  });
 
-  // Mock SO data for autocomplete - replace with actual API call later
-  const soOptions = [
-    { value: "SO-2024-001", label: "SO-2024-001 - Order Kaos Polo" },
-    { value: "SO-2024-002", label: "SO-2024-002 - Order Kemeja Formal" },
-    { value: "SO-2024-003", label: "SO-2024-003 - Order Jaket Denim" },
-    { value: "SO-2024-004", label: "SO-2024-004 - Order Celana Chino" },
-  ].filter((option) =>
-    option.label.toLowerCase().includes(soSearchValue.toLowerCase())
-  );
+  const { data: customers = [], isLoading: customersLoading } = useQuery({
+    queryKey: ["ozzy-customers"],
+    queryFn: () => getOzzyCustomers(),
+    enabled: open,
+  });
 
-  // Mock SO item data - replace with actual API call later
-  const mockSOData: Record<string, ValidationModalData> = {
-    "SO-2024-001": {
-      soNumber: "SO-2024-001",
-      items: [
-        {
-          id: "1",
-          sku: "M-CT-20XL",
-          namaBarang: "Makloon Comfy T-Shirt Biru Benihur 24x, XL",
-          kuantitasReal: 12,
+  const { data: salesOrders = [], isLoading: salesOrdersLoading } = useQuery({
+    queryKey: ["ozzy-sales-orders"],
+    queryFn: () => getOzzySalesOrders(100),
+    enabled: open,
+  });
+
+  // Initialize validation items when SO is selected
+  useEffect(() => {
+    if (currentSOForValidation?.purchaseOrderItems && products.length > 0) {
+      const items: ValidationItem[] = currentSOForValidation.purchaseOrderItems.map((item, index) => {
+        // Find the actual product data
+        const productData = products.find(p => p.id === item.whProductId);
+        
+        return {
+          id: item.id?.toString() || index.toString(),
+          sesuai: false,
+          namaBarang: productData?.name || `Product ${item.whProductId}`,
+          sku: productData?.sku || `SKU-${item.whProductId}`,
+          kuantitasReal: item.quantity || 0,
           kuantitasScan: 0,
-          satuan: "Pcs",
-        },
-      ],
-    },
-    "SO-2024-002": {
-      soNumber: "SO-2024-002",
-      items: [
-        {
-          id: "2",
-          sku: "KF-001",
-          namaBarang: "Kemeja Formal Putih Size M",
-          kuantitasReal: 8,
-          kuantitasScan: 0,
-          satuan: "Pcs",
-        },
-      ],
-    },
-  };
+          satuan: item.unitType || productData?.unitType || 'Pcs',
+          originalItem: item
+        };
+      });
+      setValidationItems(items);
+    } else {
+      setValidationItems([]);
+    }
+  }, [currentSOForValidation, products]);
+
+  // Filter sales orders based on search
+  const filteredSalesOrders = salesOrders?.filter((so) =>
+    so?.soNumber?.toLowerCase().includes(soSearchValue.toLowerCase()) ||
+    so?.supplierName?.toLowerCase().includes(soSearchValue.toLowerCase())
+  ) || [];
+
+
 
   const handleSubmit = async (values: any) => {
-    if (selectedItems.length === 0) {
-      message.warning("Silakan pilih minimal satu item untuk dikirim!");
+    if (selectedSalesOrders.length === 0 && selectedProducts.length === 0) {
+      message.warning("Silakan pilih minimal satu Sales Order atau produk untuk dikirim!");
+      return;
+    }
+
+    if (!values.deliveryDate || !values.branchId || !values.shippingName || !values.shippingAddress) {
+      message.warning("Silakan lengkapi semua field yang wajib diisi!");
       return;
     }
 
     setLoading(true);
     try {
-      // TODO: Implement actual submission logic here
-      const submissionData = {
-        ...values,
-        items: selectedItems,
-        totalItems: selectedItems.length,
+      // Prepare payload for delivery order creation
+      const soNumbers = selectedSalesOrders.map(so => so.soNumber);
+      
+      // Combine products from selected sales orders and manually selected products
+      const allProducts: Array<{ productId: string; quantity: number }> = [];
+      
+      // Add products from selected sales orders
+      selectedSalesOrders.forEach(so => {
+        so.products.forEach(product => {
+          allProducts.push({
+            productId: product.productId,
+            quantity: product.quantity,
+          });
+        });
+      });
+
+      // Add manually selected products
+      selectedProducts.forEach(product => {
+        allProducts.push({
+          productId: product.productId,
+          quantity: product.quantity,
+        });
+      });
+
+      const payload: CreateDeliveryOrderPayload = {
+        deliveryDate: dayjs(values.deliveryDate).format("YYYY-MM-DD"),
+        branchId: values.branchId,
+        shippingName: values.shippingName,
+        shippingAddress: values.shippingAddress,
+        note: values.note || null,
+        soNumbers,
+        productQuantities: allProducts,
+
       };
-      console.log("Delivery form values:", submissionData);
-      message.success("Data pengiriman berhasil disimpan!");
-      form.resetFields();
-      setSelectedItems([]);
-      setSOSearchValue("");
-      onClose();
+
+      const result = await createOzzyDeliveryOrder(payload);
+      
+      if (result) {
+        message.success("Delivery Order berhasil dibuat!");
+        handleCancel();
+      } else {
+        message.error("Gagal membuat Delivery Order!");
+      }
     } catch (error) {
-      message.error("Gagal menyimpan data pengiriman!");
+      console.error("Error creating delivery order:", error);
+      message.error("Gagal membuat Delivery Order!");
     } finally {
       setLoading(false);
     }
@@ -131,52 +212,202 @@ const ModalDelivery: React.FC<ModalDeliveryProps> = ({ open, onClose }) => {
   const handleCancel = () => {
     form.resetFields();
     setSOSearchValue("");
-    setSelectedItems([]);
+    setSelectedSalesOrders([]);
+    setSelectedProducts([]);
     onClose();
   };
 
-  const handleSOSelect = (value: string) => {
-    const soData = mockSOData[value];
-    if (soData) {
-      setCurrentValidationData(soData);
-      setValidationModalOpen(true);
-    } else {
-      message.error("Data SO tidak ditemukan!");
-    }
-  };
-
-  const handleValidationSubmit = () => {
-    if (currentValidationData) {
-      // Add validated items to the selected items list
-      const newItems = currentValidationData.items.map(item => ({
-        ...item,
-        kuantitasScan: item.kuantitasReal, // For demo, set scan quantity equal to real quantity
-      }));
+  const handleSOSelect = async (soNumber: string) => {
+    try {
+      setLoadingSODetails(true);
       
-      setSelectedItems(prev => [...prev, ...newItems]);
-      setValidationModalOpen(false);
-      setCurrentValidationData(null);
-      message.success("Item berhasil ditambahkan!");
+      // Fetch full SO details with items
+      const soDetails = await getOzzySalesOrderById(soNumber);
+      
+      if (soDetails) {
+        setCurrentSOForValidation(soDetails);
+        setShowSOValidationModal(true);
+        setSOSearchValue("");
+      } else {
+        message.error("Sales Order tidak ditemukan!");
+      }
+    } catch (error) {
+      console.error("Error fetching SO details:", error);
+      message.error("Gagal mengambil detail Sales Order!");
+    } finally {
+      setLoadingSODetails(false);
     }
   };
 
-  const handleRemoveItem = (itemId: string) => {
-    setSelectedItems(prev => prev.filter(item => item.id !== itemId));
-    message.success("Item berhasil dihapus!");
+  const handleRemoveSalesOrder = (soNumber: string) => {
+    setSelectedSalesOrders(prev => prev.filter(so => so.soNumber !== soNumber));
+    message.success("Sales Order berhasil dihapus!");
   };
+
+  // Handle showing SO details
+  const handleShowSODetail = (so: SelectedSalesOrder) => {
+    setCurrentSOForDetail(so);
+    setShowSODetailModal(true);
+  };
+
+  // Handler functions for validation
+  const handleValidationCheckboxChange = (itemId: string, checked: boolean) => {
+    setValidationItems(prev =>
+      prev.map(item =>
+        item.id === itemId ? { ...item, sesuai: checked } : item
+      )
+    );
+  };
+
+  const handleValidationQuantityChange = (itemId: string, field: 'kuantitasReal' | 'kuantitasScan', value: number) => {
+    setValidationItems(prev =>
+      prev.map(item =>
+        item.id === itemId ? { ...item, [field]: value || 0 } : item
+      )
+    );
+  };
+
+  const handleBarcodeValidation = () => {
+    if (!barcodeInput.trim()) {
+      message.warning("Silakan masukkan barcode!");
+      return;
+    }
+    
+    // Find product by barcode
+    const scannedProduct = products.find(p => 
+      p.barcode === barcodeInput.trim() || 
+      p.sku === barcodeInput.trim()
+    );
+    
+    if (scannedProduct) {
+      // Find the validation item that matches this product
+      const validationItemIndex = validationItems.findIndex(item => 
+        item.originalItem.whProductId === scannedProduct.id
+      );
+      
+      if (validationItemIndex !== -1) {
+        // Update the scan quantity for this item
+        const updatedItems = [...validationItems];
+        updatedItems[validationItemIndex] = {
+          ...updatedItems[validationItemIndex],
+          kuantitasScan: updatedItems[validationItemIndex].kuantitasScan + 1
+        };
+        setValidationItems(updatedItems);
+        
+        // Show success message
+        message.success(`Berhasil scan: ${scannedProduct.name}`);
+      } else {
+        // Product found but not in current SO
+        message.warning(`Produk "${scannedProduct.name}" tidak ada dalam SO ini`);
+      }
+    } else {
+      // Barcode not found
+      message.error('Barcode tidak ditemukan');
+    }
+    
+    // Clear input after validation
+    setBarcodeInput("");
+  };
+
+  const handleConfirmSO = () => {
+    if (!currentSOForValidation) return;
+
+    // Use validation items data instead of original items
+    const soProducts: SelectedProduct[] = validationItems.map((item, index) => ({
+      id: `so_${currentSOForValidation.soNumber}_item_${item.id}`,
+      productId: item.originalItem.whProductId?.toString() || "",
+      name: item.namaBarang,
+      sku: item.sku,
+      quantity: item.kuantitasReal, // Use the validated quantity
+      unitType: item.satuan,
+      unitPrice: "0",
+    }));
+
+    // Add SO to selected sales orders
+    const newSelectedSO: SelectedSalesOrder = {
+      soNumber: currentSOForValidation.soNumber || "",
+      customerName: currentSOForValidation.supplierName || "",
+      shippingAddress: currentSOForValidation.shippingAddress || "",
+      date: currentSOForValidation.date || "",
+      products: soProducts,
+    };
+
+    setSelectedSalesOrders(prev => [...prev, newSelectedSO]);
+    
+    // Also add products to selectedProducts so they appear in Detail Item section
+    setSelectedProducts(prev => [...prev, ...soProducts]);
+    
+    setShowSOValidationModal(false);
+    setCurrentSOForValidation(null);
+    setValidationItems([]);
+    setBarcodeInput("");
+    message.success("Sales Order berhasil ditambahkan!");
+  };
+
+
+
+  const handleSOProductAdd = (soNumber: string, product: OzzyProduct, quantity: number = 1) => {
+    setSelectedSalesOrders(prev =>
+      prev.map(so => {
+        if (so.soNumber === soNumber) {
+          // Check if product already exists in this SO
+          const existingProductIndex = so?.products?.findIndex(p => p.productId === product?.id?.toString()) ?? -1;
+          
+          if (existingProductIndex >= 0) {
+            // Update quantity
+            const updatedProducts = [...(so?.products || [])];
+            updatedProducts[existingProductIndex].quantity = quantity;
+            return { ...so, products: updatedProducts };
+          } else {
+            // Add new product
+            const newProduct: SelectedProduct = {
+              id: `so_${soNumber}_product_${product?.id}`,
+              productId: product?.id?.toString() || "",
+              name: product?.name || "",
+              sku: product?.sku || "",
+              quantity,
+              unitType: product?.unitType || "",
+              unitPrice: product?.unitPrice || "0",
+            };
+            return { ...so, products: [...(so?.products || []), newProduct] };
+          }
+        }
+        return so;
+      })
+    );
+  };
+
+  const handleSOProductRemove = (soNumber: string, productId: string) => {
+    setSelectedSalesOrders(prev =>
+      prev.map(so => {
+        if (so.soNumber === soNumber) {
+          return { ...so, products: so?.products?.filter(p => p.id !== productId) || [] };
+        }
+        return so;
+      })
+    );
+  };
+
+  const soOptions = filteredSalesOrders.map(so => ({
+    value: so?.soNumber || "",
+    label: `${so?.soNumber || ""} - ${so?.supplierName || ""}`,
+  }));
+
+
 
   return (
+    <>
     <Modal
       title={
         <div className="flex items-center gap-2">
           <TruckOutlined className="text-blue-500" />
-          <span>Form Pengiriman</span>
+          <span>Form Delivery Order</span>
         </div>
       }
       open={open}
       onCancel={handleCancel}
       footer={null}
-      width={600}
+      width={900}
       destroyOnClose
     >
       <div style={{ padding: "1rem" }}>
@@ -186,142 +417,183 @@ const ModalDelivery: React.FC<ModalDeliveryProps> = ({ open, onClose }) => {
           onFinish={handleSubmit}
           className="mt-4"
         >
+          {/* Sales Order Search - Moved to Top */}
+          <div className="mb-6">
+            <Typography.Title level={5}>Pilih Sales Order</Typography.Title>
+            <Form.Item label="Cari Sales Order">
+              <AutoComplete
+                value={soSearchValue}
+                onChange={setSOSearchValue}
+                onSelect={handleSOSelect}
+                placeholder="Ketik nomor SO atau nama customer..."
+                options={soOptions}
+                filterOption={false}
+                notFoundContent={
+                  salesOrdersLoading ? <Spin size="small" /> : 
+                  soSearchValue ? "Sales Order tidak ditemukan" : "Ketik untuk mencari..."
+                }
+              />
+            </Form.Item>
+
+            {/* List SO */}
+            {selectedSalesOrders.length > 0 && (
+              <div className="mb-4">
+                <Typography.Title level={5}>List SO</Typography.Title>
+                <div className="flex flex-wrap gap-2">
+                  {selectedSalesOrders.map((so) => (
+                    <div key={so.soNumber} className="flex items-center gap-1 bg-blue-100 px-3 py-1 rounded">
+                      <Button
+                        type="link"
+                        size="small"
+                        className="p-0 h-auto text-blue-600 font-medium"
+                        onClick={() => handleShowSODetail(so)}
+                      >
+                        {so.soNumber}
+                      </Button>
+                      <Button
+                        type="text"
+                        danger
+                        size="small"
+                        icon={<DeleteOutlined />}
+                        className="h-auto p-0 ml-1"
+                        onClick={() => handleRemoveSalesOrder(so.soNumber)}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <Divider>Detail Pengiriman</Divider>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Tanggal - Required */}
+            {/* Delivery Date - Required */}
             <Form.Item
-              name="tanggal"
-              label="Tanggal"
-              rules={[{ required: true, message: "Tanggal harus diisi!" }]}
+              name="deliveryDate"
+              label="Tanggal Pengiriman"
+              rules={[{ required: true, message: "Tanggal pengiriman harus diisi!" }]}
             >
               <DatePicker
                 className="w-full"
-                placeholder="Pilih tanggal"
+                placeholder="Pilih tanggal pengiriman"
                 format="DD/MM/YYYY"
                 suffixIcon={<CalendarOutlined />}
               />
             </Form.Item>
 
-            {/* Cabang - Dropdown */}
-            <Form.Item name="cabang" label="Cabang">
-              <Select placeholder="Pilih Cabang" allowClear>
-                {cabangOptions.map((option) => (
-                  <Option key={option.value} value={option.value}>
-                    {option.label}
+            {/* Branch - Required Dropdown */}
+            <Form.Item
+              name="branchId"
+              label="Cabang"
+              rules={[{ required: true, message: "Cabang harus dipilih!" }]}
+            >
+              <Select 
+                 placeholder="Pilih Cabang" 
+                 allowClear
+                 loading={branchesLoading}
+                 showSearch
+                 filterOption={(input, option) =>
+                   option?.children?.toString().toLowerCase().includes(input.toLowerCase()) ?? false
+                 }
+              >
+                {branches.map((branch) => (
+                  <Option key={branch?.id} value={branch?.whBranchId?.toString() || branch?.id?.toString()}>
+                    {branch?.name}
                   </Option>
                 ))}
               </Select>
             </Form.Item>
           </div>
 
-          {/* Kirim ke - Required Dropdown */}
-          <Form.Item
-            name="kirimKe"
-            label="Kirim ke"
-            rules={[
-              { required: true, message: "Tujuan pengiriman harus dipilih!" },
-            ]}
-          >
-            <Select placeholder="Pilih tujuan pengiriman" allowClear>
-              {kirimKeOptions.map((option) => (
-                <Option key={option.value} value={option.value}>
-                  {option.label}
-                </Option>
-              ))}
-            </Select>
-          </Form.Item>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Shipping Name - Required */}
+            <Form.Item
+              name="shippingName"
+              label="Nama Pengirim"
+              rules={[{ required: true, message: "Nama pengirim harus diisi!" }]}
+            >
+              <Input placeholder="Masukkan nama pengirim" />
+            </Form.Item>
 
-          {/* Keterangan - Text Area */}
-          <Form.Item name="keterangan" label="Keterangan">
+
+          </div>
+
+          {/* Shipping Address - Required */}
+          <Form.Item
+            name="shippingAddress"
+            label="Alamat Pengiriman"
+            rules={[{ required: true, message: "Alamat pengiriman harus diisi!" }]}
+          >
             <TextArea
               rows={3}
-              placeholder="Masukkan catatan atau keterangan tambahan..."
-              maxLength={500}
-              showCount
-            />
-          </Form.Item>
-
-          {/* Alamat Pengiriman - Required Text Area */}
-          <Form.Item
-            name="alamatPengiriman"
-            label="Alamat Pengiriman"
-            rules={[
-              { required: true, message: "Alamat pengiriman harus diisi!" },
-            ]}
-          >
-            <TextArea
-              rows={4}
               placeholder="Masukkan alamat lengkap pengiriman..."
               maxLength={1000}
               showCount
             />
           </Form.Item>
 
-          {/* Cari atau Scan Nomor SO - AutoComplete */}
-          <Form.Item name="nomorSO" label="Cari atau Scan Nomor SO">
-            <AutoComplete
-              value={soSearchValue}
-              onChange={setSOSearchValue}
-              onSelect={handleSOSelect}
-              placeholder="Ketik nomor SO atau scan barcode..."
-              options={soOptions}
-              filterOption={false}
-              notFoundContent={
-                soSearchValue
-                  ? "Nomor SO tidak ditemukan"
-                  : "Ketik untuk mencari..."
-              }
+          {/* Note - Optional */}
+          <Form.Item name="note" label="Catatan">
+            <TextArea
+              rows={2}
+              placeholder="Masukkan catatan tambahan (opsional)..."
+              maxLength={500}
+              showCount
             />
           </Form.Item>
 
-          {/* Selected Items Table */}
-          {selectedItems.length > 0 && (
-            <div className="mt-6">
+          {/* Detail Item - Show only validated products from SOs */}
+          {selectedProducts.length > 0 && (
+            <div className="mb-6">
               <Typography.Title level={5}>Detail Item</Typography.Title>
               <Table
-                dataSource={selectedItems}
+                dataSource={selectedProducts}
                 rowKey="id"
                 pagination={false}
                 size="small"
                 columns={[
                   {
                     title: "Nama Barang",
-                    dataIndex: "namaBarang",
-                    key: "namaBarang",
+                    dataIndex: "name",
+                    key: "name",
+                    render: (text, record) => (
+                      <div>
+                        <div>{text}</div>
+                        <Typography.Text type="secondary" className="text-xs">
+                          {record?.sku}
+                        </Typography.Text>
+                      </div>
+                    ),
                   },
                   {
-                    title: "SKU",
-                    dataIndex: "sku",
-                    key: "sku",
-                  },
-                  {
-                    title: "Kuantitas Real",
-                    dataIndex: "kuantitasReal",
-                    key: "kuantitasReal",
-                    align: "center",
-                  },
-                  {
-                    title: "Kuantitas Scan",
-                    dataIndex: "kuantitasScan",
-                    key: "kuantitasScan",
+                    title: "Kuantitas",
+                    dataIndex: "quantity",
+                    key: "quantity",
+                    width: 120,
                     align: "center",
                   },
                   {
                     title: "Satuan",
-                    dataIndex: "satuan",
-                    key: "satuan",
+                    dataIndex: "unitType",
+                    key: "unitType",
+                    width: 100,
                     align: "center",
                   },
                   {
                     title: "Aksi",
-                    key: "aksi",
-                    align: "center",
+                    key: "action",
+                    width: 60,
                     render: (_, record) => (
                       <Button
                         type="text"
                         danger
                         size="small"
                         icon={<DeleteOutlined />}
-                        onClick={() => handleRemoveItem(record.id)}
+                        onClick={() => {
+                          setSelectedProducts(prev => prev.filter(p => p.id !== record.id));
+                          message.success("Item berhasil dihapus!");
+                        }}
                       />
                     ),
                   },
@@ -339,87 +611,211 @@ const ModalDelivery: React.FC<ModalDeliveryProps> = ({ open, onClose }) => {
               loading={loading}
               icon={<TruckOutlined />}
             >
-              Simpan Pengiriman
+              Buat Delivery Order
             </Button>
           </div>
         </Form>
       </div>
-
-      {/* Validation Modal */}
-      <Modal
-        title="Detail Item"
-        open={validationModalOpen}
-        onCancel={() => setValidationModalOpen(false)}
-        footer={[
-          <Button key="close" onClick={() => setValidationModalOpen(false)}>
-            Tutup
-          </Button>,
-          <Button key="add" type="primary" onClick={handleValidationSubmit}>
-            Tambahkan
-          </Button>,
-        ]}
-        width={800}
-      >
-        {currentValidationData && (
-          <div>
-            <Typography.Text strong>
-              Scan Barcode Produk (Lusin/Pcs)
-            </Typography.Text>
-            <div className="mt-4">
-              <Input
-                placeholder="Scan Barcode"
-                suffix={<span className="text-orange-500">Validasi</span>}
-                className="mb-4"
-              />
-              <Table
-                dataSource={currentValidationData.items}
-                rowKey="id"
-                pagination={false}
-                size="small"
-                columns={[
-                  {
-                    title: "Sesuai",
-                    key: "sesuai",
-                    width: 60,
-                    render: () => (
-                      <input type="checkbox" className="w-4 h-4" />
-                    ),
-                  },
-                  {
-                    title: "Nama Barang",
-                    dataIndex: "namaBarang",
-                    key: "namaBarang",
-                  },
-                  {
-                    title: "SKU",
-                    dataIndex: "sku",
-                    key: "sku",
-                  },
-                  {
-                    title: "Kuantitas Real",
-                    dataIndex: "kuantitasReal",
-                    key: "kuantitasReal",
-                    align: "center",
-                  },
-                  {
-                    title: "Kuantitas Scan",
-                    dataIndex: "kuantitasScan",
-                    key: "kuantitasScan",
-                    align: "center",
-                  },
-                  {
-                    title: "Satuan",
-                    dataIndex: "satuan",
-                    key: "satuan",
-                    align: "center",
-                  },
-                ]}
-              />
-            </div>
-          </div>
-        )}
-      </Modal>
     </Modal>
+
+    {/* SO Items Validation Modal */}
+    <Modal
+      title="Detail Item"
+      open={showSOValidationModal}
+      onCancel={() => {
+        setShowSOValidationModal(false);
+        setCurrentSOForValidation(null);
+      }}
+      footer={null}
+      width={1000}
+      className="detail-item-modal"
+    >
+      {loadingSODetails ? (
+        <div className="flex justify-center items-center py-8">
+          <Spin size="large" />
+        </div>
+      ) : currentSOForValidation ? (
+        <div>
+          {/* Barcode Scanning Section */}
+          <div className="mb-6">
+            <Typography.Title level={5} className="mb-3">
+              Scan Barcode Produk (Lusin/Pcs)
+            </Typography.Title>
+            <div className="flex gap-2">
+                <Input
+                  placeholder="Scan Barcode"
+                  className="flex-1"
+                  size="large"
+                  value={barcodeInput}
+                  onChange={(e) => setBarcodeInput(e.target.value)}
+                  onPressEnter={handleBarcodeValidation}
+                />
+                <Button 
+                  type="primary" 
+                  size="large"
+                  className="bg-yellow-500 hover:bg-yellow-600 border-yellow-500 text-black font-medium"
+                  onClick={handleBarcodeValidation}
+                >
+                  Validasi
+                </Button>
+              </div>
+          </div>
+
+          {/* Product Validation Table */}
+          <div className="mb-6">
+            <Table
+              dataSource={validationItems}
+              rowKey="id"
+              pagination={false}
+              size="middle"
+              className="validation-table"
+              columns={[
+                {
+                  title: "Sesuai",
+                  dataIndex: "sesuai",
+                  key: "sesuai",
+                  width: 80,
+                  align: "center",
+                  render: (checked, record) => (
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={(e) => handleValidationCheckboxChange(record.id, e.target.checked)}
+                      className="w-4 h-4"
+                    />
+                  ),
+                },
+                {
+                  title: "Nama Barang",
+                  dataIndex: "namaBarang",
+                  key: "namaBarang",
+                  width: 300,
+                },
+                {
+                  title: "SKU",
+                  dataIndex: "sku",
+                  key: "sku",
+                  width: 120,
+                },
+                {
+                  title: "Kuantitas Real",
+                  dataIndex: "kuantitasReal",
+                  key: "kuantitasReal",
+                  width: 120,
+                  align: "center",
+                  render: (value, record) => (
+                    <InputNumber
+                      min={0}
+                      value={value}
+                      onChange={(newValue) => handleValidationQuantityChange(record.id, 'kuantitasReal', newValue || 0)}
+                      className="w-full"
+                    />
+                  ),
+                },
+                {
+                  title: "Kuantitas Scan",
+                  dataIndex: "kuantitasScan",
+                  key: "kuantitasScan",
+                  width: 120,
+                  align: "center",
+                  render: (value, record) => (
+                    <InputNumber
+                      min={0}
+                      value={value}
+                      onChange={(newValue) => handleValidationQuantityChange(record.id, 'kuantitasScan', newValue || 0)}
+                      className="w-full"
+                    />
+                  ),
+                },
+                {
+                  title: "Satuan",
+                  dataIndex: "satuan",
+                  key: "satuan",
+                  width: 80,
+                  align: "center",
+                },
+              ]}
+            />
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex justify-end gap-3">
+            <Button 
+              size="large"
+              onClick={() => {
+                setShowSOValidationModal(false);
+                setCurrentSOForValidation(null);
+              }}
+            >
+              Tutup
+            </Button>
+            <Button 
+              type="primary" 
+              size="large"
+              onClick={handleConfirmSO}
+            >
+              Tambahkan
+            </Button>
+          </div>
+        </div>
+      ) : null}
+    </Modal>
+
+    {/* SO Detail Modal */}
+    <Modal
+      title={`Produk pada SO: ${currentSOForDetail?.soNumber || ''}`}
+      open={showSODetailModal}
+      onCancel={() => {
+        setShowSODetailModal(false);
+        setCurrentSOForDetail(null);
+      }}
+      footer={[
+        <Button key="close" onClick={() => {
+          setShowSODetailModal(false);
+          setCurrentSOForDetail(null);
+        }}>
+          Tutup
+        </Button>
+      ]}
+      width={800}
+    >
+      {currentSOForDetail && (
+        <Table
+          dataSource={currentSOForDetail.products}
+          rowKey="id"
+          pagination={false}
+          size="middle"
+          columns={[
+            {
+              title: "Nama Barang",
+              dataIndex: "name",
+              key: "name",
+            },
+            {
+              title: "SKU",
+              dataIndex: "sku",
+              key: "sku",
+              width: 150,
+            },
+            {
+              title: "Qty (SO ini)",
+              dataIndex: "quantity",
+              key: "quantity",
+              width: 120,
+              align: "center",
+            },
+            {
+              title: "Satuan",
+              dataIndex: "unitType",
+              key: "unitType",
+              width: 100,
+              align: "center",
+            },
+          ]}
+        />
+      )}
+    </Modal>
+    </>
   );
 };
 
