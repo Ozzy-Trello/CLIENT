@@ -19,7 +19,7 @@ interface HomeCustomFieldProps {
   setSelectedCustomField: any;
   customFields: CustomField[];
   isLoading: boolean;
-  reorderCustomFields: (startIndex: number, endIndex: number) => void;
+  reorderCustomFields: (customFieldId: string, targetIndex: number) => void;
 }
 
 const HomeCustomField: React.FC<HomeCustomFieldProps> = (props) => {
@@ -38,9 +38,7 @@ const HomeCustomField: React.FC<HomeCustomFieldProps> = (props) => {
 
   // Update local state when customFields changes
   useEffect(() => {
-    if (customFields && customFields.length > 0) {
-      setItems(customFields);
-    }
+    setItems(customFields);
   }, [customFields]);
 
   const handleDetails = (customField: CustomField) => {
@@ -63,8 +61,8 @@ const HomeCustomField: React.FC<HomeCustomFieldProps> = (props) => {
     reorderedItems.splice(result.destination.index, 0, removed);
     setItems(reorderedItems);
 
-    // Call the reorder function from props
-    props.reorderCustomFields(result.source.index, result.destination.index);
+    // Call the reorder function from props with the dragged field ID
+    props.reorderCustomFields(result.draggableId, result.destination.index);
   };
 
   return (

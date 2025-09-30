@@ -10,7 +10,7 @@ import { ApiResponse } from "../types/type";
 import { CustomField } from "@myTypes/custom-field";
 import { useCardDetailContext } from "@providers/card-detail-context";
 import { LookupCache } from "@utils/lookup-cache";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 
 export function useCustomFields(workspaceId: string) {
   const queryClient = useQueryClient();
@@ -24,10 +24,28 @@ export function useCustomFields(workspaceId: string) {
     enabled: !!workspaceId,
   });
 
+  const sortedCustomFields = useMemo(() => {
+    const data = customFieldQuery.data?.data;
+    if (!data || data.length === 0) {
+      return [] as CustomField[];
+    }
+
+    return [...data].sort((a, b) => {
+      const orderA = a.order ?? Number.MAX_SAFE_INTEGER;
+      const orderB = b.order ?? Number.MAX_SAFE_INTEGER;
+
+      if (orderA === orderB) {
+        return a.name.localeCompare(b.name);
+      }
+
+      return orderA - orderB;
+    });
+  }, [customFieldQuery.data?.data]);
+
   // Cache custom fields in LookupCache when data is available
   useEffect(() => {
-    if (customFieldQuery.data?.data) {
-      const customFieldsData = customFieldQuery.data.data;
+    if (sortedCustomFields.length > 0) {
+      const customFieldsData = sortedCustomFields;
       
       // Cache custom field names
       LookupCache.rememberMany(
@@ -51,7 +69,7 @@ export function useCustomFields(workspaceId: string) {
         }
       });
     }
-  }, [customFieldQuery.data?.data]);
+  }, [sortedCustomFields]);
 
   const invalidateSpecificCardCustomFields = (cardId?: string) => {
     if (cardId) {
@@ -287,31 +305,39 @@ export function useCustomFields(workspaceId: string) {
   });
 
   // Helper function to reorder items (useful for drag and drop)
-  const reorderCustomFields = (startIndex: number, endIndex: number) => {
-    const fields = [...(customFieldQuery.data?.data || [])];
-    if (startIndex === endIndex) return;
+  const reorderCustomFields = (customFieldId: string, targetIndex: number) => {
+    if (!customFieldId) return;
 
-    const fieldId = fields[startIndex]?.id;
-    if (!fieldId) return;
+    const fields = [...sortedCustomFields];
+    if (fields.length === 0) return;
 
-    // Determine position type (top/bottom) based on movement direction
+    const normalizedTargetIndex = Math.max(
+      0,
+      Math.min(targetIndex, fields.length - 1)
+    );
+    const currentIndex = fields.findIndex((field) => field.id === customFieldId);
+
+    if (currentIndex === -1 || currentIndex === normalizedTargetIndex) {
+      return;
+    }
+
     const positionType =
-      endIndex === 0
+      normalizedTargetIndex === 0
         ? "top"
-        : endIndex >= fields.length - 1
+        : normalizedTargetIndex >= fields.length - 1
         ? "bottom"
         : undefined;
 
     reorderMutation.mutate({
-      customFieldId: fieldId,
-      targetPosition: endIndex,
+      customFieldId,
+      targetPosition: normalizedTargetIndex,
       positionType,
     });
   };
 
   // Helper function to move a field to a specific position
   const moveCustomFieldToPosition = (fieldId: string, newPosition: number) => {
-    const fields = [...(customFieldQuery.data?.data || [])];
+    const fields = [...sortedCustomFields];
     const currentIndex = fields.findIndex((field) => field.id === fieldId);
 
     if (currentIndex === -1 || currentIndex === newPosition) return;
@@ -333,7 +359,7 @@ export function useCustomFields(workspaceId: string) {
 
   return {
     // Query data and state
-    customFields: customFieldQuery.data?.data || [],
+    customFields: sortedCustomFields,
     isLoading: customFieldQuery.isLoading,
     isError: customFieldQuery.isError,
     error: customFieldQuery.error,

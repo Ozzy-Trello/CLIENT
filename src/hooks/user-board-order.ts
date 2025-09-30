@@ -428,12 +428,45 @@ export function useUserBoardOrder(workspaceId: string) {
     const [movedBoard] = updatedBoards.splice(sourceIndex, 1);
     updatedBoards.splice(destinationIndex, 0, movedBoard);
 
-    // Get current user board order to preserve existing entries
-    const currentUserBoardOrder = userBoardOrderQuery.data?.data || [];
-    
-    // Create a map of existing board orders for quick lookup
-    const existingOrderMap = new Map(
-      currentUserBoardOrder.map(order => [order.boardId, order])
+    const updatedBoardIds = new Set(updatedBoards.map((board) => board.id));
+
+    // Optimistically update the boards cache so UI stays in sync during drag transitions
+    queryClient.setQueryData(
+      ["boards", workspaceId],
+      (old: ApiResponse<Board[]> | undefined) => {
+        if (!old?.data) {
+          return old;
+        }
+
+        const nextData = old.data.map((board) => {
+          if (!updatedBoardIds.has(board.id)) {
+            return board;
+          }
+
+          const newIndex = updatedBoards.findIndex((item) => item.id === board.id);
+          if (newIndex === -1) {
+            return board;
+          }
+
+          if (isFavoriteList) {
+            return {
+              ...board,
+              favoriteOrderIndex: newIndex,
+              isFavorite: true,
+            };
+          }
+
+          return {
+            ...board,
+            orderIndex: newIndex,
+          };
+        });
+
+        return {
+          ...old,
+          data: nextData,
+        };
+      }
     );
 
     if (isFavoriteList) {

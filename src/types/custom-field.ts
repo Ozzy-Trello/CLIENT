@@ -23,6 +23,7 @@ export interface CustomField {
   value?: string;
   canView?: string[];
   canEdit?: string[];
+  order?: number;
 }
 
 export interface CustomOption {
