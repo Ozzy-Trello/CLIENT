@@ -39,22 +39,31 @@ import { FineGrainedPermissions } from "../../../../../types/board";
 import ModalDelivery from "@components/modal-delivery";
 
 // Helper function to derive permission level from fine-grained permissions
-const getPermissionLevelFromFineGrained = (permissions: FineGrainedPermissions | null): string => {
+const getPermissionLevelFromFineGrained = (
+  permissions: FineGrainedPermissions | null
+): string => {
   if (!permissions) return "OBSERVER";
-  
+
   const { board, list, card } = permissions;
-  
+
   // Admin: Can delete board
   if (board.delete) return "ADMIN";
-  
+
   // Moderator: Can update board but not delete
   if (board.update) return "MODERATOR";
-  
+
   // Member: Can create/update/delete lists and cards
-  if (list.create && list.update && list.delete && card.create && card.update && card.delete) {
+  if (
+    list.create &&
+    list.update &&
+    list.delete &&
+    card.create &&
+    card.update &&
+    card.delete
+  ) {
     return "MEMBER";
   }
-  
+
   // Observer: Limited permissions
   return "OBSERVER";
 };
@@ -90,11 +99,10 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
   const { socket } = useWebSocket();
   const params = useParams();
   const currentUser = useSelector(selectUser);
-  
+
   // User board order hook for favorites
-  const { userBoardOrder, toggleFavorite, isTogglingFavorite } = useUserBoardOrder(
-    params.workspaceId as string
-  );
+  const { userBoardOrder, toggleFavorite, isTogglingFavorite } =
+    useUserBoardOrder(params.workspaceId as string);
 
   // Move old cards hook
   const moveOldCardsMutation = useMoveOldCards();
@@ -105,27 +113,33 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
   const isMoveCardsPending = moveOldCardsMutation.isPending;
 
   // Determine if current board is favorited
-  const isFavorited = userBoardOrder?.some(
-    (order) => order.boardId === currentBoard?.id && order.isFavorite
-  ) || false;
+  const isFavorited =
+    userBoardOrder?.some(
+      (order) => order.boardId === currentBoard?.id && order.isFavorite
+    ) || false;
 
   const handleStarClick = () => {
-    console.log('[FAVORITE LOGS] Topbar star clicked for board:', currentBoard?.id);
+    console.log(
+      "[FAVORITE LOGS] Topbar star clicked for board:",
+      currentBoard?.id
+    );
     if (isTogglingFavorite) {
-      console.log('[FAVORITE LOGS] Toggle already in progress, ignoring click');
+      console.log("[FAVORITE LOGS] Toggle already in progress, ignoring click");
       return;
     }
-     if (currentBoard?.id) {
-       console.log('[FAVORITE LOGS] Calling toggleFavorite from topbar');
-       toggleFavorite(currentBoard.id);
-     } else {
-       console.log('[FAVORITE LOGS] No current board, not calling toggleFavorite');
-     }
-   };
+    if (currentBoard?.id) {
+      console.log("[FAVORITE LOGS] Calling toggleFavorite from topbar");
+      toggleFavorite(currentBoard.id);
+    } else {
+      console.log(
+        "[FAVORITE LOGS] No current board, not calling toggleFavorite"
+      );
+    }
+  };
 
   const handleInvoiceSubmit = async () => {
     if (!invoiceNumber.trim()) {
-      message.error('Please enter an invoice number');
+      message.error("Please enter an invoice number");
       return;
     }
 
@@ -133,13 +147,13 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
     try {
       // Add your invoice submission logic here
       // For example: await api.post('/invoices', { invoiceNumber, boardId: currentBoard?.id });
-      
-      message.success('Invoice added successfully');
-      setInvoiceNumber('');
+
+      message.success("Invoice added successfully");
+      setInvoiceNumber("");
       setShowInvoiceInput(false);
     } catch (error) {
-      console.error('Error submitting invoice:', error);
-      message.error('Failed to add invoice');
+      console.error("Error submitting invoice:", error);
+      message.error("Failed to add invoice");
     } finally {
       setIsLoadingInvoice(false);
     }
@@ -232,19 +246,26 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
       )}
 
       <div className="flex items-center gap-2 ml-5">
+        <title>{currentBoard?.name}</title>
+
         <Typography.Title level={4} className="m-0">
           {currentBoard?.name}
         </Typography.Title>
         <Tooltip
           title={isFavorited ? "Remove from favorites" : "Add to favorites"}
         >
-          <Star 
-            size={16} 
+          <Star
+            size={16}
             className={`transition-colors cursor-pointer ${
-              isFavorited ? 'fill-yellow-400 text-yellow-400' : 'text-gray-400 hover:text-yellow-400'
+              isFavorited
+                ? "fill-yellow-400 text-yellow-400"
+                : "text-gray-400 hover:text-yellow-400"
             }`}
             onClick={handleStarClick}
-            style={{ opacity: isTogglingFavorite ? 0.6 : 1, pointerEvents: isTogglingFavorite ? 'none' as const : 'auto' }}
+            style={{
+              opacity: isTogglingFavorite ? 0.6 : 1,
+              pointerEvents: isTogglingFavorite ? ("none" as const) : "auto",
+            }}
           />
         </Tooltip>
       </div>
@@ -335,7 +356,7 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
                 type="primary"
                 size="small"
                 onClick={() => setModalDeliveryOpen(true)}
-                style={{ backgroundColor: '#1890ff', borderColor: '#1890ff' }}
+                style={{ backgroundColor: "#1890ff", borderColor: "#1890ff" }}
               >
                 <span>Delivery</span>
               </Button>
@@ -402,7 +423,7 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
           </Dropdown>
         )}
       </div>
-      
+
       <ModalDelivery
         open={modalDeliveryOpen}
         onClose={() => setModalDeliveryOpen(false)}

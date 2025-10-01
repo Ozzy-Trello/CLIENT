@@ -23,7 +23,11 @@ import ModalDashcard from "@components/dashcard/modal-dashcard";
 import { DashcardConfig } from "@myTypes/dashcard";
 import { Card, EnumCardType } from "@myTypes/card";
 import { AnyList } from "@myTypes/list";
-import { selectCurrentBoard, selectCurrentWorkspace, setCurrentBoard } from "@store/workspace_slice";
+import {
+  selectCurrentBoard,
+  selectCurrentWorkspace,
+  setCurrentBoard,
+} from "@store/workspace_slice";
 
 import { usePermissions } from "@hooks/account";
 import { useBoardDetails } from "@hooks/board";
@@ -99,7 +103,7 @@ const BoardContentWithPermissions: React.FC<{
     <div
       ref={boardScrollContainerRef}
       className={`h-auto min-h-[770px] w-full overflow-x-auto overflow-y-hidden custom-horizontal-scrollbar board-scroll-container ${
-        isDraggingToScroll ? 'cursor-grabbing select-none' : 'cursor-grab'
+        isDraggingToScroll ? "cursor-grabbing select-none" : "cursor-grab"
       }`}
       onMouseDown={onMouseDown}
       onMouseMove={onMouseMove}
@@ -109,6 +113,7 @@ const BoardContentWithPermissions: React.FC<{
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
     >
+      
       {shouldRenderLists && (
         <DragDropContext
           onDragEnd={onListDragEnd}
@@ -215,9 +220,26 @@ const Board: React.FC = () => {
 
   // Mouse event handlers for drag-to-scroll
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    // Check if a card/list drag is already in progress
+    if ((window as any).__DRAG_IN_PROGRESS__) {
+      return;
+    }
+
     // Only start drag-to-scroll if clicking on the background (not on draggable elements)
     const target = e.target as HTMLElement;
-    if (target.closest('[data-rbd-draggable-id]') || target.closest('[data-rbd-droppable-id]')) {
+
+    // More comprehensive check for draggable elements and their children
+    if (
+      target.closest("[data-rbd-draggable-id]") ||
+      target.closest("[data-rbd-droppable-id]") ||
+      target.closest(".draggable-card-container") ||
+      target.closest(".draggable-list-container") ||
+      target.closest("button") ||
+      target.closest("input") ||
+      target.closest("textarea") ||
+      target.closest(".ant-btn") ||
+      target.closest(".more-options-btn")
+    ) {
       return;
     }
 
@@ -228,14 +250,21 @@ const Board: React.FC = () => {
     dragScrollState.current.startX = e.pageX - container.offsetLeft;
     dragScrollState.current.scrollLeft = container.scrollLeft;
     setIsDraggingToScroll(true);
-    
+
     // Prevent text selection during drag
     e.preventDefault();
   }, []);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    // Stop drag-to-scroll if a card/list drag starts
+    if ((window as any).__DRAG_IN_PROGRESS__) {
+      dragScrollState.current.isDown = false;
+      setIsDraggingToScroll(false);
+      return;
+    }
+
     if (!dragScrollState.current.isDown) return;
-    
+
     const container = boardScrollContainerRef.current;
     if (!container) return;
 
@@ -257,9 +286,26 @@ const Board: React.FC = () => {
 
   // Touch event handlers for mobile drag-to-scroll
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    // Check if a card/list drag is already in progress
+    if ((window as any).__DRAG_IN_PROGRESS__) {
+      return;
+    }
+
     // Only start drag-to-scroll if touching the background (not on draggable elements)
     const target = e.target as HTMLElement;
-    if (target.closest('[data-rbd-draggable-id]') || target.closest('[data-rbd-droppable-id]')) {
+
+    // More comprehensive check for draggable elements and their children
+    if (
+      target.closest("[data-rbd-draggable-id]") ||
+      target.closest("[data-rbd-droppable-id]") ||
+      target.closest(".draggable-card-container") ||
+      target.closest(".draggable-list-container") ||
+      target.closest("button") ||
+      target.closest("input") ||
+      target.closest("textarea") ||
+      target.closest(".ant-btn") ||
+      target.closest(".more-options-btn")
+    ) {
       return;
     }
 
@@ -274,8 +320,15 @@ const Board: React.FC = () => {
   }, []);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    // Stop drag-to-scroll if a card/list drag starts
+    if ((window as any).__DRAG_IN_PROGRESS__) {
+      dragScrollState.current.isDown = false;
+      setIsDraggingToScroll(false);
+      return;
+    }
+
     if (!dragScrollState.current.isDown || e.touches.length !== 1) return;
-    
+
     const container = boardScrollContainerRef.current;
     if (!container) return;
 
@@ -283,7 +336,7 @@ const Board: React.FC = () => {
     const x = touch.pageX - container.offsetLeft;
     const walk = (x - dragScrollState.current.startX) * 2; // Multiply by 2 for faster scrolling
     container.scrollLeft = dragScrollState.current.scrollLeft - walk;
-    
+
     // Prevent default touch behavior only when actively scrolling
     e.preventDefault();
   }, []);
@@ -345,16 +398,22 @@ const Board: React.FC = () => {
   useEffect(() => {
     if (boardDetails && boardDetails.id !== selectedBoard?.id) {
       dispatch(setCurrentBoard(boardDetails));
-      
+
       // Add to recently viewed boards
       addRecentlyViewedBoard({
         id: boardDetails.id,
-        name: boardDetails.name || 'Untitled Board',
+        name: boardDetails.name || "Untitled Board",
         workspaceId: resolvedWorkspaceId,
-        workspaceName: currentWorkspace?.name || 'Untitled Workspace',
+        workspaceName: currentWorkspace?.name || "Untitled Workspace",
       });
     }
-  }, [boardDetails, selectedBoard?.id, dispatch, addRecentlyViewedBoard, resolvedWorkspaceId]);
+  }, [
+    boardDetails,
+    selectedBoard?.id,
+    dispatch,
+    addRecentlyViewedBoard,
+    resolvedWorkspaceId,
+  ]);
 
   const onListDragEnd = useCallback(
     (result: DropResult) => {

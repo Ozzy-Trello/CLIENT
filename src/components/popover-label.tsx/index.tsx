@@ -6,7 +6,7 @@ import { useCardDetailContext } from "@providers/card-detail-context";
 import Home from "./home";
 import LabelForm from "./label-form";
 import { CardLabel, Label } from "@myTypes/label";
-import { usePaginatedLabels } from "@hooks/label";
+import { useLabels } from "@hooks/label";
 
 interface PopoverLabel {
   open: boolean;
@@ -16,7 +16,7 @@ interface PopoverLabel {
 
 const PopoverLabel: React.FC<PopoverLabel> = ({ open, setOpen, triggerEl }) => {
   const { selectedCard, activeList, setSelectedCard } = useCardDetailContext();
-  const { boardId } = useParams();
+  const { boardId, workspaceId } = useParams();
   const [popoverPage, setPopoverPage] = useState<"home" | "add" | "update">(
     "home"
   );
@@ -24,17 +24,13 @@ const PopoverLabel: React.FC<PopoverLabel> = ({ open, setOpen, triggerEl }) => {
     undefined
   );
 
-  const { reset } = usePaginatedLabels(
-    boardId as string,
-    { cardId: selectedCard?.id },
-    selectedCard?.id
+  const { allLabels } = useLabels(
+    workspaceId as string,
+    selectedCard?.id,
+    { cardId: selectedCard?.id }
   );
 
-  useEffect(() => {
-    if (open) {
-      reset();
-    }
-  }, [open, reset]);
+  // No need for reset since we're fetching all labels at once
 
   const onCancel = () => {
     setOpen(false);

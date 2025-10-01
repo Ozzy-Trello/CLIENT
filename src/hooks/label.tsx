@@ -5,11 +5,12 @@ import {
   deleteLabel,
   getLabels,
   getAllLabels,
+  getWorkspaceLabels,
 } from "@api/label";
 import { addCardLabel, removeLabelFromCard, getCardLabels } from "@api/card";
 import { Label, CardLabel } from "@myTypes/label";
 import { ApiResponse } from "@myTypes/type";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export function useLabels(
   workspaceId: string,
@@ -249,7 +250,16 @@ export function useLabels(
     // Queries
     labels: labelsQuery.data?.data || [],
     cardLabels: cardLabelsQuery.data?.data || [],
-    allLabels: allLabelsQuery.data?.data || [],
+    allLabels: (allLabelsQuery.data?.data || []).map((label: any) => ({
+      id: label.id,
+      labelId: label.id, // Map id to labelId for CardLabel interface
+      name: label.name,
+      value: label.value,
+      valueType: label.valueType || label.value_type,
+      workspaceId: label.workspaceId || label.workspace_id,
+      createdAt: label.createdAt || label.created_at,
+      updatedAt: label.updatedAt || label.updated_at,
+    })),
     // isLoadingLabels: labelsQuery.isLoading,
     isLoadingCardLabels: cardLabelsQuery.isLoading,
     isLoadingAllLabels: allLabelsQuery.isLoading,
@@ -416,5 +426,80 @@ export function usePaginatedLabels(
       if (!cardId) throw new Error("cardId is required for removeCardLabel");
       removeCardLabelMutation.mutate({ ...args, cardId });
     },
+  };
+}
+
+export function useWorkspaceLabels(workspaceId: string, search?: string) {
+  const [page, setPage] = useState(1);
+  const [labels, setLabels] = useState<any[]>([]);
+  const [hasMore, setHasMore] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
+  const [debouncedSearch, setDebouncedSearch] = useState(search);
+  const limit = 10;
+
+  // Debounce search term
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // Reset pagination when search changes
+  useEffect(() => {
+    setPage(1);
+    setLabels([]);
+    setHasMore(true);
+  }, [search]);
+
+  const { isFetching, refetch } = useQuery({
+    queryKey: ["workspaceLabels", workspaceId, page, debouncedSearch],
+    queryFn: async () => {
+      const res = await getWorkspaceLabels(workspaceId, page, limit, debouncedSearch);
+      const newData = res.data ?? [];
+      
+      // Transform LabelAttributes to CardLabel format
+      const transformedData = newData.map((label: any) => ({
+        labelId: label.id,
+        name: label.name,
+        value: label.value,
+        valueType: label.value_type || label.valueType,
+        workspaceId: label.workspace_id || label.workspaceId,
+        createdAt: label.created_at || label.createdAt,
+        updatedAt: label.updated_at || label.updatedAt,
+        isAssigned: false, // Default value for workspace labels
+      }));
+      
+      setLabels((prev) => (page === 1 ? transformedData : [...prev, ...transformedData]));
+      setHasMore(transformedData.length === limit);
+      
+      // Set total count from pagination info if available
+      if (res.paginate) {
+        setTotalCount(res.paginate.totalData || 0);
+      }
+      
+      return transformedData;
+    },
+    enabled: !!workspaceId,
+  });
+
+  const loadMore = () => setPage((p) => p + 1);
+  
+  const reset = () => {
+    setPage(1);
+    setLabels([]);
+    setHasMore(true);
+    setTotalCount(0);
+  };
+
+  return {
+    labels,
+    isFetching,
+    hasMore,
+    totalCount,
+    loadMore,
+    reset,
+    refetch,
   };
 }

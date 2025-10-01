@@ -85,6 +85,7 @@ const DraggableList: React.FC<DraggableListProps> = ({
             flex 
             flex-col
             flex-shrink-0
+            draggable-list-container
             ${snapshot.isDragging ? "shadow-lg" : ""}
             ${canMoveListPermission ? "cursor-pointer" : "cursor-default"}
             ${!canMoveListPermission ? "opacity-75" : ""}

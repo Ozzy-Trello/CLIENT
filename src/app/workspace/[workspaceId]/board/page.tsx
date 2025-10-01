@@ -1,4 +1,5 @@
 "use client";
+import { Draggable, Droppable, DropResult } from "@hello-pangea/dnd";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Card,
@@ -14,20 +15,19 @@ import {
 import { Earth, Lock, MoreHorizontal, Settings, Users } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
+import { useState } from "react";
 import BoardSettingsModal from "../../../../components/board-settings-modal";
+import { usePermissions } from "../../../../hooks/account";
+import { useBoards } from "../../../../hooks/board";
+import { useUpdateBoard } from "../../../../hooks/use-update-board";
+import { useUserBoardOrder } from "../../../../hooks/user-board-order";
+import { Board } from "../../../../types/board";
+import "./style.css";
 
 const DragDropContext = dynamic(
   () => import("@hello-pangea/dnd").then((mod) => mod.DragDropContext),
   { ssr: false }
 );
-import { useBoards } from "../../../../hooks/board";
-import { useUpdateBoard } from "../../../../hooks/use-update-board";
-import { usePermissions } from "../../../../hooks/account";
-import { useUserBoardOrder } from "../../../../hooks/user-board-order";
-import { Board } from "../../../../types/board";
-import "./style.css";
 
 const { Item: MenuItem } = Menu;
 const { Title, Text } = Typography;

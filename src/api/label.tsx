@@ -36,6 +36,24 @@ export const deleteLabel = async (
   return data;
 };
 
+export const getWorkspaceLabels = async (
+  workspaceId: string,
+  page: number = 1,
+  limit: number = 10,
+  search?: string
+): Promise<ApiResponse<LabelAttributes[]>> => {
+  const params = new URLSearchParams({
+    page: page.toString(),
+    limit: limit.toString(),
+    ...(search && { search }),
+  });
+  
+  const { data } = await api.get(`/label/workspace/paginated?${params}`, {
+    headers: { "workspace-id": workspaceId },
+  });
+  return data;
+};
+
 export const getAllLabels = async (
   workspaceId: string
 ): Promise<ApiResponse<LabelAttributes[]>> => {

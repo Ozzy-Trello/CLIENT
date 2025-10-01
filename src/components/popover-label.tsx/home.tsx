@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import { Input, Button, Checkbox, Tooltip } from "antd";
 import { Pencil } from "lucide-react";
 import { CardLabel } from "@myTypes/label";
 import { useParams } from "next/navigation";
 import { Card } from "@myTypes/card";
-import { usePaginatedLabels } from "@hooks/label";
+import { useLabels, useWorkspaceLabels } from "@hooks/label";
 
 interface LabelManagerProps {
   popoverPage: "home" | "add" | "update";
@@ -16,50 +16,50 @@ interface LabelManagerProps {
   selectedCard: Card | null;
 }
 
-const Home: React.FC<LabelManagerProps> = (props) => {
+const Home: React.FC<LabelManagerProps> = ({
+  setPopoverPage,
+  setSelectedLabel,
+  selectedCard,
+}) => {
   const { workspaceId } = useParams();
-  const { setPopoverPage, setSelectedLabel, selectedCard } = props;
   const [searchTerm, setSearchTerm] = useState("");
 
   const {
-    labels,
-    isFetching,
+    labels: workspaceLabels,
+    isFetching: isLoadingWorkspaceLabels,
     hasMore,
     loadMore,
-    addCardLabel,
-    removeCardLabel,
-  } = usePaginatedLabels(
+    totalCount,
+  } = useWorkspaceLabels(workspaceId as string, searchTerm);
+
+  const { cardLabels, addCardLabel, removeCardLabel } = useLabels(
     workspaceId as string,
-    { cardId: selectedCard?.id },
-    selectedCard?.id
+    selectedCard?.id,
+    { cardId: selectedCard?.id }
   );
 
-  const filteredLabels: CardLabel[] = useMemo(() => {
-    if (!labels) return [];
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchTerm(value);
+  }, []);
 
-    const unique: CardLabel[] = Array.from(
-      new Map(labels.map((l: CardLabel) => [l.labelId, l])).values()
-    ) as CardLabel[];
+  const labelsWithAssignment: CardLabel[] = useMemo(() => {
+    if (!workspaceLabels) return [];
 
-    return unique.filter((label) =>
-      label.name?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [searchTerm, labels]);
+    return workspaceLabels.map((label) => ({
+      ...label,
+      isAssigned: cardLabels?.some(
+        (cardLabel: CardLabel) => cardLabel.labelId === label.labelId
+      ) || false,
+    }));
+  }, [workspaceLabels, cardLabels]);
 
-  const toggleCheck = async (isChecked: boolean, labelId: string) => {
-    if (!selectedCard || !workspaceId) {
-      console.error("No card selected or workspace ID.");
-      return;
-    }
+  const toggleCheck = (isChecked: boolean, labelId: string) => {
+    if (!selectedCard || !workspaceId) return;
 
-    try {
-      if (isChecked) {
-        addCardLabel({ labelId });
-      } else {
-        removeCardLabel({ labelId });
-      }
-    } catch (error) {
-      console.error("Failed to update label assignment:", error);
+    if (isChecked) {
+      addCardLabel({ labelId });
+    } else {
+      removeCardLabel({ labelId });
     }
   };
 
@@ -73,16 +73,16 @@ const Home: React.FC<LabelManagerProps> = (props) => {
       <Input
         placeholder="Search labels..."
         value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
+        onChange={(e) => handleSearchChange(e.target.value)}
         className="mb-2"
         size="small"
       />
 
       <div className="space-y-1 max-h-64 overflow-y-auto">
-        {filteredLabels.map((label: CardLabel) => (
+        {labelsWithAssignment.map((label) => (
           <div
             key={label.id}
-            className={`flex items-center justify-between px-2 py-1 rounded cursor-pointer transition ${
+            className={`flex items-center justify-between px-2 py-1 rounded transition ${
               label.isAssigned
                 ? "bg-blue-50 border border-blue-200"
                 : "hover:bg-gray-100 border border-transparent"
@@ -99,7 +99,7 @@ const Home: React.FC<LabelManagerProps> = (props) => {
               />
               <div
                 className="px-3 py-1 text-sm text-black rounded-sm font-medium flex-1"
-                style={{ backgroundColor: label?.value }}
+                style={{ backgroundColor: label.value }}
               >
                 {label.name}
               </div>
@@ -116,21 +116,29 @@ const Home: React.FC<LabelManagerProps> = (props) => {
         ))}
       </div>
 
-      <div className="mt-4 flex flex-col gap-2">
+      {hasMore && (
+        <div className="text-center pt-2">
+          <Button
+            size="small"
+            type="text"
+            onClick={loadMore}
+            loading={isLoadingWorkspaceLabels}
+          >
+            Load more labels
+          </Button>
+        </div>
+      )}
+
+      {totalCount > 0 && (
+        <div className="text-xs text-gray-500 text-center pt-1">
+          Showing {labelsWithAssignment.length} of {totalCount} labels
+        </div>
+      )}
+
+      <div className="mt-4">
         <Button block size="small" onClick={() => setPopoverPage("add")}>
           Create a new label
         </Button>
-        {hasMore && (
-          <Button
-            block
-            size="small"
-            type="default"
-            onClick={loadMore}
-            disabled={isFetching}
-          >
-            {isFetching ? "Loading..." : "Show more labels"}
-          </Button>
-        )}
       </div>
     </div>
   );
