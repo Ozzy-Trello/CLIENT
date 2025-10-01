@@ -92,7 +92,7 @@ const DraggableCard: React.FC<DraggableCardProps> = ({ card, index, list }) => {
               w-full draggable-card-container relative group
             hover:border-blue-500 overflow-hidden transition-all duration-200
             ${snapshot.isDragging ? "" : ""}
-            ${canMoveCard ? "cursor-move" : "cursor-default"}
+            ${canMoveCard ? "cursor-pointer" : "cursor-default"}
             ${shouldBlur ? "opacity-30 blur-sm" : ""}
             ${isCardFocused(card.id) ? "ring-2 ring-blue-500 shadow-lg" : ""}
             `}
