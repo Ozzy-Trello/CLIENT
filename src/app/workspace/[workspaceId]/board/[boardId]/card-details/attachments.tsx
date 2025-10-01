@@ -1,49 +1,39 @@
-import React, { useEffect, useState, useRef } from "react";
-import ReactDOM from "react-dom";
 import {
-  Avatar,
-  Button,
-  Image,
-  List,
-  Typography,
-  message,
-  Space,
-  Upload,
-} from "antd";
-import {
+  DeleteOutlined,
   DownloadOutlined,
-  PrinterOutlined,
+  ExportOutlined,
+  FileExcelOutlined,
+  FileImageOutlined,
+  FileOutlined,
+  FilePdfOutlined,
+  FileTextOutlined,
+  FileWordOutlined,
+  FileZipOutlined,
+  InboxOutlined,
+  PaperClipOutlined,
+  PlusOutlined,
   RotateLeftOutlined,
   RotateRightOutlined,
   ZoomInOutlined,
   ZoomOutOutlined,
-  InboxOutlined,
-  ExportOutlined,
-  EllipsisOutlined,
-  PaperClipOutlined,
-  PlusOutlined,
-  FileImageOutlined,
-  FilePdfOutlined,
-  FileWordOutlined,
-  FileExcelOutlined,
-  FileZipOutlined,
-  FileTextOutlined,
-  FileOutlined,
-  DeleteOutlined,
 } from "@ant-design/icons";
-import { useCardAttachment } from "@hooks/card_attachment";
-import UploadModal from "@components/modal-upload/modal-upload";
-import { EnumAttachmentType, Card, CardAttachment } from "@myTypes/card";
-import { User } from "@myTypes/user";
-import { FileUpload } from "@myTypes/file-upload";
-import QRCode from "react-qr-code";
+import { QrCode } from "lucide-react";
 import { uploadFile } from "@api/file";
-import { deleteCardAttachment } from "@api/card_attachment";
-import { useBoardPermissionsContext } from "@providers/board-permissions-context";
-import AttachedCard from "./attached-card";
-import TokenStorage from "@utils/token-storage";
-import { PDFPreview } from "@components/pdf-preview";
+import UploadModal from "@components/modal-upload/modal-upload";
 import { PDFModal } from "@components/pdf-modal";
+import { PDFPreview } from "@components/pdf-preview";
+import { useCardAttachment } from "@hooks/card_attachment";
+import { Card, CardAttachment, EnumAttachmentType } from "@myTypes/card";
+import { FileUpload } from "@myTypes/file-upload";
+import { User } from "@myTypes/user";
+import { useBoardPermissionsContext } from "@providers/board-permissions-context";
+import { printPDFWithQR } from "@utils/pdf-qr-utils";
+import TokenStorage from "@utils/token-storage";
+import { Button, Image, List, message, Space, Typography, Upload } from "antd";
+import React, { useEffect, useRef, useState } from "react";
+import ReactDOM from "react-dom";
+import QRCode from "react-qr-code";
+import AttachedCard from "./attached-card";
 
 interface AttachmentsProps {
   card: Card;
@@ -61,9 +51,12 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
   const [attachedCards, setAttachedCards] = useState<Card[]>([]);
   const [attachedFiles, setAttachedFiles] = useState<FileUpload[]>([]);
   const [pdfModalVisible, setPdfModalVisible] = useState<boolean>(false);
-  const [selectedPdf, setSelectedPdf] = useState<{ url: string; fileName: string } | null>(null);
+  const [selectedPdf, setSelectedPdf] = useState<{
+    url: string;
+    fileName: string;
+  } | null>(null);
   const { canUpdateCard } = useBoardPermissionsContext();
-  
+
   const handleOpenPdfModal = (url: string, fileName: string) => {
     setSelectedPdf({ url, fileName });
     setPdfModalVisible(true);
@@ -93,7 +86,6 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
     });
   };
 
-  // Helper function to determine if a file is an image based on file name or MIME type
   const isImageFile = (fileName: string, mimeType?: string): boolean => {
     const imageExtensions = ["jpg", "jpeg", "png", "gif", "bmp", "svg", "webp"];
     const extension = fileName.split(".").pop()?.toLowerCase() || "";
@@ -105,10 +97,9 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
     return imageExtensions.includes(extension);
   };
 
-  // Helper function to determine if a file is a PDF based on file name or MIME type
   const isPDFFile = (fileName: string, mimeType?: string): boolean => {
     const extension = fileName.split(".").pop()?.toLowerCase() || "";
-    
+
     if (mimeType && mimeType === "application/pdf") {
       return true;
     }
@@ -116,7 +107,6 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
     return extension === "pdf";
   };
 
-  // Helper function to get appropriate file icon based on file extension
   const getFileIcon = (fileName: string, mimeType?: string) => {
     if (isImageFile(fileName, mimeType)) {
       return <FileImageOutlined className="text-blue-500 text-2xl" />;
@@ -146,7 +136,6 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
     }
   };
 
-  // Format file size
   const formatFileSize = (bytes?: number): string => {
     if (!bytes) return "";
 
@@ -155,39 +144,38 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
     return (bytes / (1024 * 1024)).toFixed(1) + " MB";
   };
 
-  // Canvas reference for generating QR code images
   const qrCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  // Function to convert image URL to base64
   const getBase64FromUrl = async (url: string): Promise<string> => {
     try {
       let fetchUrl = url;
       const headers: HeadersInit = {};
 
-      // Check if this is a file from our backend that needs authentication
-      if (url.includes(process.env.NEXT_PUBLIC_BE_BASE_URL || '')) {
-        // For backend files, add auth headers
+      if (url.includes(process.env.NEXT_PUBLIC_BE_BASE_URL || "")) {
         const accessToken = TokenStorage.getAccessToken();
         if (accessToken) {
           headers.Authorization = `Bearer ${accessToken}`;
         }
         fetchUrl = url;
-      } else if (url.startsWith('/api/file-proxy/')) {
-        // Already a proxy URL, use as is with auth
+      } else if (url.startsWith("/api/file-proxy/")) {
         const accessToken = TokenStorage.getAccessToken();
         if (accessToken) {
           headers.Authorization = `Bearer ${accessToken}`;
         }
         fetchUrl = url;
-      } else if (url.startsWith('http') && !url.includes(window.location.hostname)) {
-        // For external images, use the proxy endpoint to avoid CORS issues
+      } else if (
+        url.startsWith("http") &&
+        !url.includes(window.location.hostname)
+      ) {
         fetchUrl = `/api/proxy-image?url=${encodeURIComponent(url)}`;
       } else {
-        // For same-origin images, fetch directly
         fetchUrl = url;
       }
 
-      const response = await fetch(fetchUrl, Object.keys(headers).length > 0 ? { headers } : {});
+      const response = await fetch(
+        fetchUrl,
+        Object.keys(headers).length > 0 ? { headers } : {}
+      );
 
       if (!response.ok) {
         throw new Error(`Failed to fetch image: ${response.statusText}`);
@@ -201,20 +189,15 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
         reader.readAsDataURL(blob);
       });
     } catch (error) {
-      console.error("Error converting image to base64:", error);
       throw error;
     }
   };
 
-  // Function to open image with QR code in print dialog
   const handlePrintWithQR = async (imageUrl?: string, fileName?: string) => {
     if (!imageUrl) return;
 
     try {
-      // Show loading message
       const loadingMsg = message.loading("Preparing print view...", 0);
-
-      // Create a canvas element if it doesn't exist
       if (!qrCanvasRef.current) {
         qrCanvasRef.current = document.createElement("canvas");
       }
@@ -227,29 +210,22 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
         return;
       }
 
-      // Convert the image URL to base64 to avoid CORS issues
       const base64Image = await getBase64FromUrl(imageUrl);
 
-      // Load the image
       const img = document.createElement("img");
-      img.crossOrigin = "anonymous"; // Enable CORS
+      img.crossOrigin = "anonymous";
 
       img.onload = () => {
-        // Set canvas dimensions (same as original image)
-        const qrSize = Math.min(200, img.width * 0.35); // QR code size (35% of image width, max 200px)
-        const padding = 10; // Padding around QR code
+        const qrSize = Math.min(200, img.width * 0.35);
+        const padding = 10;
 
         canvas.width = img.width;
         canvas.height = img.height;
 
-        // Draw original image
         ctx.drawImage(img, 0, 0, img.width, img.height);
-
-        // Calculate QR code position (30% from left, 0.5% from top)
         const qrX = Math.floor(img.width * 0.3);
         const qrY = Math.floor(img.height * 0.005);
 
-        // Draw white background for QR code with slight transparency
         ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
         ctx.fillRect(
           qrX - padding,
@@ -257,8 +233,6 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
           qrSize + padding * 2,
           qrSize + padding * 2
         );
-
-        // Add border around QR code
         ctx.strokeStyle = "rgba(0, 0, 0, 0.3)";
         ctx.lineWidth = 1;
         ctx.strokeRect(
@@ -268,14 +242,11 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
           qrSize + padding * 2
         );
 
-        // Create QR code SVG
         const qrSvg = document.createElement("div");
         qrSvg.style.position = "absolute";
         qrSvg.style.top = "-9999px";
         qrSvg.style.left = "-9999px";
         document.body.appendChild(qrSvg);
-
-        // Create QR code element
         const qrElement = document.createElement("div");
         qrElement.style.width = `${qrSize}px`;
         qrElement.style.height = `${qrSize}px`;
@@ -285,7 +256,6 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
         qrElement.style.background = "white";
         document.body.appendChild(qrElement);
 
-        // Render QR code
         ReactDOM.render(
           <QRCode
             value={window.location.href}
@@ -297,7 +267,6 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
           qrElement
         );
 
-        // Convert SVG to image
         const svgElement = qrElement.querySelector("svg");
         if (!svgElement) {
           message.error("Failed to generate QR code");
@@ -314,10 +283,7 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
           btoa(unescape(encodeURIComponent(svgData)));
 
         qrImg.onload = () => {
-          // Draw QR code on canvas
           ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
-
-          // Add small label for QR code
           ctx.font = "bold 12px Arial";
           ctx.fillStyle = "black";
           ctx.textAlign = "center";
@@ -327,7 +293,6 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
             qrY + qrSize + padding + 12
           );
 
-          // Create a hidden iframe for printing
           const printFrame = document.createElement("iframe");
           printFrame.style.position = "fixed";
           printFrame.style.right = "-9999px";
@@ -337,10 +302,7 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
           printFrame.style.border = "0";
           document.body.appendChild(printFrame);
 
-          // Convert canvas to data URL
           const dataUrl = canvas.toDataURL("image/png");
-
-          // Set up the print frame content
           const printDocument = printFrame.contentWindow?.document;
           if (!printDocument) {
             message.error("Failed to create print document");
@@ -351,7 +313,6 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
             return;
           }
 
-          // Write the content to the iframe
           printDocument.write(`
             <!DOCTYPE html>
             <html>
@@ -384,18 +345,13 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
 
           printDocument.close();
 
-          // Wait for the image to load before printing
           const img = printDocument.querySelector("img");
           if (img) {
             img.onload = () => {
-              // Short delay to ensure everything is loaded
               setTimeout(() => {
                 try {
-                  // Focus the iframe and print
                   printFrame.contentWindow?.focus();
                   printFrame.contentWindow?.print();
-
-                  // Clean up after printing (with delay to ensure print dialog opens)
                   setTimeout(() => {
                     document.body.removeChild(printFrame);
                     document.body.removeChild(qrSvg);
@@ -403,7 +359,6 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
                     loadingMsg();
                   }, 1000);
                 } catch (error) {
-                  console.error("Print error:", error);
                   document.body.removeChild(printFrame);
                   document.body.removeChild(qrSvg);
                   document.body.removeChild(qrElement);
@@ -445,34 +400,63 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
       img.src = base64Image;
     } catch (error) {
       message.error("An error occurred during download");
-      console.error("Download error:", error);
     }
   };
 
-  // Process files for upload (used by both paste and Upload component)
+  const handlePrintPDFWithQR = async (pdfUrl?: string, fileName?: string) => {
+    if (!pdfUrl) return;
+
+    try {
+      const loadingMsg = message.loading("Preparing PDF with QR code...", 0);
+
+      const qrText = window.location.href;
+      const token = TokenStorage.getAccessToken();
+      const headers: HeadersInit = {};
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+
+      await printPDFWithQR(
+        pdfUrl,
+        fileName || "document",
+        qrText,
+        {
+          qrSize: 50,
+          position: "custom",
+          customX: 0.3, // 30% from left (same as JPEG)
+          customY: 0.8, // 85% from bottom (15% from top)
+          padding: 10,
+          label: "Scan to view",
+          labelFontSize: 5,
+        },
+        headers
+      );
+
+      loadingMsg();
+      message.success("PDF with QR code opened for printing");
+    } catch (error) {
+      message.error("Failed to prepare PDF with QR code for printing");
+    }
+  };
+
   const processFiles = async (files: File[]) => {
     if (!files.length) return;
 
-    // Show loading message
     const loadingMsg = message.loading("Uploading file...", 0);
 
     try {
-      // Process each file (up to 5 at a time to avoid overwhelming the server)
       const filesToProcess = files.slice(0, 5);
 
       for (const file of filesToProcess) {
         try {
-          // Use the uploadFile function from your API
           const result = await uploadFile(file);
 
           if (result?.data) {
-            // Call the same handler that's used by the upload modal
             handleUpload(file, result.data);
           } else {
             throw new Error("Upload failed");
           }
         } catch (error) {
-          console.error("Upload error for file", file.name, error);
           message.error(`Failed to upload ${file.name}`);
         }
       }
@@ -485,7 +469,6 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
         message.success(`${filesToProcess.length} files uploaded successfully`);
       }
 
-      // If there were more files than we processed, show a message
       if (files.length > 5) {
         message.info(
           `Only the first 5 files were uploaded. Please upload the remaining ${
@@ -495,23 +478,17 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
       }
     } catch (error) {
       message.error("Failed to upload files");
-      console.error("Upload error:", error);
     } finally {
-      // Always close the loading message
       loadingMsg();
     }
   };
 
-  // Handle paste events for file uploads
   useEffect(() => {
     const handlePaste = async (e: Event) => {
-      // Cast to ClipboardEvent to access clipboard data
       const event = e as ClipboardEvent;
       const items = event.clipboardData?.items;
 
       if (!items) return;
-
-      // Collect all files from the clipboard data
       const files: File[] = [];
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
@@ -524,23 +501,17 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
       }
 
       if (files.length > 0) {
-        // Prevent the default paste behavior
         event.preventDefault();
-        // Process the files
         await processFiles(files);
       }
     };
 
-    // Add the paste event listener to the attachments container
     const attachmentsElement = attachmentsRef.current;
     if (attachmentsElement) {
       attachmentsElement.addEventListener("paste", handlePaste);
     }
 
-    // Also add to document to catch pastes anywhere on the page
     document.addEventListener("paste", handlePaste);
-
-    // Cleanup function
     return () => {
       if (attachmentsElement) {
         attachmentsElement.removeEventListener("paste", handlePaste);
@@ -549,24 +520,18 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
     };
   }, [card?.id]);
 
-  // Handle file drops anywhere on the card
   useEffect(() => {
-    // Track drag enter/leave with a counter to handle nested elements
     let dragCounter = 0;
 
     const handleDragEnter = (e: DragEvent) => {
       e.preventDefault();
       e.stopPropagation();
 
-      // Check permissions before allowing drag operations
       if (!canUpdateCard()) {
         return;
       }
 
-      // Increment counter on drag enter
       dragCounter++;
-
-      // Only set isDraggingOver to true if we have files
       if (
         e.dataTransfer?.types.includes("Files") ||
         e.dataTransfer?.types.includes("application/x-moz-file")
@@ -579,10 +544,8 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
       e.preventDefault();
       e.stopPropagation();
 
-      // Decrement counter on drag leave
       dragCounter--;
 
-      // Only set isDraggingOver to false when counter reaches 0
       if (dragCounter === 0) {
         setIsDraggingOver(false);
       }
@@ -592,11 +555,8 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
       e.preventDefault();
       e.stopPropagation();
 
-      // Reset drag state
       dragCounter = 0;
       setIsDraggingOver(false);
-
-      // Check permissions before processing file drops
       if (!canUpdateCard()) {
         return;
       }
@@ -624,19 +584,15 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
       }
     };
 
-    // Create wrapper functions to handle type conversion properly
     const dragEnterHandler = (e: Event) => handleDragEnter(e as DragEvent);
     const dragLeaveHandler = (e: Event) => handleDragLeave(e as DragEvent);
     const dropHandler = (e: Event) => handleFileDrop(e as DragEvent);
     const dragOverHandler = (e: Event) => handleDragOver(e as DragEvent);
 
-    // Add event listeners to the document
     document.addEventListener("dragenter", dragEnterHandler);
     document.addEventListener("dragleave", dragLeaveHandler);
     document.addEventListener("drop", dropHandler);
     document.addEventListener("dragover", dragOverHandler);
-
-    // Cleanup
     return () => {
       document.removeEventListener("dragenter", dragEnterHandler);
       document.removeEventListener("dragleave", dragLeaveHandler);
@@ -647,11 +603,8 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
 
   useEffect(() => {
     if (cardAttachments) {
-      // Clear previous state to avoid duplications on re-renders
       setAttachedCards([]);
       setAttachedFiles([]);
-
-      // Process all attachments
       cardAttachments.forEach((item: CardAttachment) => {
         if (item.attachableType === EnumAttachmentType.Card) {
           if (item.targetCard !== undefined) {
@@ -757,13 +710,13 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
                                   );
                                 setTimeout(() => {
                                   handlePrintWithQR(
-                                    item.file?.url,
+                                    window.location.href,
                                     item.file?.name || "image"
                                   );
                                 }, 100);
                               }}
                             >
-                              <PrinterOutlined />
+                              <QrCode size={14} />
                             </Button>
                           </Space>
                         ),
@@ -776,8 +729,15 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
                     />
                   </div>
                 ) : isPDFFile(item.file?.name || "", item.file?.mimeType) ? (
-                  <div className="w-20 h-15 overflow-hidden rounded cursor-pointer" 
-                       onClick={() => handleOpenPdfModal(item.file?.url || "", item.file?.name || "PDF Document")}>
+                  <div
+                    className="w-20 h-15 overflow-hidden rounded cursor-pointer"
+                    onClick={() =>
+                      handleOpenPdfModal(
+                        item.file?.url || "",
+                        item.file?.name || "PDF Document"
+                      )
+                    }
+                  >
                     <PDFPreview
                       url={item.file?.url || ""}
                       fileName={item.file?.name}
@@ -818,7 +778,7 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
                       className="flex items-center justify-center border-0 shadow-none"
                     />
                     <Button
-                      icon={<PrinterOutlined />}
+                      icon={<QrCode size={14} />}
                       size="small"
                       title="Print with QR Code"
                       onClick={() =>
@@ -833,17 +793,22 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
                 ) : isPDFFile(item.file?.name || "", item.file?.mimeType) ? (
                   <>
                     <Button
-                      icon={<FilePdfOutlined />}
-                      size="small"
-                      title="View PDF"
-                      onClick={() => handleOpenPdfModal(item.file?.url || "", item.file?.name || "PDF Document")}
-                      className="flex items-center justify-center border-0 shadow-none"
-                    />
-                    <Button
                       icon={<DownloadOutlined />}
                       size="small"
                       title="Download PDF"
                       onClick={() => window.open(item.file?.url, "_blank")}
+                      className="flex items-center justify-center border-0 shadow-none"
+                    />
+                    <Button
+                      icon={<QrCode size={14} />}
+                      size="small"
+                      title="Print with QR Code"
+                      onClick={() =>
+                        handlePrintPDFWithQR(
+                          item.file?.url,
+                          item.file?.name || "document"
+                        )
+                      }
                       className="flex items-center justify-center border-0 shadow-none"
                     />
                   </>
@@ -886,7 +851,7 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
                 const attachment = cardAttachments?.find(
                   (att) => att.targetCard?.id === attachedCard.id
                 );
-                
+
                 return (
                   <AttachedCard
                     key={attachedCard.id}
