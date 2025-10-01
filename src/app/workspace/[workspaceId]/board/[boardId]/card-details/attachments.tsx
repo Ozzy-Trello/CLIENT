@@ -42,6 +42,8 @@ import { deleteCardAttachment } from "@api/card_attachment";
 import { useBoardPermissionsContext } from "@providers/board-permissions-context";
 import AttachedCard from "./attached-card";
 import TokenStorage from "@utils/token-storage";
+import { PDFPreview } from "@components/pdf-preview";
+import { PDFModal } from "@components/pdf-modal";
 
 interface AttachmentsProps {
   card: Card;
@@ -58,7 +60,20 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
   const [isDraggingOver, setIsDraggingOver] = useState<boolean>(false);
   const [attachedCards, setAttachedCards] = useState<Card[]>([]);
   const [attachedFiles, setAttachedFiles] = useState<FileUpload[]>([]);
+  const [pdfModalVisible, setPdfModalVisible] = useState<boolean>(false);
+  const [selectedPdf, setSelectedPdf] = useState<{ url: string; fileName: string } | null>(null);
   const { canUpdateCard } = useBoardPermissionsContext();
+  
+  const handleOpenPdfModal = (url: string, fileName: string) => {
+    setSelectedPdf({ url, fileName });
+    setPdfModalVisible(true);
+  };
+
+  const handleClosePdfModal = () => {
+    setPdfModalVisible(false);
+    setSelectedPdf(null);
+  };
+
   const handleCloseModal = () => {
     setOpenUploadmodal(false);
   };
@@ -88,6 +103,17 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
     }
 
     return imageExtensions.includes(extension);
+  };
+
+  // Helper function to determine if a file is a PDF based on file name or MIME type
+  const isPDFFile = (fileName: string, mimeType?: string): boolean => {
+    const extension = fileName.split(".").pop()?.toLowerCase() || "";
+    
+    if (mimeType && mimeType === "application/pdf") {
+      return true;
+    }
+
+    return extension === "pdf";
   };
 
   // Helper function to get appropriate file icon based on file extension
@@ -749,6 +775,17 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
                       style={{ objectFit: "cover" }}
                     />
                   </div>
+                ) : isPDFFile(item.file?.name || "", item.file?.mimeType) ? (
+                  <div className="w-20 h-15 overflow-hidden rounded cursor-pointer" 
+                       onClick={() => handleOpenPdfModal(item.file?.url || "", item.file?.name || "PDF Document")}>
+                    <PDFPreview
+                      url={item.file?.url || ""}
+                      fileName={item.file?.name}
+                      width={80}
+                      height={60}
+                      className="hover:opacity-80 transition-opacity"
+                    />
+                  </div>
                 ) : (
                   <div className="w-20 h-15 bg-gray-100 rounded flex items-center justify-center">
                     {getFileIcon(item.file?.name || "", item.file?.mimeType)}
@@ -790,6 +827,23 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
                           item.file?.name || "image"
                         )
                       }
+                      className="flex items-center justify-center border-0 shadow-none"
+                    />
+                  </>
+                ) : isPDFFile(item.file?.name || "", item.file?.mimeType) ? (
+                  <>
+                    <Button
+                      icon={<FilePdfOutlined />}
+                      size="small"
+                      title="View PDF"
+                      onClick={() => handleOpenPdfModal(item.file?.url || "", item.file?.name || "PDF Document")}
+                      className="flex items-center justify-center border-0 shadow-none"
+                    />
+                    <Button
+                      icon={<DownloadOutlined />}
+                      size="small"
+                      title="Download PDF"
+                      onClick={() => window.open(item.file?.url, "_blank")}
                       className="flex items-center justify-center border-0 shadow-none"
                     />
                   </>
@@ -890,6 +944,14 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
           </div>
         </div>
       )}
+
+      {/* PDF Modal */}
+      <PDFModal
+        isOpen={pdfModalVisible}
+        onClose={handleClosePdfModal}
+        url={selectedPdf?.url || ""}
+        fileName={selectedPdf?.fileName || "PDF Document"}
+      />
     </>
   );
 };

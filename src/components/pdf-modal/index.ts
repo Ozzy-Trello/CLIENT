@@ -1,0 +1,1 @@
+export { default as PDFModal } from './pdf-modal';
