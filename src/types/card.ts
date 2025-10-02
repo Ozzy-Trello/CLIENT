@@ -47,6 +47,7 @@ export interface Card {
   itemDashcard?: IItemDashcard[] | null;
   mirrorId?: string;
   sourceCard?: any;
+  poAmount?: number;
 }
 
 export enum EnumAttachmentType {

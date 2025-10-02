@@ -24,7 +24,11 @@ import {
   QrCode,
   FileText,
   ArrowRight,
+  Package,
+  ShoppingCart,
 } from "lucide-react";
+import ModalStokQR from "@components/modal-stok-qr";
+import ModalPOQR from "@components/modal-po-qr";
 import { useSelector } from "react-redux";
 import { selectCurrentBoard } from "@store/workspace_slice";
 import { useRouter } from "next/navigation";
@@ -95,6 +99,8 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
   const [invoiceNumber, setInvoiceNumber] = useState<string>("");
   const [isLoadingInvoice, setIsLoadingInvoice] = useState<boolean>(false);
   const [modalDeliveryOpen, setModalDeliveryOpen] = useState<boolean>(false);
+  const [modalStokQROpen, setModalStokQROpen] = useState<boolean>(false);
+  const [modalPOQROpen, setModalPOQROpen] = useState<boolean>(false);
   const router = useRouter();
   const { socket } = useWebSocket();
   const params = useParams();
@@ -158,6 +164,30 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
       setIsLoadingInvoice(false);
     }
   };
+
+  // Generate QR dropdown menu items
+  const generateQRMenuItems: MenuProps["items"] = [
+    {
+      key: "stok",
+      label: (
+        <div className="flex items-center gap-2">
+          <Package size={16} />
+          <span>Stok</span>
+        </div>
+      ),
+      onClick: () => setModalStokQROpen(true),
+    },
+    {
+      key: "po",
+      label: (
+        <div className="flex items-center gap-2">
+          <ShoppingCart size={16} />
+          <span>PO</span>
+        </div>
+      ),
+      onClick: () => setModalPOQROpen(true),
+    },
+  ];
 
   const rightMenu: MenuProps["items"] = [
     {
@@ -362,6 +392,22 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
               </Button>
             </Tooltip>
 
+            <Dropdown
+              menu={{ items: generateQRMenuItems }}
+              trigger={["click"]}
+              placement="bottomRight"
+            >
+              <Tooltip title="Generate QR">
+                <Button
+                  size="small"
+                  icon={<QrCode size={16} />}
+                  className="flex items-center gap-1"
+                >
+                  <span>Generate QR</span>
+                </Button>
+              </Tooltip>
+            </Dropdown>
+
             {/* <div>
               <MembersList
                 members={members}
@@ -427,6 +473,18 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
       <ModalDelivery
         open={modalDeliveryOpen}
         onClose={() => setModalDeliveryOpen(false)}
+      />
+
+      <ModalStokQR
+        open={modalStokQROpen}
+        onClose={() => setModalStokQROpen(false)}
+      />
+
+      <ModalPOQR
+        open={modalPOQROpen}
+        onClose={() => setModalPOQROpen(false)}
+        boardId={params.boardId as string}
+        listId={currentBoard?.lists?.[0]?.id} // Use first list as default, can be improved
       />
     </div>
   );

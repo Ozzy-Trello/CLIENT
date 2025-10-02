@@ -45,6 +45,8 @@ import Dashcard from "./dashcard";
 import { useCardDetails } from "@hooks/card-details";
 import { LookupCache } from "@utils/lookup-cache";
 import { useBoardPermissionsContext } from "@providers/board-permissions-context";
+import POAmount from "./po-amount";
+import POSizeAssignment from "./po-size-assignment";
 
 const CardDetails: React.FC = (props) => {
   const params = useParams();
@@ -408,6 +410,20 @@ const CardDetails: React.FC = (props) => {
                         <CardDateDisplay card={selectedCard} />
                       </Button>
                     </div>
+                  )}
+                  
+                  {selectedCard && (
+                    <POAmount 
+                      card={selectedCard} 
+                      setSelectedCard={setSelectedCard} 
+                    />
+                  )}
+                  
+                  {selectedCard && (
+                    <POSizeAssignment 
+                      card={selectedCard} 
+                      setSelectedCard={setSelectedCard} 
+                    />
                   )}
                 </Flex>
               </div>

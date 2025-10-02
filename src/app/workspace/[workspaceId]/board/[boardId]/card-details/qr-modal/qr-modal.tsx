@@ -20,13 +20,17 @@ const QRModal: React.FC<QRModalProps> = ({ isOpen, onClose, customValue }) => {
   const params = useParams();
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && selectedCard) {
       setGenerating(true);
+      setFadeIn(false);
 
       // Generate the card URL
       const generateCardUrl = () => {
         if (customValue) {
-          return customValue;
+          setValue(customValue);
+          setGenerating(false);
+          setFadeIn(true);
+          return;
         }
 
         // Get current URL components
@@ -36,31 +40,23 @@ const QRModal: React.FC<QRModalProps> = ({ isOpen, onClose, customValue }) => {
         const listId = selectedCard?.listId;
 
         if (workspaceId && boardId && cardId && listId) {
-          // Create the card details URL with query parameters
+          // Create the original long URL
           const baseUrl = window.location.origin;
-          return `${baseUrl}/workspace/${workspaceId}/board/${boardId}?cardId=${cardId}&listId=${listId}`;
+          const originalUrl = `${baseUrl}/workspace/${workspaceId}/board/${boardId}?cardId=${cardId}&listId=${listId}`;
+          setValue(originalUrl);
+        } else {
+          // Fallback to current URL
+          setValue(window.location.href);
         }
 
-        // Fallback to current URL
-        return window.location.href;
+        // Simulate QR code generation with a delay
+        setTimeout(() => {
+          setGenerating(false);
+          setFadeIn(true);
+        }, 1500);
       };
 
-      setValue(generateCardUrl());
-
-      // Simulate QR code generation with a delay
-      const generationTimer = setTimeout(() => {
-        setGenerating(false);
-      }, 1500);
-
-      // Trigger fade-in animation after a brief delay
-      const fadeTimer = setTimeout(() => {
-        setFadeIn(true);
-      }, 100);
-
-      return () => {
-        clearTimeout(generationTimer);
-        clearTimeout(fadeTimer);
-      };
+      generateCardUrl();
     } else {
       setFadeIn(false);
     }
@@ -70,6 +66,7 @@ const QRModal: React.FC<QRModalProps> = ({ isOpen, onClose, customValue }) => {
     params.workspaceId,
     params.boardId,
     selectedCard?.id,
+    selectedCard?.listId,
   ]);
 
   const downloadQR = () => {
