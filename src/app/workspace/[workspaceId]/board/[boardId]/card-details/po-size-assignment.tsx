@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  autoCreatePOs,
   getPOById,
   getPOsByCardId,
   PO,
@@ -98,9 +99,28 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
     },
     onError: (error) => {
       message.error("Failed to update PO");
-      console.error("Error updating PO:", error);
     },
   });
+
+  const autoCreatePOMutation = useMutation({
+    mutationFn: (cardId: string) => autoCreatePOs(cardId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["pos", card.id] });
+      queryClient.invalidateQueries({ queryKey: ["po-items", card.id] });
+    },
+    onError: (error) => {
+      message.error("Failed to create default PO");
+    },
+  });
+
+  // Backward compatibility: Create default PO if none exists
+  useEffect(() => {
+    if (isModalOpen && posData && !isLoadingPOs && !posError) {
+      if (!posData.data || posData.data.length === 0) {
+        autoCreatePOMutation.mutate(card.id);
+      }
+    }
+  }, [isModalOpen, posData, isLoadingPOs, posError, card.id, autoCreatePOMutation]);
 
   // Initialize PO data when POs and PO items are loaded
   useEffect(() => {
@@ -177,10 +197,6 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
 
             initialCustomSizes[po.id] = customSizes;
           } catch (error) {
-            console.error(
-              `Error fetching PO ${po.id} for custom sizes:`,
-              error
-            );
             initialCustomSizes[po.id] = [];
           }
         }

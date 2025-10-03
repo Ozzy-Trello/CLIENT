@@ -286,13 +286,15 @@ export function useCards(listId: string, boardId: string) {
       }
     },
     onSettled: (data, error, variables) => {
-      // Don't invalidate queries during drag operations to prevent state conflicts
       if ((window as any).__DRAG_IN_PROGRESS__) {
         return;
       }
 
+      // Always invalidate PO-related queries for any card updates
+      queryClient.invalidateQueries({ queryKey: ["pos", variables.cardId] });
+      queryClient.invalidateQueries({ queryKey: ["po-items", variables.cardId] });
+
       if (!variables.listId && !variables.destinationListId) {
-        // For simple updates, invalidate the card detail and all card queries
         queryClient.invalidateQueries({
           queryKey: queryKeys.cards.detail(variables.cardId),
         });
@@ -300,7 +302,6 @@ export function useCards(listId: string, boardId: string) {
         return;
       }
 
-      // Invalidate affected lists
       if (variables.listId) {
         queryClient.invalidateQueries({
           queryKey: queryKeys.cards.list(variables.listId),
@@ -316,7 +317,6 @@ export function useCards(listId: string, boardId: string) {
         });
       }
 
-      // Invalidate board-level queries that might show card counts
       queryClient.invalidateQueries({
         queryKey: queryKeys.lists.board(boardId),
       });

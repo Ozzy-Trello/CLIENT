@@ -6,6 +6,7 @@ import { Check, X } from "lucide-react";
 import { Card } from "@myTypes/card";
 import { useCards } from "@hooks/card";
 import { useBoardPermissionsContext } from "@providers/board-permissions-context";
+import { autoCreatePOs } from "@api/po";
 
 interface POAmountProps {
   card: Card;
@@ -45,18 +46,25 @@ const POAmount: React.FC<POAmountProps> = ({ card, setSelectedCard }) => {
         },
       },
       {
-        onSuccess: () => {
-          if (setSelectedCard) {
-            setSelectedCard((prevCard) => {
-              if (!prevCard) return prevCard;
-              return {
-                ...prevCard,
-                poAmount: localValue, // Update local state as camelCase
-              };
-            });
+        onSuccess: async () => {
+          try {
+            // Update local state first
+            if (setSelectedCard) {
+              setSelectedCard((prevCard) => {
+                if (!prevCard) return prevCard;
+                return {
+                  ...prevCard,
+                  poAmount: localValue, // Update local state as camelCase
+                };
+              });
+            }
+            setHasChanged(false);
+
+            await autoCreatePOs(card.id);
+            setIsLoading(false);
+          } catch (autoCreateError) {
+            setIsLoading(false);
           }
-          setHasChanged(false);
-          setIsLoading(false);
         },
         onError: () => {
           // Reset to original value on error

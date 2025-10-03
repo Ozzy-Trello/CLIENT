@@ -48,6 +48,7 @@ export interface Card {
   mirrorId?: string;
   sourceCard?: any;
   poAmount?: number;
+  bahan?: boolean; // Whether the card requires material/fabric
 }
 
 export enum EnumAttachmentType {

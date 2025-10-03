@@ -32,7 +32,10 @@ export interface UpdatePORequest {
 // Get POs by card ID
 export const getPOsByCardId = async (cardId: string): Promise<ApiResponse<PO[]>> => {
   const { data } = await api.get(`/po`, {
-    params: { card_id: cardId }
+    params: { 
+      card_id: cardId,
+      limit: 1000 // Set high limit to get all POs for the card
+    }
   });
   return data;
 };
@@ -63,6 +66,21 @@ export const deletePO = async (poId: string): Promise<ApiResponse<null>> => {
 
 // Auto-create POs for a card
 export const autoCreatePOs = async (cardId: string): Promise<ApiResponse<PO[]>> => {
-  const { data } = await api.post(`/po/auto-create`, { card_id: cardId });
-  return data;
+  console.log(`🔧 [autoCreatePOs] Starting API call for cardId: ${cardId}`);
+  console.log(`🔧 [autoCreatePOs] Endpoint: /po/auto-create/${cardId}`);
+  
+  try {
+    const { data } = await api.post(`/po/auto-create/${cardId}`);
+    console.log(`🔧 [autoCreatePOs] API call successful:`, data);
+    return data;
+  } catch (error) {
+    console.error(`🔧 [autoCreatePOs] API call failed:`, error);
+    console.error(`🔧 [autoCreatePOs] Error details:`, {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      response: (error as any)?.response?.data,
+      status: (error as any)?.response?.status,
+      config: (error as any)?.config
+    });
+    throw error;
+  }
 };

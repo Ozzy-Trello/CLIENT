@@ -86,9 +86,9 @@ const CardDetails: React.FC = (props) => {
   const { cardActivities } = useCardActivity(selectedCard?.id || "");
   const [openAddMember, setOpenAddMember] = useState<boolean>(false);
   const [openLabel, setOpenLabel] = useState<boolean>(false);
-  const { completeCard, incompleteCard } = useCardDetails(
-    "",
-    "",
+  const { completeCard, incompleteCard, updateCard: updateCardDetails } = useCardDetails(
+    selectedCard?.id || "",
+    selectedCard?.listId || "",
     boardId as string
   );
 
@@ -409,6 +409,36 @@ const CardDetails: React.FC = (props) => {
                       >
                         <CardDateDisplay card={selectedCard} />
                       </Button>
+                    </div>
+                  )}
+                  
+                  {/* Butuh Bahan Checkbox */}
+                  {selectedCard && (
+                    <div className="space-y-2 text-xs">
+                      <span className="text-gray-300 font-semibold text-xs block">
+                        Material Requirements
+                      </span>
+                      <Checkbox
+                        checked={selectedCard.bahan || false}
+                        onChange={(e: CheckboxChangeEvent) => {
+                          if (!canUpdateCard()) return;
+                          
+                          const newBahanValue = e.target.checked;
+                          
+                          // Update local state immediately for better UX
+                          const updatedCard = {
+                            ...selectedCard,
+                            bahan: newBahanValue,
+                          };
+                          setSelectedCard(updatedCard);
+                          
+                          // Update the card in the backend
+                          updateCardDetails({ bahan: newBahanValue });
+                        }}
+                        className="text-sm"
+                      >
+                        Butuh Bahan
+                      </Checkbox>
                     </div>
                   )}
                   

@@ -180,6 +180,7 @@ export interface Card {
   createdAt?: string;
   updatedAt?: string;
   requests?: CardRequest[];
+  bahan?: boolean; // Whether the card requires material/fabric
 }
 
 // Counter Card (used in filter columns)
