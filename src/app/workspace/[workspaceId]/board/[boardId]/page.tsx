@@ -9,7 +9,7 @@ import { useWorkspaceSidebar } from "@providers/workspace-sidebar-context";
 import { useListMove, useLists } from "@hooks/list";
 import { useParams } from "next/navigation";
 import { generateId } from "@utils/general";
-import { Droppable, DropResult, DragUpdate } from "@hello-pangea/dnd";
+// import { Droppable, DropResult, DragUpdate } from "@hello-pangea/dnd";
 import List from "./draggable-list";
 import { Button, Input } from "antd";
 import { Plus, X } from "lucide-react";
@@ -40,9 +40,15 @@ import { useRealtimeUpdates } from "@hooks/websocket";
 import HorizontalSlider from "@components/horizontal-slider";
 import { BoardPermissionsProvider } from "@providers/board-permissions-context";
 import { useRecentlyViewed } from "@hooks/recently-viewed";
+import type { DropResult, DragUpdate } from "@hello-pangea/dnd";
 
 const DragDropContext = dynamic(
   () => import("@hello-pangea/dnd").then((mod) => mod.DragDropContext),
+  { ssr: false }
+);
+
+const Droppable = dynamic(
+  () => import("@hello-pangea/dnd").then((mod) => mod.Droppable),
   { ssr: false }
 );
 
@@ -113,7 +119,6 @@ const BoardContentWithPermissions: React.FC<{
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
     >
-      
       {shouldRenderLists && (
         <DragDropContext
           onDragEnd={onListDragEnd}
