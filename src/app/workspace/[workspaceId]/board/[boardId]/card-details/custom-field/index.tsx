@@ -523,41 +523,22 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
   // Show loading state
   if (isLoading) {
     return (
-      <div className="mt-6">
-        <div className="flex items-center gap-3 mb-2">
-          <TextCursorInput size={18} />
-          <h1 className="text-lg font-bold mb-0">Custom Fields</h1>
-        </div>
-        <div className="ml-8 text-gray-500">Loading custom fields...</div>
-      </div>
+      <div className="ml-8 text-gray-500">Loading custom fields...</div>
     );
   }
 
-  // Show message if no fields
+  // Don't render if no fields
   if (!cardCustomFields || cardCustomFields.length === 0) {
-    return (
-      <div className="mt-6">
-        <div className="flex items-center gap-3 mb-2">
-          <TextCursorInput size={18} />
-          <h1 className="text-lg font-bold mb-0">Custom Fields</h1>
-        </div>
-        <div className="ml-8 text-gray-500">No custom fields available</div>
-      </div>
-    );
+    return null;
   }
 
   return (
     <>
       {contextHolder}
-      <div className="mt-6">
-        <div className="flex items-center gap-3 mb-2">
-          <TextCursorInput size={18} />
-          <h1 className="text-lg font-bold mb-0">Custom Fields</h1>
-          {isUpdating && (
-            <span className="text-sm text-blue-500 ml-2">Saving...</span>
-          )}
-        </div>
-
+      <div>
+        {isUpdating && (
+          <div className="mb-2 text-sm text-blue-500">Saving...</div>
+        )}
         {/* Search Bar */}
         <div className="ml-8 mb-4">
           <Input

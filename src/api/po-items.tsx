@@ -6,6 +6,7 @@ export interface POItem {
   poId: string;
   qrCode: string;
   size?: string;
+  quantity: number;
   createdAt: Date;
   updatedAt: Date;
 }

@@ -20,7 +20,7 @@ import { ShoppingCart, Search, Package, Edit, Plus, QrCode } from "lucide-react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
 import { searchCards } from "@api/card";
-import { getPOsByCardId, PO, createPO, updatePO } from "@api/po";
+import { getPOsByCardId, PO, createPO, updatePO, getPOTotalQuantity } from "@api/po";
 import { createShortUrl, buildShortUrl } from "@api/short-url";
 import { Card as CardType } from "../../types/card";
 import QRCode from "react-qr-code";
@@ -100,7 +100,7 @@ const ModalPOQR: React.FC<ModalPOQRProps> = ({ open, onClose, boardId, listId })
 
   const handleEditQuantity = (po: PO) => {
     setCurrentPO(po);
-    setEditQuantity(po.quantity || 0);
+    setEditQuantity(getPOTotalQuantity(po));
     setShowQuantityModal(true);
   };
 
@@ -211,14 +211,14 @@ const ModalPOQR: React.FC<ModalPOQRProps> = ({ open, onClose, boardId, listId })
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-2">
             <Package size={16} className="text-green-600" />
-            <Text strong>{po.po_number}</Text>
+            <Text strong>{po.poNumber}</Text>
             <Tag color="green">
-              Quantity: {po.quantity || 0}
+              Quantity: {getPOTotalQuantity(po)}
             </Tag>
           </div>
           
           <Text type="secondary" className="text-xs">
-            Created: {new Date(po.created_at).toLocaleDateString()}
+            Created: {new Date(po.createdAt).toLocaleDateString()}
           </Text>
         </div>
         
@@ -319,10 +319,10 @@ const ModalPOQR: React.FC<ModalPOQRProps> = ({ open, onClose, boardId, listId })
                   <Card key={index} className="text-center">
                     <div className="mb-4">
                       <Title level={5} className="mb-2">
-                        PO #{qrData.po.po_number}
+                        PO #{qrData.po.poNumber}
                       </Title>
                       <Text type="secondary" className="text-sm">
-                        Quantity: {qrData.po.quantity || 0}
+                        Quantity: {getPOTotalQuantity(qrData.po)}
                       </Text>
                     </div>
                     
@@ -461,7 +461,7 @@ const ModalPOQR: React.FC<ModalPOQRProps> = ({ open, onClose, boardId, listId })
       <Modal
         title={
           <Title level={4} className="mb-0">
-            {isCreatingPO ? "Create New PO" : `Edit PO ${currentPO?.po_number}`}
+            {isCreatingPO ? "Create New PO" : `Edit PO ${currentPO?.poNumber}`}
           </Title>
         }
         open={showQuantityModal}

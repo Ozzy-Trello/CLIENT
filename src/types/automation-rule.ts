@@ -173,6 +173,9 @@ export enum TriggerType {
   // when <CardContentType> of a card <OptionalFilter> <CardContentText> <Text>
   WhenCardContentTextIsSet = `when-<${EnumSelectionType.CardContentType}>-of-a-card-<${EnumSelectionType.OptionalFilter}>-<${EnumSelectionType.CardContentText}>-[${EnumInputType.Text}]`,
 
+  // when butuh bahan is <Action> <OptionalFilter> <OptionalBySubject>
+  WhenButuhBahanIsChecked = `when-butuh-bahan-is-<${EnumSelectionType.Action}>-<${EnumSelectionType.OptionalFilter}>-<${EnumSelectionType.OptionalBySubject}>`,
+
   // add more..
 }
 

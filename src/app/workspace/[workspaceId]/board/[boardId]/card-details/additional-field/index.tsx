@@ -277,10 +277,7 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
   // Board permissions
   const { canManageCardCustomFields } = useBoardPermissionsContext();
 
-  // Debug WebSocket connection status
-  useEffect(() => {
-    // WebSocket connection status tracking
-  }, [isConnected]);
+
 
   // Load existing data when component mounts or when fresh data arrives
   useEffect(() => {
@@ -406,10 +403,16 @@ const AdditionalFields: React.FC<AdditionalFieldsProps> = ({ cardId }) => {
     });
   };
 
-  const handleScanResult = (scannedData: string) => {
-    // TODO: Process the scanned data and add it to the bahan items
-    message.success(`Scanned: ${scannedData}`);
-    handleCloseScanner();
+  const handleScanResult = async (scannedData: string) => {
+    try {
+      // Process the scanned QR code data using the existing processQRScan function
+      await processQRScan(scannedData);
+      handleCloseScanner();
+    } catch (error) {
+      console.error("Error processing scanned data:", error);
+      message.error("Failed to process scanned data. Please try again.");
+      handleCloseScanner();
+    }
   };
 
   const handleRemoveBahanTab = (targetKey: string, poId: string) => {

@@ -182,25 +182,7 @@ const RequestFields: React.FC = () => {
   if (!requestData?.data || requestData.data.length === 0) return null;
 
   return (
-    <div className="mt-8 w-full">
-      {/* Top Row */}
-      <div className="flex items-center gap-2 mb-4">
-        <span className="inline-flex items-center justify-center text-gray-700">
-          <svg
-            width="20"
-            height="20"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            viewBox="0 0 24 24"
-          >
-            <path d="M12 4L4 20h16L12 4z" />
-          </svg>
-        </span>
-        <span className="text-[18px] font-semibold text-gray-900">
-          Requests
-        </span>
-      </div>
+    <div className="w-full">
       <div className="ml-8">
         <Table
           columns={columns}

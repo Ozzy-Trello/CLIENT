@@ -39,6 +39,8 @@ export enum EnumUserActionEvent {
   ChecklistItemAdded = "checklist.item.added",
   ChecklistItemRemoved = "checklist.item.removed",
   ChecklistRemoved = "checklist.removed",
+  ButuhBahanChecked = "bahan.checked",
+  ButuhBahanUnchecked = "bahan.unchecked",
 }
 
 export enum EnumActions {

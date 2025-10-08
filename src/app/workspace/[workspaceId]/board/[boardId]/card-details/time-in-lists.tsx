@@ -35,12 +35,7 @@ const CardTimeInList: React.FC<CardTimeInListProps> = (props) => {
   }, [timeInLists]);
 
   return (
-    <div className="mt-6">
-      <div className="flex items-center gap-3 mb-2">
-        <ListRestart size={18} />
-        <h1 className="text-lg font-bold mb-0">Card Time by List</h1>
-      </div>
-
+    <div>
       <div className='ml-8'>
         {timeInLists.map((item, index) => (
           <div key={index} className="mb-2 w-full">

@@ -556,13 +556,14 @@ export default function EditRulePage() {
     ) {
       return "card.content";
     }
-    // Card changes triggers (completion, archival, labels, attachments, members)
+    // Card changes triggers (completion, archival, labels, attachments, members, butuh bahan)
     else if (
       triggerType.includes("completion") ||
       triggerType.includes("archive") ||
       triggerType.includes("label") ||
       triggerType.includes("attachment") ||
-      triggerType.includes("member")
+      triggerType.includes("member") ||
+      triggerType.includes("butuh-bahan")
     ) {
       return "card.changes";
     }

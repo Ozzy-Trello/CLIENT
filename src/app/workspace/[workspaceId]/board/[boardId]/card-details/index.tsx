@@ -16,7 +16,18 @@ import {
 import { useEffect, useRef, useState } from "react";
 import Cover from "./cover";
 import { useCardDetailContext } from "@providers/card-detail-context";
-import { Clock, Eye, Info, TimerIcon } from "lucide-react";
+import {
+  Clock,
+  Eye,
+  Info,
+  TimerIcon,
+  TextCursorInput,
+  ShirtIcon,
+  ListRestart,
+  CheckSquare,
+  Paperclip,
+  MessageSquare,
+} from "lucide-react";
 import MembersList from "@components/members-list";
 import Description from "./description";
 import Attachments from "./attachments";
@@ -47,6 +58,8 @@ import { LookupCache } from "@utils/lookup-cache";
 import { useBoardPermissionsContext } from "@providers/board-permissions-context";
 import POAmount from "./po-amount";
 import POSizeAssignment from "./po-size-assignment";
+import BahanFields from "./bahan-fields";
+import CollapsibleSection from "@components/collapsible-section";
 
 const CardDetails: React.FC = (props) => {
   const params = useParams();
@@ -86,7 +99,11 @@ const CardDetails: React.FC = (props) => {
   const { cardActivities } = useCardActivity(selectedCard?.id || "");
   const [openAddMember, setOpenAddMember] = useState<boolean>(false);
   const [openLabel, setOpenLabel] = useState<boolean>(false);
-  const { completeCard, incompleteCard, updateCard: updateCardDetails } = useCardDetails(
+  const {
+    completeCard,
+    incompleteCard,
+    updateCard: updateCardDetails,
+  } = useCardDetails(
     selectedCard?.id || "",
     selectedCard?.listId || "",
     boardId as string
@@ -411,7 +428,7 @@ const CardDetails: React.FC = (props) => {
                       </Button>
                     </div>
                   )}
-                  
+
                   {/* Butuh Bahan Checkbox */}
                   {selectedCard && (
                     <div className="space-y-2 text-xs">
@@ -422,16 +439,16 @@ const CardDetails: React.FC = (props) => {
                         checked={selectedCard.bahan || false}
                         onChange={(e: CheckboxChangeEvent) => {
                           if (!canUpdateCard()) return;
-                          
+
                           const newBahanValue = e.target.checked;
-                          
+
                           // Update local state immediately for better UX
                           const updatedCard = {
                             ...selectedCard,
                             bahan: newBahanValue,
                           };
                           setSelectedCard(updatedCard);
-                          
+
                           // Update the card in the backend
                           updateCardDetails({ bahan: newBahanValue });
                         }}
@@ -441,18 +458,18 @@ const CardDetails: React.FC = (props) => {
                       </Checkbox>
                     </div>
                   )}
-                  
+
                   {selectedCard && (
-                    <POAmount 
-                      card={selectedCard} 
-                      setSelectedCard={setSelectedCard} 
+                    <POAmount
+                      card={selectedCard}
+                      setSelectedCard={setSelectedCard}
                     />
                   )}
-                  
+
                   {selectedCard && (
-                    <POSizeAssignment 
-                      card={selectedCard} 
-                      setSelectedCard={setSelectedCard} 
+                    <POSizeAssignment
+                      card={selectedCard}
+                      setSelectedCard={setSelectedCard}
                     />
                   )}
                 </Flex>
@@ -472,38 +489,106 @@ const CardDetails: React.FC = (props) => {
                 )}
 
               {selectedCard && !selectedCard?.dashConfig && (
-                <CustomFields card={selectedCard} setCard={setSelectedCard} />
+                <CollapsibleSection
+                  title="Custom Fields"
+                  defaultExpanded={true}
+                  icon={<TextCursorInput size={18} />}
+                >
+                  <CustomFields card={selectedCard} setCard={setSelectedCard} />
+                </CollapsibleSection>
               )}
 
               {selectedCard?.type == "dashcard" && (
                 <Dashcard card={selectedCard} />
               )}
-
+              {/* 
               {selectedCard?.id && (
                 <AdditionalFields cardId={selectedCard.id} />
+              )} */}
+
+              {selectedCard?.bahan && (
+                <CollapsibleSection
+                  title="Bahan Fields"
+                  defaultExpanded={false}
+                  icon={<ShirtIcon size={18} />}
+                >
+                  <BahanFields
+                    cardId={selectedCard?.id || ""}
+                    workspaceId={workspaceId}
+                  />
+                </CollapsibleSection>
               )}
 
-              <RequestFields />
+              <CollapsibleSection
+                title="Request Fields"
+                defaultExpanded={false}
+                icon={
+                  <svg
+                    width="18"
+                    height="18"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M12 4L4 20h16L12 4z" />
+                  </svg>
+                }
+              >
+                <RequestFields />
+              </CollapsibleSection>
 
               {selectedCard && (
-                <CardTimeInList card={selectedCard} setCard={setSelectedCard} />
+                <CollapsibleSection
+                  title="Time in Lists"
+                  defaultExpanded={false}
+                  icon={<ListRestart size={18} />}
+                >
+                  <CardTimeInList
+                    card={selectedCard}
+                    setCard={setSelectedCard}
+                  />
+                </CollapsibleSection>
               )}
 
               {/* Split Job Section */}
               {selectedCard && (
-                <SplitJobFields card={selectedCard} setCard={setSelectedCard} />
+                <CollapsibleSection
+                  title="Split Job Fields"
+                  defaultExpanded={false}
+                  icon={<CheckSquare size={18} />}
+                >
+                  <SplitJobFields
+                    card={selectedCard}
+                    setCard={setSelectedCard}
+                  />
+                </CollapsibleSection>
               )}
 
               {/* Checklist Section */}
-              {selectedCard && <ChecklistFields />}
+              {selectedCard && (
+                <CollapsibleSection
+                  title="Checklist"
+                  defaultExpanded={true}
+                  icon={<CheckSquare size={18} />}
+                >
+                  <ChecklistFields />
+                </CollapsibleSection>
+              )}
 
               {/* Attachments Section */}
               {selectedCard && (
-                <Attachments
-                  card={selectedCard}
-                  setCard={setSelectedCard}
-                  currentUser={currentUser}
-                />
+                <CollapsibleSection
+                  title="Attachments"
+                  defaultExpanded={true}
+                  icon={<Paperclip size={18} />}
+                >
+                  <Attachments
+                    card={selectedCard}
+                    setCard={setSelectedCard}
+                    currentUser={currentUser}
+                  />
+                </CollapsibleSection>
               )}
               {/* {selectedCard?.attachments && (
                 <div className="pt-2 border-t border-gray-200">
@@ -521,11 +606,17 @@ const CardDetails: React.FC = (props) => {
 
               {/* Activity Section */}
               {selectedCard && (
-                <Activity
-                  currentUser={currentUser}
-                  card={selectedCard}
-                  setCard={setSelectedCard}
-                />
+                <CollapsibleSection
+                  title="Activity"
+                  defaultExpanded={true}
+                  icon={<MessageSquare size={18} />}
+                >
+                  <Activity
+                    currentUser={currentUser}
+                    card={selectedCard}
+                    setCard={setSelectedCard}
+                  />
+                </CollapsibleSection>
               )}
             </Col>
             <Col flex="0 1 25%">

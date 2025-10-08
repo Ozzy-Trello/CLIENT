@@ -28,6 +28,8 @@ import {
   Shield,
   Settings,
   Star,
+  Package,
+  Layers,
 } from "lucide-react";
 import { Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import dynamic from "next/dynamic";
@@ -206,6 +208,18 @@ const Sidebar = () => {
           </Link>
         ),
         icon: <Trello size={16} />,
+      },
+      {
+        key: `/workspace/${resolvedWorkspaceId}/materials`,
+        label: (
+          <Link
+            className="block w-full"
+            href={`/workspace/${resolvedWorkspaceId}/materials`}
+          >
+            Materials
+          </Link>
+        ),
+        icon: <Layers size={16} />,
       },
     ];
 

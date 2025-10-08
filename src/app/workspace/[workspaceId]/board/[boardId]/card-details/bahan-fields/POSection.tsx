@@ -1,0 +1,232 @@
+import React, { useState, useEffect } from "react";
+import { Tabs } from "antd";
+import BahanTabContent from "./BahanTabContent";
+import { POSectionProps } from "./types";
+
+const POSection: React.FC<POSectionProps> = ({
+  po,
+  index,
+  colors,
+  selectedProductId,
+  hikmatItems,
+  isLoadingProducts,
+  categories,
+  isLoadingCategories,
+  onScanProduct,
+  onSelectProduct,
+  onOpenSummary,
+  onTerloadingChange,
+  onBahanTerpakaiChange,
+  onEstBahanChange,
+  onCategoryValueChange,
+  setPOData,
+  setSelectedProductIds,
+  isCategoryLoading,
+  getCategoryError,
+  clearCategoryError,
+}) => {
+  const [activeProductTab, setActiveProductTab] = useState<string>(
+    po.products.length > 0 ? po.products[0].id : ""
+  );
+
+  // Update active tab when products change
+  React.useEffect(() => {
+    if (po.products.length > 0 && !activeProductTab) {
+      setActiveProductTab(po.products[0].id);
+    } else if (
+      po.products.length > 0 &&
+      !po.products.some((p) => p.id === activeProductTab)
+    ) {
+      setActiveProductTab(po.products[0].id);
+    }
+  }, [po.products, activeProductTab]);
+
+  // Note: handleRemoveBahanTab removed since we're no longer using nested bahan tabs
+
+  const handleRemoveProduct = (productId: string) => {
+    setPOData((prevData) =>
+      prevData.map((p) =>
+        p.id === po.id
+          ? {
+              ...p,
+              products: p.products.filter((prod) => prod.id !== productId),
+            }
+          : p
+      )
+    );
+
+    // If we removed the active tab, switch to the first remaining product
+    if (activeProductTab === productId && po.products.length > 1) {
+      const remainingProducts = po.products.filter(
+        (prod) => prod.id !== productId
+      );
+      if (remainingProducts.length > 0) {
+        setActiveProductTab(remainingProducts[0].id);
+      } else {
+        setActiveProductTab("");
+      }
+    }
+  };
+
+  return (
+    <div
+      className="rounded-lg p-6"
+      style={{
+        border: `1px solid rgb(${colors.border})`,
+        backgroundColor: `rgb(${colors.surface})`,
+      }}
+    >
+      {/* PO Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-4">
+          <h3
+            className="text-base font-semibold"
+            style={{ color: `rgb(${colors.text})` }}
+          >
+            {po.name}
+          </h3>
+
+          {/* Summary Button */}
+          {/* <button
+            onClick={() => onOpenSummary(po.id)}
+            className="px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 hover:border-blue-300 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+          >
+            Summary
+          </button> */}
+        </div>
+
+        {/* Product Selection */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => onScanProduct(po.id)}
+            className="px-3 py-1.5 text-xs font-medium text-green-600 bg-green-50 border border-green-200 rounded-md hover:bg-green-100 hover:border-green-300 transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-1"
+          >
+            Scan Product
+          </button>
+
+          {/* Product Selection Dropdown */}
+          <select
+            value={selectedProductId}
+            onChange={(e) => {
+              const productId = e.target.value;
+              if (productId) {
+                onSelectProduct(po.id, productId);
+              } else {
+                setSelectedProductIds((prev) => ({ ...prev, [po.id]: "" }));
+              }
+            }}
+            className="px-3 py-1.5 text-xs border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              border: `1px solid rgb(${colors.border})`,
+              backgroundColor: `rgb(${colors.surface})`,
+              color: `rgb(${colors.text})`,
+              minWidth: "150px",
+            }}
+            disabled={isLoadingProducts}
+          >
+            <option value="">
+              {isLoadingProducts ? "Loading products..." : "Select a product"}
+            </option>
+            {hikmatItems.map((product: any) => (
+              <option key={product.id} value={product.id.toString()}>
+                {product.name} ({product.no})
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Products Tabs Section */}
+      {po.products.length > 0 ? (
+        <div
+          className="rounded-lg p-4"
+          style={{
+            border: `1px solid rgb(${colors.border})`,
+            backgroundColor: `rgb(${colors.muted})`,
+          }}
+        >
+          <Tabs
+            activeKey={activeProductTab}
+            onChange={setActiveProductTab}
+            type="editable-card"
+            hideAdd={true}
+            tabPosition="top"
+            tabBarGutter={10}
+            className="overflow-x-auto"
+            style={{
+              overflowX: "auto",
+            }}
+            onEdit={(targetKey, action) => {
+              if (action === "remove" && typeof targetKey === "string") {
+                handleRemoveProduct(targetKey);
+              }
+            }}
+            items={po.products.map((product) => ({
+              key: product.id,
+              label: product.name,
+              children: (
+                <div className="mt-4">
+                  {/* Directly show bahan content - use first bahan tab if available */}
+                  {product.bahanTabs.length > 0 ? (
+                    <BahanTabContent
+                      bahanTab={product.bahanTabs[0]} // Use first bahan tab
+                      po={po}
+                      product={product}
+                      colors={colors}
+                      categories={categories}
+                      isLoadingCategories={isLoadingCategories}
+                      poIndex={index}
+                      productIndex={po.products.indexOf(product)}
+                      bahanTabIndex={0}
+                      onTerloadingChange={onTerloadingChange}
+                      onBahanTerpakaiChange={onBahanTerpakaiChange}
+                      onEstBahanChange={onEstBahanChange}
+                      onCategoryValueChange={onCategoryValueChange}
+                      isCategoryLoading={isCategoryLoading}
+                      getCategoryError={getCategoryError}
+                      clearCategoryError={clearCategoryError}
+                    />
+                  ) : (
+                    <div
+                      className="rounded-lg p-4 text-center"
+                      style={{
+                        border: `1px solid rgb(${colors.border})`,
+                        backgroundColor: `rgb(${colors.surface})`,
+                      }}
+                    >
+                      <span
+                        className="text-sm"
+                        style={{ color: `rgb(${colors["text-muted"]})` }}
+                      >
+                        No data available for this product yet.
+                      </span>
+                    </div>
+                  )}
+                </div>
+              ),
+            }))}
+          />
+        </div>
+      ) : (
+        /* Empty State */
+        <div
+          className="rounded-lg p-6 text-center"
+          style={{
+            border: `1px solid rgb(${colors.border})`,
+            backgroundColor: `rgb(${colors.muted})`,
+          }}
+        >
+          <span
+            className="text-sm"
+            style={{ color: `rgb(${colors["text-muted"]})` }}
+          >
+            No products added yet. Use "Scan Product" or "Select a product" to
+            add products.
+          </span>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default POSection;

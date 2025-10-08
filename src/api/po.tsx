@@ -16,6 +16,14 @@ export interface PO {
   items?: POItem[];
 }
 
+// Utility function to calculate total quantity from PO items
+export const getPOTotalQuantity = (po: PO): number => {
+  if (!po.items || po.items.length === 0) {
+    return 0;
+  }
+  return po.items.reduce((total, item) => total + (item.quantity || 0), 0);
+};
+
 export interface CreatePORequest {
   card_id: string;
   po_number: string;

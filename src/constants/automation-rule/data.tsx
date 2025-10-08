@@ -27,6 +27,7 @@ import {
   ActionType,
   EnumTextType,
   EnumInputType,
+  EnumTiggerCarFilterType,
 } from "@myTypes/automation-rule";
 import {
   EnumOptionArticleType,
@@ -634,6 +635,63 @@ export const triggers: AutomationRuleTrigger[] = [
           value: {
             value: EnumUserActionEvent.CardMemberAdded,
             label: "added to",
+          },
+        },
+        [EnumSelectionType.OptionalBySubject]: {
+          options: [
+            {
+              value: EnumOptionBySubject.ByMe,
+              label: "by me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyone,
+              label: "by anyone",
+            },
+            {
+              value: EnumOptionBySubject.BySpecificUser,
+              label: "by specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptMe,
+              label: "by anyone except me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
+              label: "by anyone except specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByRole,
+              label: "by role",
+            },
+          ],
+          value: {
+            value: EnumOptionBySubject.ByAnyone,
+            label: "by anyone",
+          },
+          data: [],
+        },
+        [EnumSelectionType.Role]: {
+          options: [],
+          value: null,
+        },
+      },
+      {
+        type: TriggerType.WhenButuhBahanIsChecked,
+        label: TriggerType.WhenButuhBahanIsChecked.replaceAll("-", " "),
+        [EnumSelectionType.Action]: {
+          options: [
+            {
+              value: EnumUserActionEvent.ButuhBahanChecked,
+              label: "Checked",
+            },
+            {
+              value: EnumUserActionEvent.ButuhBahanUnchecked,
+              label: "Unchecked",
+            },
+          ],
+          value: {
+            value: EnumUserActionEvent.ButuhBahanChecked,
+            label: "Checked",
           },
         },
         [EnumSelectionType.OptionalBySubject]: {
