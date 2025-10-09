@@ -53,6 +53,9 @@ RUN chown nextjs:nodejs .next
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+# Copy public folder for static assets (images, etc.)
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+
 
 # Switch to non-root user
 USER nextjs
