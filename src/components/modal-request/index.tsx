@@ -13,8 +13,12 @@ import {
   message,
   Modal,
   Select,
+  Avatar,
+  Typography,
 } from "antd";
 import React, { useEffect, useMemo } from "react";
+import { useParams } from "next/navigation";
+import { useAccountListForModal } from "@hooks/account";
 interface ModalRequestProps {
   open: boolean;
   onClose: () => void;
@@ -23,6 +27,7 @@ interface ModalRequestProps {
 const { Option } = Select;
 
 const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
+  const { workspaceId, boardId } = useParams();
   const [cards, setCards] = React.useState<any>([]);
   const [items, setItems] = React.useState<any>([]);
   const [glaccounts, setGlaccounts] = React.useState<any>([]);
@@ -39,6 +44,18 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
   >([]);
   const [selectedItemSource, setSelectedItemSource] =
     React.useState<string>("");
+  const [selectedRequestBy, setSelectedRequestBy] = React.useState<string>("");
+
+  // Fetch users for Request By dropdown
+  const { data: accountListData, isLoading: accountListLoading } =
+    useAccountListForModal({
+      workspaceId: Array.isArray(workspaceId)
+        ? (workspaceId[0] as string)
+        : (workspaceId as string),
+      boardId: Array.isArray(boardId)
+        ? (boardId[0] as string)
+        : (boardId as string),
+    });
 
   const queries = useQueries({
     queries: [
@@ -71,7 +88,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
     }
   }, [queries[0].data, queries[1].data, queries[2].data]);
 
-  const listPO = cards.map((card: any) => ({
+  const listPO = cards?.map((card: any) => ({
     value: card.id,
     label: card.name,
   }));
@@ -106,6 +123,27 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
       item: item, // Store the full item object for later use
     }));
   }, [items, barangSearchValue]);
+
+  // Create user options for Request By dropdown
+  const userOptions = useMemo(() => {
+    if (!accountListData?.data) return [];
+
+    return accountListData.data.map((item) => ({
+      value: item.id,
+      label: (
+        <div className="flex justify-start items-center gap-3">
+          <Avatar
+            size={20}
+            className="bg-blue-50 text-blue-500 border border-blue-100"
+          >
+            {item.username?.substring(0, 2)?.toUpperCase()}
+          </Avatar>
+          <Typography.Text>{item.username}</Typography.Text>
+        </div>
+      ),
+      username: item.username, // Store username for payload
+    }));
+  }, [accountListData]);
 
   const [form] = Form.useForm();
   const [formValid, setFormValid] = React.useState<boolean>(false);
@@ -166,21 +204,30 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
               // First, try to find a GL account that matches the item category
               suitableAccount = glaccounts.d.find((acc: any) => {
                 const accountName = acc.name.toLowerCase();
-                const cleanAccountName = accountName.replace("hpp ", "").replace("beban ", "");
-                
+                const cleanAccountName = accountName
+                  .replace("hpp ", "")
+                  .replace("beban ", "");
+
                 const directMatch = accountName.includes(itemCategoryName);
-                const reverseMatch = itemCategoryName.includes(cleanAccountName);
-                
+                const reverseMatch =
+                  itemCategoryName.includes(cleanAccountName);
+
                 return directMatch || reverseMatch;
               });
 
               // If no match found and this is a Hikmat item, try Hikmat-specific matching
               if (!suitableAccount && itemSource === "Hikmat") {
                 // Define Hikmat category keywords
-                const hikmatCategoryKeywords = ["krah", "manset", "rib", "bahan", "kain"];
-                
+                const hikmatCategoryKeywords = [
+                  "krah",
+                  "manset",
+                  "rib",
+                  "bahan",
+                  "kain",
+                ];
+
                 // Check if item category contains any Hikmat-specific keywords
-                const matchingKeyword = hikmatCategoryKeywords.find(keyword => 
+                const matchingKeyword = hikmatCategoryKeywords.find((keyword) =>
                   itemCategoryName.includes(keyword)
                 );
 
@@ -188,9 +235,13 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
                   // Try to find GL account with matching keyword
                   suitableAccount = glaccounts.d.find((acc: any) => {
                     const accountName = acc.name.toLowerCase();
-                    return accountName.includes(matchingKeyword) || 
-                           accountName.includes("penyesuaian " + matchingKeyword) ||
-                           accountName.includes("beban penyesuaian " + matchingKeyword);
+                    return (
+                      accountName.includes(matchingKeyword) ||
+                      accountName.includes("penyesuaian " + matchingKeyword) ||
+                      accountName.includes(
+                        "beban penyesuaian " + matchingKeyword
+                      )
+                    );
                   });
                 }
 
@@ -198,17 +249,19 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
                 if (!suitableAccount) {
                   suitableAccount = glaccounts.d.find((acc: any) => {
                     const accountName = acc.name.toLowerCase();
-                    return accountName.includes("hikmat") || 
-                           accountName.includes("adjustment hikmat") ||
-                           accountName.includes("bahan hikmat");
+                    return (
+                      accountName.includes("hikmat") ||
+                      accountName.includes("adjustment hikmat") ||
+                      accountName.includes("bahan hikmat")
+                    );
                   });
                 }
               }
 
               // General fallback: Use the first available account from the same source
               if (!suitableAccount && itemSource) {
-                suitableAccount = glaccounts.d.find((acc: any) => 
-                  acc.source === itemSource
+                suitableAccount = glaccounts.d.find(
+                  (acc: any) => acc.source === itemSource
                 );
               }
 
@@ -306,6 +359,11 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
         });
       }
 
+      // Find the selected user for received_by
+      const selectedUser = userOptions.find(
+        (user) => user.value === values.requestBy
+      );
+
       const payload = {
         card_id: selectedCardId || (card ? card.value : values.listPO),
         request_type: values.actionType,
@@ -318,6 +376,8 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
         satuan: selectedItemUnit || "", // Add the selected unit (satuan) to the payload
         source: selectedItemSource || "", // Add the source field to the payload
         type: item ? item.item?.itemTypeName || null : null, // Add the itemTypeName as type
+        received_by: selectedUser ? selectedUser.value : "", // Use UUID for received_by
+        received_by_name: selectedUser ? selectedUser.username : "", // Add received_by_name field
       };
 
       console.log("🔍 [REQUEST PAYLOAD] Type being sent:", payload.type);
@@ -343,6 +403,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
       setBarangSearchValue("");
       setSelectedCardId(null);
       setSelectedItemSource("");
+      setSelectedRequestBy("");
     }
   }, [open]);
 
@@ -475,8 +536,6 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
 
                     setAvailableUnits(units);
 
-  
-
                     // Set default unit if available
                     if (units.length > 0) {
                       setSelectedItemUnit(units[0].value);
@@ -576,6 +635,28 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
                     form.setFieldsValue({ akunPenyesuaian: input });
                   }
                 }
+              }}
+            />
+          </Form.Item>
+          <Form.Item
+            name="requestBy"
+            label="Request By"
+            rules={[{ required: true, message: "Request By is required" }]}
+            style={{ marginBottom: 16, gridColumn: "1 / span 2" }}
+          >
+            <Select
+              placeholder="Select a User"
+              loading={accountListLoading}
+              options={userOptions}
+              style={{ width: "100%" }}
+              showSearch
+              filterOption={(input, option) =>
+                (option?.username || "")
+                  .toLowerCase()
+                  .includes(input.toLowerCase())
+              }
+              onChange={(value) => {
+                setSelectedRequestBy(value);
               }}
             />
           </Form.Item>

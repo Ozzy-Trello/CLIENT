@@ -66,6 +66,7 @@ type CardDetailContextType = {
   setCurrentFilter: React.Dispatch<React.SetStateAction<DashcardFilter[]>>;
 
   isUpdatingCard: boolean;
+  isLoadingCardDetails: boolean;
 };
 
 const CardDetailContext = createContext<CardDetailContextType>({
@@ -88,7 +89,6 @@ const CardDetailContext = createContext<CardDetailContextType>({
 
   currentFilter: [],
   setCurrentFilter: () => {},
-
   handleChangeFilter: () => {},
   handleDeleteFilter: () => {},
   updateDisplayConfig: () => {},
@@ -96,6 +96,7 @@ const CardDetailContext = createContext<CardDetailContextType>({
   refetchCardDetails: () => {},
 
   isUpdatingCard: false,
+  isLoadingCardDetails: false,
 });
 
 export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
@@ -133,32 +134,22 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
   const [openEditFilter, setOpenEditFilter] = useState<boolean>(false);
   const [currentFilter, setCurrentFilter] = useState<DashcardFilter[]>([]);
 
-  // Update selectedCard when React Query data changes (including from WebSocket events)
-  useEffect(() => {
-    if (
-      cardDetailsQuery.card &&
-      selectedCard?.id === cardDetailsQuery.card.id
-    ) {
-      setSelectedCard((prevCard) => {
-        if (!prevCard) return prevCard;
-        return {
-          ...prevCard,
-          ...cardDetailsQuery.card,
-          // Use the updated listId from the fetched card data
-        };
-      });
-    }
-  }, [cardDetailsQuery.card, selectedCard?.id]);
+
 
   const openCardDetail = async (card: Card, list: AnyList) => {
     handleUrlChange.current = true; // Set to true when opening card detail
 
-    // Set the basic card data - React Query will handle fetching the full details
-    card.listId = list.id;
-    setSelectedCard(card);
+    // Don't set incomplete card data immediately - let React Query fetch complete data
+    // Only set the basic state needed for the query to work
     setActiveList(list);
     setIsCardDetailOpen(true);
     setIsOpenViaUrl(false);
+    
+    // Set a minimal card object just for the query key, but don't set selectedCard yet
+    // The useEffect above will set selectedCard when complete data arrives
+    if (!selectedCard || selectedCard.id !== card.id) {
+      setSelectedCard({ id: card.id, listId: list.id } as Card);
+    }
 
     // Add to recently viewed cards
     addRecentlyViewedCard({
@@ -218,12 +209,44 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
     },
   });
 
+  // Update selectedCard when React Query data changes (including from WebSocket events)
+  useEffect(() => {
+    if (cardDetailsQuery.card) {
+      // Don't override local state if there's a pending mutation (optimistic update)
+      if (isPending) {
+        return;
+      }
+      
+      // Always update with the complete card data from React Query
+      setSelectedCard((prevCard) => {
+        const fetchedCard = cardDetailsQuery.card!;
+        
+        // If we don't have a previous card or the card ID changed, use the new data
+        if (!prevCard || prevCard.id !== fetchedCard.id) {
+          return {
+            ...fetchedCard,
+            listId: fetchedCard.listId || activeList?.id,
+          } as Card;
+        }
+        // If it's the same card, merge the updates
+        return {
+          ...prevCard,
+          ...fetchedCard,
+        } as Card;
+      });
+    }
+  }, [cardDetailsQuery.card, activeList?.id, isPending]);
+
   const closeCardDetail = useCallback(() => {
+    console.log("closeCardDetail called");
+    
+    // Set flag to prevent URL effect from running during this programmatic change
+    handleUrlChange.current = true;
+    
     setSelectedCard(null);
     setActiveList(null);
     setIsCardDetailOpen(false);
     setIsOpenViaUrl(false);
-    handleUrlChange.current = undefined;
 
     // Remove params without full navigation
     const params = new URLSearchParams(searchParams.toString());
@@ -233,7 +256,19 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
     const newUrl = params.toString()
       ? `${window.location.pathname}?${params.toString()}`
       : window.location.pathname;
+    
+    console.log("closeCardDetail - URL change:", {
+      oldUrl: window.location.href,
+      newUrl,
+      params: params.toString()
+    });
+    
     router.replace(newUrl, { scroll: false });
+    
+    // Reset the flag after a short delay to allow URL change to complete
+    setTimeout(() => {
+      handleUrlChange.current = undefined;
+    }, 100);
   }, [router, searchParams]);
 
   const handleItemDashcard = (
@@ -325,12 +360,6 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
       return;
     }
 
-    console.log("Updating display config:", {
-      displayConfig,
-      currentDashcardConfig: dashcardConfig,
-      selectedCard: selectedCard.id,
-    });
-
     mutate({
       dashConfig: {
         ...dashcardConfig,
@@ -351,12 +380,6 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
       return;
     }
 
-    console.log("Updating background color:", {
-      backgroundColor,
-      currentDashcardConfig: dashcardConfig,
-      selectedCard: selectedCard.id,
-    });
-
     mutate({
       dashConfig: {
         ...dashcardConfig,
@@ -367,25 +390,46 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
 
   // Handle URL changes
   useEffect(() => {
-    if (handleUrlChange.current == undefined) {
-      const cardId = searchParams.get("cardId");
-      const listId = searchParams.get("listId");
+    const cardId = searchParams.get("cardId");
+    const listId = searchParams.get("listId");
+    
+    console.log("URL Effect Debug:", {
+      handleUrlChangeRef: handleUrlChange.current,
+      cardId,
+      listId,
+      selectedCardId: selectedCard?.id,
+      isCardDetailOpen,
+      isOpenViaUrl
+    });
 
+    // Only handle URL changes if we're not in the middle of a programmatic change
+    if (handleUrlChange.current === undefined) {
       if (cardId && listId) {
-        setIsCardDetailOpen(true);
-        setIsOpenViaUrl(true);
+        // Only open if not already open with the same card
+        if (!isCardDetailOpen || selectedCard?.id !== cardId) {
+          console.log("Opening card from URL");
+          setIsCardDetailOpen(true);
+          setIsOpenViaUrl(true);
 
-        // Set basic card data - React Query will fetch the full details
-        const card: Card = { id: cardId, listId: listId } as Card;
-        const list: AnyList = { id: listId } as AnyList;
-
-        setSelectedCard(card);
-        setActiveList(list);
-      } else {
-        closeCardDetail();
+          // Don't set incomplete card data - let React Query fetch complete data
+          // Only set the basic state needed for the query to work
+          const list: AnyList = { id: listId } as AnyList;
+          setActiveList(list);
+          
+          // Set minimal card object just for the query key, but React Query will provide complete data
+          setSelectedCard({ id: cardId, listId: listId } as Card);
+        }
+      } else if (isCardDetailOpen && !isOpenViaUrl) {
+        // Only close if we're currently open and it wasn't opened via URL initially
+        console.log("No URL params, closing card detail");
+        setSelectedCard(null);
+        setActiveList(null);
+        setIsCardDetailOpen(false);
       }
+    } else {
+      console.log("Skipping URL effect due to handleUrlChange.current:", handleUrlChange.current);
     }
-  }, [searchParams, closeCardDetail]);
+  }, [searchParams, isCardDetailOpen, isOpenViaUrl]);
 
   return (
     <CardDetailContext.Provider
@@ -413,6 +457,7 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
         updateBackgroundColor,
         refetchCardDetails: cardDetailsQuery.refetch,
         isUpdatingCard: isPending,
+        isLoadingCardDetails: cardDetailsQuery.isFetching,
       }}
     >
       {children}

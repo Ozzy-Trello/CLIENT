@@ -17,8 +17,8 @@ export function useCardDetails(
     queryFn: () => cardDetails(cardId, boardId),
     enabled: !!cardId,
     staleTime: 5000,
-    // Use any card data we might already have from the cards query
-    initialData: () => {
+    // Use any card data we might already have from the cards query as placeholder
+    placeholderData: () => {
       const cardsData = queryClient.getQueryData<ApiResponse<Card[]>>(
         queryKeys.cards.list(listId)
       );
@@ -490,6 +490,7 @@ export function useCardDetails(
   return {
     card: cardDetailsQuery.data?.data,
     isLoading: cardDetailsQuery.isLoading,
+    isFetching: cardDetailsQuery.isFetching,
     isError: cardDetailsQuery.isError,
     error: cardDetailsQuery.error,
     refetch: cardDetailsQuery.refetch,

@@ -21,6 +21,7 @@ import { WorkspaceSelection } from "../selection";
 import ModalRequest from "../modal-request";
 import ModalListRequest from "../modal-list-request";
 import ModalRequestSent from "../modal-request-sent";
+import ModalRequestProduksi from "../modal-request-produksi";
 import WebSocketDebugModal from "../websocket-debug-modal";
 import { searchCards } from "@api/card";
 import { Card } from "@myTypes/card";
@@ -59,7 +60,7 @@ const getRoleCategory = (
 // Check if user can access certain features based on role
 const canAccessFeature = (
   userRole: string,
-  feature: "request" | "list_request" | "warehouse"
+  feature: "request" | "list_request" | "warehouse" | "production"
 ): boolean => {
   const roleCategory = getRoleCategory(userRole);
 
@@ -81,6 +82,10 @@ const canAccessFeature = (
       // Warehouse roles can access warehouse features
       return roleCategory === "warehouse";
 
+    case "production":
+      // Production roles can access production features
+      return roleCategory === "production";
+
     default:
       return false;
   }
@@ -92,6 +97,7 @@ const TopBar: React.FC = React.memo(() => {
   const [modalRequestOpen, setModalRequestOpen] = useState(false);
   const [modalListRequestOpen, setModalListRequestOpen] = useState(false);
   const [modalRequestSentOpen, setModalRequestSentOpen] = useState(false);
+  const [modalRequestProduksiOpen, setModalRequestProduksiOpen] = useState(false);
   const [wsDebugModalOpen, setWsDebugModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
@@ -276,6 +282,10 @@ const TopBar: React.FC = React.memo(() => {
 
         {canAccessFeature(userRole, "warehouse") && (
           <Button onClick={() => setModalRequestSentOpen(true)}>Gudang</Button>
+        )}
+
+        {canAccessFeature(userRole, "production") && (
+          <Button onClick={() => setModalRequestProduksiOpen(true)}>Produksi</Button>
         )}
 
         {/* WebSocket Debug Button - Only show in development */}
@@ -566,6 +576,10 @@ const TopBar: React.FC = React.memo(() => {
       <ModalRequestSent
         open={modalRequestSentOpen}
         onClose={() => setModalRequestSentOpen(false)}
+      />
+      <ModalRequestProduksi
+        open={modalRequestProduksiOpen}
+        onClose={() => setModalRequestProduksiOpen(false)}
       />
       <WebSocketDebugModal
         open={wsDebugModalOpen}

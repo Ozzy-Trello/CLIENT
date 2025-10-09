@@ -4,6 +4,8 @@ import {
   getAllRequests,
   verifyRequest,
   rejectRequest,
+  updateRequest,
+  updateRequestUserAssignments,
 } from "@api/accurate";
 
 export const useHikmatItemList = () => {
@@ -115,6 +117,46 @@ export const useRejectRequest = () => {
     },
     onError: (error) => {
       console.error("Failed to reject request:", error);
+    },
+  });
+};
+
+/**
+ * Optimized mutation for updating request fields (sentBy, receivedBy) with cache updates
+ */
+export const useUpdateRequestFields = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, updates }: { id: string; updates: { sent_by?: string; received_by?: string } }) => {
+      // Use the specific API function for user assignments
+      return updateRequestUserAssignments(id, updates);
+    },
+    onSuccess: (data, { id, updates }) => {
+      // Update all request queries in cache
+      queryClient.invalidateQueries({ queryKey: ["requests"] });
+      queryClient.invalidateQueries({ queryKey: ["requests-background"] });
+
+      // Optimistically update cache if possible
+      queryClient.setQueriesData({ queryKey: ["requests"] }, (oldData: any) => {
+        if (!oldData?.data) return oldData;
+
+        return {
+          ...oldData,
+          data: oldData.data.map((request: any) =>
+            request.id === id
+              ? { 
+                  ...request, 
+                  sentBy: updates.sent_by || request.sentBy,
+                  receivedBy: updates.received_by || request.receivedBy
+                }
+              : request
+          ),
+        };
+      });
+    },
+    onError: (error) => {
+      console.error("Failed to update request fields:", error);
     },
   });
 };

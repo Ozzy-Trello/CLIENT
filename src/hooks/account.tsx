@@ -74,6 +74,24 @@ export function useAccountList({
   });
 }
 
+export function useAccountListForModal({
+  workspaceId,
+  boardId,
+  roleIds = [],
+}: {
+  workspaceId: string;
+  boardId?: string;
+  roleIds?: string[];
+}) {
+  return useQuery({
+    queryKey: ["accountListModal", workspaceId, boardId, roleIds],
+    queryFn: () => accountList(workspaceId, boardId || "", roleIds),
+    enabled: !!workspaceId,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
+  });
+}
+
 // Permission helpers hook
 // Note: Global permission levels have been removed. This hook now provides
 // basic permission checks that work with board-specific permissions.

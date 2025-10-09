@@ -1,6 +1,8 @@
 import React from "react";
+import { message } from "antd";
 import { BahanTabProps } from "./types";
 import CategorySection from "./CategorySection";
+import { createRequestWithPOConnection } from "@api/accurate";
 
 const BahanTabContent: React.FC<BahanTabProps> = ({
   bahanTab,
@@ -16,10 +18,86 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
   onBahanTerpakaiChange,
   onEstBahanChange,
   onCategoryValueChange,
+  onOrderStatusChange,
   isCategoryLoading,
   getCategoryError,
   clearCategoryError,
 }) => {
+  // Handler for Create New Order button
+  const handleCreateNewOrder = async (po: any, product: any) => {
+    // Only create new orders, don't toggle existing ones
+    if (product.orderCreated) {
+      message.info(`Order already exists for ${product.name} in ${po.name}`);
+      return;
+    }
+
+    console.log("🆕 [BahanTabContent] Creating new order for:", {
+      poId: po.id,
+      poName: po.name,
+      productId: product.id,
+      productName: product.name,
+      poProductId: product.poProductId,
+      cardId: po.cardId,
+      terloading: bahanTab.terloading,
+      bahanTabId: bahanTab.id,
+      bahanTabName: bahanTab.name,
+    });
+
+    // Validate required data
+    if (!product.poProductId) {
+      message.error("Cannot create order: Product ID not found");
+      return;
+    }
+
+    if (!po.cardId) {
+      message.error("Cannot create order: Card ID not found");
+      return;
+    }
+
+    if (!bahanTab.terloading || bahanTab.terloading <= 0) {
+      message.error(
+        "Cannot create order: Terloading amount must be greater than 0"
+      );
+      return;
+    }
+
+    try {
+      // Prepare request data
+      const requestData = {
+        card_id: po.cardId,
+        type: "NEW_ORDER",
+        item_name: product.name,
+        requested_item_id: product.id,
+        request_amount: bahanTab.terloading, // Use terloading amount
+        request_sent: bahanTab.terloading, // Use terloading amount (same as request_amount)
+        is_verified: true, // Default to verified
+        po_product_ids: [parseInt(product.poProductId)], // Convert to number array
+        // Add adjustment fields from product data
+        satuan: product.satuan,
+        adjustment_no: product.adjustment_no,
+        adjustment_name: product.adjustment_name,
+      };
+
+      console.log(product, "<< ini isi product");
+
+      await createRequestWithPOConnection(requestData);
+
+      // Update local state to reflect the order creation
+      onOrderStatusChange(poIndex, productIndex, true);
+
+      message.success(
+        `Order created successfully for ${product.name} in ${po.name}`
+      );
+    } catch (error) {
+      console.error("❌ [BahanTabContent] Failed to create order:", error);
+      message.error(
+        `Failed to create order for ${product.name}: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+    }
+  };
+
   return (
     <div>
       {/* Input Fields Grid */}
@@ -32,7 +110,7 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
               color: `rgb(${colors["text-muted"]})`,
             }}
           >
-            Terloading (kg/m)
+            Terloading ({product.satuan || "unit"})
           </label>
           <input
             type="number"
@@ -40,12 +118,7 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
             onChange={(e) => {
               const value = e.target.value;
               if (value === "" || value === "0") {
-                onTerloadingChange(
-                  poIndex,
-                  productIndex,
-                  bahanTabIndex,
-                  0
-                );
+                onTerloadingChange(poIndex, productIndex, bahanTabIndex, 0);
               } else {
                 onTerloadingChange(
                   poIndex,
@@ -72,7 +145,7 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
               color: `rgb(${colors["text-muted"]})`,
             }}
           >
-            Sisa Bahan (kg/m)
+            Sisa Bahan ({product.satuan || "unit"})
           </label>
           <input
             className="w-full px-3 py-2 rounded-md text-sm cursor-not-allowed"
@@ -148,12 +221,7 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
             onChange={(e) => {
               const value = e.target.value;
               if (value === "" || value === "0") {
-                onBahanTerpakaiChange(
-                  poIndex,
-                  productIndex,
-                  bahanTabIndex,
-                  0
-                );
+                onBahanTerpakaiChange(poIndex, productIndex, bahanTabIndex, 0);
               } else {
                 onBahanTerpakaiChange(
                   poIndex,
@@ -232,6 +300,21 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
         getCategoryError={getCategoryError}
         clearCategoryError={clearCategoryError}
       />
+
+      {/* Create New Order Button */}
+      <div className="mt-6 flex justify-center">
+        <button
+          onClick={() => handleCreateNewOrder(po, product)}
+          disabled={product.orderCreated}
+          className={`px-6 py-3 text-sm font-medium border rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 shadow-sm ${
+            product.orderCreated
+              ? "bg-green-600 border-green-600 text-white cursor-not-allowed opacity-75"
+              : "bg-blue-600 border-blue-600 hover:bg-blue-700 hover:border-blue-700 focus:ring-blue-500 text-white"
+          }`}
+        >
+          {product.orderCreated ? "Order Created ✓" : "Create New Order"}
+        </button>
+      </div>
     </div>
   );
 };

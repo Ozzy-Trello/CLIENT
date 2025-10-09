@@ -50,6 +50,14 @@ export const updateRequest = async (id: string, requestSent: number) => {
   return data;
 };
 
+export const updateProductionReceived = async (
+  id: string,
+  productionReceived: boolean
+) => {
+  const { data } = await api.patch(`/request/${id}`, { production_recieved: productionReceived });
+  return data;
+};
+
 export const updateWarehouseReturn = async (
   id: string,
   warehouseReturned: boolean
@@ -81,6 +89,14 @@ export const updateRequestReceived = async (
   return data;
 };
 
+export const updateRequestUserAssignments = async (
+  id: string,
+  updates: { sent_by?: string; received_by?: string }
+) => {
+  const { data } = await api.patch(`/request/${id}`, updates);
+  return data;
+};
+
 export const rejectRequest = async (id: string) => {
   // Use snake_case for API request payload
   const { data } = await api.patch(`/request/${id}`, { is_rejected: true });
@@ -90,6 +106,20 @@ export const rejectRequest = async (id: string) => {
 export const markRequestDone = async (id: string) => {
   // Use snake_case for API request payload
   const { data } = await api.patch(`/request/${id}`, { is_done: true });
+  return data;
+};
+
+export const createRequestWithPOConnection = async (requestData: {
+  card_id: string;
+  type: string;
+  item_name: string;
+  requested_item_id: string;
+  request_amount: number;
+  request_sent: number;
+  is_verified: boolean;
+  po_product_ids: number[];
+}) => {
+  const { data } = await api.post("/request/with-po-connection", requestData);
   return data;
 };
 

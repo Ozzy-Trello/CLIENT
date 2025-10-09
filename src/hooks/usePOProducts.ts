@@ -13,16 +13,23 @@ import {
   CreatePOProductRequest,
   UpdatePOProductRequest,
   CreatePOProductCategoryRequest,
-  UpdatePOProductCategoryRequest
+  UpdatePOProductCategoryRequest,
 } from "../api/po-product";
-import { CategoryData, BahanTab, ProductItem } from "../app/workspace/[workspaceId]/board/[boardId]/card-details/bahan-fields/types";
+import {
+  CategoryData,
+  BahanTab,
+  ProductItem,
+} from "../app/workspace/[workspaceId]/board/[boardId]/card-details/bahan-fields/types";
 
 // Hook to get PO products by card ID
 export const usePOProductsByCardId = (cardId: string) => {
   return useQuery({
     queryKey: ["po-products", "card", cardId],
     queryFn: async () => {
-      console.log("🔍 [usePOProductsByCardId] Fetching PO products for cardId:", cardId);
+      console.log(
+        "🔍 [usePOProductsByCardId] Fetching PO products for cardId:",
+        cardId
+      );
       const result = await getPOProductsByCardId(cardId);
       console.log("🔍 [usePOProductsByCardId] API Response:", result);
       return result;
@@ -33,7 +40,11 @@ export const usePOProductsByCardId = (cardId: string) => {
 };
 
 // Hook to get PO products with categories
-export const usePOProductsWithCategories = (params?: { po_id?: string; limit?: number; offset?: number }) => {
+export const usePOProductsWithCategories = (params?: {
+  po_id?: string;
+  limit?: number;
+  offset?: number;
+}) => {
   return useQuery({
     queryKey: ["po-products", "with-categories", params],
     queryFn: () => getPOProductsWithCategories(params),
@@ -61,7 +72,7 @@ export const useUpdatePOProduct = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdatePOProductRequest }) => 
+    mutationFn: ({ id, data }: { id: string; data: UpdatePOProductRequest }) =>
       updatePOProduct(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["po-products"] });
@@ -88,7 +99,8 @@ export const useCreatePOProductCategory = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: CreatePOProductCategoryRequest) => createPOProductCategory(data),
+    mutationFn: (data: CreatePOProductCategoryRequest) =>
+      createPOProductCategory(data),
     onSuccess: () => {
       // Invalidate all po-products queries to ensure fresh data
       queryClient.invalidateQueries({ queryKey: ["po-products"] });
@@ -101,8 +113,13 @@ export const useUpdatePOProductCategory = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdatePOProductCategoryRequest }) => 
-      updatePOProductCategory(id, data),
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: UpdatePOProductCategoryRequest;
+    }) => updatePOProductCategory(id, data),
     onSuccess: () => {
       // Invalidate all po-products queries to ensure fresh data
       queryClient.invalidateQueries({ queryKey: ["po-products"] });
@@ -128,8 +145,16 @@ export const useUpdatePOProductCategories = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ poId, updates }: { poId: string; updates: { po_product_id: string; categories: CreatePOProductCategoryRequest[] }[] }) => 
-      updatePOProductCategories(poId, updates),
+    mutationFn: ({
+      poId,
+      updates,
+    }: {
+      poId: string;
+      updates: {
+        po_product_id: string;
+        categories: CreatePOProductCategoryRequest[];
+      }[];
+    }) => updatePOProductCategories(poId, updates),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["po-products"] });
       queryClient.invalidateQueries({ queryKey: ["po-products", "card"] });
@@ -138,13 +163,17 @@ export const useUpdatePOProductCategories = () => {
 };
 
 export const transformPOProductToProductItem = (
-  poProduct: POProductWithCategories, 
+  poProduct: POProductWithCategories,
   categories?: any[]
 ): ProductItem => {
   return {
     id: poProduct.hikmatProductId, // Use hikmatProductId as the product ID
     name: poProduct.productName,
     poProductId: poProduct.id, // Include PO product ID for API updates
+    orderCreated: poProduct.orderCreated || false, // Include order created status
+    satuan: poProduct.satuan, // Include unit field
+    adjustment_no: poProduct.adjustmentNo, // Include adjustment account number
+    adjustment_name: poProduct.adjustmentName, // Include adjustment account name
     bahanTabs: [
       {
         id: poProduct.id, // Use the PO product ID as bahan tab ID
@@ -159,13 +188,13 @@ export const transformPOProductToProductItem = (
     ],
     categoryData: (() => {
       if (!poProduct.categories) return [];
-      
+
       // Group POProductCategory records by categoryId
       const categoryMap = new Map<string, CategoryData>();
-      
+
       poProduct.categories.forEach((category) => {
         const categoryId = category.categoryId;
-        
+
         if (!categoryMap.has(categoryId)) {
           categoryMap.set(categoryId, {
             categoryId,
@@ -173,38 +202,39 @@ export const transformPOProductToProductItem = (
             subcategoryValues: [],
           });
         }
-        
+
         const categoryData = categoryMap.get(categoryId)!;
-         
-         // Find junction data from categories to get isTotalField and isEditableTotal
-         let isTotalField = false;
-         let isEditableTotal = false;
-         let operator: "add" | "subtract" | "multiply" | "divide" = "add";
-         
-         if (categories) {
-           const categoryInfo = categories.find(cat => cat.id === categoryId);
-           if (categoryInfo?.subcategories) {
-             const subcategoryInfo = categoryInfo.subcategories.find(
-               (sub: any) => sub.id === category.subcategoryId
-             );
-             if (subcategoryInfo?.junction) {
-               isTotalField = subcategoryInfo.junction.isTotalField || false;
-               isEditableTotal = subcategoryInfo.junction.isEditableTotal || false;
-               operator = subcategoryInfo.junction.operator || "add";
-             }
-           }
-         }
-         
-         categoryData.subcategoryValues.push({
-           subcategoryId: category.subcategoryId,
-           subcategoryName: "", // You might need to fetch this separately
-           value: category.value,
-           isTotalField,
-           isEditableTotal,
-           operator,
-         });
+
+        // Find junction data from categories to get isTotalField and isEditableTotal
+        let isTotalField = false;
+        let isEditableTotal = false;
+        let operator: "add" | "subtract" | "multiply" | "divide" = "add";
+
+        if (categories) {
+          const categoryInfo = categories.find((cat) => cat.id === categoryId);
+          if (categoryInfo?.subcategories) {
+            const subcategoryInfo = categoryInfo.subcategories.find(
+              (sub: any) => sub.id === category.subcategoryId
+            );
+            if (subcategoryInfo?.junction) {
+              isTotalField = subcategoryInfo.junction.isTotalField || false;
+              isEditableTotal =
+                subcategoryInfo.junction.isEditableTotal || false;
+              operator = subcategoryInfo.junction.operator || "add";
+            }
+          }
+        }
+
+        categoryData.subcategoryValues.push({
+          subcategoryId: category.subcategoryId,
+          subcategoryName: "", // You might need to fetch this separately
+          value: category.value,
+          isTotalField,
+          isEditableTotal,
+          operator,
+        });
       });
-      
+
       return Array.from(categoryMap.values());
     })(),
   };

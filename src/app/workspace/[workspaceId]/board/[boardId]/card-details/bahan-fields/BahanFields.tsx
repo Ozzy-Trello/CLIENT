@@ -3,7 +3,7 @@ import { message } from "antd";
 import { useSelector } from "react-redux";
 import { selectTheme } from "@store/app_slice";
 import { useQuery } from "@tanstack/react-query";
-import { getHikmatItemList } from "@api/accurate";
+import { getHikmatItemList, getAllAdjustmentItems } from "@api/accurate";
 import { useCategoriesWithSubcategories } from "@hooks/category";
 import {
   usePOProductsByCardId,
@@ -55,7 +55,6 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
   const { data: hikmatItems, isLoading: isLoadingProducts } = useQuery({
     queryKey: ["hikmat-items"],
     queryFn: () => getHikmatItemList(),
-    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
   // Fetch categories with subcategories
@@ -107,7 +106,8 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
 
   // Update local state when API data changes
   useEffect(() => {
-    if (apiPOData.length > 0) {
+    console.log(apiPOData, "<< ini apiPOData");
+    if (apiPOData?.length > 0) {
       const updatedPOData = [...apiPOData];
 
       // Integrate PO Products data if available
@@ -197,6 +197,9 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
                   updatedBahanTab.estBahan = existingBahanTab.estBahan;
                   updatedBahanTab.efisiensi = existingBahanTab.efisiensi;
                 }
+
+                // Preserve orderCreated status to prevent UI state loss after API refetch
+                updatedProduct.orderCreated = existingProduct.orderCreated;
 
                 po.products[existingIndex] = updatedProduct;
                 // console.log(`🔄 Updated existing product ${updatedProduct.name} with preserved calculations`);
@@ -336,11 +339,11 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
                   estBahanContribution = value + calculationWeight;
                   break;
                 case "multiply":
-                  estBahanContribution =
-                    calculationWeight !== 0 ? value / calculationWeight : 0;
+                  estBahanContribution = value * calculationWeight;
                   break;
                 case "divide":
-                  estBahanContribution = value * calculationWeight;
+                  estBahanContribution =
+                    calculationWeight !== 0 ? value / calculationWeight : 0;
                   break;
                 default:
                   estBahanContribution = value - calculationWeight;
@@ -651,15 +654,297 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
     });
   };
 
+  // Handle order status change
+  const handleOrderStatusChange = (
+    poIndex: number,
+    productIndex: number,
+    orderCreated: boolean
+  ) => {
+    console.log("🔄 [BahanFields] handleOrderStatusChange called!", {
+      poIndex,
+      productIndex,
+      orderCreated,
+    });
+
+    setPOData((prevData) => {
+      const newData = [...prevData];
+      const po = newData[poIndex];
+      const product = po.products[productIndex];
+
+      // Update local state
+      product.orderCreated = orderCreated;
+
+      // Call API to persist the change
+      if (product.poProductId) {
+        debouncedPOProductUpdate(product.poProductId, {
+          orderCreated: orderCreated,
+        });
+      }
+
+      return newData;
+    });
+  };
+
   const handleScanProduct = (poId: string) => {
     // Product scanning functionality to be implemented
   };
 
+  // Helper function to select appropriate GL account following modal request logic
+  const selectGLAccount = async (selectedItem: any) => {
+    console.log(
+      "🔍 [PO PROD DEBUG] Starting GL account selection for item:",
+      selectedItem.name
+    );
+    console.log("🔍 [PO PROD DEBUG] Item source:", selectedItem.source);
+    console.log("🔍 [PO PROD DEBUG] Item category:", selectedItem.itemCategory);
+
+    try {
+      // Fetch GL accounts for the item's source
+      const glAccountsResponse = await getAllAdjustmentItems(
+        selectedItem.source
+      );
+      const glaccounts = glAccountsResponse;
+
+      console.log("🔍 [PO PROD DEBUG] GL accounts response:", glaccounts);
+      console.log(
+        "🔍 [PO PROD DEBUG] Available GL accounts count:",
+        glaccounts?.data?.d?.length || 0
+      );
+
+      if (
+        glaccounts &&
+        glaccounts.data &&
+        glaccounts.data.d &&
+        selectedItem.itemCategory
+      ) {
+        // First, try to get Inventory GL account from item category (this is the correct field for adjustment)
+        const inventoryGlAccountId =
+          selectedItem.itemCategory.parent?.inventoryGlAccountId;
+        console.log(
+          "🔍 [PO PROD DEBUG] Inventory GL Account ID from category:",
+          inventoryGlAccountId
+        );
+
+        if (inventoryGlAccountId) {
+          // Find the matching GL account
+          const matchingGlAccount = glaccounts.data.d.find(
+            (acc: any) => acc.id === inventoryGlAccountId
+          );
+
+          console.log(
+            "🔍 [PO PROD DEBUG] Found matching Inventory GL account:",
+            matchingGlAccount
+          );
+
+          if (matchingGlAccount) {
+            console.log(
+              "🔍 [PO PROD DEBUG] Using Inventory GL account - No:",
+              matchingGlAccount.no,
+              "Name:",
+              matchingGlAccount.name
+            );
+            return {
+              adjustment_no: matchingGlAccount.no,
+              adjustment_name: matchingGlAccount.name,
+            };
+          }
+        }
+
+        // Fallback: try COGS GL account if inventory account not found
+        const cogsGlAccountId =
+          selectedItem.itemCategory.parent?.cogsGlAccountId;
+        console.log(
+          "🔍 [PO PROD DEBUG] COGS GL Account ID from category (fallback):",
+          cogsGlAccountId
+        );
+
+        if (cogsGlAccountId) {
+          // Find the matching GL account
+          const matchingGlAccount = glaccounts.data.d.find(
+            (acc: any) => acc.id === cogsGlAccountId
+          );
+
+          console.log(
+            "🔍 [PO PROD DEBUG] Found matching COGS GL account:",
+            matchingGlAccount
+          );
+
+          if (matchingGlAccount) {
+            console.log(
+              "🔍 [PO PROD DEBUG] Using COGS GL account - No:",
+              matchingGlAccount.no,
+              "Name:",
+              matchingGlAccount.name
+            );
+            return {
+              adjustment_no: matchingGlAccount.no,
+              adjustment_name: matchingGlAccount.name,
+            };
+          }
+        }
+
+        // Enhanced fallback logic for GL account selection (same as modal request)
+        const itemCategoryName = selectedItem.itemCategory.name?.toLowerCase();
+        const itemSource = selectedItem.source;
+        console.log(
+          "🔍 [PO PROD DEBUG] Trying category name matching with:",
+          itemCategoryName
+        );
+        console.log("🔍 [PO PROD DEBUG] Item source:", itemSource);
+
+        let suitableAccount = null;
+
+        if (itemCategoryName) {
+          // First, try to find a GL account that matches the item category
+          console.log(
+            "🔍 [PO PROD DEBUG] Checking each GL account for category match:"
+          );
+          suitableAccount = glaccounts.data.d.find((acc: any) => {
+            const accountName = acc.name.toLowerCase();
+            const cleanAccountName = accountName
+              .replace("hpp ", "")
+              .replace("beban ", "");
+
+            const directMatch = accountName.includes(itemCategoryName);
+            const reverseMatch = itemCategoryName.includes(cleanAccountName);
+
+            console.log(
+              `🔍 [PO PROD DEBUG] Account: "${acc.name}" (${acc.no}) - accountName: "${accountName}", cleanAccountName: "${cleanAccountName}", directMatch: ${directMatch}, reverseMatch: ${reverseMatch}`
+            );
+
+            return directMatch || reverseMatch;
+          });
+
+          console.log(
+            "🔍 [PO PROD DEBUG] Category matching result:",
+            suitableAccount
+          );
+
+          // If no match found and this is a Hikmat item, try Hikmat-specific matching
+          if (!suitableAccount && itemSource === "Hikmat") {
+            console.log("🔍 [PO PROD DEBUG] Trying Hikmat keyword matching");
+            // Define Hikmat category keywords
+            const hikmatCategoryKeywords = [
+              "krah",
+              "manset",
+              "rib",
+              "bahan",
+              "kain",
+            ];
+
+            // Check if item category contains any Hikmat-specific keywords
+            const matchingKeyword = hikmatCategoryKeywords.find((keyword) =>
+              itemCategoryName.includes(keyword)
+            );
+
+            console.log(
+              "🔍 [PO PROD DEBUG] Matching keyword found:",
+              matchingKeyword
+            );
+
+            if (matchingKeyword) {
+              // Try to find GL account with matching keyword
+              suitableAccount = glaccounts.data.d.find((acc: any) => {
+                const accountName = acc.name.toLowerCase();
+                return (
+                  accountName.includes(matchingKeyword) ||
+                  accountName.includes("penyesuaian " + matchingKeyword) ||
+                  accountName.includes("beban penyesuaian " + matchingKeyword)
+                );
+              });
+
+              console.log(
+                "🔍 [PO PROD DEBUG] Keyword matching result:",
+                suitableAccount
+              );
+            }
+
+            // If still no match, try broader Hikmat-specific accounts
+            if (!suitableAccount) {
+              console.log(
+                "🔍 [PO PROD DEBUG] Trying broader Hikmat-specific accounts"
+              );
+              suitableAccount = glaccounts.data.d.find((acc: any) => {
+                const accountName = acc.name.toLowerCase();
+                return (
+                  accountName.includes("hikmat") ||
+                  accountName.includes("adjustment hikmat") ||
+                  accountName.includes("bahan hikmat")
+                );
+              });
+
+              console.log(
+                "🔍 [PO PROD DEBUG] Broader Hikmat matching result:",
+                suitableAccount
+              );
+            }
+          }
+
+          // General fallback: Use the first available account from the same source
+          if (!suitableAccount && itemSource) {
+            console.log("🔍 [PO PROD DEBUG] Trying source-based matching");
+            suitableAccount = glaccounts.data.d.find(
+              (acc: any) => acc.source === itemSource
+            );
+
+            console.log(
+              "🔍 [PO PROD DEBUG] Source matching result:",
+              suitableAccount
+            );
+          }
+
+          // Last resort: Use the first available account
+          if (!suitableAccount && glaccounts.data.d.length > 0) {
+            console.log(
+              "🔍 [PO PROD DEBUG] Using first available account as last resort"
+            );
+            suitableAccount = glaccounts.data.d[0];
+            console.log(
+              "🔍 [PO PROD DEBUG] Last resort account:",
+              suitableAccount
+            );
+          }
+
+          if (suitableAccount) {
+            console.log(
+              "🔍 [PO PROD DEBUG] Final selected account - No:",
+              suitableAccount.no,
+              "Name:",
+              suitableAccount.name
+            );
+            return {
+              adjustment_no: suitableAccount.no,
+              adjustment_name: suitableAccount.name,
+            };
+          }
+        }
+      }
+    } catch (error) {
+      console.error("🔍 [PO PROD DEBUG] Failed to fetch GL accounts:", error);
+    }
+
+    // Return undefined values if no suitable account found
+    console.log(
+      "🔍 [PO PROD DEBUG] No suitable GL account found, returning undefined values"
+    );
+    return {
+      adjustment_no: undefined,
+      adjustment_name: undefined,
+    };
+  };
+
   const handleSelectProduct = async (poId: string, productId: string) => {
+    console.log(
+      "🚀 [PO PROD DEBUG] ========== Starting product selection =========="
+    );
+    console.log("🚀 [PO PROD DEBUG] PO ID:", poId, "Product ID:", productId);
+
     // Find the selected product from hikmat items
     const selectedProduct = hikmatItems?.data?.find(
       (item: any) => item.id.toString() === productId
     );
+
+    console.log("🚀 [PO PROD DEBUG] Selected product:", selectedProduct);
 
     if (selectedProduct) {
       // Check if product already exists in this PO
@@ -680,14 +965,82 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
       // Different POs can have the same product - only prevent duplicates within the same PO
 
       try {
-        // Create PO Product in the backend
+        // Extract satuan from Hikmat item unit (use unit1Name as primary unit)
+        const satuan =
+          selectedProduct.unit1Name ||
+          selectedProduct.unit2Name ||
+          selectedProduct.unit3Name ||
+          selectedProduct.unit4Name ||
+          selectedProduct.unit5Name ||
+          undefined;
+
+        console.log("🚀 [PO PROD DEBUG] Extracted satuan:", satuan);
+        console.log(
+          "🚀 [PO PROD DEBUG] Available units - unit1Name:",
+          selectedProduct.unit1Name,
+          "unit2Name:",
+          selectedProduct.unit2Name,
+          "unit3Name:",
+          selectedProduct.unit3Name,
+          "unit4Name:",
+          selectedProduct.unit4Name,
+          "unit5Name:",
+          selectedProduct.unit5Name
+        );
+
+        // Get GL account information using the same logic as modal request
+        console.log("🚀 [PO PROD DEBUG] Starting GL account selection...");
+        console.log("🚀 [PO PROD DEBUG] Product details for GL selection:", {
+          id: selectedProduct.id,
+          name: selectedProduct.name,
+          source: selectedProduct.source,
+          itemCategory: selectedProduct.itemCategory,
+          inventoryGlAccountId:
+            selectedProduct.itemCategory?.parent?.inventoryGlAccountId,
+          cogsGlAccountId:
+            selectedProduct.itemCategory?.parent?.cogsGlAccountId,
+        });
+
+        const glAccountInfo = await selectGLAccount(selectedProduct);
+        console.log(
+          "🚀 [PO PROD DEBUG] GL account selection completed - adjustment_no:",
+          glAccountInfo.adjustment_no,
+          "adjustment_name:",
+          glAccountInfo.adjustment_name
+        );
+
+        // Additional validation
+        if (!glAccountInfo.adjustment_no || !glAccountInfo.adjustment_name) {
+          console.warn(
+            "⚠️ [PO PROD DEBUG] GL account selection failed! Missing adjustment_no or adjustment_name"
+          );
+          console.warn(
+            "⚠️ [PO PROD DEBUG] This will result in incomplete data being sent to backend"
+          );
+        }
+
+        // Create PO Product in the backend with new fields
         const poProductData = {
           po_id: poId,
           hikmat_product_id: selectedProduct.id.toString(),
           product_name: selectedProduct.name,
+          satuan,
+          // Use GL account info from the helper function
+          adjustment_no: glAccountInfo.adjustment_no,
+          adjustment_name: glAccountInfo.adjustment_name,
         };
 
-        await createPOProductMutation.mutateAsync(poProductData);
+        console.log("🚀 [PO PROD DEBUG] Final PO Product data:", poProductData);
+        console.log(
+          "🚀 [PO PROD DEBUG] Data being sent to API:",
+          JSON.stringify(poProductData, null, 2)
+        );
+        console.log("🚀 [PO PROD DEBUG] Creating PO Product in backend...");
+
+        const result = await createPOProductMutation.mutateAsync(poProductData);
+        console.log("🚀 [PO PROD DEBUG] Backend response:", result);
+
+        console.log("🚀 [PO PROD DEBUG] PO Product created successfully!");
 
         // Clear the dropdown selection
         setSelectedProductIds((prev) => ({ ...prev, [poId]: "" }));
@@ -699,12 +1052,17 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
 
         // Note: No manual state update needed - the query invalidation will trigger a refetch
         // and the useEffect will update the local state with the fresh data from the backend
+        console.log(
+          "🚀 [PO PROD DEBUG] ========== Product selection completed =========="
+        );
       } catch (error) {
-        console.error("Failed to create PO Product:", error);
+        console.error("🚀 [PO PROD DEBUG] Failed to create PO Product:", error);
         message.error(
           `Failed to add product "${selectedProduct.name}". Please try again.`
         );
       }
+    } else {
+      console.log("🚀 [PO PROD DEBUG] No product found with ID:", productId);
     }
   };
 
@@ -798,6 +1156,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
             onBahanTerpakaiChange={handleBahanTerpakaiChange}
             onEstBahanChange={handleEstBahanChange}
             onCategoryValueChange={handleCategoryValueChange}
+            onOrderStatusChange={handleOrderStatusChange}
             setPOData={setPOData}
             setSelectedProductIds={setSelectedProductIds}
             isCategoryLoading={isCategoryLoading}

@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { Tabs } from "antd";
+import { Tabs, message } from "antd";
+import { useQueryClient } from "@tanstack/react-query";
 import BahanTabContent from "./BahanTabContent";
 import { POSectionProps } from "./types";
+import { useDeletePOProduct } from "@hooks/usePOProducts";
 
 const POSection: React.FC<POSectionProps> = ({
   po,
@@ -19,6 +21,7 @@ const POSection: React.FC<POSectionProps> = ({
   onBahanTerpakaiChange,
   onEstBahanChange,
   onCategoryValueChange,
+  onOrderStatusChange,
   setPOData,
   setSelectedProductIds,
   isCategoryLoading,
@@ -28,6 +31,10 @@ const POSection: React.FC<POSectionProps> = ({
   const [activeProductTab, setActiveProductTab] = useState<string>(
     po.products.length > 0 ? po.products[0].id : ""
   );
+
+  const queryClient = useQueryClient();
+  // Delete mutation hook
+  const deletePOProductMutation = useDeletePOProduct();
 
   // Update active tab when products change
   React.useEffect(() => {
@@ -43,28 +50,63 @@ const POSection: React.FC<POSectionProps> = ({
 
   // Note: handleRemoveBahanTab removed since we're no longer using nested bahan tabs
 
-  const handleRemoveProduct = (productId: string) => {
-    setPOData((prevData) =>
-      prevData.map((p) =>
-        p.id === po.id
-          ? {
-              ...p,
-              products: p.products.filter((prod) => prod.id !== productId),
-            }
-          : p
-      )
-    );
-
-    // If we removed the active tab, switch to the first remaining product
-    if (activeProductTab === productId && po.products.length > 1) {
-      const remainingProducts = po.products.filter(
-        (prod) => prod.id !== productId
-      );
-      if (remainingProducts.length > 0) {
-        setActiveProductTab(remainingProducts[0].id);
-      } else {
-        setActiveProductTab("");
+  const handleRemoveProduct = async (productId: string) => {
+    try {
+      // Find the product to get the correct poProductId for API call
+      const productToDelete = po.products.find((prod) => prod.id === productId);
+      
+      if (!productToDelete || !productToDelete.poProductId) {
+        message.error("Cannot delete product: Product ID not found");
+        return;
       }
+
+      // Call backend API to delete the product using poProductId (UUID)
+      console.log("🗑️ [POSection] Deleting POProduct with ID:", productToDelete.poProductId);
+      await deletePOProductMutation.mutateAsync(productToDelete.poProductId);
+      console.log("✅ [POSection] POProduct deleted successfully");
+      
+      // Manually invalidate and refetch specific queries to trigger immediate update
+      console.log("🔄 [POSection] Invalidating and refetching cache for cardId:", po.cardId);
+      
+      // Use refetchQueries for immediate refetch
+      await queryClient.refetchQueries({
+        queryKey: ["po-products", "card", po.cardId]
+      });
+      console.log("✅ [POSection] Refetched po-products cache");
+      
+      await queryClient.refetchQueries({
+        queryKey: ["pos", po.cardId]
+      });
+      console.log("✅ [POSection] Refetched pos cache");
+      
+      // Update local state after successful deletion
+      setPOData((prevData) =>
+        prevData.map((p) =>
+          p.id === po.id
+            ? {
+                ...p,
+                products: p.products.filter((prod) => prod.id !== productId),
+              }
+            : p
+        )
+      );
+
+      // If we removed the active tab, switch to the first remaining product
+      if (activeProductTab === productId && po.products.length > 1) {
+        const remainingProducts = po.products.filter(
+          (prod) => prod.id !== productId
+        );
+        if (remainingProducts.length > 0) {
+          setActiveProductTab(remainingProducts[0].id);
+        } else {
+          setActiveProductTab("");
+        }
+      }
+
+      message.success("Product deleted successfully");
+    } catch (error) {
+      console.error("Error deleting product:", error);
+      message.error("Failed to delete product. Please try again.");
     }
   };
 
@@ -182,6 +224,7 @@ const POSection: React.FC<POSectionProps> = ({
                       onBahanTerpakaiChange={onBahanTerpakaiChange}
                       onEstBahanChange={onEstBahanChange}
                       onCategoryValueChange={onCategoryValueChange}
+                      onOrderStatusChange={onOrderStatusChange}
                       isCategoryLoading={isCategoryLoading}
                       getCategoryError={getCategoryError}
                       clearCategoryError={clearCategoryError}

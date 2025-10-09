@@ -3,7 +3,6 @@
 import {
   autoCreatePOs,
   getPOById,
-  getPOsByCardId,
   PO,
   SizeQuantity,
   updatePO,
@@ -13,6 +12,7 @@ import { getPOItemsByCardId, POItem } from "@api/po-items";
 import { Card } from "@myTypes/card";
 import { useBoardPermissionsContext } from "@providers/board-permissions-context";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { usePOsForSizeAssignment } from "./hooks/usePOsForSizeAssignment";
 import {
   Alert,
   Button,
@@ -52,6 +52,27 @@ const STANDARD_SIZES = [
   "XXXXXL",
 ];
 
+/**
+ * Normalize POItems API response to handle wrapped format:
+ * { statusCode: 200, message: "...", data: { items: [...], total: number } }
+ */
+const normalizePOItemsResponse = (
+  response: any
+): { items: POItem[]; total: number } => {
+  // If response has a 'data' property, it's the wrapped format
+  if (response && typeof response === "object" && "data" in response) {
+    return response.data || { items: [], total: 0 };
+  }
+
+  // If response has items property directly, use that
+  if (response && response.items && Array.isArray(response.items)) {
+    return response;
+  }
+
+  // Fallback to empty structure
+  return { items: [], total: 0 };
+};
+
 const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
   card,
   setSelectedCard,
@@ -72,15 +93,27 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
     data: posData,
     isLoading: isLoadingPOs,
     error: posError,
-  } = useQuery({
-    queryKey: ["pos", card.id],
-    queryFn: () => getPOsByCardId(card.id),
-    enabled: isModalOpen,
-  });
+  } = usePOsForSizeAssignment(card.id, isModalOpen);
 
   const { data: poItemsData, isLoading: isLoadingPOItems } = useQuery({
     queryKey: ["po-items", card.id],
-    queryFn: () => getPOItemsByCardId(card.id),
+    queryFn: async () => {
+      console.log(
+        "🔍 [POSizeAssignment] Fetching PO items for cardId:",
+        card.id
+      );
+      const response = await getPOItemsByCardId(card.id);
+      console.log("🔍 [POSizeAssignment] Raw POItems API Response:", response);
+
+      // Normalize the response to handle wrapped format
+      const normalizedData = normalizePOItemsResponse(response);
+      console.log(
+        "🔍 [POSizeAssignment] Normalized POItems data:",
+        normalizedData
+      );
+
+      return normalizedData;
+    },
     enabled: isModalOpen,
   });
 
@@ -116,22 +149,29 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
   // Backward compatibility: Create default PO if none exists
   useEffect(() => {
     if (isModalOpen && posData && !isLoadingPOs && !posError) {
-      if (!posData.data || posData.data.length === 0) {
+      if (!posData || posData.length === 0) {
         autoCreatePOMutation.mutate(card.id);
       }
     }
-  }, [isModalOpen, posData, isLoadingPOs, posError, card.id, autoCreatePOMutation]);
+  }, [
+    isModalOpen,
+    posData,
+    isLoadingPOs,
+    posError,
+    card.id,
+    autoCreatePOMutation,
+  ]);
 
   // Initialize PO data when POs and PO items are loaded
   useEffect(() => {
-    if (posData?.data) {
+    if (posData) {
       // Get PO IDs for processing
-      const poIds = posData.data.map((po) => po.id);
+      const poIds = posData.map((po) => po.id);
 
       // Group PO items by PO ID (keeping for existing functionality)
       const itemsByPOId: { [poId: string]: POItem[] } = {};
-      if (poItemsData?.data?.items) {
-        poItemsData.data.items.forEach((item: POItem) => {
+      if (poItemsData?.items) {
+        poItemsData.items.forEach((item: POItem) => {
           if (!itemsByPOId[item.poId]) {
             itemsByPOId[item.poId] = [];
           }
@@ -140,7 +180,7 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
       }
 
       // Initialize size-based data with items
-      const initialSizeData: POSizeData[] = posData.data.map((po: PO) => {
+      const initialSizeData: POSizeData[] = posData.map((po: PO) => {
         const poItems = po.items || itemsByPOId[po.id] || [];
 
         // Validate that items have proper sizes (never "ITEM")
@@ -177,7 +217,7 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
       const initialCustomSizes: { [poId: string]: string[] } = {};
 
       const fetchCustomSizes = async () => {
-        for (const po of posData.data || []) {
+        for (const po of posData || []) {
           try {
             const poData = await getPOById(po.id);
             const poItems = poData.data?.items || [];
@@ -188,9 +228,7 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
                   .map((item: any) => item.size?.toUpperCase())
                   .filter(
                     (size: string) =>
-                      size &&
-                      size !== "ITEM" &&
-                      !STANDARD_SIZES.includes(size)
+                      size && size !== "ITEM" && !STANDARD_SIZES.includes(size)
                   )
               )
             );
@@ -226,6 +264,14 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
     size: string,
     value: number | null
   ) => {
+    const poData = poSizeData[poIndex];
+    const totalItems = poData.items?.length || 0;
+
+    // Validate the new value
+    if (value && value > 0) {
+      // No validation needed - over-assignment is allowed
+    }
+
     setPOSizeData((prev) => {
       const newData = [...prev];
       const currentAssignments = { ...newData[poIndex].sizeAssignments };
@@ -310,8 +356,6 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
     }
   };
 
-
-
   const getTotalQuantityForSizePO = (sizeAssignments: SizeQuantity) => {
     return Object.values(sizeAssignments).reduce((sum, qty) => sum + qty, 0);
   };
@@ -321,12 +365,6 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
       (total, poData) => total + (poData.items?.length || 0),
       0
     );
-  };
-
-  const getUnassignedItemsCount = (poData: POSizeData) => {
-    const totalItems = poData.items?.length || 0;
-    const assignedItems = getTotalQuantityForSizePO(poData.sizeAssignments);
-    return totalItems - assignedItems;
   };
 
   const getAllSizesForPO = (poId: string) => {
@@ -375,9 +413,6 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
             <div className="bg-gray-50 p-4 rounded-lg">
               <div className="flex justify-between items-center">
                 <span className="font-medium">
-                  Total POs: {posData?.data?.length || 0}
-                </span>
-                <span className="font-medium">
                   Total Items: {getTotalItemsCount()}
                 </span>
               </div>
@@ -386,7 +421,7 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
             {/* Size-Based PO Assignment */}
             <div className="space-y-4">
               {/* Size-Based PO List */}
-              {!posData?.data || posData.data.length === 0 ? (
+              {!posData || posData.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
                   No POs found for this card.
                 </div>
@@ -410,8 +445,10 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
                               Modified
                             </Tag>
                           )}
-                          <span className="text-xs text-gray-500">
-                            Total: {poData.items?.length || 0}
+
+                          <span className="text-xs text-green-600">
+                            Total:{" "}
+                            {getTotalQuantityForSizePO(poData.sizeAssignments)}
                           </span>
                         </div>
                         <Button
@@ -425,71 +462,101 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
                         </Button>
                       </div>
 
-                      <div className="space-y-3">
-                        <div className="grid grid-cols-6 gap-2">
-                          {getAllSizesForPO(poData.po.id).map((size) => (
-                            <div key={size} className="flex items-center gap-2">
-                              <span className="text-sm font-medium w-8">
-                                {size}:
-                              </span>
-                              <InputNumber
-                                min={0}
-                                value={poData.sizeAssignments[size] || 0}
-                                onChange={(value) =>
-                                  handleSizeQuantityChange(poIndex, size, value)
+                      <div className="space-y-4">
+                        {/* Size Assignment */}
+                        <div className="bg-white border rounded-lg p-4">
+                          <h5 className="text-sm font-semibold text-gray-800 mb-3">
+                            Size Assignment
+                          </h5>
+
+                          {/* Standard Sizes */}
+                          <div className="grid grid-cols-3 gap-3 mb-4">
+                            {getAllSizesForPO(poData.po.id).map((size) => {
+                              const currentValue =
+                                poData.sizeAssignments[size] || 0;
+                              const existingItemsWithThisSize =
+                                poData.items?.filter(
+                                  (item) => item.size?.toUpperCase() === size
+                                ).length || 0;
+
+                              return (
+                                <div
+                                  key={size}
+                                  className="flex items-center justify-between p-2 bg-gray-50 rounded"
+                                >
+                                  <span className="text-sm font-medium text-gray-700 min-w-[40px]">
+                                    {size}
+                                  </span>
+                                  <div className="flex items-center gap-2">
+                                    <InputNumber
+                                      min={0}
+                                      value={currentValue}
+                                      onChange={(value) =>
+                                        handleSizeQuantityChange(
+                                          poIndex,
+                                          size,
+                                          value
+                                        )
+                                      }
+                                      size="small"
+                                      className="w-20"
+                                      controls={true}
+                                    />
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          {/* Custom Size Input */}
+                          <div className="border-t pt-3">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Input
+                                placeholder="Add custom size (e.g., 2XS, 6XL)"
+                                value={newCustomSize[poData.po.id] || ""}
+                                onChange={(e) =>
+                                  setNewCustomSize((prev) => ({
+                                    ...prev,
+                                    [poData.po.id]: e.target.value,
+                                  }))
                                 }
                                 size="small"
                                 className="flex-1"
-                                controls={true}
                               />
+                              <Button
+                                size="small"
+                                onClick={() =>
+                                  handleAddCustomSize(poData.po.id)
+                                }
+                                disabled={!newCustomSize[poData.po.id]?.trim()}
+                              >
+                                Add
+                              </Button>
                             </div>
-                          ))}
-                        </div>
 
-                        <Divider className="my-2" />
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2">
-                            <Input
-                              placeholder="Add custom size (e.g., 2XS, 6XL)"
-                              value={newCustomSize[poData.po.id] || ""}
-                              onChange={(e) =>
-                                setNewCustomSize((prev) => ({
-                                  ...prev,
-                                  [poData.po.id]: e.target.value,
-                                }))
-                              }
-                              size="small"
-                              className="flex-1"
-                            />
-                            <Button
-                              size="small"
-                              onClick={() => handleAddCustomSize(poData.po.id)}
-                              disabled={!newCustomSize[poData.po.id]?.trim()}
-                            >
-                              Add
-                            </Button>
+                            {customSizes[poData.po.id] &&
+                              customSizes[poData.po.id].length > 0 && (
+                                <div className="flex flex-wrap gap-1">
+                                  {customSizes[poData.po.id].map(
+                                    (customSize) => (
+                                      <Tag
+                                        key={customSize}
+                                        closable
+                                        onClose={() =>
+                                          handleRemoveCustomSize(
+                                            poData.po.id,
+                                            customSize
+                                          )
+                                        }
+                                        className="text-xs"
+                                      >
+                                        {customSize}
+                                      </Tag>
+                                    )
+                                  )}
+                                </div>
+                              )}
                           </div>
-
-                          {customSizes[poData.po.id] &&
-                            customSizes[poData.po.id].length > 0 && (
-                              <div className="flex flex-wrap gap-1">
-                                {customSizes[poData.po.id].map((customSize) => (
-                                  <Tag
-                                    key={customSize}
-                                    closable
-                                    onClose={() =>
-                                      handleRemoveCustomSize(
-                                        poData.po.id,
-                                        customSize
-                                      )
-                                    }
-                                    className="flex items-center gap-1"
-                                  >
-                                    {customSize}
-                                  </Tag>
-                                ))}
-                              </div>
-                            )}
                         </div>
                       </div>
                     </div>

@@ -75,6 +75,7 @@ const CardDetails: React.FC = (props) => {
     isCardDetailOpen,
     openCardDetail,
     closeCardDetail,
+    isLoadingCardDetails,
   } = useCardDetailContext();
   const currentUser = useSelector(selectUser);
   const [isComplete, setIsComplete] = useState<boolean>(false);
@@ -111,6 +112,9 @@ const CardDetails: React.FC = (props) => {
 
   // Get board permissions
   const { canUpdateCard } = useBoardPermissionsContext();
+  console.log(selectedCard, "<< ini selected");
+  console.log("isLoadingCardDetails:", isLoadingCardDetails);
+  console.log("selectedCard?.bahan:", selectedCard?.bahan);
 
   const onCompletionChange = (e: CheckboxChangeEvent) => {
     e.stopPropagation();
@@ -429,27 +433,31 @@ const CardDetails: React.FC = (props) => {
                     </div>
                   )}
 
-                  {/* Butuh Bahan Checkbox */}
-                  {selectedCard && (
+                  {selectedCard && !isLoadingCardDetails && (
                     <div className="space-y-2 text-xs">
                       <span className="text-gray-300 font-semibold text-xs block">
                         Material Requirements
                       </span>
                       <Checkbox
-                        checked={selectedCard.bahan || false}
+                        checked={(() => {
+                          const checkedValue = selectedCard.bahan || false;
+                          console.log("Checkbox checked value:", checkedValue, "from selectedCard.bahan:", selectedCard.bahan);
+                          return checkedValue;
+                        })()}
                         onChange={(e: CheckboxChangeEvent) => {
                           if (!canUpdateCard()) return;
 
                           const newBahanValue = e.target.checked;
+                          console.log("Checkbox onChange - newBahanValue:", newBahanValue);
+                          console.log("Checkbox onChange - current selectedCard.bahan:", selectedCard.bahan);
 
                           // Update local state immediately for better UX
                           const updatedCard = {
                             ...selectedCard,
                             bahan: newBahanValue,
                           };
+                          console.log("Checkbox onChange - setting updatedCard:", updatedCard);
                           setSelectedCard(updatedCard);
-
-                          // Update the card in the backend
                           updateCardDetails({ bahan: newBahanValue });
                         }}
                         className="text-sm"
