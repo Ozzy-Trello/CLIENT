@@ -21,6 +21,9 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
   const theme = useSelector(selectTheme);
   const { colors } = theme;
 
+  const [poData, setPOData] = useState<POItem[]>([]);
+  const [selectedProductIds, setSelectedProductIds] = useState<{ [poId: string]: string }>({});
+
   // Fetch PO data from API using cardId
   const {
     data: apiPOData = [],
@@ -46,10 +49,6 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
   //   poProductsError,
   // });
 
-  const [poData, setPOData] = useState<POItem[]>([]);
-  const [selectedProductIds, setSelectedProductIds] = useState<{
-    [poId: string]: string;
-  }>({});
 
   // Load products from Hikmat API
   const { data: hikmatItems, isLoading: isLoadingProducts } = useQuery({
@@ -125,7 +124,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
             );
 
             if (existingProduct) {
-              // Product exists, transform normally (no Total field preservation needed)
+              // Product exists, transform normally (no Total field precanervation needed)
               return transformPOProductToProductItem(poProduct, categories);
             } else {
               // New product, transform normally
@@ -1069,6 +1068,8 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
   const handleOpenSummary = (poId: string) => {
     // Summary modal functionality to be implemented
   };
+
+
 
   // Show loading state
   if (isLoadingPOs || isLoadingPOProducts) {

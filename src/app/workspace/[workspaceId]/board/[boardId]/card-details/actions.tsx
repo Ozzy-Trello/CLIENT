@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { useCardDetailContext } from "@providers/card-detail-context";
 import { useSelector } from "react-redux";
 import { selectTheme, selectIsDarkMode } from "@store/app_slice";
@@ -23,6 +23,7 @@ import {
   Trash2,
   FileCheck,
   FileText,
+  ScanLine,
 } from "lucide-react";
 import PopoverCustomField from "@components/popover-custom-field";
 import PopoverUser from "@components/popover-user";
@@ -47,6 +48,10 @@ import { EnumAttachmentType } from "@myTypes/card";
 import { FileUpload } from "@myTypes/file-upload";
 import { uploadFile } from "@api/file";
 import AutomateButtons from "./automate-buttons";
+import { useQueries, useQueryClient } from "@tanstack/react-query";
+import { getPOScanProgress, ScanProgressResponse, scanPOItem } from "@api/po";
+import { usePOsByCardId } from "./bahan-fields/hooks/usePOsByCardId";
+import { Progress, Button } from "antd";
 
 // Helper component for permission-controlled buttons - moved outside to prevent re-creation
 const PermissionButton: React.FC<{
@@ -102,9 +107,23 @@ const Actions: React.FC = () => {
   const [openChecklist, setOpenChecklist] = useState(false);
   const [openLabels, setOpenLabels] = useState(false);
   const [openBuktiModal, setOpenBuktiModal] = useState(false);
+
+  // Scan Progress state
+  const [isProgressOpen, setIsProgressOpen] = useState(false);
+  const [progressData, setProgressData] = useState<
+    Record<string, ScanProgressResponse>
+  >({});
+  const [isScanBusy, setIsScanBusy] = useState(false);
+  const [lastScanInfo, setLastScanInfo] = useState<{
+    data: any;
+    qr?: string;
+    status?: "success" | "error" | "processing";
+    message?: string;
+  }>({ data: null });
+
   const { boardId } = useParams();
   const { selectedCard } = useCardDetailContext();
-  const theme = useSelector(selectTheme);
+  const theme = useSelector(selectTheme) as any;
   const isDarkMode = useSelector(selectIsDarkMode);
   const { colors } = theme;
   const { archiveCard, unarchiveCard } = useCardDetails(
@@ -150,6 +169,26 @@ const Actions: React.FC = () => {
   const { isObserver } = usePermissions();
   const permissionLevel = "BOARD_SPECIFIC"; // Use board-specific permissions
 
+  // Scan Progress functionality
+  const queryClient = useQueryClient();
+
+  // Fetch PO data for scan progress
+  const { data: apiPOData = [] } = usePOsByCardId(selectedCard?.id || "");
+
+  // Queries for scan progress per PO (only when modal is open)
+  const scanProgressQueries = useQueries({
+    queries: apiPOData.map((po) => ({
+      queryKey: ["po-scan-progress", po.id],
+      queryFn: () => getPOScanProgress(po.id),
+      enabled: isProgressOpen,
+    })),
+  });
+
+  const isScanLoading = scanProgressQueries.some(
+    (q) => q.isLoading || q.isFetching
+  );
+  const scanErrors = scanProgressQueries.filter((q) => q.error);
+
   // Handle join/leave card
   const handleJoinLeave = async () => {
     if (!currentUser?.id) {
@@ -165,6 +204,111 @@ const Actions: React.FC = () => {
       message.error("Failed to update card membership");
     }
   };
+
+  // Scan Progress functions
+  const openScanProgress = () => {
+    setIsProgressOpen(true);
+  };
+
+  const closeScanProgress = () => {
+    setIsProgressOpen(false);
+  };
+
+  // Update progress data when queries change
+  useEffect(() => {
+    if (scanProgressQueries.length > 0) {
+      const newProgressData: Record<string, ScanProgressResponse> = {};
+      scanProgressQueries.forEach((query, index) => {
+        if (query.data && query.data.data && apiPOData[index]) {
+          newProgressData[apiPOData[index].id] = query.data.data;
+        }
+      });
+      setProgressData(newProgressData);
+    }
+  }, [scanProgressQueries, apiPOData]);
+
+  // External scanner handling
+  useEffect(() => {
+    let buffer = "";
+    let bufferTimeout: NodeJS.Timeout;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!isProgressOpen) return;
+
+      // Check if it's a printable character or Enter
+      if (event.key.length === 1 || event.key === "Enter") {
+        event.preventDefault();
+
+        if (event.key === "Enter") {
+          // Process the buffer
+          if (buffer.trim()) {
+            handleScanInput(buffer.trim());
+            buffer = "";
+          }
+        } else {
+          // Add character to buffer
+          buffer += event.key;
+
+          // Clear existing timeout
+          if (bufferTimeout) {
+            clearTimeout(bufferTimeout);
+          }
+
+          // Set new timeout to clear buffer if no more input
+          bufferTimeout = setTimeout(() => {
+            buffer = "";
+          }, 100); // 100ms timeout
+        }
+      }
+    };
+
+    const handleScanInput = async (scannedData: string) => {
+      if (isScanBusy) return;
+
+      setIsScanBusy(true);
+      setLastScanInfo({
+        data: scannedData,
+        status: "processing",
+        message: "Processing scan...",
+      });
+
+      try {
+        const result = await scanPOItem({ qrCode: scannedData });
+
+        setLastScanInfo({
+          data: scannedData,
+          status: "success",
+          message: result.message || "Scan successful",
+        });
+
+        // Invalidate and refetch scan progress queries
+        scanProgressQueries.forEach((_, index) => {
+          if (apiPOData[index]) {
+            queryClient.invalidateQueries({
+              queryKey: ["po-scan-progress", apiPOData[index].id],
+            });
+          }
+        });
+      } catch (error: any) {
+        setLastScanInfo({
+          data: scannedData,
+          status: "error",
+          message: error.response?.data?.message || "Scan failed",
+        });
+      } finally {
+        setIsScanBusy(false);
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      if (bufferTimeout) {
+        clearTimeout(bufferTimeout);
+      }
+    };
+  }, [isProgressOpen, isScanBusy, apiPOData, queryClient, scanProgressQueries]);
 
   // Check if current user is a member
   const isCurrentUserMember = currentUser?.id
@@ -776,7 +920,157 @@ const Actions: React.FC = () => {
           <span className="text-xs">Generate QR</span>
         </PermissionButton>
 
+        {/* Scan Progress */}
+        {apiPOData.length > 0 && (
+          <PermissionButton
+            canPerform={true}
+            onClick={openScanProgress}
+            tooltip="View scan progress for PO items"
+            permissionLevel={permissionLevel}
+            buttonStyle={buttonStyle}
+          >
+            <ScanLine size={14} />
+            <span className="text-xs">Scan Progress</span>
+          </PermissionButton>
+        )}
+
         <QRModal isOpen={openQrModal} onClose={() => setOpenQrModal(false)} />
+
+        {/* Scan Progress Modal */}
+        <Modal
+          title="Scan Progress"
+          open={isProgressOpen}
+          onCancel={closeScanProgress}
+          footer={[
+            <Button key="close" onClick={closeScanProgress}>
+              Close
+            </Button>,
+          ]}
+          width={800}
+        >
+          <div className="space-y-4">
+            {/* Scan Status */}
+            {lastScanInfo && (
+              <div className="p-3 border rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-medium">Last Scan:</span>
+                  <span
+                    className={`px-2 py-1 rounded text-xs ${
+                      lastScanInfo.status === "success"
+                        ? "bg-green-100 text-green-800"
+                        : lastScanInfo.status === "error"
+                        ? "bg-red-100 text-red-800"
+                        : "bg-yellow-100 text-yellow-800"
+                    }`}
+                  >
+                    {lastScanInfo.status}
+                  </span>
+                </div>
+                <div className="text-sm text-gray-600 mb-1">
+                  Data: {lastScanInfo.qr}
+                </div>
+                <div className="text-sm">{lastScanInfo.message}</div>
+              </div>
+            )}
+
+            {/* Loading State */}
+            {(isScanLoading || isScanBusy) && (
+              <div className="text-center py-4">
+                <div className="text-sm text-gray-600">
+                  {isScanBusy
+                    ? "Processing scan..."
+                    : "Loading scan progress..."}
+                </div>
+              </div>
+            )}
+
+            {/* Error State */}
+            {scanErrors.length > 0 && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                <div className="text-red-800 font-medium mb-2">Errors:</div>
+                {scanErrors.map((error, index) => (
+                  <div key={index} className="text-red-700 text-sm">
+                    {error.error?.message || "Unknown error"}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* PO Scan Progress */}
+            {apiPOData.map((po, idx) => {
+              const prog = progressData[po.id];
+              const scanned = prog?.data?.scanned ?? 0;
+              const total = prog?.data?.total ?? 0;
+              const percentage = prog?.data?.percentage ?? 0;
+              return (
+                <div key={po.id} className="p-4 rounded-lg border bg-gray-50">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium">PO: {idx} </span>
+                    <span className="text-sm font-medium">
+                      {scanned}/{total} ({percentage}%)
+                    </span>
+                  </div>
+                  <div className="mt-2">
+                    <Progress
+                      percent={percentage}
+                      size="small"
+                      showInfo={false}
+                    />
+                  </div>
+                  <div className="mt-3 space-y-1">
+                    {(prog?.data?.items || [])
+                      .slice()
+                      .sort((a: any, b: any) => {
+                        // Stable sort by size then itemNumber ascending
+                        const sizeCmp = String(a.size).localeCompare(
+                          String(b.size)
+                        );
+                        if (sizeCmp !== 0) return sizeCmp;
+                        const aNum =
+                          typeof a.itemNumber === "number"
+                            ? a.itemNumber
+                            : a.item_number ?? 0;
+                        const bNum =
+                          typeof b.itemNumber === "number"
+                            ? b.itemNumber
+                            : b.item_number ?? 0;
+                        return aNum - bNum;
+                      })
+                      .map((item: any) => (
+                        <div
+                          key={item.id}
+                          className="flex items-center justify-between text-sm rounded-md bg-white border px-2 py-1"
+                        >
+                          <span className="font-mono">
+                            {item.size}-
+                            {String(
+                              item.itemNumber ?? item.item_number
+                            ).padStart(3, "0")}
+                          </span>
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                              item.scanned
+                                ? "bg-green-100 text-green-700 border border-green-200"
+                                : "bg-gray-100 text-gray-700 border border-gray-200"
+                            }`}
+                          >
+                            {item.scanned ? "Scanned" : "Pending"}
+                          </span>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Empty State */}
+            {!isScanLoading && apiPOData.length === 0 && (
+              <div className="text-center py-8 text-gray-500">
+                No scan progress data available
+              </div>
+            )}
+          </div>
+        </Modal>
 
         {/* Bukti Upload Modal */}
         <UploadModal

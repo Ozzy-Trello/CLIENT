@@ -18,6 +18,8 @@ export interface Card {
   listId: string;
   boardId?: string;
   boardName?: string;
+  workspaceId?: string;
+  workspaceName?: string;
   type: TCardType;
   name: string;
   description?: string;
@@ -49,6 +51,17 @@ export interface Card {
   sourceCard?: any;
   poAmount?: number;
   bahan?: boolean; // Whether the card requires material/fabric
+  shortId?: number; // Auto-increment short ID for QR codes
+  
+  // Backend API response properties (snake_case versions)
+  list_id?: string;
+  list_name?: string;
+  board_id?: string;
+  board_name?: string;
+  workspace_id?: string;
+  workspace_name?: string;
+  short_id?: number;
+  po_amount?: number;
 }
 
 export enum EnumAttachmentType {

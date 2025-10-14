@@ -37,6 +37,13 @@ export const cardDetails = async (
   return data;
 };
 
+export const getCardByShortId = async (
+  shortId: number
+): Promise<ApiResponse<Card>> => {
+  const { data } = await api.get(`/card/short/${shortId}`);
+  return data;
+};
+
 export const updateCard = async (
   cardId: string,
   dataToUpdate: Partial<Card>

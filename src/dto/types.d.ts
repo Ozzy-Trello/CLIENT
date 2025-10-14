@@ -181,6 +181,7 @@ export interface Card {
   updatedAt?: string;
   requests?: CardRequest[];
   bahan?: boolean; // Whether the card requires material/fabric
+  shortId?: string; // Short ID for QR code generation
 }
 
 // Counter Card (used in filter columns)

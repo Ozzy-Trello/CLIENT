@@ -1,521 +1,278 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Modal,
+  Form,
   Input,
   Button,
+  message,
   Typography,
-  Card,
   Space,
-  Tag,
-  Empty,
-  Spin,
-  Alert,
-  Divider,
-  List,
-  Row,
-  Col,
-  InputNumber,
 } from "antd";
-import { ShoppingCart, Search, Package, Edit, Plus, QrCode } from "lucide-react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useParams } from "next/navigation";
-import { searchCards } from "@api/card";
-import { getPOsByCardId, PO, createPO, updatePO, getPOTotalQuantity } from "@api/po";
-import { createShortUrl, buildShortUrl } from "@api/short-url";
-import { Card as CardType } from "../../types/card";
-import QRCode from "react-qr-code";
+import { Package, QrCode } from "lucide-react";
+import { generateQRCodesPDF } from "@api/qr";
+import URLShortener from "@utils/url-shortener";
+import { getCardByShortId } from "@api/card";
 
 interface ModalPOQRProps {
   open: boolean;
   onClose: () => void;
-  boardId?: string;
-  listId?: string;
+  boardId: string;
+  listId: string;
 }
 
 const { Title, Text } = Typography;
-const { Search: AntSearch } = Input;
-
-interface QRCodeData {
-  po: PO;
-  shortUrl: string;
-  qrValue: string;
-}
 
 const ModalPOQR: React.FC<ModalPOQRProps> = ({ open, onClose, boardId, listId }) => {
-  const params = useParams();
-  const workspaceId = params.workspaceId as string;
-  const [searchTerm, setSearchTerm] = useState<string>("");
-  const [selectedCard, setSelectedCard] = useState<CardType | null>(null);
-  const [showQuantityModal, setShowQuantityModal] = useState<boolean>(false);
-  const [currentPO, setCurrentPO] = useState<PO | null>(null);
-  const [isCreatingPO, setIsCreatingPO] = useState<boolean>(false);
-  const [qrCodes, setQrCodes] = useState<QRCodeData[]>([]);
-  const [isGeneratingQR, setIsGeneratingQR] = useState(false);
-  const [editQuantity, setEditQuantity] = useState<number>(0);
+  const [form] = Form.useForm();
+  const [cardId, setCardId] = useState<string>("");
+  const [isGenerating, setIsGenerating] = useState<boolean>(false);
+  const scannerBufferRef = useRef<string>("");
+  const scannerTimeoutRef = useRef<NodeJS.Timeout>();
 
-  const queryClient = useQueryClient();
-
-  // Search cards based on search term
-  const { data: cardData, isLoading: isLoadingCards, error: cardsError } = useQuery({
-    queryKey: ["search-cards", searchTerm],
-    queryFn: () => searchCards({ name: searchTerm, description: searchTerm }),
-    enabled: open && searchTerm.length > 2,
-  });
-
-  // Fetch POs for selected card
-  const { data: poData, isLoading: isLoadingPOs, error: poError } = useQuery({
-    queryKey: ["pos", selectedCard?.id],
-    queryFn: () => getPOsByCardId(selectedCard!.id),
-    enabled: !!selectedCard,
-  });
-
-  // Update PO mutation
-  const updatePOMutation = useMutation({
-    mutationFn: ({ poId, updateData }: { poId: string; updateData: { quantity: number } }) =>
-      updatePO(poId, updateData),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["pos", selectedCard?.id] });
-      setShowQuantityModal(false);
-      setCurrentPO(null);
-    },
-  });
-
-  // Create PO mutation
-  const createPOMutation = useMutation({
-    mutationFn: (poData: { card_id: string; po_number: string; quantity: number }) =>
-      createPO(poData),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["pos", selectedCard?.id] });
-      setShowQuantityModal(false);
-      setIsCreatingPO(false);
-    },
-  });
-
-  const cardsList = cardData?.data || [];
-  const posList = poData?.data || [];
-
-  const handleCardSelect = (card: CardType) => {
-    setSelectedCard(card);
-  };
-
-  const handleEditQuantity = (po: PO) => {
-    setCurrentPO(po);
-    setEditQuantity(getPOTotalQuantity(po));
-    setShowQuantityModal(true);
-  };
-
-  const handleCreateNewPO = () => {
-    setCurrentPO(null);
-    setEditQuantity(0);
-    setIsCreatingPO(true);
-    setShowQuantityModal(true);
-  };
-
-  const handleSaveQuantity = () => {
-    if (currentPO) {
-      // Update existing PO
-      updatePOMutation.mutate({
-        poId: currentPO.id,
-        updateData: { quantity: editQuantity }
-      });
-    } else if (isCreatingPO && selectedCard) {
-      // Create new PO
-      const poNumber = `PO-${selectedCard.name?.replace(/\s+/g, '-').toUpperCase()}-${Date.now()}`;
-      createPOMutation.mutate({
-        card_id: selectedCard.id,
-        po_number: poNumber,
-        quantity: editQuantity
-      });
+  // Reset form when modal opens/closes
+  useEffect(() => {
+    if (open) {
+      form.resetFields();
+      setCardId("");
     }
-  };
+  }, [open, form]);
 
-  const handleGenerateQR = async () => {
-    if (!selectedCard || posList.length === 0) return;
-    
-    setIsGeneratingQR(true);
-    const generatedQRs: QRCodeData[] = [];
-    
-    try {
-      for (const po of posList) {
-        // Build the original URL for this PO
-        const originalUrl = `${window.location.origin}/workspace/${workspaceId}/board/${selectedCard.boardId}/card/${selectedCard.id}?po=${po.id}`;
-        
-        // Create short URL
-        const shortUrlResponse = await createShortUrl({
-          original_url: originalUrl,
-          expires_at: undefined // No expiration for PO QR codes
-        });
-        
-        if (shortUrlResponse.data) {
-          const shortUrl = buildShortUrl(shortUrlResponse.data.short_code);
-          generatedQRs.push({
-            po,
-            shortUrl,
-            qrValue: shortUrl
-          });
-        }
+  // External scanner handler
+  useEffect(() => {
+    const handleScannerInput = (e: KeyboardEvent) => {
+      // Only handle scanner input when modal is open
+      if (!open) return;
+
+      // Filter out unwanted keys that external scanners might send
+      const unwantedKeys = [
+        "Shift", "Control", "Alt", "Meta", "Tab", "Escape", "CapsLock",
+        "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End",
+        "PageUp", "PageDown", "Insert", "Delete", "F1", "F2", "F3", "F4",
+        "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12"
+      ];
+
+      if (unwantedKeys.includes(e.key)) {
+        return;
       }
-      
-      setQrCodes(generatedQRs);
-    } catch (error) {
-      console.error("Error generating QR codes:", error);
-      // You might want to show an error message to the user here
-    } finally {
-      setIsGeneratingQR(false);
+
+      // Clear any existing timeout
+      if (scannerTimeoutRef.current) {
+        clearTimeout(scannerTimeoutRef.current);
+      }
+
+      if (e.key === "Enter") {
+        e.preventDefault();
+        if (scannerBufferRef.current.trim()) {
+          handleScan(scannerBufferRef.current.trim());
+        }
+        scannerBufferRef.current = "";
+        return;
+      }
+
+      // Only add printable characters to the buffer
+      if (e.key.length === 1) {
+        scannerBufferRef.current += e.key;
+      }
+
+      // Clear buffer after 100ms of no input (typical for external scanners)
+      scannerTimeoutRef.current = setTimeout(() => {
+        scannerBufferRef.current = "";
+      }, 100);
+    };
+
+    if (open) {
+      document.addEventListener("keydown", handleScannerInput);
     }
+
+    return () => {
+      document.removeEventListener("keydown", handleScannerInput);
+      if (scannerTimeoutRef.current) {
+        clearTimeout(scannerTimeoutRef.current);
+      }
+    };
+  }, [open]);
+
+  const handleCardIdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setCardId(e.target.value);
+  };
+
+  // Extract card ID from scanned data
+  const extractCardIdFromScan = async (scannedData: string): Promise<string | null> => {
+    const trimmedData = scannedData.trim();
+    
+    if (trimmedData.length === 0) return null;
+
+    // Check if it's a shortId URL format (e.g., https://domain.com/qr/123 or just /qr/123)
+    try {
+      const url = new URL(trimmedData.startsWith('http') ? trimmedData : `https://example.com${trimmedData}`);
+      const pathParts = url.pathname.split('/');
+      
+      // Check for /qr/[shortId] pattern
+      if (pathParts.length >= 3 && pathParts[1] === 'qr') {
+        const shortId = parseInt(pathParts[2]);
+        if (!isNaN(shortId)) {
+           try {
+            const response = await getCardByShortId(shortId);
+            if (response.data) {
+              return response.data.id;
+            }
+          } catch (error) {
+             console.warn('Failed to resolve shortId via backend, trying legacy method:', error);
+           }
+         }
+      }
+    } catch (error) {
+      // Not a valid URL, continue with other methods
+    }
+
+    // Fallback to legacy URLShortener (handles both short and long URLs)
+    const cardIdFromUrl = URLShortener.extractCardIdFromUrl(trimmedData);
+    if (cardIdFromUrl) {
+      return cardIdFromUrl;
+    }
+
+    // If URL parsing fails, treat as direct card ID
+    return trimmedData.length > 0 ? trimmedData : null;
+  };
+
+  const handleScan = async (scannedData: string) => {
+    const extractedCardId = await extractCardIdFromScan(scannedData);
+    
+    if (extractedCardId) {
+      setCardId(extractedCardId);
+      form.setFieldsValue({ cardId: extractedCardId });
+      message.success(`Card ID scanned: ${extractedCardId}`);
+      
+      // Automatically generate PDF after successful scan
+      await generatePDFForCardId(extractedCardId);
+    } else {
+      message.error("Could not extract card ID from scanned data");
+    }
+  };
+
+  const generatePDFForCardId = async (targetCardId: string) => {
+    if (!targetCardId.trim()) {
+      message.error("Please enter a Card ID");
+      return;
+    }
+
+    setIsGenerating(true);
+    try {
+      // Call the QR API service to generate PDF
+      const pdfBlob = await generateQRCodesPDF(targetCardId.trim());
+      
+      // Create a URL for the blob and open it in a new tab
+      const pdfUrl = URL.createObjectURL(pdfBlob);
+      const printWindow = window.open(pdfUrl, '_blank');
+      
+      if (printWindow) {
+        // Focus the new window
+        printWindow.focus();
+      }
+
+      // Clean up after a delay (to allow viewing/printing)
+      setTimeout(() => {
+        URL.revokeObjectURL(pdfUrl);
+      }, 30000); // Extended cleanup time
+      
+      message.success(`PDF generated and opened for printing for Card ID: ${targetCardId}`);
+      
+      // Close modal after generating PDF
+      onClose();
+    } catch (error) {
+      message.error("Failed to generate PDF. Please check the Card ID and try again.");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleGeneratePDF = async () => {
+    await generatePDFForCardId(cardId);
   };
 
   const handleCancel = () => {
-    setSelectedCard(null);
-    setSearchTerm("");
-    setCurrentPO(null);
-    setIsCreatingPO(false);
-    setQrCodes([]);
-    setIsGeneratingQR(false);
+    form.resetFields();
+    setCardId("");
     onClose();
   };
 
-  const renderCardItem = (card: CardType) => (
-    <Card
-      key={card.id}
-      className="mb-3 cursor-pointer transition-all duration-200 hover:border-blue-300 hover:shadow-sm"
-      onClick={() => handleCardSelect(card)}
-      size="small"
-    >
-      <div className="flex justify-between items-start">
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-2">
-            <Text strong className="text-gray-800">
-              {card.name || "Untitled Card"}
-            </Text>
-            <Tag color="blue" className="text-xs">
-              ID: {card.id.substring(0, 8)}...
-            </Tag>
-          </div>
-          
-          {card.description && (
-            <Text type="secondary" className="text-sm block mb-2">
-              {card.description.length > 100
-                ? `${card.description.substring(0, 100)}...`
-                : card.description}
-            </Text>
-          )}
-        </div>
-      </div>
-    </Card>
-  );
-
-  const renderPOItem = (po: PO) => (
-    <Card key={po.id} className="mb-3" size="small">
-      <div className="flex justify-between items-start">
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-2">
-            <Package size={16} className="text-green-600" />
-            <Text strong>{po.poNumber}</Text>
-            <Tag color="green">
-              Quantity: {getPOTotalQuantity(po)}
-            </Tag>
-          </div>
-          
-          <Text type="secondary" className="text-xs">
-            Created: {new Date(po.createdAt).toLocaleDateString()}
-          </Text>
-        </div>
-        
-        <Button
-          type="link"
-          icon={<Edit size={14} />}
-          onClick={() => handleEditQuantity(po)}
-          size="small"
-        >
-          Edit Quantity
-        </Button>
-      </div>
-    </Card>
-  );
-
   return (
-    <>
-      <Modal
-        title={
-          <div className="flex items-center gap-2">
-            <ShoppingCart size={20} className="text-green-600" />
-            <Title level={4} className="mb-0">
-              Generate QR - Purchase Orders
-            </Title>
-          </div>
-        }
-        open={open}
-        onCancel={handleCancel}
-        footer={
-          selectedCard && posList.length > 0 && qrCodes.length === 0 ? (
-            <div className="flex justify-between items-center">
-              <Text type="secondary" className="text-sm">
-                {posList.length} PO(s) ready for QR generation
-              </Text>
-              <Space>
-                <Button onClick={handleCancel} disabled={isGeneratingQR}>Cancel</Button>
-                <Button
-                  type="primary"
-                  onClick={handleGenerateQR}
-                  icon={<QrCode size={16} />}
-                  className="bg-green-600 hover:bg-green-700"
-                  loading={isGeneratingQR}
-                  disabled={isGeneratingQR}
-                >
-                  Generate QR Codes
-                </Button>
-              </Space>
-            </div>
-          ) : qrCodes.length > 0 ? (
-            <div className="flex justify-end">
-              <Space>
-                <Button onClick={handleCancel}>Close</Button>
-                <Button 
-                  type="primary" 
-                  onClick={() => window.print()}
-                  className="bg-blue-600 hover:bg-blue-700"
-                >
-                  Print QR Codes
-                </Button>
-              </Space>
-            </div>
-          ) : (
-            <div className="flex justify-end">
-              <Button onClick={handleCancel}>Cancel</Button>
-            </div>
-          )
-        }
-        width={800}
-        centered
-        destroyOnClose
-      >
-        <div className="py-4">
-          {qrCodes.length > 0 ? (
-            // QR Codes Display Phase
-            <>
-              <div className="mb-4 p-4 bg-green-50 rounded-lg">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <Title level={5} className="mb-1">
-                      QR Codes Generated Successfully
-                    </Title>
-                    <Text type="secondary">
-                      {qrCodes.length} QR code(s) for {selectedCard?.name}
-                    </Text>
-                  </div>
-                  <Button
-                    type="link"
-                    onClick={() => setQrCodes([])}
-                    size="small"
-                  >
-                    Generate New
-                  </Button>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-h-96 overflow-y-auto">
-                {qrCodes.map((qrData, index) => (
-                  <Card key={index} className="text-center">
-                    <div className="mb-4">
-                      <Title level={5} className="mb-2">
-                        PO #{qrData.po.poNumber}
-                      </Title>
-                      <Text type="secondary" className="text-sm">
-                        Quantity: {getPOTotalQuantity(qrData.po)}
-                      </Text>
-                    </div>
-                    
-                    <div className="flex justify-center mb-4">
-                      <div className="p-4 bg-white border-2 border-gray-200 rounded-lg">
-                        <QRCode
-                          value={qrData.qrValue}
-                          size={150}
-                          level="M"
-                        />
-                      </div>
-                    </div>
-                    
-                    <div className="text-xs text-gray-500 break-all">
-                      {qrData.shortUrl}
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            </>
-          ) : !selectedCard ? (
-            // Card Search Phase
-            <>
-              <div className="mb-4">
-                <AntSearch
-                  placeholder="Search cards by name or description..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  prefix={<Search size={16} className="text-gray-400" />}
-                  size="large"
-                  allowClear
-                />
-              </div>
-
-              <div className="max-h-96 overflow-y-auto">
-                {isLoadingCards ? (
-                  <div className="text-center py-8">
-                    <Spin size="large" />
-                    <div className="mt-4 text-gray-500">Searching cards...</div>
-                  </div>
-                ) : cardsError ? (
-                  <Alert
-                    message="Error loading cards"
-                    type="error"
-                    className="mb-4"
-                  />
-                ) : cardsList.length === 0 && searchTerm.length > 2 ? (
-                  <Empty
-                    description="No cards found matching your search"
-                    className="py-8"
-                  />
-                ) : searchTerm.length <= 2 ? (
-                  <Empty
-                    description="Enter at least 3 characters to search for cards"
-                    className="py-8"
-                  />
-                ) : (
-                  <div>
-                    {cardsList.map(renderCardItem)}
-                  </div>
-                )}
-              </div>
-            </>
-          ) : (
-            // PO Management Phase
-            <>
-              <div className="mb-4 p-4 bg-blue-50 rounded-lg">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <Title level={5} className="mb-1">
-                      Selected Card: {selectedCard.name}
-                    </Title>
-                    <Text type="secondary">
-                      ID: {selectedCard.id}
-                    </Text>
-                  </div>
-                  <Button
-                    type="link"
-                    onClick={() => setSelectedCard(null)}
-                    size="small"
-                  >
-                    Change Card
-                  </Button>
-                </div>
-              </div>
-
-              <Divider orientation="left">
-                <div className="flex items-center gap-2">
-                  <Package size={16} />
-                  Purchase Orders
-                </div>
-              </Divider>
-
-              {isLoadingPOs ? (
-                <div className="text-center py-8">
-                  <Spin size="large" />
-                  <div className="mt-4 text-gray-500">Loading POs...</div>
-                </div>
-              ) : poError ? (
-                <Alert
-                  message="Error loading POs"
-                  type="error"
-                  className="mb-4"
-                />
-              ) : (
-                <>
-                  <div className="mb-4">
-                    <Button
-                      type="dashed"
-                      icon={<Plus size={16} />}
-                      onClick={handleCreateNewPO}
-                      block
-                    >
-                      Create New PO
-                    </Button>
-                  </div>
-
-                  {posList.length === 0 ? (
-                    <Empty
-                      description="No POs found for this card. Create one to get started."
-                      className="py-8"
-                    />
-                  ) : (
-                    <div className="max-h-96 overflow-y-auto">
-                      {posList.map(renderPOItem)}
-                    </div>
-                  )}
-                </>
-              )}
-            </>
-          )}
-        </div>
-      </Modal>
-
-      {/* Quantity Edit Modal */}
-      <Modal
-        title={
+    <Modal
+      title={
+        <div className="flex items-center gap-2">
+          <Package size={20} className="text-blue-600" />
           <Title level={4} className="mb-0">
-            {isCreatingPO ? "Create New PO" : `Edit PO ${currentPO?.poNumber}`}
+            Generate QR - PO
           </Title>
-        }
-        open={showQuantityModal}
-        onCancel={() => {
-          setShowQuantityModal(false);
-          setCurrentPO(null);
-          setIsCreatingPO(false);
-        }}
-        footer={
-          <Space>
-            <Button onClick={() => {
-              setShowQuantityModal(false);
-              setCurrentPO(null);
-              setIsCreatingPO(false);
-            }}>
-              Cancel
-            </Button>
-            <Button 
-              type="primary" 
-              onClick={handleSaveQuantity}
-              disabled={editQuantity <= 0}
-            >
-              {isCreatingPO ? "Create PO" : "Save Quantity"}
-            </Button>
-          </Space>
-        }
-        width={400}
-        centered
-      >
-        <div className="py-4">
-          <div className="mb-4">
-            <Text strong className="block mb-2">
-              Quantity
-            </Text>
-            <InputNumber
-              value={editQuantity}
-              onChange={(value) => setEditQuantity(value || 0)}
-              min={0}
-              className="w-full"
+        </div>
+      }
+      open={open}
+      onCancel={handleCancel}
+      footer={null}
+      width={500}
+      centered
+      destroyOnClose
+    >
+      <div className="py-4">
+        <Form form={form} layout="vertical" onFinish={handleGeneratePDF}>
+          <Form.Item
+            label={
+              <Text strong className="text-gray-700">
+                Card ID
+              </Text>
+            }
+            name="cardId"
+            rules={[{ required: true, message: "Please enter a Card ID" }]}
+          >
+            <Input
+              placeholder="Enter or scan Card ID"
+              value={cardId}
+              onChange={handleCardIdChange}
               size="large"
-              placeholder="Enter quantity"
             />
-          </div>
-          
-          {editQuantity > 0 && (
-            <div className="p-3 bg-blue-50 rounded-lg">
-              <Text type="secondary">
-                Total quantity: <Text strong>{editQuantity}</Text>
+          </Form.Item>
+
+          {cardId && (
+            <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+              <Text type="secondary" className="text-sm">
+                Selected Card ID: <Text strong>{cardId}</Text>
               </Text>
             </div>
           )}
-        </div>
-      </Modal>
-    </>
+
+          {/* Scanner Status Indicator */}
+          <div className="mb-4 p-3 bg-green-50 rounded-lg border border-green-200">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <Text type="secondary" className="text-sm text-green-700">
+                Ready for external scanner input
+              </Text>
+            </div>
+            <Text type="secondary" className="text-xs text-green-600 mt-1">
+              Scan QR code with your external scanner to auto-fill Card ID
+            </Text>
+          </div>
+
+          <Form.Item className="mb-0">
+            <Space className="w-full justify-end">
+              <Button onClick={handleCancel} disabled={isGenerating}>
+                Cancel
+              </Button>
+              <Button
+                type="primary"
+                htmlType="submit"
+                loading={isGenerating}
+                disabled={!cardId.trim()}
+                icon={<QrCode size={16} />}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                {isGenerating ? "Generating PDF..." : "Generate PDF"}
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </div>
+    </Modal>
   );
 };
 

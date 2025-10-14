@@ -51,7 +51,8 @@ const processQueue = (error: any, token: string | null = null) => {
 // Response interceptor with queue management
 api.interceptors.response.use(
   (response) => {
-    if (response.data) {
+    // Skip camelCase conversion for blob responses
+    if (response.data && !(response.data instanceof Blob) && response.config?.responseType !== 'blob') {
       response.data = camelcaseKeys(response.data, { deep: true });
     }
     return response;

@@ -19,6 +19,7 @@ import {
 } from "@ant-design/icons";
 import { QrCode } from "lucide-react";
 import { uploadFile } from "@api/file";
+import { createShortUrl, buildShortUrl } from "@api/short-url";
 import UploadModal from "@components/modal-upload/modal-upload";
 import { PDFModal } from "@components/pdf-modal";
 import { PDFPreview } from "@components/pdf-preview";
@@ -33,6 +34,8 @@ import { Button, Image, List, message, Space, Typography, Upload } from "antd";
 import React, { useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom";
 import QRCode from "react-qr-code";
+import { useParams } from "next/navigation";
+import URLShortener from "@utils/url-shortener";
 import AttachedCard from "./attached-card";
 
 interface AttachmentsProps {
@@ -43,6 +46,14 @@ interface AttachmentsProps {
 
 const Attachments: React.FC<AttachmentsProps> = (props) => {
   const { card, setCard, currentUser } = props;
+  const params = useParams();
+  const workspaceId = Array.isArray(params.workspaceId) 
+    ? params.workspaceId[0] 
+    : params.workspaceId;
+  const boardId = Array.isArray(params.boardId) 
+    ? params.boardId[0] 
+    : params.boardId;
+  
   const { cardAttachments, addAttachment, deleteAttachment } =
     useCardAttachment(card?.id || "");
   const [openUploadModal, setOpenUploadmodal] = useState<boolean>(false);
@@ -56,6 +67,50 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
     fileName: string;
   } | null>(null);
   const { canUpdateCard } = useBoardPermissionsContext();
+
+  // Generate short URL for QR codes with backend fallback
+  const generateShortUrl = async (): Promise<string> => {
+    console.log('🔍 QR Generation Debug - Card data:', {
+      cardId: card?.id,
+      shortId: card?.shortId,
+      workspaceId,
+      boardId,
+      hasCard: !!card
+    });
+
+    if (!workspaceId || !boardId || !card?.id) {
+      console.log('❌ Missing required data, using fallback URL');
+      return window.location.href; // Fallback to current URL
+    }
+    
+    // First priority: Use card's shortId if available (new system)
+    if (card.shortId) {
+      const shortUrl = `${window.location.origin}/qr/${card.shortId}`;
+      console.log('✅ Using card shortId for QR:', shortUrl);
+      return shortUrl;
+    }
+    
+    console.log('⚠️ No card.shortId found, trying backend generation...');
+    
+    try {
+      // Second priority: Try backend short URL generation
+      const originalUrl = `${window.location.origin}/workspace/${workspaceId}/board/${boardId}?cardId=${card.id}`;
+      const response = await createShortUrl({ original_url: originalUrl });
+      
+      if (response.data?.short_code) {
+        const backendUrl = buildShortUrl(response.data.short_code);
+        console.log('✅ Using backend generated short URL:', backendUrl);
+        return backendUrl;
+      }
+    } catch (error) {
+      console.warn('Backend short URL generation failed, falling back to stateless:', error);
+    }
+    
+    // Final fallback: Use stateless URL shortener (legacy system)
+    const legacyUrl = URLShortener.generateShortUrl(card.id, workspaceId, boardId, 'stateless');
+    console.log('⚠️ Using legacy stateless URL shortener:', legacyUrl);
+    return legacyUrl;
+  };
 
   const handleOpenPdfModal = (url: string, fileName: string) => {
     setSelectedPdf({ url, fileName });
@@ -215,7 +270,7 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
       const img = document.createElement("img");
       img.crossOrigin = "anonymous";
 
-      img.onload = () => {
+      img.onload = async () => {
         const qrSize = Math.min(200, img.width * 0.35);
         const padding = 10;
 
@@ -256,9 +311,10 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
         qrElement.style.background = "white";
         document.body.appendChild(qrElement);
 
+        const shortUrl = await generateShortUrl();
         ReactDOM.render(
           <QRCode
-            value={window.location.href}
+            value={shortUrl}
             size={qrSize}
             level="M"
             fgColor="#000000"
@@ -409,7 +465,7 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
     try {
       const loadingMsg = message.loading("Preparing PDF with QR code...", 0);
 
-      const qrText = window.location.href;
+      const qrText = await generateShortUrl();
       const token = TokenStorage.getAccessToken();
       const headers: HeadersInit = {};
       if (token) {
@@ -710,7 +766,7 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
                                   );
                                 setTimeout(() => {
                                   handlePrintWithQR(
-                                    window.location.href,
+                                    item.file?.url,
                                     item.file?.name || "image"
                                   );
                                 }, 100);

@@ -37,6 +37,40 @@ export interface UpdatePORequest {
   size_assignments?: SizeQuantity; // For size-based updates
 }
 
+// Scan progress item for a PO
+export interface ScanProgressItem {
+  id: string;
+  size: string;
+  itemNumber: number;
+  quantity: number;
+  qrCode: string;
+  scanned: boolean;
+  scannedAt?: string | Date;
+  scannedBy?: string;
+}
+
+// Scan progress response for a PO
+export interface ScanProgressResponse {
+  data: {
+    scanned: number;
+    total: number;
+    percentage: number;
+    items: ScanProgressItem[];
+  }
+}
+
+// Request body for scanning a PO item
+export interface ScanPOItemRequest {
+  qrCode: string;
+}
+
+// Response type for scanning a PO item
+export interface ScanPOItemResponse {
+  message?: string;
+  success?: boolean;
+  data?: any;
+}
+
 // Get POs by card ID
 export const getPOsByCardId = async (cardId: string): Promise<ApiResponse<PO[]>> => {
   const { data } = await api.get(`/po`, {
@@ -51,6 +85,23 @@ export const getPOsByCardId = async (cardId: string): Promise<ApiResponse<PO[]>>
 // Get a single PO by ID
 export const getPOById = async (poId: string): Promise<ApiResponse<PO>> => {
   const { data } = await api.get(`/po/${poId}`);
+  return data;
+};
+
+// Get scan progress for a single PO
+export const getPOScanProgress = async (
+  poId: string
+): Promise<ApiResponse<ScanProgressResponse>> => {
+  const { data } = await api.get(`/po/${poId}/scan-progress`);
+  return data;
+};
+
+// Scan a PO item by QR code
+export const scanPOItem = async (
+  payload: ScanPOItemRequest
+): Promise<ApiResponse<ScanPOItemResponse>> => {
+  // Backend expects `qr_code` in body; interceptor converts camelCase to snake_case
+  const { data } = await api.post(`/po/scan`, payload);
   return data;
 };
 
