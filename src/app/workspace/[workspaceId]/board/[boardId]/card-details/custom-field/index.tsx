@@ -172,6 +172,9 @@ const EnterToSaveNumberInput: React.FC<{
     { saveOnBlur: true }
   );
 
+  // Only show Split Job button for "Jml Produksi" field
+  const showSplitJob = fieldName === "Jml Produksi";
+
   return (
     <div className="relative">
       <Input
@@ -184,16 +187,18 @@ const EnterToSaveNumberInput: React.FC<{
         onBlur={onBlur}
         disabled={disabled}
         suffix={
-          <SplitJobSlider
-            workspaceId={params.workspaceId as string}
-            customFieldId={customFieldId || ""}
-            cardId={cardId}
-            value={parseFloat(value) || 0}
-            onChange={(val) => {
-              onChange(val.toString());
-              onBlur();
-            }}
-          />
+          showSplitJob ? (
+            <SplitJobSlider
+              workspaceId={params.workspaceId as string}
+              customFieldId={customFieldId || ""}
+              cardId={cardId}
+              value={parseFloat(value) || 0}
+              onChange={(val) => {
+                onChange(val.toString());
+                onBlur();
+              }}
+            />
+          ) : undefined
         }
       />
       {hasChanges && (
@@ -421,7 +426,8 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
                 handleDateValueChange(field.id!, dateValue);
               }
             }}
-            format="YYYY-MM-DD"
+            format="YYYY-MM-DD HH:mm"
+            showTime={{ format: "HH:mm" }}
             allowClear
             disabled={!canEdit}
           />

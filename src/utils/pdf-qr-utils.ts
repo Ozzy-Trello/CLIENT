@@ -165,7 +165,6 @@ export async function addQRCodeToPDF(
     backgroundColor = "#FFFFFF",
     borderColor = "#000000",
     borderWidth = 1,
-    label = "Scan to view",
     labelFontSize = 8,
   } = options;
 
@@ -198,7 +197,7 @@ export async function addQRCodeToPDF(
           x: x - padding / 2,
           y: y - padding / 2,
           width: qrSize + padding,
-          height: qrSize + padding + (label ? labelFontSize + 4 : 0),
+          height: qrSize + padding,
           color: bgColor,
           opacity: 0.9,
         });
@@ -213,7 +212,7 @@ export async function addQRCodeToPDF(
           x: x - padding / 2,
           y: y - padding / 2,
           width: qrSize + padding,
-          height: qrSize + padding + (label ? labelFontSize + 4 : 0),
+          height: qrSize + padding,
           borderColor: borderRgb,
           borderWidth: borderWidth,
         });
@@ -222,20 +221,10 @@ export async function addQRCodeToPDF(
       // Draw QR code
       page.drawImage(qrImage, {
         x: x,
-        y: y + (label ? labelFontSize + 4 : 0),
+        y: y,
         width: qrSize,
         height: qrSize,
       });
-
-      // Add label if provided
-      if (label) {
-        page.drawText(label, {
-          x: x + qrSize / 2 - label.length * labelFontSize * 0.3, // Rough center alignment
-          y: y + 2,
-          size: labelFontSize,
-          color: rgb(0, 0, 0),
-        });
-      }
     });
 
     // Return the modified PDF as bytes
@@ -274,7 +263,9 @@ export async function downloadPDFWithQR(
     });
 
     // Create blob and download
-    const blob = new Blob([new Uint8Array(modifiedPdfBytes)], { type: "application/pdf" });
+    const blob = new Blob([new Uint8Array(modifiedPdfBytes)], {
+      type: "application/pdf",
+    });
     const url = URL.createObjectURL(blob);
 
     const link = document.createElement("a");
@@ -316,7 +307,9 @@ export async function printPDFWithQR(
     });
 
     // Create blob and open in new tab
-    const blob = new Blob([new Uint8Array(modifiedPdfBytes)], { type: "application/pdf" });
+    const blob = new Blob([new Uint8Array(modifiedPdfBytes)], {
+      type: "application/pdf",
+    });
     const url = URL.createObjectURL(blob);
 
     // Open in new tab for printing

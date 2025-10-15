@@ -47,13 +47,13 @@ interface AttachmentsProps {
 const Attachments: React.FC<AttachmentsProps> = (props) => {
   const { card, setCard, currentUser } = props;
   const params = useParams();
-  const workspaceId = Array.isArray(params.workspaceId) 
-    ? params.workspaceId[0] 
+  const workspaceId = Array.isArray(params.workspaceId)
+    ? params.workspaceId[0]
     : params.workspaceId;
-  const boardId = Array.isArray(params.boardId) 
-    ? params.boardId[0] 
+  const boardId = Array.isArray(params.boardId)
+    ? params.boardId[0]
     : params.boardId;
-  
+
   const { cardAttachments, addAttachment, deleteAttachment } =
     useCardAttachment(card?.id || "");
   const [openUploadModal, setOpenUploadmodal] = useState<boolean>(false);
@@ -70,45 +70,53 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
 
   // Generate short URL for QR codes with backend fallback
   const generateShortUrl = async (): Promise<string> => {
-    console.log('🔍 QR Generation Debug - Card data:', {
+    console.log("🔍 QR Generation Debug - Card data:", {
       cardId: card?.id,
       shortId: card?.shortId,
       workspaceId,
       boardId,
-      hasCard: !!card
+      hasCard: !!card,
     });
 
     if (!workspaceId || !boardId || !card?.id) {
-      console.log('❌ Missing required data, using fallback URL');
+      console.log("❌ Missing required data, using fallback URL");
       return window.location.href; // Fallback to current URL
     }
-    
+
     // First priority: Use card's shortId if available (new system)
     if (card.shortId) {
       const shortUrl = `${window.location.origin}/qr/${card.shortId}`;
-      console.log('✅ Using card shortId for QR:', shortUrl);
+      console.log("✅ Using card shortId for QR:", shortUrl);
       return shortUrl;
     }
-    
-    console.log('⚠️ No card.shortId found, trying backend generation...');
-    
+
+    console.log("⚠️ No card.shortId found, trying backend generation...");
+
     try {
       // Second priority: Try backend short URL generation
       const originalUrl = `${window.location.origin}/workspace/${workspaceId}/board/${boardId}?cardId=${card.id}`;
       const response = await createShortUrl({ original_url: originalUrl });
-      
+
       if (response.data?.short_code) {
         const backendUrl = buildShortUrl(response.data.short_code);
-        console.log('✅ Using backend generated short URL:', backendUrl);
+        console.log("✅ Using backend generated short URL:", backendUrl);
         return backendUrl;
       }
     } catch (error) {
-      console.warn('Backend short URL generation failed, falling back to stateless:', error);
+      console.warn(
+        "Backend short URL generation failed, falling back to stateless:",
+        error
+      );
     }
-    
+
     // Final fallback: Use stateless URL shortener (legacy system)
-    const legacyUrl = URLShortener.generateShortUrl(card.id, workspaceId, boardId, 'stateless');
-    console.log('⚠️ Using legacy stateless URL shortener:', legacyUrl);
+    const legacyUrl = URLShortener.generateShortUrl(
+      card.id,
+      workspaceId,
+      boardId,
+      "stateless"
+    );
+    console.log("⚠️ Using legacy stateless URL shortener:", legacyUrl);
     return legacyUrl;
   };
 
@@ -343,11 +351,6 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
           ctx.font = "bold 12px Arial";
           ctx.fillStyle = "black";
           ctx.textAlign = "center";
-          ctx.fillText(
-            "Scan to view",
-            qrX + qrSize / 2,
-            qrY + qrSize + padding + 12
-          );
 
           const printFrame = document.createElement("iframe");
           printFrame.style.position = "fixed";
@@ -482,8 +485,6 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
           customX: 0.3, // 30% from left (same as JPEG)
           customY: 0.8, // 85% from bottom (15% from top)
           padding: 10,
-          label: "Scan to view",
-          labelFontSize: 5,
         },
         headers
       );

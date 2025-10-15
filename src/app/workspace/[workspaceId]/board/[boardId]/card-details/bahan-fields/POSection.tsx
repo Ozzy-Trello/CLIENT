@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Tabs, message } from "antd";
+import { Tabs, message, AutoComplete } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
 import BahanTabContent from "./BahanTabContent";
 import { POSectionProps } from "./types";
@@ -146,35 +146,31 @@ const POSection: React.FC<POSectionProps> = ({
             Scan Product
           </button>
 
-          {/* Product Selection Dropdown */}
-          <select
+          {/* Product Selection AutoComplete */}
+          <AutoComplete
             value={selectedProductId}
-            onChange={(e) => {
-              const productId = e.target.value;
-              if (productId) {
-                onSelectProduct(po.id, productId);
-              } else {
-                setSelectedProductIds((prev) => ({ ...prev, [po.id]: "" }));
+            onChange={(value) => {
+              setSelectedProductIds((prev) => ({ ...prev, [po.id]: value }));
+            }}
+            onSelect={(value) => {
+              if (value) {
+                onSelectProduct(po.id, value);
               }
             }}
-            className="px-3 py-1.5 text-xs border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            options={hikmatItems.map((product: any) => ({
+              value: product.id.toString(),
+              label: `${product.name} (${product.no})`,
+            }))}
+            placeholder={isLoadingProducts ? "Loading products..." : "Type or select a product"}
+            filterOption={(inputValue, option) =>
+              option!.label.toLowerCase().indexOf(inputValue.toLowerCase()) !== -1
+            }
             style={{
-              border: `1px solid rgb(${colors.border})`,
-              backgroundColor: `rgb(${colors.surface})`,
-              color: `rgb(${colors.text})`,
-              minWidth: "150px",
+              minWidth: "200px",
             }}
             disabled={isLoadingProducts}
-          >
-            <option value="">
-              {isLoadingProducts ? "Loading products..." : "Select a product"}
-            </option>
-            {hikmatItems.map((product: any) => (
-              <option key={product.id} value={product.id.toString()}>
-                {product.name} ({product.no})
-              </option>
-            ))}
-          </select>
+            showSearch
+          />
         </div>
       </div>
 

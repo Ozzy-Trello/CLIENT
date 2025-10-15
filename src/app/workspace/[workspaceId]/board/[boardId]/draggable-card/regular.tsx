@@ -27,6 +27,18 @@ import "./styles.css";
 import { userDetails } from "@api/account";
 import { fetchLookups } from "@utils/fetch-lookups";
 
+// Utility to convert "3 hours 30 minutes" to "3h 30m"
+function formatTimeShort(timeStr: string | undefined): string {
+  if (!timeStr || timeStr === "--") return "--";
+  
+  return timeStr
+    .replace(/ hours?/g, "h")
+    .replace(/ minutes?/g, "m")
+    .replace(/ days?/g, "d")
+    .replace(/ seconds?/g, "s")
+    .trim();
+}
+
 interface RegularCardProps {
   card: Card;
   isHovered: boolean;
@@ -220,13 +232,13 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
             <div className="flex items-center gap-1 text-[10px]">
               <Calendar size={12} />
               <span className="text-[10px]">
-                {card?.formattedTimeInBoard || "--"}
+                {formatTimeShort(card?.formattedTimeInBoard)}
               </span>
             </div>
             <div className="flex items-center gap-1 text-[10px]">
               <CalendarDays size={12} />
               <span className="text-[10px]">
-                {card?.formattedTimeInList || "--"}
+                {formatTimeShort(card?.formattedTimeInList)}
               </span>
             </div>
           </div>

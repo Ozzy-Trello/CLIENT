@@ -34,7 +34,9 @@ const { Option } = Select;
 const TableMembers: React.FC<{
   dataSource?: Account[];
   onEdit: (user: Account) => void;
-}> = ({ dataSource = [], onEdit }) => {
+  pagination?: any;
+  onPaginationChange?: (page: number, pageSize: number) => void;
+}> = ({ dataSource = [], onEdit, pagination, onPaginationChange }) => {
   const { canManageUsers, isSuperAdmin } = usePermissions();
   const columns = [
     {
@@ -122,6 +124,15 @@ const TableMembers: React.FC<{
       columns={columns}
       style={{ width: "100%" }}
       rowKey={(record) => record.id}
+      pagination={pagination}
+      onChange={(paginationConfig) => {
+        if (onPaginationChange) {
+          onPaginationChange(
+            paginationConfig.current || 1,
+            paginationConfig.pageSize || 10
+          );
+        }
+      }}
     />
   );
 };
@@ -151,6 +162,11 @@ const Members: React.FC = () => {
   const [detailLoading, setDetailLoading] = useState(false);
   const updateAccountMutation = useUpdateAnyAccount();
   const [editForm] = Form.useForm();
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: 0,
+  });
 
   const memberCount = data.length;
 
@@ -236,6 +252,10 @@ const Members: React.FC = () => {
 
       if (result && result.data) {
         setData(result.data || []);
+        setPagination((prev) => ({
+          ...prev,
+          total: result.data?.length || 0,
+        }));
       }
     };
 
@@ -306,15 +326,36 @@ const Members: React.FC = () => {
         />
         <div style={{ width: "100%" }}>
           {!isFetching && activeMenu === "menu-workspace-members" && (
-            <TableMembers dataSource={data} onEdit={openEditUserModal} />
+            <TableMembers
+              dataSource={data}
+              onEdit={openEditUserModal}
+              pagination={pagination}
+              onPaginationChange={(page, pageSize) => {
+                setPagination((prev) => ({ ...prev, current: page, pageSize }));
+              }}
+            />
           )}
 
           {!isFetching && activeMenu === "menu-guest" && (
-            <TableMembers dataSource={data} onEdit={openEditUserModal} />
+            <TableMembers
+              dataSource={data}
+              onEdit={openEditUserModal}
+              pagination={pagination}
+              onPaginationChange={(page, pageSize) => {
+                setPagination((prev) => ({ ...prev, current: page, pageSize }));
+              }}
+            />
           )}
 
           {!isFetching && activeMenu === "menu-join-request" && (
-            <TableMembers dataSource={data} onEdit={openEditUserModal} />
+            <TableMembers
+              dataSource={data}
+              onEdit={openEditUserModal}
+              pagination={pagination}
+              onPaginationChange={(page, pageSize) => {
+                setPagination((prev) => ({ ...prev, current: page, pageSize }));
+              }}
+            />
           )}
 
           {/* skeleton */}
