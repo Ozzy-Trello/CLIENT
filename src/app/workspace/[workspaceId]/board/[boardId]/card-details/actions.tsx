@@ -1,60 +1,57 @@
-import React, { useRef, useState, useEffect } from "react";
-import { useCardDetailContext } from "@providers/card-detail-context";
-import { useSelector } from "react-redux";
-import { selectTheme, selectIsDarkMode } from "@store/app_slice";
-import { LookupCache } from "@utils/lookup-cache";
-import { fetchLookups } from "@utils/fetch-lookups";
-import { getAccount } from "@api/account";
-import PopoverChecklist from "@components/popover-checklist";
-import {
-  Users,
-  Tag,
-  CheckSquare,
-  Clock,
-  Paperclip,
-  MapPin,
-  MoveRight,
-  Copy,
-  Archive,
-  Share2,
-  RectangleEllipsis,
-  QrCode,
-  RotateCcw,
-  UserPlus,
-  UserMinus,
-  FlipHorizontal,
-  Trash2,
-  FileCheck,
-  FileText,
-  ScanLine,
-} from "lucide-react";
-import PopoverCustomField from "@components/popover-custom-field";
-import PopoverUser from "@components/popover-user";
-import PopoverDates from "@components/popover-dates.tsx";
-import PopoverMoveCard from "@components/popover-move-card";
-import PopoverCopyCard from "@components/popover-copy-card";
-import { message, Tooltip, Modal } from "antd";
-import QRModal from "./qr-modal/qr-modal";
-import PopoverLocation from "@components/popover-location";
-import PopoverAttach from "@components/popover-attach";
-import { useCardCopy, useCardMove, useCards } from "@hooks/card";
-import { useParams } from "next/navigation";
-import { useCardDetails } from "@hooks/card-details";
-import { useCurrentAccount, usePermissions } from "@hooks/account";
-import { useBoardPermissionsContext } from "@providers/board-permissions-context";
-import { useCardMembers } from "@hooks/card_member";
-import PopoverLabel from "@components/popover-label.tsx";
-import PopoverMirrorCard from "@components/popover-mirror-card";
+import { uploadFile } from "@api/file";
+import { getPOScanProgress, scanPOItem, ScanProgressResponse } from "@api/po";
 import UploadModal from "@components/modal-upload/modal-upload";
+import PopoverAttach from "@components/popover-attach";
+import PopoverChecklist from "@components/popover-checklist";
+import PopoverCopyCard from "@components/popover-copy-card";
+import PopoverCustomField from "@components/popover-custom-field";
+import PopoverDates from "@components/popover-dates.tsx";
+import PopoverLabel from "@components/popover-label.tsx";
+import PopoverLocation from "@components/popover-location";
+import PopoverMirrorCard from "@components/popover-mirror-card";
+import PopoverMoveCard from "@components/popover-move-card";
+import PopoverUser from "@components/popover-user";
+import { useCurrentAccount, usePermissions } from "@hooks/account";
+import { useCards } from "@hooks/card";
+import { useCardDetails } from "@hooks/card-details";
 import { useCardAttachment } from "@hooks/card_attachment";
+import { useCardMembers } from "@hooks/card_member";
 import { EnumAttachmentType } from "@myTypes/card";
 import { FileUpload } from "@myTypes/file-upload";
-import { uploadFile } from "@api/file";
-import AutomateButtons from "./automate-buttons";
+import { useBoardPermissionsContext } from "@providers/board-permissions-context";
+import { useCardDetailContext } from "@providers/card-detail-context";
+import { selectIsDarkMode, selectTheme } from "@store/app_slice";
 import { useQueries, useQueryClient } from "@tanstack/react-query";
-import { getPOScanProgress, ScanProgressResponse, scanPOItem } from "@api/po";
+import { LookupCache } from "@utils/lookup-cache";
+import { Button, message, Modal, Progress, Tooltip } from "antd";
+import {
+  Archive,
+  CheckSquare,
+  Clock,
+  Copy,
+  FileCheck,
+  FileText,
+  FlipHorizontal,
+  MapPin,
+  MoveRight,
+  Paperclip,
+  QrCode,
+  RectangleEllipsis,
+  RotateCcw,
+  ScanLine,
+  Share2,
+  Tag,
+  Trash2,
+  UserMinus,
+  UserPlus,
+  Users,
+} from "lucide-react";
+import { useParams } from "next/navigation";
+import React, { useEffect, useRef, useState } from "react";
+import { useSelector } from "react-redux";
+import AutomateButtons from "./automate-buttons";
 import { usePOsByCardId } from "./bahan-fields/hooks/usePOsByCardId";
-import { Progress, Button } from "antd";
+import QRModal from "./qr-modal/qr-modal";
 
 // Helper component for permission-controlled buttons - moved outside to prevent re-creation
 const PermissionButton: React.FC<{
@@ -222,11 +219,11 @@ const Actions: React.FC = () => {
     if (scanProgressQueries.length > 0) {
       const newProgressData: Record<string, ScanProgressResponse> = {};
       const allUserIds = new Set<string>();
-      
+
       scanProgressQueries.forEach((query, index) => {
         if (query.data && query.data.data && apiPOData[index]) {
           newProgressData[apiPOData[index].id] = query.data.data;
-          
+
           // Collect user IDs for lookup
           query.data.data.items?.forEach((item: any) => {
             const userId = item.scannedBy || item.scanned_by;
@@ -234,13 +231,8 @@ const Actions: React.FC = () => {
           });
         }
       });
-      
+
       setProgressData(newProgressData);
-      
-      // Fetch user names for lookup cache
-      if (allUserIds.size > 0) {
-        fetchLookups("user", Array.from(allUserIds), getAccount);
-      }
     }
   }, [scanProgressQueries, apiPOData]);
 
@@ -1052,12 +1044,18 @@ const Actions: React.FC = () => {
                         })
                         .map((item: any) => {
                           const scannedAt = item.scannedAt || item.scanned_at;
-                          const scannedByUserId = item.scannedBy || item.scanned_by;
+                          const scannedByUserId =
+                            item.scannedBy || item.scanned_by;
                           // Prefer backend-provided name, fallback to lookup cache, then UUID
-                          const scannedByName = item.scannedByName || item.scanned_by_name ||
-                            (scannedByUserId ? LookupCache.label("user", scannedByUserId) : null) ||
+                          const scannedByName =
+                            item.scannedByName ||
+                            item.scanned_by_name ||
+                            (scannedByUserId
+                              ? LookupCache.label("user", scannedByUserId)
+                              : null) ||
                             scannedByUserId;
-                          const subcategoryName = item.subcategoryName || item.subcategory_name;
+                          const subcategoryName =
+                            item.subcategoryName || item.subcategory_name;
                           const formattedTime = scannedAt
                             ? new Date(scannedAt).toLocaleString("en-US", {
                                 month: "short",
@@ -1100,22 +1098,23 @@ const Actions: React.FC = () => {
                                   {item.scanned ? "✓ Scanned" : "Pending"}
                                 </span>
                               </div>
-                              {item.scanned && (scannedByName || formattedTime) && (
-                                <div className="mt-1 flex items-center gap-3 text-xs text-gray-500">
-                                  {scannedByName && (
-                                    <span className="flex items-center gap-1">
-                                      <span className="font-medium">By:</span>
-                                      <span>{scannedByName}</span>
-                                    </span>
-                                  )}
-                                  {formattedTime && (
-                                    <span className="flex items-center gap-1">
-                                      <span className="font-medium">At:</span>
-                                      <span>{formattedTime}</span>
-                                    </span>
-                                  )}
-                                </div>
-                              )}
+                              {item.scanned &&
+                                (scannedByName || formattedTime) && (
+                                  <div className="mt-1 flex items-center gap-3 text-xs text-gray-500">
+                                    {scannedByName && (
+                                      <span className="flex items-center gap-1">
+                                        <span className="font-medium">By:</span>
+                                        <span>{scannedByName}</span>
+                                      </span>
+                                    )}
+                                    {formattedTime && (
+                                      <span className="flex items-center gap-1">
+                                        <span className="font-medium">At:</span>
+                                        <span>{formattedTime}</span>
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
                             </div>
                           );
                         })}
