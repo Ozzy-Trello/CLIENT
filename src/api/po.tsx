@@ -7,6 +7,19 @@ export interface SizeQuantity {
   [size: string]: number;
 }
 
+export interface POSubcategory {
+  id: string;
+  poId: string;
+  subcategoryId: string;
+  subcategory?: {
+    id: string;
+    name: string;
+  };
+  items?: POItem[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface PO {
   id: string;
   cardId: string;
@@ -14,6 +27,7 @@ export interface PO {
   createdAt: Date;
   updatedAt: Date;
   items?: POItem[];
+  subcategories?: POSubcategory[]; // NEW: Subcategories with their items
 }
 
 // Utility function to calculate total quantity from PO items
@@ -24,17 +38,24 @@ export const getPOTotalQuantity = (po: PO): number => {
   return po.items.reduce((total, item) => total + (item.quantity || 0), 0);
 };
 
+export interface SubcategoryAssignment {
+  subcategoryId: string;
+  sizeAssignments: SizeQuantity;
+}
+
 export interface CreatePORequest {
   card_id: string;
   po_number: string;
   quantity?: number; // Optional for backward compatibility
-  size_assignments?: SizeQuantity; // New field for size-based assignments
+  size_assignments?: SizeQuantity; // Deprecated - use subcategoryAssignments
+  subcategoryAssignments?: SubcategoryAssignment[]; // NEW: For subcategory-based assignments
 }
 
 export interface UpdatePORequest {
   po_number?: string;
   quantity?: number; // For legacy quantity updates
-  size_assignments?: SizeQuantity; // For size-based updates
+  size_assignments?: SizeQuantity; // Deprecated - use subcategoryAssignments
+  subcategoryAssignments?: SubcategoryAssignment[]; // NEW: For subcategory-based updates
 }
 
 // Scan progress item for a PO
@@ -42,21 +63,27 @@ export interface ScanProgressItem {
   id: string;
   size: string;
   itemNumber: number;
+  item_number?: number; // snake_case from backend
   quantity: number;
   qrCode: string;
+  qr_code?: string; // snake_case from backend
   scanned: boolean;
   scannedAt?: string | Date;
-  scannedBy?: string;
+  scanned_at?: string | Date; // snake_case from backend
+  scannedBy?: string; // User ID
+  scanned_by?: string; // User ID (snake_case from backend)
+  scannedByName?: string; // User name from backend
+  scanned_by_name?: string; // User name (snake_case from backend)
+  subcategoryName?: string; // Subcategory name from backend
+  subcategory_name?: string; // Subcategory name (snake_case from backend)
 }
 
 // Scan progress response for a PO
 export interface ScanProgressResponse {
-  data: {
-    scanned: number;
-    total: number;
-    percentage: number;
-    items: ScanProgressItem[];
-  }
+  scanned: number;
+  total: number;
+  percentage: number;
+  items: ScanProgressItem[];
 }
 
 // Request body for scanning a PO item

@@ -2,6 +2,9 @@ import React, { useRef, useState, useEffect } from "react";
 import { useCardDetailContext } from "@providers/card-detail-context";
 import { useSelector } from "react-redux";
 import { selectTheme, selectIsDarkMode } from "@store/app_slice";
+import { LookupCache } from "@utils/lookup-cache";
+import { fetchLookups } from "@utils/fetch-lookups";
+import { getAccount } from "@api/account";
 import PopoverChecklist from "@components/popover-checklist";
 import {
   Users,
@@ -218,97 +221,108 @@ const Actions: React.FC = () => {
   useEffect(() => {
     if (scanProgressQueries.length > 0) {
       const newProgressData: Record<string, ScanProgressResponse> = {};
+      const allUserIds = new Set<string>();
+      
       scanProgressQueries.forEach((query, index) => {
         if (query.data && query.data.data && apiPOData[index]) {
           newProgressData[apiPOData[index].id] = query.data.data;
+          
+          // Collect user IDs for lookup
+          query.data.data.items?.forEach((item: any) => {
+            const userId = item.scannedBy || item.scanned_by;
+            if (userId) allUserIds.add(userId);
+          });
         }
       });
+      
       setProgressData(newProgressData);
+      
+      // Fetch user names for lookup cache
+      if (allUserIds.size > 0) {
+        fetchLookups("user", Array.from(allUserIds), getAccount);
+      }
     }
   }, [scanProgressQueries, apiPOData]);
 
-  // External scanner handling
+  // Hidden input ref for scanner
+  const scannerInputRef = useRef<HTMLInputElement>(null);
+
+  // Focus hidden input when modal opens and keep it focused
   useEffect(() => {
-    let buffer = "";
-    let bufferTimeout: NodeJS.Timeout;
+    if (isProgressOpen && scannerInputRef.current) {
+      // Initial focus
+      scannerInputRef.current.focus();
 
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (!isProgressOpen) return;
-
-      // Check if it's a printable character or Enter
-      if (event.key.length === 1 || event.key === "Enter") {
-        event.preventDefault();
-
-        if (event.key === "Enter") {
-          // Process the buffer
-          if (buffer.trim()) {
-            handleScanInput(buffer.trim());
-            buffer = "";
-          }
-        } else {
-          // Add character to buffer
-          buffer += event.key;
-
-          // Clear existing timeout
-          if (bufferTimeout) {
-            clearTimeout(bufferTimeout);
-          }
-
-          // Set new timeout to clear buffer if no more input
-          bufferTimeout = setTimeout(() => {
-            buffer = "";
-          }, 100); // 100ms timeout
+      // Refocus on any click in the modal
+      const refocusInput = () => {
+        if (scannerInputRef.current) {
+          scannerInputRef.current.focus();
         }
-      }
-    };
+      };
 
-    const handleScanInput = async (scannedData: string) => {
-      if (isScanBusy) return;
+      // Refocus interval to ensure input stays focused
+      const focusInterval = setInterval(refocusInput, 100);
 
-      setIsScanBusy(true);
+      return () => {
+        clearInterval(focusInterval);
+      };
+    }
+  }, [isProgressOpen]);
+
+  // Handle scan input from scanner
+  const handleScanInput = async (scannedData: string) => {
+    if (isScanBusy) return;
+
+    console.log("🔍 [SCAN DEBUG] Raw scanned data:", scannedData);
+    console.log("🔍 [SCAN DEBUG] Scanned data length:", scannedData.length);
+    console.log("🔍 [SCAN DEBUG] Payload to send:", { qrCode: scannedData });
+
+    setIsScanBusy(true);
+    setLastScanInfo({
+      data: scannedData,
+      status: "processing",
+      message: "Processing scan...",
+    });
+
+    try {
+      const result = await scanPOItem({ qrCode: scannedData });
+      console.log("✅ [SCAN DEBUG] API response:", result);
+
       setLastScanInfo({
         data: scannedData,
-        status: "processing",
-        message: "Processing scan...",
+        status: "success",
+        message: result.message || "Scan successful",
       });
 
-      try {
-        const result = await scanPOItem({ qrCode: scannedData });
+      // Invalidate and refetch scan progress queries
+      scanProgressQueries.forEach((_, index) => {
+        if (apiPOData[index]) {
+          queryClient.invalidateQueries({
+            queryKey: ["po-scan-progress", apiPOData[index].id],
+          });
+        }
+      });
+    } catch (error: any) {
+      setLastScanInfo({
+        data: scannedData,
+        status: "error",
+        message: error.response?.data?.message || "Scan failed",
+      });
+    } finally {
+      setIsScanBusy(false);
+    }
+  };
 
-        setLastScanInfo({
-          data: scannedData,
-          status: "success",
-          message: result.message || "Scan successful",
-        });
-
-        // Invalidate and refetch scan progress queries
-        scanProgressQueries.forEach((_, index) => {
-          if (apiPOData[index]) {
-            queryClient.invalidateQueries({
-              queryKey: ["po-scan-progress", apiPOData[index].id],
-            });
-          }
-        });
-      } catch (error: any) {
-        setLastScanInfo({
-          data: scannedData,
-          status: "error",
-          message: error.response?.data?.message || "Scan failed",
-        });
-      } finally {
-        setIsScanBusy(false);
+  // External scanner handling via hidden input
+  const handleScannerInput = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      const value = (e.target as HTMLInputElement).value.trim();
+      if (value) {
+        handleScanInput(value);
+        (e.target as HTMLInputElement).value = ""; // Clear input
       }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-      if (bufferTimeout) {
-        clearTimeout(bufferTimeout);
-      }
-    };
-  }, [isProgressOpen, isScanBusy, apiPOData, queryClient, scanProgressQueries]);
+    }
+  };
 
   // Check if current user is a member
   const isCurrentUserMember = currentUser?.id
@@ -948,127 +962,175 @@ const Actions: React.FC = () => {
           ]}
           width={800}
         >
-          <div className="space-y-4">
-            {/* Scan Status */}
-            {lastScanInfo && (
-              <div className="p-3 border rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-medium">Last Scan:</span>
-                  <span
-                    className={`px-2 py-1 rounded text-xs ${
-                      lastScanInfo.status === "success"
-                        ? "bg-green-100 text-green-800"
-                        : lastScanInfo.status === "error"
-                        ? "bg-red-100 text-red-800"
-                        : "bg-yellow-100 text-yellow-800"
-                    }`}
-                  >
-                    {lastScanInfo.status}
-                  </span>
-                </div>
-                <div className="text-sm text-gray-600 mb-1">
-                  Data: {lastScanInfo.qr}
-                </div>
-                <div className="text-sm">{lastScanInfo.message}</div>
-              </div>
-            )}
-
-            {/* Loading State */}
-            {(isScanLoading || isScanBusy) && (
-              <div className="text-center py-4">
-                <div className="text-sm text-gray-600">
-                  {isScanBusy
-                    ? "Processing scan..."
-                    : "Loading scan progress..."}
-                </div>
-              </div>
-            )}
-
-            {/* Error State */}
-            {scanErrors.length > 0 && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                <div className="text-red-800 font-medium mb-2">Errors:</div>
-                {scanErrors.map((error, index) => (
-                  <div key={index} className="text-red-700 text-sm">
-                    {error.error?.message || "Unknown error"}
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* PO Scan Progress */}
-            {apiPOData.map((po, idx) => {
-              const prog = progressData[po.id];
-              const scanned = prog?.data?.scanned ?? 0;
-              const total = prog?.data?.total ?? 0;
-              const percentage = prog?.data?.percentage ?? 0;
-              return (
-                <div key={po.id} className="p-4 rounded-lg border bg-gray-50">
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium">PO: {idx} </span>
-                    <span className="text-sm font-medium">
-                      {scanned}/{total} ({percentage}%)
-                    </span>
-                  </div>
-                  <div className="mt-2">
-                    <Progress
-                      percent={percentage}
-                      size="small"
-                      showInfo={false}
-                    />
-                  </div>
-                  <div className="mt-3 space-y-1">
-                    {(prog?.data?.items || [])
-                      .slice()
-                      .sort((a: any, b: any) => {
-                        // Stable sort by size then itemNumber ascending
-                        const sizeCmp = String(a.size).localeCompare(
-                          String(b.size)
-                        );
-                        if (sizeCmp !== 0) return sizeCmp;
-                        const aNum =
-                          typeof a.itemNumber === "number"
-                            ? a.itemNumber
-                            : a.item_number ?? 0;
-                        const bNum =
-                          typeof b.itemNumber === "number"
-                            ? b.itemNumber
-                            : b.item_number ?? 0;
-                        return aNum - bNum;
-                      })
-                      .map((item: any) => (
-                        <div
-                          key={item.id}
-                          className="flex items-center justify-between text-sm rounded-md bg-white border px-2 py-1"
-                        >
-                          <span className="font-mono">
-                            {item.size}-
-                            {String(
-                              item.itemNumber ?? item.item_number
-                            ).padStart(3, "0")}
-                          </span>
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                              item.scanned
-                                ? "bg-green-100 text-green-700 border border-green-200"
-                                : "bg-gray-100 text-gray-700 border border-gray-200"
-                            }`}
-                          >
-                            {item.scanned ? "Scanned" : "Pending"}
-                          </span>
-                        </div>
-                      ))}
+          {/* Hidden input to capture scanner */}
+          <input
+            ref={scannerInputRef}
+            type="text"
+            onChange={(e) =>
+              console.log("📝 [INPUT DEBUG] Value changed:", e.target.value)
+            }
+            onKeyDown={handleScannerInput}
+            onBlur={(e) => e.target.focus()} // Prevent losing focus
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              opacity: 0,
+              width: "1px",
+              height: "1px",
+              border: "none",
+              padding: 0,
+              margin: 0,
+            }}
+            autoFocus
+          />
+          {/* Click anywhere to refocus */}
+          <div onClick={() => scannerInputRef.current?.focus()}>
+            <div className="space-y-4">
+              {/* Loading State */}
+              {(isScanLoading || isScanBusy) && (
+                <div className="text-center py-4">
+                  <div className="text-sm text-gray-600">
+                    {isScanBusy
+                      ? "Processing scan..."
+                      : "Loading scan progress..."}
                   </div>
                 </div>
-              );
-            })}
+              )}
 
-            {/* Empty State */}
-            {!isScanLoading && apiPOData.length === 0 && (
-              <div className="text-center py-8 text-gray-500">
-                No scan progress data available
-              </div>
-            )}
+              {/* Error State */}
+              {scanErrors.length > 0 && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <div className="text-red-800 font-medium mb-2">Errors:</div>
+                  {scanErrors.map((error, index) => (
+                    <div key={index} className="text-red-700 text-sm">
+                      {error.error?.message || "Unknown error"}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* PO Scan Progress */}
+              {apiPOData.reverse().map((po, idx) => {
+                const prog = progressData[po.id];
+                const scanned = prog?.scanned ?? 0;
+                const total = prog?.total ?? 0;
+                const percentage = prog?.percentage ?? 0;
+                return (
+                  <div key={po.id} className="p-4 rounded-lg border bg-gray-50">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium">PO: {idx + 1} </span>
+                      <span className="text-sm font-medium">
+                        {scanned}/{total} ({percentage}%)
+                      </span>
+                    </div>
+                    <div className="mt-2">
+                      <Progress
+                        percent={percentage}
+                        size="small"
+                        showInfo={false}
+                      />
+                    </div>
+                    <div className="mt-3 space-y-1">
+                      {(prog?.items || [])
+                        .slice()
+                        .sort((a: any, b: any) => {
+                          // Stable sort by size then itemNumber ascending
+                          const sizeCmp = String(a.size).localeCompare(
+                            String(b.size)
+                          );
+                          if (sizeCmp !== 0) return sizeCmp;
+                          const aNum =
+                            typeof a.itemNumber === "number"
+                              ? a.itemNumber
+                              : a.item_number ?? 0;
+                          const bNum =
+                            typeof b.itemNumber === "number"
+                              ? b.itemNumber
+                              : b.item_number ?? 0;
+                          return aNum - bNum;
+                        })
+                        .map((item: any) => {
+                          const scannedAt = item.scannedAt || item.scanned_at;
+                          const scannedByUserId = item.scannedBy || item.scanned_by;
+                          // Prefer backend-provided name, fallback to lookup cache, then UUID
+                          const scannedByName = item.scannedByName || item.scanned_by_name ||
+                            (scannedByUserId ? LookupCache.label("user", scannedByUserId) : null) ||
+                            scannedByUserId;
+                          const subcategoryName = item.subcategoryName || item.subcategory_name;
+                          const formattedTime = scannedAt
+                            ? new Date(scannedAt).toLocaleString("en-US", {
+                                month: "short",
+                                day: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })
+                            : null;
+
+                          return (
+                            <div
+                              key={item.id}
+                              className={`rounded-md bg-white border px-3 py-2 ${
+                                item.scanned
+                                  ? "border-green-200"
+                                  : "border-gray-200"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-mono font-semibold text-sm">
+                                    {item.size}-
+                                    {String(
+                                      item.itemNumber ?? item.item_number
+                                    ).padStart(3, "0")}
+                                  </span>
+                                  {subcategoryName && (
+                                    <span className="text-xs text-gray-500 px-2 py-0.5 bg-gray-100 rounded">
+                                      {subcategoryName}
+                                    </span>
+                                  )}
+                                </div>
+                                <span
+                                  className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                                    item.scanned
+                                      ? "bg-green-100 text-green-700 border border-green-200"
+                                      : "bg-gray-100 text-gray-700 border border-gray-200"
+                                  }`}
+                                >
+                                  {item.scanned ? "✓ Scanned" : "Pending"}
+                                </span>
+                              </div>
+                              {item.scanned && (scannedByName || formattedTime) && (
+                                <div className="mt-1 flex items-center gap-3 text-xs text-gray-500">
+                                  {scannedByName && (
+                                    <span className="flex items-center gap-1">
+                                      <span className="font-medium">By:</span>
+                                      <span>{scannedByName}</span>
+                                    </span>
+                                  )}
+                                  {formattedTime && (
+                                    <span className="flex items-center gap-1">
+                                      <span className="font-medium">At:</span>
+                                      <span>{formattedTime}</span>
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Empty State */}
+              {!isScanLoading && apiPOData.length === 0 && (
+                <div className="text-center py-8 text-gray-500">
+                  No scan progress data available
+                </div>
+              )}
+            </div>
           </div>
         </Modal>
 

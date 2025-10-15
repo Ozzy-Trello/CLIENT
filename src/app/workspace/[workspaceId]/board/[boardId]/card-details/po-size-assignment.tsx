@@ -8,7 +8,7 @@ import {
   updatePO,
   UpdatePORequest,
 } from "@api/po";
-import { getPOItemsByCardId, POItem } from "@api/po-items";
+import { getAllSubcategories } from "@api/category";
 import { Card } from "@myTypes/card";
 import { useBoardPermissionsContext } from "@providers/board-permissions-context";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -23,8 +23,9 @@ import {
   Modal,
   Spin,
   Tag,
+  Tooltip,
 } from "antd";
-import { Package } from "lucide-react";
+import { Package, Ruler } from "lucide-react";
 import React, { useEffect, useState } from "react";
 
 interface POSizeAssignmentProps {
@@ -32,11 +33,22 @@ interface POSizeAssignmentProps {
   setSelectedCard?: React.Dispatch<React.SetStateAction<Card | null>>;
 }
 
-interface POSizeData {
-  po: PO;
+interface SubcategoryData {
+  id: string;
+  name: string;
+}
+
+interface SubcategoryAssignment {
+  subcategoryId: string;
+  name: string;
   sizeAssignments: SizeQuantity;
+  totalItems: number;
+}
+
+interface POSubcategoryData {
+  po: PO;
+  subcategoryAssignments: SubcategoryAssignment[];
   hasChanges: boolean;
-  items?: POItem[];
 }
 
 // Standard sizes from XS to XXXXXL
@@ -52,40 +64,23 @@ const STANDARD_SIZES = [
   "XXXXXL",
 ];
 
-/**
- * Normalize POItems API response to handle wrapped format:
- * { statusCode: 200, message: "...", data: { items: [...], total: number } }
- */
-const normalizePOItemsResponse = (
-  response: any
-): { items: POItem[]; total: number } => {
-  // If response has a 'data' property, it's the wrapped format
-  if (response && typeof response === "object" && "data" in response) {
-    return response.data || { items: [], total: 0 };
-  }
-
-  // If response has items property directly, use that
-  if (response && response.items && Array.isArray(response.items)) {
-    return response;
-  }
-
-  // Fallback to empty structure
-  return { items: [], total: 0 };
-};
-
 const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
   card,
   setSelectedCard,
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [poSizeData, setPOSizeData] = useState<POSizeData[]>([]);
+  const [isSizeModalOpen, setIsSizeModalOpen] = useState(false);
+  const [selectedSubcategory, setSelectedSubcategory] = useState<{
+    poId: string;
+    subcategoryId: string;
+    subcategoryName: string;
+    currentSizes: SizeQuantity;
+  } | null>(null);
+  const [poSubcategoryData, setPOSubcategoryData] = useState<POSubcategoryData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [customSizes, setCustomSizes] = useState<{ [poId: string]: string[] }>(
-    {}
-  );
-  const [newCustomSize, setNewCustomSize] = useState<{
-    [poId: string]: string;
-  }>({});
+  const [customSizes, setCustomSizes] = useState<string[]>([]);
+  const [newCustomSize, setNewCustomSize] = useState<string>("");
+  const [tempSizeAssignments, setTempSizeAssignments] = useState<SizeQuantity>({});
   const { canUpdateCard } = useBoardPermissionsContext();
   const queryClient = useQueryClient();
 
@@ -95,24 +90,12 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
     error: posError,
   } = usePOsForSizeAssignment(card.id, isModalOpen);
 
-  const { data: poItemsData, isLoading: isLoadingPOItems } = useQuery({
-    queryKey: ["po-items", card.id],
+  // Fetch all subcategories
+  const { data: subcategoriesResponse, isLoading: isLoadingSubcategories } = useQuery({
+    queryKey: ["subcategories", card.workspaceId],
     queryFn: async () => {
-      console.log(
-        "🔍 [POSizeAssignment] Fetching PO items for cardId:",
-        card.id
-      );
-      const response = await getPOItemsByCardId(card.id);
-      console.log("🔍 [POSizeAssignment] Raw POItems API Response:", response);
-
-      // Normalize the response to handle wrapped format
-      const normalizedData = normalizePOItemsResponse(response);
-      console.log(
-        "🔍 [POSizeAssignment] Normalized POItems data:",
-        normalizedData
-      );
-
-      return normalizedData;
+      const response = await getAllSubcategories(card.workspaceId);
+      return response.data || [];
     },
     enabled: isModalOpen,
   });
@@ -127,19 +110,19 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
     }) => updatePO(poId, updateData),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["pos", card.id] });
-      queryClient.invalidateQueries({ queryKey: ["po-items", card.id] });
       message.success("PO updated successfully");
     },
     onError: (error) => {
       message.error("Failed to update PO");
     },
+    retry: false, // Disable retries to prevent duplicate submissions
+    gcTime: 0, // Don't cache mutation results
   });
 
   const autoCreatePOMutation = useMutation({
     mutationFn: (cardId: string) => autoCreatePOs(cardId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["pos", card.id] });
-      queryClient.invalidateQueries({ queryKey: ["po-items", card.id] });
     },
     onError: (error) => {
       message.error("Failed to create default PO");
@@ -162,89 +145,54 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
     autoCreatePOMutation,
   ]);
 
-  // Initialize PO data when POs and PO items are loaded
+  // Initialize PO subcategory data when POs and subcategories are loaded
   useEffect(() => {
-    if (posData) {
-      // Get PO IDs for processing
-      const poIds = posData.map((po) => po.id);
+    if (posData && subcategoriesResponse) {
+      const subcategories = subcategoriesResponse as SubcategoryData[];
+      
+      const initialData: POSubcategoryData[] = posData.map((po: PO) => {
+        // Initialize subcategory assignments for each subcategory
+        const subcategoryAssignments: SubcategoryAssignment[] = subcategories.map(
+          (subcategory) => {
+            // Check if PO has existing subcategory data
+            const existingSubcategory = po.subcategories?.find(
+              (s: any) => s.subcategoryId === subcategory.id
+            );
 
-      // Group PO items by PO ID (keeping for existing functionality)
-      const itemsByPOId: { [poId: string]: POItem[] } = {};
-      if (poItemsData?.items) {
-        poItemsData.items.forEach((item: POItem) => {
-          if (!itemsByPOId[item.poId]) {
-            itemsByPOId[item.poId] = [];
+            let sizeAssignments: SizeQuantity = {};
+            let totalItems = 0;
+
+            if (existingSubcategory && existingSubcategory.items) {
+              // Build size assignments from existing items
+              existingSubcategory.items.forEach((item: any) => {
+                if (item.size && item.size !== "ITEM") {
+                  const normalizedSize = item.size.toUpperCase();
+                  sizeAssignments[normalizedSize] =
+                    (sizeAssignments[normalizedSize] || 0) + 1;
+                }
+              });
+              totalItems = existingSubcategory.items.length;
+            }
+
+            return {
+              subcategoryId: subcategory.id,
+              name: subcategory.name,
+              sizeAssignments,
+              totalItems,
+            };
           }
-          itemsByPOId[item.poId].push(item);
-        });
-      }
-
-      // Initialize size-based data with items
-      const initialSizeData: POSizeData[] = posData.map((po: PO) => {
-        const poItems = po.items || itemsByPOId[po.id] || [];
-
-        // Validate that items have proper sizes (never "ITEM")
-        const invalidItems = poItems.filter((item) => item.size === "ITEM");
-        if (invalidItems.length > 0) {
-          console.error(
-            `❌ [ERROR] PO ${po.poNumber} has ${invalidItems.length} items with invalid generic size "ITEM". This should never happen!`
-          );
-          message.error(
-            `PO ${po.poNumber} has invalid generic items. Please contact support to fix the database.`
-          );
-        }
-
-        // Build size assignments from existing items
-        const sizeAssignments: SizeQuantity = {};
-        poItems.forEach((item: POItem) => {
-          if (item.size && item.size !== "ITEM") {
-            // Normalize size to uppercase to match STANDARD_SIZES
-            const normalizedSize = item.size.toUpperCase();
-            sizeAssignments[normalizedSize] =
-              (sizeAssignments[normalizedSize] || 0) + 1;
-          }
-        });
+        );
 
         return {
           po,
-          sizeAssignments,
+          subcategoryAssignments,
           hasChanges: false,
-          items: poItems,
         };
       });
-      setPOSizeData(initialSizeData);
 
-      const initialCustomSizes: { [poId: string]: string[] } = {};
-
-      const fetchCustomSizes = async () => {
-        for (const po of posData || []) {
-          try {
-            const poData = await getPOById(po.id);
-            const poItems = poData.data?.items || [];
-
-            const customSizes = Array.from(
-              new Set(
-                poItems
-                  .map((item: any) => item.size?.toUpperCase())
-                  .filter(
-                    (size: string) =>
-                      size && size !== "ITEM" && !STANDARD_SIZES.includes(size)
-                  )
-              )
-            );
-
-            initialCustomSizes[po.id] = customSizes;
-          } catch (error) {
-            initialCustomSizes[po.id] = [];
-          }
-        }
-
-        setCustomSizes(initialCustomSizes);
-      };
-
-      fetchCustomSizes();
+      setPOSubcategoryData(initialData);
     }
-  }, [posData, poItemsData]);
+  }, [posData, subcategoriesResponse]);
 
   const handleOpenModal = () => {
     if (!canUpdateCard()) {
@@ -256,94 +204,139 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
 
   const handleCloseModal = () => {
     setIsModalOpen(false);
-    // Don't clear state - let useEffect handle data loading when modal reopens
   };
 
-  const handleSizeQuantityChange = (
-    poIndex: number,
-    size: string,
-    value: number | null
+  const handleOpenSizeModal = (
+    poId: string,
+    subcategoryId: string,
+    subcategoryName: string,
+    currentSizes: SizeQuantity
   ) => {
-    const poData = poSizeData[poIndex];
-    const totalItems = poData.items?.length || 0;
+    setSelectedSubcategory({
+      poId,
+      subcategoryId,
+      subcategoryName,
+      currentSizes,
+    });
+    setTempSizeAssignments({ ...currentSizes });
+    setIsSizeModalOpen(true);
+    
+    // Load custom sizes from existing assignments
+    const allSizes = Object.keys(currentSizes);
+    const customSizesFound = allSizes.filter(
+      (size) => !STANDARD_SIZES.includes(size)
+    );
+    setCustomSizes(customSizesFound);
+  };
 
-    // Validate the new value
-    if (value && value > 0) {
-      // No validation needed - over-assignment is allowed
-    }
+  const handleCloseSizeModal = () => {
+    setIsSizeModalOpen(false);
+    setSelectedSubcategory(null);
+    setTempSizeAssignments({});
+    setCustomSizes([]);
+    setNewCustomSize("");
+  };
 
-    setPOSizeData((prev) => {
-      const newData = [...prev];
-      const currentAssignments = { ...newData[poIndex].sizeAssignments };
-
+  const handleSizeQuantityChange = (size: string, value: number | null) => {
+    setTempSizeAssignments((prev) => {
+      const newAssignments = { ...prev };
       if (value && value > 0) {
-        currentAssignments[size] = value;
+        newAssignments[size] = value;
       } else {
-        delete currentAssignments[size];
+        delete newAssignments[size];
       }
-
-      newData[poIndex] = {
-        ...newData[poIndex],
-        sizeAssignments: currentAssignments,
-        hasChanges: true,
-      };
-      return newData;
+      return newAssignments;
     });
   };
 
-  const handleAddCustomSize = (poId: string) => {
-    const customSize = newCustomSize[poId]?.trim();
+  const handleAddCustomSize = () => {
+    const customSize = newCustomSize.trim().toUpperCase();
     if (!customSize) return;
-
-    setCustomSizes((prev) => ({
-      ...prev,
-      [poId]: [...(prev[poId] || []), customSize],
-    }));
-
-    setNewCustomSize((prev) => ({
-      ...prev,
-      [poId]: "",
-    }));
-  };
-
-  const handleRemoveCustomSize = (poId: string, sizeToRemove: string) => {
-    setCustomSizes((prev) => ({
-      ...prev,
-      [poId]: prev[poId]?.filter((size) => size !== sizeToRemove) || [],
-    }));
-
-    // Also remove from size assignments if it exists
-    const poIndex = poSizeData.findIndex((data) => data.po.id === poId);
-    if (poIndex !== -1) {
-      setPOSizeData((prev) => {
-        const newData = [...prev];
-        const currentAssignments = { ...newData[poIndex].sizeAssignments };
-        delete currentAssignments[sizeToRemove];
-
-        newData[poIndex] = {
-          ...newData[poIndex],
-          sizeAssignments: currentAssignments,
-          hasChanges: true,
-        };
-        return newData;
-      });
+    
+    if (STANDARD_SIZES.includes(customSize)) {
+      message.warning("This is already a standard size");
+      return;
     }
+
+    if (customSizes.includes(customSize)) {
+      message.warning("This custom size already exists");
+      return;
+    }
+
+    setCustomSizes((prev) => [...prev, customSize]);
+    setNewCustomSize("");
   };
 
-  const handleSaveSizePO = async (poIndex: number) => {
-    const poData = poSizeData[poIndex];
-    if (!poData.hasChanges) return;
+  const handleRemoveCustomSize = (sizeToRemove: string) => {
+    setCustomSizes((prev) => prev.filter((size) => size !== sizeToRemove));
+    
+    // Also remove from temp size assignments
+    setTempSizeAssignments((prev) => {
+      const newAssignments = { ...prev };
+      delete newAssignments[sizeToRemove];
+      return newAssignments;
+    });
+  };
+
+  const handleSaveSizeAssignments = () => {
+    if (!selectedSubcategory) return;
+
+    const { poId, subcategoryId, subcategoryName } = selectedSubcategory;
+    const totalItems = Object.values(tempSizeAssignments).reduce(
+      (sum, qty) => sum + qty,
+      0
+    );
+
+    // Update the PO subcategory data
+    setPOSubcategoryData((prev) => {
+      const newData = [...prev];
+      const poIndex = newData.findIndex((data) => data.po.id === poId);
+      
+      if (poIndex !== -1) {
+        const subcategoryIndex = newData[poIndex].subcategoryAssignments.findIndex(
+          (s) => s.subcategoryId === subcategoryId
+        );
+
+        if (subcategoryIndex !== -1) {
+          newData[poIndex].subcategoryAssignments[subcategoryIndex] = {
+            subcategoryId,
+            name: subcategoryName,
+            sizeAssignments: { ...tempSizeAssignments },
+            totalItems,
+          };
+          newData[poIndex].hasChanges = true;
+        }
+      }
+
+      return newData;
+    });
+
+    message.success(`Size assignments saved for ${subcategoryName}`);
+    handleCloseSizeModal();
+  };
+
+  const handleSavePO = async (poIndex: number) => {
+    const poData = poSubcategoryData[poIndex];
+    if (!poData.hasChanges || updatePOMutation.isPending) return;
 
     try {
+      // Build subcategory assignments for the API
+      const subcategoryAssignments = poData.subcategoryAssignments
+        .filter((s) => Object.keys(s.sizeAssignments).length > 0)
+        .map((s) => ({
+          subcategoryId: s.subcategoryId,
+          sizeAssignments: s.sizeAssignments,
+        }));
+
       await updatePOMutation.mutateAsync({
         poId: poData.po.id,
         updateData: {
-          size_assignments: poData.sizeAssignments,
+          subcategoryAssignments,
         },
       });
 
       // Mark as saved
-      setPOSizeData((prev) => {
+      setPOSubcategoryData((prev) => {
         const newData = [...prev];
         newData[poIndex] = {
           ...newData[poIndex],
@@ -352,23 +345,26 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
         return newData;
       });
     } catch (error) {
-      console.error("Error saving size-based PO:", error);
+      console.error("Error saving PO with subcategories:", error);
     }
   };
 
-  const getTotalQuantityForSizePO = (sizeAssignments: SizeQuantity) => {
-    return Object.values(sizeAssignments).reduce((sum, qty) => sum + qty, 0);
-  };
-
-  const getTotalItemsCount = (): number => {
-    return poSizeData.reduce(
-      (total, poData) => total + (poData.items?.length || 0),
+  const getTotalItemsForPO = (subcategoryAssignments: SubcategoryAssignment[]) => {
+    return subcategoryAssignments.reduce(
+      (total, assignment) => total + assignment.totalItems,
       0
     );
   };
 
-  const getAllSizesForPO = (poId: string) => {
-    return [...STANDARD_SIZES, ...(customSizes[poId] || [])];
+  const getTotalItemsCount = (): number => {
+    return poSubcategoryData.reduce(
+      (total, poData) => total + getTotalItemsForPO(poData.subcategoryAssignments),
+      0
+    );
+  };
+
+  const getAllSizes = () => {
+    return [...STANDARD_SIZES, ...customSizes];
   };
 
   return (
@@ -388,6 +384,7 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
         </Button>
       </div>
 
+      {/* Main PO Modal */}
       <Modal
         title={
           <div className="flex items-center gap-2">
@@ -397,10 +394,10 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
         }
         open={isModalOpen}
         onCancel={handleCloseModal}
-        width={600}
+        width={700}
         footer={null}
       >
-        {isLoadingPOs || isLoadingPOItems ? (
+        {isLoadingPOs || isLoadingSubcategories ? (
           <div className="text-center py-8">
             <Spin size="large" />
             <div className="mt-4 text-gray-500">Loading POs...</div>
@@ -418,17 +415,16 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
               </div>
             </div>
 
-            {/* Size-Based PO Assignment */}
+            {/* PO List with Subcategories */}
             <div className="space-y-4">
-              {/* Size-Based PO List */}
               {!posData || posData.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
                   No POs found for this card.
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <h4 className="text-sm font-semibold">PO Size Assignment</h4>
-                  {poSizeData.map((poData, poIndex) => (
+                  <h4 className="text-sm font-semibold">PO Subcategory Assignment</h4>
+                  {poSubcategoryData.map((poData, poIndex) => (
                     <div
                       key={poData.po.id}
                       className={`border rounded-lg p-4 ${
@@ -439,22 +435,22 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
                     >
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-2">
-                          <span className="font-medium">PO {poIndex + 1}</span>
+                          <span className="font-medium">
+                            PO {poIndex + 1}: {poData.po.poNumber}
+                          </span>
                           {poData.hasChanges && (
                             <Tag color="blue" className="text-xs">
                               Modified
                             </Tag>
                           )}
-
                           <span className="text-xs text-green-600">
-                            Total:{" "}
-                            {getTotalQuantityForSizePO(poData.sizeAssignments)}
+                            Total: {getTotalItemsForPO(poData.subcategoryAssignments)}
                           </span>
                         </div>
                         <Button
                           size="small"
                           type="primary"
-                          onClick={() => handleSaveSizePO(poIndex)}
+                          onClick={() => handleSavePO(poIndex)}
                           disabled={!poData.hasChanges}
                           loading={updatePOMutation.isPending}
                         >
@@ -462,101 +458,54 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
                         </Button>
                       </div>
 
-                      <div className="space-y-4">
-                        {/* Size Assignment */}
-                        <div className="bg-white border rounded-lg p-4">
-                          <h5 className="text-sm font-semibold text-gray-800 mb-3">
-                            Size Assignment
-                          </h5>
-
-                          {/* Standard Sizes */}
-                          <div className="grid grid-cols-3 gap-3 mb-4">
-                            {getAllSizesForPO(poData.po.id).map((size) => {
-                              const currentValue =
-                                poData.sizeAssignments[size] || 0;
-                              const existingItemsWithThisSize =
-                                poData.items?.filter(
-                                  (item) => item.size?.toUpperCase() === size
-                                ).length || 0;
-
-                              return (
-                                <div
-                                  key={size}
-                                  className="flex items-center justify-between p-2 bg-gray-50 rounded"
-                                >
-                                  <span className="text-sm font-medium text-gray-700 min-w-[40px]">
-                                    {size}
-                                  </span>
-                                  <div className="flex items-center gap-2">
-                                    <InputNumber
-                                      min={0}
-                                      value={currentValue}
-                                      onChange={(value) =>
-                                        handleSizeQuantityChange(
-                                          poIndex,
-                                          size,
-                                          value
-                                        )
-                                      }
-                                      size="small"
-                                      className="w-20"
-                                      controls={true}
-                                    />
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-
-                          {/* Custom Size Input */}
-                          <div className="border-t pt-3">
-                            <div className="flex items-center gap-2 mb-2">
-                              <Input
-                                placeholder="Add custom size (e.g., 2XS, 6XL)"
-                                value={newCustomSize[poData.po.id] || ""}
-                                onChange={(e) =>
-                                  setNewCustomSize((prev) => ({
-                                    ...prev,
-                                    [poData.po.id]: e.target.value,
-                                  }))
-                                }
-                                size="small"
-                                className="flex-1"
-                              />
-                              <Button
-                                size="small"
-                                onClick={() =>
-                                  handleAddCustomSize(poData.po.id)
-                                }
-                                disabled={!newCustomSize[poData.po.id]?.trim()}
-                              >
-                                Add
-                              </Button>
-                            </div>
-
-                            {customSizes[poData.po.id] &&
-                              customSizes[poData.po.id].length > 0 && (
-                                <div className="flex flex-wrap gap-1">
-                                  {customSizes[poData.po.id].map(
-                                    (customSize) => (
-                                      <Tag
-                                        key={customSize}
-                                        closable
-                                        onClose={() =>
-                                          handleRemoveCustomSize(
+                      <div className="space-y-2">
+                        <h5 className="text-sm font-semibold text-gray-800 mb-2">
+                          Subcategories
+                        </h5>
+                        <div className="grid grid-cols-5 gap-3">
+                          {poData.subcategoryAssignments.map((assignment) => (
+                            <div
+                              key={assignment.subcategoryId}
+                              className="flex flex-col gap-2 p-3 bg-white border rounded-lg hover:border-blue-300 transition-colors"
+                            >
+                              <div className="text-sm font-medium text-gray-700 text-center">
+                                {assignment.name}
+                              </div>
+                              <Tooltip title="Assign Sizes">
+                                <div className="relative">
+                                  <Input
+                                    value={`${assignment.totalItems} items`}
+                                    disabled
+                                    size="small"
+                                    className="text-gray-600 text-center cursor-pointer"
+                                    suffix={
+                                      <Ruler
+                                        size={14}
+                                        className="text-gray-400 hover:text-blue-500 transition-colors cursor-pointer"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleOpenSizeModal(
                                             poData.po.id,
-                                            customSize
-                                          )
-                                        }
-                                        className="text-xs"
-                                      >
-                                        {customSize}
-                                      </Tag>
-                                    )
-                                  )}
+                                            assignment.subcategoryId,
+                                            assignment.name,
+                                            assignment.sizeAssignments
+                                          );
+                                        }}
+                                      />
+                                    }
+                                    onClick={() =>
+                                      handleOpenSizeModal(
+                                        poData.po.id,
+                                        assignment.subcategoryId,
+                                        assignment.name,
+                                        assignment.sizeAssignments
+                                      )
+                                    }
+                                  />
                                 </div>
-                              )}
-                          </div>
+                              </Tooltip>
+                            </div>
+                          ))}
                         </div>
                       </div>
                     </div>
@@ -566,6 +515,132 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* Size Assignment Modal */}
+      <Modal
+        title={
+          <div className="flex items-center gap-2">
+            <Ruler size={20} />
+            <span>
+              Size Assignment - {selectedSubcategory?.subcategoryName}
+            </span>
+          </div>
+        }
+        open={isSizeModalOpen}
+        onCancel={handleCloseSizeModal}
+        width={600}
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button onClick={handleCloseSizeModal}>Cancel</Button>
+            <Button type="primary" onClick={handleSaveSizeAssignments}>
+              Save Sizes
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          {/* Total Count */}
+          <div className="bg-blue-50 p-3 rounded-lg">
+            <span className="text-sm font-medium">
+              Total Items:{" "}
+              {Object.values(tempSizeAssignments).reduce(
+                (sum, qty) => sum + qty,
+                0
+              )}
+            </span>
+          </div>
+
+          {/* Standard Sizes */}
+          <div>
+            <h5 className="text-sm font-semibold text-gray-800 mb-3">
+              Standard Sizes
+            </h5>
+            <div className="grid grid-cols-3 gap-3">
+              {STANDARD_SIZES.map((size) => {
+                const currentValue = tempSizeAssignments[size] || 0;
+                return (
+                  <div
+                    key={size}
+                    className="flex items-center justify-between p-2 bg-gray-50 rounded"
+                  >
+                    <span className="text-sm font-medium text-gray-700 min-w-[50px]">
+                      {size}
+                    </span>
+                    <InputNumber
+                      min={0}
+                      value={currentValue}
+                      onChange={(value) => handleSizeQuantityChange(size, value)}
+                      size="small"
+                      className="w-20"
+                      controls={true}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Custom Sizes */}
+          <div className="border-t pt-4">
+            <h5 className="text-sm font-semibold text-gray-800 mb-3">
+              Custom Sizes
+            </h5>
+            <div className="flex items-center gap-2 mb-3">
+              <Input
+                placeholder="Add custom size (e.g., 2XS, 6XL)"
+                value={newCustomSize}
+                onChange={(e) => setNewCustomSize(e.target.value.toUpperCase())}
+                onPressEnter={handleAddCustomSize}
+                size="small"
+                className="flex-1"
+              />
+              <Button
+                size="small"
+                onClick={handleAddCustomSize}
+                disabled={!newCustomSize.trim()}
+              >
+                Add
+              </Button>
+            </div>
+
+            {customSizes.length > 0 && (
+              <div className="space-y-2">
+                <div className="grid grid-cols-3 gap-3">
+                  {customSizes.map((size) => {
+                    const currentValue = tempSizeAssignments[size] || 0;
+                    return (
+                      <div
+                        key={size}
+                        className="flex items-center justify-between p-2 bg-gray-50 rounded relative"
+                      >
+                        <span className="text-sm font-medium text-gray-700 min-w-[50px]">
+                          {size}
+                          <button
+                            onClick={() => handleRemoveCustomSize(size)}
+                            className="ml-1 text-red-500 hover:text-red-700 text-xs"
+                          >
+                            ×
+                          </button>
+                        </span>
+                        <InputNumber
+                          min={0}
+                          value={currentValue}
+                          onChange={(value) =>
+                            handleSizeQuantityChange(size, value)
+                          }
+                          size="small"
+                          className="w-20"
+                          controls={true}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       </Modal>
     </>
   );

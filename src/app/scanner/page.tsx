@@ -166,26 +166,6 @@ export default function ScannerPage() {
           </p>
         </div>
 
-        {/* Status Display */}
-        <div className="bg-gray-800 rounded-lg p-6 mb-6">
-          <div className="flex items-center justify-center mb-4">
-            {getStatusIcon()}
-          </div>
-          <div className="text-center">
-            <p className={`text-xl font-medium ${getStatusColor()}`}>
-              {status === "idle" && "Ready to scan"}
-              {status === "loading" && "Processing scan..."}
-              {status === "success" && "Scan successful!"}
-              {status === "error" && "Scan failed"}
-            </p>
-            {lastScan && (
-              <p className="text-sm text-gray-400 mt-2">
-                Last scan: {lastScan.substring(0, 50)}...
-              </p>
-            )}
-          </div>
-        </div>
-
         {/* Scan History */}
         <div className="bg-gray-800 rounded-lg p-6">
           <h2 className="text-xl font-semibold mb-4">Recent Scans</h2>
