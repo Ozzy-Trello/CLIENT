@@ -103,7 +103,9 @@ const CustomFieldsPage = () => {
     if (boards.length > 0) {
       LookupCache.rememberMany(
         "board",
-        boards.map((board) => ({ id: board.id, name: board.name }))
+        boards
+          .filter((board) => board.name !== undefined)
+          .map((board) => ({ id: board.id, name: board.name as string }))
       );
     }
   }, [boards]);

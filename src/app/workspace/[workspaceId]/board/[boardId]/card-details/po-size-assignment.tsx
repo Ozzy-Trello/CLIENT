@@ -76,11 +76,15 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
     subcategoryName: string;
     currentSizes: SizeQuantity;
   } | null>(null);
-  const [poSubcategoryData, setPOSubcategoryData] = useState<POSubcategoryData[]>([]);
+  const [poSubcategoryData, setPOSubcategoryData] = useState<
+    POSubcategoryData[]
+  >([]);
   const [isLoading, setIsLoading] = useState(false);
   const [customSizes, setCustomSizes] = useState<string[]>([]);
   const [newCustomSize, setNewCustomSize] = useState<string>("");
-  const [tempSizeAssignments, setTempSizeAssignments] = useState<SizeQuantity>({});
+  const [tempSizeAssignments, setTempSizeAssignments] = useState<SizeQuantity>(
+    {}
+  );
   const { canUpdateCard } = useBoardPermissionsContext();
   const queryClient = useQueryClient();
 
@@ -91,14 +95,15 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
   } = usePOsForSizeAssignment(card.id, isModalOpen);
 
   // Fetch all subcategories
-  const { data: subcategoriesResponse, isLoading: isLoadingSubcategories } = useQuery({
-    queryKey: ["subcategories", card.workspaceId],
-    queryFn: async () => {
-      const response = await getAllSubcategories(card.workspaceId);
-      return response.data || [];
-    },
-    enabled: isModalOpen,
-  });
+  const { data: subcategoriesResponse, isLoading: isLoadingSubcategories } =
+    useQuery({
+      queryKey: ["subcategories", card.workspaceId],
+      queryFn: async () => {
+        const response = await getAllSubcategories(card.workspaceId ?? "");
+        return response.data || [];
+      },
+      enabled: isModalOpen,
+    });
 
   const updatePOMutation = useMutation({
     mutationFn: ({
@@ -149,11 +154,11 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
   useEffect(() => {
     if (posData && subcategoriesResponse) {
       const subcategories = subcategoriesResponse as SubcategoryData[];
-      
+
       const initialData: POSubcategoryData[] = posData.map((po: PO) => {
         // Initialize subcategory assignments for each subcategory
-        const subcategoryAssignments: SubcategoryAssignment[] = subcategories.map(
-          (subcategory) => {
+        const subcategoryAssignments: SubcategoryAssignment[] =
+          subcategories.map((subcategory) => {
             // Check if PO has existing subcategory data
             const existingSubcategory = po.subcategories?.find(
               (s: any) => s.subcategoryId === subcategory.id
@@ -180,8 +185,7 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
               sizeAssignments,
               totalItems,
             };
-          }
-        );
+          });
 
         return {
           po,
@@ -220,7 +224,7 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
     });
     setTempSizeAssignments({ ...currentSizes });
     setIsSizeModalOpen(true);
-    
+
     // Load custom sizes from existing assignments
     const allSizes = Object.keys(currentSizes);
     const customSizesFound = allSizes.filter(
@@ -252,7 +256,7 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
   const handleAddCustomSize = () => {
     const customSize = newCustomSize.trim().toUpperCase();
     if (!customSize) return;
-    
+
     if (STANDARD_SIZES.includes(customSize)) {
       message.warning("This is already a standard size");
       return;
@@ -269,7 +273,7 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
 
   const handleRemoveCustomSize = (sizeToRemove: string) => {
     setCustomSizes((prev) => prev.filter((size) => size !== sizeToRemove));
-    
+
     // Also remove from temp size assignments
     setTempSizeAssignments((prev) => {
       const newAssignments = { ...prev };
@@ -291,9 +295,11 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
     setPOSubcategoryData((prev) => {
       const newData = [...prev];
       const poIndex = newData.findIndex((data) => data.po.id === poId);
-      
+
       if (poIndex !== -1) {
-        const subcategoryIndex = newData[poIndex].subcategoryAssignments.findIndex(
+        const subcategoryIndex = newData[
+          poIndex
+        ].subcategoryAssignments.findIndex(
           (s) => s.subcategoryId === subcategoryId
         );
 
@@ -349,7 +355,9 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
     }
   };
 
-  const getTotalItemsForPO = (subcategoryAssignments: SubcategoryAssignment[]) => {
+  const getTotalItemsForPO = (
+    subcategoryAssignments: SubcategoryAssignment[]
+  ) => {
     return subcategoryAssignments.reduce(
       (total, assignment) => total + assignment.totalItems,
       0
@@ -358,7 +366,8 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
 
   const getTotalItemsCount = (): number => {
     return poSubcategoryData.reduce(
-      (total, poData) => total + getTotalItemsForPO(poData.subcategoryAssignments),
+      (total, poData) =>
+        total + getTotalItemsForPO(poData.subcategoryAssignments),
       0
     );
   };
@@ -423,7 +432,9 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <h4 className="text-sm font-semibold">PO Subcategory Assignment</h4>
+                  <h4 className="text-sm font-semibold">
+                    PO Subcategory Assignment
+                  </h4>
                   {poSubcategoryData.map((poData, poIndex) => (
                     <div
                       key={poData.po.id}
@@ -444,7 +455,8 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
                             </Tag>
                           )}
                           <span className="text-xs text-green-600">
-                            Total: {getTotalItemsForPO(poData.subcategoryAssignments)}
+                            Total:{" "}
+                            {getTotalItemsForPO(poData.subcategoryAssignments)}
                           </span>
                         </div>
                         <Button
@@ -570,7 +582,9 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
                     <InputNumber
                       min={0}
                       value={currentValue}
-                      onChange={(value) => handleSizeQuantityChange(size, value)}
+                      onChange={(value) =>
+                        handleSizeQuantityChange(size, value)
+                      }
                       size="small"
                       className="w-20"
                       controls={true}
