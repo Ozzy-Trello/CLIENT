@@ -619,7 +619,11 @@ export default function MaterialsPage({ params }: { params: { workspaceId: strin
   ];
 
   return (
-    <div style={{ padding: "24px" }}>
+    <div style={{ 
+      height: "100vh", 
+      overflow: "auto", 
+      padding: "24px" 
+    }}>
       <div style={{ marginBottom: "24px" }}>
         <Title level={2} style={{ margin: 0 }}>
           Materials Management
@@ -630,7 +634,6 @@ export default function MaterialsPage({ params }: { params: { workspaceId: strin
         defaultActiveKey="materials"
         items={tabItems}
         size="large"
-        style={{ minHeight: "600px" }}
       />
 
       {/* Junction Edit Modal */}
