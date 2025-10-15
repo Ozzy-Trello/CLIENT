@@ -24,6 +24,7 @@ import { useSelector } from "react-redux";
 import { selectCurrentWorkspace } from "@store/workspace_slice";
 import { useCurrentAccount } from "@hooks/account";
 import { useRoles } from "@hooks/useRoles";
+import { useBoards } from "@hooks/board";
 import { LookupCache } from "@utils/lookup-cache";
 import CustomFieldModal from "../../../../components/custom-field-modal";
 import React from "react";
@@ -49,6 +50,10 @@ const CustomFieldsPage = () => {
     );
 
   const { roles } = useRoles(
+    Array.isArray(workspaceId) ? workspaceId[0] : workspaceId || ""
+  );
+  
+  const { boards } = useBoards(
     Array.isArray(workspaceId) ? workspaceId[0] : workspaceId || ""
   );
 
@@ -92,6 +97,16 @@ const CustomFieldsPage = () => {
       );
     }
   }, [roles]);
+
+  // Cache board names for display
+  React.useEffect(() => {
+    if (boards.length > 0) {
+      LookupCache.rememberMany(
+        "board",
+        boards.map((board) => ({ id: board.id, name: board.name }))
+      );
+    }
+  }, [boards]);
 
   // Redirect if not super admin
   if (!isSuperAdmin) {
@@ -187,6 +202,46 @@ const CustomFieldsPage = () => {
     );
   };
 
+  const getBoardViewDisplay = (field: CustomField) => {
+    if (!field.canViewBoards || field.canViewBoards.length === 0) {
+      return <Text type="secondary">All boards</Text>;
+    }
+    return (
+      <Space wrap>
+        {field.canViewBoards.map((boardId) => {
+          const boardName = LookupCache.label("board", boardId) || boardId;
+          return (
+            <Tag key={boardId} color="purple">
+              {boardName}
+            </Tag>
+          );
+        })}
+      </Space>
+    );
+  };
+
+  const getBoardEditDisplay = (field: CustomField) => {
+    if (!field.canEditBoards || field.canEditBoards.length === 0) {
+      if (!field.canViewBoards || field.canViewBoards.length === 0) {
+        return <Text type="secondary">All boards</Text>;
+      } else {
+        return <Text type="secondary">Same as view</Text>;
+      }
+    }
+    return (
+      <Space wrap>
+        {field.canEditBoards.map((boardId) => {
+          const boardName = LookupCache.label("board", boardId) || boardId;
+          return (
+            <Tag key={boardId} color="cyan">
+              {boardName}
+            </Tag>
+          );
+        })}
+      </Space>
+    );
+  };
+
   const columns = [
     {
       title: "Name",
@@ -224,6 +279,16 @@ const CustomFieldsPage = () => {
       title: "Can Edit",
       key: "canEdit",
       render: (field: CustomField) => getCanEditDisplay(field),
+    },
+    {
+      title: "Board View",
+      key: "canViewBoards",
+      render: (field: CustomField) => getBoardViewDisplay(field),
+    },
+    {
+      title: "Board Edit",
+      key: "canEditBoards",
+      render: (field: CustomField) => getBoardEditDisplay(field),
     },
     {
       title: "Actions",

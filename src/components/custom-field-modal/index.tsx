@@ -23,7 +23,9 @@ import {
 } from "@myTypes/custom-field";
 import { useCustomFields } from "@hooks/custom_field";
 import { useRoles } from "@hooks/useRoles";
+import { useBoards } from "@hooks/board";
 import { Role } from "@myTypes/role";
+import { Board } from "@myTypes/board";
 import { Trash, Edit, Check, X } from "lucide-react";
 
 const { Option } = Select;
@@ -49,6 +51,8 @@ const CustomFieldModal: React.FC<CustomFieldModalProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [selectedViewRoles, setSelectedViewRoles] = useState<string[]>([]);
   const [selectedEditRoles, setSelectedEditRoles] = useState<string[]>([]);
+  const [selectedViewBoards, setSelectedViewBoards] = useState<string[]>([]);
+  const [selectedEditBoards, setSelectedEditBoards] = useState<string[]>([]);
   const [source, setSource] = useState<string>(EnumCustomFieldSource.Custom);
   const [options, setOptions] = useState<CustomOption[]>([]);
   const [roleFilterIds, setRoleFilterIds] = useState<string[]>([]);
@@ -59,6 +63,7 @@ const CustomFieldModal: React.FC<CustomFieldModalProps> = ({
 
   const { createCustomField, updateCustomField } = useCustomFields(workspaceId);
   const { roles, loading: loadingRoles } = useRoles(workspaceId);
+  const { boards, isLoading: loadingBoards } = useBoards(workspaceId);
 
   // Initialize form when field changes
   useEffect(() => {
@@ -67,6 +72,8 @@ const CustomFieldModal: React.FC<CustomFieldModalProps> = ({
       setIsPublic(!isFieldPrivate);
       setSelectedViewRoles(field.canView || []);
       setSelectedEditRoles(field.canEdit || []);
+      setSelectedViewBoards(field.canViewBoards || []);
+      setSelectedEditBoards(field.canEditBoards || []);
       setSource(field.source);
       setOptions(field.options || []);
       setRoleFilterIds([]); // Reset role filters
@@ -86,6 +93,8 @@ const CustomFieldModal: React.FC<CustomFieldModalProps> = ({
       setIsPublic(true);
       setSelectedViewRoles([]);
       setSelectedEditRoles([]);
+      setSelectedViewBoards([]);
+      setSelectedEditBoards([]);
       setSource(EnumCustomFieldSource.Custom);
       setOptions([]);
       setRoleFilterIds([]);
@@ -173,6 +182,8 @@ const CustomFieldModal: React.FC<CustomFieldModalProps> = ({
         isShowAtFront: values.isShowAtFront,
         canView: isPublic ? selectedViewRoles : [],
         canEdit: isPublic ? selectedEditRoles : [],
+        canViewBoards: selectedViewBoards,
+        canEditBoards: selectedEditBoards,
       };
 
       if (field) {
@@ -499,6 +510,56 @@ const CustomFieldModal: React.FC<CustomFieldModalProps> = ({
                       edit this field.
                     </Text>
                   )}
+
+                <Divider />
+                
+                <Text strong className="block mb-2">
+                  Board Restrictions
+                </Text>
+                <Text type="secondary" className="block mb-4">
+                  Restrict this field to specific boards. Leave empty to show on all boards in the workspace.
+                </Text>
+
+                <Form.Item
+                  label="Boards that can view this field"
+                  help="Select boards where this field should be visible. Leave empty for all boards."
+                >
+                  <Select
+                    mode="multiple"
+                    placeholder="Select boards (leave empty for all boards)"
+                    value={selectedViewBoards}
+                    onChange={setSelectedViewBoards}
+                    loading={loadingBoards}
+                    style={{ width: "100%" }}
+                  >
+                    {boards.map((board: Board) => (
+                      <Option key={board.id} value={board.id}>
+                        {board.name}
+                      </Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+
+                <Form.Item
+                  label="Boards that can edit this field"
+                  help="Select boards where this field can be edited. Leave empty to follow view permissions."
+                >
+                  <Select
+                    mode="multiple"
+                    placeholder="Select boards (leave empty to follow view permissions)"
+                    value={selectedEditBoards}
+                    onChange={setSelectedEditBoards}
+                    loading={loadingBoards}
+                    style={{ width: "100%" }}
+                  >
+                    {boards.map((board: Board) => (
+                      <Option key={board.id} value={board.id}>
+                        {board.name}
+                      </Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+
               </div>
             )}
 

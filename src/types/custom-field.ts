@@ -23,6 +23,8 @@ export interface CustomField {
   value?: string;
   canView?: string[];
   canEdit?: string[];
+  canViewBoards?: string[]; // Board UUIDs that can view this field
+  canEditBoards?: string[]; // Board UUIDs that can edit this field
   order?: number;
 }
 
