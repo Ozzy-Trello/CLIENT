@@ -1,23 +1,20 @@
 "use client";
-import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { useDispatch } from "react-redux";
-import { LockOutlined, UserOutlined } from "@ant-design/icons";
 
 // Dynamic imports for Antd components
+import Button from "antd/es/button";
 import Form from "antd/es/form";
 import Input from "antd/es/input";
-import Button from "antd/es/button";
 import message from "antd/es/message";
-import Typography from "antd/es/typography";
 
 // Local imports
-import { setUser } from "@store/app_slice";
+import ProductionSection from "@components/production-section";
 import { useCurrentAccount } from "@hooks/account";
 import { useLogin } from "@hooks/auth";
-import Footer from "@components/footer";
-import ProductionSection from "@components/production-section";
+import { setUser } from "@store/app_slice";
 
 interface LoginFormValues {
   identity: string;

@@ -1,6 +1,7 @@
 import React from "react";
 import ImageDynamicContrast from "@components/image-dynamic-contrast";
-import logo from "@assets/images/Logo_Ozzy_Clothing_png.png";
+import logo from "@assets/images/logo-ozzy-white.png";
+import Image from "next/image";
 
 interface ProductionSectionProps {
   variant: "mobile" | "desktop";
@@ -28,13 +29,7 @@ export default function ProductionSection({
         <div className="absolute inset-0">
           {/* Logo positioned at top left for both mobile and desktop */}
           <div className="absolute top-6 left-6 z-10">
-            <ImageDynamicContrast
-              imageSrc={logo}
-              rgbColor="rgb(255, 255, 255)"
-              width={120}
-              height="auto"
-              alt="Ozzy Clothing logo"
-            />
+            <Image src={logo} width={120} alt="Ozzy Clothing logo" />
           </div>
 
           {/* PRODUCTION text with same responsive sizing for both variants */}
