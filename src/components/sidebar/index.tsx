@@ -30,6 +30,7 @@ import {
   Star,
   Package,
   Layers,
+  Database,
 } from "lucide-react";
 import { Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import dynamic from "next/dynamic";
@@ -263,6 +264,19 @@ const Sidebar = () => {
           </Link>
         ),
         icon: <Settings size={16} />,
+      });
+
+      menus.push({
+        key: `/workspace/${resolvedWorkspaceId}/master-data`,
+        label: (
+          <Link
+            className="block w-full"
+            href={`/workspace/${resolvedWorkspaceId}/master-data`}
+          >
+            Master Data
+          </Link>
+        ),
+        icon: <Database size={16} />,
       });
     }
 

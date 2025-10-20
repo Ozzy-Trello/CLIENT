@@ -52,6 +52,22 @@ export interface Card {
   poAmount?: number;
   bahan?: boolean; // Whether the card requires material/fabric
   shortId?: number; // Auto-increment short ID for QR codes
+  productId?: string; // Foreign key to Product
+  bahanId?: string; // Foreign key to Bahan
+  warnaId?: string; // Foreign key to Warna
+  productInfo?: {
+    id: string;
+    name: string;
+    code: string;
+  };
+  bahanInfo?: {
+    id: string;
+    name: string;
+  };
+  warnaInfo?: {
+    id: string;
+    name: string;
+  };
   
   // Backend API response properties (snake_case versions)
   list_id?: string;
