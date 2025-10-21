@@ -24,6 +24,25 @@ export interface BahanUpdateRequest {
   productId?: string;
 }
 
+export interface BahanBulkInsertRequest {
+  bahans: Array<{
+    name: string;
+    product_code: string;
+  }>;
+}
+
+export interface BahanBulkInsertResult {
+  total_attempted: number;
+  total_created: number;
+  total_skipped: number;
+  errors: Array<{
+    index: number;
+    name: string;
+    product_code: string;
+    error: string;
+  }>;
+}
+
 // Get all bahans (optionally filtered by product)
 export const getBahans = async (
   page: number = 1,
@@ -68,5 +87,13 @@ export const deleteBahan = async (
   bahanId: string
 ): Promise<ApiResponse<any>> => {
   const { data } = await api.delete(`/bahan/${bahanId}`);
+  return data;
+};
+
+// Bulk insert bahans
+export const bulkInsertBahans = async (
+  request: BahanBulkInsertRequest
+): Promise<ApiResponse<BahanBulkInsertResult>> => {
+  const { data } = await api.post("/bahan/bulk", request);
   return data;
 };

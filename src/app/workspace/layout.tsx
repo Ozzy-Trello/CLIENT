@@ -5,6 +5,7 @@ import TopBar from "@components/topbar";
 import Sidebar from "@components/sidebar";
 import "./style.css";
 import { useWorkspaceSidebar } from "@providers/workspace-sidebar-context";
+import { usePathname } from "next/navigation";
 
 const { Header, Content } = Layout;
 
@@ -15,6 +16,10 @@ interface BaseLayoutProps {
 const WorkspaceLayout: React.FC<BaseLayoutProps> = ({ children }) => {
   const [isClient, setIsClient] = useState(false);
   const { collapsed, siderSmall, siderWide } = useWorkspaceSidebar();
+  const pathname = usePathname();
+
+  // Check if current page is a board page (needs overflow hidden for drag & drop)
+  const isBoardPage = /^\/workspace\/[^/]+\/board\/[^/]+/.test(pathname);
 
   useEffect(() => {
     setIsClient(true);
@@ -40,18 +45,25 @@ const WorkspaceLayout: React.FC<BaseLayoutProps> = ({ children }) => {
             : `calc(100%-${siderWide}) `,
           transition: "margin-left 0.2s ease",
           height: "calc(100vh - 45px)",
-          overflow: "hidden",
+          overflow: isBoardPage ? "hidden" : "auto",
         }}
       >
         <Content
           style={{
-            height: "100%",
+            height: isBoardPage ? "100%" : "auto",
+            minHeight: isBoardPage ? "100%" : "calc(100vh - 45px)",
             display: "flex",
             flexDirection: "column",
-            overflow: "hidden",
+            overflow: isBoardPage ? "hidden" : "visible",
           }}
         >
-          <div style={{ flex: 1, overflow: "hidden" }}>{children}</div>
+          <div style={{ 
+            flex: 1, 
+            overflow: isBoardPage ? "hidden" : "visible",
+            minHeight: isBoardPage ? "auto" : "100%"
+          }}>
+            {children}
+          </div>
         </Content>
       </Layout>
     </Layout>

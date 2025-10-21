@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import dynamic from "next/dynamic";
 import {
   Modal,
   Form,
@@ -26,7 +27,14 @@ import { useRoles } from "@hooks/useRoles";
 import { useBoards } from "@hooks/board";
 import { Role } from "@myTypes/role";
 import { Board } from "@myTypes/board";
-import { Trash, Edit, Check, X } from "lucide-react";
+import { Trash, Edit, Check, X, GripVertical } from "lucide-react";
+import { Draggable, Droppable, DropResult } from "@hello-pangea/dnd";
+
+// Dynamically import DragDropContext to avoid SSR issues
+const DragDropContext = dynamic(
+  () => import("@hello-pangea/dnd").then((mod) => mod.DragDropContext),
+  { ssr: false }
+);
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -155,6 +163,16 @@ const CustomFieldModal: React.FC<CustomFieldModalProps> = ({
     setEditingOptionText("");
   };
 
+  const handleOptionDragEnd = (result: DropResult) => {
+    if (!result.destination) return;
+
+    const items = Array.from(options);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+
+    setOptions(items);
+  };
+
   const handleSubmit = async (values: any) => {
     setIsLoading(true);
     try {
@@ -180,8 +198,8 @@ const CustomFieldModal: React.FC<CustomFieldModalProps> = ({
         options:
           values.type === EnumCustomFieldType.Dropdown ? options : undefined,
         isShowAtFront: values.isShowAtFront,
-        canView: isPublic ? selectedViewRoles : [],
-        canEdit: isPublic ? selectedEditRoles : [],
+        canView: isPublic ? [] : selectedViewRoles,
+        canEdit: isPublic ? [] : selectedEditRoles,
         canViewBoards: selectedViewBoards,
         canEditBoards: selectedEditBoards,
       };
@@ -317,62 +335,96 @@ const CustomFieldModal: React.FC<CustomFieldModalProps> = ({
                     <>
                       {options.length > 0 && (
                         <Form.Item label="Options">
-                          <div className="w-full">
-                            {options.map((item: CustomOption) => (
-                              <div
-                                key={item.value}
-                                className="flex gap-2 mb-1 bg-gray-100 rounded px-2 py-1 items-center"
-                              >
-                                {editingOptionValue === item.value ? (
-                                  <>
-                                    <Input
-                                      size="small"
-                                      value={editingOptionText}
-                                      onChange={(e) =>
-                                        setEditingOptionText(e.target.value)
-                                      }
-                                      onPressEnter={saveEditOption}
-                                      className="flex-1"
-                                      autoFocus
-                                    />
-                                    <Button
-                                      size="small"
-                                      type="text"
-                                      onClick={saveEditOption}
-                                      disabled={!editingOptionText.trim()}
+                          <DragDropContext onDragEnd={handleOptionDragEnd}>
+                            <Droppable droppableId="custom-field-options">
+                              {(provided) => (
+                                <div
+                                  className="w-full"
+                                  {...provided.droppableProps}
+                                  ref={provided.innerRef}
+                                >
+                                  {options.map((item: CustomOption, index: number) => (
+                                    <Draggable
+                                      key={item.value}
+                                      draggableId={item.value}
+                                      index={index}
                                     >
-                                      <Check size={12} />
-                                    </Button>
-                                    <Button
-                                      size="small"
-                                      type="text"
-                                      onClick={cancelEditOption}
-                                    >
-                                      <X size={12} />
-                                    </Button>
-                                  </>
-                                ) : (
-                                  <>
-                                    <span className="flex-1">{item.label}</span>
-                                    <Button
-                                      size="small"
-                                      type="text"
-                                      onClick={() => startEditOption(item)}
-                                    >
-                                      <Edit size={12} />
-                                    </Button>
-                                    <Button
-                                      size="small"
-                                      type="text"
-                                      onClick={() => deleteOption(item.value)}
-                                    >
-                                      <Trash size={12} />
-                                    </Button>
-                                  </>
-                                )}
-                              </div>
-                            ))}
-                          </div>
+                                      {(provided, snapshot) => (
+                                        <div
+                                          ref={provided.innerRef}
+                                          {...provided.draggableProps}
+                                          className={`flex gap-2 mb-1 bg-gray-100 rounded px-2 py-1 items-center transition-all duration-200 ${
+                                             snapshot.isDragging
+                                               ? "bg-blue-100 shadow-lg border-2 border-blue-300 transform rotate-1"
+                                               : "hover:bg-gray-200 border-2 border-transparent"
+                                           }`}
+                                          style={{
+                                            ...provided.draggableProps.style,
+                                          }}
+                                        >
+                                          <div
+                                             {...provided.dragHandleProps}
+                                             className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-300 transition-colors"
+                                             title="Drag to reorder"
+                                           >
+                                             <GripVertical size={16} />
+                                           </div>
+                                          {editingOptionValue === item.value ? (
+                                            <>
+                                              <Input
+                                                size="small"
+                                                value={editingOptionText}
+                                                onChange={(e) =>
+                                                  setEditingOptionText(e.target.value)
+                                                }
+                                                onPressEnter={saveEditOption}
+                                                className="flex-1"
+                                                autoFocus
+                                              />
+                                              <Button
+                                                size="small"
+                                                type="text"
+                                                onClick={saveEditOption}
+                                                disabled={!editingOptionText.trim()}
+                                              >
+                                                <Check size={12} />
+                                              </Button>
+                                              <Button
+                                                size="small"
+                                                type="text"
+                                                onClick={cancelEditOption}
+                                              >
+                                                <X size={12} />
+                                              </Button>
+                                            </>
+                                          ) : (
+                                            <>
+                                              <span className="flex-1">{item.label}</span>
+                                              <Button
+                                                size="small"
+                                                type="text"
+                                                onClick={() => startEditOption(item)}
+                                              >
+                                                <Edit size={12} />
+                                              </Button>
+                                              <Button
+                                                size="small"
+                                                type="text"
+                                                onClick={() => deleteOption(item.value)}
+                                              >
+                                                <Trash size={12} />
+                                              </Button>
+                                            </>
+                                          )}
+                                        </div>
+                                      )}
+                                    </Draggable>
+                                  ))}
+                                  {provided.placeholder}
+                                </div>
+                              )}
+                            </Droppable>
+                          </DragDropContext>
                         </Form.Item>
                       )}
 
@@ -441,14 +493,14 @@ const CustomFieldModal: React.FC<CustomFieldModalProps> = ({
             <div className="flex items-center justify-between">
               <Text>Field Visibility</Text>
               <Switch
-                checked={isPublic}
-                onChange={setIsPublic}
+                checked={!isPublic}
+                onChange={(checked) => setIsPublic(!checked)}
                 checkedChildren="Private"
                 unCheckedChildren="Public"
               />
             </div>
 
-            {isPublic && (
+            {!isPublic && (
               <div className="mt-4">
                 <Text type="secondary" className="block mb-2">
                   Configure which roles can view and edit this field
@@ -512,12 +564,13 @@ const CustomFieldModal: React.FC<CustomFieldModalProps> = ({
                   )}
 
                 <Divider />
-                
+
                 <Text strong className="block mb-2">
                   Board Restrictions
                 </Text>
                 <Text type="secondary" className="block mb-4">
-                  Restrict this field to specific boards. Leave empty to show on all boards in the workspace.
+                  Restrict this field to specific boards. Leave empty to show on
+                  all boards in the workspace.
                 </Text>
 
                 <Form.Item
@@ -540,7 +593,7 @@ const CustomFieldModal: React.FC<CustomFieldModalProps> = ({
                   </Select>
                 </Form.Item>
 
-                <Form.Item
+                {/* <Form.Item
                   label="Boards that can edit this field"
                   help="Select boards where this field can be edited. Leave empty to follow view permissions."
                 >
@@ -558,8 +611,7 @@ const CustomFieldModal: React.FC<CustomFieldModalProps> = ({
                       </Option>
                     ))}
                   </Select>
-                </Form.Item>
-
+                </Form.Item> */}
               </div>
             )}
 

@@ -25,7 +25,19 @@ import {
 } from "antd";
 import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
-import { Edit, Plus, Settings, Trash, Database, Package2, Palette, Box, Upload as UploadIcon, Download, FileText } from "lucide-react";
+import {
+  Edit,
+  Plus,
+  Settings,
+  Trash,
+  Database,
+  Package2,
+  Palette,
+  Box,
+  Upload as UploadIcon,
+  Download,
+  FileText,
+} from "lucide-react";
 import { usePermissions } from "@hooks/account";
 
 // Import API functions
@@ -46,9 +58,12 @@ import {
   createBahan,
   updateBahan,
   deleteBahan,
+  bulkInsertBahans,
   Bahan as BahanAPI,
   BahanCreateRequest,
   BahanUpdateRequest,
+  BahanBulkInsertRequest,
+  BahanBulkInsertResult,
 } from "@api/bahan";
 import {
   getWarnas,
@@ -59,6 +74,11 @@ import {
   WarnaCreateRequest,
   WarnaUpdateRequest,
 } from "@api/warna";
+import {
+  hierarchicalBulkUpload,
+  parseHierarchicalCSV,
+  HierarchicalBulkUploadResult,
+} from "@api/hierarchical-bulk-upload";
 
 type MenuItem = Required<MenuProps>["items"][number];
 
@@ -89,7 +109,7 @@ const ProductTable: React.FC<{
   loading?: boolean;
 }> = ({ dataSource = [], onEdit, onDelete, loading = false }) => {
   const { isSuperAdmin } = usePermissions();
-  
+
   const columns = [
     {
       title: "Product Code",
@@ -155,7 +175,7 @@ const BahanTable: React.FC<{
   loading?: boolean;
 }> = ({ dataSource = [], onEdit, onDelete, loading = false }) => {
   const { isSuperAdmin } = usePermissions();
-  
+
   const columns = [
     {
       title: "Bahan Name",
@@ -222,7 +242,7 @@ const WarnaTable: React.FC<{
   loading?: boolean;
 }> = ({ dataSource = [], onEdit, onDelete, loading = false }) => {
   const { isSuperAdmin } = usePermissions();
-  
+
   const columns = [
     {
       title: "Warna Name",
@@ -300,7 +320,7 @@ const MasterData: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [bahans, setBahans] = useState<Bahan[]>([]);
   const [warnas, setWarnas] = useState<Warna[]>([]);
-  
+
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [loadingBahans, setLoadingBahans] = useState(false);
   const [loadingWarnas, setLoadingWarnas] = useState(false);
@@ -317,7 +337,24 @@ const MasterData: React.FC = () => {
   const [bulkUploadVisible, setBulkUploadVisible] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploading, setUploading] = useState(false);
-  const [uploadResult, setUploadResult] = useState<ProductBulkInsertResult | null>(null);
+  const [uploadResult, setUploadResult] =
+    useState<ProductBulkInsertResult | null>(null);
+
+  // Bahan bulk upload states
+  const [bahanBulkUploadVisible, setBahanBulkUploadVisible] = useState(false);
+  const [bahanUploadProgress, setBahanUploadProgress] = useState(0);
+  const [bahanUploading, setBahanUploading] = useState(false);
+  const [bahanUploadResult, setBahanUploadResult] =
+    useState<BahanBulkInsertResult | null>(null);
+
+  // Hierarchical bulk upload states
+  const [hierarchicalBulkUploadVisible, setHierarchicalBulkUploadVisible] =
+    useState(false);
+  const [hierarchicalUploadProgress, setHierarchicalUploadProgress] =
+    useState(0);
+  const [hierarchicalUploading, setHierarchicalUploading] = useState(false);
+  const [hierarchicalUploadResult, setHierarchicalUploadResult] =
+    useState<HierarchicalBulkUploadResult | null>(null);
 
   // Modal states
   const [productModalVisible, setProductModalVisible] = useState(false);
@@ -345,7 +382,14 @@ const MasterData: React.FC = () => {
       ),
       children: (
         <div>
-          <div style={{ marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div
+            style={{
+              marginBottom: 16,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
             <Typography.Title level={4} style={{ margin: 0 }}>
               Products Management
             </Typography.Title>
@@ -403,22 +447,41 @@ const MasterData: React.FC = () => {
       ),
       children: (
         <div>
-          <div style={{ marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div
+            style={{
+              marginBottom: 16,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
             <Typography.Title level={4} style={{ margin: 0 }}>
               Bahan Management
             </Typography.Title>
-            <Button
-              type="primary"
-              icon={<Plus size={16} />}
-              onClick={() => {
-                setSelectedBahan(null);
-                bahanForm.resetFields();
-                setBahanModalVisible(true);
-              }}
-              disabled={!isSuperAdmin()}
-            >
-              Add Bahan
-            </Button>
+            <Space>
+              {/* <Button
+                icon={<UploadIcon size={16} />}
+                onClick={() => {
+                  setBahanBulkUploadVisible(true);
+                  setBahanUploadResult(null);
+                }}
+                disabled={!isSuperAdmin()}
+              >
+                Bulk Upload
+              </Button> */}
+              <Button
+                type="primary"
+                icon={<Plus size={16} />}
+                onClick={() => {
+                  setSelectedBahan(null);
+                  bahanForm.resetFields();
+                  setBahanModalVisible(true);
+                }}
+                disabled={!isSuperAdmin()}
+              >
+                Add Bahan
+              </Button>
+            </Space>
           </div>
           <BahanTable
             dataSource={bahans}
@@ -452,7 +515,14 @@ const MasterData: React.FC = () => {
       ),
       children: (
         <div>
-          <div style={{ marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div
+            style={{
+              marginBottom: 16,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
             <Typography.Title level={4} style={{ margin: 0 }}>
               Warna Management
             </Typography.Title>
@@ -499,15 +569,17 @@ const MasterData: React.FC = () => {
       setLoadingProducts(true);
       const response = await getProducts(1, 1000);
       if (response.data) {
-        setProducts(response.data.map(p => ({
-          ...p,
-          created_at: p.createdAt || '',
-          updated_at: p.updatedAt || ''
-        })));
+        setProducts(
+          response.data.map((p) => ({
+            ...p,
+            created_at: p.createdAt || "",
+            updated_at: p.updatedAt || "",
+          }))
+        );
       }
     } catch (error) {
-      message.error('Failed to fetch products');
-      console.error('Error fetching products:', error);
+      message.error("Failed to fetch products");
+      console.error("Error fetching products:", error);
     } finally {
       setLoadingProducts(false);
     }
@@ -518,21 +590,25 @@ const MasterData: React.FC = () => {
       setLoadingBahans(true);
       const response = await getBahans(1, 1000);
       if (response.data) {
-        setBahans(response.data.map(b => ({
-          ...b,
-          created_at: b.createdAt || '',
-          updated_at: b.updatedAt || '',
-          product_id: b.productId,
-          product: b.productInfo ? {
-            ...b.productInfo,
-            created_at: '',
-            updated_at: ''
-          } : undefined
-        })));
+        setBahans(
+          response.data.map((b) => ({
+            ...b,
+            created_at: b.createdAt || "",
+            updated_at: b.updatedAt || "",
+            product_id: b.productId,
+            product: b.productInfo
+              ? {
+                  ...b.productInfo,
+                  created_at: "",
+                  updated_at: "",
+                }
+              : undefined,
+          }))
+        );
       }
     } catch (error) {
-      message.error('Failed to fetch bahan');
-      console.error('Error fetching bahan:', error);
+      message.error("Failed to fetch bahan");
+      console.error("Error fetching bahan:", error);
     } finally {
       setLoadingBahans(false);
     }
@@ -543,24 +619,28 @@ const MasterData: React.FC = () => {
       setLoadingWarnas(true);
       const response = await getWarnas(1, 1000);
       if (response.data) {
-        setWarnas(response.data.map(w => ({
-          ...w,
-          created_at: w.createdAt || '',
-          updated_at: w.updatedAt || '',
-          bahan_id: w.bahanId,
-          bahan: w.bahanInfo ? {
-            id: w.bahanInfo.id,
-            name: w.bahanInfo.name,
-            created_at: '',
-            updated_at: '',
-            product_id: '',
-            productId: '',
-          } : undefined
-        })));
+        setWarnas(
+          response.data.map((w) => ({
+            ...w,
+            created_at: w.createdAt || "",
+            updated_at: w.updatedAt || "",
+            bahan_id: w.bahanId,
+            bahan: w.bahanInfo
+              ? {
+                  id: w.bahanInfo.id,
+                  name: w.bahanInfo.name,
+                  created_at: "",
+                  updated_at: "",
+                  product_id: "",
+                  productId: "",
+                }
+              : undefined,
+          }))
+        );
       }
     } catch (error) {
-      message.error('Failed to fetch warna');
-      console.error('Error fetching warna:', error);
+      message.error("Failed to fetch warna");
+      console.error("Error fetching warna:", error);
     } finally {
       setLoadingWarnas(false);
     }
@@ -581,54 +661,60 @@ const MasterData: React.FC = () => {
   const handleDeleteProduct = async (product: Product) => {
     try {
       await deleteProduct(product.id);
-      message.success('Product deleted successfully');
+      message.success("Product deleted successfully");
       fetchProducts();
       fetchBahans(); // Refresh bahan as they might be affected
       fetchWarnas(); // Refresh warna as they might be affected
     } catch (error) {
-      message.error('Failed to delete product');
-      console.error('Error deleting product:', error);
+      message.error("Failed to delete product");
+      console.error("Error deleting product:", error);
     }
   };
 
   const handleDeleteBahan = async (bahan: Bahan) => {
     try {
       await deleteBahan(bahan.id);
-      message.success('Bahan deleted successfully');
+      message.success("Bahan deleted successfully");
       fetchBahans();
       fetchWarnas(); // Refresh warna as they might be affected
     } catch (error) {
-      message.error('Failed to delete bahan');
-      console.error('Error deleting bahan:', error);
+      message.error("Failed to delete bahan");
+      console.error("Error deleting bahan:", error);
     }
   };
 
   const handleDeleteWarna = async (warna: Warna) => {
     try {
       await deleteWarna(warna.id);
-      message.success('Warna deleted successfully');
+      message.success("Warna deleted successfully");
       fetchWarnas();
     } catch (error) {
-      message.error('Failed to delete warna');
-      console.error('Error deleting warna:', error);
+      message.error("Failed to delete warna");
+      console.error("Error deleting warna:", error);
     }
   };
 
-  const handleProductSubmit = async (values: ProductCreateRequest | ProductUpdateRequest) => {
+  const handleProductSubmit = async (
+    values: ProductCreateRequest | ProductUpdateRequest
+  ) => {
     try {
       setSubmittingProduct(true);
       if (selectedProduct) {
         await updateProduct(selectedProduct.id, values);
-        message.success('Product updated successfully');
+        message.success("Product updated successfully");
       } else {
         await createProduct(values as ProductCreateRequest);
-        message.success('Product created successfully');
+        message.success("Product created successfully");
       }
       setProductModalVisible(false);
       fetchProducts();
     } catch (error) {
-      message.error(selectedProduct ? 'Failed to update product' : 'Failed to create product');
-      console.error('Error with product:', error);
+      message.error(
+        selectedProduct
+          ? "Failed to update product"
+          : "Failed to create product"
+      );
+      console.error("Error with product:", error);
     } finally {
       setSubmittingProduct(false);
     }
@@ -641,19 +727,21 @@ const MasterData: React.FC = () => {
         name: values.name,
         productId: values.product_id,
       };
-      
+
       if (selectedBahan) {
         await updateBahan(selectedBahan.id, bahanData);
-        message.success('Bahan updated successfully');
+        message.success("Bahan updated successfully");
       } else {
         await createBahan(bahanData);
-        message.success('Bahan created successfully');
+        message.success("Bahan created successfully");
       }
       setBahanModalVisible(false);
       fetchBahans();
     } catch (error) {
-      message.error(selectedBahan ? 'Failed to update bahan' : 'Failed to create bahan');
-      console.error('Error with bahan:', error);
+      message.error(
+        selectedBahan ? "Failed to update bahan" : "Failed to create bahan"
+      );
+      console.error("Error with bahan:", error);
     } finally {
       setSubmittingBahan(false);
     }
@@ -666,46 +754,80 @@ const MasterData: React.FC = () => {
         name: values.name,
         bahanId: values.bahan_id,
       };
-      
+
       if (selectedWarna) {
         await updateWarna(selectedWarna.id, warnaData);
-        message.success('Warna updated successfully');
+        message.success("Warna updated successfully");
       } else {
         await createWarna(warnaData);
-        message.success('Warna created successfully');
+        message.success("Warna created successfully");
       }
       setWarnaModalVisible(false);
       fetchWarnas();
     } catch (error) {
-      message.error(selectedWarna ? 'Failed to update warna' : 'Failed to create warna');
-      console.error('Error with warna:', error);
+      message.error(
+        selectedWarna ? "Failed to update warna" : "Failed to create warna"
+      );
+      console.error("Error with warna:", error);
     } finally {
       setSubmittingWarna(false);
     }
   };
 
   // CSV parsing function
-  const parseCSV = (csvText: string): { name: string; code: string; description?: string }[] => {
-    const lines = csvText.split('\n');
+  const parseCSV = (
+    csvText: string
+  ): { name: string; code: string; description?: string }[] => {
+    const lines = csvText.split("\n");
     const result: { name: string; code: string; description?: string }[] = [];
-    
+
     // Skip header if present
-    const startIndex = lines[0]?.toLowerCase().includes('name') ? 1 : 0;
-    
+    const startIndex = lines[0]?.toLowerCase().includes("name") ? 1 : 0;
+
     for (let i = startIndex; i < lines.length; i++) {
       const line = lines[i].trim();
       if (!line) continue;
-      
-      const columns = line.split(',').map(col => col.trim().replace(/"/g, ''));
+
+      const columns = line
+        .split(",")
+        .map((col) => col.trim().replace(/"/g, ""));
       if (columns.length >= 2) {
         result.push({
           name: columns[0],
           code: columns[1],
-          description: columns[2] || undefined
+          description: columns[2] || undefined,
         });
       }
     }
-    
+
+    return result;
+  };
+
+  // CSV parsing function for bahan
+  const parseBahanCSV = (
+    csvText: string
+  ): { name: string; product_code: string }[] => {
+    const lines = csvText.split("\n");
+    const result: { name: string; product_code: string }[] = [];
+
+    // Skip header if present
+    const startIndex = lines[0]?.toLowerCase().includes("name") ? 1 : 0;
+
+    for (let i = startIndex; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+
+      const columns = line
+        .split(",")
+        .map((col) => col.trim().replace(/"/g, ""));
+      if (columns.length >= 2) {
+        result.push({
+          name: columns[0],
+          product_code: columns[1],
+        });
+      }
+    }
+
     return result;
   };
 
@@ -714,32 +836,124 @@ const MasterData: React.FC = () => {
     try {
       setUploading(true);
       setUploadProgress(0);
-      
+
       const text = await file.text();
       const products = parseCSV(text);
-      
+
       if (products.length === 0) {
-        message.error('No valid product data found in CSV');
+        message.error("No valid product data found in CSV");
         return;
       }
-      
+
       setUploadProgress(50);
-      
+
       const result = await bulkInsertProducts({ products });
-      
+
       setUploadProgress(100);
       setUploadResult(result.data || null);
-      
+
       if (result.data) {
         const { total_created, total_skipped } = result.data;
-        message.success(`Bulk upload completed! Created: ${total_created}, Skipped: ${total_skipped}`);
+        message.success(
+          `Bulk upload completed! Created: ${total_created}, Skipped: ${total_skipped}`
+        );
         fetchProducts(); // Refresh the product list
       }
     } catch (error: any) {
-      message.error('Failed to upload products: ' + (error.response?.data?.message || error.message));
-      console.error('Error during bulk upload:', error);
+      message.error(
+        "Failed to upload products: " +
+          (error.response?.data?.message || error.message)
+      );
+      console.error("Error during bulk upload:", error);
     } finally {
       setUploading(false);
+    }
+  };
+
+  // Bahan bulk upload handler
+  const handleBahanBulkUpload = async (file: File) => {
+    try {
+      setBahanUploading(true);
+      setBahanUploadProgress(0);
+
+      const text = await file.text();
+      const bahans = parseBahanCSV(text);
+
+      if (bahans.length === 0) {
+        message.error("No valid bahan data found in CSV");
+        return;
+      }
+
+      setBahanUploadProgress(50);
+
+      const result = await bulkInsertBahans({ bahans });
+
+      setBahanUploadProgress(100);
+      setBahanUploadResult(result.data || null);
+
+      if (result.data) {
+        const { total_created, total_skipped } = result.data;
+        message.success(
+          `Bulk upload completed! Created: ${total_created}, Skipped: ${total_skipped}`
+        );
+        fetchBahans(); // Refresh the bahan list
+      }
+    } catch (error: any) {
+      message.error(
+        "Failed to upload bahans: " +
+          (error.response?.data?.message || error.message)
+      );
+      console.error("Error during bahan bulk upload:", error);
+    } finally {
+      setBahanUploading(false);
+    }
+  };
+
+  // Hierarchical bulk upload handler
+  const handleHierarchicalBulkUpload = async (file: File) => {
+    try {
+      setHierarchicalUploading(true);
+      setHierarchicalUploadProgress(0);
+
+      const text = await file.text();
+      const csvData = parseHierarchicalCSV(text);
+
+      if (csvData.length === 0) {
+        message.error("No valid hierarchical data found in CSV");
+        return;
+      }
+
+      setHierarchicalUploadProgress(50);
+
+      const result = await hierarchicalBulkUpload({ csv_data: csvData });
+
+      setHierarchicalUploadProgress(100);
+      setHierarchicalUploadResult(result.data || null);
+
+      if (result.data) {
+        const { products, bahans, warnas } = result.data;
+        const totalCreated =
+          products.total_created + bahans.total_created + warnas.total_created;
+        const totalSkipped =
+          products.total_skipped + bahans.total_skipped + warnas.total_skipped;
+
+        message.success(
+          `Hierarchical bulk upload completed! Created: ${totalCreated}, Skipped: ${totalSkipped}`
+        );
+
+        // Refresh all data
+        fetchProducts();
+        fetchBahans();
+        fetchWarnas();
+      }
+    } catch (error: any) {
+      message.error(
+        "Failed to upload hierarchical data: " +
+          (error.response?.data?.message || error.message)
+      );
+      console.error("Error during hierarchical bulk upload:", error);
+    } finally {
+      setHierarchicalUploading(false);
     }
   };
 
@@ -756,18 +970,46 @@ const MasterData: React.FC = () => {
   }
 
   return (
-    <div style={{ padding: "24px" }}>
-      <div style={{ marginBottom: 24 }}>
-        <Typography.Title level={2}>
-          <Database size={24} style={{ marginRight: 8, verticalAlign: "middle" }} />
-          Master Data Management
-        </Typography.Title>
-        <Typography.Text type="secondary">
-          Manage products, bahan, and warna data for the system.
-        </Typography.Text>
+    <div style={{ 
+      padding: "24px", 
+      minHeight: "100%",
+      overflowY: "auto"
+    }}>
+      <div
+        style={{
+          marginBottom: 24,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+        }}
+      >
+        <div>
+          <Typography.Title level={2}>
+            <Database
+              size={24}
+              style={{ marginRight: 8, verticalAlign: "middle" }}
+            />
+            Master Data Management
+          </Typography.Title>
+          <Typography.Text type="secondary">
+            Manage products, bahan, and warna data for the system.
+          </Typography.Text>
+        </div>
+        <Button
+          type="primary"
+          icon={<UploadIcon size={16} />}
+          onClick={() => {
+            setHierarchicalBulkUploadVisible(true);
+            setHierarchicalUploadResult(null);
+          }}
+          disabled={!isSuperAdmin()}
+          size="large"
+        >
+          Hierarchical Bulk Upload
+        </Button>
       </div>
 
-      <Card>
+      <Card style={{ minHeight: "auto", height: "auto" }}>
         <Tabs items={tabItems} defaultActiveKey="products" />
       </Card>
 
@@ -797,10 +1039,7 @@ const MasterData: React.FC = () => {
           >
             <Input placeholder="Enter product code" />
           </Form.Item>
-          <Form.Item
-            name="description"
-            label="Description (Optional)"
-          >
+          <Form.Item name="description" label="Description (Optional)">
             <Input.TextArea placeholder="Enter product description" rows={3} />
           </Form.Item>
           <div style={{ textAlign: "right" }}>
@@ -808,7 +1047,11 @@ const MasterData: React.FC = () => {
               <Button onClick={() => setProductModalVisible(false)}>
                 Cancel
               </Button>
-              <Button type="primary" htmlType="submit" loading={submittingProduct}>
+              <Button
+                type="primary"
+                htmlType="submit"
+                loading={submittingProduct}
+              >
                 {selectedProduct ? "Update" : "Create"}
               </Button>
             </Space>
@@ -823,11 +1066,7 @@ const MasterData: React.FC = () => {
         onCancel={() => setBahanModalVisible(false)}
         footer={null}
       >
-        <Form
-          form={bahanForm}
-          layout="vertical"
-          onFinish={handleBahanSubmit}
-        >
+        <Form form={bahanForm} layout="vertical" onFinish={handleBahanSubmit}>
           <Form.Item
             name="product_id"
             label="Product"
@@ -853,7 +1092,11 @@ const MasterData: React.FC = () => {
               <Button onClick={() => setBahanModalVisible(false)}>
                 Cancel
               </Button>
-              <Button type="primary" htmlType="submit" loading={submittingBahan}>
+              <Button
+                type="primary"
+                htmlType="submit"
+                loading={submittingBahan}
+              >
                 {selectedBahan ? "Update" : "Create"}
               </Button>
             </Space>
@@ -868,11 +1111,7 @@ const MasterData: React.FC = () => {
         onCancel={() => setWarnaModalVisible(false)}
         footer={null}
       >
-        <Form
-          form={warnaForm}
-          layout="vertical"
-          onFinish={handleWarnaSubmit}
-        >
+        <Form form={warnaForm} layout="vertical" onFinish={handleWarnaSubmit}>
           <Form.Item
             name="bahan_id"
             label="Bahan"
@@ -898,7 +1137,11 @@ const MasterData: React.FC = () => {
               <Button onClick={() => setWarnaModalVisible(false)}>
                 Cancel
               </Button>
-              <Button type="primary" htmlType="submit" loading={submittingWarna}>
+              <Button
+                type="primary"
+                htmlType="submit"
+                loading={submittingWarna}
+              >
                 {selectedWarna ? "Update" : "Create"}
               </Button>
             </Space>
@@ -922,7 +1165,7 @@ const MasterData: React.FC = () => {
             showIcon
             style={{ marginBottom: 16 }}
           />
-          
+
           <Upload.Dragger
             accept=".csv"
             beforeUpload={(file) => {
@@ -953,22 +1196,39 @@ const MasterData: React.FC = () => {
             <div style={{ marginTop: 16 }}>
               <Card title="Upload Results" size="small">
                 <div style={{ marginBottom: 8 }}>
-                  <strong>Total Attempted:</strong> {uploadResult.total_attempted}
+                  <strong>Total Attempted:</strong>{" "}
+                  {uploadResult.total_attempted}
                 </div>
                 <div style={{ marginBottom: 8 }}>
-                  <strong>Successfully Created:</strong> {uploadResult.total_created}
+                  <strong>Successfully Created:</strong>{" "}
+                  {uploadResult.total_created}
                 </div>
                 <div style={{ marginBottom: 8 }}>
-                  <strong>Skipped (duplicates/errors):</strong> {uploadResult.total_skipped}
+                  <strong>Skipped (duplicates/errors):</strong>{" "}
+                  {uploadResult.total_skipped}
                 </div>
-                
+
                 {uploadResult.errors && uploadResult.errors.length > 0 && (
                   <div>
                     <strong>Errors:</strong>
-                    <div style={{ maxHeight: 150, overflowY: 'auto', marginTop: 8 }}>
+                    <div
+                      style={{
+                        maxHeight: 150,
+                        overflowY: "auto",
+                        marginTop: 8,
+                      }}
+                    >
                       {uploadResult.errors.map((error, index) => (
-                        <div key={index} style={{ fontSize: '12px', color: '#ff4d4f', marginBottom: 4 }}>
-                          Row {error.index + 1}: {error.name} ({error.code}) - {error.error}
+                        <div
+                          key={index}
+                          style={{
+                            fontSize: "12px",
+                            color: "#ff4d4f",
+                            marginBottom: 4,
+                          }}
+                        >
+                          Row {error.index + 1}: {error.name} ({error.code}) -{" "}
+                          {error.error}
                         </div>
                       ))}
                     </div>
@@ -978,13 +1238,348 @@ const MasterData: React.FC = () => {
             </div>
           )}
         </div>
-        
+
         <div style={{ textAlign: "right", marginTop: 16 }}>
-          <Button 
+          <Button
             onClick={() => {
               setBulkUploadVisible(false);
               setUploadResult(null);
               setUploadProgress(0);
+            }}
+          >
+            Close
+          </Button>
+        </div>
+      </Modal>
+
+      {/* Bahan Bulk Upload Modal */}
+      <Modal
+        title="Bulk Upload Bahan"
+        open={bahanBulkUploadVisible}
+        onCancel={() => setBahanBulkUploadVisible(false)}
+        footer={null}
+        width={600}
+      >
+        <div style={{ marginBottom: 16 }}>
+          <Alert
+            message="CSV Format"
+            description="Upload a CSV file with columns: name, product_code. First row can be header. The product_code must match existing products."
+            type="info"
+            showIcon
+            style={{ marginBottom: 16 }}
+          />
+
+          <Upload.Dragger
+            accept=".csv"
+            beforeUpload={(file) => {
+              handleBahanBulkUpload(file);
+              return false; // Prevent default upload
+            }}
+            showUploadList={false}
+            disabled={bahanUploading}
+          >
+            <p className="ant-upload-drag-icon">
+              <FileText size={48} />
+            </p>
+            <p className="ant-upload-text">
+              {bahanUploading
+                ? "Uploading..."
+                : "Click or drag CSV file to upload"}
+            </p>
+            <p className="ant-upload-hint">Support CSV files with bahan data</p>
+          </Upload.Dragger>
+
+          {bahanUploading && (
+            <div style={{ marginTop: 16 }}>
+              <Progress percent={bahanUploadProgress} />
+            </div>
+          )}
+
+          {bahanUploadResult && (
+            <div style={{ marginTop: 16 }}>
+              <Card title="Upload Results" size="small">
+                <div style={{ marginBottom: 8 }}>
+                  <strong>Total Attempted:</strong>{" "}
+                  {bahanUploadResult.total_attempted}
+                </div>
+                <div style={{ marginBottom: 8 }}>
+                  <strong>Successfully Created:</strong>{" "}
+                  {bahanUploadResult.total_created}
+                </div>
+                <div style={{ marginBottom: 8 }}>
+                  <strong>Skipped (duplicates/errors):</strong>{" "}
+                  {bahanUploadResult.total_skipped}
+                </div>
+
+                {bahanUploadResult.errors &&
+                  bahanUploadResult.errors.length > 0 && (
+                    <div>
+                      <strong>Errors:</strong>
+                      <div
+                        style={{
+                          maxHeight: 150,
+                          overflowY: "auto",
+                          marginTop: 8,
+                        }}
+                      >
+                        {bahanUploadResult.errors.map((error, index) => (
+                          <div
+                            key={index}
+                            style={{
+                              fontSize: "12px",
+                              color: "#ff4d4f",
+                              marginBottom: 4,
+                            }}
+                          >
+                            Row {error.index + 1}: {error.name} (
+                            {error.product_code}) - {error.error}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+              </Card>
+            </div>
+          )}
+        </div>
+
+        <div style={{ textAlign: "right", marginTop: 16 }}>
+          <Button
+            onClick={() => {
+              setBahanBulkUploadVisible(false);
+              setBahanUploadResult(null);
+              setBahanUploadProgress(0);
+            }}
+          >
+            Close
+          </Button>
+        </div>
+      </Modal>
+
+      {/* Hierarchical Bulk Upload Modal */}
+      <Modal
+        title="Hierarchical Bulk Upload"
+        open={hierarchicalBulkUploadVisible}
+        onCancel={() => {
+          setHierarchicalBulkUploadVisible(false);
+          setHierarchicalUploadResult(null);
+          setHierarchicalUploadProgress(0);
+        }}
+        footer={null}
+        width={800}
+      >
+        <div>
+          <Alert
+            message="CSV Format"
+            description={
+              <div>
+                <p>Upload a CSV file with the following columns:</p>
+                <ul style={{ marginLeft: 20, marginTop: 8 }}>
+                  <li>
+                    <strong>product_name</strong> - Name of the product
+                  </li>
+                  <li>
+                    <strong>product_code</strong> - Unique code for the product
+                  </li>
+                  <li>
+                    <strong>bahan_name</strong> - Name of the bahan (material)
+                  </li>
+                  <li>
+                    <strong>bahan_code</strong> - Unique code for the bahan
+                  </li>
+                  <li>
+                    <strong>warna_name</strong> - Name of the warna (color)
+                  </li>
+                  <li>
+                    <strong>warna_code</strong> - Unique code for the warna
+                  </li>
+                </ul>
+                <p style={{ marginTop: 8 }}>
+                  The system will automatically create the hierarchical
+                  relationships: Product → Bahan → Warna. Existing items with
+                  the same code will be skipped.
+                </p>
+              </div>
+            }
+            type="info"
+            showIcon
+            style={{ marginBottom: 16 }}
+          />
+
+          <Upload.Dragger
+            accept=".csv"
+            beforeUpload={(file) => {
+              handleHierarchicalBulkUpload(file);
+              return false; // Prevent default upload
+            }}
+            showUploadList={false}
+            disabled={hierarchicalUploading}
+          >
+            <p className="ant-upload-drag-icon">
+              <FileText size={48} />
+            </p>
+            <p className="ant-upload-text">
+              {hierarchicalUploading
+                ? "Uploading..."
+                : "Click or drag CSV file to upload"}
+            </p>
+            <p className="ant-upload-hint">
+              Support CSV files with hierarchical master data
+            </p>
+          </Upload.Dragger>
+
+          {hierarchicalUploading && (
+            <div style={{ marginTop: 16 }}>
+              <Progress percent={hierarchicalUploadProgress} />
+            </div>
+          )}
+
+          {hierarchicalUploadResult && (
+            <div style={{ marginTop: 16 }}>
+              <Card title="Upload Results" size="small">
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr 1fr",
+                    gap: 16,
+                  }}
+                >
+                  <Card size="small" title="Products">
+                    <div style={{ marginBottom: 8 }}>
+                      <strong>Created:</strong>{" "}
+                      {hierarchicalUploadResult.products.total_created}
+                    </div>
+                    <div style={{ marginBottom: 8 }}>
+                      <strong>Skipped:</strong>{" "}
+                      {hierarchicalUploadResult.products.total_skipped}
+                    </div>
+                    {hierarchicalUploadResult.errors &&
+                      hierarchicalUploadResult.errors.filter(
+                        (error) => error.entity_type === "product"
+                      ).length > 0 && (
+                        <div>
+                          <strong>Errors:</strong>
+                          <div
+                            style={{
+                              maxHeight: 100,
+                              overflowY: "auto",
+                              marginTop: 4,
+                            }}
+                          >
+                            {hierarchicalUploadResult.errors
+                              .filter(
+                                (error) => error.entity_type === "product"
+                              )
+                              .map((error, index) => (
+                                <div
+                                  key={index}
+                                  style={{
+                                    fontSize: "12px",
+                                    color: "#ff4d4f",
+                                    marginBottom: 2,
+                                  }}
+                                >
+                                  Row {error.row_index + 1}: {error.error}
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+                      )}
+                  </Card>
+
+                  <Card size="small" title="Bahans">
+                    <div style={{ marginBottom: 8 }}>
+                      <strong>Created:</strong>{" "}
+                      {hierarchicalUploadResult.bahans.total_created}
+                    </div>
+                    <div style={{ marginBottom: 8 }}>
+                      <strong>Skipped:</strong>{" "}
+                      {hierarchicalUploadResult.bahans.total_skipped}
+                    </div>
+                    {hierarchicalUploadResult.errors &&
+                      hierarchicalUploadResult.errors.filter(
+                        (error) => error.entity_type === "bahan"
+                      ).length > 0 && (
+                        <div>
+                          <strong>Errors:</strong>
+                          <div
+                            style={{
+                              maxHeight: 100,
+                              overflowY: "auto",
+                              marginTop: 4,
+                            }}
+                          >
+                            {hierarchicalUploadResult.errors
+                              .filter((error) => error.entity_type === "bahan")
+                              .map((error, index) => (
+                                <div
+                                  key={index}
+                                  style={{
+                                    fontSize: "12px",
+                                    color: "#ff4d4f",
+                                    marginBottom: 2,
+                                  }}
+                                >
+                                  Row {error.row_index + 1}: {error.error}
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+                      )}
+                  </Card>
+
+                  <Card size="small" title="Warnas">
+                    <div style={{ marginBottom: 8 }}>
+                      <strong>Created:</strong>{" "}
+                      {hierarchicalUploadResult.warnas.total_created}
+                    </div>
+                    <div style={{ marginBottom: 8 }}>
+                      <strong>Skipped:</strong>{" "}
+                      {hierarchicalUploadResult.warnas.total_skipped}
+                    </div>
+                    {hierarchicalUploadResult.errors &&
+                      hierarchicalUploadResult.errors.filter(
+                        (error) => error.entity_type === "warna"
+                      ).length > 0 && (
+                        <div>
+                          <strong>Errors:</strong>
+                          <div
+                            style={{
+                              maxHeight: 100,
+                              overflowY: "auto",
+                              marginTop: 4,
+                            }}
+                          >
+                            {hierarchicalUploadResult.errors
+                              .filter((error) => error.entity_type === "warna")
+                              .map((error, index) => (
+                                <div
+                                  key={index}
+                                  style={{
+                                    fontSize: "12px",
+                                    color: "#ff4d4f",
+                                    marginBottom: 2,
+                                  }}
+                                >
+                                  Row {error.row_index + 1}: {error.error}
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+                      )}
+                  </Card>
+                </div>
+              </Card>
+            </div>
+          )}
+        </div>
+
+        <div style={{ textAlign: "right", marginTop: 16 }}>
+          <Button
+            onClick={() => {
+              setHierarchicalBulkUploadVisible(false);
+              setHierarchicalUploadResult(null);
+              setHierarchicalUploadProgress(0);
             }}
           >
             Close
