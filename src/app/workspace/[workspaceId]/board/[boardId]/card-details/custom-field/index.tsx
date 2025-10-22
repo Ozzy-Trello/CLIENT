@@ -232,7 +232,8 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
   } = useCardCustomField(card?.id || "", workspaceId);
 
   // Get board-level permissions
-  const { canManageCardCustomFields } = useBoardPermissionsContext();
+  const { canManageCardCustomFields, canUpdateCard } =
+    useBoardPermissionsContext();
 
   const [messageApi, contextHolder] = message.useMessage();
   const [searchTerm, setSearchTerm] = useState<string>("");
@@ -355,7 +356,8 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
     // In that case, we should default to allowing access (for backward compatibility)
     const canView = field.canView !== undefined ? field.canView : true;
     const fieldCanEdit = field.canEdit !== undefined ? field.canEdit : true;
-    const canEdit = canManageCardCustomFields() && fieldCanEdit;
+    const canEdit =
+      canUpdateCard() && canManageCardCustomFields() && fieldCanEdit;
 
     // If user can't view this field, don't render it
     if (!canView) {
@@ -528,9 +530,7 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
 
   // Show loading state
   if (isLoading) {
-    return (
-      <div className="ml-8 text-gray-500">Loading custom fields...</div>
-    );
+    return <div className="ml-8 text-gray-500">Loading custom fields...</div>;
   }
 
   // Don't render if no fields
@@ -563,7 +563,10 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
               {row.map((field) => {
                 // Use the permission flags directly (backend already handles public fields)
                 const canView = field.canView !== false;
-                const canEdit = field.canEdit !== false;
+                const canEdit =
+                  canUpdateCard() &&
+                  canManageCardCustomFields() &&
+                  field.canEdit !== false;
 
                 // Hide fields that user can't view
                 if (!canView) {

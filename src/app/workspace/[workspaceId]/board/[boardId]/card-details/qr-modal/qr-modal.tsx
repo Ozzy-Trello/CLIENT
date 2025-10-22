@@ -16,58 +16,62 @@ const QRModal: React.FC<QRModalProps> = ({ isOpen, onClose, customValue }) => {
   const [value, setValue] = useState<string>("");
   const [generating, setGenerating] = useState<boolean>(true);
   const [fadeIn, setFadeIn] = useState<boolean>(false);
+  const generationTimeoutRef = useRef<number | null>(null);
   const { selectedCard } = useCardDetailContext();
   const params = useParams();
 
+  // Extract primitive values to avoid object dependencies
+  const cardId = selectedCard?.id;
+  const listId = selectedCard?.listId;
+  const cardName = selectedCard?.name;
+  const workspaceId = params.workspaceId as string;
+  const boardId = params.boardId as string;
+
   useEffect(() => {
-    if (isOpen && selectedCard) {
-      setGenerating(true);
+    if (!isOpen || !cardId) {
       setFadeIn(false);
-
-      // Generate the card URL
-      const generateCardUrl = () => {
-        if (customValue) {
-          setValue(customValue);
-          setGenerating(false);
-          setFadeIn(true);
-          return;
-        }
-
-        // Get current URL components
-        const workspaceId = params.workspaceId;
-        const boardId = params.boardId;
-        const cardId = selectedCard?.id;
-        const listId = selectedCard?.listId;
-
-        if (workspaceId && boardId && cardId && listId) {
-          // Create the original long URL
-          const baseUrl = window.location.origin;
-          const originalUrl = `${baseUrl}/workspace/${workspaceId}/board/${boardId}?cardId=${cardId}&listId=${listId}`;
-          setValue(originalUrl);
-        } else {
-          // Fallback to current URL
-          setValue(window.location.href);
-        }
-
-        // Simulate QR code generation with a delay
-        setTimeout(() => {
-          setGenerating(false);
-          setFadeIn(true);
-        }, 1500);
-      };
-
-      generateCardUrl();
-    } else {
-      setFadeIn(false);
+      return;
     }
-  }, [
-    customValue,
-    isOpen,
-    params.workspaceId,
-    params.boardId,
-    selectedCard?.id,
-    selectedCard?.listId,
-  ]);
+
+    setGenerating(true);
+    setFadeIn(false);
+
+    const baseUrl = window.location.origin;
+    const currentWorkspaceId = (params.workspaceId as string) || "";
+    const currentBoardId = (params.boardId as string) || "";
+    const currentListId = selectedCard?.listId || "";
+
+    if (customValue) {
+      setValue(customValue);
+      setGenerating(false);
+      setFadeIn(true);
+      return;
+    }
+
+    if (currentWorkspaceId && currentBoardId && cardId && currentListId) {
+      const originalUrl = `${baseUrl}/workspace/${currentWorkspaceId}/board/${currentBoardId}?cardId=${cardId}&listId=${currentListId}`;
+      setValue(originalUrl);
+    } else {
+      setValue(window.location.href);
+    }
+
+    // Simulate QR code generation with a delay
+    if (generationTimeoutRef.current) {
+      clearTimeout(generationTimeoutRef.current);
+      generationTimeoutRef.current = null;
+    }
+    generationTimeoutRef.current = window.setTimeout(() => {
+      setGenerating(false);
+      setFadeIn(true);
+    }, 1500);
+
+    return () => {
+      if (generationTimeoutRef.current) {
+        clearTimeout(generationTimeoutRef.current);
+        generationTimeoutRef.current = null;
+      }
+    };
+  }, [isOpen, cardId]);
 
   const downloadQR = () => {
     if (!qrContainerRef.current || generating) return;
@@ -110,12 +114,12 @@ const QRModal: React.FC<QRModalProps> = ({ isOpen, onClose, customValue }) => {
           paddedCtx.drawImage(canvas, padding, padding);
 
           // Add card name at bottom
-          if (selectedCard?.name) {
+          if (cardName) {
             paddedCtx.font = `bold ${16 * scale}px sans-serif`;
             paddedCtx.fillStyle = "#000000";
             paddedCtx.textAlign = "center";
             paddedCtx.fillText(
-              selectedCard.name,
+              cardName,
               paddedCanvas.width / 2,
               canvas.height + padding + 30 * scale
             );
@@ -125,7 +129,7 @@ const QRModal: React.FC<QRModalProps> = ({ isOpen, onClose, customValue }) => {
           const pngFile = paddedCanvas.toDataURL("image/png");
 
           const downloadLink = document.createElement("a");
-          downloadLink.download = `${selectedCard?.name || "card"}-qrcode.png`;
+          downloadLink.download = `${cardName || "card"}-qrcode.png`;
           downloadLink.href = pngFile;
           downloadLink.click();
         }
@@ -271,9 +275,9 @@ const QRModal: React.FC<QRModalProps> = ({ isOpen, onClose, customValue }) => {
           }`}
           style={{ transitionDelay: "0.2s" }}
         >
-          {selectedCard?.name && (
+          {cardName && (
             <Typography.Text className="text-lg font-medium">
-              {selectedCard.name}
+              {cardName}
             </Typography.Text>
           )}
 

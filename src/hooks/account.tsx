@@ -34,10 +34,10 @@ export function useUpdateAccount() {
     mutationFn: updateAccount,
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["currentAccount"] });
-      message.success('Profile updated successfully!');
+      message.success("Profile updated successfully!");
     },
     onError: (error) => {
-      message.error('Failed to update profile. Please try again.');
+      message.error("Failed to update profile. Please try again.");
     },
   });
 }
@@ -93,14 +93,13 @@ export function useAccountListForModal({
 }
 
 // Permission helpers hook
-// Note: Global permission levels have been removed. This hook now provides
-// basic permission checks that work with board-specific permissions.
 export function usePermissions() {
   const { data: account } = useCurrentAccount();
   const user = account?.data;
-  
+
   // Check if user is super admin (has access to everything)
-  const isSuperAdmin = () => user?.role?.id === "f97c942c-5d0c-49c3-b74d-5b149c08634f";
+  const isSuperAdmin = () =>
+    user?.role?.id === "f97c942c-5d0c-49c3-b74d-5b149c08634f";
 
   // Role level checks - now based on super admin status only
   // Board-specific permissions are handled at the board level
@@ -123,7 +122,7 @@ export function usePermissions() {
   const canCopyCard = () => canCreate("card");
   const canMoveCard = () => canMove("card");
   const canMirrorCard = () => canCreate("card");
-  
+
   const canManageCardMembers = () => canUpdate("card");
   const canManageCardLabels = () => canUpdate("card");
   const canManageCardDates = () => canUpdate("card");
@@ -218,17 +217,22 @@ export function usePermissions() {
     canManageUsers,
 
     // Utility functions
-    hasAnyPermission: (resource: "board" | "list" | "card") => 
-      canCreate(resource) || canRead(resource) || canUpdate(resource) || canDelete(resource),
-    
+    hasAnyPermission: (resource: "board" | "list" | "card") =>
+      canCreate(resource) ||
+      canRead(resource) ||
+      canUpdate(resource) ||
+      canDelete(resource),
+
     // Note: hasMinimumRole is now based on super admin status only
-    hasMinimumRole: (minRole: "OBSERVER" | "MEMBER" | "MODERATOR" | "ADMIN") => {
+    hasMinimumRole: (
+      minRole: "OBSERVER" | "MEMBER" | "MODERATOR" | "ADMIN"
+    ) => {
       if (isSuperAdmin()) return true;
       // Non-super admins only have MEMBER level access globally
       const roleHierarchy = { OBSERVER: 1, MEMBER: 2, MODERATOR: 3, ADMIN: 4 };
       const currentRoleLevel = 2; // MEMBER level for regular users
       const minRoleLevel = roleHierarchy[minRole];
       return currentRoleLevel >= minRoleLevel;
-    }
+    },
   };
 }

@@ -663,13 +663,37 @@ const RolesPage = () => {
 
     const formValues = await form.validateFields();
 
-    const permissions = {
-      customFields: rolePermissions?.data?.customFields,
-      boards: rolePermissions?.data?.boards,
-      permissionLevel: formValues.permissionLevel,
-    };
+    try {
+      // First, update role basic information (name and description)
+      if (
+        editingRole &&
+        (formValues.name !== editingRole.name ||
+          formValues.description !== editingRole.description)
+      ) {
+        await api.put(`/roles/${editingRole.id}`, {
+          name: formValues.name,
+          description: formValues.description,
+        });
+      }
 
-    updatePermissionsMutation.mutate(permissions);
+      // Then, update permissions
+      const permissions = {
+        customFields: rolePermissions?.data?.customFields,
+        boards: rolePermissions?.data?.boards,
+        permissionLevel: formValues.permissionLevel,
+      };
+
+      updatePermissionsMutation.mutate(permissions);
+    } catch (error: any) {
+      const errorMessage =
+        error.response?.data?.message ||
+        "Failed to update role information. Please try again.";
+      message.error({
+        content: errorMessage,
+        duration: 5,
+        style: { marginTop: "20px" },
+      });
+    }
   };
 
   if (error) {
@@ -1025,16 +1049,6 @@ const RolesPage = () => {
                     rows={3}
                   />
                 </Form.Item>
-                {/* Global permission levels have been removed */}
-                {/* Permissions are now managed per-board in the Board Permissions section below */}
-                <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
-                  <Typography.Text type="secondary" className="text-sm">
-                    <strong>Note:</strong> Global permission levels have been
-                    removed. Users now require explicit board assignments for
-                    access. Configure board-specific permissions in the "Board
-                    Permissions" section below.
-                  </Typography.Text>
-                </div>
               </Form>
             </Card>
 

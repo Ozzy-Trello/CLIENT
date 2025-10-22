@@ -83,7 +83,9 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
-  const [rolePermissionLevels, setRolePermissionLevels] = useState<Record<string, string>>({});
+  const [rolePermissionLevels, setRolePermissionLevels] = useState<
+    Record<string, string>
+  >({});
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
   const uploadRef = useRef<any>(null);
@@ -97,9 +99,7 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
   );
 
   // Get global permissions for workspace-level actions
-  const {
-    canManageRoles,
-  } = usePermissions();
+  const { canManageRoles } = usePermissions();
 
   const {
     board: fetchedBoard,
@@ -116,21 +116,24 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
   // Get board-specific permissions using the most current board data
   const currentBoardForPermissions = fetchedBoard || initialBoard;
   const boardPermissions = useBoardPermissions(currentBoardForPermissions);
-  const {
-    canManageBoardSettings,
-    canUpdateBoard,
-  } = boardPermissions;
+  const { canManageBoardSettings, canUpdateBoard } = boardPermissions;
 
   // Check if user has observer-level permissions (read-only)
   const isObserver = () => {
     if (!currentBoardForPermissions) return true;
     if (currentBoardForPermissions?.user_permissions) {
-      const { board: boardPerms, list, card } = currentBoardForPermissions.user_permissions;
+      const {
+        board: boardPerms,
+        list,
+        card,
+      } = currentBoardForPermissions.user_permissions;
       // Observer: can only read, cannot create/update/delete
-      return !boardPerms.update && !boardPerms.delete && !list.create && !card.create;
+      return (
+        !boardPerms.update && !boardPerms.delete && !list.create && !card.create
+      );
     }
     // Fallback to old permission system
-    return currentBoardForPermissions?.user_permission === 'OBSERVER';
+    return currentBoardForPermissions?.user_permission === "OBSERVER";
   };
 
   useEffect(() => {
@@ -168,11 +171,11 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
       // Set selected roles from board data - only during initialization
       const roleIds = currentBoard.roleIds || [];
       setSelectedRoles(roleIds);
-      
+
       // Initialize role permission levels if available
       const rolePermissions = (currentBoard as any).rolePermissions || {};
       setRolePermissionLevels(rolePermissions);
-      
+
       setIsInitialized(true); // Mark as initialized
     }
   }, [fetchedBoard, initialBoard, form, isInitialized]);
@@ -303,16 +306,16 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
 
   const handleRoleAssignmentChange = (roleId: string, assigned: boolean) => {
     if (assigned) {
-      setSelectedRoles(prev => [...prev, roleId]);
+      setSelectedRoles((prev) => [...prev, roleId]);
       // Set default permission level when assigning a role
-      setRolePermissionLevels(prev => ({
+      setRolePermissionLevels((prev) => ({
         ...prev,
-        [roleId]: "MEMBER"
+        [roleId]: "MEMBER",
       }));
     } else {
-      setSelectedRoles(prev => prev.filter(id => id !== roleId));
+      setSelectedRoles((prev) => prev.filter((id) => id !== roleId));
       // Remove permission level when unassigning
-      setRolePermissionLevels(prev => {
+      setRolePermissionLevels((prev) => {
         const updated = { ...prev };
         delete updated[roleId];
         return updated;
@@ -320,15 +323,18 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
     }
   };
 
-  const handleRolePermissionLevelChange = (roleId: string, permissionLevel: string) => {
-    setRolePermissionLevels(prev => ({
+  const handleRolePermissionLevelChange = (
+    roleId: string,
+    permissionLevel: string
+  ) => {
+    setRolePermissionLevels((prev) => ({
       ...prev,
-      [roleId]: permissionLevel
+      [roleId]: permissionLevel,
     }));
-    
+
     // Auto-assign role if setting permission level
     if (!selectedRoles.includes(roleId)) {
-      setSelectedRoles(prev => [...prev, roleId]);
+      setSelectedRoles((prev) => [...prev, roleId]);
     }
   };
 
@@ -337,13 +343,15 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
     children: React.ReactNode;
     hasPermission: boolean;
     tooltipTitle?: string;
-  }> = ({ children, hasPermission, tooltipTitle = "Insufficient permissions" }) => {
+  }> = ({
+    children,
+    hasPermission,
+    tooltipTitle = "Insufficient permissions",
+  }) => {
     if (!hasPermission) {
       return (
         <Tooltip title={tooltipTitle}>
-          <div style={{ opacity: 0.5, pointerEvents: 'none' }}>
-            {children}
-          </div>
+          <div style={{ opacity: 0.5, pointerEvents: "none" }}>{children}</div>
         </Tooltip>
       );
     }
@@ -407,8 +415,8 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
           </div>
 
           <div className="background-actions">
-            <PermissionFormItem 
-              hasPermission={canUpdateBoard()} 
+            <PermissionFormItem
+              hasPermission={canUpdateBoard()}
               tooltipTitle="You don't have permission to change board background"
             >
               <Upload
@@ -421,7 +429,13 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
                 ref={uploadRef}
                 disabled={!canUpdateBoard()}
               >
-                <Tooltip title={canUpdateBoard() ? "Choose image" : "You don't have permission to change board background"}>
+                <Tooltip
+                  title={
+                    canUpdateBoard()
+                      ? "Choose image"
+                      : "You don't have permission to change board background"
+                  }
+                >
                   <Button
                     type="text"
                     shape="circle"
@@ -434,11 +448,17 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
             </PermissionFormItem>
 
             {backgroundImage && (
-              <PermissionFormItem 
-                hasPermission={canUpdateBoard()} 
+              <PermissionFormItem
+                hasPermission={canUpdateBoard()}
                 tooltipTitle="You don't have permission to change board background"
               >
-                <Tooltip title={canUpdateBoard() ? "Remove image" : "You don't have permission to change board background"}>
+                <Tooltip
+                  title={
+                    canUpdateBoard()
+                      ? "Remove image"
+                      : "You don't have permission to change board background"
+                  }
+                >
                   <Button
                     type="text"
                     shape="circle"
@@ -451,11 +471,17 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
               </PermissionFormItem>
             )}
 
-            <PermissionFormItem 
-              hasPermission={canUpdateBoard()} 
+            <PermissionFormItem
+              hasPermission={canUpdateBoard()}
               tooltipTitle="You don't have permission to save favorites"
             >
-              <Tooltip title={canUpdateBoard() ? "Save as favorite" : "You don't have permission to save favorites"}>
+              <Tooltip
+                title={
+                  canUpdateBoard()
+                    ? "Save as favorite"
+                    : "You don't have permission to save favorites"
+                }
+              >
                 <Button
                   type="text"
                   shape="circle"
@@ -469,8 +495,8 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
         </div>
 
         <div className="board-form-content">
-          <PermissionFormItem 
-            hasPermission={canUpdateBoard()} 
+          <PermissionFormItem
+            hasPermission={canUpdateBoard()}
             tooltipTitle="You don't have permission to change board background"
           >
             <Form.Item name="background" label={<Text strong>Background</Text>}>
@@ -504,90 +530,44 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
             </Form.Item>
           </PermissionFormItem>
 
-          <PermissionFormItem 
-            hasPermission={canManageBoardSettings()} 
+          <PermissionFormItem
+            hasPermission={canManageBoardSettings()}
             tooltipTitle="You don't have permission to change board title"
           >
             <Form.Item
               name="title"
               label={<Text strong>Board Title</Text>}
-              rules={[{ required: true, message: "Please enter a board title" }]}
+              rules={[
+                { required: true, message: "Please enter a board title" },
+              ]}
             >
-              <Input 
-                placeholder="Enter board title" 
-                size="large" 
+              <Input
+                placeholder="Enter board title"
+                size="large"
                 disabled={!canManageBoardSettings()}
               />
             </Form.Item>
           </PermissionFormItem>
 
-          <PermissionFormItem 
-            hasPermission={canManageBoardSettings()} 
+          <PermissionFormItem
+            hasPermission={canManageBoardSettings()}
             tooltipTitle="You don't have permission to change board description"
           >
             <Form.Item
               label="Description"
               name="description"
               rules={[
-                { max: 500, message: "Description cannot exceed 500 characters" },
+                {
+                  max: 500,
+                  message: "Description cannot exceed 500 characters",
+                },
               ]}
             >
-              <Input.TextArea 
-                rows={3} 
-                placeholder="Add a description..." 
+              <Input.TextArea
+                rows={3}
+                placeholder="Add a description..."
                 disabled={!canManageBoardSettings()}
               />
-            </Form.Item>
-          </PermissionFormItem>
-
-          <PermissionFormItem 
-            hasPermission={canManageRoles()} 
-            tooltipTitle="You don't have permission to manage board roles"
-          >
-            <Form.Item
-              label="Role Permissions"
-              help="Configure role access and permission levels for this board (leave empty for public access)"
-            >
-              <div className="grid grid-cols-1 gap-3 max-h-64 overflow-y-auto">
-                {roles.map((role: Role) => {
-                  const isAssigned = selectedRoles.includes(role.id);
-                  const permissionLevel = rolePermissionLevels[role.id] || "MEMBER";
-                  
-                  return (
-                    <div key={role.id} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        <input
-                          type="checkbox"
-                          checked={isAssigned}
-                          onChange={(e) => handleRoleAssignmentChange(role.id, e.target.checked)}
-                          disabled={!canManageRoles()}
-                          className="w-4 h-4"
-                        />
-                        <div>
-                          <div className="font-medium">{role.name}</div>
-                          {role.description && (
-                            <div className="text-sm text-gray-500">{role.description}</div>
-                          )}
-                        </div>
-                      </div>
-                      {isAssigned && (
-                        <Select
-                          value={permissionLevel}
-                          onChange={(value) => handleRolePermissionLevelChange(role.id, value)}
-                          disabled={!canManageRoles()}
-                          className="w-32"
-                          size="small"
-                        >
-                          <Option value="OBSERVER">Observer</Option>
-                          <Option value="MEMBER">Member</Option>
-                          <Option value="MODERATOR">Moderator</Option>
-                          <Option value="ADMIN">Admin</Option>
-                        </Select>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
             </Form.Item>
           </PermissionFormItem>
 
@@ -602,8 +582,12 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
               </Button>
             </Form.Item>
             <Form.Item>
-              <Tooltip 
-                title={!canManageBoardSettings() ? "You don't have permission to save board changes" : ""}
+              <Tooltip
+                title={
+                  !canManageBoardSettings()
+                    ? "You don't have permission to save board changes"
+                    : ""
+                }
               >
                 <Button
                   type="primary"

@@ -429,7 +429,7 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
     } else {
       console.log("Skipping URL effect due to handleUrlChange.current:", handleUrlChange.current);
     }
-  }, [searchParams, isCardDetailOpen, isOpenViaUrl]);
+  }, [searchParams.toString(), isCardDetailOpen, isOpenViaUrl]);
 
   return (
     <CardDetailContext.Provider
