@@ -1,5 +1,6 @@
 import { AnyList } from "@myTypes/list";
 import { UseMutateFunction } from "@tanstack/react-query";
+import { useDeleteAllCardsInList } from "@hooks/list";
 import {
   Button,
   Input,
@@ -52,6 +53,9 @@ const ListName: React.FC<ListNameProps> = ({
   const [newListName, setNewListName] = useState<string>("");
   const inputRef = useRef<HTMLDivElement | null>(null);
   const [actionsPopoverOpen, setActionsPopoverOpen] = useState(false);
+
+  // Hook for deleting all cards in the list
+  const { deleteAllCards, isDeletingAllCards } = useDeleteAllCardsInList();
 
   const [tempLimit, setTempLimit] = useState<number | null>(
     list.cardLimit || 0
@@ -123,6 +127,54 @@ const ListName: React.FC<ListNameProps> = ({
       onOk: () => {
         deleteList({ listId: list.id });
         message.success("List deleted successfully!");
+      },
+    });
+  };
+
+  const handleDeleteAllCards = () => {
+    Modal.confirm({
+      title: "Delete All Cards",
+      content: (
+        <div className="py-4">
+          <p className="mb-0">
+            Are you sure you want to delete all cards in{" "}
+            <strong>"{list.name}"</strong>?
+          </p>
+          <p className="mb-0 text-gray-600 mt-2">
+            This will permanently delete {cardsCount} card
+            {cardsCount !== 1 ? "s" : ""} and cannot be undone.
+          </p>
+        </div>
+      ),
+      okText: "Delete All Cards",
+      okType: "danger",
+      cancelText: "Cancel",
+      styles: {
+        body: {
+          padding: "1rem",
+        },
+      },
+      width: 450,
+      centered: true,
+      onOk: () => {
+        deleteAllCards(
+          { listId: list.id },
+          {
+            onSuccess: (response) => {
+              const deletedCount = response?.data?.deleted_count || 0;
+              message.success(
+                `Successfully deleted ${deletedCount} card${
+                  deletedCount !== 1 ? "s" : ""
+                }!`
+              );
+              setActionsPopoverOpen(false);
+            },
+            onError: (error) => {
+              message.error("Failed to delete cards. Please try again.");
+              console.error("Delete all cards error:", error);
+            },
+          }
+        );
       },
     });
   };
@@ -240,6 +292,19 @@ const ListName: React.FC<ListNameProps> = ({
       </div>
 
       <div className="border-t pt-2">
+        <Button
+          type="text"
+          danger
+          block
+          onClick={() => {
+            handleDeleteAllCards();
+          }}
+          className="text-left justify-start mb-2"
+          disabled={cardsCount === 0 || isDeletingAllCards}
+          loading={isDeletingAllCards}
+        >
+          Delete all cards in this list
+        </Button>
         <Button
           type="text"
           danger

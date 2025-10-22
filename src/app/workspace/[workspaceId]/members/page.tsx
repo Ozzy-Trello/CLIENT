@@ -25,7 +25,12 @@ import { useParams } from "next/navigation";
 import { Account } from "@dto/account";
 import { Edit, Plus, Settings, Trash, Trash2, Users } from "lucide-react";
 import { useAllRoles } from "../../../../hooks/board";
-import { useUpdateAnyAccount, usePermissions } from "@hooks/account";
+import {
+  useUpdateAnyAccount,
+  usePermissions,
+  useDeleteAccount,
+  useCurrentAccount,
+} from "@hooks/account";
 
 type MenuItem = Required<MenuProps>["items"][number];
 
@@ -34,10 +39,19 @@ const { Option } = Select;
 const TableMembers: React.FC<{
   dataSource?: Account[];
   onEdit: (user: Account) => void;
+  onDelete: (user: Account) => void;
   pagination?: any;
   onPaginationChange?: (page: number, pageSize: number) => void;
-}> = ({ dataSource = [], onEdit, pagination, onPaginationChange }) => {
+}> = ({
+  dataSource = [],
+  onEdit,
+  onDelete,
+  pagination,
+  onPaginationChange,
+}) => {
   const { canManageUsers, isSuperAdmin } = usePermissions();
+  const { data: currentAccountData } = useCurrentAccount();
+  const currentUser = currentAccountData?.data;
   const columns = [
     {
       title: "User",
@@ -98,20 +112,24 @@ const TableMembers: React.FC<{
                 disabled={!canManageUsers()}
               />
             </Tooltip>
-            <Tooltip
-              title={
-                !canManageUsers()
-                  ? "Insufficient permissions to delete users (requires super admin)"
-                  : "Delete user"
-              }
-            >
-              <Button
-                type="text"
-                danger
-                icon={<Trash size={16} />}
-                disabled={!canManageUsers()}
-              />
-            </Tooltip>
+            {/* Hide delete button for current user */}
+            {currentUser?.id !== record.id && (
+              <Tooltip
+                title={
+                  !canManageUsers()
+                    ? "Insufficient permissions to delete users (requires super admin)"
+                    : "Delete user"
+                }
+              >
+                <Button
+                  type="text"
+                  danger
+                  icon={<Trash size={16} />}
+                  disabled={!canManageUsers()}
+                  onClick={() => onDelete(record)}
+                />
+              </Tooltip>
+            )}
           </Space>
         );
       },
@@ -161,6 +179,7 @@ const Members: React.FC = () => {
   const [selectedUser, setSelectedUser] = useState<Account | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const updateAccountMutation = useUpdateAnyAccount();
+  const deleteAccountMutation = useDeleteAccount();
   const [editForm] = Form.useForm();
   const [pagination, setPagination] = useState({
     current: 1,
@@ -226,14 +245,22 @@ const Members: React.FC = () => {
     try {
       const values = await editForm.validateFields();
       if (!selectedUser) return;
+
+      const updates: any = {
+        username: values.username || undefined,
+        email: values.email || undefined,
+        phone: values.phone || undefined,
+        roleIds: values.role ? [values.role] : undefined,
+      };
+
+      // Only include password if it's provided
+      if (values.password && values.password.trim() !== "") {
+        updates.password = values.password;
+      }
+
       await updateAccountMutation.mutateAsync({
         userId: selectedUser.id,
-        updates: {
-          username: values.username || undefined,
-          email: values.email || undefined,
-          phone: values.phone || undefined,
-          roleIds: values.role ? [values.role] : undefined,
-        },
+        updates,
       });
       message.success("User updated successfully");
       closeEditUserModal();
@@ -241,6 +268,31 @@ const Members: React.FC = () => {
     } catch (error: any) {
       message.error(error.response?.data?.message || "Unknown error occurred");
     }
+  };
+
+  const handleDeleteUser = (user: Account) => {
+    Modal.confirm({
+      title: "Delete User",
+      content: `Are you sure you want to delete user "${user.username}"? This action cannot be undone.`,
+      okText: "Delete",
+      okType: "danger",
+      cancelText: "Cancel",
+      styles: {
+        body: {
+          padding: "1rem",
+        },
+      },
+      onOk: async () => {
+        try {
+          await deleteAccountMutation.mutateAsync(user.id);
+          setIsFetching(true); // refresh list
+        } catch (error: any) {
+          message.error(
+            error.response?.data?.message || "Failed to delete user"
+          );
+        }
+      },
+    });
   };
 
   useEffect(() => {
@@ -329,6 +381,7 @@ const Members: React.FC = () => {
             <TableMembers
               dataSource={data}
               onEdit={openEditUserModal}
+              onDelete={handleDeleteUser}
               pagination={pagination}
               onPaginationChange={(page, pageSize) => {
                 setPagination((prev) => ({ ...prev, current: page, pageSize }));
@@ -340,6 +393,7 @@ const Members: React.FC = () => {
             <TableMembers
               dataSource={data}
               onEdit={openEditUserModal}
+              onDelete={handleDeleteUser}
               pagination={pagination}
               onPaginationChange={(page, pageSize) => {
                 setPagination((prev) => ({ ...prev, current: page, pageSize }));
@@ -351,6 +405,7 @@ const Members: React.FC = () => {
             <TableMembers
               dataSource={data}
               onEdit={openEditUserModal}
+              onDelete={handleDeleteUser}
               pagination={pagination}
               onPaginationChange={(page, pageSize) => {
                 setPagination((prev) => ({ ...prev, current: page, pageSize }));
@@ -406,6 +461,28 @@ const Members: React.FC = () => {
             </Form.Item>
             <Form.Item label="Phone" name="phone">
               <Input />
+            </Form.Item>
+            <Form.Item label="Password" name="password">
+              <Input.Password placeholder="Leave empty to keep current password" />
+            </Form.Item>
+            <Form.Item
+              label="Confirm Password"
+              name="confirmPassword"
+              dependencies={["password"]}
+              rules={[
+                ({ getFieldValue }) => ({
+                  validator(_, value) {
+                    if (!value || getFieldValue("password") === value) {
+                      return Promise.resolve();
+                    }
+                    return Promise.reject(
+                      new Error("The two passwords do not match!")
+                    );
+                  },
+                }),
+              ]}
+            >
+              <Input.Password placeholder="Confirm new password" />
             </Form.Item>
             <Form.Item label="Role" name="role">
               <Select loading={rolesLoading} placeholder="Select role">

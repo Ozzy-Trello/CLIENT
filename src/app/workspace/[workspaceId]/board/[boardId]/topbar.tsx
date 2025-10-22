@@ -29,6 +29,8 @@ import {
 } from "lucide-react";
 import ModalStokQR from "@components/modal-stok-qr";
 import ModalPOQR from "@components/modal-po-qr";
+import ModalPacking from "@components/modal-packing";
+import ModalPengiriman from "@components/modal-pengiriman";
 import { useSelector } from "react-redux";
 import { selectCurrentBoard } from "@store/workspace_slice";
 import { useRouter } from "next/navigation";
@@ -101,6 +103,8 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
   const [modalDeliveryOpen, setModalDeliveryOpen] = useState<boolean>(false);
   const [modalStokQROpen, setModalStokQROpen] = useState<boolean>(false);
   const [modalPOQROpen, setModalPOQROpen] = useState<boolean>(false);
+  const [modalPackingOpen, setModalPackingOpen] = useState<boolean>(false);
+  const [modalPengirimanOpen, setModalPengirimanOpen] = useState<boolean>(false);
   const router = useRouter();
   const { socket } = useWebSocket();
   const params = useParams();
@@ -186,6 +190,30 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
         </div>
       ),
       onClick: () => setModalPOQROpen(true),
+    },
+  ];
+
+  // Delivery dropdown menu items
+  const deliveryMenuItems: MenuProps["items"] = [
+    {
+      key: "packing",
+      label: (
+        <div className="flex items-center gap-2">
+          <Package size={16} />
+          <span>Packing</span>
+        </div>
+      ),
+      onClick: () => setModalPackingOpen(true),
+    },
+    {
+      key: "pengiriman",
+      label: (
+        <div className="flex items-center gap-2">
+          <ShoppingCart size={16} />
+          <span>Pengiriman</span>
+        </div>
+      ),
+      onClick: () => setModalPengirimanOpen(true),
     },
   ];
 
@@ -381,16 +409,22 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
               </Tooltip>
             </Popover>
 
-            <Tooltip title="Delivery">
-              <Button
-                type="primary"
-                size="small"
-                onClick={() => setModalDeliveryOpen(true)}
-                style={{ backgroundColor: "#1890ff", borderColor: "#1890ff" }}
-              >
-                <span>Delivery</span>
-              </Button>
-            </Tooltip>
+            <Dropdown
+              menu={{ items: deliveryMenuItems }}
+              trigger={["click"]}
+              placement="bottomRight"
+            >
+              <Tooltip title="Delivery Options">
+                <Button
+                  type="primary"
+                  size="small"
+                  className="flex items-center gap-1"
+                  style={{ backgroundColor: "#1890ff", borderColor: "#1890ff" }}
+                >
+                  <span>Delivery</span>
+                </Button>
+              </Tooltip>
+            </Dropdown>
 
             <Dropdown
               menu={{ items: generateQRMenuItems }}
@@ -485,6 +519,16 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
         onClose={() => setModalPOQROpen(false)}
         boardId={params.boardId as string}
         listId={currentBoard?.lists?.[0]?.id} // Use first list as default, can be improved
+      />
+
+      <ModalPacking
+        open={modalPackingOpen}
+        onClose={() => setModalPackingOpen(false)}
+      />
+
+      <ModalPengiriman
+        open={modalPengirimanOpen}
+        onClose={() => setModalPengirimanOpen(false)}
       />
     </div>
   );

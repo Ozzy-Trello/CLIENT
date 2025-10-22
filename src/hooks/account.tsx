@@ -4,6 +4,7 @@ import {
   currentAccount,
   updateAccount,
   updateAccountById,
+  deleteAccount,
 } from "../api/account";
 import TokenStorage from "@utils/token-storage";
 import { Account } from "../dto/account";
@@ -235,4 +236,19 @@ export function usePermissions() {
       return currentRoleLevel >= minRoleLevel;
     },
   };
+}
+
+export function useDeleteAccount() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: deleteAccount,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["accountList"] });
+      message.success("User deleted successfully!");
+    },
+    onError: (error) => {
+      message.error("Failed to delete user. Please try again.");
+    },
+  });
 }

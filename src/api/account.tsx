@@ -49,6 +49,14 @@ export const userDetails = async (
 export const createAccount = async (
   payload: Partial<Account> & { password: string; roleIds?: string[] }
 ): Promise<ApiResponse<Account>> => {
-  const { data } = await api.post(`/account`, payload);
+  const { data } = await api.post("/account", payload);
+  return data;
+};
+
+// delete account (admin)
+export const deleteAccount = async (
+  userId: string
+): Promise<ApiResponse<null>> => {
+  const { data } = await api.delete(`/account/${userId}`);
   return data;
 };

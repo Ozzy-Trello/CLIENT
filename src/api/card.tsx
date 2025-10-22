@@ -193,3 +193,10 @@ export const moveOldCards = async (): Promise<ApiResponse<any>> => {
   const { data } = await api.post(`/card/move-old-cards`);
   return data;
 };
+
+export const deleteAllCardsInList = async (
+  listId: string
+): Promise<ApiResponse<{ deleted_count: number }>> => {
+  const { data } = await api.delete(`/list/${listId}/cards`);
+  return data;
+};

@@ -1,8 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { lists, moveList, deleteList } from "../api/list";
+import { deleteAllCardsInList } from "../api/card";
 import { api } from "../api";
 import { AnyList } from "../types/list";
 import { ApiResponse } from "../types/type";
+import { queryKeys } from "../constants/query-keys";
 
 export function useLists(boardId: string) {
   const queryClient = useQueryClient();
@@ -212,5 +214,84 @@ export function useListMove() {
     moveList: listMoveMutation.mutate,
     isMovingList: listMoveMutation.isPending,
     moveListError: listMoveMutation.error,
+  };
+}
+
+/**
+ * Hook to delete all cards in a list
+ */
+export function useDeleteAllCardsInList() {
+  const queryClient = useQueryClient();
+
+  const deleteAllCardsMutation = useMutation({
+    mutationFn: ({ listId }: { listId: string }) => deleteAllCardsInList(listId),
+
+    onMutate: async ({ listId }) => {
+      // Cancel any outgoing refetches for the specific list
+      await queryClient.cancelQueries({ queryKey: queryKeys.cards.list(listId) });
+      await queryClient.cancelQueries({ queryKey: queryKeys.lists.all });
+
+      // Snapshot the previous value
+      const previousCards = queryClient.getQueryData(queryKeys.cards.list(listId));
+      const previousLists = queryClient.getQueryData(queryKeys.lists.all);
+
+      // Optimistically update the specific cards list to empty
+      queryClient.setQueryData(queryKeys.cards.list(listId), (old: any) => {
+        if (!old) return { data: [], paginate: { totalData: 0 } };
+
+        return {
+          ...old,
+          data: [], // Clear all cards from this list
+          paginate: {
+            ...old.paginate,
+            totalData: 0, // Update total count to 0
+          },
+        };
+      });
+
+      // Also update lists cache if it exists
+      queryClient.setQueriesData({ queryKey: queryKeys.lists.all }, (old: any) => {
+        if (!old?.data) return old;
+
+        return {
+          ...old,
+          data: old.data.map((list: any) => {
+            if (list.id === listId) {
+              return {
+                ...list,
+                cards: [], // Clear all cards from this list
+              };
+            }
+            return list;
+          }),
+        };
+      });
+
+      return { previousCards, previousLists };
+    },
+
+    onError: (_err, _vars, context) => {
+      // Rollback on error
+      if (context?.previousCards) {
+        queryClient.setQueryData(queryKeys.cards.list(_vars.listId), context.previousCards);
+      }
+      if (context?.previousLists) {
+        queryClient.setQueryData(queryKeys.lists.all, context.previousLists);
+      }
+    },
+
+    onSettled: (data, error, variables) => {
+      // Always refetch after error or success - use specific query keys
+      queryClient.invalidateQueries({ queryKey: queryKeys.cards.list(variables.listId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.lists.all });
+      // Also invalidate any dashcard queries that might depend on card counts
+      queryClient.invalidateQueries({ queryKey: ["dashcardCount"], exact: false });
+    },
+  });
+
+  return {
+    deleteAllCards: deleteAllCardsMutation.mutate,
+    isDeletingAllCards: deleteAllCardsMutation.isPending,
+    deleteAllCardsError: deleteAllCardsMutation.error,
   };
 }
