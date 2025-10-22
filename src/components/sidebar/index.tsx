@@ -210,18 +210,6 @@ const Sidebar = () => {
         ),
         icon: <Trello size={16} />,
       },
-      {
-        key: `/workspace/${resolvedWorkspaceId}/materials`,
-        label: (
-          <Link
-            className="block w-full"
-            href={`/workspace/${resolvedWorkspaceId}/materials`}
-          >
-            Materials
-          </Link>
-        ),
-        icon: <Layers size={16} />,
-      },
     ];
 
     // Show Members and Roles menu to Super Admin
@@ -238,6 +226,19 @@ const Sidebar = () => {
           </Link>
         ),
         icon: <Users size={16} />,
+      });
+
+      menus.push({
+        key: `/workspace/${resolvedWorkspaceId}/materials`,
+        label: (
+          <Link
+            className="block w-full"
+            href={`/workspace/${resolvedWorkspaceId}/materials`}
+          >
+            Materials
+          </Link>
+        ),
+        icon: <Layers size={16} />,
       });
 
       menus.push({
