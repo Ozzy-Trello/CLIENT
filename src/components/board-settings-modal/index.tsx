@@ -571,6 +571,70 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
             </Form.Item>
           </PermissionFormItem>
 
+          <PermissionFormItem
+            hasPermission={canManageRoles()}
+            tooltipTitle="You don't have permission to manage board roles"
+          >
+            <Form.Item
+              label="Role Permissions"
+              help="Configure role access and permission levels for this board (leave empty for public access)"
+            >
+              <div className="grid grid-cols-1 gap-3 max-h-64 overflow-y-auto">
+                {roles.map((role: Role) => {
+                  const isAssigned = selectedRoles.includes(role.id);
+                  const permissionLevel =
+                    rolePermissionLevels[role.id] || "MEMBER";
+
+                  return (
+                    <div
+                      key={role.id}
+                      className="flex items-center justify-between p-3 border rounded-lg"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <input
+                          type="checkbox"
+                          checked={isAssigned}
+                          onChange={(e) =>
+                            handleRoleAssignmentChange(
+                              role.id,
+                              e.target.checked
+                            )
+                          }
+                          disabled={!canManageRoles()}
+                          className="w-4 h-4"
+                        />
+                        <div>
+                          <div className="font-medium">{role.name}</div>
+                          {role.description && (
+                            <div className="text-sm text-gray-500">
+                              {role.description}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      {isAssigned && (
+                        <Select
+                          value={permissionLevel}
+                          onChange={(value) =>
+                            handleRolePermissionLevelChange(role.id, value)
+                          }
+                          disabled={!canManageRoles()}
+                          className="w-32"
+                          size="small"
+                        >
+                          <Option value="OBSERVER">Observer</Option>
+                          <Option value="MEMBER">Member</Option>
+                          <Option value="MODERATOR">Moderator</Option>
+                          <Option value="ADMIN">Admin</Option>
+                        </Select>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </Form.Item>
+          </PermissionFormItem>
+
           <Form.Item name="workspace" label={<Text strong>Workspace</Text>}>
             <WorkspaceSelection />
           </Form.Item>
