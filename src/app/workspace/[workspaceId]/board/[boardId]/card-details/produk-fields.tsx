@@ -4,6 +4,7 @@ import { useCardDetails } from "@hooks/card-details";
 import { getProducts, Product } from "@api/product";
 import { getBahans, Bahan } from "@api/bahan";
 import { getWarnas, Warna } from "@api/warna";
+import { getProductCodes, ProductCode } from "@api/product-code";
 import { Card } from "@myTypes/card";
 import { useBoardPermissionsContext } from "@providers/board-permissions-context";
 
@@ -16,9 +17,11 @@ interface ProdukFieldsProps {
 
 const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard }) => {
   const [products, setProducts] = useState<Product[]>([]);
+  const [productCodes, setProductCodes] = useState<ProductCode[]>([]);
   const [bahans, setBahans] = useState<Bahan[]>([]);
   const [warnas, setWarnas] = useState<Warna[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
+  const [loadingProductCodes, setLoadingProductCodes] = useState(false);
   const [loadingBahans, setLoadingBahans] = useState(false);
   const [loadingWarnas, setLoadingWarnas] = useState(false);
 
@@ -48,6 +51,31 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard }) => {
 
     loadProducts();
   }, []);
+
+  // Load product codes when product is selected
+  useEffect(() => {
+    const loadProductCodes = async () => {
+      if (!card.productId) {
+        setProductCodes([]);
+        return;
+      }
+
+      setLoadingProductCodes(true);
+      try {
+        const response = await getProductCodes(1, 100, card.productId);
+        if (response.data) {
+          setProductCodes(response.data);
+        }
+      } catch (error) {
+        message.error("Failed to load product codes");
+        console.error("Error loading product codes:", error);
+      } finally {
+        setLoadingProductCodes(false);
+      }
+    };
+
+    loadProductCodes();
+  }, [card.productId]);
 
   // Load bahans when product is selected
   useEffect(() => {
@@ -112,10 +140,10 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard }) => {
         ? {
             id: selectedProduct.id,
             name: selectedProduct.name,
-            code: selectedProduct.code,
           }
         : undefined,
       // Reset dependent fields when product changes
+      productCodeId: undefined,
       bahanId: undefined,
       bahanInfo: undefined,
       warnaId: undefined,
@@ -126,8 +154,25 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard }) => {
     // Update card in backend
     updateCard({
       productId: productId || undefined,
+      productCodeId: undefined, // Reset product code
       bahanId: undefined, // Reset dependent fields
       warnaId: undefined,
+    });
+  };
+
+  const handleProductCodeChange = (productCodeId: string) => {
+    if (!canUpdateCard()) return;
+
+    // Update local state first for immediate UI feedback
+    const updatedCard = {
+      ...card,
+      productCodeId,
+    };
+    setCard(updatedCard);
+
+    // Update card in backend
+    updateCard({
+      productCodeId: productCodeId || undefined,
     });
   };
 
@@ -182,7 +227,7 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard }) => {
   };
 
   return (
-    <div className="grid grid-cols-3 gap-4 py-5">
+    <div className="grid grid-cols-4 gap-4 ml-8">
       {/* Product Dropdown */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -206,7 +251,39 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard }) => {
         >
           {products.map((product) => (
             <Option key={product.id} value={product.id}>
-              [{product.code}] {product.name}
+              {product.name}
+            </Option>
+          ))}
+        </Select>
+      </div>
+
+      {/* Product Code Dropdown */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Product Code
+        </label>
+        <Select
+          value={card.productCodeId || undefined}
+          onChange={handleProductCodeChange}
+          placeholder={
+            !card.productId ? "Select product first" : "Search product code..."
+          }
+          className="w-full"
+          loading={loadingProductCodes}
+          disabled={!canUpdateCard() || !card.productId || loadingProductCodes}
+          allowClear
+          showSearch
+          filterOption={(input, option) =>
+            option?.children
+              ?.toString()
+              .toLowerCase()
+              .includes(input.toLowerCase()) ?? false
+          }
+        >
+          {productCodes.map((productCode) => (
+            <Option key={productCode.id} value={productCode.id}>
+              {productCode.code}
+              {productCode.description && ` - ${productCode.description}`}
             </Option>
           ))}
         </Select>

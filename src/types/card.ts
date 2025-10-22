@@ -53,12 +53,12 @@ export interface Card {
   bahan?: boolean; // Whether the card requires material/fabric
   shortId?: number; // Auto-increment short ID for QR codes
   productId?: string; // Foreign key to Product
+  productCodeId?: string; // Foreign key to ProductCode
   bahanId?: string; // Foreign key to Bahan
   warnaId?: string; // Foreign key to Warna
   productInfo?: {
     id: string;
     name: string;
-    code: string;
   };
   bahanInfo?: {
     id: string;
@@ -67,6 +67,11 @@ export interface Card {
   warnaInfo?: {
     id: string;
     name: string;
+  };
+  productCodeInfo?: {
+    id: string;
+    code: string;
+    description?: string;
   };
   
   // Backend API response properties (snake_case versions)

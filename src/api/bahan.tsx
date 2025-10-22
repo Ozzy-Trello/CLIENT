@@ -5,10 +5,17 @@ export interface Bahan {
   id: string;
   name: string;
   productId: string;
+  productName?: string;
   productInfo?: {
     id: string;
     name: string;
-    code: string;
+    productCodes: Array<{
+      id: string;
+      code: string;
+      description?: string;
+      createdAt: string;
+      updatedAt: string;
+    }>;
   };
   createdAt?: string;
   updatedAt?: string;
@@ -27,18 +34,18 @@ export interface BahanUpdateRequest {
 export interface BahanBulkInsertRequest {
   bahans: Array<{
     name: string;
-    product_code: string;
+    productCode: string;
   }>;
 }
 
 export interface BahanBulkInsertResult {
-  total_attempted: number;
-  total_created: number;
-  total_skipped: number;
+  totalAttempted: number;
+  totalCreated: number;
+  totalSkipped: number;
   errors: Array<{
     index: number;
     name: string;
-    product_code: string;
+    productCode: string;
     error: string;
   }>;
 }

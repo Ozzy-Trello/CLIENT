@@ -442,22 +442,36 @@ const CardDetails: React.FC = (props) => {
                       <Checkbox
                         checked={(() => {
                           const checkedValue = selectedCard.bahan || false;
-                          console.log("Checkbox checked value:", checkedValue, "from selectedCard.bahan:", selectedCard.bahan);
+                          console.log(
+                            "Checkbox checked value:",
+                            checkedValue,
+                            "from selectedCard.bahan:",
+                            selectedCard.bahan
+                          );
                           return checkedValue;
                         })()}
                         onChange={(e: CheckboxChangeEvent) => {
                           if (!canUpdateCard()) return;
 
                           const newBahanValue = e.target.checked;
-                          console.log("Checkbox onChange - newBahanValue:", newBahanValue);
-                          console.log("Checkbox onChange - current selectedCard.bahan:", selectedCard.bahan);
+                          console.log(
+                            "Checkbox onChange - newBahanValue:",
+                            newBahanValue
+                          );
+                          console.log(
+                            "Checkbox onChange - current selectedCard.bahan:",
+                            selectedCard.bahan
+                          );
 
                           // Update local state immediately for better UX
                           const updatedCard = {
                             ...selectedCard,
                             bahan: newBahanValue,
                           };
-                          console.log("Checkbox onChange - setting updatedCard:", updatedCard);
+                          console.log(
+                            "Checkbox onChange - setting updatedCard:",
+                            updatedCard
+                          );
                           setSelectedCard(updatedCard);
                           updateCardDetails({ bahan: newBahanValue });
                         }}
@@ -486,7 +500,7 @@ const CardDetails: React.FC = (props) => {
 
               {selectedCard && (
                 <CollapsibleSection
-                  title="Produk Fields"
+                  title="Produk"
                   defaultExpanded={true}
                   icon={
                     <svg
@@ -501,10 +515,7 @@ const CardDetails: React.FC = (props) => {
                     </svg>
                   }
                 >
-                  <ProdukFields
-                    card={selectedCard}
-                    setCard={setSelectedCard}
-                  />
+                  <ProdukFields card={selectedCard} setCard={setSelectedCard} />
                 </CollapsibleSection>
               )}
 

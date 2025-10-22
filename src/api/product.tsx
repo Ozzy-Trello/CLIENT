@@ -1,32 +1,33 @@
 import { api } from ".";
 import { ApiResponse } from "../types/type";
 
+export interface ProductCode {
+  id: string;
+  code: string;
+  description?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Product {
   id: string;
   name: string;
-  code: string;
-  description?: string;
+  productCodes: ProductCode[];
   createdAt?: string;
   updatedAt?: string;
 }
 
 export interface ProductCreateRequest {
   name: string;
-  code: string;
-  description?: string;
 }
 
 export interface ProductUpdateRequest {
   name?: string;
-  code?: string;
-  description?: string;
 }
 
 export interface ProductBulkInsertRequest {
   products: {
     name: string;
-    code: string;
-    description?: string;
   }[];
 }
 

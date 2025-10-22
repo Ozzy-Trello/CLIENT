@@ -5,11 +5,17 @@ export interface Warna {
   id: string;
   name: string;
   bahanId: string;
+  bahanName?: string;
+  productName?: string;
   hexCode?: string;
   code?: string;
   bahanInfo?: {
     id: string;
     name: string;
+    product?: {
+      id: string;
+      name: string;
+    };
   };
   createdAt?: string;
   updatedAt?: string;

@@ -274,6 +274,34 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
           </div> */}
         </div>
 
+        {/* Product Information */}
+        <div className="space-y-1 mb-3">
+          {card?.productInfo?.name && (
+            <div className="text-gray-700 text-[11px]">
+              <span className="font-medium mr-1">Produk:</span>
+              {card.productInfo.name}
+            </div>
+          )}
+          {card?.productCodeInfo?.code && (
+            <div className="text-gray-700 text-[11px]">
+              <span className="font-medium mr-1">Kode Produk:</span>
+              {card.productCodeInfo.code}
+            </div>
+          )}
+          {card?.bahanInfo?.name && (
+            <div className="text-gray-700 text-[11px]">
+              <span className="font-medium mr-1">Bahan:</span>
+              {card.bahanInfo.name}
+            </div>
+          )}
+          {card?.warnaInfo?.name && (
+            <div className="text-gray-700 text-[11px]">
+              <span className="font-medium mr-1">Warna:</span>
+              {card.warnaInfo.name}
+            </div>
+          )}
+        </div>
+
         {/* Custom fields */}
         <div className="space-y-2 mb-3">
           {cardCustomFields?.map((item: CardCustomField, index) => {
