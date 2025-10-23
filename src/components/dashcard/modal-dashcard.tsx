@@ -895,6 +895,72 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
                                 />
                               );
                             })()
+                          ) : filter.type === EnumCardAttributeType.PRODUCT || filter.type === EnumCardAttributeType.WARNA ? (
+                            (() => {
+                              const operator = String(filter.operator);
+                              const isNoValueInput =
+                                operator === "any" ||
+                                operator === "any_value" ||
+                                operator === "no_value";
+                              const isMultiSelect =
+                                operator === "is_one_of" || operator === "is_not_one_of";
+                              const isTextInput =
+                                operator === "starts_with" ||
+                                operator === "matches_with";
+
+                              // No input needed for these operators
+                              if (isNoValueInput) return null;
+
+                              // Text input for name-based operators
+                              if (isTextInput) {
+                                return (
+                                  <Input
+                                    size="small"
+                                    placeholder={`Enter ${filter.type === EnumCardAttributeType.PRODUCT ? 'product' : 'warna'} name`}
+                                    value={(filter.value as string) || ""}
+                                    onChange={(e) =>
+                                      handleFilterValueChange(
+                                        filter.id,
+                                        e.target.value
+                                      )
+                                    }
+                                  />
+                                );
+                              }
+
+                              // For multi-select operators, use a simple text input for now
+                              // In a real implementation, you might want to create specific selection components
+                              if (isMultiSelect) {
+                                return (
+                                  <Input
+                                    size="small"
+                                    placeholder={`Enter ${filter.type === EnumCardAttributeType.PRODUCT ? 'product' : 'warna'} names (comma-separated)`}
+                                    value={(filter.value as string) || ""}
+                                    onChange={(e) =>
+                                      handleFilterValueChange(
+                                        filter.id,
+                                        e.target.value
+                                      )
+                                    }
+                                  />
+                                );
+                              }
+
+                              // Default text input
+                              return (
+                                <Input
+                                  size="small"
+                                  placeholder={`Enter ${filter.type === EnumCardAttributeType.PRODUCT ? 'product' : 'warna'} name`}
+                                  value={(filter.value as string) || ""}
+                                  onChange={(e) =>
+                                    handleFilterValueChange(
+                                      filter.id,
+                                      e.target.value
+                                    )
+                                  }
+                                />
+                              );
+                            })()
                           ) : (
                             <Input
                               size="small"

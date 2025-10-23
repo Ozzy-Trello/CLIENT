@@ -13,6 +13,8 @@ import {
   Edit,
   Trash2,
   MoreHorizontal,
+  Package,
+  Palette,
 } from "lucide-react";
 import {
   DashcardConfig,
@@ -47,6 +49,8 @@ const attributeIcons: Record<EnumCardAttributeType, React.ReactNode> = {
   [EnumCardAttributeType.LAST_MODIFIED]: <Calendar size={16} />,
   [EnumCardAttributeType.START_DATE]: <Calendar size={16} />,
   [EnumCardAttributeType.CUSTOM_FIELD]: <Edit size={16} />,
+  [EnumCardAttributeType.PRODUCT]: <Package size={16} />,
+  [EnumCardAttributeType.WARNA]: <Palette size={16} />,
 };
 
 const Dashcard: React.FC<DashcardProps> = ({

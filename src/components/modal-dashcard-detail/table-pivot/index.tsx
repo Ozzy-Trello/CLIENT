@@ -101,7 +101,7 @@ const TablePivot: FC = () => {
 
     setColumnVisibility((prev) => {
       const newVisibility = { ...prev };
-      const baseColumnNames = ['name', 'members', 'description'];
+      const baseColumnNames = ['name', 'members', 'description', 'produk', 'warna'];
       
       columns.forEach((col) => {
         if (newVisibility[col] === undefined) {
@@ -261,6 +261,8 @@ const TablePivot: FC = () => {
         description: item.description,
         dueDate: item.dueDate,
         listName: item.listName,
+        productInfo: item.productInfo,
+        warnaInfo: item.warnaInfo,
       };
 
       // Add existing column values
@@ -421,6 +423,46 @@ const TablePivot: FC = () => {
               dangerouslySetInnerHTML={{ __html: description || "" }}
               className="max-w-xs overflow-hidden"
             />
+          );
+        },
+      }),
+      columnHelper.accessor("productInfo", {
+        header: () =>
+          headerTemplate(
+            "Produk",
+            getColumnMenu("productInfo").items || [],
+            getColumnMenu("productInfo").onClick
+          ),
+        cell: (info) => {
+          const row = info.row;
+          if (row.getIsGrouped()) {
+            return `${row.subRows.length} items`;
+          }
+          const productInfo = info.getValue() as any;
+          return (
+            <div className="max-w-xs truncate">
+              {productInfo?.name || "-"}
+            </div>
+          );
+        },
+      }),
+      columnHelper.accessor("warnaInfo", {
+        header: () =>
+          headerTemplate(
+            "Warna",
+            getColumnMenu("warnaInfo").items || [],
+            getColumnMenu("warnaInfo").onClick
+          ),
+        cell: (info) => {
+          const row = info.row;
+          if (row.getIsGrouped()) {
+            return `${row.subRows.length} items`;
+          }
+          const warnaInfo = info.getValue() as any;
+          return (
+            <div className="max-w-xs truncate">
+              {warnaInfo?.name || "-"}
+            </div>
           );
         },
       }),

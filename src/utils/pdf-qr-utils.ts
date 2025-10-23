@@ -249,6 +249,11 @@ export async function downloadPDFWithQR(
   options?: Partial<PDFQROptions>,
   providedHeaders?: HeadersInit
 ): Promise<void> {
+  // Check if we're in a browser environment
+  if (typeof window === 'undefined') {
+    throw new Error('downloadPDFWithQR can only be used in browser environment');
+  }
+
   try {
     // Prepare headers with proper authentication
     const headers: HeadersInit = { ...providedHeaders };
@@ -293,6 +298,11 @@ export async function printPDFWithQR(
   options?: Partial<PDFQROptions>,
   providedHeaders?: HeadersInit
 ): Promise<void> {
+  // Check if we're in a browser environment
+  if (typeof window === 'undefined') {
+    throw new Error('printPDFWithQR can only be used in browser environment');
+  }
+
   try {
     // Prepare headers with proper authentication
     const headers: HeadersInit = { ...providedHeaders };

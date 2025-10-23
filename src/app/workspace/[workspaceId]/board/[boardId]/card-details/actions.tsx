@@ -16,7 +16,7 @@ import { useCards } from "@hooks/card";
 import { useCardDetails } from "@hooks/card-details";
 import { useCardAttachment } from "@hooks/card_attachment";
 import { useCardMembers } from "@hooks/card_member";
-import { EnumAttachmentType } from "@myTypes/card";
+import { EnumAttachmentType, EnumCardAttachmentType } from "@myTypes/card";
 import { FileUpload } from "@myTypes/file-upload";
 import { useBoardPermissionsContext } from "@providers/board-permissions-context";
 import { useCardDetailContext } from "@providers/card-detail-context";
@@ -107,6 +107,7 @@ const Actions: React.FC = () => {
   const [openChecklist, setOpenChecklist] = useState(false);
   const [openLabels, setOpenLabels] = useState(false);
   const [openBuktiModal, setOpenBuktiModal] = useState(false);
+  const [openPOModal, setOpenPOModal] = useState(false);
 
   // Scan Progress state
   const [isProgressOpen, setIsProgressOpen] = useState(false);
@@ -323,10 +324,19 @@ const Actions: React.FC = () => {
 
   // Check if bukti attachment already exists
   const hasBuktiAttachment = () => {
-    return cardAttachments.some(
+    return cardAttachments?.some(
       (attachment) =>
         attachment.attachableType === EnumAttachmentType.File &&
-        attachment.file?.name === "bukti"
+        attachment.file?.name?.startsWith("bukti")
+    );
+  };
+
+  // Check if PO attachment already exists
+  const hasPOAttachment = () => {
+    return cardAttachments?.some(
+      (attachment) =>
+        attachment.attachableType === EnumAttachmentType.File &&
+        attachment.file?.name?.startsWith("PO")
     );
   };
 
@@ -352,6 +362,7 @@ const Actions: React.FC = () => {
           attachableType: EnumAttachmentType.File,
           attachableId: buktiResult.data.id,
           isCover: false,
+          type: EnumCardAttachmentType.Bukti,
         });
 
         message.success("Bukti uploaded successfully!");
@@ -359,6 +370,39 @@ const Actions: React.FC = () => {
       }
     } catch (error) {
       message.error("Failed to upload bukti. Please try again.");
+    }
+  };
+
+  // Handle PO upload
+  const handlePOUpload = async (file: File, result: FileUpload) => {
+    try {
+      // Create a new file with the name "PO" but keep the original extension
+      const originalExtension = file.name.split(".").pop();
+      const poFileName = originalExtension
+        ? `PO.${originalExtension}`
+        : "PO";
+
+      // Create a new file object with the PO name
+      const poFile = new File([file], poFileName, { type: file.type });
+
+      // Upload the file with the new name
+      const poResult = await uploadFile(poFile);
+
+      if (poResult?.data && selectedCard) {
+        // Add the attachment with the PO file
+        addAttachment({
+          cardId: selectedCard.id,
+          attachableType: EnumAttachmentType.File,
+          attachableId: poResult.data.id,
+          isCover: false,
+          type: EnumCardAttachmentType.PO,
+        });
+
+        message.success("PO uploaded successfully!");
+        setOpenPOModal(false);
+      }
+    } catch (error) {
+      message.error("Failed to upload PO. Please try again.");
     }
   };
 
@@ -587,6 +631,23 @@ const Actions: React.FC = () => {
           <FileCheck size={14} />
         </span>
         <span className="text-xs">Bukti</span>
+      </PermissionButton>
+
+      {/* PO Button */}
+      <PermissionButton
+        canPerform={canManageCardAttachments()}
+        onClick={() => setOpenPOModal(true)}
+        tooltip={
+          hasPOAttachment() ? "PO already exists" : "Upload PO file"
+        }
+        permissionLevel={permissionLevel}
+        buttonStyle={buttonStyle}
+        disabled={hasPOAttachment()}
+      >
+        <span className="text-xs" style={iconStyle}>
+          <FileText size={14} />
+        </span>
+        <span className="text-xs">PO</span>
       </PermissionButton>
 
       {/* Buat SO Button */}
@@ -1139,6 +1200,14 @@ const Actions: React.FC = () => {
           onClose={() => setOpenBuktiModal(false)}
           onUploadComplete={handleBuktiUpload}
           title="Upload Bukti"
+        />
+
+        {/* PO Upload Modal */}
+        <UploadModal
+          isVisible={openPOModal}
+          onClose={() => setOpenPOModal(false)}
+          onUploadComplete={handlePOUpload}
+          title="Upload PO"
         />
       </div>
     </div>

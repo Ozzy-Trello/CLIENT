@@ -24,7 +24,7 @@ import UploadModal from "@components/modal-upload/modal-upload";
 import { PDFModal } from "@components/pdf-modal";
 import { PDFPreview } from "@components/pdf-preview";
 import { useCardAttachment } from "@hooks/card_attachment";
-import { Card, CardAttachment, EnumAttachmentType } from "@myTypes/card";
+import { Card, CardAttachment, EnumAttachmentType, EnumCardAttachmentType } from "@myTypes/card";
 import { FileUpload } from "@myTypes/file-upload";
 import { User } from "@myTypes/user";
 import { useBoardPermissionsContext } from "@providers/board-permissions-context";
@@ -197,6 +197,31 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
       default:
         return <FileOutlined className="text-gray-500 text-2xl" />;
     }
+  };
+
+  // Helper functions to categorize attachments by type
+  const getBuktiAttachments = () => {
+    return cardAttachments?.filter(
+      (item) => 
+        item.attachableType === EnumAttachmentType.File && 
+        item.type === EnumCardAttachmentType.Bukti
+    ) || [];
+  };
+
+  const getPOAttachments = () => {
+    return cardAttachments?.filter(
+      (item) => 
+        item.attachableType === EnumAttachmentType.File && 
+        item.type === EnumCardAttachmentType.PO
+    ) || [];
+  };
+
+  const getOtherAttachments = () => {
+    return cardAttachments?.filter(
+      (item) => 
+        item.attachableType === EnumAttachmentType.File && 
+        (!item.type || item.type === EnumCardAttachmentType.Attachment)
+    ) || [];
   };
 
   const formatFileSize = (bytes?: number): string => {
@@ -689,43 +714,32 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
     }
   }, [cardAttachments, setCard]);
 
-  return (
-    <>
-      <div
-        className="bg-white p-4 rounded-lg mt-2"
-        ref={attachmentsRef}
-        tabIndex={0}
-      >
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center">
-            <PaperClipOutlined className="text-gray-500 mr-2" />
-            <Typography.Title level={5} className="m-0">
-              Attachments
-            </Typography.Title>
+  // Reusable component for rendering attachment sections
+  const AttachmentSection: React.FC<{
+    title: string;
+    attachments: CardAttachment[];
+    emptyText?: string;
+  }> = ({ title, attachments, emptyText = "No attachments yet" }) => {
+    if (attachments.length === 0) {
+      return (
+        <div className="mb-6">
+          <div className="text-xs text-gray-500 font-medium uppercase mb-2">
+            {title}
           </div>
-          <Button
-            type="default"
-            size="small"
-            icon={<PlusOutlined />}
-            className={`flex items-center ${
-              !canUpdateCard() ? "opacity-50 cursor-not-allowed" : ""
-            }`}
-            onClick={handleOpenModal}
-            disabled={!canUpdateCard()}
-          >
-            Add
-          </Button>
+          <div className="text-sm text-gray-400 italic">{emptyText}</div>
         </div>
+      );
+    }
 
+    return (
+      <div className="mb-6">
         <div className="text-xs text-gray-500 font-medium uppercase mb-2">
-          Files
+          {title}
         </div>
         <List
           className="space-y-3"
-          dataSource={cardAttachments?.filter(
-            (item) => item.attachableType === EnumAttachmentType.File
-          )}
-          locale={{ emptyText: "No attachments yet" }}
+          dataSource={attachments}
+          locale={{ emptyText }}
           renderItem={(item) => (
             <List.Item className="flex items-center p-2 hover:bg-gray-50 rounded">
               <div className="flex-shrink-0 mr-3 w-20 h-15 flex items-center justify-center">
@@ -798,9 +812,6 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
                     <PDFPreview
                       url={item.file?.url || ""}
                       fileName={item.file?.name}
-                      width={80}
-                      height={60}
-                      className="hover:opacity-80 transition-opacity"
                     />
                   </div>
                 ) : (
@@ -810,90 +821,134 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
                 )}
               </div>
 
-              <div className="flex-grow">
-                <div className="text-sm font-medium">{item.file?.name}</div>
-                <div className="text-xs text-gray-500 flex items-center space-x-2">
-                  <span>{formatFileSize(item.file?.size)}</span>
-                  {item.file?.mimeType && <span>•</span>}
-                  <span>{item.file?.mimeType}</span>
-                  {item.isCover && (
-                    <span className="bg-blue-100 text-blue-600 text-xs px-2 py-0.5 rounded">
-                      Cover
-                    </span>
-                  )}
-                </div>
-              </div>
+              <div className="flex-grow min-w-0">
+                <div className="flex items-center justify-between">
+                  <div className="flex-grow min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">
+                      {item.file?.name || "Unnamed file"}
+                    </p>
+                    <div className="flex items-center text-xs text-gray-500 space-x-2">
+                      <span>{formatFileSize(item.file?.size)}</span>
+                      {item.file?.mimeType && (
+                        <>
+                          <span>•</span>
+                          <span>{item.file.mimeType}</span>
+                        </>
+                      )}
+                      {item.createdAt && (
+                        <>
+                          <span>•</span>
+                          <span>
+                            {new Date(item.createdAt).toLocaleDateString()}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </div>
 
-              <div className="flex-shrink-0 flex space-x-1">
-                {isImageFile(item.file?.name || "", item.file?.mimeType) ? (
-                  <>
+                  <div className="flex items-center space-x-1 ml-2">
                     <Button
+                      type="text"
+                      size="small"
                       icon={<DownloadOutlined />}
-                      size="small"
-                      title="Download Original"
-                      onClick={() => window.open(item.file?.url, "_blank")}
-                      className="flex items-center justify-center border-0 shadow-none"
+                      onClick={() => {
+                        if (item.file?.url) {
+                          const link = document.createElement("a");
+                          link.href = item.file.url;
+                          link.download = item.file.name || "download";
+                          link.target = "_blank";
+                          document.body.appendChild(link);
+                          link.click();
+                          document.body.removeChild(link);
+                        }
+                      }}
+                      className="text-gray-500 hover:text-blue-600"
                     />
-                    <Button
-                      icon={<QrCode size={14} />}
-                      size="small"
-                      title="Print with QR Code"
-                      onClick={() =>
-                        handlePrintWithQR(
-                          item.file?.url,
-                          item.file?.name || "image"
-                        )
-                      }
-                      className="flex items-center justify-center border-0 shadow-none"
-                    />
-                  </>
-                ) : isPDFFile(item.file?.name || "", item.file?.mimeType) ? (
-                  <>
-                    <Button
-                      icon={<DownloadOutlined />}
-                      size="small"
-                      title="Download PDF"
-                      onClick={() => window.open(item.file?.url, "_blank")}
-                      className="flex items-center justify-center border-0 shadow-none"
-                    />
-                    <Button
-                      icon={<QrCode size={14} />}
-                      size="small"
-                      title="Print with QR Code"
-                      onClick={() =>
-                        handlePrintPDFWithQR(
-                          item.file?.url,
-                          item.file?.name || "document"
-                        )
-                      }
-                      className="flex items-center justify-center border-0 shadow-none"
-                    />
-                  </>
-                ) : (
-                  <Button
-                    icon={<ExportOutlined />}
-                    size="small"
-                    title="Download"
-                    onClick={() => window.open(item.file?.url, "_blank")}
-                    className="flex items-center justify-center border-0 shadow-none"
-                  />
-                )}
-                <Button
-                  icon={<DeleteOutlined />}
-                  size="small"
-                  title="Delete attachment"
-                  danger
-                  className="flex items-center justify-center border-0 shadow-none"
-                  onClick={async () => {
-                    deleteAttachment({
-                      attachmentId: item.id,
-                      cardId: card.id || "",
-                    });
-                  }}
-                />
+
+                    {isPDFFile(item.file?.name || "", item.file?.mimeType) && (
+                      <Button
+                        type="text"
+                        size="small"
+                        icon={<QrCode size={14} />}
+                        onClick={() =>
+                          handlePrintWithQR(
+                            item.file?.url,
+                            item.file?.name || "PDF"
+                          )
+                        }
+                        className="text-gray-500 hover:text-green-600"
+                      />
+                    )}
+
+                    {canUpdateCard() && (
+                      <Button
+                        type="text"
+                        size="small"
+                        icon={<DeleteOutlined />}
+                        onClick={() => deleteAttachment({
+                          attachmentId: item.id,
+                          cardId: card.id || "",
+                        })}
+                        className="text-gray-500 hover:text-red-600"
+                      />
+                    )}
+                  </div>
+                </div>
               </div>
             </List.Item>
           )}
+        />
+      </div>
+    );
+  };
+
+  return (
+    <>
+      <div
+        className="bg-white p-4 rounded-lg mt-2"
+        ref={attachmentsRef}
+        tabIndex={0}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center">
+            <PaperClipOutlined className="text-gray-500 mr-2" />
+            <Typography.Title level={5} className="m-0">
+              Attachments
+            </Typography.Title>
+          </div>
+          <Button
+            type="default"
+            size="small"
+            icon={<PlusOutlined />}
+            className={`flex items-center ${
+              !canUpdateCard() ? "opacity-50 cursor-not-allowed" : ""
+            }`}
+            onClick={handleOpenModal}
+            disabled={!canUpdateCard()}
+          >
+            Add
+          </Button>
+        </div>
+
+        {/* Bukti Section */}
+        <AttachmentSection
+          title="Bukti"
+          attachments={getBuktiAttachments()}
+          emptyText="No bukti attachments yet"
+        />
+
+        {/* PO Section */}
+        <AttachmentSection
+          title="PO"
+          attachments={getPOAttachments()}
+          emptyText="No PO attachments yet"
+        />
+
+        {/* Other Files Section */}
+        <AttachmentSection
+          title="Other Files"
+          attachments={getOtherAttachments()}
+          emptyText="No other attachments yet"
         />
 
         {/* Cards Section */}

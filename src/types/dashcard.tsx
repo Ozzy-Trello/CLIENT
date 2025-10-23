@@ -12,6 +12,8 @@ export enum EnumCardAttributeType {
   CUSTOM_FIELD = "custom_field",
   BOARD = "board",
   LIST = "list",
+  PRODUCT = "product",
+  WARNA = "warna",
 }
 
 // Filter operator types
@@ -170,6 +172,36 @@ export const dashcardsFilter: DashcardFilter[] = [
     options: [
       { label: "no", value: "false" },
       { label: "yes", value: "true" },
+    ],
+  },
+  {
+    id: "product",
+    label: "Produk",
+    groupType: "primary",
+    type: EnumCardAttributeType.PRODUCT,
+    options: [
+      { label: "any", value: FilterOperator.ANY },
+      { label: "is one of", value: FilterOperator.IS_ONE_OF },
+      { label: "is not one of", value: FilterOperator.IS_NOT_ONE_OF },
+      { label: "has a value", value: FilterOperator.ANY_VALUE },
+      { label: "has no value", value: FilterOperator.NO_VALUE },
+      { label: "name starts with", value: FilterOperator.STARTS_WITH },
+      { label: "name matches", value: FilterOperator.MATCHES_WITH },
+    ],
+  },
+  {
+    id: "warna",
+    label: "Warna",
+    groupType: "primary",
+    type: EnumCardAttributeType.WARNA,
+    options: [
+      { label: "any", value: FilterOperator.ANY },
+      { label: "is one of", value: FilterOperator.IS_ONE_OF },
+      { label: "is not one of", value: FilterOperator.IS_NOT_ONE_OF },
+      { label: "has a value", value: FilterOperator.ANY_VALUE },
+      { label: "has no value", value: FilterOperator.NO_VALUE },
+      { label: "name starts with", value: FilterOperator.STARTS_WITH },
+      { label: "name matches", value: FilterOperator.MATCHES_WITH },
     ],
   },
 ];

@@ -30,11 +30,21 @@ import {
 } from "lucide-react";
 import MembersList from "@components/members-list";
 import Description from "./description";
-import Attachments from "./attachments";
 import Activity from "./activity";
+import dynamic from "next/dynamic";
+
+const Attachments = dynamic(() => import("./attachments"), {
+  ssr: false,
+  loading: () => <div>Loading attachments...</div>,
+});
+
+const Actions = dynamic(() => import("./actions"), {
+  ssr: false,
+  loading: () => <div>Loading actions...</div>,
+});
+
 import { useSelector } from "react-redux";
 import { selectUser } from "@store/app_slice";
-import Actions from "./actions";
 import { useParams } from "next/navigation";
 import CustomFields from "./custom-field";
 import { ListSelection, SelectionRef } from "@components/selection";
@@ -42,8 +52,12 @@ import { useCards } from "@hooks/card";
 import { useLists } from "@hooks/list";
 import { useCardActivity } from "@hooks/card_activity";
 import LocationDisplay from "./location";
-import AdditionalFields from "./additional-field";
 import ChecklistFields from "./checklist-field";
+
+const AdditionalFields = dynamic(() => import("./additional-field"), {
+  ssr: false,
+  loading: () => <div>Loading additional fields...</div>,
+});
 import CardTimeInList from "./time-in-lists";
 import RequestFields from "./request-field";
 import SplitJobFields from "./split-job-field";
@@ -430,6 +444,36 @@ const CardDetails: React.FC = (props) => {
                         className="rounded-md hover:bg-gray-50"
                       >
                         <CardDateDisplay card={selectedCard} />
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Produk */}
+                  {selectedCard && selectedCard.productInfo && (
+                    <div className="space-y-2 text-xs">
+                      <span className="text-gray-300 font-semibold text-xs block">
+                        Produk
+                      </span>
+                      <Button
+                        size="small"
+                        className="rounded-md hover:bg-gray-50"
+                      >
+                        {selectedCard.productInfo.name}
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Warna */}
+                  {selectedCard && selectedCard.warnaInfo && (
+                    <div className="space-y-2 text-xs">
+                      <span className="text-gray-300 font-semibold text-xs block">
+                        Warna
+                      </span>
+                      <Button
+                        size="small"
+                        className="rounded-md hover:bg-gray-50"
+                      >
+                        {selectedCard.warnaInfo.name}
                       </Button>
                     </div>
                   )}

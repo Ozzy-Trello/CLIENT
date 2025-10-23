@@ -1,5 +1,5 @@
 import { api } from "./index";
-import { TAttachableType, CardAttachment } from "../types/card";
+import { TAttachableType, CardAttachment, TCardAttachmentType } from "../types/card";
 import { ApiResponse } from "../types/type";
 
 /**
@@ -14,10 +14,10 @@ export const getCardAttachments = async (cardId: string): Promise<ApiResponse<Ca
 
 /**
  * Create a new attachment linking a file to a card
- * @param params Object containing card_id and file_id
+ * @param params Object containing card_id, file_id, and type
  * @returns Promise with the created attachment data
  */
-export const createCardAttachment = async (params: { cardId: string; attachableType: TAttachableType, attachableId: string; isCover: boolean }): Promise<ApiResponse<CardAttachment>> => {
+export const createCardAttachment = async (params: { cardId: string; attachableType: TAttachableType, attachableId: string; isCover: boolean; type?: TCardAttachmentType }): Promise<ApiResponse<CardAttachment>> => {
   const { data } = await api.post('/card-attachment', params);
   return data;
 };

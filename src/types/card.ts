@@ -89,13 +89,23 @@ export enum EnumAttachmentType {
   File = "file",
   Card = "card",
 }
+
+export enum EnumCardAttachmentType {
+  Attachment = "attachment",
+  Bukti = "bukti",
+  PO = "PO",
+}
+
 export type TAttachableType = EnumAttachmentType.File | EnumAttachmentType.Card;
+export type TCardAttachmentType = EnumCardAttachmentType.Attachment | EnumCardAttachmentType.Bukti | EnumCardAttachmentType.PO;
+
 export interface CardAttachment {
   id: string;
   isCover: boolean;
   cardId: string;
   attachableType: TAttachableType;
   attachableId: string;
+  type: TCardAttachmentType;
   createdBy?: string;
   createdAt?: string;
   file?: FileUpload;
@@ -191,6 +201,14 @@ export interface IItemDashcard {
   columns: TDynamicColumnDashcard[];
   dueDate?: Date | null;
   listName?: string;
+  productInfo?: {
+    id: string;
+    name: string;
+  };
+  warnaInfo?: {
+    id: string;
+    name: string;
+  };
 }
 
 export interface CopycardPost {
