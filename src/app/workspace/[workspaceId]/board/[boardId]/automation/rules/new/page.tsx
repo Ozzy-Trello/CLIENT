@@ -54,6 +54,16 @@ const NewRulePage: React.FC = () => {
     router.push(`/workspace/${workspaceId}/board/${boardId}/automation/rules`);
   };
 
+  const resetRuleState = () => {
+    setSelectedRule({
+      triggerType: triggers[0].type,
+      actions: [],
+    });
+    setActiveStep(0);
+    setTriggersData(triggers);
+    setActionsData(actions);
+  };
+
   const saveRule = async () => {
     // Validate necessary data is present
     if (
@@ -243,6 +253,7 @@ const NewRulePage: React.FC = () => {
     try {
       setIsLoading(true);
       const result = await createRule(rule);
+      resetRuleState(); // Reset state after successful creation
       router.push(
         `/workspace/${workspaceId}/board/${boardId}/automation/rules`
       );

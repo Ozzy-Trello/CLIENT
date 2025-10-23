@@ -85,6 +85,8 @@ export async function prefetchRuleData(
 }
 
 function stringify(val: any): string {
+  console.log("🔍 stringify called with:", val, "type:", typeof val);
+  
   if (val == null) return "";
   if (typeof val === "string") {
     const noTags = val.replace(/<[^>]*>/g, "");
@@ -101,24 +103,42 @@ function stringify(val: any): string {
       return ""; // Return empty string for empty arrays
     }
     // Try common keys
-    if (val.label) return stringify(val.label);
-    if (val.text) return stringify(val.text);
-    if (val.operator) return stringify(val.operator);
-    if (val.value) return stringify(val.value);
+    if (val.label) {
+      console.log("🔍 Found label:", val.label);
+      return stringify(val.label);
+    }
+    if (val.text) {
+      console.log("🔍 Found text:", val.text);
+      return stringify(val.text);
+    }
+    if (val.operator) {
+      console.log("🔍 Found operator:", val.operator);
+      return stringify(val.operator);
+    }
+    if (val.value) {
+      console.log("🔍 Found value:", val.value);
+      return stringify(val.value);
+    }
+    console.log("🔍 Object has no recognized keys, returning empty string");
   }
+  console.log("🔍 Returning empty string for:", val);
   return "";
 }
 
 function lookup(condition: any, key: string): any {
+  console.log("🔍 lookup called with key:", key, "condition:", condition);
+  
   if (!condition) return undefined;
   
   // Try direct key lookup
   let value = condition[key];
   if (value !== undefined) {
+    console.log("🔍 Found direct key value:", value);
     // If the value looks like a UUID, try to resolve it using LookupCache
     if (typeof value === 'string' && isUUID(value)) {
       const resolved = LookupCache.any(value);
       if (resolved) {
+        console.log("🔍 Resolved UUID to:", resolved);
         return resolved;
       }
     }
@@ -149,6 +169,44 @@ function lookup(condition: any, key: string): any {
       }
     }
     return value;
+  }
+  
+  // Try looking in nested condition property (for filter data)
+  if (condition.condition && typeof condition.condition === 'object') {
+    value = condition.condition[key];
+    if (value !== undefined) {
+      if (typeof value === 'string' && isUUID(value)) {
+        const resolved = LookupCache.any(value);
+        if (resolved) {
+          return resolved;
+        }
+      }
+      return value;
+    }
+    
+    // Try camelCase in nested condition
+    if (camel in condition.condition) {
+      value = condition.condition[camel];
+      if (typeof value === 'string' && isUUID(value)) {
+        const resolved = LookupCache.any(value);
+        if (resolved) {
+          return resolved;
+        }
+      }
+      return value;
+    }
+    
+    // Try snake_case in nested condition
+    if (snake in condition.condition) {
+      value = condition.condition[snake];
+      if (typeof value === 'string' && isUUID(value)) {
+        const resolved = LookupCache.any(value);
+        if (resolved) {
+          return resolved;
+        }
+      }
+      return value;
+    }
   }
   
   return undefined;
@@ -216,7 +274,17 @@ export function renderRulePattern(
       // Special-case "text" inside square-bracket – becomes condition.text
       if (raw === "text") key = "text";
 
-      if (key === "filter") return; // skip filters
+      if (key === "filter") {
+        // Handle filter rendering
+        const filters = condition.filter || condition.filters;
+        if (filters && Array.isArray(filters) && filters.length > 0) {
+          const filterText = renderFiltersHuman(filters);
+          if (filterText) {
+            parts.push(filterText.trim());
+          }
+        }
+        return;
+      }
 
       // Special handling for text_comparison
       if (key === "text_comparison" || key === "text comparison") {
@@ -468,7 +536,16 @@ export function renderRulePatternHuman(
     }
 
     // Handle filter placeholders that show as [filter]
-    sentence = sentence.replace(/\[filter\]/gi, "");
+    if (condition.filter && Array.isArray(condition.filter) && condition.filter.length > 0) {
+      const filterText = renderFiltersHuman(condition.filter);
+      if (filterText) {
+        sentence = sentence.replace(/\[filter\]/gi, filterText.trim());
+      } else {
+        sentence = sentence.replace(/\[filter\]/gi, "");
+      }
+    } else {
+      sentence = sentence.replace(/\[filter\]/gi, "");
+    }
 
     // Special handling for attachment rules
     if (pattern.includes("attachment")) {

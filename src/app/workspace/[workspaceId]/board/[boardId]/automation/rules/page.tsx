@@ -239,7 +239,12 @@ const RulePage: React.FC = () => {
 
     // Render trigger
     if (rule.type && rule.condition) {
-      triggerDescription = renderRuleHuman(rule.type, rule.condition);
+      // Include filter data in the condition for proper rendering
+      const conditionWithFilters = {
+        ...rule.condition,
+        filter: rule.filter || []
+      };
+      triggerDescription = renderRuleHuman(rule.type, conditionWithFilters);
     }
 
     // Render actions

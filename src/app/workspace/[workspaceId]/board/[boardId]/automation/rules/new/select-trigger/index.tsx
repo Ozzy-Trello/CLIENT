@@ -41,6 +41,7 @@ import { EnumOptionBySubject } from "@myTypes/options";
 import { EnumOptionsNumberComparisonOperators } from "@myTypes/options";
 import { EnumOptionTextComparisonOperator } from "@myTypes/options";
 import { renderType } from "@utils/automation-rule";
+import { triggers as cleanTriggersTemplate } from "@constants/automation-rule/data";
 
 function extractPlaceholders(pattern: string): string[] {
   const regex = /<([^>]+)>|\[([^\]]+)\]/g; // Matches both <...> and [...]
@@ -1289,6 +1290,14 @@ const SelectTrigger: React.FC<SelectTriggerProps> = (props) => {
   // Callback for when a specific trigger item's '+' button is clicked
   const onSelectTrigger = useCallback(
     (selectedItem: TriggerItems, index: number) => {
+      console.log("🔍 onSelectTrigger called with:", {
+        selectedItem,
+        index,
+        selectedGroupIndex,
+        isEditMode,
+        triggersData: triggersData[selectedGroupIndex]?.items?.[index]
+      });
+
       const placeholders = extractPlaceholders(selectedItem.label);
 
       // Initialize newTriggerItem based on the selectedItem's defaults
@@ -1297,102 +1306,167 @@ const SelectTrigger: React.FC<SelectTriggerProps> = (props) => {
         label: selectedItem.label,
       };
 
+      // In edit mode, use clean template data to avoid contamination from old trigger data
+      // In create mode, use the current triggersData which may have user modifications
+      const sourceData = isEditMode 
+        ? cleanTriggersTemplate[selectedGroupIndex]?.items?.[index]
+        : triggersData[selectedGroupIndex]?.items?.[index];
+
+      console.log("🔍 Using source data:", {
+        isEditMode,
+        sourceData,
+        cleanTemplate: cleanTriggersTemplate[selectedGroupIndex]?.items?.[index],
+        currentData: triggersData[selectedGroupIndex]?.items?.[index]
+      });
+
       placeholders?.forEach((placeholder) => {
         // Handle GeneralOptions-based selections (e.g., <list>, <optionalList>)
-        const items = triggersData[selectedGroupIndex]?.items;
-
-        if (items && items[index] && items[index][placeholder]) {
+        if (sourceData && sourceData[placeholder]) {
           if (
             placeholder === EnumSelectionType.DateExpression ||
             placeholder === EnumSelectionType.TextComparison
           ) {
             newTriggerItem[placeholder] =
-              (items[index][placeholder] as any)?.expressions || [];
+              (sourceData[placeholder] as any)?.expressions || [];
             return;
           }
 
-          if (typeof items[index][placeholder] == "object") {
+          if (typeof sourceData[placeholder] == "object") {
             newTriggerItem[placeholder] = (
-              items[index][placeholder] as any
+              sourceData[placeholder] as any
             )?.value;
 
-            if ("data" in (items[index][placeholder] as any)) {
+            if ("data" in (sourceData[placeholder] as any)) {
               (newTriggerItem[placeholder] as any)["data"] = (
-                items[index][placeholder] as any
+                sourceData[placeholder] as any
               ).data;
             }
           } else {
-            newTriggerItem[placeholder] = items[index][placeholder];
+            newTriggerItem[placeholder] = sourceData[placeholder];
           }
         }
       });
 
-      // Include additional numeric comparison if present
-      const currentItem = triggersData[selectedGroupIndex]?.items?.[
-        index
-      ] as any;
-      if (currentItem?.additionalComparison) {
+      // Include additional numeric comparison if present (only from clean template in edit mode)
+      if (sourceData?.additionalComparison) {
         (newTriggerItem as any).additionalComparison =
-          currentItem.additionalComparison;
+          sourceData.additionalComparison;
       }
 
       // After placeholder processing
       // Include constant action if present but not in placeholders
-      const itemWithData = triggersData[selectedGroupIndex]?.items?.[
-        index
-      ] as any;
       if (
-        itemWithData?.[EnumSelectionType.Action] &&
+        sourceData?.[EnumSelectionType.Action] &&
         !newTriggerItem[EnumSelectionType.Action]
       ) {
         newTriggerItem[EnumSelectionType.Action] = (
-          itemWithData[EnumSelectionType.Action] as any
+          sourceData[EnumSelectionType.Action] as any
         )?.value;
       }
 
       // Include checklist_name if present
-      if (itemWithData?.checklist_name) {
-        (newTriggerItem as any).checklist_name = itemWithData.checklist_name;
+      if (sourceData?.checklist_name) {
+        (newTriggerItem as any).checklist_name = sourceData.checklist_name;
       }
-      // handle the filter
-      if (selectedItem?.filters) {
-        let filtersArr: SelectedCardFilterItem[] = [];
 
-        selectedItem?.filters?.map((filterItem, filterIndex) => {
-          const placeholders = extractPlaceholders(filterItem.label);
-          if (!placeholders.includes(EnumInputType.Text))
-            placeholders.push(EnumInputType.Text);
-          if (!placeholders.includes(EnumSelectionType.Completion))
-            placeholders.push(EnumSelectionType.Completion);
+      // Handle filters: In edit mode, only use template filters (no contamination from old data)
+       // In create mode, use user-added filters if they exist
+       if (isEditMode) {
+         // In edit mode, only use clean template filters
+         if (selectedItem?.filters) {
+           console.log("✅ Edit mode: Using clean template filters:", selectedItem.filters);
+           let filtersArr: SelectedCardFilterItem[] = [];
 
-          // Initialize newTriggerItem based on the selectedItem's defaults
-          const newFilterItem: SelectedCardFilterItem = {
-            type: filterItem.type,
-            label: filterItem.label,
-          };
+           selectedItem?.filters?.map((filterItem, filterIndex) => {
+             const placeholders = extractPlaceholders(filterItem.label);
+             if (!placeholders.includes(EnumInputType.Text))
+               placeholders.push(EnumInputType.Text);
+             if (!placeholders.includes(EnumSelectionType.Completion))
+               placeholders.push(EnumSelectionType.Completion);
 
-          placeholders?.forEach((placeholder) => {
-            if (filterItem && filterItem[placeholder]) {
-              if (typeof filterItem[placeholder] == "object") {
-                newFilterItem[placeholder] = (
-                  filterItem[placeholder] as any
-                )?.value;
-                if ("data" in (filterItem[placeholder] as any)) {
-                  (newFilterItem[placeholder] as any)["data"] = (
-                    filterItem[placeholder] as any
-                  ).data;
-                }
-              } else {
-                newFilterItem[placeholder] = filterItem[placeholder];
-              }
-            }
-          });
+             // Initialize newTriggerItem based on the selectedItem's defaults
+             const newFilterItem: SelectedCardFilterItem = {
+               type: filterItem.type,
+               label: filterItem.label,
+             };
 
-          filtersArr.push(newFilterItem);
-        });
+             placeholders?.forEach((placeholder) => {
+               if (filterItem && filterItem[placeholder]) {
+                 if (typeof filterItem[placeholder] == "object") {
+                   newFilterItem[placeholder] = (
+                     filterItem[placeholder] as any
+                   )?.value;
+                   if ("data" in (filterItem[placeholder] as any)) {
+                     (newFilterItem[placeholder] as any)["data"] = (
+                       filterItem[placeholder] as any
+                     ).data;
+                   }
+                 } else {
+                   newFilterItem[placeholder] = filterItem[placeholder];
+                 }
+               }
+             });
 
-        newTriggerItem.filter = filtersArr;
-      }
+             filtersArr.push(newFilterItem);
+           });
+
+           newTriggerItem.filter = filtersArr;
+         }
+       } else {
+         // In create mode, use user-added filters from triggersData if they exist
+         const userAddedFilters = triggersData[selectedGroupIndex]?.items?.[index]?.filters;
+         console.log("🔍 Create mode filter handling:", {
+           userAddedFilters,
+           templateFilters: selectedItem?.filters,
+           selectedGroupIndex,
+           index,
+           triggerItem: triggersData[selectedGroupIndex]?.items?.[index]
+         });
+         
+         if (userAddedFilters && userAddedFilters.length > 0) {
+           // Use the actual user-added filters from triggersData
+           console.log("✅ Create mode: Using user-added filters:", userAddedFilters);
+           newTriggerItem.filter = [...userAddedFilters];
+         } else if (selectedItem?.filters) {
+           // Fallback to template filters only if no user-added filters exist
+           let filtersArr: SelectedCardFilterItem[] = [];
+
+           selectedItem?.filters?.map((filterItem, filterIndex) => {
+             const placeholders = extractPlaceholders(filterItem.label);
+             if (!placeholders.includes(EnumInputType.Text))
+               placeholders.push(EnumInputType.Text);
+             if (!placeholders.includes(EnumSelectionType.Completion))
+               placeholders.push(EnumSelectionType.Completion);
+
+             // Initialize newTriggerItem based on the selectedItem's defaults
+             const newFilterItem: SelectedCardFilterItem = {
+               type: filterItem.type,
+               label: filterItem.label,
+             };
+
+             placeholders?.forEach((placeholder) => {
+               if (filterItem && filterItem[placeholder]) {
+                 if (typeof filterItem[placeholder] == "object") {
+                   newFilterItem[placeholder] = (
+                     filterItem[placeholder] as any
+                   )?.value;
+                   if ("data" in (filterItem[placeholder] as any)) {
+                     (newFilterItem[placeholder] as any)["data"] = (
+                       filterItem[placeholder] as any
+                     ).data;
+                   }
+                 } else {
+                   newFilterItem[placeholder] = filterItem[placeholder];
+                 }
+               }
+             });
+
+             filtersArr.push(newFilterItem);
+           });
+
+           newTriggerItem.filter = filtersArr;
+         }
+       }
 
       if (selectedItem.type === TriggerType.WhenCardContentTextIsSet) {
         (newTriggerItem.action as any) = {
@@ -1408,12 +1482,15 @@ const SelectTrigger: React.FC<SelectTriggerProps> = (props) => {
         };
       }
 
+      console.log("🎯 Final newTriggerItem:", newTriggerItem);
+      
       const updatedRule = {
         ...selectedRule,
         triggerItem: newTriggerItem,
         triggerType: triggersData[selectedGroupIndex]?.type,
       };
 
+      console.log("🎯 Final updatedRule:", updatedRule);
       setSelectedRule(updatedRule);
 
       // In create mode, go directly to next step. In edit mode, auto-save immediately

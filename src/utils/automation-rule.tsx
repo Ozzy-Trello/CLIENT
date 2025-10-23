@@ -21,6 +21,12 @@ export const renderType = (type: string, condition: any): string => {
     .replace(/<card_label>/, (() => {
       // Try multiple field variations and use lookup cache for UUIDs
       const labelValue = condition?.label?.value?.label || condition?.label?.label || condition?.assignment || condition?.card_label || condition?.cardLabel;
+      
+      // If labelValue is an object, try to extract the label from it
+      if (typeof labelValue === 'object' && labelValue !== null) {
+        return labelValue.label || labelValue.value?.label || labelValue.text || String(labelValue);
+      }
+      
       if (typeof labelValue === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(labelValue)) {
         const { LookupCache } = require('@utils/lookup-cache');
         const resolved = LookupCache.any(labelValue);

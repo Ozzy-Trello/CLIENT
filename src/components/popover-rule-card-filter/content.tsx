@@ -477,6 +477,14 @@ const PopoverRuleCardFilterContent: React.FC<
   // Callback for when a specific trigger item's '+' button is clicked
   const onSelectFilter = useCallback(
     (selectedItem: CardTriggerFilterItem, index: number) => {
+      console.log("🔍 onSelectFilter called with:", {
+        selectedItem,
+        index,
+        selectedTriggersGroupIndex,
+        selectedTriggerIndex,
+        currentFilters: triggersData[selectedTriggersGroupIndex]?.items?.[selectedTriggerIndex]?.filters
+      });
+
       // copy
       let copyTrigger = [...triggersData];
       let items = copyTrigger[selectedTriggersGroupIndex].items;
@@ -487,12 +495,15 @@ const PopoverRuleCardFilterContent: React.FC<
       let filters = items[selectedTriggerIndex].filters;
       if (!Array.isArray(filters)) filters = []; // init array
   
-
       filters.push(selectedItem);
       items[selectedTriggerIndex].filters = filters;
+      
+      console.log("✅ Filter added, new filters:", filters);
+      console.log("✅ Updated triggersData:", copyTrigger);
+      
       setTriggersData(copyTrigger);
     },
-    [selectedGroupIndex]
+    [selectedGroupIndex, triggersData, selectedTriggersGroupIndex, selectedTriggerIndex, setTriggersData]
   );
 
   return (

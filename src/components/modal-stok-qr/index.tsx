@@ -209,7 +209,7 @@ const ModalStokQR: React.FC<ModalStokQRProps> = ({ open, onClose }) => {
       centered
       destroyOnClose
     >
-      <div className="py-4">
+      <div className="p-4">
         <Form form={form} layout="vertical" onFinish={handleGenerateQR}>
           <Form.Item
             label={

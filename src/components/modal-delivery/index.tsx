@@ -638,7 +638,7 @@ const ModalDelivery: React.FC<ModalDeliveryProps> = ({ open, onClose }) => {
           <Spin size="large" />
         </div>
       ) : currentSOForValidation ? (
-        <div>
+        <div className="p-4">
           {/* Barcode Scanning Section */}
           <div className="mb-6">
             <Typography.Title level={5} className="mb-3">
@@ -782,8 +782,9 @@ const ModalDelivery: React.FC<ModalDeliveryProps> = ({ open, onClose }) => {
       ]}
       width={800}
     >
-      {currentSOForDetail && (
-        <Table
+      <div className="p-4">
+        {currentSOForDetail && (
+          <Table
           dataSource={currentSOForDetail.products}
           rowKey="id"
           pagination={false}
@@ -815,8 +816,9 @@ const ModalDelivery: React.FC<ModalDeliveryProps> = ({ open, onClose }) => {
               align: "center",
             },
           ]}
-        />
-      )}
+          />
+        )}
+      </div>
     </Modal>
     </>
   );

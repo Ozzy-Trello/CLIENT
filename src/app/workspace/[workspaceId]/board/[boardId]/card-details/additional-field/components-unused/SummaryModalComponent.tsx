@@ -902,7 +902,8 @@ const SummaryModalComponent: React.FC<SummaryModalComponentProps> = ({
       footer={null}
       width={900}
     >
-      <h2 style={{ fontWeight: 700, fontSize: 20, marginBottom: 16 }}>Size Summary</h2>
+      <div className="p-4">
+        <h2 style={{ fontWeight: 700, fontSize: 20, marginBottom: 16 }}>Size Summary</h2>
       
       {(() => {
         const materialGroups = mapSizeSummaryForPO(currentPoItems, poIdentifier, tabNames);
@@ -961,6 +962,7 @@ const SummaryModalComponent: React.FC<SummaryModalComponentProps> = ({
           </div>
         );
       })()}
+      </div>
     </Modal>
   );
 };

@@ -579,83 +579,192 @@ export default function EditRulePage() {
       return;
     }
 
+    // Validate necessary data is present
+    if (!selectedRule.actions || selectedRule.actions.length === 0) {
+      message.error("Cannot save rule: missing actions");
+      return;
+    }
+
     try {
       setIsLoading(true);
 
-      // Extract the proper condition format from triggerItem
-      const triggerItem = updatedTriggerItem as any;
-      let condition = {};
+      const { actions } = selectedRule;
+      const triggerItem = updatedTriggerItem;
+      const triggerType = getGroupTypeFromTriggerType(triggerItem.type || "");
 
-      // If triggerItem has a nested condition structure, extract the inner condition
-      if (triggerItem.condition && typeof triggerItem.condition === "object") {
-        const innerCondition = triggerItem.condition as any;
+      // Extract placeholders from trigger type
+      const triggerPlaceholders = extractPlaceholders(triggerItem.type || "");
 
-        // Build the proper condition format expected by the backend
-        condition = {
-          board: triggerItem.board || innerCondition.board,
-          action:
-            (innerCondition.action &&
-              typeof innerCondition.action === "object" &&
-              innerCondition.action.value) ||
-            innerCondition.action ||
-            "card.customfield.changed",
-          fields:
-            (innerCondition.fields &&
-              typeof innerCondition.fields === "object" &&
-              innerCondition.fields.value) ||
-            innerCondition.fields,
-          field_value: innerCondition.field_value,
-          optional_by: {
-            data:
-              (innerCondition.optional_by && innerCondition.optional_by.data) ||
-              [],
-            operator:
-              (innerCondition.optional_by &&
-                (innerCondition.optional_by.value ||
-                  innerCondition.optional_by.operator)) ||
-              "by-anyone",
-          },
-        };
-      } else {
-        // If it's already in the correct format, use it directly
-        condition = {
-          board: triggerItem.board,
-          action:
-            (triggerItem.action &&
-              typeof triggerItem.action === "object" &&
-              triggerItem.action.value) ||
-            triggerItem.action ||
-            "card.customfield.changed",
-          fields:
-            (triggerItem.fields &&
-              typeof triggerItem.fields === "object" &&
-              triggerItem.fields.value) ||
-            triggerItem.fields,
-          field_value: triggerItem.field_value,
-          optional_by: {
-            data:
-              (triggerItem.optional_by && triggerItem.optional_by.data) || [],
-            operator:
-              (triggerItem.optional_by &&
-                (triggerItem.optional_by.value ||
-                  triggerItem.optional_by.operator)) ||
-              "by-anyone",
-          },
-        };
+      // Build condition object for the trigger
+      const triggerCondition: Record<string, any> = {};
+
+      // For each placeholder in the trigger, add to condition
+      triggerPlaceholders.forEach((placeholder) => {
+        if (placeholder === "filter") {
+          // Handle filter specially since it has a specific structure
+          if (triggerItem.filter) {
+            triggerCondition[placeholder] = triggerItem.filter;
+          }
+        } else if (placeholder in triggerItem) {
+          // For dynamic properties that are GeneralOptions
+          const value = triggerItem[placeholder];
+          if (value) {
+            if (typeof value === "object" && "value" in value) {
+              if ("data" in value) {
+                triggerCondition[placeholder] = {
+                  operator: (value as any).value,
+                  data: (value as any).data,
+                };
+              } else {
+                triggerCondition[placeholder] = (value as any).value;
+              }
+            } else {
+              triggerCondition[placeholder] = value;
+            }
+          }
+        }
+      });
+      triggerCondition["board"] = boardId;
+      triggerCondition["filter"] = undefined;
+
+      // ensure constant action is included even if not in placeholders
+      const actVal: any = (triggerItem as any)[EnumSelectionType.Action];
+      if (actVal && !triggerCondition[EnumSelectionType.Action]) {
+        if (typeof actVal === "object" && "value" in actVal) {
+          triggerCondition[EnumSelectionType.Action] = actVal.value;
+        } else {
+          triggerCondition[EnumSelectionType.Action] = actVal;
+        }
       }
 
-      // Get the trigger type and determine the group type
-      const triggerType = triggerItem.type;
-      const groupType = getGroupTypeFromTriggerType(triggerType);
+      // === NEW: include checklist_name filter when provided ===
+      if ((triggerItem as any)[EnumSelectionType.ChecklistName] !== undefined) {
+        triggerCondition[EnumSelectionType.ChecklistName] = (triggerItem as any)[
+          EnumSelectionType.ChecklistName
+        ];
+      }
 
-      // Send the complete trigger data including type and group_type
-      const triggerData = {
-        condition,
-        type: triggerType,
-        group_type: groupType,
+      // Build filter array from the NEW trigger item (not old filters)
+      const newFilters: AutomationRuleActionApiData[] = [];
+      // Process each filters from the updated trigger item
+      triggerItem?.filter?.forEach((filter: SelectedCardFilterItem) => {
+        if (!filter.type) return;
+
+        // Extract placeholders from filter type
+        const filterPlaceholders = extractPlaceholders(filter.type || "");
+        if (!filterPlaceholders.includes(EnumInputType.Text))
+          filterPlaceholders.push(EnumInputType.Text);
+        if (!filterPlaceholders.includes(EnumSelectionType.Completion))
+          filterPlaceholders.push(EnumSelectionType.Completion);
+
+        // Build condition object for this filter
+        const filterCondition: Record<string, any> = {};
+
+        // For each placeholder in the filter, add to condition
+        filterPlaceholders.forEach((placeholder) => {
+          if (filter?.[placeholder]) {
+            const value = filter?.[placeholder];
+
+            if (value && typeof value === "object" && "value" in value) {
+              filterCondition[placeholder] = value.value;
+            } else {
+              filterCondition[placeholder] = value;
+            }
+          }
+        });
+
+        // Create filter object in the expected format
+        const formattedFilter: AutomationRuleActionApiData = {
+          groupType: filter?.groupType || "",
+          type: filter?.type,
+          condition: filterCondition,
+        };
+
+        newFilters.push(formattedFilter);
+      });
+
+      // Build actions array (keep existing actions)
+      const newActions: AutomationRuleActionApiData[] = [];
+      // Process each action
+      actions.forEach((action) => {
+        if (!action.selectedActionItem) return;
+
+        // Extract placeholders from action type
+        const actionPlaceholders = extractPlaceholders(
+          action.selectedActionItem.type || ""
+        );
+
+        // Build condition object for this action
+        const actionCondition: Record<string, any> = {};
+
+        // For each placeholder in the action, add to condition
+        actionPlaceholders.forEach((placeholder) => {
+          if (
+            action.selectedActionItem &&
+            action.selectedActionItem[placeholder]
+          ) {
+            const value = action.selectedActionItem[placeholder];
+            if (
+              placeholder === EnumSelectionType.Fields ||
+              placeholder === EnumInputType.FieldValue
+            ) {
+              // Keep the full option object so backend has label/type etc.
+              actionCondition[placeholder] = value;
+            } else if (
+              placeholder === EnumInputType.DateValue &&
+              (action.selectedActionItem.type ===
+                "move-date-in-custom-field-<fields>-to-<date_value>" ||
+                action.selectedActionItem.type ===
+                  "set-date-custom-field-<fields>-to-<date_value>")
+            ) {
+              // For MoveDateCustomField and SetDateCustomField, wrap expressions array in object
+              actionCondition[placeholder] = { expressions: value };
+            } else if (value && typeof value === "object" && "value" in value) {
+              actionCondition[placeholder] = value.value;
+            } else {
+              actionCondition[placeholder] = value;
+            }
+          }
+        });
+
+        // Ensure constant action field is included even if not in placeholders
+        if (
+          action.selectedActionItem &&
+          action.selectedActionItem[EnumSelectionType.Action] &&
+          !actionCondition[EnumSelectionType.Action]
+        ) {
+          const actionValue = action.selectedActionItem[EnumSelectionType.Action];
+          if (typeof actionValue === "object" && "value" in actionValue) {
+            actionCondition[EnumSelectionType.Action] = actionValue.value;
+          } else {
+            actionCondition[EnumSelectionType.Action] = actionValue;
+          }
+        }
+
+        // Create action object in the expected format
+        const formattedAction: AutomationRuleActionApiData = {
+          groupType: action?.groupType || "",
+          type: action.selectedActionItem.type,
+          condition: actionCondition,
+        };
+
+        newActions.push(formattedAction);
+      });
+
+      // Create final rule object with the complete updated data
+      const rule: AutomationRuleApiData = {
+        workspaceId: Array.isArray(workspaceId)
+          ? workspaceId[0]
+          : (workspaceId as string),
+        groupType: triggerType,
+        type: triggerItem.type || "",
+        condition: triggerCondition,
+        filter: newFilters, // This will contain only the NEW filters from the updated trigger
+        action: newActions,
       };
 
-      await updateTrigger(workspaceId as string, ruleId as string, triggerData);
+      // Update the complete rule instead of just the trigger
+      await updateRule(workspaceId as string, ruleId as string, rule);
 
       message.success("Trigger updated successfully");
       // Refresh rule data to show updated trigger
