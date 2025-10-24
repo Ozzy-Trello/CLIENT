@@ -10,6 +10,23 @@ import { useBoardPermissionsContext } from "@providers/board-permissions-context
 
 const { Option } = Select;
 
+// Utility function to determine text color based on background color
+const getContrastColor = (hexColor: string): string => {
+  // Remove # if present
+  const hex = hexColor.replace('#', '');
+  
+  // Convert to RGB
+  const r = parseInt(hex.substr(0, 2), 16);
+  const g = parseInt(hex.substr(2, 2), 16);
+  const b = parseInt(hex.substr(4, 2), 16);
+  
+  // Calculate luminance
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  
+  // Return black for light colors, white for dark colors
+  return luminance > 0.5 ? '#000000' : '#ffffff';
+};
+
 interface ProdukFieldsProps {
   card: Card;
   setCard: React.Dispatch<React.SetStateAction<Card | null>>;
@@ -114,7 +131,11 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard }) => {
       try {
         const response = await getWarnas(1, 100, card.bahanId);
         if (response.data) {
-          setWarnas(response.data);
+          // Sort warnas alphabetically by name (A-Z)
+          const sortedWarnas = response.data.sort((a, b) => 
+            a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+          );
+          setWarnas(sortedWarnas);
         }
       } catch (error) {
         message.error("Failed to load warnas");
@@ -227,7 +248,7 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard }) => {
   };
 
   return (
-    <div className="grid grid-cols-4 gap-4 ml-8">
+    <div className="grid grid-cols-2 gap-4 ml-8">
       {/* Product Dropdown */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -282,8 +303,7 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard }) => {
         >
           {productCodes.map((productCode) => (
             <Option key={productCode.id} value={productCode.id}>
-              {productCode.code}
-              {productCode.description && ` - ${productCode.description}`}
+              {productCode.description ? `${productCode.description} (${productCode.code})` : productCode.code}
             </Option>
           ))}
         </Select>
@@ -343,7 +363,19 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard }) => {
         >
           {warnas.map((warna) => (
             <Option key={warna.id} value={warna.id}>
-              {warna.name}
+              <div 
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '4px 8px',
+                  backgroundColor: warna.hexCode || 'transparent',
+                  color: warna.hexCode ? getContrastColor(warna.hexCode) : 'inherit',
+                  borderRadius: '4px',
+                  minHeight: '24px'
+                }}
+              >
+                {warna.name} {warna.hexCode && `(${warna.hexCode})`}
+              </div>
             </Option>
           ))}
         </Select>

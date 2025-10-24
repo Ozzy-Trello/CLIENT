@@ -26,9 +26,11 @@ import {
   Divider,
   List,
   Tag,
+  ColorPicker,
 } from "antd";
 import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
+import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import {
   Edit,
   Plus,
@@ -52,11 +54,13 @@ import {
   updateProduct,
   deleteProduct,
   bulkInsertProducts,
+  updateProductOrder,
   Product as ProductAPI,
   ProductCreateRequest,
   ProductUpdateRequest,
   ProductBulkInsertRequest,
   ProductBulkInsertResult,
+  ProductOrderUpdateRequest,
 } from "@api/product";
 import {
   getBahans,
@@ -112,54 +116,129 @@ const ProductTable: React.FC<{
   dataSource?: Product[];
   onEdit: (product: Product) => void;
   onDelete: (product: Product) => void;
+  onReorder: (products: Product[]) => void;
   loading?: boolean;
-}> = ({ dataSource = [], onEdit, onDelete, loading = false }) => {
+}> = ({ dataSource = [], onEdit, onDelete, onReorder, loading = false }) => {
   const { isSuperAdmin } = usePermissions();
 
-  const columns = [
-    {
-      title: "Product Name",
-      dataIndex: "name",
-      key: "name",
-      render: (name: string) => (
-        <Typography.Text strong>{name}</Typography.Text>
-      ),
-    },
-    {
-      title: "Action",
-      key: "action",
-      render: (_: any, record: Product) => (
-        <Space size="middle">
-          <Tooltip title="Edit product">
-            <Button
-              type="text"
-              icon={<Edit size={16} />}
-              onClick={() => onEdit(record)}
-              disabled={!isSuperAdmin()}
-            />
-          </Tooltip>
-          <Tooltip title="Delete product">
-            <Button
-              type="text"
-              danger
-              icon={<Trash size={16} />}
-              onClick={() => onDelete(record)}
-              disabled={!isSuperAdmin()}
-            />
-          </Tooltip>
-        </Space>
-      ),
-    },
-  ];
+  // Sort products by order field (ascending)
+  const sortedProducts = [...dataSource].sort((a, b) => (a.order || 0) - (b.order || 0));
+
+  const handleDragEnd = (result: DropResult) => {
+    if (!result.destination) return;
+
+    const items = Array.from(sortedProducts);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+
+    // Update order values based on new positions
+    const updatedItems = items.map((item, index) => ({
+      ...item,
+      order: index,
+    }));
+
+    onReorder(updatedItems);
+  };
+
+  if (loading) {
+    return <Spin size="large" style={{ display: 'block', textAlign: 'center', padding: '50px' }} />;
+  }
 
   return (
-    <Table
-      dataSource={dataSource}
-      columns={columns}
-      loading={loading}
-      rowKey="id"
-      style={{ width: "100%" }}
-    />
+    <DragDropContext onDragEnd={handleDragEnd}>
+      <Droppable droppableId="products">
+        {(provided) => (
+          <div
+            {...provided.droppableProps}
+            ref={provided.innerRef}
+            style={{ width: "100%" }}
+          >
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: '40px 1fr 120px', 
+              gap: '8px', 
+              padding: '8px 16px',
+              backgroundColor: '#fafafa',
+              borderBottom: '1px solid #f0f0f0',
+              fontWeight: 'bold'
+            }}>
+              <div></div>
+              <div>Product Name</div>
+              <div>Actions</div>
+            </div>
+            {sortedProducts.map((product, index) => (
+              <Draggable
+                key={product.id}
+                draggableId={product.id}
+                index={index}
+                isDragDisabled={!isSuperAdmin()}
+              >
+                {(provided, snapshot) => (
+                  <div
+                    ref={provided.innerRef}
+                    {...provided.draggableProps}
+                    style={{
+                      ...provided.draggableProps.style,
+                      display: 'grid',
+                      gridTemplateColumns: '40px 1fr 120px',
+                      gap: '8px',
+                      padding: '12px 16px',
+                      backgroundColor: snapshot.isDragging ? '#e6f7ff' : '#fff',
+                      border: snapshot.isDragging ? '1px solid #1890ff' : '1px solid #f0f0f0',
+                      borderRadius: '4px',
+                      marginBottom: '4px',
+                      alignItems: 'center',
+                      cursor: isSuperAdmin() ? 'grab' : 'default',
+                    }}
+                  >
+                    <div
+                      {...provided.dragHandleProps}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#8c8c8c',
+                        fontSize: '16px',
+                        cursor: isSuperAdmin() ? 'grab' : 'default',
+                      }}
+                    >
+                      {isSuperAdmin() ? '⋮⋮' : ''}
+                    </div>
+                    <div>
+                      <Typography.Text strong>{product.name}</Typography.Text>
+                    </div>
+                    <div>
+                      <Space size="small">
+                        <Tooltip title="Edit product">
+                          <Button
+                            type="text"
+                            icon={<Edit size={16} />}
+                            onClick={() => onEdit(product)}
+                            disabled={!isSuperAdmin()}
+                            size="small"
+                          />
+                        </Tooltip>
+                        <Tooltip title="Delete product">
+                          <Button
+                            type="text"
+                            danger
+                            icon={<Trash size={16} />}
+                            onClick={() => onDelete(product)}
+                            disabled={!isSuperAdmin()}
+                            size="small"
+                          />
+                        </Tooltip>
+                      </Space>
+                    </div>
+                  </div>
+                )}
+              </Draggable>
+            ))}
+            {provided.placeholder}
+          </div>
+        )}
+      </Droppable>
+    </DragDropContext>
   );
 };
 
@@ -391,6 +470,36 @@ const ProductCodeTable: React.FC<{
   );
 };
 
+// Custom ColorPicker component that integrates with Ant Design Form
+const ColorPickerInput: React.FC<{
+  value?: string;
+  onChange?: (value: string) => void;
+}> = ({ value, onChange }) => {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+      <ColorPicker
+        defaultFormat="hex"
+        format="hex"
+        disabledAlpha={false}
+        value={value || '#000000'}
+        onChange={(color) => {
+          const hexValue = color.toHexString();
+          onChange?.(hexValue);
+        }}
+        showText={false}
+      />
+      <Input
+        placeholder="Enter hex color code (e.g., #FF0000)"
+        value={value}
+        onChange={(e) => {
+          onChange?.(e.target.value);
+        }}
+        style={{ flex: 1 }}
+      />
+    </div>
+  );
+};
+
 const MasterData: React.FC = () => {
   const { workspaceId } = useParams();
   const resolvedWorkspaceId = Array.isArray(workspaceId)
@@ -479,6 +588,34 @@ const MasterData: React.FC = () => {
   const [productCodeForm] = Form.useForm();
   const [bahanForm] = Form.useForm();
   const [warnaForm] = Form.useForm();
+
+  // Handle product reorder
+  const handleProductReorder = async (reorderedProducts: Product[]) => {
+    console.log("🔄 handleProductReorder called with:", reorderedProducts.length, "products");
+    
+    // Optimistic update
+    const previousProducts = [...products];
+    setProducts(reorderedProducts);
+
+    try {
+      // Always update all products when drag and drop occurs to ensure consistency
+      const updatePromises = reorderedProducts.map((product, index) => {
+        console.log(`📤 Updating product ${product.name} (ID: ${product.id}) to order ${index}`);
+        return updateProductOrder(product.id, { order: index });
+      });
+
+      console.log(`🚀 Sending ${updatePromises.length} API requests...`);
+      const results = await Promise.all(updatePromises);
+      console.log("✅ All API requests completed:", results);
+      
+      message.success("Product order updated successfully");
+    } catch (error) {
+      // Revert optimistic update on error
+      setProducts(previousProducts);
+      message.error("Failed to update product order");
+      console.error("❌ Error updating product order:", error);
+    }
+  };
 
   // Handle warna pagination change
   const handleWarnaPaginationChange = (page: number, pageSize?: number) => {
@@ -579,6 +716,7 @@ const MasterData: React.FC = () => {
                 onOk: () => handleDeleteProduct(product),
               });
             }}
+            onReorder={handleProductReorder}
             loading={loadingProducts}
           />
         </div>
@@ -823,7 +961,11 @@ const MasterData: React.FC = () => {
       setLoadingWarnas(true);
       const response = await getWarnas(page, limit);
       if (response.data) {
-        setWarnas(response.data);
+        // Sort warnas alphabetically by name (A-Z)
+        const sortedWarnas = response.data.sort((a, b) => 
+          a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+        );
+        setWarnas(sortedWarnas);
       }
       // Update pagination info from API response
       if (response.paginate) {
@@ -866,6 +1008,8 @@ const MasterData: React.FC = () => {
       console.error("Error deleting product:", error);
     }
   };
+
+
 
   const handleDeleteBahan = async (bahan: Bahan) => {
     try {
@@ -1312,7 +1456,6 @@ const MasterData: React.FC = () => {
       style={{
         padding: "24px",
         minHeight: "100%",
-        overflowY: "auto",
       }}
     >
       <div
@@ -1541,13 +1684,7 @@ const MasterData: React.FC = () => {
               },
             ]}
           >
-            <Input
-              placeholder="Enter hex color code (e.g., #FF0000)"
-              onChange={(e) => {
-                // Update form field and trigger re-render for color preview
-                warnaForm.setFieldValue("hexCode", e.target.value);
-              }}
-            />
+            <ColorPickerInput />
           </Form.Item>
           <Form.Item name="code" label="Color Code">
             <Input placeholder="Enter color code (optional)" />

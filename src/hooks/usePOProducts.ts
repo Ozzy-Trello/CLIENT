@@ -26,12 +26,7 @@ export const usePOProductsByCardId = (cardId: string) => {
   return useQuery({
     queryKey: ["po-products", "card", cardId],
     queryFn: async () => {
-      console.log(
-        "🔍 [usePOProductsByCardId] Fetching PO products for cardId:",
-        cardId
-      );
       const result = await getPOProductsByCardId(cardId);
-      console.log("🔍 [usePOProductsByCardId] API Response:", result);
       return result;
     },
     enabled: !!cardId,

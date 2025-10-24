@@ -182,6 +182,10 @@ export interface Card {
   requests?: CardRequest[];
   bahan?: boolean; // Whether the card requires material/fabric
   shortId?: string; // Short ID for QR code generation
+  productId?: string; // Foreign key to Product
+  productCodeId?: string; // Foreign key to ProductCode
+  bahanId?: string; // Foreign key to Bahan
+  warnaId?: string; // Foreign key to Warna
 }
 
 // Counter Card (used in filter columns)

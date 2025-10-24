@@ -25,6 +25,7 @@ import {
 import { useCustomFields } from "@hooks/custom_field";
 import { useRoles } from "@hooks/useRoles";
 import { useBoards } from "@hooks/board";
+import { useCurrentAccount } from "@hooks/account";
 import { Role } from "@myTypes/role";
 import { Board } from "@myTypes/board";
 import { Trash, Edit, Check, X, GripVertical } from "lucide-react";
@@ -72,6 +73,12 @@ const CustomFieldModal: React.FC<CustomFieldModalProps> = ({
   const { createCustomField, updateCustomField } = useCustomFields(workspaceId);
   const { roles, loading: loadingRoles } = useRoles(workspaceId);
   const { boards, isLoading: loadingBoards } = useBoards(workspaceId);
+  
+  // Get current user information for Super Admin check
+  const { data: currentAccountData } = useCurrentAccount();
+  const currentUser = currentAccountData?.data;
+  const userRole = currentUser?.role?.name || "";
+  const isSuperAdmin = userRole === "Super Admin";
 
   // Initialize form when field changes
   useEffect(() => {
@@ -186,6 +193,15 @@ const CustomFieldModal: React.FC<CustomFieldModalProps> = ({
         finalSource = `user-role:${roleEncoded}`;
       }
 
+      // Ensure Super Admins can always edit by including their role in canEdit
+      let finalCanEdit = isPublic ? [] : selectedEditRoles;
+      if (isSuperAdmin && !isPublic && currentUser?.role?.id) {
+        // Add Super Admin role to canEdit if not already included
+        if (!finalCanEdit.includes(currentUser.role.id)) {
+          finalCanEdit = [...finalCanEdit, currentUser.role.id];
+        }
+      }
+
       const fieldData = {
         name: values.name,
         description: values.description,
@@ -199,7 +215,7 @@ const CustomFieldModal: React.FC<CustomFieldModalProps> = ({
           values.type === EnumCustomFieldType.Dropdown ? options : undefined,
         isShowAtFront: values.isShowAtFront,
         canView: isPublic ? [] : selectedViewRoles,
-        canEdit: isPublic ? [] : selectedEditRoles,
+        canEdit: finalCanEdit,
         canViewBoards: selectedViewBoards,
         canEditBoards: selectedEditBoards,
       };
@@ -244,7 +260,16 @@ const CustomFieldModal: React.FC<CustomFieldModalProps> = ({
 
   return (
     <Modal
-      title={field ? "Edit Custom Field" : "Create Custom Field"}
+      title={
+        <div className="flex items-center gap-2">
+          <span>{field ? "Edit Custom Field" : "Create Custom Field"}</span>
+          {isSuperAdmin && (
+            <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
+              Super Admin
+            </span>
+          )}
+        </div>
+      }
       open={open}
       onCancel={handleCancel}
       footer={null}
@@ -262,6 +287,14 @@ const CustomFieldModal: React.FC<CustomFieldModalProps> = ({
           isShowAtFront: false,
         }}
       >
+        {isSuperAdmin && (
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <Text type="secondary" className="text-sm">
+              <strong>Super Admin Privileges:</strong> You have full edit access to all custom fields regardless of role restrictions.
+            </Text>
+          </div>
+        )}
+        
         <Form.Item
           name="name"
           label="Field Name"
@@ -530,8 +563,8 @@ const CustomFieldModal: React.FC<CustomFieldModalProps> = ({
                   label="Roles that can edit this field"
                   help={
                     selectedViewRoles.length > 0
-                      ? "Leave empty to allow only Super Admin to edit. Select specific roles to allow them to edit."
-                      : "Leave empty to allow all roles to edit. Select specific roles to restrict editing."
+                      ? "Leave empty to allow only Super Admin to edit. Select specific roles to allow them to edit. Note: Super Admins always have edit access."
+                      : "Leave empty to allow all roles to edit. Select specific roles to restrict editing. Note: Super Admins always have edit access."
                   }
                 >
                   <Select

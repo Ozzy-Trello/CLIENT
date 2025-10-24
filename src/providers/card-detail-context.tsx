@@ -238,8 +238,6 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
   }, [cardDetailsQuery.card, activeList?.id, isPending]);
 
   const closeCardDetail = useCallback(() => {
-    console.log("closeCardDetail called");
-    
     // Set flag to prevent URL effect from running during this programmatic change
     handleUrlChange.current = true;
     
@@ -256,12 +254,6 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
     const newUrl = params.toString()
       ? `${window.location.pathname}?${params.toString()}`
       : window.location.pathname;
-    
-    console.log("closeCardDetail - URL change:", {
-      oldUrl: window.location.href,
-      newUrl,
-      params: params.toString()
-    });
     
     router.replace(newUrl, { scroll: false });
     
@@ -392,22 +384,12 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
   useEffect(() => {
     const cardId = searchParams.get("cardId");
     const listId = searchParams.get("listId");
-    
-    console.log("URL Effect Debug:", {
-      handleUrlChangeRef: handleUrlChange.current,
-      cardId,
-      listId,
-      selectedCardId: selectedCard?.id,
-      isCardDetailOpen,
-      isOpenViaUrl
-    });
 
     // Only handle URL changes if we're not in the middle of a programmatic change
     if (handleUrlChange.current === undefined) {
       if (cardId && listId) {
         // Only open if not already open with the same card
         if (!isCardDetailOpen || selectedCard?.id !== cardId) {
-          console.log("Opening card from URL");
           setIsCardDetailOpen(true);
           setIsOpenViaUrl(true);
 
@@ -421,13 +403,10 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
         }
       } else if (isCardDetailOpen && !isOpenViaUrl) {
         // Only close if we're currently open and it wasn't opened via URL initially
-        console.log("No URL params, closing card detail");
         setSelectedCard(null);
         setActiveList(null);
         setIsCardDetailOpen(false);
       }
-    } else {
-      console.log("Skipping URL effect due to handleUrlChange.current:", handleUrlChange.current);
     }
   }, [searchParams.toString(), isCardDetailOpen, isOpenViaUrl]);
 

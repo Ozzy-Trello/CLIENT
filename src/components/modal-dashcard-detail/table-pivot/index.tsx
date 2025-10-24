@@ -101,7 +101,7 @@ const TablePivot: FC = () => {
 
     setColumnVisibility((prev) => {
       const newVisibility = { ...prev };
-      const baseColumnNames = ['name', 'members', 'description', 'produk', 'warna'];
+      const baseColumnNames = ['name', 'members', 'description', 'produk', 'bahan', 'warna'];
       
       columns.forEach((col) => {
         if (newVisibility[col] === undefined) {
@@ -262,6 +262,7 @@ const TablePivot: FC = () => {
         dueDate: item.dueDate,
         listName: item.listName,
         productInfo: item.productInfo,
+        bahanInfo: item.bahanInfo,
         warnaInfo: item.warnaInfo,
       };
 
@@ -442,6 +443,26 @@ const TablePivot: FC = () => {
           return (
             <div className="max-w-xs truncate">
               {productInfo?.name || "-"}
+            </div>
+          );
+        },
+      }),
+      columnHelper.accessor("bahanInfo", {
+        header: () =>
+          headerTemplate(
+            "Bahan",
+            getColumnMenu("bahanInfo").items || [],
+            getColumnMenu("bahanInfo").onClick
+          ),
+        cell: (info) => {
+          const row = info.row;
+          if (row.getIsGrouped()) {
+            return `${row.subRows.length} items`;
+          }
+          const bahanInfo = info.getValue() as any;
+          return (
+            <div className="max-w-xs truncate">
+              {bahanInfo?.name || "-"}
             </div>
           );
         },

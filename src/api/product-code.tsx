@@ -52,7 +52,7 @@ export const getProductCodes = async (
   productId?: string
 ): Promise<ApiResponse<ProductCode[]>> => {
   const { data } = await api.get("/product-code", {
-    params: { page, limit, productId },
+    params: { page, limit, product_id: productId },
   });
   return data;
 };

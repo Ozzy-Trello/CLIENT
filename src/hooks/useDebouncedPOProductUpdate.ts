@@ -28,12 +28,9 @@ export const useDebouncedPOProductUpdate = (options: UseDebouncedPOProductUpdate
   const [errorStates, setErrorStates] = useState<{ [key: string]: string | null }>({});
 
   const debouncedUpdate = useCallback((poProductId: string, data: UpdatePOProductRequest) => {
-    console.log(`🔄 [useDebouncedPOProductUpdate] Starting debounced update for ${poProductId}:`, data);
-    
     // Cancel any existing timeout for this product
     if (timeoutRefs.current[poProductId]) {
       clearTimeout(timeoutRefs.current[poProductId]);
-      console.log(`⏰ [useDebouncedPOProductUpdate] Cancelled existing timeout for ${poProductId}`);
     }
     
     // Increment sequence counter and store the pending update with sequence
@@ -45,8 +42,6 @@ export const useDebouncedPOProductUpdate = (options: UseDebouncedPOProductUpdate
     
     pendingUpdates.current[poProductId] = { data: mergedData, sequence: currentSequence };
     
-    console.log(`📝 [useDebouncedPOProductUpdate] Stored pending update for ${poProductId}: sequence=${currentSequence}`, mergedData);
-    
     // Clear any previous error for this product
     setErrorStates(prev => ({ ...prev, [poProductId]: null }));
     
@@ -54,12 +49,10 @@ export const useDebouncedPOProductUpdate = (options: UseDebouncedPOProductUpdate
     timeoutRefs.current[poProductId] = setTimeout(() => {
       const pendingUpdate = pendingUpdates.current[poProductId];
       if (!pendingUpdate) {
-        console.log(`⚠️ [useDebouncedPOProductUpdate] No pending update found for ${poProductId}`);
         return;
       }
       
       const { data: finalData, sequence } = pendingUpdate;
-      console.log(`🚀 [useDebouncedPOProductUpdate] Executing API call for ${poProductId}: sequence=${sequence}`, finalData);
       
       // Set loading state
       setLoadingStates(prev => ({ ...prev, [poProductId]: true }));
@@ -71,28 +64,22 @@ export const useDebouncedPOProductUpdate = (options: UseDebouncedPOProductUpdate
             // Check if this response is still relevant (not superseded by a newer request)
             const currentPending = pendingUpdates.current[poProductId];
             if (currentPending && currentPending.sequence === sequence) {
-              console.log(`✅ [useDebouncedPOProductUpdate] Success for ${poProductId}: sequence=${sequence} (current)`);
               delete pendingUpdates.current[poProductId];
               delete timeoutRefs.current[poProductId];
               setLoadingStates(prev => ({ ...prev, [poProductId]: false }));
               setErrorStates(prev => ({ ...prev, [poProductId]: null }));
               onSuccess?.();
-            } else {
-              console.log(`🔄 [useDebouncedPOProductUpdate] Ignoring outdated success for ${poProductId}: sequence=${sequence} (outdated)`);
             }
           },
           onError: (error) => {
             // Only handle error if this request is still current
             const currentPending = pendingUpdates.current[poProductId];
             if (currentPending && currentPending.sequence === sequence) {
-              console.error(`❌ [useDebouncedPOProductUpdate] Error for ${poProductId}: sequence=${sequence}`, error);
               delete pendingUpdates.current[poProductId];
               delete timeoutRefs.current[poProductId];
               setLoadingStates(prev => ({ ...prev, [poProductId]: false }));
               setErrorStates(prev => ({ ...prev, [poProductId]: error.message || 'Failed to save' }));
               onError?.(error);
-            } else {
-              console.log(`🔄 [useDebouncedPOProductUpdate] Ignoring outdated error for ${poProductId}: sequence=${sequence}`);
             }
           }
         }
@@ -101,8 +88,6 @@ export const useDebouncedPOProductUpdate = (options: UseDebouncedPOProductUpdate
   }, [updateMutation, delay, onSuccess, onError]);
 
   const cancelUpdate = useCallback((poProductId: string) => {
-    console.log(`🛑 [useDebouncedPOProductUpdate] Cancelling update for ${poProductId}`);
-    
     // Cancel timeout
     if (timeoutRefs.current[poProductId]) {
       clearTimeout(timeoutRefs.current[poProductId]);

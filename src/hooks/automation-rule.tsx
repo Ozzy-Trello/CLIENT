@@ -18,14 +18,6 @@ export const useAutomationRules = (
   return useQuery({
     queryKey,
     queryFn: () => {
-      console.log("🔍 [REFETCH DEBUG] Executing query for automation rules:", {
-        workspaceId,
-        boardId,
-        page,
-        limit,
-        fetchAll,
-        timestamp: new Date().toISOString()
-      });
       return getRule(workspaceId, boardId, page, limit, fetchAll);
     },
     staleTime: 0, // Always consider data stale
@@ -44,31 +36,18 @@ export const useDeleteAutomationRule = () => {
 
   return useMutation({
     mutationFn: ({ workspaceId, ruleId }: { workspaceId: string; ruleId: string }) => {
-      console.log("🗑️ [REFETCH DEBUG] Starting delete mutation for rule:", ruleId);
       return deleteRule(workspaceId, ruleId);
     },
     onSuccess: (data, { ruleId }) => {
-      console.log("✅ [REFETCH DEBUG] Delete mutation successful for rule:", ruleId);
-      
-      // Get current cache state before invalidation
-      const currentQueries = queryClient.getQueriesData({ queryKey: ["automationRules"] });
-      console.log("📊 [REFETCH DEBUG] Current cached queries before invalidation:", currentQueries.length);
-      
       // Invalidate all automation rules queries to trigger refetch
-      console.log("🔄 [REFETCH DEBUG] Invalidating automation rules queries...");
       queryClient.invalidateQueries({ 
         queryKey: ["automationRules"],
         exact: false // This ensures all queries starting with "automationRules" are invalidated
       });
 
-      // Check cache state after invalidation
-      const updatedQueries = queryClient.getQueriesData({ queryKey: ["automationRules"] });
-      console.log("📊 [REFETCH DEBUG] Cache state after invalidation:", updatedQueries.length);
-
       message.success("Rule deleted successfully");
     },
     onError: (error: any) => {
-      console.error("❌ [REFETCH DEBUG] Delete mutation failed:", error);
       message.error("Failed to delete rule. Please try again.");
     },
   });

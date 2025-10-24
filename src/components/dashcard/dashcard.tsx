@@ -15,6 +15,7 @@ import {
   MoreHorizontal,
   Package,
   Palette,
+  Shirt,
 } from "lucide-react";
 import {
   DashcardConfig,
@@ -50,6 +51,7 @@ const attributeIcons: Record<EnumCardAttributeType, React.ReactNode> = {
   [EnumCardAttributeType.START_DATE]: <Calendar size={16} />,
   [EnumCardAttributeType.CUSTOM_FIELD]: <Edit size={16} />,
   [EnumCardAttributeType.PRODUCT]: <Package size={16} />,
+  [EnumCardAttributeType.BAHAN]: <Shirt size={16} />,
   [EnumCardAttributeType.WARNA]: <Palette size={16} />,
 };
 

@@ -488,18 +488,29 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
   };
 
   const handlePrintPDFWithQR = async (pdfUrl?: string, fileName?: string) => {
-    if (!pdfUrl) return;
+    if (!pdfUrl) {
+      console.error("❌ PDF Print with QR: No PDF URL provided");
+      message.error("No PDF URL provided");
+      return;
+    }
+
+    console.log("🖨️ PDF Print with QR started:", { pdfUrl, fileName });
 
     try {
       const loadingMsg = message.loading("Preparing PDF with QR code...", 0);
 
+      console.log("🔗 Generating short URL for QR code...");
       const qrText = await generateShortUrl();
+      console.log("✅ QR text generated:", qrText);
+
       const token = TokenStorage.getAccessToken();
       const headers: HeadersInit = {};
       if (token) {
         headers.Authorization = `Bearer ${token}`;
+        console.log("🔐 Authorization header added");
       }
 
+      console.log("📄 Calling printPDFWithQR utility...");
       await printPDFWithQR(
         pdfUrl,
         fileName || "document",
@@ -515,9 +526,11 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
       );
 
       loadingMsg();
+      console.log("✅ PDF with QR code prepared successfully");
       message.success("PDF with QR code opened for printing");
     } catch (error) {
-      message.error("Failed to prepare PDF with QR code for printing");
+      console.error("❌ PDF Print with QR failed:", error);
+      message.error(`Failed to prepare PDF with QR code: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -871,7 +884,7 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
                         size="small"
                         icon={<QrCode size={14} />}
                         onClick={() =>
-                          handlePrintWithQR(
+                          handlePrintPDFWithQR(
                             item.file?.url,
                             item.file?.name || "PDF"
                           )

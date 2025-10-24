@@ -13,6 +13,7 @@ export interface Product {
   id: string;
   name: string;
   productCodes: ProductCode[];
+  order?: number;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -23,6 +24,11 @@ export interface ProductCreateRequest {
 
 export interface ProductUpdateRequest {
   name?: string;
+  order?: number;
+}
+
+export interface ProductOrderUpdateRequest {
+  order: number;
 }
 
 export interface ProductBulkInsertRequest {
@@ -93,4 +99,33 @@ export const bulkInsertProducts = async (
 ): Promise<ApiResponse<ProductBulkInsertResult>> => {
   const { data } = await api.post("/product/bulk", request);
   return data;
+};
+
+// Update product order
+export const updateProductOrder = async (
+  productId: string,
+  orderData: ProductOrderUpdateRequest
+): Promise<ApiResponse<any>> => {
+  try {
+    console.log(`[API] updateProductOrder called with:`, { productId, orderData });
+    console.log(`[API] Making PATCH request to: /product/${productId}/order`);
+    
+    const { data } = await api.patch(`/product/${productId}/order`, orderData);
+    
+    console.log(`[API] updateProductOrder success for product ${productId}:`, data);
+    return data;
+  } catch (error: any) {
+    console.error(`[API] updateProductOrder failed for product ${productId}:`, {
+      error: error.message,
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      config: {
+        url: error.config?.url,
+        method: error.config?.method,
+        data: error.config?.data
+      }
+    });
+    throw error;
+  }
 };

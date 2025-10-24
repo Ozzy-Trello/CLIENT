@@ -2,6 +2,73 @@ import { api } from ".";
 import { Card, CopycardPost, ListDashcardDataResponse } from "../types/card";
 import { ApiResponse } from "../types/type";
 
+// Helper function to map backend response to frontend Card format
+const mapBackendCardToFrontend = (backendCard: any): Card => {
+  const mapped: any = { ...backendCard };
+  
+  // Map backend snake_case to frontend camelCase
+  if (backendCard.product_id !== undefined) {
+    mapped.productId = backendCard.product_id;
+  }
+  if (backendCard.product_code_id !== undefined) {
+    mapped.productCodeId = backendCard.product_code_id;
+  }
+  if (backendCard.bahan_id !== undefined) {
+    mapped.bahanId = backendCard.bahan_id;
+  }
+  if (backendCard.warna_id !== undefined) {
+    mapped.warnaId = backendCard.warna_id;
+  }
+  if (backendCard.product_info !== undefined) {
+    mapped.productInfo = backendCard.product_info;
+  }
+  if (backendCard.bahan_info !== undefined) {
+    mapped.bahanInfo = backendCard.bahan_info;
+  }
+  if (backendCard.warna_info !== undefined) {
+    mapped.warnaInfo = backendCard.warna_info;
+  }
+  
+  return mapped;
+};
+
+// Helper function to map frontend Card data to backend format
+const mapFrontendCardToBackend = (frontendCard: Partial<Card>): any => {
+  const backendData: any = { ...frontendCard };
+  
+  // Map frontend camelCase to backend snake_case
+  if (frontendCard.productId !== undefined) {
+    backendData.product_id = frontendCard.productId;
+    delete backendData.productId;
+  }
+  if (frontendCard.productCodeId !== undefined) {
+    backendData.product_code_id = frontendCard.productCodeId;
+    delete backendData.productCodeId;
+  }
+  if (frontendCard.bahanId !== undefined) {
+    backendData.bahan_id = frontendCard.bahanId;
+    delete backendData.bahanId;
+  }
+  if (frontendCard.warnaId !== undefined) {
+    backendData.warna_id = frontendCard.warnaId;
+    delete backendData.warnaId;
+  }
+  if (frontendCard.productInfo !== undefined) {
+    backendData.product_info = frontendCard.productInfo;
+    delete backendData.productInfo;
+  }
+  if (frontendCard.bahanInfo !== undefined) {
+    backendData.bahan_info = frontendCard.bahanInfo;
+    delete backendData.bahanInfo;
+  }
+  if (frontendCard.warnaInfo !== undefined) {
+    backendData.warna_info = frontendCard.warnaInfo;
+    delete backendData.warnaInfo;
+  }
+  
+  return backendData;
+};
+
 export const cards = async (
   listId: string,
   boardId: string,
@@ -12,6 +79,12 @@ export const cards = async (
     headers: { "list-id": listId, "board-id": boardId },
     params: { page, limit },
   });
+  
+  // Map backend response to frontend format
+  if (data.data && Array.isArray(data.data)) {
+    data.data = data.data.map(mapBackendCardToFrontend);
+  }
+  
   return data;
 };
 
@@ -19,6 +92,12 @@ export const searchCards = async (
   params: any
 ): Promise<ApiResponse<Card[]>> => {
   const { data } = await api.get("/card/search", { params: params });
+  
+  // Map backend response to frontend format
+  if (data.data && Array.isArray(data.data)) {
+    data.data = data.data.map(mapBackendCardToFrontend);
+  }
+  
   return data;
 };
 
@@ -34,6 +113,12 @@ export const cardDetails = async (
   const { data } = await api.get(`/card/${cardId}`, {
     headers: { "board-id": boardId },
   });
+  
+  // Map backend response to frontend format
+  if (data.data) {
+    data.data = mapBackendCardToFrontend(data.data);
+  }
+  
   return data;
 };
 
@@ -41,6 +126,12 @@ export const getCardByShortId = async (
   shortId: number
 ): Promise<ApiResponse<Card>> => {
   const { data } = await api.get(`/card/short/${shortId}`);
+  
+  // Map backend response to frontend format
+  if (data.data) {
+    data.data = mapBackendCardToFrontend(data.data);
+  }
+  
   return data;
 };
 
@@ -59,9 +150,18 @@ export const updateCard = async (
     headers["list-id"] = dataToUpdate.listId;
   }
 
-  const { data } = await api.put(`/card/${cardId}`, dataToUpdate, {
+  // Map frontend data to backend format
+  const backendData = mapFrontendCardToBackend(dataToUpdate);
+
+  const { data } = await api.put(`/card/${cardId}`, backendData, {
     headers: Object.keys(headers).length > 0 ? headers : undefined,
   });
+  
+  // Map backend response to frontend format
+  if (data.data) {
+    data.data = mapBackendCardToFrontend(data.data);
+  }
+  
   return data;
 };
 
@@ -133,6 +233,12 @@ export const mirrorCard = async (
   payload: { id: string; targetListId: string; targetPositon: number }
 ): Promise<ApiResponse<Card>> => {
   const { data } = await api.post(`/card/${cardId}/make-mirror`, payload);
+  
+  // Map backend response to frontend format
+  if (data.data) {
+    data.data = mapBackendCardToFrontend(data.data);
+  }
+  
   return data;
 };
 
@@ -186,6 +292,12 @@ export const archivedCards = async (
     headers: { "board-id": boardId },
     params: { page, limit },
   });
+  
+  // Map backend response to frontend format
+  if (data.data && Array.isArray(data.data)) {
+    data.data = data.data.map(mapBackendCardToFrontend);
+  }
+  
   return data;
 };
 

@@ -13,6 +13,7 @@ export enum EnumCardAttributeType {
   BOARD = "board",
   LIST = "list",
   PRODUCT = "product",
+  BAHAN = "bahan",
   WARNA = "warna",
 }
 
@@ -179,6 +180,21 @@ export const dashcardsFilter: DashcardFilter[] = [
     label: "Produk",
     groupType: "primary",
     type: EnumCardAttributeType.PRODUCT,
+    options: [
+      { label: "any", value: FilterOperator.ANY },
+      { label: "is one of", value: FilterOperator.IS_ONE_OF },
+      { label: "is not one of", value: FilterOperator.IS_NOT_ONE_OF },
+      { label: "has a value", value: FilterOperator.ANY_VALUE },
+      { label: "has no value", value: FilterOperator.NO_VALUE },
+      { label: "name starts with", value: FilterOperator.STARTS_WITH },
+      { label: "name matches", value: FilterOperator.MATCHES_WITH },
+    ],
+  },
+  {
+    id: "bahan",
+    label: "Bahan",
+    groupType: "primary",
+    type: EnumCardAttributeType.BAHAN,
     options: [
       { label: "any", value: FilterOperator.ANY },
       { label: "is one of", value: FilterOperator.IS_ONE_OF },

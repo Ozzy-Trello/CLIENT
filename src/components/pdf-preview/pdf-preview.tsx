@@ -1,11 +1,9 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { Document, Page, pdfjs } from 'react-pdf';
+import { Document, Page } from 'react-pdf';
 import { Spin, message } from 'antd';
 import { FilePdfOutlined } from '@ant-design/icons';
 import TokenStorage from '@utils/token-storage';
-
-// Set up PDF.js worker
-pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
+import '@utils/pdf-worker-setup'; // Initialize PDF.js worker
 
 interface PDFPreviewProps {
   url: string;

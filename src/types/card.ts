@@ -205,6 +205,10 @@ export interface IItemDashcard {
     id: string;
     name: string;
   };
+  bahanInfo?: {
+    id: string;
+    name: string;
+  };
   warnaInfo?: {
     id: string;
     name: string;

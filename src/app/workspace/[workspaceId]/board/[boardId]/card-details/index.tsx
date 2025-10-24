@@ -127,9 +127,6 @@ const CardDetails: React.FC = (props) => {
 
   // Get board permissions
   const { canUpdateCard } = useBoardPermissionsContext();
-  console.log(selectedCard, "<< ini selected");
-  console.log("isLoadingCardDetails:", isLoadingCardDetails);
-  console.log("selectedCard?.bahan:", selectedCard?.bahan);
 
   const onCompletionChange = (e: CheckboxChangeEvent) => {
     e.stopPropagation();
@@ -484,38 +481,17 @@ const CardDetails: React.FC = (props) => {
                         Material Requirements
                       </span>
                       <Checkbox
-                        checked={(() => {
-                          const checkedValue = selectedCard.bahan || false;
-                          console.log(
-                            "Checkbox checked value:",
-                            checkedValue,
-                            "from selectedCard.bahan:",
-                            selectedCard.bahan
-                          );
-                          return checkedValue;
-                        })()}
+                        checked={selectedCard.bahan || false}
                         onChange={(e: CheckboxChangeEvent) => {
                           if (!canUpdateCard()) return;
 
                           const newBahanValue = e.target.checked;
-                          console.log(
-                            "Checkbox onChange - newBahanValue:",
-                            newBahanValue
-                          );
-                          console.log(
-                            "Checkbox onChange - current selectedCard.bahan:",
-                            selectedCard.bahan
-                          );
 
                           // Update local state immediately for better UX
                           const updatedCard = {
                             ...selectedCard,
                             bahan: newBahanValue,
                           };
-                          console.log(
-                            "Checkbox onChange - setting updatedCard:",
-                            updatedCard
-                          );
                           setSelectedCard(updatedCard);
                           updateCardDetails({ bahan: newBahanValue });
                         }}

@@ -31,6 +31,9 @@ ENV NODE_ENV=production
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 ENV DISABLE_CSS_MINIFICATION=true
 
+# Ensure PDF worker file is available
+RUN mkdir -p public && cp node_modules/pdfjs-dist/build/pdf.worker.min.mjs public/pdf.worker.min.js
+
 # Build with error handling
 RUN npm run build
 
