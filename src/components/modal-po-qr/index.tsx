@@ -8,7 +8,8 @@ import {
   Typography,
   Space,
 } from "antd";
-import { Package, QrCode } from "lucide-react";
+import { Package, QrCode, Camera } from "lucide-react";
+import { Scanner } from "@yudiel/react-qr-scanner";
 import { generateQRCodesPDF } from "@api/qr";
 import URLShortener from "@utils/url-shortener";
 import { getCardByShortId } from "@api/card";
@@ -26,6 +27,7 @@ const ModalPOQR: React.FC<ModalPOQRProps> = ({ open, onClose, boardId, listId })
   const [form] = Form.useForm();
   const [cardId, setCardId] = useState<string>("");
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
+  const [showCameraScanner, setShowCameraScanner] = useState<boolean>(false);
   const scannerBufferRef = useRef<string>("");
   const scannerTimeoutRef = useRef<NodeJS.Timeout>();
 
@@ -94,6 +96,10 @@ const ModalPOQR: React.FC<ModalPOQRProps> = ({ open, onClose, boardId, listId })
 
   const handleCardIdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setCardId(e.target.value);
+  };
+
+  const toggleCameraScanner = () => {
+    setShowCameraScanner(!showCameraScanner);
   };
 
   // Extract card ID from scanned data
@@ -213,7 +219,7 @@ const ModalPOQR: React.FC<ModalPOQRProps> = ({ open, onClose, boardId, listId })
       centered
       destroyOnClose
     >
-      <div className="py-4">
+      <div style={{ padding: '1rem' }}>
         <Form form={form} layout="vertical" onFinish={handleGeneratePDF}>
           <Form.Item
             label={
@@ -224,13 +230,62 @@ const ModalPOQR: React.FC<ModalPOQRProps> = ({ open, onClose, boardId, listId })
             name="cardId"
             rules={[{ required: true, message: "Please enter a Card ID" }]}
           >
-            <Input
-              placeholder="Enter or scan Card ID"
-              value={cardId}
-              onChange={handleCardIdChange}
-              size="large"
-            />
+            <div className="flex gap-2">
+              <Input
+                placeholder="Enter or scan Card ID"
+                value={cardId}
+                onChange={handleCardIdChange}
+                size="large"
+                className="flex-1"
+              />
+              <Button
+                icon={<Camera size={16} />}
+                onClick={toggleCameraScanner}
+                size="large"
+                type={showCameraScanner ? "primary" : "default"}
+                className="flex items-center"
+              >
+                {showCameraScanner ? "Close" : "Scan"}
+              </Button>
+            </div>
           </Form.Item>
+
+          {/* Camera Scanner Modal */}
+          <Modal
+            title="Scan QR Code with Camera"
+            open={showCameraScanner}
+            onCancel={() => setShowCameraScanner(false)}
+            footer={null}
+            width={400}
+            centered
+            zIndex={2000}
+            maskStyle={{ zIndex: 1999 }}
+          >
+            <div className="p-4">
+              <Scanner
+                onScan={(result) => {
+                  if (result && result.length > 0) {
+                    const scannedData = result[0].rawValue;
+                    handleScan(scannedData);
+                    setShowCameraScanner(false);
+                  }
+                }}
+                onError={(error) => {
+                  console.error("Scanner error:", error);
+                  message.error("Camera scanning failed");
+                }}
+                constraints={{
+                  facingMode: "environment",
+                }}
+                styles={{
+                  container: {
+                    width: "100%",
+                    height: "300px",
+                  },
+                }}
+              />
+            </div>
+          </Modal>
 
           {cardId && (
             <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">

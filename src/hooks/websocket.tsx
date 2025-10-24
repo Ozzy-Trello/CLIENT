@@ -710,6 +710,81 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             break;
           }
 
+          // Sales Order related events
+          case "sales_order:created": {
+            const { cardId, salesOrderData, listId } = message.data;
+
+            // Invalidate card detail to refresh SO information
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.cards.detail(cardId),
+            });
+
+            // Invalidate list cards to refresh card display
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.cards.list(listId),
+            });
+
+            // Invalidate lists to refresh any list-level aggregations
+            queryClient.invalidateQueries({ queryKey: queryKeys.lists.all });
+
+            refreshDashcard = true;
+            break;
+          }
+
+          case "custom_field:updated": {
+            const { cardId, customFieldId, fieldName, value, listId } = message.data;
+
+            // Invalidate card detail to refresh custom field display
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.cards.detail(cardId),
+            });
+
+            // Invalidate custom fields queries
+            queryClient.invalidateQueries({
+              queryKey: ["customFields"],
+              exact: false,
+            });
+
+            // Invalidate card custom fields
+            queryClient.invalidateQueries({
+              queryKey: ["cardCustomFields", cardId],
+            });
+
+            // Invalidate list cards to refresh any custom field displays in card lists
+            if (listId) {
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.cards.list(listId),
+              });
+            }
+
+            refreshDashcard = true;
+            break;
+          }
+
+          case "card_attachment:updated": {
+            const { cardId, attachmentUrl, source, listId } = message.data;
+
+            // Invalidate card detail to refresh attachment display
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.cards.detail(cardId),
+            });
+
+            // Invalidate card attachments
+            queryClient.invalidateQueries({
+              queryKey: ["cardAttachment", cardId],
+            });
+
+            // Invalidate list cards to refresh any attachment indicators
+            if (listId) {
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.cards.list(listId),
+              });
+            }
+
+            refreshDashcard = true;
+            break;
+          }
+
           default:
             break;
         }

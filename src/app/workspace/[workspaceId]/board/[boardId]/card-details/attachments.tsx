@@ -732,7 +732,8 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
     title: string;
     attachments: CardAttachment[];
     emptyText?: string;
-  }> = ({ title, attachments, emptyText = "No attachments yet" }) => {
+    sectionType?: 'bukti' | 'po' | 'other';
+  }> = ({ title, attachments, emptyText = "No attachments yet", sectionType }) => {
     if (attachments.length === 0) {
       return (
         <div className="mb-6">
@@ -785,23 +786,26 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
                             <Button onClick={onZoomIn}>
                               <ZoomInOutlined />
                             </Button>
-                            <Button
-                              onClick={() => {
-                                document
-                                  .querySelector(".ant-image-preview-close")
-                                  ?.dispatchEvent(
-                                    new MouseEvent("click", { bubbles: true })
-                                  );
-                                setTimeout(() => {
-                                  handlePrintWithQR(
-                                    item.file?.url,
-                                    item.file?.name || "image"
-                                  );
-                                }, 100);
-                              }}
-                            >
-                              <QrCode size={14} />
-                            </Button>
+                            {/* Print with QR button only for PO section */}
+                            {sectionType === 'po' && (
+                              <Button
+                                onClick={() => {
+                                  document
+                                    .querySelector(".ant-image-preview-close")
+                                    ?.dispatchEvent(
+                                      new MouseEvent("click", { bubbles: true })
+                                    );
+                                  setTimeout(() => {
+                                    handlePrintWithQR(
+                                      item.file?.url,
+                                      item.file?.name || "image"
+                                    );
+                                  }, 100);
+                                }}
+                              >
+                                <QrCode size={14} />
+                              </Button>
+                            )}
                           </Space>
                         ),
                       }}
@@ -878,7 +882,24 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
                       className="text-gray-500 hover:text-blue-600"
                     />
 
-                    {isPDFFile(item.file?.name || "", item.file?.mimeType) && (
+                    {/* Print with QR for image files in PO section only */}
+                    {sectionType === 'po' && isImageFile(item.file?.name || "", item.file?.mimeType) && (
+                      <Button
+                        type="text"
+                        size="small"
+                        icon={<QrCode size={14} />}
+                        onClick={() =>
+                          handlePrintWithQR(
+                            item.file?.url,
+                            item.file?.name || "image"
+                          )
+                        }
+                        className="text-gray-500 hover:text-green-600"
+                      />
+                    )}
+
+                    {/* Print with QR for PDF files in PO section only */}
+                    {sectionType === 'po' && isPDFFile(item.file?.name || "", item.file?.mimeType) && (
                       <Button
                         type="text"
                         size="small"
@@ -948,6 +969,7 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
           title="Bukti"
           attachments={getBuktiAttachments()}
           emptyText="No bukti attachments yet"
+          sectionType="bukti"
         />
 
         {/* PO Section */}
@@ -955,6 +977,7 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
           title="PO"
           attachments={getPOAttachments()}
           emptyText="No PO attachments yet"
+          sectionType="po"
         />
 
         {/* Other Files Section */}
@@ -962,6 +985,7 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
           title="Other Files"
           attachments={getOtherAttachments()}
           emptyText="No other attachments yet"
+          sectionType="other"
         />
 
         {/* Cards Section */}

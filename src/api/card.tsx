@@ -5,7 +5,7 @@ import { ApiResponse } from "../types/type";
 // Helper function to map backend response to frontend Card format
 const mapBackendCardToFrontend = (backendCard: any): Card => {
   const mapped: any = { ...backendCard };
-  
+
   // Map backend snake_case to frontend camelCase
   if (backendCard.product_id !== undefined) {
     mapped.productId = backendCard.product_id;
@@ -28,14 +28,14 @@ const mapBackendCardToFrontend = (backendCard: any): Card => {
   if (backendCard.warna_info !== undefined) {
     mapped.warnaInfo = backendCard.warna_info;
   }
-  
+
   return mapped;
 };
 
 // Helper function to map frontend Card data to backend format
 const mapFrontendCardToBackend = (frontendCard: Partial<Card>): any => {
   const backendData: any = { ...frontendCard };
-  
+
   // Map frontend camelCase to backend snake_case
   if (frontendCard.productId !== undefined) {
     backendData.product_id = frontendCard.productId;
@@ -65,7 +65,7 @@ const mapFrontendCardToBackend = (frontendCard: Partial<Card>): any => {
     backendData.warna_info = frontendCard.warnaInfo;
     delete backendData.warnaInfo;
   }
-  
+
   return backendData;
 };
 
@@ -79,12 +79,12 @@ export const cards = async (
     headers: { "list-id": listId, "board-id": boardId },
     params: { page, limit },
   });
-  
+
   // Map backend response to frontend format
   if (data.data && Array.isArray(data.data)) {
     data.data = data.data.map(mapBackendCardToFrontend);
   }
-  
+
   return data;
 };
 
@@ -92,12 +92,12 @@ export const searchCards = async (
   params: any
 ): Promise<ApiResponse<Card[]>> => {
   const { data } = await api.get("/card/search", { params: params });
-  
+
   // Map backend response to frontend format
   if (data.data && Array.isArray(data.data)) {
     data.data = data.data.map(mapBackendCardToFrontend);
   }
-  
+
   return data;
 };
 
@@ -113,12 +113,12 @@ export const cardDetails = async (
   const { data } = await api.get(`/card/${cardId}`, {
     headers: { "board-id": boardId },
   });
-  
+
   // Map backend response to frontend format
   if (data.data) {
     data.data = mapBackendCardToFrontend(data.data);
   }
-  
+
   return data;
 };
 
@@ -126,12 +126,12 @@ export const getCardByShortId = async (
   shortId: number
 ): Promise<ApiResponse<Card>> => {
   const { data } = await api.get(`/card/short/${shortId}`);
-  
+
   // Map backend response to frontend format
   if (data.data) {
     data.data = mapBackendCardToFrontend(data.data);
   }
-  
+
   return data;
 };
 
@@ -156,12 +156,12 @@ export const updateCard = async (
   const { data } = await api.put(`/card/${cardId}`, backendData, {
     headers: Object.keys(headers).length > 0 ? headers : undefined,
   });
-  
+
   // Map backend response to frontend format
   if (data.data) {
     data.data = mapBackendCardToFrontend(data.data);
   }
-  
+
   return data;
 };
 
@@ -233,12 +233,12 @@ export const mirrorCard = async (
   payload: { id: string; targetListId: string; targetPositon: number }
 ): Promise<ApiResponse<Card>> => {
   const { data } = await api.post(`/card/${cardId}/make-mirror`, payload);
-  
+
   // Map backend response to frontend format
   if (data.data) {
     data.data = mapBackendCardToFrontend(data.data);
   }
-  
+
   return data;
 };
 
@@ -292,12 +292,12 @@ export const archivedCards = async (
     headers: { "board-id": boardId },
     params: { page, limit },
   });
-  
+
   // Map backend response to frontend format
   if (data.data && Array.isArray(data.data)) {
     data.data = data.data.map(mapBackendCardToFrontend);
   }
-  
+
   return data;
 };
 
@@ -309,6 +309,13 @@ export const moveOldCards = async (): Promise<ApiResponse<any>> => {
 export const deleteAllCardsInList = async (
   listId: string
 ): Promise<ApiResponse<{ deleted_count: number }>> => {
-  const { data } = await api.delete(`/list/${listId}/cards`);
+  const { data } = await api.delete(`/card/list/${listId}/all`);
+  return data;
+};
+
+export const validateCardInFinishingPacking = async (
+  cardId: string
+): Promise<ApiResponse<{ isValid: boolean; message: string }>> => {
+  const { data } = await api.get(`/card/${cardId}/validate-finishing-packing`);
   return data;
 };

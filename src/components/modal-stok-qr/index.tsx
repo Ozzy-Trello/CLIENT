@@ -2,43 +2,29 @@ import React, { useState, useEffect, useRef } from "react";
 import {
   Modal,
   Form,
-  Select,
+  Input,
   Button,
   message,
   Typography,
-  Spin,
   Space,
 } from "antd";
-import { Package, QrCode } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import { getOzzySalesOrders, OzzySalesOrder } from "@api/ozzy-warehouse";
+import { Package, QrCode, Camera } from "lucide-react";
+import { Scanner } from "@yudiel/react-qr-scanner";
 
 interface ModalStokQRProps {
   open: boolean;
   onClose: () => void;
 }
 
-const { Option } = Select;
 const { Title, Text } = Typography;
 
 const ModalStokQR: React.FC<ModalStokQRProps> = ({ open, onClose }) => {
   const [form] = Form.useForm();
   const [selectedSO, setSelectedSO] = useState<string>("");
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
+  const [showCameraScanner, setShowCameraScanner] = useState<boolean>(false);
   const scannerBufferRef = useRef<string>("");
   const scannerTimeoutRef = useRef<NodeJS.Timeout>();
-
-  // Fetch sales orders from warehouse API
-  const {
-    data: salesOrders = [],
-    isLoading: isLoadingSalesOrders,
-    error: salesOrdersError,
-  } = useQuery({
-    queryKey: ["ozzy-sales-orders"],
-    queryFn: () => getOzzySalesOrders(),
-    enabled: open,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-  });
 
   // Reset form when modal opens/closes
   useEffect(() => {
@@ -103,8 +89,9 @@ const ModalStokQR: React.FC<ModalStokQRProps> = ({ open, onClose }) => {
     };
   }, [open]);
 
-  const handleSOChange = (value: string) => {
-    setSelectedSO(value);
+  const handleSOChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSelectedSO(e.target.value);
+    form.setFieldsValue({ soNumber: e.target.value });
   };
 
   // Extract SO number from scanned data
@@ -181,16 +168,9 @@ const ModalStokQR: React.FC<ModalStokQRProps> = ({ open, onClose }) => {
     onClose();
   };
 
-  // Filter and format sales orders for display
-  const formatSalesOrdersForSelect = (orders: OzzySalesOrder[]) => {
-    return orders.map((order) => ({
-      value: order.soNumber,
-      label: `${order.soNumber} - ${order.supplierName}`,
-      order,
-    }));
+  const toggleCameraScanner = () => {
+    setShowCameraScanner(!showCameraScanner);
   };
-
-  const formattedSalesOrders = formatSalesOrdersForSelect(salesOrders);
 
   return (
     <Modal
@@ -209,7 +189,7 @@ const ModalStokQR: React.FC<ModalStokQRProps> = ({ open, onClose }) => {
       centered
       destroyOnClose
     >
-      <div className="p-4">
+      <div style={{ padding: '1rem' }}>
         <Form form={form} layout="vertical" onFinish={handleGenerateQR}>
           <Form.Item
             label={
@@ -218,47 +198,64 @@ const ModalStokQR: React.FC<ModalStokQRProps> = ({ open, onClose }) => {
               </Text>
             }
             name="soNumber"
-            rules={[{ required: true, message: "Please select a Nomor SO" }]}
+            rules={[{ required: true, message: "Please enter a Nomor SO" }]}
           >
-            <Select
-              placeholder="Scan or search"
-              value={selectedSO}
-              onChange={handleSOChange}
-              showSearch
-              filterOption={(input, option) =>
-                String(option?.label ?? "")
-                  .toLowerCase()
-                  .includes(input.toLowerCase())
-              }
-              loading={isLoadingSalesOrders}
-              notFoundContent={
-                isLoadingSalesOrders ? (
-                  <div className="text-center py-4">
-                    <Spin size="small" />
-                    <div className="mt-2 text-gray-500">Loading SO numbers...</div>
-                  </div>
-                ) : salesOrdersError ? (
-                  <div className="text-center py-4 text-red-500">
-                    Failed to load SO numbers
-                  </div>
-                ) : (
-                  "No SO numbers found"
-                )
-              }
-              size="large"
-            >
-              {formattedSalesOrders.map((item) => (
-                <Option key={item.value} value={item.value} label={item.label}>
-                  <div className="flex flex-col">
-                    <Text strong>{item.value}</Text>
-                    <Text type="secondary" className="text-xs">
-                      {item.order.supplierName} - {item.order.date}
-                    </Text>
-                  </div>
-                </Option>
-              ))}
-            </Select>
+            <div className="flex gap-2">
+              <Input
+                placeholder="Enter or scan SO number"
+                value={selectedSO}
+                onChange={handleSOChange}
+                size="large"
+                className="flex-1"
+              />
+              <Button
+                icon={<Camera size={16} />}
+                onClick={toggleCameraScanner}
+                size="large"
+                type={showCameraScanner ? "primary" : "default"}
+                className="flex items-center"
+              >
+                {showCameraScanner ? "Close" : "Scan"}
+              </Button>
+            </div>
           </Form.Item>
+
+          {/* Camera Scanner Modal */}
+          <Modal
+            title="Scan QR Code with Camera"
+            open={showCameraScanner}
+            onCancel={() => setShowCameraScanner(false)}
+            footer={null}
+            width={400}
+            centered
+            zIndex={2000}
+            maskStyle={{ zIndex: 1999 }}
+          >
+            <div className="p-4">
+              <Scanner
+                onScan={(result) => {
+                  if (result && result.length > 0) {
+                    const scannedData = result[0].rawValue;
+                    handleScan(scannedData);
+                    setShowCameraScanner(false);
+                  }
+                }}
+                onError={(error) => {
+                  console.error("Scanner error:", error);
+                  message.error("Camera scanning failed");
+                }}
+                constraints={{
+                  facingMode: "environment",
+                }}
+                styles={{
+                  container: {
+                    width: "100%",
+                    height: "300px",
+                  },
+                }}
+              />
+            </div>
+          </Modal>
 
           {selectedSO && (
             <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
@@ -290,7 +287,7 @@ const ModalStokQR: React.FC<ModalStokQRProps> = ({ open, onClose }) => {
                 type="primary"
                 htmlType="submit"
                 loading={isGenerating}
-                disabled={!selectedSO || isLoadingSalesOrders}
+                disabled={!selectedSO}
                 icon={<QrCode size={16} />}
                 className="bg-blue-600 hover:bg-blue-700"
               >

@@ -28,8 +28,8 @@ import {
   type OzzyBranch,
   type OzzyProduct,
   type OzzyCustomer,
-  type OzzySalesOrder,
-  type OzzySalesOrderItem,
+  type OzzyPackingData,
+  type OzzyPackingItem,
   type CreateDeliveryOrderPayload,
 } from "@api/ozzy-warehouse";
 import dayjs from "dayjs";
@@ -65,7 +65,7 @@ interface ValidationItem {
   kuantitasReal: number;
   kuantitasScan: number;
   satuan: string;
-  originalItem: OzzySalesOrderItem;
+  originalItem: OzzyPackingItem;
 }
 
 const { Option } = Select;
@@ -78,7 +78,7 @@ const ModalDelivery: React.FC<ModalDeliveryProps> = ({ open, onClose }) => {
   const [selectedSalesOrders, setSelectedSalesOrders] = useState<SelectedSalesOrder[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<SelectedProduct[]>([]);
   const [showSOValidationModal, setShowSOValidationModal] = useState(false);
-  const [currentSOForValidation, setCurrentSOForValidation] = useState<OzzySalesOrder | null>(null);
+  const [currentSOForValidation, setCurrentSOForValidation] = useState<OzzyPackingData | null>(null);
   const [loadingSODetails, setLoadingSODetails] = useState(false);
   
   // State for SO detail modal (simple view)
@@ -108,43 +108,68 @@ const ModalDelivery: React.FC<ModalDeliveryProps> = ({ open, onClose }) => {
   });
 
   const { data: salesOrders = [], isLoading: salesOrdersLoading } = useQuery({
-    queryKey: ["ozzy-sales-orders"],
-    queryFn: () => getOzzySalesOrders(100),
+    queryKey: ["ozzy-sales-orders", "delivery"],
+    queryFn: () => getOzzySalesOrders(50, 1),
     enabled: open,
   });
 
   // Memoize products to prevent unnecessary re-renders
-  const memoizedProducts = useMemo(() => products, [products.length, products.map(p => p.id).join(',')]);
+  const memoizedProducts = useMemo(() => {
+    return products || [];
+  }, [products?.length, products?.[0]?.id]); // Only re-memoize when length or first item changes
 
   // Initialize validation items when SO is selected
   useEffect(() => {
-    if (currentSOForValidation?.purchaseOrderItems && memoizedProducts.length > 0) {
-      const items: ValidationItem[] = currentSOForValidation.purchaseOrderItems.map((item, index) => {
+    if (currentSOForValidation?.items && memoizedProducts.length > 0) {
+      const items: ValidationItem[] = currentSOForValidation.items.map((item, index) => {
         // Find the actual product data
         const productData = memoizedProducts.find(p => p.id === item.whProductId);
         
         return {
           id: item.id?.toString() || index.toString(),
           sesuai: false,
-          namaBarang: productData?.name || `Product ${item.whProductId}`,
-          sku: productData?.sku || `SKU-${item.whProductId}`,
-          kuantitasReal: item.quantity || 0,
+          namaBarang: productData?.name || item.product?.name || `Product ${item.whProductId}`,
+          sku: productData?.sku || item.product?.sku || `SKU-${item.whProductId}`,
+          kuantitasReal: item.quantityPacked || 0,
           kuantitasScan: 0,
           satuan: item.unitType || productData?.unitType || 'Pcs',
           originalItem: item
         };
       });
-      setValidationItems(items);
-    } else {
+      
+      // Only update if the items are actually different
+      setValidationItems(prevItems => {
+        if (prevItems.length !== items.length) return items;
+        
+        const hasChanges = items.some((item, index) => {
+          const prevItem = prevItems[index];
+          return !prevItem || 
+                 prevItem.id !== item.id || 
+                 prevItem.namaBarang !== item.namaBarang ||
+                 prevItem.sku !== item.sku ||
+                 prevItem.kuantitasReal !== item.kuantitasReal;
+        });
+        
+        return hasChanges ? items : prevItems;
+      });
+    } else if (validationItems.length > 0) {
+      // Only clear if there are items to clear
       setValidationItems([]);
     }
-  }, [currentSOForValidation, memoizedProducts]);
+  }, [currentSOForValidation?.items, currentSOForValidation?.purchaseOrder?.soNumber, memoizedProducts.length]);
 
   // Filter sales orders based on search
-  const filteredSalesOrders = salesOrders?.filter((so) =>
-    so?.soNumber?.toLowerCase().includes(soSearchValue.toLowerCase()) ||
-    so?.supplierName?.toLowerCase().includes(soSearchValue.toLowerCase())
-  ) || [];
+  const filteredSalesOrders = useMemo(() => {
+    if (!salesOrders) return [];
+    
+    // If no search value, return all sales orders
+    if (!soSearchValue) return salesOrders;
+    
+    return salesOrders.filter((so) =>
+      so?.purchaseOrder?.soNumber?.toLowerCase().includes(soSearchValue.toLowerCase()) ||
+      so?.purchaseOrder?.supplierName?.toLowerCase().includes(soSearchValue.toLowerCase())
+    );
+  }, [salesOrders, soSearchValue]);
 
 
 
@@ -154,7 +179,7 @@ const ModalDelivery: React.FC<ModalDeliveryProps> = ({ open, onClose }) => {
       return;
     }
 
-    if (!values.deliveryDate || !values.branchId || !values.shippingName || !values.shippingAddress) {
+    if (!values.deliveryDate || !values.branchId || !values.customerId || !values.shippingAddress) {
       message.warning("Silakan lengkapi semua field yang wajib diisi!");
       return;
     }
@@ -188,7 +213,7 @@ const ModalDelivery: React.FC<ModalDeliveryProps> = ({ open, onClose }) => {
       const payload: CreateDeliveryOrderPayload = {
         deliveryDate: dayjs(values.deliveryDate).format("YYYY-MM-DD"),
         branchId: values.branchId,
-        shippingName: values.shippingName,
+        customerId: values.customerId,
         shippingAddress: values.shippingAddress,
         note: values.note || null,
         soNumbers,
@@ -317,7 +342,7 @@ const ModalDelivery: React.FC<ModalDeliveryProps> = ({ open, onClose }) => {
 
     // Use validation items data instead of original items
     const soProducts: SelectedProduct[] = validationItems.map((item, index) => ({
-      id: `so_${currentSOForValidation.soNumber}_item_${item.id}`,
+      id: `so_${currentSOForValidation.purchaseOrder.soNumber}_item_${item.id}`,
       productId: item.originalItem.whProductId?.toString() || "",
       name: item.namaBarang,
       sku: item.sku,
@@ -328,10 +353,10 @@ const ModalDelivery: React.FC<ModalDeliveryProps> = ({ open, onClose }) => {
 
     // Add SO to selected sales orders
     const newSelectedSO: SelectedSalesOrder = {
-      soNumber: currentSOForValidation.soNumber || "",
-      customerName: currentSOForValidation.supplierName || "",
-      shippingAddress: currentSOForValidation.shippingAddress || "",
-      date: currentSOForValidation.date || "",
+      soNumber: currentSOForValidation.purchaseOrder.soNumber || "",
+      customerName: currentSOForValidation.purchaseOrder.supplierName || "",
+      shippingAddress: currentSOForValidation.purchaseOrder.shippingAddress || "",
+      date: currentSOForValidation.purchaseOrder.date || "",
       products: soProducts,
     };
 
@@ -339,6 +364,16 @@ const ModalDelivery: React.FC<ModalDeliveryProps> = ({ open, onClose }) => {
     
     // Also add products to selectedProducts so they appear in Detail Item section
     setSelectedProducts(prev => [...prev, ...soProducts]);
+    
+    // Auto-fill form fields from the first selected SO
+    if (selectedSalesOrders.length === 0) {
+      form.setFieldsValue({
+        deliveryDate: dayjs(), // Use today's date instead of SO creation date
+        branchId: currentSOForValidation.purchaseOrder.whBranchId?.toString(),
+        customerId: currentSOForValidation.purchaseOrder.whCustomerId?.toString(),
+        shippingAddress: currentSOForValidation.purchaseOrder.shippingAddress,
+      });
+    }
     
     setShowSOValidationModal(false);
     setCurrentSOForValidation(null);
@@ -392,8 +427,8 @@ const ModalDelivery: React.FC<ModalDeliveryProps> = ({ open, onClose }) => {
   };
 
   const soOptions = filteredSalesOrders.map(so => ({
-    value: so?.soNumber || "",
-    label: `${so?.soNumber || ""} - ${so?.supplierName || ""}`,
+    value: so?.purchaseOrder?.soNumber || "",
+    label: `${so?.purchaseOrder?.soNumber || ""} - ${so?.purchaseOrder?.supplierName || ""}`,
   }));
 
 
@@ -432,8 +467,7 @@ const ModalDelivery: React.FC<ModalDeliveryProps> = ({ open, onClose }) => {
                 options={soOptions}
                 filterOption={false}
                 notFoundContent={
-                  salesOrdersLoading ? <Spin size="small" /> : 
-                  soSearchValue ? "Sales Order tidak ditemukan" : "Ketik untuk mencari..."
+                  salesOrdersLoading ? <Spin size="small" /> : "Sales Order tidak ditemukan"
                 }
               />
             </Form.Item>
@@ -512,11 +546,27 @@ const ModalDelivery: React.FC<ModalDeliveryProps> = ({ open, onClose }) => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Shipping Name - Required */}
             <Form.Item
-              name="shippingName"
-              label="Nama Pengirim"
-              rules={[{ required: true, message: "Nama pengirim harus diisi!" }]}
+              name="customerId"
+              label="Customer"
+              rules={[{ required: true, message: "Customer harus dipilih!" }]}
             >
-              <Input placeholder="Masukkan nama pengirim" />
+              <Select
+                placeholder="Pilih Customer"
+                allowClear
+                loading={customersLoading}
+                showSearch
+                filterOption={(input, option) =>
+                  (option?.children as unknown as string)
+                    ?.toLowerCase()
+                    .includes(input.toLowerCase())
+                }
+              >
+                {customers?.map((customer) => (
+                  <Option key={customer.id} value={customer.id.toString()}>
+                    {customer.name}
+                  </Option>
+                ))}
+              </Select>
             </Form.Item>
 
 

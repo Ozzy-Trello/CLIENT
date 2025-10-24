@@ -26,10 +26,14 @@ import {
   ArrowRight,
   Package,
   ShoppingCart,
+  Truck,
+  Camera,
 } from "lucide-react";
 import ModalStokQR from "@components/modal-stok-qr";
 import ModalPOQR from "@components/modal-po-qr";
+import ModalPOScan from "@components/modal-po-scan";
 import ModalPacking from "@components/modal-packing";
+import ModalPackingPOScan from "@components/modal-packing-po-scan";
 import ModalPengiriman from "@components/modal-pengiriman";
 import { useSelector } from "react-redux";
 import { selectCurrentBoard } from "@store/workspace_slice";
@@ -43,6 +47,7 @@ import { selectUser } from "@store/app_slice";
 import { useParams } from "next/navigation";
 import { FineGrainedPermissions } from "../../../../../types/board";
 import ModalDelivery from "@components/modal-delivery";
+import ScanProgressModal from "@components/scan-progress-modal";
 
 // Helper function to derive permission level from fine-grained permissions
 const getPermissionLevelFromFineGrained = (
@@ -97,14 +102,24 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
   const [openAddMember, setOpenAddMember] = useState<boolean>(false);
   const [showScanner, setShowScanner] = useState(false);
   const [scanResult, setScanResult] = useState<string | null>(null);
+  const [scannerContext, setScannerContext] = useState<'general' | 'cetak-qr-stok' | 'cetak-qr-po' | 'packing-stok' | 'packing-po' | 'delivery-stok' | 'delivery-po'>('general');
   const [showInvoiceInput, setShowInvoiceInput] = useState<boolean>(false);
   const [invoiceNumber, setInvoiceNumber] = useState<string>("");
   const [isLoadingInvoice, setIsLoadingInvoice] = useState<boolean>(false);
   const [modalDeliveryOpen, setModalDeliveryOpen] = useState<boolean>(false);
   const [modalStokQROpen, setModalStokQROpen] = useState<boolean>(false);
   const [modalPOQROpen, setModalPOQROpen] = useState<boolean>(false);
+  const [modalPOScanOpen, setModalPOScanOpen] = useState<boolean>(false);
   const [modalPackingOpen, setModalPackingOpen] = useState<boolean>(false);
-  const [modalPengirimanOpen, setModalPengirimanOpen] = useState<boolean>(false);
+  const [modalPackingPOScanOpen, setModalPackingPOScanOpen] =
+    useState<boolean>(false);
+  const [modalPengirimanOpen, setModalPengirimanOpen] =
+    useState<boolean>(false);
+  // Standalone Scan Progress modal state
+  const [scanProgressOpen, setScanProgressOpen] = useState<boolean>(false);
+  const [scanProgressCardId, setScanProgressCardId] = useState<string | null>(
+    null
+  );
   const router = useRouter();
   const { socket } = useWebSocket();
   const params = useParams();
@@ -169,7 +184,55 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
     }
   };
 
-  // Generate QR dropdown menu items
+  // Delivery dropdown menu items
+  const deliveryMenuItems: MenuProps["items"] = [
+    {
+      key: "delivery-stok",
+      label: (
+        <div className="flex items-center gap-2">
+          <Package size={16} />
+          <span>Stok</span>
+        </div>
+      ),
+      onClick: () => setModalPengirimanOpen(true), // Delivery > Stok opens Pengiriman modal
+    },
+    {
+      key: "delivery-po",
+      label: (
+        <div className="flex items-center gap-2">
+          <ShoppingCart size={16} />
+          <span>PO</span>
+        </div>
+      ),
+      onClick: () => setModalPOScanOpen(true), // Opens PO scanning modal for validation
+    },
+  ];
+
+  // Packing dropdown menu items
+  const packingMenuItems: MenuProps["items"] = [
+    {
+      key: "packing-stok",
+      label: (
+        <div className="flex items-center gap-2">
+          <Package size={16} />
+          <span>Stok</span>
+        </div>
+      ),
+      onClick: () => setModalPackingOpen(true), // Packing > Stok opens Packing modal
+    },
+    {
+      key: "packing-po",
+      label: (
+        <div className="flex items-center gap-2">
+          <ShoppingCart size={16} />
+          <span>PO</span>
+        </div>
+      ),
+      onClick: () => setModalPackingPOScanOpen(true), // Opens Packing PO Scan modal for card ID input
+    },
+  ];
+
+  // Generate QR dropdown menu items (keeping for reference if needed)
   const generateQRMenuItems: MenuProps["items"] = [
     {
       key: "stok",
@@ -190,30 +253,6 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
         </div>
       ),
       onClick: () => setModalPOQROpen(true),
-    },
-  ];
-
-  // Delivery dropdown menu items
-  const deliveryMenuItems: MenuProps["items"] = [
-    {
-      key: "packing",
-      label: (
-        <div className="flex items-center gap-2">
-          <Package size={16} />
-          <span>Packing</span>
-        </div>
-      ),
-      onClick: () => setModalPackingOpen(true),
-    },
-    {
-      key: "pengiriman",
-      label: (
-        <div className="flex items-center gap-2">
-          <ShoppingCart size={16} />
-          <span>Pengiriman</span>
-        </div>
-      ),
-      onClick: () => setModalPengirimanOpen(true),
     },
   ];
 
@@ -410,34 +449,49 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
             </Popover>
 
             <Dropdown
+              menu={{ items: generateQRMenuItems }}
+              trigger={["click"]}
+              placement="bottomRight"
+            >
+              <Tooltip title="Cetak QR">
+                <Button
+                  size="small"
+                  icon={<QrCode size={16} />}
+                  className="flex items-center gap-1"
+                >
+                  <span>Cetak QR</span>
+                </Button>
+              </Tooltip>
+            </Dropdown>
+
+            <Dropdown
+              menu={{ items: packingMenuItems }}
+              trigger={["click"]}
+              placement="bottomRight"
+            >
+              <Tooltip title="Packing Options">
+                <Button
+                  size="small"
+                  className="flex items-center gap-1"
+                  icon={<Package size={16} />}
+                >
+                  <span>Packing</span>
+                </Button>
+              </Tooltip>
+            </Dropdown>
+
+            <Dropdown
               menu={{ items: deliveryMenuItems }}
               trigger={["click"]}
               placement="bottomRight"
             >
               <Tooltip title="Delivery Options">
                 <Button
-                  type="primary"
                   size="small"
                   className="flex items-center gap-1"
-                  style={{ backgroundColor: "#1890ff", borderColor: "#1890ff" }}
+                  icon={<Truck size={16} />}
                 >
                   <span>Delivery</span>
-                </Button>
-              </Tooltip>
-            </Dropdown>
-
-            <Dropdown
-              menu={{ items: generateQRMenuItems }}
-              trigger={["click"]}
-              placement="bottomRight"
-            >
-              <Tooltip title="Generate QR">
-                <Button
-                  size="small"
-                  icon={<QrCode size={16} />}
-                  className="flex items-center gap-1"
-                >
-                  <span>Generate QR</span>
                 </Button>
               </Tooltip>
             </Dropdown>
@@ -521,9 +575,35 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
         listId={currentBoard?.lists?.[0]?.id} // Use first list as default, can be improved
       />
 
+      <ModalPOScan
+        open={modalPOScanOpen}
+        onClose={() => setModalPOScanOpen(false)}
+        boardId={params.boardId as string}
+        listId={currentBoard?.lists?.[0]?.id} // Use first list as default, can be improved
+      />
+
       <ModalPacking
         open={modalPackingOpen}
         onClose={() => setModalPackingOpen(false)}
+      />
+
+      <ModalPackingPOScan
+        open={modalPackingPOScanOpen}
+        onClose={() => setModalPackingPOScanOpen(false)}
+        boardId={params.boardId as string}
+        listId={currentBoard?.lists?.[0]?.id} // Use first list as default, can be improved
+        onOpenScanProgress={(cardId: string) => {
+          setScanProgressCardId(cardId);
+          setScanProgressOpen(true);
+          setModalPackingPOScanOpen(false);
+        }}
+      />
+
+      <ScanProgressModal
+        isOpen={scanProgressOpen}
+        onClose={() => setScanProgressOpen(false)}
+        cardId={scanProgressCardId || ""}
+        boardId={params.boardId as string}
       />
 
       <ModalPengiriman
