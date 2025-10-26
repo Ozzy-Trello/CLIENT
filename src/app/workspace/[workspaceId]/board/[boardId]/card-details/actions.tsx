@@ -1,4 +1,5 @@
 import { uploadFile } from "@api/file";
+import { generateQRCodesPDF } from "@api/qr";
 import UploadModal from "@components/modal-upload/modal-upload";
 import ScanProgressModal from "@components/scan-progress-modal";
 import ModalBuatSO from "@components/modal-buat-so";
@@ -50,7 +51,6 @@ import { useParams, useSearchParams } from "next/navigation";
 import React, { useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import AutomateButtons from "./automate-buttons";
-import QRModal from "./qr-modal/qr-modal";
 
 // Helper component for permission-controlled buttons - moved outside to prevent re-creation
 const PermissionButton: React.FC<{
@@ -100,7 +100,6 @@ const Actions: React.FC = () => {
   const [openMoveCard, setOpenMoveCard] = useState(false);
   const [openCopyCard, setOpenCopyCard] = useState(false);
   const [openMirrorCard, setOpenMirrorCard] = useState(false);
-  const [openQrModal, setOpenQrModal] = useState(false);
   const [openLocation, setOpenLocation] = useState(false);
   const [openAttach, setOpenAttach] = useState(false);
   const [openChecklist, setOpenChecklist] = useState(false);
@@ -278,6 +277,37 @@ const Actions: React.FC = () => {
       }
     } catch (error) {
       message.error("Failed to upload PO. Please try again.");
+    }
+  };
+
+  // Handle QR generation using topbar's PO QR logic
+  const handleGenerateQR = async () => {
+    if (!selectedCard?.id) {
+      message.error("No card selected for QR generation");
+      return;
+    }
+
+    try {
+      // Use the same logic as topbar's PO QR generation
+      const blob = await generateQRCodesPDF(selectedCard.id);
+      
+      // Create URL for the blob and open in new tab for printing
+      const url = URL.createObjectURL(blob);
+      const newWindow = window.open(url, '_blank');
+      
+      if (newWindow) {
+        // Clean up the URL after a delay to allow the PDF to load
+        setTimeout(() => {
+          URL.revokeObjectURL(url);
+        }, 1000);
+        
+        message.success("QR code PDF generated successfully!");
+      } else {
+        message.error("Failed to open PDF. Please check your popup blocker settings.");
+      }
+    } catch (error) {
+      console.error("Error generating QR PDF:", error);
+      message.error("Failed to generate QR code PDF. Please try again.");
     }
   };
 
@@ -847,8 +877,8 @@ const Actions: React.FC = () => {
         {/* Generate QR Code */}
         <PermissionButton
           canPerform={canGenerateQR()}
-          onClick={() => setOpenQrModal(true)}
-          tooltip="Generate this card QR code"
+          onClick={handleGenerateQR}
+          tooltip="Generate this card QR code PDF"
           permissionLevel={permissionLevel}
           buttonStyle={buttonStyle}
         >
@@ -867,8 +897,6 @@ const Actions: React.FC = () => {
           <ScanLine size={14} />
           <span className="text-xs">Scan Progress</span>
         </PermissionButton>
-
-        <QRModal isOpen={openQrModal} onClose={() => setOpenQrModal(false)} />
 
         {/* Scan Progress Modal */}
         <ScanProgressModal

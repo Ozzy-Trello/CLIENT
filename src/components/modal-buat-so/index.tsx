@@ -34,8 +34,8 @@ const ModalBuatSO: React.FC<ModalBuatSOProps> = ({ open, onClose, cardId }) => {
 
   // Fetch customers
   const { data: customers, isLoading: customersLoading } = useQuery({
-    queryKey: ["ozzy-customers", "1954066"],
-    queryFn: () => getOzzyCustomers("1954066"),
+    queryKey: ["ozzy-customers", "1880365"],
+    queryFn: () => getOzzyCustomers("1880365"),
     enabled: open,
   });
 

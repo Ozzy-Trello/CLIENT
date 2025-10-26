@@ -102,8 +102,8 @@ const ModalDelivery: React.FC<ModalDeliveryProps> = ({ open, onClose }) => {
   });
 
   const { data: customers = [], isLoading: customersLoading } = useQuery({
-    queryKey: ["ozzy-customers"],
-    queryFn: () => getOzzyCustomers(),
+    queryKey: ["ozzy-customers", "1880365"],
+    queryFn: () => getOzzyCustomers("1880365"),
     enabled: open,
   });
 

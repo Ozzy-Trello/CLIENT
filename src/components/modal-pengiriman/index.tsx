@@ -87,8 +87,8 @@ const ModalPengiriman: React.FC<ModalPengirimanProps> = ({ open, onClose }) => {
   const { data: customers = [], isLoading: customersLoading } = useQuery<
     OzzyCustomer[]
   >({
-    queryKey: ["ozzy-customers"],
-    queryFn: () => getOzzyCustomers(),
+    queryKey: ["ozzy-customers", "1880365"],
+    queryFn: () => getOzzyCustomers("1880365"),
     enabled: open,
   });
 
@@ -220,10 +220,15 @@ const ModalPengiriman: React.FC<ModalPengirimanProps> = ({ open, onClose }) => {
       
       // Auto-fill form fields from the first selected SO
       if (selectedSalesOrders.length === 0) {
+        // Find customer name by ID
+        const customerId = soDetails.purchaseOrder.whCustomerId?.toString();
+        const customer = customers.find(c => c.id?.toString() === customerId);
+        const customerName = customer ? customer.name : customerId;
+
         form.setFieldsValue({
           deliveryDate: dayjs(), // Use today's date instead of SO creation date
           branchId: soDetails.purchaseOrder.whBranchId?.toString(),
-          customerId: soDetails.purchaseOrder.whCustomerId?.toString(),
+          customerId: customerName,
           shippingAddress: soDetails.purchaseOrder.shippingAddress,
         });
       }
