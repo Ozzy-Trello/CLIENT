@@ -3,8 +3,7 @@ import { Modal, Button, Select, Input, Table, InputNumber, DatePicker, AutoCompl
 import { Trash2 } from "lucide-react";
 import dayjs from "dayjs";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { getOzzyCustomers, createOzzySalesOrder, CreateSalesOrderPayload } from "@api/ozzy-warehouse";
-import { getAllItemList } from "@api/accurate";
+import { getOzzyCustomers, createOzzySalesOrder, CreateSalesOrderPayload, getOzzyProducts } from "@api/ozzy-warehouse";
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -34,20 +33,20 @@ const ModalBuatSO: React.FC<ModalBuatSOProps> = ({ open, onClose, cardId }) => {
 
   // Fetch customers
   const { data: customers, isLoading: customersLoading } = useQuery({
-    queryKey: ["ozzy-customers", "1880365"],
-    queryFn: () => getOzzyCustomers("1880365"),
+    queryKey: ["ozzy-customers", "1880451"],
+    queryFn: () => getOzzyCustomers("1880451"),
     enabled: open,
   });
 
   // Fetch products
   const { data: itemsResponse, isLoading: itemsLoading, error: itemsError } = useQuery({
-    queryKey: ["items"],
-    queryFn: () => getAllItemList(),
+    queryKey: ["ozzy-products", "1880451"],
+    queryFn: () => getOzzyProducts("1880451"),
     enabled: open,
   });
 
-  // Extract items from the nested response structure
-  const items = itemsResponse?.data || [];
+  // Extract items from the response - getOzzyProducts returns the array directly
+  const items = itemsResponse || [];
 
   // Process customer options
   const customerOptions = useMemo(() => {
@@ -66,30 +65,30 @@ const ModalBuatSO: React.FC<ModalBuatSOProps> = ({ open, onClose, cardId }) => {
       ? items.filter(
           (item: any) =>
             item.name.toLowerCase().includes(productSearch.toLowerCase()) ||
-            item.no.toLowerCase().includes(productSearch.toLowerCase()) ||
-            (item.source &&
-              item.source
+            item.sku.toLowerCase().includes(productSearch.toLowerCase()) ||
+            (item.barcode &&
+              item.barcode
                 .toLowerCase()
                 .includes(productSearch.toLowerCase()))
         )
       : items;
 
     return filteredItems.map((item: any) => ({
-      value: item.no,
-      label: `${item.name} (${item.source || "Unknown"})`,
+      value: item.sku,
+      label: `${item.name} (${item.sku})`,
       item: item,
     }));
   }, [items, productSearch]);
 
   const handleProductSelect = (value: string, option: any) => {
     const item = option.item;
-    if (item && !selectedProducts.find(sp => sp.no === item.no)) {
+    if (item && !selectedProducts.find(sp => sp.no === item.sku)) {
       setSelectedProducts([...selectedProducts, { 
-        id: item.id || item.no,
+        id: item.id || item.sku,
         name: item.name,
-        no: item.no,
-        source: item.source,
-        unit1Name: item.unit1Name,
+        no: item.sku,
+        source: item.sku, // Using SKU as source for consistency
+        unit1Name: item.unitType,
         quantity: 1 
       }]);
       setProductSearch("");

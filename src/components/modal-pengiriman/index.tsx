@@ -87,8 +87,8 @@ const ModalPengiriman: React.FC<ModalPengirimanProps> = ({ open, onClose }) => {
   const { data: customers = [], isLoading: customersLoading } = useQuery<
     OzzyCustomer[]
   >({
-    queryKey: ["ozzy-customers", "1880365"],
-    queryFn: () => getOzzyCustomers("1880365"),
+    queryKey: ["ozzy-customers", "1880451"],
+    queryFn: () => getOzzyCustomers("1880451"),
     enabled: open,
   });
 

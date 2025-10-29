@@ -123,12 +123,18 @@ export const createRequestWithPOConnection = async (requestData: {
   return data;
 };
 
-export const getItemDetail = async (id: string) => {
-  const { data } = await api.get(`/accurate/item/${id}`);
+export const getItemDetail = async (id: string, source?: string) => {
+  const params = source ? `?source=${encodeURIComponent(source)}` : '';
+  const { data } = await api.get(`/accurate/item/${id}${params}`);
   return data;
 };
 
 export const getHikmatItemList = async () => {
   const { data } = await api.get("/accurate/hikmat-item-list");
+  return data;
+};
+
+export const getMpiItemList = async () => {
+  const { data } = await api.get("/accurate/mpi-item-list");
   return data;
 };
