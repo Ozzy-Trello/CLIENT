@@ -144,8 +144,6 @@ const TopBar: React.FC = React.memo(() => {
     enabled: !!searchQuery && searchQuery.trim().length > 0,
   });
 
-  console.log(searchResults, "<< ini search result");
-
   // Recently viewed hook
   const { recentlyViewedItems } = useRecentlyViewed();
 

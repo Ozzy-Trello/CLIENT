@@ -108,7 +108,7 @@ export interface OzzyPackingProduct {
   categoryId: number;
   categoryName: string;
   quantity: string;
-  description: string | null;
+  description: string | null | undefined;
   createdAt: string;
   updatedAt: string;
   qrCodeImage: string;
@@ -127,6 +127,10 @@ export interface OzzyPackingItem {
   createdAt: string;
   updatedAt: string;
   product: OzzyPackingProduct;
+  // Frontend compatibility
+  quantity?: number;
+  unit_type?: string;
+  whMaklonProductId?: number;
 }
 
 export interface OzzyPurchaseOrder {
@@ -149,7 +153,7 @@ export interface OzzyPurchaseOrder {
   accurateIdMpi: string | null;
 }
 
-// Raw purchase order response from API (snake_case)
+// Raw purchase order response from API (snake_case + camelCase for FE compatibility)
 export interface OzzyRawPurchaseOrder {
   id: number;
   wh_vendor_id: number;
@@ -168,7 +172,39 @@ export interface OzzyRawPurchaseOrder {
   updated_at: string;
   accurate_id_ozzy: string | null;
   accurate_id_mpi: string | null;
+  status_cetak: number;
   purchase_order_items: OzzyRawPurchaseOrderItem[];
+  // Frontend camelCase properties (added by interceptor)
+  soNumber?: string;
+  supplierName?: string;
+  items?: OzzyRawPurchaseOrderItem[];
+  accurateIdMpi?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  accurateIdOzzy?: string | null;
+  poNumber?: string | null;
+  shippingAddress?: string;
+  createdBy?: string;
+  whBranchId?: number;
+  whVendorId?: number;
+  whCustomerId?: number;
+  whWarehouseId?: number | null;
+  purchaseOrderItems?: OzzyRawPurchaseOrderItem[];
+  customer?: {
+    id: number;
+    customer_no: string;
+    name: string;
+    email: string | null;
+    mobilephone: string | null;
+    branch_name: string | null;
+    branch_id: number | null;
+    accurate_id: number;
+    accurate_db_id: number;
+    created_at: string;
+    updated_at: string;
+    address?: string;
+  };
+  warehouse?: any;
 }
 
 export interface OzzyRawPurchaseOrderItem {
@@ -181,6 +217,101 @@ export interface OzzyRawPurchaseOrderItem {
   note: string | null;
   created_at: string;
   updated_at: string;
+  // Frontend camelCase properties (added by interceptor)
+  whPurchaseOrderId?: number;
+  whProductId?: number;
+  whMaklonProductId?: number;
+  quantityPacked?: number;
+  unitType?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  product?: {
+    id: number;
+    accurate_id: number;
+    accurate_db_id: number;
+    status_product_accurate: number;
+    name: string;
+    sku: string;
+    barcode: string;
+    unit_type: string;
+    unit_price: string;
+    unit_data: string;
+    category_id: number;
+    category_name: string;
+    quantity: string;
+    description: string | null;
+    created_at: string;
+    updated_at: string;
+    qr_code_image: string;
+  };
+}
+
+// Frontend camelCase versions (after interceptor conversion)
+export interface OzzyPurchaseOrderFE {
+  id: number;
+  whVendorId: number;
+  whCustomerId: number;
+  whWarehouseId: number | null;
+  poNumber: string | null;
+  soNumber: string;
+  date: string;
+  supplierName: string;
+  shippingAddress: string;
+  note: string | null;
+  status: string;
+  createdBy: string;
+  whBranchId: number;
+  createdAt: string;
+  updatedAt: string;
+  accurateIdOzzy: string | null;
+  accurateIdMpi: string | null;
+  statusCetak: number;
+  purchaseOrderItems: OzzyPurchaseOrderItemFE[];
+  customer?: {
+    id: number;
+    customerNo: string;
+    name: string;
+    email: string | null;
+    mobilephone: string | null;
+    branchName: string | null;
+    branchId: number | null;
+    accurateId: number;
+    accurateDbId: number;
+    createdAt: string;
+    updatedAt: string;
+  };
+  warehouse?: any;
+}
+
+export interface OzzyPurchaseOrderItemFE {
+  id: number;
+  whPurchaseOrderId: number;
+  whProductId: number;
+  whMaklonProductId: number;
+  quantity: number;
+  unitType: string;
+  note: string | null;
+  createdAt: string;
+  updatedAt: string;
+  product?: {
+    id: number;
+    accurateId: number;
+    accurateDbId: number;
+    statusProductAccurate: number;
+    name: string;
+    sku: string;
+    barcode: string;
+    unitType: string;
+    unitPrice: string;
+    unitData: string;
+    categoryId: number;
+    categoryName: string;
+    quantity: string;
+    description: string | null;
+    createdAt: string;
+    updatedAt: string;
+    qrCodeImage: string;
+  };
 }
 
 export interface OzzyPackingData {
@@ -199,6 +330,29 @@ export interface OzzyPackingData {
   whDeliveryOrderId: number | null;
   purchaseOrder: OzzyPurchaseOrder;
   items: OzzyPackingItem[];
+  // Frontend properties for compatibility
+  soNumber?: string;
+  supplierName?: string;
+  date?: string;
+  purchase_order_items?: OzzyPackingItem[];
+  so_number?: string;
+  accurateIdOzzy?: string | null;
+  whCustomerId?: number;
+  totalQuantity?: number;
+  customer?: {
+    id: number;
+    customer_no: string;
+    name: string;
+    email: string | null;
+    mobilephone: string | null;
+    branch_name: string | null;
+    branch_id: number | null;
+    accurate_id: number;
+    accurate_db_id: number;
+    created_at: string;
+    updated_at: string;
+    address?: string;
+  };
 }
 
 export interface CreateDeliveryOrderPayload {
@@ -249,6 +403,7 @@ export interface CreateSalesOrderResponse {
     id: number;
     branch_name: string;
     attachment: string;
+    soNumber: string;
   };
 }
 
@@ -274,6 +429,19 @@ export const getOzzyProducts = async (
     }
   );
   return data.data;
+};
+
+export const getOzzyProductById = async (
+  productId: number,
+  accurateDbId?: string
+): Promise<OzzyProduct | null> => {
+  try {
+    const products = await getOzzyProducts(accurateDbId);
+    return products.find(product => product.id === productId) || null;
+  } catch (error) {
+    console.error("Error fetching product by ID:", error);
+    return null;
+  }
 };
 
 export const getOzzyWarehouses = async (
@@ -325,6 +493,54 @@ export const getOzzySalesOrders = async (
   }
 
   return [];
+};
+
+// New function to get raw sales orders for packing
+export const getOzzyRawSalesOrders = async (
+  limit?: number,
+  packing?: number
+): Promise<OzzyRawPurchaseOrder[]> => {
+  const params: Record<string, any> = {};
+  
+  if (limit !== undefined) {
+    params.limit = limit;
+  }
+  
+  if (packing !== undefined) {
+    params.packing = packing;
+  }
+
+  const { data } = await api.get<OzzyWarehouseResponse<OzzyRawPurchaseOrder[]>>(
+    "/warehouse/ozzy/sales-orders",
+    { params: Object.keys(params).length > 0 ? params : undefined }
+  );
+
+  // Some endpoints return string "success"
+  if (Array.isArray(data.data)) {
+    return data.data;
+  }
+
+  return [];
+};
+
+// New function to get raw sales order by ID for packing
+export const getOzzyRawSalesOrderById = async (
+  soNumber: string
+): Promise<OzzyRawPurchaseOrder | null> => {
+  try {
+    const { data } = await api.get<OzzyWarehouseResponse<OzzyRawPurchaseOrder>>(
+      `/warehouse/ozzy/sales-order/${soNumber}`
+    );
+    
+    if (!data.data) {
+      return null;
+    }
+
+    return data.data;
+  } catch (error) {
+    console.error("Error fetching raw sales order:", error);
+    return null;
+  }
 };
 
 export const getOzzySalesOrderById = async (
@@ -458,4 +674,34 @@ export const createOzzySalesOrder = async (
   );
 
   return response.data;
+};
+
+export interface ValidationProduct {
+  id: number;
+  name: string;
+  sku: string;
+  quantity: string;
+  barcode: string;
+  unitType: string;
+}
+
+export interface ValidationResponse {
+  status: boolean;
+  data: {
+    productId: number;
+    type: string;
+    quantity: string;
+    product: ValidationProduct;
+  };
+}
+
+export const validateProductByBarcode = async (
+  barcodeProduct: string
+): Promise<ValidationResponse> => {
+  const { data } = await api.post<ValidationResponse>(
+    "/warehouse/validation",
+    { barcode_product: barcodeProduct }
+  );
+
+  return data;
 };

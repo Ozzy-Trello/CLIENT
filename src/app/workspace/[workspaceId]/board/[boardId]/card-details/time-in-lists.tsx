@@ -39,11 +39,11 @@ const CardTimeInList: React.FC<CardTimeInListProps> = (props) => {
       <div className='ml-8'>
         {timeInLists.map((item, index) => (
           <div key={index} className="mb-2 w-full">
-            <div key={index} className="flex items-center justify-between">
-              <span className="text-2xl text-gray-950" key={index}>
+            <div  className="flex items-center justify-between">
+              <span className="text-2xl text-gray-950" >
                 {item.listName}
               </span>
-              <span className="text-[10px] text-gray-500" key={index}>
+              <span className="text-[10px] text-gray-500" >
                 {item.formattedTimeInList} 
               </span>
             </div>

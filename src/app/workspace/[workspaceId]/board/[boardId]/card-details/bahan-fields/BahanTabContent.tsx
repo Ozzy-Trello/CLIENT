@@ -31,17 +31,8 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
       return;
     }
 
-    console.log("🆕 [BahanTabContent] Creating new order for:", {
-      poId: po.id,
-      poName: po.name,
-      productId: product.id,
-      productName: product.name,
-      poProductId: product.poProductId,
-      cardId: po.cardId,
-      terloading: bahanTab.terloading,
-      bahanTabId: bahanTab.id,
-      bahanTabName: bahanTab.name,
-    });
+    // Creating new order for product
+ 
 
     // Validate required data
     if (!product.poProductId) {
@@ -78,7 +69,7 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
         adjustment_name: product.adjustment_name,
       };
 
-      console.log(product, "<< ini isi product");
+      // Product content
 
       await createRequestWithPOConnection(requestData);
 
@@ -277,17 +268,7 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
           subcategoryId,
           value
         ) => {
-          console.log(
-            `🎯 [BahanTabContent] onCategoryValueChange called with:`,
-            {
-              poId,
-              productId,
-              categoryId,
-              subcategoryId,
-              value,
-              convertedToIndices: { poIndex, productIndex },
-            }
-          );
+          // Category value change called
           onCategoryValueChange(
             poIndex,
             productIndex,

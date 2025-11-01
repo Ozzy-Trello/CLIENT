@@ -90,38 +90,28 @@ const ModalPOScan: React.FC<ModalPOScanProps> = ({
 
   // Validate card and open if valid
   const validateAndOpenCard = async (targetCardId: string) => {
-    console.log("🔍 [DEBUG] validateAndOpenCard called with:", targetCardId);
-    
     if (!targetCardId.trim()) {
-      console.log("❌ [DEBUG] Empty card ID provided");
       message.error("Please enter a Card ID");
       return;
     }
 
-    console.log("⏳ [DEBUG] Setting isValidating to true");
     setIsValidating(true);
     try {
-      console.log("🔍 [DEBUG] Calling validateCardInFinishingPacking API...");
       // Validate if card is in Finishing Packing list
       const validationResponse = await validateCardInFinishingPacking(
         targetCardId.trim()
       );
-      console.log("📋 [DEBUG] Validation response:", validationResponse);
 
       if (validationResponse.data?.isValid) {
-        console.log("✅ [DEBUG] Card is valid, navigating to card details...");
         message.success("Card is in Finishing Packing list. Opening card...");
 
         // Navigate to the card details with query parameters
         const navigationUrl = `/workspace/${boardId}/board/${boardId}?cardId=${targetCardId}&listId=${listId}`;
-        console.log("🚀 [DEBUG] Navigating to:", navigationUrl);
         router.push(navigationUrl);
 
-        console.log("🚪 [DEBUG] Closing modal...");
         // Close modal after opening card
         onClose();
       } else {
-        console.log("❌ [DEBUG] Card is not in Finishing Packing list");
         message.error("Card is not yet in Finishing Packing list");
       }
     } catch (error) {
@@ -130,7 +120,6 @@ const ModalPOScan: React.FC<ModalPOScanProps> = ({
         "Failed to validate card. Please check the Card ID and try again."
       );
     } finally {
-      console.log("🏁 [DEBUG] Setting isValidating to false");
       setIsValidating(false);
     }
   };
@@ -199,26 +188,19 @@ const ModalPOScan: React.FC<ModalPOScanProps> = ({
   };
 
   const handleCameraScan = async (result: string) => {
-    console.log("🎥 [DEBUG] Camera scan triggered with result:", result);
     setShowCameraScanner(false);
 
     try {
-      console.log("🔍 [DEBUG] Extracting card ID from scanned data...");
       const extractedCardId = await extractCardIdFromScan(result);
-      console.log("🔍 [DEBUG] Extracted card ID:", extractedCardId);
 
       if (extractedCardId) {
-        console.log("✅ [DEBUG] Card ID extracted successfully, setting form values...");
         setCardId(extractedCardId);
         form.setFieldsValue({ cardId: extractedCardId });
         message.success("QR code scanned successfully! Validating...");
         
-        console.log("🚀 [DEBUG] Calling validateAndOpenCard with:", extractedCardId);
         // Automatically validate and open card after successful scan
         await validateAndOpenCard(extractedCardId);
-        console.log("✅ [DEBUG] validateAndOpenCard completed");
       } else {
-        console.log("❌ [DEBUG] Could not extract card ID from scanned data");
         message.error("Could not extract card ID from scanned QR code");
       }
     } catch (error) {

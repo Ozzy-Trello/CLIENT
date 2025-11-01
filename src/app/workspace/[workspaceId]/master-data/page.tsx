@@ -591,8 +591,6 @@ const MasterData: React.FC = () => {
 
   // Handle product reorder
   const handleProductReorder = async (reorderedProducts: Product[]) => {
-    console.log("🔄 handleProductReorder called with:", reorderedProducts.length, "products");
-    
     // Optimistic update
     const previousProducts = [...products];
     setProducts(reorderedProducts);
@@ -600,13 +598,10 @@ const MasterData: React.FC = () => {
     try {
       // Always update all products when drag and drop occurs to ensure consistency
       const updatePromises = reorderedProducts.map((product, index) => {
-        console.log(`📤 Updating product ${product.name} (ID: ${product.id}) to order ${index}`);
         return updateProductOrder(product.id, { order: index });
       });
 
-      console.log(`🚀 Sending ${updatePromises.length} API requests...`);
       const results = await Promise.all(updatePromises);
-      console.log("✅ All API requests completed:", results);
       
       message.success("Product order updated successfully");
     } catch (error) {

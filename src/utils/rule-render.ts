@@ -85,8 +85,6 @@ export async function prefetchRuleData(
 }
 
 function stringify(val: any): string {
-  console.log("🔍 stringify called with:", val, "type:", typeof val);
-  
   if (val == null) return "";
   if (typeof val === "string") {
     const noTags = val.replace(/<[^>]*>/g, "");
@@ -104,41 +102,31 @@ function stringify(val: any): string {
     }
     // Try common keys
     if (val.label) {
-      console.log("🔍 Found label:", val.label);
       return stringify(val.label);
     }
     if (val.text) {
-      console.log("🔍 Found text:", val.text);
       return stringify(val.text);
     }
     if (val.operator) {
-      console.log("🔍 Found operator:", val.operator);
       return stringify(val.operator);
     }
     if (val.value) {
-      console.log("🔍 Found value:", val.value);
       return stringify(val.value);
     }
-    console.log("🔍 Object has no recognized keys, returning empty string");
   }
-  console.log("🔍 Returning empty string for:", val);
   return "";
 }
 
 function lookup(condition: any, key: string): any {
-  console.log("🔍 lookup called with key:", key, "condition:", condition);
-  
   if (!condition) return undefined;
   
   // Try direct key lookup
   let value = condition[key];
   if (value !== undefined) {
-    console.log("🔍 Found direct key value:", value);
     // If the value looks like a UUID, try to resolve it using LookupCache
     if (typeof value === 'string' && isUUID(value)) {
       const resolved = LookupCache.any(value);
       if (resolved) {
-        console.log("🔍 Resolved UUID to:", resolved);
         return resolved;
       }
     }

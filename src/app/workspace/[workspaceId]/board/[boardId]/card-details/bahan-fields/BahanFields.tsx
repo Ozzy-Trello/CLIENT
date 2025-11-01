@@ -38,16 +38,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
     error: poProductsError,
   } = usePOProductsByCardId(cardId);
 
-  // Add debugging logs
-  // console.log("🔍 [BahanFields] Debug Info:", {
-  //   cardId,
-  //   apiPOData,
-  //   poProductsResponse,
-  //   isLoadingPOs,
-  //   isLoadingPOProducts,
-  //   poError,
-  //   poProductsError,
-  // });
+  // Debug information available for troubleshooting
 
 
   // Load products from Hikmat API
@@ -77,7 +68,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
     clearError: clearCategoryError,
   } = useDebouncedCategoryUpdate({
     onSuccess: () => {
-      // console.log("✅ Category value updated successfully");
+      // Category value updated successfully
     },
     onError: (error) => {
       console.error("❌ Failed to update category value:", error);
@@ -93,7 +84,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
     clearError: clearPOProductError,
   } = useDebouncedPOProductUpdate({
     onSuccess: () => {
-      // console.log("✅ POProduct value updated successfully");
+      // POProduct value updated successfully
     },
     onError: (error) => {
       console.error("❌ Failed to update POProduct value:", error);
@@ -105,7 +96,6 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
 
   // Update local state when API data changes
   useEffect(() => {
-    console.log(apiPOData, "<< ini apiPOData");
     if (apiPOData?.length > 0) {
       const updatedPOData = [...apiPOData];
 
@@ -136,27 +126,13 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
             }
           });
 
-          // console.log(
-          //   `🔍 PO ${po.name} - Current products before merge:`,
-          //   po.products
-          // );
-          // console.log(
-          //   `🔍 PO ${po.name} - New products to add:`,
-          //   relatedProducts
-          // );
+          // Track products before and after merge for debugging
 
           if (relatedProducts.length > 0) {
-            // console.log(
-            //   `✅ Adding ${relatedProducts.length} products to PO ${po.name}`
-            // );
             // Merge with existing products, avoiding duplicates and preserving calculated values
             const existingProductPoIds = new Set(
               po.products.map((p) => p.poProductId)
             );
-            // console.log(
-            //   `🔍 Existing product PO IDs:`,
-            //   Array.from(existingProductPoIds)
-            // );
 
             // Separate new products from existing ones that need updates
             const newProducts = relatedProducts.filter(
@@ -166,8 +142,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
               existingProductPoIds.has(p.poProductId)
             );
 
-            // console.log(`🔍 New products after deduplication:`, newProducts);
-            // console.log(`🔍 Updated existing products:`, updatedProducts);
+            // Process new and updated products
 
             // Update existing products in place to preserve calculated values
             updatedProducts.forEach((updatedProduct) => {
@@ -201,13 +176,11 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
                 updatedProduct.orderCreated = existingProduct.orderCreated;
 
                 po.products[existingIndex] = updatedProduct;
-                // console.log(`🔄 Updated existing product ${updatedProduct.name} with preserved calculations`);
               }
             });
 
             // Add only truly new products
             po.products = [...po.products, ...newProducts];
-            // console.log(`🔍 PO ${po.name} - Final products:`, po.products);
 
             // Calculate Est Bahan for each new product on load
             newProducts.forEach((product) => {
@@ -222,7 +195,6 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
                 );
                 if (calculatedEstBahan > 0) {
                   product.bahanTabs[0].estBahan = calculatedEstBahan;
-                  // console.log(`🧮 Calculated Est Bahan for product ${product.id}: ${calculatedEstBahan}`);
                 }
               }
 
@@ -498,7 +470,6 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
     subcategoryId: string,
     value: number
   ) => {
-    // console.log("🎯 [BahanFields] handleCategoryValueChange called!", { poIndex, productIndex, categoryId, subcategoryId, value });
 
     setPOData((prev) => {
       const newItems = [...prev];
@@ -558,7 +529,6 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
 
       // API update logic - Use the product's poProductId to find the correct POProduct
       const productPoProductId = product.poProductId;
-      // console.log(`🔍 Product poProductId: ${productPoProductId}`);
 
       if (productPoProductId && poProductsResponse?.data) {
         // Find the POProduct using the product's poProductId
@@ -567,7 +537,6 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
         );
 
         if (targetPOProduct) {
-          // console.log(`🎯 Found POProduct:`, targetPOProduct);
 
           // Find the junction_id from categories data first
           let junctionId: string | null = null;
@@ -579,7 +548,6 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
               );
               if (subcategory?.junction) {
                 junctionId = subcategory.junction.id;
-                // console.log(`🔗 Found junction_id: ${junctionId}`);
               }
             }
           }
@@ -603,10 +571,8 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
           );
 
           if (existingCategory) {
-            // console.log(`🚀 Updating existing POProductCategory ID: ${existingCategory.id}, value: ${value}`);
             debouncedUpdate(existingCategory.id, value);
           } else {
-            // console.log(`📝 Creating new POProductCategory for poProductId: ${targetPOProduct.id}, junction_id: ${junctionId}, value: ${value}`);
 
             // Create new POProductCategory with junction_id
             createPOProductCategoryMutation.mutate(
@@ -617,7 +583,6 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
               },
               {
                 onSuccess: (response) => {
-                  // console.log(`✅ Successfully created POProductCategory:`, response);
                   message.success("Category value saved successfully");
                 },
                 onError: (error) => {
@@ -639,11 +604,6 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
         console.warn(
           `❌ Product missing poProductId or no POProducts data available`
         );
-        console.warn(`Product:`, product);
-        console.warn(
-          `POProducts available:`,
-          poProductsResponse?.data?.length || 0
-        );
       }
 
       // Note: Total field calculations are now handled by the backend automatically
@@ -659,11 +619,6 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
     productIndex: number,
     orderCreated: boolean
   ) => {
-    console.log("🔄 [BahanFields] handleOrderStatusChange called!", {
-      poIndex,
-      productIndex,
-      orderCreated,
-    });
 
     setPOData((prevData) => {
       const newData = [...prevData];
@@ -690,12 +645,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
 
   // Helper function to select appropriate GL account following modal request logic
   const selectGLAccount = async (selectedItem: any) => {
-    console.log(
-      "🔍 [PO PROD DEBUG] Starting GL account selection for item:",
-      selectedItem.name
-    );
-    console.log("🔍 [PO PROD DEBUG] Item source:", selectedItem.source);
-    console.log("🔍 [PO PROD DEBUG] Item category:", selectedItem.itemCategory);
+    // Starting GL account selection for item
 
     try {
       // Fetch GL accounts for the item's source
@@ -704,11 +654,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
       );
       const glaccounts = glAccountsResponse;
 
-      console.log("🔍 [PO PROD DEBUG] GL accounts response:", glaccounts);
-      console.log(
-        "🔍 [PO PROD DEBUG] Available GL accounts count:",
-        glaccounts?.data?.d?.length || 0
-      );
+      // GL accounts response received
 
       if (
         glaccounts &&
@@ -719,10 +665,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
         // First, try to get Inventory GL account from item category (this is the correct field for adjustment)
         const inventoryGlAccountId =
           selectedItem.itemCategory.parent?.inventoryGlAccountId;
-        console.log(
-          "🔍 [PO PROD DEBUG] Inventory GL Account ID from category:",
-          inventoryGlAccountId
-        );
+        // Inventory GL Account ID from category
 
         if (inventoryGlAccountId) {
           // Find the matching GL account
@@ -730,18 +673,10 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
             (acc: any) => acc.id === inventoryGlAccountId
           );
 
-          console.log(
-            "🔍 [PO PROD DEBUG] Found matching Inventory GL account:",
-            matchingGlAccount
-          );
+          // Found matching Inventory GL account
 
           if (matchingGlAccount) {
-            console.log(
-              "🔍 [PO PROD DEBUG] Using Inventory GL account - No:",
-              matchingGlAccount.no,
-              "Name:",
-              matchingGlAccount.name
-            );
+            // Using Inventory GL account
             return {
               adjustment_no: matchingGlAccount.no,
               adjustment_name: matchingGlAccount.name,
@@ -752,10 +687,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
         // Fallback: try COGS GL account if inventory account not found
         const cogsGlAccountId =
           selectedItem.itemCategory.parent?.cogsGlAccountId;
-        console.log(
-          "🔍 [PO PROD DEBUG] COGS GL Account ID from category (fallback):",
-          cogsGlAccountId
-        );
+        // COGS GL Account ID from category (fallback)
 
         if (cogsGlAccountId) {
           // Find the matching GL account
@@ -763,18 +695,10 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
             (acc: any) => acc.id === cogsGlAccountId
           );
 
-          console.log(
-            "🔍 [PO PROD DEBUG] Found matching COGS GL account:",
-            matchingGlAccount
-          );
+          // Found matching COGS GL account
 
           if (matchingGlAccount) {
-            console.log(
-              "🔍 [PO PROD DEBUG] Using COGS GL account - No:",
-              matchingGlAccount.no,
-              "Name:",
-              matchingGlAccount.name
-            );
+            // Using COGS GL account
             return {
               adjustment_no: matchingGlAccount.no,
               adjustment_name: matchingGlAccount.name,
@@ -785,19 +709,13 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
         // Enhanced fallback logic for GL account selection (same as modal request)
         const itemCategoryName = selectedItem.itemCategory.name?.toLowerCase();
         const itemSource = selectedItem.source;
-        console.log(
-          "🔍 [PO PROD DEBUG] Trying category name matching with:",
-          itemCategoryName
-        );
-        console.log("🔍 [PO PROD DEBUG] Item source:", itemSource);
+        // Trying category name matching
 
         let suitableAccount = null;
 
         if (itemCategoryName) {
           // First, try to find a GL account that matches the item category
-          console.log(
-            "🔍 [PO PROD DEBUG] Checking each GL account for category match:"
-          );
+          // Checking each GL account for category match
           suitableAccount = glaccounts.data.d.find((acc: any) => {
             const accountName = acc.name.toLowerCase();
             const cleanAccountName = accountName
@@ -807,21 +725,16 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
             const directMatch = accountName.includes(itemCategoryName);
             const reverseMatch = itemCategoryName.includes(cleanAccountName);
 
-            console.log(
-              `🔍 [PO PROD DEBUG] Account: "${acc.name}" (${acc.no}) - accountName: "${accountName}", cleanAccountName: "${cleanAccountName}", directMatch: ${directMatch}, reverseMatch: ${reverseMatch}`
-            );
+            // Account matching logic
 
             return directMatch || reverseMatch;
           });
 
-          console.log(
-            "🔍 [PO PROD DEBUG] Category matching result:",
-            suitableAccount
-          );
+          // Category matching result
 
           // If no match found and this is a Hikmat item, try Hikmat-specific matching
           if (!suitableAccount && itemSource === "Hikmat") {
-            console.log("🔍 [PO PROD DEBUG] Trying Hikmat keyword matching");
+            // Trying Hikmat keyword matching
             // Define Hikmat category keywords
             const hikmatCategoryKeywords = [
               "krah",
@@ -836,10 +749,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
               itemCategoryName.includes(keyword)
             );
 
-            console.log(
-              "🔍 [PO PROD DEBUG] Matching keyword found:",
-              matchingKeyword
-            );
+            // Matching keyword found
 
             if (matchingKeyword) {
               // Try to find GL account with matching keyword
@@ -852,17 +762,12 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
                 );
               });
 
-              console.log(
-                "🔍 [PO PROD DEBUG] Keyword matching result:",
-                suitableAccount
-              );
+              // Keyword matching result
             }
 
             // If still no match, try broader Hikmat-specific accounts
             if (!suitableAccount) {
-              console.log(
-                "🔍 [PO PROD DEBUG] Trying broader Hikmat-specific accounts"
-              );
+              // Trying broader Hikmat-specific accounts
               suitableAccount = glaccounts.data.d.find((acc: any) => {
                 const accountName = acc.name.toLowerCase();
                 return (
@@ -872,45 +777,29 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
                 );
               });
 
-              console.log(
-                "🔍 [PO PROD DEBUG] Broader Hikmat matching result:",
-                suitableAccount
-              );
+              // Broader Hikmat matching result
             }
           }
 
           // General fallback: Use the first available account from the same source
           if (!suitableAccount && itemSource) {
-            console.log("🔍 [PO PROD DEBUG] Trying source-based matching");
+            // Trying source-based matching
             suitableAccount = glaccounts.data.d.find(
               (acc: any) => acc.source === itemSource
             );
 
-            console.log(
-              "🔍 [PO PROD DEBUG] Source matching result:",
-              suitableAccount
-            );
+            // Source matching result
           }
 
           // Last resort: Use the first available account
           if (!suitableAccount && glaccounts.data.d.length > 0) {
-            console.log(
-              "🔍 [PO PROD DEBUG] Using first available account as last resort"
-            );
+            // Using first available account as last resort
             suitableAccount = glaccounts.data.d[0];
-            console.log(
-              "🔍 [PO PROD DEBUG] Last resort account:",
-              suitableAccount
-            );
+            // Last resort account
           }
 
           if (suitableAccount) {
-            console.log(
-              "🔍 [PO PROD DEBUG] Final selected account - No:",
-              suitableAccount.no,
-              "Name:",
-              suitableAccount.name
-            );
+            // Final selected account
             return {
               adjustment_no: suitableAccount.no,
               adjustment_name: suitableAccount.name,
@@ -923,9 +812,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
     }
 
     // Return undefined values if no suitable account found
-    console.log(
-      "🔍 [PO PROD DEBUG] No suitable GL account found, returning undefined values"
-    );
+    // No suitable GL account found, returning undefined values
     return {
       adjustment_no: undefined,
       adjustment_name: undefined,
@@ -933,17 +820,14 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
   };
 
   const handleSelectProduct = async (poId: string, productId: string) => {
-    console.log(
-      "🚀 [PO PROD DEBUG] ========== Starting product selection =========="
-    );
-    console.log("🚀 [PO PROD DEBUG] PO ID:", poId, "Product ID:", productId);
+    // Starting product selection
 
     // Find the selected product from hikmat items
     const selectedProduct = hikmatItems?.data?.find(
       (item: any) => item.id.toString() === productId
     );
 
-    console.log("🚀 [PO PROD DEBUG] Selected product:", selectedProduct);
+    // Selected product found
 
     if (selectedProduct) {
       // Check if product already exists in this PO
@@ -973,40 +857,13 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
           selectedProduct.unit5Name ||
           undefined;
 
-        console.log("🚀 [PO PROD DEBUG] Extracted satuan:", satuan);
-        console.log(
-          "🚀 [PO PROD DEBUG] Available units - unit1Name:",
-          selectedProduct.unit1Name,
-          "unit2Name:",
-          selectedProduct.unit2Name,
-          "unit3Name:",
-          selectedProduct.unit3Name,
-          "unit4Name:",
-          selectedProduct.unit4Name,
-          "unit5Name:",
-          selectedProduct.unit5Name
-        );
+        // Extracted satuan and available units
 
         // Get GL account information using the same logic as modal request
-        console.log("🚀 [PO PROD DEBUG] Starting GL account selection...");
-        console.log("🚀 [PO PROD DEBUG] Product details for GL selection:", {
-          id: selectedProduct.id,
-          name: selectedProduct.name,
-          source: selectedProduct.source,
-          itemCategory: selectedProduct.itemCategory,
-          inventoryGlAccountId:
-            selectedProduct.itemCategory?.parent?.inventoryGlAccountId,
-          cogsGlAccountId:
-            selectedProduct.itemCategory?.parent?.cogsGlAccountId,
-        });
+        // Starting GL account selection
 
         const glAccountInfo = await selectGLAccount(selectedProduct);
-        console.log(
-          "🚀 [PO PROD DEBUG] GL account selection completed - adjustment_no:",
-          glAccountInfo.adjustment_no,
-          "adjustment_name:",
-          glAccountInfo.adjustment_name
-        );
+        // GL account selection completed
 
         // Additional validation
         if (!glAccountInfo.adjustment_no || !glAccountInfo.adjustment_name) {
@@ -1029,17 +886,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
           adjustment_name: glAccountInfo.adjustment_name,
         };
 
-        console.log("🚀 [PO PROD DEBUG] Final PO Product data:", poProductData);
-        console.log(
-          "🚀 [PO PROD DEBUG] Data being sent to API:",
-          JSON.stringify(poProductData, null, 2)
-        );
-        console.log("🚀 [PO PROD DEBUG] Creating PO Product in backend...");
-
         const result = await createPOProductMutation.mutateAsync(poProductData);
-        console.log("🚀 [PO PROD DEBUG] Backend response:", result);
-
-        console.log("🚀 [PO PROD DEBUG] PO Product created successfully!");
 
         // Clear the dropdown selection
         setSelectedProductIds((prev) => ({ ...prev, [poId]: "" }));
@@ -1051,9 +898,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
 
         // Note: No manual state update needed - the query invalidation will trigger a refetch
         // and the useEffect will update the local state with the fresh data from the backend
-        console.log(
-          "🚀 [PO PROD DEBUG] ========== Product selection completed =========="
-        );
+        // Product selection completed
       } catch (error) {
         console.error("🚀 [PO PROD DEBUG] Failed to create PO Product:", error);
         message.error(
@@ -1061,7 +906,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
         );
       }
     } else {
-      console.log("🚀 [PO PROD DEBUG] No product found with ID:", productId);
+      // No product found with ID
     }
   };
 

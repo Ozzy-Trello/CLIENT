@@ -53,11 +53,6 @@ import { useLists } from "@hooks/list";
 import { useCardActivity } from "@hooks/card_activity";
 import LocationDisplay from "./location";
 import ChecklistFields from "./checklist-field";
-
-const AdditionalFields = dynamic(() => import("./additional-field"), {
-  ssr: false,
-  loading: () => <div>Loading additional fields...</div>,
-});
 import CardTimeInList from "./time-in-lists";
 import RequestFields from "./request-field";
 import SplitJobFields from "./split-job-field";

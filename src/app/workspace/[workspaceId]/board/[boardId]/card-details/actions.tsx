@@ -108,16 +108,11 @@ const Actions: React.FC = () => {
   const [openPOModal, setOpenPOModal] = useState(false);
   const [openBuatSOModal, setOpenBuatSOModal] = useState(false);
 
-  // Scan Progress state
   const [isProgressOpen, setIsProgressOpen] = useState(false);
 
   const { boardId } = useParams();
   const searchParams = useSearchParams();
   const { selectedCard } = useCardDetailContext();
-  
-  // Debug selectedCard
-  console.log("Actions - selectedCard:", selectedCard);
-  console.log("Actions - selectedCard.id:", selectedCard?.id);
   
   const theme = useSelector(selectTheme) as any;
   const isDarkMode = useSelector(selectIsDarkMode);

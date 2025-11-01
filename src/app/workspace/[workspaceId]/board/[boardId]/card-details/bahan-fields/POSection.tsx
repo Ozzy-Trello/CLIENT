@@ -61,23 +61,18 @@ const POSection: React.FC<POSectionProps> = ({
       }
 
       // Call backend API to delete the product using poProductId (UUID)
-      console.log("🗑️ [POSection] Deleting POProduct with ID:", productToDelete.poProductId);
       await deletePOProductMutation.mutateAsync(productToDelete.poProductId);
-      console.log("✅ [POSection] POProduct deleted successfully");
       
       // Manually invalidate and refetch specific queries to trigger immediate update
-      console.log("🔄 [POSection] Invalidating and refetching cache for cardId:", po.cardId);
       
       // Use refetchQueries for immediate refetch
       await queryClient.refetchQueries({
         queryKey: ["po-products", "card", po.cardId]
       });
-      console.log("✅ [POSection] Refetched po-products cache");
       
       await queryClient.refetchQueries({
         queryKey: ["pos", po.cardId]
       });
-      console.log("✅ [POSection] Refetched pos cache");
       
       // Update local state after successful deletion
       setPOData((prevData) =>

@@ -51,17 +51,13 @@ export const usePOsByCardId = (cardId: string) => {
   return useQuery({
     queryKey: ["pos", cardId],
     queryFn: async () => {
-      console.log("🔍 [usePOsByCardId] Fetching POs for cardId:", cardId);
       const response = await getPOsByCardId(cardId);
-      console.log("🔍 [usePOsByCardId] Raw API Response:", response);
       
       // Normalize the response to handle both formats
       const normalizedData = normalizeAPIResponse(response);
-      console.log("🔍 [usePOsByCardId] Normalized data:", normalizedData);
       
       // Transform backend PO data to frontend POItem structure
       const transformedPOs = normalizedData.map((po, index) => transformPOToItem(po, index));
-      console.log("🔍 [usePOsByCardId] Transformed POs:", transformedPOs);
       
       return transformedPOs;
     },

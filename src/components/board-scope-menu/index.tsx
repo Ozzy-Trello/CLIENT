@@ -109,11 +109,9 @@ const BoardScopeMenu: React.FC<BoardMenuSidebarProps> = ({
   const [archivedOpen, setArchivedOpen] = useState(false);
   const [searchArchived, setSearchArchived] = useState("");
 
-  console.log(boardId, "<< boardId");
 
   const boardIdString =
     typeof boardId === "string" ? boardId : boardId?.[0] || "";
-  console.log(boardIdString, "<< boardIdString");
   const {
     data: archivedResp,
     isLoading: archivedLoading,

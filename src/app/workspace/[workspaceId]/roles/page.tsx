@@ -236,12 +236,7 @@ const RolesPage = () => {
         boards: boardsResponse.data?.data || [],
       };
 
-      console.log("Create data loaded:", data);
-      console.log("Sample custom field ID:", data.customFields[0]?.id);
-      console.log(
-        "Sample custom field ID type:",
-        typeof data.customFields[0]?.id
-      );
+      // Create data loaded successfully
       return data;
     },
     enabled: isCreating && isModalVisible,
@@ -402,20 +397,14 @@ const RolesPage = () => {
       customFields: {},
       boards: {},
     });
-    console.log("Form values after setFieldsValue:", form.getFieldsValue());
-    console.log(
-      "Form field permissionLevel:",
-      form.getFieldValue("permissionLevel")
-    );
+    // Form values set successfully
     setIsModalVisible(true);
   };
 
   const handleModalOk = async () => {
     try {
       const values = await form.validateFields();
-      console.log("Form values:", values); // Debug log
-      console.log("Permission level from form:", values.permissionLevel); // Debug log
-      console.log("Form validation passed, all fields:", Object.keys(values)); // Debug log
+      // Form validation passed
 
       if (isCreating) {
         // Get selected custom fields and boards from local state
@@ -435,12 +424,8 @@ const RolesPage = () => {
           }
         });
 
-        console.log(
-          "Creating role with permission level:",
-          values.permissionLevel
-        ); // Debug log
-        console.log("Selected custom fields:", selectedCustomFields); // Debug log
-        console.log("Selected boards:", selectedBoards); // Debug log
+        // Creating role with specified permission level
+        // Selected custom fields and boards processed
 
         // Create new role
         const mutationData = {
@@ -450,7 +435,7 @@ const RolesPage = () => {
           customFields: selectedCustomFields,
           boards: selectedBoards,
         };
-        console.log("Mutation data being sent:", mutationData);
+        // Mutation data prepared for sending
 
         // Show loading message
         message.loading({
@@ -707,11 +692,7 @@ const RolesPage = () => {
     );
   }
 
-  // Debug logging
-  console.log("Create data:", createData);
-  console.log("Is loading create data:", isLoadingCreateData);
-  console.log("Is creating:", isCreating);
-  console.log("Is modal visible:", isModalVisible);
+  // Create data and loading states
 
   // Check if user has access to this page
   if (!canManageRoles()) {
@@ -875,14 +856,6 @@ const RolesPage = () => {
                           <Checkbox
                             checked={customFieldStates[field.id]?.view || false}
                             onChange={(e) => {
-                              console.log(
-                                "Checkbox clicked:",
-                                field.id,
-                                "view",
-                                e.target.checked
-                              );
-                              console.log("Original field ID:", field.id);
-                              console.log("Field ID type:", typeof field.id);
                               const newStates = {
                                 ...customFieldStates,
                                 [field.id]: {
@@ -895,7 +868,6 @@ const RolesPage = () => {
                               };
                               setCustomFieldStates(newStates);
                               form.setFieldsValue({ customFields: newStates });
-                              console.log("Updated custom fields:", newStates);
                             }}
                           >
                             <Eye size={12} className="inline mr-1" />
@@ -917,7 +889,6 @@ const RolesPage = () => {
                               };
                               setCustomFieldStates(newStates);
                               form.setFieldsValue({ customFields: newStates });
-                              console.log("Updated custom fields:", newStates);
                             }}
                           >
                             <Edit size={12} className="inline mr-1" />

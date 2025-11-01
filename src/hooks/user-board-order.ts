@@ -307,10 +307,6 @@ export function useUserBoardOrder(workspaceId: string) {
   const toggleFavoriteMutation = useMutation({
     mutationFn: (boardId: string) => {
       if (!userId) throw new Error("User not authenticated");
-      console.log(
-        "[FAVORITE TOGGLE LOG] Toggling favorite for boardId:",
-        boardId
-      );
       return toggleBoardFavorite(userId, boardId);
     },
     onMutate: async (boardId: string) => {
@@ -481,7 +477,7 @@ export function useUserBoardOrder(workspaceId: string) {
           console.error('Failed to update favorite board order:', error);
         },
         onSuccess: () => {
-          console.log('Successfully updated favorite board order');
+          // Successfully updated favorite board order
         }
       });
     } else
@@ -497,7 +493,7 @@ export function useUserBoardOrder(workspaceId: string) {
           console.error('Failed to update board order:', error);
         },
         onSuccess: () => {
-          console.log('Successfully updated board order');
+          // Successfully updated board order
         }
       });
     }

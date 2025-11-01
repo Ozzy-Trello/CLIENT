@@ -279,7 +279,7 @@ export const VisibilitySelection: React.FC = () => {
   ]);
 
   const handleChange = (value: string) => {
-    console.log(`selected ${value}`);
+    // Selected value changed
   };
 
   return (
@@ -421,12 +421,7 @@ export const ListSelection = forwardRef<SelectionRef, ListSelectionProps>(
 
     useEffect(() => {
       const fetchData = async () => {
-        console.log(
-          "[LIST SELECTION] Fetching lists for boardId:",
-          selectedBoardId,
-          "type:",
-          typeof selectedBoardId
-        );
+        // Fetching lists for boardId
         try {
           const data = await lists(selectedBoardId);
           if (data?.data) {
@@ -783,6 +778,7 @@ export const LabelSelection = forwardRef<SelectionRef, SelectionProps>(
     useEffect(() => {
       if (selectedValue && options.length > 0) {
         const foundOption = options.find((opt) => opt.value === selectedValue);
+        // Found option in options array
         if (foundOption) {
           setSelectedObject(foundOption);
         }
@@ -897,7 +893,6 @@ export const CustomFieldSelection = forwardRef<
     useEffect(() => {
       if (selectedValue && options.length > 0) {
         const foundOption = options.find((opt) => opt.value === selectedValue);
-        console.log("foundOption", options);
         if (foundOption) {
           setSelectedObject(foundOption);
         }
@@ -1132,7 +1127,7 @@ export const FieldValueInput = forwardRef<SelectionRef, FieldValueInputProps>(
       roleIds: roleIds, // Pass role IDs for filtering
     });
 
-    console.log(field, "field");
+    // Field information for debugging
 
     // Only fetch users when needed
     useEffect(() => {

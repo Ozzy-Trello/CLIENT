@@ -35,13 +35,10 @@ export const usePOsForSizeAssignment = (cardId: string, enabled: boolean = true)
   return useQuery({
     queryKey: ["pos-size-assignment", cardId],
     queryFn: async () => {
-      console.log("🔍 [usePOsForSizeAssignment] Fetching POs for cardId:", cardId);
       const response = await getPOsByCardId(cardId);
-      console.log("🔍 [usePOsForSizeAssignment] Raw API Response:", response);
       
       // Normalize the response to handle both formats
       const normalizedData = normalizeAPIResponse(response);
-      console.log("🔍 [usePOsForSizeAssignment] Normalized data:", normalizedData);
       
       return normalizedData;
     },

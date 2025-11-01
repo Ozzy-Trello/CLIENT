@@ -109,7 +109,8 @@ const ModalBuatSO: React.FC<ModalBuatSOProps> = ({ open, onClose, cardId }) => {
   const createSalesOrderMutation = useMutation({
     mutationFn: createOzzySalesOrder,
     onSuccess: (data) => {
-      message.success(`Sales Order berhasil dibuat dengan nomor: ${data.data.so_number}`);
+      console.log(data,'<< ini isi data')
+      message.success(`Sales Order berhasil dibuat dengan nomor: ${data.data.soNumber}`);
       // Reset form
       setSelectedCustomer("");
       setTanggal(dayjs());
