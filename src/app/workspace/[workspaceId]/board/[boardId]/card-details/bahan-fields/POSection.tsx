@@ -123,6 +123,14 @@ const POSection: React.FC<POSectionProps> = ({
             {po.name}
           </h3>
 
+            <button
+            onClick={() => onScanProduct(po.id)}
+            className="px-3 py-1.5 text-xs font-medium text-green-600 bg-green-50 border border-green-200 rounded-md hover:bg-green-100 hover:border-green-300 transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-1"
+          >
+            Scan Product
+          </button>
+
+
           {/* Summary Button */}
           {/* <button
             onClick={() => onOpenSummary(po.id)}
@@ -134,13 +142,7 @@ const POSection: React.FC<POSectionProps> = ({
 
         {/* Product Selection */}
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => onScanProduct(po.id)}
-            className="px-3 py-1.5 text-xs font-medium text-green-600 bg-green-50 border border-green-200 rounded-md hover:bg-green-100 hover:border-green-300 transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-1"
-          >
-            Scan Product
-          </button>
-
+        
           {/* Product Selection AutoComplete */}
           <AutoComplete
             value={selectedProductId}
@@ -161,7 +163,7 @@ const POSection: React.FC<POSectionProps> = ({
               option!.label.toLowerCase().indexOf(inputValue.toLowerCase()) !== -1
             }
             style={{
-              minWidth: "200px",
+              minWidth: "300px",
             }}
             disabled={isLoadingProducts}
             showSearch

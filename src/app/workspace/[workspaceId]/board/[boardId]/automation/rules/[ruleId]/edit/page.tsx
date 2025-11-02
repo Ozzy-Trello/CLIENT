@@ -36,6 +36,7 @@ import {
   getRuleById,
   updateRule,
   updateTrigger,
+  updateTriggerOnly,
   updateAction,
   addAction,
   deleteAction,
@@ -751,22 +752,17 @@ export default function EditRulePage() {
         newActions.push(formattedAction);
       });
 
-      // Create final rule object with the complete updated data
-      const rule: AutomationRuleApiData = {
-        workspaceId: Array.isArray(workspaceId)
-          ? workspaceId[0]
-          : (workspaceId as string),
-        groupType: triggerType,
-        type: triggerItem.type || "",
+      // Create trigger-only update data (no actions)
+      const triggerData = {
         condition: triggerCondition,
-        filter: newFilters, // This will contain only the NEW filters from the updated trigger
-        action: newActions,
+        type: triggerItem.type || "",
+        group_type: triggerType,
       };
 
-      // Update the complete rule instead of just the trigger
-      await updateRule(workspaceId as string, ruleId as string, rule);
+      // Update only the trigger, preserving existing actions
+      await updateTriggerOnly(workspaceId as string, ruleId as string, triggerData);
 
-      message.success("Trigger updated successfully");
+      message.success("Trigger updated successfully (actions preserved)");
       // Refresh rule data to show updated trigger
       await loadRule();
     } catch (e: any) {

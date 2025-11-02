@@ -62,6 +62,21 @@ export const updateRule = async (
   return data;
 };
 
+export const updateTriggerOnly = async (
+  workspaceId: string,
+  ruleId: string,
+  triggerData: {
+    condition: any;
+    type?: string;
+    group_type?: string;
+  }
+): Promise<ApiResponse<any>> => {
+  const { data } = await api.put(`/automation-rule/${ruleId}/trigger-only`, triggerData, {
+    headers: { "workspace-id": workspaceId },
+  });
+  return data;
+};
+
 export const deleteRule = async (
   workspaceId: string,
   ruleId: string

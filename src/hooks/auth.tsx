@@ -7,11 +7,13 @@ export function useLogin() {
   const queryClient = useQueryClient();
  
   return useMutation({
-    mutationFn: login,
-    onSuccess: (data) => {
+    mutationFn: ({ credentials, rememberMe }: { credentials: any; rememberMe?: boolean }) => 
+      login({ ...credentials, remember_me: rememberMe }),
+    onSuccess: (data, variables) => {
       // Store auth token if returned
       if (data?.data?.accessToken && data?.data?.refreshToken) {
-        TokenStorage.setTokens(data.data.accessToken, data.data.refreshToken)
+        const rememberMe = variables.rememberMe || false;
+        TokenStorage.setTokens(data.data.accessToken, data.data.refreshToken, rememberMe);
       }
       
       // Invalidate any queries that depend on authentication

@@ -20,6 +20,7 @@ interface LoginFormValues {
   identity: string;
   password: string;
   role: string;
+  remember?: boolean;
 }
 
 export default function LoginPage() {
@@ -30,9 +31,12 @@ export default function LoginPage() {
   const login = useLogin();
   const { refetch } = useCurrentAccount();
 
-  const validateCredentials = async (identity: string, password: string) => {
+  const validateCredentials = async (identity: string, password: string, rememberMe: boolean = false) => {
     try {
-      const result = await login.mutateAsync({ identity, password });
+      const result = await login.mutateAsync({ 
+        credentials: { identity, password }, 
+        rememberMe 
+      });
       if (result.data?.accessToken) {
         message.success(result.message || "Login successful!");
         return true;
@@ -68,7 +72,8 @@ export default function LoginPage() {
     try {
       const isValid = await validateCredentials(
         values.identity,
-        values.password
+        values.password,
+        values.remember || false
       );
 
       console.log("Login validation result:", isValid);

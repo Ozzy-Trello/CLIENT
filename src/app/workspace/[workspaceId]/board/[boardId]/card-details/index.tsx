@@ -440,35 +440,6 @@ const CardDetails: React.FC = (props) => {
                     </div>
                   )}
 
-                  {/* Produk */}
-                  {selectedCard && selectedCard.productInfo && (
-                    <div className="space-y-2 text-xs">
-                      <span className="text-gray-300 font-semibold text-xs block">
-                        Produk
-                      </span>
-                      <Button
-                        size="small"
-                        className="rounded-md hover:bg-gray-50"
-                      >
-                        {selectedCard.productInfo.name}
-                      </Button>
-                    </div>
-                  )}
-
-                  {/* Warna */}
-                  {selectedCard && selectedCard.warnaInfo && (
-                    <div className="space-y-2 text-xs">
-                      <span className="text-gray-300 font-semibold text-xs block">
-                        Warna
-                      </span>
-                      <Button
-                        size="small"
-                        className="rounded-md hover:bg-gray-50"
-                      >
-                        {selectedCard.warnaInfo.name}
-                      </Button>
-                    </div>
-                  )}
 
                   {selectedCard && !isLoadingCardDetails && (
                     <div className="space-y-2 text-xs">
@@ -514,6 +485,13 @@ const CardDetails: React.FC = (props) => {
               </div>
 
               {selectedCard && (
+                <Description
+                  card={selectedCard}
+                  setSelectedCard={setSelectedCard}
+                />
+              )}
+
+              {selectedCard && (
                 <CollapsibleSection
                   title="Produk"
                   defaultExpanded={true}
@@ -534,12 +512,7 @@ const CardDetails: React.FC = (props) => {
                 </CollapsibleSection>
               )}
 
-              {selectedCard && (
-                <Description
-                  card={selectedCard}
-                  setSelectedCard={setSelectedCard}
-                />
-              )}
+              
 
               {selectedCard &&
                 selectedCard?.location &&

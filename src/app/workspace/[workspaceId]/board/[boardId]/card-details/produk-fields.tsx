@@ -367,14 +367,13 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard }) => {
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  padding: '4px 8px',
+                  paddingInline: '1rem',
                   backgroundColor: warna.hexCode || 'transparent',
                   color: warna.hexCode ? getContrastColor(warna.hexCode) : 'inherit',
                   borderRadius: '4px',
-                  minHeight: '24px'
                 }}
               >
-                {warna.name} {warna.hexCode && `(${warna.hexCode})`}
+                {warna.name} {warna.hexCode && `(${warna.code})`}
               </div>
             </Option>
           ))}

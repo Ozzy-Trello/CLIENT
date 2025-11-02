@@ -175,15 +175,76 @@ const EnterToSaveNumberInput: React.FC<{
   // Only show Split Job button for "Jml Produksi" field
   const showSplitJob = fieldName === "Jml Produksi";
 
+  // Handle key down to prevent invalid characters
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Allow: backspace, delete, tab, escape, enter, home, end, left, right, up, down
+    const allowedKeys = [
+      'Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'Home', 'End',
+      'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'
+    ];
+    
+    // Allow: Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X, Ctrl+Z
+    if (e.ctrlKey && ['a', 'c', 'v', 'x', 'z'].includes(e.key.toLowerCase())) {
+      return;
+    }
+    
+    // Allow allowed keys
+    if (allowedKeys.includes(e.key)) {
+      return;
+    }
+    
+    // Allow numbers (0-9)
+    if (e.key >= '0' && e.key <= '9') {
+      return;
+    }
+    
+    // Allow decimal point, but only one
+    if (e.key === '.' && !value.includes('.')) {
+      return;
+    }
+    
+    // Allow minus sign only at the beginning
+    if (e.key === '-' && value.length === 0) {
+      return;
+    }
+    
+    // Prevent all other keys (including 'e', 'E', '+')
+    e.preventDefault();
+  };
+
+  // Handle paste to filter out invalid characters
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const pastedText = e.clipboardData.getData('text');
+    
+    // Remove all non-numeric characters except decimal point and minus sign
+    const cleanedText = pastedText.replace(/[^0-9.-]/g, '');
+    
+    // Ensure only one decimal point
+    const parts = cleanedText.split('.');
+    const finalText = parts.length > 2 ? parts[0] + '.' + parts.slice(1).join('') : cleanedText;
+    
+    // Ensure minus sign is only at the beginning
+    const minusCount = (finalText.match(/-/g) || []).length;
+    if (minusCount > 1 || (finalText.includes('-') && !finalText.startsWith('-'))) {
+      const withoutMinus = finalText.replace(/-/g, '');
+      onChange(finalText.startsWith('-') ? '-' + withoutMinus : withoutMinus);
+    } else {
+      onChange(finalText);
+    }
+  };
+
   return (
     <div className="relative">
       <Input
-        type="number"
+        type="text" // Changed from "number" to "text" for better control
         placeholder={placeholder}
         className={`${className} ${hasChanges ? "border-blue-400" : ""}`}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onKeyPress={onKeyPress}
+        onKeyDown={handleKeyDown}
+        onPaste={handlePaste}
         onBlur={onBlur}
         disabled={disabled}
         suffix={
