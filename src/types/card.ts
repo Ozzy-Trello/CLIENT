@@ -164,7 +164,7 @@ export interface CardCustomField {
   isShowAtFront?: boolean;
   valueString?: string;
   valueNumber?: number;
-  valueOption?: string;
+  valueOption?: string | null;
   valueCheckbox?: boolean;
   valueDate?: Date;
   valueUserId?: string;

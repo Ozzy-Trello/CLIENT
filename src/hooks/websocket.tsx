@@ -684,6 +684,34 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             break;
           }
 
+          // Backward compatibility: backend emits 'dashcard:updated'
+          // Ensure we invalidate the same queries as 'dashboard:updated'
+          case "dashcard:updated": {
+            const { cardId, dashcardConfig, workspaceId } = message.data;
+
+            // Invalidate dashcard-related queries
+            if (cardId) {
+              queryClient.invalidateQueries({
+                queryKey: ["dashcardCount", cardId],
+              });
+              queryClient.invalidateQueries({
+                queryKey: ["list-dashcard", cardId, workspaceId],
+              });
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.cards.detail(cardId),
+              });
+            }
+
+            // Also invalidate general dashcard queries
+            queryClient.invalidateQueries({
+              queryKey: ["dashcardCount"],
+              exact: false,
+            });
+
+            refreshDashcard = true;
+            break;
+          }
+
           case "board_favorite:toggled": {
             const { userId, boardId, isFavorite } = message.data;
             console.log(

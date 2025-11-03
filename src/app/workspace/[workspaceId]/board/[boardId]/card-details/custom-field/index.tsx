@@ -287,6 +287,7 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
     setCheckboxValue,
     setDateValue,
     setOptionValue,
+    clearOptionValue,
     setUserValue,
     isUpdating,
     isLoading,
@@ -551,12 +552,18 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
                 }`}
                 placeholder={`Select ${field.name}...`}
                 value={(field.valueOption as string) || undefined}
-                onChange={(value) =>
-                  canEdit && value
-                    ? handleOptionValueChange(field.id!, value)
-                    : undefined
-                }
-                options={field?.options}
+                onChange={(value) => {
+                  if (!canEdit) return;
+                  if (value === "__CLEAR__") {
+                    clearOptionValue(field.id!);
+                  } else if (value) {
+                    handleOptionValueChange(field.id!, value);
+                  }
+                }}
+                options={[
+                  { label: "-", value: "__CLEAR__" },
+                  ...(field?.options || []),
+                ]}
                 disabled={!canEdit}
               />
             </div>

@@ -135,6 +135,16 @@ export const useCardCustomField = (cardId: string, workspaceId: string) => {
     });
   };
 
+  // Helper function to clear option value (set to null)
+  const clearOptionValue = (customFieldId: string) => {
+    setValueMutation.mutate({
+      customFieldId,
+      updatedData: {
+        valueOption: null,
+      },
+    });
+  };
+
   // Helper function to set checkbox value
   const setCheckboxValue = (customFieldId: string, value: boolean) => {
     setValueMutation.mutate({
@@ -180,7 +190,12 @@ export const useCardCustomField = (cardId: string, workspaceId: string) => {
         setNumberValue(customFieldId, Number(value));
         break;
       case EnumCustomFieldType.Dropdown:
-        setOptionValue(customFieldId, value);
+        // Support clearing dropdown value via special sentinel or null
+        if (value === "__CLEAR__" || value === null) {
+          clearOptionValue(customFieldId);
+        } else {
+          setOptionValue(customFieldId, value);
+        }
         break;
       case EnumCustomFieldType.Checkbox:
         setCheckboxValue(customFieldId, Boolean(value));
@@ -316,6 +331,7 @@ export const useCardCustomField = (cardId: string, workspaceId: string) => {
     setStringValue,
     setNumberValue,
     setOptionValue,
+    clearOptionValue,
     setCheckboxValue,
     setDateValue,
     setUserValue,
