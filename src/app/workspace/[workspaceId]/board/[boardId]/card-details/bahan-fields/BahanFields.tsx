@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from "react";
-import { message } from "antd";
+import React, { useState, useEffect, useRef } from "react";
+import { message, Modal, Input } from "antd";
 import { useSelector } from "react-redux";
 import { selectTheme } from "@store/app_slice";
 import { useQuery } from "@tanstack/react-query";
 import { getHikmatItemList, getAllAdjustmentItems } from "@api/accurate";
+import { getOzzyBarcodeProduct } from "@api/ozzy-warehouse";
 import { useCategoriesWithSubcategories } from "@hooks/category";
 import {
   usePOProductsByCardId,
@@ -640,8 +641,185 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
   };
 
   const handleScanProduct = (poId: string) => {
-    // Product scanning functionality to be implemented
+    // Open scan modal and prepare to receive scanner input (external barcode/QR scanners act like keyboard)
+    setScanTargetPOId(poId);
+    setScannedValue("");
+    scannerBufferRef.current = "";
+    setScanModalOpen(true);
   };
+
+  // --- Scan Produk modal state and handlers ---
+  const [scanModalOpen, setScanModalOpen] = useState<boolean>(false);
+  const [scanTargetPOId, setScanTargetPOId] = useState<string | null>(null);
+  const [scannedValue, setScannedValue] = useState<string>("");
+  const scannerBufferRef = useRef<string>("");
+  const scannerTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Note: We no longer suppress duplicate scanned values via a ref
+  // because the new requirement is to sum quantity when scanning the same ID multiple times.
+
+  // Listen for external scanner input when modal is open
+  useEffect(() => {
+    if (!scanModalOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Ignore modifier keys and navigation keys
+      if (
+        [
+          "Shift",
+          "Control",
+          "Alt",
+          "Meta",
+          "CapsLock",
+          "Tab",
+          "Escape",
+          "ArrowUp",
+          "ArrowDown",
+          "ArrowLeft",
+          "ArrowRight",
+        ].includes(event.key)
+      ) {
+        return;
+      }
+
+      if (event.key === "Enter") {
+        const value = scannerBufferRef.current.trim();
+        if (value.length > 0) {
+          setScannedValue(value);
+          message.success(`Scanned: ${value}`);
+          // Close modal after receiving value
+          setScanModalOpen(false);
+        }
+        // Reset buffer
+        scannerBufferRef.current = "";
+        if (scannerTimeoutRef.current) {
+          clearTimeout(scannerTimeoutRef.current);
+          scannerTimeoutRef.current = null;
+        }
+        return;
+      }
+
+      // Accumulate characters quickly sent by scanners
+      if (event.key.length === 1) {
+        scannerBufferRef.current += event.key;
+        // Clear buffer shortly after input bursts (typical scanner behavior)
+        if (scannerTimeoutRef.current) {
+          clearTimeout(scannerTimeoutRef.current);
+        }
+        scannerTimeoutRef.current = setTimeout(() => {
+          scannerBufferRef.current = "";
+        }, 150);
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      if (scannerTimeoutRef.current) {
+        clearTimeout(scannerTimeoutRef.current);
+        scannerTimeoutRef.current = null;
+      }
+    };
+  }, [scanModalOpen]);
+
+  // After scan completes, fetch product by barcode and prefill dropdown with the matched item (safe: no DB writes)
+  useEffect(() => {
+    // Helper to robustly parse numbers that may come with locale separators
+    const parseLocaleNumber = (input: any): number => {
+      if (input === null || input === undefined) return 0;
+      if (typeof input === "number") return Number.isFinite(input) ? input : 0;
+      const str = String(input).trim();
+      if (!str) return 0;
+      // If both separators exist, assume '.' is thousands and ',' is decimal (id-ID style)
+      const normalized = str.includes(".") && str.includes(",")
+        ? str.replace(/\./g, "").replace(/,/g, ".")
+        : str.replace(/,/g, ".");
+      const n = Number(normalized);
+      return Number.isFinite(n) ? n : 0;
+    };
+
+    const prefillProductFromScan = async () => {
+      // Only act if we have a scanned value and a target PO
+      if (!scannedValue || !scanTargetPOId) return;
+
+      // Process the scanned value every time (even if same as previous) to support quantity summing
+
+      try {
+        // Call backend to resolve barcode -> product
+        const result = await getOzzyBarcodeProduct(scannedValue);
+        const accurateId = result?.product?.accurateId;
+        const scannedQtyRaw = result?.quantity ?? "0";
+        // Quantity comes as string from API; parse to number safely (supports id-ID separators)
+        const scannedQty = parseLocaleNumber(scannedQtyRaw);
+
+        if (!accurateId) {
+          message.error("No product found for the scanned barcode.");
+          return;
+        }
+
+        // Ensure hikmat items list is available
+        const items = hikmatItems?.data || [];
+        if (!items || items.length === 0) {
+          message.warning(
+            "Items are still loading or not available. Please try again shortly."
+          );
+          return;
+        }
+
+        // Find the item in Hikmat list that matches the accurateId from scan
+        const matchedItem = items.find((item: any) => item.id === accurateId);
+
+        if (!matchedItem) {
+          message.error(
+            `Scanned product (accurateId=${accurateId}) not found in Hikmat item list.`
+          );
+          return;
+        }
+
+        // Check if product already exists in this PO
+        const currentPOIndex = poData.findIndex((po) => po.id === scanTargetPOId);
+        const currentPO = currentPOIndex !== -1 ? poData[currentPOIndex] : null;
+        const existingProductIndex = currentPO
+          ? currentPO.products.findIndex((p) => p.id === matchedItem.id.toString())
+          : -1;
+
+        if (currentPO && existingProductIndex !== -1) {
+          // Product already exists in this PO: sum the terloading with scanned quantity
+          const existingProduct = currentPO.products[existingProductIndex];
+          const currentTerloadingRaw = existingProduct?.bahanTabs?.[0]?.terloading ?? 0;
+          const currentTerloading = parseLocaleNumber(currentTerloadingRaw);
+          const newTerloading = currentTerloading + scannedQty;
+
+          // Update local state and persist to backend
+          handleTerloadingChange(currentPOIndex, existingProductIndex, 0, newTerloading);
+
+          message.success(
+            `Updated Terloading for ${matchedItem.name}: +${scannedQty} (total ${newTerloading})`
+          );
+        } else {
+          // Product not yet in this PO: prefill dropdown and add it, then set initial Terloading from scanned quantity
+          setSelectedProductIds((prev) => ({
+            ...prev,
+            [scanTargetPOId]: accurateId.toString(),
+          }));
+
+          message.success(
+            `Detected product: ${matchedItem.name}. Adding to PO with Terloading ${scannedQty}...`
+          );
+          await handleSelectProduct(
+            scanTargetPOId,
+            matchedItem.id.toString(),
+            scannedQty
+          );
+        }
+      } catch (error) {
+        console.error("Failed to fetch product by scanned barcode:", error);
+        message.error("Failed to resolve the scanned barcode. Please try again.");
+      }
+    };
+
+    prefillProductFromScan();
+    // We intentionally include hikmatItems as a dependency to ensure matching when the list is ready
+  }, [scannedValue, scanTargetPOId, hikmatItems]);
 
   // Helper function to select appropriate GL account following modal request logic
   const selectGLAccount = async (selectedItem: any) => {
@@ -819,7 +997,11 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
     };
   };
 
-  const handleSelectProduct = async (poId: string, productId: string) => {
+  const handleSelectProduct = async (
+    poId: string,
+    productId: string,
+    initialTerloading?: number
+  ) => {
     // Starting product selection
 
     // Find the selected product from hikmat items
@@ -895,6 +1077,18 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
         message.success(
           `Product "${selectedProduct.name}" added successfully!`
         );
+
+        // If this product was added as a result of a scan, set the initial Terloading
+        // Access created POProduct ID from ApiResponse shape
+        const createdPOProductId = (result as any)?.data?.id || (result as any)?.id;
+        if (typeof initialTerloading === "number" && createdPOProductId) {
+          try {
+            // Persist Terloading to backend using the newly created POProduct ID
+            debouncedPOProductUpdate(createdPOProductId, { terloading: initialTerloading });
+          } catch (e) {
+            console.error("❌ Failed to set initial Terloading:", e);
+          }
+        }
 
         // Note: No manual state update needed - the query invalidation will trigger a refetch
         // and the useEffect will update the local state with the fresh data from the backend
@@ -1011,6 +1205,28 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
           />
         ))}
       </div>
+
+      {/* Scan Produk Modal */}
+      <Modal
+        title="Scan Produk"
+        open={scanModalOpen}
+        onCancel={() => setScanModalOpen(false)}
+        footer={null}
+      >
+        <div className="space-y-3">
+          <div className="text-sm text-gray-600">Ready for scan</div>
+          <Input
+            readOnly
+            value={scannedValue}
+            placeholder="Scan with your external scanner. Press Enter to submit."
+          />
+          {scanTargetPOId && (
+            <div className="text-xs text-gray-500">
+              Target PO: {scanTargetPOId}
+            </div>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 };

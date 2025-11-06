@@ -32,6 +32,13 @@ const ContentAttach: React.FC<ContentAttachProps> = ({
   const [searchResults, setSearchResults] = useState<Card[]>([]);
   const [uploadModalVisible, setUploadModalVisible] = useState(false);
 
+  // Helper to display a friendly board name with safe fallbacks
+  const getBoardLabel = (item: Card) => {
+    const boardName = (item as any).boardName ?? (item as any).board_name;
+    const boardId = (item as any).boardId ?? (item as any).board_id;
+    return boardName || boardId || "";
+  };
+
   // Handle search functionality
   const handleSearch = async (value: string) => {
     setSearchQuery(value);
@@ -130,14 +137,23 @@ const ContentAttach: React.FC<ContentAttachProps> = ({
                         </div>
                       )
                     }
-                    title={item.name}
+                    title={
+                      <div className="flex flex-col">
+                        <span>{item.name}</span>
+                        {getBoardLabel(item) && (
+                          <span className="text-[10px] text-gray-500">{getBoardLabel(item)}</span>
+                        )}
+                      </div>
+                    }
                     description={
-                      <div
-                        className="prose prose-sm max-w-none text-[10px]"
-                        dangerouslySetInnerHTML={{
-                          __html: item.description || "",
-                        }}
-                      />
+                      <div>
+                        <div
+                          className="prose prose-sm max-w-none text-[10px]"
+                          dangerouslySetInnerHTML={{
+                            __html: item.description || "",
+                          }}
+                        />
+                      </div>
                     }
                   />
                 </List.Item>

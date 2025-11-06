@@ -44,6 +44,7 @@ interface Role {
   name: string;
   description: string;
   default: boolean;
+  designAccess: boolean;
   permission?: PermissionInfo;
 }
 
@@ -337,6 +338,7 @@ const RolesPage = () => {
     form.setFieldsValue({
       name: role.name,
       description: role.description,
+      designAccess: role.designAccess || false,
       permissionLevel: role.permission?.level || "MEMBER",
     });
     setIsModalVisible(true);
@@ -431,6 +433,7 @@ const RolesPage = () => {
         const mutationData = {
           name: values.name,
           description: values.description,
+          design_access: values.designAccess || false,
           permissionLevel: values.permissionLevel,
           customFields: selectedCustomFields,
           boards: selectedBoards,
@@ -649,15 +652,17 @@ const RolesPage = () => {
     const formValues = await form.validateFields();
 
     try {
-      // First, update role basic information (name and description)
+      // First, update role basic information (name, description, and design access)
       if (
         editingRole &&
         (formValues.name !== editingRole.name ||
-          formValues.description !== editingRole.description)
+          formValues.description !== editingRole.description ||
+          formValues.designAccess !== editingRole.designAccess)
       ) {
         await api.put(`/roles/${editingRole.id}`, {
           name: formValues.name,
           description: formValues.description,
+          design_access: formValues.designAccess || false,
         });
       }
 
@@ -822,6 +827,13 @@ const RolesPage = () => {
                     placeholder="Enter role description"
                     rows={3}
                   />
+                </Form.Item>
+                <Form.Item
+                  name="designAccess"
+                  valuePropName="checked"
+                  label="Design Access"
+                >
+                  <Checkbox />
                 </Form.Item>
               </Form>
             </Card>
@@ -1019,6 +1031,13 @@ const RolesPage = () => {
                     placeholder="Enter role description"
                     rows={3}
                   />
+                </Form.Item>
+                <Form.Item
+                  name="designAccess"
+                  valuePropName="checked"
+                  label="Design Access"
+                >
+                  <Checkbox />
                 </Form.Item>
               </Form>
             </Card>

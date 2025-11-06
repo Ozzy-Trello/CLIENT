@@ -32,7 +32,6 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
     }
 
     // Creating new order for product
- 
 
     // Validate required data
     if (!product.poProductId) {
@@ -293,7 +292,7 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
               : "bg-blue-600 border-blue-600 hover:bg-blue-700 hover:border-blue-700 focus:ring-blue-500 text-white"
           }`}
         >
-          {product.orderCreated ? "Order Created ✓" : "Create New Order"}
+          {product.orderCreated ? "Terloading ✓" : "Loading"}
         </button>
       </div>
     </div>

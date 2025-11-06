@@ -103,6 +103,25 @@
   align-items: center !important;
 }
 
+/* Keep hovered/selected menu items text black for better contrast */
+.ant-menu-item:hover,
+.ant-menu-item-active,
+.ant-menu-item-selected {
+  color: #000 !important;
+}
+
+.ant-menu-item:hover .ant-menu-title-content,
+.ant-menu-item-active .ant-menu-title-content,
+.ant-menu-item-selected .ant-menu-title-content,
+.ant-menu-item:hover a,
+.ant-menu-item-active a,
+.ant-menu-item-selected a,
+.ant-menu-item:hover .ant-menu-item-icon,
+.ant-menu-item-active .ant-menu-item-icon,
+.ant-menu-item-selected .ant-menu-item-icon {
+  color: #000 !important;
+}
+
 /* List Menu */
 
 li:has(.menu-group-title):hover {
@@ -139,6 +158,12 @@ li:has(.menu-group-title):hover {
 .sidebar-board-item.selected {
   background-color: rgba(59, 130, 246, 0.1);
   border-left: 3px solid #3b82f6;
+}
+
+/* Keep board item text black on hover/selected for better contrast */
+.sidebar-board-item:hover .board-title,
+.sidebar-board-item.selected .board-title {
+  color: #000 !important;
 }
 
 .sidebar-board-item.dragging {

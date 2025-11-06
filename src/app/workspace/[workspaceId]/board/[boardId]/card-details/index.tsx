@@ -70,6 +70,7 @@ import POSizeAssignment from "./po-size-assignment";
 import BahanFields from "./bahan-fields";
 import ProdukFields from "./produk-fields";
 import CollapsibleSection from "@components/collapsible-section";
+import { useBoardDetails } from "@hooks/board";
 
 const CardDetails: React.FC = (props) => {
   const params = useParams();
@@ -79,6 +80,30 @@ const CardDetails: React.FC = (props) => {
   const boardId = Array.isArray(params.boardId)
     ? params.boardId[0]
     : params.boardId;
+  // Boards where the Produk section should be visible (name-based, case-insensitive)
+  const ALLOWED_BOARD_NAMES = [
+    "Request Desain | Outlet",
+    "List PO | Outlet",
+    "Dateline",
+    "Delivery",
+    "List Purchase | Produksi",
+  ];
+  // Optional: if you know the exact board IDs, add them here for stronger matching
+  const ALLOWED_BOARD_IDS = new Set<string>([
+    // e.g. "uuid-1234-...",
+  ]);
+  // Try to resolve current board name via cache first, then fall back to API
+  const cachedBoardName = LookupCache.label("board", boardId as string);
+  const { board: currentBoard } = useBoardDetails(boardId as string, workspaceId as string, {
+    enabled: !!boardId,
+    refetchOnWindowFocus: false,
+  });
+  const effectiveBoardName = (cachedBoardName || currentBoard?.name || "").trim();
+  const allowedNamesSet = new Set(ALLOWED_BOARD_NAMES.map((n) => n.toLowerCase().trim()));
+  const shouldShowProduk = (
+    (effectiveBoardName && allowedNamesSet.has(effectiveBoardName.toLowerCase())) ||
+    (typeof boardId === "string" && ALLOWED_BOARD_IDS.has(boardId))
+  );
   const {
     selectedCard,
     setSelectedCard,
@@ -440,8 +465,7 @@ const CardDetails: React.FC = (props) => {
                     </div>
                   )}
 
-
-                  {selectedCard && !isLoadingCardDetails && (
+                  {selectedCard && (
                     <div className="space-y-2 text-xs">
                       <span className="text-gray-300 font-semibold text-xs block">
                         Material Requirements
@@ -491,7 +515,7 @@ const CardDetails: React.FC = (props) => {
                 />
               )}
 
-              {selectedCard && (
+              {selectedCard && shouldShowProduk && (
                 <CollapsibleSection
                   title="Produk"
                   defaultExpanded={true}
@@ -511,8 +535,6 @@ const CardDetails: React.FC = (props) => {
                   <ProdukFields card={selectedCard} setCard={setSelectedCard} />
                 </CollapsibleSection>
               )}
-
-              
 
               {selectedCard &&
                 selectedCard?.location &&

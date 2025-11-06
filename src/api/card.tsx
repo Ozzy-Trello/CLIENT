@@ -3,7 +3,7 @@ import { Card, CopycardPost, ListDashcardDataResponse } from "../types/card";
 import { ApiResponse } from "../types/type";
 
 // Helper function to map backend response to frontend Card format
-const mapBackendCardToFrontend = (backendCard: any): Card => {
+export const mapBackendCardToFrontend = (backendCard: any): Card => {
   const mapped: any = { ...backendCard };
 
   // Map backend snake_case to frontend camelCase
@@ -22,11 +22,39 @@ const mapBackendCardToFrontend = (backendCard: any): Card => {
   if (backendCard.product_info !== undefined) {
     mapped.productInfo = backendCard.product_info;
   }
+  // Map product_code_info to frontend
+  if (backendCard.product_code_info !== undefined) {
+    mapped.productCodeInfo = backendCard.product_code_info;
+  }
   if (backendCard.bahan_info !== undefined) {
     mapped.bahanInfo = backendCard.bahan_info;
   }
   if (backendCard.warna_info !== undefined) {
     mapped.warnaInfo = backendCard.warna_info;
+  }
+  if (backendCard.list_id !== undefined) {
+    mapped.listId = backendCard.list_id;
+  }
+  if (backendCard.list_name !== undefined) {
+    mapped.listName = backendCard.list_name;
+  }
+  if (backendCard.board_id !== undefined) {
+    mapped.boardId = backendCard.board_id;
+  }
+  if (backendCard.board_name !== undefined) {
+    mapped.boardName = backendCard.board_name;
+  }
+  if (backendCard.workspace_id !== undefined) {
+    mapped.workspaceId = backendCard.workspace_id;
+  }
+  if (backendCard.workspace_name !== undefined) {
+    mapped.workspaceName = backendCard.workspace_name;
+  }
+  if (backendCard.formatted_time_in_list !== undefined) {
+    mapped.formattedTimeInList = backendCard.formatted_time_in_list;
+  }
+  if (backendCard.formatted_time_in_board !== undefined) {
+    mapped.formattedTimeInBoard = backendCard.formatted_time_in_board;
   }
 
   return mapped;
@@ -64,6 +92,10 @@ const mapFrontendCardToBackend = (frontendCard: Partial<Card>): any => {
   if (frontendCard.warnaInfo !== undefined) {
     backendData.warna_info = frontendCard.warnaInfo;
     delete backendData.warnaInfo;
+  }
+  // Ensure productCodeInfo is never sent back to backend on update
+  if (frontendCard.productCodeInfo !== undefined) {
+    delete backendData.productCodeInfo;
   }
 
   return backendData;
@@ -309,7 +341,7 @@ export const moveOldCards = async (): Promise<ApiResponse<any>> => {
 export const deleteAllCardsInList = async (
   listId: string
 ): Promise<ApiResponse<{ deleted_count: number }>> => {
-  const { data } = await api.delete(`/card/list/${listId}/all`);
+  const { data } = await api.delete(`/list/${listId}/cards`);
   return data;
 };
 

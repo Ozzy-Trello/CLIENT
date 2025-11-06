@@ -163,9 +163,7 @@ const ListName: React.FC<ListNameProps> = ({
             onSuccess: (response) => {
               const deletedCount = response?.data?.deleted_count || 0;
               message.success(
-                `Successfully deleted ${deletedCount} card${
-                  deletedCount !== 1 ? "s" : ""
-                }!`
+                `Successfully deleted all card${deletedCount !== 1 ? "s" : ""}!`
               );
               setActionsPopoverOpen(false);
             },

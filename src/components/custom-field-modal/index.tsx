@@ -494,6 +494,13 @@ const CustomFieldModal: React.FC<CustomFieldModalProps> = ({
                       ) : (
                         <Select
                           mode="multiple"
+                          showSearch
+                          optionFilterProp="label"
+                          filterOption={(input, option) =>
+                            (option?.label?.toString().toLowerCase() ?? "").includes(
+                              input.toLowerCase()
+                            )
+                          }
                           placeholder="Select allowed roles"
                           value={roleFilterIds}
                           onChange={(vals) =>
@@ -545,6 +552,13 @@ const CustomFieldModal: React.FC<CustomFieldModalProps> = ({
                 >
                   <Select
                     mode="multiple"
+                    showSearch
+                    optionFilterProp="children"
+                    filterOption={(input, option) =>
+                      String(option?.children)
+                        .toLowerCase()
+                        .includes(input.toLowerCase())
+                    }
                     placeholder="Select roles (leave empty for all roles)"
                     value={selectedViewRoles}
                     onChange={setSelectedViewRoles}
@@ -569,6 +583,13 @@ const CustomFieldModal: React.FC<CustomFieldModalProps> = ({
                 >
                   <Select
                     mode="multiple"
+                    showSearch
+                    optionFilterProp="children"
+                    filterOption={(input, option) =>
+                      String(option?.children)
+                        .toLowerCase()
+                        .includes(input.toLowerCase())
+                    }
                     placeholder={
                       selectedViewRoles.length > 0
                         ? "Select roles (leave empty for Super Admin only)"
@@ -612,6 +633,13 @@ const CustomFieldModal: React.FC<CustomFieldModalProps> = ({
                 >
                   <Select
                     mode="multiple"
+                    showSearch
+                    optionFilterProp="children"
+                    filterOption={(input, option) =>
+                      String(option?.children)
+                        .toLowerCase()
+                        .includes(input.toLowerCase())
+                    }
                     placeholder="Select boards (leave empty for all boards)"
                     value={selectedViewBoards}
                     onChange={setSelectedViewBoards}

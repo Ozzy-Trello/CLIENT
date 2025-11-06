@@ -18,6 +18,7 @@ import {
   ZoomOutOutlined,
 } from "@ant-design/icons";
 import { QrCode } from "lucide-react";
+import { mapBackendCardToFrontend } from "@api/card";
 import { uploadFile } from "@api/file";
 import { createShortUrl, buildShortUrl } from "@api/short-url";
 import UploadModal from "@components/modal-upload/modal-upload";
@@ -697,33 +698,41 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
   }, [card?.id]);
 
   useEffect(() => {
-    if (cardAttachments) {
+    if (!cardAttachments) {
       setAttachedCards([]);
       setAttachedFiles([]);
-      cardAttachments.forEach((item: CardAttachment) => {
-        if (item.attachableType === EnumAttachmentType.Card) {
-          if (item.targetCard !== undefined) {
-            setAttachedCards((prev) => [...prev, item.targetCard as Card]);
-          }
-        } else if (item.attachableType === EnumAttachmentType.File) {
-          if (item.file !== undefined) {
-            setAttachedFiles((prev) => [...prev, item.file as FileUpload]);
-          }
-        }
-      });
+      return;
+    }
 
-      // Find cover attachment and update card cover
-      const cover = cardAttachments?.find((item) => item.isCover);
-      if (cover?.file?.url) {
-        setCard((prev: Card | null) =>
-          prev
-            ? {
-                ...prev,
-                cover: cover?.file?.url,
-              }
-            : null
-        );
+    const nextAttachedCards: Card[] = [];
+    const nextAttachedFiles: FileUpload[] = [];
+
+    cardAttachments.forEach((item: CardAttachment) => {
+      if (item.attachableType === EnumAttachmentType.Card && item.targetCard) {
+        const mappedCard = mapBackendCardToFrontend(item.targetCard);
+        nextAttachedCards.push(mappedCard as Card);
+      } else if (
+        item.attachableType === EnumAttachmentType.File &&
+        item.file
+      ) {
+        nextAttachedFiles.push(item.file as FileUpload);
       }
+    });
+
+    setAttachedCards(nextAttachedCards);
+    setAttachedFiles(nextAttachedFiles);
+
+    // Find cover attachment and update card cover
+    const cover = cardAttachments.find((item) => item.isCover);
+    if (cover?.file?.url) {
+      setCard((prev: Card | null) =>
+        prev
+          ? {
+              ...prev,
+              cover: cover.file?.url,
+            }
+          : null
+      );
     }
   }, [cardAttachments, setCard]);
 

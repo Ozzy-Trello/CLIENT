@@ -609,38 +609,6 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             break;
           }
 
-          case "custom_field:updated": {
-            const { customField, cardId, workspaceId } = message.data;
-
-            // Invalidate custom fields queries
-            queryClient.invalidateQueries({
-              queryKey: ["customFields"],
-              exact: false,
-            });
-
-            // Invalidate card custom fields queries
-            queryClient.invalidateQueries({
-              queryKey: ["cardCustomFields"],
-              exact: false,
-            });
-
-            // Also invalidate card detail to refresh custom field display
-            queryClient.invalidateQueries({
-              queryKey: queryKeys.cards.detail(cardId),
-            });
-
-            // Invalidate workspace custom fields if workspaceId is provided
-            if (workspaceId) {
-              queryClient.invalidateQueries({
-                queryKey: ["customFields", workspaceId],
-              });
-            }
-
-            // Custom field changes affect dashcard calculations
-            refreshDashcard = true;
-            break;
-          }
-
           case "card_activity:added": {
             const { cardId, activity } = message.data;
 
@@ -760,7 +728,7 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
           }
 
           case "custom_field:updated": {
-            const { cardId, customFieldId, fieldName, value, listId } = message.data;
+            const { cardId, customFieldId, fieldName, value, listId, workspaceId, boardId } = message.data;
 
             // Invalidate card detail to refresh custom field display
             queryClient.invalidateQueries({
@@ -778,10 +746,47 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
               queryKey: ["cardCustomFields", cardId],
             });
 
+            if (workspaceId) {
+              queryClient.invalidateQueries({
+                queryKey: ["cardCustomField", cardId, workspaceId],
+              });
+            } else {
+              queryClient.invalidateQueries({
+                queryKey: ["cardCustomField", cardId],
+                exact: false,
+              });
+            }
+
+            // Invalidate workspace custom fields if workspaceId is provided
+            if (workspaceId) {
+              queryClient.invalidateQueries({
+                queryKey: ["customFields", workspaceId],
+              });
+            }
+
             // Invalidate list cards to refresh any custom field displays in card lists
             if (listId) {
               queryClient.invalidateQueries({
                 queryKey: queryKeys.cards.list(listId),
+              });
+            }
+
+            // CRITICAL: Invalidate lists and boards for real-time draggable card updates
+            // This ensures that when automation moves cards based on custom field changes,
+            // the UI updates immediately without requiring manual refresh
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.lists.all,
+            });
+
+            if (boardId) {
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.lists.board(boardId),
+              });
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.boards.detail(boardId),
+              });
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.boards.withLists(boardId),
               });
             }
 

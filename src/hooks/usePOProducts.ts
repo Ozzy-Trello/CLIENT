@@ -161,6 +161,19 @@ export const transformPOProductToProductItem = (
   poProduct: POProductWithCategories,
   categories?: any[]
 ): ProductItem => {
+  // Helper to coerce potentially locale-formatted numeric strings to numbers
+  const toNumber = (input: any): number => {
+    if (input === null || input === undefined) return 0;
+    if (typeof input === "number") return Number.isFinite(input) ? input : 0;
+    const str = String(input).trim();
+    if (!str) return 0;
+    const normalized = str.includes(".") && str.includes(",")
+      ? str.replace(/\./g, "").replace(/,/g, ".")
+      : str.replace(/,/g, ".");
+    const n = Number(normalized);
+    return Number.isFinite(n) ? n : 0;
+  };
+
   return {
     id: poProduct.hikmatProductId, // Use hikmatProductId as the product ID
     name: poProduct.productName,
@@ -173,8 +186,8 @@ export const transformPOProductToProductItem = (
       {
         id: poProduct.id, // Use the PO product ID as bahan tab ID
         name: poProduct.productName,
-        terloading: poProduct.terloading || 0, // Load existing values from API
-        bahanTerpakai: poProduct.bahanTerpakai || 0,
+        terloading: toNumber(poProduct.terloading), // Ensure numeric type for calculations
+        bahanTerpakai: toNumber(poProduct.bahanTerpakai),
         sisaBahan: 0,
         jmlProduksi: 0,
         estBahan: 0,

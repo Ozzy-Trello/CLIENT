@@ -10,6 +10,9 @@ import { useBoardPermissionsContext } from "@providers/board-permissions-context
 
 const { Option } = Select;
 
+// Special value used to represent clearing a selection via '-' option
+const CLEAR_VALUE = "__CLEAR__";
+
 // Utility function to determine text color based on background color
 const getContrastColor = (hexColor: string): string => {
   // Remove # if present
@@ -151,12 +154,16 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard }) => {
   const handleProductChange = (productId: string) => {
     if (!canUpdateCard()) return;
 
+    // Handle '-' clear option
+    const isClear = productId === CLEAR_VALUE;
+    // Send null (not undefined) to explicitly clear on backend
+    const normalizedProductId = isClear ? null : productId;
     const selectedProduct = products.find((p) => p.id === productId);
 
     // Update local state first for immediate UI feedback
     const updatedCard = {
       ...card,
-      productId,
+      productId: normalizedProductId,
       productInfo: selectedProduct
         ? {
             id: selectedProduct.id,
@@ -164,48 +171,56 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard }) => {
           }
         : undefined,
       // Reset dependent fields when product changes
-      productCodeId: undefined,
-      bahanId: undefined,
+      productCodeId: null,
+      bahanId: null,
       bahanInfo: undefined,
-      warnaId: undefined,
+      warnaId: null,
       warnaInfo: undefined,
     };
     setCard(updatedCard);
 
     // Update card in backend
     updateCard({
-      productId: productId || undefined,
-      productCodeId: undefined, // Reset product code
-      bahanId: undefined, // Reset dependent fields
-      warnaId: undefined,
+      productId: normalizedProductId,
+      // Explicitly clear dependent fields with null
+      productCodeId: null,
+      bahanId: null,
+      warnaId: null,
     });
   };
 
   const handleProductCodeChange = (productCodeId: string) => {
     if (!canUpdateCard()) return;
 
+    const isClear = productCodeId === CLEAR_VALUE;
+    // Send null to explicitly clear
+    const normalizedProductCodeId = isClear ? null : productCodeId;
+
     // Update local state first for immediate UI feedback
     const updatedCard = {
       ...card,
-      productCodeId,
+      productCodeId: normalizedProductCodeId,
     };
     setCard(updatedCard);
 
     // Update card in backend
     updateCard({
-      productCodeId: productCodeId || undefined,
+      productCodeId: normalizedProductCodeId,
     });
   };
 
   const handleBahanChange = (bahanId: string) => {
     if (!canUpdateCard()) return;
 
+    const isClear = bahanId === CLEAR_VALUE;
+    // Send null to explicitly clear
+    const normalizedBahanId = isClear ? null : bahanId;
     const selectedBahan = bahans.find((b) => b.id === bahanId);
 
     // Update local state first for immediate UI feedback
     const updatedCard = {
       ...card,
-      bahanId,
+      bahanId: normalizedBahanId,
       bahanInfo: selectedBahan
         ? {
             id: selectedBahan.id,
@@ -213,27 +228,31 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard }) => {
           }
         : undefined,
       // Reset dependent fields when bahan changes
-      warnaId: undefined,
+      warnaId: null,
       warnaInfo: undefined,
     };
     setCard(updatedCard);
 
     // Update card in backend
     updateCard({
-      bahanId: bahanId || undefined,
-      warnaId: undefined, // Reset dependent field
+      bahanId: normalizedBahanId,
+      // Explicitly clear dependent field with null
+      warnaId: null,
     });
   };
 
   const handleWarnaChange = (warnaId: string) => {
     if (!canUpdateCard()) return;
 
+    const isClear = warnaId === CLEAR_VALUE;
+    // Send null to explicitly clear
+    const normalizedWarnaId = isClear ? null : warnaId;
     const selectedWarna = warnas.find((w) => w.id === warnaId);
 
     // Update local state first for immediate UI feedback
     const updatedCard = {
       ...card,
-      warnaId,
+      warnaId: normalizedWarnaId,
       warnaInfo: selectedWarna
         ? {
             id: selectedWarna.id,
@@ -244,7 +263,7 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard }) => {
     setCard(updatedCard);
 
     // Update card in backend
-    updateCard({ warnaId: warnaId || undefined });
+    updateCard({ warnaId: normalizedWarnaId });
   };
 
   return (
@@ -261,7 +280,6 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard }) => {
           className="w-full"
           loading={loadingProducts}
           disabled={!canUpdateCard() || loadingProducts}
-          allowClear
           showSearch
           filterOption={(input, option) =>
             option?.children
@@ -270,6 +288,9 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard }) => {
               .includes(input.toLowerCase()) ?? false
           }
         >
+          <Option key={CLEAR_VALUE} value={CLEAR_VALUE}>
+            -
+          </Option>
           {products.map((product) => (
             <Option key={product.id} value={product.id}>
               {product.name}
@@ -292,7 +313,6 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard }) => {
           className="w-full"
           loading={loadingProductCodes}
           disabled={!canUpdateCard() || !card.productId || loadingProductCodes}
-          allowClear
           showSearch
           filterOption={(input, option) =>
             option?.children
@@ -301,6 +321,9 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard }) => {
               .includes(input.toLowerCase()) ?? false
           }
         >
+          <Option key={CLEAR_VALUE} value={CLEAR_VALUE}>
+            -
+          </Option>
           {productCodes.map((productCode) => (
             <Option key={productCode.id} value={productCode.id}>
               {productCode.description ? `${productCode.description} (${productCode.code})` : productCode.code}
@@ -323,7 +346,6 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard }) => {
           className="w-full"
           loading={loadingBahans}
           disabled={!canUpdateCard() || !card.productId || loadingBahans}
-          allowClear
           showSearch
           filterOption={(input, option) =>
             option?.children
@@ -332,6 +354,9 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard }) => {
               .includes(input.toLowerCase()) ?? false
           }
         >
+          <Option key={CLEAR_VALUE} value={CLEAR_VALUE}>
+            -
+          </Option>
           {bahans.map((bahan) => (
             <Option key={bahan.id} value={bahan.id}>
               {bahan.name}
@@ -352,7 +377,6 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard }) => {
           className="w-full"
           loading={loadingWarnas}
           disabled={!canUpdateCard() || !card.bahanId || loadingWarnas}
-          allowClear
           showSearch
           filterOption={(input, option) =>
             option?.children
@@ -361,6 +385,9 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard }) => {
               .includes(input.toLowerCase()) ?? false
           }
         >
+          <Option key={CLEAR_VALUE} value={CLEAR_VALUE}>
+            -
+          </Option>
           {warnas.map((warna) => (
             <Option key={warna.id} value={warna.id}>
               <div 

@@ -705,3 +705,37 @@ export const validateProductByBarcode = async (
 
   return data;
 };
+
+// --- Barcode Product (Scan Produk) ---
+// Minimal response type for barcode product lookup (focus on accurateId usage on FE)
+export interface OzzyBarcodeProductProduct {
+  id?: number;
+  accurateId: number;
+  accurateDbId?: number;
+  name?: string;
+  sku?: string;
+  unitPrice?: string;
+  barcode?: string;
+  unitType?: string;
+}
+
+export interface OzzyBarcodeProduct {
+  id: number;
+  whProductId: number;
+  barcode: string;
+  quantity: string;
+  product: OzzyBarcodeProductProduct;
+}
+
+// Fetch product details by scanned barcode (GET)
+export const getOzzyBarcodeProduct = async (
+  barcodeText: string
+): Promise<OzzyBarcodeProduct> => {
+  const { data } = await api.get<OzzyWarehouseResponse<OzzyBarcodeProduct>>(
+    "/warehouse/ozzy/barcode-product",
+    {
+      params: { barcode_text: barcodeText },
+    }
+  );
+  return data.data;
+};

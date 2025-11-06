@@ -3,6 +3,7 @@ export interface Role {
   name: string;
   description: string;
   default: boolean;
+  designAccess: boolean;
 }
 
 export interface RoleResponse {

@@ -128,27 +128,7 @@ const DraggableCard: React.FC<DraggableCardProps> = ({ card, index, list }) => {
               />
             )}
 
-            {/* Drag handle indicator */}
-            {canMoveCard && (
-              <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-60 transition-opacity duration-200 pointer-events-none">
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 12 12"
-                  className="text-gray-400"
-                >
-                  <circle cx="2" cy="2" r="1" fill="currentColor" />
-                  <circle cx="6" cy="2" r="1" fill="currentColor" />
-                  <circle cx="10" cy="2" r="1" fill="currentColor" />
-                  <circle cx="2" cy="6" r="1" fill="currentColor" />
-                  <circle cx="6" cy="6" r="1" fill="currentColor" />
-                  <circle cx="10" cy="6" r="1" fill="currentColor" />
-                  <circle cx="2" cy="10" r="1" fill="currentColor" />
-                  <circle cx="6" cy="10" r="1" fill="currentColor" />
-                  <circle cx="10" cy="10" r="1" fill="currentColor" />
-                </svg>
-              </div>
-            )}
+            {/* Removed drag handle indicator (9 dots) for a cleaner UI */}
 
             {/* More options button - visible on all devices */}
             <button
