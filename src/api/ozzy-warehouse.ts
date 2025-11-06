@@ -357,14 +357,23 @@ export interface OzzyPackingData {
 
 export interface CreateDeliveryOrderPayload {
   deliveryDate: string;
-  branchId: string;
-  customerId: string;
+  branchId: number;
+  customerId: number;
   shippingAddress: string;
   note?: string | null;
   soNumbers: string[];
   productQuantities: Array<{
     productId: string;
     quantity: number;
+  }>;
+  accurateDbId?: string | null;
+}
+
+export interface CreatePackingPayload {
+  soNumber: string;
+  productQuantities: Array<{
+    productId: string | number;
+    quantity: string | number;
   }>;
   accurateDbId?: string | null;
 }
@@ -646,8 +655,8 @@ export const createOzzyDeliveryOrder = async (
 
   const requestBody = {
     delivery_date: payload.deliveryDate,
-    wh_branch_id: payload.branchId,
-    customer_id: payload.customerId,
+    wh_branch_id: Number(payload.branchId),
+    customer_id: Number(payload.customerId),
     shipping_address: payload.shippingAddress,
     note: payload.note ?? null,
     so_number: payload.soNumbers,
@@ -661,6 +670,29 @@ export const createOzzyDeliveryOrder = async (
     requestBody
   );
 
+  return data;
+};
+
+export const createOzzyPacking = async (
+  payload: CreatePackingPayload
+): Promise<any> => {
+  const productMap: Record<string, string> = {};
+  const quantityMap: Record<string, string> = {};
+
+  payload.productQuantities.forEach(({ productId, quantity }) => {
+    const id = String(productId);
+    productMap[id] = id;
+    quantityMap[id] = String(quantity);
+  });
+
+  const requestBody = {
+    so_number: payload.soNumber,
+    product_id: productMap,
+    quantity: quantityMap,
+    accurate_db_id: payload.accurateDbId ?? null,
+  };
+
+  const { data } = await api.post("/warehouse/ozzy/packing", requestBody);
   return data;
 };
 

@@ -3,6 +3,7 @@ import {
   getOzzyRawSalesOrderById,
   getOzzyRawSalesOrders,
   validateProductByBarcode,
+  createOzzyPacking,
   type OzzyPackingData
 } from "@api/ozzy-warehouse";
 import { useQuery } from "@tanstack/react-query";
@@ -49,6 +50,7 @@ const ModalPacking: React.FC<ModalPackingProps> = ({ open, onClose }) => {
   const [validatedProducts, setValidatedProducts] = useState<Set<string>>(new Set());
   const [scannedQuantities, setScannedQuantities] = useState<Record<string, number>>({});
   const [showCameraScanner, setShowCameraScanner] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Fetch sales orders with packing=0 filter
   const { data: salesOrders = [], isLoading } = useQuery({
@@ -275,18 +277,87 @@ const ModalPacking: React.FC<ModalPackingProps> = ({ open, onClose }) => {
     message.success("Sales Order berhasil dihapus!");
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (selectedSalesOrders.length === 0) {
       message.warning("Silakan pilih minimal satu Sales Order untuk packing!");
       return;
     }
-    
-    // TODO: Implement packing logic
-    message.success("Packing berhasil dimulai!");
-    handleCancel();
+
+    const currentSO = selectedSalesOrders[0];
+
+    if (!currentSO?.soNumber) {
+      message.error("Nomor Sales Order tidak valid");
+      return;
+    }
+
+    const productEntries = (currentSO.products || [])
+      .map((product) => {
+        const productId =
+          product?.whProductId ??
+          product?.productId ??
+          product?.wh_product_id ??
+          product?.id ??
+          product?.product?.id;
+
+        if (!productId) {
+          return null;
+        }
+
+        const rawQuantity =
+          product?.quantity ??
+          product?.quantityPacked ??
+          product?.quantity_packed ??
+          product?.qty ??
+          product?.amount ??
+          0;
+
+        const normalizedQuantity = Number(rawQuantity);
+        const quantity = Number.isFinite(normalizedQuantity)
+          ? normalizedQuantity
+          : Number(rawQuantity ?? 0);
+
+        if (!Number.isFinite(quantity) || quantity <= 0) {
+          return null;
+        }
+
+        return {
+          productId,
+          quantity,
+        };
+      })
+      .filter(
+        (entry): entry is { productId: string | number; quantity: number } =>
+          entry !== null
+      );
+
+    if (productEntries.length === 0) {
+      message.warning("Tidak ada produk yang dapat diproses untuk packing");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const response = await createOzzyPacking({
+        soNumber: currentSO.soNumber,
+        productQuantities: productEntries,
+      });
+
+      if (response?.status) {
+        message.success(response?.message || "Packing berhasil disimpan");
+        handleCancel();
+      } else {
+        message.error(response?.message || "Gagal menyimpan data packing");
+      }
+    } catch (error) {
+      console.error("Error creating packing:", error);
+      message.error("Gagal menyimpan data packing");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleCancel = () => {
+    setIsSubmitting(false);
     form.resetFields();
     setSOSearchValue("");
     setSelectedSalesOrders([]);
@@ -494,10 +565,11 @@ const ModalPacking: React.FC<ModalPackingProps> = ({ open, onClose }) => {
             <Button
               type="primary"
               onClick={handleSubmit}
-              disabled={selectedSalesOrders.length === 0}
+              disabled={selectedSalesOrders.length === 0 || isSubmitting}
+              loading={isSubmitting}
               className="bg-green-600 hover:bg-green-700 border-green-600"
             >
-              Mulai Packing
+              Save
             </Button>
           </Space>
         </div>
@@ -544,8 +616,10 @@ const ModalPacking: React.FC<ModalPackingProps> = ({ open, onClose }) => {
                     id: item.product?.id?.toString() ?? String(item.whProductId ?? ""),
                     name: item.product?.name || "-",
                     sku: item.product?.sku || "-",
-                    quantity: item.quantityPacked ?? 0,
+                    quantity: item.quantityPacked ?? item.quantity ?? 0,
                     unitType: item.unitType || "Pcs",
+                    whProductId: item.whProductId ?? item.product?.id,
+                    productId: item.product?.id?.toString() ?? String(item.whProductId ?? ""),
                   })),
                 };
 

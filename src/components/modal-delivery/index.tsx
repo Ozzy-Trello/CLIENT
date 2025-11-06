@@ -212,8 +212,8 @@ const ModalDelivery: React.FC<ModalDeliveryProps> = ({ open, onClose }) => {
 
       const payload: CreateDeliveryOrderPayload = {
         deliveryDate: dayjs(values.deliveryDate).format("YYYY-MM-DD"),
-        branchId: values.branchId,
-        customerId: values.customerId,
+        branchId: Number(values.branchId),
+        customerId: Number(values.customerId),
         shippingAddress: values.shippingAddress,
         note: values.note || null,
         soNumbers,
@@ -369,8 +369,8 @@ const ModalDelivery: React.FC<ModalDeliveryProps> = ({ open, onClose }) => {
     if (selectedSalesOrders.length === 0) {
       form.setFieldsValue({
         deliveryDate: dayjs(), // Use today's date instead of SO creation date
-        branchId: currentSOForValidation.purchaseOrder.whBranchId?.toString(),
-        customerId: currentSOForValidation.purchaseOrder.whCustomerId?.toString(),
+        branchId: currentSOForValidation.purchaseOrder.whBranchId ?? undefined,
+        customerId: currentSOForValidation.purchaseOrder.whCustomerId ?? undefined,
         shippingAddress: currentSOForValidation.purchaseOrder.shippingAddress,
       });
     }
@@ -535,7 +535,7 @@ const ModalDelivery: React.FC<ModalDeliveryProps> = ({ open, onClose }) => {
                  }
               >
                 {branches.map((branch) => (
-                  <Option key={branch?.id} value={branch?.whBranchId?.toString() || branch?.id?.toString()}>
+                  <Option key={branch?.id} value={branch?.whBranchId ?? branch?.id}>
                     {branch?.name}
                   </Option>
                 ))}
@@ -562,7 +562,7 @@ const ModalDelivery: React.FC<ModalDeliveryProps> = ({ open, onClose }) => {
                 }
               >
                 {customers?.map((customer) => (
-                  <Option key={customer.id} value={customer.id.toString()}>
+                  <Option key={customer.id} value={customer.id}>
                     {customer.name}
                   </Option>
                 ))}

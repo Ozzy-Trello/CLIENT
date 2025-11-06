@@ -220,15 +220,10 @@ const ModalPengiriman: React.FC<ModalPengirimanProps> = ({ open, onClose }) => {
       
       // Auto-fill form fields from the first selected SO
       if (selectedSalesOrders.length === 0) {
-        // Find customer name by ID
-        const customerId = soDetails.purchaseOrder.whCustomerId?.toString();
-        const customer = customers.find(c => c.id?.toString() === customerId);
-        const customerName = customer ? customer.name : customerId;
-
         form.setFieldsValue({
           deliveryDate: dayjs(), // Use today's date instead of SO creation date
-          branchId: soDetails.purchaseOrder.whBranchId?.toString(),
-          customerId: customerName,
+          branchId: soDetails.purchaseOrder.whBranchId ?? undefined,
+          customerId: soDetails.purchaseOrder.whCustomerId ?? undefined,
           shippingAddress: soDetails.purchaseOrder.shippingAddress,
         });
       }
@@ -328,8 +323,8 @@ const ModalPengiriman: React.FC<ModalPengirimanProps> = ({ open, onClose }) => {
 
       const payload: CreateDeliveryOrderPayload = {
         deliveryDate: dayjs(values.deliveryDate).format("YYYY-MM-DD"),
-        branchId: values.branchId,
-        customerId: values.customerId,
+        branchId: Number(values.branchId),
+        customerId: Number(values.customerId),
         shippingAddress: values.shippingAddress,
         note: values.note || null,
         soNumbers,
@@ -489,9 +484,7 @@ const ModalPengiriman: React.FC<ModalPengirimanProps> = ({ open, onClose }) => {
                   {branches.map((branch) => (
                     <Option
                       key={branch?.id}
-                      value={
-                        branch?.whBranchId?.toString() || branch?.id?.toString()
-                      }
+                      value={branch?.whBranchId ?? branch?.id}
                     >
                       {branch?.name}
                     </Option>
@@ -515,7 +508,7 @@ const ModalPengiriman: React.FC<ModalPengirimanProps> = ({ open, onClose }) => {
                   showSearch
                 >
                   {customers.map((c) => (
-                    <Option key={c.id} value={c.name}>
+                    <Option key={c.id} value={c.id}>
                       {c.name}
                     </Option>
                   ))}
