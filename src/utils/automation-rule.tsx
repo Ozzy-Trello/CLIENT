@@ -34,6 +34,20 @@ export const renderType = (type: string, condition: any): string => {
       }
       return labelValue || '';
     })())
+    .replace(/<product>/, (() => {
+      const value =
+        condition?.product?.value?.label ||
+        condition?.product?.label ||
+        condition?.product?.value ||
+        condition?.product ||
+        condition?.Product;
+
+      if (value && typeof value === 'object') {
+        return value.label || value.value || '';
+      }
+
+      return value || '';
+    })())
     .replace(/<assignment>/, condition?.assignment?.value?.label || condition?.assignment?.label || condition?.assignment || '')
     .replace(/<assignment_subject>/, condition?.assignment_subject?.value?.label || condition?.assignment_subject?.label || condition?.assignment_subject || '')
     .replace(/<date_status>/, condition?.date_status?.value?.label || condition?.date_status?.label || condition?.date_status || '')

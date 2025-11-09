@@ -676,6 +676,16 @@ export const triggers: AutomationRuleTrigger[] = [
         },
       },
       {
+        type: TriggerType.WhenProductIsSet,
+        label: TriggerType.WhenProductIsSet.replaceAll("-", " "),
+        filters: null,
+        [EnumSelectionType.Product]: {
+          options: [],
+          value: null,
+          placeholder: "Select Product",
+        },
+      },
+      {
         type: TriggerType.WhenButuhBahanIsChecked,
         label: TriggerType.WhenButuhBahanIsChecked.replaceAll("-", " "),
         [EnumSelectionType.Action]: {

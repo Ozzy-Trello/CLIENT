@@ -6,6 +6,7 @@ import { customFieldDetails } from "../api/custom_field";
 import { userDetails } from "../api/account";
 import { labelDetails } from "../api/label";
 import { api } from "../api";
+import { getProduct } from "../api/product";
 
 // Simple role details function
 const roleDetails = async (id: string) => {
@@ -32,6 +33,7 @@ function collectIds(rules: RuleLike[]): Record<Kind, Set<string>> {
     field: new Set(),
     label: new Set(),
     role: new Set(),
+    product: new Set(),
   } as any;
 
   const push = (kind: Kind, val?: any) => {
@@ -65,6 +67,7 @@ function collectIds(rules: RuleLike[]): Record<Kind, Set<string>> {
     push("user", r.condition?.fieldValue);
     push("list", r.condition?.list);
     push("user", r.condition?.user);
+    push("product", r.condition?.product);
 
     if (Array.isArray(r.condition?.optionalBy?.data)) {
       r.condition.optionalBy.data.forEach((uid: string) => push("role", uid));
@@ -81,6 +84,7 @@ function collectIds(rules: RuleLike[]): Record<Kind, Set<string>> {
         push("user", c.fieldValue);
         push("list", c.list);
         push("user", c.user);
+        push("product", c.product);
 
         // Add cascade action properties
         push("list", c.optionalList);
@@ -158,6 +162,7 @@ export function useRuleLookups(rules: RuleLike[]) {
         fetchForSingle("user", userDetails as any, ids.user),
         fetchForSingle("label", labelDetails as any, ids.label),
         fetchForSingle("role", roleDetails as any, ids.role),
+        fetchForSingle("product", productDetails as any, ids.product),
       ]);
       setLoading(false);
       setVersion((v) => v + 1);
@@ -166,3 +171,7 @@ export function useRuleLookups(rules: RuleLike[]) {
 
   return { loading, version };
 }
+const productDetails = async (id: string) => {
+  const response = await getProduct(id);
+  return response.data;
+};

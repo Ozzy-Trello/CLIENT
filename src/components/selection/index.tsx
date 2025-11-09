@@ -35,6 +35,7 @@ import { AnyList } from "@myTypes/list";
 import { lists } from "@api/list";
 import { Board } from "@myTypes/board";
 import { boards } from "@api/board";
+import { useProducts } from "@hooks/useProducts";
 
 // Global SELECTION props
 
@@ -799,6 +800,100 @@ export const LabelSelection = forwardRef<SelectionRef, SelectionProps>(
         mode={mode}
         notFoundContent={
           allLabels?.length === 0 ? "No label available" : "No match found"
+        }
+      />
+    );
+  }
+);
+
+export const ProductSelection = forwardRef<SelectionRef, SelectionProps>(
+  (
+    {
+      placeholder = "Select a Product",
+      width = "100%",
+      size = "middle",
+      style = {},
+      className = "",
+      value,
+      onChange,
+      mode,
+    },
+    ref
+  ) => {
+    const [selectedValue, setSelectedValue] = useState<string | undefined>(
+      value
+    );
+    const [selectedObject, setSelectedObject] = useState<{
+      label: string;
+      value: string;
+    }>();
+
+    const { data: products = [], isLoading } = useProducts();
+
+    const options = useMemo(
+      () =>
+        (products || []).map((product) => ({
+          label: product.name ?? product.id ?? "Unnamed product",
+          value: product.id,
+        })),
+      [products]
+    );
+
+    useImperativeHandle(ref, () => ({
+      getValue: () => selectedValue,
+      getObject: () => selectedObject,
+      setValue: (val: string) => {
+        setSelectedValue(val);
+        const foundOption = options.find((opt) => opt.value === val);
+        if (foundOption) {
+          setSelectedObject(foundOption);
+        }
+      },
+    }));
+
+    useEffect(() => {
+      if (value !== undefined && value !== selectedValue) {
+        setSelectedValue(value);
+      }
+    }, [value]);
+
+    useEffect(() => {
+      if (selectedValue) {
+        const foundOption = options.find((opt) => opt.value === selectedValue);
+        if (foundOption) {
+          setSelectedObject(foundOption);
+        }
+      }
+    }, [options, selectedValue]);
+
+    const handleChange = (val: string, option: any) => {
+      setSelectedValue(val);
+      const normalized = {
+        label: option?.label ?? val,
+        value: val,
+      };
+      setSelectedObject(normalized);
+
+      if (onChange) {
+        onChange(val, normalized);
+      }
+    };
+
+    return (
+      <Select
+        style={{ width, ...style }}
+        showSearch
+        placeholder={placeholder}
+        optionFilterProp="label"
+        onChange={handleChange}
+        value={selectedValue}
+        options={options}
+        size={size}
+        className={`${className} min-w-[200px]`}
+        mode={mode}
+        loading={isLoading}
+        notFoundContent={
+          isLoading ? "Loading products..." : "No products available"
         }
       />
     );

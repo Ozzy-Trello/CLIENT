@@ -24,6 +24,7 @@ export async function prefetchRuleData(
     users?: any[];
     lists?: any[];
     boards?: any[];
+    products?: any[];
   } = {}
 ) {
   // Cache labels
@@ -79,6 +80,17 @@ export async function prefetchRuleData(
       options.boards.map((b: { id: string; name: string }) => ({
         id: b.id,
         name: b.name,
+      }))
+    );
+  }
+
+  // Cache products
+  if (options.products && options.products.length > 0) {
+    LookupCache.rememberMany(
+      "product",
+      options.products.map((p: { id: string; name?: string }) => ({
+        id: p.id,
+        name: p.name || p.id,
       }))
     );
   }

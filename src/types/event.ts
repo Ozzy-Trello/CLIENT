@@ -15,6 +15,7 @@ export enum EnumUserActionEvent {
   CardAttachmentAdded = "card.attachment.added",
   CardAttachmentRemoved = "card.attachment.removed",
   CardCustomFieldChange = "card.customfield.changed",
+  CardProductSet = "card.product.set",
   CardCommentAdded = "card.comment.added",
   CardStartDateAdded = "card.startdate.added",
   CardDueDateAdded = "card.duedate.added",

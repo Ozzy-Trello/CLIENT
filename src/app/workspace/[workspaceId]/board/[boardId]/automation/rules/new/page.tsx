@@ -18,8 +18,9 @@ import {
 import SelectTrigger from "./select-trigger";
 import { extractPlaceholders } from "@utils/general";
 import { createRule } from "@api/automation_rule";
-import { EnumSelectionType, EnumInputType } from "@myTypes/automation-rule";
+import { EnumSelectionType, EnumInputType, TriggerType } from "@myTypes/automation-rule";
 import { useCustomFields } from "@hooks/custom_field";
+import { EnumUserActionEvent } from "@myTypes/event";
 
 const StepsItem = [
   {
@@ -122,6 +123,11 @@ const NewRulePage: React.FC = () => {
       } else {
         triggerCondition[EnumSelectionType.Action] = actVal;
       }
+    }
+
+    if (triggerItem.type === TriggerType.WhenProductIsSet) {
+      triggerCondition[EnumSelectionType.Action] =
+        EnumUserActionEvent.CardProductSet;
     }
 
     // === NEW: include checklist_name filter when provided ===

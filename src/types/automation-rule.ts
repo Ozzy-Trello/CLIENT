@@ -87,6 +87,7 @@ export enum EnumSelectionType {
   CardOrder = "card_order", // first or last
   SelectableList = "selectable_list", // for optional list selection like checklist filter
   SelectableBoard = "selectable_board", // for optional board selection like checklist filter
+  Product = "product",
   Expression = "expression", // mathematical expression builder
   Operation = "operation", // mathematical operations
   Target = "target",
@@ -125,6 +126,7 @@ export enum TriggerType {
   WhenCardLabelChanges = `when-<${EnumSelectionType.ArticleType}>-<${EnumSelectionType.CardLabel}>-label-is-<${EnumSelectionType.Action}>-a-card-<${EnumSelectionType.OptionalFilter}>-<${EnumSelectionType.OptionalBySubject}>`,
   WhenCardAttachmentChanges = `when-an-attachment-<${EnumSelectionType.TextComparison}>-is-<${EnumSelectionType.Action}>-a-card-<${EnumSelectionType.OptionalFilter}>-<${EnumSelectionType.OptionalBySubject}>`,
   WhenCardMemberChanges = `when-<${EnumSelectionType.Subject}>-is-<${EnumSelectionType.Action}>-a-card-<${EnumSelectionType.OptionalFilter}>-<${EnumSelectionType.OptionalBySubject}>`,
+  WhenProductIsSet = `when-a-product-is-set-to-<${EnumSelectionType.Product}>`,
 
   // CUSTOM FIELDS
   // "when-custom-fields-<fields>-is-set-to-<field_value>-<filter>-<optional_by>"

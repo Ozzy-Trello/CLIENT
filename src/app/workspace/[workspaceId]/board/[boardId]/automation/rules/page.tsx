@@ -30,6 +30,7 @@ import { useLists } from "@hooks/list";
 import { useRoles } from "@hooks/useRoles";
 import { LookupCache } from "@utils/lookup-cache";
 import { useAutomationRules, useDeleteAutomationRule } from "@hooks/automation-rule";
+import { useProducts } from "@hooks/useProducts";
 
 const RulePage: React.FC = () => {
   const params = useParams();
@@ -98,6 +99,7 @@ const RulePage: React.FC = () => {
   const { boards } = useBoards(workspaceId as string);
   const { lists } = useLists(boardId as string);
   const { roles } = useRoles(workspaceId as string);
+  const { data: products = [] } = useProducts();
 
   // Cache all the necessary data for rule rendering
   useEffect(() => {
@@ -150,7 +152,17 @@ const RulePage: React.FC = () => {
         }))
       );
     }
-  }, [allLabels, customFields, boards, lists, roles]);
+
+    if (products && products.length > 0) {
+      LookupCache.rememberMany(
+        "product",
+        products.map((p) => ({
+          id: p.id,
+          name: p.name || p.id,
+        }))
+      );
+    }
+  }, [allLabels, customFields, boards, lists, roles, products]);
 
   const toNewRulePage = () => {
     router.push(
