@@ -49,7 +49,10 @@ import {
 import { message } from "antd";
 
 // Main Category Hooks
-export function useMainCategories(workspaceId: string, filter?: CategoryFilter) {
+export function useMainCategories(
+  workspaceId: string,
+  filter?: CategoryFilter
+) {
   return useQuery({
     queryKey: ["mainCategories", workspaceId, filter],
     queryFn: () => getMainCategories(workspaceId, filter),
@@ -83,13 +86,21 @@ export function useCreateMainCategory(workspaceId: string) {
     mutationFn: (data: CreateMainCategoryRequest) =>
       createMainCategory(data, workspaceId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["mainCategories", workspaceId] });
-      queryClient.invalidateQueries({ queryKey: ["allMainCategories", workspaceId] });
-      queryClient.invalidateQueries({ queryKey: ["categoriesWithSubcategories", workspaceId] });
+      queryClient.invalidateQueries({
+        queryKey: ["mainCategories", workspaceId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["allMainCategories", workspaceId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["categoriesWithSubcategories", workspaceId],
+      });
       message.success("Main category created successfully");
     },
     onError: (error: any) => {
-      message.error(error?.response?.data?.message || "Failed to create main category");
+      message.error(
+        error?.response?.data?.message || "Failed to create main category"
+      );
     },
   });
 }
@@ -98,17 +109,32 @@ export function useUpdateMainCategory(workspaceId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateMainCategoryRequest }) =>
-      updateMainCategory(id, data, workspaceId),
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: UpdateMainCategoryRequest;
+    }) => updateMainCategory(id, data, workspaceId),
     onSuccess: (_, { id }) => {
-      queryClient.invalidateQueries({ queryKey: ["mainCategories", workspaceId] });
-      queryClient.invalidateQueries({ queryKey: ["allMainCategories", workspaceId] });
-      queryClient.invalidateQueries({ queryKey: ["mainCategory", id, workspaceId] });
-      queryClient.invalidateQueries({ queryKey: ["categoriesWithSubcategories", workspaceId] });
+      queryClient.invalidateQueries({
+        queryKey: ["mainCategories", workspaceId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["allMainCategories", workspaceId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["mainCategory", id, workspaceId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["categoriesWithSubcategories", workspaceId],
+      });
       message.success("Main category updated successfully");
     },
     onError: (error: any) => {
-      message.error(error?.response?.data?.message || "Failed to update main category");
+      message.error(
+        error?.response?.data?.message || "Failed to update main category"
+      );
     },
   });
 }
@@ -119,13 +145,21 @@ export function useDeleteMainCategory(workspaceId: string) {
   return useMutation({
     mutationFn: (id: string) => deleteMainCategory(id, workspaceId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["mainCategories", workspaceId] });
-      queryClient.invalidateQueries({ queryKey: ["allMainCategories", workspaceId] });
-      queryClient.invalidateQueries({ queryKey: ["categoriesWithSubcategories", workspaceId] });
+      queryClient.invalidateQueries({
+        queryKey: ["mainCategories", workspaceId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["allMainCategories", workspaceId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["categoriesWithSubcategories", workspaceId],
+      });
       message.success("Main category deleted successfully");
     },
     onError: (error: any) => {
-      message.error(error?.response?.data?.message || "Failed to delete main category");
+      message.error(
+        error?.response?.data?.message || "Failed to delete main category"
+      );
     },
   });
 }
@@ -165,12 +199,18 @@ export function useCreateSubcategory(workspaceId: string) {
     mutationFn: (data: CreateSubcategoryRequest) =>
       createSubcategory(data, workspaceId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["subcategories", workspaceId] });
-      queryClient.invalidateQueries({ queryKey: ["allSubcategories", workspaceId] });
+      queryClient.invalidateQueries({
+        queryKey: ["subcategories", workspaceId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["allSubcategories", workspaceId],
+      });
       message.success("Subcategory created successfully");
     },
     onError: (error: any) => {
-      message.error(error?.response?.data?.message || "Failed to create subcategory");
+      message.error(
+        error?.response?.data?.message || "Failed to create subcategory"
+      );
     },
   });
 }
@@ -179,17 +219,32 @@ export function useUpdateSubcategory(workspaceId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateSubcategoryRequest }) =>
-      updateSubcategory(id, data, workspaceId),
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: UpdateSubcategoryRequest;
+    }) => updateSubcategory(id, data, workspaceId),
     onSuccess: (_, { id }) => {
-      queryClient.invalidateQueries({ queryKey: ["subcategories", workspaceId] });
-      queryClient.invalidateQueries({ queryKey: ["allSubcategories", workspaceId] });
-      queryClient.invalidateQueries({ queryKey: ["subcategory", id, workspaceId] });
-      queryClient.invalidateQueries({ queryKey: ["categoriesWithSubcategories", workspaceId] });
+      queryClient.invalidateQueries({
+        queryKey: ["subcategories", workspaceId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["allSubcategories", workspaceId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["subcategory", id, workspaceId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["categoriesWithSubcategories", workspaceId],
+      });
       message.success("Subcategory updated successfully");
     },
     onError: (error: any) => {
-      message.error(error?.response?.data?.message || "Failed to update subcategory");
+      message.error(
+        error?.response?.data?.message || "Failed to update subcategory"
+      );
     },
   });
 }
@@ -200,13 +255,21 @@ export function useDeleteSubcategory(workspaceId: string) {
   return useMutation({
     mutationFn: (id: string) => deleteSubcategory(id, workspaceId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["subcategories", workspaceId] });
-      queryClient.invalidateQueries({ queryKey: ["allSubcategories", workspaceId] });
-      queryClient.invalidateQueries({ queryKey: ["categoriesWithSubcategories", workspaceId] });
+      queryClient.invalidateQueries({
+        queryKey: ["subcategories", workspaceId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["allSubcategories", workspaceId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["categoriesWithSubcategories", workspaceId],
+      });
       message.success("Subcategory deleted successfully");
     },
     onError: (error: any) => {
-      message.error(error?.response?.data?.message || "Failed to delete subcategory");
+      message.error(
+        error?.response?.data?.message || "Failed to delete subcategory"
+      );
     },
   });
 }
@@ -215,7 +278,10 @@ export function useDeleteSubcategory(workspaceId: string) {
 // Note: useJunctions removed - no general getJunctions endpoint exists in backend
 // Use useJunctionsByCategory or useJunctionsBySubcategory instead
 
-export function useJunctionsByCategory(categoryId: string, workspaceId: string) {
+export function useJunctionsByCategory(
+  categoryId: string,
+  workspaceId: string
+) {
   return useQuery({
     queryKey: ["junctionsByCategory", categoryId, workspaceId],
     queryFn: () => getJunctionsByCategory(categoryId, workspaceId),
@@ -224,7 +290,10 @@ export function useJunctionsByCategory(categoryId: string, workspaceId: string) 
   });
 }
 
-export function useJunctionsBySubcategory(subcategoryId: string, workspaceId: string) {
+export function useJunctionsBySubcategory(
+  subcategoryId: string,
+  workspaceId: string
+) {
   return useQuery({
     queryKey: ["junctionsBySubcategory", subcategoryId, workspaceId],
     queryFn: () => getJunctionsBySubcategory(subcategoryId, workspaceId),
@@ -235,82 +304,119 @@ export function useJunctionsBySubcategory(subcategoryId: string, workspaceId: st
 
 export function useCreateJunction(workspaceId: string) {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: (junction: CreateJunctionRequest) => 
+    mutationFn: (junction: CreateJunctionRequest) =>
       createJunction(junction, workspaceId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["categoriesWithSubcategories", workspaceId] });
-      queryClient.invalidateQueries({ queryKey: ["categorySystemOverview", workspaceId] });
+      queryClient.invalidateQueries({
+        queryKey: ["categoriesWithSubcategories", workspaceId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["categorySystemOverview", workspaceId],
+      });
     },
     onError: (error: any) => {
-      message.error(error.response?.data?.message || "Failed to create junction");
+      message.error(
+        error.response?.data?.message || "Failed to create junction"
+      );
     },
   });
 }
 
 export function useUpdateJunction(workspaceId: string) {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: ({ id, junction }: { id: string; junction: UpdateJunctionRequest }) => 
-      updateJunction(id, junction, workspaceId),
+    mutationFn: ({
+      id,
+      junction,
+    }: {
+      id: string;
+      junction: UpdateJunctionRequest;
+    }) => updateJunction(id, junction, workspaceId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["categoriesWithSubcategories", workspaceId] });
-      queryClient.invalidateQueries({ queryKey: ["categorySystemOverview", workspaceId] });
+      queryClient.invalidateQueries({
+        queryKey: ["categoriesWithSubcategories", workspaceId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["categorySystemOverview", workspaceId],
+      });
       queryClient.invalidateQueries({ queryKey: ["junctionsByCategory"] });
-      message.success("Junction updated successfully");
+      message.success("Updated successfully");
     },
     onError: (error: any) => {
-      message.error(error.response?.data?.message || "Failed to update junction");
+      message.error(
+        error.response?.data?.message || "Failed to update junction"
+      );
     },
   });
 }
 
 export function useCreateJunctionWithTotalLogic(workspaceId: string) {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: (junction: CreateJunctionRequest) => 
+    mutationFn: (junction: CreateJunctionRequest) =>
       createJunctionWithTotalLogic(junction, workspaceId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["categoriesWithSubcategories", workspaceId] });
-      queryClient.invalidateQueries({ queryKey: ["categorySystemOverview", workspaceId] });
+      queryClient.invalidateQueries({
+        queryKey: ["categoriesWithSubcategories", workspaceId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["categorySystemOverview", workspaceId],
+      });
       message.success("Junction created with Total logic applied");
     },
     onError: (error: any) => {
-      message.error(error.response?.data?.message || "Failed to create junction with Total logic");
+      message.error(
+        error.response?.data?.message ||
+          "Failed to create junction with Total logic"
+      );
     },
   });
 }
 
 export function useDeleteJunction(workspaceId: string) {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: (id: string) => deleteJunction(id, workspaceId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["categoriesWithSubcategories", workspaceId] });
-      queryClient.invalidateQueries({ queryKey: ["categorySystemOverview", workspaceId] });
+      queryClient.invalidateQueries({
+        queryKey: ["categoriesWithSubcategories", workspaceId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["categorySystemOverview", workspaceId],
+      });
     },
     onError: (error: any) => {
-      message.error(error.response?.data?.message || "Failed to delete junction");
+      message.error(
+        error.response?.data?.message || "Failed to delete junction"
+      );
     },
   });
 }
 
 export function useDeleteJunctionWithTotalLogic(workspaceId: string) {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: (id: string) => deleteJunctionWithTotalLogic(id, workspaceId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["categoriesWithSubcategories", workspaceId] });
-      queryClient.invalidateQueries({ queryKey: ["categorySystemOverview", workspaceId] });
+      queryClient.invalidateQueries({
+        queryKey: ["categoriesWithSubcategories", workspaceId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["categorySystemOverview", workspaceId],
+      });
       message.success("Junction deleted with Total logic applied");
     },
     onError: (error: any) => {
-      message.error(error.response?.data?.message || "Failed to delete junction with Total logic");
+      message.error(
+        error.response?.data?.message ||
+          "Failed to delete junction with Total logic"
+      );
     },
   });
 }
@@ -325,11 +431,15 @@ export function useBulkCreateJunctions(workspaceId: string) {
       queryClient.invalidateQueries({ queryKey: ["junctions", workspaceId] });
       queryClient.invalidateQueries({ queryKey: ["junctionsByCategory"] });
       queryClient.invalidateQueries({ queryKey: ["junctionsBySubcategory"] });
-      queryClient.invalidateQueries({ queryKey: ["categoriesWithSubcategories", workspaceId] });
+      queryClient.invalidateQueries({
+        queryKey: ["categoriesWithSubcategories", workspaceId],
+      });
       message.success("Junctions created successfully");
     },
     onError: (error: any) => {
-      message.error(error?.response?.data?.message || "Failed to create junctions");
+      message.error(
+        error?.response?.data?.message || "Failed to create junctions"
+      );
     },
   });
 }
@@ -347,11 +457,17 @@ export function useCategoriesWithSubcategories(workspaceId: string) {
   });
 }
 
-export function useCategoryWithSubcategories(categoryId: string, workspaceId: string) {
+export function useCategoryWithSubcategories(
+  categoryId: string,
+  workspaceId: string
+) {
   return useQuery({
     queryKey: ["categoryWithSubcategories", categoryId, workspaceId],
     queryFn: async () => {
-      const response = await getCategoryWithSubcategories(categoryId, workspaceId);
+      const response = await getCategoryWithSubcategories(
+        categoryId,
+        workspaceId
+      );
       return response.data;
     },
     enabled: !!categoryId && !!workspaceId,
@@ -384,15 +500,24 @@ export function useReorderSubcategoriesInCategory(workspaceId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ categoryId, data }: { categoryId: string; data: ReorderSubcategoriesRequest }) =>
-      reorderSubcategoriesInCategory(categoryId, data, workspaceId),
+    mutationFn: ({
+      categoryId,
+      data,
+    }: {
+      categoryId: string;
+      data: ReorderSubcategoriesRequest;
+    }) => reorderSubcategoriesInCategory(categoryId, data, workspaceId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["junctionsByCategory"] });
-      queryClient.invalidateQueries({ queryKey: ["categoriesWithSubcategories", workspaceId] });
+      queryClient.invalidateQueries({
+        queryKey: ["categoriesWithSubcategories", workspaceId],
+      });
       message.success("Subcategories reordered successfully");
     },
     onError: (error: any) => {
-      message.error(error?.response?.data?.message || "Failed to reorder subcategories");
+      message.error(
+        error?.response?.data?.message || "Failed to reorder subcategories"
+      );
     },
   });
 }

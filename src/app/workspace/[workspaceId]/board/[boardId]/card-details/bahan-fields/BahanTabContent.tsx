@@ -23,6 +23,16 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
   getCategoryError,
   clearCategoryError,
 }) => {
+  const formatDisplayValue = (
+    value?: number | null,
+    fallback: string = "0,00"
+  ): string => {
+    if (value === undefined || value === null || Number.isNaN(value)) {
+      return fallback;
+    }
+    return value.toFixed(2).replace(".", ",");
+  };
+
   // Handler for Create New Order button
   const handleCreateNewOrder = async (po: any, product: any) => {
     // Only create new orders, don't toggle existing ones
@@ -144,7 +154,7 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
               backgroundColor: `rgb(${colors.muted})`,
               color: `rgb(${colors["text-muted"]})`,
             }}
-            value={bahanTab.sisaBahan.toFixed(2)}
+            value={formatDisplayValue(bahanTab.sisaBahan)}
             readOnly
           />
         </div>
@@ -181,7 +191,7 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
               color: `rgb(${colors["text-muted"]})`,
             }}
           >
-            Est Bahan
+            Est Bahan ({product.satuan || "unit"})
           </label>
           <input
             className="w-full px-3 py-2 rounded-md text-sm cursor-not-allowed"
@@ -190,7 +200,7 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
               backgroundColor: `rgb(${colors.muted})`,
               color: `rgb(${colors["text-muted"]})`,
             }}
-            value={bahanTab.estBahan.toFixed(1)}
+            value={formatDisplayValue(bahanTab.estBahan)}
             readOnly
           />
         </div>
@@ -203,11 +213,19 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
               color: `rgb(${colors["text-muted"]})`,
             }}
           >
-            Bahan Terpakai
+            Bahan Terpakai ({product.satuan || "unit"})
           </label>
           <input
             type="number"
-            value={bahanTab.bahanTerpakai || ""}
+            inputMode="decimal"
+            step="0.01"
+            value={
+              bahanTab.bahanTerpakai === undefined ||
+              bahanTab.bahanTerpakai === null ||
+              Number.isNaN(bahanTab.bahanTerpakai)
+                ? ""
+                : bahanTab.bahanTerpakai
+            }
             onChange={(e) => {
               const value = e.target.value;
               if (value === "" || value === "0") {
@@ -218,6 +236,19 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
                   productIndex,
                   bahanTabIndex,
                   parseFloat(value) || 0
+                );
+              }
+            }}
+            onBlur={() => {
+              if (
+                typeof bahanTab.bahanTerpakai === "number" &&
+                !Number.isNaN(bahanTab.bahanTerpakai)
+              ) {
+                onBahanTerpakaiChange(
+                  poIndex,
+                  productIndex,
+                  bahanTabIndex,
+                  parseFloat(bahanTab.bahanTerpakai.toFixed(2))
                 );
               }
             }}

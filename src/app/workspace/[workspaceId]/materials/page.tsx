@@ -169,6 +169,32 @@ export default function MaterialsPage({ params }: { params: { workspaceId: strin
           operator: pendingChanges.operator,
         },
       });
+
+      setEditingCategory((prev) => {
+        if (!prev || !prev.subcategories) {
+          return prev;
+        }
+
+        const updatedSubcategories = prev.subcategories.map((subcat) => {
+          if (subcat.junction?.id === pendingChanges.junctionId) {
+            return {
+              ...subcat,
+              junction: {
+                ...subcat.junction,
+                calculationWeight: pendingChanges.weight,
+                operator: pendingChanges.operator,
+              },
+            };
+          }
+          return subcat;
+        });
+
+        return {
+          ...prev,
+          subcategories: updatedSubcategories,
+        };
+      });
+
       setEditingJunctionId(null);
       setPendingChanges(null);
       // The hook already handles cache invalidation, so no manual refetch needed
