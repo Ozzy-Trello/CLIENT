@@ -24,6 +24,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const dispatch = useDispatch();
 
+  useEffect(() => {
+    TokenStorage.initialize();
+  }, []);
+
   // Fix: Add client-side authentication checking for localStorage fallback
   useEffect(() => {
     // Only run on client side
