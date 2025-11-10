@@ -1,4 +1,8 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import {
   cardCustomFields,
   setCardCustomFieldValue,
@@ -9,6 +13,7 @@ import {
   EnumCustomFieldSource,
   EnumCustomFieldType,
 } from "@myTypes/custom-field";
+import { useMemo } from "react";
 
 export const useCardCustomField = (cardId: string, workspaceId: string) => {
   const queryClient = useQueryClient();
@@ -215,11 +220,34 @@ export const useCardCustomField = (cardId: string, workspaceId: string) => {
     }
   };
 
+  const dedupedCustomFields = useMemo(() => {
+    const data = cardCustomFieldQuery.data?.data ?? [];
+    const map = new Map<string, CardCustomField>();
+
+    const getKey = (field: CardCustomField) => {
+      const customFieldId =
+        (field as any).customFieldId ||
+        (field as any).custom_field_id ||
+        field.id;
+
+      if (customFieldId) return customFieldId;
+      if (field.name) return `name:${field.name.toLowerCase()}`;
+      return `${Math.random()}`;
+    };
+
+    data.forEach((field) => {
+      const key = getKey(field);
+      if (!map.has(key)) {
+        map.set(key, field);
+      }
+    });
+
+    return Array.from(map.values());
+  }, [cardCustomFieldQuery.data?.data]);
+
   // Helper function to get the actual value regardless of type
   const getValue = (customFieldId: string): any => {
-    const field = cardCustomFieldQuery.data?.data?.find(
-      (field) => field.id === customFieldId
-    );
+    const field = dedupedCustomFields.find((field) => field.id === customFieldId);
 
     if (!field) return null;
 
@@ -256,9 +284,7 @@ export const useCardCustomField = (cardId: string, workspaceId: string) => {
   const getCustomField = (
     customFieldId: string
   ): CardCustomField | undefined => {
-    const field = cardCustomFieldQuery.data?.data?.find(
-      (field) => field.id === customFieldId
-    );
+    const field = dedupedCustomFields.find((field) => field.id === customFieldId);
     return field;
   };
 
@@ -322,7 +348,7 @@ export const useCardCustomField = (cardId: string, workspaceId: string) => {
 
   return {
     // Query data and state
-    cardCustomFields: cardCustomFieldQuery.data?.data || [],
+    cardCustomFields: dedupedCustomFields,
     isLoading: cardCustomFieldQuery.isLoading,
     isError: cardCustomFieldQuery.isError,
     error: cardCustomFieldQuery.error,

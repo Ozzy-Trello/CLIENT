@@ -14,6 +14,7 @@ const CategorySection: React.FC<CategorySectionProps> = ({
   clearCategoryError,
 }) => {
   const [activeTab, setActiveTab] = useState<string>(categories[0]?.id || "");
+  const [pendingValues, setPendingValues] = useState<Record<string, string>>({});
 
   // Helper function to get category data for a specific category
   const getCategoryData = (categoryId: string): CategoryData | undefined => {
@@ -86,6 +87,13 @@ const CategorySection: React.FC<CategorySectionProps> = ({
     const categoryKey = `${product.poProductId}-${category.id}-${subcategory.id}`;
     const isLoading = isCategoryLoading?.(categoryKey) || false;
     const error = getCategoryError?.(categoryKey);
+    const pendingKey = `${po.id}-${product.id}-${category.id}-${subcategory.id}`;
+    const inputValue =
+      pendingValues[pendingKey] !== undefined
+        ? pendingValues[pendingKey]
+        : Number.isFinite(value)
+        ? String(value)
+        : "";
 
     return (
       <div key={subcategory.id} className="flex flex-col flex-1 min-w-[200px]">
@@ -103,29 +111,45 @@ const CategorySection: React.FC<CategorySectionProps> = ({
         <div className="relative">
           <input
             type="number"
-            value={value || ""}
+            value={inputValue}
             onChange={(e) => {
-              // Clear any existing error when user starts typing
               if (error && clearCategoryError) {
                 clearCategoryError(categoryKey);
               }
-              const inputValue = e.target.value;
-              if (inputValue === "" || inputValue === "0") {
-                onCategoryValueChange(
-                  po.id,
-                  product.id,
-                  category.id,
-                  subcategory.id,
-                  0
-                );
-              } else {
-                onCategoryValueChange(
-                  po.id,
-                  product.id,
-                  category.id,
-                  subcategory.id,
-                  parseFloat(inputValue) || 0
-                );
+              const val = e.target.value;
+              setPendingValues((prev) => ({ ...prev, [pendingKey]: val }));
+            }}
+            onBlur={() => {
+              const pending = pendingValues[pendingKey];
+              if (pending === undefined) {
+                return;
+              }
+
+              const numericValue = pending === ""
+                ? 0
+                : Number.parseFloat(pending);
+
+              setPendingValues((prev) => {
+                const next = { ...prev };
+                delete next[pendingKey];
+                return next;
+              });
+
+              const safeValue = Number.isFinite(numericValue)
+                ? numericValue
+                : 0;
+
+              onCategoryValueChange(
+                po.id,
+                product.id,
+                category.id,
+                subcategory.id,
+                safeValue
+              );
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.currentTarget.blur();
               }
             }}
             className={`w-full px-3 py-2 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
