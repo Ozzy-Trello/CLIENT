@@ -8,9 +8,10 @@ import React, {
 } from "react";
 import { Dropdown, MenuProps, Modal, message } from "antd";
 import TouchAwareTooltip from "@components/touch-aware-tooltip";
-import { MoveRight, Copy, Trash2 } from "lucide-react";
+import { MoveRight, Copy, Trash2, Tag } from "lucide-react";
 import PopoverMoveCard from "@components/popover-move-card";
 import PopoverCopyCard from "@components/popover-copy-card";
+import PopoverLabel from "@components/popover-label.tsx";
 import { Card } from "@myTypes/card";
 import { AnyList } from "@myTypes/list";
 import { useCards } from "@hooks/card";
@@ -33,6 +34,7 @@ const CardContextMenu: React.FC<CardContextMenuProps> = ({
   const { boardId } = useParams();
   const [openMoveCard, setOpenMoveCard] = useState(false);
   const [openCopyCard, setOpenCopyCard] = useState(false);
+  const [openLabel, setOpenLabel] = useState(false);
   const [contextMenuVisible, setContextMenuVisible] = useState(false);
   const [contextMenuPosition, setContextMenuPosition] = useState({
     x: 0,
@@ -53,7 +55,7 @@ const CardContextMenu: React.FC<CardContextMenuProps> = ({
   );
 
   // Get permissions
-  const { canMoveCard, canCopyCard, canDeleteCard } =
+  const { canMoveCard, canCopyCard, canDeleteCard, canManageCardLabels } =
     usePermissions();
 
   const handleContextMenu = (e: React.MouseEvent) => {
@@ -113,6 +115,8 @@ const CardContextMenu: React.FC<CardContextMenuProps> = ({
           setOpenMoveCard(true);
         } else if (key === "copy") {
           setOpenCopyCard(true);
+        } else if (key === "labels") {
+          setOpenLabel(true);
         } else if (key === "delete") {
           handleDeleteCard();
         }
@@ -180,6 +184,13 @@ const CardContextMenu: React.FC<CardContextMenuProps> = ({
         canCopyCard(),
         () => handleMenuClick("copy")
       ),
+      createMenuItem(
+        "labels",
+        <Tag size={14} />,
+        "Labels",
+        canManageCardLabels(),
+        () => handleMenuClick("labels")
+      ),
       {
         type: "divider" as const,
       },
@@ -235,6 +246,28 @@ const CardContextMenu: React.FC<CardContextMenuProps> = ({
     }
   }, []);
 
+  // Keyboard shortcut: Press 'L' to open Labels when context menu is visible
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!contextMenuVisible) return;
+      const target = e.target as HTMLElement | null;
+      // Skip if typing in input/textarea/contenteditable
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) {
+        return;
+      }
+      if ((e.key === "l" || e.key === "L") && canManageCardLabels()) {
+        e.preventDefault();
+        setContextMenuVisible(false);
+        setTimeout(() => setOpenLabel(true), 100);
+      }
+    };
+
+    if (contextMenuVisible) {
+      document.addEventListener("keydown", handleKeyDown);
+      return () => document.removeEventListener("keydown", handleKeyDown);
+    }
+  }, [contextMenuVisible, canManageCardLabels]);
+
 
 
   return (
@@ -287,6 +320,25 @@ const CardContextMenu: React.FC<CardContextMenuProps> = ({
               position: "fixed",
               left: contextMenuPosition.x,
               top: contextMenuPosition.y + 30,
+              width: 1,
+              height: 1,
+              pointerEvents: "none",
+            }}
+          />
+        }
+      />
+
+      {/* Labels Popover */}
+      <PopoverLabel
+        open={openLabel}
+        setOpen={setOpenLabel}
+        card={card}
+        triggerEl={
+          <div
+            style={{
+              position: "fixed",
+              left: contextMenuPosition.x,
+              top: contextMenuPosition.y + 60,
               width: 1,
               height: 1,
               pointerEvents: "none",

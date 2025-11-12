@@ -345,6 +345,14 @@ export const deleteAllCardsInList = async (
   return data;
 };
 
+// Archive all cards in a specific list
+export const archiveAllCardsInList = async (
+  listId: string
+): Promise<ApiResponse<{ archived_count: number }>> => {
+  const { data } = await api.post(`/list/${listId}/cards/archive`);
+  return data;
+};
+
 export const validateCardInFinishingPacking = async (
   cardId: string
 ): Promise<ApiResponse<{ isValid: boolean; message: string }>> => {

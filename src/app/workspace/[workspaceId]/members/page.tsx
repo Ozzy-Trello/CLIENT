@@ -18,7 +18,7 @@ import {
   Spin,
   Tooltip,
 } from "antd";
-import { useEffect, useState } from "react";
+import { ChangeEvent, useEffect, useState } from "react";
 import AddUserModal from "./add_user_modal";
 import { accountList, userDetails } from "@api/account";
 import { useParams } from "next/navigation";
@@ -160,6 +160,9 @@ const Members: React.FC = () => {
   const resolvedWorkspaceId = Array.isArray(workspaceId)
     ? workspaceId[0]
     : (workspaceId as string);
+  const resolvedBoardId = Array.isArray(boardId)
+    ? boardId[0]
+    : (boardId as string | undefined);
 
   // Get permissions
   const { canManageUsers, isSuperAdmin } = usePermissions();
@@ -186,8 +189,12 @@ const Members: React.FC = () => {
     pageSize: 10,
     total: 0,
   });
+  const [roleFilter, setRoleFilter] = useState<string | null>(null);
+  const [searchValue, setSearchValue] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
 
   const memberCount = data.length;
+  const selectedRoleIds = roleFilter ? [roleFilter] : [];
 
   const menuItems: MenuItem[] = [
     {
@@ -299,8 +306,14 @@ const Members: React.FC = () => {
     const fecthData = async () => {
       const wsId = Array.isArray(workspaceId) ? workspaceId[0] : workspaceId;
       const bId = Array.isArray(boardId) ? boardId[0] : boardId;
-      const result = await accountList(wsId, bId);
-      console.log(result);
+      if (!wsId) return;
+      const safeBoardId = bId || "";
+      const result = await accountList(
+        wsId,
+        safeBoardId,
+        selectedRoleIds,
+        searchTerm
+      );
 
       if (result && result.data) {
         setData(result.data || []);
@@ -317,7 +330,28 @@ const Members: React.FC = () => {
         setIsFetching(false);
       }, 500);
     }
-  }, [isFetching]);
+  }, [isFetching, workspaceId, boardId, roleFilter, searchTerm]);
+
+  const handleRoleFilterChange = (value: string | null) => {
+    setRoleFilter(value);
+    setPagination((prev) => ({ ...prev, current: 1 }));
+    setIsFetching(true);
+  };
+
+  const triggerSearch = (value: string) => {
+    const trimmed = value.trim();
+    setSearchTerm(trimmed);
+    setPagination((prev) => ({ ...prev, current: 1 }));
+    setIsFetching(true);
+  };
+
+  const handleSearchChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchValue(value);
+    if (value === "") {
+      triggerSearch("");
+    }
+  };
 
   // Check if user has access to this page
   if (!canManageUsers()) {
@@ -377,6 +411,41 @@ const Members: React.FC = () => {
           onClick={handleMenuClick}
         />
         <div style={{ width: "100%" }}>
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <Typography.Text type="secondary">
+              Filter workspace members by role or search by name/email
+            </Typography.Text>
+            <Space wrap size={12}>
+              <Input.Search
+                allowClear
+                placeholder="Search members..."
+                value={searchValue}
+                style={{ minWidth: 220, maxWidth: 320 }}
+                onChange={handleSearchChange}
+                onSearch={(value) => {
+                  setSearchValue(value);
+                  triggerSearch(value);
+                }}
+                enterButton
+              />
+              <Select
+                allowClear
+                showSearch
+                placeholder="All roles"
+                value={roleFilter || undefined}
+                style={{ minWidth: 220, maxWidth: 320 }}
+                onChange={(value) => handleRoleFilterChange(value || null)}
+                loading={rolesLoading}
+                optionFilterProp="children"
+              >
+                {allRoles.map((role: any) => (
+                  <Option key={role.id} value={role.id}>
+                    {role.name}
+                  </Option>
+                ))}
+              </Select>
+            </Space>
+          </div>
           {!isFetching && activeMenu === "menu-workspace-members" && (
             <TableMembers
               dataSource={data}

@@ -7,14 +7,21 @@ import Home from "./home";
 import LabelForm from "./label-form";
 import { CardLabel, Label } from "@myTypes/label";
 import { useLabels } from "@hooks/label";
+import { Card } from "@myTypes/card";
 
 interface PopoverLabel {
   open: boolean;
   setOpen: (open: boolean) => void;
   triggerEl?: ReactNode;
+  card?: Card | null;
 }
 
-const PopoverLabel: React.FC<PopoverLabel> = ({ open, setOpen, triggerEl }) => {
+const PopoverLabel: React.FC<PopoverLabel> = ({
+  open,
+  setOpen,
+  triggerEl,
+  card,
+}) => {
   const { selectedCard, activeList, setSelectedCard } = useCardDetailContext();
   const { boardId, workspaceId } = useParams();
   const [popoverPage, setPopoverPage] = useState<"home" | "add" | "update">(
@@ -24,11 +31,11 @@ const PopoverLabel: React.FC<PopoverLabel> = ({ open, setOpen, triggerEl }) => {
     undefined
   );
 
-  const { allLabels } = useLabels(
-    workspaceId as string,
-    selectedCard?.id,
-    { cardId: selectedCard?.id }
-  );
+  const targetCard = card ?? selectedCard;
+
+  const { allLabels } = useLabels(workspaceId as string, targetCard?.id, {
+    cardId: targetCard?.id,
+  });
 
   // No need for reset since we're fetching all labels at once
 
@@ -50,7 +57,7 @@ const PopoverLabel: React.FC<PopoverLabel> = ({ open, setOpen, triggerEl }) => {
             setPopoverPage={setPopoverPage}
             selectedLabel={selectedLabel}
             setSelectedLabel={setSelectedLabel}
-            selectedCard={selectedCard}
+            selectedCard={targetCard}
           />
         ) : (
           <LabelForm
@@ -58,7 +65,7 @@ const PopoverLabel: React.FC<PopoverLabel> = ({ open, setOpen, triggerEl }) => {
             setPopoverPage={setPopoverPage}
             selectedLabel={selectedLabel}
             setSelectedLabel={setSelectedLabel}
-            selectedCard={selectedCard}
+            selectedCard={targetCard}
           />
         )
       }
