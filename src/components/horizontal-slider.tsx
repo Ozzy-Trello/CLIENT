@@ -1,19 +1,26 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 
 interface HorizontalSliderProps {
   containerRef: React.RefObject<HTMLDivElement>;
   className?: string;
+  widthPercent?: number;
 }
 
 const HorizontalSlider: React.FC<HorizontalSliderProps> = ({
   containerRef,
   className = "",
+  widthPercent = 100,
 }) => {
   const [scrollPosition, setScrollPosition] = useState(0);
   const [maxScroll, setMaxScroll] = useState(0);
-  const [showSlider, setShowSlider] = useState(false);
+  const [isOverflowing, setIsOverflowing] = useState(false);
+  const [visibleRatio, setVisibleRatio] = useState(1);
+  const [sliderInsets, setSliderInsets] = useState<{
+    left: number;
+    right: number;
+  } | null>(null);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -22,11 +29,20 @@ const HorizontalSlider: React.FC<HorizontalSliderProps> = ({
     const updateScrollInfo = () => {
       const scrollWidth = container.scrollWidth;
       const clientWidth = container.clientWidth;
-      const maxScrollValue = scrollWidth - clientWidth;
+      const maxScrollValue = Math.max(scrollWidth - clientWidth, 0);
 
       setMaxScroll(maxScrollValue);
-      setShowSlider(maxScrollValue > 0);
+      setIsOverflowing(maxScrollValue > 0);
       setScrollPosition(container.scrollLeft);
+      setVisibleRatio(
+        scrollWidth > 0 ? Math.min(clientWidth / scrollWidth, 1) : 1
+      );
+
+      const rect = container.getBoundingClientRect();
+      setSliderInsets({
+        left: rect.left,
+        right: Math.max(window.innerWidth - rect.right, 0),
+      });
     };
 
     const handleScroll = () => {
@@ -38,95 +54,148 @@ const HorizontalSlider: React.FC<HorizontalSliderProps> = ({
 
     // Listen for scroll events
     container.addEventListener("scroll", handleScroll);
+    window.addEventListener("resize", updateScrollInfo);
 
     // Listen for resize events
-    const resizeObserver = new ResizeObserver(updateScrollInfo);
-    resizeObserver.observe(container);
+    let resizeObserver: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== "undefined") {
+      resizeObserver = new ResizeObserver(updateScrollInfo);
+      resizeObserver.observe(container);
+    }
 
     // Listen for content changes
-    const mutationObserver = new MutationObserver(updateScrollInfo);
-    mutationObserver.observe(container, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: ["style", "class"],
-    });
+    let mutationObserver: MutationObserver | null = null;
+    if (typeof MutationObserver !== "undefined") {
+      mutationObserver = new MutationObserver(updateScrollInfo);
+      mutationObserver.observe(container, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ["style", "class"],
+      });
+    }
 
     return () => {
       container.removeEventListener("scroll", handleScroll);
-      resizeObserver.disconnect();
-      mutationObserver.disconnect();
+      window.removeEventListener("resize", updateScrollInfo);
+      resizeObserver?.disconnect();
+      mutationObserver?.disconnect();
     };
   }, [containerRef]);
 
   const sliderPercentage =
     maxScroll > 0 ? (scrollPosition / maxScroll) * 100 : 0;
-  const thumbWidth =
-    maxScroll > 0
-      ? Math.max(
-          100,
-          ((containerRef.current?.clientWidth || 0) /
-            (containerRef.current?.scrollWidth || 1)) *
-            100
-        )
-      : 20;
 
-  if (!showSlider) return null;
+  const sliderWidthPercent = Math.min(Math.max(widthPercent ?? 100, 10), 100);
+
+  if (!isOverflowing || maxScroll === 0) {
+    return null;
+  }
+
+  const thumbWidthPercent = Math.min(Math.max(visibleRatio * 100, 8), 100);
+  const travelRange = Math.max(0, 100 - thumbWidthPercent);
+  const thumbLeftPercent = (sliderPercentage / 100) * travelRange;
+
+  const sliderPositionStyle = sliderInsets
+    ? {
+        left: sliderInsets.left,
+        right: sliderInsets.right,
+        width: "auto",
+        transform: "none",
+      }
+    : {
+        left: "50%",
+        width: `${sliderWidthPercent}%`,
+        maxWidth: "640px",
+        minWidth: sliderWidthPercent < 50 ? "220px" : undefined,
+        transform: "translateX(-50%)",
+      };
 
   const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = parseInt(e.target.value);
-    if (containerRef.current) {
+    if (containerRef.current && maxScroll > 0) {
       containerRef.current.scrollLeft = value;
     }
   };
 
   return (
     <div
-      className={`absolute bottom-0 left-0 right-0 h-2 bg-transparent z-10 transition-opacity duration-300 hover:opacity-100 ${className}`}
+      className={`fixed z-30 pointer-events-auto select-none transition-opacity duration-200 hover:opacity-100 ${className}`}
       style={{
-        opacity: 0.2,
-        width: "100%",
-        marginBottom: "0.3rem",
+        opacity: 0.95,
+        bottom: 4,
+        ...sliderPositionStyle,
       }}
     >
+      <div className="horizontal-slider__track">
+        <div
+          className="horizontal-slider__thumb"
+          style={{
+            width: `${thumbWidthPercent}%`,
+            left: `${thumbLeftPercent}%`,
+          }}
+        />
+      </div>
+
       <input
         type="range"
         min="0"
         max={maxScroll}
         value={scrollPosition}
         onChange={handleSliderChange}
-        className="w-full h-full appearance-none bg-transparent cursor-pointer native-scrollbar-slider"
-        style={{
-          background: "transparent",
-        }}
+        aria-label="Board horizontal scroll"
+        className="horizontal-slider__input"
       />
 
       <style jsx>{`
-        .native-scrollbar-slider::-webkit-slider-thumb {
+        .horizontal-slider__track {
+          position: relative;
+          width: 100%;
+          height: 12px;
+          border-radius: 999px;
+          background: rgba(226, 232, 240, 0.9);
+          border: 1px solid rgba(203, 213, 225, 0.8);
+          overflow: hidden;
+        }
+
+        .horizontal-slider__thumb {
+          position: absolute;
+          top: 1px;
+          bottom: 1px;
+          border-radius: 999px;
+          background: #4b5563;
+          box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.3);
+          transition: left 0.12s ease-out, width 0.12s ease-out;
+        }
+
+        .horizontal-slider__input {
+          -webkit-appearance: none;
           appearance: none;
-          height: 6px;
-          width: ${Math.max(20, thumbWidth)}px;
-          background: #374151;
-          cursor: pointer;
-          border-radius: 0;
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+          cursor: grab;
+          background: transparent;
+          outline: none;
+          opacity: 0;
+        }
+
+        .horizontal-slider__input:active {
+          cursor: grabbing;
+        }
+
+        .horizontal-slider__input::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 0;
+          height: 0;
+        }
+
+        .horizontal-slider__input::-moz-range-thumb {
+          width: 0;
+          height: 0;
           border: none;
-        }
-
-        .native-scrollbar-slider::-webkit-slider-thumb:hover {
-          background: #1f2937;
-        }
-
-        .native-scrollbar-slider::-moz-range-thumb {
-          height: 8px;
-          width: ${Math.max(20, thumbWidth)}px;
-          background: #374151;
-          cursor: pointer;
-          border-radius: 0;
-          border: none;
-        }
-
-        .native-scrollbar-slider::-moz-range-thumb:hover {
-          background: #1f2937;
         }
       `}</style>
     </div>

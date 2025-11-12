@@ -747,7 +747,7 @@ const Board: React.FC = () => {
         />
         <CardFocusProvider>
           <CardDetailProvider>
-            <div className="relative">
+            <div className="relative pb-10">
               {/* Horizontal Slider for manual navigation - positioned inside board area */}
               <BoardContentWithPermissions
                 lists={lists}
@@ -774,7 +774,10 @@ const Board: React.FC = () => {
                 onTouchMove={handleTouchMove}
                 onTouchEnd={handleTouchEnd}
               />
-              <HorizontalSlider containerRef={boardScrollContainerRef} />
+              <HorizontalSlider
+                containerRef={boardScrollContainerRef}
+                widthPercent={20}
+              />
             </div>
 
             <CardDetails />
