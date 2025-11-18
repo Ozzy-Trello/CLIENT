@@ -8,7 +8,7 @@ import React, {
 } from "react";
 import { Dropdown, MenuProps, Modal, message } from "antd";
 import TouchAwareTooltip from "@components/touch-aware-tooltip";
-import { MoveRight, Copy, Trash2, Tag } from "lucide-react";
+import { MoveRight, Copy, Trash2, Tag, ListPlus } from "lucide-react";
 import PopoverMoveCard from "@components/popover-move-card";
 import PopoverCopyCard from "@components/popover-copy-card";
 import PopoverLabel from "@components/popover-label.tsx";
@@ -17,6 +17,8 @@ import { AnyList } from "@myTypes/list";
 import { useCards } from "@hooks/card";
 import { useParams } from "next/navigation";
 import { usePermissions } from "@hooks/account";
+import CreateSubcardModal from "@components/modal-create-subcard";
+import { useBoardPermissionsContext } from "@providers/board-permissions-context";
 
 interface CardContextMenuProps {
   children: ReactNode;
@@ -40,6 +42,7 @@ const CardContextMenu: React.FC<CardContextMenuProps> = ({
     x: 0,
     y: 0,
   });
+  const [openSubcardModal, setOpenSubcardModal] = useState(false);
 
 
 
@@ -57,6 +60,7 @@ const CardContextMenu: React.FC<CardContextMenuProps> = ({
   // Get permissions
   const { canMoveCard, canCopyCard, canDeleteCard, canManageCardLabels } =
     usePermissions();
+  const { canCreateCard } = useBoardPermissionsContext();
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -119,6 +123,8 @@ const CardContextMenu: React.FC<CardContextMenuProps> = ({
           setOpenLabel(true);
         } else if (key === "delete") {
           handleDeleteCard();
+        } else if (key === "subcard") {
+          setOpenSubcardModal(true);
         }
       }, 100);
     },
@@ -190,6 +196,13 @@ const CardContextMenu: React.FC<CardContextMenuProps> = ({
         "Labels",
         canManageCardLabels(),
         () => handleMenuClick("labels")
+      ),
+      createMenuItem(
+        "subcard",
+        <ListPlus size={14} />,
+        "Create Sub Card",
+        !!card && !!list && canCreateCard(),
+        () => handleMenuClick("subcard")
       ),
       {
         type: "divider" as const,
@@ -330,6 +343,12 @@ const CardContextMenu: React.FC<CardContextMenuProps> = ({
             }}
           />
         }
+      />
+
+      <CreateSubcardModal
+        parentCard={card || null}
+        open={openSubcardModal}
+        onClose={() => setOpenSubcardModal(false)}
       />
     </>
   );

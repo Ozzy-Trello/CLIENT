@@ -73,7 +73,7 @@ const CollapsibleListSimple: React.FC<CollapsibleListSimpleProps> = ({
         >
           {/* Header */}
           <div
-            className="flex items-center justify-between px-3 py-2 bg-white/60"
+            className="flex items-center justify-between px-3 py-2 bg-white/60 collapsible-list-header"
             style={{ backgroundColor: list.background || undefined }}
           >
             <button
@@ -119,7 +119,7 @@ const CollapsibleListSimple: React.FC<CollapsibleListSimpleProps> = ({
                 {!collapsed && (
                   <div className="space-y-2">
                     {/* Simple table header */}
-                    <div className="grid grid-cols-[minmax(160px,1fr)_180px_120px] text-[11px] text-gray-600 px-3">
+                    <div className="grid grid-cols-[minmax(160px,1fr)_180px_120px] text-[11px] text-gray-600 px-3 list-view-header">
                       <div className="font-semibold">Name</div>
                       <div className="font-semibold">Members</div>
                       <div className="font-semibold">Age</div>

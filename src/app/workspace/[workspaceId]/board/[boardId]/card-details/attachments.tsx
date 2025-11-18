@@ -18,7 +18,6 @@ import {
   ZoomOutOutlined,
 } from "@ant-design/icons";
 import { QrCode } from "lucide-react";
-import { mapBackendCardToFrontend } from "@api/card";
 import { uploadFile } from "@api/file";
 import { createShortUrl, buildShortUrl } from "@api/short-url";
 import UploadModal from "@components/modal-upload/modal-upload";
@@ -42,7 +41,6 @@ import ReactDOM from "react-dom";
 import QRCode from "react-qr-code";
 import { useParams } from "next/navigation";
 import URLShortener from "@utils/url-shortener";
-import AttachedCard from "./attached-card";
 
 interface AttachmentsProps {
   card: Card;
@@ -72,7 +70,6 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
   const [openUploadModal, setOpenUploadmodal] = useState<boolean>(false);
   const attachmentsRef = useRef<HTMLDivElement>(null);
   const [isDraggingOver, setIsDraggingOver] = useState<boolean>(false);
-  const [attachedCards, setAttachedCards] = useState<Card[]>([]);
   const [attachedFiles, setAttachedFiles] = useState<FileUpload[]>([]);
   const [pdfModalVisible, setPdfModalVisible] = useState<boolean>(false);
   const [selectedPdf, setSelectedPdf] = useState<{
@@ -581,7 +578,7 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
             throw new Error("Upload failed");
           }
         } catch (error) {
-            messageApi.error(`Failed to upload ${file.name}`);
+          messageApi.error(`Failed to upload ${file.name}`);
         }
       }
 
@@ -729,24 +726,18 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
 
   useEffect(() => {
     if (!cardAttachments) {
-      setAttachedCards([]);
       setAttachedFiles([]);
       return;
     }
 
-    const nextAttachedCards: Card[] = [];
     const nextAttachedFiles: FileUpload[] = [];
 
     cardAttachments.forEach((item: CardAttachment) => {
-      if (item.attachableType === EnumAttachmentType.Card && item.targetCard) {
-        const mappedCard = mapBackendCardToFrontend(item.targetCard);
-        nextAttachedCards.push(mappedCard as Card);
-      } else if (item.attachableType === EnumAttachmentType.File && item.file) {
+      if (item.attachableType === EnumAttachmentType.File && item.file) {
         nextAttachedFiles.push(item.file as FileUpload);
       }
     });
 
-    setAttachedCards(nextAttachedCards);
     setAttachedFiles(nextAttachedFiles);
 
     // Find cover attachment and update card cover
@@ -992,27 +983,6 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
         ref={attachmentsRef}
         tabIndex={0}
       >
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center">
-            <PaperClipOutlined className="text-gray-500 mr-2" />
-            <Typography.Title level={5} className="m-0">
-              Attachments
-            </Typography.Title>
-          </div>
-          <Button
-            type="default"
-            size="small"
-            icon={<PlusOutlined />}
-            className={`flex items-center ${
-              !canUpdateCard() ? "opacity-50 cursor-not-allowed" : ""
-            }`}
-            onClick={handleOpenModal}
-            disabled={!canUpdateCard()}
-          >
-            Add
-          </Button>
-        </div>
-
         {/* Other Files Section */}
         <AttachmentSection
           title="All Files"
@@ -1024,39 +994,6 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
           emptyText="No attachments yet"
           sectionType="other"
         />
-
-        {/* Cards Section */}
-        {attachedCards.length > 0 && (
-          <>
-            <div className="text-xs text-gray-500 font-medium uppercase mt-4 mb-2">
-              Cards
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 auto-rows-max">
-              {attachedCards.map((attachedCard) => {
-                // Find the corresponding attachment to get the attachment ID for deletion
-                const attachment = cardAttachments?.find(
-                  (att) => att.targetCard?.id === attachedCard.id
-                );
-
-                return (
-                  <AttachedCard
-                    key={attachedCard.id}
-                    card={attachedCard}
-                    onDelete={
-                      attachment
-                        ? () =>
-                            deleteAttachment({
-                              attachmentId: attachment.id,
-                              cardId: card.id || "",
-                            })
-                        : undefined
-                    }
-                  />
-                );
-              })}
-            </div>
-          </>
-        )}
 
         <UploadModal
           isVisible={openUploadModal}

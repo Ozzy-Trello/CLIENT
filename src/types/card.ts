@@ -48,6 +48,10 @@ export interface Card {
   updatedAt?: string;
   itemDashcard?: IItemDashcard[] | null;
   mirrorId?: string;
+  parentId?: string | null;
+  subCards?: Card[];
+  sub?: Card[];
+  parentCard?: Card | null;
   sourceCard?: any;
   poAmount?: number;
   bahan?: boolean; // Whether the card requires material/fabric
@@ -84,6 +88,8 @@ export interface Card {
   workspace_name?: string;
   short_id?: number;
   po_amount?: number;
+  parent_id?: string | null;
+  parent_card?: Card | null;
 }
 
 export enum EnumAttachmentType {

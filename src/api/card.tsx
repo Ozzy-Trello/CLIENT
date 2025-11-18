@@ -50,11 +50,27 @@ export const mapBackendCardToFrontend = (backendCard: any): Card => {
   if (backendCard.workspace_name !== undefined) {
     mapped.workspaceName = backendCard.workspace_name;
   }
+  if (backendCard.parent_id !== undefined) {
+    mapped.parentId = backendCard.parent_id;
+  }
+  if (backendCard.parent_card !== undefined && backendCard.parent_card !== null) {
+    mapped.parentCard = mapBackendCardToFrontend(backendCard.parent_card);
+  }
   if (backendCard.formatted_time_in_list !== undefined) {
     mapped.formattedTimeInList = backendCard.formatted_time_in_list;
   }
   if (backendCard.formatted_time_in_board !== undefined) {
     mapped.formattedTimeInBoard = backendCard.formatted_time_in_board;
+  }
+
+  if (Array.isArray(backendCard.sub)) {
+    mapped.subCards = backendCard.sub.map((child: any) =>
+      mapBackendCardToFrontend(child)
+    );
+    mapped.sub = mapped.subCards;
+  } else if (backendCard.sub === null) {
+    mapped.subCards = [];
+    mapped.sub = [];
   }
 
   return mapped;
@@ -92,6 +108,22 @@ const mapFrontendCardToBackend = (frontendCard: Partial<Card>): any => {
   if (frontendCard.warnaInfo !== undefined) {
     backendData.warna_info = frontendCard.warnaInfo;
     delete backendData.warnaInfo;
+  }
+  if (frontendCard.parentId !== undefined) {
+    backendData.parent_id = frontendCard.parentId;
+    delete backendData.parentId;
+  }
+  if (backendData.subCards !== undefined) {
+    delete backendData.subCards;
+  }
+  if (backendData.sub !== undefined) {
+    delete backendData.sub;
+  }
+  if (backendData.parentCard !== undefined) {
+    delete backendData.parentCard;
+  }
+  if (backendData.parent_card !== undefined) {
+    delete backendData.parent_card;
   }
   // Ensure productCodeInfo is never sent back to backend on update
   if (frontendCard.productCodeInfo !== undefined) {

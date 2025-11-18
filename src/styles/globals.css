@@ -244,3 +244,19 @@ body.dragging [data-rbd-placeholder-context-id] {
     border-color: rgba(24, 144, 255, 0.5);
   }
 }
+
+/* Ensure Ant Design primary buttons retain theme styling */
+.ant-btn-primary {
+  background-color: #1677ff !important;
+  border-color: #1677ff !important;
+  color: #fff !important;
+}
+
+.ant-btn-primary:hover,
+.ant-btn-primary:focus {
+  background-color: #145cd1 !important;
+  border-color: #145cd1 !important;
+  color: #fff !important;
+}
+
+

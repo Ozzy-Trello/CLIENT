@@ -26,6 +26,7 @@ import { CardLabel } from "@myTypes/label";
 import "./styles.css";
 import { userDetails } from "@api/account";
 import { fetchLookups } from "@utils/fetch-lookups";
+import { useBoardPermissionsContext } from "@providers/board-permissions-context";
 
 // Utility to convert "3 hours 30 minutes" to "3h 30m"
 function formatTimeShort(timeStr: string | undefined): string {
@@ -63,7 +64,9 @@ function getContrastTextColor(hex: string): string {
 const RegularCard: React.FC<RegularCardProps> = (props) => {
   const { card, isHovered, onCompletionChange, isDragging = false } = props;
   const { workspaceId } = useParams();
-  const { cardMembers } = useCardMembers(card?.id);
+  const { cardMembers, addMember, removeMember } = useCardMembers(card?.id);
+  const { canUpdateCard } = useBoardPermissionsContext();
+  const canEditMembers = canUpdateCard();
   const { cardCustomFields } = useCardCustomField(
     card.id,
     workspaceId as string
@@ -71,6 +74,7 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
   const [frontCustomFields, setfrontCustomFields] = useState<CardCustomField[]>(
     []
   );
+  const [openAddMember, setOpenAddMember] = useState<boolean>(false);
   // local version state to force re-render after lookups populate
   const [lookupVersion, setLookupVersion] = useState(0);
 
@@ -371,11 +375,26 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
         </div>
 
         {cardMembers && (
-          <div className="flex mt-2 gap-1 justify-end">
+          <div
+            className="flex mt-2 gap-1 justify-end"
+            onClick={(e) => e.stopPropagation()}
+          >
             <MembersList
               members={cardMembers}
               membersLength={cardMembers?.length}
               membersLoopLimit={3}
+              onRemoveMember={canEditMembers ? removeMember : undefined}
+              openAddMember={canEditMembers ? openAddMember : undefined}
+              setOpenAddMember={canEditMembers ? setOpenAddMember : undefined}
+              onUserSelectionChange={
+                canEditMembers
+                  ? (value: string) => {
+                      if (!value) return;
+                      addMember(value);
+                      setOpenAddMember(false);
+                    }
+                  : undefined
+              }
             />
           </div>
         )}

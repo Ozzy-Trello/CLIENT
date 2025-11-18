@@ -82,12 +82,17 @@ div[data-rfd-droppable-id="all-columns"] {
 }
 
 .ant-modal-content {
-  padding: 0px !important;
   border-radius: 12px;
   /* max-height: calc(100vh - 100px); */
   display: flex;
   flex-direction: column;
   padding: 0px;
+}
+
+.modal-card-form {
+  .ant-modal-content {
+    padding: 0 !important;
+  }
 }
 
 .ant-modal-header {
@@ -104,10 +109,13 @@ div[data-rfd-droppable-id="all-columns"] {
   padding: 0;
   flex: 1;
   min-height: 50px;
-  max-height: calc(100vh - 10px);
+  max-height: 90vh;
   margin-bottom: 10px;
   overflow-y: auto;
 }
+
+
+
 
 .modal-cust-footer .ant-modal-body {
   margin-bottom: 50px;

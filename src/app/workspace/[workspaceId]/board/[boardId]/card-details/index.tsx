@@ -25,6 +25,7 @@ import {
   CheckSquare,
   Paperclip,
   MessageSquare,
+  Link as LinkIcon,
 } from "lucide-react";
 import MembersList from "@components/members-list";
 import Description from "./description";
@@ -61,6 +62,7 @@ import Dashcard from "./dashcard";
 import { useCardDetails } from "@hooks/card-details";
 import { useBoardPermissionsContext } from "@providers/board-permissions-context";
 import CollapsibleSection from "@components/collapsible-section";
+import Relationships from "./relationships";
 
 const CardDetails: React.FC = (props) => {
   const params = useParams();
@@ -206,7 +208,6 @@ const CardDetails: React.FC = (props) => {
       footer={null}
       className="modal-card-form full-height-modal"
       width={900}
-      destroyOnClose
     >
       <div className="overflow-x-hidden max-w-full">
         {/* Cover Image Section */}
@@ -346,7 +347,8 @@ const CardDetails: React.FC = (props) => {
                             onClose={(e) => {
                               e.preventDefault();
                               if (!canUpdateCard()) return;
-                              const labelId = (label as any).labelId || label.id;
+                              const labelId =
+                                (label as any).labelId || label.id;
                               if (labelId) {
                                 removeCardLabel({ labelId });
                               }
@@ -483,6 +485,20 @@ const CardDetails: React.FC = (props) => {
                   icon={<CheckSquare size={18} />}
                 >
                   <ChecklistFields />
+                </CollapsibleSection>
+              )}
+
+              {/* Relationships Section */}
+              {selectedCard && (
+                <CollapsibleSection
+                  title="Relationships"
+                  defaultExpanded={true}
+                  icon={<LinkIcon size={18} />}
+                >
+                  <Relationships
+                    card={selectedCard}
+                    setCard={setSelectedCard}
+                  />
                 </CollapsibleSection>
               )}
 

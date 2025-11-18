@@ -26,11 +26,6 @@
   border-color: rgba(var(--color-border), 0.5) !important;
 }
 
-button {
-  background-color: rgba(var(--color-surface), 0.8) !important;
-  border-color: rgba(var(--color-border), 0.5) !important;
-}
-
 .add-list-wrapper {
   background-color: rgb(var(--color-surface)) !important;
   padding: 10px;
@@ -59,4 +54,29 @@ button {
   height: 2px; /* subtle underline */
   border-radius: 1px;
   background: rgb(var(--color-primary));
+}
+
+/* List View minimal styles */
+.collapsible-list-header {
+  /* use board list background; blend with surface */
+  border-bottom: 1px solid rgba(var(--color-border), 0.4);
+}
+
+.list-view-header {
+  color: rgb(var(--color-text));
+}
+
+.list-row-container {
+  background-color: rgb(var(--color-surface));
+  border-color: rgba(var(--color-border), 0.5);
+  color: rgb(var(--color-text));
+}
+.list-row-container:hover {
+  background-color: rgba(var(--color-surface), 0.95);
+}
+
+/* Ensure droppable placeholder in list view remains subtle */
+.list-view-droppable [data-rbd-placeholder-context-id] {
+  background-color: rgba(var(--color-primary), 0.06);
+  border: 1px dashed rgba(var(--color-primary), 0.25);
 }

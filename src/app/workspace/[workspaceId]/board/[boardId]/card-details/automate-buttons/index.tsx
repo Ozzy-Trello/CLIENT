@@ -9,6 +9,7 @@ import {
 import { useParams } from "next/navigation";
 import { message, Tooltip } from "antd";
 import { Zap } from "lucide-react";
+import { AxiosError } from "axios";
 
 interface CardButton {
   id: string;
@@ -46,6 +47,11 @@ const AutomateButtons: React.FC = () => {
 
         setCardButtons(buttons);
       } catch (error) {
+        const axiosError = error as AxiosError;
+        if (axiosError.response?.status === 404) {
+          setCardButtons([]);
+          return;
+        }
         message.error("Failed to load automation buttons");
       } finally {
         setLoading(false);

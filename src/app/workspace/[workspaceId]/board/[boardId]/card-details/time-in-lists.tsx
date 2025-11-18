@@ -1,4 +1,4 @@
-import React, { use, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { Progress, Typography } from 'antd';
 import { Card } from '@myTypes/card';
 import { useCardTimeInList } from '@hooks/card-time-in-lists';
@@ -13,14 +13,20 @@ interface CardTimeInListProps {
 
 const CardTimeInList: React.FC<CardTimeInListProps> = (props) => {
   const { card, setCard } = props;
-  const { timeInLists } = useCardTimeInList(card?.id ?? '');
+  const { timeInLists, isLoading } = useCardTimeInList(card?.id ?? '');
   const [maxSeconds, setMaxSeconds] = React.useState(0);
 
   useEffect(() => {
     if (timeInLists.length > 0) {
       const max = Math.max(...timeInLists.map(item => item.totalSeconds));
       setMaxSeconds(max);
+    } else {
+      setMaxSeconds(0);
     }
+  }, [timeInLists]);
+
+  useEffect(() => {
+    if (isLoading) return;
 
     setCard(prevCard => {
       if (prevCard) {
@@ -31,8 +37,7 @@ const CardTimeInList: React.FC<CardTimeInListProps> = (props) => {
       }
       return prevCard;
     });
-    
-  }, [timeInLists]);
+  }, [isLoading, timeInLists, setCard]);
 
   return (
     <div>
