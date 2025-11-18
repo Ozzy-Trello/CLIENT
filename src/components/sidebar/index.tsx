@@ -229,19 +229,6 @@ const Sidebar = () => {
       });
 
       menus.push({
-        key: `/workspace/${resolvedWorkspaceId}/materials`,
-        label: (
-          <Link
-            className="block w-full"
-            href={`/workspace/${resolvedWorkspaceId}/materials`}
-          >
-            Materials
-          </Link>
-        ),
-        icon: <Layers size={16} />,
-      });
-
-      menus.push({
         key: `/workspace/${resolvedWorkspaceId}/roles`,
         label: (
           <Link
@@ -265,19 +252,6 @@ const Sidebar = () => {
           </Link>
         ),
         icon: <Settings size={16} />,
-      });
-
-      menus.push({
-        key: `/workspace/${resolvedWorkspaceId}/master-data`,
-        label: (
-          <Link
-            className="block w-full"
-            href={`/workspace/${resolvedWorkspaceId}/master-data`}
-          >
-            Master Data
-          </Link>
-        ),
-        icon: <Database size={16} />,
       });
     }
 

@@ -3,16 +3,16 @@ import { Metadata } from "next";
 import { Providers } from "../providers";
 
 export const metadata: Metadata = {
-  title: "Ozzy Clothing Workflow",
-  description: "Ozzy Clothing workflow app",
+  title: "Workflow",
+  description: "workflow app",
   icons: "favicon.ico",
   openGraph: {
     type: "website",
     locale: "id_ID",
     url: "https://ozzyclothing.co.id",
-    siteName: "Ozzy Clothing",
-    title: "Ozzy Clothing",
-    description: "Ozzy Clothing workflow app",
+    siteName: "Workflow",
+    title: "Workflow",
+    description: "workflow app",
   },
 };
 

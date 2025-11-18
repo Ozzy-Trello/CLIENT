@@ -1,7 +1,6 @@
 import {
   Button,
   Checkbox,
-  CheckboxProps,
   Col,
   Dropdown,
   Flex,
@@ -22,7 +21,6 @@ import {
   Info,
   TimerIcon,
   TextCursorInput,
-  ShirtIcon,
   ListRestart,
   CheckSquare,
   Paperclip,
@@ -54,8 +52,6 @@ import { useCardActivity } from "@hooks/card_activity";
 import LocationDisplay from "./location";
 import ChecklistFields from "./checklist-field";
 import CardTimeInList from "./time-in-lists";
-import RequestFields from "./request-field";
-import SplitJobFields from "./split-job-field";
 import { CardDateDisplay } from "@components/card-dates";
 import { useCardMembers } from "@hooks/card_member";
 import PopoverLabel from "@components/popover-label.tsx";
@@ -63,14 +59,8 @@ import { CardLabel } from "@myTypes/label";
 import { useLabels } from "@hooks/label";
 import Dashcard from "./dashcard";
 import { useCardDetails } from "@hooks/card-details";
-import { LookupCache } from "@utils/lookup-cache";
 import { useBoardPermissionsContext } from "@providers/board-permissions-context";
-import POAmount from "./po-amount";
-import POSizeAssignment from "./po-size-assignment";
-import BahanFields from "./bahan-fields";
-import ProdukFields from "./produk-fields";
 import CollapsibleSection from "@components/collapsible-section";
-import { useBoardDetails } from "@hooks/board";
 
 const CardDetails: React.FC = (props) => {
   const params = useParams();
@@ -80,30 +70,6 @@ const CardDetails: React.FC = (props) => {
   const boardId = Array.isArray(params.boardId)
     ? params.boardId[0]
     : params.boardId;
-  // Boards where the Produk section should be visible (name-based, case-insensitive)
-  const ALLOWED_BOARD_NAMES = [
-    "Request Desain | Outlet",
-    "List PO | Outlet",
-    "Dateline",
-    "Delivery",
-    "List Purchase | Produksi",
-  ];
-  // Optional: if you know the exact board IDs, add them here for stronger matching
-  const ALLOWED_BOARD_IDS = new Set<string>([
-    // e.g. "uuid-1234-...",
-  ]);
-  // Try to resolve current board name via cache first, then fall back to API
-  const cachedBoardName = LookupCache.label("board", boardId as string);
-  const { board: currentBoard } = useBoardDetails(boardId as string, workspaceId as string, {
-    enabled: !!boardId,
-    refetchOnWindowFocus: false,
-  });
-  const effectiveBoardName = (cachedBoardName || currentBoard?.name || "").trim();
-  const allowedNamesSet = new Set(ALLOWED_BOARD_NAMES.map((n) => n.toLowerCase().trim()));
-  const shouldShowProduk = (
-    (effectiveBoardName && allowedNamesSet.has(effectiveBoardName.toLowerCase())) ||
-    (typeof boardId === "string" && ALLOWED_BOARD_IDS.has(boardId))
-  );
   const {
     selectedCard,
     setSelectedCard,
@@ -125,7 +91,7 @@ const CardDetails: React.FC = (props) => {
     refetch: refetchMember,
     removeMember,
   } = useCardMembers(selectedCard?.id || "");
-  const { cardLabels, allLabels } = useLabels(
+  const { cardLabels, removeCardLabel } = useLabels(
     workspaceId as string,
     selectedCard?.id,
     {
@@ -231,19 +197,6 @@ const CardDetails: React.FC = (props) => {
       refetchMember();
     }
   }, [isAddingMember]);
-
-  // Populate LookupCache with labels data
-  useEffect(() => {
-    if (allLabels && allLabels.length > 0) {
-      LookupCache.rememberMany(
-        "label",
-        allLabels.map((label: any) => ({
-          id: label.id,
-          name: label.name,
-        }))
-      );
-    }
-  }, [allLabels]);
 
   return (
     <Modal
@@ -383,12 +336,21 @@ const CardDetails: React.FC = (props) => {
                     <div className="flex gap-1">
                       {cardLabels?.map((label: CardLabel, index: number) => (
                         <Tooltip
+                          key={label.labelId || label.id || index}
                           title={`color: ${label.value}, title: ${label.name}`}
                         >
                           <Tag
-                            key={index}
                             color={label.value}
                             className="rounded-md"
+                            closable={canUpdateCard()}
+                            onClose={(e) => {
+                              e.preventDefault();
+                              if (!canUpdateCard()) return;
+                              const labelId = (label as any).labelId || label.id;
+                              if (labelId) {
+                                removeCardLabel({ labelId });
+                              }
+                            }}
                           >
                             {label?.name}
                           </Tag>
@@ -465,46 +427,7 @@ const CardDetails: React.FC = (props) => {
                     </div>
                   )}
 
-                  {selectedCard && (
-                    <div className="space-y-2 text-xs">
-                      <span className="text-gray-300 font-semibold text-xs block">
-                        Material Requirements
-                      </span>
-                      <Checkbox
-                        checked={selectedCard.bahan || false}
-                        onChange={(e: CheckboxChangeEvent) => {
-                          if (!canUpdateCard()) return;
-
-                          const newBahanValue = e.target.checked;
-
-                          // Update local state immediately for better UX
-                          const updatedCard = {
-                            ...selectedCard,
-                            bahan: newBahanValue,
-                          };
-                          setSelectedCard(updatedCard);
-                          updateCardDetails({ bahan: newBahanValue });
-                        }}
-                        className="text-sm"
-                      >
-                        Butuh Bahan
-                      </Checkbox>
-                    </div>
-                  )}
-
-                  {selectedCard && (
-                    <POAmount
-                      card={selectedCard}
-                      setSelectedCard={setSelectedCard}
-                    />
-                  )}
-
-                  {selectedCard && (
-                    <POSizeAssignment
-                      card={selectedCard}
-                      setSelectedCard={setSelectedCard}
-                    />
-                  )}
+                  {/* Material requirements and PO controls removed */}
                 </Flex>
               </div>
 
@@ -513,27 +436,6 @@ const CardDetails: React.FC = (props) => {
                   card={selectedCard}
                   setSelectedCard={setSelectedCard}
                 />
-              )}
-
-              {selectedCard && shouldShowProduk && (
-                <CollapsibleSection
-                  title="Produk"
-                  defaultExpanded={true}
-                  icon={
-                    <svg
-                      width="18"
-                      height="18"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      viewBox="0 0 24 24"
-                    >
-                      <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M9 1v6m6-6v6" />
-                    </svg>
-                  }
-                >
-                  <ProdukFields card={selectedCard} setCard={setSelectedCard} />
-                </CollapsibleSection>
               )}
 
               {selectedCard &&
@@ -560,38 +462,6 @@ const CardDetails: React.FC = (props) => {
                 <AdditionalFields cardId={selectedCard.id} />
               )} */}
 
-              {selectedCard?.bahan && (
-                <CollapsibleSection
-                  title="Bahan Fields"
-                  defaultExpanded={false}
-                  icon={<ShirtIcon size={18} />}
-                >
-                  <BahanFields
-                    cardId={selectedCard?.id || ""}
-                    workspaceId={workspaceId}
-                  />
-                </CollapsibleSection>
-              )}
-
-              <CollapsibleSection
-                title="Request Fields"
-                defaultExpanded={false}
-                icon={
-                  <svg
-                    width="18"
-                    height="18"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    viewBox="0 0 24 24"
-                  >
-                    <path d="M12 4L4 20h16L12 4z" />
-                  </svg>
-                }
-              >
-                <RequestFields />
-              </CollapsibleSection>
-
               {selectedCard && (
                 <CollapsibleSection
                   title="Time in Lists"
@@ -599,20 +469,6 @@ const CardDetails: React.FC = (props) => {
                   icon={<ListRestart size={18} />}
                 >
                   <CardTimeInList
-                    card={selectedCard}
-                    setCard={setSelectedCard}
-                  />
-                </CollapsibleSection>
-              )}
-
-              {/* Split Job Section */}
-              {selectedCard && (
-                <CollapsibleSection
-                  title="Split Job Fields"
-                  defaultExpanded={false}
-                  icon={<CheckSquare size={18} />}
-                >
-                  <SplitJobFields
                     card={selectedCard}
                     setCard={setSelectedCard}
                   />

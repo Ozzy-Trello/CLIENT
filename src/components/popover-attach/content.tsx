@@ -141,7 +141,9 @@ const ContentAttach: React.FC<ContentAttachProps> = ({
                       <div className="flex flex-col">
                         <span>{item.name}</span>
                         {getBoardLabel(item) && (
-                          <span className="text-[10px] text-gray-500">{getBoardLabel(item)}</span>
+                          <span className="text-[10px] text-gray-500">
+                            {getBoardLabel(item)}
+                          </span>
                         )}
                       </div>
                     }

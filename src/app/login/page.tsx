@@ -1,6 +1,4 @@
 "use client";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useDispatch } from "react-redux";
 
@@ -11,7 +9,6 @@ import Input from "antd/es/input";
 import message from "antd/es/message";
 
 // Local imports
-import ProductionSection from "@components/production-section";
 import { useCurrentAccount } from "@hooks/account";
 import { useLogin } from "@hooks/auth";
 import { setUser } from "@store/app_slice";
@@ -19,23 +16,20 @@ import { setUser } from "@store/app_slice";
 interface LoginFormValues {
   identity: string;
   password: string;
-  role: string;
-  remember?: boolean;
 }
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [form] = Form.useForm();
-  const router = useRouter();
   const dispatch = useDispatch();
   const login = useLogin();
   const { refetch } = useCurrentAccount();
 
-  const validateCredentials = async (identity: string, password: string, rememberMe: boolean = false) => {
+  const validateCredentials = async (identity: string, password: string) => {
     try {
       const result = await login.mutateAsync({ 
         credentials: { identity, password }, 
-        rememberMe 
+        rememberMe: false,
       });
       if (result.data?.accessToken) {
         message.success(result.message || "Login successful!");
@@ -72,8 +66,7 @@ export default function LoginPage() {
     try {
       const isValid = await validateCredentials(
         values.identity,
-        values.password,
-        values.remember || false
+        values.password
       );
 
       console.log("Login validation result:", isValid);
@@ -133,201 +126,68 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen">
-      {/* Mobile Layout: Production image on top, form below */}
-      <div className="lg:hidden">
-        {/* Mobile: Show production image on top */}
-        <ProductionSection variant="mobile" />
-
-        {/* Mobile: Login Form */}
-        <div className="flex flex-col justify-center items-center p-8 bg-white min-h-[calc(100vh-16rem)]">
-          <div className="w-full max-w-md">
-            <div className="mb-8">
-              <h1 className="text-2xl font-semibold text-gray-800 mb-2">
-                Selamat Datang,
-              </h1>
-            </div>
-
-            <Form
-              form={form}
-              name="login-form"
-              onFinish={onFinish}
-              onFinishFailed={onFinishFailed}
-              layout="vertical"
-              className="w-full"
-              preserve={false}
-            >
-              <Form.Item
-                label="Username or email"
-                name="identity"
-                rules={[
-                  {
-                    required: true,
-                    message: "Please enter your email or username!",
-                  },
-                ]}
-              >
-                <Input
-                  placeholder="Username or email"
-                  size="large"
-                  className="rounded-lg h-12 bg-gray-50 border-gray-200"
-                />
-              </Form.Item>
-
-              <Form.Item
-                label="Password"
-                name="password"
-                rules={[
-                  { required: true, message: "Please enter your password!" },
-                ]}
-              >
-                <Input.Password
-                  placeholder="Password"
-                  size="large"
-                  className="rounded-lg h-12 bg-gray-50 border-gray-200"
-                />
-              </Form.Item>
-
-              <div className="flex items-center justify-between mb-6">
-                <Form.Item
-                  name="remember"
-                  valuePropName="checked"
-                  className="mb-0"
-                >
-                  <input type="checkbox" id="remember" className="mr-2" />
-                  <label htmlFor="remember" className="text-sm text-gray-600">
-                    Remember me
-                  </label>
-                </Form.Item>
-                <Link
-                  href="/forgot-password"
-                  className="text-sm text-blue-600 hover:text-blue-800"
-                >
-                  Forgot password ?
-                </Link>
-              </div>
-
-              <Form.Item className="mb-0">
-                <Button
-                  type="primary"
-                  htmlType="submit"
-                  block
-                  size="large"
-                  loading={loading}
-                  className="rounded-lg h-12 bg-blue-600 hover:bg-blue-700 border-none font-medium"
-                >
-                  Login
-                </Button>
-              </Form.Item>
-            </Form>
-          </div>
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center px-4">
+      <div className="w-full max-w-sm bg-white shadow-xl rounded-2xl p-8">
+        <div className="mb-8 text-center">
+          <h1 className="text-2xl font-semibold text-gray-800 mb-2">
+            Welcome back
+          </h1>
+          <p className="text-sm text-gray-500">
+            Please sign in to continue
+          </p>
         </div>
-      </div>
 
-      {/* Desktop Layout: Full background with small centered form and right side card */}
-      <div className="hidden lg:block min-h-screen relative">
-        <div
-          className="absolute inset-0 bg-cover bg-center"
-          style={{
-            backgroundImage: `url('/background-login.jpg')`,
-          }}
+        <Form
+          form={form}
+          name="login-form"
+          onFinish={onFinish}
+          onFinishFailed={onFinishFailed}
+          layout="vertical"
+          className="w-full"
+          preserve={false}
         >
-          <div className="absolute inset-0 bg-black/20">
-            <div className="flex justify-center items-center min-h-screen p-8">
-              <div className="flex bg-white rounded-4xl shadow-2xl overflow-hidden max-w-4xl w-full">
-                <div className="flex-1 p-8 max-w-md">
-                  <div className="mb-8">
-                    <h1 className="text-2xl font-semibold text-gray-800 mb-2">
-                      Selamat Datang,
-                    </h1>
-                  </div>
+          <Form.Item
+            label="Username or email"
+            name="identity"
+            rules={[
+              {
+                required: true,
+                message: "Please enter your email or username!",
+              },
+            ]}
+          >
+            <Input
+              placeholder="Username or email"
+              size="large"
+              className="rounded-lg h-11"
+            />
+          </Form.Item>
 
-                  <Form
-                    form={form}
-                    name="login-form"
-                    onFinish={onFinish}
-                    onFinishFailed={onFinishFailed}
-                    layout="vertical"
-                    className="w-full"
-                    preserve={false}
-                  >
-                    <Form.Item
-                      label="Username or email"
-                      name="identity"
-                      rules={[
-                        {
-                          required: true,
-                          message: "Please enter your email or username!",
-                        },
-                      ]}
-                    >
-                      <Input
-                        placeholder="Username or email"
-                        size="large"
-                        className="rounded-lg h-12 bg-gray-50 border-gray-200"
-                      />
-                    </Form.Item>
+          <Form.Item
+            label="Password"
+            name="password"
+            rules={[{ required: true, message: "Please enter your password!" }]}
+          >
+            <Input.Password
+              placeholder="Password"
+              size="large"
+              className="rounded-lg h-11"
+            />
+          </Form.Item>
 
-                    <Form.Item
-                      label="Password"
-                      name="password"
-                      rules={[
-                        {
-                          required: true,
-                          message: "Please enter your password!",
-                        },
-                      ]}
-                    >
-                      <Input.Password
-                        placeholder="Password"
-                        size="large"
-                        className="rounded-lg h-12 bg-gray-50 border-gray-200"
-                      />
-                    </Form.Item>
-
-                    <div className="flex items-center justify-between mb-6">
-                      <Form.Item
-                        name="remember"
-                        valuePropName="checked"
-                        className="mb-0"
-                      >
-                        <input type="checkbox" id="remember" className="mr-2" />
-                        <label
-                          htmlFor="remember"
-                          className="text-sm text-gray-600"
-                        >
-                          Remember me
-                        </label>
-                      </Form.Item>
-                      <Link
-                        href="/forgot-password"
-                        className="text-sm text-blue-600 hover:text-blue-800"
-                      >
-                        Forgot password ?
-                      </Link>
-                    </div>
-
-                    <Form.Item className="mb-0">
-                      <Button
-                        type="primary"
-                        htmlType="submit"
-                        block
-                        size="large"
-                        loading={loading}
-                        className="rounded-lg h-12 bg-blue-600 hover:bg-blue-700 border-none font-medium"
-                      >
-                        Login
-                      </Button>
-                    </Form.Item>
-                  </Form>
-                </div>
-
-                {/* Right side - Production Image */}
-                <ProductionSection variant="desktop" />
-              </div>
-            </div>
-          </div>
-        </div>
+          <Form.Item className="mt-8">
+            <Button
+              type="primary"
+              htmlType="submit"
+              block
+              size="large"
+              loading={loading}
+              className="rounded-lg h-11"
+            >
+              Sign in
+            </Button>
+          </Form.Item>
+        </Form>
       </div>
     </div>
   );

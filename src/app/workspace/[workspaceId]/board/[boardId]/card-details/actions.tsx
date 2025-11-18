@@ -1,8 +1,3 @@
-import { uploadFile } from "@api/file";
-import { generateQRCodesPDF } from "@api/qr";
-import UploadModal from "@components/modal-upload/modal-upload";
-import ScanProgressModal from "@components/scan-progress-modal";
-import ModalBuatSO from "@components/modal-buat-so";
 import PopoverAttach from "@components/popover-attach";
 import PopoverChecklist from "@components/popover-checklist";
 import PopoverCopyCard from "@components/popover-copy-card";
@@ -16,30 +11,22 @@ import PopoverUser from "@components/popover-user";
 import { useCurrentAccount, usePermissions } from "@hooks/account";
 import { useCards } from "@hooks/card";
 import { useCardDetails } from "@hooks/card-details";
-import { useCardAttachment } from "@hooks/card_attachment";
 import { useCardMembers } from "@hooks/card_member";
-import { EnumAttachmentType, EnumCardAttachmentType } from "@myTypes/card";
-import { FileUpload } from "@myTypes/file-upload";
 import { useBoardPermissionsContext } from "@providers/board-permissions-context";
 import { useCardDetailContext } from "@providers/card-detail-context";
 import { selectIsDarkMode, selectTheme } from "@store/app_slice";
-import { useQueryClient } from "@tanstack/react-query";
-import { Button, message, Modal, Tooltip } from "antd";
+import { message, Modal, Tooltip } from "antd";
 import {
   Archive,
   CheckSquare,
   Clock,
   Copy,
-  FileCheck,
-  FileText,
   FlipHorizontal,
   MapPin,
   MoveRight,
   Paperclip,
-  QrCode,
   RectangleEllipsis,
   RotateCcw,
-  ScanLine,
   Share2,
   Tag,
   Trash2,
@@ -47,7 +34,7 @@ import {
   UserPlus,
   Users,
 } from "lucide-react";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams } from "next/navigation";
 import React, { useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import AutomateButtons from "./automate-buttons";
@@ -104,14 +91,9 @@ const Actions: React.FC = () => {
   const [openAttach, setOpenAttach] = useState(false);
   const [openChecklist, setOpenChecklist] = useState(false);
   const [openLabels, setOpenLabels] = useState(false);
-  const [openBuktiModal, setOpenBuktiModal] = useState(false);
-  const [openPOModal, setOpenPOModal] = useState(false);
-  const [openBuatSOModal, setOpenBuatSOModal] = useState(false);
 
-  const [isProgressOpen, setIsProgressOpen] = useState(false);
 
   const { boardId } = useParams();
-  const searchParams = useSearchParams();
   const { selectedCard } = useCardDetailContext();
   
   const theme = useSelector(selectTheme) as any;
@@ -133,11 +115,6 @@ const Actions: React.FC = () => {
   const { isMember, toggleMember, isAddingMember, isRemovingMember } =
     useCardMembers(selectedCard?.id || "");
 
-  // Get card attachments for Bukti functionality
-  const { cardAttachments, addAttachment } = useCardAttachment(
-    selectedCard?.id || ""
-  );
-
   // Get board-specific permissions
   const {
     canManageCardMembers,
@@ -153,15 +130,11 @@ const Actions: React.FC = () => {
     canArchiveCard,
     canDeleteCard,
     canShareCard,
-    canGenerateQR,
   } = useBoardPermissionsContext();
 
   // Keep global permissions for observer status
   const { isObserver } = usePermissions();
   const permissionLevel = "BOARD_SPECIFIC"; // Use board-specific permissions
-
-  // Scan Progress functionality
-  const queryClient = useQueryClient();
 
   // Handle join/leave card
   const handleJoinLeave = async () => {
@@ -179,132 +152,10 @@ const Actions: React.FC = () => {
     }
   };
 
-  // Scan Progress functions
-  const openScanProgress = () => {
-    setIsProgressOpen(true);
-  };
-
-  const closeScanProgress = () => {
-    setIsProgressOpen(false);
-  };
-
   // Check if current user is a member
   const isCurrentUserMember = currentUser?.id
     ? isMember(currentUser.id)
     : false;
-
-  // Check if bukti attachment already exists
-  const hasBuktiAttachment = () => {
-    return cardAttachments?.some(
-      (attachment) =>
-        attachment.attachableType === EnumAttachmentType.File &&
-        attachment.file?.name?.startsWith("bukti")
-    );
-  };
-
-  // Check if PO attachment already exists
-  const hasPOAttachment = () => {
-    return cardAttachments?.some(
-      (attachment) =>
-        attachment.attachableType === EnumAttachmentType.File &&
-        attachment.file?.name?.startsWith("PO")
-    );
-  };
-
-  // Handle bukti upload
-  const handleBuktiUpload = async (file: File, result: FileUpload) => {
-    try {
-      // Create a new file with the name "bukti" but keep the original extension
-      const originalExtension = file.name.split(".").pop();
-      const buktiFileName = originalExtension
-        ? `bukti.${originalExtension}`
-        : "bukti";
-
-      // Create a new file object with the bukti name
-      const buktiFile = new File([file], buktiFileName, { type: file.type });
-
-      // Upload the file with the new name
-      const buktiResult = await uploadFile(buktiFile);
-
-      if (buktiResult?.data && selectedCard) {
-        // Add the attachment with the bukti file
-        addAttachment({
-          cardId: selectedCard.id,
-          attachableType: EnumAttachmentType.File,
-          attachableId: buktiResult.data.id,
-          isCover: false,
-          type: EnumCardAttachmentType.Bukti,
-        });
-
-        message.success("Bukti uploaded successfully!");
-        setOpenBuktiModal(false);
-      }
-    } catch (error) {
-      message.error("Failed to upload bukti. Please try again.");
-    }
-  };
-
-  // Handle PO upload
-  const handlePOUpload = async (file: File, result: FileUpload) => {
-    try {
-      // Create a new file with the name "PO" but keep the original extension
-      const originalExtension = file.name.split(".").pop();
-      const poFileName = originalExtension ? `PO.${originalExtension}` : "PO";
-
-      // Create a new file object with the PO name
-      const poFile = new File([file], poFileName, { type: file.type });
-
-      // Upload the file with the new name
-      const poResult = await uploadFile(poFile);
-
-      if (poResult?.data && selectedCard) {
-        // Add the attachment with the PO file
-        addAttachment({
-          cardId: selectedCard.id,
-          attachableType: EnumAttachmentType.File,
-          attachableId: poResult.data.id,
-          isCover: false,
-          type: EnumCardAttachmentType.PO,
-        });
-
-        message.success("PO uploaded successfully!");
-        setOpenPOModal(false);
-      }
-    } catch (error) {
-      message.error("Failed to upload PO. Please try again.");
-    }
-  };
-
-  // Handle QR generation using topbar's PO QR logic
-  const handleGenerateQR = async () => {
-    if (!selectedCard?.id) {
-      message.error("No card selected for QR generation");
-      return;
-    }
-
-    try {
-      // Use the same logic as topbar's PO QR generation
-      const blob = await generateQRCodesPDF(selectedCard.id);
-      
-      // Create URL for the blob and open in new tab for printing
-      const url = URL.createObjectURL(blob);
-      const newWindow = window.open(url, '_blank');
-      
-      if (newWindow) {
-        // Clean up the URL after a delay to allow the PDF to load
-        setTimeout(() => {
-          URL.revokeObjectURL(url);
-        }, 1000);
-        
-        message.success("QR code PDF generated successfully!");
-      } else {
-        message.error("Failed to open PDF. Please check your popup blocker settings.");
-      }
-    } catch (error) {
-      console.error("Error generating QR PDF:", error);
-      message.error("Failed to generate QR code PDF. Please try again.");
-    }
-  };
 
   // Theme-aware button styles
   const buttonStyle = {
@@ -515,52 +366,6 @@ const Actions: React.FC = () => {
           <span className="text-xs">Attachment</span>
         </PermissionButton>
       )}
-
-      {/* Bukti Button */}
-      <PermissionButton
-        canPerform={canManageCardAttachments()}
-        onClick={() => setOpenBuktiModal(true)}
-        tooltip={
-          hasBuktiAttachment() ? "Bukti already exists" : "Upload bukti file"
-        }
-        permissionLevel={permissionLevel}
-        buttonStyle={buttonStyle}
-        disabled={hasBuktiAttachment()}
-      >
-        <span className="text-xs" style={iconStyle}>
-          <FileCheck size={14} />
-        </span>
-        <span className="text-xs">Upload Bukti</span>
-      </PermissionButton>
-
-      {/* PO Button */}
-      <PermissionButton
-        canPerform={canManageCardAttachments()}
-        onClick={() => setOpenPOModal(true)}
-        tooltip={"Upload PO file"}
-        permissionLevel={permissionLevel}
-        buttonStyle={buttonStyle}
-      >
-        <span className="text-xs" style={iconStyle}>
-          <FileText size={14} />
-        </span>
-        <span className="text-xs">Upload File PO</span>
-      </PermissionButton>
-
-      {/* Buat SO Button */}
-      <PermissionButton
-        canPerform={canManageCardAttachments()}
-        onClick={() => setOpenBuatSOModal(true)}
-        tooltip="Create Sales Order"
-        permissionLevel={permissionLevel}
-        buttonStyle={buttonStyle}
-      >
-        <span className="text-xs" style={iconStyle}>
-          <FileText size={14} />
-        </span>
-        <span className="text-xs">Buat SO</span>
-      </PermissionButton>
-
       {/* Location */}
       {canManageCardLocation() ? (
         <PopoverLocation
@@ -868,61 +673,6 @@ const Actions: React.FC = () => {
           <Share2 size={14} />
           <span className="text-xs">Share</span>
         </PermissionButton>
-
-        {/* Generate QR Code */}
-        <PermissionButton
-          canPerform={canGenerateQR()}
-          onClick={handleGenerateQR}
-          tooltip="Generate this card QR code PDF"
-          permissionLevel={permissionLevel}
-          buttonStyle={buttonStyle}
-        >
-          <QrCode size={14} />
-          <span className="text-xs">Generate QR</span>
-        </PermissionButton>
-
-        {/* Scan Progress */}
-        <PermissionButton
-          canPerform={true}
-          onClick={openScanProgress}
-          tooltip="View scan progress for PO items"
-          permissionLevel={permissionLevel}
-          buttonStyle={buttonStyle}
-        >
-          <ScanLine size={14} />
-          <span className="text-xs">Scan Progress</span>
-        </PermissionButton>
-
-        {/* Scan Progress Modal */}
-        <ScanProgressModal
-          isOpen={isProgressOpen}
-          onClose={closeScanProgress}
-          cardId={selectedCard?.id || ""}
-          boardId={boardId as string}
-        />
-
-        {/* Bukti Upload Modal */}
-        <UploadModal
-          isVisible={openBuktiModal}
-          onClose={() => setOpenBuktiModal(false)}
-          onUploadComplete={handleBuktiUpload}
-          title="Upload Bukti"
-        />
-
-        {/* PO Upload Modal */}
-        <UploadModal
-          isVisible={openPOModal}
-          onClose={() => setOpenPOModal(false)}
-          onUploadComplete={handlePOUpload}
-          title="Upload PO"
-        />
-
-        {/* Buat SO Modal */}
-        <ModalBuatSO
-          open={openBuatSOModal}
-          onClose={() => setOpenBuatSOModal(false)}
-          cardId={selectedCard?.id}
-        />
       </div>
     </div>
   );

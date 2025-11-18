@@ -1,5 +1,12 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { workspaces, workspaceDefault } from "../api/workspace";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  createWorkspace,
+  workspaces,
+  workspaceDefault,
+  CreateWorkspacePayload,
+  updateWorkspace,
+  UpdateWorkspacePayload,
+} from "../api/workspace";
 import TokenStorage from "@utils/token-storage";
 
 export const useWorkspaces = () => {
@@ -40,4 +47,32 @@ export const useDefaultWorkspace = () => {
     isError: false,
     error: null,
   };
+};
+
+export const useCreateWorkspace = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: CreateWorkspacePayload) => createWorkspace(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["workspaces"] });
+    },
+  });
+};
+
+export const useUpdateWorkspace = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      workspaceId,
+      payload,
+    }: {
+      workspaceId: string;
+      payload: UpdateWorkspacePayload;
+    }) => updateWorkspace(workspaceId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["workspaces"] });
+    },
+  });
 };

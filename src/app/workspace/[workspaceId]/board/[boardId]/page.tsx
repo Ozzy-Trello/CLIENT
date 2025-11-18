@@ -739,11 +739,9 @@ const Board: React.FC = () => {
     >
       <BoardPermissionsProvider board={boardDetails}>
         <BoardTopbar
-          boardScopeMenuOpen={boardScopeMenu}
           setBoardScopeMenuOpen={setBoardScopeMenu}
-          openDashcardModal={openDashcardModal}
-          setOpenDashcardModal={setOpenDashcardModal}
           board={boardDetails}
+          onTrackClick={() => setOpenDashcardModal(true)}
         />
         <CardFocusProvider>
           <CardDetailProvider>

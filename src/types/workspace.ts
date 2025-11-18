@@ -3,4 +3,6 @@ export interface Workspace {
   name: string;
   description: string;
   slug: string;
+  memberIds?: string[];
+  isRestricted?: boolean;
 }

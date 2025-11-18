@@ -1,104 +1,31 @@
 "use client";
-import { BellOutlined, FileOutlined, UserOutlined } from "@ant-design/icons";
+import { FileOutlined, UserOutlined } from "@ant-design/icons";
 import type { MenuProps } from "antd";
-import { Avatar, Badge, Button, Dropdown, Input, Typography, List } from "antd";
+import { Avatar, Dropdown, Input, Typography, List } from "antd";
 import Link from "next/link";
 import React, { useState, useEffect, useRef } from "react";
 import logo from "@assets/images/Logo_Ozzy_Clothing_png.png";
 import ImageDynamicContrast from "../image-dynamic-contrast";
+import WorkspaceSwitcher from "@components/workspace-switcher";
 import { useSelector } from "react-redux";
 import {
   selectTheme,
   selectUser,
   selectIsDarkMode,
-  setUser,
   toggleTheme,
 } from "@store/app_slice";
 import { Sun, Moon } from "lucide-react";
 import { useDispatch } from "react-redux";
 import { useRouter, useParams } from "next/navigation";
-import { WorkspaceSelection } from "../selection";
-import ModalRequest from "../modal-request";
-import ModalListRequest from "../modal-list-request";
-import ModalRequestSent from "../modal-request-sent";
-import ModalRequestProduksi from "../modal-request-produksi";
-import WebSocketDebugModal from "../websocket-debug-modal";
-import { searchCards } from "@api/card";
-import { Card } from "@myTypes/card";
 import TokenStorage from "@utils/token-storage";
-import { useCurrentAccount } from "@hooks/account";
-import {
-  useUnifiedSearch,
-  SearchResult,
-  GroupedSearchResults,
-} from "@hooks/search";
+import { useUnifiedSearch, SearchResult } from "@hooks/search";
 import { selectCurrentWorkspace } from "@store/workspace_slice";
 import { useRecentlyViewed } from "@hooks/recently-viewed";
 
 const { Text } = Typography;
 
-// Role categorization utility
-const getRoleCategory = (
-  roleName: string
-): "super_admin" | "supervisor" | "warehouse" | "production" => {
-  if (roleName === "Super Admin") {
-    return "super_admin";
-  }
-
-  if (roleName.includes("SPV") || roleName.includes("Supervisor")) {
-    return "supervisor";
-  }
-
-  if (roleName.includes("Warehouse")) {
-    return "warehouse";
-  }
-
-  // Everyone else is production
-  return "production";
-};
-
-// Check if user can access certain features based on role
-const canAccessFeature = (
-  userRole: string,
-  feature: "request" | "list_request" | "warehouse" | "production"
-): boolean => {
-  const roleCategory = getRoleCategory(userRole);
-
-  // Super Admin can access everything
-  if (roleCategory === "super_admin") {
-    return true;
-  }
-
-  switch (feature) {
-    case "request":
-      // Production can make requests
-      return roleCategory === "production";
-
-    case "list_request":
-      // Supervisors can view requests
-      return roleCategory === "supervisor";
-
-    case "warehouse":
-      // Warehouse roles can access warehouse features
-      return roleCategory === "warehouse";
-
-    case "production":
-      // Production roles can access production features
-      return roleCategory === "production";
-
-    default:
-      return false;
-  }
-};
-
 const TopBar: React.FC = React.memo(() => {
-  const [notificationVisible, setNotificationVisible] = useState(false);
   const [avatarMenuVisible, setAvatarMenuVisible] = useState(false);
-  const [modalRequestOpen, setModalRequestOpen] = useState(false);
-  const [modalListRequestOpen, setModalListRequestOpen] = useState(false);
-  const [modalRequestSentOpen, setModalRequestSentOpen] = useState(false);
-  const [modalRequestProduksiOpen, setModalRequestProduksiOpen] = useState(false);
-  const [wsDebugModalOpen, setWsDebugModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
@@ -146,11 +73,6 @@ const TopBar: React.FC = React.memo(() => {
 
   // Recently viewed hook
   const { recentlyViewedItems } = useRecentlyViewed();
-
-  const { data: currentAccountData } = useCurrentAccount();
-  const currentUser = currentAccountData?.data;
-  const userRole = currentUser?.role?.name || "";
-  const roleCategory = getRoleCategory(userRole);
 
   const handleLogout = () => {
     router.push("/login");
@@ -252,52 +174,21 @@ const TopBar: React.FC = React.memo(() => {
   };
   return (
     <div className="flex items-center justify-between h-[45px]">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-3">
         <Link href="/">
-          <ImageDynamicContrast
+          {/* <ImageDynamicContrast
             imageSrc={logo}
             rgbColor={`rgb(${colors.background})`}
             width={50}
             height="auto"
             alt="Ozzy Clothing logo"
-          />
+          /> */}
+          Logo
         </Link>
-        {/* <WorkspaceSelection /> */}
+        <WorkspaceSwitcher />
       </div>
 
       <div className="flex items-center gap-5 w-100vh">
-        {canAccessFeature(userRole, "request") && (
-          <Button onClick={() => setModalRequestOpen(true)}>
-            Buat Request
-          </Button>
-        )}
-
-        {canAccessFeature(userRole, "list_request") && (
-          <Button onClick={() => setModalListRequestOpen(true)}>
-            Lihat Request
-          </Button>
-        )}
-
-        {canAccessFeature(userRole, "warehouse") && (
-          <Button onClick={() => setModalRequestSentOpen(true)}>Gudang</Button>
-        )}
-
-        {canAccessFeature(userRole, "production") && (
-          <Button onClick={() => setModalRequestProduksiOpen(true)}>Produksi</Button>
-        )}
-
-        {/* WebSocket Debug Button - Only show in development */}
-        {process.env.NODE_ENV === "development" && (
-          <Button
-            type="dashed"
-            size="small"
-            onClick={() => setWsDebugModalOpen(true)}
-            title="WebSocket Debug"
-          >
-            WS Debug
-          </Button>
-        )}
-
         <div className="relative" ref={searchRef}>
           <Input
             placeholder="Search…"
@@ -311,7 +202,7 @@ const TopBar: React.FC = React.memo(() => {
 
           {showSearchDropdown && (
             <div
-              className="absolute z-50 top-full left-0 mt-1 bg-white rounded-md shadow-lg border border-gray-200"
+              className="absolute z-[9999] top-full left-0 mt-1 bg-white rounded-md shadow-lg border border-gray-200"
               style={{ width: showSearchDropdown ? "500px" : "200px" }}
             >
               <div className="max-h-80 overflow-auto p-2">
@@ -462,7 +353,7 @@ const TopBar: React.FC = React.memo(() => {
                       )}
                   </div>
                 ) : (
-                  <div className="w-full">
+                  <div className="w-full z-[9999]">
                     <Text strong>Recently Viewed</Text>
                     <List
                       dataSource={recentlyViewedItems}
@@ -502,46 +393,7 @@ const TopBar: React.FC = React.memo(() => {
           )}
         </div>
 
-        {/* <Dropdown
-          menu={{ items: notificationItems }}
-          trigger={["click"]}
-          open={notificationVisible}
-          onOpenChange={setNotificationVisible}
-        >
-          <Badge count={4}>
-            <BellOutlined className="text-xl cursor-pointer" />
-          </Badge>
-        </Dropdown> */}
-
         {/* Theme Toggle Button */}
-        <div
-          onClick={handleThemeToggle}
-          className="relative inline-flex items-center w-12 h-6 rounded-full cursor-pointer transition-all duration-300 ease-in-out mb-1 pb-2"
-          style={{
-            backgroundColor: isDarkMode
-              ? `rgb(${colors.primary})`
-              : `rgb(${colors.muted})`,
-            border: `1px solid rgb(${colors.border})`,
-          }}
-          title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
-        >
-          {/* Toggle Circle */}
-          <div
-            className="absolute w-5 h-5 rounded-full transition-all duration-300 ease-in-out flex items-center justify-center"
-            style={{
-              backgroundColor: `rgb(${colors.surface})`,
-              left: isDarkMode ? "26px" : "2px",
-              top: "2px",
-              boxShadow: "0 2px 4px rgba(0, 0, 0, 0.2)",
-            }}
-          >
-            {isDarkMode ? (
-              <Moon size={12} style={{ color: `rgb(${colors.primary})` }} />
-            ) : (
-              <Sun size={12} style={{ color: `rgb(${colors.primary})` }} />
-            )}
-          </div>
-        </div>
 
         <Dropdown
           menu={{ items: avatarMenuItems }}
@@ -556,33 +408,13 @@ const TopBar: React.FC = React.memo(() => {
               alignItems: "center",
               justifyContent: "center",
               width: "30px",
-              height: "25px",
+              height: "30px",
             }}
             className="cursor-pointer"
             icon={<UserOutlined />}
           />
         </Dropdown>
       </div>
-      <ModalRequest
-        open={modalRequestOpen}
-        onClose={() => setModalRequestOpen(false)}
-      />
-      <ModalListRequest
-        open={modalListRequestOpen}
-        onClose={() => setModalListRequestOpen(false)}
-      />
-      <ModalRequestSent
-        open={modalRequestSentOpen}
-        onClose={() => setModalRequestSentOpen(false)}
-      />
-      <ModalRequestProduksi
-        open={modalRequestProduksiOpen}
-        onClose={() => setModalRequestProduksiOpen(false)}
-      />
-      <WebSocketDebugModal
-        open={wsDebugModalOpen}
-        onClose={() => setWsDebugModalOpen(false)}
-      />
     </div>
   );
 });

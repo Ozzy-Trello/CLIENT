@@ -77,7 +77,15 @@ const TableRoles: React.FC<{
   onDelete: (role: Role) => void;
   canManageRoles: () => boolean;
   isSuperAdmin: () => boolean;
-}> = ({ dataSource = [], onEdit, onDelete, canManageRoles, isSuperAdmin }) => {
+  currentRoleId?: string;
+}> = ({
+  dataSource = [],
+  onEdit,
+  onDelete,
+  canManageRoles,
+  isSuperAdmin,
+  currentRoleId,
+}) => {
   const columns = [
     {
       title: "Role Name",
@@ -103,6 +111,17 @@ const TableRoles: React.FC<{
                   backgroundColor: "#52c41a",
                   fontSize: "10px",
                   padding: "0 6px",
+                }}
+              />
+            )}
+            {record.id === currentRoleId && (
+              <Badge
+                count="Current Role"
+                style={{
+                  backgroundColor: "#1890ff",
+                  fontSize: "10px",
+                  padding: "0 6px",
+                  marginLeft: "4px",
                 }}
               />
             )}
@@ -208,7 +227,8 @@ const RolesPage = () => {
   const queryClient = useQueryClient();
 
   // Get permissions
-  const { canManageRoles, isSuperAdmin } = usePermissions();
+  const { canManageRoles, isSuperAdmin, role } = usePermissions();
+  const currentRoleId = role?.id;
 
   // Fetch roles data
   const {
@@ -757,6 +777,7 @@ const RolesPage = () => {
           onDelete={handleDelete}
           canManageRoles={canManageRoles}
           isSuperAdmin={isSuperAdmin}
+          currentRoleId={currentRoleId}
         />
       )}
 

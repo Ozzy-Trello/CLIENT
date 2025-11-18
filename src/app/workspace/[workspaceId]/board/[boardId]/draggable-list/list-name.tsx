@@ -1,6 +1,6 @@
 import { AnyList } from "@myTypes/list";
 import { UseMutateFunction } from "@tanstack/react-query";
-import { useDeleteAllCardsInList, useArchiveList, useMoveAllCardsInList, useArchiveAllCardsInList, useSortListCards, useLists } from "@hooks/list";
+import { useDeleteAllCardsInList } from "@hooks/list";
 import {
   Button,
   Input,
@@ -10,8 +10,6 @@ import {
   InputNumber,
   message,
   Modal,
-  Select,
-  Radio,
 } from "antd";
 import { Ellipsis } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -59,16 +57,7 @@ const ListName: React.FC<ListNameProps> = ({
 
   // Hook for deleting all cards in the list
   const { deleteAllCards, isDeletingAllCards } = useDeleteAllCardsInList();
-  const { archiveList: archiveListMutate, isArchivingList } = useArchiveList(boardId);
-  const { moveAllCards, isMovingAllCards } = useMoveAllCardsInList();
-  const { archiveAllCards, isArchivingAllCards } = useArchiveAllCardsInList();
-  const { sortListCards, isSortingListCards } = useSortListCards();
-  const { lists: allLists, isLoading: isLoadingLists } = useLists(boardId);
-  const { canArchiveList, canMoveCard, canUpdateCard } = useBoardPermissionsContext();
-
-  const [targetListId, setTargetListId] = useState<string | undefined>(undefined);
-  const [sortBy, setSortBy] = useState<"name" | "createdAt" | "updatedAt" | "dueDate" | "position">("position");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const { canUpdateCard } = useBoardPermissionsContext();
 
   const [tempLimit, setTempLimit] = useState<number | null>(
     list.cardLimit || 0
@@ -271,121 +260,9 @@ const ListName: React.FC<ListNameProps> = ({
         </button>
       </div>
 
-      {/* Move All Cards */}
-      {canMoveCard() && (
-        <div className="mb-4">
-          <div className="text-sm font-medium mb-2">Move all cards</div>
-          <Select
-            size="small"
-            placeholder="Select target list"
-            className="w-full mb-2"
-            value={targetListId}
-            onChange={(val) => setTargetListId(val)}
-            loading={isLoadingLists}
-            options={(allLists || [])
-              .filter((l) => l.id !== list.id)
-              .map((l) => ({ label: l.name, value: l.id }))}
-          />
-          <Button
-            size="small"
-            type="primary"
-            disabled={!targetListId || isMovingAllCards}
-            loading={isMovingAllCards}
-            onClick={() => {
-              if (!targetListId) return;
-              Modal.confirm({
-                title: "Move all cards",
-                content: (
-                  <div className="py-4">
-                    <p className="mb-0">
-                      Move all cards from <strong>"{list.name}"</strong> to the selected list?
-                    </p>
-                    <p className="mb-0 text-gray-600 mt-2">
-                      This will move {cardsCount} card{cardsCount !== 1 ? "s" : ""}.
-                    </p>
-                  </div>
-                ),
-                okText: "Move",
-                cancelText: "Cancel",
-                centered: true,
-                onOk: () => {
-                  moveAllCards(
-                    { sourceListId: list.id, targetListId },
-                    {
-                      onSuccess: (res) => {
-                        const moved = res?.data?.moved_count ?? undefined;
-                        message.success(
-                          moved != null
-                            ? `Moved ${moved} card${moved === 1 ? "" : "s"}`
-                            : "All cards moved"
-                        );
-                        setActionsPopoverOpen(false);
-                        setTargetListId(undefined);
-                      },
-                      onError: () => {
-                        message.error("Failed to move cards. Please try again.");
-                      },
-                    }
-                  );
-                },
-              });
-            }}
-          >
-            Move
-          </Button>
-        </div>
-      )}
+      {/* Move All Cards - hidden */}
 
-      {/* Sort Cards */}
-      {canUpdateCard() && (
-        <div className="mb-4">
-          <div className="text-sm font-medium mb-2">Sort cards</div>
-          <div className="flex items-center gap-2 mb-2">
-            <Select
-              size="small"
-              className="flex-1"
-              value={sortBy}
-              onChange={(val) => setSortBy(val)}
-              options={[
-                { label: "Position", value: "position" },
-                { label: "Name", value: "name" },
-                { label: "Created At", value: "createdAt" },
-                { label: "Updated At", value: "updatedAt" },
-                { label: "Due Date", value: "dueDate" },
-              ]}
-            />
-            <Radio.Group
-              size="small"
-              value={sortDirection}
-              onChange={(e) => setSortDirection(e.target.value)}
-            >
-              <Radio.Button value="asc">Asc</Radio.Button>
-              <Radio.Button value="desc">Desc</Radio.Button>
-            </Radio.Group>
-          </div>
-          <Button
-            size="small"
-            type="primary"
-            loading={isSortingListCards}
-            onClick={() => {
-              sortListCards(
-                { listId: list.id, sortBy, direction: sortDirection },
-                {
-                  onSuccess: () => {
-                    message.success("Cards sorted");
-                    setActionsPopoverOpen(false);
-                  },
-                  onError: () => {
-                    message.error("Failed to sort cards");
-                  },
-                }
-              );
-            }}
-          >
-            Apply sort
-          </Button>
-        </div>
-      )}
+      {/* Sort Cards - hidden */}
 
       {/* Limit Setting */}
       <div className="mb-4">
@@ -419,97 +296,7 @@ const ListName: React.FC<ListNameProps> = ({
       </div>
 
       <div className="border-t pt-2">
-        {canArchiveList() && (
-          <>
-            <Button
-              type="text"
-              block
-              onClick={() => {
-                Modal.confirm({
-                  title: "Archive all cards",
-                  content: (
-                    <div className="py-4">
-                      <p className="mb-0">
-                        Archive all cards in <strong>"{list.name}"</strong>?
-                      </p>
-                      <p className="mb-0 text-gray-600 mt-2">
-                        This will move {cardsCount} card{cardsCount !== 1 ? "s" : ""} to archive.
-                      </p>
-                    </div>
-                  ),
-                  okText: "Archive",
-                  cancelText: "Cancel",
-                  centered: true,
-                  onOk: () => {
-                    archiveAllCards(
-                      { listId: list.id },
-                      {
-                        onSuccess: (res) => {
-                          const archivedCount = res?.data?.archived_count || cardsCount;
-                          message.success(
-                            `Archived ${archivedCount} card${archivedCount === 1 ? "" : "s"}`
-                          );
-                          setActionsPopoverOpen(false);
-                        },
-                        onError: () => {
-                          message.error("Failed to archive cards.");
-                        },
-                      }
-                    );
-                  },
-                });
-              }}
-              className="text-left justify-start mb-2"
-              disabled={cardsCount === 0 || isArchivingAllCards}
-              loading={isArchivingAllCards}
-            >
-              Archive all cards in this list
-            </Button>
-
-            <Button
-              type="text"
-              block
-              onClick={() => {
-                Modal.confirm({
-                  title: "Archive List",
-                  content: (
-                    <div className="py-4">
-                      <p className="mb-0">
-                        Are you sure you want to archive <strong>"{list.name}"</strong>?
-                      </p>
-                      <p className="mb-0 text-gray-600 mt-2">
-                        The list will be hidden from the board but can be restored later.
-                      </p>
-                    </div>
-                  ),
-                  okText: "Archive",
-                  cancelText: "Cancel",
-                  centered: true,
-                  onOk: () => {
-                    archiveListMutate(
-                      { listId: list.id },
-                      {
-                        onSuccess: () => {
-                          message.success("List archived successfully!");
-                          setActionsPopoverOpen(false);
-                        },
-                        onError: () => {
-                          message.error("Failed to archive list.");
-                        },
-                      }
-                    );
-                  },
-                });
-              }}
-              className="text-left justify-start mb-2"
-              disabled={isArchivingList}
-              loading={isArchivingList}
-            >
-              Archive List
-            </Button>
-          </>
-        )}
-
+        {/* Archive actions hidden */}
         <Button
           type="text"
           danger
