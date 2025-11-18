@@ -11,6 +11,7 @@ import { useParams } from "next/navigation";
 import { generateId } from "@utils/general";
 // import { Droppable, DropResult, DragUpdate } from "@hello-pangea/dnd";
 import List from "./draggable-list";
+import ListView from "./list-view-simple";
 import { Button, Input } from "antd";
 import { Plus, X } from "lucide-react";
 import { CardDetailProvider } from "@providers/card-detail-context";
@@ -371,6 +372,16 @@ const Board: React.FC = () => {
   const [isAddingList, setIsAddingList] = useState<boolean>(false);
   const [newListName, setNewListName] = useState<string>("");
   const [boardScopeMenu, setBoardScopeMenu] = useState<boolean>(false);
+  const [viewMode, setViewMode] = useState<"kanban" | "list">(() => {
+    // Attempt to restore from localStorage per board
+    try {
+      const key = `board-view-mode-${resolvedBoardId}`;
+      const stored = typeof window !== "undefined" ? window.localStorage.getItem(key) : null;
+      return (stored === "list" || stored === "kanban") ? (stored as "kanban" | "list") : "kanban";
+    } catch {
+      return "kanban";
+    }
+  });
   const { addCard } = useCards("", "");
   const { moveCard } = useCardMove(resolvedBoardId);
   const { moveList } = useListMove();
@@ -727,6 +738,14 @@ const Board: React.FC = () => {
     }
   };
 
+  // Persist view mode per board
+  useEffect(() => {
+    try {
+      const key = `board-view-mode-${resolvedBoardId}`;
+      window.localStorage.setItem(key, viewMode);
+    } catch {}
+  }, [viewMode, resolvedBoardId]);
+
   return (
     <div
       className="h-auto min-h-[600px] mr-4 pt-[50px]"
@@ -742,40 +761,63 @@ const Board: React.FC = () => {
           setBoardScopeMenuOpen={setBoardScopeMenu}
           board={boardDetails}
           onTrackClick={() => setOpenDashcardModal(true)}
+          viewMode={viewMode}
+          onChangeViewMode={setViewMode}
         />
         <CardFocusProvider>
           <CardDetailProvider>
             <div className="relative pb-10">
-              {/* Horizontal Slider for manual navigation - positioned inside board area */}
-              <BoardContentWithPermissions
-                lists={lists}
-                isLoading={isLoading}
-                shouldRenderLists={shouldRenderLists}
-                onListDragEnd={onListDragEnd}
-                onDragStart={onDragStart}
-                onDragUpdate={onDragUpdate}
-                boardScrollContainerRef={boardScrollContainerRef}
-                resolvedBoardId={resolvedBoardId}
-                updateList={updateList}
-                deleteList={deleteList}
-                isAddingList={isAddingList}
-                setIsAddingList={setIsAddingList}
-                newListName={newListName}
-                setNewListName={setNewListName}
-                handleAddList={handleAddList}
-                isDraggingToScroll={isDraggingToScroll}
-                onMouseDown={handleMouseDown}
-                onMouseMove={handleMouseMove}
-                onMouseUp={handleMouseUp}
-                onMouseLeave={handleMouseLeave}
-                onTouchStart={handleTouchStart}
-                onTouchMove={handleTouchMove}
-                onTouchEnd={handleTouchEnd}
-              />
-              <HorizontalSlider
-                containerRef={boardScrollContainerRef}
-                widthPercent={20}
-              />
+              {viewMode === "kanban" ? (
+                <>
+                  {/* Horizontal Slider for manual navigation - positioned inside board area */}
+                  <BoardContentWithPermissions
+                    lists={lists}
+                    isLoading={isLoading}
+                    shouldRenderLists={shouldRenderLists}
+                    onListDragEnd={onListDragEnd}
+                    onDragStart={onDragStart}
+                    onDragUpdate={onDragUpdate}
+                    boardScrollContainerRef={boardScrollContainerRef}
+                    resolvedBoardId={resolvedBoardId}
+                    updateList={updateList}
+                    deleteList={deleteList}
+                    isAddingList={isAddingList}
+                    setIsAddingList={setIsAddingList}
+                    newListName={newListName}
+                    setNewListName={setNewListName}
+                    handleAddList={handleAddList}
+                    isDraggingToScroll={isDraggingToScroll}
+                    onMouseDown={handleMouseDown}
+                    onMouseMove={handleMouseMove}
+                    onMouseUp={handleMouseUp}
+                    onMouseLeave={handleMouseLeave}
+                    onTouchStart={handleTouchStart}
+                    onTouchMove={handleTouchMove}
+                    onTouchEnd={handleTouchEnd}
+                  />
+                  <HorizontalSlider
+                    containerRef={boardScrollContainerRef}
+                    widthPercent={20}
+                  />
+                </>
+              ) : (
+                <ListView
+                  lists={lists}
+                  isLoading={isLoading}
+                  shouldRenderLists={shouldRenderLists}
+                  onListDragEnd={onListDragEnd}
+                  onDragStart={onDragStart}
+                  onDragUpdate={onDragUpdate}
+                  resolvedBoardId={resolvedBoardId}
+                  updateList={updateList}
+                  deleteList={deleteList}
+                  isAddingList={isAddingList}
+                  setIsAddingList={setIsAddingList}
+                  newListName={newListName}
+                  setNewListName={setNewListName}
+                  handleAddList={handleAddList}
+                />
+              )}
             </div>
 
             <CardDetails />

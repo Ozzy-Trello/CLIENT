@@ -7,7 +7,6 @@ import { useLabels } from "@hooks/label";
 import { useCustomFields } from "@hooks/custom_field";
 import { useRuleLookups } from "@hooks/useRuleLookups";
 import { LookupCache } from "@utils/lookup-cache";
-import { useProducts } from "@hooks/useProducts";
 
 interface RuleStateProps {
   selectedRule: AutomationRule;
@@ -24,7 +23,6 @@ const RuleState: React.FC<RuleStateProps> = (props) => {
   // Fetch and cache all necessary data for rule rendering
   const { allLabels } = useLabels(workspaceId as string);
   const { customFields } = useCustomFields(workspaceId as string);
-  const { data: products = [] } = useProducts();
 
   // Memoize the rule-like structure to prevent infinite loops
   const ruleLikeStructure = useMemo(() => {
@@ -65,16 +63,7 @@ const RuleState: React.FC<RuleStateProps> = (props) => {
         }))
       );
     }
-    if (products && products.length > 0) {
-      LookupCache.rememberMany(
-        "product",
-        products.map((p) => ({
-          id: p.id,
-          name: p.name || p.id,
-        }))
-      );
-    }
-  }, [allLabels, customFields, products]);
+  }, [allLabels, customFields]);
 
   console.log("selectedRule adalah: %o", selectedRule);
 

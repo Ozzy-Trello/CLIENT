@@ -229,22 +229,7 @@ const CardContextMenu: React.FC<CardContextMenuProps> = ({
   // Add ref for the wrapper div
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  // Listen for synthetic contextmenu events (from MoreHorizontal button)
-  useEffect(() => {
-    const handleSyntheticContextMenu = (e: Event) => {
-      // Only handle synthetic events (not real right-clicks)
-      if (e.isTrusted === false) {
-        const mouseEvent = e as MouseEvent;
-        handleContextMenu(mouseEvent as any);
-      }
-    };
-
-    const wrapper = wrapperRef.current;
-    if (wrapper) {
-      wrapper.addEventListener('contextmenu', handleSyntheticContextMenu);
-      return () => wrapper.removeEventListener('contextmenu', handleSyntheticContextMenu);
-    }
-  }, []);
+  // Right-click context menu support will be handled via onContextMenu on the wrapper div.
 
   // Keyboard shortcut: Press 'L' to open Labels when context menu is visible
   useEffect(() => {
@@ -283,7 +268,7 @@ const CardContextMenu: React.FC<CardContextMenuProps> = ({
           top: contextMenuPosition.y,
         }}
       >
-        <div ref={wrapperRef}>
+        <div ref={wrapperRef} onContextMenu={handleContextMenu}>
           {children}
         </div>
       </Dropdown>

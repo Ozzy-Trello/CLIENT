@@ -83,17 +83,6 @@ export async function prefetchRuleData(
       }))
     );
   }
-
-  // Cache products
-  if (options.products && options.products.length > 0) {
-    LookupCache.rememberMany(
-      "product",
-      options.products.map((p: { id: string; name?: string }) => ({
-        id: p.id,
-        name: p.name || p.id,
-      }))
-    );
-  }
 }
 
 function stringify(val: any): string {
@@ -131,12 +120,12 @@ function stringify(val: any): string {
 
 function lookup(condition: any, key: string): any {
   if (!condition) return undefined;
-  
+
   // Try direct key lookup
   let value = condition[key];
   if (value !== undefined) {
     // If the value looks like a UUID, try to resolve it using LookupCache
-    if (typeof value === 'string' && isUUID(value)) {
+    if (typeof value === "string" && isUUID(value)) {
       const resolved = LookupCache.any(value);
       if (resolved) {
         return resolved;
@@ -144,12 +133,12 @@ function lookup(condition: any, key: string): any {
     }
     return value;
   }
-  
+
   // snake_case -> camelCase
   const camel = key.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
   if (camel in condition) {
     value = condition[camel];
-    if (typeof value === 'string' && isUUID(value)) {
+    if (typeof value === "string" && isUUID(value)) {
       const resolved = LookupCache.any(value);
       if (resolved) {
         return resolved;
@@ -157,12 +146,12 @@ function lookup(condition: any, key: string): any {
     }
     return value;
   }
-  
+
   // camelCase -> snake_case
   const snake = key.replace(/([A-Z])/g, "_$1").toLowerCase();
   if (snake in condition) {
     value = condition[snake];
-    if (typeof value === 'string' && isUUID(value)) {
+    if (typeof value === "string" && isUUID(value)) {
       const resolved = LookupCache.any(value);
       if (resolved) {
         return resolved;
@@ -170,12 +159,12 @@ function lookup(condition: any, key: string): any {
     }
     return value;
   }
-  
+
   // Try looking in nested condition property (for filter data)
-  if (condition.condition && typeof condition.condition === 'object') {
+  if (condition.condition && typeof condition.condition === "object") {
     value = condition.condition[key];
     if (value !== undefined) {
-      if (typeof value === 'string' && isUUID(value)) {
+      if (typeof value === "string" && isUUID(value)) {
         const resolved = LookupCache.any(value);
         if (resolved) {
           return resolved;
@@ -183,11 +172,11 @@ function lookup(condition: any, key: string): any {
       }
       return value;
     }
-    
+
     // Try camelCase in nested condition
     if (camel in condition.condition) {
       value = condition.condition[camel];
-      if (typeof value === 'string' && isUUID(value)) {
+      if (typeof value === "string" && isUUID(value)) {
         const resolved = LookupCache.any(value);
         if (resolved) {
           return resolved;
@@ -195,11 +184,11 @@ function lookup(condition: any, key: string): any {
       }
       return value;
     }
-    
+
     // Try snake_case in nested condition
     if (snake in condition.condition) {
       value = condition.condition[snake];
-      if (typeof value === 'string' && isUUID(value)) {
+      if (typeof value === "string" && isUUID(value)) {
         const resolved = LookupCache.any(value);
         if (resolved) {
           return resolved;
@@ -208,13 +197,14 @@ function lookup(condition: any, key: string): any {
       return value;
     }
   }
-  
+
   return undefined;
 }
 
 // Helper function to check if a string looks like a UUID
 function isUUID(str: string): boolean {
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  const uuidRegex =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
   return uuidRegex.test(str);
 }
 
@@ -536,7 +526,11 @@ export function renderRulePatternHuman(
     }
 
     // Handle filter placeholders that show as [filter]
-    if (condition.filter && Array.isArray(condition.filter) && condition.filter.length > 0) {
+    if (
+      condition.filter &&
+      Array.isArray(condition.filter) &&
+      condition.filter.length > 0
+    ) {
       const filterText = renderFiltersHuman(condition.filter);
       if (filterText) {
         sentence = sentence.replace(/\[filter\]/gi, filterText.trim());

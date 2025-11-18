@@ -6,8 +6,7 @@ export type Kind =
   | "user"
   | "field"
   | "label"
-  | "role"
-  | "product";
+  | "role";
 
 class LookupCacheCls {
   private data: Record<Kind, Map<string, string>> = {
@@ -17,7 +16,6 @@ class LookupCacheCls {
     field: new Map(),
     label: new Map(),
     role: new Map(),
-    product: new Map(),
   } as any;
 
   rememberMany(kind: Kind, entries: Array<{ id: string; name: string }>) {

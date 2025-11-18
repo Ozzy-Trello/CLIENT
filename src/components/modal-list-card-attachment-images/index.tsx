@@ -5,6 +5,7 @@ import { FileUpload } from "@myTypes/file-upload";
 import { Button, Modal } from "antd";
 import { Folder } from "lucide-react";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 
 interface Props {
   selectedCard: Card | null;
@@ -19,10 +20,21 @@ const CardAttachmentImageListModal: React.FC<Props> = ({
   handleCancel,
   setSelectedImageUrl,
 }) => {
-  const { cardAttachments } = useCardAttachment(selectedCard?.id || "");
+  const params = useParams();
+  const boardId = Array.isArray(params.boardId)
+    ? params.boardId[0]
+    : params.boardId;
+  const listId =
+    selectedCard?.listId || (selectedCard as any)?.list_id || "";
+  const { cardAttachments, addAttachment } = useCardAttachment(
+    selectedCard?.id || "",
+    {
+      listId,
+      boardId,
+    }
+  );
   const [images, setImages] = useState<CardAttachment[]>([]);
   const [openUploadModal, setOpenUploadModal] = useState<boolean>(false);
-  const { addAttachment } = useCardAttachment(selectedCard?.id || "");
 
   const handleUploadComplete = (file: File, result: FileUpload) => {
     addAttachment({

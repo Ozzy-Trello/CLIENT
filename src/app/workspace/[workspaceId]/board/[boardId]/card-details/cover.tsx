@@ -5,6 +5,7 @@ import { FileUpload } from "@myTypes/file-upload";
 import { isImageFile } from "@utils/file";
 import { Button, Image, Upload } from "antd";
 import { useMemo, useState } from "react";
+import { useParams } from "next/navigation";
 import { useBoardPermissionsContext } from "@providers/board-permissions-context";
 
 interface CoverProps {
@@ -13,8 +14,16 @@ interface CoverProps {
 
 const Cover: React.FC<CoverProps> = (props) => {
   const { card } = props;
+  const params = useParams();
+  const boardId = Array.isArray(params.boardId)
+    ? params.boardId[0]
+    : params.boardId;
+  const listId = card?.listId || (card as any)?.list_id || "";
   const [openUploadModal, setOpenUploadmodal] = useState<boolean>(false);
-  const { cardAttachments, addAttachment } = useCardAttachment(card.id);
+  const { cardAttachments, addAttachment } = useCardAttachment(card.id, {
+    listId,
+    boardId,
+  });
   const { canUpdateCard } = useBoardPermissionsContext();
 
   const handleCloseModal = () => {

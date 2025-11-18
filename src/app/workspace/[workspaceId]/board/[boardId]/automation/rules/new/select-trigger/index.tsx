@@ -9,7 +9,6 @@ import {
   UserSelection,
   RoleSelection,
   MultiFieldValueInput,
-  ProductSelection,
 } from "@components/selection";
 import { Button, Input, Select, Typography, Popover, Tag } from "antd";
 import { ListFilter, Plus, X, Calendar, List, Type, Check } from "lucide-react";
@@ -846,31 +845,6 @@ const SelectOption = ({
             onListChange(option);
           }}
           className="mr-2 ml-2"
-        />
-      </span>
-    );
-  }
-
-  if (placeholder === EnumSelectionType.Product) {
-    return (
-      <span
-        className="mx-2"
-        key={`product-select-${itemType}-${placeholder}`}
-      >
-        <ProductSelection
-          width={"fit-content"}
-          ref={useRef<SelectionRef>(null)}
-          value={
-            (triggersData[groupIndex]?.items?.[index] as any)?.[placeholder]
-              ?.value?.value ||
-            (triggersData[groupIndex]?.items?.[index] as any)?.[placeholder]
-              ?.value ||
-            ""
-          }
-          onChange={(value: string, option: GeneralOptions) => {
-            onProductChange(option);
-          }}
-          className="mr-2 ml-2 min-w-[200px]"
         />
       </span>
     );

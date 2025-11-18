@@ -25,7 +25,12 @@ import UploadModal from "@components/modal-upload/modal-upload";
 import { PDFModal } from "@components/pdf-modal";
 import { PDFPreview } from "@components/pdf-preview";
 import { useCardAttachment } from "@hooks/card_attachment";
-import { Card, CardAttachment, EnumAttachmentType, EnumCardAttachmentType } from "@myTypes/card";
+import {
+  Card,
+  CardAttachment,
+  EnumAttachmentType,
+  EnumCardAttachmentType,
+} from "@myTypes/card";
 import { FileUpload } from "@myTypes/file-upload";
 import { User } from "@myTypes/user";
 import { useBoardPermissionsContext } from "@providers/board-permissions-context";
@@ -47,6 +52,7 @@ interface AttachmentsProps {
 
 const Attachments: React.FC<AttachmentsProps> = (props) => {
   const { card, setCard, currentUser } = props;
+  const [messageApi, contextHolder] = message.useMessage();
   const params = useParams();
   const workspaceId = Array.isArray(params.workspaceId)
     ? params.workspaceId[0]
@@ -55,8 +61,14 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
     ? params.boardId[0]
     : params.boardId;
 
+  const cardListId =
+    card?.listId || (card as any)?.list_id || (card as any)?.listId || "";
+
   const { cardAttachments, addAttachment, deleteAttachment } =
-    useCardAttachment(card?.id || "");
+    useCardAttachment(card?.id || "", {
+      listId: cardListId,
+      boardId: boardId,
+    });
   const [openUploadModal, setOpenUploadmodal] = useState<boolean>(false);
   const attachmentsRef = useRef<HTMLDivElement>(null);
   const [isDraggingOver, setIsDraggingOver] = useState<boolean>(false);
@@ -68,7 +80,6 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
     fileName: string;
   } | null>(null);
   const { canUpdateCard } = useBoardPermissionsContext();
-
   // Generate short URL for QR codes with backend fallback
   const generateShortUrl = async (): Promise<string> => {
     console.log("🔍 QR Generation Debug - Card data:", {
@@ -142,12 +153,29 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
   };
 
   const handleUpload = (file: File, result: FileUpload) => {
+    const hasExistingFileAttachment = cardAttachments.some(
+      (attachment) => attachment.attachableType === EnumAttachmentType.File
+    );
+    const shouldSetCover =
+      !hasExistingFileAttachment && isImageFile(file.name, file.type);
+
     addAttachment({
       cardId: card.id || "",
       attachableType: EnumAttachmentType.File,
       attachableId: result.id,
-      isCover: false,
+      isCover: shouldSetCover,
     });
+
+    if (shouldSetCover && result?.url) {
+      setCard((prev) =>
+        prev
+          ? {
+              ...prev,
+              cover: result.url,
+            }
+          : prev
+      );
+    }
   };
 
   const isImageFile = (fileName: string, mimeType?: string): boolean => {
@@ -202,27 +230,23 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
 
   // Helper functions to categorize attachments by type
   const getBuktiAttachments = () => {
-    return cardAttachments?.filter(
-      (item) => 
-        item.attachableType === EnumAttachmentType.File && 
-        item.type === EnumCardAttachmentType.Bukti
-    ) || [];
+    return (
+      cardAttachments?.filter(
+        (item) =>
+          item.attachableType === EnumAttachmentType.File &&
+          item.type === EnumCardAttachmentType.Bukti
+      ) || []
+    );
   };
 
   const getPOAttachments = () => {
-    return cardAttachments?.filter(
-      (item) => 
-        item.attachableType === EnumAttachmentType.File && 
-        item.type === EnumCardAttachmentType.PO
-    ) || [];
-  };
-
-  const getOtherAttachments = () => {
-    return cardAttachments?.filter(
-      (item) => 
-        item.attachableType === EnumAttachmentType.File && 
-        (!item.type || item.type === EnumCardAttachmentType.Attachment)
-    ) || [];
+    return (
+      cardAttachments?.filter(
+        (item) =>
+          item.attachableType === EnumAttachmentType.File &&
+          item.type === EnumCardAttachmentType.PO
+      ) || []
+    );
   };
 
   const formatFileSize = (bytes?: number): string => {
@@ -286,7 +310,7 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
     if (!imageUrl) return;
 
     try {
-      const loadingMsg = message.loading("Preparing print view...", 0);
+      const loadingMsg = messageApi.loading("Preparing print view...", 0);
       if (!qrCanvasRef.current) {
         qrCanvasRef.current = document.createElement("canvas");
       }
@@ -294,7 +318,7 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
       const ctx = canvas.getContext("2d");
 
       if (!ctx) {
-        message.error("Failed to create canvas context");
+        messageApi.error("Failed to create canvas context");
         loadingMsg();
         return;
       }
@@ -359,7 +383,7 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
 
         const svgElement = qrElement.querySelector("svg");
         if (!svgElement) {
-          message.error("Failed to generate QR code");
+          messageApi.error("Failed to generate QR code");
           document.body.removeChild(qrSvg);
           document.body.removeChild(qrElement);
           loadingMsg();
@@ -390,7 +414,7 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
           const dataUrl = canvas.toDataURL("image/png");
           const printDocument = printFrame.contentWindow?.document;
           if (!printDocument) {
-            message.error("Failed to create print document");
+            messageApi.error("Failed to create print document");
             document.body.removeChild(printFrame);
             document.body.removeChild(qrSvg);
             document.body.removeChild(qrElement);
@@ -448,7 +472,7 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
                   document.body.removeChild(qrSvg);
                   document.body.removeChild(qrElement);
                   loadingMsg();
-                  message.error("Failed to open print dialog");
+                  messageApi.error("Failed to open print dialog");
                 }
               }, 500);
             };
@@ -458,19 +482,19 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
               document.body.removeChild(qrSvg);
               document.body.removeChild(qrElement);
               loadingMsg();
-              message.error("Failed to load image for printing");
+              messageApi.error("Failed to load image for printing");
             };
           } else {
             document.body.removeChild(printFrame);
             document.body.removeChild(qrSvg);
             document.body.removeChild(qrElement);
             loadingMsg();
-            message.error("Failed to prepare image for printing");
+            messageApi.error("Failed to prepare image for printing");
           }
         };
 
         qrImg.onerror = () => {
-          message.error("Failed to generate QR code");
+          messageApi.error("Failed to generate QR code");
           document.body.removeChild(qrSvg);
           document.body.removeChild(qrElement);
           loadingMsg();
@@ -478,27 +502,27 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
       };
 
       img.onerror = () => {
-        message.error("Failed to load image");
+        messageApi.error("Failed to load image");
         loadingMsg();
       };
 
       img.src = base64Image;
     } catch (error) {
-      message.error("An error occurred during download");
+      messageApi.error("An error occurred during download");
     }
   };
 
   const handlePrintPDFWithQR = async (pdfUrl?: string, fileName?: string) => {
     if (!pdfUrl) {
       console.error("❌ PDF Print with QR: No PDF URL provided");
-      message.error("No PDF URL provided");
+      messageApi.error("No PDF URL provided");
       return;
     }
 
     console.log("🖨️ PDF Print with QR started:", { pdfUrl, fileName });
 
     try {
-      const loadingMsg = message.loading("Preparing PDF with QR code...", 0);
+      const loadingMsg = messageApi.loading("Preparing PDF with QR code...", 0);
 
       console.log("🔗 Generating short URL for QR code...");
       const qrText = await generateShortUrl();
@@ -528,17 +552,21 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
 
       loadingMsg();
       console.log("✅ PDF with QR code prepared successfully");
-      message.success("PDF with QR code opened for printing");
+      messageApi.success("PDF with QR code opened for printing");
     } catch (error) {
       console.error("❌ PDF Print with QR failed:", error);
-      message.error(`Failed to prepare PDF with QR code: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      messageApi.error(
+        `Failed to prepare PDF with QR code: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
     }
   };
 
   const processFiles = async (files: File[]) => {
     if (!files.length) return;
 
-    const loadingMsg = message.loading("Uploading file...", 0);
+    const loadingMsg = messageApi.loading("Uploading file...", 0);
 
     try {
       const filesToProcess = files.slice(0, 5);
@@ -553,27 +581,29 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
             throw new Error("Upload failed");
           }
         } catch (error) {
-          message.error(`Failed to upload ${file.name}`);
+            messageApi.error(`Failed to upload ${file.name}`);
         }
       }
 
       if (filesToProcess.length === 1) {
-        message.success(
+        messageApi.success(
           `File "${filesToProcess[0].name}" uploaded successfully`
         );
       } else {
-        message.success(`${filesToProcess.length} files uploaded successfully`);
+        messageApi.success(
+          `${filesToProcess.length} files uploaded successfully`
+        );
       }
 
       if (files.length > 5) {
-        message.info(
+        messageApi.info(
           `Only the first 5 files were uploaded. Please upload the remaining ${
             files.length - 5
           } files separately.`
         );
       }
     } catch (error) {
-      message.error("Failed to upload files");
+      messageApi.error("Failed to upload files");
     } finally {
       loadingMsg();
     }
@@ -711,10 +741,7 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
       if (item.attachableType === EnumAttachmentType.Card && item.targetCard) {
         const mappedCard = mapBackendCardToFrontend(item.targetCard);
         nextAttachedCards.push(mappedCard as Card);
-      } else if (
-        item.attachableType === EnumAttachmentType.File &&
-        item.file
-      ) {
+      } else if (item.attachableType === EnumAttachmentType.File && item.file) {
         nextAttachedFiles.push(item.file as FileUpload);
       }
     });
@@ -741,8 +768,13 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
     title: string;
     attachments: CardAttachment[];
     emptyText?: string;
-    sectionType?: 'bukti' | 'po' | 'other';
-  }> = ({ title, attachments, emptyText = "No attachments yet", sectionType }) => {
+    sectionType?: "bukti" | "po" | "other";
+  }> = ({
+    title,
+    attachments,
+    emptyText = "No attachments yet",
+    sectionType,
+  }) => {
     if (attachments.length === 0) {
       return (
         <div className="mb-6">
@@ -796,7 +828,7 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
                               <ZoomInOutlined />
                             </Button>
                             {/* Print with QR button only for PO section */}
-                            {sectionType === 'po' && (
+                            {sectionType === "po" && (
                               <Button
                                 onClick={() => {
                                   document
@@ -892,46 +924,53 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
                     />
 
                     {/* Print with QR for image files in PO section only */}
-                    {sectionType === 'po' && isImageFile(item.file?.name || "", item.file?.mimeType) && (
-                      <Button
-                        type="text"
-                        size="small"
-                        icon={<QrCode size={14} />}
-                        onClick={() =>
-                          handlePrintWithQR(
-                            item.file?.url,
-                            item.file?.name || "image"
-                          )
-                        }
-                        className="text-gray-500 hover:text-green-600"
-                      />
-                    )}
+                    {sectionType === "po" &&
+                      isImageFile(
+                        item.file?.name || "",
+                        item.file?.mimeType
+                      ) && (
+                        <Button
+                          type="text"
+                          size="small"
+                          icon={<QrCode size={14} />}
+                          onClick={() =>
+                            handlePrintWithQR(
+                              item.file?.url,
+                              item.file?.name || "image"
+                            )
+                          }
+                          className="text-gray-500 hover:text-green-600"
+                        />
+                      )}
 
                     {/* Print with QR for PDF files in PO section only */}
-                    {sectionType === 'po' && isPDFFile(item.file?.name || "", item.file?.mimeType) && (
-                      <Button
-                        type="text"
-                        size="small"
-                        icon={<QrCode size={14} />}
-                        onClick={() =>
-                          handlePrintPDFWithQR(
-                            item.file?.url,
-                            item.file?.name || "PDF"
-                          )
-                        }
-                        className="text-gray-500 hover:text-green-600"
-                      />
-                    )}
+                    {sectionType === "po" &&
+                      isPDFFile(item.file?.name || "", item.file?.mimeType) && (
+                        <Button
+                          type="text"
+                          size="small"
+                          icon={<QrCode size={14} />}
+                          onClick={() =>
+                            handlePrintPDFWithQR(
+                              item.file?.url,
+                              item.file?.name || "PDF"
+                            )
+                          }
+                          className="text-gray-500 hover:text-green-600"
+                        />
+                      )}
 
                     {canUpdateCard() && (
                       <Button
                         type="text"
                         size="small"
                         icon={<DeleteOutlined />}
-                        onClick={() => deleteAttachment({
-                          attachmentId: item.id,
-                          cardId: card.id || "",
-                        })}
+                        onClick={() =>
+                          deleteAttachment({
+                            attachmentId: item.id,
+                            cardId: card.id || "",
+                          })
+                        }
                         className="text-gray-500 hover:text-red-600"
                       />
                     )}
@@ -947,6 +986,7 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
 
   return (
     <>
+      {contextHolder}
       <div
         className="bg-white p-4 rounded-lg mt-2"
         ref={attachmentsRef}
@@ -973,27 +1013,15 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
           </Button>
         </div>
 
-        {/* Bukti Section */}
-        <AttachmentSection
-          title="Bukti"
-          attachments={getBuktiAttachments()}
-          emptyText="No bukti attachments yet"
-          sectionType="bukti"
-        />
-
-        {/* PO Section */}
-        <AttachmentSection
-          title="PO"
-          attachments={getPOAttachments()}
-          emptyText="No PO attachments yet"
-          sectionType="po"
-        />
-
         {/* Other Files Section */}
         <AttachmentSection
-          title="Other Files"
-          attachments={getOtherAttachments()}
-          emptyText="No other attachments yet"
+          title="All Files"
+          attachments={
+            cardAttachments?.filter(
+              (item) => item.attachableType === EnumAttachmentType.File
+            ) || []
+          }
+          emptyText="No attachments yet"
           sectionType="other"
         />
 

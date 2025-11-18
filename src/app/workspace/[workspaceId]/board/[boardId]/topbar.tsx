@@ -1,4 +1,5 @@
-import { Button, Tooltip, Typography } from "antd";
+import { Button, Tooltip, Typography, Tabs } from "antd";
+import "./style.css";
 import { Dispatch, SetStateAction } from "react";
 import { useWorkspaceSidebar } from "@providers/workspace-sidebar-context";
 import { Ellipsis, Star } from "lucide-react";
@@ -11,12 +12,16 @@ interface BoardTopbarProps {
   setBoardScopeMenuOpen: Dispatch<SetStateAction<boolean>>;
   board?: any; // Board data from API response
   onTrackClick?: () => void;
+  viewMode?: "kanban" | "list";
+  onChangeViewMode?: (mode: "kanban" | "list") => void;
 }
 
 const BoardTopbar: React.FC<BoardTopbarProps> = ({
   setBoardScopeMenuOpen,
   board,
   onTrackClick,
+  viewMode = "kanban",
+  onChangeViewMode,
 }) => {
   const { collapsed, siderSmall, siderWide } = useWorkspaceSidebar();
   const reduxBoard = useSelector(selectCurrentBoard);
@@ -70,6 +75,21 @@ const BoardTopbar: React.FC<BoardTopbarProps> = ({
             }}
           />
         </Tooltip>
+        {/* View mode tabs placed next to board name and favorite */}
+        <Tabs
+          className="board-view-tabs"
+          size="small"
+          tabBarGutter={12}
+          tabBarStyle={{ marginBottom: 0 }}
+          activeKey={viewMode}
+          onChange={(key) =>
+            onChangeViewMode && onChangeViewMode(key as "kanban" | "list")
+          }
+          items={[
+            { key: "kanban", label: "Kanban" },
+            { key: "list", label: "List" },
+          ]}
+        />
       </div>
 
       <div className="flex items-center gap-2">

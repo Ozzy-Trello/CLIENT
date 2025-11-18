@@ -10,7 +10,6 @@ import {
   CheckSquare,
   Search,
 } from "lucide-react";
-import SplitJobSlider from "@components/split-job/SplitJobSlider";
 import { Fragment, useEffect, useRef, useState } from "react";
 import { useLists } from "@hooks/list";
 import { useParams } from "next/navigation";
@@ -147,7 +146,7 @@ const EnterToSaveNumberInput: React.FC<{
   onSave: (value: number) => void;
   className?: string;
   fieldName?: string; // For debugging
-  customFieldId?: string; // Added for split job integration
+  customFieldId?: string;
   disabled?: boolean;
 }> = ({
   placeholder,
@@ -173,7 +172,6 @@ const EnterToSaveNumberInput: React.FC<{
   );
 
   // Only show Split Job button for "Jml Produksi" field
-  const showSplitJob = fieldName === "Jml Produksi";
 
   // Handle key down to prevent invalid characters
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -260,20 +258,6 @@ const EnterToSaveNumberInput: React.FC<{
         onPaste={handlePaste}
         onBlur={onBlur}
         disabled={disabled}
-        suffix={
-          showSplitJob ? (
-            <SplitJobSlider
-              workspaceId={params.workspaceId as string}
-              customFieldId={customFieldId || ""}
-              cardId={cardId}
-              value={parseFloat(value) || 0}
-              onChange={(val) => {
-                onChange(val.toString());
-                onBlur();
-              }}
-            />
-          ) : undefined
-        }
       />
       {hasChanges && (
         <div className="absolute right-2 top-1/2 transform -translate-y-1/2 pointer-events-none">

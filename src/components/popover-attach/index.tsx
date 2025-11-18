@@ -23,8 +23,16 @@ const PopoverAttach: React.FC<PopoverAttachProps> = ({
 }) => {
   const params = useParams();
   const workspaceId = params.workspaceId as string;
+  const boardId = Array.isArray(params.boardId)
+    ? (params.boardId[0] as string)
+    : (params.boardId as string);
   const { selectedCard, activeList, setSelectedCard } = useCardDetailContext();
-  const { addAttachment } = useCardAttachment(selectedCard?.id || "");
+  const selectedCardListId =
+    selectedCard?.listId || (selectedCard as any)?.list_id || "";
+  const { addAttachment } = useCardAttachment(selectedCard?.id || "", {
+    listId: selectedCardListId,
+    boardId,
+  });
 
   const handleAttachFile = (file: File, result: FileUpload) => {
     if (selectedCard && result?.id) {

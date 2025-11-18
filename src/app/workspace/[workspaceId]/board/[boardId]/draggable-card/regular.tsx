@@ -30,7 +30,7 @@ import { fetchLookups } from "@utils/fetch-lookups";
 // Utility to convert "3 hours 30 minutes" to "3h 30m"
 function formatTimeShort(timeStr: string | undefined): string {
   if (!timeStr || timeStr === "--") return "--";
-  
+
   return timeStr
     .replace(/ hours?/g, "h")
     .replace(/ minutes?/g, "m")
@@ -280,24 +280,6 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
             <div className="text-gray-700 text-[11px]">
               <span className="font-medium mr-1">Produk:</span>
               {card.productInfo.name}
-            </div>
-          )}
-          {card?.productCodeInfo?.code && (
-            <div className="text-gray-700 text-[11px]">
-              <span className="font-medium mr-1">Kode Produk:</span>
-              {card.productCodeInfo.code}
-            </div>
-          )}
-          {card?.bahanInfo?.name && (
-            <div className="text-gray-700 text-[11px]">
-              <span className="font-medium mr-1">Bahan:</span>
-              {card.bahanInfo.name}
-            </div>
-          )}
-          {card?.warnaInfo?.name && (
-            <div className="text-gray-700 text-[11px]">
-              <span className="font-medium mr-1">Warna:</span>
-              {card.warnaInfo.name}
             </div>
           )}
         </div>

@@ -36,3 +36,27 @@ button {
   padding: 10px;
   border-radius: 7px;
 }
+
+/* Compact, inline tabs for view mode next to board name */
+.board-view-tabs .ant-tabs-nav {
+  margin-bottom: 0;
+  margin-left: 12px; /* small spacing from star icon */
+}
+.board-view-tabs .ant-tabs-nav::before {
+  display: none; /* remove default bottom border line */
+}
+.board-view-tabs .ant-tabs-tab {
+  padding: 0; /* remove extra vertical padding */
+}
+.board-view-tabs .ant-tabs-tab .ant-tabs-tab-btn {
+  font-size: 14px;
+  color: rgb(var(--color-text));
+}
+.board-view-tabs .ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: rgb(var(--color-primary));
+}
+.board-view-tabs .ant-tabs-ink-bar {
+  height: 2px; /* subtle underline */
+  border-radius: 1px;
+  background: rgb(var(--color-primary));
+}
