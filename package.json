@@ -8,7 +8,6 @@
     "start": "next start",
     "lint": "next lint",
     "analyze": "cross-env ANALYZE=true next build",
-    "postinstall": "powershell -Command \"if (!(Test-Path 'public')) { New-Item -ItemType Directory -Path 'public' }; Copy-Item 'node_modules/pdfjs-dist/build/pdf.worker.min.mjs' 'public/pdf.worker.min.js'\""
   },
   "dependencies": {
     "@ant-design/nextjs-registry": "^1.0.2",
