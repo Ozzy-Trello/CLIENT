@@ -76,8 +76,11 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
         let message = JSON.parse(event.data);
         message = camelcaseKeys(message, { deep: true });
 
-        // Don't process WebSocket updates during drag operations to prevent re-renders
+        // Buffer websocket messages during drag to process after drag ends
         if ((window as any).__DRAG_IN_PROGRESS__) {
+          try { console.log('reorder:buffer', message.event); } catch {}
+          (window as any).__WS_BUFFER__ = (window as any).__WS_BUFFER__ || [];
+          (window as any).__WS_BUFFER__.push(message);
           return;
         }
 
@@ -87,22 +90,27 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             break;
 
           case EnumUserActionEvent.CardMoved:
-            const { card, fromListId, toListId } = message.data;
+            const { card, fromListId, toListId, boardId: movedBoardIdCard } = message.data;
+            try { console.log('reorder', { event: EnumUserActionEvent.CardMoved, cardId: card?.id, fromListId, toListId, boardId: movedBoardIdCard }); } catch {}
 
             // invalidate all related queries
             queryClient.invalidateQueries({ queryKey: queryKeys.lists.all });
+            if (movedBoardIdCard) {
+              queryClient.invalidateQueries({ queryKey: queryKeys.lists.board(movedBoardIdCard) });
+              queryClient.invalidateQueries({ queryKey: queryKeys.boards.withLists(movedBoardIdCard) });
+            }
             queryClient.invalidateQueries({
               queryKey: queryKeys.cards.list(fromListId),
             });
-            if (fromListId !== toListId) {
-              queryClient.invalidateQueries({
-                queryKey: queryKeys.cards.list(toListId),
-              });
-            }
+            // Always invalidate destination list as well (same list or cross list)
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.cards.list(toListId),
+            });
             // Also invalidate the specific card detail
             queryClient.invalidateQueries({
               queryKey: queryKeys.cards.detail(card.id),
             });
+            try { console.log('reorder:invalidated', { fromListId, toListId }); } catch {}
             refreshDashcard = true;
             break;
 
@@ -839,8 +847,34 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
 
     socket.addEventListener("message", handleMessage);
 
+    // Process any buffered messages when drag ends
+    const processBuffered = () => {
+      const buf = (window as any).__WS_BUFFER__ || [];
+      if (!Array.isArray(buf) || buf.length === 0) return;
+      // Clear buffer first to avoid loops
+      (window as any).__WS_BUFFER__ = [];
+      try { console.log('reorder:drain', buf.length); } catch {}
+      for (const buffered of buf) {
+        try {
+          // Re-dispatch buffered messages via a synthetic event
+          const evt = { data: JSON.stringify(buffered) } as MessageEvent;
+          handleMessage(evt);
+        } catch (e) {
+          console.error("Error processing buffered WS message", e);
+        }
+      }
+    };
+
+    // Poll for drag state transitions and process buffer when drag ends
+    const interval = setInterval(() => {
+      if (!(window as any).__DRAG_IN_PROGRESS__) {
+        processBuffered();
+      }
+    }, 150);
+
     return () => {
       socket.removeEventListener("message", handleMessage);
+      clearInterval(interval);
     };
   }, [socket, queryClient]);
 }

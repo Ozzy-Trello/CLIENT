@@ -443,13 +443,13 @@ export function useCardsPaginated(listId: string, boardId: string) {
   // Update allCards when initial query data changes (for fresh data)
   useEffect(() => {
     if (cardsQuery.data?.data && !cardsQuery.isLoading) {
-      // Only update if we don't already have the same data
-      const currentDataIds = allCards.map(card => card.id).sort();
-      const newDataIds = cardsQuery.data.data.map(card => card.id).sort();
-      const isSameData = currentDataIds.length === newDataIds.length && 
-        currentDataIds.every((id, index) => id === newDataIds[index]);
-      
-      if (!isSameData) {
+      // Detect changes including order (sequence-sensitive)
+      const currentIds = allCards.map(card => card.id);
+      const newIds = cardsQuery.data.data.map(card => card.id);
+      const isSameSequence = currentIds.length === newIds.length &&
+        currentIds.every((id, index) => id === newIds[index]);
+
+      if (!isSameSequence) {
         setAllCards(cardsQuery.data.data);
         setHasMoreCards(cardsQuery.data.data.length === limit);
         setCurrentPage(1);
@@ -649,6 +649,7 @@ export function useCardMove(boardId?: string) {
       }
     },
     onSettled: (data, error, variables) => {
+      try { console.log('reorder:mutation:settled', variables); } catch {}
       // Clean up drag state and re-enable cache operations
       document.body.classList.remove("dragging");
       (window as any).__DRAG_IN_PROGRESS__ = false;
@@ -663,6 +664,7 @@ export function useCardMove(boardId?: string) {
 
       // Small delay to catch any missed WebSocket updates during drag
       setTimeout(() => {
+        try { console.log('reorder:refetch'); } catch {}
         queryClient.invalidateQueries({
           queryKey: queryKeys.cards.list(variables.previousListId),
         });
