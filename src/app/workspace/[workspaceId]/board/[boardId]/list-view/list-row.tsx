@@ -1,27 +1,27 @@
 "use client";
-import { FC, useState } from "react";
+import CardContextMenu from "@components/card-context-menu";
+import MembersList from "@components/members-list";
+import { UserSelection } from "@components/selection";
 import { Draggable } from "@hello-pangea/dnd";
+import { usePermissions } from "@hooks/account";
+import { useCardMembers } from "@hooks/card_member";
+import { useLabels } from "@hooks/label";
 import { Card, EnumCardType } from "@myTypes/card";
 import type { CardLabel } from "@myTypes/label";
 import { AnyList } from "@myTypes/list";
-import MembersList from "@components/members-list";
-import { useCardMembers } from "@hooks/card_member";
-import { useCardDetailContext } from "@providers/card-detail-context";
-import CardContextMenu from "@components/card-context-menu";
 import { useBoardPermissionsContext } from "@providers/board-permissions-context";
-import { UserSelection } from "@components/selection";
-import {
-  Plus,
-  ChevronRight,
-  BarChart2,
-  Square,
-  ChevronDown,
-} from "lucide-react";
-import { Popover } from "antd";
-import { usePermissions } from "@hooks/account";
+import { useCardDetailContext } from "@providers/card-detail-context";
 import { calculateTimeInList } from "@utils/general";
-import { useLabels } from "@hooks/label";
+import { Popover } from "antd";
+import {
+  BarChart2,
+  ChevronDown,
+  ChevronRight,
+  Plus,
+  Square,
+} from "lucide-react";
 import { useParams } from "next/navigation";
+import { FC, useEffect, useRef, useState } from "react";
 
 interface ListRowProps {
   card: Card;
@@ -33,6 +33,11 @@ interface InlineMemberPickerProps {
   excludeIds: string[];
   onSelect: (value: string) => void;
 }
+
+const STICKY_BASE_OFFSET = 12; // px, matches px-3 padding
+const SUBCARD_INDENT_STEP = 24; // px offset added per depth level for sticky column
+
+const defaultCardBackground = "#ffffff";
 
 const InlineMemberPicker: FC<InlineMemberPickerProps> = ({
   excludeIds,
@@ -64,7 +69,7 @@ const InlineMemberPicker: FC<InlineMemberPickerProps> = ({
       overlayClassName="inline-member-picker"
     >
       <div
-        className="flex items-center justify-center w-6 h-6 rounded-full border border-dashed border-gray-300 cursor-pointer hover:border-gray-400"
+        className="flex items-center justify-center w-4 h-4 rounded-full border border-dashed border-gray-300 cursor-pointer hover:border-gray-400"
         onClick={(e) => {
           e.stopPropagation();
           setOpen(true);
@@ -76,6 +81,34 @@ const InlineMemberPicker: FC<InlineMemberPickerProps> = ({
   );
 };
 
+const hexToRgba = (hexColor: string | undefined, alpha = 1) => {
+  if (!hexColor) return `rgba(255, 255, 255, ${alpha})`;
+  if (!hexColor.startsWith("#")) {
+    return alpha === 1 ? hexColor : `rgba(255, 255, 255, ${alpha})`;
+  }
+  let normalized = hexColor.replace("#", "");
+  if (normalized.length === 3) {
+    normalized = normalized
+      .split("")
+      .map((char) => char + char)
+      .join("");
+  }
+  if (normalized.length !== 6) {
+    return `rgba(255, 255, 255, ${alpha})`;
+  }
+  const num = parseInt(normalized, 16);
+  const r = (num >> 16) & 255;
+  const g = (num >> 8) & 255;
+  const b = num & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
+
+const createStickyGradient = (color?: string) => {
+  const solid = hexToRgba(color, 1);
+  const transparent = hexToRgba(color, 0);
+  return `linear-gradient(90deg, ${solid} 80%, ${transparent})`;
+};
+
 const ListRow: FC<ListRowProps> = ({ card, index, list }) => {
   const { cardMembers, toggleMember, removeMember } = useCardMembers(card?.id);
   const { openCardDetail } = useCardDetailContext();
@@ -83,6 +116,8 @@ const ListRow: FC<ListRowProps> = ({ card, index, list }) => {
   const canMoveCard = canMove("card");
   const [showSubcards, setShowSubcards] = useState<boolean>(false);
   const { canManageCardMembers } = useBoardPermissionsContext();
+  const rowRef = useRef<HTMLDivElement | null>(null);
+  const [rowBgColor, setRowBgColor] = useState<string>(defaultCardBackground);
 
   // Fetch card labels for rendering next to the card name
   const params = useParams();
@@ -100,6 +135,22 @@ const ListRow: FC<ListRowProps> = ({ card, index, list }) => {
     card?.formattedTimeInList ||
     (card?.createdAt ? calculateTimeInList(card.createdAt) : undefined);
 
+  useEffect(() => {
+    if (rowRef.current) {
+      const cs = window.getComputedStyle(rowRef.current);
+      const bg = cs.backgroundColor || defaultCardBackground;
+      setRowBgColor(bg);
+    }
+  }, [rowRef]);
+
+  const stickyBaseColor = rowBgColor;
+  const stickyGradient = createStickyGradient(stickyBaseColor);
+  const refreshRowBg = () => {
+    if (!rowRef.current) return;
+    const cs = window.getComputedStyle(rowRef.current);
+    const bg = cs.backgroundColor || defaultCardBackground;
+    setRowBgColor(bg);
+  };
   const handleMemberSelection = (value: string) => {
     if (!value) return;
     toggleMember(value);
@@ -129,8 +180,8 @@ const ListRow: FC<ListRowProps> = ({ card, index, list }) => {
         >
           <CardContextMenu card={card} list={list}>
             <div
-              className={`list-row-container bg-white rounded border border-gray-200 px-3 py-2
-              hover:bg-gray-50 transition-colors duration-150 w-full
+              className={`list-row-container bg-white rounded border border-gray-200 px-3 py-3
+              hover:bg-gray-50 transition-colors duration-150 w-full min-w-[520px]
               ${canMoveCard ? "cursor-pointer" : "cursor-default"}
               ${snapshot.isDragging ? "shadow-sm" : ""}
             `}
@@ -141,15 +192,24 @@ const ListRow: FC<ListRowProps> = ({ card, index, list }) => {
               }
               {...provided.dragHandleProps}
               onClick={handleClick}
+              onMouseEnter={() => requestAnimationFrame(refreshRowBg)}
+              onMouseLeave={() => requestAnimationFrame(refreshRowBg)}
               title={
                 !canMoveCard
                   ? "You don't have permission to move cards"
                   : undefined
               }
+              ref={rowRef}
             >
               <div className="grid grid-cols-[minmax(160px,1fr)_180px_120px] items-center gap-3">
                 {/* Name + subtle type icon */}
-                <div className="flex items-center gap-2 min-w-0">
+                <div
+                  className="flex items-center gap-2 min-w-0 sticky pr-4 z-[100] relative bg-white"
+                  style={{
+                    left: STICKY_BASE_OFFSET,
+                    backgroundColor: "inherit",
+                  }}
+                >
                   {hasSubcards ? (
                     <button
                       onClick={handleToggleSubcards}
@@ -198,6 +258,16 @@ const ListRow: FC<ListRowProps> = ({ card, index, list }) => {
                       ))}
                     </div>
                   )}
+                  <div
+                    className="pointer-events-none absolute inset-y-0 right-[-10px] w-10"
+                    style={{
+                      backgroundColor: "inherit",
+                      WebkitMaskImage:
+                        "linear-gradient(90deg, black 80%, transparent)",
+                      maskImage:
+                        "linear-gradient(90deg, black 80%, transparent)",
+                    }}
+                  />
                 </div>
 
                 {/* Members */}
@@ -224,7 +294,7 @@ const ListRow: FC<ListRowProps> = ({ card, index, list }) => {
                 </div>
 
                 {/* Age (time in list) */}
-                <div className="flex items-center justify-end text-[11px] text-gray-600">
+                <div className="flex items-center justify-end text-[11px] text-gray-600 pr-3">
                   <span className="truncate">{timeInList || "--"}</span>
                 </div>
               </div>
@@ -260,6 +330,16 @@ const SubcardRow: FC<SubcardRowProps> = ({ card, parentList, depth = 1 }) => {
   const { canMove } = usePermissions();
   const canMoveCard = canMove("card");
   const [expanded, setExpanded] = useState(false);
+  const subRowRef = useRef<HTMLDivElement | null>(null);
+  const [subRowBgColor, setSubRowBgColor] = useState<string>(
+    defaultCardBackground
+  );
+  const refreshSubRowBg = () => {
+    if (!subRowRef.current) return;
+    const cs = window.getComputedStyle(subRowRef.current);
+    const bg = cs.backgroundColor || defaultCardBackground;
+    setSubRowBgColor(bg);
+  };
   const childSubcards = card.subCards || card.sub || [];
   const hasNestedSubcards = childSubcards.length > 0;
   const params = useParams();
@@ -274,6 +354,7 @@ const SubcardRow: FC<SubcardRowProps> = ({ card, parentList, depth = 1 }) => {
     card?.formattedTimeInList ||
     (card?.createdAt ? calculateTimeInList(card.createdAt) : undefined);
 
+  const stickyGradient = createStickyGradient(defaultCardBackground);
   const { cardMembers, toggleMember, removeMember } = useCardMembers(card?.id);
   const { canManageCardMembers } = useBoardPermissionsContext();
   const handleSubMemberSelection = (value: string) => {
@@ -300,28 +381,33 @@ const SubcardRow: FC<SubcardRowProps> = ({ card, parentList, depth = 1 }) => {
     setExpanded((prev) => !prev);
   };
 
-  const indentPx = Math.min(depth, 5) * 8;
   const containerClass =
     depth > 0
       ? "space-y-1 border-l border-dashed border-gray-200"
       : "space-y-1";
   return (
-    <div
-      className={containerClass}
-      style={depth > 0 ? { marginLeft: indentPx, paddingLeft: 8 } : undefined}
-    >
+    <div className={containerClass}>
       <CardContextMenu card={card} list={resolvedList}>
         <div
-          className={`list-row-container bg-white rounded border border-gray-200 px-3 py-2 hover:bg-gray-50 transition-colors duration-150 w-full ${
+          className={`list-row-container bg-white rounded border border-gray-200 px-3 py-3 hover:bg-gray-50 transition-colors duration-150 w-full min-w-[520px] ${
             canMoveCard ? "cursor-pointer" : "cursor-default"
           }`}
           style={
             isDashcard ? { borderLeft: `3px solid ${accentColor}` } : undefined
           }
           onClick={handleClick}
+          onMouseEnter={() => requestAnimationFrame(refreshSubRowBg)}
+          onMouseLeave={() => requestAnimationFrame(refreshSubRowBg)}
+          ref={subRowRef}
         >
           <div className="grid grid-cols-[minmax(160px,1fr)_180px_120px] items-center gap-3">
-            <div className="flex items-center gap-2 min-w-0">
+            <div
+              className="flex items-center gap-2 min-w-0 sticky pr-4 z-[100] relative bg-white"
+              style={{
+                left: STICKY_BASE_OFFSET + depth * SUBCARD_INDENT_STEP,
+                backgroundColor: "inherit",
+              }}
+            >
               {hasNestedSubcards ? (
                 <button
                   onClick={toggleNested}
@@ -350,8 +436,26 @@ const SubcardRow: FC<SubcardRowProps> = ({ card, parentList, depth = 1 }) => {
                   <Square size={12} />
                 </span>
               )}
-              <div className="truncate text-sm font-medium text-blue-800">
-                {card?.name}
+              <div className="flex flex-row gap-1 truncate text-sm font-medium text-blue-800">
+                <span>{card?.name}</span>
+                <div className="hidden sm:flex text-[10px] text-gray-500 flex flex-wrap gap-3">
+                  {resolvedList.name && (
+                    <span className="inline-flex gap-1 items-center">
+                      <span className="text-gray-400">List:</span>
+                      <span className="font-medium text-gray-600">
+                        {resolvedList.name}
+                      </span>
+                    </span>
+                  )}
+                  {displayBoardName && (
+                    <span className="inline-flex gap-1 items-center">
+                      <span className="text-gray-400">Board:</span>
+                      <span className="font-medium text-gray-600">
+                        {displayBoardName}
+                      </span>
+                    </span>
+                  )}
+                </div>
               </div>
               {cardLabels && cardLabels.length > 0 && (
                 <div className="flex items-center gap-1 ml-2 shrink-0">
@@ -371,6 +475,15 @@ const SubcardRow: FC<SubcardRowProps> = ({ card, parentList, depth = 1 }) => {
                   ))}
                 </div>
               )}
+              <div
+                className="pointer-events-none absolute inset-y-0 right-[-10px] w-10"
+                style={{
+                  backgroundColor: "inherit",
+                  WebkitMaskImage:
+                    "linear-gradient(90deg, black 80%, transparent)",
+                  maskImage: "linear-gradient(90deg, black 80%, transparent)",
+                }}
+              />
             </div>
 
             <div
@@ -393,28 +506,9 @@ const SubcardRow: FC<SubcardRowProps> = ({ card, parentList, depth = 1 }) => {
               )}
             </div>
 
-            <div className="flex items-center justify-end text-[11px] text-gray-600">
+            <div className="flex items-center justify-end text-[11px] text-gray-600 pr-3">
               <span className="truncate">{timeInList || "--"}</span>
             </div>
-          </div>
-
-          <div className="pl-6 pt-1 text-[10px] text-gray-500 flex flex-wrap gap-3">
-            {resolvedList.name && (
-              <span className="inline-flex gap-1 items-center">
-                <span className="text-gray-400">List:</span>
-                <span className="font-medium text-gray-600">
-                  {resolvedList.name}
-                </span>
-              </span>
-            )}
-            {displayBoardName && (
-              <span className="inline-flex gap-1 items-center">
-                <span className="text-gray-400">Board:</span>
-                <span className="font-medium text-gray-600">
-                  {displayBoardName}
-                </span>
-              </span>
-            )}
           </div>
         </div>
       </CardContextMenu>

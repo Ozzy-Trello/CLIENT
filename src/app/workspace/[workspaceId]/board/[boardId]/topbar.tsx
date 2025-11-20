@@ -45,15 +45,14 @@ const BoardTopbar: React.FC<BoardTopbarProps> = ({
     toggleFavorite(currentBoard.id);
   };
 
+  const offsetWidth = isCompact ? 0 : collapsed ? siderSmall : siderWide;
+
   return (
     <div
       className="flex items-center justify-between h-[45px] absolute top-[45px] border-b border-gray-200 px-4"
       style={{
-        width: isCompact
-          ? "100%"
-          : collapsed
-              ? `calc(100% - ${siderSmall}px)`
-              : `calc(100% - ${siderWide}px)`,
+        width: isCompact ? "100%" : `calc(100% - ${offsetWidth}px)`,
+        left: offsetWidth,
         backgroundColor: currentBoard?.background || "#fff",
       }}
     >

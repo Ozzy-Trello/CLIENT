@@ -5,7 +5,6 @@ import React, { useCallback, useEffect, useState, useRef } from "react";
 import BoardTopbar from "./topbar";
 import { useSelector } from "react-redux";
 import { selectTheme } from "@store/app_slice";
-import { useWorkspaceSidebar } from "@providers/workspace-sidebar-context";
 import { useListMove, useLists } from "@hooks/list";
 import { useParams } from "next/navigation";
 import { generateId } from "@utils/general";
@@ -208,8 +207,6 @@ const BoardContentWithPermissions: React.FC<{
 const Board: React.FC = () => {
   const { boardId, workspaceId } = useParams();
   const theme = useSelector(selectTheme);
-  const { collapsed, siderSmall, siderWide, isCompact } =
-    useWorkspaceSidebar();
 
   // @hello-pangea/dnd handles touch and mouse events automatically
   const dispatch = useDispatch();
@@ -748,17 +745,7 @@ const Board: React.FC = () => {
   }, [viewMode, resolvedBoardId]);
 
   return (
-    <div
-      className="h-auto min-h-[600px] mr-4 pt-[50px]"
-      style={{
-        width: isCompact
-          ? "100%"
-          : collapsed
-              ? `calc(100% - ${siderSmall}px)`
-              : `calc(100% - ${siderWide}px)`,
-        // Background is now applied at the body level for full-page effect
-      }}
-    >
+    <div className="h-auto min-h-[600px] mr-4 pt-[50px]" style={{ width: "100%" }}>
       <BoardPermissionsProvider board={boardDetails}>
         <BoardTopbar
           setBoardScopeMenuOpen={setBoardScopeMenu}

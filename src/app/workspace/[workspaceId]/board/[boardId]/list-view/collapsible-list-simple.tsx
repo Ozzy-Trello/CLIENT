@@ -29,6 +29,33 @@ const CollapsibleListSimple: React.FC<CollapsibleListSimpleProps> = ({
   updateList,
   deleteList,
 }) => {
+  const hexToRgba = (hexColor: string | undefined, alpha = 1) => {
+    if (!hexColor) return `rgba(255, 255, 255, ${alpha})`;
+    if (!hexColor.startsWith("#")) {
+      return alpha === 1 ? hexColor : `rgba(255, 255, 255, ${alpha})`;
+    }
+    let normalized = hexColor.replace("#", "");
+    if (normalized.length === 3) {
+      normalized = normalized
+        .split("")
+        .map((char) => char + char)
+        .join("");
+    }
+    if (normalized.length !== 6) {
+      return `rgba(255, 255, 255, ${alpha})`;
+    }
+    const num = parseInt(normalized, 16);
+    const r = (num >> 16) & 255;
+    const g = (num >> 8) & 255;
+    const b = num & 255;
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  };
+
+  const createStickyGradient = (color?: string) => {
+    const solid = hexToRgba(color, 1);
+    const transparent = hexToRgba(color, 0);
+    return `linear-gradient(90deg, ${solid} 40%, ${transparent})`;
+  };
   const [collapsed, setCollapsed] = useState<boolean>(false);
   const {
     cards,
@@ -44,6 +71,8 @@ const CollapsibleListSimple: React.FC<CollapsibleListSimpleProps> = ({
 
   const isLimitExceeded = list.cardLimit && cards.length > list.cardLimit;
   const listColor = isLimitExceeded ? "#fbbf24" : list.background || "#f9fafb";
+  const headerTint = hexToRgba(list.background || listColor, 0.85);
+  const headerStickyGradient = createStickyGradient(listColor);
 
   return (
     <Draggable
@@ -71,10 +100,9 @@ const CollapsibleListSimple: React.FC<CollapsibleListSimpleProps> = ({
               : undefined
           }
         >
-          {/* Header */}
           <div
-            className="flex items-center justify-between px-3 py-2 bg-white/60 collapsible-list-header"
-            style={{ backgroundColor: list.background || undefined }}
+            className="flex items-center justify-between px-3 py-2 collapsible-list-header"
+            style={{ backgroundColor: headerTint }}
           >
             <button
               onClick={() => setCollapsed((c) => !c)}
@@ -118,16 +146,30 @@ const CollapsibleListSimple: React.FC<CollapsibleListSimpleProps> = ({
               >
                 {!collapsed && (
                   <div className="space-y-2">
-                    {/* Simple table header */}
-                    <div className="grid grid-cols-[minmax(160px,1fr)_180px_120px] text-[11px] text-gray-600 px-3 list-view-header">
-                      <div className="font-semibold">Name</div>
-                      <div className="font-semibold">Members</div>
-                      <div className="font-semibold">Age</div>
+                    <div className="w-full overflow-x-auto">
+                      <div className="min-w-[520px] space-y-2">
+                        <div className="grid grid-cols-[minmax(160px,1fr)_180px_120px] text-[11px] text-gray-600 px-3 list-view-header">
+                          <div
+                            className="font-semibold sticky z-10 pr-3 relative overflow-hidden"
+                            style={{ left: 12, backgroundColor: listColor }}
+                          >
+                            Name
+                            <div
+                              className="pointer-events-none absolute inset-y-0 right-[-8px] w-6"
+                              style={{ background: headerStickyGradient }}
+                            />
+                          </div>
+                          <div className="font-semibold">Members</div>
+                          <div className="font-semibold text-right pr-3">
+                            Age
+                          </div>
+                        </div>
+                        {cards.map((card, i) => (
+                          <ListRow key={card.id} card={card} index={i} list={list} />
+                        ))}
+                        {dropProvided.placeholder}
+                      </div>
                     </div>
-                    {cards.map((card, i) => (
-                      <ListRow key={card.id} card={card} index={i} list={list} />
-                    ))}
-                    {dropProvided.placeholder}
                     {/* Load More Button */}
                     {cards.length > 0 && (hasMoreCards || loadMoreError) && (
                       <div className="flex flex-col items-center py-2 space-y-2">
