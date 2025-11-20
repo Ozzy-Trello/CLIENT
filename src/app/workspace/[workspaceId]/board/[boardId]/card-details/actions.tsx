@@ -1,4 +1,4 @@
-import { searchCards } from "@api/card";
+import { searchCards, updateCard } from "@api/card";
 import PopoverAttach from "@components/popover-attach";
 import PopoverChecklist from "@components/popover-checklist";
 import PopoverCopyCard from "@components/popover-copy-card";
@@ -55,6 +55,8 @@ import { useParams } from "next/navigation";
 import React, { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import AutomateButtons from "./automate-buttons";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@constants/query-keys";
 
 // Helper component for permission-controlled buttons - moved outside to prevent re-creation
 const PermissionButton: React.FC<{
@@ -97,7 +99,7 @@ const PermissionButton: React.FC<{
   );
 };
 
-type RelationshipType = "link" | "subcard";
+type RelationshipType = "link" | "subcard" | "subcard_existing";
 
 const Actions: React.FC = () => {
   const [openCustomField, setOpenCustomField] = useState(false);
@@ -122,6 +124,7 @@ const Actions: React.FC = () => {
     useState(false);
 
   const { boardId } = useParams();
+  const queryClient = useQueryClient();
   const { selectedCard } = useCardDetailContext();
   const selectedCardListId =
     selectedCard?.listId || (selectedCard as any)?.list_id || "";
@@ -245,7 +248,7 @@ const Actions: React.FC = () => {
       return;
     }
 
-    if (relationshipType === "link" && !selectedRelationshipCard) {
+    if ((relationshipType === "link" || relationshipType === "subcard_existing") && !selectedRelationshipCard) {
       message.warning("Select a card to link");
       return;
     }
@@ -258,7 +261,7 @@ const Actions: React.FC = () => {
           name: relationshipName.trim(),
         });
         message.success("Subcard created");
-      } else {
+      } else if (relationshipType === "link") {
         addAttachment({
           cardId: selectedCard.id,
           attachableType: EnumAttachmentType.Card,
@@ -267,6 +270,11 @@ const Actions: React.FC = () => {
           type: EnumCardAttachmentType.Attachment,
         });
         message.success("Relationship added");
+      } else if (relationshipType === "subcard_existing") {
+        await updateCard(selectedRelationshipCard!.id, { parentId: selectedCard.id });
+        queryClient.invalidateQueries({ queryKey: queryKeys.cards.detail(selectedCard.id) });
+        queryClient.invalidateQueries({ queryKey: queryKeys.cards.detail(selectedRelationshipCard!.id) });
+        message.success("Card linked as subcard");
       }
       setOpenRelationshipModal(false);
     } catch (error) {
@@ -788,11 +796,19 @@ const Actions: React.FC = () => {
           title={
             relationshipType === "link"
               ? "Link another card"
-              : "Create a subcard"
+              : relationshipType === "subcard"
+              ? "Create a subcard"
+              : "Make existing card a subcard"
           }
           onCancel={() => setOpenRelationshipModal(false)}
           onOk={handleAddRelationship}
-          okText={relationshipType === "link" ? "Link card" : "Create subcard"}
+          okText={
+            relationshipType === "link"
+              ? "Link card"
+              : relationshipType === "subcard"
+              ? "Create subcard"
+              : "Link as subcard"
+          }
           confirmLoading={isSubmittingRelationship}
           destroyOnClose
         >
@@ -805,6 +821,7 @@ const Actions: React.FC = () => {
                 options={[
                   { label: "Link existing card", value: "link" },
                   { label: "Create subcard", value: "subcard" },
+                  { label: "Make existing card a subcard", value: "subcard_existing" },
                 ]}
                 value={relationshipType}
                 size="small"
@@ -819,9 +836,11 @@ const Actions: React.FC = () => {
               <Typography.Text className="text-xs font-semibold text-gray-600">
                 {relationshipType === "link"
                   ? "Search existing card"
-                  : "Subcard title"}
+                  : relationshipType === "subcard"
+                  ? "Subcard title"
+                  : "Search card to convert"}
               </Typography.Text>
-              {relationshipType === "link" ? (
+              {relationshipType === "link" || relationshipType === "subcard_existing" ? (
                 <Input.Search
                   value={relationshipName}
                   placeholder="Type to search matching cards"
@@ -841,14 +860,14 @@ const Actions: React.FC = () => {
               )}
             </div>
 
-            {relationshipType === "link" && (
+            {(relationshipType === "link" || relationshipType === "subcard_existing") && (
               <div className="space-y-2">
                 <Typography.Text
                   type="secondary"
                   className="text-xs flex items-center gap-1"
                 >
                   <Link size={12} />
-                  Select a card to link
+                  {relationshipType === "link" ? "Select a card to link" : "Select a card to convert"}
                 </Typography.Text>
                 {isSearchingRelationship ? (
                   <div className="flex justify-center py-2">

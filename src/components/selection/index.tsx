@@ -402,10 +402,6 @@ export const ListSelection = forwardRef<SelectionRef, ListSelectionProps>(
           value: item.id,
         }));
         setOptions(opt);
-
-        if (boardIdProp) {
-          setSelectedValue("");
-        }
       }
     }, [listData]);
 
@@ -446,6 +442,27 @@ export const ListSelection = forwardRef<SelectionRef, ListSelectionProps>(
         setListData([]);
       }
     }, [selectedBoardId]);
+
+    useEffect(() => {
+      if (value === undefined) return;
+      if (mode === "multiple") {
+        if (Array.isArray(value)) {
+          setSelectedValue(value);
+        } else {
+          const arr = String(value)
+            .split(",")
+            .map((v) => v.trim())
+            .filter(Boolean);
+          setSelectedValue(arr);
+        }
+      } else {
+        if (Array.isArray(value)) {
+          setSelectedValue(value[0]);
+        } else {
+          setSelectedValue(String(value));
+        }
+      }
+    }, [value, mode]);
 
     return (
       <Select

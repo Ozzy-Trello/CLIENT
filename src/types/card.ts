@@ -49,6 +49,7 @@ export interface Card {
   itemDashcard?: IItemDashcard[] | null;
   mirrorId?: string;
   parentId?: string | null;
+  parentBoardId?: string | null;
   subCards?: Card[];
   sub?: Card[];
   parentCard?: Card | null;
@@ -89,6 +90,7 @@ export interface Card {
   short_id?: number;
   po_amount?: number;
   parent_id?: string | null;
+  parent_board_id?: string | null;
   parent_card?: Card | null;
 }
 

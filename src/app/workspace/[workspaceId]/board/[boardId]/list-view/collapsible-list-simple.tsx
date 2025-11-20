@@ -20,6 +20,7 @@ interface CollapsibleListSimpleProps {
     unknown
   >;
   deleteList: UseMutateFunction<any, Error, { listId: string }, unknown>;
+  subtaskMode: "collapsed" | "expanded" | "separated";
 }
 
 const CollapsibleListSimple: React.FC<CollapsibleListSimpleProps> = ({
@@ -28,6 +29,7 @@ const CollapsibleListSimple: React.FC<CollapsibleListSimpleProps> = ({
   boardId,
   updateList,
   deleteList,
+  subtaskMode,
 }) => {
   const hexToRgba = (hexColor: string | undefined, alpha = 1) => {
     if (!hexColor) return `rgba(255, 255, 255, ${alpha})`;
@@ -135,11 +137,9 @@ const CollapsibleListSimple: React.FC<CollapsibleListSimpleProps> = ({
                 ref={dropProvided.innerRef}
                 className={"px-3"}
                 style={{
-                  overflow: "hidden",
                   maxHeight: collapsed ? 0 : "none",
                   paddingTop: collapsed ? 0 : 8,
                   paddingBottom: collapsed ? 0 : 8,
-                  // keep an ultra-small hit area so dropping into a collapsed list remains possible
                   minHeight: collapsed ? 1 : undefined,
                   transition: "max-height 0.2s ease, padding 0.2s ease",
                 }}
@@ -164,8 +164,32 @@ const CollapsibleListSimple: React.FC<CollapsibleListSimpleProps> = ({
                             Age
                           </div>
                         </div>
-                        {cards.map((card, i) => (
-                          <ListRow key={card.id} card={card} index={i} list={list} />
+                        {(
+                          subtaskMode === "separated"
+                            ? cards
+                            : cards.filter((c: any) => {
+                                const isSubtask =
+                                  !!c.parentId ||
+                                  !!c.parent_id ||
+                                  !!c.parentCard ||
+                                  !!c.parent_card;
+                                if (!isSubtask) return true;
+                                const parentBoardId =
+                                  c?.parentCard?.boardId ??
+                                  c?.parent_card?.board_id ??
+                                  c?.parentBoardId ??
+                                  c?.parent_board_id;
+                                // Hide only when parent lives in this board
+                                return parentBoardId !== boardId;
+                              })
+                        ).map((card, i) => (
+                          <ListRow
+                            key={card.id}
+                            card={card}
+                            index={i}
+                            list={list}
+                            subtaskMode={subtaskMode}
+                          />
                         ))}
                         {dropProvided.placeholder}
                       </div>

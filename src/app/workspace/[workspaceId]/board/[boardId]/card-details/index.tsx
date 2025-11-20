@@ -79,6 +79,7 @@ const CardDetails: React.FC = (props) => {
     openCardDetail,
     closeCardDetail,
     isLoadingCardDetails,
+    activeList,
   } = useCardDetailContext();
   const currentUser = useSelector(selectUser);
   const [isComplete, setIsComplete] = useState<boolean>(false);
@@ -294,10 +295,12 @@ const CardDetails: React.FC = (props) => {
                   <div>
                     <span className="text-gray-500 text-sm mr-2">in list</span>
                     <ListSelection
+                      key={`list-selection-${selectedCard?.id}-${selectedCard?.boardId || (selectedCard as any)?.board_id || activeList?.boardId || (activeList as any)?.board_id || (boardId as string)}`}
                       ref={listSelectionRef}
                       size="small"
                       width={"fit-content"}
-                      value={selectedCard?.listId}
+                      value={selectedCard?.listId || (selectedCard as any)?.list_id || activeList?.id}
+                      boardIdProp={selectedCard?.boardId || (selectedCard as any)?.board_id || activeList?.boardId || (activeList as any)?.board_id || (boardId as string)}
                       onChange={onListChange}
                       disabled={!canUpdateCard()}
                     />

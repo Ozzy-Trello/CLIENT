@@ -19,6 +19,7 @@ import {
   ChevronRight,
   Plus,
   Square,
+  CornerDownRight,
 } from "lucide-react";
 import { useParams } from "next/navigation";
 import { FC, useEffect, useRef, useState } from "react";
@@ -27,6 +28,7 @@ interface ListRowProps {
   card: Card;
   index: number;
   list: AnyList;
+  subtaskMode?: "collapsed" | "expanded" | "separated";
 }
 
 interface InlineMemberPickerProps {
@@ -109,7 +111,12 @@ const createStickyGradient = (color?: string) => {
   return `linear-gradient(90deg, ${solid} 80%, ${transparent})`;
 };
 
-const ListRow: FC<ListRowProps> = ({ card, index, list }) => {
+const ListRow: FC<ListRowProps> = ({
+  card,
+  index,
+  list,
+  subtaskMode = "collapsed",
+}) => {
   const { cardMembers, toggleMember, removeMember } = useCardMembers(card?.id);
   const { openCardDetail } = useCardDetailContext();
   const { canMove } = usePermissions();
@@ -130,6 +137,31 @@ const ListRow: FC<ListRowProps> = ({ card, index, list }) => {
   const isDashcard = card?.type === EnumCardType.Dashcard;
   const accentColor = card?.dashConfig?.backgroundColor || "#1890ff"; // default blue
   const hasSubcards = Array.isArray(card?.subCards) && card.subCards.length > 0;
+  const isSubtask =
+    !!(card as any)?.parentId ||
+    !!(card as any)?.parent_id ||
+    !!(card as any)?.parentCard ||
+    !!(card as any)?.parent_card;
+  const parentName =
+    (card as any)?.parentCard?.name || (card as any)?.parent_card?.name || "";
+  const parentBoardId =
+    (card as any)?.parentCard?.boardId ||
+    (card as any)?.parent_card?.board_id ||
+    (card as any)?.parentBoardId ||
+    (card as any)?.parent_board_id ||
+    "";
+  const nestedVisible =
+    subtaskMode === "expanded"
+      ? true
+      : subtaskMode === "separated"
+      ? false
+      : showSubcards;
+
+  if (isSubtask && subtaskMode !== "separated") {
+    if (parentBoardId && parentBoardId === list.boardId) {
+      return null;
+    }
+  }
 
   const timeInList =
     card?.formattedTimeInList ||
@@ -163,6 +195,20 @@ const ListRow: FC<ListRowProps> = ({ card, index, list }) => {
   const handleToggleSubcards = (e: React.MouseEvent) => {
     e.stopPropagation();
     setShowSubcards((prev) => !prev);
+  };
+
+  const openParent = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const parent = (card as any)?.parentCard || (card as any)?.parent_card;
+    console.log(parent, "<< ni parent");
+    if (!parent || !parent.id) return;
+    const parentList: AnyList = {
+      id: parent.listId || parent.list_id,
+      boardId: parent.boardId || parent.board_id,
+      name: parent.listName || parent.list_name,
+      background: list.background,
+    } as AnyList;
+    openCardDetail(parent as Card, parentList);
   };
 
   return (
@@ -210,15 +256,15 @@ const ListRow: FC<ListRowProps> = ({ card, index, list }) => {
                     backgroundColor: "inherit",
                   }}
                 >
-                  {hasSubcards ? (
+                  {hasSubcards && subtaskMode === "collapsed" ? (
                     <button
                       onClick={handleToggleSubcards}
                       className="p-1 rounded text-gray-500 hover:text-gray-700 hover:bg-gray-100"
                       aria-label={
-                        showSubcards ? "Collapse subcards" : "Expand subcards"
+                        nestedVisible ? "Collapse subcards" : "Expand subcards"
                       }
                     >
-                      {showSubcards ? (
+                      {nestedVisible ? (
                         <ChevronDown size={12} />
                       ) : (
                         <ChevronRight size={12} />
@@ -232,12 +278,36 @@ const ListRow: FC<ListRowProps> = ({ card, index, list }) => {
                       <BarChart2 size={12} />
                     </span>
                   ) : (
-                    <span title="Card" className="shrink-0 text-gray-400">
-                      <Square size={12} />
+                    <span
+                      title={isSubtask ? "Subtask" : "Card"}
+                      className={`shrink-0 ${
+                        isSubtask ? "text-purple-500" : "text-gray-400"
+                      }`}
+                    >
+                      {isSubtask && subtaskMode === "separated" ? (
+                        <CornerDownRight size={12} />
+                      ) : (
+                        <Square size={12} />
+                      )}
                     </span>
                   )}
                   <div className="truncate text-sm font-medium text-blue-800">
                     {card?.name}
+                    {isSubtask && subtaskMode === "separated" && (
+                      <button
+                        type="button"
+                        onClick={openParent}
+                        className="mt-[2px] inline-flex items-center gap-[3px] px-[2px] py-[0px] rounded !text-gray-400 text-[7px] leading-[8px] font-normal cursor-pointer hover:!text-blue-600 hover:underline transform translate-y-[1px]"
+                        title={
+                          parentName ? `Subtask of ${parentName}` : "Subtask"
+                        }
+                      >
+                        <CornerDownRight size={8} className="text-gray-400" />
+                        <span className="!text-[7px] leading-[8px] truncate">
+                          {parentName || "Parent"}
+                        </span>
+                      </button>
+                    )}
                   </div>
                   {/* Labels next to card name */}
                   {cardLabels && cardLabels.length > 0 && (
@@ -301,7 +371,7 @@ const ListRow: FC<ListRowProps> = ({ card, index, list }) => {
             </div>
           </CardContextMenu>
 
-          {hasSubcards && showSubcards && (
+          {hasSubcards && nestedVisible && (
             <div className="ml-6 border-l border-dashed border-gray-200 pl-3 space-y-2">
               {card.subCards?.map((subCard) => (
                 <SubcardRow
@@ -309,6 +379,7 @@ const ListRow: FC<ListRowProps> = ({ card, index, list }) => {
                   card={subCard}
                   parentList={list}
                   depth={1}
+                  subtaskMode={subtaskMode}
                 />
               ))}
             </div>
@@ -323,13 +394,19 @@ interface SubcardRowProps {
   card: Card;
   parentList: AnyList;
   depth?: number;
+  subtaskMode?: "collapsed" | "expanded" | "separated";
 }
 
-const SubcardRow: FC<SubcardRowProps> = ({ card, parentList, depth = 1 }) => {
+const SubcardRow: FC<SubcardRowProps> = ({
+  card,
+  parentList,
+  depth = 1,
+  subtaskMode = "collapsed",
+}) => {
   const { openCardDetail } = useCardDetailContext();
   const { canMove } = usePermissions();
   const canMoveCard = canMove("card");
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(subtaskMode === "expanded");
   const subRowRef = useRef<HTMLDivElement | null>(null);
   const [subRowBgColor, setSubRowBgColor] = useState<string>(
     defaultCardBackground
@@ -521,6 +598,7 @@ const SubcardRow: FC<SubcardRowProps> = ({ card, parentList, depth = 1 }) => {
               card={child}
               parentList={resolvedList}
               depth={depth + 1}
+              subtaskMode={subtaskMode}
             />
           ))}
         </>

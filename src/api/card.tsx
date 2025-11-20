@@ -53,6 +53,9 @@ export const mapBackendCardToFrontend = (backendCard: any): Card => {
   if (backendCard.parent_id !== undefined) {
     mapped.parentId = backendCard.parent_id;
   }
+  if (backendCard.parent_board_id !== undefined) {
+    mapped.parentBoardId = backendCard.parent_board_id;
+  }
   if (backendCard.parent_card !== undefined && backendCard.parent_card !== null) {
     mapped.parentCard = mapBackendCardToFrontend(backendCard.parent_card);
   }
