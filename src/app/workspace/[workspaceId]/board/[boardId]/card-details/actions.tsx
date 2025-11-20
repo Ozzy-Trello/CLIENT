@@ -248,7 +248,11 @@ const Actions: React.FC = () => {
       return;
     }
 
-    if ((relationshipType === "link" || relationshipType === "subcard_existing") && !selectedRelationshipCard) {
+    if (
+      (relationshipType === "link" ||
+        relationshipType === "subcard_existing") &&
+      !selectedRelationshipCard
+    ) {
       message.warning("Select a card to link");
       return;
     }
@@ -271,9 +275,15 @@ const Actions: React.FC = () => {
         });
         message.success("Relationship added");
       } else if (relationshipType === "subcard_existing") {
-        await updateCard(selectedRelationshipCard!.id, { parentId: selectedCard.id });
-        queryClient.invalidateQueries({ queryKey: queryKeys.cards.detail(selectedCard.id) });
-        queryClient.invalidateQueries({ queryKey: queryKeys.cards.detail(selectedRelationshipCard!.id) });
+        await updateCard(selectedRelationshipCard!.id, {
+          parentId: selectedCard.id,
+        });
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.cards.detail(selectedCard.id),
+        });
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.cards.detail(selectedRelationshipCard!.id),
+        });
         message.success("Card linked as subcard");
       }
       setOpenRelationshipModal(false);
@@ -709,7 +719,7 @@ const Actions: React.FC = () => {
           )}
 
           {/* Mirror Card */}
-          {canMirrorCard() ? (
+          {/* {canMirrorCard() ? (
             <PopoverMirrorCard
               open={openMirrorCard}
               setOpen={setOpenMirrorCard}
@@ -735,7 +745,7 @@ const Actions: React.FC = () => {
               <FlipHorizontal size={14} />
               <span className="text-xs">Mirror</span>
             </PermissionButton>
-          )}
+          )} */}
 
           {/* Archive/Restore Card */}
           <PermissionButton
@@ -821,7 +831,10 @@ const Actions: React.FC = () => {
                 options={[
                   { label: "Link existing card", value: "link" },
                   { label: "Create subcard", value: "subcard" },
-                  { label: "Make existing card a subcard", value: "subcard_existing" },
+                  {
+                    label: "Make existing card a subcard",
+                    value: "subcard_existing",
+                  },
                 ]}
                 value={relationshipType}
                 size="small"
@@ -840,7 +853,8 @@ const Actions: React.FC = () => {
                   ? "Subcard title"
                   : "Search card to convert"}
               </Typography.Text>
-              {relationshipType === "link" || relationshipType === "subcard_existing" ? (
+              {relationshipType === "link" ||
+              relationshipType === "subcard_existing" ? (
                 <Input.Search
                   value={relationshipName}
                   placeholder="Type to search matching cards"
@@ -860,14 +874,17 @@ const Actions: React.FC = () => {
               )}
             </div>
 
-            {(relationshipType === "link" || relationshipType === "subcard_existing") && (
+            {(relationshipType === "link" ||
+              relationshipType === "subcard_existing") && (
               <div className="space-y-2">
                 <Typography.Text
                   type="secondary"
                   className="text-xs flex items-center gap-1"
                 >
                   <Link size={12} />
-                  {relationshipType === "link" ? "Select a card to link" : "Select a card to convert"}
+                  {relationshipType === "link"
+                    ? "Select a card to link"
+                    : "Select a card to convert"}
                 </Typography.Text>
                 {isSearchingRelationship ? (
                   <div className="flex justify-center py-2">
