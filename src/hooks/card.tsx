@@ -443,31 +443,22 @@ export function useCardsPaginated(listId: string, boardId: string) {
   // Update allCards when initial query data changes (for fresh data)
   useEffect(() => {
     if (cardsQuery.data?.data && !cardsQuery.isLoading) {
-      // Detect changes including order (sequence-sensitive)
-      const currentIds = allCards.map(card => card.id);
-      const newIds = cardsQuery.data.data.map(card => card.id);
-      const isSameSequence = currentIds.length === newIds.length &&
-        currentIds.every((id, index) => id === newIds[index]);
+      setAllCards(cardsQuery.data.data);
+      setHasMoreCards(cardsQuery.data.data.length === limit);
+      setCurrentPage(1);
 
-      if (!isSameSequence) {
-        setAllCards(cardsQuery.data.data);
-        setHasMoreCards(cardsQuery.data.data.length === limit);
-        setCurrentPage(1);
+      const totalCount =
+        cardsQuery.data.paginate?.totalData || cardsQuery.data.data.length;
+      setTotalCards(totalCount);
 
-        // Extract total count from pagination data
-        const totalCount =
-          cardsQuery.data.paginate?.totalData || cardsQuery.data.data.length;
-        setTotalCards(totalCount);
+      queryClient.setQueryData<ApiResponse<Card[]>>(
+        queryKeys.cards.list(listId),
+        cardsQuery.data
+      );
 
-        // Ensure query cache is updated with initial data
-        queryClient.setQueryData<ApiResponse<Card[]>>(
-          queryKeys.cards.list(listId),
-          cardsQuery.data
-        );
-      }
-      setLoadMoreError(null); // Clear any previous errors
+      setLoadMoreError(null);
     }
-  }, [cardsQuery.data?.data, cardsQuery.isLoading, limit, allCards, queryClient, listId]);
+  }, [cardsQuery.data?.data, cardsQuery.isLoading, limit, queryClient, listId]);
 
   // Load more cards function
   const loadMoreCards = useCallback(async () => {
