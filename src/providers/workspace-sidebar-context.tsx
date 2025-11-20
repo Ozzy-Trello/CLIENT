@@ -5,6 +5,7 @@ type SidebarContextType = {
   toggleSidebar: () => void;
   siderWide: number;
   siderSmall: number;
+  isCompact: boolean;
 };
 const SidebarContext = createContext<SidebarContextType | undefined>(undefined);
 export const WorkspaceSidebarProvider = ({
@@ -13,7 +14,7 @@ export const WorkspaceSidebarProvider = ({
   children: React.ReactNode;
 }) => {
   const [collapsed, setCollapsed] = useState(false);
-  // const { width, height, isMobile } = useScreenSize();
+  const [isCompact, setIsCompact] = useState(false);
   const siderWide = 280;
   const siderSmall = 10;
 
@@ -21,22 +22,29 @@ export const WorkspaceSidebarProvider = ({
     setCollapsed((prev) => !prev);
   };
 
-  // useEffect(() => {
-  //   // handle auto collapse when screen width < 768
-  //   const handleResize = () => {
-  //     const screenWidth = window.innerWidth;
-  //     if (isMobile && !collapsed) {
-  //       setCollapsed(true);
-  //     } else if (!isMobile && collapsed) {
-  //       setCollapsed(false);
-  //     }
-  //   };
-  //   handleResize();
- 
-  // }, [width]);
+  useEffect(() => {
+    const handleResize = () => {
+      if (typeof window === "undefined") return;
+      setIsCompact(window.innerWidth <= 1024);
+    };
+
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isCompact) {
+      setCollapsed(true);
+    }
+  }, [isCompact]);
 
   return (
-    <SidebarContext.Provider value={{ collapsed, toggleSidebar, siderWide, siderSmall }}>
+    <SidebarContext.Provider
+      value={{ collapsed, toggleSidebar, siderWide, siderSmall, isCompact }}
+    >
       {children}
     </SidebarContext.Provider>
   );

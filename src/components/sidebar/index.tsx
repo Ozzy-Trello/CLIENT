@@ -31,6 +31,7 @@ import {
   Package,
   Layers,
   Database,
+  Menu as MenuIcon,
 } from "lucide-react";
 import { Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import dynamic from "next/dynamic";
@@ -83,7 +84,7 @@ const Sidebar = () => {
   const dispatch = useDispatch();
   const router = useRouter();
   // const path = usePat
-  const { collapsed, toggleSidebar, siderWide, siderSmall } =
+  const { collapsed, toggleSidebar, siderWide, siderSmall, isCompact } =
     useWorkspaceSidebar();
 
   // Helper function to get board icon background style
@@ -182,12 +183,23 @@ const Sidebar = () => {
       ? workspaceId[0]
       : workspaceId;
     router.push(`/workspace/${resolvedWorkspaceId}/board/${board?.id}`);
+    if (isCompact && !collapsed) {
+      toggleSidebar();
+    }
   };
 
   const handleToggleFavorite = (board: Board) => {
     console.log(board, "ini board di toggle fav");
     toggleFavorite(board.id.toString());
   };
+
+  const toggleTooltip = collapsed
+    ? isCompact
+      ? "Open workspace menu"
+      : "Expand sidebar"
+    : isCompact
+      ? "Close workspace menu"
+      : "Collapse sidebar";
 
   // Memoize the base menus
   const baseMenus = useMemo<MenuItem[]>(() => {
@@ -434,33 +446,63 @@ const Sidebar = () => {
 
   // Render the sidebar
   return (
-    <div
-      className="relative h-full"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      style={{ width: collapsed ? siderSmall : siderWide }}
-    >
-      <Sider
-        className={`transition-all duration-200 ease-in-out ${
-          collapsed ? "w-3 scrollbar-none" : ""
-        }`}
-        collapsed={collapsed}
-        style={{
-          height: "100%",
-          position: "fixed",
-          left: 0,
-          top: 45,
-          overflow: "hidden", // Prevent horizontal scrolling
-          overflowY: "auto", // Allow vertical scrolling when needed
-          backgroundColor: `rgba(${colors.surface}, 0.85)`, // Theme-aware semi-transparent background
-          backdropFilter: "blur(5px)", // Add blur effect for better readability
-          borderRight: `1px solid rgb(${colors.border})`, // Theme-aware border
-          zIndex: 101,
-        }}
-        width={collapsed ? siderSmall : siderWide}
-        collapsedWidth={12}
-        trigger={null}
+    <>
+      <div
+        className="relative h-full"
+        onMouseEnter={!isCompact ? () => setIsHovered(true) : undefined}
+        onMouseLeave={!isCompact ? () => setIsHovered(false) : undefined}
+        style={
+          isCompact ? undefined : { width: collapsed ? siderSmall : siderWide }
+        }
       >
+        {isCompact && !collapsed && (
+          <div
+            className="workspace-sidebar-mask"
+            onClick={toggleSidebar}
+            style={{
+              position: "fixed",
+              top: 45,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(0, 0, 0, 0.35)",
+              zIndex: 300,
+            }}
+          />
+        )}
+        <Sider
+          className={`transition-all duration-200 ease-in-out ${
+            !isCompact && collapsed ? "w-3 scrollbar-none" : ""
+          }`}
+          collapsed={isCompact ? false : collapsed}
+          style={{
+            height: isCompact ? "calc(100vh - 45px)" : "100%",
+            position: "fixed",
+            left: 0,
+            top: 45,
+            overflow: "hidden",
+            overflowY: "auto",
+            backgroundColor: `rgba(${colors.surface}, ${
+              isCompact ? "0.98" : "0.85"
+            })`,
+            backdropFilter: isCompact ? "blur(12px)" : "blur(5px)",
+            borderRight: isCompact ? "none" : `1px solid rgb(${colors.border})`,
+            zIndex: isCompact ? 301 : 101,
+            maxWidth: isCompact ? "90vw" : undefined,
+            transform: isCompact
+              ? collapsed
+                ? "translateX(-100%)"
+                : "translateX(0)"
+              : undefined,
+            boxShadow: isCompact
+              ? "0 10px 35px rgba(0, 0, 0, 0.25)"
+              : "none",
+            transition: isCompact ? "transform 0.3s ease" : undefined,
+          }}
+          width={isCompact ? Math.min(siderWide, 320) : collapsed ? siderSmall : siderWide}
+          collapsedWidth={isCompact ? 0 : 12}
+          trigger={null}
+        >
         {/* Role Display - Centered both horizontally and vertically */}
         {userRole && !collapsed && (
           <div
@@ -795,40 +837,47 @@ const Sidebar = () => {
             </>
           )}
         </div>
-      </Sider>
+        </Sider>
 
-      <TouchAwareTooltip
-        title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-        placement="right"
-      >
-        <Button
-          className={`absolute top-[58px] flex items-center justify-center rounded-full w-6 h-6 p-0 transition-all duration-200 ease-in-out hover:shadow-lg ${
-            isHovered ? "scale-105" : ""
-          }`}
-          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          size="small"
-          type="text"
-          icon={
-            collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />
-          }
-          onClick={toggleSidebar}
-          style={{
-            left: collapsed
-              ? `calc(${siderSmall}px - 10px)`
-              : `calc(${siderWide}px - 30px)`,
-            zIndex: 102,
-            backgroundColor: `rgb(${colors.surface})`,
-            border: `1px solid rgb(${colors.border})`,
-            color: `rgb(${colors.text})`,
-            boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)",
-          }}
-        />
-      </TouchAwareTooltip>
+        <TouchAwareTooltip title={toggleTooltip} placement="right">
+          <Button
+            className="flex items-center justify-center rounded-full w-6 h-6 p-0 transition-all duration-200 ease-in-out hover:shadow-lg"
+            aria-label={toggleTooltip}
+            size="small"
+            type="text"
+            icon={
+              isCompact
+                ? collapsed
+                  ? <MenuIcon size={16} />
+                  : <ChevronLeft size={16} />
+                : collapsed
+                    ? <ChevronRight size={16} />
+                    : <ChevronLeft size={16} />
+            }
+            onClick={toggleSidebar}
+            style={{
+              position: isCompact ? "fixed" : "absolute",
+              top: isCompact ? 55 : 58,
+              left: isCompact
+                ? 12
+                : collapsed
+                    ? `calc(${siderSmall}px - 10px)`
+                    : `calc(${siderWide}px - 30px)`,
+              zIndex: isCompact ? 302 : 102,
+              backgroundColor: `rgb(${colors.surface})`,
+              border: `1px solid rgb(${colors.border})`,
+              color: `rgb(${colors.text})`,
+              boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)",
+              transform: !isCompact && isHovered ? "scale(1.05)" : "scale(1)",
+            }}
+          />
+        </TouchAwareTooltip>
+      </div>
       <ModalCreateBoard
         open={openCreateBoardModal}
         setOpen={setOpenCreateBoardModal}
       />
-    </div>
+    </>
   );
 };
 

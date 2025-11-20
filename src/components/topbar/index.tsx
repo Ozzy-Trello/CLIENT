@@ -21,6 +21,7 @@ import TokenStorage from "@utils/token-storage";
 import { useUnifiedSearch, SearchResult } from "@hooks/search";
 import { selectCurrentWorkspace } from "@store/workspace_slice";
 import { useRecentlyViewed } from "@hooks/recently-viewed";
+import { useWorkspaceSidebar } from "@providers/workspace-sidebar-context";
 
 const { Text } = Typography;
 
@@ -37,6 +38,7 @@ const TopBar: React.FC = React.memo(() => {
   const params = useParams();
   const user = useSelector(selectUser);
   const currentWorkspace = useSelector(selectCurrentWorkspace);
+  const { isCompact } = useWorkspaceSidebar();
 
   // Get workspaceId with fallback to URL params
   const getWorkspaceId = (): string | undefined => {
@@ -172,6 +174,8 @@ const TopBar: React.FC = React.memo(() => {
       }
     }
   };
+  const hasQuery = searchQuery.trim().length > 0;
+
   return (
     <div className="flex items-center justify-between h-[45px]">
       <div className="flex items-center gap-3">
@@ -194,7 +198,13 @@ const TopBar: React.FC = React.memo(() => {
             placeholder="Search…"
             prefix={<i className="fi fi-rr-search" />}
             className={`rounded transition-all duration-200 ease-in-out`}
-            style={{ width: showSearchDropdown ? "500px" : "200px" }}
+            style={{
+              width: isCompact
+                ? "180px"
+                : hasQuery
+                    ? "500px"
+                    : "200px",
+            }}
             value={searchQuery}
             onChange={handleSearchChange}
             onFocus={handleSearchFocus}
@@ -203,7 +213,9 @@ const TopBar: React.FC = React.memo(() => {
           {showSearchDropdown && (
             <div
               className="absolute z-[9999] top-full left-0 mt-1 bg-white rounded-md shadow-lg border border-gray-200"
-              style={{ width: showSearchDropdown ? "500px" : "200px" }}
+              style={{
+                width: isCompact ? "240px" : hasQuery ? "500px" : "200px",
+              }}
             >
               <div className="max-h-80 overflow-auto p-2">
                 {isSearching ? (

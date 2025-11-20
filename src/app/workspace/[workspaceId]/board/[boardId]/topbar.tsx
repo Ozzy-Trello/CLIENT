@@ -23,7 +23,8 @@ const BoardTopbar: React.FC<BoardTopbarProps> = ({
   viewMode = "kanban",
   onChangeViewMode,
 }) => {
-  const { collapsed, siderSmall, siderWide } = useWorkspaceSidebar();
+  const { collapsed, siderSmall, siderWide, isCompact } =
+    useWorkspaceSidebar();
   const reduxBoard = useSelector(selectCurrentBoard);
   const currentBoard = board || reduxBoard;
   const params = useParams();
@@ -48,9 +49,11 @@ const BoardTopbar: React.FC<BoardTopbarProps> = ({
     <div
       className="flex items-center justify-between h-[45px] absolute top-[45px] border-b border-gray-200 px-4"
       style={{
-        width: collapsed
-          ? `calc(100% - ${siderSmall}px)`
-          : `calc(100% - ${siderWide}px)`,
+        width: isCompact
+          ? "100%"
+          : collapsed
+              ? `calc(100% - ${siderSmall}px)`
+              : `calc(100% - ${siderWide}px)`,
         backgroundColor: currentBoard?.background || "#fff",
       }}
     >

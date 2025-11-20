@@ -208,7 +208,8 @@ const BoardContentWithPermissions: React.FC<{
 const Board: React.FC = () => {
   const { boardId, workspaceId } = useParams();
   const theme = useSelector(selectTheme);
-  const { collapsed, siderSmall, siderWide } = useWorkspaceSidebar();
+  const { collapsed, siderSmall, siderWide, isCompact } =
+    useWorkspaceSidebar();
 
   // @hello-pangea/dnd handles touch and mouse events automatically
   const dispatch = useDispatch();
@@ -750,9 +751,11 @@ const Board: React.FC = () => {
     <div
       className="h-auto min-h-[600px] mr-4 pt-[50px]"
       style={{
-        width: collapsed
-          ? `calc(100%-${siderSmall})`
-          : `calc(100%-${siderWide})`,
+        width: isCompact
+          ? "100%"
+          : collapsed
+              ? `calc(100% - ${siderSmall}px)`
+              : `calc(100% - ${siderWide}px)`,
         // Background is now applied at the body level for full-page effect
       }}
     >

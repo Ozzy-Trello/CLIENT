@@ -15,7 +15,8 @@ interface BaseLayoutProps {
 
 const WorkspaceLayout: React.FC<BaseLayoutProps> = ({ children }) => {
   const [isClient, setIsClient] = useState(false);
-  const { collapsed, siderSmall, siderWide } = useWorkspaceSidebar();
+  const { collapsed, siderSmall, siderWide, isCompact } =
+    useWorkspaceSidebar();
   const pathname = usePathname();
 
   // Check if current page is a board page (needs overflow hidden for drag & drop)
@@ -40,9 +41,11 @@ const WorkspaceLayout: React.FC<BaseLayoutProps> = ({ children }) => {
         className="workspace-layout"
         style={{
           marginTop: "45px",
-          width: collapsed
-            ? `calc(100%-${siderSmall})`
-            : `calc(100%-${siderWide}) `,
+          width: isCompact
+            ? "100%"
+            : collapsed
+              ? `calc(100% - ${siderSmall}px)`
+              : `calc(100% - ${siderWide}px)`,
           transition: "margin-left 0.2s ease",
           height: "calc(100vh - 45px)",
           overflow: isBoardPage ? "hidden" : "auto",
