@@ -200,7 +200,7 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
         queryKey: ["list-dashcard", selectedCard?.id, workspaceId],
       });
       queryClient.refetchQueries({
-        queryKey: ["dashcardCount", selectedCard?.id],
+        queryKey: ["dashcardCount", selectedCard?.id, workspaceId],
       });
     },
     onError: (error) => {

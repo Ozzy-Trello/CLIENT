@@ -31,6 +31,7 @@ import { CustomField } from "@myTypes/custom-field";
 import { UserSelection, LabelSelection } from "@components/selection";
 import { useBoards } from "@hooks/board";
 import { useLists } from "@hooks/list";
+import { lists as fetchLists } from "@api/list";
 import { FilterOperator as DashcardFilterOperator } from "../../types/dashcard";
 
 const { Text } = Typography;
@@ -108,15 +109,74 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
     value: b.id,
   }));
 
-  // Get current board ID for list fetching
   const currentBoardId = Array.isArray(boardId) ? boardId[0] : boardId;
 
-  // Fetch lists from the current board only
   const { lists: currentBoardLists } = useLists(currentBoardId || "");
-  const listOptions = (currentBoardLists || []).map((l: any) => ({
-    label: l.name || "",
-    value: l.id,
-  }));
+  const [listOptions, setListOptions] = useState<{ label: string; value: string }[]>([]);
+
+  useEffect(() => {
+    const computeSelectedBoardIds = (): string[] => {
+      const boardFilters = selectedFilters.filter(
+        (f) => f.type === EnumCardAttributeType.BOARD
+      );
+
+      const ids = new Set<string>();
+
+      for (const f of boardFilters) {
+        const op = String(f.operator || "");
+        if (op === "is_one_of" && Array.isArray(f.value)) {
+          for (const raw of f.value as string[]) {
+            if (!raw) continue;
+            const byId = (boardsArr || []).find((b: any) => b.id === raw);
+            const byName = (boardsArr || []).find((b: any) => b.name === raw);
+            const resolved = byId?.id || byName?.id || raw;
+            if (resolved) ids.add(String(resolved));
+          }
+        } else if (op === "on_this_board" && currentBoardId) {
+          ids.add(String(currentBoardId));
+        }
+      }
+      return Array.from(ids);
+    };
+
+    const refreshListOptions = async () => {
+      try {
+        const selectedIds = computeSelectedBoardIds();
+        const targetBoardIds = selectedIds.length > 0
+          ? selectedIds
+          : (boardsArr || []).map((b: any) => b.id).filter(Boolean);
+
+        if (!targetBoardIds || targetBoardIds.length === 0) {
+          setListOptions([]);
+          return;
+        }
+
+        const results = await Promise.all(
+          targetBoardIds.map((id: string) => fetchLists(id))
+        );
+
+        const merged: { label: string; value: string }[] = [];
+        const seen = new Set<string>();
+        for (const res of results) {
+          const arr = (res?.data || []).map((l: any) => ({
+            label: l.name || "",
+            value: l.id,
+          }));
+          for (const opt of arr) {
+            if (!seen.has(opt.value)) {
+              seen.add(opt.value);
+              merged.push(opt);
+            }
+          }
+        }
+        setListOptions(merged);
+      } catch (e) {
+        setListOptions([]);
+      }
+    };
+
+    refreshListOptions();
+  }, [selectedFilters, boardsArr]);
 
   // Initialize available filters - keep all base filters available for multiple instances
   useEffect(() => {

@@ -21,14 +21,16 @@ export const useDashcardCount = (dashcardId: string) => {
     error,
     refetch,
   } = useQuery({
-    queryKey: ["dashcardCount", dashcardId],
+    queryKey: ["dashcardCount", dashcardId, workspaceId],
     queryFn: async () => {
       if (!dashcardId) return 0;
-
       const result = await cardCount(dashcardId, workspaceId);
       return result.data || 0;
     },
-    staleTime: 30000, // 30 seconds
+    staleTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
     enabled: !!dashcardId,
   });
 
@@ -37,7 +39,7 @@ export const useDashcardCount = (dashcardId: string) => {
    * This can be called manually if needed
    */
   const refreshCount = () => {
-    queryClient.invalidateQueries({ queryKey: ["dashcardCount", dashcardId] });
+    queryClient.invalidateQueries({ queryKey: ["dashcardCount", dashcardId, workspaceId] });
   };
 
   return {

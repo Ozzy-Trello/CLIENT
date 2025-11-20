@@ -640,7 +640,7 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             // Invalidate dashcard-related queries
             if (cardId) {
               queryClient.invalidateQueries({
-                queryKey: ["dashcardCount", cardId],
+                queryKey: ["dashcardCount", cardId, workspaceId],
               });
               queryClient.invalidateQueries({
                 queryKey: ["list-dashcard", cardId, workspaceId],
@@ -668,7 +668,7 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             // Invalidate dashcard-related queries
             if (cardId) {
               queryClient.invalidateQueries({
-                queryKey: ["dashcardCount", cardId],
+                queryKey: ["dashcardCount", cardId, workspaceId],
               });
               queryClient.invalidateQueries({
                 queryKey: ["list-dashcard", cardId, workspaceId],
