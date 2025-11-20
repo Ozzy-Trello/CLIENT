@@ -198,8 +198,8 @@ const Sidebar = () => {
       ? "Open workspace menu"
       : "Expand sidebar"
     : isCompact
-      ? "Close workspace menu"
-      : "Collapse sidebar";
+    ? "Close workspace menu"
+    : "Collapse sidebar";
 
   // Memoize the base menus
   const baseMenus = useMemo<MenuItem[]>(() => {
@@ -494,349 +494,338 @@ const Sidebar = () => {
                 ? "translateX(-100%)"
                 : "translateX(0)"
               : undefined,
-            boxShadow: isCompact
-              ? "0 10px 35px rgba(0, 0, 0, 0.25)"
-              : "none",
+            boxShadow: isCompact ? "0 10px 35px rgba(0, 0, 0, 0.25)" : "none",
             transition: isCompact ? "transform 0.3s ease" : undefined,
           }}
-          width={isCompact ? Math.min(siderWide, 320) : collapsed ? siderSmall : siderWide}
+          width={
+            isCompact
+              ? Math.min(siderWide, 320)
+              : collapsed
+              ? siderSmall
+              : siderWide
+          }
           collapsedWidth={isCompact ? 0 : 12}
           trigger={null}
         >
-        {/* Role Display - Centered both horizontally and vertically */}
-        {userRole && !collapsed && (
-          <div
-            className="absolute top-0 left-2 right-8 z-10 flex items-center justify-center"
-            style={{ height: "60px" }}
-          >
-            <span
-              className="text-xs px-2 py-1 rounded-full font-medium"
-              style={{
-                backgroundColor: `rgba(${colors.primary}, 0.1)`,
-                color: `rgb(${colors.primary})`,
-                border: `1px solid rgba(${colors.primary}, 0.2)`,
-              }}
+          {userRole && !collapsed && (
+            <div
+              className="absolute top-0 left-2 right-8 z-10 flex items-center justify-center"
+              style={{ height: "60px" }}
             >
-              {roleCategory.replace("_", " ").toUpperCase()}
-            </span>
-          </div>
-        )}
-
-        {/* Collapsed role display */}
-        {userRole && collapsed && (
-          <div
-            className="absolute top-0 left-0 right-0 z-10 flex items-center justify-center"
-            style={{ height: "48px" }}
-          >
-            <span
-              className="text-xs rounded-full font-medium flex items-center justify-center"
-              style={{
-                backgroundColor: `rgba(${colors.primary}, 0.1)`,
-                color: `rgb(${colors.primary})`,
-                border: `1px solid rgba(${colors.primary}, 0.2)`,
-                width: "20px",
-                height: "20px",
-                fontSize: "10px",
-              }}
-            >
-              {roleCategory.charAt(0).toUpperCase()}
-            </span>
-          </div>
-        )}
-
-        <div
-          className="transition-opacity duration-200 ease-in-out overflow-y-auto"
-          style={{
-            opacity: collapsed ? 0 : 1,
-            marginTop: userRole ? "40px" : "0", // Add margin when role is displayed
-            height: `calc(100vh - ${userRole ? "125px" : "85px"})`, // Ensure proper height for scrolling
-            paddingBottom: "20px", // Add some bottom padding
-          }}
-        >
-          {!collapsed && (
-            <>
-              <div
-                className="flex justify-between items-center p-2.5"
-                style={{ borderBottom: `1px solid rgb(${colors.border})` }}
+              <span
+                className="text-xs px-2 py-1 rounded-full font-medium"
+                style={{
+                  backgroundColor: `rgba(${colors.primary}, 0.1)`,
+                  color: `rgb(${colors.primary})`,
+                  border: `1px solid rgba(${colors.primary}, 0.2)`,
+                }}
               >
-                <div className="flex items-center">
-                  <Typography className="font-semibold">
-                    {currentWorkspace?.name}
-                  </Typography>
-                </div>
-              </div>
-
-              {/* Static menu items (non-draggable) */}
-              <Menu
-                mode="inline"
-                defaultSelectedKeys={["1"]}
-                style={{ borderRight: 0, fontSize: "12px" }}
-                items={allMenus}
-                className="[&_.ant-menu-item]:my-1 [&_.ant-menu-item-icon]:flex [&_.ant-menu-item-icon]:items-center text-[10px]"
-              />
-
-              {/* Favorites Section */}
-              {favorites?.length > 0 && (
-                <DragDropContext
-                  onDragStart={onDragStart}
-                  onDragEnd={onDragEndFavorites}
-                >
-                  <div
-                    className="px-2 py-1 mt-4 mb-2"
-                    style={{ borderBottom: `1px solid rgb(${colors.border})` }}
-                  >
-                    <Typography.Text
-                      className="text-xs font-semibold uppercase tracking-wide"
-                      style={{ color: `rgb(${colors.textSecondary})` }}
-                    >
-                      Favorites
-                    </Typography.Text>
-                  </div>
-                  <Droppable droppableId="sidebar-favorites">
-                    {(provided, snapshot) => (
-                      <div
-                        ref={provided.innerRef}
-                        {...provided.droppableProps}
-                        className={`sidebar-boards-droppable ${
-                          snapshot.isDraggingOver ? "drag-over" : ""
-                        }`}
-                        style={{ marginBottom: "8px" }}
-                      >
-                        {favorites.map((board, index) => (
-                          <Draggable
-                            key={board.id}
-                            draggableId={`fav-${board.id}`}
-                            index={index}
-                          >
-                            {(provided, snapshot) => (
-                              <div
-                                ref={provided.innerRef}
-                                {...provided.draggableProps}
-                                {...provided.dragHandleProps}
-                                className={`sidebar-board-item ${
-                                  boardId === board.id.toString()
-                                    ? "selected"
-                                    : ""
-                                } ${snapshot.isDragging ? "dragging" : ""}`}
-                                style={{
-                                  ...provided.draggableProps.style,
-                                }}
-                                onClick={() =>
-                                  router.push(
-                                    `/workspace/${workspaceId}/board/${board.id}`
-                                  )
-                                }
-                              >
-                                {/* Drag handle indicator */}
-                                <div className="sidebar-drag-handle">
-                                  <svg
-                                    width="12"
-                                    height="12"
-                                    viewBox="0 0 12 12"
-                                    fill="currentColor"
-                                  >
-                                    <circle cx="2" cy="2" r="1" />
-                                    <circle cx="6" cy="2" r="1" />
-                                    <circle cx="10" cy="2" r="1" />
-                                    <circle cx="2" cy="6" r="1" />
-                                    <circle cx="6" cy="6" r="1" />
-                                    <circle cx="10" cy="6" r="1" />
-                                    <circle cx="2" cy="10" r="1" />
-                                    <circle cx="6" cy="10" r="1" />
-                                    <circle cx="10" cy="10" r="1" />
-                                  </svg>
-                                </div>
-
-                                <div
-                                  className="board-icon"
-                                  style={getBoardIconStyle(board)}
-                                >
-                                  {board.name?.charAt(0).toUpperCase()}
-                                </div>
-
-                                <div className="board-title">{board.name}</div>
-
-                                <div className="board-actions">
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleToggleFavorite(board);
-                                    }}
-                                    className="ml-2 shrink-0 rounded p-1 transition-colors hover:bg-gray-200"
-                                    style={{
-                                      opacity: isTogglingFavorite ? 0.6 : 1,
-                                      pointerEvents: isTogglingFavorite
-                                        ? "none"
-                                        : "auto",
-                                    }}
-                                    aria-disabled={isTogglingFavorite}
-                                  >
-                                    <Star
-                                      size={14}
-                                      style={{
-                                        color: "#eab308",
-                                        fill: "#eab308",
-                                      }}
-                                    />
-                                  </button>
-                                </div>
-                              </div>
-                            )}
-                          </Draggable>
-                        ))}
-                        {provided.placeholder}
-                      </div>
-                    )}
-                  </Droppable>
-                </DragDropContext>
-              )}
-
-              {/* Regular Boards Section */}
-              {regulars?.length > 0 && (
-                <DragDropContext
-                  onDragStart={onDragStart}
-                  onDragEnd={onDragEndRegular}
-                >
-                  <div
-                    className="px-2 py-1 mt-4 mb-2"
-                    style={{ borderBottom: `1px solid rgb(${colors.border})` }}
-                  >
-                    <Typography.Text
-                      className="text-xs font-semibold uppercase tracking-wide"
-                      style={{ color: `rgb(${colors.textSecondary})` }}
-                    >
-                      Boards
-                    </Typography.Text>
-                  </div>
-                  <Droppable droppableId="sidebar-boards">
-                    {(provided, snapshot) => (
-                      <div
-                        ref={provided.innerRef}
-                        {...provided.droppableProps}
-                        className={`sidebar-boards-droppable ${
-                          snapshot.isDraggingOver ? "drag-over" : ""
-                        }`}
-                        style={{ marginBottom: "8px" }}
-                      >
-                        {regulars.map((board, index) => (
-                          <Draggable
-                            key={board.id}
-                            draggableId={`board-${board.id}`}
-                            index={index}
-                          >
-                            {(provided, snapshot) => (
-                              <div
-                                ref={provided.innerRef}
-                                {...provided.draggableProps}
-                                {...provided.dragHandleProps}
-                                className={`sidebar-board-item ${
-                                  boardId === board.id.toString()
-                                    ? "selected"
-                                    : ""
-                                } ${snapshot.isDragging ? "dragging" : ""}`}
-                                style={{
-                                  ...provided.draggableProps.style,
-                                }}
-                                onClick={() =>
-                                  router.push(
-                                    `/workspace/${workspaceId}/board/${board.id}`
-                                  )
-                                }
-                              >
-                                <div className="sidebar-drag-handle">
-                                  <svg
-                                    width="12"
-                                    height="12"
-                                    viewBox="0 0 12 12"
-                                    fill="currentColor"
-                                  >
-                                    <circle cx="2" cy="2" r="1" />
-                                    <circle cx="6" cy="2" r="1" />
-                                    <circle cx="10" cy="2" r="1" />
-                                    <circle cx="2" cy="6" r="1" />
-                                    <circle cx="6" cy="6" r="1" />
-                                    <circle cx="10" cy="6" r="1" />
-                                    <circle cx="2" cy="10" r="1" />
-                                    <circle cx="6" cy="10" r="1" />
-                                    <circle cx="10" cy="10" r="1" />
-                                  </svg>
-                                </div>
-
-                                <div
-                                  className="board-icon"
-                                  style={getBoardIconStyle(board)}
-                                >
-                                  {board.name?.charAt(0).toUpperCase()}
-                                </div>
-
-                                <div className="board-title">{board.name}</div>
-
-                                <div className="board-actions">
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleToggleFavorite(board);
-                                    }}
-                                    className="ml-2 shrink-0 rounded p-1 transition-colors hover:bg-gray-200"
-                                    style={{
-                                      opacity: isTogglingFavorite ? 0.6 : 1,
-                                      pointerEvents: isTogglingFavorite
-                                        ? "none"
-                                        : "auto",
-                                    }}
-                                    aria-disabled={isTogglingFavorite}
-                                  >
-                                    <Star
-                                      key={index}
-                                      size={14}
-                                      color={
-                                        hoveredBoardId === index
-                                          ? "#eab308"
-                                          : "#d1d5db"
-                                      }
-                                      fill={
-                                        hoveredBoardId === index
-                                          ? "#eab308"
-                                          : "none"
-                                      }
-                                      className="transition-colors"
-                                      onMouseEnter={() =>
-                                        setHoveredBoardId(index)
-                                      }
-                                      onMouseLeave={() =>
-                                        setHoveredBoardId(null)
-                                      }
-                                    />
-                                  </button>
-                                </div>
-                              </div>
-                            )}
-                          </Draggable>
-                        ))}
-                        {provided.placeholder}
-                      </div>
-                    )}
-                  </Droppable>
-                </DragDropContext>
-              )}
-
-              {isFetching &&
-                [1, 2, 3].map((item) => (
-                  <Space
-                    key={`loader-space-${item}`}
-                    className="mx-0 my-0 mb-2.5 ml-6"
-                  >
-                    <Skeleton.Avatar
-                      active={isFetching}
-                      size={"small"}
-                      shape={"square"}
-                    />
-                    <Skeleton.Input active={isFetching} size={"small"} />
-                  </Space>
-                ))}
-            </>
+                {userRole}
+              </span>
+            </div>
           )}
-        </div>
+
+          <div
+            className="transition-opacity duration-200 ease-in-out overflow-y-auto"
+            style={{
+              opacity: collapsed ? 0 : 1,
+              marginTop: userRole ? "40px" : "0", // Add margin when role is displayed
+              height: `calc(100vh - ${userRole ? "125px" : "85px"})`, // Ensure proper height for scrolling
+              paddingBottom: "20px", // Add some bottom padding
+            }}
+          >
+            {!collapsed && (
+              <>
+                <div
+                  className="flex justify-between items-center p-2.5"
+                  style={{ borderBottom: `1px solid rgb(${colors.border})` }}
+                >
+                  <div className="flex items-center">
+                    <Typography className="font-semibold">
+                      {currentWorkspace?.name}
+                    </Typography>
+                  </div>
+                </div>
+
+                {/* Static menu items (non-draggable) */}
+                <Menu
+                  mode="inline"
+                  defaultSelectedKeys={["1"]}
+                  style={{ borderRight: 0, fontSize: "12px" }}
+                  items={allMenus}
+                  className="[&_.ant-menu-item]:my-1 [&_.ant-menu-item-icon]:flex [&_.ant-menu-item-icon]:items-center text-[10px]"
+                />
+
+                {/* Favorites Section */}
+                {favorites?.length > 0 && (
+                  <DragDropContext
+                    onDragStart={onDragStart}
+                    onDragEnd={onDragEndFavorites}
+                  >
+                    <div
+                      className="px-2 py-1 mt-4 mb-2"
+                      style={{
+                        borderBottom: `1px solid rgb(${colors.border})`,
+                      }}
+                    >
+                      <Typography.Text
+                        className="text-xs font-semibold uppercase tracking-wide"
+                        style={{ color: `rgb(${colors.textSecondary})` }}
+                      >
+                        Favorites
+                      </Typography.Text>
+                    </div>
+                    <Droppable droppableId="sidebar-favorites">
+                      {(provided, snapshot) => (
+                        <div
+                          ref={provided.innerRef}
+                          {...provided.droppableProps}
+                          className={`sidebar-boards-droppable ${
+                            snapshot.isDraggingOver ? "drag-over" : ""
+                          }`}
+                          style={{ marginBottom: "8px" }}
+                        >
+                          {favorites.map((board, index) => (
+                            <Draggable
+                              key={board.id}
+                              draggableId={`fav-${board.id}`}
+                              index={index}
+                            >
+                              {(provided, snapshot) => (
+                                <div
+                                  ref={provided.innerRef}
+                                  {...provided.draggableProps}
+                                  {...provided.dragHandleProps}
+                                  className={`sidebar-board-item ${
+                                    boardId === board.id.toString()
+                                      ? "selected"
+                                      : ""
+                                  } ${snapshot.isDragging ? "dragging" : ""}`}
+                                  style={{
+                                    ...provided.draggableProps.style,
+                                  }}
+                                  onClick={() =>
+                                    router.push(
+                                      `/workspace/${workspaceId}/board/${board.id}`
+                                    )
+                                  }
+                                >
+                                  {/* Drag handle indicator */}
+                                  <div className="sidebar-drag-handle">
+                                    <svg
+                                      width="12"
+                                      height="12"
+                                      viewBox="0 0 12 12"
+                                      fill="currentColor"
+                                    >
+                                      <circle cx="2" cy="2" r="1" />
+                                      <circle cx="6" cy="2" r="1" />
+                                      <circle cx="10" cy="2" r="1" />
+                                      <circle cx="2" cy="6" r="1" />
+                                      <circle cx="6" cy="6" r="1" />
+                                      <circle cx="10" cy="6" r="1" />
+                                      <circle cx="2" cy="10" r="1" />
+                                      <circle cx="6" cy="10" r="1" />
+                                      <circle cx="10" cy="10" r="1" />
+                                    </svg>
+                                  </div>
+
+                                  <div
+                                    className="board-icon"
+                                    style={getBoardIconStyle(board)}
+                                  >
+                                    {board.name?.charAt(0).toUpperCase()}
+                                  </div>
+
+                                  <div className="board-title">
+                                    {board.name}
+                                  </div>
+
+                                  <div className="board-actions">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleToggleFavorite(board);
+                                      }}
+                                      className="ml-2 shrink-0 rounded p-1 transition-colors hover:bg-gray-200"
+                                      style={{
+                                        opacity: isTogglingFavorite ? 0.6 : 1,
+                                        pointerEvents: isTogglingFavorite
+                                          ? "none"
+                                          : "auto",
+                                      }}
+                                      aria-disabled={isTogglingFavorite}
+                                    >
+                                      <Star
+                                        size={14}
+                                        style={{
+                                          color: "#eab308",
+                                          fill: "#eab308",
+                                        }}
+                                      />
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </Draggable>
+                          ))}
+                          {provided.placeholder}
+                        </div>
+                      )}
+                    </Droppable>
+                  </DragDropContext>
+                )}
+
+                {/* Regular Boards Section */}
+                {regulars?.length > 0 && (
+                  <DragDropContext
+                    onDragStart={onDragStart}
+                    onDragEnd={onDragEndRegular}
+                  >
+                    <div
+                      className="px-2 py-1 mt-4 mb-2"
+                      style={{
+                        borderBottom: `1px solid rgb(${colors.border})`,
+                      }}
+                    >
+                      <Typography.Text
+                        className="text-xs font-semibold uppercase tracking-wide"
+                        style={{ color: `rgb(${colors.textSecondary})` }}
+                      >
+                        Boards
+                      </Typography.Text>
+                    </div>
+                    <Droppable droppableId="sidebar-boards">
+                      {(provided, snapshot) => (
+                        <div
+                          ref={provided.innerRef}
+                          {...provided.droppableProps}
+                          className={`sidebar-boards-droppable ${
+                            snapshot.isDraggingOver ? "drag-over" : ""
+                          }`}
+                          style={{ marginBottom: "8px" }}
+                        >
+                          {regulars.map((board, index) => (
+                            <Draggable
+                              key={board.id}
+                              draggableId={`board-${board.id}`}
+                              index={index}
+                            >
+                              {(provided, snapshot) => (
+                                <div
+                                  ref={provided.innerRef}
+                                  {...provided.draggableProps}
+                                  {...provided.dragHandleProps}
+                                  className={`sidebar-board-item ${
+                                    boardId === board.id.toString()
+                                      ? "selected"
+                                      : ""
+                                  } ${snapshot.isDragging ? "dragging" : ""}`}
+                                  style={{
+                                    ...provided.draggableProps.style,
+                                  }}
+                                  onClick={() =>
+                                    router.push(
+                                      `/workspace/${workspaceId}/board/${board.id}`
+                                    )
+                                  }
+                                >
+                                  <div className="sidebar-drag-handle">
+                                    <svg
+                                      width="12"
+                                      height="12"
+                                      viewBox="0 0 12 12"
+                                      fill="currentColor"
+                                    >
+                                      <circle cx="2" cy="2" r="1" />
+                                      <circle cx="6" cy="2" r="1" />
+                                      <circle cx="10" cy="2" r="1" />
+                                      <circle cx="2" cy="6" r="1" />
+                                      <circle cx="6" cy="6" r="1" />
+                                      <circle cx="10" cy="6" r="1" />
+                                      <circle cx="2" cy="10" r="1" />
+                                      <circle cx="6" cy="10" r="1" />
+                                      <circle cx="10" cy="10" r="1" />
+                                    </svg>
+                                  </div>
+
+                                  <div
+                                    className="board-icon"
+                                    style={getBoardIconStyle(board)}
+                                  >
+                                    {board.name?.charAt(0).toUpperCase()}
+                                  </div>
+
+                                  <div className="board-title">
+                                    {board.name}
+                                  </div>
+
+                                  <div className="board-actions">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleToggleFavorite(board);
+                                      }}
+                                      className="ml-2 shrink-0 rounded p-1 transition-colors hover:bg-gray-200"
+                                      style={{
+                                        opacity: isTogglingFavorite ? 0.6 : 1,
+                                        pointerEvents: isTogglingFavorite
+                                          ? "none"
+                                          : "auto",
+                                      }}
+                                      aria-disabled={isTogglingFavorite}
+                                    >
+                                      <Star
+                                        key={index}
+                                        size={14}
+                                        color={
+                                          hoveredBoardId === index
+                                            ? "#eab308"
+                                            : "#d1d5db"
+                                        }
+                                        fill={
+                                          hoveredBoardId === index
+                                            ? "#eab308"
+                                            : "none"
+                                        }
+                                        className="transition-colors"
+                                        onMouseEnter={() =>
+                                          setHoveredBoardId(index)
+                                        }
+                                        onMouseLeave={() =>
+                                          setHoveredBoardId(null)
+                                        }
+                                      />
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </Draggable>
+                          ))}
+                          {provided.placeholder}
+                        </div>
+                      )}
+                    </Droppable>
+                  </DragDropContext>
+                )}
+
+                {isFetching &&
+                  [1, 2, 3].map((item) => (
+                    <Space
+                      key={`loader-space-${item}`}
+                      className="mx-0 my-0 mb-2.5 ml-6"
+                    >
+                      <Skeleton.Avatar
+                        active={isFetching}
+                        size={"small"}
+                        shape={"square"}
+                      />
+                      <Skeleton.Input active={isFetching} size={"small"} />
+                    </Space>
+                  ))}
+              </>
+            )}
+          </div>
         </Sider>
 
         <TouchAwareTooltip title={toggleTooltip} placement="right">
@@ -846,13 +835,17 @@ const Sidebar = () => {
             size="small"
             type="text"
             icon={
-              isCompact
-                ? collapsed
-                  ? <MenuIcon size={16} />
-                  : <ChevronLeft size={16} />
-                : collapsed
-                    ? <ChevronRight size={16} />
-                    : <ChevronLeft size={16} />
+              isCompact ? (
+                collapsed ? (
+                  <MenuIcon size={16} />
+                ) : (
+                  <ChevronLeft size={16} />
+                )
+              ) : collapsed ? (
+                <ChevronRight size={16} />
+              ) : (
+                <ChevronLeft size={16} />
+              )
             }
             onClick={toggleSidebar}
             style={{
@@ -861,8 +854,8 @@ const Sidebar = () => {
               left: isCompact
                 ? 12
                 : collapsed
-                    ? `calc(${siderSmall}px - 10px)`
-                    : `calc(${siderWide}px - 30px)`,
+                ? `calc(${siderSmall}px - 10px)`
+                : `calc(${siderWide}px - 30px)`,
               zIndex: isCompact ? 302 : 102,
               backgroundColor: `rgb(${colors.surface})`,
               border: `1px solid rgb(${colors.border})`,
