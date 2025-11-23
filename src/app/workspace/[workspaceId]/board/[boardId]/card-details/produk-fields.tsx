@@ -388,22 +388,27 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard }) => {
           <Option key={CLEAR_VALUE} value={CLEAR_VALUE}>
             -
           </Option>
-          {warnas.map((warna) => (
-            <Option key={warna.id} value={warna.id}>
-              <div 
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  paddingInline: '1rem',
-                  backgroundColor: warna.hexCode || 'transparent',
-                  color: warna.hexCode ? getContrastColor(warna.hexCode) : 'inherit',
-                  borderRadius: '4px',
-                }}
-              >
-                {warna.name} {warna.hexCode && `(${warna.code})`}
-              </div>
-            </Option>
-          ))}
+          {warnas.map((warna) => {
+            const trimmedCode = warna.code?.trim();
+            return (
+              <Option key={warna.id} value={warna.id}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    paddingInline: "1rem",
+                    backgroundColor: warna.hexCode || "transparent",
+                    color: warna.hexCode
+                      ? getContrastColor(warna.hexCode)
+                      : "inherit",
+                    borderRadius: "4px",
+                  }}
+                >
+                  {warna.name} {trimmedCode ? `(${trimmedCode})` : ""}
+                </div>
+              </Option>
+            );
+          })}
         </Select>
       </div>
     </div>

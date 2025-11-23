@@ -98,6 +98,11 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
     }
   };
 
+  const hasTerloadingValue =
+    typeof bahanTab.terloading === "number" && bahanTab.terloading > 0;
+  const isOrderAlreadyCreated = !!product.orderCreated;
+  const disableLoadingButton = isOrderAlreadyCreated || !hasTerloadingValue;
+
   return (
     <div>
       {/* Input Fields Grid */}
@@ -316,14 +321,16 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
       <div className="mt-6 flex justify-center">
         <button
           onClick={() => handleCreateNewOrder(po, product)}
-          disabled={product.orderCreated}
+          disabled={disableLoadingButton}
           className={`px-6 py-3 text-sm font-medium border rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 shadow-sm ${
-            product.orderCreated
+            isOrderAlreadyCreated
               ? "bg-green-600 border-green-600 text-white cursor-not-allowed opacity-75"
+              : disableLoadingButton
+              ? "bg-gray-300 border-gray-300 text-gray-600 cursor-not-allowed opacity-75"
               : "bg-blue-600 border-blue-600 hover:bg-blue-700 hover:border-blue-700 focus:ring-blue-500 text-white"
           }`}
         >
-          {product.orderCreated ? "Terloading ✓" : "Loading"}
+          {isOrderAlreadyCreated ? "Terloading ✓" : "Loading"}
         </button>
       </div>
     </div>

@@ -131,7 +131,9 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
 
   // Move old cards hook
   const moveOldCardsMutation = useMoveOldCards();
-  const showMoveCardsButton = true; // You can add logic here to conditionally show this button
+  const isRequestDesainBoard =
+    currentBoard?.name?.toLowerCase().includes("request desain") ?? false;
+  const showMoveCardsButton = isRequestDesainBoard;
   const handleMoveCards = () => {
     moveOldCardsMutation.mutate();
   };
