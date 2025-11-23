@@ -7,30 +7,11 @@ export const mapBackendCardToFrontend = (backendCard: any): Card => {
   const mapped: any = { ...backendCard };
 
   // Map backend snake_case to frontend camelCase
-  if (backendCard.product_id !== undefined) {
-    mapped.productId = backendCard.product_id;
+  if (backendCard.priority_id !== undefined) {
+    mapped.priorityId = backendCard.priority_id;
   }
-  if (backendCard.product_code_id !== undefined) {
-    mapped.productCodeId = backendCard.product_code_id;
-  }
-  if (backendCard.bahan_id !== undefined) {
-    mapped.bahanId = backendCard.bahan_id;
-  }
-  if (backendCard.warna_id !== undefined) {
-    mapped.warnaId = backendCard.warna_id;
-  }
-  if (backendCard.product_info !== undefined) {
-    mapped.productInfo = backendCard.product_info;
-  }
-  // Map product_code_info to frontend
-  if (backendCard.product_code_info !== undefined) {
-    mapped.productCodeInfo = backendCard.product_code_info;
-  }
-  if (backendCard.bahan_info !== undefined) {
-    mapped.bahanInfo = backendCard.bahan_info;
-  }
-  if (backendCard.warna_info !== undefined) {
-    mapped.warnaInfo = backendCard.warna_info;
+  if (backendCard.priority_info !== undefined) {
+    mapped.priorityInfo = backendCard.priority_info;
   }
   if (backendCard.list_id !== undefined) {
     mapped.listId = backendCard.list_id;
@@ -84,33 +65,12 @@ const mapFrontendCardToBackend = (frontendCard: Partial<Card>): any => {
   const backendData: any = { ...frontendCard };
 
   // Map frontend camelCase to backend snake_case
-  if (frontendCard.productId !== undefined) {
-    backendData.product_id = frontendCard.productId;
-    delete backendData.productId;
+  if (frontendCard.priorityId !== undefined) {
+    backendData.priority_id = frontendCard.priorityId;
+    delete backendData.priorityId;
   }
-  if (frontendCard.productCodeId !== undefined) {
-    backendData.product_code_id = frontendCard.productCodeId;
-    delete backendData.productCodeId;
-  }
-  if (frontendCard.bahanId !== undefined) {
-    backendData.bahan_id = frontendCard.bahanId;
-    delete backendData.bahanId;
-  }
-  if (frontendCard.warnaId !== undefined) {
-    backendData.warna_id = frontendCard.warnaId;
-    delete backendData.warnaId;
-  }
-  if (frontendCard.productInfo !== undefined) {
-    backendData.product_info = frontendCard.productInfo;
-    delete backendData.productInfo;
-  }
-  if (frontendCard.bahanInfo !== undefined) {
-    backendData.bahan_info = frontendCard.bahanInfo;
-    delete backendData.bahanInfo;
-  }
-  if (frontendCard.warnaInfo !== undefined) {
-    backendData.warna_info = frontendCard.warnaInfo;
-    delete backendData.warnaInfo;
+  if (frontendCard.priorityInfo !== undefined) {
+    delete backendData.priorityInfo;
   }
   if (frontendCard.parentId !== undefined) {
     backendData.parent_id = frontendCard.parentId;
@@ -129,8 +89,8 @@ const mapFrontendCardToBackend = (frontendCard: Partial<Card>): any => {
     delete backendData.parent_card;
   }
   // Ensure productCodeInfo is never sent back to backend on update
-  if (frontendCard.productCodeInfo !== undefined) {
-    delete backendData.productCodeInfo;
+  if ("productCodeInfo" in frontendCard) {
+    delete (backendData as any).productCodeInfo;
   }
 
   return backendData;

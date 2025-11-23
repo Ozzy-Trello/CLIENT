@@ -180,12 +180,13 @@ export interface Card {
   createdAt?: string;
   updatedAt?: string;
   requests?: CardRequest[];
-  bahan?: boolean; // Whether the card requires material/fabric
   shortId?: string; // Short ID for QR code generation
-  productId?: string; // Foreign key to Product
-  productCodeId?: string; // Foreign key to ProductCode
-  bahanId?: string; // Foreign key to Bahan
-  warnaId?: string; // Foreign key to Warna
+  priorityId?: string | null;
+  priorityInfo?: {
+    id: string;
+    name: string;
+    color?: string | null;
+  } | null;
 }
 
 // Counter Card (used in filter columns)

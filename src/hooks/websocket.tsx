@@ -634,6 +634,43 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             break;
           }
 
+          case "board:created": {
+            const { boardId: createdBoardId, workspaceId: createdWorkspaceId } =
+              message.data || {};
+
+            // Invalidate global boards cache
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.boards.all,
+            });
+
+            // Invalidate workspace-specific boards queries
+            if (createdWorkspaceId) {
+              queryClient.invalidateQueries({
+                queryKey: ["boards", createdWorkspaceId],
+              });
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.boards.workspace(createdWorkspaceId),
+              });
+            }
+
+            // Invalidate board detail caches for the new board
+            if (createdBoardId) {
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.boards.detail(createdBoardId),
+              });
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.boards.withLists(createdBoardId),
+              });
+            }
+
+            // Invalidate user board order caches to include the new board
+            queryClient.invalidateQueries({
+              queryKey: ["userBoardOrder"],
+              exact: false,
+            });
+            break;
+          }
+
           case "dashboard:updated": {
             const { cardId, dashcardConfig, workspaceId } = message.data;
 

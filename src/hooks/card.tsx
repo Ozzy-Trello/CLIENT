@@ -15,7 +15,7 @@ import {
 import { api } from "../api";
 import { ApiResponse } from "../types/type";
 import { Card, CopycardPost } from "../types/card";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { queryKeys } from "@constants/query-keys";
 
 export function useCards(listId: string, boardId: string) {
@@ -400,6 +400,11 @@ export function useCardsPaginated(listId: string, boardId: string) {
   const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
   const [totalCards, setTotalCards] = useState<number>(0);
   const limit = 20;
+  const allCardsRef = useRef<Card[]>([]);
+
+  useEffect(() => {
+    allCardsRef.current = allCards;
+  }, [allCards]);
 
   // Initial query for first page
   const cardsQuery = useQuery({
@@ -426,13 +431,16 @@ export function useCardsPaginated(listId: string, boardId: string) {
     );
     
     if (cachedData?.data && Array.isArray(cachedData.data)) {
-      // Initialize from cached data
-      setAllCards(cachedData.data);
-      setHasMoreCards(cachedData.data.length === limit);
-      
-      // Extract total count from cached pagination data
-      const totalCount = cachedData.paginate?.totalData || cachedData.data.length;
+      const totalCount =
+        cachedData.paginate?.totalData ?? cachedData.data.length;
       setTotalCards(totalCount);
+      setAllCards(cachedData.data);
+      setHasMoreCards(cachedData.data.length < totalCount);
+      const derivedPage = Math.max(
+        1,
+        Math.ceil(cachedData.data.length / limit)
+      );
+      setCurrentPage(derivedPage);
     } else {
       // No cached data, reset to empty state
       setAllCards([]);
@@ -443,17 +451,39 @@ export function useCardsPaginated(listId: string, boardId: string) {
   // Update allCards when initial query data changes (for fresh data)
   useEffect(() => {
     if (cardsQuery.data?.data && !cardsQuery.isLoading) {
-      setAllCards(cardsQuery.data.data);
-      setHasMoreCards(cardsQuery.data.data.length === limit);
-      setCurrentPage(1);
-
       const totalCount =
-        cardsQuery.data.paginate?.totalData || cardsQuery.data.data.length;
+        cardsQuery.data.paginate?.totalData ?? cardsQuery.data.data.length;
       setTotalCards(totalCount);
+      const incomingCards = cardsQuery.data.data;
+      const previousCards = allCardsRef.current;
+
+      const mergedCards =
+        !previousCards.length || previousCards.length <= incomingCards.length
+          ? incomingCards
+          : (() => {
+              const incomingIds = new Set(
+                incomingCards.map((card) => card.id)
+              );
+              const remaining = previousCards.filter(
+                (card) => !incomingIds.has(card.id)
+              );
+              return [...incomingCards, ...remaining];
+            })();
+
+      setAllCards(mergedCards);
+      setHasMoreCards(mergedCards.length < totalCount);
+      setCurrentPage(Math.ceil(mergedCards.length / limit) || 1);
 
       queryClient.setQueryData<ApiResponse<Card[]>>(
         queryKeys.cards.list(listId),
-        cardsQuery.data
+        {
+          ...cardsQuery.data,
+          data: mergedCards,
+          paginate: {
+            ...(cardsQuery.data.paginate || {}),
+            totalData: totalCount,
+          },
+        }
       );
 
       setLoadMoreError(null);
@@ -480,17 +510,37 @@ export function useCardsPaginated(listId: string, boardId: string) {
         const newAllCards = [...allCards, ...responseData];
         setAllCards(newAllCards);
         setCurrentPage(nextPage);
-        setHasMoreCards(responseData.length === limit);
+        const updatedTotal =
+          response.paginate?.totalData ?? totalCards ?? newAllCards.length;
+        setTotalCards(updatedTotal);
+        setHasMoreCards(newAllCards.length < updatedTotal);
 
         // Update the query cache with all cards for drag-and-drop compatibility
         queryClient.setQueryData<ApiResponse<Card[]>>(
           queryKeys.cards.list(listId),
-          (old) => ({
-            ...old,
-            status_code: 200,
-            message: "Success",
-            data: newAllCards,
-          })
+          (old) => {
+            const totalPages = Math.max(1, Math.ceil(updatedTotal / limit));
+            const paginate = {
+              limit,
+              page: nextPage,
+              totalData: updatedTotal,
+              totalPage:
+                response.paginate?.totalPage ?? totalPages,
+              nextPage:
+                response.paginate?.nextPage ??
+                (nextPage < totalPages ? nextPage + 1 : totalPages),
+              prevPage:
+                response.paginate?.prevPage ??
+                (nextPage > 1 ? nextPage - 1 : 1),
+            };
+            return {
+              ...old,
+              status_code: 200,
+              message: "Success",
+              data: newAllCards,
+              paginate,
+            };
+          }
         );
       } else {
         setHasMoreCards(false);

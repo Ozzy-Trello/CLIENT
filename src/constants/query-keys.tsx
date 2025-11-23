@@ -28,4 +28,7 @@ export const queryKeys = {
     // For archived cards
     archived: () => [...queryKeys.cards.all, 'archived'] as const,
   },
+  priorities: {
+    all: ['priorities'] as const,
+  },
 } as const;

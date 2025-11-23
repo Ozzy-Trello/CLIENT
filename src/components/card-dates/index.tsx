@@ -164,12 +164,21 @@ export function getDateStatusClasses(
  * @returns Formatted result or null
  */
 export function formatCardDisplayDates(
-  card: { startDate?: Date; dueDate?: Date; isArchived?: boolean },
+  card: {
+    startDate?: Date | null;
+    dueDate?: Date | null;
+    isArchived?: boolean;
+    isComplete?: boolean;
+    completedAt?: Date | null;
+  },
   options: CardDateFormatOptions = {}
 ): DateFormatResult | null {
+  const isCompleted =
+    card.isArchived || card.isComplete || !!card.completedAt || false;
+
   return formatCardDates(card.startDate, card.dueDate, {
     ...options,
-    isCompleted: card.isArchived || false,
+    isCompleted,
   });
 }
 
@@ -177,7 +186,13 @@ export function formatCardDisplayDates(
 export function CardDateDisplay({
   card,
 }: {
-  card: { startDate?: Date; dueDate?: Date; isArchived?: boolean };
+  card: {
+    startDate?: Date | null;
+    dueDate?: Date | null;
+    isArchived?: boolean;
+    isComplete?: boolean;
+    completedAt?: Date | null;
+  };
 }) {
   const dateResult = formatCardDisplayDates(card);
 

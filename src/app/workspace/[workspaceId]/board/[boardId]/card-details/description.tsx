@@ -78,6 +78,12 @@ const Description: React.FC<{
     setIsEditingDescription(false);
   };
 
+  useEffect(() => {
+    if (!isEditingDescription) {
+      setNewDescription(card?.description || "");
+    }
+  }, [card?.id, card?.description, isEditingDescription]);
+
   return (
     <div className="mt-6">
       <div className="flex items-center justify-between mb-2">

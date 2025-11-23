@@ -6,6 +6,7 @@ import { AcitivitySource, Checklist } from "./type";
 import { User } from "./user";
 import { Label } from "./label";
 import { EnumOptionPosition } from "./options";
+import { Priority } from "./priority";
 
 export enum EnumCardType {
   Regular = "regular",
@@ -54,32 +55,9 @@ export interface Card {
   sub?: Card[];
   parentCard?: Card | null;
   sourceCard?: any;
-  poAmount?: number;
-  bahan?: boolean; // Whether the card requires material/fabric
   shortId?: number; // Auto-increment short ID for QR codes
-  // Allow null to explicitly clear relations via UpdateCard
-  productId?: string | null; // Foreign key to Product
-  productCodeId?: string | null; // Foreign key to ProductCode
-  bahanId?: string | null; // Foreign key to Bahan
-  warnaId?: string | null; // Foreign key to Warna
-  productInfo?: {
-    id: string;
-    name: string;
-  };
-  bahanInfo?: {
-    id: string;
-    name: string;
-  };
-  warnaInfo?: {
-    id: string;
-    name: string;
-  };
-  productCodeInfo?: {
-    id: string;
-    code: string;
-    description?: string;
-  };
-  
+  priorityId?: string | null;
+  priorityInfo?: Priority | null;
   // Backend API response properties (snake_case versions)
   list_id?: string;
   list_name?: string;
@@ -88,7 +66,7 @@ export interface Card {
   workspace_id?: string;
   workspace_name?: string;
   short_id?: number;
-  po_amount?: number;
+  priority_id?: string | null;
   parent_id?: string | null;
   parent_board_id?: string | null;
   parent_card?: Card | null;
@@ -210,18 +188,7 @@ export interface IItemDashcard {
   columns: TDynamicColumnDashcard[];
   dueDate?: Date | null;
   listName?: string;
-  productInfo?: {
-    id: string;
-    name: string;
-  };
-  bahanInfo?: {
-    id: string;
-    name: string;
-  };
-  warnaInfo?: {
-    id: string;
-    name: string;
-  };
+  priorityInfo?: Priority | null;
 }
 
 export interface CopycardPost {

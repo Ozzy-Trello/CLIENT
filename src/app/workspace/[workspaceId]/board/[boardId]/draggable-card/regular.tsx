@@ -5,11 +5,19 @@ import { useCardCustomField } from "@hooks/card_custom_field";
 import { useCardMembers } from "@hooks/card_member";
 import { Card, CardCustomField } from "@myTypes/card";
 import { isImageFile } from "@utils/file";
-import { Avatar, Checkbox, CheckboxChangeEvent, Typography } from "antd";
+import {
+  Avatar,
+  Checkbox,
+  CheckboxChangeEvent,
+  Dropdown,
+  Typography,
+} from "antd";
+import type { MenuProps } from "antd";
 import TouchAwareTooltip from "@components/touch-aware-tooltip";
 import {
   Calendar,
   CalendarDays,
+  ChevronDown,
   Clock,
   MessageSquare,
   MoreHorizontal,
@@ -27,6 +35,9 @@ import "./styles.css";
 import { userDetails } from "@api/account";
 import { fetchLookups } from "@utils/fetch-lookups";
 import { useBoardPermissionsContext } from "@providers/board-permissions-context";
+import { usePriorities } from "@hooks/priority";
+import { useCardDetails } from "@hooks/card-details";
+import PriorityFlag from "../list-view/components/priority-flag";
 
 // Utility to convert "3 hours 30 minutes" to "3h 30m"
 function formatTimeShort(timeStr: string | undefined): string {
@@ -63,7 +74,14 @@ function getContrastTextColor(hex: string): string {
 
 const RegularCard: React.FC<RegularCardProps> = (props) => {
   const { card, isHovered, onCompletionChange, isDragging = false } = props;
-  const { workspaceId } = useParams();
+  const params = useParams();
+  const workspaceId = Array.isArray(params.workspaceId)
+    ? params.workspaceId[0]
+    : (params.workspaceId as string | undefined);
+  const boardIdParam = Array.isArray(params.boardId)
+    ? params.boardId[0]
+    : (params.boardId as string | undefined);
+  const effectiveBoardId = (card.boardId || boardIdParam || "") as string;
   const { cardMembers, addMember, removeMember } = useCardMembers(card?.id);
   const { canUpdateCard } = useBoardPermissionsContext();
   const canEditMembers = canUpdateCard();
@@ -77,6 +95,48 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
   const [openAddMember, setOpenAddMember] = useState<boolean>(false);
   // local version state to force re-render after lookups populate
   const [lookupVersion, setLookupVersion] = useState(0);
+  const { updateCard } = useCardDetails(
+    card.id,
+    card.listId,
+    effectiveBoardId,
+    { skipFetch: true }
+  );
+  const [isPriorityUpdating, setPriorityUpdating] = useState(false);
+  const prioritiesQuery = usePriorities(canEditMembers);
+  const priorityOptions = prioritiesQuery.data?.data ?? [];
+  const [displayPriority, setDisplayPriority] = useState(
+    card.priorityInfo || null
+  );
+  useEffect(() => {
+    setDisplayPriority(card.priorityInfo || null);
+  }, [card.priorityInfo?.id, card.priorityInfo?.name, card.priorityInfo?.color]);
+  const priorityMenuItems = useMemo<MenuProps["items"]>(() => {
+    const items: MenuProps["items"] = priorityOptions.map((priority) => ({
+      key: priority.id,
+      label: (
+        <div className="flex items-center gap-2">
+          <span
+            className="w-3 h-3 rounded-full border border-white/40"
+            style={{
+              backgroundColor: priority.color || "#E5E7EB",
+            }}
+          />
+          <span>{priority.name}</span>
+        </div>
+      ),
+    }));
+
+    if (items.length > 0) {
+      items.push({ type: "divider" });
+    }
+
+    items.push({
+      key: "__no_priority__",
+      label: "No priority",
+    });
+
+    return items;
+  }, [priorityOptions]);
 
   // Fetch labels assigned to this card
   const { cardLabels } = useLabels(
@@ -116,6 +176,33 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
       })();
     }
   }, [cardCustomFields, cardMembers]);
+
+  const handlePriorityChange = (priorityId: string | null) => {
+    if (!canEditMembers || isPriorityUpdating) return;
+    if (priorityId === (card.priorityId ?? null)) {
+      return;
+    }
+    setPriorityUpdating(true);
+    const selectedPriority =
+      priorityId === null
+        ? null
+        : priorityOptions.find((priority) => priority.id === priorityId) || null;
+    setDisplayPriority(selectedPriority);
+    updateCard(
+      { priorityId },
+      {
+        onSettled: () => setPriorityUpdating(false),
+      }
+    );
+  };
+
+  const handlePrioritySelect: MenuProps["onClick"] = ({ key, domEvent }) => {
+    domEvent?.stopPropagation();
+    const nextPriorityId = key === "__no_priority__" ? null : key;
+    handlePriorityChange(nextPriorityId);
+  };
+
+  const showPriorityControl = canEditMembers || !!displayPriority;
 
   return (
     <div className="w-full">
@@ -179,11 +266,10 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
               return (
                 <span
                   key={label.labelId || label.id}
-                  className="px-2 py-1 rounded leading-none"
+                  className="px-[6px] py-[2px] rounded leading-none text-[10px] font-medium"
                   style={{
                     backgroundColor: bg,
                     color: textColor,
-                    fontSize: "12px",
                   }}
                 >
                   {label.name}
@@ -217,6 +303,38 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
             {card.name}
           </h3>
         </div>
+
+        {showPriorityControl && (
+          <div className="mb-2 -mt-2" onClick={(e) => e.stopPropagation()}>
+            {canEditMembers ? (
+              <Dropdown
+                menu={{
+                  items: priorityMenuItems,
+                  onClick: handlePrioritySelect,
+                }}
+                trigger={["click"]}
+                disabled={prioritiesQuery.isLoading}
+              >
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1 text-left"
+                  onClick={(e) => e.stopPropagation()}
+                  disabled={isPriorityUpdating || prioritiesQuery.isLoading}
+                >
+                  <PriorityFlag priority={displayPriority} />
+                  <ChevronDown size={12} className="text-gray-500" />
+                </button>
+              </Dropdown>
+            ) : (
+              <div
+                className="inline-flex items-center"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <PriorityFlag priority={displayPriority} />
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Dates */}
         {card?.startDate && (
@@ -276,16 +394,6 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
           {/* <div className="text-green-600 text-[14px]">
             Cabang: {card.location}
           </div> */}
-        </div>
-
-        {/* Product Information */}
-        <div className="space-y-1 mb-3">
-          {card?.productInfo?.name && (
-            <div className="text-gray-700 text-[11px]">
-              <span className="font-medium mr-1">Produk:</span>
-              {card.productInfo.name}
-            </div>
-          )}
         </div>
 
         {/* Custom fields */}

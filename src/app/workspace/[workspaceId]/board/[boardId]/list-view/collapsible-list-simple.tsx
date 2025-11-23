@@ -148,7 +148,7 @@ const CollapsibleListSimple: React.FC<CollapsibleListSimpleProps> = ({
                   <div className="space-y-2">
                     <div className="w-full overflow-x-auto">
                       <div className="min-w-[520px] space-y-2">
-                        <div className="grid grid-cols-[minmax(160px,1fr)_180px_120px] text-[11px] text-gray-600 px-3 list-view-header">
+                        <div className="grid grid-cols-[minmax(160px,1fr)_120px_180px_120px] text-[11px] text-gray-600 px-3 list-view-header">
                           <div
                             className="font-semibold sticky z-10 pr-3 relative overflow-hidden"
                             style={{ left: 12, backgroundColor: listColor }}
@@ -159,6 +159,7 @@ const CollapsibleListSimple: React.FC<CollapsibleListSimpleProps> = ({
                               style={{ background: headerStickyGradient }}
                             />
                           </div>
+                          <div className="font-semibold">Priority</div>
                           <div className="font-semibold">Members</div>
                           <div className="font-semibold text-right pr-3">
                             Age
