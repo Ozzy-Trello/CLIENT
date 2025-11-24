@@ -3,8 +3,8 @@ import { message, Modal, Input } from "antd";
 import { useSelector } from "react-redux";
 import { selectTheme } from "@store/app_slice";
 import { useQuery } from "@tanstack/react-query";
-import { getHikmatItemList, getAllAdjustmentItems } from "@api/accurate";
-import { getOzzyBarcodeProduct } from "@api/ozzy-warehouse";
+import { getAllAdjustmentItems } from "@api/accurate";
+import { getOzzyBarcodeProduct, getOzzyProducts } from "@api/ozzy-warehouse";
 import { useCategoriesWithSubcategories } from "@hooks/category";
 import {
   usePOProductsByCardId,
@@ -42,10 +42,13 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
   // Debug information available for troubleshooting
 
 
-  // Load products from Hikmat API
-  const { data: hikmatItems, isLoading: isLoadingProducts } = useQuery({
-    queryKey: ["hikmat-items"],
-    queryFn: () => getHikmatItemList(),
+  // Load products from Warehouse API
+  const {
+    data: warehouseProducts = [],
+    isLoading: isLoadingProducts,
+  } = useQuery({
+    queryKey: ["warehouse-products", "1880365"],
+    queryFn: () => getOzzyProducts("1880365"),
   });
 
   // Fetch categories with subcategories
@@ -331,6 +334,42 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
 
     // Return sum of all contributions (preserve decimal precision)
     return totalEstBahan;
+  };
+
+  const resolveProductKey = (product: any): string => {
+    const rawKey =
+      product?.accurateId ??
+      product?.id ??
+      product?.productId ??
+      product?.accurate_id ??
+      product?.product_id;
+    return rawKey !== undefined && rawKey !== null ? rawKey.toString() : "";
+  };
+
+  const resolveProductUnit = (product: any): string | undefined => {
+    if (!product) return undefined;
+    if (product.unitType) return product.unitType;
+    if ((product as any).unit_type) return (product as any).unit_type;
+
+    const unitData = product.unitData ?? (product as any).unit_data;
+    if (unitData) {
+      try {
+        const parsed =
+          typeof unitData === "string" ? JSON.parse(unitData) : unitData;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return (
+            parsed[0]?.name ||
+            parsed[0]?.unit ||
+            parsed[0]?.unitType ||
+            parsed[0]?.unit_type
+          );
+        }
+      } catch (error) {
+        console.warn("Failed to parse unit data for product", error);
+      }
+    }
+
+    return undefined;
   };
 
   const handleTerloadingChange = (
@@ -756,21 +795,24 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
           return;
         }
 
-        // Ensure hikmat items list is available
-        const items = hikmatItems?.data || [];
+        // Ensure product list is available
+        const items = warehouseProducts || [];
         if (!items || items.length === 0) {
           message.warning(
-            "Items are still loading or not available. Please try again shortly."
+            "Products are still loading or not available. Please try again shortly."
           );
           return;
         }
 
-        // Find the item in Hikmat list that matches the accurateId from scan
-        const matchedItem = items.find((item: any) => item.id === accurateId);
+        // Find the item in product list that matches the accurateId from scan
+        const matchedItem = items.find((item: any) => {
+          const key = resolveProductKey(item);
+          return key === accurateId.toString();
+        });
 
         if (!matchedItem) {
           message.error(
-            `Scanned product (accurateId=${accurateId}) not found in Hikmat item list.`
+            `Scanned product (accurateId=${accurateId}) not found in product list.`
           );
           return;
         }
@@ -778,8 +820,13 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
         // Check if product already exists in this PO
         const currentPOIndex = poData.findIndex((po) => po.id === scanTargetPOId);
         const currentPO = currentPOIndex !== -1 ? poData[currentPOIndex] : null;
+        const matchedKey = resolveProductKey(matchedItem);
+        if (!matchedKey) {
+          message.error("Scanned product is missing an identifier.");
+          return;
+        }
         const existingProductIndex = currentPO
-          ? currentPO.products.findIndex((p) => p.id === matchedItem.id.toString())
+          ? currentPO.products.findIndex((p) => p.id === matchedKey)
           : -1;
 
         if (currentPO && existingProductIndex !== -1) {
@@ -799,7 +846,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
           // Product not yet in this PO: prefill dropdown and add it, then set initial Terloading from scanned quantity
           setSelectedProductIds((prev) => ({
             ...prev,
-            [scanTargetPOId]: accurateId.toString(),
+            [scanTargetPOId]: matchedKey,
           }));
 
           message.success(
@@ -807,7 +854,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
           );
           await handleSelectProduct(
             scanTargetPOId,
-            matchedItem.id.toString(),
+            matchedKey,
             scannedQty
           );
         }
@@ -818,8 +865,8 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
     };
 
     prefillProductFromScan();
-    // We intentionally include hikmatItems as a dependency to ensure matching when the list is ready
-  }, [scannedValue, scanTargetPOId, hikmatItems]);
+    // We intentionally include warehouseProducts as a dependency to ensure matching when the list is ready
+  }, [scannedValue, scanTargetPOId, warehouseProducts]);
 
   // Helper function to select appropriate GL account following modal request logic
   const selectGLAccount = async (selectedItem: any) => {
@@ -828,33 +875,23 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
     try {
       // Fetch GL accounts for the item's source
       const glAccountsResponse = await getAllAdjustmentItems(
-        selectedItem.source
+        selectedItem?.source
       );
       const glaccounts = glAccountsResponse;
 
       // GL accounts response received
 
-      if (
-        glaccounts &&
-        glaccounts.data &&
-        glaccounts.data.d &&
-        selectedItem.itemCategory
-      ) {
+      if (glaccounts && glaccounts.data && glaccounts.data.d) {
         // First, try to get Inventory GL account from item category (this is the correct field for adjustment)
         const inventoryGlAccountId =
-          selectedItem.itemCategory.parent?.inventoryGlAccountId;
-        // Inventory GL Account ID from category
+          selectedItem?.itemCategory?.parent?.inventoryGlAccountId;
 
         if (inventoryGlAccountId) {
-          // Find the matching GL account
           const matchingGlAccount = glaccounts.data.d.find(
             (acc: any) => acc.id === inventoryGlAccountId
           );
 
-          // Found matching Inventory GL account
-
           if (matchingGlAccount) {
-            // Using Inventory GL account
             return {
               adjustment_no: matchingGlAccount.no,
               adjustment_name: matchingGlAccount.name,
@@ -864,19 +901,14 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
 
         // Fallback: try COGS GL account if inventory account not found
         const cogsGlAccountId =
-          selectedItem.itemCategory.parent?.cogsGlAccountId;
-        // COGS GL Account ID from category (fallback)
+          selectedItem?.itemCategory?.parent?.cogsGlAccountId;
 
         if (cogsGlAccountId) {
-          // Find the matching GL account
           const matchingGlAccount = glaccounts.data.d.find(
             (acc: any) => acc.id === cogsGlAccountId
           );
 
-          // Found matching COGS GL account
-
           if (matchingGlAccount) {
-            // Using COGS GL account
             return {
               adjustment_no: matchingGlAccount.no,
               adjustment_name: matchingGlAccount.name,
@@ -884,16 +916,18 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
           }
         }
 
-        // Enhanced fallback logic for GL account selection (same as modal request)
-        const itemCategoryName = selectedItem.itemCategory.name?.toLowerCase();
-        const itemSource = selectedItem.source;
-        // Trying category name matching
+        const rawCategoryName =
+          selectedItem?.itemCategory?.name ||
+          (selectedItem as any)?.categoryName ||
+          (selectedItem as any)?.category_name;
+        const itemCategoryName = rawCategoryName
+          ? rawCategoryName.toLowerCase()
+          : "";
+        const itemSource = selectedItem?.source;
 
         let suitableAccount = null;
 
         if (itemCategoryName) {
-          // First, try to find a GL account that matches the item category
-          // Checking each GL account for category match
           suitableAccount = glaccounts.data.d.find((acc: any) => {
             const accountName = acc.name.toLowerCase();
             const cleanAccountName = accountName
@@ -903,17 +937,10 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
             const directMatch = accountName.includes(itemCategoryName);
             const reverseMatch = itemCategoryName.includes(cleanAccountName);
 
-            // Account matching logic
-
             return directMatch || reverseMatch;
           });
 
-          // Category matching result
-
-          // If no match found and this is a Hikmat item, try Hikmat-specific matching
           if (!suitableAccount && itemSource === "Hikmat") {
-            // Trying Hikmat keyword matching
-            // Define Hikmat category keywords
             const hikmatCategoryKeywords = [
               "krah",
               "manset",
@@ -922,15 +949,11 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
               "kain",
             ];
 
-            // Check if item category contains any Hikmat-specific keywords
             const matchingKeyword = hikmatCategoryKeywords.find((keyword) =>
               itemCategoryName.includes(keyword)
             );
 
-            // Matching keyword found
-
             if (matchingKeyword) {
-              // Try to find GL account with matching keyword
               suitableAccount = glaccounts.data.d.find((acc: any) => {
                 const accountName = acc.name.toLowerCase();
                 return (
@@ -939,13 +962,9 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
                   accountName.includes("beban penyesuaian " + matchingKeyword)
                 );
               });
-
-              // Keyword matching result
             }
 
-            // If still no match, try broader Hikmat-specific accounts
             if (!suitableAccount) {
-              // Trying broader Hikmat-specific accounts
               suitableAccount = glaccounts.data.d.find((acc: any) => {
                 const accountName = acc.name.toLowerCase();
                 return (
@@ -954,30 +973,22 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
                   accountName.includes("bahan hikmat")
                 );
               });
-
-              // Broader Hikmat matching result
             }
           }
 
           // General fallback: Use the first available account from the same source
           if (!suitableAccount && itemSource) {
-            // Trying source-based matching
             suitableAccount = glaccounts.data.d.find(
               (acc: any) => acc.source === itemSource
             );
-
-            // Source matching result
           }
 
           // Last resort: Use the first available account
           if (!suitableAccount && glaccounts.data.d.length > 0) {
-            // Using first available account as last resort
             suitableAccount = glaccounts.data.d[0];
-            // Last resort account
           }
 
           if (suitableAccount) {
-            // Final selected account
             return {
               adjustment_no: suitableAccount.no,
               adjustment_name: suitableAccount.name,
@@ -990,7 +1001,6 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
     }
 
     // Return undefined values if no suitable account found
-    // No suitable GL account found, returning undefined values
     return {
       adjustment_no: undefined,
       adjustment_name: undefined,
@@ -1004,18 +1014,26 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
   ) => {
     // Starting product selection
 
-    // Find the selected product from hikmat items
-    const selectedProduct = hikmatItems?.data?.find(
-      (item: any) => item.id.toString() === productId
-    );
+    // Find the selected product from warehouse items
+    const selectedProduct =
+      (warehouseProducts || []).find(
+        (item: any) => resolveProductKey(item) === productId
+      ) || null;
 
     // Selected product found
 
     if (selectedProduct) {
+      const productKey = resolveProductKey(selectedProduct);
+      if (!productKey) {
+        message.error("Selected product is missing an identifier");
+        setSelectedProductIds((prev) => ({ ...prev, [poId]: "" }));
+        return;
+      }
+
       // Check if product already exists in this PO
       const currentPO = poData.find((po) => po.id === poId);
       const productExistsInCurrentPO = currentPO?.products.some(
-        (p) => p.id === selectedProduct.id.toString()
+        (p) => p.id === productKey
       );
 
       if (productExistsInCurrentPO) {
@@ -1030,14 +1048,8 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
       // Different POs can have the same product - only prevent duplicates within the same PO
 
       try {
-        // Extract satuan from Hikmat item unit (use unit1Name as primary unit)
-        const satuan =
-          selectedProduct.unit1Name ||
-          selectedProduct.unit2Name ||
-          selectedProduct.unit3Name ||
-          selectedProduct.unit4Name ||
-          selectedProduct.unit5Name ||
-          undefined;
+        // Extract satuan from product unit data
+        const satuan = resolveProductUnit(selectedProduct);
 
         // Extracted satuan and available units
 
@@ -1060,7 +1072,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
         // Create PO Product in the backend with new fields
         const poProductData = {
           po_id: poId,
-          hikmat_product_id: selectedProduct.id.toString(),
+          hikmat_product_id: productKey,
           product_name: selectedProduct.name,
           satuan,
           // Use GL account info from the helper function
@@ -1100,7 +1112,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
         );
       }
     } else {
-      // No product found with ID
+      message.error("Selected product not found.");
     }
   };
 
@@ -1185,7 +1197,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
             index={index}
             colors={colors}
             selectedProductId={selectedProductIds[po.id] || ""}
-            hikmatItems={hikmatItems?.data || []}
+            products={warehouseProducts || []}
             isLoadingProducts={isLoadingProducts}
             categories={categories || []}
             isLoadingCategories={isLoadingCategories}

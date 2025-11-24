@@ -28,6 +28,8 @@ import { useBoards } from "@hooks/board";
 import { LookupCache } from "@utils/lookup-cache";
 import CustomFieldModal from "../../../../components/custom-field-modal";
 import React from "react";
+import UploadModal from "@components/modal-upload/modal-upload";
+import { createCustomField } from "@api/custom_field";
 
 const { Title, Text } = Typography;
 
@@ -43,6 +45,8 @@ const CustomFieldsPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [pageSize, setPageSize] = useState(10);
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
 
   const { customFields, isLoading, deleteCustomField, isDeleting } =
     useCustomFields(
@@ -151,6 +155,84 @@ const CustomFieldsPage = () => {
   const getVisibilityLabel = (field: CustomField) => {
     const isPrivate = field.canView && field.canView.length > 0;
     return isPrivate ? "Private" : "Public";
+  };
+
+  const baseColumns = [
+    "name",
+    "members",
+    "description",
+    "produk",
+    "bahan",
+    "warna",
+  ];
+
+  const inferType = (values: any[]): EnumCustomFieldType => {
+    const nonEmpty = values.filter((v) => v !== undefined && v !== null && `${v}`.trim() !== "");
+    if (nonEmpty.length === 0) return EnumCustomFieldType.Text;
+    const allNumbers = nonEmpty.every((v) => !isNaN(Number(`${v}`.replace(/,/g, ""))));
+    if (allNumbers) return EnumCustomFieldType.Number;
+    const allDates = nonEmpty.every((v) => !isNaN(Date.parse(`${v}`)));
+    if (allDates) return EnumCustomFieldType.Date;
+    const normalized = nonEmpty.map((v) => `${v}`.toLowerCase().trim());
+    const unique = Array.from(new Set(normalized));
+    const boolSet = new Set(["true", "false", "yes", "no", "0", "1"]);
+    if (unique.every((u) => boolSet.has(u))) return EnumCustomFieldType.Checkbox;
+    if (unique.length <= 10) return EnumCustomFieldType.Dropdown;
+    return EnumCustomFieldType.Text;
+  };
+
+  const handleCustomFieldsParseComplete = async (_file: File, rows: any[]) => {
+    if (!Array.isArray(rows) || rows.length === 0) return;
+    setIsImporting(true);
+    try {
+      const workspace = Array.isArray(workspaceId) ? workspaceId[0] : (workspaceId as string);
+      if (!workspace) return;
+      const existingNames = new Set(
+        (customFields || []).map((f) => (f.name || "").toLowerCase().trim())
+      );
+      const firstRow = rows[0] || {};
+      const candidateColumns = Object.keys(firstRow).filter(
+        (k) => !baseColumns.includes(k.toLowerCase())
+      );
+      let createdCount = 0;
+      for (const col of candidateColumns) {
+        const nameLower = col.toLowerCase().trim();
+        if (existingNames.has(nameLower)) continue;
+        const colValues = rows.map((r) => r[col]);
+        const type = inferType(colValues);
+        const payload: Partial<CustomField> = {
+          name: col,
+          description: "Imported field",
+          source: "custom",
+          type,
+        };
+        if (type === EnumCustomFieldType.Dropdown) {
+          const optionsSet = new Set(
+            colValues
+              .filter((v) => v !== undefined && v !== null && `${v}`.trim() !== "")
+              .map((v) => `${v}`.trim())
+          );
+          const options = Array.from(optionsSet).slice(0, 50).map((v) => ({ value: v, label: v }));
+          payload.options = options;
+        }
+        try {
+          const res = await createCustomField(payload, workspace);
+          if (res?.data?.id) {
+            createdCount += 1;
+          }
+        } catch (_err) {
+          continue;
+        }
+      }
+      if (createdCount > 0) {
+        message.success(`Imported ${createdCount} custom field(s)`);
+      } else {
+        message.info("No new custom fields created");
+      }
+      setImportModalOpen(false);
+    } finally {
+      setIsImporting(false);
+    }
   };
 
   const getVisibilityColor = (field: CustomField) => {
@@ -350,6 +432,12 @@ const CustomFieldsPage = () => {
             >
               Add Custom Field
             </Button>
+            <Button
+              onClick={() => setImportModalOpen(true)}
+              disabled={isImporting}
+            >
+              Import Custom Fields
+            </Button>
           </div>
         </div>
       </div>
@@ -385,6 +473,16 @@ const CustomFieldsPage = () => {
           }
         />
       )}
+
+      <UploadModal
+        isVisible={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
+        uploadType="spreadsheet"
+        title="Import Custom Fields"
+        multiple={false}
+        mode="parse"
+        onParseComplete={handleCustomFieldsParseComplete}
+      />
     </div>
   );
 };

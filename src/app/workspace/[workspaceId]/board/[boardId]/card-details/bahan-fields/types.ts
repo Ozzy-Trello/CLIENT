@@ -60,7 +60,7 @@ export interface POSectionProps {
   index: number;
   colors: any;
   selectedProductId: string;
-  hikmatItems: any[];
+  products: any[];
   isLoadingProducts: boolean;
   categories: any[];
   isLoadingCategories: boolean;

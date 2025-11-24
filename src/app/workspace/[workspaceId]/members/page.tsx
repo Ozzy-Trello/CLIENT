@@ -31,6 +31,8 @@ import {
   useDeleteAccount,
   useCurrentAccount,
 } from "@hooks/account";
+import UploadModal from "@components/modal-upload/modal-upload";
+import { createAccount } from "@api/account";
 
 type MenuItem = Required<MenuProps>["items"][number];
 
@@ -192,6 +194,8 @@ const Members: React.FC = () => {
   const [roleFilter, setRoleFilter] = useState<string | null>(null);
   const [searchValue, setSearchValue] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
 
   const memberCount = data.length;
   const selectedRoleIds = roleFilter ? [roleFilter] : [];
@@ -246,6 +250,49 @@ const Members: React.FC = () => {
   const closeEditUserModal = () => {
     setEditUserModalVisible(false);
     setSelectedUser(null);
+  };
+
+  const handleMembersParseComplete = async (_file: File, rows: any[]) => {
+    if (!Array.isArray(rows) || rows.length === 0) return;
+    setIsImporting(true);
+    try {
+      const created: string[] = [];
+      for (const row of rows) {
+        const keys = Object.keys(row || {}).reduce((acc: any, k: string) => {
+          acc[k.toLowerCase().trim()] = row[k];
+          return acc;
+        }, {});
+        const email = keys["email"] || keys["e-mail"] || "";
+        const username = keys["username"] || keys["user"] || keys["name"] || "";
+        const phone = keys["phone"] || keys["no hp"] || keys["hp"] || "";
+        const fullname = keys["fullname"] || keys["full name"] || keys["name"] || "";
+        if (!email && !username) continue;
+        const payload: any = {
+          email: email || undefined,
+          username: username || undefined,
+          phone: phone || undefined,
+          name: fullname || undefined,
+          password: "12345",
+        };
+        try {
+          const res = await createAccount(payload);
+          if (res?.data?.id) {
+            created.push(res.data.id);
+          }
+        } catch (_err) {
+          continue;
+        }
+      }
+      if (created.length > 0) {
+        message.success(`Imported ${created.length} member(s)`);
+        setIsFetching(true);
+      } else {
+        message.info("No new members created");
+      }
+      setImportModalOpen(false);
+    } finally {
+      setIsImporting(false);
+    }
   };
 
   const handleSaveUser = async () => {
@@ -400,6 +447,16 @@ const Members: React.FC = () => {
             <i className="fi fi-sr-user-add"></i> Add User
           </Button>
         </Tooltip>
+        {canManageUsers() && (
+          <Button
+            size="small"
+            onClick={() => setImportModalOpen(true)}
+            disabled={isImporting}
+            style={{ marginLeft: 8 }}
+          >
+            Import Members
+          </Button>
+        )}
       </div>
 
       <div className="flex">
@@ -493,6 +550,16 @@ const Members: React.FC = () => {
         onSuccess={() => {
           setIsFetching(true);
         }}
+      />
+
+      <UploadModal
+        isVisible={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
+        uploadType="spreadsheet"
+        title="Import Members"
+        multiple={false}
+        mode="parse"
+        onParseComplete={handleMembersParseComplete}
       />
 
       <Modal

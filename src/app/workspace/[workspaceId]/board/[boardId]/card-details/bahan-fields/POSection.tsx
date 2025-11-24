@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Tabs, message, AutoComplete } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
 import BahanTabContent from "./BahanTabContent";
@@ -10,7 +10,7 @@ const POSection: React.FC<POSectionProps> = ({
   index,
   colors,
   selectedProductId,
-  hikmatItems,
+  products,
   isLoadingProducts,
   categories,
   isLoadingCategories,
@@ -47,6 +47,24 @@ const POSection: React.FC<POSectionProps> = ({
       setActiveProductTab(po.products[0].id);
     }
   }, [po.products, activeProductTab]);
+
+  const getProductValue = (product: any) => {
+    const rawValue = product?.accurateId ?? product?.id ?? product?.productId;
+    return rawValue !== undefined && rawValue !== null
+      ? rawValue.toString()
+      : "";
+  };
+
+  const formatProductLabel = (product: any) => {
+    const name = product?.name || "Unnamed product";
+    const code =
+      product?.sku ||
+      product?.barcode ||
+      product?.accurateId ||
+      product?.id ||
+      product?.productId;
+    return code ? `${name} (${code})` : name;
+  };
 
   // Note: handleRemoveBahanTab removed since we're no longer using nested bahan tabs
 
@@ -154,11 +172,17 @@ const POSection: React.FC<POSectionProps> = ({
                 onSelectProduct(po.id, value);
               }
             }}
-            options={hikmatItems.map((product: any) => ({
-              value: product.id.toString(),
-              label: `${product.name} (${product.no})`,
-            }))}
-            placeholder={isLoadingProducts ? "Loading products..." : "Type or select a product"}
+            options={products
+              .map((product: any) => ({
+                value: getProductValue(product),
+                label: formatProductLabel(product),
+              }))
+              .filter((option) => option.value)}
+            placeholder={
+              isLoadingProducts
+                ? "Loading products..."
+                : "Type or select a product"
+            }
             filterOption={(inputValue, option) =>
               option!.label.toLowerCase().indexOf(inputValue.toLowerCase()) !== -1
             }
