@@ -26,7 +26,10 @@ import { accountList, createAccount } from "@api/account";
 import { lists } from "@api/list";
 import { api } from "@api/index";
 import { addMember as addCardMember } from "@api/card_member";
-import { customFields as fetchCustomFields, createCustomField } from "@api/custom_field";
+import {
+  customFields as fetchCustomFields,
+  createCustomField,
+} from "@api/custom_field";
 import { EnumCustomFieldType, CustomField } from "@myTypes/custom-field";
 
 interface BoardMenuSidebarProps {
@@ -56,9 +59,9 @@ const MenuItem: React.FC<MenuItemProps> = ({
   const menuItem = (
     <div
       className={`flex items-center py-3 px-4 ${
-        disabled 
-          ? 'opacity-50 cursor-not-allowed' 
-          : 'hover:bg-gray-100 cursor-pointer'
+        disabled
+          ? "opacity-50 cursor-not-allowed"
+          : "hover:bg-gray-100 cursor-pointer"
       }`}
       onClick={disabled ? undefined : onClick}
     >
@@ -75,9 +78,7 @@ const MenuItem: React.FC<MenuItemProps> = ({
   return (
     <>
       {disabled && tooltipTitle ? (
-        <TouchAwareTooltip title={tooltipTitle}>
-          {menuItem}
-        </TouchAwareTooltip>
+        <TouchAwareTooltip title={tooltipTitle}>{menuItem}</TouchAwareTooltip>
       ) : (
         menuItem
       )}
@@ -106,7 +107,7 @@ const BoardScopeMenu: React.FC<BoardMenuSidebarProps> = ({
     canManageBoardCustomFields,
     canManageBoardLabels,
     canViewArchivedItems,
-    isObserver
+    isObserver,
   } = usePermissions();
 
   // State for settings modal
@@ -117,7 +118,6 @@ const BoardScopeMenu: React.FC<BoardMenuSidebarProps> = ({
   const [searchArchived, setSearchArchived] = useState("");
   const [importCsvOpen, setImportCsvOpen] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
-
 
   const boardIdString =
     typeof boardId === "string" ? boardId : boardId?.[0] || "";
@@ -163,16 +163,21 @@ const BoardScopeMenu: React.FC<BoardMenuSidebarProps> = ({
   ];
 
   const inferType = (values: any[]): EnumCustomFieldType => {
-    const nonEmpty = values.filter((v) => v !== undefined && v !== null && `${v}`.trim() !== "");
+    const nonEmpty = values.filter(
+      (v) => v !== undefined && v !== null && `${v}`.trim() !== ""
+    );
     if (nonEmpty.length === 0) return EnumCustomFieldType.Text;
-    const allNumbers = nonEmpty.every((v) => !isNaN(Number(`${v}`.replace(/,/g, ""))));
+    const allNumbers = nonEmpty.every(
+      (v) => !isNaN(Number(`${v}`.replace(/,/g, "")))
+    );
     if (allNumbers) return EnumCustomFieldType.Number;
     const allDates = nonEmpty.every((v) => !isNaN(Date.parse(`${v}`)));
     if (allDates) return EnumCustomFieldType.Date;
     const normalized = nonEmpty.map((v) => `${v}`.toLowerCase().trim());
     const unique = Array.from(new Set(normalized));
     const boolSet = new Set(["true", "false", "yes", "no", "0", "1"]);
-    if (unique.every((u) => boolSet.has(u))) return EnumCustomFieldType.Checkbox;
+    if (unique.every((u) => boolSet.has(u)))
+      return EnumCustomFieldType.Checkbox;
     if (unique.length <= 10) return EnumCustomFieldType.Dropdown;
     return EnumCustomFieldType.Text;
   };
@@ -198,12 +203,19 @@ const BoardScopeMenu: React.FC<BoardMenuSidebarProps> = ({
       const accountByEmail = new Map<string, string>();
       const accountByUsername = new Map<string, string>();
       existingAccounts.forEach((acc: any) => {
-        if (acc.email) accountByEmail.set(String(acc.email).toLowerCase().trim(), acc.id);
-        if (acc.username) accountByUsername.set(String(acc.username).toLowerCase().trim(), acc.id);
+        if (acc.email)
+          accountByEmail.set(String(acc.email).toLowerCase().trim(), acc.id);
+        if (acc.username)
+          accountByUsername.set(
+            String(acc.username).toLowerCase().trim(),
+            acc.id
+          );
       });
 
       const customFieldNames = new Set(
-        existingCustomFields.map((f: CustomField) => (f.name || "").toLowerCase().trim())
+        existingCustomFields.map((f: CustomField) =>
+          (f.name || "").toLowerCase().trim()
+        )
       );
 
       const firstRow = rows[0] || {};
@@ -225,10 +237,14 @@ const BoardScopeMenu: React.FC<BoardMenuSidebarProps> = ({
         if (type === EnumCustomFieldType.Dropdown) {
           const optionsSet = new Set(
             colValues
-              .filter((v) => v !== undefined && v !== null && `${v}`.trim() !== "")
+              .filter(
+                (v) => v !== undefined && v !== null && `${v}`.trim() !== ""
+              )
               .map((v) => `${v}`.trim())
           );
-          const options = Array.from(optionsSet).slice(0, 50).map((v) => ({ value: v, label: v }));
+          const options = Array.from(optionsSet)
+            .slice(0, 50)
+            .map((v) => ({ value: v, label: v }));
           payload.options = options;
         }
         try {
@@ -254,11 +270,19 @@ const BoardScopeMenu: React.FC<BoardMenuSidebarProps> = ({
         const listName = keys["status"] || keys["list"] || "";
         const dueDateRaw = keys["due date"];
         const startDateRaw = keys["start date"];
-        const assigneesRaw = keys["assignees"] || keys["assigned to"] || keys["members"] || "";
+        const assigneesRaw =
+          keys["assignees"] || keys["assigned to"] || keys["members"] || "";
 
-        const targetList = availableLists.find(
-          (l: any) => String(l.name || "").toLowerCase().trim() === String(listName || "").toLowerCase().trim()
-        ) || availableLists[0];
+        const targetList =
+          availableLists.find(
+            (l: any) =>
+              String(l.name || "")
+                .toLowerCase()
+                .trim() ===
+              String(listName || "")
+                .toLowerCase()
+                .trim()
+          ) || availableLists[0];
         if (!targetList) continue;
 
         const memberIdentifiers = String(assigneesRaw || "")
@@ -326,7 +350,8 @@ const BoardScopeMenu: React.FC<BoardMenuSidebarProps> = ({
     } catch (err: any) {
       console.error(err);
       const msg =
-        (err?.response?.data && (err.response.data.message || err.response.data.error)) ||
+        (err?.response?.data &&
+          (err.response.data.message || err.response.data.error)) ||
         err?.message ||
         "Import failed. Please try again.";
       message.error(msg);
@@ -397,7 +422,11 @@ const BoardScopeMenu: React.FC<BoardMenuSidebarProps> = ({
             onClick={handleArchivedClick}
             divider={true}
             disabled={!canViewArchivedItems()}
-            tooltipTitle={!canViewArchivedItems() ? "You don't have permission to view archived items" : undefined}
+            tooltipTitle={
+              !canViewArchivedItems()
+                ? "You don't have permission to view archived items"
+                : undefined
+            }
           />
 
           <MenuItem
@@ -405,7 +434,11 @@ const BoardScopeMenu: React.FC<BoardMenuSidebarProps> = ({
             text="Settings"
             onClick={handleSettingsClick}
             disabled={!canManageBoardSettings()}
-            tooltipTitle={!canManageBoardSettings() ? "You don't have permission to access board settings" : undefined}
+            tooltipTitle={
+              !canManageBoardSettings()
+                ? "You don't have permission to access board settings"
+                : undefined
+            }
           />
 
           <MenuItem
@@ -421,11 +454,15 @@ const BoardScopeMenu: React.FC<BoardMenuSidebarProps> = ({
             text="Change background"
           /> */}
 
-          <MenuItem 
-            icon={<FormOutlined size={16} />} 
-            text="Custom Fields" 
+          <MenuItem
+            icon={<FormOutlined size={16} />}
+            text="Custom Fields"
             disabled={!canManageBoardCustomFields()}
-            tooltipTitle={!canManageBoardCustomFields() ? "You don't have permission to manage custom fields" : undefined}
+            tooltipTitle={
+              !canManageBoardCustomFields()
+                ? "You don't have permission to manage custom fields"
+                : undefined
+            }
           />
 
           <MenuItem
@@ -439,14 +476,22 @@ const BoardScopeMenu: React.FC<BoardMenuSidebarProps> = ({
               }
             }}
             disabled={!canManageBoardAutomation()}
-            tooltipTitle={!canManageBoardAutomation() ? "You don't have permission to manage automation" : undefined}
+            tooltipTitle={
+              !canManageBoardAutomation()
+                ? "You don't have permission to manage automation"
+                : undefined
+            }
           />
 
-          <MenuItem 
-            icon={<TagOutlined size={16} />} 
-            text="Labels" 
+          <MenuItem
+            icon={<TagOutlined size={16} />}
+            text="Labels"
             disabled={!canManageBoardLabels()}
-            tooltipTitle={!canManageBoardLabels() ? "You don't have permission to manage labels" : undefined}
+            tooltipTitle={
+              !canManageBoardLabels()
+                ? "You don't have permission to manage labels"
+                : undefined
+            }
           />
 
           {/* Stickers section hidden for now */}
@@ -517,16 +562,6 @@ const BoardScopeMenu: React.FC<BoardMenuSidebarProps> = ({
           onSuccess={handleBoardUpdate}
         />
       )}
-
-      <UploadModal
-        isVisible={importCsvOpen}
-        onClose={() => setImportCsvOpen(false)}
-        uploadType="spreadsheet"
-        title="Import from CSV"
-        multiple={false}
-        mode="parse"
-        onParseComplete={handleClickupParseComplete}
-      />
     </>
   );
 };

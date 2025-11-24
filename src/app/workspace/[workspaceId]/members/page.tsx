@@ -265,7 +265,8 @@ const Members: React.FC = () => {
         const email = keys["email"] || keys["e-mail"] || "";
         const username = keys["username"] || keys["user"] || keys["name"] || "";
         const phone = keys["phone"] || keys["no hp"] || keys["hp"] || "";
-        const fullname = keys["fullname"] || keys["full name"] || keys["name"] || "";
+        const fullname =
+          keys["fullname"] || keys["full name"] || keys["name"] || "";
         if (!email && !username) continue;
         const payload: any = {
           email: email || undefined,
@@ -550,16 +551,6 @@ const Members: React.FC = () => {
         onSuccess={() => {
           setIsFetching(true);
         }}
-      />
-
-      <UploadModal
-        isVisible={importModalOpen}
-        onClose={() => setImportModalOpen(false)}
-        uploadType="spreadsheet"
-        title="Import Members"
-        multiple={false}
-        mode="parse"
-        onParseComplete={handleMembersParseComplete}
       />
 
       <Modal

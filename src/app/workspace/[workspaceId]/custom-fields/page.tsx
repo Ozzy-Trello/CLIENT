@@ -56,7 +56,7 @@ const CustomFieldsPage = () => {
   const { roles } = useRoles(
     Array.isArray(workspaceId) ? workspaceId[0] : workspaceId || ""
   );
-  
+
   const { boards } = useBoards(
     Array.isArray(workspaceId) ? workspaceId[0] : workspaceId || ""
   );
@@ -167,16 +167,21 @@ const CustomFieldsPage = () => {
   ];
 
   const inferType = (values: any[]): EnumCustomFieldType => {
-    const nonEmpty = values.filter((v) => v !== undefined && v !== null && `${v}`.trim() !== "");
+    const nonEmpty = values.filter(
+      (v) => v !== undefined && v !== null && `${v}`.trim() !== ""
+    );
     if (nonEmpty.length === 0) return EnumCustomFieldType.Text;
-    const allNumbers = nonEmpty.every((v) => !isNaN(Number(`${v}`.replace(/,/g, ""))));
+    const allNumbers = nonEmpty.every(
+      (v) => !isNaN(Number(`${v}`.replace(/,/g, "")))
+    );
     if (allNumbers) return EnumCustomFieldType.Number;
     const allDates = nonEmpty.every((v) => !isNaN(Date.parse(`${v}`)));
     if (allDates) return EnumCustomFieldType.Date;
     const normalized = nonEmpty.map((v) => `${v}`.toLowerCase().trim());
     const unique = Array.from(new Set(normalized));
     const boolSet = new Set(["true", "false", "yes", "no", "0", "1"]);
-    if (unique.every((u) => boolSet.has(u))) return EnumCustomFieldType.Checkbox;
+    if (unique.every((u) => boolSet.has(u)))
+      return EnumCustomFieldType.Checkbox;
     if (unique.length <= 10) return EnumCustomFieldType.Dropdown;
     return EnumCustomFieldType.Text;
   };
@@ -185,7 +190,9 @@ const CustomFieldsPage = () => {
     if (!Array.isArray(rows) || rows.length === 0) return;
     setIsImporting(true);
     try {
-      const workspace = Array.isArray(workspaceId) ? workspaceId[0] : (workspaceId as string);
+      const workspace = Array.isArray(workspaceId)
+        ? workspaceId[0]
+        : (workspaceId as string);
       if (!workspace) return;
       const existingNames = new Set(
         (customFields || []).map((f) => (f.name || "").toLowerCase().trim())
@@ -209,10 +216,14 @@ const CustomFieldsPage = () => {
         if (type === EnumCustomFieldType.Dropdown) {
           const optionsSet = new Set(
             colValues
-              .filter((v) => v !== undefined && v !== null && `${v}`.trim() !== "")
+              .filter(
+                (v) => v !== undefined && v !== null && `${v}`.trim() !== ""
+              )
               .map((v) => `${v}`.trim())
           );
-          const options = Array.from(optionsSet).slice(0, 50).map((v) => ({ value: v, label: v }));
+          const options = Array.from(optionsSet)
+            .slice(0, 50)
+            .map((v) => ({ value: v, label: v }));
           payload.options = options;
         }
         try {
@@ -473,16 +484,6 @@ const CustomFieldsPage = () => {
           }
         />
       )}
-
-      <UploadModal
-        isVisible={importModalOpen}
-        onClose={() => setImportModalOpen(false)}
-        uploadType="spreadsheet"
-        title="Import Custom Fields"
-        multiple={false}
-        mode="parse"
-        onParseComplete={handleCustomFieldsParseComplete}
-      />
     </div>
   );
 };
