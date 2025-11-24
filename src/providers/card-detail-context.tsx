@@ -45,6 +45,7 @@ type CardDetailContextType = {
   handleDeleteFilter: (type: string, id?: string) => void;
   updateDisplayConfig: (displayConfig: any) => void;
   updateBackgroundColor: (backgroundColor: string) => void;
+  updateVisibleColumns: (columns: string[]) => void;
   refetchCardDetails: () => void;
 
   dashcardConfig: DashcardConfig | undefined;
@@ -93,6 +94,7 @@ const CardDetailContext = createContext<CardDetailContextType>({
   handleDeleteFilter: () => {},
   updateDisplayConfig: () => {},
   updateBackgroundColor: () => {},
+  updateVisibleColumns: () => {},
   refetchCardDetails: () => {},
 
   isUpdatingCard: false,
@@ -380,6 +382,37 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
     });
   };
 
+  const handleVisibleColumnsUpdate = useDebouncedCallback(
+    (visibleColumns: string[]) => {
+      if (!selectedCard || !dashcardConfig) {
+        console.warn(
+          "Cannot update visible columns: missing selectedCard or dashcardConfig"
+        );
+        return;
+      }
+
+      mutate({
+        dashConfig: {
+          ...dashcardConfig,
+          visibleColumns,
+        },
+      });
+    },
+    TIMEOUT
+  );
+
+  const updateVisibleColumns = (columns: string[]) => {
+    setDashcardConfig((prev) =>
+      prev
+        ? {
+            ...prev,
+            visibleColumns: columns,
+          }
+        : prev
+    );
+    handleVisibleColumnsUpdate(columns);
+  };
+
   // Handle URL changes
   useEffect(() => {
     const cardId = searchParams.get("cardId");
@@ -434,6 +467,7 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
         handleDeleteFilter,
         updateDisplayConfig,
         updateBackgroundColor,
+        updateVisibleColumns,
         refetchCardDetails: cardDetailsQuery.refetch,
         isUpdatingCard: isPending,
         isLoadingCardDetails: cardDetailsQuery.isFetching,

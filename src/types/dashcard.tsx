@@ -88,6 +88,7 @@ export interface DashcardConfig {
   backgroundColor: string;
   filters: DashcardFilter[];
   displayConfig?: DashcardDisplayConfig; // Optional, defaults to card count
+  visibleColumns?: string[];
 }
 
 // Sample filters data

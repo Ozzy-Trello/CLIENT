@@ -441,13 +441,6 @@ const BoardScopeMenu: React.FC<BoardMenuSidebarProps> = ({
             }
           />
 
-          <MenuItem
-            icon={<FormOutlined size={16} />}
-            text="Import from CSV (ClickUp)"
-            onClick={() => setImportCsvOpen(true)}
-            disabled={isImporting}
-          />
-
           {/* Change background section hidden for now */}
           {/* <MenuItem
             icon={<PictureOutlined size={16} />}

@@ -13,15 +13,13 @@ import {
 import { Button, Dropdown, Input, MenuProps, Checkbox } from "antd";
 import { ChevronDown, ChevronRight, MoreHorizontal, Download } from "lucide-react";
 import { useDebounce } from "@hooks/debounce";
-import { IItemDashcard } from "@myTypes/card";
 import { ItemType } from "antd/es/menu/interface";
 import { useCardDetailContext } from "@providers/card-detail-context";
 import MembersList from "@components/members-list";
-import { useDashcardList } from "@hooks/dashcard-list";
 import { useParams } from "next/navigation";
 import { useCustomFields } from "@hooks/custom_field";
 import { LookupCache } from "@utils/lookup-cache";
-import * as XLSX from 'xlsx';
+import * as XLSX from "xlsx";
 import { useSelector } from "react-redux";
 import { selectCurrentWorkspace } from "@store/workspace_slice";
 
@@ -57,7 +55,25 @@ const TablePivot: FC = () => {
   const [columnsDropdownOpen, setColumnsDropdownOpen] = useState(false);
   const [columnSearchValue, setColumnSearchValue] = useState("");
   const [sorting, setSorting] = useState<SortingState>([]);
-  const { handleItemDashcard, processedItemDashcard } = useCardDetailContext();
+  const {
+    handleItemDashcard,
+    processedItemDashcard,
+    dashcardConfig,
+    updateVisibleColumns,
+  } = useCardDetailContext();
+  const baseColumnIds = useMemo(
+    () => [
+      "name",
+      "members",
+      "description",
+      "productInfo",
+      "bahanInfo",
+      "warnaInfo",
+      "dueDate",
+      "createdAt",
+    ],
+    []
+  );
 
   // Get workspace ID from URL params and Redux store
   const { workspaceId } = useParams();
@@ -98,15 +114,18 @@ const TablePivot: FC = () => {
       ...Array.from(workspaceCustomFields),
     ]);
     const columns = Array.from(allColumns);
+    const savedVisibleColumns = dashcardConfig?.visibleColumns;
 
     setColumnVisibility((prev) => {
       const newVisibility = { ...prev };
-      const baseColumnNames = ['name', 'members', 'description', 'produk', 'bahan', 'warna'];
-      
-      columns.forEach((col) => {
-        if (newVisibility[col] === undefined) {
-          // Show base columns by default, hide custom fields
-          newVisibility[col] = baseColumnNames.includes(col);
+      const allColumnIds = [...baseColumnIds, ...columns];
+
+      allColumnIds.forEach((col) => {
+        if (savedVisibleColumns) {
+          newVisibility[col] = savedVisibleColumns.includes(col);
+        } else if (newVisibility[col] === undefined) {
+          // Show base columns by default, hide custom fields until explicitly enabled
+          newVisibility[col] = baseColumnIds.includes(col);
         }
       });
 
@@ -114,14 +133,27 @@ const TablePivot: FC = () => {
     });
 
     return columns;
-  }, [processedItemDashcard, customFields]);
+  }, [processedItemDashcard, customFields, dashcardConfig?.visibleColumns, baseColumnIds]);
+
+  const allMenuColumns = useMemo(
+    () => Array.from(new Set([...baseColumnIds, ...dynamicColumns])),
+    [baseColumnIds, dynamicColumns]
+  );
 
   const filteredColumns = useMemo(() => {
-    if (!columnSearchValue) return dynamicColumns;
-    return dynamicColumns.filter((columnId) =>
+    if (!columnSearchValue) return allMenuColumns;
+    return allMenuColumns.filter((columnId) =>
       columnId.toLowerCase().includes(columnSearchValue.toLowerCase())
     );
-  }, [dynamicColumns, columnSearchValue]);
+  }, [allMenuColumns, columnSearchValue]);
+
+  const humanizeColumnId = (columnId: string) =>
+    columnId
+      .replace(/([A-Z])/g, " $1")
+      .replace(/_/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/^./, (c) => c.toUpperCase());
 
   const columnVisibilityMenu = {
     items: [
@@ -158,7 +190,7 @@ const TablePivot: FC = () => {
                     }));
                   }}
                 />
-                <span>{columnId}</span>
+                <span>{humanizeColumnId(columnId)}</span>
               </div>
             ),
           }))
@@ -239,9 +271,6 @@ const TablePivot: FC = () => {
         {
           key: "pivot",
           label: grouping.includes(columnId) ? "Unpivot" : "Pivot",
-          style: {
-            display: dynamicColumns.includes(columnId) ? "block" : "none",
-          },
         },
       ],
       onClick: ({ key }) => {
@@ -260,6 +289,7 @@ const TablePivot: FC = () => {
         members: item.member,
         description: item.description,
         dueDate: item.dueDate,
+        createdAt: (item as any).createdAt || (item as any).created_at || null,
         listName: item.listName,
         productInfo: item.productInfo,
         bahanInfo: item.bahanInfo,
@@ -341,16 +371,65 @@ const TablePivot: FC = () => {
       }
 
       if (type === "date") {
+        if (!value) return "-";
+        const parsed = new Date(value as string);
+        if (isNaN(parsed.getTime())) return "-";
         return new Intl.DateTimeFormat("id-ID", {
           year: "numeric",
           month: "long",
           day: "numeric",
-        }).format(new Date(value as string));
+        }).format(parsed);
       }
 
       // For any other type, try lookup cache first
       const humanValue = LookupCache.any(String(value));
       return humanValue || value;
+    };
+
+    const formatDate = (value: string | Date | number | null | undefined) => {
+      if (!value && value !== 0) return "-";
+      const date =
+        typeof value === "string" || typeof value === "number"
+          ? new Date(value)
+          : value;
+      if (!date || isNaN(date.getTime())) return "-";
+      return new Intl.DateTimeFormat("id-ID", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      }).format(date);
+    };
+
+    const renderGroupedCell = (
+      columnId: string,
+      row: any,
+      renderer: () => React.ReactNode
+    ) => {
+      const groupIndex = grouping.indexOf(columnId);
+      if (row.getIsGrouped()) {
+        if (groupIndex !== -1 && row.depth === groupIndex) {
+          return (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => row.getToggleExpandedHandler()()}
+                className="cursor-pointer"
+              >
+                {row.getIsExpanded() ? (
+                  <ChevronDown className="h-4 w-4" />
+                ) : (
+                  <ChevronRight className="h-4 w-4" />
+                )}
+              </button>
+              {renderer()}
+              <span className="text-xs text-gray-400">
+                ({row.subRows.length})
+              </span>
+            </div>
+          );
+        }
+        return "";
+      }
+      return renderer();
     };
 
     const baseColumns = [
@@ -363,10 +442,7 @@ const TablePivot: FC = () => {
           ),
         cell: (info) => {
           const row = info.row;
-          if (row.getIsGrouped()) {
-            return `${row.subRows.length} items`;
-          }
-          return (
+          return renderGroupedCell("name", row, () => (
             <span
               className="cursor-pointer"
               onClick={() =>
@@ -379,7 +455,7 @@ const TablePivot: FC = () => {
             >
               {info.getValue()}
             </span>
-          );
+          ));
         },
       }),
       columnHelper.accessor("members", {
@@ -391,11 +467,8 @@ const TablePivot: FC = () => {
           ),
         cell: (info) => {
           const row = info.row;
-          if (row.getIsGrouped()) {
-            return `${row.subRows.length} items`;
-          }
           const members = (info.row.original as DataType).members;
-          return (
+          return renderGroupedCell("members", row, () => (
             <div className="flex flex-wrap gap-1">
               <MembersList
                 members={members || []}
@@ -403,7 +476,7 @@ const TablePivot: FC = () => {
                 membersLoopLimit={3}
               />
             </div>
-          );
+          ));
         },
       }),
       columnHelper.accessor("description", {
@@ -415,16 +488,13 @@ const TablePivot: FC = () => {
           ),
         cell: (info) => {
           const row = info.row;
-          if (row.getIsGrouped()) {
-            return `${row.subRows.length} items`;
-          }
           const description = info.getValue() as string;
-          return (
+          return renderGroupedCell("description", row, () => (
             <div
               dangerouslySetInnerHTML={{ __html: description || "" }}
               className="max-w-xs overflow-hidden"
             />
-          );
+          ));
         },
       }),
       columnHelper.accessor("productInfo", {
@@ -436,15 +506,12 @@ const TablePivot: FC = () => {
           ),
         cell: (info) => {
           const row = info.row;
-          if (row.getIsGrouped()) {
-            return `${row.subRows.length} items`;
-          }
           const productInfo = info.getValue() as any;
-          return (
+          return renderGroupedCell("productInfo", row, () => (
             <div className="max-w-xs truncate">
               {productInfo?.name || "-"}
             </div>
-          );
+          ));
         },
       }),
       columnHelper.accessor("bahanInfo", {
@@ -456,15 +523,12 @@ const TablePivot: FC = () => {
           ),
         cell: (info) => {
           const row = info.row;
-          if (row.getIsGrouped()) {
-            return `${row.subRows.length} items`;
-          }
           const bahanInfo = info.getValue() as any;
-          return (
+          return renderGroupedCell("bahanInfo", row, () => (
             <div className="max-w-xs truncate">
               {bahanInfo?.name || "-"}
             </div>
-          );
+          ));
         },
       }),
       columnHelper.accessor("warnaInfo", {
@@ -476,14 +540,39 @@ const TablePivot: FC = () => {
           ),
         cell: (info) => {
           const row = info.row;
-          if (row.getIsGrouped()) {
-            return `${row.subRows.length} items`;
-          }
           const warnaInfo = info.getValue() as any;
-          return (
+          return renderGroupedCell("warnaInfo", row, () => (
             <div className="max-w-xs truncate">
               {warnaInfo?.name || "-"}
             </div>
+          ));
+        },
+      }),
+      columnHelper.accessor("dueDate", {
+        header: () =>
+          headerTemplate(
+            "Due Date",
+            getColumnMenu("dueDate").items || [],
+            getColumnMenu("dueDate").onClick
+          ),
+        cell: (info) => {
+          const row = info.row;
+          return renderGroupedCell("dueDate", row, () =>
+            formatDate(info.getValue() as any)
+          );
+        },
+      }),
+      columnHelper.accessor("createdAt", {
+        header: () =>
+          headerTemplate(
+            "Created Date",
+            getColumnMenu("createdAt").items || [],
+            getColumnMenu("createdAt").onClick
+          ),
+        cell: (info) => {
+          const row = info.row;
+          return renderGroupedCell("createdAt", row, () =>
+            formatDate(info.getValue() as any)
           );
         },
       }),
@@ -502,111 +591,29 @@ const TablePivot: FC = () => {
             ),
           cell: (info) => {
             const row = info.row;
-            const currentGroupIndex = grouping.indexOf(columnName);
-
-            const getTotalUniqueValues = (
-              row: any,
-              columnId: string
-            ): number => {
-              if (!row.subRows || row.subRows.length === 0) {
-                return 0;
-              }
-
-              if (row.subRows.every((r: any) => !r.subRows)) {
-                return row.subRows.length;
-              }
-              return Math.max(
-                ...row.subRows.map((subRow: any) =>
-                  getTotalUniqueValues(subRow, columnId)
-                )
-              );
-            };
-
-            if (row.getIsGrouped()) {
-              if (grouping.includes(columnName)) {
-                if (row.depth !== currentGroupIndex) {
-                  return "";
-                }
-
-                return (
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => {
-                        row.getToggleExpandedHandler()();
-                      }}
-                      className="cursor-pointer"
-                    >
-                      {row.getIsExpanded() ? (
-                        <ChevronDown className="h-4 w-4" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4" />
-                      )}
-                    </button>
-                    {handleRenderDynamicColumn(
-                      row.original.id,
-                      columnName,
-                      info.getValue()
-                    )}
-                  </div>
-                );
-              }
-
-              const itemCount = getTotalUniqueValues(row, columnName);
-
-              if (itemCount === 0) {
-                return `${row.subRows.length} items`;
-              }
-              return `${itemCount} items`;
-            }
-
-            return handleRenderDynamicColumn(
-              row.original.id,
-              columnName,
-              info.getValue()
+            return renderGroupedCell(columnName, row, () =>
+              handleRenderDynamicColumn(
+                row.original.id,
+                columnName,
+                info.getValue()
+              )
             );
           },
           aggregatedCell: (info) => {
             const row = info.row;
-            const currentGroupIndex = grouping.indexOf(columnName);
-
-            const getTotalUniqueValues = (
-              row: any,
-              columnId: string
-            ): number => {
-              if (!row.subRows || row.subRows.length === 0) {
-                return 0;
-              }
-
-              if (row.subRows.every((r: any) => !r.subRows)) {
-                return row.subRows.length;
-              }
-              return Math.max(
-                ...row.subRows.map((subRow: any) =>
-                  getTotalUniqueValues(subRow, columnId)
-                )
-              );
-            };
-
-            if (grouping.includes(columnName)) {
-              if (row.depth !== currentGroupIndex) {
-                return "";
-              }
-              return info.getValue();
-            }
-
-            const itemCount = getTotalUniqueValues(row, columnName);
-
-            if (itemCount === 0) {
-              return `${row.subRows.length} items`;
-            }
-
-            return `${itemCount} items`;
+            return renderGroupedCell(columnName, row, () =>
+              handleRenderDynamicColumn(
+                row.original.id,
+                columnName,
+                info.getValue()
+              )
+            );
           },
         })
       ) || [];
 
     return [...baseColumns, ...dynamicColumnsDefinitions];
-  }, [processedItemDashcard, grouping, sorting]);
+  }, [processedItemDashcard, grouping, sorting, dynamicColumns]);
 
   const table = useReactTable({
     data: pivotData,
@@ -635,97 +642,131 @@ const TablePivot: FC = () => {
 
   // Excel export function
   const exportToExcel = useCallback(() => {
-    // Get visible columns only
-    const visibleColumns = dynamicColumns.filter(col => columnVisibility[col] !== false);
-    
-    // Create headers
-    const headers = ['Name', 'Members', 'Description', 'Due Date', 'List', 'URL', ...visibleColumns];
-    
-    // Process data with human-readable values
-    const excelData = table.getFilteredRowModel().rows.map(row => {
+    const allColumnsForExport = Array.from(
+      new Set([...baseColumnIds, ...dynamicColumns])
+    );
+    const visibleColumns = allColumnsForExport.filter(
+      (col) => columnVisibility[col] !== false
+    );
+
+    const headers = [...visibleColumns.map(humanizeColumnId), "URL"];
+    const stripHtml = (value: string) => value.replace(/<[^>]*>/g, "");
+
+    const excelData = table.getFilteredRowModel().rows.map((row) => {
       const rowData: any = {};
-      
-      // Debug: Log the row data structure
-      console.log('Excel Export - Row original data:', row.original);
-      
-      // Add basic columns
-      rowData['Name'] = row.original.name || '';
-      
-      // Process members
-      if (row.original.members && Array.isArray(row.original.members)) {
-        rowData['Members'] = row.original.members
-          .map((member: any) => LookupCache.label('user', member.id) || member.name || member.id)
-          .join(', ');
-      } else {
-        rowData['Members'] = '';
-      }
-      
-      // Process description (strip HTML tags for Excel)
-      if (row.original.description) {
-        rowData['Description'] = row.original.description.replace(/<[^>]*>/g, '');
-      } else {
-        rowData['Description'] = '';
-      }
-      
-      // Process due date
-      console.log('Excel Export - dueDate value:', row.original.dueDate);
-      if (row.original.dueDate) {
-        const dueDate = new Date(row.original.dueDate);
-        rowData['Due Date'] = dueDate.toLocaleDateString();
-      } else {
-        rowData['Due Date'] = '';
-      }
-      
-      // Process list name
-      console.log('Excel Export - listName value:', row.original.listName);
-      rowData['List'] = row.original.listName || '';
-      
-      // Process URL
-      const cardData = row.original;
-      const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
-      rowData['URL'] = `${baseUrl}/workspace/${currentWorkspaceId}/board/${cardData.boardId}?listId=${cardData.listId}&cardId=${cardData.id}`;
-      
-      // Process dynamic columns with LookupCache
-      visibleColumns.forEach(col => {
-        let value = row.original[col];
-        
-        if (value === null || value === undefined) {
-          rowData[col] = '';
-        } else if (typeof value === 'string') {
-          // Try to get human-readable value from cache
-          const cachedValue = LookupCache.any(value);
-          rowData[col] = cachedValue || value;
-        } else if (Array.isArray(value)) {
-          rowData[col] = value.map(v => {
-            if (typeof v === 'string') {
-              return LookupCache.any(v) || v;
+
+      visibleColumns.forEach((col) => {
+        const value = row.original[col];
+
+        switch (col) {
+          case "name":
+            rowData[humanizeColumnId(col)] = value || "";
+            break;
+          case "members":
+            rowData[humanizeColumnId(col)] =
+              value && Array.isArray(value)
+                ? value
+                    .map(
+                      (member: any) =>
+                        LookupCache.label("user", member.id) ||
+                        member.name ||
+                        member.id
+                    )
+                    .join(", ")
+                : "";
+            break;
+          case "description":
+            rowData[humanizeColumnId(col)] = value
+              ? stripHtml(value as string)
+              : "";
+            break;
+          case "dueDate":
+          case "createdAt":
+            if (!value && value !== 0) {
+              rowData[humanizeColumnId(col)] = "";
+              break;
             }
-            return String(v);
-          }).join(', ');
-        } else if (typeof value === 'boolean') {
-          rowData[col] = value ? 'Yes' : 'No';
-        } else {
-          rowData[col] = String(value);
+            {
+              const parsed = new Date(value as string);
+              rowData[humanizeColumnId(col)] = isNaN(parsed.getTime())
+                ? ""
+                : parsed.toLocaleDateString();
+            }
+            break;
+          case "productInfo":
+          case "bahanInfo":
+          case "warnaInfo":
+            rowData[humanizeColumnId(col)] =
+              (value as any)?.name || (value as any)?.label || "";
+            break;
+          default: {
+            if (value === null || value === undefined) {
+              rowData[humanizeColumnId(col)] = "";
+            } else if (typeof value === "string") {
+              const cachedValue = LookupCache.any(value);
+              rowData[humanizeColumnId(col)] = cachedValue || value;
+            } else if (Array.isArray(value)) {
+              rowData[humanizeColumnId(col)] = value
+                .map((v) => {
+                  if (typeof v === "string") {
+                    return LookupCache.any(v) || v;
+                  }
+                  return String(v);
+                })
+                .join(", ");
+            } else if (typeof value === "boolean") {
+              rowData[humanizeColumnId(col)] = value ? "Yes" : "No";
+            } else {
+              rowData[humanizeColumnId(col)] = String(value);
+            }
+          }
         }
       });
-      
+
+      const cardData = row.original;
+      const baseUrl =
+        typeof window !== "undefined" ? window.location.origin : "";
+      rowData["URL"] = `${baseUrl}/workspace/${currentWorkspaceId}/board/${cardData.boardId}?listId=${cardData.listId}&cardId=${cardData.id}`;
+
       return rowData;
     });
-    
-    // Create worksheet
+
     const worksheet = XLSX.utils.json_to_sheet(excelData, { header: headers });
-    
-    // Create workbook
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Table Data');
-    
-    // Generate filename with timestamp
-    const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Table Data");
+
+    const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, "-");
     const filename = `table-export-${timestamp}.xlsx`;
-    
-    // Save file
+
     XLSX.writeFile(workbook, filename);
-  }, [dynamicColumns, columnVisibility, table]);
+  }, [
+    baseColumnIds,
+    dynamicColumns,
+    columnVisibility,
+    table,
+    humanizeColumnId,
+    currentWorkspaceId,
+  ]);
+
+  useEffect(() => {
+    if (!dashcardConfig) return;
+
+    const allColumnIds = [...baseColumnIds, ...dynamicColumns];
+    if (allColumnIds.length === 0) return;
+
+    const visibleColumns = allColumnIds.filter(
+      (col) => columnVisibility[col] !== false
+    );
+
+    const saved = dashcardConfig.visibleColumns || [];
+    const isSame =
+      saved.length === visibleColumns.length &&
+      saved.every((col) => visibleColumns.includes(col));
+
+    if (!isSame) {
+      updateVisibleColumns(visibleColumns);
+    }
+  }, [columnVisibility, dashcardConfig, dynamicColumns, updateVisibleColumns, baseColumnIds]);
 
   useEffect(() => {
     const handlePageSize = () => {

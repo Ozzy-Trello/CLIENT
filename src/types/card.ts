@@ -201,6 +201,7 @@ export interface IItemDashcard {
   listId: string;
   columns: TDynamicColumnDashcard[];
   dueDate?: Date | null;
+  createdAt?: Date | string | null;
   listName?: string;
   productInfo?: {
     id: string;
