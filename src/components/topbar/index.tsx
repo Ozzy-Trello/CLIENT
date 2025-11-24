@@ -33,63 +33,27 @@ import {
   SearchResult,
   GroupedSearchResults,
 } from "@hooks/search";
-import { selectCurrentWorkspace } from "@store/workspace_slice";
+import { selectCurrentWorkspace, selectCurrentBoard } from "@store/workspace_slice";
 import { useRecentlyViewed } from "@hooks/recently-viewed";
 
 const { Text } = Typography;
 
-// Role categorization utility
+// Basic role categorization helper reused in multiple spots
 const getRoleCategory = (
   roleName: string
 ): "super_admin" | "supervisor" | "warehouse" | "production" => {
-  if (roleName === "Super Admin") {
+  if (!roleName) return "production";
+  const lower = roleName.toLowerCase();
+  if (lower === "super admin" || lower === "super_admin" || lower === "superadmin") {
     return "super_admin";
   }
-
-  if (roleName.includes("SPV") || roleName.includes("Supervisor")) {
+  if (lower.includes("spv") || lower.includes("supervisor")) {
     return "supervisor";
   }
-
-  if (roleName.includes("Warehouse")) {
+  if (lower.includes("warehouse")) {
     return "warehouse";
   }
-
-  // Everyone else is production
   return "production";
-};
-
-// Check if user can access certain features based on role
-const canAccessFeature = (
-  userRole: string,
-  feature: "request" | "list_request" | "warehouse" | "production"
-): boolean => {
-  const roleCategory = getRoleCategory(userRole);
-
-  // Super Admin can access everything
-  if (roleCategory === "super_admin") {
-    return true;
-  }
-
-  switch (feature) {
-    case "request":
-      // Production can make requests
-      return roleCategory === "production";
-
-    case "list_request":
-      // Supervisors can view requests
-      return roleCategory === "supervisor";
-
-    case "warehouse":
-      // Warehouse roles can access warehouse features
-      return roleCategory === "warehouse";
-
-    case "production":
-      // Production roles can access production features
-      return roleCategory === "production";
-
-    default:
-      return false;
-  }
 };
 
 const TopBar: React.FC = React.memo(() => {
@@ -115,6 +79,7 @@ const TopBar: React.FC = React.memo(() => {
   const params = useParams();
   const user = useSelector(selectUser);
   const currentWorkspace = useSelector(selectCurrentWorkspace);
+  const currentBoard = useSelector(selectCurrentBoard);
 
   // Get workspaceId with fallback to URL params
   const getWorkspaceId = (): string | undefined => {
@@ -132,6 +97,50 @@ const TopBar: React.FC = React.memo(() => {
     }
 
     return undefined;
+  };
+
+  const userRole = (user?.role?.name || "").trim();
+  const isSuperAdmin =
+    userRole.toLowerCase() === "super admin" || userRole === "Super Admin";
+  const boardName = (currentBoard?.name || "").trim().toLowerCase();
+  const isDateline = boardName === "dateline";
+
+  const requestRoles = [
+    "Admin Produksi",
+    "Warehouse Bahan",
+    "Kepala Produksi",
+    "Operator Cutting",
+    "Numbering",
+    "Helper Line",
+    "SPV Sewing",
+    "SPV Operator Bordir",
+    "Finishing & Packing",
+    "Operator Krah Manset",
+  ];
+  const produksiRoles = requestRoles;
+  const lihatRequestRoles = ["Kepala Produksi"];
+  const gudangRoles = ["Warehouse Bahan"];
+
+  const roleInList = (allowed: string[]) =>
+    allowed.some(
+      (role) => role.toLowerCase() === userRole.toLowerCase().trim()
+    );
+
+  const canSeeButton = (key: "buat" | "produksi" | "lihat" | "gudang") => {
+    if (isSuperAdmin) return true;
+    if (!isDateline) return false;
+    switch (key) {
+      case "buat":
+        return roleInList(requestRoles);
+      case "produksi":
+        return roleInList(produksiRoles);
+      case "lihat":
+        return roleInList(lihatRequestRoles);
+      case "gudang":
+        return roleInList(gudangRoles);
+      default:
+        return false;
+    }
   };
 
   // Fetch request/warehouse counts
@@ -199,8 +208,8 @@ const TopBar: React.FC = React.memo(() => {
 
   const { data: currentAccountData } = useCurrentAccount();
   const currentUser = currentAccountData?.data;
-  const userRole = currentUser?.role?.name || "";
-  const roleCategory = getRoleCategory(userRole);
+  const userRoleDerived = (currentUser?.role?.name || userRole || "").trim();
+  const roleCategory = getRoleCategory(userRoleDerived);
 
   const handleLogout = () => {
     router.push("/login");
@@ -316,13 +325,13 @@ const TopBar: React.FC = React.memo(() => {
       </div>
 
       <div className="flex items-center gap-5 w-100vh">
-        {canAccessFeature(userRole, "request") && (
+        {canSeeButton("buat") && (
           <Button onClick={() => setModalRequestOpen(true)}>
             Buat Request
           </Button>
         )}
 
-        {canAccessFeature(userRole, "list_request") && (
+        {canSeeButton("lihat") && (
           <Badge
             count={requestCounts.pendingVerification}
             overflowCount={99}
@@ -334,7 +343,7 @@ const TopBar: React.FC = React.memo(() => {
           </Badge>
         )}
 
-        {canAccessFeature(userRole, "warehouse") && (
+        {canSeeButton("gudang") && (
           <Badge
             count={requestCounts.pendingWarehouseSend}
             overflowCount={99}
@@ -346,7 +355,7 @@ const TopBar: React.FC = React.memo(() => {
           </Badge>
         )}
 
-        {canAccessFeature(userRole, "production") && (
+        {canSeeButton("produksi") && (
           <Button onClick={() => setModalRequestProduksiOpen(true)}>Produksi</Button>
         )}
 

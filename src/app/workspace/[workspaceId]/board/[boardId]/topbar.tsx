@@ -124,6 +124,13 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
   const { socket } = useWebSocket();
   const params = useParams();
   const currentUser = useSelector(selectUser);
+  const userRole = (currentUser?.role?.name || "").trim().toLowerCase();
+  const isSuperAdmin =
+    userRole === "super admin" ||
+    userRole === "super_admin" ||
+    userRole === "superadmin";
+  const boardName = (currentBoard?.name || "").trim().toLowerCase();
+  const isDateline = boardName === "dateline";
 
   // User board order hook for favorites
   const { userBoardOrder, toggleFavorite, isTogglingFavorite } =
@@ -138,6 +145,20 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
     moveOldCardsMutation.mutate();
   };
   const isMoveCardsPending = moveOldCardsMutation.isPending;
+
+  const roleInList = (allowed: string[]) =>
+    allowed.some((role) => role.toLowerCase() === userRole);
+
+  const canShowDelivery =
+    isSuperAdmin ||
+    (isDateline && roleInList(["Kurir", "Kepala Produksi"]));
+  const canShowCetakQR =
+    isSuperAdmin ||
+    (isDateline &&
+      roleInList(["Finishing & Packing", "Kepala Produksi", "Warehouse Produk"]));
+  const canShowPacking =
+    isSuperAdmin ||
+    (isDateline && roleInList(["Finishing & Packing", "Kepala Produksi"]));
 
   // Determine if current board is favorited
   const isFavorited =
@@ -372,19 +393,21 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
       <div>
         {showRightColMenu ? (
           <div className="flex items-center justify-end gap-2">
-            <Tooltip title={"track"}>
-              <Button
-                size="small"
-                shape="default"
-                variant="text"
-                onClick={() => {
-                  setOpenDashcardModal(true);
-                }}
-              >
-                <div className="border rounded px-1 text-[7px]">10</div>
-                <span>Track</span>
-              </Button>
-            </Tooltip>
+            {isSuperAdmin && (
+              <Tooltip title={"track"}>
+                <Button
+                  size="small"
+                  shape="default"
+                  variant="text"
+                  onClick={() => {
+                    setOpenDashcardModal(true);
+                  }}
+                >
+                  <div className="border rounded px-1 text-[7px]">10</div>
+                  <span>Track</span>
+                </Button>
+              </Tooltip>
+            )}
             {/* <Tooltip title={"filter"}>
               <Button
                 size="small"
@@ -450,53 +473,59 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
               </Tooltip>
             </Popover>
 
-            <Dropdown
-              menu={{ items: generateQRMenuItems }}
-              trigger={["click"]}
-              placement="bottomRight"
-            >
-              <Tooltip title="Cetak QR">
-                <Button
-                  size="small"
-                  icon={<QrCode size={16} />}
-                  className="flex items-center gap-1"
-                >
-                  <span>Cetak QR</span>
-                </Button>
-              </Tooltip>
-            </Dropdown>
+            {canShowCetakQR && (
+              <Dropdown
+                menu={{ items: generateQRMenuItems }}
+                trigger={["click"]}
+                placement="bottomRight"
+              >
+                <Tooltip title="Cetak QR">
+                  <Button
+                    size="small"
+                    icon={<QrCode size={16} />}
+                    className="flex items-center gap-1"
+                  >
+                    <span>Cetak QR</span>
+                  </Button>
+                </Tooltip>
+              </Dropdown>
+            )}
 
-            <Dropdown
-              menu={{ items: packingMenuItems }}
-              trigger={["click"]}
-              placement="bottomRight"
-            >
-              <Tooltip title="Packing Options">
-                <Button
-                  size="small"
-                  className="flex items-center gap-1"
-                  icon={<Package size={16} />}
-                >
-                  <span>Packing</span>
-                </Button>
-              </Tooltip>
-            </Dropdown>
+            {canShowPacking && (
+              <Dropdown
+                menu={{ items: packingMenuItems }}
+                trigger={["click"]}
+                placement="bottomRight"
+              >
+                <Tooltip title="Packing Options">
+                  <Button
+                    size="small"
+                    className="flex items-center gap-1"
+                    icon={<Package size={16} />}
+                  >
+                    <span>Packing</span>
+                  </Button>
+                </Tooltip>
+              </Dropdown>
+            )}
 
-            <Dropdown
-              menu={{ items: deliveryMenuItems }}
-              trigger={["click"]}
-              placement="bottomRight"
-            >
-              <Tooltip title="Delivery Options">
-                <Button
-                  size="small"
-                  className="flex items-center gap-1"
-                  icon={<Truck size={16} />}
-                >
-                  <span>Delivery</span>
-                </Button>
-              </Tooltip>
-            </Dropdown>
+            {canShowDelivery && (
+              <Dropdown
+                menu={{ items: deliveryMenuItems }}
+                trigger={["click"]}
+                placement="bottomRight"
+              >
+                <Tooltip title="Delivery Options">
+                  <Button
+                    size="small"
+                    className="flex items-center gap-1"
+                    icon={<Truck size={16} />}
+                  >
+                    <span>Delivery</span>
+                  </Button>
+                </Tooltip>
+              </Dropdown>
+            )}
 
             {/* <div>
               <MembersList

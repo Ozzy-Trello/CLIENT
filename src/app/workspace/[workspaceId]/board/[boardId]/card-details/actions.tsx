@@ -51,6 +51,8 @@ import { useParams, useSearchParams } from "next/navigation";
 import React, { useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import AutomateButtons from "./automate-buttons";
+import { LookupCache } from "@utils/lookup-cache";
+import { useBoardDetails } from "@hooks/board";
 
 // Helper component for permission-controlled buttons - moved outside to prevent re-creation
 const PermissionButton: React.FC<{
@@ -93,7 +95,11 @@ const PermissionButton: React.FC<{
   );
 };
 
-const Actions: React.FC = () => {
+const Actions: React.FC<{
+  boardName?: string;
+  userRole?: string;
+  isSuperAdmin?: boolean;
+}> = ({ boardName, userRole, isSuperAdmin }) => {
   const [openCustomField, setOpenCustomField] = useState(false);
   const [openMembers, setOpenMembers] = useState(false);
   const [openDates, setOpenDates] = useState(false);
@@ -110,7 +116,9 @@ const Actions: React.FC = () => {
 
   const [isProgressOpen, setIsProgressOpen] = useState(false);
 
-  const { boardId } = useParams();
+  const params = useParams();
+  const boardId = params.boardId as string;
+  const workspaceId = params.workspaceId as string;
   const searchParams = useSearchParams();
   const { selectedCard } = useCardDetailContext();
   
@@ -130,6 +138,32 @@ const Actions: React.FC = () => {
   // Get current user and card members
   const { data: currentAccountData } = useCurrentAccount();
   const currentUser = currentAccountData?.data;
+  const roleLower = (userRole || currentUser?.role?.name || "").trim().toLowerCase();
+  const superAdmin =
+    isSuperAdmin ||
+    roleLower === "super admin" ||
+    roleLower === "super_admin" ||
+    roleLower === "superadmin";
+
+  const { board: fetchedBoard } = useBoardDetails(
+    boardId as string,
+    workspaceId as string,
+    { enabled: !!boardId }
+  );
+  const resolvedBoardName =
+    (boardName ||
+      LookupCache.label("board", boardId as string) ||
+      fetchedBoard?.name ||
+      "")!
+      .trim()
+      .toLowerCase();
+
+  const isDateline = resolvedBoardName === "dateline";
+  const isDelivery = resolvedBoardName === "delivery";
+  const isListPOOutlet = resolvedBoardName === "list po | outlet";
+
+  const roleIn = (roles: string[]) =>
+    roles.some((r) => r.toLowerCase() === roleLower);
   const { isMember, toggleMember, isAddingMember, isRemovingMember } =
     useCardMembers(selectedCard?.id || "");
 
@@ -155,6 +189,20 @@ const Actions: React.FC = () => {
     canShareCard,
     canGenerateQR,
   } = useBoardPermissionsContext();
+  const canGenerateQRPermission = canGenerateQR;
+
+  const canPOActions =
+    superAdmin || (isDateline && roleIn(["admin produksi", "kepala produksi"]));
+  const canBuatSO = canPOActions;
+  const canGenerateQRFinal =
+    superAdmin ||
+    ((isListPOOutlet || isDateline || isDelivery) && roleLower !== "kurir");
+  const canInvoice =
+    superAdmin ||
+    (isListPOOutlet && roleIn(["deal maker", "spv deal maker"]));
+  const canBukti =
+    superAdmin ||
+    (isListPOOutlet && roleIn(["deal maker", "spv deal maker"]));
 
   // Keep global permissions for observer status
   const { isObserver } = usePermissions();
@@ -518,7 +566,7 @@ const Actions: React.FC = () => {
 
       {/* Bukti Button */}
       <PermissionButton
-        canPerform={canManageCardAttachments()}
+        canPerform={canBukti && canManageCardAttachments()}
         onClick={() => setOpenBuktiModal(true)}
         tooltip={
           hasBuktiAttachment() ? "Bukti already exists" : "Upload bukti file"
@@ -535,7 +583,7 @@ const Actions: React.FC = () => {
 
       {/* PO Button */}
       <PermissionButton
-        canPerform={canManageCardAttachments()}
+        canPerform={canPOActions && canManageCardAttachments()}
         onClick={() => setOpenPOModal(true)}
         tooltip={"Upload PO file"}
         permissionLevel={permissionLevel}
@@ -549,7 +597,7 @@ const Actions: React.FC = () => {
 
       {/* Buat SO Button */}
       <PermissionButton
-        canPerform={canManageCardAttachments()}
+        canPerform={canBuatSO && canManageCardAttachments()}
         onClick={() => setOpenBuatSOModal(true)}
         tooltip="Create Sales Order"
         permissionLevel={permissionLevel}
@@ -871,8 +919,8 @@ const Actions: React.FC = () => {
 
         {/* Generate QR Code */}
         <PermissionButton
-          canPerform={canGenerateQR()}
-          onClick={handleGenerateQR}
+          canPerform={canGenerateQRFinal && canGenerateQRPermission()}
+          onClick={canGenerateQRFinal ? handleGenerateQR : undefined}
           tooltip="Generate this card QR code PDF"
           permissionLevel={permissionLevel}
           buttonStyle={buttonStyle}

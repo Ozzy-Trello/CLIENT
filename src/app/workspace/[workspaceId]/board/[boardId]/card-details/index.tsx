@@ -113,6 +113,19 @@ const CardDetails: React.FC = (props) => {
     isLoadingCardDetails,
   } = useCardDetailContext();
   const currentUser = useSelector(selectUser);
+  const userRole = (currentUser?.role?.name || "").trim().toLowerCase();
+  const isSuperAdmin =
+    userRole === "super admin" || userRole === "super_admin" || userRole === "superadmin";
+  const isDatelineBoard =
+    effectiveBoardName.toLowerCase() === "dateline" || boardId === "Dateline";
+  const roleIn = (roles: string[]) =>
+    roles.some((r) => r.toLowerCase() === userRole);
+  const canMaterialRequirement =
+    isSuperAdmin ||
+    (isDatelineBoard && roleIn(["Admin Produksi", "Kepala Produksi"]));
+  const canPOSection =
+    isSuperAdmin ||
+    (isDatelineBoard && roleIn(["Admin Produksi", "Kepala Produksi"]));
   const [isComplete, setIsComplete] = useState<boolean>(false);
   const listSelectionRef = useRef<SelectionRef>(null);
   const [isEditingTitle, setIsEditingTitle] = useState<boolean>(false);
@@ -465,7 +478,7 @@ const CardDetails: React.FC = (props) => {
                     </div>
                   )}
 
-                  {selectedCard && (
+                  {selectedCard && canMaterialRequirement && (
                     <div className="space-y-2 text-xs">
                       <span className="text-gray-300 font-semibold text-xs block">
                         Material Requirements
@@ -492,14 +505,14 @@ const CardDetails: React.FC = (props) => {
                     </div>
                   )}
 
-                  {selectedCard && (
+                  {selectedCard && canPOSection && (
                     <POAmount
                       card={selectedCard}
                       setSelectedCard={setSelectedCard}
                     />
                   )}
 
-                  {selectedCard && (
+                  {selectedCard && canPOSection && (
                     <POSizeAssignment
                       card={selectedCard}
                       setSelectedCard={setSelectedCard}
@@ -678,7 +691,11 @@ const CardDetails: React.FC = (props) => {
                 <Typography.Title level={5} className="m-0 mb-2 text-gray-700">
                   Actions
                 </Typography.Title>
-                <Actions />
+                <Actions
+                  boardName={effectiveBoardName}
+                  userRole={userRole}
+                  isSuperAdmin={isSuperAdmin}
+                />
               </div>
             </Col>
           </Row>
