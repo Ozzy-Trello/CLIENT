@@ -521,7 +521,7 @@ const BoardScopeMenu: React.FC<BoardMenuSidebarProps> = ({
             className="flex flex-col gap-4 overflow-y-auto pr-2"
             style={{ maxHeight: "calc(100vh - 200px)" }}
           >
-            {archivedCards.map((card) => (
+            {archivedCards?.map((card) => (
               <div
                 key={card.id}
                 className="bg-white rounded-lg border border-gray-200 max-w-sm hover:border-blue-500 transition-all duration-300 overflow-hidden cursor-pointer shadow-sm"

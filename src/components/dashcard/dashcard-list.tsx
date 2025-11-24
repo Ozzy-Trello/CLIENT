@@ -93,7 +93,7 @@ const DashcardList: React.FC<DashcardListProps> = ({
       {/* Dashcard Grid */}
       {dashcards.length > 0 ? (
         <Row gutter={[16, 16]}>
-          {dashcards.map((dashcard) => (
+          {dashcards?.map((dashcard) => (
             <Col key={dashcard.id} xs={24} sm={12} md={8} lg={6} xl={6} xxl={4}>
               <Dashcard
                 config={dashcard}

@@ -126,7 +126,7 @@ const DraggableList: React.FC<DraggableListProps> = ({
                  `}
                 >
                   <div className="space-y-3">
-                    {cards.map((card, index) => (
+                    {cards?.map((card, index) => (
                       <DraggableCard
                         key={card.id}
                         card={card}

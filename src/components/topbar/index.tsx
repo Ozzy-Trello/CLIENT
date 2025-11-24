@@ -24,6 +24,7 @@ import ModalRequestSent from "../modal-request-sent";
 import ModalRequestProduksi from "../modal-request-produksi";
 import WebSocketDebugModal from "../websocket-debug-modal";
 import { searchCards } from "@api/card";
+import { getRequestNotificationCounts } from "@api/accurate";
 import { Card } from "@myTypes/card";
 import TokenStorage from "@utils/token-storage";
 import { useCurrentAccount } from "@hooks/account";
@@ -101,6 +102,10 @@ const TopBar: React.FC = React.memo(() => {
   const [wsDebugModalOpen, setWsDebugModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+  const [requestCounts, setRequestCounts] = useState<{
+    pendingVerification: number;
+    pendingWarehouseSend: number;
+  }>({ pendingVerification: 0, pendingWarehouseSend: 0 });
   const searchRef = useRef<HTMLDivElement>(null);
   const theme = useSelector(selectTheme);
   const isDarkMode = useSelector(selectIsDarkMode);
@@ -128,6 +133,51 @@ const TopBar: React.FC = React.memo(() => {
 
     return undefined;
   };
+
+  // Fetch request/warehouse counts
+  useEffect(() => {
+    const fetchCounts = async () => {
+      try {
+        const res = await getRequestNotificationCounts();
+        const counts = res?.data?.data || res?.data || res;
+        setRequestCounts({
+          pendingVerification: counts?.pendingVerification ?? 0,
+          pendingWarehouseSend: counts?.pendingWarehouseSend ?? 0,
+        });
+      } catch (error) {
+        console.error("Failed to load request notification counts", error);
+      }
+    };
+
+    fetchCounts();
+
+    // Listen for websocket updates
+    const wsUrl =
+      process.env.NEXT_PUBLIC_BE_BASE_URL?.replace("http", "ws") + "/ws";
+    const ws = wsUrl ? new WebSocket(wsUrl) : null;
+
+    if (ws) {
+      ws.onmessage = (event) => {
+        try {
+          const payload = JSON.parse(event.data);
+          if (payload?.event === "request:counts") {
+            setRequestCounts({
+              pendingVerification: payload.data?.pendingVerification ?? 0,
+              pendingWarehouseSend: payload.data?.pendingWarehouseSend ?? 0,
+            });
+          }
+        } catch (e) {
+          console.warn("Unable to parse websocket message", e);
+        }
+      };
+    }
+
+    return () => {
+      if (ws) {
+        ws.close();
+      }
+    };
+  }, []);
 
   const workspaceId = getWorkspaceId();
 
@@ -273,13 +323,27 @@ const TopBar: React.FC = React.memo(() => {
         )}
 
         {canAccessFeature(userRole, "list_request") && (
-          <Button onClick={() => setModalListRequestOpen(true)}>
-            Lihat Request
-          </Button>
+          <Badge
+            count={requestCounts.pendingVerification}
+            overflowCount={99}
+            offset={[-4, 6]}
+          >
+            <Button onClick={() => setModalListRequestOpen(true)}>
+              Lihat Request
+            </Button>
+          </Badge>
         )}
 
         {canAccessFeature(userRole, "warehouse") && (
-          <Button onClick={() => setModalRequestSentOpen(true)}>Gudang</Button>
+          <Badge
+            count={requestCounts.pendingWarehouseSend}
+            overflowCount={99}
+            offset={[-6, 8]}
+          >
+            <Button onClick={() => setModalRequestSentOpen(true)}>
+              Gudang
+            </Button>
+          </Badge>
         )}
 
         {canAccessFeature(userRole, "production") && (

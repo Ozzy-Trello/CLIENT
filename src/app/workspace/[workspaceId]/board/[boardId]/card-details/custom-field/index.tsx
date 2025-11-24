@@ -172,8 +172,8 @@ const EnterToSaveNumberInput: React.FC<{
     { saveOnBlur: true }
   );
 
-  // Only show Split Job button for "Jml Produksi" field
-  const showSplitJob = fieldName === "Jml Produksi";
+  // // Only show Split Job button for "Jml Produksi" field
+  // const showSplitJob = fieldName === "Jml Produksi";
 
   // Handle key down to prevent invalid characters
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -260,20 +260,20 @@ const EnterToSaveNumberInput: React.FC<{
         onPaste={handlePaste}
         onBlur={onBlur}
         disabled={disabled}
-        suffix={
-          showSplitJob ? (
-            <SplitJobSlider
-              workspaceId={params.workspaceId as string}
-              customFieldId={customFieldId || ""}
-              cardId={cardId}
-              value={parseFloat(value) || 0}
-              onChange={(val) => {
-                onChange(val.toString());
-                onBlur();
-              }}
-            />
-          ) : undefined
-        }
+        // suffix={
+        //   // showSplitJob ? (
+        //     <SplitJobSlider
+        //       workspaceId={params.workspaceId as string}
+        //       customFieldId={customFieldId || ""}
+        //       cardId={cardId}
+        //       value={parseFloat(value) || 0}
+        //       onChange={(val) => {
+        //         onChange(val.toString());
+        //         onBlur();
+        //       }}
+        //     />
+        //   ) : undefined
+        // }
       />
       {hasChanges && (
         <div className="absolute right-2 top-1/2 transform -translate-y-1/2 pointer-events-none">

@@ -25,7 +25,12 @@ import UploadModal from "@components/modal-upload/modal-upload";
 import { PDFModal } from "@components/pdf-modal";
 import { PDFPreview } from "@components/pdf-preview";
 import { useCardAttachment } from "@hooks/card_attachment";
-import { Card, CardAttachment, EnumAttachmentType, EnumCardAttachmentType } from "@myTypes/card";
+import {
+  Card,
+  CardAttachment,
+  EnumAttachmentType,
+  EnumCardAttachmentType,
+} from "@myTypes/card";
 import { FileUpload } from "@myTypes/file-upload";
 import { User } from "@myTypes/user";
 import { useBoardPermissionsContext } from "@providers/board-permissions-context";
@@ -202,27 +207,33 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
 
   // Helper functions to categorize attachments by type
   const getBuktiAttachments = () => {
-    return cardAttachments?.filter(
-      (item) => 
-        item.attachableType === EnumAttachmentType.File && 
-        item.type === EnumCardAttachmentType.Bukti
-    ) || [];
+    return (
+      cardAttachments?.filter(
+        (item) =>
+          item.attachableType === EnumAttachmentType.File &&
+          item.type === EnumCardAttachmentType.Bukti
+      ) || []
+    );
   };
 
   const getPOAttachments = () => {
-    return cardAttachments?.filter(
-      (item) => 
-        item.attachableType === EnumAttachmentType.File && 
-        item.type === EnumCardAttachmentType.PO
-    ) || [];
+    return (
+      cardAttachments?.filter(
+        (item) =>
+          item.attachableType === EnumAttachmentType.File &&
+          item.type === EnumCardAttachmentType.PO
+      ) || []
+    );
   };
 
   const getOtherAttachments = () => {
-    return cardAttachments?.filter(
-      (item) => 
-        item.attachableType === EnumAttachmentType.File && 
-        (!item.type || item.type === EnumCardAttachmentType.Attachment)
-    ) || [];
+    return (
+      cardAttachments?.filter(
+        (item) =>
+          item.attachableType === EnumAttachmentType.File &&
+          (!item.type || item.type === EnumCardAttachmentType.Attachment)
+      ) || []
+    );
   };
 
   const formatFileSize = (bytes?: number): string => {
@@ -531,7 +542,11 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
       message.success("PDF with QR code opened for printing");
     } catch (error) {
       console.error("❌ PDF Print with QR failed:", error);
-      message.error(`Failed to prepare PDF with QR code: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      message.error(
+        `Failed to prepare PDF with QR code: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
     }
   };
 
@@ -711,10 +726,7 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
       if (item.attachableType === EnumAttachmentType.Card && item.targetCard) {
         const mappedCard = mapBackendCardToFrontend(item.targetCard);
         nextAttachedCards.push(mappedCard as Card);
-      } else if (
-        item.attachableType === EnumAttachmentType.File &&
-        item.file
-      ) {
+      } else if (item.attachableType === EnumAttachmentType.File && item.file) {
         nextAttachedFiles.push(item.file as FileUpload);
       }
     });
@@ -741,8 +753,13 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
     title: string;
     attachments: CardAttachment[];
     emptyText?: string;
-    sectionType?: 'bukti' | 'po' | 'other';
-  }> = ({ title, attachments, emptyText = "No attachments yet", sectionType }) => {
+    sectionType?: "bukti" | "po" | "other";
+  }> = ({
+    title,
+    attachments,
+    emptyText = "No attachments yet",
+    sectionType,
+  }) => {
     if (attachments.length === 0) {
       return (
         <div className="mb-6">
@@ -796,7 +813,7 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
                               <ZoomInOutlined />
                             </Button>
                             {/* Print with QR button only for PO section */}
-                            {sectionType === 'po' && (
+                            {sectionType === "po" && (
                               <Button
                                 onClick={() => {
                                   document
@@ -892,46 +909,53 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
                     />
 
                     {/* Print with QR for image files in PO section only */}
-                    {sectionType === 'po' && isImageFile(item.file?.name || "", item.file?.mimeType) && (
-                      <Button
-                        type="text"
-                        size="small"
-                        icon={<QrCode size={14} />}
-                        onClick={() =>
-                          handlePrintWithQR(
-                            item.file?.url,
-                            item.file?.name || "image"
-                          )
-                        }
-                        className="text-gray-500 hover:text-green-600"
-                      />
-                    )}
+                    {sectionType === "po" &&
+                      isImageFile(
+                        item.file?.name || "",
+                        item.file?.mimeType
+                      ) && (
+                        <Button
+                          type="text"
+                          size="small"
+                          icon={<QrCode size={14} />}
+                          onClick={() =>
+                            handlePrintWithQR(
+                              item.file?.url,
+                              item.file?.name || "image"
+                            )
+                          }
+                          className="text-gray-500 hover:text-green-600"
+                        />
+                      )}
 
                     {/* Print with QR for PDF files in PO section only */}
-                    {sectionType === 'po' && isPDFFile(item.file?.name || "", item.file?.mimeType) && (
-                      <Button
-                        type="text"
-                        size="small"
-                        icon={<QrCode size={14} />}
-                        onClick={() =>
-                          handlePrintPDFWithQR(
-                            item.file?.url,
-                            item.file?.name || "PDF"
-                          )
-                        }
-                        className="text-gray-500 hover:text-green-600"
-                      />
-                    )}
+                    {sectionType === "po" &&
+                      isPDFFile(item.file?.name || "", item.file?.mimeType) && (
+                        <Button
+                          type="text"
+                          size="small"
+                          icon={<QrCode size={14} />}
+                          onClick={() =>
+                            handlePrintPDFWithQR(
+                              item.file?.url,
+                              item.file?.name || "PDF"
+                            )
+                          }
+                          className="text-gray-500 hover:text-green-600"
+                        />
+                      )}
 
                     {canUpdateCard() && (
                       <Button
                         type="text"
                         size="small"
                         icon={<DeleteOutlined />}
-                        onClick={() => deleteAttachment({
-                          attachmentId: item.id,
-                          cardId: card.id || "",
-                        })}
+                        onClick={() =>
+                          deleteAttachment({
+                            attachmentId: item.id,
+                            cardId: card.id || "",
+                          })
+                        }
                         className="text-gray-500 hover:text-red-600"
                       />
                     )}
@@ -1004,7 +1028,7 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
               Cards
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 auto-rows-max">
-              {attachedCards.map((attachedCard) => {
+              {attachedCards?.map((attachedCard) => {
                 // Find the corresponding attachment to get the attachment ID for deletion
                 const attachment = cardAttachments?.find(
                   (att) => att.targetCard?.id === attachedCard.id

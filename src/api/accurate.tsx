@@ -109,6 +109,11 @@ export const markRequestDone = async (id: string) => {
   return data;
 };
 
+export const getRequestNotificationCounts = async () => {
+  const { data } = await api.get("/request/notifications/counts");
+  return data;
+};
+
 export const createRequestWithPOConnection = async (requestData: {
   card_id: string;
   type: string;
