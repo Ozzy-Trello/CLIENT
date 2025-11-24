@@ -2,11 +2,16 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createCardAttachment,
   deleteCardAttachment,
+  updateCardAttachment,
   getCardAttachments,
 } from "../api/card_attachment";
 import { ApiResponse } from "../types/type";
-import { TAttachableType, CardAttachment, TCardAttachmentType } from "../types/card";
-import { useEffect } from "react";
+import {
+  TAttachableType,
+  CardAttachment,
+  TCardAttachmentType,
+} from "../types/card";
+import { useEffect, useMemo } from "react";
 import { queryKeys } from "../constants/query-keys";
 
 /**
@@ -112,8 +117,44 @@ export function useCardAttachment(cardId: string) {
     },
   });
 
+  const markPrintedMutation = useMutation({
+    mutationFn: (id: string) => updateCardAttachment(id, { is_printed: true }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["cardAttachment", cardId] });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.cards.detail(cardId),
+      });
+    },
+  });
+
+  const mappedAttachments = useMemo(
+    () =>
+      cardAttachmentQuery.data?.data?.map((a: any) => ({
+        ...a,
+        cardId: a.cardId || a.card_id,
+        attachableType: a.attachableType || a.attachable_type,
+        attachableId: a.attachableId || a.attachable_id,
+        isCover: a.isCover ?? a.is_cover,
+        isPrinted: a.isPrinted ?? a.is_printed,
+        file: a.file
+          ? {
+              ...a.file,
+              sizeUnit: a.file.sizeUnit || a.file.size_unit,
+              mimeType: a.file.mimeType || a.file.mime_type,
+              createdBy: a.file.createdBy || a.file.created_by,
+              createdAt: a.file.createdAt || a.file.created_at,
+              updatedAt: a.file.updatedAt || a.file.updated_at,
+            }
+          : undefined,
+      })) || [],
+    [cardAttachmentQuery.data]
+  );
+
   return {
-    cardAttachments: cardAttachmentQuery.data?.data || [],
+    cardAttachments:
+      (mappedAttachments && mappedAttachments.length > 0
+        ? mappedAttachments
+        : cardAttachmentQuery.data?.data) || [],
     isLoading: cardAttachmentQuery.isLoading,
     isError: cardAttachmentQuery.isError,
     error: cardAttachmentQuery.error,
@@ -121,5 +162,6 @@ export function useCardAttachment(cardId: string) {
     deleteAttachment: deleteAttachmentMutation.mutate,
     isAddingAttachment: addAttachmentMutation.isPending,
     isDeletingAttachment: deleteAttachmentMutation.isPending,
+    markPrinted: markPrintedMutation.mutate,
   };
 }

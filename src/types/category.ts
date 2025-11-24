@@ -10,6 +10,7 @@ export interface MainCategory {
 export interface Subcategory {
   id: string;
   name: string;
+  displayOrder?: number;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -54,10 +55,12 @@ export interface UpdateMainCategoryRequest {
 
 export interface CreateSubcategoryRequest {
   name: string;
+  displayOrder?: number;
 }
 
 export interface UpdateSubcategoryRequest {
   name?: string;
+  displayOrder?: number;
 }
 
 export interface CreateJunctionRequest {

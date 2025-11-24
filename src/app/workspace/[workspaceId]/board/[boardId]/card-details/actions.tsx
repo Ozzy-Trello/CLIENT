@@ -24,7 +24,7 @@ import { useBoardPermissionsContext } from "@providers/board-permissions-context
 import { useCardDetailContext } from "@providers/card-detail-context";
 import { selectIsDarkMode, selectTheme } from "@store/app_slice";
 import { useQueryClient } from "@tanstack/react-query";
-import { Button, message, Modal, Tooltip } from "antd";
+import { Button, message, Modal, Tooltip, Checkbox } from "antd";
 import {
   Archive,
   CheckSquare,
@@ -113,6 +113,7 @@ const Actions: React.FC<{
   const [openBuktiModal, setOpenBuktiModal] = useState(false);
   const [openPOModal, setOpenPOModal] = useState(false);
   const [openBuatSOModal, setOpenBuatSOModal] = useState(false);
+  const [isPOPelengkap, setIsPOPelengkap] = useState(false);
 
   const [isProgressOpen, setIsProgressOpen] = useState(false);
 
@@ -171,6 +172,8 @@ const Actions: React.FC<{
   const { cardAttachments, addAttachment } = useCardAttachment(
     selectedCard?.id || ""
   );
+  const poUploadSequenceRef = useRef(0);
+  const poGeneratedNamesRef = useRef<Set<string>>(new Set());
 
   // Get board-specific permissions
   const {
@@ -210,6 +213,51 @@ const Actions: React.FC<{
 
   // Scan Progress functionality
   const queryClient = useQueryClient();
+
+  // Reset PO upload sequence when modal is opened
+  useEffect(() => {
+    if (openPOModal) {
+      poUploadSequenceRef.current = 0;
+      poGeneratedNamesRef.current = new Set();
+      setIsPOPelengkap(false);
+    }
+  }, [openPOModal]);
+
+  const getPOCount = () =>
+    (cardAttachments || []).filter(
+      (attachment) =>
+        attachment.attachableType === EnumAttachmentType.File &&
+        attachment.type === EnumCardAttachmentType.PO
+    ).length;
+
+  const buildPOFileName = (originalName: string) => {
+    const dotIndex = originalName.lastIndexOf(".");
+    const base = dotIndex >= 0 ? originalName.slice(0, dotIndex) : originalName;
+    const ext = dotIndex >= 0 ? originalName.slice(dotIndex) : "";
+    const prefix = isPOPelengkap ? "PO Pelengkap - " : "PO - ";
+
+    const existingNames = (cardAttachments || [])
+      .filter(
+        (attachment) =>
+          attachment.attachableType === EnumAttachmentType.File &&
+          attachment.type === EnumCardAttachmentType.PO
+      )
+      .map((att) => att.file?.name || att.name)
+      .filter(Boolean) as string[];
+
+    let index = 0;
+    let candidate = `${prefix}${base}${ext}`;
+    while (
+      existingNames.includes(candidate) ||
+      poGeneratedNamesRef.current.has(candidate)
+    ) {
+      index += 1;
+      candidate = `${prefix}${base} (${index})${ext}`;
+    }
+
+    poGeneratedNamesRef.current.add(candidate);
+    return candidate;
+  };
 
   // Handle join/leave card
   const handleJoinLeave = async () => {
@@ -264,9 +312,10 @@ const Actions: React.FC<{
     try {
       // Create a new file with the name "bukti" but keep the original extension
       const originalExtension = file.name.split(".").pop();
+      const uniqueSuffix = `${Date.now()}-${Math.floor(Math.random() * 10000)}`;
       const buktiFileName = originalExtension
-        ? `bukti.${originalExtension}`
-        : "bukti";
+        ? `bukti-${uniqueSuffix}.${originalExtension}`
+        : `bukti-${uniqueSuffix}`;
 
       // Create a new file object with the bukti name
       const buktiFile = new File([file], buktiFileName, { type: file.type });
@@ -295,9 +344,7 @@ const Actions: React.FC<{
   // Handle PO upload
   const handlePOUpload = async (file: File, result: FileUpload) => {
     try {
-      // Create a new file with the name "PO" but keep the original extension
-      const originalExtension = file.name.split(".").pop();
-      const poFileName = originalExtension ? `PO.${originalExtension}` : "PO";
+      const poFileName = buildPOFileName(file.name);
 
       // Create a new file object with the PO name
       const poFile = new File([file], poFileName, { type: file.type });
@@ -306,7 +353,6 @@ const Actions: React.FC<{
       const poResult = await uploadFile(poFile);
 
       if (poResult?.data && selectedCard) {
-        // Add the attachment with the PO file
         addAttachment({
           cardId: selectedCard.id,
           attachableType: EnumAttachmentType.File,
@@ -955,6 +1001,7 @@ const Actions: React.FC<{
           onClose={() => setOpenBuktiModal(false)}
           onUploadComplete={handleBuktiUpload}
           title="Upload Bukti"
+          multiple
         />
 
         {/* PO Upload Modal */}
@@ -963,6 +1010,15 @@ const Actions: React.FC<{
           onClose={() => setOpenPOModal(false)}
           onUploadComplete={handlePOUpload}
           title="Upload PO"
+          extraContent={
+            <Checkbox
+              checked={isPOPelengkap}
+              onChange={(e) => setIsPOPelengkap(e.target.checked)}
+            >
+              PO Pelengkap
+            </Checkbox>
+          }
+          multiple
         />
 
         {/* Buat SO Modal */}

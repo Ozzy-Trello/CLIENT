@@ -36,7 +36,19 @@ import { User } from "@myTypes/user";
 import { useBoardPermissionsContext } from "@providers/board-permissions-context";
 import { printPDFWithQR } from "@utils/pdf-qr-utils";
 import TokenStorage from "@utils/token-storage";
-import { Button, Image, List, message, Space, Typography, Upload } from "antd";
+import {
+  Button,
+  Checkbox,
+  Dropdown,
+  Image,
+  List,
+  MenuProps,
+  message,
+  Space,
+  Tooltip,
+  Typography,
+  Upload,
+} from "antd";
 import React, { useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom";
 import QRCode from "react-qr-code";
@@ -60,10 +72,16 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
     ? params.boardId[0]
     : params.boardId;
 
-  const { cardAttachments, addAttachment, deleteAttachment } =
+  const { cardAttachments, addAttachment, deleteAttachment, markPrinted } =
     useCardAttachment(card?.id || "");
   const [openUploadModal, setOpenUploadmodal] = useState<boolean>(false);
+  const [currentAttachmentType, setCurrentAttachmentType] =
+    useState<EnumCardAttachmentType>(EnumCardAttachmentType.Attachment);
+  const [uploadModalTitle, setUploadModalTitle] =
+    useState<string>("Upload attachment");
   const attachmentsRef = useRef<HTMLDivElement>(null);
+  const poGeneratedNamesRef = useRef<Set<string>>(new Set());
+  const [isPOPelengkap, setIsPOPelengkap] = useState(false);
   const [isDraggingOver, setIsDraggingOver] = useState<boolean>(false);
   const [attachedCards, setAttachedCards] = useState<Card[]>([]);
   const [attachedFiles, setAttachedFiles] = useState<FileUpload[]>([]);
@@ -76,14 +94,6 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
 
   // Generate short URL for QR codes with backend fallback
   const generateShortUrl = async (): Promise<string> => {
-    console.log("🔍 QR Generation Debug - Card data:", {
-      cardId: card?.id,
-      shortId: card?.shortId,
-      workspaceId,
-      boardId,
-      hasCard: !!card,
-    });
-
     if (!workspaceId || !boardId || !card?.id) {
       console.log("❌ Missing required data, using fallback URL");
       return window.location.href; // Fallback to current URL
@@ -136,14 +146,24 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
     setSelectedPdf(null);
   };
 
-  const handleCloseModal = () => {
-    setOpenUploadmodal(false);
-  };
-
-  const handleOpenModal = () => {
+  const openUpload = (type: EnumCardAttachmentType) => {
+    setCurrentAttachmentType(type);
+    setIsPOPelengkap(false);
+    poGeneratedNamesRef.current = new Set();
+    setUploadModalTitle(
+      type === EnumCardAttachmentType.Bukti
+        ? "Upload Bukti"
+        : type === EnumCardAttachmentType.PO
+        ? "Upload PO"
+        : "Upload attachment"
+    );
     if (canUpdateCard()) {
       setOpenUploadmodal(true);
     }
+  };
+
+  const handleCloseModal = () => {
+    setOpenUploadmodal(false);
   };
 
   const handleUpload = (file: File, result: FileUpload) => {
@@ -152,6 +172,7 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
       attachableType: EnumAttachmentType.File,
       attachableId: result.id,
       isCover: false,
+      type: currentAttachmentType || EnumCardAttachmentType.Attachment,
     });
   };
 
@@ -206,35 +227,69 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
   };
 
   // Helper functions to categorize attachments by type
-  const getBuktiAttachments = () => {
-    return (
-      cardAttachments?.filter(
-        (item) =>
-          item.attachableType === EnumAttachmentType.File &&
-          item.type === EnumCardAttachmentType.Bukti
-      ) || []
+  const safeAttachments = cardAttachments || [];
+  const getBuktiAttachments = () =>
+    safeAttachments.filter(
+      (item) =>
+        item.attachableType === EnumAttachmentType.File &&
+        item.type === EnumCardAttachmentType.Bukti
     );
+
+  const getPOAttachments = () =>
+    safeAttachments.filter(
+      (item) =>
+        item.attachableType === EnumAttachmentType.File &&
+        item.type === EnumCardAttachmentType.PO
+    );
+
+  const getOtherAttachments = () =>
+    safeAttachments.filter(
+      (item) =>
+        item.attachableType === EnumAttachmentType.File &&
+        (!item.type || item.type === EnumCardAttachmentType.Attachment)
+    );
+
+  const buildPOFileName = (originalName: string) => {
+    const dotIndex = originalName.lastIndexOf(".");
+    const base = dotIndex >= 0 ? originalName.slice(0, dotIndex) : originalName;
+    const ext = dotIndex >= 0 ? originalName.slice(dotIndex) : "";
+    const prefix = isPOPelengkap ? "PO Pelengkap - " : "PO - ";
+
+    const existingNames = getPOAttachments()
+      .map((att) => att.file?.name || att.name)
+      .filter(Boolean) as string[];
+
+    let idx = 0;
+    let candidate = `${prefix}${base}${ext}`;
+    while (
+      existingNames.includes(candidate) ||
+      poGeneratedNamesRef.current.has(candidate)
+    ) {
+      idx += 1;
+      candidate = `${prefix}${base} (${idx})${ext}`;
+    }
+
+    poGeneratedNamesRef.current.add(candidate);
+    return candidate;
   };
 
-  const getPOAttachments = () => {
-    return (
-      cardAttachments?.filter(
-        (item) =>
-          item.attachableType === EnumAttachmentType.File &&
-          item.type === EnumCardAttachmentType.PO
-      ) || []
-    );
-  };
-
-  const getOtherAttachments = () => {
-    return (
-      cardAttachments?.filter(
-        (item) =>
-          item.attachableType === EnumAttachmentType.File &&
-          (!item.type || item.type === EnumCardAttachmentType.Attachment)
-      ) || []
-    );
-  };
+  const uploadMenuItems: MenuProps["items"] = [
+    {
+      key: "other",
+      label: "Upload Other",
+      onClick: () => openUpload(EnumCardAttachmentType.Attachment),
+    },
+    {
+      key: "bukti",
+      label: "Upload Bukti",
+      onClick: () => openUpload(EnumCardAttachmentType.Bukti),
+    },
+    {
+      key: "po",
+      label: "Upload PO",
+      onClick: () => openUpload(EnumCardAttachmentType.PO),
+    },
+  ];
 
   const formatFileSize = (bytes?: number): string => {
     if (!bytes) return "";
@@ -293,7 +348,11 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
     }
   };
 
-  const handlePrintWithQR = async (imageUrl?: string, fileName?: string) => {
+  const handlePrintWithQR = async (
+    imageUrl?: string,
+    fileName?: string,
+    attachmentId?: string
+  ) => {
     if (!imageUrl) return;
 
     try {
@@ -453,6 +512,9 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
                     document.body.removeChild(qrSvg);
                     document.body.removeChild(qrElement);
                     loadingMsg();
+                    if (attachmentId) {
+                      markPrinted(attachmentId);
+                    }
                   }, 1000);
                 } catch (error) {
                   document.body.removeChild(printFrame);
@@ -499,7 +561,11 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
     }
   };
 
-  const handlePrintPDFWithQR = async (pdfUrl?: string, fileName?: string) => {
+  const handlePrintPDFWithQR = async (
+    pdfUrl?: string,
+    fileName?: string,
+    attachmentId?: string
+  ) => {
     if (!pdfUrl) {
       console.error("❌ PDF Print with QR: No PDF URL provided");
       message.error("No PDF URL provided");
@@ -540,6 +606,9 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
       loadingMsg();
       console.log("✅ PDF with QR code prepared successfully");
       message.success("PDF with QR code opened for printing");
+      if (attachmentId) {
+        markPrinted(attachmentId);
+      }
     } catch (error) {
       console.error("❌ PDF Print with QR failed:", error);
       message.error(
@@ -596,6 +665,11 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
 
   useEffect(() => {
     const handlePaste = async (e: Event) => {
+      // If the upload modal is open, let it handle paste so we keep the chosen type
+      if (openUploadModal) {
+        return;
+      }
+
       const event = e as ClipboardEvent;
       const items = event.clipboardData?.items;
 
@@ -629,7 +703,7 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
       }
       document.removeEventListener("paste", handlePaste);
     };
-  }, [card?.id]);
+  }, [card?.id, openUploadModal]);
 
   useEffect(() => {
     let dragCounter = 0;
@@ -754,17 +828,39 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
     attachments: CardAttachment[];
     emptyText?: string;
     sectionType?: "bukti" | "po" | "other";
+    onOpenUpload?: (type: EnumCardAttachmentType) => void;
   }> = ({
     title,
     attachments,
     emptyText = "No attachments yet",
     sectionType,
+    onOpenUpload,
   }) => {
     if (attachments.length === 0) {
       return (
         <div className="mb-6">
-          <div className="text-xs text-gray-500 font-medium uppercase mb-2">
-            {title}
+          <div className="flex items-center justify-between">
+            <div className="text-xs text-gray-500 font-medium uppercase mb-2">
+              {title}
+            </div>
+            {onOpenUpload && canUpdateCard() && sectionType && (
+              <Button
+                type="link"
+                size="small"
+                icon={<PlusOutlined />}
+                onClick={() =>
+                  onOpenUpload(
+                    sectionType === "bukti"
+                      ? EnumCardAttachmentType.Bukti
+                      : sectionType === "po"
+                      ? EnumCardAttachmentType.PO
+                      : EnumCardAttachmentType.Attachment
+                  )
+                }
+              >
+                Upload
+              </Button>
+            )}
           </div>
           <div className="text-sm text-gray-400 italic">{emptyText}</div>
         </div>
@@ -773,197 +869,236 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
 
     return (
       <div className="mb-6">
-        <div className="text-xs text-gray-500 font-medium uppercase mb-2">
-          {title}
+        <div className="flex items-center justify-between">
+          <div className="text-xs text-gray-500 font-medium uppercase mb-2">
+            {title}
+          </div>
+          {onOpenUpload && canUpdateCard() && sectionType && (
+            <Button
+              type="link"
+              size="small"
+              icon={<PlusOutlined />}
+              onClick={() =>
+                onOpenUpload(
+                  sectionType === "bukti"
+                    ? EnumCardAttachmentType.Bukti
+                    : sectionType === "po"
+                    ? EnumCardAttachmentType.PO
+                    : EnumCardAttachmentType.Attachment
+                )
+              }
+            >
+              Upload
+            </Button>
+          )}
         </div>
         <List
           className="space-y-3"
           dataSource={attachments}
           locale={{ emptyText }}
-          renderItem={(item) => (
-            <List.Item className="flex items-center p-2 hover:bg-gray-50 rounded">
-              <div className="flex-shrink-0 mr-3 w-20 h-15 flex items-center justify-center">
-                {isImageFile(item.file?.name || "", item.file?.mimeType) ? (
-                  <div className="w-20 h-15 bg-gray-100 rounded flex items-center justify-center overflow-hidden">
-                    <Image
-                      preview={{
-                        toolbarRender: (
-                          _,
-                          {
-                            transform: { scale },
-                            actions: {
-                              onRotateLeft,
-                              onRotateRight,
-                              onZoomOut,
-                              onZoomIn,
-                            },
-                          }
-                        ) => (
-                          <Space size={12} className="toolbar-wrapper">
-                            <Button onClick={onRotateLeft}>
-                              <RotateLeftOutlined />
-                            </Button>
-                            <Button onClick={onRotateRight}>
-                              <RotateRightOutlined />
-                            </Button>
-                            <Button onClick={onZoomOut}>
-                              <ZoomOutOutlined />
-                            </Button>
-                            <Button onClick={onZoomIn}>
-                              <ZoomInOutlined />
-                            </Button>
-                            {/* Print with QR button only for PO section */}
-                            {sectionType === "po" && (
-                              <Button
-                                onClick={() => {
-                                  document
-                                    .querySelector(".ant-image-preview-close")
-                                    ?.dispatchEvent(
-                                      new MouseEvent("click", { bubbles: true })
-                                    );
-                                  setTimeout(() => {
-                                    handlePrintWithQR(
-                                      item.file?.url,
-                                      item.file?.name || "image"
-                                    );
-                                  }, 100);
-                                }}
-                              >
-                                <QrCode size={14} />
+          renderItem={(item) => {
+            const printed =
+              (item as any).isPrinted ?? (item as any).is_printed ?? false;
+            return (
+              <List.Item className="flex items-center p-2 hover:bg-gray-50 rounded">
+                <div className="flex-shrink-0 mr-3 w-20 h-15 flex items-center justify-center">
+                  {isImageFile(item.file?.name || "", item.file?.mimeType) ? (
+                    <div className="w-20 h-15 bg-gray-100 rounded flex items-center justify-center overflow-hidden">
+                      <Image
+                        preview={{
+                          toolbarRender: (
+                            _,
+                            {
+                              transform: { scale },
+                              actions: {
+                                onRotateLeft,
+                                onRotateRight,
+                                onZoomOut,
+                                onZoomIn,
+                              },
+                            }
+                          ) => (
+                            <Space size={12} className="toolbar-wrapper">
+                              <Button onClick={onRotateLeft}>
+                                <RotateLeftOutlined />
                               </Button>
-                            )}
-                          </Space>
-                        ),
-                      }}
-                      src={item.file?.url}
-                      alt={item.file?.name || "attachment"}
-                      width={80}
-                      height={60}
-                      style={{ objectFit: "cover" }}
-                    />
-                  </div>
-                ) : isPDFFile(item.file?.name || "", item.file?.mimeType) ? (
-                  <div
-                    className="w-20 h-15 overflow-hidden rounded cursor-pointer"
-                    onClick={() =>
-                      handleOpenPdfModal(
-                        item.file?.url || "",
-                        item.file?.name || "PDF Document"
-                      )
-                    }
-                  >
-                    <PDFPreview
-                      url={item.file?.url || ""}
-                      fileName={item.file?.name}
-                    />
-                  </div>
-                ) : (
-                  <div className="w-20 h-15 bg-gray-100 rounded flex items-center justify-center">
-                    {getFileIcon(item.file?.name || "", item.file?.mimeType)}
-                  </div>
-                )}
-              </div>
-
-              <div className="flex-grow min-w-0">
-                <div className="flex items-center justify-between">
-                  <div className="flex-grow min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">
-                      {item.file?.name || "Unnamed file"}
-                    </p>
-                    <div className="flex items-center text-xs text-gray-500 space-x-2">
-                      <span>{formatFileSize(item.file?.size)}</span>
-                      {item.file?.mimeType && (
-                        <>
-                          <span>•</span>
-                          <span>{item.file.mimeType}</span>
-                        </>
-                      )}
-                      {item.createdAt && (
-                        <>
-                          <span>•</span>
-                          <span>
-                            {new Date(item.createdAt).toLocaleDateString()}
-                          </span>
-                        </>
-                      )}
+                              <Button onClick={onRotateRight}>
+                                <RotateRightOutlined />
+                              </Button>
+                              <Button onClick={onZoomOut}>
+                                <ZoomOutOutlined />
+                              </Button>
+                              <Button onClick={onZoomIn}>
+                                <ZoomInOutlined />
+                              </Button>
+                              {/* Print with QR button only for PO section */}
+                              {sectionType === "po" && (
+                                <Button
+                                  onClick={() => {
+                                    document
+                                      .querySelector(".ant-image-preview-close")
+                                      ?.dispatchEvent(
+                                        new MouseEvent("click", {
+                                          bubbles: true,
+                                        })
+                                      );
+                                    setTimeout(() => {
+                                      handlePrintWithQR(
+                                        item.file?.url,
+                                        item.file?.name || "image",
+                                        item.id
+                                      );
+                                    }, 100);
+                                  }}
+                                >
+                                  <QrCode size={14} />
+                                </Button>
+                              )}
+                            </Space>
+                          ),
+                        }}
+                        src={item.file?.url}
+                        alt={item.file?.name || "attachment"}
+                        width={80}
+                        height={60}
+                        style={{ objectFit: "cover" }}
+                      />
                     </div>
-                  </div>
+                  ) : isPDFFile(item.file?.name || "", item.file?.mimeType) ? (
+                    <div
+                      className="w-20 h-15 overflow-hidden rounded cursor-pointer"
+                      onClick={() =>
+                        handleOpenPdfModal(
+                          item.file?.url || "",
+                          item.file?.name || "PDF Document"
+                        )
+                      }
+                    >
+                      <PDFPreview
+                        url={item.file?.url || ""}
+                        fileName={item.file?.name}
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-20 h-15 bg-gray-100 rounded flex items-center justify-center">
+                      {getFileIcon(item.file?.name || "", item.file?.mimeType)}
+                    </div>
+                  )}
+                </div>
 
-                  <div className="flex items-center space-x-1 ml-2">
-                    <Button
-                      type="text"
-                      size="small"
-                      icon={<DownloadOutlined />}
-                      onClick={() => {
-                        if (item.file?.url) {
-                          const link = document.createElement("a");
-                          link.href = item.file.url;
-                          link.download = item.file.name || "download";
-                          link.target = "_blank";
-                          document.body.appendChild(link);
-                          link.click();
-                          document.body.removeChild(link);
-                        }
-                      }}
-                      className="text-gray-500 hover:text-blue-600"
-                    />
+                <div className="flex-grow min-w-0">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-grow min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">
+                        {item.file?.name || "Unnamed file"}
+                        {printed && (
+                          <Tooltip title="Already printed with QR code">
+                            <span className="ml-2 text-green-600 text-xs font-semibold">
+                              ✓
+                            </span>
+                          </Tooltip>
+                        )}
+                      </p>
+                      <div className="flex items-center text-xs text-gray-500 space-x-2">
+                        <span>{formatFileSize(item.file?.size)}</span>
+                        {item.file?.mimeType && (
+                          <>
+                            <span>•</span>
+                            <span>{item.file.mimeType}</span>
+                          </>
+                        )}
+                        {item.createdAt && (
+                          <>
+                            <span>•</span>
+                            <span>
+                              {new Date(item.createdAt).toLocaleDateString()}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </div>
 
-                    {/* Print with QR for image files in PO section only */}
-                    {sectionType === "po" &&
-                      isImageFile(
-                        item.file?.name || "",
-                        item.file?.mimeType
-                      ) && (
-                        <Button
-                          type="text"
-                          size="small"
-                          icon={<QrCode size={14} />}
-                          onClick={() =>
-                            handlePrintWithQR(
-                              item.file?.url,
-                              item.file?.name || "image"
-                            )
-                          }
-                          className="text-gray-500 hover:text-green-600"
-                        />
-                      )}
-
-                    {/* Print with QR for PDF files in PO section only */}
-                    {sectionType === "po" &&
-                      isPDFFile(item.file?.name || "", item.file?.mimeType) && (
-                        <Button
-                          type="text"
-                          size="small"
-                          icon={<QrCode size={14} />}
-                          onClick={() =>
-                            handlePrintPDFWithQR(
-                              item.file?.url,
-                              item.file?.name || "PDF"
-                            )
-                          }
-                          className="text-gray-500 hover:text-green-600"
-                        />
-                      )}
-
-                    {canUpdateCard() && (
+                    <div className="flex items-center space-x-1 ml-2">
                       <Button
                         type="text"
                         size="small"
-                        icon={<DeleteOutlined />}
-                        onClick={() =>
-                          deleteAttachment({
-                            attachmentId: item.id,
-                            cardId: card.id || "",
-                          })
-                        }
-                        className="text-gray-500 hover:text-red-600"
+                        icon={<DownloadOutlined />}
+                        onClick={() => {
+                          if (item.file?.url) {
+                            const link = document.createElement("a");
+                            link.href = item.file.url;
+                            link.download = item.file.name || "download";
+                            link.target = "_blank";
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                          }
+                        }}
+                        className="text-gray-500 hover:text-blue-600"
                       />
-                    )}
+
+                      {/* Print with QR for image files in PO section only */}
+                      {sectionType === "po" &&
+                        isImageFile(
+                          item.file?.name || "",
+                          item.file?.mimeType
+                        ) && (
+                          <Button
+                            type="text"
+                            size="small"
+                            icon={<QrCode size={14} />}
+                            onClick={() =>
+                              handlePrintWithQR(
+                                item.file?.url,
+                                item.file?.name || "image",
+                                item.id
+                              )
+                            }
+                            className="text-gray-500 hover:text-green-600"
+                          />
+                        )}
+
+                      {/* Print with QR for PDF files in PO section only */}
+                      {sectionType === "po" &&
+                        isPDFFile(
+                          item.file?.name || "",
+                          item.file?.mimeType
+                        ) && (
+                          <Button
+                            type="text"
+                            size="small"
+                            icon={<QrCode size={14} />}
+                            onClick={() =>
+                              handlePrintPDFWithQR(
+                                item.file?.url,
+                                item.file?.name || "PDF",
+                                item.id
+                              )
+                            }
+                            className="text-gray-500 hover:text-green-600"
+                          />
+                        )}
+
+                      {canUpdateCard() && (
+                        <Button
+                          type="text"
+                          size="small"
+                          icon={<DeleteOutlined />}
+                          onClick={() =>
+                            deleteAttachment({
+                              attachmentId: item.id,
+                              cardId: card.id || "",
+                            })
+                          }
+                          className="text-gray-500 hover:text-red-600"
+                        />
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </List.Item>
-          )}
+              </List.Item>
+            );
+          }}
         />
       </div>
     );
@@ -983,18 +1118,19 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
               Attachments
             </Typography.Title>
           </div>
-          <Button
-            type="default"
-            size="small"
-            icon={<PlusOutlined />}
-            className={`flex items-center ${
-              !canUpdateCard() ? "opacity-50 cursor-not-allowed" : ""
-            }`}
-            onClick={handleOpenModal}
-            disabled={!canUpdateCard()}
-          >
-            Add
-          </Button>
+          <Dropdown trigger={["click"]} menu={{ items: uploadMenuItems }}>
+            <Button
+              type="default"
+              size="small"
+              icon={<PlusOutlined />}
+              className={`flex items-center ${
+                !canUpdateCard() ? "opacity-50 cursor-not-allowed" : ""
+              }`}
+              disabled={!canUpdateCard()}
+            >
+              Add
+            </Button>
+          </Dropdown>
         </div>
 
         {/* Bukti Section */}
@@ -1003,6 +1139,7 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
           attachments={getBuktiAttachments()}
           emptyText="No bukti attachments yet"
           sectionType="bukti"
+          // onOpenUpload={openUpload}
         />
 
         {/* PO Section */}
@@ -1011,6 +1148,7 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
           attachments={getPOAttachments()}
           emptyText="No PO attachments yet"
           sectionType="po"
+          // onOpenUpload={openUpload}
         />
 
         {/* Other Files Section */}
@@ -1019,6 +1157,7 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
           attachments={getOtherAttachments()}
           emptyText="No other attachments yet"
           sectionType="other"
+          // onOpenUpload={openUpload}
         />
 
         {/* Cards Section */}
@@ -1059,7 +1198,26 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
           onClose={handleCloseModal}
           onUploadComplete={handleUpload}
           uploadType="all"
-          title="Upload attachment"
+          title={uploadModalTitle}
+          multiple
+          extraContent={
+            currentAttachmentType === EnumCardAttachmentType.PO ? (
+              <Checkbox
+                checked={isPOPelengkap}
+                onChange={(e) => setIsPOPelengkap(e.target.checked)}
+              >
+                PO Pelengkap
+              </Checkbox>
+            ) : null
+          }
+          onBeforeUpload={
+            currentAttachmentType === EnumCardAttachmentType.PO
+              ? async (file) => {
+                  const newName = buildPOFileName(file.name);
+                  return new File([file], newName, { type: file.type });
+                }
+              : undefined
+          }
         />
       </div>
 

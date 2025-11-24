@@ -27,6 +27,7 @@ import {
   getCategorySystemOverview,
   validateJunctionData,
   reorderSubcategoriesInCategory,
+  reorderSubcategoriesPlain,
 } from "../api/category";
 import {
   MainCategory,
@@ -512,6 +513,25 @@ export function useReorderSubcategoriesInCategory(workspaceId: string) {
       queryClient.invalidateQueries({
         queryKey: ["categoriesWithSubcategories", workspaceId],
       });
+      message.success("Subcategories reordered successfully");
+    },
+    onError: (error: any) => {
+      message.error(
+        error?.response?.data?.message || "Failed to reorder subcategories"
+      );
+    },
+  });
+}
+
+export function useReorderSubcategories(workspaceId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (subcategories: { id: string; displayOrder: number }[]) =>
+      reorderSubcategoriesPlain(subcategories, workspaceId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["subcategories", workspaceId] });
+      queryClient.invalidateQueries({ queryKey: ["allSubcategories", workspaceId] });
       message.success("Subcategories reordered successfully");
     },
     onError: (error: any) => {

@@ -32,6 +32,7 @@ const transformMainCategory = (backendCategory: any): MainCategory => ({
 const transformSubcategory = (backendSubcategory: any): Subcategory => ({
   id: backendSubcategory.id,
   name: backendSubcategory.name,
+  displayOrder: backendSubcategory.display_order,
   createdAt: backendSubcategory.created_at ? new Date(backendSubcategory.created_at) : undefined,
   updatedAt: backendSubcategory.updated_at ? new Date(backendSubcategory.updated_at) : undefined,
 });
@@ -273,6 +274,22 @@ export const deleteSubcategory = async (
   workspaceId: string
 ): Promise<ApiResponse<null>> => {
   const { data } = await api.delete(`/category/sub/${id}`, {
+    headers: { "workspace-id": workspaceId },
+  });
+  return data;
+};
+
+export const reorderSubcategoriesPlain = async (
+  subcategories: { id: string; displayOrder: number }[],
+  workspaceId: string
+): Promise<ApiResponse<null>> => {
+  const payload = {
+    subcategories: subcategories.map((s) => ({
+      id: s.id,
+      display_order: s.displayOrder,
+    })),
+  };
+  const { data } = await api.post("/category/sub/reorder", payload, {
     headers: { "workspace-id": workspaceId },
   });
   return data;

@@ -103,6 +103,7 @@ export type TCardAttachmentType = EnumCardAttachmentType.Attachment | EnumCardAt
 export interface CardAttachment {
   id: string;
   isCover: boolean;
+  isPrinted?: boolean;
   cardId: string;
   attachableType: TAttachableType;
   attachableId: string;

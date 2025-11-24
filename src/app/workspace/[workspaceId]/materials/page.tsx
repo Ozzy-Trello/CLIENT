@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
-import { useParams } from "next/navigation";
+import React, { useEffect, useState } from "react";
 import { 
   Table, 
   Card, 
@@ -21,7 +20,8 @@ import {
   Tooltip,
   message
 } from "antd";
-import { PlusOutlined, EditOutlined, DeleteOutlined } from "@ant-design/icons";
+import { PlusOutlined, EditOutlined, DeleteOutlined, HolderOutlined } from "@ant-design/icons";
+import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { 
   useCategoriesWithSubcategories, 
   useCreateMainCategory, 
@@ -34,7 +34,8 @@ import {
   useDeleteSubcategory,
   useCreateJunction,
   useUpdateJunction,
-  useDeleteJunction
+  useDeleteJunction,
+  useReorderSubcategories,
 } from "../../../../hooks/category";
 import { 
   MainCategoryWithSubcategories, 
@@ -84,6 +85,7 @@ export default function MaterialsPage({ params }: { params: { workspaceId: strin
   const [junctionForm] = Form.useForm();
   const [editCategoryForm] = Form.useForm();
   const [editSubcategoryForm] = Form.useForm();
+  const [subcategoriesOrder, setSubcategoriesOrder] = useState<Subcategory[]>([]);
 
   // Data hooks
   const { 
@@ -100,7 +102,8 @@ export default function MaterialsPage({ params }: { params: { workspaceId: strin
   
   const { 
     data: allSubcategories, 
-    isLoading: isLoadingSubcategories 
+    isLoading: isLoadingSubcategories,
+    refetch: refetchAllSubcategories,
   } = useAllSubcategories(workspaceId);
 
   // Mutation hooks
@@ -113,6 +116,26 @@ export default function MaterialsPage({ params }: { params: { workspaceId: strin
   const createJunctionMutation = useCreateJunction(workspaceId);
   const updateJunctionMutation = useUpdateJunction(workspaceId);
   const deleteJunctionMutation = useDeleteJunction(workspaceId);
+  const reorderSubcategoriesMutation = useReorderSubcategories(workspaceId);
+
+  const formatDate = (date?: string | Date) => {
+    if (!date) return "-";
+    try {
+      const dateObj = typeof date === "string" ? new Date(date) : date;
+      return isNaN(dateObj.getTime()) ? "-" : dateObj.toLocaleDateString();
+    } catch {
+      return "-";
+    }
+  };
+
+  useEffect(() => {
+    if (allSubcategories?.data) {
+      const ordered = [...allSubcategories.data].sort(
+        (a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0)
+      );
+      setSubcategoriesOrder(ordered);
+    }
+  }, [allSubcategories?.data]);
 
   // Junction Modal Functions
   const handleEditJunctions = (category: MainCategoryWithSubcategories) => {
@@ -339,6 +362,37 @@ export default function MaterialsPage({ params }: { params: { workspaceId: strin
       await deleteSubcategoryMutation.mutateAsync(subcategoryId);
     } catch (error) {
       console.error("Failed to delete subcategory:", error);
+    }
+  };
+
+  const handleSubcategoryDragEnd = async (result: DropResult) => {
+    if (!result.destination) return;
+
+    const current = [...subcategoriesOrder].sort(
+      (a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0)
+    );
+
+    const [moved] = current.splice(result.source.index, 1);
+    current.splice(result.destination.index, 0, moved);
+
+    const reindexed = current.map((item, idx) => ({
+      ...item,
+      displayOrder: idx + 1,
+    }));
+
+    const previous = subcategoriesOrder;
+    setSubcategoriesOrder(reindexed);
+
+    try {
+      await reorderSubcategoriesMutation.mutateAsync(
+        reindexed.map((item) => ({
+          id: item.id,
+          displayOrder: item.displayOrder ?? 0,
+        }))
+      );
+      refetchAllSubcategories();
+    } catch (error) {
+      setSubcategoriesOrder(previous);
     }
   };
 
@@ -576,69 +630,131 @@ export default function MaterialsPage({ params }: { params: { workspaceId: strin
               Add Subcategory
             </Button>
           </div>
-          
-          <Table
-            columns={[
-              {
-                title: "Name",
-                dataIndex: "name",
-                key: "name",
-                sorter: (a: Subcategory, b: Subcategory) => a.name.localeCompare(b.name),
-              },
-              {
-                title: "Created At",
-                dataIndex: "createdAt",
-                key: "createdAt",
-                render: (date: string | Date) => {
-                  if (!date) return "-";
-                  const dateObj = typeof date === 'string' ? new Date(date) : date;
-                  return isNaN(dateObj.getTime()) ? "-" : dateObj.toLocaleDateString();
-                },
-                width: 150,
-              },
-              {
-                title: "Actions",
-                key: "actions",
-                width: 120,
-                render: (_, record: Subcategory) => (
-                  <Space>
-                    <Button
-                      type="text"
-                      icon={<EditOutlined />}
-                      onClick={() => handleEditSubcategory(record)}
-                      size="small"
-                    />
-                    <Popconfirm
-                      title="Delete Subcategory"
-                      description="Are you sure you want to delete this subcategory?"
-                      onConfirm={() => handleDeleteSubcategory(record.id)}
-                      okText="Yes"
-                      cancelText="No"
+
+          <DragDropContext onDragEnd={handleSubcategoryDragEnd}>
+            <Droppable droppableId="subcategories">
+              {(provided) => {
+                const orderedSubs = [...subcategoriesOrder].sort(
+                  (a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0)
+                );
+
+                return (
+                  <div
+                    ref={provided.innerRef}
+                    {...provided.droppableProps}
+                    style={{
+                      border: "1px solid #f0f0f0",
+                      borderRadius: 8,
+                      padding: 8,
+                      background: "#fff",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "70px 1fr 160px 140px",
+                        padding: "10px 12px",
+                        fontWeight: 600,
+                        color: "#555",
+                        borderBottom: "1px solid #f0f0f0",
+                        background: "#fafafa",
+                        borderRadius: 6,
+                      }}
                     >
-                      <Button
-                        type="text"
-                        icon={<DeleteOutlined />}
-                        danger
-                        size="small"
-                      />
-                    </Popconfirm>
-                  </Space>
-                ),
-              },
-            ]}
-            dataSource={allSubcategories?.data || []}
-            rowKey="id"
-            loading={isLoadingSubcategories}
-            pagination={{
-              pageSize: 10,
-              showSizeChanger: true,
-              showTotal: (total, range) =>
-                `${range[0]}-${range[1]} of ${total} subcategories`,
-            }}
-            locale={{
-              emptyText: "No subcategories found.",
-            }}
-          />
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <HolderOutlined />
+                        <span>Order</span>
+                      </div>
+                      <div>Name</div>
+                      <div>Created At</div>
+                      <div>Actions</div>
+                    </div>
+
+                    {isLoadingSubcategories ? (
+                      <Spin style={{ display: "block", padding: "24px" }} />
+                    ) : orderedSubs.length === 0 ? (
+                      <div style={{ padding: "16px", textAlign: "center" }}>
+                        <Typography.Text type="secondary">
+                          No subcategories found.
+                        </Typography.Text>
+                      </div>
+                    ) : (
+                      orderedSubs.map((sub, index) => (
+                        <Draggable
+                          key={sub.id}
+                          draggableId={sub.id}
+                          index={index}
+                        >
+                          {(provided, snapshot) => (
+                            <div
+                              ref={provided.innerRef}
+                              {...provided.draggableProps}
+                              style={{
+                                ...provided.draggableProps.style,
+                                display: "grid",
+                                gridTemplateColumns: "70px 1fr 160px 140px",
+                                padding: "12px",
+                                alignItems: "center",
+                                borderBottom:
+                                  index === orderedSubs.length - 1
+                                    ? "none"
+                                    : "1px solid #f5f5f5",
+                                background: snapshot.isDragging
+                                  ? "#e6f7ff"
+                                  : "transparent",
+                                borderRadius: snapshot.isDragging ? 6 : 0,
+                              }}
+                            >
+                              <div
+                                {...provided.dragHandleProps}
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 8,
+                                  cursor: "grab",
+                                  color: "#8c8c8c",
+                                }}
+                              >
+                                <HolderOutlined />
+                                <span>{sub.displayOrder ?? index + 1}</span>
+                              </div>
+                              <div>{sub.name}</div>
+                              <div>{formatDate(sub.createdAt)}</div>
+                              <div>
+                                <Space>
+                                  <Button
+                                    type="text"
+                                    icon={<EditOutlined />}
+                                    onClick={() => handleEditSubcategory(sub)}
+                                    size="small"
+                                  />
+                                  <Popconfirm
+                                    title="Delete Subcategory"
+                                    description="Are you sure you want to delete this subcategory?"
+                                    onConfirm={() => handleDeleteSubcategory(sub.id)}
+                                    okText="Yes"
+                                    cancelText="No"
+                                  >
+                                    <Button
+                                      type="text"
+                                      icon={<DeleteOutlined />}
+                                      danger
+                                      size="small"
+                                    />
+                                  </Popconfirm>
+                                </Space>
+                              </div>
+                            </div>
+                          )}
+                        </Draggable>
+                      ))
+                    )}
+                    {provided.placeholder}
+                  </div>
+                );
+              }}
+            </Droppable>
+          </DragDropContext>
         </Card>
       ),
     },

@@ -1,9 +1,9 @@
-import React, { useState, useCallback, useMemo } from 'react';
-import { Document, Page } from 'react-pdf';
-import { Spin, message } from 'antd';
-import { FilePdfOutlined } from '@ant-design/icons';
-import TokenStorage from '@utils/token-storage';
-import '@utils/pdf-worker-setup'; // Initialize PDF.js worker
+import React, { useState, useCallback, useMemo } from "react";
+import { Document, Page } from "react-pdf";
+import { Spin, message } from "antd";
+import { FilePdfOutlined } from "@ant-design/icons";
+import TokenStorage from "@utils/token-storage";
+import "@utils/pdf-worker-setup"; // Initialize PDF.js worker
 
 interface PDFPreviewProps {
   url: string;
@@ -15,10 +15,10 @@ interface PDFPreviewProps {
 
 const PDFPreview: React.FC<PDFPreviewProps> = ({
   url,
-  fileName = 'PDF',
+  fileName = "PDF",
   width = 80,
   height = 60,
-  className = '',
+  className = "",
 }) => {
   const [numPages, setNumPages] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -30,7 +30,7 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({
     let options: any = {};
 
     // Check if this is a file from our backend that needs authentication
-    if (url.includes(process.env.NEXT_PUBLIC_BE_BASE_URL || '')) {
+    if (url.includes(process.env.NEXT_PUBLIC_BE_BASE_URL || "")) {
       // For backend files, add auth headers
       const accessToken = TokenStorage.getAccessToken();
       if (accessToken) {
@@ -38,7 +38,7 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({
           Authorization: `Bearer ${accessToken}`,
         };
       }
-    } else if (url.startsWith('/api/file-proxy/')) {
+    } else if (url.startsWith("/api/file-proxy/")) {
       // Already a proxy URL, use as is with auth
       const accessToken = TokenStorage.getAccessToken();
       if (accessToken) {
@@ -46,7 +46,10 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({
           Authorization: `Bearer ${accessToken}`,
         };
       }
-    } else if (url.startsWith('http') && !url.includes(window.location.origin)) {
+    } else if (
+      url.startsWith("http") &&
+      !url.includes(window.location.origin)
+    ) {
       // External URL, use proxy
       pdfUrl = `/api/proxy-image?url=${encodeURIComponent(url)}`;
     }
@@ -54,21 +57,27 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({
     return { pdfUrl, options };
   }, [url]);
 
-  const onDocumentLoadSuccess = useCallback(({ numPages }: { numPages: number }) => {
-    setNumPages(numPages);
-    setLoading(false);
-    setError(false);
-  }, []);
+  const onDocumentLoadSuccess = useCallback(
+    ({ numPages }: { numPages: number }) => {
+      setNumPages(numPages);
+      setLoading(false);
+      setError(false);
+    },
+    []
+  );
 
-  const onDocumentLoadError = useCallback((error: Error) => {
-    console.error('PDF load error:', error);
-    setError(true);
-    setLoading(false);
-    message.error(`Failed to load PDF: ${fileName}`);
-  }, [fileName]);
+  const onDocumentLoadError = useCallback(
+    (error: Error) => {
+      console.error("PDF load error:", error);
+      setError(true);
+      setLoading(false);
+      // message.error(`Failed to load PDF: ${fileName}`);
+    },
+    [fileName]
+  );
 
   const onPageLoadError = useCallback((error: Error) => {
-    console.error('PDF page load error:', error);
+    console.error("PDF page load error:", error);
     setError(true);
     setLoading(false);
   }, []);
@@ -76,7 +85,7 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({
   // If there's an error, show the default PDF icon
   if (error) {
     return (
-      <div 
+      <div
         className={`flex items-center justify-center bg-gray-100 rounded ${className}`}
         style={{ width, height }}
       >
@@ -86,20 +95,21 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({
   }
 
   return (
-    <div 
+    <div
       className={`relative overflow-hidden rounded ${className}`}
       style={{ width, height }}
     >
       {loading && (
-        <div 
+        <div
           className="absolute inset-0 flex items-center justify-center bg-gray-100"
           style={{ width, height }}
         >
           <Spin size="small" />
         </div>
       )}
-      
+
       <Document
+        key={pdfUrl}
         file={pdfUrl}
         options={options}
         onLoadSuccess={onDocumentLoadSuccess}
@@ -122,7 +132,7 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({
           renderAnnotationLayer={false}
         />
       </Document>
-      
+
       {/* Page count indicator */}
       {numPages && numPages > 1 && !loading && (
         <div className="absolute bottom-1 right-1 bg-black bg-opacity-60 text-white text-xs px-1 rounded">
