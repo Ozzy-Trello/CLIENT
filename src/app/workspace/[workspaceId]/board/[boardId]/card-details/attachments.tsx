@@ -382,7 +382,7 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
         canvas.height = img.height;
 
         ctx.drawImage(img, 0, 0, img.width, img.height);
-        const qrX = Math.floor(img.width * 0.3);
+        const qrX = Math.floor(img.width * 0.2);
         const qrY = Math.floor(img.height * 0.005);
 
         ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
