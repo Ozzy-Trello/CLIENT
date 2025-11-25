@@ -575,7 +575,7 @@ const CardDetails: React.FC = (props) => {
                   <LocationDisplay coordinate={selectedCard?.location} />
                 )}
 
-              {selectedCard && !selectedCard?.dashConfig && (
+              {selectedCard && selectedCard?.type !== "dashcard" && (
                 <CollapsibleSection
                   title="Custom Fields"
                   defaultExpanded={true}
