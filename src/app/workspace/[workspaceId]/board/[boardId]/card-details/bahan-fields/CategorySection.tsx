@@ -71,7 +71,7 @@ const CategorySection: React.FC<CategorySectionProps> = ({
     const totalValue = calculateCategoryTotal(category.id);
 
     return (
-      <div className="flex flex-col flex-1 min-w-[200px]">
+      <div className="flex flex-col flex-1 min-w-0">
         <label
           className="block text-xs font-medium mb-1"
           style={{
@@ -115,7 +115,7 @@ const CategorySection: React.FC<CategorySectionProps> = ({
         : "";
 
     return (
-      <div key={subcategory.id} className="flex flex-col flex-1 min-w-[200px]">
+      <div key={subcategory.id} className="flex flex-col flex-1 min-w-0">
         <label
           className="block text-xs font-medium mb-1"
           style={{
@@ -221,7 +221,7 @@ const CategorySection: React.FC<CategorySectionProps> = ({
       label: category.name,
       children: (
         <div className="mt-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-3 gap-x-6 gap-y-3 auto-rows-max">
             {/* Render dynamic fields */}
             {sortedSubcategories.map((subcategory: any) =>
               renderSubcategoryInput(category, subcategory)
