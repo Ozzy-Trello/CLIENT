@@ -19,6 +19,7 @@ import {
 import { Scanner } from "@yudiel/react-qr-scanner";
 import URLShortener from "@utils/url-shortener";
 import { getCardByShortId } from "@api/card";
+import QRGuideOverlay from "@components/qr-overlay";
 interface ModalPackingPOScanProps {
   open: boolean;
   onClose: () => void;
@@ -371,23 +372,26 @@ const ModalPackingPOScan: React.FC<ModalPackingPOScanProps> = ({
           mask: { zIndex: 1999 },
         }}
       >
-        <div className="flex flex-col items-center">
-          <div className="w-full max-w-sm">
-            <Scanner
-              onScan={(result) => {
-                if (result && result.length > 0) {
-                  handleCameraScan(result[0].rawValue);
-                }
-              }}
-              onError={(error) => {
-                console.error("Scanner error:", error);
-                message.error("Camera scanning failed. Please try again.");
-              }}
-              styles={{
-                container: { width: "100%" },
-                video: { width: "100%" },
-              }}
-            />
+            <div className="flex flex-col items-center">
+              <div className="w-full max-w-sm">
+                <div className="relative w-full h-[260px]">
+              <Scanner
+                onScan={(result) => {
+                  if (result && result.length > 0) {
+                    handleCameraScan(result[0].rawValue);
+                  }
+                }}
+                onError={(error) => {
+                  console.error("Scanner error:", error);
+                  message.error("Camera scanning failed. Please try again.");
+                }}
+                styles={{
+                  container: { width: "100%", height: "100%" },
+                  video: { width: "100%", height: "100%" },
+                }}
+              />
+              <QRGuideOverlay imageClassName="h-24 w-auto max-w-[140px] opacity-70" />
+            </div>
           </div>
           <Text type="secondary" className="mt-4 text-center">
             Position the QR code within the camera frame

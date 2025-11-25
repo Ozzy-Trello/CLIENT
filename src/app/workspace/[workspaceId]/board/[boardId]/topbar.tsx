@@ -48,6 +48,7 @@ import { useParams } from "next/navigation";
 import { FineGrainedPermissions } from "../../../../../types/board";
 import ModalDelivery from "@components/modal-delivery";
 import ScanProgressModal from "@components/scan-progress-modal";
+import QRGuideOverlay from "@components/qr-overlay";
 
 // Helper function to derive permission level from fine-grained permissions
 const getPermissionLevelFromFineGrained = (
@@ -376,13 +377,7 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
                       video: { width: "100%", height: "100%" },
                     }}
                   />
-                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                    <img
-                      src="/qr-overlay.svg"
-                      alt="QR guide"
-                      className="h-28 w-28 opacity-60 scale-110 object-contain"
-                    />
-                  </div>
+                  <QRGuideOverlay />
                 </div>
               </div>
             </div>

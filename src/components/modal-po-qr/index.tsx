@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Modal, Form, Input, Button, message, Typography, Space } from "antd";
 import { Package, QrCode, Camera } from "lucide-react";
 import { Scanner } from "@yudiel/react-qr-scanner";
+import QRGuideOverlay from "@components/qr-overlay";
 import { generateQRCodesPDF } from "@api/qr";
 import URLShortener from "@utils/url-shortener";
 import { getCardByShortId } from "@api/card";
@@ -299,28 +300,35 @@ const ModalPOQR: React.FC<ModalPOQRProps> = ({
             }}
           >
             <div className="p-4">
-              <Scanner
-                onScan={(result) => {
-                  if (result && result.length > 0) {
-                    const scannedData = result[0].rawValue;
-                    handleScan(scannedData);
-                    setShowCameraScanner(false);
-                  }
-                }}
-                onError={(error) => {
-                  console.error("Scanner error:", error);
-                  message.error("Camera scanning failed");
-                }}
-                constraints={{
-                  facingMode: "environment",
-                }}
-                styles={{
-                  container: {
-                    width: "100%",
-                    height: "300px",
-                  },
-                }}
-              />
+              <div className="relative w-full h-[320px]">
+                <Scanner
+                  onScan={(result) => {
+                    if (result && result.length > 0) {
+                      const scannedData = result[0].rawValue;
+                      handleScan(scannedData);
+                      setShowCameraScanner(false);
+                    }
+                  }}
+                  onError={(error) => {
+                    console.error("Scanner error:", error);
+                    message.error("Camera scanning failed");
+                  }}
+                  constraints={{
+                    facingMode: "environment",
+                  }}
+                  styles={{
+                    container: {
+                      width: "100%",
+                      height: "100%",
+                    },
+                    video: {
+                      width: "100%",
+                      height: "100%",
+                    },
+                  }}
+                />
+                <QRGuideOverlay imageClassName="h-24 w-auto max-w-[140px] opacity-70" />
+              </div>
             </div>
           </Modal>
 

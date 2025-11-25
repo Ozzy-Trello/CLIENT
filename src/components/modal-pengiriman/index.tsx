@@ -34,6 +34,7 @@ import {
   type CreateDeliveryOrderPayload,
 } from "@api/ozzy-warehouse";
 import dayjs from "dayjs";
+import QRGuideOverlay from "@components/qr-overlay";
 
 interface ModalPengirimanProps {
   open: boolean;
@@ -638,21 +639,24 @@ const ModalPengiriman: React.FC<ModalPengirimanProps> = ({ open, onClose }) => {
       >
         <div className="flex flex-col items-center">
           <div className="w-full max-w-sm">
-            <Scanner
-              onScan={(result) => {
-                if (result && result.length > 0) {
-                  handleCameraScan(result[0].rawValue);
-                }
-              }}
-              onError={(error) => {
-                console.error("Scanner error:", error);
-                message.error("Camera scanning failed. Please try again.");
-              }}
-              styles={{
-                container: { width: "100%" },
-                video: { width: "100%" },
-              }}
-            />
+            <div className="relative w-full h-[320px]">
+              <Scanner
+                onScan={(result) => {
+                  if (result && result.length > 0) {
+                    handleCameraScan(result[0].rawValue);
+                  }
+                }}
+                onError={(error) => {
+                  console.error("Scanner error:", error);
+                  message.error("Camera scanning failed. Please try again.");
+                }}
+                styles={{
+                  container: { width: "100%", height: "100%" },
+                  video: { width: "100%", height: "100%" },
+                }}
+              />
+              <QRGuideOverlay imageClassName="h-24 w-auto max-w-[140px] opacity-70" />
+            </div>
           </div>
           <Typography.Text type="secondary" className="mt-4 text-center">
             Position the QR code within the camera frame
