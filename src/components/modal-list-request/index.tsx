@@ -1,10 +1,11 @@
 import React, { useState } from "react";
-import { Modal, Table, Button, message, Space, Tag } from "antd";
+import { Modal, Table, Button, message, Space, Tag, Tooltip } from "antd";
 import {
   useRequestsOptimized,
   useVerifyRequest,
   useRejectRequest,
 } from "@hooks/accurate";
+import { render } from "react-dom";
 
 interface ModalListRequestProps {
   open: boolean;
@@ -66,57 +67,62 @@ const ModalListRequest: React.FC<ModalListRequestProps> = ({
   const total = requestsData?.pagination?.total || 0;
 
   const columns = [
-    { 
-      title: "Nama PO", 
-      dataIndex: "cardName", 
+    {
+      title: "Nama PO",
+      dataIndex: "cardName",
       key: "card_name",
       ellipsis: true,
-      width: "auto"
+      width: 500,
     },
-    { 
-      title: "Type", 
-      dataIndex: "requestType", 
+    {
+      title: "Type",
+      dataIndex: "requestType",
       key: "request_type",
       ellipsis: true,
-      width: "auto"
+      width: 100,
     },
-    { 
-      title: "Item", 
-      dataIndex: "itemName", 
+    {
+      title: "Item",
+      dataIndex: "itemName",
       key: "requested_item_id",
       ellipsis: true,
-      width: "auto"
+      width: 225,
     },
     {
       title: "Jumlah",
       key: "request_amount",
       ellipsis: true,
-      width: "auto",
+      width: 100,
       render: (_: any, record: any) => (
         <span>
           {record.requestAmount} {record.satuan || ""}
         </span>
       ),
     },
-    { 
-      title: "Adjustment", 
-      dataIndex: "adjustmentName", 
+    {
+      title: "Adjustment",
+      dataIndex: "adjustmentName",
       key: "adjustment_no",
       ellipsis: true,
-      width: "auto"
+      width: 225,
     },
-    { 
-      title: "Description", 
-      dataIndex: "description", 
+    {
+      title: "Description",
+      dataIndex: "description",
       key: "description",
       ellipsis: true,
-      width: "auto"
+      width: "auto",
+      render: (_: any, record: any) => (
+        <Tooltip title={record.description || "-"}>
+          <span>{record.description || "-"}</span>
+        </Tooltip>
+      ),
     },
     {
       title: "Status",
       key: "status",
       ellipsis: true,
-      width: "auto",
+      width: 100,
       render: (_: any, record: any) => {
         if (record.isRejected || record.isRejected) {
           // Support both formats during transition
@@ -131,7 +137,7 @@ const ModalListRequest: React.FC<ModalListRequestProps> = ({
     {
       title: "Action",
       key: "action",
-      width: 70,
+      width: 100,
       align: "center" as const,
       render: (_: any, record: any) => (
         <Space size={4}>
@@ -141,24 +147,33 @@ const ModalListRequest: React.FC<ModalListRequestProps> = ({
             size="small"
             loading={verifyMutation.isPending}
             onClick={() => handleVerify(record.id)}
-            style={{ 
-              padding: '2px',
-              minWidth: '24px',
-              height: '24px',
-              borderRadius: '50%',
-              backgroundColor: record.isVerified || record.isRejected ? '#f5f5f5' : '#f6ffed',
-              border: record.isVerified || record.isRejected ? '1px solid #d9d9d9' : '1px solid #b7eb8f',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
+            style={{
+              padding: "2px",
+              minWidth: "24px",
+              height: "24px",
+              borderRadius: "50%",
+              backgroundColor:
+                record.isVerified || record.isRejected ? "#f5f5f5" : "#f6ffed",
+              border:
+                record.isVerified || record.isRejected
+                  ? "1px solid #d9d9d9"
+                  : "1px solid #b7eb8f",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
             }}
             title="Accept"
           >
-            <span style={{ 
-              color: record.isVerified || record.isRejected ? '#bfbfbf' : '#52c41a', 
-              fontSize: '12px',
-              fontWeight: 'bold'
-            }}>
+            <span
+              style={{
+                color:
+                  record.isVerified || record.isRejected
+                    ? "#bfbfbf"
+                    : "#52c41a",
+                fontSize: "12px",
+                fontWeight: "bold",
+              }}
+            >
               ✓
             </span>
           </Button>
@@ -168,24 +183,33 @@ const ModalListRequest: React.FC<ModalListRequestProps> = ({
             size="small"
             loading={rejectMutation.isPending}
             onClick={() => handleReject(record.id)}
-            style={{ 
-              padding: '2px',
-              minWidth: '24px',
-              height: '24px',
-              borderRadius: '50%',
-              backgroundColor: record.isVerified || record.isRejected ? '#f5f5f5' : '#fff2f0',
-              border: record.isVerified || record.isRejected ? '1px solid #d9d9d9' : '1px solid #ffccc7',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
+            style={{
+              padding: "2px",
+              minWidth: "24px",
+              height: "24px",
+              borderRadius: "50%",
+              backgroundColor:
+                record.isVerified || record.isRejected ? "#f5f5f5" : "#fff2f0",
+              border:
+                record.isVerified || record.isRejected
+                  ? "1px solid #d9d9d9"
+                  : "1px solid #ffccc7",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
             }}
             title="Reject"
           >
-            <span style={{ 
-              color: record.isVerified || record.isRejected ? '#bfbfbf' : '#ff4d4f', 
-              fontSize: '10px',
-              fontWeight: 'bold'
-            }}>
+            <span
+              style={{
+                color:
+                  record.isVerified || record.isRejected
+                    ? "#bfbfbf"
+                    : "#ff4d4f",
+                fontSize: "10px",
+                fontWeight: "bold",
+              }}
+            >
               ✕
             </span>
           </Button>
@@ -197,7 +221,7 @@ const ModalListRequest: React.FC<ModalListRequestProps> = ({
       dataIndex: "receivedByName",
       key: "received_by_name",
       ellipsis: true,
-      width: 150
+      width: 150,
     },
   ];
 
@@ -207,7 +231,7 @@ const ModalListRequest: React.FC<ModalListRequestProps> = ({
       open={open}
       onCancel={onClose}
       footer={null}
-      width={900}
+      width={2000}
       bodyStyle={{ padding: 24 }}
       destroyOnClose
     >

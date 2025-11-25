@@ -157,6 +157,8 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
   const roleInList = (allowed: string[]) =>
     allowed.some((role) => role.toLowerCase() === userRole);
 
+  console.log("[TOPBAR LOGS] Current User Role:", userRole);
+
   const canShowDelivery =
     isSuperAdmin || (isDateline && roleInList(["Kurir", "Kepala Produksi"]));
   const canShowCetakQR =
