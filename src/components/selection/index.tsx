@@ -189,12 +189,17 @@ export const UserSelection = forwardRef<SelectionRef, SelectionProps>(
 
     // When options change, update the selected object if value is already set
     useEffect(() => {
-      if (selectedValue && options.length > 0) {
-        const foundOption = options.find((opt) => opt.value === selectedValue);
-        if (foundOption) {
-          setSelectedObject(foundOption);
+      if (!selectedValue || options.length === 0) return;
+
+      const foundOption = options.find((opt) => opt.value === selectedValue);
+      if (!foundOption) return;
+
+      setSelectedObject((prev) => {
+        if (prev?.value === foundOption.value) {
+          return prev;
         }
-      }
+        return foundOption;
+      });
     }, [options, selectedValue]);
 
     return (

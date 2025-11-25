@@ -6,7 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useCardDetailContext } from "@providers/card-detail-context";
 import { useEffect } from "react";
 
-export const useDashcardList = (card: Card) => {
+export const useDashcardList = (card: Card | null) => {
   const { setItemDashcard, setDashcardConfig } = useCardDetailContext();
   const queryClient = useQueryClient();
   const params = useParams();
@@ -14,10 +14,12 @@ export const useDashcardList = (card: Card) => {
     ? params.workspaceId[0]
     : params.workspaceId;
 
+  const cardId = card?.id;
+
   const result = useQuery({
-    queryKey: ["list-dashcard", card?.id, workspaceId],
-    queryFn: () => getListDashcard(workspaceId as string, card?.id),
-    enabled: !!card?.id,
+    queryKey: ["list-dashcard", cardId, workspaceId],
+    queryFn: () => getListDashcard(workspaceId as string, cardId as string),
+    enabled: !!cardId,
   });
 
   const refetchList = () => {

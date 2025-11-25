@@ -13,7 +13,7 @@ import {
   Tooltip,
   CheckboxChangeEvent,
 } from "antd";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Cover from "./cover";
 import { useCardDetailContext } from "@providers/card-detail-context";
 import {
@@ -62,6 +62,8 @@ import PopoverLabel from "@components/popover-label.tsx";
 import { CardLabel } from "@myTypes/label";
 import { useLabels } from "@hooks/label";
 import Dashcard from "./dashcard";
+import ModalDashcardDetail from "@components/modal-dashcard-detail";
+import { Card } from "@myTypes/card";
 import { useCardDetails } from "@hooks/card-details";
 import { LookupCache } from "@utils/lookup-cache";
 import { useBoardPermissionsContext } from "@providers/board-permissions-context";
@@ -160,6 +162,12 @@ const CardDetails: React.FC = (props) => {
 
   // Get board permissions
   const { canUpdateCard } = useBoardPermissionsContext();
+  const [dashcardModalCard, setDashcardModalCard] = useState<Card | null>(null);
+  const [isDashcardModalOpen, setIsDashcardModalOpen] = useState(false);
+  const handleOpenDashcardDetail = useCallback((card: Card) => {
+    setDashcardModalCard(card);
+    setIsDashcardModalOpen(true);
+  }, []);
 
   const onCompletionChange = (e: CheckboxChangeEvent) => {
     e.stopPropagation();
@@ -566,7 +574,10 @@ const CardDetails: React.FC = (props) => {
               )}
 
               {selectedCard?.type == "dashcard" && (
-                <Dashcard card={selectedCard} />
+                <Dashcard
+                  card={selectedCard}
+                  onOpenDetail={handleOpenDashcardDetail}
+                />
               )}
               {/* 
               {selectedCard?.id && (
@@ -700,6 +711,11 @@ const CardDetails: React.FC = (props) => {
             </Col>
           </Row>
         </div>
+        <ModalDashcardDetail
+          open={isDashcardModalOpen}
+          setOpen={setIsDashcardModalOpen}
+          card={dashcardModalCard}
+        />
       </div>
     </Modal>
   );

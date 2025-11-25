@@ -1,7 +1,6 @@
 import { Avatar, Button } from "antd";
 import { AlignLeft } from "lucide-react";
-import { FC, useMemo, useState } from "react";
-import ModalDashcardDetail from "@components/modal-dashcard-detail";
+import { FC, useMemo } from "react";
 import { Card } from "@myTypes/card";
 import { useCardDetailContext } from "@providers/card-detail-context";
 import MembersList from "@components/members-list";
@@ -9,11 +8,10 @@ import { useDashcardList } from "@hooks/dashcard-list";
 
 interface DashcardProps {
   card: Card;
+  onOpenDetail?: (card: Card) => void;
 }
 
-const Dashcard: FC<DashcardProps> = ({ card }) => {
-  const [open, setOpen] = useState<boolean>(false);
-
+const Dashcard: FC<DashcardProps> = ({ card, onOpenDetail }) => {
   const { resultData, refetchList } = useDashcardList(card);
 
   const { handleItemDashcard, setOpenEditFilter, setCurrentFilter } =
@@ -66,10 +64,10 @@ const Dashcard: FC<DashcardProps> = ({ card }) => {
             )}
             <Button
               onClick={() => {
-                setOpen(true);
                 setOpenEditFilter(false);
                 setCurrentFilter([]);
                 refetchList();
+                onOpenDetail?.(card);
               }}
             >
               Explore and Edit
@@ -77,7 +75,6 @@ const Dashcard: FC<DashcardProps> = ({ card }) => {
           </div>
         </div>
       </div>
-      <ModalDashcardDetail open={open} setOpen={setOpen} />
     </>
   );
 };

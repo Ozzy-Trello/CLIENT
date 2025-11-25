@@ -4,16 +4,22 @@ import TablePivot from "./table-pivot";
 import Detail from "./detail";
 import Metrics from "./metrics";
 import { useCardDetailContext } from "@providers/card-detail-context";
+import { Card } from "@myTypes/card";
+import { useDashcardList } from "@hooks/dashcard-list";
+
 interface ModalDashcardDetailProps {
   open: boolean;
   setOpen: Dispatch<SetStateAction<boolean>>;
+  card: Card | null;
 }
 
 const ModalDashcardDetail: FC<ModalDashcardDetailProps> = ({
   open,
   setOpen,
+  card,
 }) => {
   const { itemDashcard } = useCardDetailContext();
+  useDashcardList(card);
 
   const itemTabs: TabsProps["items"] = [
     {

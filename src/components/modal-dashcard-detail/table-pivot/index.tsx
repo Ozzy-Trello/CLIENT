@@ -10,6 +10,8 @@ import {
   getFilteredRowModel,
   getSortedRowModel,
 } from "@tanstack/react-table";
+import { AnyList } from "@myTypes/list";
+import { Card } from "@myTypes/card";
 import { Button, Dropdown, Input, MenuProps, Checkbox } from "antd";
 import { ChevronDown, ChevronRight, MoreHorizontal, Download } from "lucide-react";
 import { useDebounce } from "@hooks/debounce";
@@ -56,7 +58,7 @@ const TablePivot: FC = () => {
   const [columnSearchValue, setColumnSearchValue] = useState("");
   const [sorting, setSorting] = useState<SortingState>([]);
   const {
-    handleItemDashcard,
+    openCardDetail,
     processedItemDashcard,
     dashcardConfig,
     updateVisibleColumns,
@@ -64,6 +66,7 @@ const TablePivot: FC = () => {
   const baseColumnIds = useMemo(
     () => [
       "name",
+      "listName",
       "members",
       "description",
       "productInfo",
@@ -442,19 +445,31 @@ const TablePivot: FC = () => {
           ),
         cell: (info) => {
           const row = info.row;
+          const openInNewTab = () => {
+            if (typeof window === "undefined") return;
+            const workspaceSegment = currentWorkspaceId || "";
+            const url = `/workspace/${workspaceSegment}/board/${row.original.boardId}?cardId=${row.original.id}&listId=${row.original.listId}`;
+            window.open(url, "_blank");
+          };
+
           return renderGroupedCell("name", row, () => (
-            <span
-              className="cursor-pointer"
-              onClick={() =>
-                handleItemDashcard(
-                  row.original.id,
-                  row.original.listId,
-                  row.original.boardId
-                )
-              }
-            >
+            <span className="cursor-pointer" onClick={openInNewTab}>
               {info.getValue()}
             </span>
+          ));
+        },
+      }),
+      columnHelper.accessor("listName", {
+        header: () =>
+          headerTemplate(
+            "List",
+            getColumnMenu("listName").items || [],
+            getColumnMenu("listName").onClick
+          ),
+        cell: (info) => {
+          const row = info.row;
+          return renderGroupedCell("listName", row, () => (
+            <span>{row.original.listName || "-"}</span>
           ));
         },
       }),

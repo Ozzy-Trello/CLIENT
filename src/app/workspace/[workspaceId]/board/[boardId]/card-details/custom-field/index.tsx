@@ -456,13 +456,6 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
       return null;
     }
 
-    if (
-      field.type === EnumCustomFieldType.Checkbox &&
-      field.name === "Loading"
-    ) {
-      console.log(field, "<< ini field loading");
-    }
-
     switch (field?.type) {
       case EnumCustomFieldType.Checkbox:
         return (
