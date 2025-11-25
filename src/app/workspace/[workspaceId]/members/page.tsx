@@ -448,16 +448,6 @@ const Members: React.FC = () => {
             <i className="fi fi-sr-user-add"></i> Add User
           </Button>
         </Tooltip>
-        {canManageUsers() && (
-          <Button
-            size="small"
-            onClick={() => setImportModalOpen(true)}
-            disabled={isImporting}
-            style={{ marginLeft: 8 }}
-          >
-            Import Members
-          </Button>
-        )}
       </div>
 
       <div className="flex">

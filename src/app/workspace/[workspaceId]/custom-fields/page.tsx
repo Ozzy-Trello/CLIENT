@@ -443,12 +443,6 @@ const CustomFieldsPage = () => {
             >
               Add Custom Field
             </Button>
-            <Button
-              onClick={() => setImportModalOpen(true)}
-              disabled={isImporting}
-            >
-              Import Custom Fields
-            </Button>
           </div>
         </div>
       </div>

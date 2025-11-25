@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Tabs } from "antd";
 import { CategorySectionProps, CategoryData, SubcategoryValue } from "./types";
 
@@ -13,8 +13,27 @@ const CategorySection: React.FC<CategorySectionProps> = ({
   getCategoryError,
   clearCategoryError,
 }) => {
-  const [activeTab, setActiveTab] = useState<string>(categories[0]?.id || "");
+  const sortedCategories = useMemo(() => {
+    if (!categories || categories.length === 0) return [];
+    return [...categories].sort(
+      (a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0)
+    );
+  }, [categories]);
+
+  const [activeTab, setActiveTab] = useState<string>(
+    () => sortedCategories[0]?.id || ""
+  );
   const [pendingValues, setPendingValues] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (sortedCategories.length === 0) {
+      setActiveTab("");
+      return;
+    }
+    if (!sortedCategories.some((category) => category.id === activeTab)) {
+      setActiveTab(sortedCategories[0].id);
+    }
+  }, [sortedCategories, activeTab]);
 
   // Helper function to get category data for a specific category
   const getCategoryData = (categoryId: string): CategoryData | undefined => {
@@ -170,38 +189,50 @@ const CategorySection: React.FC<CategorySectionProps> = ({
             </div>
           )}
         </div>
-        {error && (
-          <div className="text-xs text-red-500 mt-1 flex items-center justify-between">
-            <span>{error}</span>
-            <button
-              onClick={() => clearCategoryError?.(categoryKey)}
-              className="text-xs text-red-400 hover:text-red-600 ml-2"
-            >
-              ✕
-            </button>
-          </div>
-        )}
-      </div>
+          {error && (
+            <div className="text-xs text-red-500 mt-1 flex items-center justify-between">
+              <span>{error}</span>
+              <button
+                onClick={() => clearCategoryError?.(categoryKey)}
+                className="text-xs text-red-400 hover:text-red-600 ml-2"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+        </div>
+      );
+    };
+
+  const sortSubcategories = (
+    subs?: CategorySectionProps["categories"][number]["subcategories"]
+  ) => {
+    if (!subs) return [];
+    return [...subs].sort(
+      (a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0)
     );
   };
 
   // Create tab items
-  const tabItems = categories.map((category) => ({
-    key: category.id,
-    label: category.name,
-    children: (
-      <div className="mt-4">
-        <div className="flex flex-wrap gap-4">
-          {/* Render dynamic fields */}
-          {category.subcategories?.map((subcategory: any) =>
-            renderSubcategoryInput(category, subcategory)
-          )}
-          {/* Render hardcoded Total field */}
-          {renderTotalField(category)}
+  const tabItems = sortedCategories.map((category) => {
+    const sortedSubcategories = sortSubcategories(category.subcategories);
+    return {
+      key: category.id,
+      label: category.name,
+      children: (
+        <div className="mt-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* Render dynamic fields */}
+            {sortedSubcategories.map((subcategory: any) =>
+              renderSubcategoryInput(category, subcategory)
+            )}
+            {/* Render hardcoded Total field */}
+            {renderTotalField(category)}
+          </div>
         </div>
-      </div>
-    ),
-  }));
+      ),
+    };
+  });
 
   if (isLoadingCategories) {
     return (

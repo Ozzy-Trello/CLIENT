@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { 
   Table, 
   Card, 
@@ -86,6 +86,13 @@ export default function MaterialsPage({ params }: { params: { workspaceId: strin
   const [editCategoryForm] = Form.useForm();
   const [editSubcategoryForm] = Form.useForm();
   const [subcategoriesOrder, setSubcategoriesOrder] = useState<Subcategory[]>([]);
+  const sortedEditingSubcategories = useMemo(() => {
+    if (!editingCategory?.subcategories) return [];
+    return [...editingCategory.subcategories].sort(
+      (a, b) =>
+        (a.junction?.displayOrder ?? 0) - (b.junction?.displayOrder ?? 0)
+    );
+  }, [editingCategory?.subcategories]);
 
   // Data hooks
   const { 
@@ -172,9 +179,30 @@ export default function MaterialsPage({ params }: { params: { workspaceId: strin
   };
 
   const handleRemoveSubcategory = async (junctionId: string) => {
+    if (!editingCategory) return;
+
     try {
       await deleteJunctionMutation.mutateAsync(junctionId);
       message.success("Subcategory removed from category successfully!");
+
+      const refetchResult = await refetchCategories();
+      const updatedCategory =
+        refetchResult.data?.find((cat) => cat.id === editingCategory?.id) ||
+        refetchResult.data?.[0];
+
+      if (updatedCategory) {
+        setEditingCategory(updatedCategory);
+      } else {
+        setEditingCategory((prev) => {
+          if (!prev || !prev.subcategories) return prev;
+          return {
+            ...prev,
+            subcategories: prev.subcategories.filter(
+              (sub) => sub.junction?.id !== junctionId
+            ),
+          };
+        });
+      }
     } catch (error) {
       console.error("Error removing subcategory:", error);
       message.error("Failed to remove subcategory from category");
@@ -791,91 +819,123 @@ export default function MaterialsPage({ params }: { params: { workspaceId: strin
           <div>
             <Typography.Title level={5}>Current Subcategories</Typography.Title>
             <div className="space-y-2">
-              {editingCategory?.subcategories?.map((subcategory: SubcategoryWithJunctionData) => (
-                <div key={subcategory.id} className="flex justify-between items-center p-3 border rounded">
-                  <div className="flex-1">
-                    <Typography.Text strong>{subcategory.name}</Typography.Text>
-                    {subcategory.junction && (
-                      <div className="mt-2 space-y-2">
-                        <div className="text-sm text-gray-500">
-                          Order: {subcategory.junction.displayOrder}
-                          {subcategory.junction.isTotalField && <Tag color="orange" className="ml-2">Total Field</Tag>}
-                        </div>
-                        {editingJunctionId === subcategory.junction.id ? (
-                          <div className="flex items-center space-x-2">
-                            <Select
-                              value={pendingChanges?.operator || subcategory.junction.operator || "add"}
-                              style={{ width: 100 }}
-                              onChange={(value) => {
-                                setPendingChanges(prev => prev ? { ...prev, operator: value } : null);
-                              }}
-                              options={[
-                                { label: "Add (+)", value: "add" },
-                                { label: "Subtract (-)", value: "subtract" },
-                                { label: "Multiply (*)", value: "multiply" },
-                                { label: "Divide (/)", value: "divide" },
-                              ]}
-                            />
-                            <InputNumber
-                              value={pendingChanges?.weight || subcategory.junction.calculationWeight}
-                              min={0.1}
-                              step={0.1}
-                              style={{ width: 80 }}
-                              onChange={(value) => {
-                                setPendingChanges(prev => prev ? { ...prev, weight: value || 1 } : null);
-                              }}
-                            />
-                            <Button 
-                              size="small" 
-                              type="primary"
-                              onClick={handleSaveJunction}
-                              loading={updateJunctionMutation.isPending}
-                            >
-                              ✓
-                            </Button>
-                            <Button 
-                              size="small" 
-                              onClick={handleCancelEdit}
-                            >
-                              Cancel
-                            </Button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center space-x-2">
-                            <span className="text-gray-600">
-                              {getOperatorSymbol(subcategory.junction.operator || "add")} {subcategory.junction.calculationWeight}
-                            </span>
-                            {!subcategory.junction.isTotalField && (
-                              <Button 
-                                size="small" 
-                                type="link" 
-                                onClick={() => handleStartEdit(subcategory.junction)}
-                              >
-                                Edit
-                              </Button>
-                            )}
-                            {subcategory.junction.isTotalField && (
-                              <span className="text-xs text-gray-400 italic">
-                                (Informational only)
-                              </span>
-                            )}
-                          </div>
+              {sortedEditingSubcategories.length > 0 ? (
+                sortedEditingSubcategories.map((subcategory: SubcategoryWithJunctionData) => (
+                  <div
+                    key={subcategory.id}
+                    className="flex justify-between items-center p-3 border rounded"
+                  >
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <Typography.Text strong>{subcategory.name}</Typography.Text>
+                        {subcategory.junction?.isTotalField && (
+                          <Tag color="orange" className="ml-2">
+                            Total Field
+                          </Tag>
                         )}
                       </div>
-                    )}
+                      {subcategory.junction && (
+                        <div className="mt-2 space-y-2">
+                          {editingJunctionId === subcategory.junction.id ? (
+                            <div className="flex items-center space-x-2">
+                              <Select
+                                value={
+                                  pendingChanges?.operator ||
+                                  subcategory.junction.operator ||
+                                  "add"
+                                }
+                                style={{ width: 100 }}
+                                onChange={(value) => {
+                                  setPendingChanges((prev) =>
+                                    prev
+                                      ? { ...prev, operator: value }
+                                      : null
+                                  );
+                                }}
+                                options={[
+                                  { label: "Add (+)", value: "add" },
+                                  { label: "Subtract (-)", value: "subtract" },
+                                  { label: "Multiply (*)", value: "multiply" },
+                                  { label: "Divide (/)", value: "divide" },
+                                ]}
+                              />
+                              <InputNumber
+                                value={
+                                  pendingChanges?.weight ||
+                                  subcategory.junction.calculationWeight
+                                }
+                                min={0.1}
+                                step={0.1}
+                                style={{ width: 80 }}
+                                onChange={(value) => {
+                                  setPendingChanges((prev) =>
+                                    prev
+                                      ? { ...prev, weight: value || 1 }
+                                      : null
+                                  );
+                                }}
+                              />
+                              <Button
+                                size="small"
+                                type="primary"
+                                onClick={handleSaveJunction}
+                                loading={updateJunctionMutation.isPending}
+                              >
+                                ✓
+                              </Button>
+                              <Button size="small" onClick={handleCancelEdit}>
+                                Cancel
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center space-x-2">
+                              <span className="text-gray-600">
+                                {getOperatorSymbol(
+                                  subcategory.junction.operator || "add"
+                                )}{" "}
+                                {subcategory.junction.calculationWeight}
+                              </span>
+                              {!subcategory.junction.isTotalField && (
+                                <Button
+                                  size="small"
+                                  type="link"
+                                  onClick={() =>
+                                    handleStartEdit(subcategory.junction)
+                                  }
+                                >
+                                  Edit
+                                </Button>
+                              )}
+                              {subcategory.junction.isTotalField && (
+                                <span className="text-xs text-gray-400 italic">
+                                  (Informational only)
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <Popconfirm
+                      title="Remove this subcategory from the category?"
+                      onConfirm={() =>
+                        subcategory.junction &&
+                        handleRemoveSubcategory(subcategory.junction.id)
+                      }
+                      okText="Yes"
+                      cancelText="No"
+                    >
+                      <Button type="link" danger size="small">
+                        Remove
+                      </Button>
+                    </Popconfirm>
                   </div>
-                  <Popconfirm
-                    title="Remove this subcategory from the category?"
-                    onConfirm={() => subcategory.junction && handleRemoveSubcategory(subcategory.junction.id)}
-                    okText="Yes"
-                    cancelText="No"
-                  >
-                    <Button type="link" danger size="small">
-                      Remove
-                    </Button>
-                  </Popconfirm>
-                </div>
-              )) || <Typography.Text type="secondary">No subcategories assigned</Typography.Text>}
+                ))
+              ) : (
+                <Typography.Text type="secondary">
+                  No subcategories assigned
+                </Typography.Text>
+              )}
             </div>
           </div>
 
