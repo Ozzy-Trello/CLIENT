@@ -1,3 +1,4 @@
+'use client';
 import { uploadFile } from "@api/file";
 import { generateQRCodesPDF } from "@api/qr";
 import UploadModal from "@components/modal-upload/modal-upload";

@@ -38,11 +38,6 @@ const Attachments = dynamic(() => import("./attachments"), {
   loading: () => <div>Loading attachments...</div>,
 });
 
-const Actions = dynamic(() => import("./actions"), {
-  ssr: false,
-  loading: () => <div>Loading actions...</div>,
-});
-
 import { useSelector } from "react-redux";
 import { selectUser } from "@store/app_slice";
 import { useParams } from "next/navigation";
@@ -73,6 +68,7 @@ import BahanFields from "./bahan-fields";
 import ProdukFields from "./produk-fields";
 import CollapsibleSection from "@components/collapsible-section";
 import { useBoardDetails } from "@hooks/board";
+import Actions from "./actions";
 
 const CardDetails: React.FC = (props) => {
   const params = useParams();
