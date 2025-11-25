@@ -139,14 +139,16 @@ const PDFModal: React.FC<PDFModalProps> = ({
         footer={null}
         width="95vw"
         style={{ top: 10 }}
-        bodyStyle={{
-          padding: 0,
-          display: "flex",
-          flexDirection: "column",
+        styles={{
+          body: {
+            padding: 0,
+            display: "flex",
+            flexDirection: "column",
+          },
         }}
         className="pdf-modal"
         title={fileName || "Document Viewer"}
-        destroyOnClose
+        destroyOnHidden
       >
         <div className="flex-1 relative">
           {loading && (

@@ -232,8 +232,12 @@ const ModalListRequest: React.FC<ModalListRequestProps> = ({
       onCancel={onClose}
       footer={null}
       width={2000}
-      bodyStyle={{ padding: 24 }}
-      destroyOnClose
+      styles={{
+        body: {
+          padding: 24,
+        },
+      }}
+      destroyOnHidden
     >
       {/* Filter Button */}
       <div style={{ marginBottom: 16 }}>

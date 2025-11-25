@@ -337,41 +337,59 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
     >
       {/* QR Scanner Modal */}
       {showScanner && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-4 rounded-lg shadow-lg">
-            <Scanner
-              onScan={(codes) => {
-                if (codes.length > 0) {
-                  const url = codes[0].rawValue;
-                  try {
-                    // Check if the result is a valid URL
-                    const parsedUrl = new URL(url);
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 px-4">
+          <div className="relative bg-white p-4 rounded-lg shadow-lg w-full max-w-[450px] flex flex-col items-center gap-4">
+            <div className="relative w-full">
+              <div className="flex items-center justify-center rounded-2xl bg-black/5">
+                <div className="w-[320px] sm:w-[360px] h-[320px] sm:h-[360px] relative overflow-hidden rounded-xl bg-black/10">
+                  <Scanner
+                    onScan={(codes) => {
+                      if (codes.length > 0) {
+                        const url = codes[0].rawValue;
+                        try {
+                          // Check if the result is a valid URL
+                          const parsedUrl = new URL(url);
 
-                    // Check if the URL contains 'ozzy' or 'localhost'
-                    const urlString = url.toLowerCase();
-                    if (!urlString.includes(window.location.hostname)) {
-                      message.error("URL invalid.");
-                      return;
-                    }
+                          // Check if the URL contains 'ozzy' or 'localhost'
+                          const urlString = url.toLowerCase();
+                          if (!urlString.includes(window.location.hostname)) {
+                            message.error("URL invalid.");
+                            return;
+                          }
 
-                    setScanResult(url);
-                    setShowScanner(false);
-                    // Navigate to the scanned URL
-                    router.push(url);
-                  } catch (error) {
-                    console.error("Invalid URL scanned:", error);
-                    message.error("Invalid QR code. Please scan a valid URL.");
-                  }
-                }
-              }}
-              onError={(error) => {
-                console.error("Camera error:", error);
-                setShowScanner(false);
-              }}
-            />
+                          setScanResult(url);
+                          setShowScanner(false);
+                          // Navigate to the scanned URL
+                          router.push(url);
+                        } catch (error) {
+                          console.error("Invalid URL scanned:", error);
+                          message.error("Invalid QR code. Please scan a valid URL.");
+                        }
+                      }
+                    }}
+                    onError={(error) => {
+                      console.error("Camera error:", error);
+                      setShowScanner(false);
+                    }}
+                    styles={{
+                      container: { width: "100%", height: "100%" },
+                      video: { width: "100%", height: "100%" },
+                    }}
+                  />
+                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                    <img
+                      src="/qr-overlay.svg"
+                      alt="QR guide"
+                      className="h-28 w-28 opacity-60 scale-110 object-contain"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <button
               onClick={() => setShowScanner(false)}
-              className="mt-2 px-4 py-1 rounded bg-gray-200 text-gray-700"
+              className="mt-2 px-5 py-2 rounded bg-gray-200 text-gray-700 font-semibold hover:bg-gray-300 transition"
             >
               Close
             </button>

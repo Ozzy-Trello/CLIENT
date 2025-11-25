@@ -148,8 +148,10 @@ const QRModal: React.FC<QRModalProps> = ({ isOpen, onClose, customValue }) => {
       title={null}
       width={420}
       centered
-      maskStyle={{ backgroundColor: "rgba(0, 0, 0, 0.65)" }}
       footer={null}
+      styles={{
+        mask: { backgroundColor: "rgba(0, 0, 0, 0.65)" },
+      }}
       className="qr-modal"
       closeIcon={
         <button className="absolute top-4 right-4 text-gray-500 hover:text-gray-800 transition-colors duration-200">

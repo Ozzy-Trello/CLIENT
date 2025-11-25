@@ -367,7 +367,7 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
       footer={null}
       width={520}
       centered
-      destroyOnClose
+      destroyOnHidden
     >
       <Form
         name="create-board-form"

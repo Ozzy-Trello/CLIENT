@@ -197,7 +197,7 @@ const ModalPOScan: React.FC<ModalPOScanProps> = ({
         setCardId(extractedCardId);
         form.setFieldsValue({ cardId: extractedCardId });
         message.success("QR code scanned successfully! Validating...");
-        
+
         // Automatically validate and open card after successful scan
         await validateAndOpenCard(extractedCardId);
       } else {
@@ -235,9 +235,9 @@ const ModalPOScan: React.FC<ModalPOScanProps> = ({
         onCancel={handleCancel}
         footer={null}
         width={500}
-        destroyOnClose
+        destroyOnHidden
       >
-        <div style={{ padding: '1rem' }}>
+        <div style={{ padding: "1rem" }}>
           <Form form={form} layout="vertical" onFinish={handleValidateCard}>
             <Form.Item
               label={
@@ -315,12 +315,14 @@ const ModalPOScan: React.FC<ModalPOScanProps> = ({
         footer={[
           <Button key="cancel" onClick={() => setShowCameraScanner(false)}>
             Cancel
-          </Button>
+          </Button>,
         ]}
         width={400}
         centered
         zIndex={2000}
-        maskStyle={{ zIndex: 1999 }}
+        styles={{
+          mask: { zIndex: 1999 },
+        }}
       >
         <div className="flex flex-col items-center">
           <div className="w-full max-w-sm">
@@ -336,7 +338,7 @@ const ModalPOScan: React.FC<ModalPOScanProps> = ({
               }}
               styles={{
                 container: { width: "100%" },
-                video: { width: "100%" }
+                video: { width: "100%" },
               }}
             />
           </div>

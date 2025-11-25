@@ -63,7 +63,9 @@ const CreateBoard: React.FC<ModalCreateBoardForm> = (
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
-  const [rolePermissionLevels, setRolePermissionLevels] = useState<Record<string, string>>({});
+  const [rolePermissionLevels, setRolePermissionLevels] = useState<
+    Record<string, string>
+  >({});
   const uploadRef = useRef<any>(null);
   const router = useRouter();
   const dispatch = useDispatch();
@@ -126,11 +128,11 @@ const CreateBoard: React.FC<ModalCreateBoardForm> = (
 
   const handleRoleAssignmentChange = (roleId: string, isAssigned: boolean) => {
     if (isAssigned) {
-      setSelectedRoles(prev => [...prev, roleId]);
-      setRolePermissionLevels(prev => ({ ...prev, [roleId]: "MEMBER" }));
+      setSelectedRoles((prev) => [...prev, roleId]);
+      setRolePermissionLevels((prev) => ({ ...prev, [roleId]: "MEMBER" }));
     } else {
-      setSelectedRoles(prev => prev.filter(id => id !== roleId));
-      setRolePermissionLevels(prev => {
+      setSelectedRoles((prev) => prev.filter((id) => id !== roleId));
+      setRolePermissionLevels((prev) => {
         const newLevels = { ...prev };
         delete newLevels[roleId];
         return newLevels;
@@ -138,10 +140,13 @@ const CreateBoard: React.FC<ModalCreateBoardForm> = (
     }
   };
 
-  const handleRolePermissionLevelChange = (roleId: string, permissionLevel: string) => {
-    setRolePermissionLevels(prev => ({ ...prev, [roleId]: permissionLevel }));
+  const handleRolePermissionLevelChange = (
+    roleId: string,
+    permissionLevel: string
+  ) => {
+    setRolePermissionLevels((prev) => ({ ...prev, [roleId]: permissionLevel }));
     if (!selectedRoles.includes(roleId)) {
-      setSelectedRoles(prev => [...prev, roleId]);
+      setSelectedRoles((prev) => [...prev, roleId]);
     }
   };
 
@@ -208,7 +213,7 @@ const CreateBoard: React.FC<ModalCreateBoardForm> = (
       footer={null}
       width={520}
       centered
-      destroyOnClose
+      destroyOnHidden
     >
       <Form
         name="create-board-form"
@@ -320,7 +325,7 @@ const CreateBoard: React.FC<ModalCreateBoardForm> = (
                   defaultFormat="hex"
                   format="hex"
                   disabledAlpha={false}
-                  value={form.getFieldValue('background') || bg}
+                  value={form.getFieldValue("background") || bg}
                   onChange={handleColorChange}
                   showText={false}
                   disabled={isUploading}
@@ -360,28 +365,38 @@ const CreateBoard: React.FC<ModalCreateBoardForm> = (
             <div className="grid grid-cols-1 gap-3 max-h-64 overflow-y-auto">
               {roles.map((role: Role) => {
                 const isAssigned = selectedRoles.includes(role.id);
-                const permissionLevel = rolePermissionLevels[role.id] || "MEMBER";
-                
+                const permissionLevel =
+                  rolePermissionLevels[role.id] || "MEMBER";
+
                 return (
-                  <div key={role.id} className="flex items-center justify-between p-3 border rounded-lg">
+                  <div
+                    key={role.id}
+                    className="flex items-center justify-between p-3 border rounded-lg"
+                  >
                     <div className="flex items-center space-x-3">
                       <input
                         type="checkbox"
                         checked={isAssigned}
-                        onChange={(e) => handleRoleAssignmentChange(role.id, e.target.checked)}
+                        onChange={(e) =>
+                          handleRoleAssignmentChange(role.id, e.target.checked)
+                        }
                         className="w-4 h-4"
                       />
                       <div>
                         <div className="font-medium">{role.name}</div>
                         {role.description && (
-                          <div className="text-sm text-gray-500">{role.description}</div>
+                          <div className="text-sm text-gray-500">
+                            {role.description}
+                          </div>
                         )}
                       </div>
                     </div>
                     {isAssigned && (
                       <Select
                         value={permissionLevel}
-                        onChange={(value) => handleRolePermissionLevelChange(role.id, value)}
+                        onChange={(value) =>
+                          handleRolePermissionLevelChange(role.id, value)
+                        }
                         className="w-32"
                         size="small"
                       >

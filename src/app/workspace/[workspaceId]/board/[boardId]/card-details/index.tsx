@@ -413,12 +413,9 @@ const CardDetails: React.FC = (props) => {
                       {cardLabels?.map((label: CardLabel, index: number) => (
                         <Tooltip
                           title={`color: ${label.value}, title: ${label.name}`}
+                          key={index}
                         >
-                          <Tag
-                            key={index}
-                            color={label.value}
-                            className="rounded-md"
-                          >
+                          <Tag color={label.value} className="rounded-md">
                             {label?.name}
                           </Tag>
                         </Tooltip>

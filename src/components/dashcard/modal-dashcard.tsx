@@ -12,7 +12,15 @@ import {
   ColorPicker,
   InputNumber,
 } from "antd";
-import { Plus, Trash2, CheckSquare, Hash, List, StretchHorizontal, Calendar } from "lucide-react";
+import {
+  Plus,
+  Trash2,
+  CheckSquare,
+  Hash,
+  List,
+  StretchHorizontal,
+  Calendar,
+} from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
 import {
   DashcardConfig,
@@ -124,8 +132,8 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
     // Only filter out custom fields that are already selected to avoid duplicates
     const selectedCustomFieldIds = selectedFilters
       .filter((filter) => filter.type === EnumCardAttributeType.CUSTOM_FIELD)
-      .map((filter) => filter.id.split('_')[0]); // Get base ID without instance suffix
-    
+      .map((filter) => filter.id.split("_")[0]); // Get base ID without instance suffix
+
     const remaining = dashcardsFilter.filter((filter) => {
       // For custom fields, check if base ID is already selected
       if (filter.type === EnumCardAttributeType.CUSTOM_FIELD) {
@@ -134,7 +142,7 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
       // For other filter types, always keep them available for multiple instances
       return true;
     });
-    
+
     setAvailableFilters(remaining);
   }, [selectedFilters]);
 
@@ -144,34 +152,42 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
       // console.log(initialData, "<< initial data");
       setBgColor(initialData.backgroundColor);
       setDashcardName(initialData.name);
-      
+
       // Process existing filters to add proper labels for multiple instances
       const processedFilters = initialData.filters.map((filter, index) => {
-        const sameTypeFilters = initialData.filters.filter(f => f.type === filter.type);
-        
+        const sameTypeFilters = initialData.filters.filter(
+          (f) => f.type === filter.type
+        );
+
         if (sameTypeFilters.length > 1) {
           // Multiple instances of the same type - add instance numbers
-          const instanceIndex = sameTypeFilters.findIndex(f => f.id === filter.id);
+          const instanceIndex = sameTypeFilters.findIndex(
+            (f) => f.id === filter.id
+          );
           const instanceNumber = instanceIndex + 1;
-          
+
           // Find the base label from dashcardsFilter
-          const baseFilter = dashcardsFilter.find(f => f.type === filter.type);
+          const baseFilter = dashcardsFilter.find(
+            (f) => f.type === filter.type
+          );
           const baseLabel = baseFilter?.label || filter.type;
-          
+
           return {
             ...filter,
-            label: `${baseLabel} #${instanceNumber}`
+            label: `${baseLabel} #${instanceNumber}`,
           };
         } else {
           // Single instance - use base label
-          const baseFilter = dashcardsFilter.find(f => f.type === filter.type);
+          const baseFilter = dashcardsFilter.find(
+            (f) => f.type === filter.type
+          );
           return {
             ...filter,
-            label: baseFilter?.label || filter.type
+            label: baseFilter?.label || filter.type,
           };
         }
       });
-      
+
       setSelectedFilters(processedFilters);
       form.setFieldsValue({
         name: initialData.name,
@@ -189,11 +205,10 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
   // add custom field to the dashcard filters
   useEffect(() => {
     if (customFields && customFields.length > 0) {
-      console.log("customFields: %o", customFields);
       const customFieldFilters: DashcardFilter[] = customFields.map(
         (item: CustomField) => {
           let options: FilterOption[] = [];
-          
+
           if (item.type === "dropdown") {
             options = [
               { label: "is one of", value: "is_one_of" },
@@ -292,24 +307,29 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
       // Create a new instance with a unique ID while preserving the original type
       const timestamp = Date.now();
       const instanceId = `${filterId}_${timestamp}`;
-      
+
       // Count existing instances of this filter type for display purposes
-      const existingInstances = selectedFilters.filter(f => f.type === filterTemplate.type).length;
+      const existingInstances = selectedFilters.filter(
+        (f) => f.type === filterTemplate.type
+      ).length;
       const instanceNumber = existingInstances + 1;
-      
+
       const newFilterInstance: DashcardFilter = {
         ...filterTemplate,
         id: instanceId,
-        label: existingInstances > 0 ? `${filterTemplate.label} #${instanceNumber}` : filterTemplate.label,
+        label:
+          existingInstances > 0
+            ? `${filterTemplate.label} #${instanceNumber}`
+            : filterTemplate.label,
         // Keep the original type for backend compatibility
         type: filterTemplate.type,
         // Reset operator and value for new instance
         operator: filterTemplate.operator,
         value: undefined,
       };
-      
+
       setSelectedFilters((prev) => [...prev, newFilterInstance]);
-      
+
       // For custom fields, remove from available to prevent duplicates
       if (filterTemplate.type === EnumCardAttributeType.CUSTOM_FIELD) {
         setAvailableFilters((prev) => prev.filter((f) => f.id !== filterId));
@@ -322,46 +342,52 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
     const filterToRemove = selectedFilters.find((f) => f.id === filterId);
     if (filterToRemove) {
       setSelectedFilters((prev) => prev.filter((f) => f.id !== filterId));
-      
+
       // For custom fields, add back to available if no other instances exist
       if (filterToRemove.type === EnumCardAttributeType.CUSTOM_FIELD) {
-        const baseId = filterId.split('_')[0]; // Get base ID without instance suffix
-        const hasOtherInstances = selectedFilters.some(f => 
-          f.id !== filterId && f.id.startsWith(baseId + '_')
+        const baseId = filterId.split("_")[0]; // Get base ID without instance suffix
+        const hasOtherInstances = selectedFilters.some(
+          (f) => f.id !== filterId && f.id.startsWith(baseId + "_")
         );
-        
+
         if (!hasOtherInstances) {
           // Find the original filter template and add it back
-          const originalFilter = dashcardsFilter.find(f => f.id === baseId);
+          const originalFilter = dashcardsFilter.find((f) => f.id === baseId);
           if (originalFilter) {
             setAvailableFilters((prev) => [...prev, originalFilter]);
           }
         }
       }
       // For other filter types, they remain available since we always show them
-      
+
       // Update instance numbers for remaining filters of the same type
       setSelectedFilters((prev) => {
         const remainingFilters = prev.filter((f) => f.id !== filterId);
         return remainingFilters.map((filter, index) => {
           if (filter.type === filterToRemove.type) {
-            const sameTypeFilters = remainingFilters.filter(f => f.type === filter.type);
-            const instanceIndex = sameTypeFilters.findIndex(f => f.id === filter.id);
+            const sameTypeFilters = remainingFilters.filter(
+              (f) => f.type === filter.type
+            );
+            const instanceIndex = sameTypeFilters.findIndex(
+              (f) => f.id === filter.id
+            );
             const instanceNumber = instanceIndex + 1;
-            
+
             // Update label for multiple instances
             if (sameTypeFilters.length > 1) {
-              const baseLabel = filter.label?.replace(/ #\d+$/, '') || filter.label;
+              const baseLabel =
+                filter.label?.replace(/ #\d+$/, "") || filter.label;
               return {
                 ...filter,
-                label: `${baseLabel} #${instanceNumber}`
+                label: `${baseLabel} #${instanceNumber}`,
               };
             } else {
               // Single instance, remove the number
-              const baseLabel = filter.label?.replace(/ #\d+$/, '') || filter.label;
+              const baseLabel =
+                filter.label?.replace(/ #\d+$/, "") || filter.label;
               return {
                 ...filter,
-                label: baseLabel
+                label: baseLabel,
               };
             }
           }
@@ -378,7 +404,7 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
     const cleanedFilters = selectedFilters.map((filter) => {
       // For instance filters, use the original type but keep the instance ID for uniqueness
       const baseType = filter.type;
-      
+
       return {
         id: filter.id, // Keep the unique instance ID
         type: baseType, // Preserve original type for backend compatibility
@@ -413,34 +439,41 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
   // Due Date Filter Component
   const DueDateFilterComponent = ({ filter }: { filter: DashcardFilter }) => {
     const [number, setNumber] = useState<number>(1);
-    const [unit, setUnit] = useState<string>('day');
-    const [reference, setReference] = useState<string>('ago');
+    const [unit, setUnit] = useState<string>("day");
+    const [reference, setReference] = useState<string>("ago");
 
     const unitOptions = [
-      { label: 'day', value: 'day' },
-      { label: 'week', value: 'week' },
-      { label: 'month', value: 'month' },
+      { label: "day", value: "day" },
+      { label: "week", value: "week" },
+      { label: "month", value: "month" },
     ];
 
     const referenceOptions = [
-      { label: 'ago', value: 'ago' },
-      { label: 'from now', value: 'from_now' },
+      { label: "ago", value: "ago" },
+      { label: "from now", value: "from_now" },
     ];
 
     // Get the selected option from the filter operator
-    const selectedOption = filter.operator as string || '';
+    const selectedOption = (filter.operator as string) || "";
 
     useEffect(() => {
-      if (filter.value && typeof filter.value === 'object') {
+      if (filter.value && typeof filter.value === "object") {
         const value = filter.value as any;
         setNumber(value.number || 1);
-        setUnit(value.unit || 'day');
-        setReference(value.reference || 'ago');
+        setUnit(value.unit || "day");
+        setReference(value.reference || "ago");
       }
     }, [filter.value]);
 
-    const handleComplexValueChange = (newNumber?: number, newUnit?: string, newReference?: string) => {
-      if (selectedOption === 'later_than' || selectedOption === 'earlier_than') {
+    const handleComplexValueChange = (
+      newNumber?: number,
+      newUnit?: string,
+      newReference?: string
+    ) => {
+      if (
+        selectedOption === "later_than" ||
+        selectedOption === "earlier_than"
+      ) {
         handleFilterValueChange(filter.id, {
           type: selectedOption,
           number: newNumber !== undefined ? newNumber : number,
@@ -450,7 +483,8 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
       }
     };
 
-    const isComplexOption = selectedOption === 'later_than' || selectedOption === 'earlier_than';
+    const isComplexOption =
+      selectedOption === "later_than" || selectedOption === "earlier_than";
 
     // For complex options (later than, earlier than), show only the three inputs
     if (isComplexOption) {
@@ -503,7 +537,7 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
       title="Dashcards — Track"
       footer={null}
       centered
-      destroyOnClose
+      destroyOnHidden
       width={600}
     >
       <Form
@@ -588,9 +622,10 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
                       >
                         <td className="py-2 pr-2 w-24">
                           <div className="flex items-center gap-2">
-                            {filter.type === EnumCardAttributeType.CUSTOM_FIELD && (filter as any).field && 
-                              getCustomFieldIcon((filter as any).field.type)
-                            }
+                            {filter.type ===
+                              EnumCardAttributeType.CUSTOM_FIELD &&
+                              (filter as any).field &&
+                              getCustomFieldIcon((filter as any).field.type)}
                             <Text>{filter.label}</Text>
                           </div>
                         </td>
@@ -677,7 +712,8 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
                                 operator === "any_value" ||
                                 operator === "no_value";
                               const isMultiSelect =
-                                operator === "is_one_of" || operator === "is_not_one_of";
+                                operator === "is_one_of" ||
+                                operator === "is_not_one_of";
                               const isTextInput =
                                 operator === "starts_with" ||
                                 operator === "matches_with";
@@ -714,21 +750,27 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
                                 />
                               );
                             })()
-                          ) : filter.type === EnumCardAttributeType.CUSTOM_FIELD ? (
+                          ) : filter.type ===
+                            EnumCardAttributeType.CUSTOM_FIELD ? (
                             (() => {
                               const field = (filter as any).field as
                                 | CustomField
                                 | undefined;
                               const operator = String(filter.operator);
-                              
+
                               // Operator-specific logic for custom fields
                               const isNoValueInput =
                                 operator === "any_value" ||
                                 operator === "no_value" ||
-                                (field?.type === "number" && (operator === "any_value" || operator === "no_value")) ||
-                                (field?.type === "checkbox" && (operator === "checked" || operator === "unchecked"));
+                                (field?.type === "number" &&
+                                  (operator === "any_value" ||
+                                    operator === "no_value")) ||
+                                (field?.type === "checkbox" &&
+                                  (operator === "checked" ||
+                                    operator === "unchecked"));
                               const isMultiSelect =
-                                operator === "is_one_of" || operator === "is_not_one_of";
+                                operator === "is_one_of" ||
+                                operator === "is_not_one_of";
                               const isTextInput =
                                 operator === "starts_with" ||
                                 operator === "matches_with";
@@ -756,13 +798,20 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
                               // Number field type
                               if (field.type === "number") {
                                 if (operator === "is_between") {
-                                  const rangeValue = filter.value as { from: string; to: string } || { from: "", to: "" };
+                                  const rangeValue = (filter.value as {
+                                    from: string;
+                                    to: string;
+                                  }) || { from: "", to: "" };
                                   return (
                                     <Space>
                                       <InputNumber
                                         size="small"
                                         placeholder="From"
-                                        value={rangeValue.from ? Number(rangeValue.from) : undefined}
+                                        value={
+                                          rangeValue.from
+                                            ? Number(rangeValue.from)
+                                            : undefined
+                                        }
                                         onChange={(value) =>
                                           handleFilterValueChange(filter.id, {
                                             from: value?.toString() || "",
@@ -774,7 +823,11 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
                                       <InputNumber
                                         size="small"
                                         placeholder="To"
-                                        value={rangeValue.to ? Number(rangeValue.to) : undefined}
+                                        value={
+                                          rangeValue.to
+                                            ? Number(rangeValue.to)
+                                            : undefined
+                                        }
                                         onChange={(value) =>
                                           handleFilterValueChange(filter.id, {
                                             from: rangeValue.from,
@@ -790,9 +843,16 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
                                     <InputNumber
                                       size="small"
                                       placeholder="Enter number"
-                                      value={filter.value ? Number(filter.value) : undefined}
+                                      value={
+                                        filter.value
+                                          ? Number(filter.value)
+                                          : undefined
+                                      }
                                       onChange={(value) =>
-                                        handleFilterValueChange(filter.id, value?.toString() || "")
+                                        handleFilterValueChange(
+                                          filter.id,
+                                          value?.toString() || ""
+                                        )
                                       }
                                       style={{ width: "100%" }}
                                     />
@@ -833,7 +893,9 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
                                       onChange={(val: string) =>
                                         handleFilterValueChange(filter.id, val)
                                       }
-                                      mode={isMultiSelect ? "multiple" : undefined}
+                                      mode={
+                                        isMultiSelect ? "multiple" : undefined
+                                      }
                                     />
                                   );
                                 } else if (
@@ -854,7 +916,9 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
                                         handleFilterValueChange(filter.id, val)
                                       }
                                       roleIds={roleIds}
-                                      mode={isMultiSelect ? "multiple" : undefined}
+                                      mode={
+                                        isMultiSelect ? "multiple" : undefined
+                                      }
                                     />
                                   );
                                 }
@@ -875,7 +939,9 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
                                     onChange={(val: string) =>
                                       handleFilterValueChange(filter.id, val)
                                     }
-                                    mode={isMultiSelect ? "multiple" : undefined}
+                                    mode={
+                                      isMultiSelect ? "multiple" : undefined
+                                    }
                                   />
                                 );
                               }
@@ -895,7 +961,8 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
                                 />
                               );
                             })()
-                          ) : filter.type === EnumCardAttributeType.PRODUCT || filter.type === EnumCardAttributeType.WARNA ? (
+                          ) : filter.type === EnumCardAttributeType.PRODUCT ||
+                            filter.type === EnumCardAttributeType.WARNA ? (
                             (() => {
                               const operator = String(filter.operator);
                               const isNoValueInput =
@@ -903,7 +970,8 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
                                 operator === "any_value" ||
                                 operator === "no_value";
                               const isMultiSelect =
-                                operator === "is_one_of" || operator === "is_not_one_of";
+                                operator === "is_one_of" ||
+                                operator === "is_not_one_of";
                               const isTextInput =
                                 operator === "starts_with" ||
                                 operator === "matches_with";
@@ -916,7 +984,12 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
                                 return (
                                   <Input
                                     size="small"
-                                    placeholder={`Enter ${filter.type === EnumCardAttributeType.PRODUCT ? 'product' : 'warna'} name`}
+                                    placeholder={`Enter ${
+                                      filter.type ===
+                                      EnumCardAttributeType.PRODUCT
+                                        ? "product"
+                                        : "warna"
+                                    } name`}
                                     value={(filter.value as string) || ""}
                                     onChange={(e) =>
                                       handleFilterValueChange(
@@ -934,7 +1007,12 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
                                 return (
                                   <Input
                                     size="small"
-                                    placeholder={`Enter ${filter.type === EnumCardAttributeType.PRODUCT ? 'product' : 'warna'} names (comma-separated)`}
+                                    placeholder={`Enter ${
+                                      filter.type ===
+                                      EnumCardAttributeType.PRODUCT
+                                        ? "product"
+                                        : "warna"
+                                    } names (comma-separated)`}
                                     value={(filter.value as string) || ""}
                                     onChange={(e) =>
                                       handleFilterValueChange(
@@ -950,7 +1028,12 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
                               return (
                                 <Input
                                   size="small"
-                                  placeholder={`Enter ${filter.type === EnumCardAttributeType.PRODUCT ? 'product' : 'warna'} name`}
+                                  placeholder={`Enter ${
+                                    filter.type ===
+                                    EnumCardAttributeType.PRODUCT
+                                      ? "product"
+                                      : "warna"
+                                  } name`}
                                   value={(filter.value as string) || ""}
                                   onChange={(e) =>
                                     handleFilterValueChange(
@@ -998,7 +1081,9 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
               size="small"
               showSearch
               filterOption={(input, option) =>
-                (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                (option?.label ?? "")
+                  .toLowerCase()
+                  .includes(input.toLowerCase())
               }
               options={availableFilters.map((f) => ({
                 label: f.label,

@@ -558,8 +558,10 @@ const Members: React.FC = () => {
         open={editUserModalVisible}
         onCancel={closeEditUserModal}
         footer={null}
-        destroyOnClose
-        bodyStyle={{ padding: 24 }}
+        destroyOnHidden
+        styles={{
+          body: { padding: 24 },
+        }}
         style={{ top: 40 }}
       >
         {detailLoading ? (

@@ -40,7 +40,9 @@ const ModalPackingSO: React.FC<ModalPackingSOProps> = ({ open, onClose }) => {
   const filteredSalesOrders = useMemo(() => {
     if (!searchValue) return salesOrders;
     return salesOrders.filter((so) =>
-      so.purchaseOrder?.soNumber?.toLowerCase().includes(searchValue.toLowerCase())
+      so.purchaseOrder?.soNumber
+        ?.toLowerCase()
+        .includes(searchValue.toLowerCase())
     );
   }, [salesOrders, searchValue]);
 
@@ -72,15 +74,16 @@ const ModalPackingSO: React.FC<ModalPackingSOProps> = ({ open, onClose }) => {
     setSelectedSO(so);
     setSearchValue(so.purchaseOrder?.soNumber || "");
     // Extract products from SO items
-    const products = so.items?.map((item) => ({
-      key: item.id,
-      id: item.id,
-      namaBarang: item.product?.name || "",
-      sku: item.product?.sku || "",
-      kuantitas: item.quantityPacked || 0,
-      satuan: item.unitType || "",
-      product: item.product,
-    })) || [];
+    const products =
+      so.items?.map((item) => ({
+        key: item.id,
+        id: item.id,
+        namaBarang: item.product?.name || "",
+        sku: item.product?.sku || "",
+        kuantitas: item.quantityPacked || 0,
+        satuan: item.unitType || "",
+        product: item.product,
+      })) || [];
     setSelectedProducts(products);
   };
 
@@ -90,7 +93,7 @@ const ModalPackingSO: React.FC<ModalPackingSOProps> = ({ open, onClose }) => {
         message.warning("Silakan pilih SO dan produk terlebih dahulu");
         return;
       }
-      
+
       // TODO: Implement SO packing functionality
       message.success("SO packing berhasil disimpan");
       onClose();
@@ -151,7 +154,7 @@ const ModalPackingSO: React.FC<ModalPackingSOProps> = ({ open, onClose }) => {
       onCancel={handleCancel}
       footer={null}
       width={900}
-      destroyOnClose
+      destroyOnHidden
     >
       <div className="py-4 space-y-6">
         {/* Search Input */}
@@ -164,7 +167,7 @@ const ModalPackingSO: React.FC<ModalPackingSOProps> = ({ open, onClose }) => {
             size="large"
             className="w-full"
           />
-          
+
           {/* SO Selection Dropdown */}
           {searchValue && filteredSalesOrders.length > 0 && (
             <div className="border border-gray-200 rounded-lg max-h-48 overflow-y-auto bg-white shadow-sm">
@@ -185,7 +188,8 @@ const ModalPackingSO: React.FC<ModalPackingSOProps> = ({ open, onClose }) => {
                         <Text strong>{so.purchaseOrder?.soNumber}</Text>
                         <br />
                         <Text type="secondary" className="text-sm">
-                          {so.purchaseOrder?.supplierName} • {so.purchaseOrder?.date}
+                          {so.purchaseOrder?.supplierName} •{" "}
+                          {so.purchaseOrder?.date}
                         </Text>
                       </div>
                       <div className="text-right">
@@ -206,7 +210,7 @@ const ModalPackingSO: React.FC<ModalPackingSOProps> = ({ open, onClose }) => {
           <Title level={4} className="mb-4">
             Detail Item
           </Title>
-          
+
           <Table
             columns={columns}
             dataSource={selectedProducts}

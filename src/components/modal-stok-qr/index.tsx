@@ -1,13 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import {
-  Modal,
-  Form,
-  Input,
-  Button,
-  message,
-  Typography,
-  Space,
-} from "antd";
+import { Modal, Form, Input, Button, message, Typography, Space } from "antd";
 import { Package, QrCode, Camera } from "lucide-react";
 import { Scanner } from "@yudiel/react-qr-scanner";
 
@@ -42,10 +34,35 @@ const ModalStokQR: React.FC<ModalStokQRProps> = ({ open, onClose }) => {
 
       // Filter out unwanted keys that external scanners might send
       const unwantedKeys = [
-        "Shift", "Control", "Alt", "Meta", "Tab", "Escape", "CapsLock",
-        "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End",
-        "PageUp", "PageDown", "Insert", "Delete", "F1", "F2", "F3", "F4",
-        "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12"
+        "Shift",
+        "Control",
+        "Alt",
+        "Meta",
+        "Tab",
+        "Escape",
+        "CapsLock",
+        "ArrowUp",
+        "ArrowDown",
+        "ArrowLeft",
+        "ArrowRight",
+        "Home",
+        "End",
+        "PageUp",
+        "PageDown",
+        "Insert",
+        "Delete",
+        "F1",
+        "F2",
+        "F3",
+        "F4",
+        "F5",
+        "F6",
+        "F7",
+        "F8",
+        "F9",
+        "F10",
+        "F11",
+        "F12",
       ];
 
       if (unwantedKeys.includes(e.key)) {
@@ -101,36 +118,36 @@ const ModalStokQR: React.FC<ModalStokQRProps> = ({ open, onClose }) => {
     if (soWithDotsMatch) {
       return soWithDotsMatch[0].toUpperCase();
     }
-    
+
     // Look for SO pattern: SO followed by numbers (original format)
     const soMatch = scannedData.match(/SO\d+/i);
     if (soMatch) {
       return soMatch[0].toUpperCase();
     }
-    
+
     // If no SO pattern found, check if the entire string looks like an SO number with dots
     if (/^SO\.[\d\.]+$/i.test(scannedData.trim())) {
       return scannedData.trim().toUpperCase();
     }
-    
+
     // Check if the entire string looks like an SO number (original format)
     if (/^SO\d+$/i.test(scannedData.trim())) {
       return scannedData.trim().toUpperCase();
     }
-    
+
     return null;
   };
 
   const handleScan = (scannedData: string) => {
     const extractedSO = extractSOFromScan(scannedData);
-    
+
     if (extractedSO) {
       setSelectedSO(extractedSO);
       form.setFieldsValue({ soNumber: extractedSO });
-      
+
       // Directly open the barcode URL
       const barcodeUrl = `https://warehouse.ozzyclothing.co.id/warehouse/barcode-production/print/${extractedSO}`;
-      window.open(barcodeUrl, '_blank');
+      window.open(barcodeUrl, "_blank");
       message.success(`Opening barcode printing for SO: ${extractedSO}`);
       onClose();
     } else {
@@ -148,10 +165,10 @@ const ModalStokQR: React.FC<ModalStokQRProps> = ({ open, onClose }) => {
     try {
       // Open barcode printing URL in new tab
       const barcodeUrl = `https://warehouse.ozzyclothing.co.id/warehouse/barcode-production/print/${selectedSO}`;
-      window.open(barcodeUrl, '_blank');
-      
+      window.open(barcodeUrl, "_blank");
+
       message.success(`Opening barcode printing for SO: ${selectedSO}`);
-      
+
       // Close modal after opening the URL
       onClose();
     } catch (error) {
@@ -187,9 +204,9 @@ const ModalStokQR: React.FC<ModalStokQRProps> = ({ open, onClose }) => {
       footer={null}
       width={500}
       centered
-      destroyOnClose
+      destroyOnHidden
     >
-      <div style={{ padding: '1rem' }}>
+      <div style={{ padding: "1rem" }}>
         <Form form={form} layout="vertical" onFinish={handleGenerateQR}>
           <Form.Item
             label={
@@ -229,7 +246,9 @@ const ModalStokQR: React.FC<ModalStokQRProps> = ({ open, onClose }) => {
             width={400}
             centered
             zIndex={2000}
-            maskStyle={{ zIndex: 1999 }}
+            styles={{
+              mask: { zIndex: 1999 },
+            }}
           >
             <div className="p-4">
               <Scanner
@@ -297,8 +316,6 @@ const ModalStokQR: React.FC<ModalStokQRProps> = ({ open, onClose }) => {
           </Form.Item>
         </Form>
       </div>
-
-
     </Modal>
   );
 };

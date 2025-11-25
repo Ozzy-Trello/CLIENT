@@ -95,7 +95,9 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
 
   // Fetch users for the current workspace and board
   const { data: users } = useAccountList({
-    workspaceId: Array.isArray(workspaceId) ? workspaceId[0] : workspaceId || "",
+    workspaceId: Array.isArray(workspaceId)
+      ? workspaceId[0]
+      : workspaceId || "",
     boardId: currentBoardId || "",
   });
 
@@ -108,27 +110,42 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
   useEffect(() => {
     // Populate boards
     if (boardsArr && boardsArr.length > 0) {
-      LookupCache.rememberMany("board", boardsArr.map((b: any) => ({ id: b.id, name: b.name })));
+      LookupCache.rememberMany(
+        "board",
+        boardsArr.map((b: any) => ({ id: b.id, name: b.name }))
+      );
     }
 
     // Populate lists
     if (currentBoardLists && currentBoardLists.length > 0) {
-      LookupCache.rememberMany("list", currentBoardLists.map((l: any) => ({ id: l.id, name: l.name })));
+      LookupCache.rememberMany(
+        "list",
+        currentBoardLists.map((l: any) => ({ id: l.id, name: l.name }))
+      );
     }
 
     // Populate users
     if (users?.data && users.data.length > 0) {
-      LookupCache.rememberMany("user", users.data.map((u: any) => ({ id: u.id, name: u.name || u.email })));
+      LookupCache.rememberMany(
+        "user",
+        users.data.map((u: any) => ({ id: u.id, name: u.name || u.email }))
+      );
     }
 
     // Populate custom fields
     if (customFields && customFields.length > 0) {
-      LookupCache.rememberMany("field", customFields.map((f: any) => ({ id: f.id, name: f.name })));
+      LookupCache.rememberMany(
+        "field",
+        customFields.map((f: any) => ({ id: f.id, name: f.name }))
+      );
     }
 
     // Populate labels
     if (allLabels && allLabels.length > 0) {
-      LookupCache.rememberMany("label", allLabels.map((l: any) => ({ id: l.id, name: l.name })));
+      LookupCache.rememberMany(
+        "label",
+        allLabels.map((l: any) => ({ id: l.id, name: l.name }))
+      );
     }
   }, [boardsArr, currentBoardLists, users, customFields, allLabels]);
 
@@ -145,46 +162,54 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
   // Helper function to get display value for dropdowns using LookupCache
   const getDisplayValue = (filter: DashcardFilter): string => {
     if (!filter.value || filter.value === "") return "";
-    
+
     const value = filter.value as string;
-    
+
     // For due date filters - handle complex format
     if (filter.type === EnumCardAttributeType.DUE_DATE) {
-      if (typeof filter.value === 'object' && filter.value !== null) {
+      if (typeof filter.value === "object" && filter.value !== null) {
         const dueDateValue = filter.value as any;
-        if (dueDateValue.type === 'later than' || dueDateValue.type === 'earlier than') {
+        if (
+          dueDateValue.type === "later than" ||
+          dueDateValue.type === "earlier than"
+        ) {
           return `${dueDateValue.type} ${dueDateValue.number} ${dueDateValue.unit} ${dueDateValue.reference}`;
         }
         return dueDateValue.type || value;
       }
       return value;
     }
-    
+
     // Try to get friendly name from LookupCache first
     const cachedName = LookupCache.any(value);
     if (cachedName) return cachedName;
-    
+
     // For board filters - fallback to options
     if (filter.type === EnumCardAttributeType.BOARD) {
-      const board = boardOptions.find(b => b.value === value);
+      const board = boardOptions.find((b) => b.value === value);
       return board?.label || value;
     }
-    
+
     // For list filters - fallback to options
     if (filter.type === EnumCardAttributeType.LIST) {
-      const list = listOptions.find(l => l.value === value);
+      const list = listOptions.find((l) => l.value === value);
       return list?.label || value;
     }
-    
+
     // For custom field dropdowns - fallback to options
     if (filter.type === EnumCardAttributeType.CUSTOM_FIELD) {
       const customFilter = filter as any;
-      if (customFilter.field?.type === EnumCustomFieldType.Dropdown && customFilter.field?.options) {
-        const option = customFilter.field.options.find((opt: any) => opt.value === value);
+      if (
+        customFilter.field?.type === EnumCustomFieldType.Dropdown &&
+        customFilter.field?.options
+      ) {
+        const option = customFilter.field.options.find(
+          (opt: any) => opt.value === value
+        );
         return option?.label || value;
       }
     }
-    
+
     return value;
   };
 
@@ -194,9 +219,11 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
       setBgColor(initialData.backgroundColor);
       setDashcardName(initialData.name);
       setSelectedFilters(initialData.filters);
-      setDisplayConfig(initialData.displayConfig || {
-        type: DashcardDisplayType.CARD_COUNT,
-      });
+      setDisplayConfig(
+        initialData.displayConfig || {
+          type: DashcardDisplayType.CARD_COUNT,
+        }
+      );
       form.setFieldsValue({
         name: initialData.name,
         background: initialData.backgroundColor,
@@ -353,34 +380,41 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
   // Due Date Filter Component
   const DueDateFilterComponent = ({ filter }: { filter: DashcardFilter }) => {
     const [number, setNumber] = useState<number>(1);
-    const [unit, setUnit] = useState<string>('day');
-    const [reference, setReference] = useState<string>('ago');
+    const [unit, setUnit] = useState<string>("day");
+    const [reference, setReference] = useState<string>("ago");
 
     const unitOptions = [
-      { label: 'day', value: 'day' },
-      { label: 'week', value: 'week' },
-      { label: 'month', value: 'month' },
+      { label: "day", value: "day" },
+      { label: "week", value: "week" },
+      { label: "month", value: "month" },
     ];
 
     const referenceOptions = [
-      { label: 'ago', value: 'ago' },
-      { label: 'from now', value: 'from_now' },
+      { label: "ago", value: "ago" },
+      { label: "from now", value: "from_now" },
     ];
 
     // Get the selected option from the filter operator
-    const selectedOption = filter.operator as string || '';
+    const selectedOption = (filter.operator as string) || "";
 
     useEffect(() => {
-      if (filter.value && typeof filter.value === 'object') {
+      if (filter.value && typeof filter.value === "object") {
         const value = filter.value as any;
         setNumber(value.number || 1);
-        setUnit(value.unit || 'day');
-        setReference(value.reference || 'ago');
+        setUnit(value.unit || "day");
+        setReference(value.reference || "ago");
       }
     }, [filter.value]);
 
-    const handleComplexValueChange = (newNumber?: number, newUnit?: string, newReference?: string) => {
-      if (selectedOption === 'later_than' || selectedOption === 'earlier_than') {
+    const handleComplexValueChange = (
+      newNumber?: number,
+      newUnit?: string,
+      newReference?: string
+    ) => {
+      if (
+        selectedOption === "later_than" ||
+        selectedOption === "earlier_than"
+      ) {
         handleFilterValueChange(filter.id, {
           type: selectedOption,
           number: newNumber !== undefined ? newNumber : number,
@@ -390,7 +424,8 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
       }
     };
 
-    const isComplexOption = selectedOption === 'later_than' || selectedOption === 'earlier_than';
+    const isComplexOption =
+      selectedOption === "later_than" || selectedOption === "earlier_than";
 
     // For complex options (later than, earlier than), show only the three inputs
     if (isComplexOption) {
@@ -443,7 +478,7 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
       title="Dashcards — Track"
       footer={null}
       centered
-      destroyOnClose
+      destroyOnHidden
       width={600}
     >
       <Form
@@ -500,28 +535,33 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
                 />
               </Form.Item>
 
-              <Form.Item
-                label={<Text strong>Display Type</Text>}
-              >
+              <Form.Item label={<Text strong>Display Type</Text>}>
                 <Select
                   value={displayConfig.type}
                   onChange={(value: DashcardDisplayType) => {
                     setDisplayConfig({
                       type: value,
-                      customFieldId: value === DashcardDisplayType.CUSTOM_FIELD_SUM ? displayConfig.customFieldId : undefined,
+                      customFieldId:
+                        value === DashcardDisplayType.CUSTOM_FIELD_SUM
+                          ? displayConfig.customFieldId
+                          : undefined,
                     });
                   }}
                   options={[
-                    { label: "Card Count", value: DashcardDisplayType.CARD_COUNT },
-                    { label: "Custom Field Sum", value: DashcardDisplayType.CUSTOM_FIELD_SUM },
+                    {
+                      label: "Card Count",
+                      value: DashcardDisplayType.CARD_COUNT,
+                    },
+                    {
+                      label: "Custom Field Sum",
+                      value: DashcardDisplayType.CUSTOM_FIELD_SUM,
+                    },
                   ]}
                 />
               </Form.Item>
 
               {displayConfig.type === DashcardDisplayType.CUSTOM_FIELD_SUM && (
-                <Form.Item
-                  label={<Text strong>Custom Field</Text>}
-                >
+                <Form.Item label={<Text strong>Custom Field</Text>}>
                   <Select
                     value={displayConfig.customFieldId}
                     onChange={(value: string) => {
@@ -531,12 +571,15 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
                       });
                     }}
                     placeholder="Select a numeric custom field"
-                    options={customFields
-                      ?.filter(field => field.type === EnumCustomFieldType.Number)
-                      .map(field => ({
-                        label: field.name,
-                        value: field.id,
-                      })) || []
+                    options={
+                      customFields
+                        ?.filter(
+                          (field) => field.type === EnumCustomFieldType.Number
+                        )
+                        .map((field) => ({
+                          label: field.name,
+                          value: field.id,
+                        })) || []
                     }
                   />
                 </Form.Item>
@@ -592,177 +635,231 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
                             placeholder="Select list"
                           />
                         ) : filter.type === EnumCardAttributeType.ASSIGNED ? (
-                           <UserSelection
-                             placeholder="Select user"
-                             width="100%"
-                             onChange={(value: string) =>
-                               handleFilterValueChange(filter.id, value)
-                             }
-                             value={filter.value as string}
-                           />
-                         ) : filter.type === EnumCardAttributeType.CUSTOM_FIELD ? (
-                           (() => {
-                             const field = (filter as any).field as CustomField | undefined;
-                             if (!field) {
-                               return (
-                                 <Input
-                                   size="small"
-                                   placeholder="Type and press enter"
-                                   value={(filter.value as string) || ""}
-                                   onChange={(e) =>
-                                     handleFilterValueChange(filter.id, e.target.value)
-                                   }
-                                 />
-                               );
-                             }
+                          <UserSelection
+                            placeholder="Select user"
+                            width="100%"
+                            onChange={(value: string) =>
+                              handleFilterValueChange(filter.id, value)
+                            }
+                            value={filter.value as string}
+                          />
+                        ) : filter.type ===
+                          EnumCardAttributeType.CUSTOM_FIELD ? (
+                          (() => {
+                            const field = (filter as any).field as
+                              | CustomField
+                              | undefined;
+                            if (!field) {
+                              return (
+                                <Input
+                                  size="small"
+                                  placeholder="Type and press enter"
+                                  value={(filter.value as string) || ""}
+                                  onChange={(e) =>
+                                    handleFilterValueChange(
+                                      filter.id,
+                                      e.target.value
+                                    )
+                                  }
+                                />
+                              );
+                            }
 
-                             // Handle different custom field types
-                             switch (field.type) {
-                               case EnumCustomFieldType.Dropdown:
-                                 if (field.source === "user") {
-                                   return (
-                                     <UserSelection
-                                       placeholder="Select user"
-                                       width="100%"
-                                       onChange={(value: string) =>
-                                         handleFilterValueChange(filter.id, value)
-                                       }
-                                       value={filter.value as string}
-                                     />
-                                   );
-                                 } else if (field.source?.startsWith("user-role:")) {
-                                   // Role-based user selection
-                                   const roleIds = field.source
-                                     .slice(10)
-                                     .split(",")
-                                     .map((s) => s.trim())
-                                     .filter(Boolean);
-                                   return (
-                                     <UserSelection
-                                       placeholder="Select user"
-                                       width="100%"
-                                       onChange={(value: string) =>
-                                         handleFilterValueChange(filter.id, value)
-                                       }
-                                       value={filter.value as string}
-                                       roleIds={roleIds}
-                                     />
-                                   );
-                                 }
+                            // Handle different custom field types
+                            switch (field.type) {
+                              case EnumCustomFieldType.Dropdown:
+                                if (field.source === "user") {
+                                  return (
+                                    <UserSelection
+                                      placeholder="Select user"
+                                      width="100%"
+                                      onChange={(value: string) =>
+                                        handleFilterValueChange(
+                                          filter.id,
+                                          value
+                                        )
+                                      }
+                                      value={filter.value as string}
+                                    />
+                                  );
+                                } else if (
+                                  field.source?.startsWith("user-role:")
+                                ) {
+                                  // Role-based user selection
+                                  const roleIds = field.source
+                                    .slice(10)
+                                    .split(",")
+                                    .map((s) => s.trim())
+                                    .filter(Boolean);
+                                  return (
+                                    <UserSelection
+                                      placeholder="Select user"
+                                      width="100%"
+                                      onChange={(value: string) =>
+                                        handleFilterValueChange(
+                                          filter.id,
+                                          value
+                                        )
+                                      }
+                                      value={filter.value as string}
+                                      roleIds={roleIds}
+                                    />
+                                  );
+                                }
 
-                                 // Custom dropdown
-                                 const opts = (field.options || []).map((o: any) => ({
-                                   label: o.label,
-                                   value: o.value,
-                                 }));
-                                 return (
-                                   <Select
-                                     size="small"
-                                     className="w-full"
-                                     options={opts}
-                                     value={filter.value as string}
-                                     onChange={(value: string) =>
-                                       handleFilterValueChange(filter.id, value)
-                                     }
-                                     placeholder="Select option"
-                                   />
-                                 );
+                                // Custom dropdown
+                                const opts = (field.options || []).map(
+                                  (o: any) => ({
+                                    label: o.label,
+                                    value: o.value,
+                                  })
+                                );
+                                return (
+                                  <Select
+                                    size="small"
+                                    className="w-full"
+                                    options={opts}
+                                    value={filter.value as string}
+                                    onChange={(value: string) =>
+                                      handleFilterValueChange(filter.id, value)
+                                    }
+                                    placeholder="Select option"
+                                  />
+                                );
 
-                               case EnumCustomFieldType.Checkbox:
-                                 return (
-                                   <Select
-                                     size="small"
-                                     className="w-full"
-                                     options={[
-                                       { label: "Unchecked", value: "false" },
-                                       { label: "Checked", value: "true" },
-                                     ]}
-                                     value={filter.value?.toString() || "false"}
-                                     onChange={(value: string) =>
-                                       handleFilterValueChange(filter.id, value === "true")
-                                     }
-                                     placeholder="Select state"
-                                   />
-                                 );
+                              case EnumCustomFieldType.Checkbox:
+                                return (
+                                  <Select
+                                    size="small"
+                                    className="w-full"
+                                    options={[
+                                      { label: "Unchecked", value: "false" },
+                                      { label: "Checked", value: "true" },
+                                    ]}
+                                    value={filter.value?.toString() || "false"}
+                                    onChange={(value: string) =>
+                                      handleFilterValueChange(
+                                        filter.id,
+                                        value === "true"
+                                      )
+                                    }
+                                    placeholder="Select state"
+                                  />
+                                );
 
-                               case EnumCustomFieldType.Number:
-                                 if (filter.operator === FilterOperator.IS_BETWEEN) {
-                                   const rangeValue = filter.value as { from?: string; to?: string } || {};
-                                   return (
-                                     <div className="flex items-center gap-2">
-                                       <Input
-                                         size="small"
-                                         type="number"
-                                         placeholder="From"
-                                         value={rangeValue.from || ""}
-                                         onChange={(e) => {
-                                           const newValue = { ...rangeValue, from: e.target.value };
-                                           handleFilterValueChange(filter.id, newValue);
-                                         }}
-                                         style={{ width: 80 }}
-                                       />
-                                       <span className="text-gray-500">to</span>
-                                       <Input
-                                         size="small"
-                                         type="number"
-                                         placeholder="To (optional)"
-                                         value={rangeValue.to || ""}
-                                         onChange={(e) => {
-                                           const newValue = { ...rangeValue, to: e.target.value };
-                                           handleFilterValueChange(filter.id, newValue);
-                                         }}
-                                         style={{ width: 80 }}
-                                       />
-                                     </div>
-                                   );
-                                 } else if (filter.operator === FilterOperator.ANY_VALUE || filter.operator === FilterOperator.NO_VALUE) {
-                                   return (
-                                     <span className="text-gray-500 text-sm">
-                                       {filter.operator === FilterOperator.ANY_VALUE ? "Any value" : "No value"}
-                                     </span>
-                                   );
-                                 } else {
-                                   return (
-                                     <Input
-                                       size="small"
-                                       type="number"
-                                       placeholder="Enter number"
-                                       value={(filter.value as string) || ""}
-                                       onChange={(e) =>
-                                         handleFilterValueChange(filter.id, e.target.value)
-                                       }
-                                     />
-                                   );
-                                 }
+                              case EnumCustomFieldType.Number:
+                                if (
+                                  filter.operator === FilterOperator.IS_BETWEEN
+                                ) {
+                                  const rangeValue =
+                                    (filter.value as {
+                                      from?: string;
+                                      to?: string;
+                                    }) || {};
+                                  return (
+                                    <div className="flex items-center gap-2">
+                                      <Input
+                                        size="small"
+                                        type="number"
+                                        placeholder="From"
+                                        value={rangeValue.from || ""}
+                                        onChange={(e) => {
+                                          const newValue = {
+                                            ...rangeValue,
+                                            from: e.target.value,
+                                          };
+                                          handleFilterValueChange(
+                                            filter.id,
+                                            newValue
+                                          );
+                                        }}
+                                        style={{ width: 80 }}
+                                      />
+                                      <span className="text-gray-500">to</span>
+                                      <Input
+                                        size="small"
+                                        type="number"
+                                        placeholder="To (optional)"
+                                        value={rangeValue.to || ""}
+                                        onChange={(e) => {
+                                          const newValue = {
+                                            ...rangeValue,
+                                            to: e.target.value,
+                                          };
+                                          handleFilterValueChange(
+                                            filter.id,
+                                            newValue
+                                          );
+                                        }}
+                                        style={{ width: 80 }}
+                                      />
+                                    </div>
+                                  );
+                                } else if (
+                                  filter.operator ===
+                                    FilterOperator.ANY_VALUE ||
+                                  filter.operator === FilterOperator.NO_VALUE
+                                ) {
+                                  return (
+                                    <span className="text-gray-500 text-sm">
+                                      {filter.operator ===
+                                      FilterOperator.ANY_VALUE
+                                        ? "Any value"
+                                        : "No value"}
+                                    </span>
+                                  );
+                                } else {
+                                  return (
+                                    <Input
+                                      size="small"
+                                      type="number"
+                                      placeholder="Enter number"
+                                      value={(filter.value as string) || ""}
+                                      onChange={(e) =>
+                                        handleFilterValueChange(
+                                          filter.id,
+                                          e.target.value
+                                        )
+                                      }
+                                    />
+                                  );
+                                }
 
-                               case EnumCustomFieldType.Date:
-                                 return (
-                                   <Input
-                                     size="small"
-                                     type="date"
-                                     placeholder="Select date"
-                                     value={(filter.value as string) || ""}
-                                     onChange={(e) =>
-                                       handleFilterValueChange(filter.id, e.target.value)
-                                     }
-                                   />
-                                 );
+                              case EnumCustomFieldType.Date:
+                                return (
+                                  <Input
+                                    size="small"
+                                    type="date"
+                                    placeholder="Select date"
+                                    value={(filter.value as string) || ""}
+                                    onChange={(e) =>
+                                      handleFilterValueChange(
+                                        filter.id,
+                                        e.target.value
+                                      )
+                                    }
+                                  />
+                                );
 
-                               case EnumCustomFieldType.Text:
-                               default:
-                                 return (
-                                   <Input
-                                     size="small"
-                                     placeholder="Enter text"
-                                     value={(filter.value as string) || ""}
-                                     onChange={(e) =>
-                                       handleFilterValueChange(filter.id, e.target.value)
-                                     }
-                                   />
-                                 );
-                             }
-                           })()
-                        ) : filter.type === EnumCardAttributeType.IS_COMPLETED ? (
+                              case EnumCustomFieldType.Text:
+                              default:
+                                return (
+                                  <Input
+                                    size="small"
+                                    placeholder="Enter text"
+                                    value={(filter.value as string) || ""}
+                                    onChange={(e) =>
+                                      handleFilterValueChange(
+                                        filter.id,
+                                        e.target.value
+                                      )
+                                    }
+                                  />
+                                );
+                            }
+                          })()
+                        ) : filter.type ===
+                          EnumCardAttributeType.IS_COMPLETED ? (
                           <Select
                             size="small"
                             options={[
@@ -787,7 +884,8 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
                               operator === "any_value" ||
                               operator === "no_value";
                             const isMultiSelect =
-                              operator === "is_one_of" || operator === "is_not_one_of";
+                              operator === "is_one_of" ||
+                              operator === "is_not_one_of";
                             const isTextInput =
                               operator === "starts_with" ||
                               operator === "matches_with";
@@ -857,7 +955,9 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
               size="small"
               showSearch
               filterOption={(input, option) =>
-                (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                (option?.label ?? "")
+                  .toLowerCase()
+                  .includes(input.toLowerCase())
               }
               options={availableFilters.map((f) => ({
                 label: f.label,

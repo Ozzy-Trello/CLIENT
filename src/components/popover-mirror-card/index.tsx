@@ -11,26 +11,28 @@ interface PopoverMirrorCardProps {
   triggerEl?: ReactNode;
 }
 
-const PopoverMirrorCard: React.FC<PopoverMirrorCardProps> = ({ 
-  open, 
-  setOpen, 
-  triggerEl 
+const PopoverMirrorCard: React.FC<PopoverMirrorCardProps> = ({
+  open,
+  setOpen,
+  triggerEl,
 }) => {
   const { workspaceId } = useParams();
- 
+
   return (
     <Popover
       content={<ContentMirrorCard />}
       title={
         <div className="flex justify-between items-center">
           <div className="flex justify-start items-center gap-2">
-            <Typography.Title level={5} className="m-0">Mirror Card</Typography.Title>
+            <Typography.Title level={5} className="m-0">
+              Mirror Card
+            </Typography.Title>
           </div>
-          <button 
+          <button
             onClick={() => setOpen(false)}
             className="hover:bg-gray-100 p-1 rounded-sm transition-colors"
           >
-            <X size={14} className="text-gray-400"/>
+            <X size={14} className="text-gray-400" />
           </button>
         </div>
       }
@@ -39,7 +41,7 @@ const PopoverMirrorCard: React.FC<PopoverMirrorCardProps> = ({
       onOpenChange={setOpen}
       placement="bottom"
       overlayClassName="custom-field-popover"
-      destroyTooltipOnHide
+      destroyOnHidden
     >
       {triggerEl}
     </Popover>

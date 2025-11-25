@@ -1,8 +1,8 @@
 "use client";
 
-import React from 'react';
-import { Tooltip, TooltipProps } from 'antd';
-import { isTouchDevice } from '@utils/device';
+import React from "react";
+import { Tooltip, TooltipProps } from "antd";
+import { isTouchDevice } from "@utils/device";
 
 /**
  * A touch-aware tooltip component that automatically disables tooltips on touch devices
@@ -12,14 +12,14 @@ interface TouchAwareTooltipProps {
   children: React.ReactElement;
   forceShow?: boolean; // Override touch detection if needed
   title?: React.ReactNode;
-  placement?: TooltipProps['placement'];
-  trigger?: TooltipProps['trigger'];
+  placement?: TooltipProps["placement"];
+  trigger?: TooltipProps["trigger"];
   overlayClassName?: string;
   overlayStyle?: React.CSSProperties;
   mouseEnterDelay?: number;
   mouseLeaveDelay?: number;
-  destroyTooltipOnHide?: boolean;
-  getPopupContainer?: TooltipProps['getPopupContainer'];
+  destroyOnHidden?: boolean;
+  getPopupContainer?: TooltipProps["getPopupContainer"];
 }
 
 const TouchAwareTooltip: React.FC<TouchAwareTooltipProps> = ({
@@ -32,19 +32,19 @@ const TouchAwareTooltip: React.FC<TouchAwareTooltipProps> = ({
   overlayStyle,
   mouseEnterDelay,
   mouseLeaveDelay,
-  destroyTooltipOnHide,
+  destroyOnHidden,
   getPopupContainer,
 }) => {
   // State to track if component is mounted (client-side)
   const [isMounted, setIsMounted] = React.useState(false);
-  
+
   // Check if this is a touch device, but only on client-side
   const isTouch = React.useMemo(() => {
     if (!isMounted) return false;
     try {
       return isTouchDevice();
     } catch (error) {
-      console.warn('Error detecting touch device:', error);
+      console.warn("Error detecting touch device:", error);
       return false;
     }
   }, [isMounted]);
@@ -69,7 +69,7 @@ const TouchAwareTooltip: React.FC<TouchAwareTooltipProps> = ({
       overlayStyle={overlayStyle}
       mouseEnterDelay={mouseEnterDelay}
       mouseLeaveDelay={mouseLeaveDelay}
-      destroyTooltipOnHide={destroyTooltipOnHide}
+      destroyOnHidden={destroyOnHidden}
       getPopupContainer={getPopupContainer}
     >
       {children}

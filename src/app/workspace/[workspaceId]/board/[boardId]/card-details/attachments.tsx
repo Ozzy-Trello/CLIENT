@@ -785,42 +785,59 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
       document.removeEventListener("dragover", dragOverHandler);
     };
   }, [card?.id]);
-
   useEffect(() => {
     if (!cardAttachments) {
+      // Reset state when no attachments available
       setAttachedCards([]);
       setAttachedFiles([]);
       return;
     }
 
+    // Build new lists
     const nextAttachedCards: Card[] = [];
     const nextAttachedFiles: FileUpload[] = [];
 
     cardAttachments.forEach((item: CardAttachment) => {
       if (item.attachableType === EnumAttachmentType.Card && item.targetCard) {
-        const mappedCard = mapBackendCardToFrontend(item.targetCard);
-        nextAttachedCards.push(mappedCard as Card);
+        nextAttachedCards.push(
+          mapBackendCardToFrontend(item.targetCard) as Card
+        );
       } else if (item.attachableType === EnumAttachmentType.File && item.file) {
         nextAttachedFiles.push(item.file as FileUpload);
       }
     });
 
-    setAttachedCards(nextAttachedCards);
-    setAttachedFiles(nextAttachedFiles);
+    // Only update if arrays actually changed to avoid re-renders
+    setAttachedCards((prev) => {
+      const same =
+        prev.length === nextAttachedCards.length &&
+        prev.every((p, idx) => p.id === nextAttachedCards[idx].id);
 
-    // Find cover attachment and update card cover
-    const cover = cardAttachments.find((item) => item.isCover);
-    if (cover?.file?.url) {
-      setCard((prev: Card | null) =>
+      return same ? prev : nextAttachedCards;
+    });
+
+    setAttachedFiles((prev) => {
+      const same =
+        prev.length === nextAttachedFiles.length &&
+        prev.every((p, idx) => p.id === nextAttachedFiles[idx].id);
+
+      return same ? prev : nextAttachedFiles;
+    });
+
+    // ----- FIXED COVER LOGIC -----
+    const newCover = cardAttachments.find((item) => item.isCover)?.file?.url;
+
+    if (newCover && card?.cover !== newCover) {
+      setCard((prev) =>
         prev
           ? {
               ...prev,
-              cover: cover.file?.url,
+              cover: newCover,
             }
-          : null
+          : prev
       );
     }
-  }, [cardAttachments, setCard]);
+  }, [cardAttachments]);
 
   // Reusable component for rendering attachment sections
   const AttachmentSection: React.FC<{

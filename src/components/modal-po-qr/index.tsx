@@ -1,13 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import {
-  Modal,
-  Form,
-  Input,
-  Button,
-  message,
-  Typography,
-  Space,
-} from "antd";
+import { Modal, Form, Input, Button, message, Typography, Space } from "antd";
 import { Package, QrCode, Camera } from "lucide-react";
 import { Scanner } from "@yudiel/react-qr-scanner";
 import { generateQRCodesPDF } from "@api/qr";
@@ -23,7 +15,12 @@ interface ModalPOQRProps {
 
 const { Title, Text } = Typography;
 
-const ModalPOQR: React.FC<ModalPOQRProps> = ({ open, onClose, boardId, listId }) => {
+const ModalPOQR: React.FC<ModalPOQRProps> = ({
+  open,
+  onClose,
+  boardId,
+  listId,
+}) => {
   const [form] = Form.useForm();
   const [cardId, setCardId] = useState<string>("");
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
@@ -47,10 +44,35 @@ const ModalPOQR: React.FC<ModalPOQRProps> = ({ open, onClose, boardId, listId })
 
       // Filter out unwanted keys that external scanners might send
       const unwantedKeys = [
-        "Shift", "Control", "Alt", "Meta", "Tab", "Escape", "CapsLock",
-        "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End",
-        "PageUp", "PageDown", "Insert", "Delete", "F1", "F2", "F3", "F4",
-        "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12"
+        "Shift",
+        "Control",
+        "Alt",
+        "Meta",
+        "Tab",
+        "Escape",
+        "CapsLock",
+        "ArrowUp",
+        "ArrowDown",
+        "ArrowLeft",
+        "ArrowRight",
+        "Home",
+        "End",
+        "PageUp",
+        "PageDown",
+        "Insert",
+        "Delete",
+        "F1",
+        "F2",
+        "F3",
+        "F4",
+        "F5",
+        "F6",
+        "F7",
+        "F8",
+        "F9",
+        "F10",
+        "F11",
+        "F12",
       ];
 
       if (unwantedKeys.includes(e.key)) {
@@ -103,29 +125,38 @@ const ModalPOQR: React.FC<ModalPOQRProps> = ({ open, onClose, boardId, listId })
   };
 
   // Extract card ID from scanned data
-  const extractCardIdFromScan = async (scannedData: string): Promise<string | null> => {
+  const extractCardIdFromScan = async (
+    scannedData: string
+  ): Promise<string | null> => {
     const trimmedData = scannedData.trim();
-    
+
     if (trimmedData.length === 0) return null;
 
     // Check if it's a shortId URL format (e.g., https://domain.com/qr/123 or just /qr/123)
     try {
-      const url = new URL(trimmedData.startsWith('http') ? trimmedData : `https://example.com${trimmedData}`);
-      const pathParts = url.pathname.split('/');
-      
+      const url = new URL(
+        trimmedData.startsWith("http")
+          ? trimmedData
+          : `https://example.com${trimmedData}`
+      );
+      const pathParts = url.pathname.split("/");
+
       // Check for /qr/[shortId] pattern
-      if (pathParts.length >= 3 && pathParts[1] === 'qr') {
+      if (pathParts.length >= 3 && pathParts[1] === "qr") {
         const shortId = parseInt(pathParts[2]);
         if (!isNaN(shortId)) {
-           try {
+          try {
             const response = await getCardByShortId(shortId);
             if (response.data) {
               return response.data.id;
             }
           } catch (error) {
-             console.warn('Failed to resolve shortId via backend, trying legacy method:', error);
-           }
-         }
+            console.warn(
+              "Failed to resolve shortId via backend, trying legacy method:",
+              error
+            );
+          }
+        }
       }
     } catch (error) {
       // Not a valid URL, continue with other methods
@@ -143,12 +174,12 @@ const ModalPOQR: React.FC<ModalPOQRProps> = ({ open, onClose, boardId, listId })
 
   const handleScan = async (scannedData: string) => {
     const extractedCardId = await extractCardIdFromScan(scannedData);
-    
+
     if (extractedCardId) {
       setCardId(extractedCardId);
       form.setFieldsValue({ cardId: extractedCardId });
       message.success(`Card ID scanned: ${extractedCardId}`);
-      
+
       // Automatically generate PDF after successful scan
       await generatePDFForCardId(extractedCardId);
     } else {
@@ -166,11 +197,11 @@ const ModalPOQR: React.FC<ModalPOQRProps> = ({ open, onClose, boardId, listId })
     try {
       // Call the QR API service to generate PDF
       const pdfBlob = await generateQRCodesPDF(targetCardId.trim());
-      
+
       // Create a URL for the blob and open it in a new tab
       const pdfUrl = URL.createObjectURL(pdfBlob);
-      const printWindow = window.open(pdfUrl, '_blank');
-      
+      const printWindow = window.open(pdfUrl, "_blank");
+
       if (printWindow) {
         // Focus the new window
         printWindow.focus();
@@ -180,13 +211,17 @@ const ModalPOQR: React.FC<ModalPOQRProps> = ({ open, onClose, boardId, listId })
       setTimeout(() => {
         URL.revokeObjectURL(pdfUrl);
       }, 30000); // Extended cleanup time
-      
-      message.success(`PDF generated and opened for printing for Card ID: ${targetCardId}`);
-      
+
+      message.success(
+        `PDF generated and opened for printing for Card ID: ${targetCardId}`
+      );
+
       // Close modal after generating PDF
       onClose();
     } catch (error) {
-      message.error("Failed to generate PDF. Please check the Card ID and try again.");
+      message.error(
+        "Failed to generate PDF. Please check the Card ID and try again."
+      );
     } finally {
       setIsGenerating(false);
     }
@@ -217,9 +252,9 @@ const ModalPOQR: React.FC<ModalPOQRProps> = ({ open, onClose, boardId, listId })
       footer={null}
       width={500}
       centered
-      destroyOnClose
+      destroyOnHidden
     >
-      <div style={{ padding: '1rem' }}>
+      <div style={{ padding: "1rem" }}>
         <Form form={form} layout="vertical" onFinish={handleGeneratePDF}>
           <Form.Item
             label={
@@ -259,7 +294,9 @@ const ModalPOQR: React.FC<ModalPOQRProps> = ({ open, onClose, boardId, listId })
             width={400}
             centered
             zIndex={2000}
-            maskStyle={{ zIndex: 1999 }}
+            styles={{
+              mask: { zIndex: 1999 },
+            }}
           >
             <div className="p-4">
               <Scanner

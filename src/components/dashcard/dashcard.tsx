@@ -70,15 +70,23 @@ const Dashcard: React.FC<DashcardProps> = ({
 
   // Get display label based on display type
   const getDisplayLabel = () => {
-    if (!config.displayConfig || config.displayConfig.type === DashcardDisplayType.CARD_COUNT) {
+    if (
+      !config.displayConfig ||
+      config.displayConfig.type === DashcardDisplayType.CARD_COUNT
+    ) {
       return config.name;
     }
-    
-    if (config.displayConfig.type === DashcardDisplayType.CUSTOM_FIELD_SUM && config.displayConfig.customFieldId) {
-      const customField = customFields?.find(field => field.id === config.displayConfig?.customFieldId);
+
+    if (
+      config.displayConfig.type === DashcardDisplayType.CUSTOM_FIELD_SUM &&
+      config.displayConfig.customFieldId
+    ) {
+      const customField = customFields?.find(
+        (field) => field.id === config.displayConfig?.customFieldId
+      );
       return customField ? `${customField.name} Total` : config.name;
     }
-    
+
     return config.name;
   };
   const { id, name, backgroundColor, filters } = config;
@@ -114,22 +122,27 @@ const Dashcard: React.FC<DashcardProps> = ({
     if (typeof filter.value === "object" && !Array.isArray(filter.value)) {
       const value = filter.value as any;
       if (value.type && value.number && value.unit && value.reference) {
-        const displayReference = value.reference === 'from_now' ? 'from now' : value.reference;
-        return `${value.number} ${value.unit}${value.number > 1 ? 's' : ''} ${displayReference}`;
+        const displayReference =
+          value.reference === "from_now" ? "from now" : value.reference;
+        return `${value.number} ${value.unit}${
+          value.number > 1 ? "s" : ""
+        } ${displayReference}`;
       }
     }
 
     if (Array.isArray(filter.value)) {
       if (filter.value.length === 0) return "None";
-      
+
       // Try to get friendly names for array values
       const friendlyNames = filter.value.map((val: any) => {
         const friendlyName = LookupCache.any(val);
         return friendlyName || val;
       });
-      
-      return friendlyNames.length > 3 
-        ? `${friendlyNames.slice(0, 3).join(", ")} +${friendlyNames.length - 3} more`
+
+      return friendlyNames.length > 3
+        ? `${friendlyNames.slice(0, 3).join(", ")} +${
+            friendlyNames.length - 3
+          } more`
         : friendlyNames.join(", ");
     }
 
@@ -146,7 +159,11 @@ const Dashcard: React.FC<DashcardProps> = ({
         overflow: "hidden",
         borderColor: "transparent",
       }}
-      bodyStyle={{ padding: 0 }}
+      styles={{
+        body: {
+          padding: 0,
+        },
+      }}
       onClick={() => onClick?.(id)}
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => setShowActions(false)}

@@ -15,28 +15,36 @@ interface PopoverMoveCardProps {
   list?: AnyList;
 }
 
-const PopoverMoveCard: React.FC<PopoverMoveCardProps> = ({ 
-  open, 
-  setOpen, 
+const PopoverMoveCard: React.FC<PopoverMoveCardProps> = ({
+  open,
+  setOpen,
   triggerEl,
   card,
-  list
+  list,
 }) => {
   const { workspaceId } = useParams();
- 
+
   return (
     <Popover
-      content={<ContentMoveCard card={card} list={list} onClose={() => setOpen(false)} />}
+      content={
+        <ContentMoveCard
+          card={card}
+          list={list}
+          onClose={() => setOpen(false)}
+        />
+      }
       title={
         <div className="flex justify-between items-center">
           <div className="flex justify-start items-center gap-2">
-            <Typography.Title level={5} className="m-0">Move Card</Typography.Title>
+            <Typography.Title level={5} className="m-0">
+              Move Card
+            </Typography.Title>
           </div>
-          <button 
+          <button
             onClick={() => setOpen(false)}
             className="hover:bg-gray-100 p-1 rounded-sm transition-colors"
           >
-            <X size={14} className="text-gray-400"/>
+            <X size={14} className="text-gray-400" />
           </button>
         </div>
       }
@@ -45,7 +53,7 @@ const PopoverMoveCard: React.FC<PopoverMoveCardProps> = ({
       onOpenChange={setOpen}
       placement="bottom"
       overlayClassName="custom-field-popover"
-      destroyTooltipOnHide
+      destroyOnHidden
     >
       {triggerEl}
     </Popover>

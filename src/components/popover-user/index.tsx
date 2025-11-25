@@ -51,7 +51,7 @@ const PopoverUser: React.FC<PopoverCustomFieldProps> = ({
       onOpenChange={setOpen}
       placement="bottom"
       overlayClassName="custom-field-popover"
-      destroyTooltipOnHide
+      destroyOnHidden
     >
       {triggerEl}
     </Popover>

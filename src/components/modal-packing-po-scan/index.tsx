@@ -9,7 +9,13 @@ import {
   message,
   Progress,
 } from "antd";
-import { Search, Package, ShoppingCart, CheckCircle, Camera } from "lucide-react";
+import {
+  Search,
+  Package,
+  ShoppingCart,
+  CheckCircle,
+  Camera,
+} from "lucide-react";
 import { Scanner } from "@yudiel/react-qr-scanner";
 import URLShortener from "@utils/url-shortener";
 import { getCardByShortId } from "@api/card";
@@ -184,7 +190,8 @@ const ModalPackingPOScan: React.FC<ModalPackingPOScanProps> = ({
     }
 
     // Try URL shortener extraction
-    const extractedFromShortener = URLShortener.extractCardIdFromUrl(trimmedData);
+    const extractedFromShortener =
+      URLShortener.extractCardIdFromUrl(trimmedData);
     if (extractedFromShortener) {
       return extractedFromShortener;
     }
@@ -242,9 +249,9 @@ const ModalPackingPOScan: React.FC<ModalPackingPOScanProps> = ({
         onCancel={handleCancel}
         footer={null}
         width={500}
-        destroyOnClose
+        destroyOnHidden
       >
-        <div style={{ padding: '1rem' }}>
+        <div style={{ padding: "1rem" }}>
           {showProgress ? (
             <div className="text-center py-8">
               <div className="mb-6">
@@ -252,19 +259,17 @@ const ModalPackingPOScan: React.FC<ModalPackingPOScanProps> = ({
                 <Title level={3} className="mb-2">
                   Processing Packing Scan
                 </Title>
-                <Text type="secondary">
-                  Card ID: {cardId}
-                </Text>
+                <Text type="secondary">Card ID: {cardId}</Text>
               </div>
-              
+
               <div className="mb-6">
-                <Progress 
-                  percent={progress} 
+                <Progress
+                  percent={progress}
                   status={isComplete ? "success" : "active"}
                   strokeColor={isComplete ? "#52c41a" : "#1890ff"}
                 />
               </div>
-              
+
               {isComplete && (
                 <div className="flex items-center justify-center gap-2 text-green-600">
                   <CheckCircle size={20} />
@@ -276,45 +281,45 @@ const ModalPackingPOScan: React.FC<ModalPackingPOScanProps> = ({
             </div>
           ) : (
             <Form form={form} layout="vertical" onFinish={handleProcessCard}>
-            <Form.Item
-              label={
-                <Text strong className="text-gray-700">
-                  Card ID
-                </Text>
-              }
-              name="cardId"
-              rules={[
-                {
-                  required: true,
-                  message: "Please enter a Card ID or scan a QR code",
-                },
-              ]}
-            >
-              <Input
-                value={cardId}
-                onChange={handleCardIdChange}
-                placeholder="Enter Card ID or scan QR code..."
-                size="large"
-                className="rounded-lg"
-                autoFocus
-              />
-            </Form.Item>
-
-            <div className="mb-4 flex items-center justify-between">
-              <Text type="secondary" className="text-sm">
-                💡 You can scan a QR code or manually enter the Card ID
-              </Text>
-              <Button
-                type="default"
-                icon={<Camera size={16} />}
-                onClick={() => setShowCameraScanner(true)}
-                className="flex items-center gap-2"
+              <Form.Item
+                label={
+                  <Text strong className="text-gray-700">
+                    Card ID
+                  </Text>
+                }
+                name="cardId"
+                rules={[
+                  {
+                    required: true,
+                    message: "Please enter a Card ID or scan a QR code",
+                  },
+                ]}
               >
-                Use Camera
-              </Button>
-            </div>
+                <Input
+                  value={cardId}
+                  onChange={handleCardIdChange}
+                  placeholder="Enter Card ID or scan QR code..."
+                  size="large"
+                  className="rounded-lg"
+                  autoFocus
+                />
+              </Form.Item>
 
-            <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="mb-4 flex items-center justify-between">
+                <Text type="secondary" className="text-sm">
+                  💡 You can scan a QR code or manually enter the Card ID
+                </Text>
+                <Button
+                  type="default"
+                  icon={<Camera size={16} />}
+                  onClick={() => setShowCameraScanner(true)}
+                  className="flex items-center gap-2"
+                >
+                  Use Camera
+                </Button>
+              </div>
+
+              <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
                 <div className="flex items-center gap-2 mb-2">
                   <Package size={16} className="text-blue-600" />
                   <Text strong className="text-blue-700">
@@ -357,12 +362,14 @@ const ModalPackingPOScan: React.FC<ModalPackingPOScanProps> = ({
         footer={[
           <Button key="cancel" onClick={() => setShowCameraScanner(false)}>
             Cancel
-          </Button>
+          </Button>,
         ]}
         width={400}
         centered
         zIndex={2000}
-        maskStyle={{ zIndex: 1999 }}
+        styles={{
+          mask: { zIndex: 1999 },
+        }}
       >
         <div className="flex flex-col items-center">
           <div className="w-full max-w-sm">
@@ -378,7 +385,7 @@ const ModalPackingPOScan: React.FC<ModalPackingPOScanProps> = ({
               }}
               styles={{
                 container: { width: "100%" },
-                video: { width: "100%" }
+                video: { width: "100%" },
               }}
             />
           </div>

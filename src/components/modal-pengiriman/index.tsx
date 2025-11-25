@@ -100,18 +100,15 @@ const ModalPengiriman: React.FC<ModalPengirimanProps> = ({ open, onClose }) => {
     enabled: open,
   });
 
-  const { data: salesOrders = [], isLoading: salesOrdersLoading } = useQuery<OzzyPackingData[]>({
+  const { data: salesOrders = [], isLoading: salesOrdersLoading } = useQuery<
+    OzzyPackingData[]
+  >({
     queryKey: ["ozzy-sales-orders", "pengiriman"],
     queryFn: () => getOzzySalesOrders(50, 1),
     enabled: open,
   });
 
-
-
-  const memoizedProducts = useMemo(
-    () => products,
-    [products]
-  );
+  const memoizedProducts = useMemo(() => products, [products]);
 
   useEffect(() => {
     if (open) {
@@ -125,14 +122,14 @@ const ModalPengiriman: React.FC<ModalPengirimanProps> = ({ open, onClose }) => {
 
   const filteredSalesOrders = useMemo(() => {
     if (!salesOrders) return [];
-    
+
     // If no search value, return all sales orders
     if (!soSearchValue) return salesOrders;
-    
+
     return salesOrders.filter((so) => {
-      const soNumber = so.purchaseOrder?.soNumber || '';
-      const supplierName = so.purchaseOrder?.supplierName || '';
-      
+      const soNumber = so.purchaseOrder?.soNumber || "";
+      const supplierName = so.purchaseOrder?.supplierName || "";
+
       return (
         soNumber.toLowerCase().includes(soSearchValue.toLowerCase()) ||
         supplierName.toLowerCase().includes(soSearchValue.toLowerCase())
@@ -140,11 +137,15 @@ const ModalPengiriman: React.FC<ModalPengirimanProps> = ({ open, onClose }) => {
     });
   }, [salesOrders, soSearchValue]);
 
-  const soOptions = useMemo(() => 
-    filteredSalesOrders.map((so) => ({
-      value: so?.purchaseOrder?.soNumber || "",
-      label: `${so?.purchaseOrder?.soNumber || ""} - ${so?.purchaseOrder?.supplierName || ""}`,
-    })), [filteredSalesOrders]
+  const soOptions = useMemo(
+    () =>
+      filteredSalesOrders.map((so) => ({
+        value: so?.purchaseOrder?.soNumber || "",
+        label: `${so?.purchaseOrder?.soNumber || ""} - ${
+          so?.purchaseOrder?.supplierName || ""
+        }`,
+      })),
+    [filteredSalesOrders]
   );
 
   const mapSOItemsToProducts = (so: OzzyPackingData): SelectedProduct[] => {
@@ -170,23 +171,23 @@ const ModalPengiriman: React.FC<ModalPengirimanProps> = ({ open, onClose }) => {
     if (soWithDotsMatch) {
       return soWithDotsMatch[0].toUpperCase();
     }
-    
+
     // Look for SO pattern: SO followed by numbers (original format)
     const soMatch = scannedData.match(/SO\d+/i);
     if (soMatch) {
       return soMatch[0].toUpperCase();
     }
-    
+
     // If no SO pattern found, check if the entire string looks like an SO number with dots
     if (/^SO\.[\d\.]+$/i.test(scannedData.trim())) {
       return scannedData.trim().toUpperCase();
     }
-    
+
     // Check if the entire string looks like an SO number (original format)
     if (/^SO\d+$/i.test(scannedData.trim())) {
       return scannedData.trim().toUpperCase();
     }
-    
+
     return null;
   };
 
@@ -217,7 +218,7 @@ const ModalPengiriman: React.FC<ModalPengirimanProps> = ({ open, onClose }) => {
 
       setSelectedSalesOrders((prev) => [...prev, newSelectedSO]);
       setSelectedProducts((prev) => [...prev, ...productsFromSO]);
-      
+
       // Auto-fill form fields from the first selected SO
       if (selectedSalesOrders.length === 0) {
         form.setFieldsValue({
@@ -227,7 +228,7 @@ const ModalPengiriman: React.FC<ModalPengirimanProps> = ({ open, onClose }) => {
           shippingAddress: soDetails.purchaseOrder.shippingAddress,
         });
       }
-      
+
       message.success("Sales Order berhasil ditambahkan");
     } catch (error) {
       console.error("Error fetching SO details:", error);
@@ -240,9 +241,9 @@ const ModalPengiriman: React.FC<ModalPengirimanProps> = ({ open, onClose }) => {
 
   const handleCameraScan = (scannedData: string) => {
     setShowCameraScanner(false);
-    
+
     const extractedSO = extractSOFromScan(scannedData);
-    
+
     if (extractedSO) {
       setSOSearchValue(extractedSO);
       handleSOSelect(extractedSO);
@@ -367,9 +368,9 @@ const ModalPengiriman: React.FC<ModalPengirimanProps> = ({ open, onClose }) => {
         onCancel={handleCancel}
         footer={null}
         width={900}
-        destroyOnClose
+        destroyOnHidden
       >
-        <div style={{ padding: '1rem' }}>
+        <div style={{ padding: "1rem" }}>
           <Form
             form={form}
             layout="vertical"
@@ -454,7 +455,10 @@ const ModalPengiriman: React.FC<ModalPengirimanProps> = ({ open, onClose }) => {
                 name="deliveryDate"
                 label="Tanggal"
                 rules={[
-                  { required: true, message: "Tanggal pengiriman harus diisi!" },
+                  {
+                    required: true,
+                    message: "Tanggal pengiriman harus diisi!",
+                  },
                 ]}
               >
                 <DatePicker
@@ -497,9 +501,7 @@ const ModalPengiriman: React.FC<ModalPengirimanProps> = ({ open, onClose }) => {
               <Form.Item
                 name="customerId"
                 label="Kirim ke"
-                rules={[
-                  { required: true, message: "Customer harus dipilih!" },
-                ]}
+                rules={[{ required: true, message: "Customer harus dipilih!" }]}
               >
                 <Select
                   placeholder="Pilih Customer"
@@ -625,12 +627,14 @@ const ModalPengiriman: React.FC<ModalPengirimanProps> = ({ open, onClose }) => {
         footer={[
           <Button key="cancel" onClick={() => setShowCameraScanner(false)}>
             Cancel
-          </Button>
+          </Button>,
         ]}
         width={400}
         centered
         zIndex={2000}
-        maskStyle={{ zIndex: 1999 }}
+        styles={{
+          mask: { zIndex: 1999 },
+        }}
       >
         <div className="flex flex-col items-center">
           <div className="w-full max-w-sm">
@@ -646,7 +650,7 @@ const ModalPengiriman: React.FC<ModalPengirimanProps> = ({ open, onClose }) => {
               }}
               styles={{
                 container: { width: "100%" },
-                video: { width: "100%" }
+                video: { width: "100%" },
               }}
             />
           </div>

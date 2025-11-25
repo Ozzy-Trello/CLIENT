@@ -73,7 +73,7 @@ const CustomFieldModal: React.FC<CustomFieldModalProps> = ({
   const { createCustomField, updateCustomField } = useCustomFields(workspaceId);
   const { roles, loading: loadingRoles } = useRoles(workspaceId);
   const { boards, isLoading: loadingBoards } = useBoards(workspaceId);
-  
+
   // Get current user information for Super Admin check
   const { data: currentAccountData } = useCurrentAccount();
   const currentUser = currentAccountData?.data;
@@ -274,8 +274,12 @@ const CustomFieldModal: React.FC<CustomFieldModalProps> = ({
       onCancel={handleCancel}
       footer={null}
       width={600}
-      destroyOnClose
-      bodyStyle={{ padding: "24px" }}
+      destroyOnHidden
+      styles={{
+        body: {
+          padding: "24px",
+        },
+      }}
     >
       <Form
         form={form}
@@ -290,11 +294,12 @@ const CustomFieldModal: React.FC<CustomFieldModalProps> = ({
         {isSuperAdmin && (
           <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
             <Text type="secondary" className="text-sm">
-              <strong>Super Admin Privileges:</strong> You have full edit access to all custom fields regardless of role restrictions.
+              <strong>Super Admin Privileges:</strong> You have full edit access
+              to all custom fields regardless of role restrictions.
             </Text>
           </div>
         )}
-        
+
         <Form.Item
           name="name"
           label="Field Name"
@@ -376,83 +381,96 @@ const CustomFieldModal: React.FC<CustomFieldModalProps> = ({
                                   {...provided.droppableProps}
                                   ref={provided.innerRef}
                                 >
-                                  {options.map((item: CustomOption, index: number) => (
-                                    <Draggable
-                                      key={item.value}
-                                      draggableId={item.value}
-                                      index={index}
-                                    >
-                                      {(provided, snapshot) => (
-                                        <div
-                                          ref={provided.innerRef}
-                                          {...provided.draggableProps}
-                                          className={`flex gap-2 mb-1 bg-gray-100 rounded px-2 py-1 items-center transition-all duration-200 ${
-                                             snapshot.isDragging
-                                               ? "bg-blue-100 shadow-lg border-2 border-blue-300 transform rotate-1"
-                                               : "hover:bg-gray-200 border-2 border-transparent"
-                                           }`}
-                                          style={{
-                                            ...provided.draggableProps.style,
-                                          }}
-                                        >
+                                  {options.map(
+                                    (item: CustomOption, index: number) => (
+                                      <Draggable
+                                        key={item.value}
+                                        draggableId={item.value}
+                                        index={index}
+                                      >
+                                        {(provided, snapshot) => (
                                           <div
-                                             {...provided.dragHandleProps}
-                                             className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-300 transition-colors"
-                                             title="Drag to reorder"
-                                           >
-                                             <GripVertical size={16} />
-                                           </div>
-                                          {editingOptionValue === item.value ? (
-                                            <>
-                                              <Input
-                                                size="small"
-                                                value={editingOptionText}
-                                                onChange={(e) =>
-                                                  setEditingOptionText(e.target.value)
-                                                }
-                                                onPressEnter={saveEditOption}
-                                                className="flex-1"
-                                                autoFocus
-                                              />
-                                              <Button
-                                                size="small"
-                                                type="text"
-                                                onClick={saveEditOption}
-                                                disabled={!editingOptionText.trim()}
-                                              >
-                                                <Check size={12} />
-                                              </Button>
-                                              <Button
-                                                size="small"
-                                                type="text"
-                                                onClick={cancelEditOption}
-                                              >
-                                                <X size={12} />
-                                              </Button>
-                                            </>
-                                          ) : (
-                                            <>
-                                              <span className="flex-1">{item.label}</span>
-                                              <Button
-                                                size="small"
-                                                type="text"
-                                                onClick={() => startEditOption(item)}
-                                              >
-                                                <Edit size={12} />
-                                              </Button>
-                                              <Button
-                                                size="small"
-                                                type="text"
-                                                onClick={() => deleteOption(item.value)}
-                                              >
-                                                <Trash size={12} />
-                                              </Button>
-                                            </>
-                                          )}
-                                        </div>
-                                      )}
-                                    </Draggable>
-                                  ))}
+                                            ref={provided.innerRef}
+                                            {...provided.draggableProps}
+                                            className={`flex gap-2 mb-1 bg-gray-100 rounded px-2 py-1 items-center transition-all duration-200 ${
+                                              snapshot.isDragging
+                                                ? "bg-blue-100 shadow-lg border-2 border-blue-300 transform rotate-1"
+                                                : "hover:bg-gray-200 border-2 border-transparent"
+                                            }`}
+                                            style={{
+                                              ...provided.draggableProps.style,
+                                            }}
+                                          >
+                                            <div
+                                              {...provided.dragHandleProps}
+                                              className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-300 transition-colors"
+                                              title="Drag to reorder"
+                                            >
+                                              <GripVertical size={16} />
+                                            </div>
+                                            {editingOptionValue ===
+                                            item.value ? (
+                                              <>
+                                                <Input
+                                                  size="small"
+                                                  value={editingOptionText}
+                                                  onChange={(e) =>
+                                                    setEditingOptionText(
+                                                      e.target.value
+                                                    )
+                                                  }
+                                                  onPressEnter={saveEditOption}
+                                                  className="flex-1"
+                                                  autoFocus
+                                                />
+                                                <Button
+                                                  size="small"
+                                                  type="text"
+                                                  onClick={saveEditOption}
+                                                  disabled={
+                                                    !editingOptionText.trim()
+                                                  }
+                                                >
+                                                  <Check size={12} />
+                                                </Button>
+                                                <Button
+                                                  size="small"
+                                                  type="text"
+                                                  onClick={cancelEditOption}
+                                                >
+                                                  <X size={12} />
+                                                </Button>
+                                              </>
+                                            ) : (
+                                              <>
+                                                <span className="flex-1">
+                                                  {item.label}
+                                                </span>
+                                                <Button
+                                                  size="small"
+                                                  type="text"
+                                                  onClick={() =>
+                                                    startEditOption(item)
+                                                  }
+                                                >
+                                                  <Edit size={12} />
+                                                </Button>
+                                                <Button
+                                                  size="small"
+                                                  type="text"
+                                                  onClick={() =>
+                                                    deleteOption(item.value)
+                                                  }
+                                                >
+                                                  <Trash size={12} />
+                                                </Button>
+                                              </>
+                                            )}
+                                          </div>
+                                        )}
+                                      </Draggable>
+                                    )
+                                  )}
                                   {provided.placeholder}
                                 </div>
                               )}
@@ -497,9 +515,9 @@ const CustomFieldModal: React.FC<CustomFieldModalProps> = ({
                           showSearch
                           optionFilterProp="label"
                           filterOption={(input, option) =>
-                            (option?.label?.toString().toLowerCase() ?? "").includes(
-                              input.toLowerCase()
-                            )
+                            (
+                              option?.label?.toString().toLowerCase() ?? ""
+                            ).includes(input.toLowerCase())
                           }
                           placeholder="Select allowed roles"
                           value={roleFilterIds}

@@ -97,7 +97,7 @@ const PopoverLabel: React.FC<PopoverLabel> = ({
       onOpenChange={setOpen}
       placement="bottom"
       overlayClassName="custom-field-popover"
-      destroyTooltipOnHide
+      destroyOnHidden
     >
       {triggerEl}
     </Popover>

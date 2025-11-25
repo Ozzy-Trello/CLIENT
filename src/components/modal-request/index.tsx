@@ -414,8 +414,12 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
       onCancel={onClose}
       onOk={handleOk}
       footer={null}
-      destroyOnClose
-      bodyStyle={{ padding: 24 }}
+      destroyOnHidden
+      styles={{
+        body: {
+          padding: 24,
+        },
+      }}
     >
       <Form form={form} layout="vertical" onFinish={handleOk}>
         <div

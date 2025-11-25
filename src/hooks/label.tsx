@@ -24,7 +24,12 @@ export function useLabels(
   const labelsQuery = useQuery({
     queryKey: ["labels", workspaceId, labelQueryParams],
     queryFn: () => getLabels(workspaceId, labelQueryParams || {}),
-    enabled: !!workspaceId && !!labelQueryParams,
+    enabled:
+      !!workspaceId &&
+      !!labelQueryParams &&
+      Object.values(labelQueryParams).some(
+        (v) => v !== "" && v !== null && v !== undefined
+      ),
   });
 
   const allLabelsQuery = useQuery({
@@ -456,9 +461,14 @@ export function useWorkspaceLabels(workspaceId: string, search?: string) {
   const { isFetching, refetch } = useQuery({
     queryKey: ["workspaceLabels", workspaceId, page, debouncedSearch],
     queryFn: async () => {
-      const res = await getWorkspaceLabels(workspaceId, page, limit, debouncedSearch);
+      const res = await getWorkspaceLabels(
+        workspaceId,
+        page,
+        limit,
+        debouncedSearch
+      );
       const newData = res.data ?? [];
-      
+
       // Transform LabelAttributes to CardLabel format
       const transformedData = newData.map((label: any) => ({
         labelId: label.id,
@@ -470,22 +480,24 @@ export function useWorkspaceLabels(workspaceId: string, search?: string) {
         updatedAt: label.updated_at || label.updatedAt,
         isAssigned: false, // Default value for workspace labels
       }));
-      
-      setLabels((prev) => (page === 1 ? transformedData : [...prev, ...transformedData]));
+
+      setLabels((prev) =>
+        page === 1 ? transformedData : [...prev, ...transformedData]
+      );
       setHasMore(transformedData.length === limit);
-      
+
       // Set total count from pagination info if available
       if (res.paginate) {
         setTotalCount(res.paginate.totalData || 0);
       }
-      
+
       return transformedData;
     },
     enabled: !!workspaceId,
   });
 
   const loadMore = () => setPage((p) => p + 1);
-  
+
   const reset = () => {
     setPage(1);
     setLabels([]);

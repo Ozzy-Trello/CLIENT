@@ -19,7 +19,7 @@ export function ThemeProvider({
   const selectedBoard = useSelector(selectCurrentBoard);
   const [isMounted, setIsMounted] = useState(false);
   const [currentPathname, setCurrentPathname] = useState<string | null>(null);
-  
+
   // Get pathname safely
   let pathname: string | null = null;
   try {
@@ -28,7 +28,7 @@ export function ThemeProvider({
     // Fallback if usePathname fails
     pathname = null;
   }
-  
+
   const { colors, fontSizes } = theme;
   let root: HTMLElement;
 
@@ -46,7 +46,7 @@ export function ThemeProvider({
 
   useEffect(() => {
     if (!isMounted) return; // Only run after component is mounted
-    
+
     if (!root) root = document.documentElement;
 
     // Reset all background properties first to avoid persistence issues
@@ -60,12 +60,6 @@ export function ThemeProvider({
     // Check if we're on a specific board page by looking for /board/{id} pattern
     const isSpecificBoardPage = /\/workspace\/[\w-]+\/board\/[\w-]+$/.test(
       currentPathname || ""
-    );
-    console.log(
-      "Current path:",
-      currentPathname,
-      "Is specific board page:",
-      isSpecificBoardPage
     );
 
     // Only apply background if we're on a specific board page
@@ -215,7 +209,7 @@ export function ThemeProvider({
           colorBgContainer: `rgb(${colors?.surface})`,
           colorBgElevated: `rgb(${colors?.surface})`,
           colorText: `rgb(${colors?.text})`,
-          colorTextSecondary: `rgb(${colors?.['text-muted']})`,
+          colorTextSecondary: `rgb(${colors?.["text-muted"]})`,
           colorBorder: `rgb(${colors?.border})`,
           colorBgBase: `rgb(${colors?.background})`,
         },
@@ -229,12 +223,12 @@ export function ThemeProvider({
           Menu: {
             // Dark theme menu styling
             colorBgContainer: "transparent", // Fully transparent to inherit from parent
-            colorItemBg: "transparent", // Transparent item background
-            colorItemText: `rgb(${colors?.text})`, // Light text color
-            colorItemTextHover: `rgb(${colors?.primary})`, // Hover text color
-            colorItemBgSelected: `rgba(${colors?.primary}, 0.1)`, // Subtle background for selected items
-            colorItemBgHover: `rgba(${colors?.primary}, 0.1)`, // Subtle background for hover
-            colorActiveBarWidth: 0, // Remove active bar
+            itemBg: "transparent", // Transparent item background
+            itemColor: `rgb(${colors?.text})`, // Light text color
+            itemHoverColor: `rgb(${colors?.primary})`, // Hover text color
+            itemSelectedBg: `rgba(${colors?.primary}, 0.1)`, // Subtle background for selected items
+            itemHoverBg: `rgba(${colors?.primary}, 0.1)`, // Subtle background for hover
+            activeBarWidth: 0, // Remove active bar
           },
           Modal: {
             // Dark theme modals

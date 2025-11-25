@@ -181,9 +181,11 @@ const BoardsPage: React.FC = () => {
                                 !snapshot.isDragging &&
                                 handleBoardClick(board.id)
                               }
-                              bodyStyle={{
-                                padding: 0,
-                                height: "100%",
+                              styles={{
+                                body: {
+                                  padding: 0,
+                                  height: "100%",
+                                },
                               }}
                             >
                               <div

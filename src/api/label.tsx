@@ -13,8 +13,19 @@ export const getLabels = async (
   workspaceId: string,
   params: CardLabel
 ): Promise<ApiResponse<CardLabel[]>> => {
-  params = snakecaseKeys(params as any, { deep: true });
-  const queryParams = new URLSearchParams(params as any).toString();
+  const cleaned = Object.fromEntries(
+    Object.entries(snakecaseKeys(params as any, { deep: true })).filter(
+      ([_, v]) => v !== undefined && v !== null && v !== ""
+    )
+  );
+
+  // 🚀 If no query params → just return empty array, skip API
+  if (Object.keys(cleaned).length === 0) {
+    return { data: [] } as ApiResponse<CardLabel[]>;
+  }
+
+  const queryParams = new URLSearchParams(cleaned as any).toString();
+
   const { data } = await api.get(`/label?${queryParams}`, {
     headers: { "workspace-id": workspaceId },
   });
@@ -47,7 +58,7 @@ export const getWorkspaceLabels = async (
     limit: limit.toString(),
     ...(search && { search }),
   });
-  
+
   const { data } = await api.get(`/label/workspace/paginated?${params}`, {
     headers: { "workspace-id": workspaceId },
   });
