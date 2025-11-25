@@ -102,7 +102,15 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
   const [openAddMember, setOpenAddMember] = useState<boolean>(false);
   const [showScanner, setShowScanner] = useState(false);
   const [scanResult, setScanResult] = useState<string | null>(null);
-  const [scannerContext, setScannerContext] = useState<'general' | 'cetak-qr-stok' | 'cetak-qr-po' | 'packing-stok' | 'packing-po' | 'delivery-stok' | 'delivery-po'>('general');
+  const [scannerContext, setScannerContext] = useState<
+    | "general"
+    | "cetak-qr-stok"
+    | "cetak-qr-po"
+    | "packing-stok"
+    | "packing-po"
+    | "delivery-stok"
+    | "delivery-po"
+  >("general");
   const [showInvoiceInput, setShowInvoiceInput] = useState<boolean>(false);
   const [invoiceNumber, setInvoiceNumber] = useState<string>("");
   const [isLoadingInvoice, setIsLoadingInvoice] = useState<boolean>(false);
@@ -150,12 +158,16 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
     allowed.some((role) => role.toLowerCase() === userRole);
 
   const canShowDelivery =
-    isSuperAdmin ||
-    (isDateline && roleInList(["Kurir", "Kepala Produksi"]));
+    isSuperAdmin || (isDateline && roleInList(["Kurir", "Kepala Produksi"]));
   const canShowCetakQR =
     isSuperAdmin ||
     (isDateline &&
-      roleInList(["Finishing & Packing", "Kepala Produksi", "Warehouse Produk"]));
+      roleInList([
+        "Finishing & Packing",
+        "Kepala Produksi",
+        "Warehouse Produk",
+        "Warehouse Bahan",
+      ]));
   const canShowPacking =
     isSuperAdmin ||
     (isDateline && roleInList(["Finishing & Packing", "Kepala Produksi"]));
