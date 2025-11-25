@@ -96,16 +96,26 @@ const CardDetails: React.FC = (props) => {
   ]);
   // Try to resolve current board name via cache first, then fall back to API
   const cachedBoardName = LookupCache.label("board", boardId as string);
-  const { board: currentBoard } = useBoardDetails(boardId as string, workspaceId as string, {
-    enabled: !!boardId,
-    refetchOnWindowFocus: false,
-  });
-  const effectiveBoardName = (cachedBoardName || currentBoard?.name || "").trim();
-  const allowedNamesSet = new Set(ALLOWED_BOARD_NAMES.map((n) => n.toLowerCase().trim()));
-  const shouldShowProduk = (
-    (effectiveBoardName && allowedNamesSet.has(effectiveBoardName.toLowerCase())) ||
-    (typeof boardId === "string" && ALLOWED_BOARD_IDS.has(boardId))
+  const { board: currentBoard } = useBoardDetails(
+    boardId as string,
+    workspaceId as string,
+    {
+      enabled: !!boardId,
+      refetchOnWindowFocus: false,
+    }
   );
+  const effectiveBoardName = (
+    cachedBoardName ||
+    currentBoard?.name ||
+    ""
+  ).trim();
+  const allowedNamesSet = new Set(
+    ALLOWED_BOARD_NAMES.map((n) => n.toLowerCase().trim())
+  );
+  const shouldShowProduk =
+    (effectiveBoardName &&
+      allowedNamesSet.has(effectiveBoardName.toLowerCase())) ||
+    (typeof boardId === "string" && ALLOWED_BOARD_IDS.has(boardId));
   const {
     selectedCard,
     setSelectedCard,
@@ -117,7 +127,9 @@ const CardDetails: React.FC = (props) => {
   const currentUser = useSelector(selectUser);
   const userRole = (currentUser?.role?.name || "").trim().toLowerCase();
   const isSuperAdmin =
-    userRole === "super admin" || userRole === "super_admin" || userRole === "superadmin";
+    userRole === "super admin" ||
+    userRole === "super_admin" ||
+    userRole === "superadmin";
   const isDatelineBoard =
     effectiveBoardName.toLowerCase() === "dateline" || boardId === "Dateline";
   const roleIn = (roles: string[]) =>
@@ -273,7 +285,7 @@ const CardDetails: React.FC = (props) => {
       onCancel={closeCardDetail}
       footer={null}
       className="modal-card-form full-height-modal"
-      width={900}
+      width={1050}
       destroyOnClose
     >
       <div className="overflow-x-hidden max-w-full">
