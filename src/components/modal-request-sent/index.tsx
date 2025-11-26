@@ -172,7 +172,11 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       id: string;
       request_received: number;
       request_left: number;
-    }) => updateRequest(id, { request_received, request_left }),
+    }) =>
+      updateRequest(id, {
+        requestReceived: request_received,
+        requestLeft: request_left,
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["requests"] });
     },
@@ -195,7 +199,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
 
   const { mutate: updateRequestLeftOnly } = useMutation({
     mutationFn: ({ id, request_left }: { id: string; request_left: number }) =>
-      updateRequest(id, { request_left }),
+      updateRequest(id, { requestLeft: request_left }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["requests"] });
     },
