@@ -1,4 +1,4 @@
-'use client';
+"use client";
 import { uploadFile } from "@api/file";
 import { generateQRCodesPDF } from "@api/qr";
 import UploadModal from "@components/modal-upload/modal-upload";
@@ -123,7 +123,7 @@ const Actions: React.FC<{
   const workspaceId = params.workspaceId as string;
   const searchParams = useSearchParams();
   const { selectedCard } = useCardDetailContext();
-  
+
   const theme = useSelector(selectTheme) as any;
   const isDarkMode = useSelector(selectIsDarkMode);
   const { colors } = theme;
@@ -140,7 +140,9 @@ const Actions: React.FC<{
   // Get current user and card members
   const { data: currentAccountData } = useCurrentAccount();
   const currentUser = currentAccountData?.data;
-  const roleLower = (userRole || currentUser?.role?.name || "").trim().toLowerCase();
+  const roleLower = (userRole || currentUser?.role?.name || "")
+    .trim()
+    .toLowerCase();
   const superAdmin =
     isSuperAdmin ||
     roleLower === "super admin" ||
@@ -152,13 +154,12 @@ const Actions: React.FC<{
     workspaceId as string,
     { enabled: !!boardId }
   );
-  const resolvedBoardName =
-    (boardName ||
-      LookupCache.label("board", boardId as string) ||
-      fetchedBoard?.name ||
-      "")!
-      .trim()
-      .toLowerCase();
+  const resolvedBoardName = (boardName ||
+    LookupCache.label("board", boardId as string) ||
+    fetchedBoard?.name ||
+    "")!
+    .trim()
+    .toLowerCase();
 
   const isDateline = resolvedBoardName === "dateline";
   const isDelivery = resolvedBoardName === "delivery";
@@ -202,11 +203,9 @@ const Actions: React.FC<{
     superAdmin ||
     ((isListPOOutlet || isDateline || isDelivery) && roleLower !== "kurir");
   const canInvoice =
-    superAdmin ||
-    (isListPOOutlet && roleIn(["deal maker", "spv deal maker"]));
+    superAdmin || (isListPOOutlet && roleIn(["deal maker", "spv deal maker"]));
   const canBukti =
-    superAdmin ||
-    (isListPOOutlet && roleIn(["deal maker", "spv deal maker"]));
+    superAdmin || (isListPOOutlet && roleIn(["deal maker", "spv deal maker"]));
 
   // Keep global permissions for observer status
   const { isObserver } = usePermissions();
@@ -380,20 +379,22 @@ const Actions: React.FC<{
     try {
       // Use the same logic as topbar's PO QR generation
       const blob = await generateQRCodesPDF(selectedCard.id);
-      
+
       // Create URL for the blob and open in new tab for printing
       const url = URL.createObjectURL(blob);
-      const newWindow = window.open(url, '_blank');
-      
+      const newWindow = window.open(url, "_blank");
+
       if (newWindow) {
         // Clean up the URL after a delay to allow the PDF to load
         setTimeout(() => {
           URL.revokeObjectURL(url);
         }, 1000);
-        
+
         message.success("QR code PDF generated successfully!");
       } else {
-        message.error("Failed to open PDF. Please check your popup blocker settings.");
+        message.error(
+          "Failed to open PDF. Please check your popup blocker settings."
+        );
       }
     } catch (error) {
       console.error("Error generating QR PDF:", error);

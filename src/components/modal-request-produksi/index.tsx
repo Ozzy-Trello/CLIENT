@@ -3,6 +3,7 @@ import {
   updateProductionReceived,
   updateRequest,
 } from "@api/accurate";
+import { useUpdateRequestFields } from "@hooks/accurate";
 import { ApiResponse, RequestItem } from "@myTypes/request";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -25,6 +26,7 @@ import { Factory, Filter, Truck } from "lucide-react";
 import { useParams } from "next/navigation";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { formatRequestQuantity } from "@utils/request-format";
+import UserSelectionForModal from "@components/UserSelectionForModal";
 
 const { Title, Text } = Typography;
 
@@ -125,6 +127,8 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
       message.error("Gagal memperbarui status produksi diterima");
     },
   });
+
+  const { mutate: updateRequestFields } = useUpdateRequestFields();
 
   const handleSendRequest = (id: string) => {
     const requestSent = requestSentValues[id];
@@ -255,17 +259,38 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
       },
     },
     {
-      title: "Status Produksi",
-      dataIndex: "productionRecieved",
-      key: "productionRecieved",
+      title: "Diterima",
+      key: "productionReceived",
       width: 160,
       align: "center" as const,
-      render: (_: unknown, record: RequestItem) => (
-        <Checkbox
-          checked={record.productionRecieved || false}
-          onChange={(e) =>
-            handleProductionReceived(record.id, e.target.checked)
-          }
+      render: (_: unknown, record: RequestItem) => {
+        const productionReceived =
+          record.productionReceived ?? record.productionRecieved ?? false;
+        return (
+          <Checkbox
+            checked={productionReceived}
+            onChange={(e) =>
+              handleProductionReceived(record.id, e.target.checked)
+            }
+          />
+        );
+      },
+    },
+    {
+      title: "Diterima Oleh",
+      dataIndex: "receivedBy",
+      key: "receivedBy",
+      width: 200,
+      render: (value: string, record: RequestItem) => (
+        <UserSelectionForModal
+          value={value}
+          placeholder="Pilih penerima"
+          onChange={(selectedUserId: string) => {
+            updateRequestFields({
+              id: record.id,
+              updates: { received_by: selectedUserId },
+            });
+          }}
         />
       ),
     },

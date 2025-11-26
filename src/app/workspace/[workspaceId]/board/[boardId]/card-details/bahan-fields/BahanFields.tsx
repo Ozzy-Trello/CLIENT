@@ -417,12 +417,15 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
     }
   };
 
-  const handleBahanTerpakaiChange = (
+  const handleBahanTerpakaiChange = async (
     poIndex: number,
     productIndex: number,
     bahanTabIndex: number,
     value: number
   ) => {
+    let requestId: number | undefined;
+    let sentValue = 0;
+
     setPOData((prevData) => {
       const newData = [...prevData];
       const po = newData[poIndex];
@@ -433,7 +436,9 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
       bahanTab.sisaBahan = calculateSisaBahan(bahanTab.terloading, value);
       bahanTab.efisiensi = calculateEfisiensi(bahanTab.estBahan, value);
 
-      // Call API to persist the change
+      requestId = product.requestId;
+      sentValue = bahanTab.terloading ?? 0;
+
       if (product.poProductId) {
         debouncedPOProductUpdate(product.poProductId, {
           bahan_terpakai: value,
@@ -442,6 +447,20 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
 
       return newData;
     });
+
+    if (requestId !== undefined) {
+      const leftValue = Math.max(sentValue - value, 0);
+      try {
+        await updateRequest(requestId.toString(), {
+          requestReceived: value,
+          requestLeft: leftValue,
+        });
+      } catch (error) {
+        console.error("❌ Failed to sync request terpakai:", error);
+        message.error("Gagal menyelaraskan bahan terpakai ke request");
+        throw error;
+      }
+    }
   };
 
   const handleEstBahanChange = (

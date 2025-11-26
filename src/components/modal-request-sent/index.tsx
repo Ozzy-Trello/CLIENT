@@ -2,14 +2,12 @@ import {
   getAllRequests,
   markRequestDone,
   updateRequest,
-  updateWarehouseFinalAmount,
   updateWarehouseReturn,
 } from "@api/accurate";
-import { useAccountListForModal } from "@hooks/account";
 import { useUpdateRequestFields } from "@hooks/accurate";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Avatar,
+  Badge,
   Button,
   Checkbox,
   Input,
@@ -17,76 +15,21 @@ import {
   Modal,
   Select,
   Table,
-  Typography,
   Tag,
   Card,
   Space,
-  Divider,
-  Badge,
 } from "antd";
 import { debounce } from "lodash";
-import { useParams } from "next/navigation";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { formatRequestQuantity } from "@utils/request-format";
 import { Filter, RotateCcw, Warehouse } from "lucide-react";
 import { RequestItem, ApiResponse } from "@myTypes/request";
+import UserSelectionForModal from "@components/UserSelectionForModal";
 
 interface ModalRequestSentProps {
   open: boolean;
   onClose: () => void;
 }
-
-// Custom UserSelection component for modal that works without boardId
-const UserSelectionForModal: React.FC<{
-  value?: string;
-  onChange?: (value: string) => void;
-  placeholder?: string;
-}> = ({ value, onChange, placeholder = "Select a User" }) => {
-  const { workspaceId } = useParams();
-
-  const { data: accountListData, isLoading: accountListLoading } =
-    useAccountListForModal({
-      workspaceId: Array.isArray(workspaceId)
-        ? (workspaceId[0] as string)
-        : (workspaceId as string),
-    });
-
-  const options = useMemo(() => {
-    if (!accountListData?.data) return [];
-
-    return accountListData.data.map((item) => ({
-      value: item.id,
-      label: (
-        <div className="flex justify-start items-center gap-3">
-          <Avatar
-            size={20}
-            className="bg-blue-50 text-blue-500 border border-blue-100"
-          >
-            {item.username?.substring(0, 2)?.toUpperCase()}
-          </Avatar>
-          <Typography.Text>{item.username}</Typography.Text>
-        </div>
-      ),
-    }));
-  }, [accountListData]);
-
-  return (
-    <Select
-      value={value}
-      onChange={onChange}
-      placeholder={placeholder}
-      loading={accountListLoading}
-      options={options}
-      style={{ width: "100%" }}
-      showSearch
-      filterOption={(input, option) =>
-        (option?.label as any)?.props?.children?.[1]?.props?.children
-          ?.toLowerCase()
-          ?.includes(input.toLowerCase()) ?? false
-      }
-    />
-  );
-};
 
 const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
   open,
@@ -95,12 +38,17 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
   const [requestSentValues, setRequestSentValues] = useState<
     Record<string, number>
   >({});
+  const [requestReceivedValues, setRequestReceivedValues] = useState<
+    Record<string, number>
+  >({});
+  const [beliValues, setBeliValues] = useState<Record<string, boolean>>({});
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 10,
     total: 0,
   });
   const [filterBelumDiterima, setFilterBelumDiterima] = useState(false);
+  const [filterBelumBeli, setFilterBelumBeli] = useState(false);
   const [filterBelumDiotorisasi, setFilterBelumDiotorisasi] = useState(false);
 
   const queryClient = useQueryClient();
@@ -122,9 +70,17 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     if (filterBelumDiterima) {
       baseFilter.productionReceived = false;
     }
+    if (filterBelumBeli) {
+      baseFilter.beli = false;
+      baseFilter.excludeType = "persediaan";
+    }
 
     return baseFilter;
-  }, [filterBelumDiterima, filterBelumDiotorisasi]);
+  }, [
+    filterBelumDiterima,
+    filterBelumDiotorisasi,
+    filterBelumBeli,
+  ]);
 
   const { data, isLoading, refetch } = useQuery<ApiResponse<RequestItem>>({
     queryKey: [
@@ -148,14 +104,34 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
   useEffect(() => {
     if (!data) return;
 
-    const initialValues: Record<string, number> = {};
+    const initialSentValues: Record<string, number> = {};
+    const initialReceivedValues: Record<string, number> = {};
+    const initialLeftValues: Record<string, number> = {};
+    const initialBeliValues: Record<string, boolean> = {};
     data.data.forEach((item) => {
       const numericSent = Number(item.requestSent);
       if (!Number.isNaN(numericSent)) {
-        initialValues[item.id] = numericSent;
+        initialSentValues[item.id] = numericSent;
       }
+
+      const numericReceived = Number(item.requestReceived);
+      if (!Number.isNaN(numericReceived)) {
+        initialReceivedValues[item.id] = numericReceived;
+      }
+      const computedLeft = Number(
+        item.requestLeft ??
+          item.request_left ??
+          (numericSent ?? 0) - (numericReceived ?? 0)
+      );
+      initialLeftValues[item.id] = Number.isNaN(computedLeft)
+        ? 0
+        : Math.max(computedLeft, 0);
+      initialBeliValues[item.id] = Boolean(item.beli);
     });
-    setRequestSentValues(initialValues);
+    setRequestSentValues(initialSentValues);
+    setRequestReceivedValues(initialReceivedValues);
+    setRequestLeftValues(initialLeftValues);
+    setBeliValues(initialBeliValues);
     setPagination((prev) => ({
       ...prev,
       total: data.pagination?.total || 0,
@@ -174,40 +150,71 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     },
   });
 
+  const { mutate: updateBeliStatus } = useMutation({
+    mutationFn: ({ id, beli }: { id: string; beli: boolean }) =>
+      updateRequest(id, { beli }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["requests"] });
+    },
+    onError: () => {
+      message.error("Failed to update beli status");
+    },
+  });
+
+  const { mutate: updateRequestFields } = useUpdateRequestFields();
+
+  const { mutate: updateRequestReceivedAndLeft } = useMutation({
+    mutationFn: ({
+      id,
+      request_received,
+      request_left,
+    }: {
+      id: string;
+      request_received: number;
+      request_left: number;
+    }) => updateRequest(id, { request_received, request_left }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["requests"] });
+    },
+    onError: () => {
+      message.error("Failed to update used quantity");
+    },
+  });
+
   const { mutate: updateWarehouseReturnStatus } = useMutation({
     mutationFn: ({ id, returned }: { id: string; returned: boolean }) =>
       updateWarehouseReturn(id, returned),
     onSuccess: () => {
-      message.success("Warehouse return status updated");
       queryClient.invalidateQueries({ queryKey: ["requests"] });
+      message.success("Warehouse return status updated");
     },
     onError: () => {
       message.error("Failed to update warehouse return status");
     },
   });
 
-  const { mutate: updateFinalAmount } = useMutation({
-    mutationFn: ({ id, amount }: { id: string; amount: number }) =>
-      updateWarehouseFinalAmount(id, amount),
+  const { mutate: updateRequestLeftOnly } = useMutation({
+    mutationFn: ({ id, request_left }: { id: string; request_left: number }) =>
+      updateRequest(id, { request_left }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["requests"] });
     },
     onError: () => {
-      message.error("Failed to update final amount");
+      message.error("Failed to update remaining quantity");
     },
   });
 
-  const { mutate: updateRequestFields } = useUpdateRequestFields();
-
-  const [finalAmountValues, setFinalAmountValues] = useState<{
-    [key: string]: number;
-  }>({});
-
   const [markingDone, setMarkingDone] = useState<string | null>(null);
+  const [requestLeftValues, setRequestLeftValues] = useState<
+    Record<string, number>
+  >({});
 
-  const debouncedUpdateFunctions = useRef<{
-    [key: string]: (amount: number) => void;
-  }>({});
+  const requestReceivedDebounceMap = useRef<
+    Record<string, (payload: { amount: number; left: number }) => void>
+  >({});
+  const requestLeftDebounceMap = useRef<Record<string, (value: number) => void>>(
+    {}
+  );
 
   const handleSendRequest = (id: string): void => {
     const amount = requestSentValues[id];
@@ -219,25 +226,77 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     sendRequest({ id, amount });
   };
 
+  const handleBeliChange = (id: string, value: "ya" | "tidak") => {
+    const newBeliValue = value === "ya";
+    setBeliValues((prev) => ({
+      ...prev,
+      [id]: newBeliValue,
+    }));
+    updateBeliStatus({ id, beli: newBeliValue });
+  };
+
   const handleWarehouseReturn = (id: string, checked: boolean) => {
     updateWarehouseReturnStatus({ id, returned: checked });
   };
+  const handleRequestReceivedUpdate = (
+    id: string,
+    amount: number,
+    left: number
+  ) => {
+    if (!requestReceivedDebounceMap.current[id]) {
+      requestReceivedDebounceMap.current[id] = debounce(
+        (payload: { amount: number; left: number }) => {
+          updateRequestReceivedAndLeft({
+            id,
+            request_received: payload.amount,
+            request_left: payload.left,
+          });
+        },
+        500
+      );
+    }
 
-  const handleFinalAmountUpdate = (id: string, amount: number) => {
-    // Update local state immediately for UI
-    setFinalAmountValues((prev) => ({
+    requestReceivedDebounceMap.current[id]({ amount, left });
+  };
+
+  const handleRequestReceivedChange = (
+    id: string,
+    rawValue: string,
+    sentValue: number
+  ) => {
+    const numericValue = rawValue === "" ? 0 : Number(rawValue);
+    const normalizedValue = Number.isNaN(numericValue) ? 0 : numericValue;
+    const leftAmount = Math.max(sentValue - normalizedValue, 0);
+
+    setRequestReceivedValues((prev) => ({
       ...prev,
-      [id]: amount,
+      [id]: normalizedValue,
     }));
 
-    // Debounce the API call
-    if (!debouncedUpdateFunctions.current[id]) {
-      debouncedUpdateFunctions.current[id] = debounce((amount: number) => {
-        updateFinalAmount({ id, amount });
+    setRequestLeftValues((prev) => ({
+      ...prev,
+      [id]: leftAmount,
+    }));
+
+    handleRequestReceivedUpdate(id, normalizedValue, leftAmount);
+  };
+
+  const handleRequestLeftChange = (id: string, rawValue: string) => {
+    const numericValue = rawValue === "" ? 0 : Number(rawValue);
+    const normalizedValue = Number.isNaN(numericValue) ? 0 : numericValue;
+
+    setRequestLeftValues((prev) => ({
+      ...prev,
+      [id]: normalizedValue,
+    }));
+
+    if (!requestLeftDebounceMap.current[id]) {
+      requestLeftDebounceMap.current[id] = debounce((value: number) => {
+        updateRequestLeftOnly({ id, request_left: value });
       }, 500);
     }
 
-    debouncedUpdateFunctions.current[id](amount);
+    requestLeftDebounceMap.current[id](normalizedValue);
   };
 
   const handleMarkDone = async (id: string) => {
@@ -254,29 +313,29 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
   };
 
   const columns = [
-    { 
-      title: "Nama PO", 
-      dataIndex: "cardName", 
+    {
+      title: "Nama PO",
+      dataIndex: "cardName",
       key: "card_name",
       ellipsis: true,
-      width: "auto"
-    },
-    { 
-      title: "Type", 
-      dataIndex: "requestType", 
-      key: "request_type",
-      ellipsis: true,
-      width: "auto"
-    },
-    { 
-      title: "Item", 
-      dataIndex: "itemName", 
-      key: "requested_item_id",
-      ellipsis: true,
-      width: "auto"
+      width: "auto",
     },
     {
-      title: "Jumlah",
+      title: "Type",
+      dataIndex: "requestType",
+      key: "request_type",
+      ellipsis: true,
+      width: "auto",
+    },
+    {
+      title: "Item",
+      dataIndex: "itemName",
+      key: "requested_item_id",
+      ellipsis: true,
+      width: "auto",
+    },
+    {
+      title: "Request",
       key: "request_amount",
       ellipsis: true,
       width: "auto",
@@ -286,19 +345,12 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
         </span>
       ),
     },
-    { 
-      title: "Adjustment", 
-      dataIndex: "adjustmentName", 
-      key: "adjustment_no",
-      ellipsis: true,
-      width: "auto"
-    },
-    { 
-      title: "Deskripsi", 
-      dataIndex: "description", 
+    {
+      title: "Deskripsi",
+      dataIndex: "description",
       key: "description",
       ellipsis: true,
-      width: "auto"
+      width: "auto",
     },
     {
       title: "Verified",
@@ -321,6 +373,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       render: (_: unknown, record: RequestItem) => (
         <Input
           type="number"
+          step="0.01"
           value={
             requestSentValues[record.id] !== undefined
               ? requestSentValues[record.id]
@@ -328,7 +381,6 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
               ? Number(record.requestSent)
               : ""
           }
-          disabled={record.requestSent !== null && record.requestSent !== 0}
           onChange={(e) =>
             setRequestSentValues((prev) => ({
               ...prev,
@@ -359,6 +411,37 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
         />
       ),
     },
+    {
+      title: "Beli",
+      key: "beli",
+      ellipsis: true,
+      width: "auto",
+      render: (_: unknown, record: RequestItem) => {
+        const isPersediaanProduct =
+          (record?.type || "").toLowerCase() === "persediaan";
+        const persistedValue =
+          beliValues[record.id] !== undefined
+            ? beliValues[record.id]
+            : Boolean(record.beli);
+        const isCompleted = record.is_done || record.isDone;
+        const currentValue = isPersediaanProduct ? false : persistedValue;
+        const disabled = isPersediaanProduct || isCompleted;
+        return (
+          <Select
+            value={currentValue ? "ya" : "tidak"}
+            options={[
+              { value: "ya", label: "Ya" },
+              { value: "tidak", label: "Tidak" },
+            ]}
+            onChange={(value) =>
+              handleBeliChange(record.id, value as "ya" | "tidak")
+            }
+            disabled={disabled}
+            style={{ width: "100%" }}
+          />
+        );
+      },
+    },
     // {
     //   title: "Action",
     //   key: "action",
@@ -375,11 +458,46 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     // },
     {
       title: "Diterima Produksi",
-      dataIndex: "productionReceived",
       key: "productionReceived",
       ellipsis: true,
       width: "auto",
-      render: (value: boolean) => <Checkbox checked={value} disabled />,
+      render: (_: unknown, record: RequestItem) => {
+        const productionReceived =
+          record.productionReceived ?? record.productionRecieved ?? false;
+        return <Checkbox checked={productionReceived} disabled />;
+      },
+    },
+    {
+      title: "Terpakai",
+      key: "requestReceivedInput",
+      ellipsis: true,
+      width: "auto",
+      render: (_: unknown, record: RequestItem) => {
+        const sentValue =
+          requestSentValues[record.id] ??
+          (record.requestSent !== null && record.requestSent !== undefined
+            ? Number(record.requestSent)
+            : 0);
+        return (
+          <Input
+            type="number"
+            step="0.01"
+            value={
+              requestReceivedValues[record.id] !== undefined
+                ? requestReceivedValues[record.id]
+                : record.requestReceived !== null &&
+                  record.requestReceived !== undefined
+                ? Number(record.requestReceived)
+                : ""
+            }
+            onChange={(e) =>
+              handleRequestReceivedChange(record.id, e.target.value, sentValue)
+            }
+            disabled={record.isDone}
+            style={{ width: "100%" }}
+          />
+        );
+      },
     },
     {
       title: "Kembali Ke Gudang",
@@ -390,33 +508,39 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       render: (value: boolean, record: RequestItem) => (
         <Checkbox
           checked={value}
-          onChange={(e) => handleWarehouseReturn(record.id, e.target.checked)}
+          onChange={(e) =>
+            handleWarehouseReturn(record.id, e.target.checked)
+          }
           disabled={record.isDone}
         />
       ),
     },
     {
       title: "Sisa Bahan",
-      dataIndex: "warehouseFinalUsedAmount",
-      key: "warehouseFinalUsedAmount",
+      key: "requestLeft",
       ellipsis: true,
       width: "auto",
-      render: (_: unknown, record: RequestItem) => (
-        <Input
-          type="number"
-          value={
-            finalAmountValues[record.id] ??
-            record.warehouseFinalUsedAmount ??
-            (record.requestReceived ? record.requestReceived : "")
-          }
-          onChange={(e) =>
-            handleFinalAmountUpdate(record.id, Number(e.target.value))
-          }
-          max={record.requestSent}
-          disabled={!record.warehouseReturned || record.isDone}
-          style={{ width: "100%" }}
-        />
-      ),
+      render: (_: unknown, record: RequestItem) => {
+        const computedLeft =
+          requestLeftValues[record.id] ??
+          record.requestLeft ??
+          record.request_left ??
+          Math.max(
+            (record.requestSent ?? 0) - (record.requestReceived ?? 0),
+            0
+          );
+        const isReturned = record.warehouseReturned ?? false;
+        return (
+          <Input
+            type="number"
+            step="0.01"
+            value={computedLeft}
+            disabled={!isReturned || record.isDone}
+            onChange={(e) => handleRequestLeftChange(record.id, e.target.value)}
+            style={{ width: "100%" }}
+          />
+        );
+      },
     },
     {
       title: "Status",
@@ -475,50 +599,32 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
         </Button>
       ),
     },
-    {
-      title: "Diterima Oleh",
-      dataIndex: "receivedBy",
-      key: "receivedBy",
-      ellipsis: true,
-      width: "auto",
-      render: (value: string, record: RequestItem) => (
-        <UserSelectionForModal
-          value={value}
-          placeholder="Pilih penerima"
-          onChange={(selectedUserId: string) => {
-            updateRequestFields({
-              id: record.id,
-              updates: { received_by: selectedUserId },
-            });
-          }}
-        />
-      ),
-    },
   ];
 
-
-
-
-
   // Calculate active filters count
-  const activeFiltersCount = [filterBelumDiterima, filterBelumDiotorisasi].filter(Boolean).length;
+  const activeFiltersCount = [
+    filterBelumDiterima,
+    filterBelumDiotorisasi,
+    filterBelumBeli,
+  ].filter(Boolean).length;
 
   // Reset all filters function
   const resetFilters = () => {
     setFilterBelumDiterima(false);
     setFilterBelumDiotorisasi(false);
-    setPagination(prev => ({ ...prev, page: 1 }));
+    setFilterBelumBeli(false);
+    setPagination((prev) => ({ ...prev, page: 1 }));
   };
 
   return (
     <Modal
       title={
         <Space align="center">
-          <Warehouse size={20} style={{ color: '#1890ff' }} />
-          <span style={{ fontSize: '18px', fontWeight: 600 }}>Gudang</span>
-          <Badge 
-            count={data?.pagination?.total || 0} 
-            style={{ backgroundColor: '#52c41a' }}
+          <Warehouse size={20} style={{ color: "#1890ff" }} />
+          <span style={{ fontSize: "18px", fontWeight: 600 }}>Gudang</span>
+          <Badge
+            count={data?.pagination?.total || 0}
+            style={{ backgroundColor: "#52c41a" }}
             overflowCount={999}
           />
         </Space>
@@ -530,42 +636,42 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       styles={{
         body: {
           padding: "24px",
-          backgroundColor: '#fafafa',
+          backgroundColor: "#fafafa",
         },
       }}
     >
-      <Card 
-        size="small" 
-        style={{ 
+      <Card
+        size="small"
+        style={{
           marginBottom: 20,
           borderRadius: 8,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-          border: '1px solid #e8e8e8'
+          boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+          border: "1px solid #e8e8e8",
         }}
         title={
           <Space align="center">
-            <Filter size={16} style={{ color: '#1890ff' }} />
+            <Filter size={16} style={{ color: "#1890ff" }} />
             <span style={{ fontWeight: 600 }}>🔍 Filter Requests</span>
             {activeFiltersCount > 0 && (
-              <Badge 
-                count={activeFiltersCount} 
-                style={{ backgroundColor: '#faad14' }}
+              <Badge
+                count={activeFiltersCount}
+                style={{ backgroundColor: "#faad14" }}
               />
             )}
           </Space>
         }
         extra={
           activeFiltersCount > 0 && (
-            <Button 
-              type="text" 
+            <Button
+              type="text"
               size="small"
               icon={<RotateCcw size={14} />}
               onClick={resetFilters}
-              style={{ 
-                color: '#666',
-                fontSize: '12px',
-                height: '24px',
-                padding: '0 8px'
+              style={{
+                color: "#666",
+                fontSize: "12px",
+                height: "24px",
+                padding: "0 8px",
               }}
             >
               Reset
@@ -573,21 +679,21 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
           )
         }
       >
-        <Space 
-          direction="horizontal" 
-          size="large" 
-          style={{ width: '100%', flexWrap: 'wrap' }}
+        <Space
+          direction="horizontal"
+          size="large"
+          style={{ width: "100%", flexWrap: "wrap" }}
         >
           <Checkbox
             checked={filterBelumDiterima}
             onChange={(e) => {
               setFilterBelumDiterima(e.target.checked);
-              setPagination(prev => ({ ...prev, page: 1 }));
+              setPagination((prev) => ({ ...prev, page: 1 }));
             }}
-            style={{ 
-              fontSize: '14px',
+            style={{
+              fontSize: "14px",
               fontWeight: filterBelumDiterima ? 600 : 400,
-              color: filterBelumDiterima ? '#1890ff' : '#666'
+              color: filterBelumDiterima ? "#1890ff" : "#666",
             }}
           >
             📦 Belum Diterima
@@ -596,23 +702,37 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
             checked={filterBelumDiotorisasi}
             onChange={(e) => {
               setFilterBelumDiotorisasi(e.target.checked);
-              setPagination(prev => ({ ...prev, page: 1 }));
+              setPagination((prev) => ({ ...prev, page: 1 }));
             }}
-            style={{ 
-              fontSize: '14px',
+            style={{
+              fontSize: "14px",
               fontWeight: filterBelumDiotorisasi ? 600 : 400,
-              color: filterBelumDiotorisasi ? '#1890ff' : '#666'
+              color: filterBelumDiotorisasi ? "#1890ff" : "#666",
             }}
           >
             ✅ Belum Diotorisasi
+          </Checkbox>
+          <Checkbox
+            checked={filterBelumBeli}
+            onChange={(e) => {
+              setFilterBelumBeli(e.target.checked);
+              setPagination((prev) => ({ ...prev, page: 1 }));
+            }}
+            style={{
+              fontSize: "14px",
+              fontWeight: filterBelumBeli ? 600 : 400,
+              color: filterBelumBeli ? "#1890ff" : "#666",
+            }}
+          >
+            🧾 Belum Beli
           </Checkbox>
         </Space>
       </Card>
       <Card
         style={{
           borderRadius: 8,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-          border: '1px solid #e8e8e8'
+          boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+          border: "1px solid #e8e8e8",
         }}
       >
         <Table
@@ -624,11 +744,16 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
           size="small"
           locale={{
             emptyText: (
-              <div style={{ padding: '40px', textAlign: 'center', color: '#999' }}>
-                <Warehouse size={48} style={{ color: '#d9d9d9', marginBottom: '16px' }} />
+              <div
+                style={{ padding: "40px", textAlign: "center", color: "#999" }}
+              >
+                <Warehouse
+                  size={48}
+                  style={{ color: "#d9d9d9", marginBottom: "16px" }}
+                />
                 <div>Tidak ada data request</div>
               </div>
-            )
+            ),
           }}
           pagination={{
             current: pagination.page,
@@ -638,12 +763,12 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
               setPagination({ ...pagination, page, limit: pageSize }),
             showSizeChanger: true,
             showQuickJumper: true,
-            showTotal: (total, range) => 
+            showTotal: (total, range) =>
               `${range[0]}-${range[1]} dari ${total} requests`,
-            pageSizeOptions: ['10', '20', '50', '100'],
+            pageSizeOptions: ["10", "20", "50", "100"],
           }}
           style={{
-            backgroundColor: 'white'
+            backgroundColor: "white",
           }}
         />
       </Card>

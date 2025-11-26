@@ -20,6 +20,10 @@ export interface RequestItem {
   warehouseReturned?: boolean;
   warehouseFinalUsedAmount?: number;
   requestReceived?: number;
+  requestLeft?: number;
+  request_left?: number;
+  type?: string;
+  beli?: boolean;
   // Support both naming conventions during transition
   is_rejected?: boolean;
   isRejected?: boolean;

@@ -141,6 +141,24 @@ const EnterToSaveInput: React.FC<{
 };
 
 // Enter-to-save Number Input component
+const formatCustomFieldNumberValue = (value?: number | null): string => {
+  if (value === undefined || value === null || Number.isNaN(value)) {
+    return "";
+  }
+  const normalized = Number(value);
+  return Number.isFinite(normalized)
+    ? normalized.toString().replace(/\.0+$/, "")
+    : "";
+};
+
+const sanitizeCustomFieldNumber = (input: string): number | null => {
+  const trimmed = input.toString().trim();
+  if (trimmed === "") return null;
+  const sanitized = trimmed.replace(",", ".");
+  const parsed = Number(sanitized);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
 const EnterToSaveNumberInput: React.FC<{
   placeholder?: string;
   initialValue: number | undefined | null;
@@ -161,16 +179,16 @@ const EnterToSaveNumberInput: React.FC<{
   const params = useParams();
   const { selectedCard } = useCardDetailContext();
   const cardId = selectedCard?.id || "";
-  const { value, hasChanges, onChange, onKeyPress, onBlur } = useEnterToSave(
-    initialValue?.toString() || "",
-    (stringValue) => {
-      const numValue = parseFloat(stringValue);
-      if (!isNaN(numValue)) {
-        onSave(numValue);
-      }
-    },
-    { saveOnBlur: true }
-  );
+    const { value, hasChanges, onChange, onKeyPress, onBlur } = useEnterToSave(
+      formatCustomFieldNumberValue(initialValue),
+      (stringValue) => {
+        const numValue = sanitizeCustomFieldNumber(stringValue);
+        if (numValue !== null) {
+          onSave(numValue);
+        }
+      },
+      { saveOnBlur: true }
+    );
 
   // // Only show Split Job button for "Jml Produksi" field
   // const showSplitJob = fieldName === "Jml Produksi";

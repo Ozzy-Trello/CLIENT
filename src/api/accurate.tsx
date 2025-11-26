@@ -48,6 +48,8 @@ export const verifyRequest = async (id: string) => {
 type RequestUpdatePayload = {
   requestSent?: number;
   requestAmount?: number;
+  requestReceived?: number;
+  requestLeft?: number;
 };
 
 export function updateRequest(

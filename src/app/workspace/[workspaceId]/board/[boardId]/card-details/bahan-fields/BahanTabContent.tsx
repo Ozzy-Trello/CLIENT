@@ -14,6 +14,25 @@ type ZeroLoadingCandidate = {
   isCurrent?: boolean;
 };
 
+const normalizeNumericInput = (value: string | undefined | null): number | null => {
+  if (value === undefined || value === null) return null;
+  const sanitized = value.toString().trim().replace(",", ".");
+  if (sanitized === "") return null;
+  const numeric = Number(sanitized);
+  return Number.isFinite(numeric) ? numeric : null;
+};
+
+const formatNumericValue = (value?: number | null): string => {
+  if (value === undefined || value === null || Number.isNaN(value)) {
+    return "";
+  }
+  const normalized = Number(value);
+  if (!Number.isFinite(normalized)) {
+    return "";
+  }
+  return normalized.toString().replace(/\.0+$/, "");
+};
+
 const BahanTabContent: React.FC<BahanTabProps> = ({
   bahanTab,
   po,
@@ -35,20 +54,23 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
 }) => {
   const formatDisplayValue = (
     value?: number | null,
-    fallback: string = "0,00"
+    fallback: string = "0"
   ): string => {
-    if (value === undefined || value === null || Number.isNaN(value)) {
-      return fallback;
-    }
-    return value.toFixed(2).replace(".", ",");
+    const formatted = formatNumericValue(value);
+    return formatted || fallback;
   };
 
-  const [isEditingEnabled, setIsEditingEnabled] = useState(
-    !product.orderCreated
-  );
   const [isSyncingRequest, setIsSyncingRequest] = useState(false);
   const [showSyncSuccess, setShowSyncSuccess] = useState(false);
   const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isTerloadingEditing, setIsTerloadingEditing] = useState(
+    !product.orderCreated
+  );
+  const [terloadingInputValue, setTerloadingInputValue] =
+    useState<string | null>(null);
+  const [terpakaiInputValue, setTerpakaiInputValue] = useState<string | null>(
+    null
+  );
 
   const { cardAttachments } = useCardAttachment(po.cardId);
   const [zeroLoadingModalOpen, setZeroLoadingModalOpen] = useState(false);
@@ -58,7 +80,7 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
   const [isConfirmingZeroLoading, setIsConfirmingZeroLoading] = useState(false);
 
   useEffect(() => {
-    setIsEditingEnabled(!product.orderCreated);
+    setIsTerloadingEditing(!product.orderCreated);
     setShowSyncSuccess(false);
   }, [product.orderCreated]);
 
@@ -70,8 +92,18 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
     };
   }, []);
 
-  const isFieldsLocked = product.orderCreated && !isEditingEnabled;
-  const shouldDisableInputs = isFieldsLocked || isSyncingRequest;
+  useEffect(() => {
+    if (!isTerloadingEditing) {
+      setTerloadingInputValue(null);
+    }
+  }, [bahanTab.terloading, isTerloadingEditing]);
+
+  useEffect(() => {
+    setTerpakaiInputValue(null);
+  }, [bahanTab.bahanTerpakai]);
+
+  const shouldDisableInputs = product.orderCreated;
+  const shouldDisableTerloadingInput = !isTerloadingEditing || isSyncingRequest;
 
   const getEditableInputStyle = (disabled: boolean) => ({
     border: `1px solid rgb(${colors.border})`,
@@ -132,27 +164,6 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
     }
   }, [zeroLoadingCandidates, zeroLoadingModalOpen]);
 
-  const toggleEditing = () => {
-    if (isSyncingRequest) return;
-    setShowSyncSuccess(false);
-    setIsEditingEnabled((prev) => !prev);
-  };
-
-  const [terloadingInputValue, setTerloadingInputValue] = useState<
-    string | null
-  >(null);
-  const [terpakaiInputValue, setTerpakaiInputValue] = useState<string | null>(
-    null
-  );
-
-  useEffect(() => {
-    setTerloadingInputValue(null);
-  }, [bahanTab.terloading]);
-
-  useEffect(() => {
-    setTerpakaiInputValue(null);
-  }, [bahanTab.bahanTerpakai]);
-
   const persistTerloadingValue = (value: number) => {
     const updateResult = onTerloadingChange(
       poIndex,
@@ -170,7 +181,8 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
       .then(() => {
         setShowSyncSuccess(true);
         scheduleSuccessStateReset();
-        setIsEditingEnabled(false);
+        setIsTerloadingEditing(false);
+        setTerloadingInputValue(null);
       })
       .catch(() => {
         // Error already handled upstream; keep editing enabled for retry
@@ -178,6 +190,27 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
       .finally(() => {
         setIsSyncingRequest(false);
       });
+  };
+
+  const handleTerloadingSave = () => {
+    const normalized =
+      normalizeNumericInput(terloadingInputValue) ??
+      Number(bahanTab.terloading ?? 0);
+    if (Number.isNaN(normalized)) {
+      return;
+    }
+    persistTerloadingValue(normalized);
+  };
+
+  const handleTerloadingButtonClick = () => {
+    if (isSyncingRequest) return;
+    if (isTerloadingEditing) {
+      setIsTerloadingEditing(false);
+      handleTerloadingSave();
+    } else {
+      setTerloadingInputValue(formatNumericValue(bahanTab.terloading));
+      setIsTerloadingEditing(true);
+    }
   };
 
   const closeZeroModal = () => {
@@ -215,6 +248,9 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
         bahanTab.terloading === 0 ? "0" : bahanTab.terloading;
       const safeRequestSent =
         bahanTab.terloading === 0 ? "0" : bahanTab.terloading;
+      const sentNumber = Number(bahanTab.terloading ?? 0);
+      const usedNumber = Number(bahanTab.bahanTerpakai ?? 0);
+      const leftNumber = Math.max(sentNumber - usedNumber, 0);
 
       const requestData = {
         card_id: po.cardId,
@@ -223,6 +259,8 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
         requested_item_id: product.id,
         request_amount: safeRequestAmount, // Use terloading amount
         request_sent: safeRequestSent, // Use terloading amount (same as request_amount)
+        request_received: usedNumber,
+        request_left: leftNumber,
         is_verified: true, // Default to verified
         po_product_ids: [product.poProductId],
         // Add adjustment fields from product data
@@ -307,50 +345,49 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
         <div>
           <div className="flex items-center justify-between gap-2 mb-1">
             <label
-              className="text-xs font-medium"
+              className="text-xs font-medium flex items-center gap-1"
               style={{
                 color: `rgb(${colors["text-muted"]})`,
               }}
             >
               Terloading ({product.satuan || "unit"})
+              {showSyncSuccess && (
+                <Check
+                  size={14}
+                  className="text-emerald-500"
+                  aria-label="Nilai sudah tersinkron"
+                />
+              )}
             </label>
             {product.orderCreated && (
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={toggleEditing}
-                  disabled={isSyncingRequest}
-                  className="flex items-center justify-center w-6 h-6 rounded-full border transition-colors hover:bg-opacity-90"
-                  title={
-                    isEditingEnabled || isSyncingRequest
-                      ? "Kunci kembali untuk menonaktifkan edit"
-                      : "Klik untuk mengedit nilai terloading/terpakai"
-                  }
-                  style={{
-                    borderColor: `rgb(${colors.border})`,
-                    backgroundColor: `rgb(${colors.surface})`,
-                    color: `rgb(${colors.text})`,
-                    opacity: isSyncingRequest ? 0.6 : 1,
-                  }}
-                >
-                  <Pencil size={12} />
-                </button>
-                {showSyncSuccess && (
-                  <Check
-                    size={14}
-                    className="text-emerald-500"
-                    aria-label="Nilai sudah tersinkron"
-                  />
-                )}
-              </div>
+              <button
+                type="button"
+                onClick={handleTerloadingButtonClick}
+                disabled={isSyncingRequest}
+                className="flex items-center justify-center w-6 h-6 rounded-full border transition-colors hover:bg-opacity-90"
+                title={
+                  isTerloadingEditing
+                    ? "Kunci kembali nilai terloading"
+                    : "Klik untuk mengedit nilai terloading"
+                }
+                style={{
+                  borderColor: `rgb(${colors.border})`,
+                  backgroundColor: `rgb(${colors.surface})`,
+                  color: `rgb(${colors.text})`,
+                  opacity: isSyncingRequest ? 0.6 : 1,
+                }}
+              >
+                <Pencil size={12} />
+              </button>
             )}
           </div>
           <input
             type="number"
             value={
-              terloadingInputValue !== null
-                ? terloadingInputValue
-                : bahanTab.terloading ?? ""
+              isTerloadingEditing
+                ? terloadingInputValue ??
+                  formatNumericValue(bahanTab.terloading)
+                : formatNumericValue(bahanTab.terloading)
             }
             onFocus={() => {
               if (bahanTab.terloading === 0) {
@@ -365,19 +402,14 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
             onChange={(e) => {
               const value = e.target.value;
               setTerloadingInputValue(value);
-              if (value === "" || value === "0") {
-                void persistTerloadingValue(0);
-              } else {
-                void persistTerloadingValue(parseFloat(value) || 0);
-              }
             }}
-            disabled={shouldDisableInputs}
+            disabled={shouldDisableTerloadingInput}
             className={`w-full px-3 py-2 rounded-md text-sm ${
-              shouldDisableInputs
+              shouldDisableTerloadingInput
                 ? "cursor-not-allowed opacity-80"
                 : "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             }`}
-            style={getEditableInputStyle(shouldDisableInputs)}
+            style={getEditableInputStyle(shouldDisableTerloadingInput)}
           />
         </div>
 
@@ -466,11 +498,7 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
             value={
               terpakaiInputValue !== null
                 ? terpakaiInputValue
-                : bahanTab.bahanTerpakai === undefined ||
-                  bahanTab.bahanTerpakai === null ||
-                  Number.isNaN(bahanTab.bahanTerpakai)
-                ? ""
-                : bahanTab.bahanTerpakai
+                : formatNumericValue(bahanTab.bahanTerpakai)
             }
             onFocus={() => {
               if (bahanTab.bahanTerpakai === 0) {
@@ -496,16 +524,13 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
             onChange={(e) => {
               const value = e.target.value;
               setTerpakaiInputValue(value);
-              if (value === "" || value === "0") {
-                onBahanTerpakaiChange(poIndex, productIndex, bahanTabIndex, 0);
-              } else {
-                onBahanTerpakaiChange(
-                  poIndex,
-                  productIndex,
-                  bahanTabIndex,
-                  parseFloat(value) || 0
-                );
-              }
+              const normalized = normalizeNumericInput(value);
+              onBahanTerpakaiChange(
+                poIndex,
+                productIndex,
+                bahanTabIndex,
+                normalized ?? 0
+              );
             }}
             disabled={shouldDisableInputs}
             className={`w-full px-3 py-2 rounded-md text-sm ${
