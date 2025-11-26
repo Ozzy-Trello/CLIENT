@@ -21,6 +21,7 @@ export interface ProductItem {
   id: string;
   name: string;
   poProductId?: string; // ID of the POProduct for API updates
+  requestId?: number;
   orderCreated?: boolean; // Whether an order has been created for this product
   satuan?: string; // Unit field from Hikmat
   adjustment_no?: string; // Adjustment account number
@@ -67,11 +68,16 @@ export interface POSectionProps {
   onScanProduct: (poId: string) => void;
   onSelectProduct: (poId: string, productId: string) => void;
   onOpenSummary: (poId: string) => void;
-  onTerloadingChange: (poIndex: number, productIndex: number, bahanTabIndex: number, value: number) => void;
+  onTerloadingChange: (poIndex: number, productIndex: number, bahanTabIndex: number, value: number) => Promise<void>;
   onBahanTerpakaiChange: (poIndex: number, productIndex: number, bahanTabIndex: number, value: number) => void;
   onEstBahanChange: (poIndex: number, productIndex: number, bahanTabIndex: number, value: number) => void;
   onCategoryValueChange: (poIndex: number, productIndex: number, categoryId: string, subcategoryId: string, value: number) => void;
-  onOrderStatusChange: (poIndex: number, productIndex: number, orderCreated: boolean) => void;
+  onOrderStatusChange: (
+    poIndex: number,
+    productIndex: number,
+    orderCreated: boolean,
+    requestId?: number | null
+  ) => void;
   setPOData: React.Dispatch<React.SetStateAction<POItem[]>>;
   setSelectedProductIds: React.Dispatch<React.SetStateAction<{ [poId: string]: string }>>;
   // Category update state functions
@@ -92,11 +98,16 @@ export interface BahanTabProps {
   poIndex: number;
   productIndex: number;
   bahanTabIndex: number;
-  onTerloadingChange: (poIndex: number, productIndex: number, bahanTabIndex: number, value: number) => void;
+  onTerloadingChange: (poIndex: number, productIndex: number, bahanTabIndex: number, value: number) => Promise<void>;
   onBahanTerpakaiChange: (poIndex: number, productIndex: number, bahanTabIndex: number, value: number) => void;
   onEstBahanChange: (poIndex: number, productIndex: number, bahanTabIndex: number, value: number) => void;
   onCategoryValueChange: (poIndex: number, productIndex: number, categoryId: string, subcategoryId: string, value: number) => void;
-  onOrderStatusChange: (poIndex: number, productIndex: number, orderCreated: boolean) => void;
+  onOrderStatusChange: (
+    poIndex: number,
+    productIndex: number,
+    orderCreated: boolean,
+    requestId?: number | null
+  ) => void;
   // Category update state functions
   isCategoryLoading?: (poProductCategoryId: string) => boolean;
   getCategoryError?: (poProductCategoryId: string) => string | null;

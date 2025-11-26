@@ -131,6 +131,18 @@ const CategorySection: React.FC<CategorySectionProps> = ({
           <input
             type="number"
             value={inputValue}
+            onFocus={() => {
+              if (
+                pendingValues[pendingKey] === undefined &&
+                Number.isFinite(value) &&
+                value === 0
+              ) {
+                setPendingValues((prev) => ({
+                  ...prev,
+                  [pendingKey]: "",
+                }));
+              }
+            }}
             onChange={(e) => {
               if (error && clearCategoryError) {
                 clearCategoryError(categoryKey);

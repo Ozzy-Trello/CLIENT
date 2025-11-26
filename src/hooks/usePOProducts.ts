@@ -179,6 +179,7 @@ export const transformPOProductToProductItem = (
     name: poProduct.productName,
     poProductId: poProduct.id, // Include PO product ID for API updates
     orderCreated: poProduct.orderCreated || false, // Include order created status
+    requestId: poProduct.request_id,
     satuan: poProduct.satuan, // Include unit field
     adjustment_no: poProduct.adjustmentNo, // Include adjustment account number
     adjustment_name: poProduct.adjustmentName, // Include adjustment account name

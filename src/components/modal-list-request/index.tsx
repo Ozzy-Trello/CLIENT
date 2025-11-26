@@ -6,6 +6,7 @@ import {
   useRejectRequest,
 } from "@hooks/accurate";
 import { render } from "react-dom";
+import { formatRequestQuantity } from "@utils/request-format";
 
 interface ModalListRequestProps {
   open: boolean;
@@ -95,7 +96,7 @@ const ModalListRequest: React.FC<ModalListRequestProps> = ({
       width: 100,
       render: (_: any, record: any) => (
         <span>
-          {record.requestAmount} {record.satuan || ""}
+          {formatRequestQuantity(record.requestAmount)} {record.satuan || ""}
         </span>
       ),
     },

@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button, Dropdown, Modal, Input } from "antd";
 import { MoreOutlined } from "@ant-design/icons";
 import { useState } from "react";
+import { formatRequestQuantity } from "@utils/request-format";
 
 // Constants
 const tabNames = ["Polo", "Oblong", "Kemeja", "Jaket", "Hoodie"];
@@ -64,30 +65,35 @@ const RequestFields: React.FC = () => {
       dataIndex: "itemName",
       key: "itemName",
     },
-    {
-      title: "Diminta",
-      dataIndex: "requestAmount",
-      key: "requestAmount",
-      render: (_: unknown, record: CardRequest) => {
-        return (
-          <span>
-            {record.requestAmount} {record.satuan}
-          </span>
-        );
+      {
+        title: "Diminta",
+        dataIndex: "requestAmount",
+        key: "requestAmount",
+        render: (_: unknown, record: CardRequest) => {
+          return (
+            <span>
+              {formatRequestQuantity(record.requestAmount)} {record.satuan}
+            </span>
+          );
+        },
       },
-    },
-    {
-      title: "Dikirim",
-      dataIndex: "requestSent",
-      key: "requestSent",
-      render: (_: unknown, record: CardRequest) => {
-        return (
-          <span>
-            {record.requestSent ? record.requestSent : 0} {record.satuan}
-          </span>
-        );
+      {
+        title: "Dikirim",
+        dataIndex: "requestSent",
+        key: "requestSent",
+        render: (_: unknown, record: CardRequest) => {
+          return (
+            <span>
+              {formatRequestQuantity(
+                record.requestSent === null || record.requestSent === undefined
+                  ? 0
+                  : record.requestSent
+              )}{" "}
+              {record.satuan}
+            </span>
+          );
+        },
       },
-    },
     {
       title: "Jenis",
       dataIndex: "adjustmentName",
@@ -98,8 +104,8 @@ const RequestFields: React.FC = () => {
 
       render: (_: unknown, record: CardRequest) => {
         return (
-          <span>
-            {record.requestReceived ? record.requestReceived : ""}{" "}
+        <span>
+            {record.requestReceived ? formatRequestQuantity(record.requestReceived) : ""}{" "}
             {record.satuan}
           </span>
         );

@@ -3,7 +3,7 @@ import { message, Modal, Input } from "antd";
 import { useSelector } from "react-redux";
 import { selectTheme } from "@store/app_slice";
 import { useQuery } from "@tanstack/react-query";
-import { getAllAdjustmentItems } from "@api/accurate";
+import { getAllAdjustmentItems, updateRequest } from "@api/accurate";
 import { getOzzyBarcodeProduct, getOzzyProducts } from "@api/ozzy-warehouse";
 import { useCategoriesWithSubcategories } from "@hooks/category";
 import {
@@ -176,8 +176,9 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
                   updatedBahanTab.efisiensi = existingBahanTab.efisiensi;
                 }
 
-                // Preserve orderCreated status to prevent UI state loss after API refetch
+                // Preserve orderCreated status and request linkage to prevent UI state loss after API refetch
                 updatedProduct.orderCreated = existingProduct.orderCreated;
+                updatedProduct.requestId = existingProduct.requestId;
 
                 po.products[existingIndex] = updatedProduct;
               }
@@ -221,13 +222,13 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
     return terloading - bahanTerpakai;
   };
 
-  const calculateEfisiensi = (
-    estBahan: number,
-    bahanTerpakai: number
-  ): number => {
-    if (estBahan === 0) return 0;
-    return ((estBahan - bahanTerpakai) / estBahan) * 100;
-  };
+    const calculateEfisiensi = (
+      estBahan: number,
+      bahanTerpakai: number
+    ): number => {
+      if (estBahan === 0) return 0;
+      return ((estBahan - bahanTerpakai) / estBahan) * 100;
+    };
 
   // Calculate category values based on Est Bahan and junction weights
   const calculateCategoryValues = (estBahan: number, categories: any[]) => {
@@ -372,12 +373,13 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
     return undefined;
   };
 
-  const handleTerloadingChange = (
+  const handleTerloadingChange = async (
     poIndex: number,
     productIndex: number,
     bahanTabIndex: number,
     value: number
   ) => {
+    let requestId: number | undefined;
     setPOData((prevData) => {
       const newData = [...prevData];
       const po = newData[poIndex];
@@ -396,8 +398,23 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
         debouncedPOProductUpdate(product.poProductId, { terloading: value });
       }
 
+      requestId = product.requestId;
+
       return newData;
     });
+
+    if (requestId) {
+      try {
+        await updateRequest(requestId.toString(), {
+          requestSent: value,
+          requestAmount: value,
+        });
+      } catch (error) {
+        console.error("❌ Failed to sync request terloading:", error);
+        message.error("Gagal menyelaraskan nilai terloading ke request");
+        throw error;
+      }
+    }
   };
 
   const handleBahanTerpakaiChange = (
@@ -657,7 +674,8 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
   const handleOrderStatusChange = (
     poIndex: number,
     productIndex: number,
-    orderCreated: boolean
+    orderCreated: boolean,
+    requestId?: number | null
   ) => {
 
     setPOData((prevData) => {
@@ -667,6 +685,9 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
 
       // Update local state
       product.orderCreated = orderCreated;
+      if (requestId !== undefined && requestId !== null) {
+        product.requestId = requestId;
+      }
 
       // Call API to persist the change
       if (product.poProductId) {

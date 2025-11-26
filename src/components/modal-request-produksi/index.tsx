@@ -24,6 +24,7 @@ import { debounce } from "lodash";
 import { Factory, Filter, Truck } from "lucide-react";
 import { useParams } from "next/navigation";
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { formatRequestQuantity } from "@utils/request-format";
 
 const { Title, Text } = Typography;
 
@@ -212,7 +213,7 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
       align: "center" as const,
       render: (_: any, record: RequestItem) => (
         <Text strong>
-          {record.requestAmount} {record.satuan || ""}
+          {formatRequestQuantity(record.requestAmount)} {record.satuan || ""}
         </Text>
       ),
     },
@@ -246,7 +247,7 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
         const hasSent = record.requestSent !== null && record.requestSent !== 0;
         return hasSent ? (
           <Tag color="green">
-            {record.requestSent} {record.satuan || ""}
+            {formatRequestQuantity(record.requestSent)} {record.satuan || ""}
           </Tag>
         ) : (
           <Tag color="default">Belum Dikirim</Tag>

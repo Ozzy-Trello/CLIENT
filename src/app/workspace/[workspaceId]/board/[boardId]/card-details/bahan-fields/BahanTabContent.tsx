@@ -1,8 +1,18 @@
-import React from "react";
-import { message } from "antd";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Button, Modal, Radio, message, Typography } from "antd";
 import { BahanTabProps } from "./types";
 import CategorySection from "./CategorySection";
 import { createRequestWithPOConnection } from "@api/accurate";
+import { Check, Pencil } from "lucide-react";
+import { useCardAttachment } from "@hooks/card_attachment";
+import { EnumAttachmentType } from "@myTypes/card";
+
+type ZeroLoadingCandidate = {
+  id: string;
+  title: string;
+  description?: string;
+  isCurrent?: boolean;
+};
 
 const BahanTabContent: React.FC<BahanTabProps> = ({
   bahanTab,
@@ -33,12 +43,157 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
     return value.toFixed(2).replace(".", ",");
   };
 
+  const [isEditingEnabled, setIsEditingEnabled] = useState(
+    !product.orderCreated
+  );
+  const [isSyncingRequest, setIsSyncingRequest] = useState(false);
+  const [showSyncSuccess, setShowSyncSuccess] = useState(false);
+  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const { cardAttachments } = useCardAttachment(po.cardId);
+  const [zeroLoadingModalOpen, setZeroLoadingModalOpen] = useState(false);
+  const [selectedLoadingCardId, setSelectedLoadingCardId] = useState<
+    string | null
+  >(null);
+  const [isConfirmingZeroLoading, setIsConfirmingZeroLoading] = useState(false);
+
+  useEffect(() => {
+    setIsEditingEnabled(!product.orderCreated);
+    setShowSyncSuccess(false);
+  }, [product.orderCreated]);
+
+  useEffect(() => {
+    return () => {
+      if (successTimerRef.current) {
+        clearTimeout(successTimerRef.current);
+      }
+    };
+  }, []);
+
+  const isFieldsLocked = product.orderCreated && !isEditingEnabled;
+  const shouldDisableInputs = isFieldsLocked || isSyncingRequest;
+
+  const getEditableInputStyle = (disabled: boolean) => ({
+    border: `1px solid rgb(${colors.border})`,
+    backgroundColor: `rgb(${disabled ? colors.muted : colors.surface})`,
+    color: `rgb(${disabled ? colors["text-muted"] : colors.text})`,
+  });
+
+  const scheduleSuccessStateReset = () => {
+    if (successTimerRef.current) {
+      clearTimeout(successTimerRef.current);
+    }
+    successTimerRef.current = setTimeout(() => {
+      setShowSyncSuccess(false);
+    }, 2000);
+  };
+
+  const zeroLoadingCandidates = useMemo(() => {
+    const entries = new Map<string, ZeroLoadingCandidate>();
+
+    if (po.cardId) {
+      entries.set(po.cardId, {
+        id: po.cardId,
+        title: po.name || "Card",
+        description: "Current card",
+        isCurrent: true,
+      });
+    }
+
+    cardAttachments
+      .filter(
+        (attachment) =>
+          attachment.attachableType === EnumAttachmentType.Card &&
+          attachment.targetCard &&
+          attachment.targetCard.id
+      )
+      .forEach((attachment) => {
+        const targetCard = attachment.targetCard!;
+        const descriptionParts = [
+          targetCard.boardName,
+          targetCard.listName,
+          targetCard.shortId ? `#${targetCard.shortId}` : undefined,
+        ].filter(Boolean);
+
+        entries.set(targetCard.id, {
+          id: targetCard.id,
+          title: targetCard.name || `Card ${targetCard.id}`,
+          description: descriptionParts.join(" / "),
+          isCurrent: targetCard.id === po.cardId,
+        });
+      });
+
+    return Array.from(entries.values());
+  }, [cardAttachments, po.cardId, po.name]);
+
+  useEffect(() => {
+    if (zeroLoadingModalOpen && zeroLoadingCandidates.length > 0) {
+      setSelectedLoadingCardId((prev) => prev || zeroLoadingCandidates[0].id);
+    }
+  }, [zeroLoadingCandidates, zeroLoadingModalOpen]);
+
+  const toggleEditing = () => {
+    if (isSyncingRequest) return;
+    setShowSyncSuccess(false);
+    setIsEditingEnabled((prev) => !prev);
+  };
+
+  const [terloadingInputValue, setTerloadingInputValue] = useState<
+    string | null
+  >(null);
+  const [terpakaiInputValue, setTerpakaiInputValue] = useState<string | null>(
+    null
+  );
+
+  useEffect(() => {
+    setTerloadingInputValue(null);
+  }, [bahanTab.terloading]);
+
+  useEffect(() => {
+    setTerpakaiInputValue(null);
+  }, [bahanTab.bahanTerpakai]);
+
+  const persistTerloadingValue = (value: number) => {
+    const updateResult = onTerloadingChange(
+      poIndex,
+      productIndex,
+      bahanTabIndex,
+      value
+    );
+
+    if (!product.requestId || !updateResult) {
+      return;
+    }
+
+    setIsSyncingRequest(true);
+    updateResult
+      .then(() => {
+        setShowSyncSuccess(true);
+        scheduleSuccessStateReset();
+        setIsEditingEnabled(false);
+      })
+      .catch(() => {
+        // Error already handled upstream; keep editing enabled for retry
+      })
+      .finally(() => {
+        setIsSyncingRequest(false);
+      });
+  };
+
+  const closeZeroModal = () => {
+    setZeroLoadingModalOpen(false);
+    setSelectedLoadingCardId(null);
+  };
+
   // Handler for Create New Order button
-  const handleCreateNewOrder = async (po: any, product: any) => {
+  const handleCreateNewOrder = async (
+    po: any,
+    product: any
+  ): Promise<boolean> => {
     // Only create new orders, don't toggle existing ones
     if (product.orderCreated) {
       message.info(`Order already exists for ${product.name} in ${po.name}`);
-      return;
+      return false;
     }
 
     // Creating new order for product
@@ -46,32 +201,30 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
     // Validate required data
     if (!product.poProductId) {
       message.error("Cannot create order: Product ID not found");
-      return;
+      return false;
     }
 
     if (!po.cardId) {
       message.error("Cannot create order: Card ID not found");
-      return;
-    }
-
-    if (!bahanTab.terloading || bahanTab.terloading <= 0) {
-      message.error(
-        "Cannot create order: Terloading amount must be greater than 0"
-      );
-      return;
+      return false;
     }
 
     try {
       // Prepare request data
+      const safeRequestAmount =
+        bahanTab.terloading === 0 ? "0" : bahanTab.terloading;
+      const safeRequestSent =
+        bahanTab.terloading === 0 ? "0" : bahanTab.terloading;
+
       const requestData = {
         card_id: po.cardId,
         type: "NEW_ORDER",
         item_name: product.name,
         requested_item_id: product.id,
-        request_amount: bahanTab.terloading, // Use terloading amount
-        request_sent: bahanTab.terloading, // Use terloading amount (same as request_amount)
+        request_amount: safeRequestAmount, // Use terloading amount
+        request_sent: safeRequestSent, // Use terloading amount (same as request_amount)
         is_verified: true, // Default to verified
-        po_product_ids: [parseInt(product.poProductId)], // Convert to number array
+        po_product_ids: [product.poProductId],
         // Add adjustment fields from product data
         satuan: product.satuan,
         adjustment_no: product.adjustment_no,
@@ -80,14 +233,24 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
 
       // Product content
 
-      await createRequestWithPOConnection(requestData);
+      const response = await createRequestWithPOConnection(requestData);
+      const requestIdFromResponse = response?.data?.request?.id;
+      const parsedRequestId =
+        requestIdFromResponse !== undefined && requestIdFromResponse !== null
+          ? Number(requestIdFromResponse)
+          : undefined;
+      const validRequestId =
+        parsedRequestId !== undefined && !Number.isNaN(parsedRequestId)
+          ? parsedRequestId
+          : undefined;
 
       // Update local state to reflect the order creation
-      onOrderStatusChange(poIndex, productIndex, true);
+      onOrderStatusChange(poIndex, productIndex, true, validRequestId);
 
       message.success(
         `Order created successfully for ${product.name} in ${po.name}`
       );
+      return true;
     } catch (error) {
       console.error("❌ [BahanTabContent] Failed to create order:", error);
       message.error(
@@ -95,13 +258,46 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
           error instanceof Error ? error.message : "Unknown error"
         }`
       );
+      return false;
     }
   };
 
+  const isOrderAlreadyCreated = !!product.orderCreated;
   const hasTerloadingValue =
     typeof bahanTab.terloading === "number" && bahanTab.terloading > 0;
-  const isOrderAlreadyCreated = !!product.orderCreated;
-  const disableLoadingButton = isOrderAlreadyCreated || !hasTerloadingValue;
+  const disableLoadingButton = isOrderAlreadyCreated || isSyncingRequest;
+
+  const handleConfirmZeroLoading = async () => {
+    if (!selectedLoadingCardId) {
+      return;
+    }
+
+    setIsConfirmingZeroLoading(true);
+    const success = await handleCreateNewOrder(po, product);
+    setIsConfirmingZeroLoading(false);
+
+    if (success) {
+      closeZeroModal();
+    }
+  };
+
+  const handleLoadingClick = () => {
+    if (disableLoadingButton) {
+      return;
+    }
+
+    if (hasTerloadingValue) {
+      void handleCreateNewOrder(po, product);
+      return;
+    }
+
+    if (zeroLoadingCandidates.length === 0) {
+      void handleCreateNewOrder(po, product);
+      return;
+    }
+
+    setZeroLoadingModalOpen(true);
+  };
 
   return (
     <div>
@@ -109,36 +305,79 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
       <div className="grid grid-cols-3 gap-x-6 gap-y-3 mb-3">
         {/* Terloading (Enabled) */}
         <div>
-          <label
-            className="block text-xs font-medium mb-1"
-            style={{
-              color: `rgb(${colors["text-muted"]})`,
-            }}
-          >
-            Terloading ({product.satuan || "unit"})
-          </label>
+          <div className="flex items-center justify-between gap-2 mb-1">
+            <label
+              className="text-xs font-medium"
+              style={{
+                color: `rgb(${colors["text-muted"]})`,
+              }}
+            >
+              Terloading ({product.satuan || "unit"})
+            </label>
+            {product.orderCreated && (
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={toggleEditing}
+                  disabled={isSyncingRequest}
+                  className="flex items-center justify-center w-6 h-6 rounded-full border transition-colors hover:bg-opacity-90"
+                  title={
+                    isEditingEnabled || isSyncingRequest
+                      ? "Kunci kembali untuk menonaktifkan edit"
+                      : "Klik untuk mengedit nilai terloading/terpakai"
+                  }
+                  style={{
+                    borderColor: `rgb(${colors.border})`,
+                    backgroundColor: `rgb(${colors.surface})`,
+                    color: `rgb(${colors.text})`,
+                    opacity: isSyncingRequest ? 0.6 : 1,
+                  }}
+                >
+                  <Pencil size={12} />
+                </button>
+                {showSyncSuccess && (
+                  <Check
+                    size={14}
+                    className="text-emerald-500"
+                    aria-label="Nilai sudah tersinkron"
+                  />
+                )}
+              </div>
+            )}
+          </div>
           <input
             type="number"
-            value={bahanTab.terloading || ""}
-            onChange={(e) => {
-              const value = e.target.value;
-              if (value === "" || value === "0") {
-                onTerloadingChange(poIndex, productIndex, bahanTabIndex, 0);
-              } else {
-                onTerloadingChange(
-                  poIndex,
-                  productIndex,
-                  bahanTabIndex,
-                  parseFloat(value) || 0
-                );
+            value={
+              terloadingInputValue !== null
+                ? terloadingInputValue
+                : bahanTab.terloading ?? ""
+            }
+            onFocus={() => {
+              if (bahanTab.terloading === 0) {
+                setTerloadingInputValue("");
               }
             }}
-            className="w-full px-3 py-2 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            style={{
-              border: `1px solid rgb(${colors.border})`,
-              backgroundColor: `rgb(${colors.surface})`,
-              color: `rgb(${colors.text})`,
+            onBlur={() => {
+              if (terloadingInputValue === "") {
+                setTerloadingInputValue(null);
+              }
             }}
+            onChange={(e) => {
+              const value = e.target.value;
+              setTerloadingInputValue(value);
+              if (value === "" || value === "0") {
+                void persistTerloadingValue(0);
+              } else {
+                void persistTerloadingValue(parseFloat(value) || 0);
+              }
+            }}
+            disabled={shouldDisableInputs}
+            className={`w-full px-3 py-2 rounded-md text-sm ${
+              shouldDisableInputs
+                ? "cursor-not-allowed opacity-80"
+                : "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            }`}
+            style={getEditableInputStyle(shouldDisableInputs)}
           />
         </div>
 
@@ -225,26 +464,23 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
             inputMode="decimal"
             step="0.01"
             value={
-              bahanTab.bahanTerpakai === undefined ||
-              bahanTab.bahanTerpakai === null ||
-              Number.isNaN(bahanTab.bahanTerpakai)
+              terpakaiInputValue !== null
+                ? terpakaiInputValue
+                : bahanTab.bahanTerpakai === undefined ||
+                  bahanTab.bahanTerpakai === null ||
+                  Number.isNaN(bahanTab.bahanTerpakai)
                 ? ""
                 : bahanTab.bahanTerpakai
             }
-            onChange={(e) => {
-              const value = e.target.value;
-              if (value === "" || value === "0") {
-                onBahanTerpakaiChange(poIndex, productIndex, bahanTabIndex, 0);
-              } else {
-                onBahanTerpakaiChange(
-                  poIndex,
-                  productIndex,
-                  bahanTabIndex,
-                  parseFloat(value) || 0
-                );
+            onFocus={() => {
+              if (bahanTab.bahanTerpakai === 0) {
+                setTerpakaiInputValue("");
               }
             }}
             onBlur={() => {
+              if (terpakaiInputValue === "") {
+                setTerpakaiInputValue(null);
+              }
               if (
                 typeof bahanTab.bahanTerpakai === "number" &&
                 !Number.isNaN(bahanTab.bahanTerpakai)
@@ -257,12 +493,27 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
                 );
               }
             }}
-            className="w-full px-3 py-2 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            style={{
-              border: `1px solid rgb(${colors.border})`,
-              backgroundColor: `rgb(${colors.surface})`,
-              color: `rgb(${colors.text})`,
+            onChange={(e) => {
+              const value = e.target.value;
+              setTerpakaiInputValue(value);
+              if (value === "" || value === "0") {
+                onBahanTerpakaiChange(poIndex, productIndex, bahanTabIndex, 0);
+              } else {
+                onBahanTerpakaiChange(
+                  poIndex,
+                  productIndex,
+                  bahanTabIndex,
+                  parseFloat(value) || 0
+                );
+              }
             }}
+            disabled={shouldDisableInputs}
+            className={`w-full px-3 py-2 rounded-md text-sm ${
+              shouldDisableInputs
+                ? "cursor-not-allowed opacity-80"
+                : "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            }`}
+            style={getEditableInputStyle(shouldDisableInputs)}
           />
         </div>
 
@@ -274,20 +525,78 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
               color: `rgb(${colors["text-muted"]})`,
             }}
           >
-            Efisiensi (%)
+            Efisiensi ({product.satuan || "unit"}) / %
           </label>
           <input
+            type="text"
             className="w-full px-3 py-2 rounded-md text-sm cursor-not-allowed"
             style={{
               border: `1px solid rgb(${colors.border})`,
               backgroundColor: `rgb(${colors.muted})`,
               color: `rgb(${colors["text-muted"]})`,
             }}
-            value={bahanTab.efisiensi.toFixed(2)}
+            value={`${formatDisplayValue(
+              bahanTab.estBahan - (bahanTab.bahanTerpakai || 0)
+            )} ${product.satuan || "unit"} / ${bahanTab.efisiensi.toFixed(2)}%`}
             readOnly
           />
         </div>
       </div>
+
+      <Modal
+        open={zeroLoadingModalOpen}
+        title="Konfirmasi Loading"
+        onCancel={closeZeroModal}
+        bodyStyle={{ padding: "24px" }}
+        footer={[
+          <Button key="cancel" onClick={closeZeroModal}>
+            Cancel
+          </Button>,
+          <Button
+            key="confirm"
+            type="primary"
+            onClick={handleConfirmZeroLoading}
+            disabled={!selectedLoadingCardId}
+            loading={isConfirmingZeroLoading}
+          >
+            Yes, proceed
+          </Button>,
+        ]}
+      >
+        <Typography.Text>
+          Terloading masih 0. Pilih kartu yang akan digunakan untuk proses
+          loading sebelum melanjutkan.
+        </Typography.Text>
+        <Radio.Group
+          value={selectedLoadingCardId}
+          onChange={(e) => setSelectedLoadingCardId(e.target.value)}
+          className="w-full"
+        >
+          <div className="mt-3 flex flex-col gap-3">
+            {zeroLoadingCandidates.map((candidate) => (
+              <Radio
+                key={candidate.id}
+                value={candidate.id}
+                className="w-full rounded border p-3"
+                style={{
+                  borderColor: candidate.isCurrent
+                    ? "rgb(59 130 246 / 0.4)"
+                    : "rgb(209 213 219)",
+                }}
+              >
+                <div className="flex flex-col">
+                  <Typography.Text strong>{candidate.title}</Typography.Text>
+                  {candidate.description && (
+                    <Typography.Text type="secondary" className="text-xs">
+                      {candidate.description}
+                    </Typography.Text>
+                  )}
+                </div>
+              </Radio>
+            ))}
+          </div>
+        </Radio.Group>
+      </Modal>
 
       {/* Category Section */}
       <CategorySection
@@ -320,7 +629,7 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
       {/* Create New Order Button */}
       <div className="mt-6 flex justify-center">
         <button
-          onClick={() => handleCreateNewOrder(po, product)}
+          onClick={handleLoadingClick}
           disabled={disableLoadingButton}
           className={`px-6 py-3 text-sm font-medium border rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 shadow-sm ${
             isOrderAlreadyCreated

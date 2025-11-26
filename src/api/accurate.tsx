@@ -45,10 +45,35 @@ export const verifyRequest = async (id: string) => {
   return data;
 };
 
-export const updateRequest = async (id: string, requestSent: number) => {
-  const { data } = await api.patch(`/request/${id}`, { requestSent });
-  return data;
+type RequestUpdatePayload = {
+  requestSent?: number;
+  requestAmount?: number;
 };
+
+export function updateRequest(
+  id: string,
+  requestSent: number
+): Promise<any>;
+export function updateRequest(
+  id: string,
+  payload: RequestUpdatePayload
+): Promise<any>;
+export async function updateRequest(
+  id: string,
+  requestSentOrPayload: number | RequestUpdatePayload
+) {
+  const body =
+    typeof requestSentOrPayload === "number"
+      ? { requestSent: requestSentOrPayload }
+      : requestSentOrPayload;
+
+  const filteredBody = Object.fromEntries(
+    Object.entries(body).filter(([, value]) => value !== undefined)
+  );
+
+  const { data } = await api.patch(`/request/${id}`, filteredBody);
+  return data;
+}
 
 export const updateProductionReceived = async (
   id: string,
@@ -114,13 +139,15 @@ export const getRequestNotificationCounts = async () => {
   return data;
 };
 
+type RequestQuantity = number | string;
+
 export const createRequestWithPOConnection = async (requestData: {
   card_id: string;
   type: string;
   item_name: string;
   requested_item_id: string;
-  request_amount: number;
-  request_sent: number;
+  request_amount: RequestQuantity;
+  request_sent: RequestQuantity;
   is_verified: boolean;
   po_product_ids: number[];
 }) => {

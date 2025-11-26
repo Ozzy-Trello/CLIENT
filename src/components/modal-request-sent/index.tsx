@@ -27,6 +27,7 @@ import {
 import { debounce } from "lodash";
 import { useParams } from "next/navigation";
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { formatRequestQuantity } from "@utils/request-format";
 import { Filter, RotateCcw, Warehouse } from "lucide-react";
 import { RequestItem, ApiResponse } from "@myTypes/request";
 
@@ -149,8 +150,9 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
 
     const initialValues: Record<string, number> = {};
     data.data.forEach((item) => {
-      if (item.requestSent) {
-        initialValues[item.id] = item.requestSent;
+      const numericSent = Number(item.requestSent);
+      if (!Number.isNaN(numericSent)) {
+        initialValues[item.id] = numericSent;
       }
     });
     setRequestSentValues(initialValues);
@@ -280,7 +282,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       width: "auto",
       render: (_: any, record: RequestItem) => (
         <span>
-          {record.requestAmount} {record.satuan || ""}
+          {formatRequestQuantity(record.requestAmount)} {record.satuan || ""}
         </span>
       ),
     },
@@ -322,7 +324,9 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
           value={
             requestSentValues[record.id] !== undefined
               ? requestSentValues[record.id]
-              : record.requestSent ?? ""
+              : record.requestSent !== null && record.requestSent !== undefined
+              ? Number(record.requestSent)
+              : ""
           }
           disabled={record.requestSent !== null && record.requestSent !== 0}
           onChange={(e) =>
