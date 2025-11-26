@@ -102,7 +102,7 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
     setTerpakaiInputValue(null);
   }, [bahanTab.bahanTerpakai]);
 
-  const shouldDisableInputs = product.orderCreated;
+  const shouldDisableInputs = Boolean(product.orderCreated);
   const shouldDisableTerloadingInput = !isTerloadingEditing || isSyncingRequest;
 
   const getEditableInputStyle = (disabled: boolean) => ({
