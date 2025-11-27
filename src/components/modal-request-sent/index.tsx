@@ -51,6 +51,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     total: 0,
   });
   const [filterBelumDikirim, setFilterBelumDikirim] = useState(false);
+  const [filterBelumDiterima, setFilterBelumDiterima] = useState(false);
   const [filterBelumBeli, setFilterBelumBeli] = useState(false);
   const [filterBelumDiotorisasi, setFilterBelumDiotorisasi] = useState(false);
   const [editingTerpakaiId, setEditingTerpakaiId] = useState<string | null>(
@@ -82,13 +83,21 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     if (filterBelumDikirim) {
       baseFilter.requestSent = null;
     }
+    if (filterBelumDiterima) {
+      baseFilter.productionReceived = false;
+    }
     if (filterBelumBeli) {
       baseFilter.beli = false;
       baseFilter.excludeType = "persediaan";
     }
 
     return baseFilter;
-  }, [filterBelumDikirim, filterBelumDiotorisasi, filterBelumBeli]);
+  }, [
+    filterBelumDikirim,
+    filterBelumDiterima,
+    filterBelumDiotorisasi,
+    filterBelumBeli,
+  ]);
 
   const { data, isLoading, refetch } = useQuery<ApiResponse<RequestItem>>({
     queryKey: [
@@ -764,15 +773,17 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
   ];
 
   // Calculate active filters count
-  const activeFiltersCount = [
-    filterBelumDikirim,
-    filterBelumDiotorisasi,
-    filterBelumBeli,
-  ].filter(Boolean).length;
+    const activeFiltersCount = [
+      filterBelumDikirim,
+      filterBelumDiterima,
+      filterBelumDiotorisasi,
+      filterBelumBeli,
+    ].filter(Boolean).length;
 
   // Reset all filters function
   const resetFilters = () => {
     setFilterBelumDikirim(false);
+    setFilterBelumDiterima(false);
     setFilterBelumDiotorisasi(false);
     setFilterBelumBeli(false);
     setPagination((prev) => ({ ...prev, page: 1 }));
@@ -859,6 +870,20 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
             }}
           >
             📦 Belum Dikirim
+          </Checkbox>
+          <Checkbox
+            checked={filterBelumDiterima}
+            onChange={(e) => {
+              setFilterBelumDiterima(e.target.checked);
+              setPagination((prev) => ({ ...prev, page: 1 }));
+            }}
+            style={{
+              fontSize: "14px",
+              fontWeight: filterBelumDiterima ? 600 : 400,
+              color: filterBelumDiterima ? "#1890ff" : "#666",
+            }}
+          >
+            🟡 Belum Diterima
           </Checkbox>
           <Checkbox
             checked={filterBelumDiotorisasi}
