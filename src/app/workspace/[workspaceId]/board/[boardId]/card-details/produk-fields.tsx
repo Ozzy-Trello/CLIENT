@@ -378,20 +378,25 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard }) => {
           loading={loadingWarnas}
           disabled={!canUpdateCard() || !card.bahanId || loadingWarnas}
           showSearch
-          filterOption={(input, option) =>
-            option?.children
-              ?.toString()
-              .toLowerCase()
-              .includes(input.toLowerCase()) ?? false
-          }
-        >
-          <Option key={CLEAR_VALUE} value={CLEAR_VALUE}>
-            -
-          </Option>
-          {warnas.map((warna) => {
-            const trimmedCode = warna.code?.trim();
-            return (
-              <Option key={warna.id} value={warna.id}>
+        filterOption={(input, option) => {
+          const labelText =
+            (option?.label as string) ??
+            option?.children?.toString() ??
+            "";
+          return labelText.toLowerCase().includes(input.toLowerCase());
+        }}
+      >
+        <Option key={CLEAR_VALUE} value={CLEAR_VALUE}>
+          -
+        </Option>
+        {warnas.map((warna) => {
+          const trimmedCode = warna.code?.trim();
+          return (
+            <Option
+              key={warna.id}
+              value={warna.id}
+              label={`${warna.name}${trimmedCode ? ` (${trimmedCode})` : ""}`}
+            >
                 <div
                   style={{
                     display: "flex",

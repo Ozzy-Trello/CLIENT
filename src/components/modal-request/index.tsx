@@ -1,6 +1,7 @@
 import {
   getAllAdjustmentItems,
-  getAllItemList,
+  getHikmatItemList,
+  getMpiItemList,
   submitRequest,
 } from "@api/accurate";
 import { searchCards } from "@api/card";
@@ -65,9 +66,14 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
         enabled: open, // Only run when modal is open
       },
       {
-        queryKey: ["items"],
-        queryFn: () => getAllItemList(),
-        enabled: open, // Only run when modal is open
+        queryKey: ["items", "hikmat"],
+        queryFn: () => getHikmatItemList(),
+        enabled: open,
+      },
+      {
+        queryKey: ["items", "mpi"],
+        queryFn: () => getMpiItemList(),
+        enabled: open,
       },
       {
         queryKey: ["glaccounts", selectedItemSource],
@@ -77,16 +83,25 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
     ],
   });
 
+  const [cardsQuery, hikmatQuery, mpiQuery, glaccountQuery] = queries;
+
   useEffect(() => {
-    if (queries[0].data?.data) setCards(queries[0].data.data);
-    if (queries[1].data?.data) {
-      const itemsData = queries[1].data.data;
-      setItems(itemsData);
+    if (cardsQuery.data?.data) setCards(cardsQuery.data.data);
+
+    const hikmatItems = hikmatQuery.data?.data || [];
+    const mpiItems = mpiQuery.data?.data || [];
+    const combined = [...hikmatItems, ...mpiItems];
+    setItems(combined);
+
+    if (glaccountQuery.data?.data) {
+      setGlaccounts(glaccountQuery.data.data);
     }
-    if (queries[2].data?.data) {
-      setGlaccounts(queries[2].data.data);
-    }
-  }, [queries[0].data, queries[1].data, queries[2].data]);
+  }, [
+    cardsQuery.data,
+    hikmatQuery.data,
+    mpiQuery.data,
+    glaccountQuery.data,
+  ]);
 
   const listPO = cards?.map((card: any) => ({
     value: card.id,

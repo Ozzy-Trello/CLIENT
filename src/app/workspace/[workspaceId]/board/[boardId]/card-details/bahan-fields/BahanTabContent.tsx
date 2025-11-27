@@ -14,7 +14,9 @@ type ZeroLoadingCandidate = {
   isCurrent?: boolean;
 };
 
-const normalizeNumericInput = (value: string | undefined | null): number | null => {
+const normalizeNumericInput = (
+  value: string | undefined | null
+): number | null => {
   if (value === undefined || value === null) return null;
   const sanitized = value.toString().trim().replace(",", ".");
   if (sanitized === "") return null;
@@ -66,8 +68,9 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
   const [isTerloadingEditing, setIsTerloadingEditing] = useState(
     !product.orderCreated
   );
-  const [terloadingInputValue, setTerloadingInputValue] =
-    useState<string | null>(null);
+  const [terloadingInputValue, setTerloadingInputValue] = useState<
+    string | null
+  >(null);
   const [terpakaiInputValue, setTerpakaiInputValue] = useState<string | null>(
     null
   );
@@ -263,6 +266,7 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
         request_left: leftNumber,
         is_verified: true, // Default to verified
         po_product_ids: [product.poProductId],
+        source: "HKI",
         // Add adjustment fields from product data
         satuan: product.satuan,
         adjustment_no: product.adjustment_no,

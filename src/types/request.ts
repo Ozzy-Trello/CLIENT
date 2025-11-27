@@ -24,6 +24,7 @@ export interface RequestItem {
   request_left?: number;
   type?: string;
   beli?: boolean;
+  invoice_no?: string;
   // Support both naming conventions during transition
   is_rejected?: boolean;
   isRejected?: boolean;

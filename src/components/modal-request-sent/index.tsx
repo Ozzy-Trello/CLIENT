@@ -3,6 +3,7 @@ import {
   markRequestDone,
   updateRequest,
   updateWarehouseReturn,
+  deleteRequest,
 } from "@api/accurate";
 import { useUpdateRequestFields } from "@hooks/accurate";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -18,7 +19,9 @@ import {
   Tag,
   Card,
   Space,
+  Tooltip,
 } from "antd";
+import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
 import { debounce } from "lodash";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { formatRequestQuantity } from "@utils/request-format";
@@ -47,9 +50,18 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     limit: 10,
     total: 0,
   });
-  const [filterBelumDiterima, setFilterBelumDiterima] = useState(false);
+  const [filterBelumDikirim, setFilterBelumDikirim] = useState(false);
   const [filterBelumBeli, setFilterBelumBeli] = useState(false);
   const [filterBelumDiotorisasi, setFilterBelumDiotorisasi] = useState(false);
+  const [editingTerpakaiId, setEditingTerpakaiId] = useState<string | null>(
+    null
+  );
+  const [editingSentRequestId, setEditingSentRequestId] = useState<
+    string | null
+  >(null);
+  const [deletingRequestId, setDeletingRequestId] = useState<string | null>(
+    null
+  );
 
   const queryClient = useQueryClient();
 
@@ -67,8 +79,8 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     }
 
     // Handle production received filter
-    if (filterBelumDiterima) {
-      baseFilter.productionReceived = false;
+    if (filterBelumDikirim) {
+      baseFilter.requestSent = null;
     }
     if (filterBelumBeli) {
       baseFilter.beli = false;
@@ -76,11 +88,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     }
 
     return baseFilter;
-  }, [
-    filterBelumDiterima,
-    filterBelumDiotorisasi,
-    filterBelumBeli,
-  ]);
+  }, [filterBelumDikirim, filterBelumDiotorisasi, filterBelumBeli]);
 
   const { data, isLoading, refetch } = useQuery<ApiResponse<RequestItem>>({
     queryKey: [
@@ -101,12 +109,16 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     }
   }, [open, refetch]);
 
+  const [requestLeftValues, setRequestLeftValues] = useState<
+    Record<string, number | undefined>
+  >({});
+
   useEffect(() => {
     if (!data) return;
 
     const initialSentValues: Record<string, number> = {};
     const initialReceivedValues: Record<string, number> = {};
-    const initialLeftValues: Record<string, number> = {};
+    const initialLeftValues: Record<string, number | undefined> = {};
     const initialBeliValues: Record<string, boolean> = {};
     data.data.forEach((item) => {
       const numericSent = Number(item.requestSent);
@@ -114,23 +126,28 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
         initialSentValues[item.id] = numericSent;
       }
 
-      const numericReceived = Number(item.requestReceived);
+      const leftFromRecord = item.requestLeft ?? item.request_left ?? undefined;
+      if (leftFromRecord !== undefined && leftFromRecord !== null) {
+        const leftNumber = Number(leftFromRecord);
+        if (!Number.isNaN(leftNumber)) {
+          initialLeftValues[item.id] = Math.max(leftNumber, 0);
+        }
+      }
+      const numericReceived = Number(item.requestReceived ?? 0);
       if (!Number.isNaN(numericReceived)) {
         initialReceivedValues[item.id] = numericReceived;
       }
-      const computedLeft = Number(
-        item.requestLeft ??
-          item.request_left ??
-          (numericSent ?? 0) - (numericReceived ?? 0)
-      );
-      initialLeftValues[item.id] = Number.isNaN(computedLeft)
-        ? 0
-        : Math.max(computedLeft, 0);
       initialBeliValues[item.id] = Boolean(item.beli);
     });
-    setRequestSentValues(initialSentValues);
-    setRequestReceivedValues(initialReceivedValues);
+    setRequestSentValues((prev) => ({
+      ...prev,
+      ...initialSentValues,
+    }));
     setRequestLeftValues(initialLeftValues);
+    setRequestReceivedValues((prev) => ({
+      ...prev,
+      ...initialReceivedValues,
+    }));
     setBeliValues(initialBeliValues);
     setPagination((prev) => ({
       ...prev,
@@ -197,28 +214,23 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     },
   });
 
-  const { mutate: updateRequestLeftOnly } = useMutation({
-    mutationFn: ({ id, request_left }: { id: string; request_left: number }) =>
-      updateRequest(id, { requestLeft: request_left }),
+  const deleteRequestMutation = useMutation({
+    mutationFn: (id: string) => deleteRequest(id),
     onSuccess: () => {
+      message.success("Request deleted");
+      setEditingSentRequestId(null);
       queryClient.invalidateQueries({ queryKey: ["requests"] });
     },
     onError: () => {
-      message.error("Failed to update remaining quantity");
+      message.error("Failed to delete request");
     },
   });
 
   const [markingDone, setMarkingDone] = useState<string | null>(null);
-  const [requestLeftValues, setRequestLeftValues] = useState<
-    Record<string, number>
-  >({});
 
   const requestReceivedDebounceMap = useRef<
     Record<string, (payload: { amount: number; left: number }) => void>
   >({});
-  const requestLeftDebounceMap = useRef<Record<string, (value: number) => void>>(
-    {}
-  );
 
   const handleSendRequest = (id: string): void => {
     const amount = requestSentValues[id];
@@ -285,22 +297,92 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     handleRequestReceivedUpdate(id, normalizedValue, leftAmount);
   };
 
-  const handleRequestLeftChange = (id: string, rawValue: string) => {
+  const getRequestSentValue = (record: RequestItem): number => {
+    const stored = requestSentValues[record.id];
+    if (stored !== undefined && !Number.isNaN(stored)) {
+      return stored;
+    }
+    const numericSent = Number(record.requestSent ?? 0);
+    return Number.isNaN(numericSent) ? 0 : numericSent;
+  };
+
+  const getRequestLeftValue = (record: RequestItem): number | undefined => {
+    const stored = requestLeftValues[record.id];
+    if (stored !== undefined && !Number.isNaN(stored)) {
+      return stored;
+    }
+    const leftFromRecord =
+      record.requestLeft ?? record.request_left ?? undefined;
+    if (
+      leftFromRecord === undefined ||
+      leftFromRecord === null ||
+      Number.isNaN(Number(leftFromRecord))
+    ) {
+      return undefined;
+    }
+    return Number(leftFromRecord);
+  };
+
+  const handleRequestLeftChange = (
+    id: string,
+    rawValue: string,
+    sentValue: number
+  ) => {
     const numericValue = rawValue === "" ? 0 : Number(rawValue);
     const normalizedValue = Number.isNaN(numericValue) ? 0 : numericValue;
+    const sanitizedSent = Number.isNaN(sentValue) ? 0 : sentValue;
+    const calculatedReceived = Math.max(sanitizedSent - normalizedValue, 0);
 
     setRequestLeftValues((prev) => ({
       ...prev,
       [id]: normalizedValue,
     }));
 
-    if (!requestLeftDebounceMap.current[id]) {
-      requestLeftDebounceMap.current[id] = debounce((value: number) => {
-        updateRequestLeftOnly({ id, request_left: value });
-      }, 500);
-    }
+    setRequestReceivedValues((prev) => ({
+      ...prev,
+      [id]: calculatedReceived,
+    }));
 
-    requestLeftDebounceMap.current[id](normalizedValue);
+    handleRequestReceivedUpdate(id, calculatedReceived, normalizedValue);
+  };
+
+  const toggleTerpakaiEdit = (id: string) => {
+    setEditingTerpakaiId((prev) => (prev === id ? null : id));
+  };
+
+  const toggleSentEdit = (id: string) => {
+    setEditingSentRequestId((prev) => (prev === id ? null : id));
+  };
+
+  const handleRequestSentChange = (id: string, rawValue: string) => {
+    const numericValue = rawValue === "" ? 0 : Number(rawValue);
+    const normalizedValue = Number.isNaN(numericValue) ? 0 : numericValue;
+
+    setRequestSentValues((prev) => ({
+      ...prev,
+      [id]: normalizedValue,
+    }));
+  };
+
+  const executeDeleteRequest = (id: string) => {
+    if (deletingRequestId) return;
+    setDeletingRequestId(id);
+    deleteRequestMutation.mutate(id, {
+      onSettled: () => {
+        setDeletingRequestId(null);
+      },
+    });
+  };
+
+  const confirmDeleteRequest = (record: RequestItem) => {
+    Modal.confirm({
+      title: "Delete request",
+      content: `Are you sure you want to delete the request for "${record.itemName}"?`,
+      okText: "Delete",
+      okType: "danger",
+      centered: true,
+      onOk: () => executeDeleteRequest(record.id),
+    });
   };
 
   const handleMarkDone = async (id: string) => {
@@ -375,25 +457,57 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       ellipsis: true,
       width: "auto",
       render: (_: unknown, record: RequestItem) => (
-        <Input
-          type="number"
-          step="0.01"
-          value={
-            requestSentValues[record.id] !== undefined
-              ? requestSentValues[record.id]
-              : record.requestSent !== null && record.requestSent !== undefined
-              ? Number(record.requestSent)
-              : ""
-          }
-          onChange={(e) =>
-            setRequestSentValues((prev) => ({
-              ...prev,
-              [record.id]: Number(e.target.value),
-            }))
-          }
-          onPressEnter={() => handleSendRequest(record.id)}
-          style={{ width: "100%" }}
-        />
+        <div className="flex items-center gap-2">
+          <Input
+            type="number"
+            step="0.01"
+            value={
+              requestSentValues[record.id] !== undefined
+                ? requestSentValues[record.id]
+                : record.requestSent !== null &&
+                  record.requestSent !== undefined
+                ? Number(record.requestSent)
+                : ""
+            }
+            disabled={
+              record.productionReceived ||
+              editingSentRequestId !== record.id ||
+              record.is_done ||
+              record.isDone
+            }
+            className={`flex-1 ${
+              record.productionReceived ||
+              editingSentRequestId !== record.id ||
+              record.is_done ||
+              record.isDone
+                ? "bg-gray-100 text-gray-500"
+                : ""
+            }`}
+            style={{ width: "100%" }}
+            onChange={(event) =>
+              handleRequestSentChange(record.id, event.target.value)
+            }
+          />
+          {!(
+            record.productionReceived ??
+            record.productionRecieved ??
+            false
+          ) && (
+            <Tooltip
+              title={
+                editingSentRequestId === record.id ? "Editing" : "Enable edit"
+              }
+            >
+              <Button
+                type="text"
+                size="small"
+                icon={<EditOutlined />}
+                onClick={() => toggleSentEdit(record.id)}
+                className="text-gray-500 hover:text-blue-600"
+              />
+            </Tooltip>
+          )}
+        </div>
       ),
     },
     {
@@ -429,7 +543,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
             : Boolean(record.beli);
         const isCompleted = record.is_done || record.isDone;
         const currentValue = isPersediaanProduct ? false : persistedValue;
-        const disabled = isPersediaanProduct || isCompleted;
+        // const disabled = isPersediaanProduct || isCompleted;
         return (
           <Select
             value={currentValue ? "ya" : "tidak"}
@@ -440,7 +554,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
             onChange={(value) =>
               handleBeliChange(record.id, value as "ya" | "tidak")
             }
-            disabled={disabled}
+            // disabled={disabled}
             style={{ width: "100%" }}
           />
         );
@@ -477,27 +591,56 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       ellipsis: true,
       width: "auto",
       render: (_: unknown, record: RequestItem) => {
-        const sentValue =
-          requestSentValues[record.id] ??
-          (record.requestSent !== null && record.requestSent !== undefined
-            ? Number(record.requestSent)
-            : 0);
+        const sentValue = getRequestSentValue(record);
+        const storedReceived = requestReceivedValues[record.id];
+        const initialReceived =
+          record.requestReceived !== null &&
+          record.requestReceived !== undefined
+            ? Number(record.requestReceived)
+            : undefined;
+        const displayValue =
+          storedReceived !== undefined ? storedReceived : initialReceived;
+        const isEditingRow = editingTerpakaiId === record.id;
+        const isDone = record.is_done || record.isDone;
         return (
           <Input
             type="number"
             step="0.01"
-            value={
-              requestReceivedValues[record.id] !== undefined
-                ? requestReceivedValues[record.id]
-                : record.requestReceived !== null &&
-                  record.requestReceived !== undefined
-                ? Number(record.requestReceived)
-                : ""
-            }
+            value={displayValue ?? ""}
+            disabled={!isEditingRow || isDone}
             onChange={(e) =>
               handleRequestReceivedChange(record.id, e.target.value, sentValue)
             }
-            disabled={record.isDone}
+            className={`w-full px-3 py-2 rounded-md text-sm ${
+              !isEditingRow || isDone
+                ? "cursor-not-allowed opacity-80"
+                : "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            }`}
+            style={{
+              border: `1px solid #d9d9d9`,
+              backgroundColor: !isEditingRow || isDone ? "#f5f5f5" : "#ffffff",
+            }}
+          />
+        );
+      },
+    },
+    {
+      title: "Sisa Bahan",
+      key: "requestLeft",
+      ellipsis: true,
+      width: "auto",
+      render: (_: unknown, record: RequestItem) => {
+        const sentValue = getRequestSentValue(record);
+        const leftValue = getRequestLeftValue(record);
+        return (
+          <Input
+            type="number"
+            step="0.01"
+            value={leftValue ?? ""}
+            disabled={record.isDone || Boolean(record.warehouseReturned)}
+            onChange={(e) =>
+              handleRequestLeftChange(record.id, e.target.value, sentValue)
+            }
             style={{ width: "100%" }}
           />
         );
@@ -512,39 +655,10 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       render: (value: boolean, record: RequestItem) => (
         <Checkbox
           checked={value}
-          onChange={(e) =>
-            handleWarehouseReturn(record.id, e.target.checked)
-          }
+          onChange={(e) => handleWarehouseReturn(record.id, e.target.checked)}
           disabled={record.isDone}
         />
       ),
-    },
-    {
-      title: "Sisa Bahan",
-      key: "requestLeft",
-      ellipsis: true,
-      width: "auto",
-      render: (_: unknown, record: RequestItem) => {
-        const computedLeft =
-          requestLeftValues[record.id] ??
-          record.requestLeft ??
-          record.request_left ??
-          Math.max(
-            (record.requestSent ?? 0) - (record.requestReceived ?? 0),
-            0
-          );
-        const isReturned = record.warehouseReturned ?? false;
-        return (
-          <Input
-            type="number"
-            step="0.01"
-            value={computedLeft}
-            disabled={!isReturned || record.isDone}
-            onChange={(e) => handleRequestLeftChange(record.id, e.target.value)}
-            style={{ width: "100%" }}
-          />
-        );
-      },
     },
     {
       title: "Status",
@@ -581,7 +695,14 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       },
     },
     {
-      title: "Action",
+      title: "Transaction ID",
+      dataIndex: "invoiceNo",
+      key: "invoiceNo",
+      ellipsis: true,
+      width: 160,
+    },
+    {
+      title: "Accurate",
       key: "done_action",
       width: 100,
       align: "center" as const,
@@ -599,22 +720,59 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
           loading={markingDone === record.id}
           style={{ minWidth: "70px" }}
         >
-          {record.is_done || record.isDone ? "Done" : "Accept"}
+          {record.is_done || record.isDone ? "Done" : "Send"}
         </Button>
       ),
+    },
+    {
+      title: "Actions",
+      key: "rowActions",
+      ellipsis: true,
+      width: "140",
+      align: "center" as const,
+      render: (_: unknown, record: RequestItem) => {
+        const isEditing = editingTerpakaiId === record.id;
+        const isDone = record.is_done || record.isDone;
+        return (
+          <Space size={4}>
+            {!record.productionReceived && (
+              <Tooltip title={isEditing ? "Editing" : "Edit Terpakai"}>
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<EditOutlined />}
+                  disabled={isDone}
+                  onClick={() => toggleTerpakaiEdit(record.id)}
+                />
+              </Tooltip>
+            )}
+            <Button
+              type="text"
+              size="small"
+              icon={<DeleteOutlined />}
+              danger
+              loading={deletingRequestId === record.id}
+              disabled={
+                deletingRequestId !== null && deletingRequestId !== record.id
+              }
+              onClick={() => confirmDeleteRequest(record)}
+            />
+          </Space>
+        );
+      },
     },
   ];
 
   // Calculate active filters count
   const activeFiltersCount = [
-    filterBelumDiterima,
+    filterBelumDikirim,
     filterBelumDiotorisasi,
     filterBelumBeli,
   ].filter(Boolean).length;
 
   // Reset all filters function
   const resetFilters = () => {
-    setFilterBelumDiterima(false);
+    setFilterBelumDikirim(false);
     setFilterBelumDiotorisasi(false);
     setFilterBelumBeli(false);
     setPagination((prev) => ({ ...prev, page: 1 }));
@@ -689,18 +847,18 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
           style={{ width: "100%", flexWrap: "wrap" }}
         >
           <Checkbox
-            checked={filterBelumDiterima}
+            checked={filterBelumDikirim}
             onChange={(e) => {
-              setFilterBelumDiterima(e.target.checked);
+              setFilterBelumDikirim(e.target.checked);
               setPagination((prev) => ({ ...prev, page: 1 }));
             }}
             style={{
               fontSize: "14px",
-              fontWeight: filterBelumDiterima ? 600 : 400,
-              color: filterBelumDiterima ? "#1890ff" : "#666",
+              fontWeight: filterBelumDikirim ? 600 : 400,
+              color: filterBelumDikirim ? "#1890ff" : "#666",
             }}
           >
-            📦 Belum Diterima
+            📦 Belum Dikirim
           </Checkbox>
           <Checkbox
             checked={filterBelumDiotorisasi}

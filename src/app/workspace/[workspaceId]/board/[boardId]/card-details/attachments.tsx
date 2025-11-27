@@ -45,6 +45,7 @@ import {
   MenuProps,
   message,
   Space,
+  Tag,
   Tooltip,
   Typography,
   Upload,
@@ -72,8 +73,13 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
     ? params.boardId[0]
     : params.boardId;
 
-  const { cardAttachments, addAttachment, deleteAttachment, markPrinted } =
-    useCardAttachment(card?.id || "");
+  const {
+    cardAttachments,
+    addAttachment,
+    deleteAttachment,
+    markPrinted,
+    markCover,
+  } = useCardAttachment(card?.id || "");
   const [openUploadModal, setOpenUploadmodal] = useState<boolean>(false);
   const [currentAttachmentType, setCurrentAttachmentType] =
     useState<EnumCardAttachmentType>(EnumCardAttachmentType.Attachment);
@@ -90,6 +96,9 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
     url: string;
     fileName: string;
   } | null>(null);
+  const [coveringAttachmentId, setCoveringAttachmentId] = useState<string | null>(
+    null
+  );
   const { canUpdateCard } = useBoardPermissionsContext();
 
   // Generate short URL for QR codes with backend fallback
@@ -174,6 +183,21 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
       isCover: false,
       type: currentAttachmentType || EnumCardAttachmentType.Attachment,
     });
+  };
+
+  const handleMarkCover = (attachmentId: string, isAlreadyCover: boolean) => {
+    if (!card.id || isAlreadyCover || coveringAttachmentId) {
+      return;
+    }
+    setCoveringAttachmentId(attachmentId);
+    markCover(
+      { attachmentId, cardId: card.id },
+      {
+        onSettled: () => {
+          setCoveringAttachmentId(null);
+        },
+      }
+    );
   };
 
   const isImageFile = (fileName: string, mimeType?: string): boolean => {
@@ -1006,14 +1030,21 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
                 <div className="flex-grow min-w-0">
                   <div className="flex items-center justify-between">
                     <div className="flex-grow min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">
-                        {item.file?.name || "Unnamed file"}
+                      <p className="text-sm font-medium text-gray-900 truncate flex items-center gap-2">
+                        <span className="truncate">
+                          {item.file?.name || "Unnamed file"}
+                        </span>
                         {printed && (
                           <Tooltip title="Already printed with QR code">
-                            <span className="ml-2 text-green-600 text-xs font-semibold">
+                            <span className="text-green-600 text-xs font-semibold">
                               ✓
                             </span>
                           </Tooltip>
+                        )}
+                        {item.isCover && (
+                          <Tag color="success" className="text-[10px] uppercase">
+                            Cover
+                          </Tag>
                         )}
                       </p>
                       <div className="flex items-center text-xs text-gray-500 space-x-2">
@@ -1095,6 +1126,26 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
                             className="text-gray-500 hover:text-green-600"
                           />
                         )}
+
+                      {canUpdateCard() && (
+                        <Button
+                          type="text"
+                          size="small"
+                          onClick={() =>
+                            handleMarkCover(item.id, Boolean(item.isCover))
+                          }
+                          disabled={
+                            !canUpdateCard() ||
+                            item.isCover ||
+                            (coveringAttachmentId !== null &&
+                              coveringAttachmentId !== item.id)
+                          }
+                          loading={coveringAttachmentId === item.id}
+                          className="text-gray-500 hover:text-blue-600"
+                        >
+                          {item.isCover ? "Cover" : "Make Cover"}
+                        </Button>
+                      )}
 
                       {canUpdateCard() && (
                         <Button

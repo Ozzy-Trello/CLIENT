@@ -127,6 +127,27 @@ export function useCardAttachment(cardId: string) {
     },
   });
 
+  const markCoverMutation = useMutation({
+    mutationFn: ({
+      attachmentId,
+      cardId,
+    }: {
+      attachmentId: string;
+      cardId: string;
+    }) => updateCardAttachment(attachmentId, { is_cover: true, cardId }),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["cardAttachment", variables.cardId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["cards"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.cards.detail(variables.cardId),
+      });
+    },
+  });
+
   const mappedAttachments = useMemo(
     () =>
       cardAttachmentQuery.data?.data?.map((a: any) => ({
@@ -163,5 +184,7 @@ export function useCardAttachment(cardId: string) {
     isAddingAttachment: addAttachmentMutation.isPending,
     isDeletingAttachment: deleteAttachmentMutation.isPending,
     markPrinted: markPrintedMutation.mutate,
+    isMarkingCover: markCoverMutation.isPending,
+    markCover: markCoverMutation.mutate,
   };
 }

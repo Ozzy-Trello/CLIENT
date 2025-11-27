@@ -86,9 +86,21 @@ export const deleteCardAttachment = async (attachmentId: string): Promise<ApiRes
 
 export const updateCardAttachment = async (
   attachmentId: string,
-  payload: { is_printed?: boolean; is_cover?: boolean }
+  payload: {
+    is_printed?: boolean;
+    is_cover?: boolean;
+    type?: TCardAttachmentType;
+    cardId?: string;
+  }
 ): Promise<ApiResponse<CardAttachment>> => {
-  const { data } = await api.put(`/card-attachment/${attachmentId}`, payload);
+  const { cardId, ...rest } = payload;
+  const body: Record<string, unknown> = {
+    ...rest,
+  };
+  if (cardId) {
+    body.card_id = cardId;
+  }
+  const { data } = await api.put(`/card-attachment/${attachmentId}`, body);
   if (data.data) data.data = transformAttachment(data.data);
   return data;
 };

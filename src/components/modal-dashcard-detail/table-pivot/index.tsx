@@ -1,4 +1,4 @@
-import { FC, useMemo, useState, useEffect, useCallback } from "react";
+import { FC, useMemo, useState, useEffect, useCallback, DragEvent, useRef } from "react";
 import {
   useReactTable,
   getCoreRowModel,
@@ -57,6 +57,8 @@ const TablePivot: FC = () => {
   const [columnsDropdownOpen, setColumnsDropdownOpen] = useState(false);
   const [columnSearchValue, setColumnSearchValue] = useState("");
   const [sorting, setSorting] = useState<SortingState>([]);
+  const [columnOrder, setColumnOrder] = useState<string[]>([]);
+  const tableRef = useRef<ReturnType<typeof useReactTable> | null>(null);
   const {
     openCardDetail,
     processedItemDashcard,
@@ -137,6 +139,67 @@ const TablePivot: FC = () => {
 
     return columns;
   }, [processedItemDashcard, customFields, dashcardConfig?.visibleColumns, baseColumnIds]);
+
+  const allColumnIds = useMemo(
+    () => [...baseColumnIds, ...dynamicColumns],
+    [baseColumnIds, dynamicColumns]
+  );
+
+  useEffect(() => {
+    if (allColumnIds.length === 0) {
+      setColumnOrder([]);
+      return;
+    }
+
+    const savedColumns = dashcardConfig?.visibleColumns ?? [];
+    const validSaved = savedColumns.filter((col) => allColumnIds.includes(col));
+    const missing = allColumnIds.filter((col) => !validSaved.includes(col));
+    setColumnOrder([...validSaved, ...missing]);
+  }, [allColumnIds, dashcardConfig?.visibleColumns]);
+
+  const reorderColumns = useCallback(
+    (draggedId: string, targetId: string) => {
+      setColumnOrder((prev) => {
+        const baseOrder = prev.length ? prev : allColumnIds;
+        const fromIndex = baseOrder.indexOf(draggedId);
+        const toIndex = baseOrder.indexOf(targetId);
+        if (fromIndex === -1 || toIndex === -1) {
+          return baseOrder;
+        }
+
+        const nextOrder = [...baseOrder];
+        const [moved] = nextOrder.splice(fromIndex, 1);
+        nextOrder.splice(toIndex, 0, moved);
+
+        const visibleColumns = nextOrder.filter(
+          (col) => columnVisibility[col] !== false
+        );
+
+        updateVisibleColumns(visibleColumns);
+        tableRef.current?.setColumnOrder(nextOrder);
+        return nextOrder;
+      });
+    },
+    [allColumnIds, columnVisibility, updateVisibleColumns]
+  );
+
+  const handleHeaderDragStart = (
+    event: DragEvent<HTMLSpanElement>,
+    columnId: string
+  ) => {
+    event.dataTransfer.setData("text/plain", columnId);
+    event.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleHeaderDrop = (
+    event: DragEvent<HTMLSpanElement>,
+    columnId: string
+  ) => {
+    event.preventDefault();
+    const draggedId = event.dataTransfer.getData("text/plain");
+    if (!draggedId || draggedId === columnId) return;
+    reorderColumns(draggedId, columnId);
+  };
 
   const allMenuColumns = useMemo(
     () => Array.from(new Set([...baseColumnIds, ...dynamicColumns])),
@@ -627,8 +690,23 @@ const TablePivot: FC = () => {
         })
       ) || [];
 
-    return [...baseColumns, ...dynamicColumnsDefinitions];
-  }, [processedItemDashcard, grouping, sorting, dynamicColumns]);
+    const columnDefinitions = [...baseColumns, ...dynamicColumnsDefinitions];
+
+    const orderedColumns =
+      columnOrder.length > 0
+        ? columnOrder
+            .map((colId) =>
+              columnDefinitions.find((col) => col.id === colId)
+            )
+            .filter((col): col is typeof columnDefinitions[number] => Boolean(col))
+        : [];
+
+    const remainingColumns = columnDefinitions.filter(
+      (col) => !orderedColumns.some((ordered) => ordered.id === col.id)
+    );
+
+    return [...orderedColumns, ...remainingColumns];
+  }, [processedItemDashcard, grouping, sorting, dynamicColumns, columnOrder]);
 
   const table = useReactTable({
     data: pivotData,
@@ -643,9 +721,11 @@ const TablePivot: FC = () => {
         pageSize,
       },
       columnVisibility,
+      columnOrder,
     },
     onExpandedChange: (value) => setExpanded(value as Record<string, boolean>),
     onColumnVisibilityChange: setColumnVisibility,
+    onColumnOrderChange: setColumnOrder,
     getExpandedRowModel: getExpandedRowModel(),
     getGroupedRowModel: getGroupedRowModel(),
     getCoreRowModel: getCoreRowModel(),
@@ -654,6 +734,10 @@ const TablePivot: FC = () => {
     getSortedRowModel: getSortedRowModel(),
     onSortingChange: setSorting,
   });
+
+  useEffect(() => {
+    tableRef.current = table;
+  }, [table]);
 
   // Excel export function
   const exportToExcel = useCallback(() => {
@@ -841,17 +925,24 @@ const TablePivot: FC = () => {
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
-                  <th
-                    key={header.id}
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider break-words"
-                  >
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
-                  </th>
+                <th
+                  key={header.id}
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider break-words"
+                  draggable={!header.isPlaceholder}
+                  onDragStart={(event) =>
+                    !header.isPlaceholder &&
+                    handleHeaderDragStart(event, header.column.id)
+                  }
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={(event) =>
+                    !header.isPlaceholder &&
+                    handleHeaderDrop(event, header.column.id)
+                  }
+                >
+                  {header.isPlaceholder
+                    ? null
+                    : flexRender(header.column.columnDef.header, header.getContext())}
+                </th>
                 ))}
               </tr>
             ))}

@@ -137,6 +137,11 @@ export const markRequestDone = async (id: string) => {
   return data;
 };
 
+export const deleteRequest = async (id: string) => {
+  const { data } = await api.delete(`/request/${id}`);
+  return data;
+};
+
 export const getRequestNotificationCounts = async () => {
   const { data } = await api.get("/request/notifications/counts");
   return data;
