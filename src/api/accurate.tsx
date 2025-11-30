@@ -1,4 +1,5 @@
 import { api } from ".";
+import type { BeliStatus } from "@myTypes/request";
 
 export const getAllItemCategories = async () => {
   const { data } = await api.get("/accurate/item-category-list");
@@ -50,7 +51,7 @@ type RequestUpdatePayload = {
   requestAmount?: number;
   requestReceived?: number;
   requestLeft?: number;
-  beli?: boolean;
+  beli?: BeliStatus;
 };
 
 export function updateRequest(
@@ -147,7 +148,7 @@ export const getRequestNotificationCounts = async () => {
   return data;
 };
 
-type RequestQuantity = number | string;
+export type RequestQuantity = number | string;
 
 export const createRequestWithPOConnection = async (requestData: {
   card_id: string;

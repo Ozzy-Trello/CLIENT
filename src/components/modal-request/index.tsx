@@ -1,9 +1,4 @@
-import {
-  getAllAdjustmentItems,
-  getHikmatItemList,
-  getMpiItemList,
-  submitRequest,
-} from "@api/accurate";
+import { getAllAdjustmentItems, submitRequest } from "@api/accurate";
 import { searchCards } from "@api/card";
 import { useQueries } from "@tanstack/react-query";
 import {
@@ -20,6 +15,8 @@ import {
 import React, { useEffect, useMemo } from "react";
 import { useParams } from "next/navigation";
 import { useAccountListForModal } from "@hooks/account";
+import { getCombinedOzzyProducts } from "@api/ozzy-warehouse";
+import type { OzzyProductWithSource } from "@api/ozzy-warehouse";
 interface ModalRequestProps {
   open: boolean;
   onClose: () => void;
@@ -27,10 +24,33 @@ interface ModalRequestProps {
 
 const { Option } = Select;
 
+const toNumberOrNull = (value: unknown): number | null => {
+  if (value === undefined || value === null) return null;
+  if (typeof value === "number") return value;
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    const parsed = Number(trimmed);
+    return Number.isNaN(parsed) ? null : parsed;
+  }
+  return null;
+};
+
+const getCogsGlAccountIdFromItem = (item?: any): number | null => {
+  if (!item) return null;
+  const rawValue =
+    item.cogs_gl_account_id ??
+    item.cogsGlAccountId ??
+    item.inventory_gl_account_id ??
+    item.inventoryGlAccountId ??
+    null;
+  return toNumberOrNull(rawValue);
+};
+
 const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
   const { workspaceId, boardId } = useParams();
   const [cards, setCards] = React.useState<any>([]);
-  const [items, setItems] = React.useState<any>([]);
+  const [items, setItems] = React.useState<OzzyProductWithSource[]>([]);
   const [glaccounts, setGlaccounts] = React.useState<any>([]);
   const [selectedCardId, setSelectedCardId] = React.useState<string | null>(
     null
@@ -44,6 +64,11 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
     { label: string; value: string }[]
   >([]);
   const [selectedItemSource, setSelectedItemSource] =
+    React.useState<string>("");
+  const [selectedItemGlAccountId, setSelectedItemGlAccountId] = React.useState<
+    number | null
+  >(null);
+  const [selectedItemUnitPrice, setSelectedItemUnitPrice] =
     React.useState<string>("");
   const [selectedRequestBy, setSelectedRequestBy] = React.useState<string>("");
 
@@ -66,13 +91,8 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
         enabled: open, // Only run when modal is open
       },
       {
-        queryKey: ["items", "hikmat"],
-        queryFn: () => getHikmatItemList(),
-        enabled: open,
-      },
-      {
-        queryKey: ["items", "mpi"],
-        queryFn: () => getMpiItemList(),
+        queryKey: ["items", "ozzy-products"],
+        queryFn: () => getCombinedOzzyProducts(),
         enabled: open,
       },
       {
@@ -83,25 +103,18 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
     ],
   });
 
-  const [cardsQuery, hikmatQuery, mpiQuery, glaccountQuery] = queries;
+  const [cardsQuery, productsQuery, glaccountQuery] = queries;
 
   useEffect(() => {
     if (cardsQuery.data?.data) setCards(cardsQuery.data.data);
 
-    const hikmatItems = hikmatQuery.data?.data || [];
-    const mpiItems = mpiQuery.data?.data || [];
-    const combined = [...hikmatItems, ...mpiItems];
-    setItems(combined);
+    const productItems = productsQuery.data || [];
+    setItems(productItems);
 
     if (glaccountQuery.data?.data) {
       setGlaccounts(glaccountQuery.data.data);
     }
-  }, [
-    cardsQuery.data,
-    hikmatQuery.data,
-    mpiQuery.data,
-    glaccountQuery.data,
-  ]);
+  }, [cardsQuery.data, productsQuery.data, glaccountQuery.data]);
 
   const listPO = cards?.map((card: any) => ({
     value: card.id,
@@ -116,26 +129,22 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
   ];
 
   const barangList = useMemo(() => {
-    if (!items || !Array.isArray(items)) return [];
+    if (!Array.isArray(items)) return [];
 
-    // Filter items based on search value
-    const filteredItems = barangSearchValue
-      ? items.filter(
-          (item: any) =>
-            item.name.toLowerCase().includes(barangSearchValue.toLowerCase()) ||
-            item.no.toLowerCase().includes(barangSearchValue.toLowerCase()) ||
-            (item.source &&
-              item.source
-                .toLowerCase()
-                .includes(barangSearchValue.toLowerCase()))
-        )
+    const searchTerm = barangSearchValue.toLowerCase();
+    const filteredItems = searchTerm
+      ? items.filter((item) => {
+          const matches = [item.name, item.sku, item.barcode, item.source].some(
+            (value) => value?.toString().toLowerCase().includes(searchTerm)
+          );
+          return matches;
+        })
       : items;
 
-    // Map to AutoComplete options
-    return filteredItems.map((item: any) => ({
-      value: item.no,
+    return filteredItems.map((item) => ({
+      value: item.sku || `${item.id}`,
       label: `${item.name} (${item.source || "Unknown"})`,
-      item: item, // Store the full item object for later use
+      item,
     }));
   }, [items, barangSearchValue]);
 
@@ -175,40 +184,48 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
 
   // Set akun penyesuaian when GL accounts are loaded and we have a selected item
   React.useEffect(() => {
-    if (glaccounts && glaccounts.d && selectedItemSource) {
-      // Find the currently selected item from the form
-      const selectedBarangValue = form.getFieldValue("barang");
+    if (!glaccounts?.d) return;
 
+    const setAccountField = (account: any) => {
+      const fullLabel = `${account.name} (${account.source || "Unknown"})`;
+      form.setFieldsValue({
+        akunPenyesuaian: fullLabel,
+      });
+      setIsAkunPenyesuaianDisabled(true);
+    };
+
+    if (selectedItemGlAccountId) {
+      const matching = glaccounts.d.find(
+        (acc: any) => Number(acc.id) === selectedItemGlAccountId
+      );
+      if (matching) {
+        setAccountField(matching);
+        return;
+      }
+    }
+
+    if (selectedItemSource) {
+      const selectedBarangValue = form.getFieldValue("barang");
       if (selectedBarangValue) {
-        // Find the selected item from the items array
         const selectedItem = items.find(
           (item: any) =>
             `${item.name} (${item.source || "Unknown"})` === selectedBarangValue
         );
 
         if (selectedItem && selectedItem.itemCategory) {
-          // Get the COGS GL account from the item's category
           const cogsGlAccountId =
             selectedItem.itemCategory.parent?.cogsGlAccountId;
 
           if (cogsGlAccountId) {
-            // Find the matching GL account
             const matchingGlAccount = glaccounts.d.find(
               (acc: any) => acc.id === cogsGlAccountId
             );
 
             if (matchingGlAccount) {
-              const fullLabel = `${matchingGlAccount.name} (${
-                matchingGlAccount.source || "Unknown"
-              })`;
-              // Set the akun penyesuaian field value with proper display label
-              form.setFieldsValue({
-                akunPenyesuaian: fullLabel,
-              });
-              setIsAkunPenyesuaianDisabled(true);
+              setAccountField(matchingGlAccount);
+              return;
             }
           } else {
-            // Enhanced fallback logic for GL account selection
             const itemCategoryName =
               selectedItem.itemCategory.name?.toLowerCase();
             const itemSource = selectedItem.source;
@@ -216,7 +233,6 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
             let suitableAccount = null;
 
             if (itemCategoryName) {
-              // First, try to find a GL account that matches the item category
               suitableAccount = glaccounts.d.find((acc: any) => {
                 const accountName = acc.name.toLowerCase();
                 const cleanAccountName = accountName
@@ -230,9 +246,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
                 return directMatch || reverseMatch;
               });
 
-              // If no match found and this is a Hikmat item, try Hikmat-specific matching
               if (!suitableAccount && itemSource === "Hikmat") {
-                // Define Hikmat category keywords
                 const hikmatCategoryKeywords = [
                   "krah",
                   "manset",
@@ -241,13 +255,11 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
                   "kain",
                 ];
 
-                // Check if item category contains any Hikmat-specific keywords
                 const matchingKeyword = hikmatCategoryKeywords.find((keyword) =>
                   itemCategoryName.includes(keyword)
                 );
 
                 if (matchingKeyword) {
-                  // Try to find GL account with matching keyword
                   suitableAccount = glaccounts.d.find((acc: any) => {
                     const accountName = acc.name.toLowerCase();
                     return (
@@ -260,7 +272,6 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
                   });
                 }
 
-                // If still no match, try broader Hikmat-specific accounts
                 if (!suitableAccount) {
                   suitableAccount = glaccounts.d.find((acc: any) => {
                     const accountName = acc.name.toLowerCase();
@@ -273,33 +284,32 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
                 }
               }
 
-              // General fallback: Use the first available account from the same source
               if (!suitableAccount && itemSource) {
                 suitableAccount = glaccounts.d.find(
                   (acc: any) => acc.source === itemSource
                 );
               }
 
-              // Last resort: Use the first available account
               if (!suitableAccount && glaccounts.d.length > 0) {
                 suitableAccount = glaccounts.d[0];
               }
 
               if (suitableAccount) {
-                const fullLabel = `${suitableAccount.name} (${
-                  suitableAccount.source || "Unknown"
-                })`;
-                form.setFieldsValue({
-                  akunPenyesuaian: fullLabel,
-                });
-                setIsAkunPenyesuaianDisabled(true);
+                setAccountField(suitableAccount);
               }
             }
           }
         }
       }
     }
-  }, [glaccounts, selectedItemSource, items, form, formValues]);
+  }, [
+    glaccounts,
+    selectedItemSource,
+    items,
+    form,
+    formValues,
+    selectedItemGlAccountId,
+  ]);
 
   const filterOption = (
     inputValue: string,
@@ -328,6 +338,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
         (opt: any) =>
           typeof opt.label === "string" && opt.label === values.barang
       );
+      const selectedProduct = item?.item as OzzyProductWithSource | undefined;
       const adjustment = akunPenyesuaianList.find((opt: any) => {
         if (
           typeof opt.label === "string" &&
@@ -379,20 +390,29 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
         (user) => user.value === values.requestBy
       );
 
+      const requestedItemId = selectedProduct?.sku;
+
+      const sanitizedAmount = Number(
+        `${values.jumlah}`.replace(/,/g, "").trim() || "0"
+      );
+
       const payload = {
         card_id: selectedCardId || (card ? card.value : values.listPO),
         request_type: values.actionType,
-        requested_item_id: item ? item.value : values.barang,
-        request_amount: Number(values.jumlah),
+        requested_item_id: requestedItemId,
+        request_amount: sanitizedAmount,
         adjustment_no: adjustment ? adjustment.value : values.akunPenyesuaian,
         description: values.description,
-        item_name: item ? item.label : values.barang,
+        item_name: selectedProduct?.name || item?.label || values.barang,
         adjustment_name: adjustment ? adjustment.label : values.akunPenyesuaian,
         satuan: selectedItemUnit || "", // Add the selected unit (satuan) to the payload
         source: selectedItemSource || "", // Add the source field to the payload
-        type: item ? item.item?.itemTypeName || null : null, // Add the itemTypeName as type
+        type: null,
         received_by: selectedUser ? selectedUser.value : "", // Use UUID for received_by
         received_by_name: selectedUser ? selectedUser.username : "", // Add received_by_name field
+        unit_price: selectedItemUnitPrice
+          ? Number(selectedItemUnitPrice)
+          : undefined,
       };
 
       console.log("🔍 [REQUEST PAYLOAD] Type being sent:", payload.type);
@@ -419,6 +439,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
       setSelectedCardId(null);
       setSelectedItemSource("");
       setSelectedRequestBy("");
+      setSelectedItemGlAccountId(null);
     }
   }, [open]);
 
@@ -524,47 +545,50 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
                     setSelectedItemSource(selectedItem.source);
                   }
 
-                  // Store available units
+                  // Store available units (include any unitXName fields plus unitType)
                   if (selectedItem) {
-                    const units = [];
-                    if (selectedItem.unit1Name)
-                      units.push({
-                        label: selectedItem.unit1Name,
-                        value: selectedItem.unit1Name,
-                      });
-                    if (selectedItem.unit2Name)
-                      units.push({
-                        label: selectedItem.unit2Name,
-                        value: selectedItem.unit2Name,
-                      });
-                    if (selectedItem.unit3Name)
-                      units.push({
-                        label: selectedItem.unit3Name,
-                        value: selectedItem.unit3Name,
-                      });
-                    if (selectedItem.unit4Name)
-                      units.push({
-                        label: selectedItem.unit4Name,
-                        value: selectedItem.unit4Name,
-                      });
-                    if (selectedItem.unit5Name)
-                      units.push({
-                        label: selectedItem.unit5Name,
-                        value: selectedItem.unit5Name,
-                      });
+                    const unitFields = [
+                      "unit1Name",
+                      "unit2Name",
+                      "unit3Name",
+                      "unit4Name",
+                      "unit5Name",
+                      "unitType",
+                    ];
+                    const unitSet = new Set<string>();
+                    unitFields.forEach((field) => {
+                      const value = (selectedItem as any)[field];
+                      if (value) {
+                        unitSet.add(value);
+                      }
+                    });
 
+                    const units = Array.from(unitSet).map((unit) => ({
+                      label: unit,
+                      value: unit,
+                    }));
                     setAvailableUnits(units);
 
                     // Set default unit if available
-                    if (units.length > 0) {
-                      setSelectedItemUnit(units[0].value);
+                    setSelectedItemUnit(units[0]?.value || "");
                     } else {
+                      setAvailableUnits([]);
                       setSelectedItemUnit("");
                     }
-                  } else {
-                    setAvailableUnits([]);
-                    setSelectedItemUnit("");
-                  }
+
+                    const unitPrice =
+                      (selectedItem as any)?.unitPrice ??
+                      (selectedItem as any)?.unit_price;
+                    setSelectedItemUnitPrice(
+                      unitPrice !== undefined && unitPrice !== null
+                        ? String(unitPrice)
+                        : ""
+                    );
+
+                  // Use COGS GL account from the selected item when provided
+                  const cogsGlAccountId =
+                    getCogsGlAccountIdFromItem(selectedItem);
+                  setSelectedItemGlAccountId(cogsGlAccountId);
 
                   // GL account selection is now handled by the useEffect
                   // to ensure proper fallback logic for Hikmat items
@@ -580,6 +604,9 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
                   setIsAkunPenyesuaianDisabled(false);
                   setSelectedItemUnit("");
                   setAvailableUnits([]);
+                  setSelectedItemSource("");
+                  setSelectedItemGlAccountId(null);
+                  setSelectedItemUnitPrice("");
                 }
               }}
             />
@@ -590,7 +617,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
             rules={[
               {
                 required: true,
-                pattern: /^\d+$/,
+                pattern: /^[\d,]+$/,
                 message: "Masukkan angka yang valid",
               },
             ]}
@@ -605,8 +632,10 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
                   form.setFieldsValue({ jumlah: value });
                 }}
                 onChange={(value) => {
-                  if (!/^\d*$/.test(value)) {
-                    form.setFieldsValue({ jumlah: value.replace(/\D/g, "") });
+                  if (!/^[\d,]*$/.test(value)) {
+                    form.setFieldsValue({
+                      jumlah: value.replace(/[^\d,]/g, ""),
+                    });
                   } else {
                     form.setFieldsValue({ jumlah: value });
                   }

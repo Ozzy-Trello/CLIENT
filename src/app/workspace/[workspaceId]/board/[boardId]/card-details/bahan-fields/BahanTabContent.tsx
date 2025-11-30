@@ -2,10 +2,14 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Button, Modal, Radio, message, Typography } from "antd";
 import { BahanTabProps } from "./types";
 import CategorySection from "./CategorySection";
-import { createRequestWithPOConnection } from "@api/accurate";
+import { createRequestWithPOConnection, RequestQuantity } from "@api/accurate";
 import { Check, Pencil } from "lucide-react";
 import { useCardAttachment } from "@hooks/card_attachment";
 import { EnumAttachmentType } from "@myTypes/card";
+import {
+  getRequestedItemIdFromProduct,
+  getUnitPriceFromProduct,
+} from "./productHelpers";
 
 type ZeroLoadingCandidate = {
   id: string;
@@ -39,6 +43,7 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
   bahanTab,
   po,
   product,
+  warehouseProducts,
   colors,
   categories,
   isLoadingCategories = false,
@@ -54,6 +59,36 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
   getCategoryError,
   clearCategoryError,
 }) => {
+  const findWarehouseProduct = () => {
+    if (product.warehouseProduct) return product.warehouseProduct;
+    if (!warehouseProducts || warehouseProducts.length === 0) return null;
+    return (
+      warehouseProducts.find((item: any) => {
+        const matchesAccurateId =
+          item.accurate_id?.toString() === product?.id ||
+          (item.accurateId && product?.warehouseProduct?.accurateId
+            ? item.accurateId.toString() ===
+              product.warehouseProduct.accurateId?.toString()
+            : false);
+        return (
+          item.sku === product?.sku ||
+          item.product_code === product?.product_code ||
+          item.productId === product?.id ||
+          item.id?.toString() === product?.id ||
+          item.accurateId?.toString() === product?.id ||
+          matchesAccurateId ||
+          (product?.name && item.name === product.name)
+        );
+      }) ?? null
+    );
+  };
+
+  const resolvedProduct = useMemo(
+    () => findWarehouseProduct() || product,
+    [warehouseProducts, product]
+  );
+
+  const getProductForRequest = () => resolvedProduct || product;
   const formatDisplayValue = (
     value?: number | null,
     fallback: string = "0"
@@ -168,11 +203,13 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
   }, [zeroLoadingCandidates, zeroLoadingModalOpen]);
 
   const persistTerloadingValue = (value: number) => {
+    const payloadProduct = getProductForRequest();
     const updateResult = onTerloadingChange(
       poIndex,
       productIndex,
       bahanTabIndex,
-      value
+      value,
+      payloadProduct
     );
 
     if (!product.requestId || !updateResult) {
@@ -247,6 +284,12 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
 
     try {
       // Prepare request data
+      const payloadProduct = getProductForRequest();
+      const requestedItemId =
+        getRequestedItemIdFromProduct(payloadProduct) ??
+        getRequestedItemIdFromProduct(product);
+      const unitPrice = getUnitPriceFromProduct(payloadProduct);
+
       const safeRequestAmount =
         bahanTab.terloading === 0 ? "0" : bahanTab.terloading;
       const safeRequestSent =
@@ -255,23 +298,40 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
       const usedNumber = Number(bahanTab.bahanTerpakai ?? 0);
       const leftNumber = Math.max(sentNumber - usedNumber, 0);
 
-      const requestData = {
+      console.log(product, "<< product data for order creation");
+
+      type RequestPayloadWithExtras = Parameters<typeof createRequestWithPOConnection>[0] & {
+        request_received?: RequestQuantity;
+        request_left?: RequestQuantity;
+        source?: string;
+        satuan?: string;
+        adjustment_no?: string;
+        adjustment_name?: string;
+        unit_price?: number;
+      };
+
+      const requestData: RequestPayloadWithExtras = {
         card_id: po.cardId,
         type: "NEW_ORDER",
-        item_name: product.name,
-        requested_item_id: product.id,
+        item_name:
+          payloadProduct?.product_name || payloadProduct?.name || product.name,
         request_amount: safeRequestAmount, // Use terloading amount
         request_sent: safeRequestSent, // Use terloading amount (same as request_amount)
+        requested_item_id: requestedItemId || "",
         request_received: usedNumber,
         request_left: leftNumber,
         is_verified: true, // Default to verified
         po_product_ids: [product.poProductId],
-        source: "HKI",
-        // Add adjustment fields from product data
-        satuan: product.satuan,
+        source: "Hikmat",
+        satuan: payloadProduct.satuan || product.satuan,
         adjustment_no: product.adjustment_no,
         adjustment_name: product.adjustment_name,
+        unit_price: unitPrice,
       };
+
+      if (requestedItemId) {
+        requestData.requested_item_id = requestedItemId;
+      }
 
       // Product content
 
@@ -402,6 +462,9 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
               if (terloadingInputValue === "") {
                 setTerloadingInputValue(null);
               }
+              if (!product.orderCreated && isTerloadingEditing) {
+                handleTerloadingSave();
+              }
             }}
             onChange={(e) => {
               const value = e.target.value;
@@ -517,11 +580,13 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
                 typeof bahanTab.bahanTerpakai === "number" &&
                 !Number.isNaN(bahanTab.bahanTerpakai)
               ) {
+                const payloadProduct = getProductForRequest();
                 onBahanTerpakaiChange(
                   poIndex,
                   productIndex,
                   bahanTabIndex,
-                  parseFloat(bahanTab.bahanTerpakai.toFixed(2))
+                  parseFloat(bahanTab.bahanTerpakai.toFixed(2)),
+                  payloadProduct
                 );
               }
             }}
@@ -529,11 +594,13 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
               const value = e.target.value;
               setTerpakaiInputValue(value);
               const normalized = normalizeNumericInput(value);
+              const payloadProduct = getProductForRequest();
               onBahanTerpakaiChange(
                 poIndex,
                 productIndex,
                 bahanTabIndex,
-                normalized ?? 0
+                normalized ?? 0,
+                payloadProduct
               );
             }}
             disabled={shouldDisableInputs}

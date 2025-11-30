@@ -20,6 +20,9 @@ export interface POItem {
 export interface ProductItem {
   id: string;
   name: string;
+  sku?: string;
+  product_code?: string;
+  productId?: string;
   poProductId?: string; // ID of the POProduct for API updates
   requestId?: number;
   orderCreated?: boolean; // Whether an order has been created for this product
@@ -28,6 +31,7 @@ export interface ProductItem {
   adjustment_name?: string; // Adjustment account name
   bahanTabs: BahanTab[];
   categoryData?: CategoryData[];
+  warehouseProduct?: any;
 }
 
 export interface CategoryData {
@@ -68,8 +72,20 @@ export interface POSectionProps {
   onScanProduct: (poId: string) => void;
   onSelectProduct: (poId: string, productId: string) => void;
   onOpenSummary: (poId: string) => void;
-  onTerloadingChange: (poIndex: number, productIndex: number, bahanTabIndex: number, value: number) => Promise<void>;
-  onBahanTerpakaiChange: (poIndex: number, productIndex: number, bahanTabIndex: number, value: number) => void;
+  onTerloadingChange: (
+    poIndex: number,
+    productIndex: number,
+    bahanTabIndex: number,
+    value: number,
+    resolvedProduct?: any
+  ) => Promise<void>;
+  onBahanTerpakaiChange: (
+    poIndex: number,
+    productIndex: number,
+    bahanTabIndex: number,
+    value: number,
+    resolvedProduct?: any
+  ) => void;
   onEstBahanChange: (poIndex: number, productIndex: number, bahanTabIndex: number, value: number) => void;
   onCategoryValueChange: (poIndex: number, productIndex: number, categoryId: string, subcategoryId: string, value: number) => void;
   onOrderStatusChange: (
@@ -92,14 +108,27 @@ export interface BahanTabProps {
   bahanTab: BahanTab;
   po: POItem;
   product: ProductItem;
+  warehouseProducts: any[];
   colors: any;
   categories: any[];
   isLoadingCategories?: boolean;
   poIndex: number;
   productIndex: number;
   bahanTabIndex: number;
-  onTerloadingChange: (poIndex: number, productIndex: number, bahanTabIndex: number, value: number) => Promise<void>;
-  onBahanTerpakaiChange: (poIndex: number, productIndex: number, bahanTabIndex: number, value: number) => void;
+  onTerloadingChange: (
+    poIndex: number,
+    productIndex: number,
+    bahanTabIndex: number,
+    value: number,
+    resolvedProduct?: any
+  ) => Promise<void>;
+  onBahanTerpakaiChange: (
+    poIndex: number,
+    productIndex: number,
+    bahanTabIndex: number,
+    value: number,
+    resolvedProduct?: any
+  ) => void;
   onEstBahanChange: (poIndex: number, productIndex: number, bahanTabIndex: number, value: number) => void;
   onCategoryValueChange: (poIndex: number, productIndex: number, categoryId: string, subcategoryId: string, value: number) => void;
   onOrderStatusChange: (

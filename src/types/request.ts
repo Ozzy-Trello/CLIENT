@@ -1,3 +1,7 @@
+export type BeliStatus = "Ya" | "Tidak" | "";
+
+export const DEFAULT_BELI_STATUS: BeliStatus = "Tidak";
+
 export interface ApiResponse<T> {
   data: T[];
   pagination?: {
@@ -23,8 +27,9 @@ export interface RequestItem {
   requestLeft?: number;
   request_left?: number;
   type?: string;
-  beli?: boolean;
+  beli?: BeliStatus;
   invoice_no?: string;
+  invoiceNo?: string;
   // Support both naming conventions during transition
   is_rejected?: boolean;
   isRejected?: boolean;

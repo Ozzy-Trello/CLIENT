@@ -49,7 +49,25 @@ export interface OzzyProduct {
   quantity: string;
   description?: string | null;
   qrCodeImage?: string | null;
+  itemCategory?: {
+    id?: number;
+    name?: string;
+    parent?: {
+      cogsGlAccountId?: number | null;
+      inventoryGlAccountId?: number | null;
+      name?: string;
+      parent?: {
+        cogsGlAccountId?: number | null;
+        inventoryGlAccountId?: number | null;
+      };
+    };
+  };
 }
+
+export type OzzyProductWithSource = OzzyProduct & {
+  source: string;
+  unit1Name?: string;
+};
 
 export interface OzzyCustomer {
   id: number;
@@ -451,6 +469,27 @@ export const getOzzyProductById = async (
     console.error("Error fetching product by ID:", error);
     return null;
   }
+};
+
+const ACCURATE_PRODUCT_SOURCES: Record<string, "MPI" | "Hikmat"> = {
+  "1880451": "MPI",
+  "1880365": "Hikmat",
+};
+
+export const getCombinedOzzyProducts = async (): Promise<
+  OzzyProductWithSource[]
+> => {
+  const responses = await Promise.all(
+    Object.entries(ACCURATE_PRODUCT_SOURCES).map(async ([dbId, source]) => {
+      const products = await getOzzyProducts(dbId);
+      return products.map((product) => ({
+        ...product,
+        source,
+        unit1Name: product.unitType,
+      }));
+    })
+  );
+  return responses.flat();
 };
 
 export const getOzzyWarehouses = async (

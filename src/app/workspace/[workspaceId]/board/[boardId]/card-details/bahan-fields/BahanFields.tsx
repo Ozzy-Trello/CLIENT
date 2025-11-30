@@ -17,13 +17,19 @@ import { useDebouncedPOProductUpdate } from "@hooks/useDebouncedPOProductUpdate"
 import POSection from "./POSection";
 import { BahanFieldsProps, POItem, ProductItem } from "./types";
 import { usePOsByCardId } from "./hooks/usePOsByCardId";
+import {
+  getRequestedItemIdFromProduct,
+  getUnitPriceFromProduct,
+} from "./productHelpers";
 
 const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
   const theme = useSelector(selectTheme);
   const { colors } = theme;
 
   const [poData, setPOData] = useState<POItem[]>([]);
-  const [selectedProductIds, setSelectedProductIds] = useState<{ [poId: string]: string }>({});
+  const [selectedProductIds, setSelectedProductIds] = useState<{
+    [poId: string]: string;
+  }>({});
 
   // Fetch PO data from API using cardId
   const {
@@ -41,15 +47,12 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
 
   // Debug information available for troubleshooting
 
-
   // Load products from Warehouse API
-  const {
-    data: warehouseProducts = [],
-    isLoading: isLoadingProducts,
-  } = useQuery({
-    queryKey: ["warehouse-products", "1880365"],
-    queryFn: () => getOzzyProducts("1880365"),
-  });
+  const { data: warehouseProducts = [], isLoading: isLoadingProducts } =
+    useQuery({
+      queryKey: ["warehouse-products", "1880365"],
+      queryFn: () => getOzzyProducts("1880365"),
+    });
 
   // Fetch categories with subcategories
   const {
@@ -209,10 +212,13 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
         });
       }
 
+      updatedPOData.forEach((po) => {
+        po.products.forEach((product) => mapWarehouseProduct(product));
+      });
       setPOData(updatedPOData);
       setSelectedProductIds({}); // Reset selected products when PO data changes
     }
-  }, [apiPOData, poProductsResponse]);
+  }, [apiPOData, poProductsResponse, warehouseProducts]);
 
   // Calculate derived values
   const calculateSisaBahan = (
@@ -222,13 +228,13 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
     return terloading - bahanTerpakai;
   };
 
-    const calculateEfisiensi = (
-      estBahan: number,
-      bahanTerpakai: number
-    ): number => {
-      if (estBahan === 0) return 0;
-      return ((estBahan - bahanTerpakai) / estBahan) * 100;
-    };
+  const calculateEfisiensi = (
+    estBahan: number,
+    bahanTerpakai: number
+  ): number => {
+    if (estBahan === 0) return 0;
+    return ((estBahan - bahanTerpakai) / estBahan) * 100;
+  };
 
   // Calculate category values based on Est Bahan and junction weights
   const calculateCategoryValues = (estBahan: number, categories: any[]) => {
@@ -337,6 +343,26 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
     return totalEstBahan;
   };
 
+  const mapWarehouseProduct = (product: ProductItem) => {
+    if (!warehouseProducts || warehouseProducts.length === 0) {
+      return product;
+    }
+
+    const match =
+      warehouseProducts.find(
+        (item: any) =>
+          item.accurate_id?.toString() === product.id ||
+          item.accurateId?.toString() === product.id ||
+          item.name === product.name
+      ) ?? null;
+
+    if (match) {
+      product.warehouseProduct = match;
+    }
+
+    return product;
+  };
+
   const resolveProductKey = (product: any): string => {
     const rawKey =
       product?.accurateId ??
@@ -377,9 +403,13 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
     poIndex: number,
     productIndex: number,
     bahanTabIndex: number,
-    value: number
+    value: number,
+    resolvedProduct?: any
   ) => {
     let requestId: number | undefined;
+    let snapshotProduct: any | null = null;
+    const payloadProduct = resolvedProduct ?? null;
+
     setPOData((prevData) => {
       const newData = [...prevData];
       const po = newData[poIndex];
@@ -399,16 +429,36 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
       }
 
       requestId = product.requestId;
+      snapshotProduct = product;
 
       return newData;
     });
 
     if (requestId) {
       try {
-        await updateRequest(requestId.toString(), {
+        const productForPayload = payloadProduct || snapshotProduct;
+        if (!productForPayload) return;
+
+        const requestedItemId =
+          getRequestedItemIdFromProduct(productForPayload) ??
+          (productForPayload?.id ? String(productForPayload.id) : undefined);
+
+        const payload: Record<string, any> = {
           requestSent: value,
           requestAmount: value,
-        });
+          request_type: "NEW_ORDER",
+          item_name:
+            productForPayload?.product_name || productForPayload?.name || "",
+          satuan: resolveProductUnit(productForPayload) || "",
+          source: "Hikmat",
+          unit_price: getUnitPriceFromProduct(productForPayload),
+        };
+
+        if (requestedItemId) {
+          payload.requested_item_id = requestedItemId;
+        }
+
+        await updateRequest(requestId.toString(), payload);
       } catch (error) {
         console.error("❌ Failed to sync request terloading:", error);
         message.error("Gagal menyelaraskan nilai terloading ke request");
@@ -421,10 +471,13 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
     poIndex: number,
     productIndex: number,
     bahanTabIndex: number,
-    value: number
+    value: number,
+    resolvedProduct?: any
   ) => {
     let requestId: number | undefined;
     let sentValue = 0;
+    let snapshotProduct: any | null = null;
+    const payloadProduct = resolvedProduct ?? null;
 
     setPOData((prevData) => {
       const newData = [...prevData];
@@ -437,6 +490,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
       bahanTab.efisiensi = calculateEfisiensi(bahanTab.estBahan, value);
 
       requestId = product.requestId;
+      snapshotProduct = product;
       sentValue = bahanTab.terloading ?? 0;
 
       if (product.poProductId) {
@@ -451,10 +505,29 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
     if (requestId !== undefined) {
       const leftValue = Math.max(sentValue - value, 0);
       try {
-        await updateRequest(requestId.toString(), {
+        const productForPayload = payloadProduct || snapshotProduct;
+        if (!productForPayload) return;
+
+        const requestedItemId =
+          getRequestedItemIdFromProduct(productForPayload) ??
+          (productForPayload?.id ? String(productForPayload.id) : undefined);
+
+        const payload: Record<string, any> = {
           requestReceived: value,
           requestLeft: leftValue,
-        });
+          request_type: "NEW_ORDER",
+          item_name:
+            productForPayload?.product_name || productForPayload?.name || "",
+          satuan: resolveProductUnit(productForPayload) || "",
+          source: "Hikmat",
+          unit_price: getUnitPriceFromProduct(productForPayload),
+        };
+
+        if (requestedItemId) {
+          payload.requested_item_id = requestedItemId;
+        }
+
+        await updateRequest(requestId.toString(), payload);
       } catch (error) {
         console.error("❌ Failed to sync request terpakai:", error);
         message.error("Gagal menyelaraskan bahan terpakai ke request");
@@ -546,7 +619,6 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
     subcategoryId: string,
     value: number
   ) => {
-
     setPOData((prev) => {
       const newItems = [...prev];
       const product = newItems[poIndex].products[productIndex];
@@ -613,7 +685,6 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
         );
 
         if (targetPOProduct) {
-
           // Find the junction_id from categories data first
           let junctionId: string | null = null;
           if (categories) {
@@ -649,7 +720,6 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
           if (existingCategory) {
             debouncedUpdate(existingCategory.id, value);
           } else {
-
             // Create new POProductCategory with junction_id
             createPOProductCategoryMutation.mutate(
               {
@@ -696,7 +766,6 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
     orderCreated: boolean,
     requestId?: number | null
   ) => {
-
     setPOData((prevData) => {
       const newData = [...prevData];
       const po = newData[poIndex];
@@ -809,9 +878,10 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
       const str = String(input).trim();
       if (!str) return 0;
       // If both separators exist, assume '.' is thousands and ',' is decimal (id-ID style)
-      const normalized = str.includes(".") && str.includes(",")
-        ? str.replace(/\./g, "").replace(/,/g, ".")
-        : str.replace(/,/g, ".");
+      const normalized =
+        str.includes(".") && str.includes(",")
+          ? str.replace(/\./g, "").replace(/,/g, ".")
+          : str.replace(/,/g, ".");
       const n = Number(normalized);
       return Number.isFinite(n) ? n : 0;
     };
@@ -858,7 +928,9 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
         }
 
         // Check if product already exists in this PO
-        const currentPOIndex = poData.findIndex((po) => po.id === scanTargetPOId);
+        const currentPOIndex = poData.findIndex(
+          (po) => po.id === scanTargetPOId
+        );
         const currentPO = currentPOIndex !== -1 ? poData[currentPOIndex] : null;
         const matchedKey = resolveProductKey(matchedItem);
         if (!matchedKey) {
@@ -872,12 +944,18 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
         if (currentPO && existingProductIndex !== -1) {
           // Product already exists in this PO: sum the terloading with scanned quantity
           const existingProduct = currentPO.products[existingProductIndex];
-          const currentTerloadingRaw = existingProduct?.bahanTabs?.[0]?.terloading ?? 0;
+          const currentTerloadingRaw =
+            existingProduct?.bahanTabs?.[0]?.terloading ?? 0;
           const currentTerloading = parseLocaleNumber(currentTerloadingRaw);
           const newTerloading = currentTerloading + scannedQty;
 
           // Update local state and persist to backend
-          handleTerloadingChange(currentPOIndex, existingProductIndex, 0, newTerloading);
+          handleTerloadingChange(
+            currentPOIndex,
+            existingProductIndex,
+            0,
+            newTerloading
+          );
 
           message.success(
             `Updated Terloading for ${matchedItem.name}: +${scannedQty} (total ${newTerloading})`
@@ -892,15 +970,13 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
           message.success(
             `Detected product: ${matchedItem.name}. Adding to PO with Terloading ${scannedQty}...`
           );
-          await handleSelectProduct(
-            scanTargetPOId,
-            matchedKey,
-            scannedQty
-          );
+          await handleSelectProduct(scanTargetPOId, matchedKey, scannedQty);
         }
       } catch (error) {
         console.error("Failed to fetch product by scanned barcode:", error);
-        message.error("Failed to resolve the scanned barcode. Please try again.");
+        message.error(
+          "Failed to resolve the scanned barcode. Please try again."
+        );
       }
     };
 
@@ -1132,11 +1208,14 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
 
         // If this product was added as a result of a scan, set the initial Terloading
         // Access created POProduct ID from ApiResponse shape
-        const createdPOProductId = (result as any)?.data?.id || (result as any)?.id;
+        const createdPOProductId =
+          (result as any)?.data?.id || (result as any)?.id;
         if (typeof initialTerloading === "number" && createdPOProductId) {
           try {
             // Persist Terloading to backend using the newly created POProduct ID
-            debouncedPOProductUpdate(createdPOProductId, { terloading: initialTerloading });
+            debouncedPOProductUpdate(createdPOProductId, {
+              terloading: initialTerloading,
+            });
           } catch (e) {
             console.error("❌ Failed to set initial Terloading:", e);
           }
@@ -1159,8 +1238,6 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
   const handleOpenSummary = (poId: string) => {
     // Summary modal functionality to be implemented
   };
-
-
 
   // Show loading state
   if (isLoadingPOs || isLoadingPOProducts) {

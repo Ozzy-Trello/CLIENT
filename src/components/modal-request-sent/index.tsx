@@ -21,18 +21,39 @@ import {
   Space,
   Tooltip,
 } from "antd";
+import type { AxiosError } from "axios";
 import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
 import { debounce } from "lodash";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { formatRequestQuantity } from "@utils/request-format";
 import { Filter, RotateCcw, Warehouse } from "lucide-react";
-import { RequestItem, ApiResponse } from "@myTypes/request";
+import {
+  ApiResponse,
+  BeliStatus,
+  DEFAULT_BELI_STATUS,
+  RequestItem,
+} from "@myTypes/request";
 import UserSelectionForModal from "@components/UserSelectionForModal";
 
 interface ModalRequestSentProps {
   open: boolean;
   onClose: () => void;
 }
+
+type BeliSelection = BeliStatus | "-";
+
+const extractApiErrorReason = (error: unknown): string | undefined => {
+  if (!error) return undefined;
+  if (typeof error === "string") return error;
+  const axiosError = error as AxiosError;
+  const responseData = axiosError?.response?.data as any;
+  if (responseData?.reason) return responseData.reason;
+  if (responseData?.error) return responseData.error;
+  if (responseData?.message) return responseData.message;
+  if (axiosError?.message) return axiosError.message;
+  if (error instanceof Error) return error.message;
+  return undefined;
+};
 
 const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
   open,
@@ -44,7 +65,9 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
   const [requestReceivedValues, setRequestReceivedValues] = useState<
     Record<string, number>
   >({});
-  const [beliValues, setBeliValues] = useState<Record<string, boolean>>({});
+  const [beliValues, setBeliValues] = useState<Record<string, BeliSelection>>(
+    {}
+  );
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 10,
@@ -87,7 +110,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       baseFilter.productionReceived = false;
     }
     if (filterBelumBeli) {
-      baseFilter.beli = false;
+      baseFilter.beli = DEFAULT_BELI_STATUS;
       baseFilter.excludeType = "persediaan";
     }
 
@@ -128,7 +151,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     const initialSentValues: Record<string, number> = {};
     const initialReceivedValues: Record<string, number> = {};
     const initialLeftValues: Record<string, number | undefined> = {};
-    const initialBeliValues: Record<string, boolean> = {};
+    const initialBeliValues: Record<string, BeliSelection> = {};
     data.data.forEach((item) => {
       const numericSent = Number(item.requestSent);
       if (!Number.isNaN(numericSent)) {
@@ -146,7 +169,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       if (!Number.isNaN(numericReceived)) {
         initialReceivedValues[item.id] = numericReceived;
       }
-      initialBeliValues[item.id] = Boolean(item.beli);
+      initialBeliValues[item.id] = item.beli ?? "-";
     });
     setRequestSentValues((prev) => ({
       ...prev,
@@ -177,7 +200,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
   });
 
   const { mutate: updateBeliStatus } = useMutation({
-    mutationFn: ({ id, beli }: { id: string; beli: boolean }) =>
+    mutationFn: ({ id, beli }: { id: string; beli: BeliStatus }) =>
       updateRequest(id, { beli }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["requests"] });
@@ -241,23 +264,30 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     Record<string, (payload: { amount: number; left: number }) => void>
   >({});
 
-  const handleSendRequest = (id: string): void => {
+  const attemptSendRequest = (id: string): boolean => {
     const amount = requestSentValues[id];
     if (!amount) {
       message.error("Please enter an amount");
-      return;
+      return false;
     }
 
     sendRequest({ id, amount });
+    return true;
   };
 
-  const handleBeliChange = (id: string, value: "ya" | "tidak") => {
-    const newBeliValue = value === "ya";
+  const handleSendRequest = (id: string): void => {
+    attemptSendRequest(id);
+  };
+
+  const handleBeliChange = (id: string, value: BeliSelection) => {
     setBeliValues((prev) => ({
       ...prev,
-      [id]: newBeliValue,
+      [id]: value,
     }));
-    updateBeliStatus({ id, beli: newBeliValue });
+    if (value === "-") {
+      return;
+    }
+    updateBeliStatus({ id, beli: value });
   };
 
   const handleWarehouseReturn = (id: string, checked: boolean) => {
@@ -360,7 +390,15 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
   };
 
   const toggleSentEdit = (id: string) => {
-    setEditingSentRequestId((prev) => (prev === id ? null : id));
+    setEditingSentRequestId((prev) => {
+      if (prev === id) {
+        if (!attemptSendRequest(id)) {
+          return prev;
+        }
+        return null;
+      }
+      return id;
+    });
   };
 
   const handleRequestSentChange = (id: string, rawValue: string) => {
@@ -384,9 +422,14 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
   };
 
   const confirmDeleteRequest = (record: RequestItem) => {
+    const content =
+      record.invoice_no && record.invoice_no.trim()
+        ? "Data sudah dipush ke Accurate, yakin ingin menghapus?"
+        : `Are you sure you want to delete the request for "${record.itemName}"?`;
+
     Modal.confirm({
       title: "Delete request",
-      content: `Are you sure you want to delete the request for "${record.itemName}"?`,
+      content,
       okText: "Delete",
       okType: "danger",
       centered: true,
@@ -401,7 +444,12 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       message.success("Request marked as done!");
       refetch(); // Refresh the data
     } catch (err) {
-      message.error("Failed to mark request as done");
+      const reason = extractApiErrorReason(err);
+      message.error(
+        reason
+          ? `Failed to mark request as done: ${reason}`
+          : "Failed to mark request as done"
+      );
     } finally {
       setMarkingDone(null);
     }
@@ -549,19 +597,19 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
         const persistedValue =
           beliValues[record.id] !== undefined
             ? beliValues[record.id]
-            : Boolean(record.beli);
+            : record.beli ?? "-";
         const isCompleted = record.is_done || record.isDone;
-        const currentValue = isPersediaanProduct ? false : persistedValue;
         // const disabled = isPersediaanProduct || isCompleted;
         return (
           <Select
-            value={currentValue ? "ya" : "tidak"}
+            value={isPersediaanProduct ? DEFAULT_BELI_STATUS : persistedValue}
             options={[
-              { value: "ya", label: "Ya" },
-              { value: "tidak", label: "Tidak" },
+              { value: "-", label: "-" },
+              { value: "Ya", label: "Ya" },
+              { value: "Tidak", label: "Tidak" },
             ]}
             onChange={(value) =>
-              handleBeliChange(record.id, value as "ya" | "tidak")
+              handleBeliChange(record.id, value as BeliSelection)
             }
             // disabled={disabled}
             style={{ width: "100%" }}
@@ -611,12 +659,14 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
           storedReceived !== undefined ? storedReceived : initialReceived;
         const isEditingRow = editingTerpakaiId === record.id;
         const isDone = record.is_done || record.isDone;
+        const hasInvoice = Boolean(record.invoice_no);
+        const allowEdit = isEditingRow || (isDone && hasInvoice);
         return (
           <Input
             type="number"
             step="0.01"
             value={displayValue ?? ""}
-            disabled={!isEditingRow || isDone}
+            disabled={!allowEdit}
             onChange={(e) =>
               handleRequestReceivedChange(record.id, e.target.value, sentValue)
             }
@@ -750,7 +800,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
                   type="text"
                   size="small"
                   icon={<EditOutlined />}
-                  disabled={isDone}
+                  disabled={!record.invoiceNo}
                   onClick={() => toggleTerpakaiEdit(record.id)}
                 />
               </Tooltip>
@@ -773,12 +823,12 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
   ];
 
   // Calculate active filters count
-    const activeFiltersCount = [
-      filterBelumDikirim,
-      filterBelumDiterima,
-      filterBelumDiotorisasi,
-      filterBelumBeli,
-    ].filter(Boolean).length;
+  const activeFiltersCount = [
+    filterBelumDikirim,
+    filterBelumDiterima,
+    filterBelumDiotorisasi,
+    filterBelumBeli,
+  ].filter(Boolean).length;
 
   // Reset all filters function
   const resetFilters = () => {

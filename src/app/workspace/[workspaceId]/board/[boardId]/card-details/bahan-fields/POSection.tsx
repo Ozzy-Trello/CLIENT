@@ -231,6 +231,7 @@ const POSection: React.FC<POSectionProps> = ({
                       bahanTab={product.bahanTabs[0]} // Use first bahan tab
                       po={po}
                       product={product}
+                      warehouseProducts={products}
                       colors={colors}
                       categories={categories}
                       isLoadingCategories={isLoadingCategories}
