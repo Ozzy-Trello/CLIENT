@@ -55,6 +55,39 @@ const extractApiErrorReason = (error: unknown): string | undefined => {
   return undefined;
 };
 
+const buildCardUrl = (record: RequestItem) => {
+  const cardId = record.cardId ?? record.card_id;
+  const boardId = record.boardId ?? record.board_id;
+  const workspaceId = record.workspaceId ?? record.workspace_id;
+
+  if (!cardId || !boardId || !workspaceId) {
+    return undefined;
+  }
+
+  return `/workspace/${workspaceId}/board/${boardId}?cardId=${cardId}`;
+};
+
+const formatReceivedAmount = (value?: number | string | null): string => {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return value !== undefined && value !== null ? String(value) : "0.00";
+  }
+  return numeric.toFixed(2);
+};
+
+const formatDateValue = (value?: string | number | Date) => {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.valueOf())) return "-";
+  return date.toLocaleString("id-ID", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
 const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
   open,
   onClose,
@@ -461,7 +494,22 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       dataIndex: "cardName",
       key: "card_name",
       ellipsis: true,
-      width: "auto",
+      width: 500,
+      render: (_: unknown, record: RequestItem) => {
+        const href = buildCardUrl(record);
+        return href ? (
+          <a
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 hover:text-blue-700"
+          >
+            {record.cardName}
+          </a>
+        ) : (
+          <span>{record.cardName}</span>
+        );
+      },
     },
     {
       title: "Type",
@@ -469,6 +517,16 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       key: "request_type",
       ellipsis: true,
       width: "auto",
+    },
+    {
+      title: "Tanggal",
+      dataIndex: "createdAt",
+      key: "createdAt",
+      ellipsis: true,
+      width: 180,
+      render: (_: unknown, record: RequestItem) => (
+        <span>{formatDateValue(record.createdAt)}</span>
+      ),
     },
     {
       title: "Item",
@@ -720,12 +778,14 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       dataIndex: "warehouseReturned",
       key: "warehouseReturned",
       ellipsis: true,
-      width: "auto",
+      width: 90,
+      align: "center" as const,
       render: (value: boolean, record: RequestItem) => (
         <Checkbox
           checked={value}
           onChange={(e) => handleWarehouseReturn(record.id, e.target.checked)}
           disabled={record.isDone}
+          style={{ margin: 0 }}
         />
       ),
     },
@@ -751,10 +811,12 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
           return <span style={{ color: "#52c41a" }}>Diterima produksi</span>;
         }
         if (record.requestSent) {
-          if (record.requestReceived) {
+          const receivedValue = Number(record.requestReceived);
+          if (!Number.isNaN(receivedValue) && receivedValue > 0) {
             return (
               <span style={{ color: "#1890ff" }}>
-                Diterima {record.requestReceived} {record.satuan || "satuan"}
+                Diterima {formatReceivedAmount(receivedValue)}{" "}
+                {record.satuan || "satuan"}
               </span>
             );
           }

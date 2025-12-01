@@ -12,6 +12,12 @@ export interface ApiResponse<T> {
 export interface RequestItem {
   id: string;
   cardName: string;
+  cardId?: string;
+  card_id?: string;
+  boardId?: string;
+  board_id?: string;
+  workspaceId?: string;
+  workspace_id?: string;
   requestType: string;
   itemName: string;
   requestAmount: number;
@@ -40,4 +46,5 @@ export interface RequestItem {
   receivedBy?: string;
   sentByName?: string;
   receivedByName?: string;
+  createdAt?: string;
 }

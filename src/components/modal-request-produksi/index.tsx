@@ -28,6 +28,17 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { formatRequestQuantity } from "@utils/request-format";
 import UserSelectionForModal from "@components/UserSelectionForModal";
 
+const formatDateValue = (value?: string | number | Date) => {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.valueOf())) return "-";
+  return date.toLocaleDateString("id-ID", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+};
+
 const { Title, Text } = Typography;
 
 interface ModalRequestProduksiProps {
@@ -202,6 +213,16 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
           </Tag>
         );
       },
+    },
+    {
+      title: "Tanggal",
+      dataIndex: "createdAt",
+      key: "createdAt",
+      width: 140,
+      ellipsis: true,
+      render: (_: any, record: RequestItem) => (
+        <Text>{formatDateValue(record.createdAt)}</Text>
+      ),
     },
     {
       title: "Item",

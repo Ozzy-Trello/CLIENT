@@ -8,6 +8,10 @@ import {
 import { render } from "react-dom";
 import { formatRequestQuantity } from "@utils/request-format";
 import { RefreshCw } from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
+import { DeleteOutlined } from "@ant-design/icons";
+import { deleteRequest } from "@api/accurate";
+import { usePermissions } from "@hooks/account";
 
 interface ModalListRequestProps {
   open: boolean;
@@ -25,6 +29,7 @@ const ModalListRequest: React.FC<ModalListRequestProps> = ({
 
   // Add filter state for unverified requests
   const [showUnverifiedOnly, setShowUnverifiedOnly] = useState(false);
+  const [deletingRequestId, setDeletingRequestId] = useState<string | null>(null);
 
   // Use optimized hooks with filter
   const {
@@ -40,6 +45,20 @@ const ModalListRequest: React.FC<ModalListRequestProps> = ({
 
   const verifyMutation = useVerifyRequest();
   const rejectMutation = useRejectRequest();
+  const { isSuperAdmin } = usePermissions();
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteRequest(id),
+    onSuccess: () => {
+      message.success("Request deleted");
+      refetch();
+    },
+    onError: () => {
+      message.error("Failed to delete request");
+    },
+    onSettled: () => {
+      setDeletingRequestId(null);
+    },
+  });
 
   const handleVerify = async (id: string) => {
     try {
@@ -64,6 +83,20 @@ const ModalListRequest: React.FC<ModalListRequestProps> = ({
       refetch();
     }
   }, [open, refetch]);
+
+  const confirmDeleteRequest = (record: any) => {
+    Modal.confirm({
+      title: "Delete request",
+      content: `Are you sure you want to delete the request for "${record.itemName}"?`,
+      centered: true,
+      okText: "Delete",
+      okType: "danger",
+      onOk: async () => {
+        setDeletingRequestId(record.id);
+        await deleteMutation.mutateAsync(record.id);
+      },
+    });
+  };
 
   // Toggle filter function
   const toggleUnverifiedFilter = () => {
@@ -91,6 +124,24 @@ const ModalListRequest: React.FC<ModalListRequestProps> = ({
       width: 100,
     },
     {
+      title: "Tanggal",
+      dataIndex: "createdAt",
+      key: "createdAt",
+      ellipsis: true,
+      width: 150,
+      render: (_: any, record: any) => {
+        const value = record.createdAt;
+        if (!value) return "-";
+        const date = new Date(value);
+        if (Number.isNaN(date.valueOf())) return "-";
+        return date.toLocaleDateString("id-ID", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        });
+      },
+    },
+    {
       title: "Item",
       dataIndex: "itemName",
       key: "requested_item_id",
@@ -107,13 +158,6 @@ const ModalListRequest: React.FC<ModalListRequestProps> = ({
           {formatRequestQuantity(record.requestAmount)} {record.satuan || ""}
         </span>
       ),
-    },
-    {
-      title: "Adjustment",
-      dataIndex: "adjustmentName",
-      key: "adjustment_no",
-      ellipsis: true,
-      width: 225,
     },
     {
       title: "Description",
@@ -222,6 +266,19 @@ const ModalListRequest: React.FC<ModalListRequestProps> = ({
               ✕
             </span>
           </Button>
+          {isSuperAdmin() && (
+            <Button
+              type="text"
+              size="small"
+              icon={<DeleteOutlined />}
+              danger
+              loading={deletingRequestId === record.id}
+              disabled={
+                deletingRequestId !== null && deletingRequestId !== record.id
+              }
+              onClick={() => confirmDeleteRequest(record)}
+            />
+          )}
         </Space>
       ),
     },
