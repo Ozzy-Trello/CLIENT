@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Modal, Table, Button, message, Space, Tag, Tooltip } from "antd";
 import {
   useRequestsOptimized,
@@ -7,6 +7,7 @@ import {
 } from "@hooks/accurate";
 import { render } from "react-dom";
 import { formatRequestQuantity } from "@utils/request-format";
+import { RefreshCw } from "lucide-react";
 
 interface ModalListRequestProps {
   open: boolean;
@@ -30,6 +31,7 @@ const ModalListRequest: React.FC<ModalListRequestProps> = ({
     data: requestsData,
     isLoading,
     error,
+    refetch,
   } = useRequestsOptimized(
     pagination.page,
     pagination.limit,
@@ -56,6 +58,12 @@ const ModalListRequest: React.FC<ModalListRequestProps> = ({
       message.error("Failed to reject request");
     }
   };
+
+  useEffect(() => {
+    if (open) {
+      refetch();
+    }
+  }, [open, refetch]);
 
   // Toggle filter function
   const toggleUnverifiedFilter = () => {
@@ -241,13 +249,28 @@ const ModalListRequest: React.FC<ModalListRequestProps> = ({
       destroyOnHidden
     >
       {/* Filter Button */}
-      <div style={{ marginBottom: 16 }}>
+      <div
+        style={{
+          marginBottom: 16,
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+        }}
+      >
         <Button
           type={showUnverifiedOnly ? "primary" : "default"}
           onClick={toggleUnverifiedFilter}
           icon={<span className="fi fi-rr-filter" />}
         >
           {showUnverifiedOnly ? "Show All Requests" : "Show Unverified Only"}
+        </Button>
+        <Button
+          type="text"
+          size="small"
+          icon={<RefreshCw size={16} />}
+          onClick={() => refetch()}
+        >
+          Refresh
         </Button>
       </div>
 

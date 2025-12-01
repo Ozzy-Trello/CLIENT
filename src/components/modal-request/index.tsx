@@ -392,9 +392,25 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
 
       const requestedItemId = selectedProduct?.sku;
 
-      const sanitizedAmount = Number(
-        `${values.jumlah}`.replace(/,/g, "").trim() || "0"
-      );
+      const normalizeQuantityInput = (raw?: string | number | null) => {
+        if (raw === undefined || raw === null) return 0;
+        const str = `${raw}`.trim();
+        if (!str) return 0;
+
+        if (str.includes(",") && str.includes(".")) {
+          // Treat '.' as thousands separator, ',' as decimal marker.
+          return Number(str.replace(/\./g, "").replace(/,/g, "."));
+        }
+        if (str.includes(",") && !str.includes(".")) {
+          return Number(str.replace(/,/g, "."));
+        }
+        if (str.includes(".") && !str.includes(",")) {
+          return Number(str);
+        }
+        return Number(str.replace(/,/g, ""));
+      };
+
+      const sanitizedAmount = normalizeQuantityInput(values.jumlah);
 
       const payload = {
         card_id: selectedCardId || (card ? card.value : values.listPO),

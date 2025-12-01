@@ -22,7 +22,7 @@ import {
   Typography,
 } from "antd";
 import { debounce } from "lodash";
-import { Factory, Filter, Truck } from "lucide-react";
+import { Factory, Filter, RefreshCw, Truck } from "lucide-react";
 import { useParams } from "next/navigation";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { formatRequestQuantity } from "@utils/request-format";
@@ -90,6 +90,12 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
       getAllRequests(pagination.page, pagination.limit, filterParams),
     enabled: open && !!workspaceId,
   });
+
+  useEffect(() => {
+    if (open) {
+      refetch();
+    }
+  }, [open, refetch]);
 
   const updateRequestMutation = useMutation({
     mutationFn: ({ id, requestSent }: { id: string; requestSent: number }) =>
@@ -356,19 +362,29 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
           </Space>
         }
         extra={
-          activeFilters > 0 && (
+          <Space size="small">
             <Button
-              type="link"
+              type="text"
               size="small"
-              onClick={() => {
-                setFilterBelumDikirim(false);
-                setFilterBelumDiterima(false);
-                setPagination((prev) => ({ ...prev, page: 1 }));
-              }}
+              icon={<RefreshCw size={14} />}
+              onClick={() => refetch()}
             >
-              Reset Filter
+              Refresh
             </Button>
-          )
+            {activeFilters > 0 && (
+              <Button
+                type="link"
+                size="small"
+                onClick={() => {
+                  setFilterBelumDikirim(false);
+                  setFilterBelumDiterima(false);
+                  setPagination((prev) => ({ ...prev, page: 1 }));
+                }}
+              >
+                Reset Filter
+              </Button>
+            )}
+          </Space>
         }
       >
         <div

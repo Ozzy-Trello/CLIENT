@@ -26,7 +26,7 @@ import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
 import { debounce } from "lodash";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { formatRequestQuantity } from "@utils/request-format";
-import { Filter, RotateCcw, Warehouse } from "lucide-react";
+import { Filter, RefreshCw, RotateCcw, Warehouse } from "lucide-react";
 import {
   ApiResponse,
   BeliStatus,
@@ -587,6 +587,16 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       ),
     },
     {
+      title: "Request By",
+      dataIndex: "receivedByName",
+      key: "receivedByName",
+      ellipsis: true,
+      width: "auto",
+      render: (value: string | undefined) => (
+        <span>{value || "-"}</span>
+      ),
+    },
+    {
       title: "Beli",
       key: "beli",
       ellipsis: true,
@@ -884,22 +894,37 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
           </Space>
         }
         extra={
-          activeFiltersCount > 0 && (
+          <Space size="small">
             <Button
               type="text"
               size="small"
-              icon={<RotateCcw size={14} />}
-              onClick={resetFilters}
+              icon={<RefreshCw size={14} />}
+              onClick={() => refetch()}
               style={{
-                color: "#666",
                 fontSize: "12px",
                 height: "24px",
                 padding: "0 8px",
               }}
             >
-              Reset
+              Refresh
             </Button>
-          )
+            {activeFiltersCount > 0 && (
+              <Button
+                type="text"
+                size="small"
+                icon={<RotateCcw size={14} />}
+                onClick={resetFilters}
+                style={{
+                  color: "#666",
+                  fontSize: "12px",
+                  height: "24px",
+                  padding: "0 8px",
+                }}
+              >
+                Reset
+              </Button>
+            )}
+          </Space>
         }
       >
         <Space
