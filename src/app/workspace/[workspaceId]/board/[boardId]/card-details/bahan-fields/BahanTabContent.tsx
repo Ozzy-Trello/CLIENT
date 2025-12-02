@@ -441,6 +441,7 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
         adjustment_no?: string;
         adjustment_name?: string;
         unit_price?: number;
+        beli?: string;
       };
 
       const requestData: RequestPayloadWithExtras = {
