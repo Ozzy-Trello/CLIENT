@@ -170,6 +170,7 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
         "Kepala Produksi",
         "Warehouse Produk",
         "Warehouse Bahan",
+        "Kepala Gudang"
       ]));
   const canShowPacking =
     isSuperAdmin ||

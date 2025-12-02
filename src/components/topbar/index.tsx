@@ -116,6 +116,7 @@ const TopBar: React.FC = React.memo(() => {
     "SPV Operator Bordir",
     "Finishing & Packing",
     "Operator Krah Manset",
+    "Kepala Gudang"
   ];
   const produksiRoles = requestRoles;
   const lihatRequestRoles = ["Kepala Produksi"];

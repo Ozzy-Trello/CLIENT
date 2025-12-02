@@ -2,7 +2,11 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Button, Modal, Radio, message, Typography } from "antd";
 import { BahanTabProps } from "./types";
 import CategorySection from "./CategorySection";
-import { createRequestWithPOConnection, RequestQuantity } from "@api/accurate";
+import {
+  createRequestWithPOConnection,
+  getAllAdjustmentItems,
+  RequestQuantity,
+} from "@api/accurate";
 import { Check, Pencil } from "lucide-react";
 import { useCardAttachment } from "@hooks/card_attachment";
 import { EnumAttachmentType } from "@myTypes/card";
@@ -37,6 +41,129 @@ const formatNumericValue = (value?: number | null): string => {
     return "";
   }
   return normalized.toString().replace(/\.0+$/, "");
+};
+
+const toNumberOrNull = (value: unknown): number | null => {
+  if (value === undefined || value === null) return null;
+  if (typeof value === "number") return value;
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    const parsed = Number(trimmed);
+    return Number.isNaN(parsed) ? null : parsed;
+  }
+  return null;
+};
+
+const getCogsGlAccountIdFromItem = (item?: any): number | null => {
+  if (!item) return null;
+  const rawValue =
+    item.cogs_gl_account_id ??
+    item.cogsGlAccountId ??
+    item.inventory_gl_account_id ??
+    item.inventoryGlAccountId ??
+    null;
+  return toNumberOrNull(rawValue);
+};
+
+const resolveGlAccountForItem = async (item?: any) => {
+  if (!item) return null;
+
+  try {
+    const glAccountsResponse = await getAllAdjustmentItems(item.source);
+    const accountList =
+      glAccountsResponse?.data?.d ?? glAccountsResponse?.d ?? [];
+
+    if (!Array.isArray(accountList) || accountList.length === 0) {
+      return null;
+    }
+
+    const targetGlAccountId = getCogsGlAccountIdFromItem(item);
+    if (targetGlAccountId !== null) {
+      const matching = accountList.find(
+        (acc: any) => Number(acc.id) === targetGlAccountId
+      );
+      if (matching) return matching;
+    }
+
+    const itemCategoryName = item?.itemCategory?.name
+      ? item.itemCategory.name.toLowerCase()
+      : "";
+    const itemSource = item?.source;
+    let suitableAccount = null;
+
+    if (itemCategoryName) {
+      suitableAccount = accountList.find((acc: any) => {
+        const accountName = acc.name.toLowerCase();
+        const cleanAccountName = accountName
+          .replace("hpp ", "")
+          .replace("beban ", "");
+
+        const directMatch = accountName.includes(itemCategoryName);
+        const reverseMatch = itemCategoryName.includes(cleanAccountName);
+
+        return directMatch || reverseMatch;
+      });
+
+      if (!suitableAccount && itemSource === "Hikmat") {
+        const hikmatCategoryKeywords = [
+          "krah",
+          "manset",
+          "rib",
+          "bahan",
+          "kain",
+        ];
+
+        const matchingKeyword = hikmatCategoryKeywords.find((keyword) =>
+          itemCategoryName.includes(keyword)
+        );
+
+        if (matchingKeyword) {
+          suitableAccount = accountList.find((acc: any) => {
+            const accountName = acc.name.toLowerCase();
+            return (
+              accountName.includes(matchingKeyword) ||
+              accountName.includes("penyesuaian " + matchingKeyword) ||
+              accountName.includes("beban penyesuaian " + matchingKeyword)
+            );
+          });
+        }
+
+        if (!suitableAccount) {
+          suitableAccount = accountList.find((acc: any) => {
+            const accountName = acc.name.toLowerCase();
+            return (
+              accountName.includes("hikmat") ||
+              accountName.includes("adjustment hikmat") ||
+              accountName.includes("bahan hikmat")
+            );
+          });
+        }
+      }
+
+      if (!suitableAccount && itemSource) {
+        suitableAccount = accountList.find(
+          (acc: any) => acc.source === itemSource
+        );
+      }
+
+      if (!suitableAccount && accountList.length > 0) {
+        suitableAccount = accountList[0];
+      }
+
+      if (suitableAccount) {
+        return suitableAccount;
+      }
+    }
+
+    return accountList[0] ?? null;
+  } catch (error) {
+    console.error(
+      "🔍 [BahanTabContent] Failed to resolve GL account for item:",
+      error
+    );
+    return null;
+  }
 };
 
 const BahanTabContent: React.FC<BahanTabProps> = ({
@@ -289,6 +416,12 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
         getRequestedItemIdFromProduct(payloadProduct) ??
         getRequestedItemIdFromProduct(product);
       const unitPrice = getUnitPriceFromProduct(payloadProduct);
+      const resolvedGlAccount = await resolveGlAccountForItem(payloadProduct);
+      const requestSource =
+        payloadProduct?.source ||
+        product?.warehouseProduct?.source ||
+        (product as any)?.source ||
+        "Hikmat";
 
       const safeRequestAmount =
         bahanTab.terloading === 0 ? "0" : bahanTab.terloading;
@@ -322,10 +455,12 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
         request_left: leftNumber,
         is_verified: true, // Default to verified
         po_product_ids: [product.poProductId],
-        source: "Hikmat",
+        source: requestSource,
         satuan: payloadProduct.satuan || product.satuan,
-        adjustment_no: product.adjustment_no,
-        adjustment_name: product.adjustment_name,
+        adjustment_no:
+          resolvedGlAccount?.no || product.adjustment_no || undefined,
+        adjustment_name:
+          resolvedGlAccount?.name || product.adjustment_name || undefined,
         unit_price: unitPrice,
       };
 
