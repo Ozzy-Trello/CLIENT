@@ -59,12 +59,19 @@ const buildCardUrl = (record: RequestItem) => {
   const cardId = record.cardId ?? record.card_id;
   const boardId = record.boardId ?? record.board_id;
   const workspaceId = record.workspaceId ?? record.workspace_id;
+  const listId = record.listId ?? record.list_id;
 
   if (!cardId || !boardId || !workspaceId) {
     return undefined;
   }
 
-  return `/workspace/${workspaceId}/board/${boardId}?cardId=${cardId}`;
+  const params = new URLSearchParams();
+  params.set("cardId", cardId);
+  if (listId) {
+    params.set("listId", listId);
+  }
+
+  return `/workspace/${workspaceId}/board/${boardId}?${params.toString()}`;
 };
 
 const formatReceivedAmount = (value?: number | string | null): string => {

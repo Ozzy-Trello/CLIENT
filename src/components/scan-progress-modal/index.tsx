@@ -86,8 +86,7 @@ const ScanProgressModal: React.FC<ScanProgressModalProps> = ({
     });
     return newProgress;
   }, [
-    // Stabilize dependencies by using data content instead of query array reference
-    scanProgressQueries.map((q) => q.data?.data).join(","),
+    scanProgressQueries.map((q) => q.dataUpdatedAt ?? 0).join(","),
     pos.map((po) => po.id).join(","),
   ]);
 

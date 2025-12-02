@@ -70,9 +70,13 @@ const resolveGlAccountForItem = async (item?: any) => {
   if (!item) return null;
 
   try {
-    const glAccountsResponse = await getAllAdjustmentItems(item.source);
+    const glAccountsResponse = await getAllAdjustmentItems("Hikmat");
     const accountList =
       glAccountsResponse?.data?.d ?? glAccountsResponse?.d ?? [];
+
+      console.log(accountList,'<< ini isi accountlist')
+      console.log(item,'<< ini isi item')
+
 
     if (!Array.isArray(accountList) || accountList.length === 0) {
       return null;

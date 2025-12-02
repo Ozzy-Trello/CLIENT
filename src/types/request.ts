@@ -16,6 +16,8 @@ export interface RequestItem {
   card_id?: string;
   card_location?: string | null;
   cardLocation?: string | null;
+  listId?: string | null;
+  list_id?: string | null;
   po_product_id?: string | null;
   po_product_category_id?: string | null;
   boardId?: string;
