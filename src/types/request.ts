@@ -14,10 +14,16 @@ export interface RequestItem {
   cardName: string;
   cardId?: string;
   card_id?: string;
+  card_location?: string | null;
+  cardLocation?: string | null;
+  po_product_id?: string | null;
+  po_product_category_id?: string | null;
   boardId?: string;
   board_id?: string;
   workspaceId?: string;
   workspace_id?: string;
+  cabang?: string | null;
+  location?: string | null;
   requestType: string;
   itemName: string;
   requestAmount: number;

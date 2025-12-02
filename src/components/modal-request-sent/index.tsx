@@ -119,6 +119,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
   const [deletingRequestId, setDeletingRequestId] = useState<string | null>(
     null
   );
+  const [reopenedIds, setReopenedIds] = useState<Set<string>>(new Set());
 
   const queryClient = useQueryClient();
 
@@ -291,6 +292,31 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     },
   });
 
+  const reopenRequestMutation = useMutation({
+    mutationFn: (id: string) => updateRequest(id, { is_done: false }),
+    onMutate: (id) => {
+      setReopenedIds((prev) => {
+        const next = new Set(prev);
+        next.add(id);
+        return next;
+      });
+      return id;
+    },
+    onSuccess: (_, id) => {
+      message.success("Request dibuka untuk diedit");
+      queryClient.invalidateQueries({ queryKey: ["requests"] });
+    },
+    onError: (error, id) => {
+      setReopenedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+      console.error("Failed to reopen request", error);
+      message.error("Gagal membuka request");
+    },
+  });
+
   const [markingDone, setMarkingDone] = useState<string | null>(null);
 
   const requestReceivedDebounceMap = useRef<
@@ -395,6 +421,79 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     return Number(leftFromRecord);
   };
 
+  const parseNumericValue = (
+    value: number | string | null | undefined
+  ): number | undefined => {
+    if (value === null || value === undefined) return undefined;
+    const numeric = Number(value);
+    return Number.isNaN(numeric) ? undefined : numeric;
+  };
+
+  const getResolvedRequestSent = (record: RequestItem): number | undefined => {
+    const fromState = parseNumericValue(requestSentValues[record.id]);
+    if (fromState !== undefined) return fromState;
+    return parseNumericValue(record.requestSent);
+  };
+
+  const getResolvedRequestReceived = (
+    record: RequestItem
+  ): number | undefined => {
+    const fromState = parseNumericValue(requestReceivedValues[record.id]);
+    if (fromState !== undefined) return fromState;
+    return parseNumericValue(record.requestReceived);
+  };
+
+  const getResolvedRequestLeft = (record: RequestItem): number | undefined => {
+    const fromState = parseNumericValue(requestLeftValues[record.id]);
+    if (fromState !== undefined) return fromState;
+    return parseNumericValue(record.requestLeft ?? record.request_left);
+  };
+
+  const getCabangValue = (record: RequestItem): string => {
+    const rawCabang =
+      record.cabang ??
+      record.card_location ??
+      record.cardLocation ??
+      record.location;
+    if (!rawCabang) return "";
+    const normalized = String(rawCabang).trim();
+    return normalized;
+  };
+
+  const getMissingDoneFields = (record: RequestItem): string[] => {
+    const missing: string[] = [];
+    if (getResolvedRequestSent(record) === undefined) {
+      missing.push("Jumlah Dikirim");
+    }
+    if (getResolvedRequestReceived(record) === undefined) {
+      missing.push("Terpakai");
+    }
+    if (getResolvedRequestLeft(record) === undefined) {
+      missing.push("Sisa Bahan");
+    }
+    if (!record.warehouseReturned) {
+      missing.push("Kembali ke Gudang");
+    }
+    if (!getCabangValue(record)) {
+      missing.push("Cabang");
+    }
+    return missing;
+  };
+
+  const isRowUnlocked = (record: RequestItem): boolean =>
+    reopenedIds.has(record.id) || !(record.is_done || record.isDone);
+
+  const isReadyForDone = (record: RequestItem): boolean =>
+    getMissingDoneFields(record).length === 0;
+
+  const isDoneButtonDisabled = (record: RequestItem): boolean => {
+    const doneLocked = (record.is_done || record.isDone) && !isRowUnlocked(record);
+    if (doneLocked || record.is_rejected || record.isRejected) {
+      return true;
+    }
+    return !isReadyForDone(record);
+  };
+
   const handleRequestLeftChange = (
     id: string,
     rawValue: string,
@@ -470,11 +569,25 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     });
   };
 
-  const handleMarkDone = async (id: string) => {
-    setMarkingDone(id);
+  const handleMarkDone = async (record: RequestItem) => {
+    if (!isReadyForDone(record)) {
+      const missingFields = getMissingDoneFields(record);
+      message.warning(
+        `Lengkapi ${missingFields.join(", ")} sebelum menandai Done.`
+      );
+      return;
+    }
+
+    setMarkingDone(record.id);
     try {
-      await markRequestDone(id);
+      await markRequestDone(record.id);
       message.success("Request marked as done!");
+      setReopenedIds((prev) => {
+        if (!prev.has(record.id)) return prev;
+        const next = new Set(prev);
+        next.delete(record.id);
+        return next;
+      });
       refetch(); // Refresh the data
     } catch (err) {
       const reason = extractApiErrorReason(err);
@@ -494,7 +607,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       dataIndex: "cardName",
       key: "card_name",
       ellipsis: true,
-      width: 500,
+      width: 250,
       render: (_: unknown, record: RequestItem) => {
         const href = buildCardUrl(record);
         return href ? (
@@ -517,6 +630,20 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       key: "request_type",
       ellipsis: true,
       width: "auto",
+    },
+    {
+      title: "Cabang",
+      key: "cabang",
+      ellipsis: true,
+      width: 140,
+      render: (_: unknown, record: RequestItem) => {
+        const cabangValue = getCabangValue(record);
+        return cabangValue ? (
+          <Tag color="blue">{cabangValue}</Tag>
+        ) : (
+          <Tag color="default">Belum diisi</Tag>
+        );
+      },
     },
     {
       title: "Tanggal",
@@ -587,14 +714,12 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
             disabled={
               record.productionReceived ||
               editingSentRequestId !== record.id ||
-              record.is_done ||
-              record.isDone
+              !isRowUnlocked(record)
             }
             className={`flex-1 ${
               record.productionReceived ||
               editingSentRequestId !== record.id ||
-              record.is_done ||
-              record.isDone
+              !isRowUnlocked(record)
                 ? "bg-gray-100 text-gray-500"
                 : ""
             }`}
@@ -707,7 +832,12 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       render: (_: unknown, record: RequestItem) => {
         const productionReceived =
           record.productionReceived ?? record.productionRecieved ?? false;
-        return <Checkbox checked={productionReceived} disabled />;
+        return (
+          <Checkbox
+            checked={productionReceived}
+            disabled={!isRowUnlocked(record)}
+          />
+        );
       },
     },
     {
@@ -728,7 +858,8 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
         const isEditingRow = editingTerpakaiId === record.id;
         const isDone = record.is_done || record.isDone;
         const hasInvoice = Boolean(record.invoice_no);
-        const allowEdit = isEditingRow || (isDone && hasInvoice);
+        // Terpakai remains locked even when reopening; edits are restricted
+        const allowEdit = false;
         return (
           <Input
             type="number"
@@ -764,7 +895,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
             type="number"
             step="0.01"
             value={leftValue ?? ""}
-            disabled={record.isDone || Boolean(record.warehouseReturned)}
+            disabled={!isRowUnlocked(record)}
             onChange={(e) =>
               handleRequestLeftChange(record.id, e.target.value, sentValue)
             }
@@ -784,7 +915,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
         <Checkbox
           checked={value}
           onChange={(e) => handleWarehouseReturn(record.id, e.target.checked)}
-          disabled={record.isDone}
+          disabled={!isRowUnlocked(record)}
           style={{ margin: 0 }}
         />
       ),
@@ -837,23 +968,21 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       key: "done_action",
       width: 100,
       align: "center" as const,
-      render: (_: unknown, record: RequestItem) => (
-        <Button
-          type="primary"
-          size="small"
-          onClick={() => handleMarkDone(record.id)}
-          disabled={
-            record.is_done ||
-            record.isDone ||
-            record.is_rejected ||
-            record.isRejected
-          }
-          loading={markingDone === record.id}
-          style={{ minWidth: "70px" }}
-        >
-          {record.is_done || record.isDone ? "Done" : "Send"}
-        </Button>
-      ),
+      render: (_: unknown, record: RequestItem) => {
+        const disabled = isDoneButtonDisabled(record);
+        return (
+          <Button
+            type="primary"
+            size="small"
+            onClick={() => handleMarkDone(record)}
+            disabled={disabled}
+            loading={markingDone === record.id}
+            style={{ minWidth: "70px" }}
+          >
+            {record.is_done || record.isDone ? "Done" : "Send"}
+          </Button>
+        );
+      },
     },
     {
       title: "Actions",
@@ -867,13 +996,19 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
         return (
           <Space size={4}>
             {!record.productionReceived && (
-              <Tooltip title={isEditing ? "Editing" : "Edit Terpakai"}>
+              <Tooltip title={isEditing ? "Editing" : "Edit"}>
                 <Button
                   type="text"
                   size="small"
                   icon={<EditOutlined />}
-                  disabled={!record.invoiceNo}
-                  onClick={() => toggleTerpakaiEdit(record.id)}
+                  disabled={!record.invoiceNo && !isRowUnlocked(record)}
+                  onClick={() => {
+                    if (!isRowUnlocked(record)) {
+                      reopenRequestMutation.mutate(record.id);
+                      return;
+                    }
+                    toggleTerpakaiEdit(record.id);
+                  }}
                 />
               </Tooltip>
             )}

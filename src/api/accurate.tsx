@@ -52,6 +52,7 @@ type RequestUpdatePayload = {
   requestReceived?: number;
   requestLeft?: number;
   beli?: BeliStatus;
+  is_done?: boolean;
 };
 
 export function updateRequest(

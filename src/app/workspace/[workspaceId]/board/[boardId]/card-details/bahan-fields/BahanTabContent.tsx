@@ -454,6 +454,7 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
         request_received: usedNumber,
         request_left: leftNumber,
         is_verified: true, // Default to verified
+        beli: "Tidak",
         po_product_ids: [product.poProductId],
         source: requestSource,
         satuan: payloadProduct.satuan || product.satuan,

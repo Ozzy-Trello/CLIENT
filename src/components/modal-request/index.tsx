@@ -483,7 +483,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "1fr 1fr",
+            gridTemplateColumns: "3fr 1fr",
             gap: 16,
             padding: 8,
           }}

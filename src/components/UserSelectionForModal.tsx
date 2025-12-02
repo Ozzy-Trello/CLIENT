@@ -7,7 +7,8 @@ const UserSelectionForModal: FC<{
   value?: string;
   onChange?: (value: string) => void;
   placeholder?: string;
-}> = ({ value, onChange, placeholder = "Select a User" }) => {
+  disabled?: boolean;
+}> = ({ value, onChange, placeholder = "Select a User", disabled = false }) => {
   const { workspaceId } = useParams();
 
   const { data: accountListData, isLoading: accountListLoading } =
@@ -45,6 +46,7 @@ const UserSelectionForModal: FC<{
       options={options}
       style={{ width: "100%" }}
       showSearch
+      disabled={disabled}
       filterOption={(input, option) =>
         (option?.label as any)?.props?.children?.[1]?.props?.children
           ?.toLowerCase()

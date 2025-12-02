@@ -21,6 +21,7 @@ import {
   Tooltip,
   Typography,
 } from "antd";
+import { EditOutlined } from "@ant-design/icons";
 import { debounce } from "lodash";
 import { Factory, Filter, RefreshCw, Truck } from "lucide-react";
 import { useParams } from "next/navigation";
@@ -62,6 +63,7 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
   >({});
   const [filterBelumDikirim, setFilterBelumDikirim] = useState(false);
   const [filterBelumDiterima, setFilterBelumDiterima] = useState(false);
+  const [unlockingId, setUnlockingId] = useState<string | null>(null);
 
   const debouncedRefetch = useRef(
     debounce(() => {
@@ -146,6 +148,25 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
   });
 
   const { mutate: updateRequestFields } = useUpdateRequestFields();
+  const undoDoneMutation = useMutation({
+    mutationFn: (id: string) => updateRequest(id, { is_done: false }),
+    onMutate: (id) => setUnlockingId(id),
+    onSuccess: () => {
+      message.success("Request dibuka untuk diedit");
+      queryClient.invalidateQueries({ queryKey: ["requests", workspaceId] });
+      debouncedRefetch();
+    },
+    onError: () => {
+      message.error("Gagal membuka request");
+    },
+    onSettled: () => setUnlockingId(null),
+  });
+
+  const handleUnlockRequest = (record: RequestItem) => {
+    if (record.is_done || record.isDone) {
+      undoDoneMutation.mutate(record.id);
+    }
+  };
 
   const handleSendRequest = (id: string) => {
     const requestSent = requestSentValues[id];
@@ -249,13 +270,6 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
       ),
     },
     {
-      title: "Adjustment",
-      dataIndex: "adjustmentName",
-      key: "adjustment_no",
-      width: 150,
-      render: (text: string) => <Text type="secondary">{text || "-"}</Text>,
-    },
-    {
       title: "Deskripsi",
       dataIndex: "description",
       key: "description",
@@ -293,12 +307,14 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
       render: (_: unknown, record: RequestItem) => {
         const productionReceived =
           record.productionReceived ?? record.productionRecieved ?? false;
+        const isDone = record.is_done || record.isDone;
         return (
           <Checkbox
             checked={productionReceived}
             onChange={(e) =>
               handleProductionReceived(record.id, e.target.checked)
             }
+            disabled={isDone}
           />
         );
       },
@@ -318,8 +334,35 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
               updates: { received_by: selectedUserId },
             });
           }}
+          disabled={record.is_done || record.isDone}
         />
       ),
+    },
+    {
+      title: "Actions",
+      key: "actions",
+      width: 80,
+      align: "center" as const,
+      render: (_: unknown, record: RequestItem) => {
+        const isDone = record.is_done || record.isDone;
+        return (
+          <Tooltip
+            title={
+              isDone
+                ? "Edit (buka ulang)"
+                : "Sudah terbuka untuk diedit"
+            }
+          >
+            <Button
+              type="text"
+              icon={<EditOutlined />}
+              disabled={!isDone}
+              loading={unlockingId === record.id}
+              onClick={() => handleUnlockRequest(record)}
+            />
+          </Tooltip>
+        );
+      },
     },
   ];
 

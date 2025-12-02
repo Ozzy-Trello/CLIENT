@@ -85,6 +85,7 @@ const CardDetails: React.FC = (props) => {
     "Dateline",
     "Delivery",
     "List Purchase | Produksi",
+    "TEST BOARD"
   ];
   // Optional: if you know the exact board IDs, add them here for stronger matching
   const ALLOWED_BOARD_IDS = new Set<string>([

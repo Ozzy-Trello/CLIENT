@@ -13,41 +13,42 @@ export default function ScanQRPage() {
   >("idle");
   const [message, setMessage] = useState("");
 
-  useEffect(() => {
-    const handleScan = async () => {
-      const cardId = searchParams.get("cardId");
-      const scannedData = searchParams.get("scannedData");
-      const action = searchParams.get("action") || "mark_complete";
+useEffect(() => {
+  const handleScan = async () => {
+    const cardId = searchParams.get("cardId");
+    const scannedData = searchParams.get("scannedData");
+    const action = searchParams.get("action") || "mark_complete";
 
-      if (!cardId || !scannedData) {
+    if (!cardId || !scannedData) {
+      setStatus("error");
+      setMessage("Invalid QR code data");
+      return;
+    }
+
+    setStatus("loading");
+    setMessage("Processing scan...");
+
+    try {
+      const response = await scanQRCode(cardId, scannedData, action as any);
+
+      if (response.status_code === 200 || response.data?.success) {
+        setStatus("success");
+        setMessage(response.message || "Item scanned successfully!");
+      } else {
         setStatus("error");
-        setMessage("Invalid QR code data");
-        return;
+        setMessage(response.message || "Failed to process scan");
       }
+    } catch (error) {
+      console.error("Scan error:", error);
+      setStatus("error");
+      setMessage("Failed to process scan. Please try again.");
+    }
+  };
 
-      setStatus("loading");
-      setMessage("Processing scan...");
-
-      try {
-        const response = await scanQRCode(cardId, scannedData, action as any);
-
-        if (response.status_code === 200 || response.data?.success) {
-          setStatus("success");
-          setMessage(response.message || "Item scanned successfully!");
-        } else {
-          setStatus("error");
-          setMessage(response.message || "Failed to process scan");
-        }
-      } catch (error) {
-        console.error("Scan error:", error);
-        setStatus("error");
-        setMessage("Failed to process scan. Please try again.");
-      }
-    };
-
-    // Auto-process when page loads
-    handleScan();
-  }, [searchParams]);
+  handleScan();
+  // run only once
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);
 
   const getStatusIcon = () => {
     switch (status) {

@@ -452,6 +452,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
           satuan: resolveProductUnit(productForPayload) || "",
           source: "Hikmat",
           unit_price: getUnitPriceFromProduct(productForPayload),
+          beli: "Tidak",
         };
 
         if (requestedItemId) {
@@ -521,6 +522,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
           satuan: resolveProductUnit(productForPayload) || "",
           source: "Hikmat",
           unit_price: getUnitPriceFromProduct(productForPayload),
+          beli: "Tidak",
         };
 
         if (requestedItemId) {
