@@ -352,6 +352,12 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
         return false;
       });
 
+      const adjustmentNumber =
+        adjustment?.value ??
+        (typeof values.akunPenyesuaian === "string"
+          ? values.akunPenyesuaian.trim() || null
+          : null);
+
       console.log("🔍 [ADJUSTMENT DEBUG] Selected adjustment:", adjustment);
       console.log(
         "🔍 [ADJUSTMENT DEBUG] All available adjustments:",
@@ -417,10 +423,10 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
         request_type: values.actionType,
         requested_item_id: requestedItemId,
         request_amount: sanitizedAmount,
-        adjustment_no: adjustment ? adjustment.value : values.akunPenyesuaian,
+        adjustment_no: adjustmentNumber,
         description: values.description,
         item_name: selectedProduct?.name || item?.label || values.barang,
-        adjustment_name: adjustment ? adjustment.label : values.akunPenyesuaian,
+        adjustment_name: adjustment ? adjustment.label : adjustmentNumber || null,
         satuan: selectedItemUnit || "", // Add the selected unit (satuan) to the payload
         source: selectedItemSource || "", // Add the source field to the payload
         type: null,
@@ -676,7 +682,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
           <Form.Item
             name="akunPenyesuaian"
             label="Akun Penyesuaian"
-            rules={[{ required: true }]}
+            rules={[]}
             style={{ marginBottom: 16, gridColumn: "1 / span 2" }}
           >
             <AutoComplete
