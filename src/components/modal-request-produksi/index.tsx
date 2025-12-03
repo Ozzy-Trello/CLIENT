@@ -198,6 +198,16 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
 
   const columns = [
     {
+      title: "Tanggal",
+      dataIndex: "createdAt",
+      key: "createdAt",
+      width: 140,
+      ellipsis: true,
+      render: (_: any, record: RequestItem) => (
+        <Text>{formatDateValue(record.createdAt)}</Text>
+      ),
+    },
+    {
       title: "Nama PO",
       dataIndex: "cardName",
       key: "card_name",
@@ -235,16 +245,7 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
         );
       },
     },
-    {
-      title: "Tanggal",
-      dataIndex: "createdAt",
-      key: "createdAt",
-      width: 140,
-      ellipsis: true,
-      render: (_: any, record: RequestItem) => (
-        <Text>{formatDateValue(record.createdAt)}</Text>
-      ),
-    },
+
     {
       title: "Item",
       dataIndex: "itemName",

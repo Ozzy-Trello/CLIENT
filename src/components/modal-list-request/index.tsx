@@ -110,20 +110,6 @@ const ModalListRequest: React.FC<ModalListRequestProps> = ({
 
   const columns = [
     {
-      title: "Nama PO",
-      dataIndex: "cardName",
-      key: "card_name",
-      ellipsis: true,
-      width: 500,
-    },
-    {
-      title: "Type",
-      dataIndex: "requestType",
-      key: "request_type",
-      ellipsis: true,
-      width: 100,
-    },
-    {
       title: "Tanggal",
       dataIndex: "createdAt",
       key: "createdAt",
@@ -141,6 +127,21 @@ const ModalListRequest: React.FC<ModalListRequestProps> = ({
         });
       },
     },
+    {
+      title: "Nama PO",
+      dataIndex: "cardName",
+      key: "card_name",
+      ellipsis: true,
+      width: 120,
+    },
+    {
+      title: "Type",
+      dataIndex: "requestType",
+      key: "request_type",
+      ellipsis: true,
+      width: 100,
+    },
+    
     {
       title: "Item",
       dataIndex: "itemName",

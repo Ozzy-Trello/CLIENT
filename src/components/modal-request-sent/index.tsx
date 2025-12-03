@@ -611,11 +611,21 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
 
   const columns = [
     {
+      title: "Tanggal",
+      dataIndex: "createdAt",
+      key: "createdAt",
+      ellipsis: true,
+      width: 180,
+      render: (_: unknown, record: RequestItem) => (
+        <span>{formatDateValue(record.createdAt)}</span>
+      ),
+    },
+    {
       title: "Nama PO",
       dataIndex: "cardName",
       key: "card_name",
       ellipsis: true,
-      width: 250,
+      width: 200,
       render: (_: unknown, record: RequestItem) => {
         const href = buildCardUrl(record);
         return href ? (
@@ -652,16 +662,6 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
           <Tag color="default">Belum diisi</Tag>
         );
       },
-    },
-    {
-      title: "Tanggal",
-      dataIndex: "createdAt",
-      key: "createdAt",
-      ellipsis: true,
-      width: 180,
-      render: (_: unknown, record: RequestItem) => (
-        <span>{formatDateValue(record.createdAt)}</span>
-      ),
     },
     {
       title: "Item",
@@ -716,21 +716,20 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
                 ? requestSentValues[record.id]
                 : record.requestSent !== null &&
                   record.requestSent !== undefined
-                ? Number(record.requestSent)
-                : ""
+                  ? Number(record.requestSent)
+                  : ""
             }
             disabled={
               record.productionReceived ||
               editingSentRequestId !== record.id ||
               !isRowUnlocked(record)
             }
-            className={`flex-1 ${
-              record.productionReceived ||
-              editingSentRequestId !== record.id ||
-              !isRowUnlocked(record)
+            className={`flex-1 ${record.productionReceived ||
+                editingSentRequestId !== record.id ||
+                !isRowUnlocked(record)
                 ? "bg-gray-100 text-gray-500"
                 : ""
-            }`}
+              }`}
             style={{ width: "100%" }}
             onChange={(event) =>
               handleRequestSentChange(record.id, event.target.value)
@@ -741,20 +740,20 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
             record.productionRecieved ??
             false
           ) && (
-            <Tooltip
-              title={
-                editingSentRequestId === record.id ? "Editing" : "Enable edit"
-              }
-            >
-              <Button
-                type="text"
-                size="small"
-                icon={<EditOutlined />}
-                onClick={() => toggleSentEdit(record.id)}
-                className="text-gray-500 hover:text-blue-600"
-              />
-            </Tooltip>
-          )}
+              <Tooltip
+                title={
+                  editingSentRequestId === record.id ? "Editing" : "Enable edit"
+                }
+              >
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<EditOutlined />}
+                  onClick={() => toggleSentEdit(record.id)}
+                  className="text-gray-500 hover:text-blue-600"
+                />
+              </Tooltip>
+            )}
         </div>
       ),
     },
@@ -858,7 +857,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
         const storedReceived = requestReceivedValues[record.id];
         const initialReceived =
           record.requestReceived !== null &&
-          record.requestReceived !== undefined
+            record.requestReceived !== undefined
             ? Number(record.requestReceived)
             : undefined;
         const displayValue =
@@ -877,11 +876,10 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
             onChange={(e) =>
               handleRequestReceivedChange(record.id, e.target.value, sentValue)
             }
-            className={`w-full px-3 py-2 rounded-md text-sm ${
-              !isEditingRow || isDone
+            className={`w-full px-3 py-2 rounded-md text-sm ${!isEditingRow || isDone
                 ? "cursor-not-allowed opacity-80"
                 : "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            }`}
+              }`}
             style={{
               border: `1px solid #d9d9d9`,
               backgroundColor: !isEditingRow || isDone ? "#f5f5f5" : "#ffffff",

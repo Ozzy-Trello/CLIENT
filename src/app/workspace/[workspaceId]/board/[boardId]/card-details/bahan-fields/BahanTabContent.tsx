@@ -749,7 +749,7 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
                 ? "cursor-not-allowed opacity-80"
                 : "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             }`}
-            style={getEditableInputStyle(shouldDisableInputs)}
+            style={getEditableInputStyle(false)}
           />
         </div>
 
