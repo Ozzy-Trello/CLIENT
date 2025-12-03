@@ -744,7 +744,6 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
                 payloadProduct
               );
             }}
-            disabled={shouldDisableInputs}
             className={`w-full px-3 py-2 rounded-md text-sm ${
               shouldDisableInputs
                 ? "cursor-not-allowed opacity-80"
