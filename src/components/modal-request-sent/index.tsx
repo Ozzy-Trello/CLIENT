@@ -152,7 +152,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     }
     if (filterBelumBeli) {
       // "Belum Beli" now targets the enum value "Tidak" instead of a boolean flag
-      baseFilter.beli = "Tidak";
+      baseFilter.beli = "";
       baseFilter.excludeType = "persediaan";
     }
 
