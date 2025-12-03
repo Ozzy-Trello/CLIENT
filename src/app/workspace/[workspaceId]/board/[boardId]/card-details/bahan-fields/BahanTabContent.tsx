@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Button, Modal, Radio, message, Typography } from "antd";
+import { Button, Input, Modal, Radio, message, Typography } from "antd";
 import { BahanTabProps } from "./types";
 import CategorySection from "./CategorySection";
 import {
   createRequestWithPOConnection,
   getAllAdjustmentItems,
   RequestQuantity,
+  updateRequest,
 } from "@api/accurate";
 import { Check, Pencil } from "lucide-react";
 import { useCardAttachment } from "@hooks/card_attachment";
@@ -14,6 +15,7 @@ import {
   getRequestedItemIdFromProduct,
   getUnitPriceFromProduct,
 } from "./productHelpers";
+import { updatePOProductCategory } from "@api/po-product";
 
 type ZeroLoadingCandidate = {
   id: string;
@@ -240,6 +242,11 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
   const [terpakaiInputValue, setTerpakaiInputValue] = useState<string | null>(
     null
   );
+  const [description, setDescription] = useState<string>(
+    product.description ?? ""
+  );
+  const [isSavingDescription, setIsSavingDescription] = useState(false);
+  const lastSavedDescriptionRef = useRef<string | null>(null);
 
   const { cardAttachments } = useCardAttachment(po.cardId);
   const [zeroLoadingModalOpen, setZeroLoadingModalOpen] = useState(false);
@@ -270,6 +277,26 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
   useEffect(() => {
     setTerpakaiInputValue(null);
   }, [bahanTab.bahanTerpakai]);
+
+  useEffect(() => {
+    setDescription(product.description ?? "");
+  }, [product.description]);
+  useEffect(() => {
+    const trimmed = (description ?? "").trim();
+    const categoryKey =
+      product.poProductCategoryIds?.join(",") ||
+      product.poProductCategoryId ||
+      "";
+    const requestKey = product.requestId ? String(product.requestId) : "";
+    const saveKey = `${trimmed}|${categoryKey}|${requestKey}`;
+
+    if (!trimmed) return;
+    if (!categoryKey && !requestKey) return;
+    if (saveKey === lastSavedDescriptionRef.current) return;
+
+    lastSavedDescriptionRef.current = saveKey;
+    void persistDescription();
+  }, [product.poProductCategoryIds, product.poProductCategoryId, product.requestId, description]);
 
   const shouldDisableInputs = Boolean(product.orderCreated);
   const shouldDisableTerloadingInput = !isTerloadingEditing || isSyncingRequest;
@@ -426,6 +453,7 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
         product?.warehouseProduct?.source ||
         (product as any)?.source ||
         "Hikmat";
+      const trimmedDescription = (description ?? "").trim();
 
       const safeRequestAmount =
         bahanTab.terloading === 0 ? "0" : bahanTab.terloading;
@@ -446,6 +474,7 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
         adjustment_name?: string;
         unit_price?: number;
         beli?: string;
+        description?: string;
       };
 
       const requestData: RequestPayloadWithExtras = {
@@ -468,6 +497,7 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
         adjustment_name:
           resolvedGlAccount?.name || product.adjustment_name || undefined,
         unit_price: unitPrice,
+        description: trimmedDescription || undefined,
       };
 
       if (requestedItemId) {
@@ -524,6 +554,46 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
     }
   };
 
+  const persistDescription = async () => {
+    const trimmed = (description ?? "").trim();
+    const work: Array<Promise<unknown>> = [];
+
+    const targetCategoryIds: string[] =
+      product.poProductCategoryIds && product.poProductCategoryIds.length > 0
+        ? product.poProductCategoryIds.filter(Boolean)
+        : product.poProductCategoryId
+        ? [product.poProductCategoryId]
+        : [];
+
+    targetCategoryIds.forEach((catId) => {
+      work.push(
+        updatePOProductCategory(catId, {
+          description: trimmed || null,
+        })
+      );
+    });
+
+    if (product.requestId) {
+      work.push(
+        updateRequest(String(product.requestId), {
+          description: trimmed || null,
+        })
+      );
+    }
+
+    if (work.length === 0) return;
+
+    setIsSavingDescription(true);
+    try {
+      await Promise.all(work);
+    } catch (err) {
+      console.error("Failed to persist description", err);
+      message.error("Gagal menyimpan deskripsi");
+    } finally {
+      setIsSavingDescription(false);
+    }
+  };
+
   const handleLoadingClick = () => {
     if (disableLoadingButton) {
       return;
@@ -540,6 +610,10 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
     }
 
     setZeroLoadingModalOpen(true);
+  };
+
+  const handleDescriptionBlur = async () => {
+    await persistDescription();
   };
 
   return (
@@ -777,6 +851,29 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
             readOnly
           />
         </div>
+      </div>
+
+      <div className="mb-6">
+        <label
+          className="block text-xs font-medium mb-1"
+          style={{
+            color: `rgb(${colors["text-muted"]})`,
+          }}
+        >
+          Description
+        </label>
+        <Input.TextArea
+          autoSize={{ minRows: 3, maxRows: 5 }}
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          onBlur={handleDescriptionBlur}
+          placeholder="Tambahkan catatan untuk request"
+        />
+        {isSavingDescription && (
+          <Typography.Text type="secondary" className="text-xs">
+            Menyimpan deskripsi...
+          </Typography.Text>
+        )}
       </div>
 
       <Modal

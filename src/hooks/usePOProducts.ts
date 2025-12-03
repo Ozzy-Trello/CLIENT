@@ -174,10 +174,18 @@ export const transformPOProductToProductItem = (
     return Number.isFinite(n) ? n : 0;
   };
 
+  const description =
+    poProduct.categories?.find((cat) => cat.description)?.description ?? null;
+  const categoryIds = poProduct.categories?.map((cat) => cat.id) || [];
+  const primaryCategoryId = categoryIds[0];
+
   return {
     id: poProduct.hikmatProductId, // Use hikmatProductId as the product ID
     name: poProduct.productName,
     poProductId: poProduct.id, // Include PO product ID for API updates
+    poProductCategoryId: primaryCategoryId,
+    poProductCategoryIds: categoryIds,
+    description: description ?? poProduct.description ?? null,
     orderCreated: poProduct.orderCreated || false, // Include order created status
     requestId: poProduct.request_id,
     satuan: poProduct.satuan, // Include unit field
@@ -187,6 +195,7 @@ export const transformPOProductToProductItem = (
       {
         id: poProduct.id, // Use the PO product ID as bahan tab ID
         name: poProduct.productName,
+        description,
         terloading: toNumber(poProduct.terloading), // Ensure numeric type for calculations
         bahanTerpakai: toNumber(poProduct.bahanTerpakai),
         sisaBahan: 0,

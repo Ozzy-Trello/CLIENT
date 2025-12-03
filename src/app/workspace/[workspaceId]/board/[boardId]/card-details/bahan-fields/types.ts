@@ -24,6 +24,9 @@ export interface ProductItem {
   product_code?: string;
   productId?: string;
   poProductId?: string; // ID of the POProduct for API updates
+  poProductCategoryId?: string; // Primary PO product category ID for updates
+  poProductCategoryIds?: string[]; // All category IDs for this PO product
+  description?: string | null;
   requestId?: number;
   orderCreated?: boolean; // Whether an order has been created for this product
   satuan?: string; // Unit field from Hikmat
@@ -52,6 +55,7 @@ export interface SubcategoryValue {
 export interface BahanTab {
   id: string;
   name: string;
+  description?: string | null;
   terloading: number;
   bahanTerpakai: number;
   sisaBahan: number;

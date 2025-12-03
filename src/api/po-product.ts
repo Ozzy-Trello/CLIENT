@@ -14,6 +14,7 @@ export interface POProduct {
   satuan?: string;
   adjustment_no?: string;
   adjustment_name?: string;
+  description?: string | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -24,6 +25,7 @@ export interface POProductCategory {
   categoryId: string;
   subcategoryId: string;
   value: number;
+   description?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -37,6 +39,7 @@ export interface CreatePOProductRequest {
   satuan?: string;
   adjustment_no?: string;
   adjustment_name?: string;
+  description?: string | null;
 }
 
 export interface UpdatePOProductRequest {
@@ -49,16 +52,19 @@ export interface UpdatePOProductRequest {
   satuan?: string;
   adjustment_no?: string;
   adjustment_name?: string;
+  description?: string | null;
 }
 
 export interface CreatePOProductCategoryRequest {
   po_product_id: string;
   junction_id: string;
   value: number;
+  description?: string | null;
 }
 
 export interface UpdatePOProductCategoryRequest {
-  value: number;
+  value?: number;
+  description?: string | null;
 }
 
 export interface POProductWithCategories {
@@ -75,6 +81,7 @@ export interface POProductWithCategories {
   adjustment_name?: string;
   adjustmentNo?: string;
   adjustmentName?: string;
+  description?: string | null;
   categories: POProductCategory[];
   createdAt: Date;
   updatedAt: Date;
