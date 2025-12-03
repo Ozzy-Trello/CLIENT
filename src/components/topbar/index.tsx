@@ -120,7 +120,7 @@ const TopBar: React.FC = React.memo(() => {
   ];
   const produksiRoles = requestRoles;
   const lihatRequestRoles = ["Kepala Produksi"];
-  const gudangRoles = ["Warehouse Bahan", "Kepala Gudang"];
+  const gudangRoles = ["Warehouse Bahan", "Kepala Gudang", "Purchasing"];
 
   const roleInList = (allowed: string[]) =>
     allowed.some(
