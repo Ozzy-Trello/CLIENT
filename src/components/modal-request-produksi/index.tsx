@@ -12,6 +12,7 @@ import {
   Card,
   Checkbox,
   Empty,
+  Input,
   message,
   Modal,
   Space,
@@ -63,12 +64,19 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
   >({});
   const [filterBelumDikirim, setFilterBelumDikirim] = useState(false);
   const [filterBelumDiterima, setFilterBelumDiterima] = useState(false);
+  const [searchInput, setSearchInput] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
   const [unlockingId, setUnlockingId] = useState<string | null>(null);
 
   const debouncedRefetch = useRef(
     debounce(() => {
       refetch();
     }, 300)
+  ).current;
+  const debouncedSearch = useRef(
+    debounce((value: string) => {
+      setSearchTerm(value.trim());
+    }, 400)
   ).current;
 
   // Build filter object based on current filter states
@@ -87,8 +95,20 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
       baseFilter.productionReceived = false;
     }
 
+    if (searchTerm) {
+      baseFilter.search = searchTerm;
+    }
+
     return baseFilter;
-  }, [workspaceId, filterBelumDikirim, filterBelumDiterima]);
+  }, [workspaceId, filterBelumDikirim, filterBelumDiterima, searchTerm]);
+
+  const resetFilters = () => {
+    setFilterBelumDikirim(false);
+    setFilterBelumDiterima(false);
+    setSearchInput("");
+    setSearchTerm("");
+    setPagination((prev) => ({ ...prev, page: 1 }));
+  };
 
   const { data, isLoading, refetch } = useQuery<ApiResponse<RequestItem>>({
     queryKey: [
@@ -109,6 +129,13 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
       refetch();
     }
   }, [open, refetch]);
+
+  useEffect(
+    () => () => {
+      debouncedSearch.cancel();
+    },
+    [debouncedSearch]
+  );
 
   const updateRequestMutation = useMutation({
     mutationFn: ({ id, requestSent }: { id: string; requestSent: number }) =>
@@ -146,6 +173,26 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
       message.error("Gagal memperbarui status produksi diterima");
     },
   });
+
+  const handleSearchChange = (
+    event: React.ChangeEvent<HTMLInputElement>
+  ): void => {
+    const value = event.target.value;
+    setSearchInput(value);
+    if (value.trim() === "") {
+      debouncedSearch.cancel();
+      setSearchTerm("");
+    } else {
+      debouncedSearch(value);
+    }
+    setPagination((prev) => ({ ...prev, page: 1 }));
+  };
+
+  const handleSearchSubmit = () => {
+    debouncedSearch.cancel();
+    setSearchTerm(searchInput.trim());
+    setPagination((prev) => ({ ...prev, page: 1 }));
+  };
 
   const { mutate: updateRequestFields } = useUpdateRequestFields();
   const undoDoneMutation = useMutation({
@@ -226,21 +273,24 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
       key: "request_type",
       width: 120,
       render: (type: string) => {
-        const getTypeColor = (type: string) => {
-          switch (type?.toLowerCase()) {
-            case "new_request":
+        const normalized = (type || "").toUpperCase();
+        const getTypeColor = (t: string) => {
+          switch (t) {
+            case "NEW_ORDER":
               return "blue";
-            case "reject":
+            case "REJECT":
               return "red";
-            case "kekurangan":
+            case "KEKURANGAN":
               return "orange";
+            case "KESALAHAN":
+              return "volcano";
             default:
               return "default";
           }
         };
         return (
-          <Tag color={getTypeColor(type)}>
-            {type?.replace("_", " ").toUpperCase()}
+          <Tag color={getTypeColor(normalized)}>
+            {normalized.replace("_", " ")}
           </Tag>
         );
       },
@@ -368,9 +418,11 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
   ];
 
   const totalRequests = data?.pagination?.total || 0;
-  const activeFilters = [filterBelumDikirim, filterBelumDiterima].filter(
-    Boolean
-  ).length;
+  const activeFilters = [
+    filterBelumDikirim,
+    filterBelumDiterima,
+    Boolean(searchTerm),
+  ].filter(Boolean).length;
 
   return (
     <Modal
@@ -440,11 +492,7 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
               <Button
                 type="link"
                 size="small"
-                onClick={() => {
-                  setFilterBelumDikirim(false);
-                  setFilterBelumDiterima(false);
-                  setPagination((prev) => ({ ...prev, page: 1 }));
-                }}
+                onClick={resetFilters}
               >
                 Reset Filter
               </Button>
@@ -460,6 +508,22 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
             padding: "8px 0",
           }}
         >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              gridColumn: "1 / -1",
+            }}
+          >
+            <Input
+              placeholder="Cari request, item, atau invoice"
+              allowClear
+              value={searchInput}
+              onChange={handleSearchChange}
+              onPressEnter={handleSearchSubmit}
+            />
+          </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <Truck size={16} style={{ color: "#ff7a00" }} />
             <Checkbox
@@ -529,11 +593,7 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
                       <Button
                         type="primary"
                         ghost
-                        onClick={() => {
-                          setFilterBelumDikirim(false);
-                          setFilterBelumDiterima(false);
-                          setPagination((prev) => ({ ...prev, page: 1 }));
-                        }}
+                        onClick={resetFilters}
                       >
                         Reset Filter
                       </Button>

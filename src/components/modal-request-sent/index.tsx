@@ -117,6 +117,10 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
   const [filterBelumDiterima, setFilterBelumDiterima] = useState(false);
   const [filterBelumBeli, setFilterBelumBeli] = useState(false);
   const [filterBelumDiotorisasi, setFilterBelumDiotorisasi] = useState(false);
+  const [filterBelumDipush, setFilterBelumDipush] = useState(false);
+  const [requestTypeFilter, setRequestTypeFilter] = useState<string>("");
+  const [searchInput, setSearchInput] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
   const [editingTerpakaiId, setEditingTerpakaiId] = useState<string | null>(
     null
   );
@@ -129,6 +133,11 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
   const [reopenedIds, setReopenedIds] = useState<Set<string>>(new Set());
 
   const queryClient = useQueryClient();
+  const debouncedSearch = useRef(
+    debounce((value: string) => {
+      setSearchTerm(value.trim());
+    }, 400)
+  ).current;
 
   // Build filter object based on current filter states
   const filterParams = useMemo(() => {
@@ -155,6 +164,15 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       baseFilter.beli = "";
       baseFilter.excludeType = "persediaan";
     }
+    if (filterBelumDipush) {
+      baseFilter.isDone = false;
+    }
+    if (requestTypeFilter) {
+      baseFilter.requestType = requestTypeFilter;
+    }
+    if (searchTerm) {
+      baseFilter.search = searchTerm;
+    }
 
     return baseFilter;
   }, [
@@ -162,6 +180,9 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     filterBelumDiterima,
     filterBelumDiotorisasi,
     filterBelumBeli,
+    filterBelumDipush,
+    requestTypeFilter,
+    searchTerm,
   ]);
 
   const { data, isLoading, refetch } = useQuery<ApiResponse<RequestItem>>({
@@ -183,9 +204,36 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     }
   }, [open, refetch]);
 
+  useEffect(
+    () => () => {
+      debouncedSearch.cancel();
+    },
+    [debouncedSearch]
+  );
+
   const [requestLeftValues, setRequestLeftValues] = useState<
     Record<string, number | undefined>
   >({});
+  const formatRequestTypeLabel = (type: string) =>
+    type
+      .split("_")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(" ");
+
+  const requestTypeOptions = useMemo(() => {
+    const defaults = ["NEW_ORDER", "REJECT", "KEKURANGAN", "KESALAHAN"];
+    const collected = new Set(defaults);
+
+    data?.data.forEach((item) => {
+      const derivedType =
+        (item as any).request_type ?? (item as any).requestType ?? "";
+      if (derivedType) {
+        collected.add(String(derivedType).toUpperCase());
+      }
+    });
+
+    return Array.from(collected).filter(Boolean);
+  }, [data]);
 
   useEffect(() => {
     if (!data) return;
@@ -549,6 +597,26 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       ...prev,
       [id]: normalizedValue,
     }));
+  };
+
+  const handleSearchChange = (
+    event: React.ChangeEvent<HTMLInputElement>
+  ): void => {
+    const value = event.target.value;
+    setSearchInput(value);
+    if (value.trim() === "") {
+      debouncedSearch.cancel();
+      setSearchTerm("");
+    } else {
+      debouncedSearch(value);
+    }
+    setPagination((prev) => ({ ...prev, page: 1 }));
+  };
+
+  const handleSearchSubmit = () => {
+    debouncedSearch.cancel();
+    setSearchTerm(searchInput.trim());
+    setPagination((prev) => ({ ...prev, page: 1 }));
   };
 
   const executeDeleteRequest = (id: string) => {
@@ -1041,6 +1109,9 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     filterBelumDiterima,
     filterBelumDiotorisasi,
     filterBelumBeli,
+    filterBelumDipush,
+    Boolean(requestTypeFilter),
+    Boolean(searchTerm),
   ].filter(Boolean).length;
 
   // Reset all filters function
@@ -1049,6 +1120,10 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     setFilterBelumDiterima(false);
     setFilterBelumDiotorisasi(false);
     setFilterBelumBeli(false);
+    setFilterBelumDipush(false);
+    setRequestTypeFilter("");
+    setSearchInput("");
+    setSearchTerm("");
     setPagination((prev) => ({ ...prev, page: 1 }));
   };
 
@@ -1132,9 +1207,34 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       >
         <Space
           direction="horizontal"
-          size="large"
+          size="middle"
           style={{ width: "100%", flexWrap: "wrap" }}
         >
+          <Input
+            placeholder="Cari request, item, atau invoice"
+            allowClear
+            value={searchInput}
+            onChange={handleSearchChange}
+            onPressEnter={handleSearchSubmit}
+            style={{ minWidth: 240 }}
+          />
+          <Select
+            allowClear
+            placeholder="Pilih type"
+            value={requestTypeFilter || undefined}
+            onChange={(value) => {
+              setRequestTypeFilter(value || "");
+              setPagination((prev) => ({ ...prev, page: 1 }));
+            }}
+            options={[
+              { value: "", label: "Semua Type" },
+              ...requestTypeOptions.map((type) => ({
+                value: type,
+                label: formatRequestTypeLabel(type),
+              })),
+            ]}
+            style={{ minWidth: 180 }}
+          />
           <Checkbox
             checked={filterBelumDikirim}
             onChange={(e) => {
@@ -1190,6 +1290,20 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
             }}
           >
             🧾 Belum Beli
+          </Checkbox>
+          <Checkbox
+            checked={filterBelumDipush}
+            onChange={(e) => {
+              setFilterBelumDipush(e.target.checked);
+              setPagination((prev) => ({ ...prev, page: 1 }));
+            }}
+            style={{
+              fontSize: "14px",
+              fontWeight: filterBelumDipush ? 600 : 400,
+              color: filterBelumDipush ? "#1890ff" : "#666",
+            }}
+          >
+            📤 Belum dipush Accurate
           </Checkbox>
         </Space>
       </Card>
