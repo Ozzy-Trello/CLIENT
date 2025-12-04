@@ -13,6 +13,7 @@ import {
   Checkbox,
   Empty,
   Input,
+  Select,
   message,
   Modal,
   Space,
@@ -64,6 +65,7 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
   >({});
   const [filterBelumDikirim, setFilterBelumDikirim] = useState(false);
   const [filterBelumDiterima, setFilterBelumDiterima] = useState(false);
+  const [labelFilter, setLabelFilter] = useState<string>("");
   const [searchInput, setSearchInput] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [unlockingId, setUnlockingId] = useState<string | null>(null);
@@ -95,16 +97,21 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
       baseFilter.productionReceived = false;
     }
 
+    if (labelFilter) {
+      baseFilter.labelName = labelFilter;
+    }
+
     if (searchTerm) {
       baseFilter.search = searchTerm;
     }
 
     return baseFilter;
-  }, [workspaceId, filterBelumDikirim, filterBelumDiterima, searchTerm]);
+  }, [workspaceId, filterBelumDikirim, filterBelumDiterima, searchTerm, labelFilter]);
 
   const resetFilters = () => {
     setFilterBelumDikirim(false);
     setFilterBelumDiterima(false);
+    setLabelFilter("");
     setSearchInput("");
     setSearchTerm("");
     setPagination((prev) => ({ ...prev, page: 1 }));
@@ -295,6 +302,23 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
         );
       },
     },
+    {
+      title: "Label",
+      key: "card_labels",
+      width: 140,
+      render: (_: unknown, record: RequestItem) => {
+        const labels = record.card_labels || [];
+        const hasOzzy = labels.some((l) => l.toLowerCase() === "ozzy");
+        const hasSteady = labels.some((l) => l.toLowerCase() === "steady");
+        if (!hasOzzy && !hasSteady) return <Tag color="default">-</Tag>;
+        return (
+          <Space size={4}>
+            {hasOzzy && <Tag color="purple">Ozzy</Tag>}
+            {hasSteady && <Tag color="cyan">Steady</Tag>}
+          </Space>
+        );
+      },
+    },
 
     {
       title: "Item",
@@ -421,6 +445,7 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
   const activeFilters = [
     filterBelumDikirim,
     filterBelumDiterima,
+    Boolean(labelFilter),
     Boolean(searchTerm),
   ].filter(Boolean).length;
 
@@ -522,6 +547,24 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
               value={searchInput}
               onChange={handleSearchChange}
               onPressEnter={handleSearchSubmit}
+            />
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <Text strong>Label</Text>
+            <Select
+              allowClear
+              placeholder="Semua Label"
+              value={labelFilter || undefined}
+              onChange={(value) => {
+                setLabelFilter(value || "");
+                setPagination((prev) => ({ ...prev, page: 1 }));
+              }}
+              options={[
+                { value: "", label: "Semua Label" },
+                { value: "Ozzy", label: "Ozzy" },
+                { value: "Steady", label: "Steady" },
+              ]}
+              style={{ minWidth: 160 }}
             />
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>

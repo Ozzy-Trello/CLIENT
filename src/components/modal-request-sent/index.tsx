@@ -100,7 +100,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
   onClose,
 }): JSX.Element => {
   const [requestSentValues, setRequestSentValues] = useState<
-    Record<string, number>
+    Record<string, string>
   >({});
   const [requestReceivedValues, setRequestReceivedValues] = useState<
     Record<string, number>
@@ -118,6 +118,8 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
   const [filterBelumBeli, setFilterBelumBeli] = useState(false);
   const [filterBelumDiotorisasi, setFilterBelumDiotorisasi] = useState(false);
   const [filterBelumDipush, setFilterBelumDipush] = useState(false);
+  const [filterBelumKembali, setFilterBelumKembali] = useState(false);
+  const [labelFilter, setLabelFilter] = useState<string>("");
   const [requestTypeFilter, setRequestTypeFilter] = useState<string>("");
   const [searchInput, setSearchInput] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -131,6 +133,12 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     null
   );
   const [reopenedIds, setReopenedIds] = useState<Set<string>>(new Set());
+  const [sentByOverrides, setSentByOverrides] = useState<Record<string, string>>(
+    {}
+  );
+  const [warehouseReturnOverrides, setWarehouseReturnOverrides] = useState<
+    Record<string, boolean>
+  >({});
 
   const queryClient = useQueryClient();
   const debouncedSearch = useRef(
@@ -166,6 +174,12 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     if (filterBelumDipush) {
       baseFilter.isDone = false;
     }
+    if (filterBelumKembali) {
+      baseFilter.warehouseReturned = false;
+    }
+    if (labelFilter) {
+      baseFilter.labelName = labelFilter;
+    }
     if (requestTypeFilter) {
       baseFilter.requestType = requestTypeFilter;
     }
@@ -180,6 +194,8 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     filterBelumDiotorisasi,
     filterBelumBeli,
     filterBelumDipush,
+    filterBelumKembali,
+    labelFilter,
     requestTypeFilter,
     searchTerm,
   ]);
@@ -211,7 +227,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
   );
 
   const [requestLeftValues, setRequestLeftValues] = useState<
-    Record<string, number | undefined>
+    Record<string, string | number | undefined>
   >({});
   const formatRequestTypeLabel = (type: string) =>
     type
@@ -234,17 +250,28 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     return Array.from(collected).filter(Boolean);
   }, [data]);
 
+  const labelOptions = useMemo(() => {
+    const collected = new Set<string>();
+    data?.data.forEach((item) => {
+      (item.card_labels || []).forEach((label) =>
+        collected.add(label.trim())
+      );
+    });
+    const base = ["Ozzy", "Steady"];
+    return Array.from(new Set([...base, ...Array.from(collected).sort()]));
+  }, [data]);
+
   useEffect(() => {
     if (!data) return;
 
-    const initialSentValues: Record<string, number> = {};
+    const initialSentValues: Record<string, string> = {};
     const initialReceivedValues: Record<string, number> = {};
     const initialLeftValues: Record<string, number | undefined> = {};
     const initialBeliValues: Record<string, BeliSelection> = {};
     data.data.forEach((item) => {
       const numericSent = Number(item.requestSent);
       if (!Number.isNaN(numericSent)) {
-        initialSentValues[item.id] = numericSent;
+        initialSentValues[item.id] = String(numericSent);
       }
 
       const leftFromRecord = item.requestLeft ?? item.request_left ?? undefined;
@@ -378,8 +405,16 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     Record<string, (payload: { amount: number; left: number }) => void>
   >({});
 
+  const parseLocalizedNumberInput = (rawValue: string): number => {
+    const normalized =
+      typeof rawValue === "string" ? rawValue.replace(/,/g, ".") : rawValue;
+    if (normalized === "") return 0;
+    const numericValue = Number(normalized);
+    return Number.isNaN(numericValue) ? 0 : numericValue;
+  };
+
   const attemptSendRequest = (id: string): boolean => {
-    const amount = requestSentValues[id];
+    const amount = parseLocalizedNumberInput(requestSentValues[id] ?? "");
     if (!amount) {
       message.error("Please enter an amount");
       return false;
@@ -405,6 +440,10 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
   };
 
   const handleWarehouseReturn = (id: string, checked: boolean) => {
+    setWarehouseReturnOverrides((prev) => ({
+      ...prev,
+      [id]: checked,
+    }));
     updateWarehouseReturnStatus({ id, returned: checked });
   };
   const handleRequestReceivedUpdate = (
@@ -433,8 +472,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     rawValue: string,
     sentValue: number
   ) => {
-    const numericValue = rawValue === "" ? 0 : Number(rawValue);
-    const normalizedValue = Number.isNaN(numericValue) ? 0 : numericValue;
+    const normalizedValue = parseLocalizedNumberInput(rawValue);
     const leftAmount = Math.max(sentValue - normalizedValue, 0);
 
     setRequestReceivedValues((prev) => ({
@@ -452,35 +490,31 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
 
   const getRequestSentValue = (record: RequestItem): number => {
     const stored = requestSentValues[record.id];
-    if (stored !== undefined && !Number.isNaN(stored)) {
-      return stored;
+    if (stored !== undefined) {
+      return parseLocalizedNumberInput(stored);
     }
     const numericSent = Number(record.requestSent ?? 0);
     return Number.isNaN(numericSent) ? 0 : numericSent;
   };
 
-  const getRequestLeftValue = (record: RequestItem): number | undefined => {
+  const getRequestLeftValue = (
+    record: RequestItem
+  ): string | number | undefined => {
     const stored = requestLeftValues[record.id];
-    if (stored !== undefined && !Number.isNaN(stored)) {
+    if (stored !== undefined) {
       return stored;
     }
-    const leftFromRecord =
-      record.requestLeft ?? record.request_left ?? undefined;
-    if (
-      leftFromRecord === undefined ||
-      leftFromRecord === null ||
-      Number.isNaN(Number(leftFromRecord))
-    ) {
-      return undefined;
-    }
-    return Number(leftFromRecord);
+    const leftFromRecord = record.requestLeft ?? record.request_left ?? undefined;
+    return leftFromRecord as string | number | undefined;
   };
 
   const parseNumericValue = (
     value: number | string | null | undefined
   ): number | undefined => {
     if (value === null || value === undefined) return undefined;
-    const numeric = Number(value);
+    const normalized =
+      typeof value === "string" ? value.replace(/,/g, ".") : value;
+    const numeric = Number(normalized);
     return Number.isNaN(numeric) ? undefined : numeric;
   };
 
@@ -515,6 +549,48 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     return normalized;
   };
 
+  const getWarehouseReturnedValue = (record: RequestItem): boolean =>
+    warehouseReturnOverrides[record.id] ?? Boolean(record.warehouseReturned);
+
+  const getBeliSelection = (record: RequestItem): BeliSelection => {
+    const storedValue = beliValues[record.id];
+    if (storedValue !== undefined) return storedValue;
+    return (record.beli as BeliSelection) ?? "-";
+  };
+
+  const getWorkflowState = (record: RequestItem) => {
+    const cabangFilled = Boolean(getCabangValue(record));
+    const isPersediaanProduct =
+      (record?.type || "").toLowerCase() === "persediaan";
+    const beliSelection = isPersediaanProduct
+      ? DEFAULT_BELI_STATUS
+      : getBeliSelection(record);
+    const beliSelected = Boolean(beliSelection && beliSelection !== "-");
+    const resolvedSent = getResolvedRequestSent(record);
+    const sentAmount = resolvedSent ?? 0;
+    const hasJumlahDikirim = resolvedSent !== undefined;
+    const sentMoreThanZero = sentAmount > 0;
+    const sentByValue =
+      sentByOverrides[record.id] ??
+      record.sentBy ??
+      (record as any)?.sent_by;
+    const hasSentBy = Boolean(sentByValue);
+    const productionReceived =
+      record.productionReceived ?? record.productionRecieved ?? false;
+    const warehouseReturned = getWarehouseReturnedValue(record);
+
+    return {
+      cabangFilled,
+      beliSelection,
+      beliSelected,
+      hasJumlahDikirim,
+      sentMoreThanZero,
+      hasSentBy,
+      productionReceived,
+      warehouseReturned,
+    };
+  };
+
   const getMissingDoneFields = (record: RequestItem): string[] => {
     const missing: string[] = [];
     if (getResolvedRequestSent(record) === undefined) {
@@ -526,7 +602,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     if (getResolvedRequestLeft(record) === undefined) {
       missing.push("Sisa Bahan");
     }
-    if (!record.warehouseReturned) {
+    if (!getWarehouseReturnedValue(record)) {
       missing.push("Kembali ke Gudang");
     }
     if (!getCabangValue(record)) {
@@ -546,6 +622,17 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     if (doneLocked || record.is_rejected || record.isRejected) {
       return true;
     }
+    const workflow = getWorkflowState(record);
+    if (
+      !workflow.cabangFilled ||
+      !workflow.beliSelected ||
+      !workflow.sentMoreThanZero ||
+      !workflow.hasSentBy ||
+      !workflow.productionReceived ||
+      !workflow.warehouseReturned
+    ) {
+      return true;
+    }
     return !isReadyForDone(record);
   };
 
@@ -554,14 +641,13 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     rawValue: string,
     sentValue: number
   ) => {
-    const numericValue = rawValue === "" ? 0 : Number(rawValue);
-    const normalizedValue = Number.isNaN(numericValue) ? 0 : numericValue;
+    const normalizedValue = parseLocalizedNumberInput(rawValue);
     const sanitizedSent = Number.isNaN(sentValue) ? 0 : sentValue;
     const calculatedReceived = Math.max(sanitizedSent - normalizedValue, 0);
 
     setRequestLeftValues((prev) => ({
       ...prev,
-      [id]: normalizedValue,
+      [id]: rawValue,
     }));
 
     setRequestReceivedValues((prev) => ({
@@ -589,14 +675,12 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
   };
 
   const handleRequestSentChange = (id: string, rawValue: string) => {
-    const numericValue = rawValue === "" ? 0 : Number(rawValue);
-    const normalizedValue = Number.isNaN(numericValue) ? 0 : numericValue;
-
     setRequestSentValues((prev) => ({
       ...prev,
-      [id]: normalizedValue,
+      [id]: rawValue,
     }));
   };
+
 
   const handleSearchChange = (
     event: React.ChangeEvent<HTMLInputElement>
@@ -717,6 +801,25 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       width: "auto",
     },
     {
+      title: "Ozzy / Steady",
+      key: "card_labels",
+      ellipsis: true,
+      width: 120,
+      render: (_: unknown, record: RequestItem) => {
+        const labels = record.card_labels || record.cardLabels || [];
+        console.log(labels,'<< in i isi lables')
+        const hasOzzy = labels.some((l) => l.toLowerCase() === "ozzy");
+        const hasSteady = labels.some((l) => l.toLowerCase() === "steady");
+        if (!hasOzzy && !hasSteady) return <Tag color="default">-</Tag>;
+        return (
+          <Space size={4}>
+            {hasOzzy && <Tag color="navy">Ozzy</Tag>}
+            {hasSteady && <Tag color="red">Steady</Tag>}
+          </Space>
+        );
+      },
+    },
+    {
       title: "Cabang",
       key: "cabang",
       ellipsis: true,
@@ -724,7 +827,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       render: (_: unknown, record: RequestItem) => {
         const cabangValue = getCabangValue(record);
         return cabangValue ? (
-          <Tag color="blue">{cabangValue}</Tag>
+          <Tag color="purple">{cabangValue}</Tag>
         ) : (
           <Tag color="default">Belum diisi</Tag>
         );
@@ -768,83 +871,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       },
     },
     {
-      title: "Jumlah Dikirim",
-      dataIndex: "requestSent",
-      key: "requestSent",
-      ellipsis: true,
-      width: "auto",
-      render: (_: unknown, record: RequestItem) => (
-        <div className="flex items-center gap-2">
-          <Input
-            type="number"
-            step="0.01"
-            value={
-              requestSentValues[record.id] !== undefined
-                ? requestSentValues[record.id]
-                : record.requestSent !== null &&
-                  record.requestSent !== undefined
-                  ? Number(record.requestSent)
-                  : ""
-            }
-            disabled={
-              record.productionReceived ||
-              editingSentRequestId !== record.id ||
-              !isRowUnlocked(record)
-            }
-            className={`flex-1 ${record.productionReceived ||
-                editingSentRequestId !== record.id ||
-                !isRowUnlocked(record)
-                ? "bg-gray-100 text-gray-500"
-                : ""
-              }`}
-            style={{ width: "100%" }}
-            onChange={(event) =>
-              handleRequestSentChange(record.id, event.target.value)
-            }
-          />
-          {!(
-            record.productionReceived ??
-            record.productionRecieved ??
-            false
-          ) && (
-              <Tooltip
-                title={
-                  editingSentRequestId === record.id ? "Editing" : "Enable edit"
-                }
-              >
-                <Button
-                  type="text"
-                  size="small"
-                  icon={<EditOutlined />}
-                  onClick={() => toggleSentEdit(record.id)}
-                  className="text-gray-500 hover:text-blue-600"
-                />
-              </Tooltip>
-            )}
-        </div>
-      ),
-    },
-    {
-      title: "Dikirim Oleh",
-      dataIndex: "sentBy",
-      key: "sentBy",
-      ellipsis: true,
-      width: "auto",
-      render: (value: string, record: RequestItem) => (
-        <UserSelectionForModal
-          value={value}
-          placeholder="Pilih pengirim"
-          onChange={(selectedUserId: string) => {
-            updateRequestFields({
-              id: record.id,
-              updates: { sent_by: selectedUserId },
-            });
-          }}
-        />
-      ),
-    },
-    {
-      title: "Request By",
+      title: "Requested By",
       dataIndex: "receivedByName",
       key: "receivedByName",
       ellipsis: true,
@@ -859,17 +886,17 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       ellipsis: true,
       width: "auto",
       render: (_: unknown, record: RequestItem) => {
+        const workflow = getWorkflowState(record);
         const isPersediaanProduct =
           (record?.type || "").toLowerCase() === "persediaan";
-        const persistedValue =
-          beliValues[record.id] !== undefined
-            ? beliValues[record.id]
-            : record.beli ?? "-";
-        const isCompleted = record.is_done || record.isDone;
-        // const disabled = isPersediaanProduct || isCompleted;
+        const disabled = !isRowUnlocked(record) || !workflow.cabangFilled;
         return (
           <Select
-            value={isPersediaanProduct ? DEFAULT_BELI_STATUS : persistedValue}
+            value={
+              isPersediaanProduct
+                ? DEFAULT_BELI_STATUS
+                : (workflow.beliSelection as BeliSelection)
+            }
             options={[
               { value: "-", label: "-" },
               { value: "Ya", label: "Ya" },
@@ -878,8 +905,108 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
             onChange={(value) =>
               handleBeliChange(record.id, value as BeliSelection)
             }
-            // disabled={disabled}
+            disabled={disabled}
             style={{ width: "100%" }}
+          />
+        );
+      },
+    },
+    {
+      title: "Jumlah Dikirim",
+      dataIndex: "requestSent",
+      key: "requestSent",
+      ellipsis: true,
+      width: "auto",
+      render: (_: unknown, record: RequestItem) => (
+        <div className="flex items-center gap-2">
+          {(() => {
+            const workflow = getWorkflowState(record);
+            const baseBlocked =
+              record.productionReceived ||
+              !isRowUnlocked(record) ||
+              !workflow.cabangFilled ||
+              !workflow.beliSelected;
+            const disableInput = baseBlocked || editingSentRequestId !== record.id;
+            return (
+              <>
+                <Input
+                  type="text"
+                  step="0.01"
+                  value={
+                    requestSentValues[record.id] !== undefined
+                      ? requestSentValues[record.id]
+                      : record.requestSent !== null &&
+                          record.requestSent !== undefined
+                        ? Number(record.requestSent)
+                        : ""
+                  }
+                  disabled={disableInput}
+                  className={`flex-1 ${
+                    disableInput
+                      ? "bg-gray-100 text-gray-500"
+                      : ""
+                  }`}
+                  style={{ width: "100%" }}
+                  onChange={(event) =>
+                    handleRequestSentChange(record.id, event.target.value)
+                  }
+                />
+                {!(
+                  record.productionReceived ??
+                  record.productionRecieved ??
+                  false
+                ) && (
+                  <Tooltip
+                    title={
+                      editingSentRequestId === record.id
+                        ? "Editing"
+                        : "Enable edit"
+                    }
+                  >
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={<EditOutlined />}
+                      onClick={() => toggleSentEdit(record.id)}
+                      className="text-gray-500 hover:text-blue-600"
+                      disabled={baseBlocked}
+                    />
+                  </Tooltip>
+                )}
+              </>
+            );
+          })()}
+        </div>
+      ),
+    },
+    {
+      title: "Dikirim Oleh",
+      dataIndex: "sentBy",
+      key: "sentBy",
+      ellipsis: true,
+      width: "auto",
+      render: (value: string, record: RequestItem) => {
+        const workflow = getWorkflowState(record);
+        const disabled =
+          !isRowUnlocked(record) ||
+          !workflow.cabangFilled ||
+          !workflow.beliSelected ||
+          !workflow.hasJumlahDikirim;
+        return (
+          <UserSelectionForModal
+            value={value}
+            placeholder="Pilih pengirim"
+            disabled={disabled}
+            onChange={(selectedUserId: string) => {
+              setSentByOverrides((prev) => ({
+                ...prev,
+                [record.id]: selectedUserId,
+              }));
+              updateRequestFields({
+                id: record.id,
+                updates: { sent_by: selectedUserId },
+              });
+            }}
           />
         );
       },
@@ -904,12 +1031,43 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       ellipsis: true,
       width: "auto",
       render: (_: unknown, record: RequestItem) => {
-        const productionReceived =
-          record.productionReceived ?? record.productionRecieved ?? false;
+        const workflow = getWorkflowState(record);
+        const productionReceived = workflow.productionReceived;
+
         return (
           <Checkbox
             checked={productionReceived}
-            disabled={!isRowUnlocked(record)}
+            disabled
+          />
+        );
+      },
+    },
+    {
+      title: "Sisa Bahan",
+      key: "requestLeft",
+      ellipsis: true,
+      width: "auto",
+      render: (_: unknown, record: RequestItem) => {
+        const workflow = getWorkflowState(record);
+        const sentValue = getRequestSentValue(record);
+        const leftValue = getRequestLeftValue(record);
+        const disabled =
+          !isRowUnlocked(record) ||
+          !workflow.cabangFilled ||
+          !workflow.beliSelected ||
+          !workflow.sentMoreThanZero ||
+          !workflow.hasSentBy ||
+          !workflow.productionReceived;
+        return (
+          <Input
+            type="text"
+            step="0.01"
+            value={leftValue ?? ""}
+            disabled={disabled}
+            onChange={(e) =>
+              handleRequestLeftChange(record.id, e.target.value, sentValue)
+            }
+            style={{ width: "100%" }}
           />
         );
       },
@@ -936,7 +1094,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
         const allowEdit = false;
         return (
           <Input
-            type="number"
+            type="text"
             step="0.01"
             value={displayValue ?? ""}
             disabled={!allowEdit}
@@ -956,42 +1114,32 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       },
     },
     {
-      title: "Sisa Bahan",
-      key: "requestLeft",
-      ellipsis: true,
-      width: "auto",
-      render: (_: unknown, record: RequestItem) => {
-        const sentValue = getRequestSentValue(record);
-        const leftValue = getRequestLeftValue(record);
-        return (
-          <Input
-            type="number"
-            step="0.01"
-            value={leftValue ?? ""}
-            disabled={!isRowUnlocked(record)}
-            onChange={(e) =>
-              handleRequestLeftChange(record.id, e.target.value, sentValue)
-            }
-            style={{ width: "100%" }}
-          />
-        );
-      },
-    },
-    {
       title: "Kembali Ke Gudang",
       dataIndex: "warehouseReturned",
       key: "warehouseReturned",
       ellipsis: true,
       width: 90,
       align: "center" as const,
-      render: (value: boolean, record: RequestItem) => (
-        <Checkbox
-          checked={value}
-          onChange={(e) => handleWarehouseReturn(record.id, e.target.checked)}
-          disabled={!isRowUnlocked(record)}
-          style={{ margin: 0 }}
-        />
-      ),
+      render: (value: boolean, record: RequestItem) => {
+        const workflow = getWorkflowState(record);
+        const leftValue = getRequestLeftValue(record);
+        const hasSisaBahanFilled =
+          leftValue !== undefined && String(leftValue).trim() !== "";
+        const disabled =
+          !isRowUnlocked(record) ||
+          !workflow.productionReceived ||
+          !hasSisaBahanFilled;
+        return (
+          <Checkbox
+            checked={workflow.warehouseReturned}
+            onChange={(e) =>
+              handleWarehouseReturn(record.id, e.target.checked)
+            }
+            disabled={disabled}
+            style={{ margin: 0 }}
+          />
+        );
+      },
     },
     {
       title: "Status",
@@ -1109,6 +1257,8 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     filterBelumDiotorisasi,
     filterBelumBeli,
     filterBelumDipush,
+    filterBelumKembali,
+    Boolean(labelFilter),
     Boolean(requestTypeFilter),
     Boolean(searchTerm),
   ].filter(Boolean).length;
@@ -1120,6 +1270,8 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     setFilterBelumDiotorisasi(false);
     setFilterBelumBeli(false);
     setFilterBelumDipush(false);
+    setFilterBelumKembali(false);
+    setLabelFilter("");
     setRequestTypeFilter("");
     setSearchInput("");
     setSearchTerm("");
@@ -1233,6 +1385,23 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
               })),
             ]}
             style={{ minWidth: 180 }}
+          />
+          <Select
+            allowClear
+            placeholder="Pilih label"
+            value={labelFilter || undefined}
+            onChange={(value) => {
+              setLabelFilter(value || "");
+              setPagination((prev) => ({ ...prev, page: 1 }));
+            }}
+            options={[
+              { value: "", label: "Semua Label" },
+              ...labelOptions.map((label) => ({
+                value: label,
+                label,
+              })),
+            ]}
+            style={{ minWidth: 160 }}
           />
           <Checkbox
             checked={filterBelumDikirim}
