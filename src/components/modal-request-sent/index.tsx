@@ -28,12 +28,15 @@ import { debounce } from "lodash";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { formatRequestQuantity } from "@utils/request-format";
 import { Filter, RefreshCw, RotateCcw, Warehouse } from "lucide-react";
+import { DownloadOutlined } from "@ant-design/icons";
+import dayjs from "dayjs";
 import {
   ApiResponse,
   BeliStatus,
   DEFAULT_BELI_STATUS,
   RequestItem,
 } from "@myTypes/request";
+import { usePermissions } from "@hooks/account";
 import UserSelectionForModal from "@components/UserSelectionForModal";
 
 type BasicStatusFilter = "ALL" | "SUDAH" | "BELUM";
@@ -103,6 +106,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
   open,
   onClose,
 }): JSX.Element => {
+  const { isSuperAdmin } = usePermissions();
   const [requestSentValues, setRequestSentValues] = useState<
     Record<string, string>
   >({});
@@ -127,6 +131,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     useState<BasicStatusFilter>("ALL");
   const [filterAccurate, setFilterAccurate] =
     useState<BasicStatusFilter>("ALL");
+  const [isExporting, setIsExporting] = useState(false);
   const [labelFilter, setLabelFilter] = useState<string>("");
   const [requestTypeFilter, setRequestTypeFilter] = useState<string>("");
   const [searchInput, setSearchInput] = useState("");
@@ -552,6 +557,62 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       id,
       productionReceived: checked,
     });
+  };
+  const handleExport = () => {
+    const currentData = data?.data ?? [];
+    if (currentData.length === 0) {
+      message.warning("Tidak ada data untuk diexport");
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      const header = [
+        "Tanggal",
+        "Nama PO",
+        "Item",
+        "Jumlah",
+        "Satuan",
+        "Deskripsi",
+        "Status",
+      ];
+      const rows = currentData.map((record) => {
+        const createdAt = record.createdAt
+          ? dayjs(record.createdAt).format("YYYY-MM-DD HH:mm")
+          : "-";
+        const amount = formatRequestQuantity(record.requestAmount);
+        const status = record.productionReceived
+          ? "Diterima Produksi"
+          : record.requestSent
+            ? "Dikirim"
+            : "Belum dikirim";
+        return [
+          createdAt,
+          `"${record.cardName || ""}"`,
+          `"${record.itemName || ""}"`,
+          amount,
+          record.satuan || "",
+          `"${record.description || ""}"`,
+          status,
+        ].join(",");
+      });
+      const csvContent = [header.join(","), ...rows].join("\n");
+      const blob = new Blob(["\uFEFF" + csvContent], {
+        type: "text/csv;charset=utf-8;",
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `gudang-requests-${dayjs().format(
+        "YYYYMMDD-HHmmss"
+      )}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } finally {
+      setIsExporting(false);
+    }
   };
   const handleRequestReceivedUpdate = (
     id: string,
@@ -1162,16 +1223,14 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       width: "auto",
       render: (_: unknown, record: RequestItem) => {
         const workflow = getWorkflowState(record);
-        const disabled =
-          !isRowUnlocked(record) || !workflow.hasReceivedBy;
-
+     
         return (
           <Checkbox
             checked={workflow.productionReceived}
             onChange={(e) =>
               handleProductionReceivedChange(record.id, e.target.checked)
             }
-            disabled={disabled}
+            disabled
           />
         );
       },
@@ -1368,17 +1427,19 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
                 />
               </Tooltip>
             )}
-            <Button
-              type="text"
-              size="small"
-              icon={<DeleteOutlined />}
-              danger
-              loading={deletingRequestId === record.id}
-              disabled={
-                deletingRequestId !== null && deletingRequestId !== record.id
-              }
-              onClick={() => confirmDeleteRequest(record)}
-            />
+            {isSuperAdmin() && (
+              <Button
+                type="text"
+                size="small"
+                icon={<DeleteOutlined />}
+                danger
+                loading={deletingRequestId === record.id}
+                disabled={
+                  deletingRequestId !== null && deletingRequestId !== record.id
+                }
+                onClick={() => confirmDeleteRequest(record)}
+              />
+            )}
           </Space>
         );
       },
@@ -1492,12 +1553,22 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
         <div
           style={{
             width: "100%",
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-            gap: 16,
+            display: "flex",
+            flexWrap: "nowrap",
+            gap: 12,
+            overflowX: "auto",
+            paddingBottom: 4,
           }}
         >
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 4,
+              minWidth: 220,
+              flex: "0 0 220px",
+            }}
+          >
             <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
               Cari request, item, atau invoice
             </span>
@@ -1509,7 +1580,15 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
               onPressEnter={handleSearchSubmit}
             />
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 4,
+              minWidth: 160,
+              flex: "0 0 160px",
+            }}
+          >
             <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
               Type
             </span>
@@ -1530,7 +1609,15 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
               ]}
             />
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 4,
+              minWidth: 150,
+              flex: "0 0 150px",
+            }}
+          >
             <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
               Label
             </span>
@@ -1551,7 +1638,15 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
               ]}
             />
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 4,
+              minWidth: 150,
+              flex: "0 0 150px",
+            }}
+          >
             <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
               Dikirim
             </span>
@@ -1564,7 +1659,15 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
               options={dropdownStatusOptions}
             />
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 4,
+              minWidth: 150,
+              flex: "0 0 150px",
+            }}
+          >
             <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
               Diterima
             </span>
@@ -1577,7 +1680,15 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
               options={dropdownStatusOptions}
             />
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 4,
+              minWidth: 150,
+              flex: "0 0 150px",
+            }}
+          >
             <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
               Beli
             </span>
@@ -1590,7 +1701,15 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
               options={beliDropdownOptions}
             />
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 4,
+              minWidth: 150,
+              flex: "0 0 150px",
+            }}
+          >
             <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
               Kembali
             </span>
@@ -1603,7 +1722,15 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
               options={dropdownStatusOptions}
             />
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 4,
+              minWidth: 150,
+              flex: "0 0 150px",
+            }}
+          >
             <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
               Accurate
             </span>
@@ -1616,6 +1743,22 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
               options={dropdownStatusOptions}
             />
           </div>
+        </div>
+        <div
+          style={{
+            marginTop: 12,
+            display: "flex",
+            justifyContent: "flex-start",
+          }}
+        >
+          <Button
+            icon={<DownloadOutlined />}
+            type="primary"
+            loading={isExporting}
+            onClick={handleExport}
+          >
+            Export
+          </Button>
         </div>
       </Card>
       <Card

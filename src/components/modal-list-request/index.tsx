@@ -5,13 +5,13 @@ import {
   useVerifyRequest,
   useRejectRequest,
 } from "@hooks/accurate";
-import { render } from "react-dom";
 import { formatRequestQuantity } from "@utils/request-format";
 import { RefreshCw } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { DeleteOutlined } from "@ant-design/icons";
 import { deleteRequest } from "@api/accurate";
 import { usePermissions } from "@hooks/account";
+import type { RequestItem } from "@myTypes/request";
 
 interface ModalListRequestProps {
   open: boolean;
@@ -108,22 +108,43 @@ const ModalListRequest: React.FC<ModalListRequestProps> = ({
   const dataSource = requestsData?.data || [];
   const total = requestsData?.pagination?.total || 0;
 
+  const buildCardUrl = (record: RequestItem) => {
+    const cardId = record.cardId ?? record.card_id;
+    const boardId = record.boardId ?? record.board_id;
+    const workspaceId = record.workspaceId ?? record.workspace_id;
+    const listId = record.listId ?? record.list_id;
+
+    if (!cardId || !boardId || !workspaceId) {
+      return undefined;
+    }
+
+    const params = new URLSearchParams();
+    params.set("cardId", cardId);
+    if (listId) {
+      params.set("listId", listId);
+    }
+
+    return `/workspace/${workspaceId}/board/${boardId}?${params.toString()}`;
+  };
+
   const columns = [
     {
       title: "Tanggal",
       dataIndex: "createdAt",
       key: "createdAt",
       ellipsis: true,
-      width: 150,
-      render: (_: any, record: any) => {
+      width: 180,
+      render: (_: any, record: RequestItem) => {
         const value = record.createdAt;
         if (!value) return "-";
         const date = new Date(value);
         if (Number.isNaN(date.valueOf())) return "-";
-        return date.toLocaleDateString("id-ID", {
+        return date.toLocaleString("id-ID", {
           day: "2-digit",
           month: "short",
           year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
         });
       },
     },
@@ -132,7 +153,30 @@ const ModalListRequest: React.FC<ModalListRequestProps> = ({
       dataIndex: "cardName",
       key: "card_name",
       ellipsis: true,
-      width: 120,
+      width: 200,
+      render: (_: any, record: RequestItem) => {
+        const href = buildCardUrl(record);
+        const content = record.cardName || "-";
+        if (!href) {
+          return (
+            <Tooltip title={content}>
+              <span>{content}</span>
+            </Tooltip>
+          );
+        }
+        return (
+          <Tooltip title="Lihat PO">
+            <a
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:text-blue-700"
+            >
+              {content}
+            </a>
+          </Tooltip>
+        );
+      },
     },
     {
       title: "Type",
@@ -147,17 +191,29 @@ const ModalListRequest: React.FC<ModalListRequestProps> = ({
       dataIndex: "itemName",
       key: "requested_item_id",
       ellipsis: true,
-      width: 225,
+      width: 220,
     },
     {
       title: "Jumlah",
       key: "request_amount",
       ellipsis: true,
-      width: 100,
-      render: (_: any, record: any) => (
-        <span>
-          {formatRequestQuantity(record.requestAmount)} {record.satuan || ""}
-        </span>
+      width: 140,
+      render: (_: any, record: RequestItem) => (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "60% 40%",
+            gap: 4,
+            alignItems: "center",
+          }}
+        >
+          <span style={{ fontWeight: 600 }}>
+            {formatRequestQuantity(record.requestAmount)}
+          </span>
+          <span style={{ textAlign: "right", color: "#555" }}>
+            {record.satuan || ""}
+          </span>
+        </div>
       ),
     },
     {
@@ -165,7 +221,7 @@ const ModalListRequest: React.FC<ModalListRequestProps> = ({
       dataIndex: "description",
       key: "description",
       ellipsis: true,
-      width: "auto",
+      width: 200,
       render: (_: any, record: any) => (
         <Tooltip title={record.description || "-"}>
           <span>{record.description || "-"}</span>

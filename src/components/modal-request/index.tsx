@@ -502,7 +502,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "3fr 1fr",
+            gridTemplateColumns: "1fr 1fr",
             gap: 16,
             padding: 8,
           }}
@@ -561,7 +561,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
             name="barang"
             label="Barang"
             rules={[{ required: true }]}
-            style={{ marginBottom: 16 }}
+            style={{ marginBottom: 16, gridColumn: "1 / span 2" }}
           >
             <AutoComplete
               options={barangList}
@@ -679,41 +679,64 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
             />
           </Form.Item>
           <Form.Item
-            name="jumlah"
-            label="Jumlah"
-            rules={[
-              {
-                required: true,
-                pattern: /^[\d,]+$/,
-                message: "Masukkan angka yang valid",
-              },
-            ]}
-            style={{ marginBottom: 16 }}
+            label="Jumlah & Unit"
+            style={{ marginBottom: 16, gridColumn: "1 / span 2" }}
+            required
           >
-            <div className="flex w-full">
-              <AutoComplete
-                options={[]}
-                placeholder="Masukkan jumlah"
-                style={{ width: "100%" }}
-                onSelect={(value, option) => {
-                  form.setFieldsValue({ jumlah: value });
-                }}
-                onChange={(value) => {
-                  if (!/^[\d,]*$/.test(value)) {
-                    form.setFieldsValue({
-                      jumlah: value.replace(/[^\d,]/g, ""),
-                    });
-                  } else {
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "minmax(0, 1fr) 120px",
+                gap: 12,
+                width: "100%",
+              }}
+            >
+              <Form.Item
+                name="jumlah"
+                noStyle
+                rules={[
+                  {
+                    required: true,
+                    pattern: /^[\d,]+$/,
+                    message: "Masukkan angka yang valid",
+                  },
+                ]}
+              >
+                <AutoComplete
+                  options={[]}
+                  placeholder="Masukkan jumlah"
+                  style={{ width: "100%", minWidth: 140 }}
+                  onSelect={(value, option) => {
                     form.setFieldsValue({ jumlah: value });
-                  }
-                }}
-              />
-              {availableUnits.length > 0 && (
+                  }}
+                  onChange={(value) => {
+                    if (!/^[\d,]*$/.test(value)) {
+                      form.setFieldsValue({
+                        jumlah: value.replace(/[^\d,]/g, ""),
+                      });
+                    } else {
+                      form.setFieldsValue({ jumlah: value });
+                    }
+                  }}
+                />
+              </Form.Item>
+              <Form.Item
+                name="unit"
+                noStyle
+                rules={[
+                  {
+                    required: true,
+                    message: "Pilih unit",
+                  },
+                ]}
+              >
                 <Select
-                  value={selectedItemUnit}
-                  style={{ width: 80, marginLeft: 8 }}
+                  value={selectedItemUnit || undefined}
+                  placeholder="Unit"
+                  disabled={availableUnits.length === 0}
                   onChange={(value) => setSelectedItemUnit(value)}
                   dropdownMatchSelectWidth={false}
+                  allowClear={false}
                 >
                   {availableUnits.map((unit) => (
                     <Option key={unit.value} value={unit.value}>
@@ -721,14 +744,14 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
                     </Option>
                   ))}
                 </Select>
-              )}
+              </Form.Item>
             </div>
           </Form.Item>
           <Form.Item
             name="akunPenyesuaian"
             label="Akun Penyesuaian"
             rules={[]}
-            style={{ marginBottom: 16, gridColumn: "1 / span 2" }}
+            style={{ marginBottom: 16, gridColumn: "1 / span 3" }}
           >
             <AutoComplete
               options={akunPenyesuaianList}
@@ -757,7 +780,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
             name="requestBy"
             label="Request By"
             rules={[{ required: true, message: "Request By is required" }]}
-            style={{ marginBottom: 16, gridColumn: "1 / span 2" }}
+            style={{ marginBottom: 16, gridColumn: "1 / span 3" }}
           >
             <Select
               placeholder="Select a User"
@@ -779,7 +802,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
             name="description"
             label="Description"
             rules={[{ required: true, message: "Description is required" }]}
-            style={{ marginBottom: 16, gridColumn: "1 / span 2" }}
+            style={{ marginBottom: 16, gridColumn: "1 / span 3" }}
           >
             <Input.TextArea rows={3} placeholder="Tambahkan deskripsi..." />
           </Form.Item>

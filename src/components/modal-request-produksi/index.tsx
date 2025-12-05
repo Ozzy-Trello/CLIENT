@@ -42,6 +42,25 @@ const formatDateValue = (value?: string | number | Date) => {
   });
 };
 
+const buildCardUrl = (record: RequestItem) => {
+  const cardId = record.cardId ?? record.card_id;
+  const boardId = record.boardId ?? record.board_id;
+  const workspaceId = record.workspaceId ?? record.workspace_id;
+  const listId = record.listId ?? record.list_id;
+
+  if (!cardId || !boardId || !workspaceId) {
+    return undefined;
+  }
+
+  const params = new URLSearchParams();
+  params.set("cardId", cardId);
+  if (listId) {
+    params.set("listId", listId);
+  }
+
+  return `/workspace/${workspaceId}/board/${boardId}?${params.toString()}`;
+};
+
 const { Title, Text } = Typography;
 
 interface ModalRequestProduksiProps {
@@ -269,13 +288,29 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
       dataIndex: "cardName",
       key: "card_name",
       width: 180,
-      render: (text: string) => (
-        <Tooltip title={text}>
-          <Text strong style={{ color: "#1890ff" }}>
-            {text}
-          </Text>
-        </Tooltip>
-      ),
+      render: (_: string, record: RequestItem) => {
+        const href = buildCardUrl(record);
+        const content = record.cardName || "-";
+        if (!href) {
+          return (
+            <Tooltip title={content}>
+              <Text strong>{content}</Text>
+            </Tooltip>
+          );
+        }
+        return (
+          <Tooltip title="Lihat PO">
+            <a
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:text-blue-700 font-semibold"
+            >
+              {content}
+            </a>
+          </Tooltip>
+        );
+      },
     },
     {
       title: "Type",
