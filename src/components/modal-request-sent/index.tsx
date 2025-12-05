@@ -4,6 +4,7 @@ import {
   updateRequest,
   updateWarehouseReturn,
   deleteRequest,
+  updateProductionReceived,
 } from "@api/accurate";
 import { useUpdateRequestFields } from "@hooks/accurate";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -34,6 +35,9 @@ import {
   RequestItem,
 } from "@myTypes/request";
 import UserSelectionForModal from "@components/UserSelectionForModal";
+
+type BasicStatusFilter = "ALL" | "SUDAH" | "BELUM";
+type BeliStatusFilter = "ALL" | "BELUM" | "YA" | "TIDAK";
 
 interface ModalRequestSentProps {
   open: boolean;
@@ -113,12 +117,16 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     limit: 10,
     total: 0,
   });
-  const [filterBelumDikirim, setFilterBelumDikirim] = useState(false);
-  const [filterBelumDiterima, setFilterBelumDiterima] = useState(false);
-  const [filterBelumBeli, setFilterBelumBeli] = useState(false);
-  const [filterBelumDiotorisasi, setFilterBelumDiotorisasi] = useState(false);
-  const [filterBelumDipush, setFilterBelumDipush] = useState(false);
-  const [filterBelumKembali, setFilterBelumKembali] = useState(false);
+  const [filterDikirim, setFilterDikirim] =
+    useState<BasicStatusFilter>("ALL");
+  const [filterDiterima, setFilterDiterima] =
+    useState<BasicStatusFilter>("ALL");
+  const [filterBeliStatus, setFilterBeliStatus] =
+    useState<BeliStatusFilter>("ALL");
+  const [filterKembali, setFilterKembali] =
+    useState<BasicStatusFilter>("ALL");
+  const [filterAccurate, setFilterAccurate] =
+    useState<BasicStatusFilter>("ALL");
   const [labelFilter, setLabelFilter] = useState<string>("");
   const [requestTypeFilter, setRequestTypeFilter] = useState<string>("");
   const [searchInput, setSearchInput] = useState("");
@@ -136,6 +144,11 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
   const [sentByOverrides, setSentByOverrides] = useState<Record<string, string>>(
     {}
   );
+  const [receivedByOverrides, setReceivedByOverrides] = useState<
+    Record<string, string>
+  >({});
+  const [productionReceivedOverrides, setProductionReceivedOverrides] =
+    useState<Record<string, boolean>>({});
   const [warehouseReturnOverrides, setWarehouseReturnOverrides] = useState<
     Record<string, boolean>
   >({});
@@ -151,32 +164,58 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
   const filterParams = useMemo(() => {
     const baseFilter: Record<string, any> = {
       isRejected: false,
+      isVerified: true,
     };
 
-    // Handle verification filter
-    if (filterBelumDiotorisasi) {
-      baseFilter.isVerified = false;
-    } else {
-      baseFilter.isVerified = true;
+    switch (filterAccurate) {
+      case "SUDAH":
+        baseFilter.isDone = true;
+        break;
+      case "BELUM":
+        baseFilter.isDone = false;
+        break;
     }
 
-    // Handle production received filter
-    if (filterBelumDikirim) {
-      baseFilter.requestSent = null;
+    switch (filterDikirim) {
+      case "SUDAH":
+        baseFilter.requestSentStatus = "SENT";
+        break;
+      case "BELUM":
+        baseFilter.requestSentStatus = "NOT_SENT";
+        baseFilter.excludeBahanFieldRequests = true;
+        break;
     }
-    if (filterBelumDiterima) {
-      baseFilter.productionReceived = false;
+
+    switch (filterDiterima) {
+      case "SUDAH":
+        baseFilter.productionReceived = true;
+        break;
+      case "BELUM":
+        baseFilter.productionReceived = false;
+        break;
     }
-    if (filterBelumBeli) {
-      // "Belum Beli" targets items with empty/null beli and non-persediaan
-      baseFilter.beliEmpty = true;
+
+    switch (filterBeliStatus) {
+      case "BELUM":
+        baseFilter.beliEmpty = true;
+        break;
+      case "YA":
+        baseFilter.beli = "Ya";
+        break;
+      case "TIDAK":
+        baseFilter.beli = "Tidak";
+        break;
     }
-    if (filterBelumDipush) {
-      baseFilter.isDone = false;
+
+    switch (filterKembali) {
+      case "SUDAH":
+        baseFilter.warehouseReturned = true;
+        break;
+      case "BELUM":
+        baseFilter.warehouseReturned = false;
+        break;
     }
-    if (filterBelumKembali) {
-      baseFilter.warehouseReturned = false;
-    }
+
     if (labelFilter) {
       baseFilter.labelName = labelFilter;
     }
@@ -189,12 +228,11 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
 
     return baseFilter;
   }, [
-    filterBelumDikirim,
-    filterBelumDiterima,
-    filterBelumDiotorisasi,
-    filterBelumBeli,
-    filterBelumDipush,
-    filterBelumKembali,
+    filterAccurate,
+    filterDikirim,
+    filterDiterima,
+    filterBeliStatus,
+    filterKembali,
     labelFilter,
     requestTypeFilter,
     searchTerm,
@@ -261,6 +299,19 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     return Array.from(new Set([...base, ...Array.from(collected).sort()]));
   }, [data]);
 
+  const dropdownStatusOptions: { label: string; value: BasicStatusFilter }[] = [
+    { label: "Semua", value: "ALL" },
+    { label: "Sudah", value: "SUDAH" },
+    { label: "Belum", value: "BELUM" },
+  ];
+
+  const beliDropdownOptions: { label: string; value: BeliStatusFilter }[] = [
+    { label: "Semua", value: "ALL" },
+    { label: "Belum", value: "BELUM" },
+    { label: "Ya", value: "YA" },
+    { label: "Tidak", value: "TIDAK" },
+  ];
+
   useEffect(() => {
     if (!data) return;
 
@@ -268,6 +319,8 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     const initialReceivedValues: Record<string, number> = {};
     const initialLeftValues: Record<string, number | undefined> = {};
     const initialBeliValues: Record<string, BeliSelection> = {};
+    const initialReceivedByValues: Record<string, string> = {};
+    const initialProductionReceived: Record<string, boolean> = {};
     data.data.forEach((item) => {
       const numericSent = Number(item.requestSent);
       if (!Number.isNaN(numericSent)) {
@@ -286,6 +339,15 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
         initialReceivedValues[item.id] = numericReceived;
       }
       initialBeliValues[item.id] = item.beli ?? "-";
+      const resolvedReceivedBy =
+        item.receivedBy ?? (item as any)?.received_by ?? null;
+      if (resolvedReceivedBy) {
+        initialReceivedByValues[item.id] = resolvedReceivedBy;
+      }
+      const resolvedProductionReceived = Boolean(
+        item.productionReceived ?? item.productionRecieved
+      );
+      initialProductionReceived[item.id] = resolvedProductionReceived;
     });
     setRequestSentValues((prev) => ({
       ...prev,
@@ -297,6 +359,14 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       ...initialReceivedValues,
     }));
     setBeliValues(initialBeliValues);
+    setReceivedByOverrides((prev) => ({
+      ...prev,
+      ...initialReceivedByValues,
+    }));
+    setProductionReceivedOverrides((prev) => ({
+      ...prev,
+      ...initialProductionReceived,
+    }));
     setPagination((prev) => ({
       ...prev,
       total: data.pagination?.total || 0,
@@ -359,6 +429,22 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     },
     onError: () => {
       message.error("Failed to update warehouse return status");
+    },
+  });
+
+  const { mutate: updateProductionReceivedStatus } = useMutation({
+    mutationFn: ({
+      id,
+      productionReceived,
+    }: {
+      id: string;
+      productionReceived: boolean;
+    }) => updateProductionReceived(id, productionReceived),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["requests"] });
+    },
+    onError: () => {
+      message.error("Failed to update received status");
     },
   });
 
@@ -445,6 +531,27 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       [id]: checked,
     }));
     updateWarehouseReturnStatus({ id, returned: checked });
+  };
+  const handleReceivedByChange = (id: string, selectedUserId: string) => {
+    setReceivedByOverrides((prev) => ({
+      ...prev,
+      [id]: selectedUserId,
+    }));
+    updateRequestFields({
+      id,
+      updates: { received_by: selectedUserId },
+    });
+  };
+
+  const handleProductionReceivedChange = (id: string, checked: boolean) => {
+    setProductionReceivedOverrides((prev) => ({
+      ...prev,
+      [id]: checked,
+    }));
+    updateProductionReceivedStatus({
+      id,
+      productionReceived: checked,
+    });
   };
   const handleRequestReceivedUpdate = (
     id: string,
@@ -575,8 +682,16 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       record.sentBy ??
       (record as any)?.sent_by;
     const hasSentBy = Boolean(sentByValue);
+    const receivedByValue =
+      receivedByOverrides[record.id] ??
+      record.receivedBy ??
+      (record as any)?.received_by;
+    const hasReceivedBy = Boolean(receivedByValue);
     const productionReceived =
-      record.productionReceived ?? record.productionRecieved ?? false;
+      productionReceivedOverrides[record.id] ??
+      record.productionReceived ??
+      record.productionRecieved ??
+      false;
     const warehouseReturned = getWarehouseReturnedValue(record);
 
     return {
@@ -586,6 +701,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       hasJumlahDikirim,
       sentMoreThanZero,
       hasSentBy,
+      hasReceivedBy,
       productionReceived,
       warehouseReturned,
     };
@@ -871,16 +987,6 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       },
     },
     {
-      title: "Requested By",
-      dataIndex: "receivedByName",
-      key: "receivedByName",
-      ellipsis: true,
-      width: "auto",
-      render: (value: string | undefined) => (
-        <span>{value || "-"}</span>
-      ),
-    },
-    {
       title: "Beli",
       key: "beli",
       ellipsis: true,
@@ -1011,6 +1117,30 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
         );
       },
     },
+    {
+      title: "Diterima Oleh",
+      dataIndex: "receivedBy",
+      key: "receivedBy",
+      ellipsis: true,
+      width: "auto",
+      render: (_: string, record: RequestItem) => {
+        const disabled = !isRowUnlocked(record);
+        const selectedValue =
+          receivedByOverrides[record.id] ??
+          record.receivedBy ??
+          (record as any)?.received_by;
+        return (
+          <UserSelectionForModal
+            value={selectedValue}
+            placeholder="Pilih penerima"
+            disabled={disabled}
+            onChange={(selectedUserId: string) =>
+              handleReceivedByChange(record.id, selectedUserId)
+            }
+          />
+        );
+      },
+    },
     // {
     //   title: "Action",
     //   key: "action",
@@ -1026,18 +1156,22 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     //   ),
     // },
     {
-      title: "Diterima Produksi",
+      title: "Diterima",
       key: "productionReceived",
       ellipsis: true,
       width: "auto",
       render: (_: unknown, record: RequestItem) => {
         const workflow = getWorkflowState(record);
-        const productionReceived = workflow.productionReceived;
+        const disabled =
+          !isRowUnlocked(record) || !workflow.hasReceivedBy;
 
         return (
           <Checkbox
-            checked={productionReceived}
-            disabled
+            checked={workflow.productionReceived}
+            onChange={(e) =>
+              handleProductionReceivedChange(record.id, e.target.checked)
+            }
+            disabled={disabled}
           />
         );
       },
@@ -1057,7 +1191,8 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
           !workflow.beliSelected ||
           !workflow.sentMoreThanZero ||
           !workflow.hasSentBy ||
-          !workflow.productionReceived;
+          !workflow.productionReceived ||
+          workflow.warehouseReturned;
         return (
           <Input
             type="text"
@@ -1252,12 +1387,11 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
 
   // Calculate active filters count
   const activeFiltersCount = [
-    filterBelumDikirim,
-    filterBelumDiterima,
-    filterBelumDiotorisasi,
-    filterBelumBeli,
-    filterBelumDipush,
-    filterBelumKembali,
+    filterDikirim !== "ALL",
+    filterDiterima !== "ALL",
+    filterBeliStatus !== "ALL",
+    filterKembali !== "ALL",
+    filterAccurate !== "ALL",
     Boolean(labelFilter),
     Boolean(requestTypeFilter),
     Boolean(searchTerm),
@@ -1265,12 +1399,11 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
 
   // Reset all filters function
   const resetFilters = () => {
-    setFilterBelumDikirim(false);
-    setFilterBelumDiterima(false);
-    setFilterBelumDiotorisasi(false);
-    setFilterBelumBeli(false);
-    setFilterBelumDipush(false);
-    setFilterBelumKembali(false);
+    setFilterDikirim("ALL");
+    setFilterDiterima("ALL");
+    setFilterBeliStatus("ALL");
+    setFilterKembali("ALL");
+    setFilterAccurate("ALL");
     setLabelFilter("");
     setRequestTypeFilter("");
     setSearchInput("");
@@ -1356,124 +1489,134 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
           </Space>
         }
       >
-        <Space
-          direction="horizontal"
-          size="middle"
-          style={{ width: "100%", flexWrap: "wrap" }}
+        <div
+          style={{
+            width: "100%",
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+            gap: 16,
+          }}
         >
-          <Input
-            placeholder="Cari request, item, atau invoice"
-            allowClear
-            value={searchInput}
-            onChange={handleSearchChange}
-            onPressEnter={handleSearchSubmit}
-            style={{ minWidth: 240 }}
-          />
-          <Select
-            allowClear
-            placeholder="Pilih type"
-            value={requestTypeFilter || undefined}
-            onChange={(value) => {
-              setRequestTypeFilter(value || "");
-              setPagination((prev) => ({ ...prev, page: 1 }));
-            }}
-            options={[
-              { value: "", label: "Semua Type" },
-              ...requestTypeOptions.map((type) => ({
-                value: type,
-                label: formatRequestTypeLabel(type),
-              })),
-            ]}
-            style={{ minWidth: 180 }}
-          />
-          <Select
-            allowClear
-            placeholder="Pilih label"
-            value={labelFilter || undefined}
-            onChange={(value) => {
-              setLabelFilter(value || "");
-              setPagination((prev) => ({ ...prev, page: 1 }));
-            }}
-            options={[
-              { value: "", label: "Semua Label" },
-              ...labelOptions.map((label) => ({
-                value: label,
-                label,
-              })),
-            ]}
-            style={{ minWidth: 160 }}
-          />
-          <Checkbox
-            checked={filterBelumDikirim}
-            onChange={(e) => {
-              setFilterBelumDikirim(e.target.checked);
-              setPagination((prev) => ({ ...prev, page: 1 }));
-            }}
-            style={{
-              fontSize: "14px",
-              fontWeight: filterBelumDikirim ? 600 : 400,
-              color: filterBelumDikirim ? "#1890ff" : "#666",
-            }}
-          >
-            📦 Belum Dikirim
-          </Checkbox>
-          <Checkbox
-            checked={filterBelumDiterima}
-            onChange={(e) => {
-              setFilterBelumDiterima(e.target.checked);
-              setPagination((prev) => ({ ...prev, page: 1 }));
-            }}
-            style={{
-              fontSize: "14px",
-              fontWeight: filterBelumDiterima ? 600 : 400,
-              color: filterBelumDiterima ? "#1890ff" : "#666",
-            }}
-          >
-            🟡 Belum Diterima
-          </Checkbox>
-          <Checkbox
-            checked={filterBelumDiotorisasi}
-            onChange={(e) => {
-              setFilterBelumDiotorisasi(e.target.checked);
-              setPagination((prev) => ({ ...prev, page: 1 }));
-            }}
-            style={{
-              fontSize: "14px",
-              fontWeight: filterBelumDiotorisasi ? 600 : 400,
-              color: filterBelumDiotorisasi ? "#1890ff" : "#666",
-            }}
-          >
-            ✅ Belum Diotorisasi
-          </Checkbox>
-          <Checkbox
-            checked={filterBelumBeli}
-            onChange={(e) => {
-              setFilterBelumBeli(e.target.checked);
-              setPagination((prev) => ({ ...prev, page: 1 }));
-            }}
-            style={{
-              fontSize: "14px",
-              fontWeight: filterBelumBeli ? 600 : 400,
-              color: filterBelumBeli ? "#1890ff" : "#666",
-            }}
-          >
-            🧾 Belum Beli
-          </Checkbox>
-          <Checkbox
-            checked={filterBelumDipush}
-            onChange={(e) => {
-              setFilterBelumDipush(e.target.checked);
-              setPagination((prev) => ({ ...prev, page: 1 }));
-            }}
-            style={{
-              fontSize: "14px",
-              fontWeight: filterBelumDipush ? 600 : 400,
-              color: filterBelumDipush ? "#1890ff" : "#666",
-            }}
-          >
-            📤 Belum dipush Accurate
-          </Checkbox>
-        </Space>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
+              Cari request, item, atau invoice
+            </span>
+            <Input
+              placeholder="Cari request, item, atau invoice"
+              allowClear
+              value={searchInput}
+              onChange={handleSearchChange}
+              onPressEnter={handleSearchSubmit}
+            />
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
+              Type
+            </span>
+            <Select
+              allowClear
+              placeholder="Pilih type"
+              value={requestTypeFilter || undefined}
+              onChange={(value) => {
+                setRequestTypeFilter(value || "");
+                setPagination((prev) => ({ ...prev, page: 1 }));
+              }}
+              options={[
+                { value: "", label: "Semua Type" },
+                ...requestTypeOptions.map((type) => ({
+                  value: type,
+                  label: formatRequestTypeLabel(type),
+                })),
+              ]}
+            />
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
+              Label
+            </span>
+            <Select
+              allowClear
+              placeholder="Pilih label"
+              value={labelFilter || undefined}
+              onChange={(value) => {
+                setLabelFilter(value || "");
+                setPagination((prev) => ({ ...prev, page: 1 }));
+              }}
+              options={[
+                { value: "", label: "Semua Label" },
+                ...labelOptions.map((label) => ({
+                  value: label,
+                  label,
+                })),
+              ]}
+            />
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
+              Dikirim
+            </span>
+            <Select
+              value={filterDikirim}
+              onChange={(value) => {
+                setFilterDikirim(value as BasicStatusFilter);
+                setPagination((prev) => ({ ...prev, page: 1 }));
+              }}
+              options={dropdownStatusOptions}
+            />
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
+              Diterima
+            </span>
+            <Select
+              value={filterDiterima}
+              onChange={(value) => {
+                setFilterDiterima(value as BasicStatusFilter);
+                setPagination((prev) => ({ ...prev, page: 1 }));
+              }}
+              options={dropdownStatusOptions}
+            />
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
+              Beli
+            </span>
+            <Select
+              value={filterBeliStatus}
+              onChange={(value) => {
+                setFilterBeliStatus(value as BeliStatusFilter);
+                setPagination((prev) => ({ ...prev, page: 1 }));
+              }}
+              options={beliDropdownOptions}
+            />
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
+              Kembali
+            </span>
+            <Select
+              value={filterKembali}
+              onChange={(value) => {
+                setFilterKembali(value as BasicStatusFilter);
+                setPagination((prev) => ({ ...prev, page: 1 }));
+              }}
+              options={dropdownStatusOptions}
+            />
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
+              Accurate
+            </span>
+            <Select
+              value={filterAccurate}
+              onChange={(value) => {
+                setFilterAccurate(value as BasicStatusFilter);
+                setPagination((prev) => ({ ...prev, page: 1 }));
+              }}
+              options={dropdownStatusOptions}
+            />
+          </div>
+        </div>
       </Card>
       <Card
         style={{

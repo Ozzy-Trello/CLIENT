@@ -71,6 +71,8 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
   const [selectedItemUnitPrice, setSelectedItemUnitPrice] =
     React.useState<string>("");
   const [selectedRequestBy, setSelectedRequestBy] = React.useState<string>("");
+  const [isSubmittingRequest, setIsSubmittingRequest] =
+    React.useState<boolean>(false);
 
   // Fetch users for Request By dropdown
   const { data: accountListData, isLoading: accountListLoading } =
@@ -106,7 +108,13 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
   const [cardsQuery, productsQuery, glaccountQuery] = queries;
 
   useEffect(() => {
-    if (cardsQuery.data?.data) setCards(cardsQuery.data.data);
+    if (cardsQuery.data?.data) {
+      const datelineCards = cardsQuery.data.data.filter((card: any) => {
+        const boardName = card.boardName ?? card.board_name;
+        return boardName?.toLowerCase() === "dateline".toLowerCase();
+      });
+      setCards(datelineCards);
+    }
 
     const productItems = productsQuery.data || [];
     setItems(productItems);
@@ -330,8 +338,16 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
   }, [glaccounts]);
 
   const handleOk = async () => {
+    if (isSubmittingRequest) return;
+    let values: any;
     try {
-      const values = await form.validateFields();
+      values = await form.validateFields();
+    } catch (validationError) {
+      return;
+    }
+
+    setIsSubmittingRequest(true);
+    try {
       // Find IDs/values from labels for barang, listPO, akunPenyesuaian
       const card = listPO.find((opt: any) => opt.label === values.listPO);
       const item = barangList.find(
@@ -446,6 +462,8 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
       onClose();
     } catch (err) {
       message.error("Failed to submit request");
+    } finally {
+      setIsSubmittingRequest(false);
     }
   };
 
@@ -462,6 +480,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
       setSelectedItemSource("");
       setSelectedRequestBy("");
       setSelectedItemGlAccountId(null);
+      setIsSubmittingRequest(false);
     }
   }, [open]);
 
@@ -584,6 +603,32 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
                         unitSet.add(value);
                       }
                     });
+
+                    const rawUnitData =
+                      (selectedItem as any)?.unit_data ??
+                      (selectedItem as any)?.unitData ??
+                      null;
+                    if (rawUnitData) {
+                      try {
+                        const parsed =
+                          typeof rawUnitData === "string"
+                            ? JSON.parse(rawUnitData)
+                            : rawUnitData;
+                        if (Array.isArray(parsed)) {
+                          parsed.forEach((unitEntry: any) => {
+                            const unitName = unitEntry?.name;
+                            if (unitName) {
+                              unitSet.add(String(unitName));
+                            }
+                          });
+                        }
+                      } catch (err) {
+                        console.warn(
+                          "[ModalRequest] Failed to parse unit_data",
+                          err
+                        );
+                      }
+                    }
 
                     const units = Array.from(unitSet).map((unit) => ({
                       label: unit,
@@ -740,7 +785,13 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
           </Form.Item>
         </div>
         <Form.Item style={{ marginTop: 16 }}>
-          <Button type="primary" htmlType="submit" block disabled={!formValid}>
+          <Button
+            type="primary"
+            htmlType="submit"
+            block
+            disabled={!formValid || isSubmittingRequest}
+            loading={isSubmittingRequest}
+          >
             Submit
           </Button>
         </Form.Item>

@@ -63,6 +63,9 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
   const [requestSentValues, setRequestSentValues] = useState<
     Record<string, number>
   >({});
+  const [receivedByOverrides, setReceivedByOverrides] = useState<
+    Record<string, string>
+  >({});
   const [filterBelumDikirim, setFilterBelumDikirim] = useState(false);
   const [filterBelumDiterima, setFilterBelumDiterima] = useState(false);
   const [labelFilter, setLabelFilter] = useState<string>("");
@@ -375,6 +378,37 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
       },
     },
     {
+      title: "Diterima Oleh",
+      dataIndex: "receivedBy",
+      key: "receivedBy",
+      width: 200,
+      render: (_value: string, record: RequestItem) => {
+        const resolvedValue =
+          receivedByOverrides[record.id] ??
+          record.receivedBy ??
+          (record as any)?.received_by ??
+          undefined;
+
+        return (
+          <UserSelectionForModal
+            value={resolvedValue}
+            placeholder="Pilih penerima"
+            onChange={(selectedUserId: string) => {
+              setReceivedByOverrides((prev) => ({
+                ...prev,
+                [record.id]: selectedUserId,
+              }));
+              updateRequestFields({
+                id: record.id,
+                updates: { received_by: selectedUserId },
+              });
+            }}
+            disabled={record.is_done || record.isDone}
+          />
+        );
+      },
+    },
+    {
       title: "Diterima",
       key: "productionReceived",
       width: 160,
@@ -383,35 +417,23 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
         const productionReceived =
           record.productionReceived ?? record.productionRecieved ?? false;
         const isDone = record.is_done || record.isDone;
+        const resolvedReceiver =
+          receivedByOverrides[record.id] ??
+          record.receivedBy ??
+          (record as any)?.received_by ??
+          null;
+        const disabled = isDone || !resolvedReceiver;
+
         return (
           <Checkbox
             checked={productionReceived}
             onChange={(e) =>
               handleProductionReceived(record.id, e.target.checked)
             }
-            disabled={isDone}
+            disabled={disabled}
           />
         );
       },
-    },
-    {
-      title: "Diterima Oleh",
-      dataIndex: "receivedBy",
-      key: "receivedBy",
-      width: 200,
-      render: (value: string, record: RequestItem) => (
-        <UserSelectionForModal
-          value={value}
-          placeholder="Pilih penerima"
-          onChange={(selectedUserId: string) => {
-            updateRequestFields({
-              id: record.id,
-              updates: { received_by: selectedUserId },
-            });
-          }}
-          disabled={record.is_done || record.isDone}
-        />
-      ),
     },
     {
       title: "Actions",
