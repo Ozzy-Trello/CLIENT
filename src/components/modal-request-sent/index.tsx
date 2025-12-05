@@ -13,6 +13,7 @@ import {
   Button,
   Checkbox,
   Input,
+  DatePicker,
   message,
   Modal,
   Select,
@@ -29,7 +30,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { formatRequestQuantity } from "@utils/request-format";
 import { Filter, RefreshCw, RotateCcw, Warehouse } from "lucide-react";
 import { DownloadOutlined } from "@ant-design/icons";
-import dayjs from "dayjs";
+import dayjs, { Dayjs } from "dayjs";
 import {
   ApiResponse,
   BeliStatus,
@@ -136,6 +137,10 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
   const [requestTypeFilter, setRequestTypeFilter] = useState<string>("");
   const [searchInput, setSearchInput] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null]>([
+    null,
+    null,
+  ]);
   const [editingTerpakaiId, setEditingTerpakaiId] = useState<string | null>(
     null
   );
@@ -186,8 +191,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
         baseFilter.requestSentStatus = "SENT";
         break;
       case "BELUM":
-        baseFilter.requestSentStatus = "NOT_SENT";
-        baseFilter.excludeBahanFieldRequests = true;
+        baseFilter.sentByEmpty = true;
         break;
     }
 
@@ -227,6 +231,12 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     if (requestTypeFilter) {
       baseFilter.requestType = requestTypeFilter;
     }
+    if (dateRange[0] || dateRange[1]) {
+      baseFilter.requestReceived = {
+        from: dateRange[0]?.startOf("day").toISOString(),
+        to: dateRange[1]?.endOf("day").toISOString(),
+      };
+    }
     if (searchTerm) {
       baseFilter.search = searchTerm;
     }
@@ -240,6 +250,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     filterKembali,
     labelFilter,
     requestTypeFilter,
+    dateRange,
     searchTerm,
   ]);
 
@@ -537,17 +548,6 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     }));
     updateWarehouseReturnStatus({ id, returned: checked });
   };
-  const handleReceivedByChange = (id: string, selectedUserId: string) => {
-    setReceivedByOverrides((prev) => ({
-      ...prev,
-      [id]: selectedUserId,
-    }));
-    updateRequestFields({
-      id,
-      updates: { received_by: selectedUserId },
-    });
-  };
-
   const handleProductionReceivedChange = (id: string, checked: boolean) => {
     setProductionReceivedOverrides((prev) => ({
       ...prev,
@@ -776,9 +776,9 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     if (getResolvedRequestReceived(record) === undefined) {
       missing.push("Terpakai");
     }
-    if (getResolvedRequestLeft(record) === undefined) {
-      missing.push("Sisa Bahan");
-    }
+    // if (getResolvedRequestLeft(record) === undefined) {
+    //   missing.push("Sisa Bahan");
+    // }
     if (!getWarehouseReturnedValue(record)) {
       missing.push("Kembali ke Gudang");
     }
@@ -801,11 +801,6 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     }
     const workflow = getWorkflowState(record);
     if (
-      !workflow.cabangFilled ||
-      !workflow.beliSelected ||
-      !workflow.sentMoreThanZero ||
-      !workflow.hasSentBy ||
-      !workflow.productionReceived ||
       !workflow.warehouseReturned
     ) {
       return true;
@@ -1185,7 +1180,6 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       ellipsis: true,
       width: "auto",
       render: (_: string, record: RequestItem) => {
-        const disabled = !isRowUnlocked(record);
         const selectedValue =
           receivedByOverrides[record.id] ??
           record.receivedBy ??
@@ -1194,10 +1188,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
           <UserSelectionForModal
             value={selectedValue}
             placeholder="Pilih penerima"
-            disabled={disabled}
-            onChange={(selectedUserId: string) =>
-              handleReceivedByChange(record.id, selectedUserId)
-            }
+            disabled
           />
         );
       },
@@ -1223,14 +1214,19 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       width: "auto",
       render: (_: unknown, record: RequestItem) => {
         const workflow = getWorkflowState(record);
-     
+        const disabled =
+          !isRowUnlocked(record) ||
+          !workflow.cabangFilled ||
+          !workflow.beliSelected ||
+          !workflow.sentMoreThanZero ||
+          !workflow.hasSentBy;
         return (
           <Checkbox
             checked={workflow.productionReceived}
             onChange={(e) =>
               handleProductionReceivedChange(record.id, e.target.checked)
             }
-            disabled
+            disabled={disabled}
           />
         );
       },
@@ -1321,8 +1317,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
           leftValue !== undefined && String(leftValue).trim() !== "";
         const disabled =
           !isRowUnlocked(record) ||
-          !workflow.productionReceived ||
-          !hasSisaBahanFilled;
+          !workflow.productionReceived
         return (
           <Checkbox
             checked={workflow.warehouseReturned}
@@ -1384,7 +1379,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       width: 100,
       align: "center" as const,
       render: (_: unknown, record: RequestItem) => {
-        const disabled = isDoneButtonDisabled(record);
+        const disabled = !record.warehouseReturned
         return (
           <Button
             type="primary"
@@ -1457,6 +1452,8 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     Boolean(requestTypeFilter),
     Boolean(searchTerm),
   ].filter(Boolean).length;
+  const activeDateFilter = Boolean(dateRange[0] || dateRange[1]);
+  const totalActiveFilters = activeFiltersCount + (activeDateFilter ? 1 : 0);
 
   // Reset all filters function
   const resetFilters = () => {
@@ -1469,6 +1466,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     setRequestTypeFilter("");
     setSearchInput("");
     setSearchTerm("");
+    setDateRange([null, null]);
     setPagination((prev) => ({ ...prev, page: 1 }));
   };
 
@@ -1508,9 +1506,9 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
           <Space align="center">
             <Filter size={16} style={{ color: "#1890ff" }} />
             <span style={{ fontWeight: 600 }}>🔍 Filter Requests</span>
-            {activeFiltersCount > 0 && (
+            {totalActiveFilters > 0 && (
               <Badge
-                count={activeFiltersCount}
+                count={totalActiveFilters}
                 style={{ backgroundColor: "#faad14" }}
               />
             )}
@@ -1531,7 +1529,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
             >
               Refresh
             </Button>
-            {activeFiltersCount > 0 && (
+            {totalActiveFilters > 0 && (
               <Button
                 type="text"
                 size="small"
@@ -1553,11 +1551,9 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
         <div
           style={{
             width: "100%",
-            display: "flex",
-            flexWrap: "nowrap",
-            gap: 12,
-            overflowX: "auto",
-            paddingBottom: 4,
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+            gap: 10,
           }}
         >
           <div
@@ -1565,15 +1561,13 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
               display: "flex",
               flexDirection: "column",
               gap: 4,
-              minWidth: 220,
-              flex: "0 0 220px",
             }}
           >
             <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
-              Cari request, item, atau invoice
+              Search
             </span>
             <Input
-              placeholder="Cari request, item, atau invoice"
+              placeholder="Search"
               allowClear
               value={searchInput}
               onChange={handleSearchChange}
@@ -1585,8 +1579,6 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
               display: "flex",
               flexDirection: "column",
               gap: 4,
-              minWidth: 160,
-              flex: "0 0 160px",
             }}
           >
             <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
@@ -1614,8 +1606,6 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
               display: "flex",
               flexDirection: "column",
               gap: 4,
-              minWidth: 150,
-              flex: "0 0 150px",
             }}
           >
             <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
@@ -1643,8 +1633,6 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
               display: "flex",
               flexDirection: "column",
               gap: 4,
-              minWidth: 150,
-              flex: "0 0 150px",
             }}
           >
             <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
@@ -1664,8 +1652,27 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
               display: "flex",
               flexDirection: "column",
               gap: 4,
-              minWidth: 150,
-              flex: "0 0 150px",
+            }}
+          >
+            <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
+              Tanggal (Dari - Sampai)
+            </span>
+            <DatePicker.RangePicker
+              value={dateRange}
+              onChange={(dates) => {
+                setDateRange([dates?.[0] ?? null, dates?.[1] ?? null]);
+                setPagination((prev) => ({ ...prev, page: 1 }));
+              }}
+              allowEmpty={[true, true]}
+              style={{ width: "100%" }}
+              format="YYYY-MM-DD"
+            />
+          </div>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 4,
             }}
           >
             <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
@@ -1685,8 +1692,6 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
               display: "flex",
               flexDirection: "column",
               gap: 4,
-              minWidth: 150,
-              flex: "0 0 150px",
             }}
           >
             <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
@@ -1706,8 +1711,6 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
               display: "flex",
               flexDirection: "column",
               gap: 4,
-              minWidth: 150,
-              flex: "0 0 150px",
             }}
           >
             <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
@@ -1727,8 +1730,6 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
               display: "flex",
               flexDirection: "column",
               gap: 4,
-              minWidth: 150,
-              flex: "0 0 150px",
             }}
           >
             <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>

@@ -43,7 +43,7 @@ import { selectUser } from "@store/app_slice";
 import { useParams } from "next/navigation";
 import CustomFields from "./custom-field";
 import { ListSelection, SelectionRef } from "@components/selection";
-import { useCards } from "@hooks/card";
+import { useCardMutationsOnly } from "@hooks/card";
 import { useLists } from "@hooks/list";
 import { useCardActivity } from "@hooks/card_activity";
 import LocationDisplay from "./location";
@@ -141,22 +141,28 @@ const CardDetails: React.FC = (props) => {
   const listSelectionRef = useRef<SelectionRef>(null);
   const [isEditingTitle, setIsEditingTitle] = useState<boolean>(false);
   const [newTitle, setNewTitle] = useState<string>("");
-  const { updateCard } = useCards(selectedCard?.listId || "", boardId);
+  // Only need mutations; avoid fetching full list data just to update a card
+  const { updateCard } = useCardMutationsOnly();
   const {
     cardMembers,
     addMember,
     isAddingMember,
     refetch: refetchMember,
     removeMember,
-  } = useCardMembers(selectedCard?.id || "");
+  } = useCardMembers(selectedCard?.id || "", {
+    enabled: isCardDetailOpen && !!selectedCard?.id,
+  });
   const { cardLabels, allLabels } = useLabels(
     workspaceId as string,
     selectedCard?.id,
+    undefined,
     {
-      cardId: selectedCard?.id || "",
+      enabled: isCardDetailOpen && !!selectedCard?.id,
     }
   );
-  const { cardActivities } = useCardActivity(selectedCard?.id || "");
+  const { cardActivities } = useCardActivity(selectedCard?.id || "", {
+    enabled: isCardDetailOpen && !!selectedCard?.id,
+  });
   const [openAddMember, setOpenAddMember] = useState<boolean>(false);
   const [openLabel, setOpenLabel] = useState<boolean>(false);
   const {
@@ -166,7 +172,10 @@ const CardDetails: React.FC = (props) => {
   } = useCardDetails(
     selectedCard?.id || "",
     selectedCard?.listId || "",
-    boardId as string
+    boardId as string,
+    {
+      enabled: isCardDetailOpen && !!selectedCard?.id,
+    }
   );
 
   // Get board permissions

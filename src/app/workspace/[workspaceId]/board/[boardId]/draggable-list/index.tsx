@@ -4,7 +4,7 @@ import { useCardsPaginated } from "@hooks/card";
 import DraggableCard from "../draggable-card";
 import AddCard from "./add-card";
 import { UseMutateFunction } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AnyList } from "@myTypes/list";
 import { usePermissions } from "@hooks/account";
 import { useBoardPermissionsContext } from "@providers/board-permissions-context";
@@ -29,6 +29,44 @@ const DraggableList: React.FC<DraggableListProps> = ({
   updateList,
   deleteList,
 }) => {
+  const [isVisible, setIsVisible] = useState(false);
+  const listRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setIsVisible(true);
+            observer.disconnect();
+          }
+        });
+      },
+      {
+        root: null,
+        rootMargin: "200px",
+        threshold: 0.1,
+      }
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  // Combine drag ref and visibility ref
+  const setRefs = useCallback(
+    (el: HTMLDivElement | null) => {
+      listRef.current = el;
+      if (el) {
+        // provided.innerRef will be attached later inside render
+      }
+    },
+    [listRef]
+  );
+
   const {
     cards,
     addCard,
@@ -40,7 +78,7 @@ const DraggableList: React.FC<DraggableListProps> = ({
     loadMoreError,
     retryLoadMore,
     totalCards,
-  } = useCardsPaginated(list.id, boardId);
+  } = useCardsPaginated(list.id, boardId, { enabled: isVisible });
   const { canMove, canCreate } = usePermissions();
   const { canMoveList, canCreateCard } = useBoardPermissionsContext();
 
@@ -61,7 +99,10 @@ const DraggableList: React.FC<DraggableListProps> = ({
       {(provided, snapshot) => {
         return (
           <div
-            ref={provided.innerRef}
+            ref={(el) => {
+              setRefs(el);
+              provided.innerRef(el);
+            }}
             {...provided.dragHandleProps}
             {...provided.draggableProps}
             style={{

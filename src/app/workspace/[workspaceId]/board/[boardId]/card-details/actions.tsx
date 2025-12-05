@@ -409,6 +409,13 @@ const Actions: React.FC<{
     border: `1px solid rgb(${colors.border})`,
   };
 
+  const deleteButtonStyle = {
+    ...buttonStyle,
+    color: "#dc2626",
+    border: "1px solid #fecdd3",
+    backgroundColor: "#fff1f2",
+  };
+
   const buttonHoverStyle = {
     backgroundColor: `rgb(${colors.surface})`,
   };
@@ -946,6 +953,21 @@ const Actions: React.FC<{
           >
             <Trash2 size={14} />
             <span className="text-xs">Delete</span>
+          </PermissionButton>
+        )}
+
+        {/* Delete Card (Super Admin) */}
+        {superAdmin && !selectedCard?.archive && (
+          <PermissionButton
+            canPerform={true}
+            onClick={handleDeleteCard}
+            tooltip="Delete this card permanently"
+            className="text-red-600"
+            permissionLevel={permissionLevel}
+            buttonStyle={deleteButtonStyle}
+          >
+            <Trash2 size={14} />
+            <span className="text-xs">Delete (Super Admin)</span>
           </PermissionButton>
         )}
 

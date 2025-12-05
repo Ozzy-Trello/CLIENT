@@ -15,9 +15,13 @@ import { useState, useEffect } from "react";
 export function useLabels(
   workspaceId: string,
   cardId?: string,
-  labelQueryParams?: CardLabel
+  labelQueryParams?: CardLabel,
+  options?: {
+    enabled?: boolean;
+  }
 ) {
   const queryClient = useQueryClient();
+  const isGloballyEnabled = options?.enabled ?? true;
 
   // ---------- Queries ----------
 
@@ -25,6 +29,7 @@ export function useLabels(
     queryKey: ["labels", workspaceId, labelQueryParams],
     queryFn: () => getLabels(workspaceId, labelQueryParams || {}),
     enabled:
+      isGloballyEnabled &&
       !!workspaceId &&
       !!labelQueryParams &&
       Object.values(labelQueryParams).some(
@@ -35,7 +40,7 @@ export function useLabels(
   const allLabelsQuery = useQuery({
     queryKey: ["allLabels", workspaceId],
     queryFn: () => getAllLabels(workspaceId),
-    enabled: !!workspaceId,
+    enabled: isGloballyEnabled && !!workspaceId,
   });
 
   const cardLabelsQuery = useQuery({
@@ -44,7 +49,7 @@ export function useLabels(
       if (!cardId) throw new Error("cardId is required to fetch card labels");
       return getCardLabels(workspaceId, cardId);
     },
-    enabled: !!workspaceId && !!cardId,
+    enabled: isGloballyEnabled && !!workspaceId && !!cardId,
   });
 
   // ---------- Mutations ----------

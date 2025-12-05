@@ -8,14 +8,18 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 export function useCardDetails(
   cardId: string,
   listId: string,
-  boardId: string
+  boardId: string,
+  options?: {
+    enabled?: boolean;
+  }
 ) {
   const queryClient = useQueryClient();
+  const isEnabled = !!cardId && (options?.enabled ?? true);
 
   const cardDetailsQuery = useQuery({
     queryKey: queryKeys.cards.detail(cardId),
     queryFn: () => cardDetails(cardId, boardId),
-    enabled: !!cardId,
+    enabled: isEnabled,
     staleTime: 5000,
     // Use any card data we might already have from the cards query as placeholder
     placeholderData: () => {

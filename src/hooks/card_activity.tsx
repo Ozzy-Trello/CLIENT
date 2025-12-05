@@ -3,11 +3,17 @@ import { CardActivity } from "@myTypes/card";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 
-export const useCardActivity = (cardId: string) => {
+export const useCardActivity = (
+  cardId: string,
+  options?: {
+    enabled?: boolean;
+  }
+) => {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [allActivities, setAllActivities] = useState<CardActivity[]>([]);
   const limit = 10;
+  const isEnabled = !!cardId && (options?.enabled ?? true);
 
   // Use React Query for the main activities query
   const {
@@ -17,12 +23,17 @@ export const useCardActivity = (cardId: string) => {
   } = useQuery({
     queryKey: ["cardActivity", cardId, page],
     queryFn: () => cardAcitivities(cardId, page, limit),
-    enabled: !!cardId,
+    enabled: isEnabled,
     staleTime: 5000,
   });
 
   // Update all activities when data changes
   useEffect(() => {
+    if (!isEnabled) {
+      setAllActivities([]);
+      return;
+    }
+
     if (activitiesData?.data) {
       if (page === 1) {
         setAllActivities(activitiesData.data);
@@ -30,7 +41,7 @@ export const useCardActivity = (cardId: string) => {
         setAllActivities((prev) => [...prev, ...activitiesData.data]);
       }
     }
-  }, [activitiesData, page]);
+  }, [activitiesData, page, isEnabled]);
 
   const total = Number(
     activitiesData?.paginate?.totalData || activitiesData?.paginate?.total || 0
@@ -45,7 +56,7 @@ export const useCardActivity = (cardId: string) => {
 
   // WebSocket listener for real-time updates
   useEffect(() => {
-    if (!cardId) return;
+    if (!isEnabled || !cardId) return;
     const socket =
       typeof window !== "undefined" ? (window as any).socket : null;
     if (!socket) return;
@@ -69,7 +80,7 @@ export const useCardActivity = (cardId: string) => {
 
     socket.addEventListener("message", handler);
     return () => socket.removeEventListener("message", handler);
-  }, [cardId, refetch]);
+  }, [cardId, refetch, isEnabled]);
 
   const addCardActivityMutation = useMutation({
     mutationFn: (payload: CardActivity) => {

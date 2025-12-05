@@ -8,13 +8,19 @@ import { ApiResponse } from "@myTypes/type";
 import { User } from "@dto/types";
 import { useEffect } from "react";
 
-export const useCardMembers = (cardId: string) => {
+export const useCardMembers = (
+  cardId: string,
+  options?: {
+    enabled?: boolean;
+  }
+) => {
   const queryClient = useQueryClient();
+  const isEnabled = !!cardId && (options?.enabled ?? true);
 
   const cardMembersQuery = useQuery({
     queryKey: ["cardMembers", cardId],
     queryFn: () => getCardMember(cardId),
-    enabled: !!cardId,
+    enabled: isEnabled,
     staleTime: 30000, // 30 seconds
   });
 

@@ -217,6 +217,7 @@ export function useBoardDetails(
     enabled?: boolean;
     refetchOnMount?: boolean;
     refetchOnWindowFocus?: boolean;
+    staleTime?: number;
   } = {}
 ) {
   const queryClient = useQueryClient();
@@ -226,9 +227,9 @@ export function useBoardDetails(
     queryKey: ["boardDetails", boardId, workspaceId],
     queryFn: () => boardDetails(boardId, workspaceId),
     enabled: options.enabled !== false && !!boardId, // Only enable if boardId exists and not explicitly disabled
-    refetchOnMount: options.refetchOnMount ?? true, // Allow override
+    refetchOnMount: options.refetchOnMount ?? false, // Avoid extra refetch on mount
     refetchOnWindowFocus: options.refetchOnWindowFocus ?? false, // Allow override
-    staleTime: 0, // Data is considered stale immediately
+    staleTime: options.staleTime ?? 60_000, // Treat data as fresh for a minute by default
   });
 
   // Function to manually refetch the board details

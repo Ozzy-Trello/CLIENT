@@ -337,6 +337,11 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
     }));
   }, [glaccounts]);
 
+  const resetJumlahAndUnit = () => {
+    form.setFieldsValue({ jumlah: "", unit: undefined });
+    setSelectedItemUnit("");
+  };
+
   const handleOk = async () => {
     if (isSubmittingRequest) return;
     let values: any;
@@ -569,6 +574,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
               filterOption={false} // Disable client-side filtering as we're using local search
               notFoundContent="No items found"
               onSelect={(value, option) => {
+                resetJumlahAndUnit();
                 if (
                   typeof value === "string" &&
                   value.startsWith("__header__")
@@ -635,13 +641,11 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
                       value: unit,
                     }));
                     setAvailableUnits(units);
-
-                    // Set default unit if available
-                    setSelectedItemUnit(units[0]?.value || "");
-                    } else {
-                      setAvailableUnits([]);
-                      setSelectedItemUnit("");
-                    }
+                    setSelectedItemUnit("");
+                  } else {
+                    setAvailableUnits([]);
+                    setSelectedItemUnit("");
+                  }
 
                     const unitPrice =
                       (selectedItem as any)?.unitPrice ??
@@ -665,6 +669,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
                 // Update the search value state which will trigger local filtering
                 setBarangSearchValue(input);
                 form.setFieldsValue({ barang: input });
+                resetJumlahAndUnit();
 
                 // If input is empty, reset akun penyesuaian field and units
                 if (!input) {

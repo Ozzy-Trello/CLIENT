@@ -599,7 +599,7 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
             }}
           >
             <Input
-              placeholder="Cari request, item, atau invoice"
+              placeholder="Search"
               allowClear
               value={searchInput}
               onChange={handleSearchChange}

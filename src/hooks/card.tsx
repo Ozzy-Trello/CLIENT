@@ -389,9 +389,56 @@ export function useCards(listId: string, boardId: string) {
 }
 
 /**
+ * Lightweight hook exposing only card mutations (no card list query).
+ * Useful in views that just need to update a card without fetching the full list.
+ */
+export function useCardMutationsOnly() {
+  const queryClient = useQueryClient();
+
+  const updateCardMutation = useMutation({
+    mutationFn: ({
+      cardId,
+      updates,
+      listId,
+      destinationListId,
+    }: {
+      cardId: string;
+      updates: Partial<Card>;
+      listId?: string;
+      destinationListId?: string;
+    }) => {
+      return api.put(`/card/${cardId}`, updates);
+    },
+    onSuccess: (_res, vars) => {
+      if (vars.listId) {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.cards.list(vars.listId),
+        });
+      }
+      if (vars.destinationListId && vars.destinationListId !== vars.listId) {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.cards.list(vars.destinationListId),
+        });
+      }
+    },
+  });
+
+  return {
+    updateCard: updateCardMutation.mutate,
+    isUpdatingCard: updateCardMutation.isPending,
+  };
+}
+
+/**
  * Hook for paginated cards with load more functionality
  */
-export function useCardsPaginated(listId: string, boardId: string) {
+export function useCardsPaginated(
+  listId: string,
+  boardId: string,
+  options?: {
+    enabled?: boolean;
+  }
+) {
   const queryClient = useQueryClient();
   const [currentPage, setCurrentPage] = useState(1);
   const [allCards, setAllCards] = useState<Card[]>([]);
@@ -402,10 +449,12 @@ export function useCardsPaginated(listId: string, boardId: string) {
   const limit = 20;
 
   // Initial query for first page
+  const isEnabled = !!listId && (options?.enabled ?? true);
+
   const cardsQuery = useQuery({
     queryKey: queryKeys.cards.list(listId),
     queryFn: () => cards(listId, boardId, 1, limit),
-    enabled: !!listId,
+    enabled: isEnabled,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
@@ -415,6 +464,13 @@ export function useCardsPaginated(listId: string, boardId: string) {
 
   // Reset pagination when listId changes and initialize from cache if available
   useEffect(() => {
+    if (!isEnabled) {
+      setAllCards([]);
+      setHasMoreCards(true);
+      setTotalCards(0);
+      return;
+    }
+
     setCurrentPage(1);
     setIsLoadingMore(false);
     setLoadMoreError(null);
@@ -438,40 +494,49 @@ export function useCardsPaginated(listId: string, boardId: string) {
       setAllCards([]);
       setHasMoreCards(true);
     }
-  }, [listId, queryClient, limit]);
+  }, [listId, queryClient, limit, isEnabled]);
 
   // Update allCards when initial query data changes (for fresh data)
   useEffect(() => {
+    if (!isEnabled) return;
+
     if (cardsQuery.data?.data && !cardsQuery.isLoading) {
-      // Only update if we don't already have the same data
-      const currentDataIds = allCards.map(card => card.id).sort();
-      const newDataIds = cardsQuery.data.data.map(card => card.id).sort();
-      const isSameData = currentDataIds.length === newDataIds.length && 
-        currentDataIds.every((id, index) => id === newDataIds[index]);
-      
-      if (!isSameData) {
-        setAllCards(cardsQuery.data.data);
-        setHasMoreCards(cardsQuery.data.data.length === limit);
+      const incoming = cardsQuery.data.data;
+
+      if (currentPage > 1) {
+        // Replace the first page with the latest data, keep already loaded pages
+        const incomingIds = new Set(incoming.map((c) => c.id));
+        const rest = allCards
+          // keep items beyond the first page or items not returned anymore (e.g., deleted)
+          .filter((_, idx) => idx >= limit && !incomingIds.has(_.id));
+        const merged = [...incoming, ...rest];
+        setAllCards(merged);
+        // Keep hasMoreCards as-is; deletion shouldn't reset pagination
+      } else {
+        // Initial load or single-page state
+        setAllCards(incoming);
+        setHasMoreCards(incoming.length === limit);
         setCurrentPage(1);
-
-        // Extract total count from pagination data
-        const totalCount =
-          cardsQuery.data.paginate?.totalData || cardsQuery.data.data.length;
-        setTotalCards(totalCount);
-
-        // Ensure query cache is updated with initial data
-        queryClient.setQueryData<ApiResponse<Card[]>>(
-          queryKeys.cards.list(listId),
-          cardsQuery.data
-        );
       }
+
+      const totalCount =
+        cardsQuery.data.paginate?.totalData || incoming.length || totalCards;
+      setTotalCards(totalCount);
       setLoadMoreError(null); // Clear any previous errors
     }
-  }, [cardsQuery.data?.data, cardsQuery.isLoading, limit, allCards, queryClient, listId]);
+  }, [
+    cardsQuery.data?.data,
+    cardsQuery.isLoading,
+    limit,
+    allCards,
+    currentPage,
+    totalCards,
+    isEnabled,
+  ]);
 
   // Load more cards function
   const loadMoreCards = useCallback(async () => {
-    if (!hasMoreCards || isLoadingMore) return;
+    if (!isEnabled || !hasMoreCards || isLoadingMore) return;
 
     setIsLoadingMore(true);
     setLoadMoreError(null); // Clear previous errors
@@ -519,6 +584,7 @@ export function useCardsPaginated(listId: string, boardId: string) {
     isLoadingMore,
     allCards,
     queryClient,
+    isEnabled,
   ]);
 
   // Add card mutation with optimistic updates for paginated cards
