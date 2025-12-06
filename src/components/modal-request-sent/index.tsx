@@ -1379,7 +1379,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       width: 100,
       align: "center" as const,
       render: (_: unknown, record: RequestItem) => {
-        const disabled = !record.warehouseReturned
+        const disabled = !record.warehouseReturned || record.isDone
         return (
           <Button
             type="primary"
