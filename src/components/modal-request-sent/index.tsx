@@ -516,12 +516,8 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
   };
 
   const attemptSendRequest = (id: string): boolean => {
-    const amount = parseLocalizedNumberInput(requestSentValues[id] ?? "");
-    if (!amount) {
-      message.error("Please enter an amount");
-      return false;
-    }
-
+    const amount = parseLocalizedNumberInput(requestSentValues[id] ?? "" );
+   
     sendRequest({ id, amount });
     return true;
   };
@@ -1083,12 +1079,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
         <div className="flex items-center gap-2">
           {(() => {
             const workflow = getWorkflowState(record);
-            const baseBlocked =
-              record.productionReceived ||
-              !isRowUnlocked(record) ||
-              !workflow.cabangFilled ||
-              !workflow.beliSelected;
-            const disableInput = baseBlocked || editingSentRequestId !== record.id;
+            const disableInput =  editingSentRequestId !== record.id;
             return (
               <>
                 <Input
@@ -1113,11 +1104,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
                     handleRequestSentChange(record.id, event.target.value)
                   }
                 />
-                {!(
-                  record.productionReceived ??
-                  record.productionRecieved ??
-                  false
-                ) && (
+            
                   <Tooltip
                     title={
                       editingSentRequestId === record.id
@@ -1131,10 +1118,8 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
                       icon={<EditOutlined />}
                       onClick={() => toggleSentEdit(record.id)}
                       className="text-gray-500 hover:text-blue-600"
-                      disabled={baseBlocked}
                     />
                   </Tooltip>
-                )}
               </>
             );
           })()}
@@ -1214,19 +1199,13 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       width: "auto",
       render: (_: unknown, record: RequestItem) => {
         const workflow = getWorkflowState(record);
-        const disabled =
-          !isRowUnlocked(record) ||
-          !workflow.cabangFilled ||
-          !workflow.beliSelected ||
-          !workflow.sentMoreThanZero ||
-          !workflow.hasSentBy;
         return (
           <Checkbox
             checked={workflow.productionReceived}
             onChange={(e) =>
               handleProductionReceivedChange(record.id, e.target.checked)
             }
-            disabled={disabled}
+            disabled
           />
         );
       },
