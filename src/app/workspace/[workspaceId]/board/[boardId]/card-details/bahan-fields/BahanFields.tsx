@@ -17,10 +17,32 @@ import { useDebouncedPOProductUpdate } from "@hooks/useDebouncedPOProductUpdate"
 import POSection from "./POSection";
 import { BahanFieldsProps, POItem, ProductItem } from "./types";
 import { usePOsByCardId } from "./hooks/usePOsByCardId";
-import {
-  getRequestedItemIdFromProduct,
-  getUnitPriceFromProduct,
-} from "./productHelpers";
+import { getUnitPriceFromProduct } from "./productHelpers";
+
+const getRequestedSkuForBahanFields = (
+  item?: any
+): string | undefined => {
+  if (!item) return undefined;
+
+  const candidate =
+    item.sku ??
+    item.productSku ??
+    item.product_code ??
+    item.productCode ??
+    item.barcode ??
+    item.warehouseProduct?.sku ??
+    item.warehouseProduct?.productSku ??
+    item.warehouseProduct?.product_code ??
+    item.warehouseProduct?.productCode ??
+    item.warehouseProduct?.barcode;
+
+  if (candidate === undefined || candidate === null) {
+    return undefined;
+  }
+
+  const trimmed = String(candidate).trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+};
 
 const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
   const theme = useSelector(selectTheme);
@@ -439,9 +461,9 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
         const productForPayload = payloadProduct || snapshotProduct;
         if (!productForPayload) return;
 
-        const requestedItemId =
-          getRequestedItemIdFromProduct(productForPayload) ??
-          (productForPayload?.id ? String(productForPayload.id) : undefined);
+        const requestedItemId = getRequestedSkuForBahanFields(
+          productForPayload
+        );
 
         const payload: Record<string, any> = {
           requestSent: value,
@@ -509,9 +531,9 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
         const productForPayload = payloadProduct || snapshotProduct;
         if (!productForPayload) return;
 
-        const requestedItemId =
-          getRequestedItemIdFromProduct(productForPayload) ??
-          (productForPayload?.id ? String(productForPayload.id) : undefined);
+        const requestedItemId = getRequestedSkuForBahanFields(
+          productForPayload
+        );
 
         const payload: Record<string, any> = {
           requestReceived: value,
