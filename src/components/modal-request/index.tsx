@@ -24,6 +24,46 @@ interface ModalRequestProps {
 
 const { Option } = Select;
 
+const MPI_ACCOUNT_MAPPINGS = [
+  { accountName: "HPP Hang Tag", keywords: ["hangtag", "hang tag"] },
+  { accountName: "HPP Kancing", keywords: ["kancing"] },
+  { accountName: "HPP Label", keywords: ["label"] },
+  { accountName: "HPP Plastik OPP", keywords: ["plastik opp"] },
+  { accountName: "HPP Resleting", keywords: ["resleting", "reslet"] },
+  { accountName: "HPP Benang", keywords: ["benang"] },
+  { accountName: "HPP Kain Keras", keywords: ["kain keras"] },
+  {
+    accountName: "Beban Perlengkapan",
+    keywords: [
+      "bagor",
+      "gunting",
+      "jarum",
+      "kapur cutting",
+      "lakban",
+      "pensil glass",
+      "tali rafia",
+      "stiker",
+      "perlengkapan produksi",
+    ],
+  },
+];
+
+const findAccountByName = (accounts: any[], accountName: string) => {
+  if (!Array.isArray(accounts)) return undefined;
+  const normalized = accountName.toLowerCase();
+  return (
+    accounts.find(
+      (acc: any) =>
+        typeof acc.name === "string" && acc.name.toLowerCase() === normalized
+    ) ||
+    accounts.find(
+      (acc: any) =>
+        typeof acc.name === "string" &&
+        acc.name.toLowerCase().includes(normalized)
+    )
+  );
+};
+
 const toNumberOrNull = (value: unknown): number | null => {
   if (value === undefined || value === null) return null;
   if (typeof value === "number") return value;
@@ -202,25 +242,54 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
       setIsAkunPenyesuaianDisabled(true);
     };
 
-    if (selectedItemGlAccountId) {
+    const trySetAccountById = () => {
+      if (!selectedItemGlAccountId) return false;
       const matching = glaccounts.d.find(
         (acc: any) => Number(acc.id) === selectedItemGlAccountId
       );
       if (matching) {
         setAccountField(matching);
-        return;
+        return true;
       }
-    }
+      return false;
+    };
 
-    if (selectedItemSource) {
-      const selectedBarangValue = form.getFieldValue("barang");
-      if (selectedBarangValue) {
-        const selectedItem = items.find(
-          (item: any) =>
-            `${item.name} (${item.source || "Unknown"})` === selectedBarangValue
-        );
+    const selectedBarangValue = form.getFieldValue("barang");
+    if (selectedBarangValue) {
+      const selectedItem = items.find(
+        (item: any) =>
+          `${item.name} (${item.source || "Unknown"})` === selectedBarangValue
+      );
 
-        if (selectedItem && selectedItem.itemCategory) {
+      if (selectedItem) {
+        const itemSource = selectedItem.source;
+        const normalizedSource =
+          (itemSource || selectedItemSource || "").toLowerCase();
+
+        if (normalizedSource === "mpi") {
+          const normalizedName = selectedItem.name?.toLowerCase() || "";
+          const mpiMapping = MPI_ACCOUNT_MAPPINGS.find((mapping) =>
+            mapping.keywords.some((keyword) => normalizedName.includes(keyword))
+          );
+
+          if (mpiMapping) {
+            const matchingAccount = findAccountByName(
+              glaccounts.d,
+              mpiMapping.accountName
+            );
+
+            if (matchingAccount) {
+              setAccountField(matchingAccount);
+              return;
+            }
+          }
+        }
+
+        if (trySetAccountById()) {
+          return;
+        }
+
+        if (selectedItem.itemCategory) {
           const cogsGlAccountId =
             selectedItem.itemCategory.parent?.cogsGlAccountId;
 
@@ -236,7 +305,6 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
           } else {
             const itemCategoryName =
               selectedItem.itemCategory.name?.toLowerCase();
-            const itemSource = selectedItem.source;
 
             let suitableAccount = null;
 
@@ -308,7 +376,11 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
             }
           }
         }
+      } else {
+        trySetAccountById();
       }
+    } else {
+      trySetAccountById();
     }
   }, [
     glaccounts,
@@ -379,36 +451,12 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
           ? values.akunPenyesuaian.trim() || null
           : null);
 
-      console.log("🔍 [ADJUSTMENT DEBUG] Selected adjustment:", adjustment);
-      console.log(
-        "🔍 [ADJUSTMENT DEBUG] All available adjustments:",
-        akunPenyesuaianList
-      );
-      console.log(
-        "🔍 [ADJUSTMENT DEBUG] Form value (akunPenyesuaian):",
-        values.akunPenyesuaian
-      );
-      console.log("🔍 [ADJUSTMENT DEBUG] Adjustment found:", !!adjustment);
-
       // Debug the matching process
       if (typeof values.akunPenyesuaian === "string") {
         const formValue = values.akunPenyesuaian.replace(/\s*\([^)]*\)$/, "");
-        console.log("🔍 [ADJUSTMENT DEBUG] Extracted form value:", formValue);
-        console.log(
-          "🔍 [ADJUSTMENT DEBUG] Available option labels:",
-          akunPenyesuaianList.map((opt: any) =>
-            opt.label.replace(/\s*\([^)]*\)$/, "")
-          )
-        );
-
-        // Debug each option to see why matching fails
-        console.log("🔍 [ADJUSTMENT DEBUG] Checking each option:");
         akunPenyesuaianList.forEach((opt: any, index: number) => {
           const optionLabel = opt.label.replace(/\s*\([^)]*\)$/, "");
           const matches = optionLabel === formValue;
-          console.log(
-            `  Option ${index}: "${optionLabel}" === "${formValue}" = ${matches}`
-          );
         });
       }
 
@@ -425,7 +473,6 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
         if (!str) return 0;
 
         if (str.includes(",") && str.includes(".")) {
-          // Treat '.' as thousands separator, ',' as decimal marker.
           return Number(str.replace(/\./g, "").replace(/,/g, "."));
         }
         if (str.includes(",") && !str.includes(".")) {
@@ -457,9 +504,6 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
           ? Number(selectedItemUnitPrice)
           : undefined,
       };
-
-      console.log("🔍 [REQUEST PAYLOAD] Type being sent:", payload.type);
-      console.log("🔍 [REQUEST PAYLOAD] Full payload:", payload);
       await submitRequest(payload);
       message.success("Request submitted successfully");
       await form.resetFields();
