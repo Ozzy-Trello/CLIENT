@@ -1216,17 +1216,9 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       ellipsis: true,
       width: "auto",
       render: (_: unknown, record: RequestItem) => {
-        const workflow = getWorkflowState(record);
         const sentValue = getRequestSentValue(record);
         const leftValue = getRequestLeftValue(record);
-        const disabled =
-          !isRowUnlocked(record) ||
-          !workflow.cabangFilled ||
-          !workflow.beliSelected ||
-          !workflow.sentMoreThanZero ||
-          !workflow.hasSentBy ||
-          !workflow.productionReceived ||
-          workflow.warehouseReturned;
+        const disabled = !isRowUnlocked(record);
         return (
           <Input
             type="text"
