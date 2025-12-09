@@ -863,7 +863,6 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
                   disabled={!isPOSelected || availableUnits.length === 0}
                   value={selectedItemUnit || undefined}
                   placeholder="Unit"
-                  disabled={availableUnits.length === 0}
                   onChange={(value) => setSelectedItemUnit(value)}
                   dropdownMatchSelectWidth={false}
                   allowClear={false}
