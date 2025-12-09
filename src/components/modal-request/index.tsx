@@ -1,6 +1,6 @@
 import { getAllAdjustmentItems, submitRequest } from "@api/accurate";
 import { searchCards } from "@api/card";
-import { useQueries } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import {
   AutoComplete,
   Button,
@@ -16,6 +16,7 @@ import React, { useEffect, useMemo } from "react";
 import { useParams } from "next/navigation";
 import { useAccountListForModal } from "@hooks/account";
 import { getCombinedOzzyProducts } from "@api/ozzy-warehouse";
+import { getPOProductsByCardId } from "@api/po-product";
 import type { OzzyProductWithSource } from "@api/ozzy-warehouse";
 interface ModalRequestProps {
   open: boolean;
@@ -95,6 +96,9 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
   const [selectedCardId, setSelectedCardId] = React.useState<string | null>(
     null
   );
+  const [selectedActionType, setSelectedActionType] = React.useState<string>(
+    ""
+  );
   const [isAkunPenyesuaianDisabled, setIsAkunPenyesuaianDisabled] =
     React.useState<boolean>(false);
   const [barangSearchValue, setBarangSearchValue] = React.useState<string>("");
@@ -147,6 +151,38 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
 
   const [cardsQuery, productsQuery, glaccountQuery] = queries;
 
+  const { data: poProductsResponse } = useQuery({
+    queryKey: [
+      "po-products",
+      "modal-request",
+      selectedCardId,
+      selectedActionType,
+    ],
+    queryFn: () => getPOProductsByCardId(selectedCardId as string),
+    enabled:
+      open &&
+      !!selectedCardId &&
+      selectedActionType === "NEW_ORDER",
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const poProductsData = poProductsResponse?.data || [];
+
+  const allowedHikmatProductIds = React.useMemo(() => {
+    if (!Array.isArray(poProductsData) || poProductsData.length === 0) {
+      return new Set<string>();
+    }
+
+    return new Set<string>(
+      poProductsData
+        .map((product: any) => product?.hikmatProductId)
+        .filter((id: unknown): id is string | number => id !== undefined && id !== null)
+        .map((id) => String(id))
+    );
+  }, [poProductsData]);
+
+  const isPOSelected = Boolean(selectedCardId);
+
   useEffect(() => {
     if (cardsQuery.data?.data) {
       const datelineCards = cardsQuery.data.data.filter((card: any) => {
@@ -189,12 +225,44 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
         })
       : items;
 
-    return filteredItems.map((item) => ({
+    const actionFilteredItems = filteredItems.filter((item) => {
+      if (selectedActionType !== "NEW_ORDER") return true;
+
+      const source = item.source?.toLowerCase();
+      if (source !== "hikmat") {
+        return true;
+      }
+
+      if (!isPOSelected) {
+        return false;
+      }
+
+      const candidateIds = [
+        item.accurateId,
+        item.id,
+        item.sku,
+        item.barcode,
+      ]
+        .filter((value) => value !== undefined && value !== null)
+        .map((value) => String(value));
+
+      return candidateIds.some((candidate) =>
+        allowedHikmatProductIds.has(candidate)
+      );
+    });
+
+    return actionFilteredItems.map((item) => ({
       value: item.sku || `${item.id}`,
       label: `${item.name} (${item.source || "Unknown"})`,
       item,
     }));
-  }, [items, barangSearchValue]);
+  }, [
+    items,
+    barangSearchValue,
+    selectedActionType,
+    allowedHikmatProductIds,
+    isPOSelected,
+  ]);
 
   // Create user options for Request By dropdown
   const userOptions = useMemo(() => {
@@ -416,6 +484,10 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
 
   const handleOk = async () => {
     if (isSubmittingRequest) return;
+    if (!selectedCardId) {
+      message.warning("Pilih PO terlebih dahulu");
+      return;
+    }
     let values: any;
     try {
       values = await form.validateFields();
@@ -526,6 +598,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
       setAvailableUnits([]);
       setBarangSearchValue("");
       setSelectedCardId(null);
+      setSelectedActionType("");
       setSelectedItemSource("");
       setSelectedRequestBy("");
       setSelectedItemGlAccountId(null);
@@ -585,6 +658,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
                   form.setFieldsValue({ listPO: input });
                   // Clear selected card ID if the input doesn't match any card
                   setSelectedCardId(null);
+                  setSelectedActionType("");
                 } else {
                   // If input matches a card label, set the card ID
                   setSelectedCardId(match.value);
@@ -598,7 +672,11 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
             rules={[{ required: true }]}
             style={{ marginBottom: 16 }}
           >
-            <Select placeholder="Pilih Action">
+            <Select
+              placeholder="Pilih Action"
+              disabled={!isPOSelected}
+              onChange={(value) => setSelectedActionType(value || "")}
+            >
               {actionTypes.map((item) => (
                 <Option key={item.value} value={item.value}>
                   {item.label}
@@ -613,6 +691,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
             style={{ marginBottom: 16, gridColumn: "1 / span 2" }}
           >
             <AutoComplete
+              disabled={!isPOSelected}
               options={barangList}
               placeholder="Cari atau pilih Barang"
               filterOption={false} // Disable client-side filtering as we're using local search
@@ -752,6 +831,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
                 ]}
               >
                 <AutoComplete
+                  disabled={!isPOSelected}
                   options={[]}
                   placeholder="Masukkan jumlah"
                   style={{ width: "100%", minWidth: 140 }}
@@ -780,6 +860,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
                 ]}
               >
                 <Select
+                  disabled={!isPOSelected || availableUnits.length === 0}
                   value={selectedItemUnit || undefined}
                   placeholder="Unit"
                   disabled={availableUnits.length === 0}
@@ -831,7 +912,8 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
             rules={[{ required: true, message: "Request By is required" }]}
             style={{ marginBottom: 16, gridColumn: "1 / span 3" }}
           >
-            <Select
+              <Select
+                disabled={!isPOSelected}
               placeholder="Select a User"
               loading={accountListLoading}
               options={userOptions}
@@ -853,7 +935,11 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
             rules={[{ required: true, message: "Description is required" }]}
             style={{ marginBottom: 16, gridColumn: "1 / span 3" }}
           >
-            <Input.TextArea rows={3} placeholder="Tambahkan deskripsi..." />
+            <Input.TextArea
+              rows={3}
+              placeholder="Tambahkan deskripsi..."
+              disabled={!isPOSelected}
+            />
           </Form.Item>
         </div>
         <Form.Item style={{ marginTop: 16 }}>
@@ -861,7 +947,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
             type="primary"
             htmlType="submit"
             block
-            disabled={!formValid || isSubmittingRequest}
+            disabled={!formValid || isSubmittingRequest || !isPOSelected}
             loading={isSubmittingRequest}
           >
             Submit
