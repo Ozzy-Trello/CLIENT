@@ -151,18 +151,22 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
 
   const [cardsQuery, productsQuery, glaccountQuery] = queries;
 
+  const normalizedActionType = (selectedActionType || "").toUpperCase();
+  const shouldRestrictToHikmat =
+    normalizedActionType !== "" && normalizedActionType !== "NEW_ORDER";
+
   const { data: poProductsResponse } = useQuery({
     queryKey: [
       "po-products",
       "modal-request",
       selectedCardId,
-      selectedActionType,
+      normalizedActionType,
     ],
     queryFn: () => getPOProductsByCardId(selectedCardId as string),
     enabled:
       open &&
       !!selectedCardId &&
-      selectedActionType === "NEW_ORDER",
+      shouldRestrictToHikmat,
     staleTime: 5 * 60 * 1000,
   });
 
@@ -226,14 +230,19 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
       : items;
 
     const actionFilteredItems = filteredItems.filter((item) => {
-      if (selectedActionType !== "NEW_ORDER") return true;
-
-      const source = item.source?.toLowerCase();
-      if (source !== "hikmat") {
+      if (!shouldRestrictToHikmat) {
         return true;
       }
 
-      if (!isPOSelected) {
+      const source = (item.source || "").toString().toLowerCase();
+      const isHikmatItem =
+        source === "hikmat" || source.includes("hikmat");
+
+      if (!isHikmatItem) {
+        return false;
+      }
+
+      if (!isPOSelected || allowedHikmatProductIds.size === 0) {
         return false;
       }
 
@@ -259,7 +268,8 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
   }, [
     items,
     barangSearchValue,
-    selectedActionType,
+    normalizedActionType,
+    shouldRestrictToHikmat,
     allowedHikmatProductIds,
     isPOSelected,
   ]);
