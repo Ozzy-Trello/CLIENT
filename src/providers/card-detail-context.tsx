@@ -142,15 +142,13 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
     handleUrlChange.current = true; // Set to true when opening card detail
 
     // Don't set incomplete card data immediately - let React Query fetch complete data
-    // Only set the basic state needed for the query to work
+    // Only set the basic state needed for the query to work, but keep the name for immediate display
     setActiveList(list);
     setIsCardDetailOpen(true);
     setIsOpenViaUrl(false);
-    
-    // Set a minimal card object just for the query key, but don't set selectedCard yet
-    // The useEffect above will set selectedCard when complete data arrives
+
     if (!selectedCard || selectedCard.id !== card.id) {
-      setSelectedCard({ id: card.id, listId: list.id } as Card);
+      setSelectedCard({ ...card, listId: list.id } as Card);
     }
 
     // Add to recently viewed cards
@@ -211,9 +209,86 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
     },
   });
 
+  // Helper to avoid pointless state churn that can trigger render loops
+  const lastCardSnapshotRef = useRef<string>("");
+
+  const snapshotCard = useCallback((card: Card | null) => {
+    if (!card) return "";
+    const stable = {
+      id: card.id,
+      updatedAt: (card as any).updatedAt || (card as any).updated_at || null,
+      listId: card.listId,
+      name: card.name,
+      description: card.description,
+      labelsLen: Array.isArray((card as any).labels)
+        ? (card as any).labels.length
+        : 0,
+      membersLen: Array.isArray((card as any).members)
+        ? (card as any).members.length
+        : 0,
+      attachmentsLen: Array.isArray((card as any).attachments)
+        ? (card as any).attachments.length
+        : 0,
+      customFieldsLen: Array.isArray((card as any).customFields)
+        ? (card as any).customFields.length
+        : Array.isArray((card as any).custom_fields)
+        ? (card as any).custom_fields.length
+        : 0,
+      requestsLen: Array.isArray((card as any).requests)
+        ? (card as any).requests.length
+        : 0,
+      timeInListsLen: Array.isArray((card as any).timeInLists)
+        ? (card as any).timeInLists.length
+        : 0,
+    };
+    return JSON.stringify(stable);
+  }, []);
+
+  const isSameCard = useCallback((prev: Card | null, next: Card | null) => {
+    if (!prev || !next) return false;
+    if (prev.id !== next.id) return false;
+
+    const prevUpdated = (prev as any).updatedAt || (prev as any).updated_at;
+    const nextUpdated = (next as any).updatedAt || (next as any).updated_at;
+    if (prevUpdated && nextUpdated && prevUpdated !== nextUpdated) {
+      return false;
+    }
+
+    // If labels/members/attachments lengths differ, treat as changed
+    const prevLabels = Array.isArray((prev as any).labels) ? (prev as any).labels : [];
+    const nextLabels = Array.isArray((next as any).labels) ? (next as any).labels : [];
+    if (prevLabels.length !== nextLabels.length) return false;
+
+    const prevMembers = Array.isArray((prev as any).members) ? (prev as any).members : [];
+    const nextMembers = Array.isArray((next as any).members) ? (next as any).members : [];
+    if (prevMembers.length !== nextMembers.length) return false;
+
+    const prevAttachments = Array.isArray((prev as any).attachments) ? (prev as any).attachments : [];
+    const nextAttachments = Array.isArray((next as any).attachments) ? (next as any).attachments : [];
+    if (prevAttachments.length !== nextAttachments.length) return false;
+
+    const keys: Array<keyof Card> = [
+      "name",
+      "description",
+      "listId",
+      "order",
+      "archive",
+      "isComplete",
+      "completed_at",
+      "bahan",
+      "poAmount",
+    ];
+    return keys.every((k) => (prev as any)?.[k] === (next as any)?.[k]);
+  }, []);
+
   // Update selectedCard when React Query data changes (including from WebSocket events)
   useEffect(() => {
+    if (!isCardDetailOpen) return;
     if (cardDetailsQuery.card) {
+      const incomingSnap = snapshotCard(cardDetailsQuery.card);
+      if (lastCardSnapshotRef.current && lastCardSnapshotRef.current === incomingSnap) {
+        return;
+      }
       // Don't override local state if there's a pending mutation (optimistic update)
       if (isPending) {
         return;
@@ -222,22 +297,23 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
       // Always update with the complete card data from React Query
       setSelectedCard((prevCard) => {
         const fetchedCard = cardDetailsQuery.card!;
-        
-        // If we don't have a previous card or the card ID changed, use the new data
-        if (!prevCard || prevCard.id !== fetchedCard.id) {
-          return {
-            ...fetchedCard,
-            listId: fetchedCard.listId || activeList?.id,
-          } as Card;
+        const nextSnap = snapshotCard(fetchedCard);
+        if (lastCardSnapshotRef.current && lastCardSnapshotRef.current === nextSnap) {
+          return prevCard;
         }
-        // If it's the same card, merge the updates
-        return {
-          ...prevCard,
+        if (isSameCard(prevCard, fetchedCard)) {
+          return prevCard;
+        }
+        const merged = {
+          ...(prevCard || {}),
           ...fetchedCard,
+          listId: fetchedCard.listId || activeList?.id,
         } as Card;
+        lastCardSnapshotRef.current = snapshotCard(merged);
+        return merged;
       });
     }
-  }, [cardDetailsQuery.card, activeList?.id, isPending]);
+  }, [cardDetailsQuery.card, activeList?.id, isCardDetailOpen, isPending, isSameCard, snapshotCard]);
 
   const closeCardDetail = useCallback(() => {
     // Set flag to prevent URL effect from running during this programmatic change

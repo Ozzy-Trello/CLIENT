@@ -1,6 +1,41 @@
 import { api } from ".";
-import { Card, CopycardPost, ListDashcardDataResponse } from "../types/card";
+import { Card, CardCustomField, CopycardPost, ListDashcardDataResponse } from "../types/card";
 import { ApiResponse } from "../types/type";
+
+const mapLabelToFrontend = (label: any) => ({
+  id: label.id ?? label.label_id,
+  name: label.name,
+  value: label.value,
+  valueType: label.value_type ?? label.valueType,
+  workspaceId: label.workspace_id ?? label.workspaceId,
+});
+
+const mapCustomFieldToFrontend = (field: any): CardCustomField => ({
+  id: field.id ?? field.custom_field_id,
+  cardId: field.card_id,
+  name: field.name,
+  description: field.description,
+  source: field.source,
+  type: field.type,
+  options: field.options,
+  isShowAtFront: field.is_show_at_front ?? field.isShowAtFront,
+  valueString: field.value_string,
+  valueNumber: field.value_number,
+  valueOption: field.value_option,
+  valueCheckbox: field.value_checkbox,
+  valueDate: field.value_date,
+  valueUserId: field.value_user_id,
+  canView: field.canView,
+  canEdit: field.canEdit,
+  isPublic: field.isPublic,
+});
+
+const mapMemberToFrontend = (member: any) => ({
+  id: member.id ?? member.user_id,
+  username: member.username,
+  email: member.email,
+  name: member.name ?? member.username,
+});
 
 // Helper function to map backend response to frontend Card format
 export const mapBackendCardToFrontend = (backendCard: any): Card => {
@@ -55,6 +90,69 @@ export const mapBackendCardToFrontend = (backendCard: any): Card => {
   }
   if (backendCard.formatted_time_in_board !== undefined) {
     mapped.formattedTimeInBoard = backendCard.formatted_time_in_board;
+  }
+
+  if (backendCard.list_info) {
+    mapped.listId = mapped.listId ?? backendCard.list_info.id;
+    mapped.listName = mapped.listName ?? backendCard.list_info.name;
+    mapped.boardId = mapped.boardId ?? backendCard.list_info.board_id;
+  }
+
+  if (backendCard.board_info) {
+    mapped.boardId = mapped.boardId ?? backendCard.board_info.id;
+    mapped.boardName = mapped.boardName ?? backendCard.board_info.name;
+    mapped.workspaceId = mapped.workspaceId ?? backendCard.board_info.workspace_id;
+  }
+
+  if (backendCard.workspace_info) {
+    mapped.workspaceId = mapped.workspaceId ?? backendCard.workspace_info.id;
+    mapped.workspaceName = mapped.workspaceName ?? backendCard.workspace_info.name;
+  }
+
+  if (backendCard.attachments) {
+    mapped.attachments = backendCard.attachments;
+    // Derive cover from attachments if not explicitly set
+    if (!mapped.cover) {
+      const coverAttachment = (backendCard.attachments as any[]).find(
+        (a) => a.is_cover || a.isCover
+      );
+      if (coverAttachment?.file?.url) {
+        mapped.cover = coverAttachment.file.url;
+      }
+    }
+  }
+
+  if (backendCard.time_in_list) {
+    mapped.timeInLists = backendCard.time_in_list;
+  }
+
+  if (backendCard.time_in_board) {
+    mapped.formattedTimeInBoard =
+      backendCard.time_in_board?.formatted_time_in_board ??
+      mapped.formattedTimeInBoard;
+  }
+
+  if (backendCard.requests) {
+    mapped.requests = backendCard.requests;
+  }
+
+  if (backendCard.labels) {
+    mapped.labels = (backendCard.labels as any[]).map(mapLabelToFrontend);
+  } else {
+    mapped.labels = [];
+  }
+
+  if (backendCard.custom_fields || backendCard.customFields) {
+    const fields = backendCard.custom_fields ?? backendCard.customFields;
+    mapped.customFields = (fields as any[]).map(mapCustomFieldToFrontend);
+  } else {
+    mapped.customFields = [];
+  }
+
+  if (backendCard.members) {
+    mapped.members = (backendCard.members as any[]).map(mapMemberToFrontend);
+  } else {
+    mapped.members = [];
   }
 
   return mapped;

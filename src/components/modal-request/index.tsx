@@ -262,7 +262,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
 
     return actionFilteredItems.map((item) => ({
       value: item.sku || `${item.id}`,
-      label: `${item.name} (${item.source || "Unknown"})`,
+      label: `${item.name} (${item.source === "Hikmat" ? "HKI" : item.source || "Unknown"})`,
       item,
     }));
   }, [

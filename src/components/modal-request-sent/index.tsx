@@ -1246,40 +1246,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
         </span>
       ),
     },
-    {
-      title: "Est Bahan",
-      key: "est_bahan",
-      ellipsis: true,
-      width: "auto",
-      render: (_: unknown, record: RequestItem) => {
-        const estBahan = getEstBahanValue(record);
-        if (estBahan === undefined || estBahan === null) {
-          return <span>-</span>;
-        }
-        return (
-          <span>
-            {formatRequestQuantity(estBahan)} {record.satuan || ""}
-          </span>
-        );
-      },
-    },
-    {
-      title: "Efisiensi",
-      key: "efisiensi",
-      ellipsis: true,
-      width: "auto",
-      render: (_: unknown, record: RequestItem) => {
-        if (record.efisiensi === undefined || record.efisiensi === null) {
-          return <span>-</span>;
-        }
-        return (
-          <span>
-            {formatRequestQuantity(record.efisiensi)}
-            {record.satuan ? ` ${record.satuan}` : ""}
-          </span>
-        );
-      },
-    },
+ 
     {
       title: "Deskripsi",
       dataIndex: "description",
@@ -1491,30 +1458,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
         );
       },
     },
-    {
-      title: "Sisa Bahan",
-      key: "requestLeft",
-      ellipsis: true,
-      width: "auto",
-      render: (_: unknown, record: RequestItem) => {
-        const sentValue = getRequestSentValue(record);
-        const leftValue = getRequestLeftValue(record);
-        const disabled = !isRowUnlocked(record);
-        return (
-          <Input
-            type="text"
-            step="0.01"
-            value={leftValue ?? ""}
-            disabled={disabled}
-            onChange={(e) =>
-              handleRequestLeftChange(record.id, e.target.value, sentValue)
-            }
-            style={{ width: "100%" }}
-          />
-        );
-      },
-    },
-    {
+     {
       title: "Terpakai",
       key: "requestReceivedInput",
       ellipsis: true,
@@ -1555,6 +1499,64 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
         );
       },
     },
+       {
+      title: "Est Bahan",
+      key: "est_bahan",
+      ellipsis: true,
+      width: "auto",
+      render: (_: unknown, record: RequestItem) => {
+        const estBahan = getEstBahanValue(record);
+        if (estBahan === undefined || estBahan === null) {
+          return <span>-</span>;
+        }
+        return (
+          <span>
+            {formatRequestQuantity(estBahan)} {record.satuan || ""}
+          </span>
+        );
+      },
+    },
+    {
+      title: "Efisiensi",
+      key: "efisiensi",
+      ellipsis: true,
+      width: "auto",
+      render: (_: unknown, record: RequestItem) => {
+        if (record.efisiensi === undefined || record.efisiensi === null) {
+          return <span>-</span>;
+        }
+        return (
+          <span>
+            {formatRequestQuantity(record.efisiensi)}
+            {record.satuan ? ` ${record.satuan}` : ""}
+          </span>
+        );
+      },
+    },
+    {
+      title: "Sisa Bahan",
+      key: "requestLeft",
+      ellipsis: true,
+      width: "auto",
+      render: (_: unknown, record: RequestItem) => {
+        const sentValue = getRequestSentValue(record);
+        const leftValue = getRequestLeftValue(record);
+        const disabled = !isRowUnlocked(record);
+        return (
+          <Input
+            type="text"
+            step="0.01"
+            value={leftValue ?? ""}
+            disabled={disabled}
+            onChange={(e) =>
+              handleRequestLeftChange(record.id, e.target.value, sentValue)
+            }
+            style={{ width: "100%" }}
+          />
+        );
+      },
+    },
+   
     {
       title: "Kembali Ke Gudang",
       dataIndex: "warehouseReturned",

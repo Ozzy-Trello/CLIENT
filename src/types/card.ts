@@ -29,6 +29,7 @@ export interface Card {
   labels?: Label[];
   members?: User[];
   customFields?: CardCustomField[];
+  requests?: any[];
   timeInLists?: CardTimeInList[];
   formattedTimeInBoard?: string;
   formattedTimeInList?: string;

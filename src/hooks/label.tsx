@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@constants/query-keys";
 import {
   createLabel,
   updateLabel,
@@ -210,6 +211,11 @@ export function useLabels(
         queryClient.invalidateQueries({
           queryKey: ["cardLabels", workspaceId, cardId],
         });
+      if (cardId) {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.cards.detail(cardId),
+        });
+      }
     },
   });
 
@@ -253,6 +259,11 @@ export function useLabels(
         queryClient.invalidateQueries({
           queryKey: ["cardLabels", workspaceId, cardId],
         });
+      if (cardId) {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.cards.detail(cardId),
+        });
+      }
     },
   });
 

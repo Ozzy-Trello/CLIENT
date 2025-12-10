@@ -28,15 +28,22 @@ const RequestFields: React.FC = () => {
   // Query key for requests
   const requestsQueryKey = ["requests", selectedCard?.id];
 
-  // Query for fetching requests
+  // Query for fetching requests (skip if already present on card)
   const { data: requestData } = useQuery<{ data: CardRequest[] }>({
     queryKey: requestsQueryKey,
     queryFn: async () => {
       if (!selectedCard?.id) return null;
       return getRequestsByCardId(selectedCard.id);
     },
-    enabled: !!selectedCard?.id,
+    enabled:
+      !!selectedCard?.id &&
+      !(selectedCard?.requests && selectedCard.requests.length > 0),
   });
+
+  const requests: CardRequest[] =
+    ((selectedCard?.requests as any) as CardRequest[]) ??
+    requestData?.data ??
+    [];
 
   // Mutation for updating request received amount
   const updateRequestMutation = useMutation({
@@ -185,14 +192,14 @@ const RequestFields: React.FC = () => {
 
   if (!selectedCard?.id) return null;
 
-  if (!requestData?.data || requestData.data.length === 0) return null;
+  if (!requests || requests.length === 0) return null;
 
   return (
     <div className="w-full">
       <div className="ml-8">
         <Table
           columns={columns}
-          dataSource={requestData?.data || []}
+          dataSource={requests || []}
           pagination={false}
           size="small"
         />

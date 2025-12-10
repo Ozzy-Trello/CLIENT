@@ -641,8 +641,17 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
       return;
     }
 
-    if (zeroLoadingCandidates.length === 0) {
-      void handleCreateNewOrder(po, product);
+    // Require a description on at least one candidate before allowing loading
+    const hasValidDescription =
+      zeroLoadingCandidates.length > 0 &&
+      zeroLoadingCandidates.some(
+        (c) =>
+          typeof c.description === "string" &&
+          c.description.trim().length > 0
+      );
+
+    if (!hasValidDescription) {
+      message.warning("Isi deskripsi terlebih dahulu sebelum terloading.");
       return;
     }
 

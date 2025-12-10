@@ -7,6 +7,7 @@ import {
   cardCustomFields,
   setCardCustomFieldValue,
 } from "../api/card_custom_field";
+import { queryKeys } from "../constants/query-keys";
 import { ApiResponse } from "../types/type";
 import { CardCustomField } from "@myTypes/card";
 import {
@@ -99,6 +100,9 @@ export const useCardCustomField = (cardId: string, workspaceId: string) => {
           data
         );
       }
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.cards.detail(cardId),
+      });
     },
     // Remove onSettled to prevent unnecessary refetches that override our data
     // onSettled: () => {

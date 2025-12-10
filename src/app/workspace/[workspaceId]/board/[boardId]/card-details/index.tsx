@@ -1,74 +1,68 @@
+import MembersList from "@components/members-list";
+import { useCardDetailContext } from "@providers/card-detail-context";
 import {
   Button,
   Checkbox,
-  CheckboxProps,
+  CheckboxChangeEvent,
   Col,
-  Dropdown,
   Flex,
   Modal,
   Row,
   Tag,
-  Typography,
-  Divider,
   Tooltip,
-  CheckboxChangeEvent,
+  Typography
 } from "antd";
-import { useCallback, useEffect, useRef, useState } from "react";
-import Cover from "./cover";
-import { useCardDetailContext } from "@providers/card-detail-context";
 import {
-  Clock,
-  Eye,
-  Info,
-  TimerIcon,
-  TextCursorInput,
-  ShirtIcon,
-  ListRestart,
   CheckSquare,
-  Paperclip,
+  Clock,
+  Info,
+  ListRestart,
   MessageSquare,
+  Paperclip,
+  ShirtIcon,
+  TextCursorInput
 } from "lucide-react";
-import MembersList from "@components/members-list";
-import Description from "./description";
-import Activity from "./activity";
 import dynamic from "next/dynamic";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Activity from "./activity";
+import Cover from "./cover";
+import Description from "./description";
 
 const Attachments = dynamic(() => import("./attachments"), {
   ssr: false,
   loading: () => <div>Loading attachments...</div>,
 });
 
-import { useSelector } from "react-redux";
-import { selectUser } from "@store/app_slice";
-import { useParams } from "next/navigation";
-import CustomFields from "./custom-field";
-import { ListSelection, SelectionRef } from "@components/selection";
-import { useCardMutationsOnly } from "@hooks/card";
-import { useLists } from "@hooks/list";
-import { useCardActivity } from "@hooks/card_activity";
-import LocationDisplay from "./location";
-import ChecklistFields from "./checklist-field";
-import CardTimeInList from "./time-in-lists";
-import RequestFields from "./request-field";
-import SplitJobFields from "./split-job-field";
 import { CardDateDisplay } from "@components/card-dates";
-import { useCardMembers } from "@hooks/card_member";
-import PopoverLabel from "@components/popover-label.tsx";
-import { CardLabel } from "@myTypes/label";
-import { useLabels } from "@hooks/label";
-import Dashcard from "./dashcard";
+import CollapsibleSection from "@components/collapsible-section";
 import ModalDashcardDetail from "@components/modal-dashcard-detail";
-import { Card } from "@myTypes/card";
+import PopoverLabel from "@components/popover-label.tsx";
+import { ListSelection, SelectionRef } from "@components/selection";
+import { useBoardDetails } from "@hooks/board";
+import { useCardMutationsOnly } from "@hooks/card";
 import { useCardDetails } from "@hooks/card-details";
-import { LookupCache } from "@utils/lookup-cache";
+import { useCardActivity } from "@hooks/card_activity";
+import { useCardMembers } from "@hooks/card_member";
+import { useLabels } from "@hooks/label";
+import { Card } from "@myTypes/card";
+import { CardLabel } from "@myTypes/label";
 import { useBoardPermissionsContext } from "@providers/board-permissions-context";
+import { selectUser } from "@store/app_slice";
+import { LookupCache } from "@utils/lookup-cache";
+import { useParams } from "next/navigation";
+import { useSelector } from "react-redux";
+import Actions from "./actions";
+import BahanFields from "./bahan-fields";
+import ChecklistFields from "./checklist-field";
+import CustomFields from "./custom-field";
+import Dashcard from "./dashcard";
+import LocationDisplay from "./location";
 import POAmount from "./po-amount";
 import POSizeAssignment from "./po-size-assignment";
-import BahanFields from "./bahan-fields";
 import ProdukFields from "./produk-fields";
-import CollapsibleSection from "@components/collapsible-section";
-import { useBoardDetails } from "@hooks/board";
-import Actions from "./actions";
+import RequestFields from "./request-field";
+import SplitJobFields from "./split-job-field";
+import CardTimeInList from "./time-in-lists";
 
 const CardDetails: React.FC = (props) => {
   const params = useParams();
@@ -150,19 +144,39 @@ const CardDetails: React.FC = (props) => {
     refetch: refetchMember,
     removeMember,
   } = useCardMembers(selectedCard?.id || "", {
-    enabled: isCardDetailOpen && !!selectedCard?.id,
+    enabled:
+      isCardDetailOpen &&
+      !!selectedCard?.id &&
+      !(selectedCard?.members && selectedCard.members.length > 0),
   });
   const { cardLabels, allLabels } = useLabels(
     workspaceId as string,
     selectedCard?.id,
     undefined,
     {
-      enabled: isCardDetailOpen && !!selectedCard?.id,
+      enabled:
+        isCardDetailOpen &&
+        !!selectedCard?.id &&
+        !(selectedCard?.labels && selectedCard.labels.length > 0),
     }
   );
   const { cardActivities } = useCardActivity(selectedCard?.id || "", {
     enabled: isCardDetailOpen && !!selectedCard?.id,
   });
+  const effectiveMembers = useMemo(
+    () =>
+      selectedCard?.members && selectedCard.members.length > 0
+        ? selectedCard.members
+        : cardMembers || [],
+    [selectedCard?.members, cardMembers]
+  );
+  const effectiveLabels = useMemo(
+    () =>
+      selectedCard?.labels && selectedCard.labels.length > 0
+        ? (selectedCard.labels as CardLabel[])
+        : (cardLabels as CardLabel[]) || [],
+    [selectedCard?.labels, cardLabels]
+  );
   const [openAddMember, setOpenAddMember] = useState<boolean>(false);
   const [openLabel, setOpenLabel] = useState<boolean>(false);
   const {
@@ -324,7 +338,7 @@ const CardDetails: React.FC = (props) => {
 
         <div className="p-5">
           <Row>
-            <Col flex="0 1 75%">
+            <Col flex="0 0 75%" style={{ maxWidth: "75%", minWidth: 0 }}>
               <div className="flex items-center gap-2 mb-4">
                 <Checkbox
                   className={`custom-circular-checkbox absolute left-0 -ml-6 transition-all duration-300 
@@ -403,8 +417,8 @@ const CardDetails: React.FC = (props) => {
                     </span>
                     <div>
                       <MembersList
-                        members={cardMembers || []}
-                        membersLength={cardMembers?.length || 0}
+                        members={effectiveMembers}
+                        membersLength={effectiveMembers?.length || 0}
                         membersLoopLimit={3}
                         openAddMember={openAddMember && canUpdateCard()}
                         setOpenAddMember={setOpenAddMember}
@@ -420,7 +434,7 @@ const CardDetails: React.FC = (props) => {
                       Labels
                     </span>
                     <div className="flex gap-1">
-                      {cardLabels?.map((label: CardLabel, index: number) => (
+                      {effectiveLabels?.map((label: CardLabel, index: number) => (
                         <Tooltip
                           title={`color: ${label.value}, title: ${label.name}`}
                           key={index}
@@ -712,7 +726,7 @@ const CardDetails: React.FC = (props) => {
                 </CollapsibleSection>
               )}
             </Col>
-            <Col flex="0 1 25%">
+            <Col flex="0 0 25%" style={{ maxWidth: "25%", minWidth: 0 }}>
               <div className="pl-4">
                 <Typography.Title level={5} className="m-0 mb-2 text-gray-700">
                   Actions
