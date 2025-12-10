@@ -575,7 +575,9 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
   const isOrderAlreadyCreated = !!product.orderCreated;
   const hasTerloadingValue =
     typeof bahanTab.terloading === "number" && bahanTab.terloading > 0;
-  const disableLoadingButton = isOrderAlreadyCreated || isSyncingRequest;
+  const hasDescription = typeof description === "string" && description.trim().length > 0;
+  const disableLoadingButton =
+    isOrderAlreadyCreated || isSyncingRequest || !hasDescription;
 
   const handleConfirmZeroLoading = async () => {
     if (!selectedLoadingCardId) {
@@ -633,6 +635,9 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
 
   const handleLoadingClick = () => {
     if (disableLoadingButton) {
+      if (!hasDescription) {
+        message.warning("Isi deskripsi terlebih dahulu sebelum loading.");
+      }
       return;
     }
 
@@ -908,11 +913,11 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
         >
           Description
         </label>
-        <Input.TextArea
-          autoSize={{ minRows: 3, maxRows: 5 }}
+        <Input
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           onBlur={handleDescriptionBlur}
+          required
           placeholder="Tambahkan catatan untuk request"
         />
         {isSavingDescription && (
