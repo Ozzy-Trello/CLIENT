@@ -527,11 +527,20 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
         return false;
       });
 
+      const isKUI = (selectedItemSource || "").toLowerCase() === "kui";
+
       const adjustmentNumber =
         adjustment?.value ??
         (typeof values.akunPenyesuaian === "string"
           ? values.akunPenyesuaian.trim() || null
           : null);
+
+      const finalAdjustmentNo = isKUI ? "5001" : adjustmentNumber;
+      const finalAdjustmentName = isKUI
+        ? "HPP Benang Knitting"
+        : adjustment
+        ? adjustment.label
+        : adjustmentNumber || null;
 
       // Debug the matching process
       if (typeof values.akunPenyesuaian === "string") {
@@ -573,10 +582,10 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
         request_type: values.actionType,
         requested_item_id: requestedItemId,
         request_amount: sanitizedAmount,
-        adjustment_no: adjustmentNumber,
+        adjustment_no: finalAdjustmentNo,
         description: values.description,
         item_name: selectedProduct?.name || item?.label || values.barang,
-        adjustment_name: adjustment ? adjustment.label : adjustmentNumber || null,
+        adjustment_name: finalAdjustmentName,
         satuan: selectedItemUnit || "", // Add the selected unit (satuan) to the payload
         source: selectedItemSource || "", // Add the source field to the payload
         type: null,
