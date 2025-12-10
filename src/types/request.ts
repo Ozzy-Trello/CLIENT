@@ -57,4 +57,7 @@ export interface RequestItem {
   sentByName?: string;
   receivedByName?: string;
   createdAt?: string;
+  estBahan?: number | null;
+  est_bahan?: number | null;
+  efisiensi?: number | null;
 }

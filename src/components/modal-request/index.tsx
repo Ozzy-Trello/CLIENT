@@ -25,7 +25,7 @@ interface ModalRequestProps {
 
 const { Option } = Select;
 
-const MPI_ACCOUNT_MAPPINGS = [
+const MPI_KUI_ACCOUNT_MAPPINGS = [
   { accountName: "HPP Hang Tag", keywords: ["hangtag", "hang tag"] },
   { accountName: "HPP Kancing", keywords: ["kancing"] },
   { accountName: "HPP Label", keywords: ["label"] },
@@ -344,9 +344,9 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
         const normalizedSource =
           (itemSource || selectedItemSource || "").toLowerCase();
 
-        if (normalizedSource === "mpi") {
+        if (normalizedSource === "mpi" || normalizedSource === "kui") {
           const normalizedName = selectedItem.name?.toLowerCase() || "";
-          const mpiMapping = MPI_ACCOUNT_MAPPINGS.find((mapping) =>
+          const mpiMapping = MPI_KUI_ACCOUNT_MAPPINGS.find((mapping) =>
             mapping.keywords.some((keyword) => normalizedName.includes(keyword))
           );
 
@@ -774,20 +774,38 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
                       value: unit,
                     }));
                     setAvailableUnits(units);
-                    setSelectedItemUnit("");
+
+                    const selectedItemUnitType =
+                      selectedItem.unitType !== undefined &&
+                      selectedItem.unitType !== null
+                        ? String(selectedItem.unitType)
+                        : "";
+
+                    const preferredUnit =
+                      (selectedItemUnitType &&
+                        units.some(
+                          (u) => String(u.value) === selectedItemUnitType
+                        ) &&
+                        selectedItemUnitType) ||
+                      (units.length > 0 ? String(units[0].value) : "");
+
+                    setSelectedItemUnit(preferredUnit);
+                    form.setFieldsValue({
+                      unit: preferredUnit || undefined,
+                    });
                   } else {
                     setAvailableUnits([]);
                     setSelectedItemUnit("");
                   }
 
-                    const unitPrice =
-                      (selectedItem as any)?.unitPrice ??
-                      (selectedItem as any)?.unit_price;
-                    setSelectedItemUnitPrice(
-                      unitPrice !== undefined && unitPrice !== null
-                        ? String(unitPrice)
-                        : ""
-                    );
+                  const unitPrice =
+                    (selectedItem as any)?.unitPrice ??
+                    (selectedItem as any)?.unit_price;
+                  setSelectedItemUnitPrice(
+                    unitPrice !== undefined && unitPrice !== null
+                      ? String(unitPrice)
+                      : ""
+                  );
 
                   // Use COGS GL account from the selected item when provided
                   const cogsGlAccountId =

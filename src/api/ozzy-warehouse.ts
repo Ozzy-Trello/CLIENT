@@ -471,9 +471,10 @@ export const getOzzyProductById = async (
   }
 };
 
-const ACCURATE_PRODUCT_SOURCES: Record<string, "MPI" | "Hikmat"> = {
+const ACCURATE_PRODUCT_SOURCES: Record<string, "MPI" | "Hikmat" | "KUI"> = {
   "1880451": "MPI",
   "1880365": "Hikmat",
+  "1954066": "KUI",
 };
 
 export const getCombinedOzzyProducts = async (): Promise<

@@ -144,10 +144,10 @@ const UploadModal: React.FC<UploadModalProps> = ({
 
   const validateFile = (file: File): boolean => {
     // Check file size
-    if (file.size > fileTypeConfig.maxSize) {
-      message.error(`File size exceeds ${fileTypeConfig.maxSize / 1024 / 1024}MB limit`);
-      return false;
-    }
+    // if (file.size > fileTypeConfig.maxSize) {
+    //   message.error(`File size exceeds ${fileTypeConfig.maxSize / 1024 / 1024}MB limit`);
+    //   return false;
+    // }
 
     // Skip file type validation if accept is '*'
     if (fileTypeConfig.accept === '*') {

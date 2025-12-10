@@ -103,6 +103,9 @@ const formatDateValue = (value?: string | number | Date) => {
   });
 };
 
+const getEstBahanValue = (record: RequestItem) =>
+  record.estBahan ?? record.est_bahan;
+
 const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
   open,
   onClose,
@@ -144,9 +147,6 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
   const [editingTerpakaiId, setEditingTerpakaiId] = useState<string | null>(
     null
   );
-  const [editingSentRequestId, setEditingSentRequestId] = useState<
-    string | null
-  >(null);
   const [deletingRequestId, setDeletingRequestId] = useState<string | null>(
     null
   );
@@ -154,6 +154,9 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
   const [sentByOverrides, setSentByOverrides] = useState<Record<string, string>>(
     {}
   );
+  const [sentLockOverrides, setSentLockOverrides] = useState<
+    Record<string, boolean>
+  >({});
   const [receivedByOverrides, setReceivedByOverrides] = useState<
     Record<string, string>
   >({});
@@ -162,6 +165,16 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
   const [warehouseReturnOverrides, setWarehouseReturnOverrides] = useState<
     Record<string, boolean>
   >({});
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [exportRange, setExportRange] = useState<[Dayjs | null, Dayjs | null]>([
+    null,
+    null,
+  ]);
+  const [exportDraftRange, setExportDraftRange] = useState<
+    [Dayjs | null, Dayjs | null]
+  >([null, null]);
 
   const queryClient = useQueryClient();
   const debouncedSearch = useRef(
@@ -273,6 +286,12 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     }
   }, [open, refetch]);
 
+  useEffect(() => {
+    if (data) {
+      setLastRefreshedAt(new Date());
+    }
+  }, [data]);
+
   useEffect(
     () => () => {
       debouncedSearch.cancel();
@@ -337,10 +356,12 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     const initialBeliValues: Record<string, BeliSelection> = {};
     const initialReceivedByValues: Record<string, string> = {};
     const initialProductionReceived: Record<string, boolean> = {};
+    const initialSentLocks: Record<string, boolean> = {};
     data.data.forEach((item) => {
       const numericSent = Number(item.requestSent);
       if (!Number.isNaN(numericSent)) {
         initialSentValues[item.id] = String(numericSent);
+        initialSentLocks[item.id] = true; // lock if already has sent value
       }
 
       const leftFromRecord = item.requestLeft ?? item.request_left ?? undefined;
@@ -354,7 +375,15 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       if (!Number.isNaN(numericReceived)) {
         initialReceivedValues[item.id] = numericReceived;
       }
-      initialBeliValues[item.id] = item.beli ?? "-";
+      const beliValue = (item.beli ?? "-") as BeliSelection;
+      initialBeliValues[item.id] = beliValue;
+      if (
+        initialSentLocks[item.id] === undefined &&
+        beliValue !== "-" &&
+        beliValue !== ""
+      ) {
+        initialSentLocks[item.id] = false; // auto-open when beli is preset and no sent value
+      }
       const resolvedReceivedBy =
         item.receivedBy ?? (item as any)?.received_by ?? null;
       if (resolvedReceivedBy) {
@@ -382,6 +411,10 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     setProductionReceivedOverrides((prev) => ({
       ...prev,
       ...initialProductionReceived,
+    }));
+    setSentLockOverrides((prev) => ({
+      ...initialSentLocks,
+      ...prev,
     }));
     setPagination((prev) => ({
       ...prev,
@@ -468,7 +501,6 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     mutationFn: (id: string) => deleteRequest(id),
     onSuccess: () => {
       message.success("Request deleted");
-      setEditingSentRequestId(null);
       queryClient.invalidateQueries({ queryKey: ["requests"] });
     },
     onError: () => {
@@ -515,15 +547,23 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     return Number.isNaN(numericValue) ? 0 : numericValue;
   };
 
-  const attemptSendRequest = (id: string): boolean => {
-    const amount = parseLocalizedNumberInput(requestSentValues[id] ?? "" );
-   
+  const attemptSendRequest = (
+    id: string,
+    record?: RequestItem
+  ): boolean => {
+    const rawInput =
+      requestSentValues[id] ??
+      (record?.requestSent !== undefined && record?.requestSent !== null
+        ? String(record.requestSent)
+        : "");
+    const amount = parseLocalizedNumberInput(rawInput);
+
     sendRequest({ id, amount });
     return true;
   };
 
-  const handleSendRequest = (id: string): void => {
-    attemptSendRequest(id);
+  const handleSendRequest = (id: string, record?: RequestItem): void => {
+    attemptSendRequest(id, record);
   };
 
   const handleBeliChange = (id: string, value: BeliSelection) => {
@@ -532,8 +572,17 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       [id]: value,
     }));
     if (value === "-") {
+      setSentLockOverrides((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
       return;
     }
+    setSentLockOverrides((prev) => ({
+      ...prev,
+      [id]: false, // auto-open jumlah dikirim when beli is selected
+    }));
     updateBeliStatus({ id, beli: value });
   };
 
@@ -554,62 +603,241 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       productionReceived: checked,
     });
   };
-  const handleExport = () => {
-    const currentData = data?.data ?? [];
-    if (currentData.length === 0) {
-      message.warning("Tidak ada data untuk diexport");
+  const handleExport = async () => {
+    setExportModalOpen(true);
+  };
+
+  const buildExportFilter = (range: [Dayjs | null, Dayjs | null]) => {
+    const base = { ...filterParams };
+    if (range[0] || range[1]) {
+      base.requestReceived = {
+        from: range[0]?.startOf("day").toISOString(),
+        to: range[1]?.endOf("day").toISOString(),
+      };
+    }
+    return base;
+  };
+
+  const fetchAllForExport = async (
+    range: [Dayjs | null, Dayjs | null]
+  ): Promise<RequestItem[]> => {
+    const limit = 1000;
+    let page = 1;
+    const all: RequestItem[] = [];
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const resp = await getAllRequests(
+        page,
+        limit,
+        buildExportFilter(range)
+      );
+      const chunk: RequestItem[] = resp?.data ?? [];
+      all.push(...chunk);
+      const total = resp?.pagination?.total ?? chunk.length;
+      if (all.length >= total || chunk.length < limit) {
+        break;
+      }
+      page += 1;
+    }
+    return all;
+  };
+
+  const downloadCsv = (records: RequestItem[]) => {
+    const csvEscape = (raw: string | number | boolean | null | undefined) => {
+      const value = raw ?? "";
+      return `"${String(value).replace(/"/g, '""')}"`;
+    };
+
+    const header = [
+      "Tanggal",
+      "Nama PO",
+      "Type",
+      "Labels",
+      "Cabang",
+      "Item",
+      "Request",
+      "Satuan",
+      "Est Bahan",
+      "Efisiensi",
+      "Deskripsi",
+      "Verified",
+      "Beli",
+      "Jumlah Dikirim",
+      "Dikirim Oleh",
+      "Diterima Oleh",
+      "Diterima Produksi",
+      "Sisa Bahan",
+      "Terpakai",
+      "Kembali Ke Gudang",
+      "Status",
+      "Transaction ID",
+    ];
+
+    const rows = records.map((record) => {
+      const createdAt = record.createdAt
+        ? dayjs(record.createdAt).format("YYYY-MM-DD HH:mm")
+        : "-";
+      const labels = (() => {
+        const raw =
+          record.card_labels ||
+          record.cardLabels ||
+          [];
+        const normalized = raw.map((l) => String(l).toLowerCase());
+        const parts: string[] = [];
+        if (normalized.some((l) => l === "ozzy")) parts.push("Ozzy");
+        if (normalized.some((l) => l === "steady")) parts.push("Steady");
+        return parts.join("; ");
+      })();
+      const cabangValue = getCabangValue(record);
+      const requestAmount = formatRequestQuantity(record.requestAmount);
+      const estBahan = formatRequestQuantity(getEstBahanValue(record));
+      const efisiensi = formatRequestQuantity(record.efisiensi);
+      const verified = record.isVerified ? "Verified" : "Pending";
+      const beliValue =
+        (record.beli as BeliSelection) ??
+        DEFAULT_BELI_STATUS ??
+        "-";
+      const jumlahDikirimValue =
+        getResolvedRequestSent(record) ?? "";
+      const sentByName =
+        record.sentByName ||
+        record.sentBy ||
+        sentByOverrides[record.id] ||
+        "";
+      const receivedByName =
+        record.receivedByName ||
+        record.receivedBy ||
+        receivedByOverrides[record.id] ||
+        (record as any)?.received_by ||
+        "";
+      const diterimaProduksi = record.productionReceived
+        ? "Ya"
+        : "Tidak";
+      const sisaBahan = getRequestLeftValue(record) ?? "";
+      const terpakai = getResolvedRequestReceived(record) ?? "";
+      const kembaliGudang = record.warehouseReturned ? "Ya" : "Tidak";
+      const status = (() => {
+        if (record.is_done || record.isDone) return "Done";
+        if (record.is_rejected || record.isRejected) return "Rejected";
+        if (record.productionReceived) return "Diterima produksi";
+        if (record.requestSent) return "Dikirim";
+        return "Belum dikirim";
+      })();
+      const transactionId = record.invoiceNo || record.invoice_no || "";
+
+      return [
+        csvEscape(createdAt),
+        csvEscape(record.cardName || ""),
+        csvEscape(record.requestType || ""),
+        csvEscape(labels),
+        csvEscape(cabangValue),
+        csvEscape(record.itemName || ""),
+        csvEscape(requestAmount),
+        csvEscape(record.satuan || ""),
+        csvEscape(estBahan),
+        csvEscape(efisiensi),
+        csvEscape(record.description || ""),
+        csvEscape(verified),
+        csvEscape(beliValue),
+        csvEscape(jumlahDikirimValue),
+        csvEscape(sentByName),
+        csvEscape(receivedByName),
+        csvEscape(diterimaProduksi),
+        csvEscape(sisaBahan),
+        csvEscape(terpakai),
+        csvEscape(kembaliGudang),
+        csvEscape(status),
+        csvEscape(transactionId),
+      ].join(",");
+    });
+
+    const csvContent = [header.join(","), ...rows].join("\n");
+    const blob = new Blob(["\uFEFF" + csvContent], {
+      type: "text/csv;charset=utf-8;",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `gudang-requests-${dayjs().format(
+      "YYYYMMDD-HHmmss"
+    )}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleConfirmExport = async () => {
+    if (!exportRange[0] || !exportRange[1]) {
+      message.warning("Pilih rentang tanggal terlebih dahulu");
+      return;
+    }
+    const diffDays = exportRange[1].diff(exportRange[0], "day");
+    if (diffDays > 30) {
+      message.error("Rentang maksimum 31 hari (31 hari inklusif)");
       return;
     }
 
     setIsExporting(true);
     try {
-      const header = [
-        "Tanggal",
-        "Nama PO",
-        "Item",
-        "Jumlah",
-        "Satuan",
-        "Deskripsi",
-        "Status",
-      ];
-      const rows = currentData.map((record) => {
-        const createdAt = record.createdAt
-          ? dayjs(record.createdAt).format("YYYY-MM-DD HH:mm")
-          : "-";
-        const amount = formatRequestQuantity(record.requestAmount);
-        const status = record.productionReceived
-          ? "Diterima Produksi"
-          : record.requestSent
-            ? "Dikirim"
-            : "Belum dikirim";
-        return [
-          createdAt,
-          `"${record.cardName || ""}"`,
-          `"${record.itemName || ""}"`,
-          amount,
-          record.satuan || "",
-          `"${record.description || ""}"`,
-          status,
-        ].join(",");
-      });
-      const csvContent = [header.join(","), ...rows].join("\n");
-      const blob = new Blob(["\uFEFF" + csvContent], {
-        type: "text/csv;charset=utf-8;",
-      });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `gudang-requests-${dayjs().format(
-        "YYYYMMDD-HHmmss"
-      )}.csv`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      const records = await fetchAllForExport(exportRange);
+      if (!records.length) {
+        message.info("Tidak ada data pada rentang tersebut");
+        return;
+      }
+      downloadCsv(records);
+      setExportModalOpen(false);
+    } catch (error) {
+      message.error("Gagal mengekspor data");
     } finally {
       setIsExporting(false);
     }
   };
+
+  const disableExportDate = (current: Dayjs) => {
+    const todayEnd = dayjs().endOf("day");
+    if (current.isAfter(todayEnd)) {
+      return true; // block future dates
+    }
+
+    const [start, end] =
+      exportDraftRange[0] || exportDraftRange[1] ? exportDraftRange : exportRange;
+
+    const anchor = start || end;
+    if (!anchor) return false;
+
+    const diffFromAnchor = Math.abs(
+      current.startOf("day").diff(anchor.startOf("day"), "day")
+    );
+    if (diffFromAnchor > 30) {
+      return true; // outside 31-day window from the selected date
+    }
+
+    if (start && end) {
+      const minDate = start.isBefore(end) ? start : end;
+      const maxDate = start.isAfter(end) ? start : end;
+      const rangeDiff = maxDate.diff(minDate, "day");
+      if (rangeDiff > 30) return true;
+    }
+
+    return false;
+  };
+
+  const handleRefresh = async () => {
+    try {
+      setIsRefreshing(true);
+      await refetch();
+      setLastRefreshedAt(new Date());
+    } catch (error) {
+      message.error("Gagal refresh data");
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const formattedLastRefresh = lastRefreshedAt
+    ? dayjs(lastRefreshedAt).format("DD MMM YYYY HH:mm:ss")
+    : "Belum pernah";
   const handleRequestReceivedUpdate = (
     id: string,
     amount: number,
@@ -722,6 +950,15 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     return (record.beli as BeliSelection) ?? "-";
   };
 
+  const isJumlahDikirimLocked = (record: RequestItem): boolean => {
+    const override = sentLockOverrides[record.id];
+    if (override !== undefined) return override;
+    if (record.requestSent !== null && record.requestSent !== undefined) {
+      return true;
+    }
+    return false;
+  };
+
   const getWorkflowState = (record: RequestItem) => {
     const cabangFilled = Boolean(getCabangValue(record));
     const isPersediaanProduct =
@@ -750,6 +987,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       record.productionRecieved ??
       false;
     const warehouseReturned = getWarehouseReturnedValue(record);
+    const jumlahLocked = isJumlahDikirimLocked(record);
 
     return {
       cabangFilled,
@@ -761,6 +999,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       hasReceivedBy,
       productionReceived,
       warehouseReturned,
+      jumlahLocked,
     };
   };
 
@@ -828,18 +1067,6 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
 
   const toggleTerpakaiEdit = (id: string) => {
     setEditingTerpakaiId((prev) => (prev === id ? null : id));
-  };
-
-  const toggleSentEdit = (id: string) => {
-    setEditingSentRequestId((prev) => {
-      if (prev === id) {
-        if (!attemptSendRequest(id)) {
-          return prev;
-        }
-        return null;
-      }
-      return id;
-    });
   };
 
   const handleRequestSentChange = (id: string, rawValue: string) => {
@@ -975,7 +1202,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       width: 120,
       render: (_: unknown, record: RequestItem) => {
         const labels = record.card_labels || record.cardLabels || [];
-        console.log(labels,'<< in i isi lables')
+        console.log(labels, '<< in i isi lables')
         const hasOzzy = labels.some((l) => l.toLowerCase() === "ozzy");
         const hasSteady = labels.some((l) => l.toLowerCase() === "steady");
         if (!hasOzzy && !hasSteady) return <Tag color="default">-</Tag>;
@@ -1018,6 +1245,40 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
           {formatRequestQuantity(record.requestAmount)} {record.satuan || ""}
         </span>
       ),
+    },
+    {
+      title: "Est Bahan",
+      key: "est_bahan",
+      ellipsis: true,
+      width: "auto",
+      render: (_: unknown, record: RequestItem) => {
+        const estBahan = getEstBahanValue(record);
+        if (estBahan === undefined || estBahan === null) {
+          return <span>-</span>;
+        }
+        return (
+          <span>
+            {formatRequestQuantity(estBahan)} {record.satuan || ""}
+          </span>
+        );
+      },
+    },
+    {
+      title: "Efisiensi",
+      key: "efisiensi",
+      ellipsis: true,
+      width: "auto",
+      render: (_: unknown, record: RequestItem) => {
+        if (record.efisiensi === undefined || record.efisiensi === null) {
+          return <span>-</span>;
+        }
+        return (
+          <span>
+            {formatRequestQuantity(record.efisiensi)}
+            {record.satuan ? ` ${record.satuan}` : ""}
+          </span>
+        );
+      },
     },
     {
       title: "Deskripsi",
@@ -1079,7 +1340,12 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
         <div className="flex items-center gap-2">
           {(() => {
             const workflow = getWorkflowState(record);
-            const disableInput =  editingSentRequestId !== record.id;
+            const canEdit =
+              isRowUnlocked(record) &&
+              workflow.cabangFilled &&
+              workflow.beliSelected;
+            const isLocked = workflow.jumlahLocked;
+            const disableInput = !canEdit || isLocked;
             return (
               <>
                 <Input
@@ -1089,37 +1355,51 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
                     requestSentValues[record.id] !== undefined
                       ? requestSentValues[record.id]
                       : record.requestSent !== null &&
-                          record.requestSent !== undefined
+                        record.requestSent !== undefined
                         ? Number(record.requestSent)
                         : ""
                   }
                   disabled={disableInput}
-                  className={`flex-1 ${
-                    disableInput
+                  className={`flex-1 ${disableInput
                       ? "bg-gray-100 text-gray-500"
                       : ""
-                  }`}
+                    }`}
                   style={{ width: "100%" }}
                   onChange={(event) =>
                     handleRequestSentChange(record.id, event.target.value)
                   }
                 />
-            
-                  <Tooltip
-                    title={
-                      editingSentRequestId === record.id
-                        ? "Editing"
-                        : "Enable edit"
-                    }
-                  >
-                    <Button
-                      type="text"
-                      size="small"
-                      icon={<EditOutlined />}
-                      onClick={() => toggleSentEdit(record.id)}
-                      className="text-gray-500 hover:text-blue-600"
-                    />
-                  </Tooltip>
+
+                <Tooltip
+                  title={
+                    isLocked ? "Buka edit jumlah" : "Kunci jumlah"
+                  }
+                >
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<EditOutlined />}
+                    disabled={!canEdit}
+                    onClick={() => {
+                      if (!canEdit) return;
+                      if (isLocked) {
+                        setSentLockOverrides((prev) => ({
+                          ...prev,
+                          [record.id]: false,
+                        }));
+                        return;
+                      }
+                      if (!attemptSendRequest(record.id, record)) {
+                        return;
+                      }
+                      setSentLockOverrides((prev) => ({
+                        ...prev,
+                        [record.id]: true,
+                      }));
+                    }}
+                    className="text-gray-500 hover:text-blue-600"
+                  />
+                </Tooltip>
               </>
             );
           })()}
@@ -1138,6 +1418,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
           !isRowUnlocked(record) ||
           !workflow.cabangFilled ||
           !workflow.beliSelected ||
+          !workflow.jumlahLocked ||
           !workflow.hasJumlahDikirim;
         return (
           <UserSelectionForModal
@@ -1263,8 +1544,8 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
               handleRequestReceivedChange(record.id, e.target.value, sentValue)
             }
             className={`w-full px-3 py-2 rounded-md text-sm ${!isEditingRow || isDone
-                ? "cursor-not-allowed opacity-80"
-                : "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              ? "cursor-not-allowed opacity-80"
+              : "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               }`}
             style={{
               border: `1px solid #d9d9d9`,
@@ -1486,12 +1767,13 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
           </Space>
         }
         extra={
-          <Space size="small">
+          <Space size="small" align="center">
             <Button
               type="text"
               size="small"
               icon={<RefreshCw size={14} />}
-              onClick={() => refetch()}
+              onClick={handleRefresh}
+              loading={isRefreshing}
               style={{
                 fontSize: "12px",
                 height: "24px",
@@ -1500,6 +1782,23 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
             >
               Refresh
             </Button>
+            <Button
+              type="primary"
+              size="small"
+              icon={<DownloadOutlined />}
+              loading={isExporting}
+              onClick={handleExport}
+              style={{
+                fontSize: "12px",
+                height: "24px",
+                padding: "0 10px",
+              }}
+            >
+              Export
+            </Button>
+            <span style={{ fontSize: 12, color: "#666" }}>
+              Last refreshed: {formattedLastRefresh}
+            </span>
             {totalActiveFilters > 0 && (
               <Button
                 type="text"
@@ -1527,6 +1826,27 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
             gap: 10,
           }}
         >
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 4,
+            }}
+          >
+            <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
+              Tanggal (Dari - Sampai)
+            </span>
+            <DatePicker.RangePicker
+              value={dateRange}
+              onChange={(dates) => {
+                setDateRange([dates?.[0] ?? null, dates?.[1] ?? null]);
+                setPagination((prev) => ({ ...prev, page: 1 }));
+              }}
+              allowEmpty={[true, true]}
+              style={{ width: "100%" }}
+              format="YYYY-MM-DD"
+            />
+          </div>
           <div
             style={{
               display: "flex",
@@ -1626,27 +1946,6 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
             }}
           >
             <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
-              Tanggal (Dari - Sampai)
-            </span>
-            <DatePicker.RangePicker
-              value={dateRange}
-              onChange={(dates) => {
-                setDateRange([dates?.[0] ?? null, dates?.[1] ?? null]);
-                setPagination((prev) => ({ ...prev, page: 1 }));
-              }}
-              allowEmpty={[true, true]}
-              style={{ width: "100%" }}
-              format="YYYY-MM-DD"
-            />
-          </div>
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 4,
-            }}
-          >
-            <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
               Diterima
             </span>
             <Select
@@ -1716,22 +2015,6 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
             />
           </div>
         </div>
-        <div
-          style={{
-            marginTop: 12,
-            display: "flex",
-            justifyContent: "flex-start",
-          }}
-        >
-          <Button
-            icon={<DownloadOutlined />}
-            type="primary"
-            loading={isExporting}
-            onClick={handleExport}
-          >
-            Export
-          </Button>
-        </div>
       </Card>
       <Card
         style={{
@@ -1777,6 +2060,35 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
           }}
         />
       </Card>
+      <Modal
+        open={exportModalOpen}
+        onCancel={() => setExportModalOpen(false)}
+        onOk={handleConfirmExport}
+        confirmLoading={isExporting}
+        title="Export Gudang Requests"
+        okText="Export"
+        cancelText="Batal"
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <span style={{ fontSize: 13, color: "#555" }}>
+            Pilih rentang tanggal (maksimum 31 hari):
+          </span>
+          <DatePicker.RangePicker
+            value={exportRange}
+            onChange={(dates) => setExportRange([dates?.[0] ?? null, dates?.[1] ?? null])}
+            onCalendarChange={(dates) =>
+              setExportDraftRange([dates?.[0] ?? null, dates?.[1] ?? null])
+            }
+            allowEmpty={[true, true]}
+            style={{ width: "100%" }}
+            format="YYYY-MM-DD"
+            disabledDate={disableExportDate}
+          />
+          <span style={{ fontSize: 12, color: "#888" }}>
+            Export akan mengambil seluruh data dalam rentang tanpa pagination.
+          </span>
+        </div>
+      </Modal>
     </Modal>
   );
 };

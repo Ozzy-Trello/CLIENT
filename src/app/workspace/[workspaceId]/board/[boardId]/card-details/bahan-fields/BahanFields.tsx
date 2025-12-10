@@ -254,8 +254,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
     estBahan: number,
     bahanTerpakai: number
   ): number => {
-    if (estBahan === 0) return 0;
-    return ((estBahan - bahanTerpakai) / estBahan) * 100;
+    return estBahan - bahanTerpakai;
   };
 
   // Calculate category values based on Est Bahan and junction weights
@@ -465,6 +464,14 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
           productForPayload
         );
 
+        const latestBahanTab =
+          snapshotProduct?.bahanTabs?.[bahanTabIndex] ?? null;
+        const estBahanValue =
+          latestBahanTab?.estBahan ?? value ?? null;
+        const efisiensiValue =
+          (latestBahanTab?.estBahan ?? value ?? 0) -
+          (latestBahanTab?.bahanTerpakai ?? 0);
+
         const payload: Record<string, any> = {
           requestSent: value,
           requestAmount: value,
@@ -475,6 +482,8 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
           source: "Hikmat",
           unit_price: getUnitPriceFromProduct(productForPayload),
           beli: "Tidak",
+          est_bahan: estBahanValue,
+          efisiensi: efisiensiValue,
         };
 
         if (requestedItemId) {
@@ -535,6 +544,13 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
           productForPayload
         );
 
+        const latestBahanTab =
+          snapshotProduct?.bahanTabs?.[bahanTabIndex] ?? null;
+        const estBahanValue =
+          latestBahanTab?.estBahan ?? sentValue ?? null;
+        const efisiensiValue =
+          (latestBahanTab?.estBahan ?? sentValue ?? 0) - value;
+
         const payload: Record<string, any> = {
           requestReceived: value,
           requestLeft: leftValue,
@@ -545,6 +561,8 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
           source: "Hikmat",
           unit_price: getUnitPriceFromProduct(productForPayload),
           beli: "Tidak",
+          est_bahan: estBahanValue,
+          efisiensi: efisiensiValue,
         };
 
         if (requestedItemId) {
@@ -566,6 +584,9 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
     bahanTabIndex: number,
     value: number
   ) => {
+    let requestId: number | undefined;
+    let efisiensiValue: number | null = null;
+
     setPOData((prevData) => {
       const newData = [...prevData];
       const po = newData[poIndex];
@@ -631,8 +652,26 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
         });
       }
 
+      // Calculate efisiensi from updated Est Bahan and current pemakaian
+      efisiensiValue =
+        (bahanTab.estBahan ?? 0) - (bahanTab.bahanTerpakai ?? 0);
+      bahanTab.efisiensi = efisiensiValue;
+
+      requestId = product.requestId;
+
       return newData;
     });
+
+    if (requestId !== undefined) {
+      updateRequest(requestId.toString(), {
+        est_bahan: value,
+        efisiensi: efisiensiValue ?? null,
+      }).catch((error) => {
+        console.error("❌ Failed to sync est_bahan/efisiensi:", error);
+        message.error("Gagal menyimpan Est Bahan & efisiensi ke request");
+        throw error;
+      });
+    }
   };
 
   // Handle category value change

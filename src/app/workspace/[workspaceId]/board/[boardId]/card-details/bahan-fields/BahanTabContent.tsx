@@ -42,7 +42,7 @@ const formatNumericValue = (value?: number | null): string => {
   if (!Number.isFinite(normalized)) {
     return "";
   }
-  return normalized.toString().replace(/\.0+$/, "");
+  return normalized.toFixed(2);
 };
 
 const toNumberOrNull = (value: unknown): number | null => {
@@ -254,6 +254,34 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
     string | null
   >(null);
   const [isConfirmingZeroLoading, setIsConfirmingZeroLoading] = useState(false);
+  const productTerloading = (product as any)?.terloading;
+
+  // Auto-calculate Est Bahan on load if missing (fallback to terloading)
+  useEffect(() => {
+    const currentEst = toNumberOrNull(bahanTab.estBahan);
+    if (currentEst === null) {
+      const fallbackEst =
+        toNumberOrNull(bahanTab.terloading) ??
+        toNumberOrNull(productTerloading) ??
+        0;
+      if (Number.isFinite(fallbackEst)) {
+        onEstBahanChange(
+          poIndex,
+          productIndex,
+          bahanTabIndex,
+          Number(fallbackEst)
+        );
+      }
+    }
+  }, [
+    bahanTab.estBahan,
+    bahanTab.terloading,
+    productTerloading,
+    poIndex,
+    productIndex,
+    bahanTabIndex,
+    onEstBahanChange,
+  ]);
 
   useEffect(() => {
     setIsTerloadingEditing(!product.orderCreated);
@@ -462,6 +490,11 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
       const sentNumber = Number(bahanTab.terloading ?? 0);
       const usedNumber = Number(bahanTab.bahanTerpakai ?? 0);
       const leftNumber = Math.max(sentNumber - usedNumber, 0);
+      const estBahanNumber =
+        toNumberOrNull(bahanTab.estBahan) ??
+        (Number.isFinite(sentNumber) ? sentNumber : null);
+      const efisiensiNumber =
+        estBahanNumber !== null ? estBahanNumber - usedNumber : null;
 
       console.log(product, "<< product data for order creation");
 
@@ -475,6 +508,8 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
         unit_price?: number;
         beli?: string;
         description?: string;
+        est_bahan?: number | null;
+        efisiensi?: number | null;
       };
 
       const requestData: RequestPayloadWithExtras = {
@@ -498,6 +533,8 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
           resolvedGlAccount?.name || product.adjustment_name || undefined,
         unit_price: unitPrice,
         description: trimmedDescription || undefined,
+        est_bahan: estBahanNumber,
+        efisiensi: efisiensiNumber,
       };
 
       if (requestedItemId) {
@@ -835,7 +872,7 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
               color: `rgb(${colors["text-muted"]})`,
             }}
           >
-            Efisiensi ({product.satuan || "unit"}) / %
+            Efisiensi ({product.satuan || "unit"})
           </label>
           <input
             type="text"
@@ -846,8 +883,8 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
               color: `rgb(${colors["text-muted"]})`,
             }}
             value={`${formatDisplayValue(
-              bahanTab.estBahan - (bahanTab.bahanTerpakai || 0)
-            )} ${product.satuan || "unit"} / ${bahanTab.efisiensi.toFixed(2)}%`}
+              (bahanTab.estBahan ?? 0) - (bahanTab.bahanTerpakai || 0)
+            )} ${product.satuan || "unit"}`}
             readOnly
           />
         </div>

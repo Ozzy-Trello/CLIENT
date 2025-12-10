@@ -15,6 +15,7 @@ export const formatRequestQuantity = (
     return numericValue.toString();
   }
 
-  const normalized = numericValue.toFixed(3).replace(/\.?0+$/, "");
+  // Limit to two decimal places for readability, trimming trailing zeros.
+  const normalized = numericValue.toFixed(2).replace(/\.?0+$/, "");
   return normalized;
 };

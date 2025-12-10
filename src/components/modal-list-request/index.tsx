@@ -30,6 +30,8 @@ const ModalListRequest: React.FC<ModalListRequestProps> = ({
   // Add filter state for unverified requests
   const [showUnverifiedOnly, setShowUnverifiedOnly] = useState(false);
   const [deletingRequestId, setDeletingRequestId] = useState<string | null>(null);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Use optimized hooks with filter
   const {
@@ -83,6 +85,35 @@ const ModalListRequest: React.FC<ModalListRequestProps> = ({
       refetch();
     }
   }, [open, refetch]);
+
+  useEffect(() => {
+    if (requestsData) {
+      setLastRefreshedAt(new Date());
+    }
+  }, [requestsData]);
+
+  const handleRefresh = async () => {
+    try {
+      setIsRefreshing(true);
+      await refetch();
+      setLastRefreshedAt(new Date());
+    } catch (error) {
+      message.error("Failed to refresh requests");
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const formattedLastRefresh = lastRefreshedAt
+    ? lastRefreshedAt.toLocaleString("id-ID", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      })
+    : "Belum pernah";
 
   const confirmDeleteRequest = (record: any) => {
     Modal.confirm({
@@ -382,10 +413,14 @@ const ModalListRequest: React.FC<ModalListRequestProps> = ({
           type="text"
           size="small"
           icon={<RefreshCw size={16} />}
-          onClick={() => refetch()}
+          onClick={handleRefresh}
+          loading={isRefreshing}
         >
           Refresh
         </Button>
+        <span style={{ fontSize: 12, color: "#666" }}>
+          Last refreshed: {formattedLastRefresh}
+        </span>
       </div>
 
       <Table

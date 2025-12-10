@@ -28,18 +28,15 @@ import { debounce } from "lodash";
 import { Factory, Filter, RefreshCw, Truck } from "lucide-react";
 import { useParams } from "next/navigation";
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import dayjs from "dayjs";
 import { formatRequestQuantity } from "@utils/request-format";
 import UserSelectionForModal from "@components/UserSelectionForModal";
 
 const formatDateValue = (value?: string | number | Date) => {
   if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.valueOf())) return "-";
-  return date.toLocaleDateString("id-ID", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  const date = dayjs(value);
+  if (!date.isValid()) return "-";
+  return date.format("DD MMM YYYY HH:mm");
 };
 
 const buildCardUrl = (record: RequestItem) => {
@@ -91,6 +88,8 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
   const [searchInput, setSearchInput] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [unlockingId, setUnlockingId] = useState<string | null>(null);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
   const debouncedRefetch = useRef(
     debounce(() => {
@@ -159,6 +158,12 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
     }
   }, [open, refetch]);
 
+  useEffect(() => {
+    if (data) {
+      setLastRefreshedAt(new Date());
+    }
+  }, [data]);
+
   useEffect(
     () => () => {
       debouncedSearch.cancel();
@@ -222,6 +227,29 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
     setSearchTerm(searchInput.trim());
     setPagination((prev) => ({ ...prev, page: 1 }));
   };
+
+  const handleRefresh = async () => {
+    try {
+      setIsRefreshing(true);
+      await refetch();
+      setLastRefreshedAt(new Date());
+    } catch (error) {
+      message.error("Gagal refresh data");
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const formattedLastRefresh = lastRefreshedAt
+    ? lastRefreshedAt.toLocaleString("id-ID", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      })
+    : "Belum pernah";
 
   const { mutate: updateRequestFields } = useUpdateRequestFields();
   const undoDoneMutation = useMutation({
@@ -343,11 +371,11 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
     {
       title: "Label",
       key: "card_labels",
-      width: 140,
+      width: 70,
       render: (_: unknown, record: RequestItem) => {
-        const labels = record.card_labels || [];
-        const hasOzzy = labels.some((l) => l.toLowerCase() === "ozzy");
-        const hasSteady = labels.some((l) => l.toLowerCase() === "steady");
+        const labels = record.card_labels || (record as any).cardLabels || [];
+        const hasOzzy = labels.some((l: any) => l.toLowerCase() === "ozzy");
+        const hasSteady = labels.some((l: any) => l.toLowerCase() === "steady");
         if (!hasOzzy && !hasSteady) return <Tag color="default">-</Tag>;
         return (
           <Space size={4}>
@@ -457,7 +485,9 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
           record.receivedBy ??
           (record as any)?.received_by ??
           null;
-        const disabled = isDone || !resolvedReceiver;
+        const sender =
+          record.sentBy ?? (record as any)?.sent_by ?? null;
+        const disabled = isDone || !sender || !resolvedReceiver;
 
         return (
           <Checkbox
@@ -566,10 +596,14 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
               type="text"
               size="small"
               icon={<RefreshCw size={14} />}
-              onClick={() => refetch()}
+              onClick={handleRefresh}
+              loading={isRefreshing}
             >
               Refresh
             </Button>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              Last refreshed: {formattedLastRefresh}
+            </Text>
             {activeFilters > 0 && (
               <Button
                 type="link"

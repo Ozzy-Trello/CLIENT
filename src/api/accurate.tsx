@@ -54,6 +54,8 @@ type RequestUpdatePayload = {
   beli?: BeliStatus;
   is_done?: boolean;
   description?: string | null;
+  est_bahan?: number | null;
+  efisiensi?: number | null;
 };
 
 export function updateRequest(
@@ -161,6 +163,8 @@ export const createRequestWithPOConnection = async (requestData: {
   request_sent: RequestQuantity;
   is_verified: boolean;
   po_product_ids: number[];
+  est_bahan?: number | null;
+  efisiensi?: number | null;
 }) => {
   const { data } = await api.post("/request/with-po-connection", requestData);
   return data;
@@ -174,6 +178,11 @@ export const getItemDetail = async (id: string, source?: string) => {
 
 export const getHikmatItemList = async () => {
   const { data } = await api.get("/accurate/hikmat-item-list");
+  return data;
+};
+
+export const getKuiItemList = async () => {
+  const { data } = await api.get("/accurate/kui-item-list");
   return data;
 };
 
