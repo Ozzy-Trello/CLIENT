@@ -862,13 +862,26 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
     });
   };
 
-  const handleScanProduct = (poId: string) => {
-    // Open scan modal and prepare to receive scanner input (external barcode/QR scanners act like keyboard)
+  const handleOpenCameraScan = (poId: string) => {
+    // Open scan modal for camera scanning (dev helper)
     setScanTargetPOId(poId);
     setScannedValue("");
     scannerBufferRef.current = "";
-    setUseCameraScanner(false);
+    setUseCameraScanner(true);
     setScanModalOpen(true);
+  };
+
+  const handleProductInputFocus = (poId: string) => {
+    setScanTargetPOId(poId);
+  };
+
+  const handleInlineScanValue = (poId: string, value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) return;
+    setScanTargetPOId(poId);
+    setScannedValue(trimmed);
+    scannerBufferRef.current = "";
+    setUseCameraScanner(false);
   };
 
   // --- Scan Produk modal state and handlers ---
@@ -1459,8 +1472,10 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
             isLoadingProducts={isLoadingProducts}
             categories={categories || []}
             isLoadingCategories={isLoadingCategories}
-            onScanProduct={handleScanProduct}
             onSelectProduct={handleSelectProduct}
+            onProductInputFocus={handleProductInputFocus}
+            onScanValue={handleInlineScanValue}
+            onOpenCameraScan={isDevMode ? handleOpenCameraScan : undefined}
             onOpenSummary={handleOpenSummary}
             onTerloadingChange={handleTerloadingChange}
             onBahanTerpakaiChange={handleBahanTerpakaiChange}

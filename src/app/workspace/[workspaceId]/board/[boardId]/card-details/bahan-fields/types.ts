@@ -73,8 +73,10 @@ export interface POSectionProps {
   isLoadingProducts: boolean;
   categories: any[];
   isLoadingCategories: boolean;
-  onScanProduct: (poId: string) => void;
   onSelectProduct: (poId: string, productId: string) => void;
+  onProductInputFocus: (poId: string) => void;
+  onScanValue: (poId: string, value: string) => void;
+  onOpenCameraScan?: (poId: string) => void;
   onOpenSummary: (poId: string) => void;
   onTerloadingChange: (
     poIndex: number,

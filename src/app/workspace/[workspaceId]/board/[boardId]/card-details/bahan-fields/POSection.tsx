@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import BahanTabContent from "./BahanTabContent";
 import { POSectionProps } from "./types";
 import { useDeletePOProduct } from "@hooks/usePOProducts";
+import { Camera } from "lucide-react";
 
 const POSection: React.FC<POSectionProps> = ({
   po,
@@ -14,8 +15,10 @@ const POSection: React.FC<POSectionProps> = ({
   isLoadingProducts,
   categories,
   isLoadingCategories,
-  onScanProduct,
   onSelectProduct,
+  onProductInputFocus,
+  onScanValue,
+  onOpenCameraScan,
   onOpenSummary,
   onTerloadingChange,
   onBahanTerpakaiChange,
@@ -31,6 +34,9 @@ const POSection: React.FC<POSectionProps> = ({
   const [activeProductTab, setActiveProductTab] = useState<string>(
     po.products.length > 0 ? po.products[0].id : ""
   );
+  const productInputRef = React.useRef<any>(null);
+  const scanBufferRef = React.useRef<string>("");
+  const scanTimerRef = React.useRef<NodeJS.Timeout | null>(null);
 
   const queryClient = useQueryClient();
   // Delete mutation hook
@@ -123,6 +129,42 @@ const POSection: React.FC<POSectionProps> = ({
     }
   };
 
+  const handleScannerKeyDown = (event: React.KeyboardEvent) => {
+    // Capture scanner input directly in the product selector
+    if (event.key === "Enter") {
+      const value = scanBufferRef.current.trim();
+      if (value) {
+        onScanValue(po.id, value);
+        scanBufferRef.current = "";
+        if (scanTimerRef.current) {
+          clearTimeout(scanTimerRef.current);
+          scanTimerRef.current = null;
+        }
+        // Keep focus for rapid scans
+        setTimeout(() => productInputRef.current?.focus?.(), 0);
+      }
+      return;
+    }
+
+    if (event.key.length === 1) {
+      scanBufferRef.current += event.key;
+      if (scanTimerRef.current) {
+        clearTimeout(scanTimerRef.current);
+      }
+      scanTimerRef.current = setTimeout(() => {
+        scanBufferRef.current = "";
+      }, 300);
+    }
+  };
+
+  React.useEffect(() => {
+    return () => {
+      if (scanTimerRef.current) {
+        clearTimeout(scanTimerRef.current);
+      }
+    };
+  }, []);
+
   return (
     <div
       className="rounded-lg p-6"
@@ -141,14 +183,6 @@ const POSection: React.FC<POSectionProps> = ({
             {po.name}
           </h3>
 
-            <button
-            onClick={() => onScanProduct(po.id)}
-            className="px-3 py-1.5 text-xs font-medium text-green-600 bg-green-50 border border-green-200 rounded-md hover:bg-green-100 hover:border-green-300 transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-1"
-          >
-            Scan Product
-          </button>
-
-
           {/* Summary Button */}
           {/* <button
             onClick={() => onOpenSummary(po.id)}
@@ -163,6 +197,7 @@ const POSection: React.FC<POSectionProps> = ({
         
           {/* Product Selection AutoComplete */}
           <AutoComplete
+            ref={productInputRef}
             value={selectedProductId}
             onChange={(value) => {
               setSelectedProductIds((prev) => ({ ...prev, [po.id]: value }));
@@ -181,7 +216,7 @@ const POSection: React.FC<POSectionProps> = ({
             placeholder={
               isLoadingProducts
                 ? "Loading products..."
-                : "Type or select a product"
+                : "Scan or select a product"
             }
             filterOption={(inputValue, option) =>
               option!.label.toLowerCase().indexOf(inputValue.toLowerCase()) !== -1
@@ -191,7 +226,23 @@ const POSection: React.FC<POSectionProps> = ({
             }}
             disabled={isLoadingProducts}
             showSearch
+            onFocus={() => onProductInputFocus(po.id)}
+            onKeyDown={handleScannerKeyDown}
           />
+          {onOpenCameraScan && (
+            <button
+              type="button"
+              onClick={() => {
+                onProductInputFocus(po.id);
+                onOpenCameraScan(po.id);
+                setTimeout(() => productInputRef.current?.focus?.(), 0);
+              }}
+              className="px-2 py-1 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 hover:border-blue-300 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+            >
+              <Camera size={14} className="inline-block mr-1" />
+              Camera (dev)
+            </button>
+          )}
         </div>
       </div>
 
