@@ -34,6 +34,7 @@ export interface CreatePOProductRequest {
   po_id: string;
   hikmat_product_id: string;
   product_name: string;
+  terloading?: number;
   orderCreated?: boolean;
   request_id?: number;
   satuan?: string;

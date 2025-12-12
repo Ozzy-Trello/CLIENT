@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { message, Modal, Input } from "antd";
+import { message, Modal, Input, Button } from "antd";
 import { useSelector } from "react-redux";
 import { selectTheme } from "@store/app_slice";
 import { useQuery } from "@tanstack/react-query";
@@ -11,7 +11,9 @@ import {
   transformPOProductToProductItem,
   useCreatePOProduct,
   useCreatePOProductCategory,
+  useUpdatePOProduct,
 } from "@hooks/usePOProducts";
+import { Scanner } from "@yudiel/react-qr-scanner";
 import { useDebouncedCategoryUpdate } from "@hooks/useDebouncedCategoryUpdate";
 import { useDebouncedPOProductUpdate } from "@hooks/useDebouncedPOProductUpdate";
 import POSection from "./POSection";
@@ -120,6 +122,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
       message.error("Failed to save product changes");
     },
   });
+  const updatePOProductMutation = useUpdatePOProduct();
 
   // Note: Removed complex mapping logic - now using direct POProduct access
 
@@ -127,6 +130,14 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
   useEffect(() => {
     if (apiPOData?.length > 0) {
       const updatedPOData = [...apiPOData];
+
+      // Seed existing products to preserve local edits (e.g., scanned terloading) across refetches
+      updatedPOData.forEach((po) => {
+        const existing = poData.find((p) => p.id === po.id);
+        if (existing) {
+          po.products = existing.products ? [...existing.products] : [];
+        }
+      });
 
       // Integrate PO Products data if available
       if (poProductsResponse?.data && poProductsResponse.data.length > 0) {
@@ -856,6 +867,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
     setScanTargetPOId(poId);
     setScannedValue("");
     scannerBufferRef.current = "";
+    setUseCameraScanner(false);
     setScanModalOpen(true);
   };
 
@@ -863,14 +875,27 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
   const [scanModalOpen, setScanModalOpen] = useState<boolean>(false);
   const [scanTargetPOId, setScanTargetPOId] = useState<string | null>(null);
   const [scannedValue, setScannedValue] = useState<string>("");
+  const [useCameraScanner, setUseCameraScanner] = useState<boolean>(false);
   const scannerBufferRef = useRef<string>("");
   const scannerTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   // Note: We no longer suppress duplicate scanned values via a ref
   // because the new requirement is to sum quantity when scanning the same ID multiple times.
+  const isDevMode = process.env.NODE_ENV !== "production";
+
+  const handleCameraScan = (value?: string) => {
+    if (!value) return;
+    const trimmed = value.trim();
+    if (!trimmed) return;
+
+    setScannedValue(trimmed);
+    message.success(`Scanned: ${trimmed}`);
+    setScanModalOpen(false);
+    setUseCameraScanner(false);
+  };
 
   // Listen for external scanner input when modal is open
   useEffect(() => {
-    if (!scanModalOpen) return;
+    if (!scanModalOpen || useCameraScanner) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
       // Ignore modifier keys and navigation keys
@@ -930,7 +955,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
         scannerTimeoutRef.current = null;
       }
     };
-  }, [scanModalOpen]);
+  }, [scanModalOpen, useCameraScanner]);
 
   // After scan completes, fetch product by barcode and prefill dropdown with the matched item (safe: no DB writes)
   useEffect(() => {
@@ -1229,6 +1254,9 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
       try {
         // Extract satuan from product unit data
         const satuan = resolveProductUnit(selectedProduct);
+        const hasInitialTerloading =
+          typeof initialTerloading === "number" &&
+          Number.isFinite(initialTerloading);
 
         // Extracted satuan and available units
 
@@ -1253,6 +1281,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
           po_id: poId,
           hikmat_product_id: productKey,
           product_name: selectedProduct.name,
+          terloading: hasInitialTerloading ? initialTerloading : undefined,
           satuan,
           // Use GL account info from the helper function
           adjustment_no: glAccountInfo.adjustment_no,
@@ -1273,19 +1302,68 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
         // Access created POProduct ID from ApiResponse shape
         const createdPOProductId =
           (result as any)?.data?.id || (result as any)?.id;
-        if (typeof initialTerloading === "number" && createdPOProductId) {
+        if (hasInitialTerloading && createdPOProductId) {
           try {
-            // Persist Terloading to backend using the newly created POProduct ID
+            // Persist Terloading to backend immediately for newly created products
+            await updatePOProductMutation.mutateAsync({
+              id: createdPOProductId,
+              data: { terloading: initialTerloading },
+            });
+            // Also queue debounced update to catch any rapid follow-ups
             debouncedPOProductUpdate(createdPOProductId, {
               terloading: initialTerloading,
             });
           } catch (e) {
             console.error("❌ Failed to set initial Terloading:", e);
           }
+
+          // Optimistically add the new product with its initial terloading so the UI reflects the scanned qty immediately
+          setPOData((prevData) =>
+            prevData.map((poItem) => {
+              if (poItem.id !== poId) return poItem;
+
+              const alreadyExists = poItem.products.some(
+                (p) =>
+                  p.poProductId === createdPOProductId ||
+                  p.id === productKey
+              );
+              if (alreadyExists) return poItem;
+
+              const terloadingValue = initialTerloading ?? 0;
+
+              const newProduct: ProductItem = {
+                id: productKey,
+                name: selectedProduct.name,
+                poProductId: createdPOProductId,
+                satuan,
+                adjustment_no: glAccountInfo.adjustment_no,
+                adjustment_name: glAccountInfo.adjustment_name,
+                orderCreated: false,
+                bahanTabs: [
+                  {
+                    id: createdPOProductId,
+                    name: selectedProduct.name,
+                    description: selectedProduct.description ?? null,
+                    terloading: terloadingValue,
+                    bahanTerpakai: 0,
+                    sisaBahan: calculateSisaBahan(terloadingValue, 0),
+                    jmlProduksi: 0,
+                    estBahan: 0,
+                    efisiensi: calculateEfisiensi(0, 0),
+                  },
+                ],
+                categoryData: [],
+                warehouseProduct: selectedProduct,
+              };
+
+              return {
+                ...poItem,
+                products: [...poItem.products, newProduct],
+              };
+            })
+          );
         }
 
-        // Note: No manual state update needed - the query invalidation will trigger a refetch
-        // and the useEffect will update the local state with the fresh data from the backend
         // Product selection completed
       } catch (error) {
         console.error("🚀 [PO PROD DEBUG] Failed to create PO Product:", error);
@@ -1402,20 +1480,74 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
       <Modal
         title="Scan Produk"
         open={scanModalOpen}
-        onCancel={() => setScanModalOpen(false)}
+        onCancel={() => {
+          setScanModalOpen(false);
+          setUseCameraScanner(false);
+        }}
         footer={null}
       >
         <div className="space-y-3">
-          <div className="text-sm text-gray-600">Ready for scan</div>
-          <Input
-            readOnly
-            value={scannedValue}
-            placeholder="Scan with your external scanner. Press Enter to submit."
-          />
-          {scanTargetPOId && (
-            <div className="text-xs text-gray-500">
-              Target PO: {scanTargetPOId}
+          <div className="flex items-center justify-between text-sm text-gray-600">
+            <span>
+              {useCameraScanner
+                ? "Scan using your device camera"
+                : "Ready for scan"}
+            </span>
+            {isDevMode && (
+              <Button
+                size="small"
+                type={useCameraScanner ? "default" : "primary"}
+                onClick={() => {
+                  setUseCameraScanner((prev) => !prev);
+                  scannerBufferRef.current = "";
+                }}
+              >
+                {useCameraScanner ? "Use scanner input" : "Use camera (dev)"}
+              </Button>
+            )}
+          </div>
+
+          {useCameraScanner ? (
+            <div className="relative w-full overflow-hidden rounded-md border border-gray-200">
+              <div className="aspect-[4/3] w-full">
+                <Scanner
+                  onScan={(result) => {
+                    const raw =
+                      (result && result[0]?.rawValue) ||
+                      (Array.isArray(result) && typeof result[0] === "string"
+                        ? result[0]
+                        : null);
+                    if (raw) {
+                      handleCameraScan(raw);
+                    }
+                  }}
+                  onError={(error) => {
+                    console.error("Scanner error:", error);
+                    message.error("Camera scanning failed. Please try again.");
+                  }}
+                  styles={{
+                    container: { width: "100%", height: "100%" },
+                    video: { width: "100%", height: "100%" },
+                  }}
+                />
+              </div>
+              <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                <div className="w-40 h-40 border-2 border-green-500/80 rounded-md" />
+              </div>
             </div>
+          ) : (
+            <>
+              <Input
+                readOnly
+                value={scannedValue}
+                placeholder="Scan with your external scanner. Press Enter to submit."
+              />
+              {scanTargetPOId && (
+                <div className="text-xs text-gray-500">
+                  Target PO: {scanTargetPOId}
+                </div>
+              )}
+            </>
           )}
         </div>
       </Modal>
