@@ -132,7 +132,10 @@ const POSection: React.FC<POSectionProps> = ({
   const handleScannerKeyDown = (event: React.KeyboardEvent) => {
     // Capture scanner input directly in the product selector
     if (event.key === "Enter") {
-      const value = scanBufferRef.current.trim();
+      const value =
+        scanBufferRef.current.trim() ||
+        (event.target as HTMLInputElement)?.value?.trim() ||
+        "";
       if (value) {
         onScanValue(po.id, value);
         scanBufferRef.current = "";

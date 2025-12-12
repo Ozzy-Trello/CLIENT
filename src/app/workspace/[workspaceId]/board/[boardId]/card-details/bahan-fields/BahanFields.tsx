@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { message, Modal, Input, Button } from "antd";
 import { useSelector } from "react-redux";
 import { selectTheme } from "@store/app_slice";
@@ -876,10 +876,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
   };
 
   const handleInlineScanValue = (poId: string, value: string) => {
-    const trimmed = value.trim();
-    if (!trimmed) return;
-    setScanTargetPOId(poId);
-    setScannedValue(trimmed);
+    enqueueScan(poId, value);
     scannerBufferRef.current = "";
     setUseCameraScanner(false);
   };
@@ -887,22 +884,33 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
   // --- Scan Produk modal state and handlers ---
   const [scanModalOpen, setScanModalOpen] = useState<boolean>(false);
   const [scanTargetPOId, setScanTargetPOId] = useState<string | null>(null);
-  const [scannedValue, setScannedValue] = useState<string>("");
+  const [scannedValue, setScannedValue] = useState<string>(""); // display last scanned
   const [useCameraScanner, setUseCameraScanner] = useState<boolean>(false);
   const scannerBufferRef = useRef<string>("");
   const scannerTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const scanQueueRef = useRef<{ poId: string; value: string }[]>([]);
+  const isProcessingScanRef = useRef<boolean>(false);
   // Note: We no longer suppress duplicate scanned values via a ref
   // because the new requirement is to sum quantity when scanning the same ID multiple times.
   const isDevMode = process.env.NODE_ENV !== "production";
 
+  const enqueueScan = (poId: string, value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed || !poId) return;
+    scanQueueRef.current.push({ poId, value: trimmed });
+    setScannedValue(trimmed);
+    setScanTargetPOId(poId);
+    processScanQueue();
+  };
+
   const handleCameraScan = (value?: string) => {
     if (!value) return;
-    const trimmed = value.trim();
-    if (!trimmed) return;
-
-    setScannedValue(trimmed);
-    message.success(`Scanned: ${trimmed}`);
-    setScanModalOpen(false);
+    if (!scanTargetPOId) {
+      message.error("Pilih PO dulu sebelum scan.");
+      return;
+    }
+    enqueueScan(scanTargetPOId, value);
+    // setScanModalOpen(false);
     setUseCameraScanner(false);
   };
 
@@ -934,9 +942,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
         const value = scannerBufferRef.current.trim();
         if (value.length > 0) {
           setScannedValue(value);
-          message.success(`Scanned: ${value}`);
-          // Close modal after receiving value
-          setScanModalOpen(false);
+          // setScanModalOpen(false);
         }
         // Reset buffer
         scannerBufferRef.current = "";
@@ -970,32 +976,28 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
     };
   }, [scanModalOpen, useCameraScanner]);
 
-  // After scan completes, fetch product by barcode and prefill dropdown with the matched item (safe: no DB writes)
-  useEffect(() => {
-    // Helper to robustly parse numbers that may come with locale separators
-    const parseLocaleNumber = (input: any): number => {
-      if (input === null || input === undefined) return 0;
-      if (typeof input === "number") return Number.isFinite(input) ? input : 0;
-      const str = String(input).trim();
-      if (!str) return 0;
-      // If both separators exist, assume '.' is thousands and ',' is decimal (id-ID style)
-      const normalized =
-        str.includes(".") && str.includes(",")
-          ? str.replace(/\./g, "").replace(/,/g, ".")
-          : str.replace(/,/g, ".");
-      const n = Number(normalized);
-      return Number.isFinite(n) ? n : 0;
-    };
+  // Helper to robustly parse numbers that may come with locale separators
+  const parseLocaleNumber = useCallback((input: any): number => {
+    if (input === null || input === undefined) return 0;
+    if (typeof input === "number") return Number.isFinite(input) ? input : 0;
+    const str = String(input).trim();
+    if (!str) return 0;
+    // If both separators exist, assume '.' is thousands and ',' is decimal (id-ID style)
+    const normalized =
+      str.includes(".") && str.includes(",")
+        ? str.replace(/\./g, "").replace(/,/g, ".")
+        : str.replace(/,/g, ".");
+    const n = Number(normalized);
+    return Number.isFinite(n) ? n : 0;
+  }, []);
 
-    const prefillProductFromScan = async () => {
-      // Only act if we have a scanned value and a target PO
-      if (!scannedValue || !scanTargetPOId) return;
-
-      // Process the scanned value every time (even if same as previous) to support quantity summing
+  const processScannedItem = useCallback(
+    async (poId: string, value: string) => {
+      if (!poId || !value) return;
 
       try {
         // Call backend to resolve barcode -> product
-        const result = await getOzzyBarcodeProduct(scannedValue);
+        const result = await getOzzyBarcodeProduct(value);
         const accurateId = result?.product?.accurateId;
         const scannedQtyRaw = result?.quantity ?? "0";
         // Quantity comes as string from API; parse to number safely (supports id-ID separators)
@@ -1029,10 +1031,9 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
         }
 
         // Check if product already exists in this PO
-        const currentPOIndex = poData.findIndex(
-          (po) => po.id === scanTargetPOId
-        );
-        const currentPO = currentPOIndex !== -1 ? poData[currentPOIndex] : null;
+        const currentPOIndex = poData.findIndex((po) => po.id === poId);
+        const currentPO =
+          currentPOIndex !== -1 ? poData[currentPOIndex] : null;
         const matchedKey = resolveProductKey(matchedItem);
         if (!matchedKey) {
           message.error("Scanned product is missing an identifier.");
@@ -1051,27 +1052,20 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
           const newTerloading = currentTerloading + scannedQty;
 
           // Update local state and persist to backend
-          handleTerloadingChange(
+          await handleTerloadingChange(
             currentPOIndex,
             existingProductIndex,
             0,
             newTerloading
           );
-
-          message.success(
-            `Updated Terloading for ${matchedItem.name}: +${scannedQty} (total ${newTerloading})`
-          );
         } else {
           // Product not yet in this PO: prefill dropdown and add it, then set initial Terloading from scanned quantity
           setSelectedProductIds((prev) => ({
             ...prev,
-            [scanTargetPOId]: matchedKey,
+            [poId]: matchedKey,
           }));
 
-          message.success(
-            `Detected product: ${matchedItem.name}. Adding to PO with Terloading ${scannedQty}...`
-          );
-          await handleSelectProduct(scanTargetPOId, matchedKey, scannedQty);
+          await handleSelectProduct(poId, matchedKey, scannedQty);
         }
       } catch (error) {
         console.error("Failed to fetch product by scanned barcode:", error);
@@ -1079,11 +1073,29 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
           "Failed to resolve the scanned barcode. Please try again."
         );
       }
-    };
+    },
+    [
+      handleTerloadingChange,
+      poData,
+      warehouseProducts,
+      parseLocaleNumber,
+    ]
+  );
 
-    prefillProductFromScan();
-    // We intentionally include warehouseProducts as a dependency to ensure matching when the list is ready
-  }, [scannedValue, scanTargetPOId, warehouseProducts]);
+  const processScanQueue = useCallback(async () => {
+    if (isProcessingScanRef.current) return;
+    const next = scanQueueRef.current.shift();
+    if (!next) return;
+    isProcessingScanRef.current = true;
+    try {
+      await processScannedItem(next.poId, next.value);
+    } finally {
+      isProcessingScanRef.current = false;
+      if (scanQueueRef.current.length > 0) {
+        processScanQueue();
+      }
+    }
+  }, [processScannedItem]);
 
   // Helper function to select appropriate GL account following modal request logic
   const selectGLAccount = async (selectedItem: any) => {
@@ -1305,11 +1317,6 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
 
         // Clear the dropdown selection
         setSelectedProductIds((prev) => ({ ...prev, [poId]: "" }));
-
-        // Show success message
-        message.success(
-          `Product "${selectedProduct.name}" added successfully!`
-        );
 
         // If this product was added as a result of a scan, set the initial Terloading
         // Access created POProduct ID from ApiResponse shape
