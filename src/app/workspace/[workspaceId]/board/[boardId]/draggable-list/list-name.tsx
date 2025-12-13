@@ -1,6 +1,7 @@
 import { AnyList } from "@myTypes/list";
 import { UseMutateFunction } from "@tanstack/react-query";
-import { useDeleteAllCardsInList, useArchiveList, useMoveAllCardsInList, useArchiveAllCardsInList, useSortListCards, useLists } from "@hooks/list";
+import { useDeleteAllCardsInList, useArchiveList, useMoveAllCardsInList, useArchiveAllCardsInList, useLists } from "@hooks/list";
+import { useBoards } from "@hooks/board";
 import {
   Button,
   Input,
@@ -15,7 +16,10 @@ import {
 } from "antd";
 import { Ellipsis } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useParams } from "next/navigation";
 import { useBoardPermissionsContext } from "@providers/board-permissions-context";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@constants/query-keys";
 
 interface ListNameProps {
   list: AnyList;
@@ -52,23 +56,32 @@ const ListName: React.FC<ListNameProps> = ({
   cardsCount,
   totalCards,
 }) => {
+  const queryClient = useQueryClient();
   const [isEditListName, setIsEditListName] = useState<boolean>(false);
   const [newListName, setNewListName] = useState<string>("");
   const inputRef = useRef<HTMLDivElement | null>(null);
   const [actionsPopoverOpen, setActionsPopoverOpen] = useState(false);
+  const params = useParams();
+  const workspaceIdParam = (params?.workspaceId ?? "") as string | string[];
+  const workspaceId = Array.isArray(workspaceIdParam)
+    ? workspaceIdParam[0]
+    : workspaceIdParam;
 
   // Hook for deleting all cards in the list
   const { deleteAllCards, isDeletingAllCards } = useDeleteAllCardsInList();
   const { archiveList: archiveListMutate, isArchivingList } = useArchiveList(boardId);
   const { moveAllCards, isMovingAllCards } = useMoveAllCardsInList();
   const { archiveAllCards, isArchivingAllCards } = useArchiveAllCardsInList();
-  const { sortListCards, isSortingListCards } = useSortListCards();
-  const { lists: allLists, isLoading: isLoadingLists } = useLists(boardId);
+  const [targetBoardId, setTargetBoardId] = useState<string>(boardId);
+  const { lists: moveLists, isLoading: isLoadingMoveLists } = useLists(
+    targetBoardId || boardId
+  );
+  const { boards: availableBoards, isLoading: isLoadingBoards } = useBoards(
+    workspaceId || ""
+  );
   const { canArchiveList, canMoveCard, canUpdateCard } = useBoardPermissionsContext();
 
   const [targetListId, setTargetListId] = useState<string | undefined>(undefined);
-  const [sortBy, setSortBy] = useState<"name" | "createdAt" | "updatedAt" | "dueDate" | "position">("position");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
   const [tempLimit, setTempLimit] = useState<number | null>(
     list.cardLimit || 0
@@ -214,6 +227,11 @@ const ListName: React.FC<ListNameProps> = ({
     list.cardLimit != null && list.cardLimit > 0 && cardsCount > list.cardLimit;
 
   useEffect(() => {
+    setTargetBoardId(boardId);
+    setTargetListId(undefined);
+  }, [boardId]);
+
+  useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
         inputRef.current &&
@@ -277,19 +295,35 @@ const ListName: React.FC<ListNameProps> = ({
           <div className="text-sm font-medium mb-2">Move all cards</div>
           <Select
             size="small"
+            placeholder="Select target board"
+            className="w-full mb-2"
+            value={targetBoardId}
+            onChange={(val) => {
+              setTargetBoardId(val);
+              setTargetListId(undefined);
+            }}
+            loading={isLoadingBoards}
+            options={(availableBoards || []).map((b) => ({
+              label: b.name,
+              value: b.id,
+            }))}
+          />
+          <Select
+            size="small"
             placeholder="Select target list"
             className="w-full mb-2"
             value={targetListId}
             onChange={(val) => setTargetListId(val)}
-            loading={isLoadingLists}
-            options={(allLists || [])
-              .filter((l) => l.id !== list.id)
+            loading={isLoadingMoveLists}
+            disabled={!targetBoardId}
+            options={(moveLists || [])
+              .filter((l) => !(targetBoardId === boardId && l.id === list.id))
               .map((l) => ({ label: l.name, value: l.id }))}
           />
           <Button
             size="small"
             type="primary"
-            disabled={!targetListId || isMovingAllCards}
+            disabled={!targetBoardId || !targetListId || isMovingAllCards}
             loading={isMovingAllCards}
             onClick={() => {
               if (!targetListId) return;
@@ -301,7 +335,7 @@ const ListName: React.FC<ListNameProps> = ({
                       Move all cards from <strong>"{list.name}"</strong> to the selected list?
                     </p>
                     <p className="mb-0 text-gray-600 mt-2">
-                      This will move {cardsCount} card{cardsCount !== 1 ? "s" : ""}.
+                      This will move all cards
                     </p>
                   </div>
                 ),
@@ -313,6 +347,18 @@ const ListName: React.FC<ListNameProps> = ({
                     { sourceListId: list.id, targetListId },
                     {
                       onSuccess: (res) => {
+                        queryClient.invalidateQueries({
+                          queryKey: queryKeys.cards.list(list.id),
+                          refetchType: "active",
+                        });
+                        queryClient.invalidateQueries({
+                          queryKey: queryKeys.cards.list(targetListId),
+                          refetchType: "active",
+                        });
+                        queryClient.invalidateQueries({
+                          queryKey: queryKeys.lists.all,
+                          refetchType: "active",
+                        });
                         const moved = res?.data?.moved_count ?? undefined;
                         message.success(
                           moved != null
@@ -332,57 +378,6 @@ const ListName: React.FC<ListNameProps> = ({
             }}
           >
             Move
-          </Button>
-        </div>
-      )}
-
-      {/* Sort Cards */}
-      {canUpdateCard() && (
-        <div className="mb-4">
-          <div className="text-sm font-medium mb-2">Sort cards</div>
-          <div className="flex items-center gap-2 mb-2">
-            <Select
-              size="small"
-              className="flex-1"
-              value={sortBy}
-              onChange={(val) => setSortBy(val)}
-              options={[
-                { label: "Position", value: "position" },
-                { label: "Name", value: "name" },
-                { label: "Created At", value: "createdAt" },
-                { label: "Updated At", value: "updatedAt" },
-                { label: "Due Date", value: "dueDate" },
-              ]}
-            />
-            <Radio.Group
-              size="small"
-              value={sortDirection}
-              onChange={(e) => setSortDirection(e.target.value)}
-            >
-              <Radio.Button value="asc">Asc</Radio.Button>
-              <Radio.Button value="desc">Desc</Radio.Button>
-            </Radio.Group>
-          </div>
-          <Button
-            size="small"
-            type="primary"
-            loading={isSortingListCards}
-            onClick={() => {
-              sortListCards(
-                { listId: list.id, sortBy, direction: sortDirection },
-                {
-                  onSuccess: () => {
-                    message.success("Cards sorted");
-                    setActionsPopoverOpen(false);
-                  },
-                  onError: () => {
-                    message.error("Failed to sort cards");
-                  },
-                }
-              );
-            }}
-          >
-            Apply sort
           </Button>
         </div>
       )}
@@ -433,7 +428,7 @@ const ListName: React.FC<ListNameProps> = ({
                         Archive all cards in <strong>"{list.name}"</strong>?
                       </p>
                       <p className="mb-0 text-gray-600 mt-2">
-                        This will move {cardsCount} card{cardsCount !== 1 ? "s" : ""} to archive.
+                        This will move all cards
                       </p>
                     </div>
                   ),

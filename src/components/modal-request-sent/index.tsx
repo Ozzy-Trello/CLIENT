@@ -603,6 +603,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       productionReceived: checked,
     });
   };
+  const handlePrintBarcode = () => {};
   const handleExport = async () => {
     setExportModalOpen(true);
   };
@@ -1797,6 +1798,17 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
               }}
             >
               Export
+            </Button>
+            <Button
+              size="small"
+              onClick={handlePrintBarcode}
+              style={{
+                fontSize: "12px",
+                height: "24px",
+                padding: "0 10px",
+              }}
+            >
+              Cetak Barcode
             </Button>
             <span style={{ fontSize: 12, color: "#666" }}>
               Last refreshed: {formattedLastRefresh}
