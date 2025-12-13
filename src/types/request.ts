@@ -60,4 +60,7 @@ export interface RequestItem {
   estBahan?: number | null;
   est_bahan?: number | null;
   efisiensi?: number | null;
+  barcode_printed?: boolean;
+  barcodePrinted?: boolean;
+  barcodePrintedAt?: string;
 }

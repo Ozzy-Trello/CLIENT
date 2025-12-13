@@ -5,6 +5,7 @@ import {
   updateWarehouseReturn,
   deleteRequest,
   updateProductionReceived,
+  printWarehouseBarcodes,
 } from "@api/accurate";
 import { useUpdateRequestFields } from "@hooks/accurate";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -175,6 +176,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
   const [exportDraftRange, setExportDraftRange] = useState<
     [Dayjs | null, Dayjs | null]
   >([null, null]);
+  const [isPrintingBarcode, setIsPrintingBarcode] = useState(false);
 
   const queryClient = useQueryClient();
   const debouncedSearch = useRef(
@@ -603,7 +605,36 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       productionReceived: checked,
     });
   };
-  const handlePrintBarcode = () => {};
+  const handlePrintBarcode = async () => {
+    setIsPrintingBarcode(true);
+    try {
+      const response = await printWarehouseBarcodes();
+      const items =
+        (Array.isArray(response?.items) && response.items) ||
+        (Array.isArray(response?.data?.items) && response.data.items) ||
+        [];
+      const printedCount = items.length;
+      const downloadUrl =
+        response?.data?.data?.download_url ||
+        response?.data?.download_url ||
+        response?.download_url;
+      if (printedCount > 0) {
+        message.success(`Barcode print triggered for ${printedCount} item${printedCount === 1 ? "" : "s"}.`);
+        if (downloadUrl) {
+          window.open(downloadUrl, "_blank", "noopener,noreferrer");
+        }
+        await refetch();
+        setLastRefreshedAt(new Date());
+      } else {
+        message.info("Tidak ada request yang perlu dicetak barcode.");
+      }
+    } catch (error: any) {
+      const reason = extractApiErrorReason(error);
+      message.error(reason || "Gagal memicu cetak barcode");
+    } finally {
+      setIsPrintingBarcode(false);
+    }
+  };
   const handleExport = async () => {
     setExportModalOpen(true);
   };
@@ -945,6 +976,13 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
   const getWarehouseReturnedValue = (record: RequestItem): boolean =>
     warehouseReturnOverrides[record.id] ?? Boolean(record.warehouseReturned);
 
+  const getBarcodePrintedValue = (record: RequestItem): boolean =>
+    Boolean(
+      (record as any)?.barcode_printed ??
+        (record as any)?.barcodePrinted ??
+        false
+    );
+
   const getBeliSelection = (record: RequestItem): BeliSelection => {
     const storedValue = beliValues[record.id];
     if (storedValue !== undefined) return storedValue;
@@ -1020,6 +1058,16 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     }
     if (!getCabangValue(record)) {
       missing.push("Cabang");
+    }
+    const barcodeRequired =
+      getWarehouseReturnedValue(record) ||
+      Boolean(
+        productionReceivedOverrides[record.id] ??
+          record.productionReceived ??
+          record.productionRecieved
+      );
+    if (barcodeRequired && !getBarcodePrintedValue(record)) {
+      missing.push("Cetak Barcode");
     }
     return missing;
   };
@@ -1634,7 +1682,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       width: 100,
       align: "center" as const,
       render: (_: unknown, record: RequestItem) => {
-        const disabled = !record.warehouseReturned || record.isDone
+        const disabled = !record.warehouseReturned || record.isDone || !record.barcodePrinted
         return (
           <Button
             type="primary"
@@ -1802,6 +1850,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
             <Button
               size="small"
               onClick={handlePrintBarcode}
+              loading={isPrintingBarcode}
               style={{
                 fontSize: "12px",
                 height: "24px",

@@ -152,6 +152,11 @@ export const getRequestNotificationCounts = async () => {
   return data;
 };
 
+export const printWarehouseBarcodes = async () => {
+  const { data } = await api.post("/request/print-barcode");
+  return data;
+};
+
 export type RequestQuantity = number | string;
 
 export const createRequestWithPOConnection = async (requestData: {
