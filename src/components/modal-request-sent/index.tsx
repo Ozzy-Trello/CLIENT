@@ -614,10 +614,14 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
         (Array.isArray(response?.data?.items) && response.data.items) ||
         [];
       const printedCount = items.length;
+      const payloadData = response?.data ?? {};
       const downloadUrl =
-        response?.data?.data?.download_url ||
-        response?.data?.download_url ||
-        response?.download_url;
+        payloadData.download_url ||
+        payloadData.downloadUrl ||
+        payloadData?.data?.download_url ||
+        payloadData?.data?.downloadUrl ||
+        response?.download_url ||
+        response?.downloadUrl;
       if (printedCount > 0) {
         message.success(`Barcode print triggered for ${printedCount} item${printedCount === 1 ? "" : "s"}.`);
         if (downloadUrl) {
