@@ -621,9 +621,11 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
   const isOrderAlreadyCreated = !!product.orderCreated;
   const hasTerloadingValue =
     typeof bahanTab.terloading === "number" && bahanTab.terloading > 0;
-  const hasDescription = typeof description === "string" && description.trim().length > 0;
+  const hasDescription =
+    typeof description === "string" && description.trim().length > 0;
+  const hasSender = Boolean(selectedSentBy && selectedSentBy.trim().length > 0);
   const disableLoadingButton =
-    isOrderAlreadyCreated || isSyncingRequest || !hasDescription;
+    isOrderAlreadyCreated || isSyncingRequest || !hasDescription || !hasSender;
 
   const handleConfirmZeroLoading = async () => {
     if (!selectedLoadingCardId) {
