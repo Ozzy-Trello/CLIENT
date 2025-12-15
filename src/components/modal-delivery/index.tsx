@@ -647,9 +647,6 @@ const ModalDelivery: React.FC<ModalDeliveryProps> = ({ open, onClose }) => {
             <Form.Item
               name="shippingAddress"
               label="Alamat Pengiriman"
-              rules={[
-                { required: true, message: "Alamat pengiriman harus diisi!" },
-              ]}
             >
               <TextArea
                 rows={3}
