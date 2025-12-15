@@ -11,6 +11,7 @@ export interface POProduct {
   bahan_terpakai?: number;
   orderCreated?: boolean;
   request_id?: number;
+  sentBy?: string | null;
   satuan?: string;
   adjustment_no?: string;
   adjustment_name?: string;
@@ -37,6 +38,7 @@ export interface CreatePOProductRequest {
   terloading?: number;
   orderCreated?: boolean;
   request_id?: number;
+  sentBy?: string | null;
   satuan?: string;
   adjustment_no?: string;
   adjustment_name?: string;
@@ -50,6 +52,7 @@ export interface UpdatePOProductRequest {
   bahan_terpakai?: number;
   orderCreated?: boolean;
   request_id?: number;
+  sentBy?: string | null;
   satuan?: string;
   adjustment_no?: string;
   adjustment_name?: string;
@@ -77,6 +80,7 @@ export interface POProductWithCategories {
   bahanTerpakai?: number;
   orderCreated?: boolean;
   request_id?: number;
+  sentBy?: string | null;
   satuan?: string;
   adjustment_no?: string;
   adjustment_name?: string;

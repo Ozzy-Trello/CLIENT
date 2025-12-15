@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Button, Input, Modal, Radio, message, Typography } from "antd";
+import { Button, Input, Modal, Radio, message, Typography, Select } from "antd";
 import { BahanTabProps } from "./types";
 import CategorySection from "./CategorySection";
 import {
@@ -16,6 +16,8 @@ import {
   getUnitPriceFromProduct,
 } from "./productHelpers";
 import { updatePOProductCategory } from "@api/po-product";
+import { useParams } from "next/navigation";
+import { useAccountList } from "@hooks/account";
 
 type ZeroLoadingCandidate = {
   id: string;
@@ -192,6 +194,14 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
   getCategoryError,
   clearCategoryError,
 }) => {
+  const params = useParams();
+  const workspaceId = (params as any)?.workspaceId?.toString?.() || "";
+  const boardId = (params as any)?.boardId?.toString?.() || "";
+  const { data: accountListData } = useAccountList({
+    workspaceId,
+    boardId,
+  });
+
   const findWarehouseProduct = () => {
     if (product.warehouseProduct) return product.warehouseProduct;
     if (!warehouseProducts || warehouseProducts.length === 0) return null;
@@ -220,6 +230,40 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
     () => findWarehouseProduct() || product,
     [warehouseProducts, product]
   );
+
+  const sentByValue = useMemo(() => {
+    const raw = product.sentBy;
+    if (raw === undefined || raw === null) return undefined;
+    const normalized = raw.toString().trim();
+    return normalized.length > 0 ? normalized : undefined;
+  }, [product.sentBy]);
+  const [selectedSentBy, setSelectedSentBy] = useState<string | undefined>(sentByValue);
+  useEffect(() => {
+    setSelectedSentBy(sentByValue);
+  }, [sentByValue]);
+  const requestByOptions = useMemo(() => {
+    const optionsMap = new Map<string, { value: string; label: string }>();
+
+    const accounts = accountListData?.data || [];
+    accounts.forEach((user: any) => {
+      const label =
+        user?.username ||
+        user?.name ||
+        user?.email ||
+        user?.phone ||
+        user?.id;
+      const value = user?.id || label?.toString();
+      if (value) {
+        optionsMap.set(value, { value, label: label?.toString() || value });
+      }
+    });
+
+    if (selectedSentBy && !optionsMap.has(selectedSentBy)) {
+      optionsMap.set(selectedSentBy, { value: selectedSentBy, label: selectedSentBy });
+    }
+
+    return Array.from(optionsMap.values());
+  }, [accountListData?.data, selectedSentBy]);
 
   const getProductForRequest = () => resolvedProduct || product;
   const formatDisplayValue = (
@@ -510,6 +554,7 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
         description?: string;
         est_bahan?: number | null;
         efisiensi?: number | null;
+        sent_by?: string | null;
       };
 
       const requestData: RequestPayloadWithExtras = {
@@ -535,6 +580,7 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
         description: trimmedDescription || undefined,
         est_bahan: estBahanNumber,
         efisiensi: efisiensiNumber,
+        sent_by: selectedSentBy ?? null,
       };
 
       if (requestedItemId) {
@@ -902,6 +948,34 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
             readOnly
           />
         </div>
+      </div>
+
+      <div className="mb-4">
+        <label
+          className="block text-xs font-medium mb-1"
+          style={{
+            color: `rgb(${colors["text-muted"]})`,
+          }}
+        >
+          Dikirim Oleh
+        </label>
+        <Select
+          placeholder="Pilih Request By"
+          value={selectedSentBy}
+          options={requestByOptions}
+          style={{ width: "100%" }}
+          optionFilterProp="label"
+          showSearch
+          filterOption={(input, option) =>
+            (option?.label ?? "")
+              .toString()
+              .toLowerCase()
+              .includes(input.toLowerCase())
+          }
+          onChange={(value) =>
+            setSelectedSentBy(value ? value.toString() : undefined)
+          }
+        />
       </div>
 
       <div className="mb-6">

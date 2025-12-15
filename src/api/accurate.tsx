@@ -170,6 +170,7 @@ export const createRequestWithPOConnection = async (requestData: {
   po_product_ids: number[];
   est_bahan?: number | null;
   efisiensi?: number | null;
+  sent_by?: string | null;
 }) => {
   const { data } = await api.post("/request/with-po-connection", requestData);
   return data;

@@ -28,6 +28,7 @@ export interface ProductItem {
   poProductCategoryIds?: string[]; // All category IDs for this PO product
   description?: string | null;
   requestId?: number;
+  sentBy?: string | null;
   orderCreated?: boolean; // Whether an order has been created for this product
   satuan?: string; // Unit field from Hikmat
   adjustment_no?: string; // Adjustment account number
