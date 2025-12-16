@@ -43,6 +43,7 @@ type CardDetailContextType = {
     value?: FilterValue;
   }) => void;
   handleDeleteFilter: (type: string, id?: string) => void;
+  saveFilters: () => void;
   updateDisplayConfig: (displayConfig: any) => void;
   updateBackgroundColor: (backgroundColor: string) => void;
   updateVisibleColumns: (columns: string[]) => void;
@@ -92,6 +93,7 @@ const CardDetailContext = createContext<CardDetailContextType>({
   setCurrentFilter: () => {},
   handleChangeFilter: () => {},
   handleDeleteFilter: () => {},
+  saveFilters: () => {},
   updateDisplayConfig: () => {},
   updateBackgroundColor: () => {},
   updateVisibleColumns: () => {},
@@ -357,17 +359,6 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
     );
   };
 
-  const handleFilter = useDebouncedCallback((filters: DashcardFilter[]) => {
-    if (!selectedCard || !dashcardConfig) return;
-
-    mutate({
-      dashConfig: {
-        ...dashcardConfig,
-        filters,
-      },
-    });
-  }, TIMEOUT);
-
   const handleChangeFilter = ({
     id,
     operator,
@@ -391,7 +382,6 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
         return filter;
       });
 
-      handleFilter(updatedFilters);
       return updatedFilters;
     });
   };
@@ -401,7 +391,6 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
     if (id) {
       setCurrentFilter((prev) => {
         const result = prev.filter((filter) => filter.id !== id);
-        handleFilter(result);
         return [...result];
       });
       return;
@@ -413,10 +402,31 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
 
     setCurrentFilter((prev) => {
       const result = prev.filter((filter) => filter.type !== type);
-      handleFilter(result);
       return [...result];
     });
   };
+
+  const saveFilters = useCallback(() => {
+    if (!selectedCard || !dashcardConfig) return;
+
+    setDashcardConfig((prev) =>
+      prev
+        ? {
+            ...prev,
+            filters: currentFilter,
+          }
+        : prev
+    );
+
+    mutate({
+      dashConfig: {
+        ...dashcardConfig,
+        filters: currentFilter,
+      },
+    });
+
+    setOpenEditFilter(false);
+  }, [currentFilter, dashcardConfig, mutate, selectedCard]);
 
   const updateDisplayConfig = (displayConfig: any) => {
     if (!selectedCard || !dashcardConfig) {
@@ -541,6 +551,7 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
         setCurrentFilter,
         handleChangeFilter,
         handleDeleteFilter,
+        saveFilters,
         updateDisplayConfig,
         updateBackgroundColor,
         updateVisibleColumns,

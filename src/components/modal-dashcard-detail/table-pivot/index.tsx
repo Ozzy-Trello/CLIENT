@@ -13,7 +13,7 @@ import {
 import { AnyList } from "@myTypes/list";
 import { Card } from "@myTypes/card";
 import { Button, Dropdown, Input, MenuProps, Checkbox } from "antd";
-import { ChevronDown, ChevronRight, MoreHorizontal, Download } from "lucide-react";
+import { ChevronDown, ChevronRight, GripVertical, MoreHorizontal, Download } from "lucide-react";
 import { useDebounce } from "@hooks/debounce";
 import { ItemType } from "antd/es/menu/interface";
 import { useCardDetailContext } from "@providers/card-detail-context";
@@ -24,6 +24,13 @@ import { LookupCache } from "@utils/lookup-cache";
 import * as XLSX from "xlsx";
 import { useSelector } from "react-redux";
 import { selectCurrentWorkspace } from "@store/workspace_slice";
+import dynamic from "next/dynamic";
+import { Draggable, Droppable, DropResult } from "@hello-pangea/dnd";
+
+const DragDropContext = dynamic(
+  () => import("@hello-pangea/dnd").then((mod) => mod.DragDropContext),
+  { ssr: false }
+);
 
 type ColumnType = {
   type: string;
@@ -157,6 +164,33 @@ const TablePivot: FC = () => {
     setColumnOrder([...validSaved, ...missing]);
   }, [allColumnIds, dashcardConfig?.visibleColumns]);
 
+  const effectiveColumnOrder = useMemo(
+    () => (columnOrder.length ? columnOrder : allColumnIds),
+    [columnOrder, allColumnIds]
+  );
+
+  const applyColumnOrderChange = useCallback(
+    (order: string[], fromIndex: number, toIndex: number) => {
+      if (fromIndex === toIndex) {
+        return order;
+      }
+
+      const nextOrder = [...order];
+      const [moved] = nextOrder.splice(fromIndex, 1);
+      nextOrder.splice(toIndex, 0, moved);
+
+      const visibleColumns = nextOrder.filter(
+        (col) => columnVisibility[col] !== false
+      );
+
+      updateVisibleColumns(visibleColumns);
+      tableRef.current?.setColumnOrder(nextOrder);
+
+      return nextOrder;
+    },
+    [columnVisibility, updateVisibleColumns]
+  );
+
   const reorderColumns = useCallback(
     (draggedId: string, targetId: string) => {
       setColumnOrder((prev) => {
@@ -167,20 +201,10 @@ const TablePivot: FC = () => {
           return baseOrder;
         }
 
-        const nextOrder = [...baseOrder];
-        const [moved] = nextOrder.splice(fromIndex, 1);
-        nextOrder.splice(toIndex, 0, moved);
-
-        const visibleColumns = nextOrder.filter(
-          (col) => columnVisibility[col] !== false
-        );
-
-        updateVisibleColumns(visibleColumns);
-        tableRef.current?.setColumnOrder(nextOrder);
-        return nextOrder;
+        return applyColumnOrderChange(baseOrder, fromIndex, toIndex);
       });
     },
-    [allColumnIds, columnVisibility, updateVisibleColumns]
+    [allColumnIds, applyColumnOrderChange]
   );
 
   const handleHeaderDragStart = (
@@ -206,12 +230,67 @@ const TablePivot: FC = () => {
     [baseColumnIds, dynamicColumns]
   );
 
+  const menuColumnsOrdered = useMemo(() => {
+    const ordered = effectiveColumnOrder.filter((id) =>
+      allMenuColumns.includes(id)
+    );
+    const missing = allMenuColumns.filter((id) => !ordered.includes(id));
+    return [...ordered, ...missing];
+  }, [allMenuColumns, effectiveColumnOrder]);
+
   const filteredColumns = useMemo(() => {
-    if (!columnSearchValue) return allMenuColumns;
-    return allMenuColumns.filter((columnId) =>
+    if (!columnSearchValue) return menuColumnsOrdered;
+    return menuColumnsOrdered.filter((columnId) =>
       columnId.toLowerCase().includes(columnSearchValue.toLowerCase())
     );
-  }, [allMenuColumns, columnSearchValue]);
+  }, [menuColumnsOrdered, columnSearchValue]);
+
+  const handleMenuDragEnd = useCallback(
+    (result: DropResult) => {
+      const { source, destination } = result;
+      if (!destination) return;
+
+      if (source.index === destination.index) {
+        return;
+      }
+
+      setColumnOrder((prev) => {
+        const baseOrder = prev.length ? prev : allColumnIds;
+        const movingId = filteredColumns[source.index];
+        if (!movingId) return baseOrder;
+
+        const visibleOrder = baseOrder.filter((id) =>
+          filteredColumns.includes(id)
+        );
+
+        const currentIndex = visibleOrder.indexOf(movingId);
+        if (currentIndex === -1) return baseOrder;
+
+        const nextVisibleOrder = [...visibleOrder];
+        nextVisibleOrder.splice(currentIndex, 1);
+        const insertIndex = Math.min(
+          Math.max(destination.index, 0),
+          nextVisibleOrder.length
+        );
+        nextVisibleOrder.splice(insertIndex, 0, movingId);
+
+        const remaining = baseOrder.filter(
+          (id) => !nextVisibleOrder.includes(id)
+        );
+        const nextOrder = [...nextVisibleOrder, ...remaining];
+
+        const visibleColumns = nextOrder.filter(
+          (col) => columnVisibility[col] !== false
+        );
+
+        updateVisibleColumns(visibleColumns);
+        tableRef.current?.setColumnOrder(nextOrder);
+
+        return nextOrder;
+      });
+    },
+    [filteredColumns, allColumnIds, columnVisibility, updateVisibleColumns]
+  );
 
   const humanizeColumnId = (columnId: string) =>
     columnId
@@ -221,54 +300,70 @@ const TablePivot: FC = () => {
       .trim()
       .replace(/^./, (c) => c.toUpperCase());
 
-  const columnVisibilityMenu = {
-    items: [
-      {
-        key: "search",
-        label: (
-          <div className="p-2 border-b">
-            <Input
-              placeholder="Search columns..."
-              value={columnSearchValue}
-              onChange={(e) => setColumnSearchValue(e.target.value)}
-              onClick={(e) => e.stopPropagation()}
-              size="small"
-            />
-          </div>
-        ),
-        disabled: true,
-      },
-      ...(filteredColumns.length > 0
-        ? filteredColumns.map((columnId) => ({
-            key: columnId,
-            label: (
-              <div
-                className="flex items-center gap-2"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <Checkbox
-                  checked={columnVisibility[columnId] !== false}
-                  onChange={(e) => {
-                    e.stopPropagation();
-                    setColumnVisibility((prev) => ({
-                      ...prev,
-                      [columnId]: e.target.checked,
-                    }));
-                  }}
-                />
-                <span>{humanizeColumnId(columnId)}</span>
+  const renderColumnsDropdown = () => (
+    <div
+      className="p-2 bg-white border border-gray-200 rounded-md shadow-lg"
+      style={{ minWidth: "240px", maxHeight: "340px", overflowY: "auto" }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="mb-2">
+        <Input
+          placeholder="Search columns..."
+          value={columnSearchValue}
+          onChange={(e) => setColumnSearchValue(e.target.value)}
+          onClick={(e) => e.stopPropagation()}
+          size="small"
+        />
+      </div>
+
+      {filteredColumns.length > 0 ? (
+        <DragDropContext onDragEnd={handleMenuDragEnd}>
+          <Droppable droppableId="columns-menu">
+            {(provided) => (
+              <div ref={provided.innerRef} {...provided.droppableProps}>
+                {filteredColumns.map((columnId, index) => (
+                  <Draggable
+                    key={columnId}
+                    draggableId={columnId}
+                    index={index}
+                  >
+                    {(dragProvided, snapshot) => (
+                      <div
+                        ref={dragProvided.innerRef}
+                        {...dragProvided.draggableProps}
+                        {...dragProvided.dragHandleProps}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-md cursor-grab ${
+                          snapshot.isDragging ? "bg-gray-100 shadow-sm" : "bg-white hover:bg-gray-50"
+                        }`}
+                      >
+                        <GripVertical className="h-3 w-3 text-gray-400" />
+                        <Checkbox
+                          checked={columnVisibility[columnId] !== false}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            setColumnVisibility((prev) => ({
+                              ...prev,
+                              [columnId]: e.target.checked,
+                            }));
+                          }}
+                        />
+                        <span className="whitespace-nowrap text-sm">
+                          {humanizeColumnId(columnId)}
+                        </span>
+                      </div>
+                    )}
+                  </Draggable>
+                ))}
+                {provided.placeholder}
               </div>
-            ),
-          }))
-        : [
-            {
-              key: "no-results",
-              label: "No columns found",
-              disabled: true,
-            },
-          ]),
-    ],
-  };
+            )}
+          </Droppable>
+        </DragDropContext>
+      ) : (
+        <div className="p-3 text-sm text-gray-400">No columns found</div>
+      )}
+    </div>
+  );
 
   const handleMenuClick = (key: string, columnId: string) => {
     if (key === "pivot") {
@@ -904,16 +999,12 @@ const TablePivot: FC = () => {
         </div>
         <div>
           <Dropdown
-            menu={columnVisibilityMenu}
+            menu={{ items: [] }}
+            dropdownRender={renderColumnsDropdown}
             trigger={["click"]}
             placement="bottomRight"
             open={columnsDropdownOpen}
             onOpenChange={setColumnsDropdownOpen}
-            overlayStyle={{
-              maxHeight: "100px",
-              overflowY: "auto",
-              minWidth: "250px",
-            }}
           >
             <Button>Columns</Button>
           </Dropdown>

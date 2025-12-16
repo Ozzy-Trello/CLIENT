@@ -16,7 +16,7 @@ import { Plus } from "lucide-react";
 
 const EditFilter: FC = () => {
   const params = useParams();
-  const { currentFilter, setOpenEditFilter, setCurrentFilter, isUpdatingCard } =
+  const { currentFilter, setOpenEditFilter, setCurrentFilter, isUpdatingCard, saveFilters } =
     useCardDetailContext();
 
   const { customFields } = useCustomFields(
@@ -128,7 +128,7 @@ const EditFilter: FC = () => {
       <div className="flex items-center gap-3">
         <Button
           loading={isUpdatingCard}
-          onClick={() => setOpenEditFilter(false)}
+          onClick={saveFilters}
         >
           Save
         </Button>
