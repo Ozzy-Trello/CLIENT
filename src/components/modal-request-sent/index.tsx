@@ -1594,7 +1594,9 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       render: (_: unknown, record: RequestItem) => {
         const sentValue = getRequestSentValue(record);
         const leftValue = getRequestLeftValue(record);
-        const disabled = !isRowUnlocked(record);
+        const workflow = getWorkflowState(record);
+        const disabled =
+          !isRowUnlocked(record) || workflow.warehouseReturned;
         return (
           <Input
             type="text"
@@ -1624,7 +1626,8 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
           leftValue !== undefined && String(leftValue).trim() !== "";
         const disabled =
           !isRowUnlocked(record) ||
-          !workflow.productionReceived
+          !workflow.productionReceived ||
+          !hasSisaBahanFilled;
         return (
           <Checkbox
             checked={workflow.warehouseReturned}

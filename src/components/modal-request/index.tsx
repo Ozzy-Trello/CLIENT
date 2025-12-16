@@ -11,6 +11,7 @@ import {
   Select,
   Avatar,
   Typography,
+  Tooltip,
 } from "antd";
 import React, { useEffect, useMemo } from "react";
 import { useParams } from "next/navigation";
@@ -186,15 +187,39 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
   }, [poProductsData]);
 
   const isPOSelected = Boolean(selectedCardId);
+  const ALLOWED_LISTS = [
+    "PO Masuk (DM)",
+    "Desain Fix (PPIC)",
+    "Purchasing",
+    "Loading (Gudang)",
+    "Cutting",
+    "Numbering (Dist.Cutting)",
+    "Loading Line",
+    "Sewing",
+    "QC",
+    "Siap Bordir",
+    "Bordir / DTF",
+    "Finishing Packing",
+  ].map((l) => l.toLowerCase());
 
   useEffect(() => {
+    const normalize = (v?: string) => v?.trim().toLowerCase();
+
     if (cardsQuery.data?.data) {
-      const datelineCards = cardsQuery.data.data.filter((card: any) => {
-        const boardName = card.boardName ?? card.board_name;
-        return boardName?.toLowerCase() === "dateline".toLowerCase();
+      const filteredCards = cardsQuery.data.data.filter((card: any) => {
+        const boardName = normalize(card.boardName ?? card.board_name);
+        const listName = normalize(card.listName ?? card.list_name);
+
+        return (
+          boardName === "dateline" &&
+          listName &&
+          ALLOWED_LISTS.includes(listName)
+        );
       });
-      setCards(datelineCards);
+
+      setCards(filteredCards);
     }
+
 
     const productItems = productsQuery.data || [];
     setItems(productItems);
@@ -204,10 +229,32 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
     }
   }, [cardsQuery.data, productsQuery.data, glaccountQuery.data]);
 
-  const listPO = cards?.map((card: any) => ({
-    value: card.id,
-    label: card.name,
-  }));
+  const listPO = cards?.map((card: any) => {
+    const cardName = card.name || "";
+    const safeCardName = cardName || "Tanpa nama";
+    const listName = card.listName ?? card.list_name ?? "";
+    const displayLabel = [safeCardName, listName].filter(Boolean).join(" - ");
+    const searchText = `${safeCardName} ${listName}`.trim();
+    return {
+      value: card.id,
+      label: (
+        <Tooltip title={safeCardName}>
+        <div style={{ lineHeight: 1.2 }}>
+          <div style={{ fontWeight: 600, color: "#000", fontSize:"12px" }}>
+            {safeCardName}
+          </div>
+          <div style={{ fontSize: 10, color: "#8c8c8c" }}>
+            {listName || "Tanpa list"}
+          </div>
+        </div>
+        </Tooltip>
+
+      ),
+      displayLabel,
+      listName,
+      searchText,
+    };
+  });
 
   const actionTypes = [
     { value: "NEW_ORDER", label: "New Order" },
@@ -222,11 +269,11 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
     const searchTerm = barangSearchValue.toLowerCase();
     const filteredItems = searchTerm
       ? items.filter((item) => {
-          const matches = [item.name, item.sku, item.barcode, item.source].some(
-            (value) => value?.toString().toLowerCase().includes(searchTerm)
-          );
-          return matches;
-        })
+        const matches = [item.name, item.sku, item.barcode, item.source].some(
+          (value) => value?.toString().toLowerCase().includes(searchTerm)
+        );
+        return matches;
+      })
       : items;
 
     const actionFilteredItems = filteredItems.filter((item) => {
@@ -471,10 +518,18 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
 
   const filterOption = (
     inputValue: string,
-    option?: { value: string; label: string | React.ReactNode }
+    option?: {
+      value: string;
+      label: string | React.ReactNode;
+      searchText?: string;
+      displayLabel?: string;
+    }
   ) => {
-    if (!option || typeof option.label !== "string") return false;
-    return option.label.toLowerCase().includes(inputValue.toLowerCase());
+    if (!option) return false;
+    const searchText =
+      (option as any)?.searchText ??
+      (typeof option.label === "string" ? option.label : "");
+    return searchText.toLowerCase().includes(inputValue.toLowerCase());
   };
 
   const akunPenyesuaianList = useMemo(() => {
@@ -508,7 +563,11 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
     setIsSubmittingRequest(true);
     try {
       // Find IDs/values from labels for barang, listPO, akunPenyesuaian
-      const card = listPO.find((opt: any) => opt.label === values.listPO);
+      const card = listPO.find(
+        (opt: any) =>
+          opt.displayLabel === values.listPO ||
+          (typeof opt.label === "string" && opt.label === values.listPO)
+      );
       const item = barangList.find(
         (opt: any) =>
           typeof opt.label === "string" && opt.label === values.barang
@@ -539,8 +598,8 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
       const finalAdjustmentName = isKUI
         ? "HPP Benang Knitting"
         : adjustment
-        ? adjustment.label
-        : adjustmentNumber || null;
+          ? adjustment.label
+          : adjustmentNumber || null;
 
       // Debug the matching process
       if (typeof values.akunPenyesuaian === "string") {
@@ -659,19 +718,24 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
               placeholder="Cari atau pilih PO"
               filterOption={filterOption}
               onSelect={(value, option) => {
-                if (typeof option.label === "string") {
-                  form.setFieldsValue({ listPO: option.label });
-                  // Save the selected card ID when a card is selected from dropdown
-                  setSelectedCardId(value);
+                const selectedOption = option as any;
+                const displayLabel =
+                  selectedOption?.displayLabel ??
+                  (typeof selectedOption?.label === "string"
+                    ? selectedOption.label
+                    : "");
+                if (displayLabel) {
+                  form.setFieldsValue({ listPO: displayLabel });
                 }
+                // Save the selected card ID when a card is selected from dropdown
+                setSelectedCardId(String(value));
               }}
               onChange={(input) => {
                 // Update search value for the cards query
                 setCardSearchValue(input);
 
                 const match = listPO.find(
-                  (opt: any) =>
-                    typeof opt.label === "string" && opt.label === input
+                  (opt: any) => opt.displayLabel === input
                 );
                 if (!match) {
                   form.setFieldsValue({ listPO: input });
@@ -680,7 +744,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
                   setSelectedActionType("");
                 } else {
                   // If input matches a card label, set the card ID
-                  setSelectedCardId(match.value);
+                  setSelectedCardId(String(match.value));
                 }
               }}
             />
@@ -786,7 +850,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
 
                     const selectedItemUnitType =
                       selectedItem.unitType !== undefined &&
-                      selectedItem.unitType !== null
+                        selectedItem.unitType !== null
                         ? String(selectedItem.unitType)
                         : "";
 
@@ -948,8 +1012,8 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
             rules={[{ required: true, message: "Request By is required" }]}
             style={{ marginBottom: 16, gridColumn: "1 / span 3" }}
           >
-              <Select
-                disabled={!isPOSelected}
+            <Select
+              disabled={!isPOSelected}
               placeholder="Select a User"
               loading={accountListLoading}
               options={userOptions}
