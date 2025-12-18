@@ -23,6 +23,8 @@ export interface ProductItem {
   sku?: string;
   product_code?: string;
   productId?: string;
+  source?: string;
+  accurateDbId?: number | string;
   poProductId?: string; // ID of the POProduct for API updates
   poProductCategoryId?: string; // Primary PO product category ID for updates
   poProductCategoryIds?: string[]; // All category IDs for this PO product

@@ -5,6 +5,7 @@ import BahanTabContent from "./BahanTabContent";
 import { POSectionProps } from "./types";
 import { useDeletePOProduct } from "@hooks/usePOProducts";
 import { Camera } from "lucide-react";
+import { resolveProductSource } from "./productHelpers";
 
 const POSection: React.FC<POSectionProps> = ({
   po,
@@ -69,7 +70,10 @@ const POSection: React.FC<POSectionProps> = ({
       product?.accurateId ||
       product?.id ||
       product?.productId;
-    return code ? `${name} (${code})` : name;
+    const source = resolveProductSource(product);
+    const displaySource = source === "Hikmat" ? "HKI" : source;
+    const sourceSuffix = displaySource ? ` - ${displaySource}` : "";
+    return code ? `${name} (${code})${sourceSuffix}` : `${name}${sourceSuffix}`;
   };
 
   // Note: handleRemoveBahanTab removed since we're no longer using nested bahan tabs
@@ -225,7 +229,7 @@ const POSection: React.FC<POSectionProps> = ({
               option!.label.toLowerCase().indexOf(inputValue.toLowerCase()) !== -1
             }
             style={{
-              minWidth: "300px",
+              minWidth: "420px",
             }}
             disabled={isLoadingProducts}
             showSearch

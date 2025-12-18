@@ -4,7 +4,10 @@ import { useSelector } from "react-redux";
 import { selectTheme } from "@store/app_slice";
 import { useQuery } from "@tanstack/react-query";
 import { getAllAdjustmentItems, updateRequest } from "@api/accurate";
-import { getOzzyBarcodeProduct, getOzzyProducts } from "@api/ozzy-warehouse";
+import {
+  getCombinedOzzyProducts,
+  getOzzyBarcodeProduct,
+} from "@api/ozzy-warehouse";
 import { useCategoriesWithSubcategories } from "@hooks/category";
 import {
   usePOProductsByCardId,
@@ -19,7 +22,10 @@ import { useDebouncedPOProductUpdate } from "@hooks/useDebouncedPOProductUpdate"
 import POSection from "./POSection";
 import { BahanFieldsProps, POItem, ProductItem } from "./types";
 import { usePOsByCardId } from "./hooks/usePOsByCardId";
-import { getUnitPriceFromProduct } from "./productHelpers";
+import {
+  getUnitPriceFromProduct,
+  resolveProductSource,
+} from "./productHelpers";
 
 const getRequestedSkuForBahanFields = (
   item?: any
@@ -74,8 +80,14 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
   // Load products from Warehouse API
   const { data: warehouseProducts = [], isLoading: isLoadingProducts } =
     useQuery({
-      queryKey: ["warehouse-products", "1880365"],
-      queryFn: () => getOzzyProducts("1880365"),
+      queryKey: ["warehouse-products", "hikmat-mpi"],
+      queryFn: async () => {
+        const products = await getCombinedOzzyProducts();
+        return products.filter((item) => {
+          const source = resolveProductSource(item);
+          return source === "Hikmat" || source === "MPI";
+        });
+      },
     });
 
   // Fetch categories with subcategories
@@ -390,6 +402,13 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
 
     if (match) {
       product.warehouseProduct = match;
+      const resolvedSource = resolveProductSource(match);
+      if (resolvedSource && !(product as any).source) {
+        (product as any).source = resolvedSource;
+      }
+      if (match.accurateDbId && !(product as any).accurateDbId) {
+        (product as any).accurateDbId = match.accurateDbId;
+      }
     }
 
     return product;
@@ -482,6 +501,8 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
         const efisiensiValue =
           (latestBahanTab?.estBahan ?? value ?? 0) -
           (latestBahanTab?.bahanTerpakai ?? 0);
+        const requestSource =
+          resolveProductSource(productForPayload) ?? "Hikmat";
 
         const payload: Record<string, any> = {
           requestSent: value,
@@ -490,12 +511,13 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
           item_name:
             productForPayload?.product_name || productForPayload?.name || "",
           satuan: resolveProductUnit(productForPayload) || "",
-          source: "Hikmat",
           unit_price: getUnitPriceFromProduct(productForPayload),
           beli: "Tidak",
           est_bahan: estBahanValue,
           efisiensi: efisiensiValue,
         };
+
+        payload.source = requestSource;
 
         if (requestedItemId) {
           payload.requested_item_id = requestedItemId;
@@ -561,6 +583,8 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
           latestBahanTab?.estBahan ?? sentValue ?? null;
         const efisiensiValue =
           (latestBahanTab?.estBahan ?? sentValue ?? 0) - value;
+        const requestSource =
+          resolveProductSource(productForPayload) ?? "Hikmat";
 
         const payload: Record<string, any> = {
           requestReceived: value,
@@ -569,12 +593,13 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
           item_name:
             productForPayload?.product_name || productForPayload?.name || "",
           satuan: resolveProductUnit(productForPayload) || "",
-          source: "Hikmat",
           unit_price: getUnitPriceFromProduct(productForPayload),
           beli: "Tidak",
           est_bahan: estBahanValue,
           efisiensi: efisiensiValue,
         };
+
+        payload.source = requestSource;
 
         if (requestedItemId) {
           payload.requested_item_id = requestedItemId;
@@ -1103,9 +1128,8 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
 
     try {
       // Fetch GL accounts for the item's source
-      const glAccountsResponse = await getAllAdjustmentItems(
-        selectedItem?.source
-      );
+      const itemSource = resolveProductSource(selectedItem) ?? "Hikmat";
+      const glAccountsResponse = await getAllAdjustmentItems(itemSource);
       const glaccounts = glAccountsResponse;
 
       // GL accounts response received
@@ -1149,15 +1173,17 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
           selectedItem?.itemCategory?.name ||
           (selectedItem as any)?.categoryName ||
           (selectedItem as any)?.category_name;
-        const itemCategoryName = rawCategoryName
-          ? rawCategoryName.toLowerCase()
-          : "";
-        const itemSource = selectedItem?.source;
+          const itemCategoryName = rawCategoryName
+            ? rawCategoryName.toLowerCase()
+            : "";
+          const normalizedSource = itemSource
+            ? itemSource.toLowerCase()
+            : null;
 
-        let suitableAccount = null;
+          let suitableAccount = null;
 
-        if (itemCategoryName) {
-          suitableAccount = glaccounts.data.d.find((acc: any) => {
+          if (itemCategoryName) {
+            suitableAccount = glaccounts.data.d.find((acc: any) => {
             const accountName = acc.name.toLowerCase();
             const cleanAccountName = accountName
               .replace("hpp ", "")
@@ -1166,14 +1192,14 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
             const directMatch = accountName.includes(itemCategoryName);
             const reverseMatch = itemCategoryName.includes(cleanAccountName);
 
-            return directMatch || reverseMatch;
-          });
+                return directMatch || reverseMatch;
+              });
 
-          if (!suitableAccount && itemSource === "Hikmat") {
-            const hikmatCategoryKeywords = [
-              "krah",
-              "manset",
-              "rib",
+              if (!suitableAccount && normalizedSource === "hikmat") {
+                const hikmatCategoryKeywords = [
+                  "krah",
+                  "manset",
+                  "rib",
               "bahan",
               "kain",
             ];
@@ -1203,16 +1229,17 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
                 );
               });
             }
-          }
+              }
 
-          // General fallback: Use the first available account from the same source
-          if (!suitableAccount && itemSource) {
-            suitableAccount = glaccounts.data.d.find(
-              (acc: any) => acc.source === itemSource
-            );
-          }
+              // General fallback: Use the first available account from the same source
+              if (!suitableAccount && normalizedSource) {
+                suitableAccount = glaccounts.data.d.find((acc: any) => {
+                  const accountSource = (acc.source || "").toLowerCase();
+                  return accountSource === normalizedSource;
+                });
+              }
 
-          // Last resort: Use the first available account
+              // Last resort: Use the first available account
           if (!suitableAccount && glaccounts.data.d.length > 0) {
             suitableAccount = glaccounts.data.d[0];
           }
@@ -1355,6 +1382,10 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
                 id: productKey,
                 name: selectedProduct.name,
                 poProductId: createdPOProductId,
+                source: resolveProductSource(selectedProduct),
+                accurateDbId:
+                  (selectedProduct as any)?.accurateDbId ??
+                  (selectedProduct as any)?.accurate_db_id,
                 satuan,
                 adjustment_no: glAccountInfo.adjustment_no,
                 adjustment_name: glAccountInfo.adjustment_name,

@@ -14,6 +14,7 @@ import { EnumAttachmentType } from "@myTypes/card";
 import {
   getRequestedItemIdFromProduct,
   getUnitPriceFromProduct,
+  resolveProductSource,
 } from "./productHelpers";
 import { updatePOProductCategory } from "@api/po-product";
 import { useParams } from "next/navigation";
@@ -73,13 +74,12 @@ const getCogsGlAccountIdFromItem = (item?: any): number | null => {
 const resolveGlAccountForItem = async (item?: any) => {
   if (!item) return null;
 
+  const itemSource = resolveProductSource(item) ?? "Hikmat";
+
   try {
-    const glAccountsResponse = await getAllAdjustmentItems("Hikmat");
+    const glAccountsResponse = await getAllAdjustmentItems(itemSource);
     const accountList =
       glAccountsResponse?.data?.d ?? glAccountsResponse?.d ?? [];
-
-      console.log(accountList,'<< ini isi accountlist')
-      console.log(item,'<< ini isi item')
 
 
     if (!Array.isArray(accountList) || accountList.length === 0) {
@@ -97,7 +97,7 @@ const resolveGlAccountForItem = async (item?: any) => {
     const itemCategoryName = item?.itemCategory?.name
       ? item.itemCategory.name.toLowerCase()
       : "";
-    const itemSource = item?.source;
+    const normalizedSource = itemSource ? itemSource.toLowerCase() : "";
     let suitableAccount = null;
 
     if (itemCategoryName) {
@@ -113,7 +113,7 @@ const resolveGlAccountForItem = async (item?: any) => {
         return directMatch || reverseMatch;
       });
 
-      if (!suitableAccount && itemSource === "Hikmat") {
+      if (!suitableAccount && normalizedSource === "hikmat") {
         const hikmatCategoryKeywords = [
           "krah",
           "manset",
@@ -149,10 +149,11 @@ const resolveGlAccountForItem = async (item?: any) => {
         }
       }
 
-      if (!suitableAccount && itemSource) {
-        suitableAccount = accountList.find(
-          (acc: any) => acc.source === itemSource
-        );
+      if (!suitableAccount && normalizedSource) {
+        suitableAccount = accountList.find((acc: any) => {
+          const accountSource = (acc.source || "").toLowerCase();
+          return accountSource === normalizedSource;
+        });
       }
 
       if (!suitableAccount && accountList.length > 0) {
@@ -521,9 +522,8 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
       const unitPrice = getUnitPriceFromProduct(payloadProduct);
       const resolvedGlAccount = await resolveGlAccountForItem(payloadProduct);
       const requestSource =
-        payloadProduct?.source ||
-        product?.warehouseProduct?.source ||
-        (product as any)?.source ||
+        resolveProductSource(payloadProduct) ??
+        resolveProductSource(product) ??
         "Hikmat";
       const trimmedDescription = (description ?? "").trim();
 
