@@ -24,7 +24,9 @@ import {
   Card,
   Space,
   Tooltip,
+  Modal as AntdModal,
 } from "antd";
+import type { InputRef } from "antd";
 import type { AxiosError } from "axios";
 import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
 import { debounce } from "lodash";
@@ -143,6 +145,9 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
   const [requestTypeFilter, setRequestTypeFilter] = useState<string>("");
   const [searchInput, setSearchInput] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [scanInput, setScanInput] = useState("");
+  const [shortIdFilter, setShortIdFilter] = useState<number | null>(null);
+  const scanInputRef = useRef<InputRef | null>(null);
   const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null]>([
     null,
     null,
@@ -180,6 +185,9 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
   >([null, null]);
   const [isPrintingBarcode, setIsPrintingBarcode] = useState(false);
   const [barcodeModalOpen, setBarcodeModalOpen] = useState(false);
+  const [scannedRequest, setScannedRequest] = useState<RequestItem | null>(null);
+  const [sisaInput, setSisaInput] = useState<string>("");
+  const [isSavingSisa, setIsSavingSisa] = useState(false);
 
   const queryClient = useQueryClient();
   const debouncedSearch = useRef(
@@ -194,6 +202,9 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       isRejected: false,
       isVerified: true,
     };
+    if (shortIdFilter !== null) {
+      baseFilter.shortId = shortIdFilter;
+    }
 
     switch (filterAccurate) {
       case "SUDAH":
@@ -270,6 +281,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     requestTypeFilter,
     dateRange,
     searchTerm,
+    shortIdFilter,
   ]);
 
   const { data, isLoading, refetch } = useQuery<ApiResponse<RequestItem>>({
@@ -427,6 +439,21 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     }));
   }, [data]);
 
+  useEffect(() => {
+    if (open) {
+      setTimeout(() => {
+        scanInputRef.current?.focus?.();
+      }, 50);
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (shortIdFilter !== null) {
+      findAndOpenScannedRequest(shortIdFilter);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, shortIdFilter]);
+
   const { mutate: sendRequest } = useMutation({
     mutationFn: ({ id, amount }: { id: string; amount: number }) =>
       updateRequest(id, amount),
@@ -536,6 +563,24 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       console.error("Failed to reopen request", error);
       message.error("Gagal membuka request");
     },
+  });
+
+  const saveSisaMutation = useMutation({
+    mutationFn: ({ id, sisa }: { id: string; sisa: number }) =>
+      updateRequest(id, { requestLeft: sisa, warehouseReturned: true }),
+    onSuccess: async (_, { id }) => {
+      message.success("Sisa Bahan berhasil disimpan");
+      setScannedRequest(null);
+      setSisaInput("");
+      setShortIdFilter(null);
+      setWarehouseReturnOverrides((prev) => ({ ...prev, [id]: true }));
+      await refetch();
+    },
+    onError: (error: any) => {
+      const reason = extractApiErrorReason(error);
+      message.error(reason || "Gagal menyimpan Sisa Bahan");
+    },
+    onSettled: () => setIsSavingSisa(false),
   });
 
   const [markingDone, setMarkingDone] = useState<string | null>(null);
@@ -694,6 +739,66 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     } finally {
       setIsPrintingBarcode(false);
     }
+  };
+
+  const findAndOpenScannedRequest = (
+    shortId: number,
+    suppressWarning?: boolean
+  ) => {
+    const items = data?.data || [];
+    const match = items.find((item: any) => {
+      const candidate =
+        item.short_id ?? item.shortId ?? item.id ?? item.request_id;
+      const parsed = Number(candidate);
+      return Number.isFinite(parsed) && parsed === Number(shortId);
+    });
+    if (!match) {
+      if (!suppressWarning) {
+        message.warning("Request dengan Short ID tersebut tidak ditemukan.");
+      }
+      return;
+    }
+    setShortIdFilter(shortId);
+    setScannedRequest(match);
+    const initialSisa =
+      match.request_left ??
+      (match as any)?.requestLeft ??
+      (match as any)?.request_left ??
+      "";
+    const numericInitial =
+      initialSisa !== null && initialSisa !== undefined
+        ? Number(initialSisa)
+        : null;
+    const shouldBlank =
+      numericInitial !== null &&
+      Number.isFinite(numericInitial) &&
+      numericInitial === 0;
+    const formatted =
+      numericInitial !== null && Number.isFinite(numericInitial)
+        ? numericInitial.toFixed(2).replace(/\.?0+$/, (m) =>
+            m === "." ? "" : m
+          )
+        : "";
+    setSisaInput(
+      shouldBlank
+        ? ""
+        : initialSisa !== null && initialSisa !== undefined
+          ? formatted || String(initialSisa)
+          : ""
+    );
+  };
+
+  const sisaModalOpen = Boolean(scannedRequest);
+
+  const handleSaveSisa = () => {
+    if (!scannedRequest) return;
+    const numeric = Number(sisaInput);
+    if (Number.isNaN(numeric)) {
+      message.warning("Masukkan angka untuk Sisa Bahan");
+      return;
+    }
+    setIsSavingSisa(true);
+    saveSisaMutation.mutate({ id: scannedRequest.id, sisa: numeric });
   };
   const handleExport = async () => {
     setExportModalOpen(true);
@@ -1204,6 +1309,23 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     debouncedSearch.cancel();
     setSearchTerm(searchInput.trim());
     setPagination((prev) => ({ ...prev, page: 1 }));
+  };
+
+  const handleScanSubmit = (value?: string) => {
+    const raw = (value ?? scanInput).trim();
+    const numeric = Number(raw);
+    if (!raw) {
+      setShortIdFilter(null);
+      return;
+    }
+    if (Number.isNaN(numeric)) {
+      message.warning("Short ID tidak valid");
+      return;
+    }
+    setShortIdFilter(numeric);
+    setScanInput("");
+    setPagination((prev) => ({ ...prev, page: 1 }));
+    findAndOpenScannedRequest(numeric, true);
   };
 
   const executeDeleteRequest = (id: string) => {
@@ -1817,6 +1939,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     Boolean(labelFilter),
     Boolean(requestTypeFilter),
     Boolean(searchTerm),
+    shortIdFilter !== null,
   ].filter(Boolean).length;
   const activeDateFilter = Boolean(dateRange[0] || dateRange[1]);
   const totalActiveFilters = activeFiltersCount + (activeDateFilter ? 1 : 0);
@@ -1832,8 +1955,12 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     setRequestTypeFilter("");
     setSearchInput("");
     setSearchTerm("");
+    setScanInput("");
+    setShortIdFilter(null);
     setDateRange([null, null]);
     setPagination((prev) => ({ ...prev, page: 1 }));
+    setScannedRequest(null);
+    setSisaInput("");
   };
 
   return (
@@ -1896,6 +2023,21 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
             >
               Refresh
             </Button>
+            <Input
+              placeholder="Scan Short ID"
+              allowClear
+              size="small"
+              value={scanInput}
+              ref={scanInputRef as any}
+              onChange={(e) => {
+                setScanInput(e.target.value);
+                if (!e.target.value.trim()) {
+                  setShortIdFilter(null);
+                }
+              }}
+              onPressEnter={() => handleScanSubmit()}
+              style={{ width: 160 }}
+            />
             <Button
               type="primary"
               size="small"
@@ -2186,6 +2328,42 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
           }}
         />
       </Card>
+      <AntdModal
+        open={Boolean(scannedRequest)}
+        onCancel={() => {
+          setScannedRequest(null);
+          setSisaInput("");
+          setShortIdFilter(null);
+        }}
+        onOk={handleSaveSisa}
+        styles={{
+          body:{
+            padding:"1rem"
+          }
+        }}
+        okText="Simpan"
+        confirmLoading={isSavingSisa}
+        title="Update Sisa Bahan"
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ fontWeight: 600 }}>
+            {scannedRequest?.itemName}
+          </div>
+          <div style={{ color: "#666" }}>
+            {scannedRequest?.cardName ||
+              (scannedRequest as any)?.card_name ||
+              "-"}
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <span style={{ fontSize: 12, color: "#555" }}>Sisa Bahan</span>
+            <Input
+              placeholder="Masukkan sisa bahan"
+              value={sisaInput}
+              onChange={(e) => setSisaInput(e.target.value)}
+            />
+          </div>
+        </div>
+      </AntdModal>
       <Modal
         open={barcodeModalOpen}
         onCancel={handleBarcodeModalClose}

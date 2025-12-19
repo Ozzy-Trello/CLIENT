@@ -56,6 +56,7 @@ type RequestUpdatePayload = {
   description?: string | null;
   est_bahan?: number | null;
   efisiensi?: number | null;
+  warehouseReturned?: boolean;
 };
 
 export function updateRequest(

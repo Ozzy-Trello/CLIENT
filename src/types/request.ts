@@ -64,4 +64,5 @@ export interface RequestItem {
   barcodePrinted?: boolean;
   barcodePrintedAt?: string;
   short_id?: number;
+  shortId?: number;
 }
