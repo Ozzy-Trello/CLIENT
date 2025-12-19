@@ -2207,7 +2207,24 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
           <span style={{ fontSize: 13, color: "#555" }}>
             Pilih jenis barcode yang ingin dicetak untuk permintaan gudang.
           </span>
-          <div style={{ display: "flex", flexDirection:"row", gap: 10 }}>
+          <div style={{ display: "flex", flexDirection: "row", gap: 10 }}>
+            <Button
+              block
+              size="large"
+              icon={<Truck size={18} />}
+              onClick={() => handleBarcodeTypeSelect("shipping")}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 10,
+                textAlign: "left",
+              }}
+            >
+              <div style={{ textAlign: "left" }}>
+                <div style={{ fontWeight: 600 }}>Barcode Pengiriman</div>
+              </div>
+            </Button>
             <Button
               type="primary"
               block
@@ -2226,23 +2243,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
                 <div style={{ fontWeight: 600 }}>Sisa Bahan</div>
               </div>
             </Button>
-            <Button
-              block
-              size="large"
-              icon={<Truck size={18} />}
-              onClick={() => handleBarcodeTypeSelect("shipping")}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 10,
-                textAlign: "left",
-              }}
-            >
-              <div style={{ textAlign: "left" }}>
-                <div style={{ fontWeight: 600 }}>Barcode Pengiriman</div>
-              </div>
-            </Button>
+
           </div>
         </div>
       </Modal>
