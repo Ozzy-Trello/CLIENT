@@ -25,12 +25,13 @@ import {
 } from "antd";
 import { EditOutlined } from "@ant-design/icons";
 import { debounce } from "lodash";
-import { Factory, Filter, RefreshCw, Truck } from "lucide-react";
+import { Factory, Filter, RefreshCw, Truck, Camera } from "lucide-react";
 import { useParams } from "next/navigation";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import dayjs from "dayjs";
 import { formatRequestQuantity } from "@utils/request-format";
 import UserSelectionForModal from "@components/UserSelectionForModal";
+import { useAccountListForModal } from "@hooks/account";
 
 const formatDateValue = (value?: string | number | Date) => {
   if (!value) return "-";
@@ -70,6 +71,9 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
   onClose,
 }): JSX.Element => {
   const { workspaceId } = useParams();
+  const resolvedWorkspaceId = Array.isArray(workspaceId)
+    ? (workspaceId[0] as string)
+    : ((workspaceId as string) || "");
   const queryClient = useQueryClient();
   const [pagination, setPagination] = useState({
     page: 1,
@@ -87,9 +91,23 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
   const [labelFilter, setLabelFilter] = useState<string>("");
   const [searchInput, setSearchInput] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [scanInput, setScanInput] = useState("");
+  const [shortIdFilter, setShortIdFilter] = useState<number | null>(null);
+  const lastProcessedShortIdRef = useRef<number | null>(null);
+  const scanInputRef = useRef<any | null>(null);
   const [unlockingId, setUnlockingId] = useState<string | null>(null);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const { data: accountListModal } = useAccountListForModal({
+    workspaceId: resolvedWorkspaceId,
+  });
+  const accountOptions = useMemo(() => {
+    if (!accountListModal?.data) return [];
+    return accountListModal.data.map((item) => ({
+      value: item.id,
+      label: item.username,
+    }));
+  }, [accountListModal]);
 
   const debouncedRefetch = useRef(
     debounce(() => {
@@ -105,7 +123,7 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
   // Build filter object based on current filter states
   const filterParams = useMemo(() => {
     const baseFilter: Record<string, any> = {
-      workspace_id: workspaceId as string,
+      workspace_id: resolvedWorkspaceId,
     };
 
     // Handle request sent filter
@@ -126,8 +144,12 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
       baseFilter.search = searchTerm;
     }
 
+    if (shortIdFilter !== null) {
+      baseFilter.shortId = shortIdFilter;
+    }
+
     return baseFilter;
-  }, [workspaceId, filterBelumDikirim, filterBelumDiterima, searchTerm, labelFilter]);
+  }, [resolvedWorkspaceId, filterBelumDikirim, filterBelumDiterima, searchTerm, labelFilter, shortIdFilter]);
 
   const resetFilters = () => {
     setFilterBelumDikirim(false);
@@ -135,13 +157,15 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
     setLabelFilter("");
     setSearchInput("");
     setSearchTerm("");
+    setScanInput("");
+    setShortIdFilter(null);
     setPagination((prev) => ({ ...prev, page: 1 }));
   };
 
   const { data, isLoading, refetch } = useQuery<ApiResponse<RequestItem>>({
     queryKey: [
       "requests",
-      workspaceId,
+      resolvedWorkspaceId,
       pagination.page,
       pagination.limit,
       "production",
@@ -149,7 +173,7 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
     ],
     queryFn: () =>
       getAllRequests(pagination.page, pagination.limit, filterParams),
-    enabled: open && !!workspaceId,
+    enabled: open && !!resolvedWorkspaceId,
   });
 
   useEffect(() => {
@@ -164,6 +188,14 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
     }
   }, [data]);
 
+  useEffect(() => {
+    if (open) {
+      setTimeout(() => {
+        scanInputRef.current?.focus?.();
+      }, 50);
+    }
+  }, [open]);
+
   useEffect(
     () => () => {
       debouncedSearch.cancel();
@@ -171,13 +203,33 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
     [debouncedSearch]
   );
 
+  const handleScanSubmit = (value?: string) => {
+    const raw = (value ?? scanInput).trim();
+    const numeric = Number(raw);
+    if (!raw) {
+      setShortIdFilter(null);
+      lastProcessedShortIdRef.current = null;
+      return;
+    }
+    if (Number.isNaN(numeric)) {
+      message.warning("Short ID tidak valid");
+      return;
+    }
+    setShortIdFilter(numeric);
+    lastProcessedShortIdRef.current = null;
+    setScanInput("");
+    setSearchInput("");
+    setSearchTerm("");
+    setPagination((prev) => ({ ...prev, page: 1 }));
+  };
+
   const updateRequestMutation = useMutation({
     mutationFn: ({ id, requestSent }: { id: string; requestSent: number }) =>
       updateRequest(id, requestSent),
     onSuccess: () => {
       message.success("Jumlah dikirim berhasil diperbarui");
       queryClient.invalidateQueries({
-        queryKey: ["requests", workspaceId],
+        queryKey: ["requests", resolvedWorkspaceId],
       });
       debouncedRefetch();
     },
@@ -198,7 +250,7 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
     onSuccess: () => {
       message.success("Status produksi diterima berhasil diperbarui");
       queryClient.invalidateQueries({
-        queryKey: ["requests", workspaceId],
+        queryKey: ["requests", resolvedWorkspaceId],
       });
       debouncedRefetch();
     },
@@ -242,13 +294,13 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
 
   const formattedLastRefresh = lastRefreshedAt
     ? lastRefreshedAt.toLocaleString("id-ID", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-      })
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    })
     : "Belum pernah";
 
   const { mutate: updateRequestFields } = useUpdateRequestFields();
@@ -257,7 +309,7 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
     onMutate: (id) => setUnlockingId(id),
     onSuccess: () => {
       message.success("Request dibuka untuk diedit");
-      queryClient.invalidateQueries({ queryKey: ["requests", workspaceId] });
+      queryClient.invalidateQueries({ queryKey: ["requests", resolvedWorkspaceId] });
       debouncedRefetch();
     },
     onError: () => {
@@ -467,6 +519,7 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
               });
             }}
             disabled={record.is_done || record.isDone}
+            workspaceId={resolvedWorkspaceId}
           />
         );
       },
@@ -534,7 +587,84 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
     filterBelumDiterima,
     Boolean(labelFilter),
     Boolean(searchTerm),
+    shortIdFilter !== null,
   ].filter(Boolean).length;
+
+  const resolveReceivedBy = (record: RequestItem) =>
+    receivedByOverrides[record.id] ??
+    record.receivedBy ??
+    (record as any)?.received_by ??
+    null;
+
+  useEffect(() => {
+    if (!shortIdFilter || !data?.data) return;
+    if (lastProcessedShortIdRef.current === shortIdFilter) return;
+
+    const match = data.data.find((record) => {
+      const raw =
+        (record as any).short_id ?? (record as any).shortId ?? undefined;
+      const parsed = Number(raw);
+      return !Number.isNaN(parsed) && parsed === shortIdFilter;
+    });
+
+    if (!match) return;
+    lastProcessedShortIdRef.current = shortIdFilter;
+
+    const receiver = resolveReceivedBy(match);
+    const markReceived = async (receiverId?: string | null) => {
+      if (receiverId) {
+        setReceivedByOverrides((prev) => ({
+          ...prev,
+          [match.id]: receiverId,
+        }));
+      }
+      handleProductionReceived(match.id, true);
+    };
+
+    if (receiver) {
+      void markReceived(receiver);
+      return;
+    }
+
+    let selectedReceiver: string | null = null;
+    Modal.confirm({
+      title: "Isi penerima",
+      content: (
+        <Select
+          placeholder="Pilih penerima"
+          style={{ width: "100%" }}
+          showSearch
+          options={accountOptions}
+          optionFilterProp="label"
+          onChange={(userId: string) => {
+            selectedReceiver = userId;
+          }}
+        />
+      ),
+      okText: "Simpan & Tandai Diterima",
+      styles: {
+        body: {
+          padding: '1rem',
+        },
+      },
+      cancelText: "Batal",
+      onOk: async () => {
+        if (!selectedReceiver) {
+          message.warning("Pilih penerima terlebih dahulu");
+          return Promise.reject();
+        }
+        await updateRequestFields({
+          id: match.id,
+          updates: { received_by: selectedReceiver },
+        });
+        await markReceived(selectedReceiver);
+        return true;
+      },
+      onCancel: () => {
+        selectedReceiver = null;
+      },
+    });
+  }, [shortIdFilter, data, updateRequestFields]);
 
   return (
     <Modal
@@ -618,58 +748,96 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
       >
         <div
           style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-            gap: 16,
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 12,
+            flexDirection: "column",
             padding: "8px 0",
+            justifyContent: "flex-start"
           }}
         >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              gridColumn: "1 / -1",
-            }}
-          >
-            <Input
-              placeholder="Search"
-              allowClear
-              value={searchInput}
-              onChange={handleSearchChange}
-              onPressEnter={handleSearchSubmit}
-            />
+
+            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+              <Input
+                placeholder="Search"
+                allowClear
+                value={searchInput}
+                onChange={handleSearchChange}
+                onPressEnter={handleSearchSubmit}
+                style={{ flex: "1 1 300px", minWidth: "260px" }}
+              />
+              <Input
+                placeholder="Scan Short ID"
+                allowClear
+                value={scanInput}
+                onChange={(e) => setScanInput(e.target.value)}
+                onPressEnter={() => handleScanSubmit()}
+                style={{ flex: "1 1 300px", minWidth: "260px" }}
+                ref={scanInputRef as any}
+              />
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <Button
+                  type="primary"
+                  onClick={() => handleScanSubmit()}
+                  disabled={!scanInput.trim()}
+                >
+                  Cari Short ID
+                </Button>
+                <Button
+                  size="small"
+                  icon={<Camera size={14} />}
+                  onClick={() =>
+                    message.info("Scan kamera (dev) belum terhubung ke backend.")
+                  }
+                >
+                  Camera (dev)
+                </Button>
+              </div>
+              {shortIdFilter !== null && (
+                <Tag
+                  color="blue"
+                  closable
+                  onClose={() => setShortIdFilter(null)}
+                  style={{ marginLeft: 4 }}
+                >
+                  Short ID: {shortIdFilter}
+                </Tag>
+              )}
+            </div>
+          <div style={{ display: "flex", flexDirection: "row" }}>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexDirection: "row" }}>
+              <Text strong>Label</Text>
+              <Select
+                allowClear
+                placeholder="Semua Label"
+                value={labelFilter || undefined}
+                onChange={(value) => {
+                  setLabelFilter(value || "");
+                  setPagination((prev) => ({ ...prev, page: 1 }));
+                }}
+                options={[
+                  { value: "", label: "Semua Label" },
+                  { value: "Ozzy", label: "Ozzy" },
+                  { value: "Steady", label: "Steady" },
+                ]}
+                style={{ minWidth: 160 }}
+              />
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Truck size={16} style={{ color: "#ff7a00" }} />
+              <Checkbox
+                checked={filterBelumDikirim}
+                onChange={(e) => {
+                  setFilterBelumDikirim(e.target.checked);
+                  setPagination((prev) => ({ ...prev, page: 1 }));
+                }}
+              >
+                <Text strong>Belum Dikirim</Text>
+              </Checkbox>
+            </div>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <Text strong>Label</Text>
-            <Select
-              allowClear
-              placeholder="Semua Label"
-              value={labelFilter || undefined}
-              onChange={(value) => {
-                setLabelFilter(value || "");
-                setPagination((prev) => ({ ...prev, page: 1 }));
-              }}
-              options={[
-                { value: "", label: "Semua Label" },
-                { value: "Ozzy", label: "Ozzy" },
-                { value: "Steady", label: "Steady" },
-              ]}
-              style={{ minWidth: 160 }}
-            />
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <Truck size={16} style={{ color: "#ff7a00" }} />
-            <Checkbox
-              checked={filterBelumDikirim}
-              onChange={(e) => {
-                setFilterBelumDikirim(e.target.checked);
-                setPagination((prev) => ({ ...prev, page: 1 }));
-              }}
-            >
-              <Text strong>Belum Dikirim</Text>
-            </Checkbox>
-          </div>
+
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <Factory size={16} style={{ color: "#52c41a" }} />
             <Checkbox

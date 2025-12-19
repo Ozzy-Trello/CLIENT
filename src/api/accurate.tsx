@@ -157,6 +157,12 @@ export const printWarehouseBarcodes = async () => {
   return data;
 };
 
+export const printShippingBarcodes = async () => {
+  return api.post("/request/print-barcode-pengiriman", undefined, {
+    responseType: "blob",
+  });
+};
+
 export type RequestQuantity = number | string;
 
 export const createRequestWithPOConnection = async (requestData: {

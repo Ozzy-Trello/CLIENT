@@ -8,14 +8,25 @@ const UserSelectionForModal: FC<{
   onChange?: (value: string) => void;
   placeholder?: string;
   disabled?: boolean;
-}> = ({ value, onChange, placeholder = "Select a User", disabled = false }) => {
-  const { workspaceId } = useParams();
+  workspaceId?: string;
+}> = ({
+  value,
+  onChange,
+  placeholder = "Select a User",
+  disabled = false,
+  workspaceId,
+}) => {
+  const params = useParams();
+  const resolvedWorkspaceId =
+    workspaceId ??
+    (Array.isArray(params?.workspaceId)
+      ? params?.workspaceId?.[0]
+      : (params as any)?.workspaceId) ??
+    "";
 
   const { data: accountListData, isLoading: accountListLoading } =
     useAccountListForModal({
-      workspaceId: Array.isArray(workspaceId)
-        ? (workspaceId[0] as string)
-        : (workspaceId as string),
+      workspaceId: resolvedWorkspaceId,
     });
 
   const options = useMemo(() => {

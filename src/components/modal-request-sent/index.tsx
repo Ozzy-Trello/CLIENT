@@ -6,6 +6,7 @@ import {
   deleteRequest,
   updateProductionReceived,
   printWarehouseBarcodes,
+  printShippingBarcodes,
 } from "@api/accurate";
 import { useUpdateRequestFields } from "@hooks/accurate";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -29,7 +30,7 @@ import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
 import { debounce } from "lodash";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { formatRequestQuantity } from "@utils/request-format";
-import { Filter, RefreshCw, RotateCcw, Warehouse } from "lucide-react";
+import { Filter, RefreshCw, RotateCcw, Warehouse, Truck } from "lucide-react";
 import { DownloadOutlined } from "@ant-design/icons";
 import dayjs, { Dayjs } from "dayjs";
 import {
@@ -43,6 +44,7 @@ import UserSelectionForModal from "@components/UserSelectionForModal";
 
 type BasicStatusFilter = "ALL" | "SUDAH" | "BELUM";
 type BeliStatusFilter = "ALL" | "BELUM" | "YA" | "TIDAK";
+type BarcodeType = "warehouse" | "shipping";
 
 interface ModalRequestSentProps {
   open: boolean;
@@ -177,6 +179,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     [Dayjs | null, Dayjs | null]
   >([null, null]);
   const [isPrintingBarcode, setIsPrintingBarcode] = useState(false);
+  const [barcodeModalOpen, setBarcodeModalOpen] = useState(false);
 
   const queryClient = useQueryClient();
   const debouncedSearch = useRef(
@@ -639,6 +642,59 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       setIsPrintingBarcode(false);
     }
   };
+  const handleBarcodeModalClose = () => {
+    if (!isPrintingBarcode) {
+      setBarcodeModalOpen(false);
+    }
+  };
+
+  const handleBarcodeTypeSelect = async (type: BarcodeType) => {
+    if (type === "warehouse") {
+      setBarcodeModalOpen(false);
+      await handlePrintBarcode();
+      return;
+    }
+    setIsPrintingBarcode(true);
+    setBarcodeModalOpen(false);
+    try {
+      const response = await printShippingBarcodes();
+      const blob: Blob = response?.data;
+      const contentType =
+        response?.headers?.["content-type"] || blob?.type || "";
+
+      if (contentType.includes("application/json") && blob) {
+        const text = await blob.text();
+        const payload = (() => {
+          try {
+            return JSON.parse(text);
+          } catch {
+            return {};
+          }
+        })();
+        const msg =
+          payload?.message ||
+          "Tidak ada barcode pengiriman yang perlu dicetak.";
+        message.info(msg);
+        return;
+      }
+
+      if (blob) {
+        const url = URL.createObjectURL(
+          new Blob([blob], { type: contentType || "application/pdf" })
+        );
+        window.open(url, "_blank", "noopener,noreferrer");
+        setTimeout(() => URL.revokeObjectURL(url), 60_000);
+        message.success("Barcode pengiriman siap diunduh.");
+      } else {
+        message.info("Tidak ada barcode pengiriman yang perlu dicetak.");
+      }
+    } catch (error: any) {
+      const reason = extractApiErrorReason(error);
+      message.error(reason || "Gagal mencetak barcode pengiriman");
+    } finally {
+      setIsPrintingBarcode(false);
+    }
+  };
   const handleExport = async () => {
     setExportModalOpen(true);
   };
@@ -983,8 +1039,8 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
   const getBarcodePrintedValue = (record: RequestItem): boolean =>
     Boolean(
       (record as any)?.barcode_printed ??
-        (record as any)?.barcodePrinted ??
-        false
+      (record as any)?.barcodePrinted ??
+      false
     );
 
   const getBeliSelection = (record: RequestItem): BeliSelection => {
@@ -1067,8 +1123,8 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       getWarehouseReturnedValue(record) ||
       Boolean(
         productionReceivedOverrides[record.id] ??
-          record.productionReceived ??
-          record.productionRecieved
+        record.productionReceived ??
+        record.productionRecieved
       );
     if (barcodeRequired && !getBarcodePrintedValue(record)) {
       missing.push("Cetak Barcode");
@@ -1299,7 +1355,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
         </span>
       ),
     },
- 
+
     {
       title: "Deskripsi",
       dataIndex: "description",
@@ -1381,8 +1437,8 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
                   }
                   disabled={disableInput}
                   className={`flex-1 ${disableInput
-                      ? "bg-gray-100 text-gray-500"
-                      : ""
+                    ? "bg-gray-100 text-gray-500"
+                    : ""
                     }`}
                   style={{ width: "100%" }}
                   onChange={(event) =>
@@ -1511,7 +1567,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
         );
       },
     },
-     {
+    {
       title: "Terpakai",
       key: "requestReceivedInput",
       ellipsis: true,
@@ -1552,7 +1608,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
         );
       },
     },
-       {
+    {
       title: "Est Bahan",
       key: "est_bahan",
       ellipsis: true,
@@ -1611,7 +1667,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
         );
       },
     },
-   
+
     {
       title: "Kembali Ke Gudang",
       dataIndex: "warehouseReturned",
@@ -1856,7 +1912,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
             </Button>
             <Button
               size="small"
-              onClick={handlePrintBarcode}
+              onClick={() => setBarcodeModalOpen(true)}
               loading={isPrintingBarcode}
               style={{
                 fontSize: "12px",
@@ -2130,6 +2186,66 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
           }}
         />
       </Card>
+      <Modal
+        open={barcodeModalOpen}
+        onCancel={handleBarcodeModalClose}
+        footer={null}
+        styles={{
+          body: {
+            padding: '1rem'
+          }
+        }}
+        title="Pilih jenis barcode"
+      >
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 14,
+          }}
+        >
+          <span style={{ fontSize: 13, color: "#555" }}>
+            Pilih jenis barcode yang ingin dicetak untuk permintaan gudang.
+          </span>
+          <div style={{ display: "flex", flexDirection:"row", gap: 10 }}>
+            <Button
+              type="primary"
+              block
+              size="large"
+              icon={<Warehouse size={18} />}
+              onClick={() => handleBarcodeTypeSelect("warehouse")}
+              loading={isPrintingBarcode}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "flex-start",
+                gap: 10,
+              }}
+            >
+              <div style={{ textAlign: "left" }}>
+                <div style={{ fontWeight: 600 }}>Sisa Bahan</div>
+              </div>
+            </Button>
+            <Button
+              block
+              size="large"
+              icon={<Truck size={18} />}
+              onClick={() => handleBarcodeTypeSelect("shipping")}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 10,
+                textAlign: "left",
+              }}
+            >
+              <div style={{ textAlign: "left" }}>
+                <div style={{ fontWeight: 600 }}>Barcode Pengiriman</div>
+              </div>
+            </Button>
+          </div>
+        </div>
+      </Modal>
       <Modal
         open={exportModalOpen}
         onCancel={() => setExportModalOpen(false)}
