@@ -32,6 +32,7 @@ import dayjs from "dayjs";
 import { formatRequestQuantity } from "@utils/request-format";
 import UserSelectionForModal from "@components/UserSelectionForModal";
 import { useAccountListForModal } from "@hooks/account";
+import { usePermissions } from "@hooks/account";
 
 const formatDateValue = (value?: string | number | Date) => {
   if (!value) return "-";
@@ -70,6 +71,7 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
   open,
   onClose,
 }): JSX.Element => {
+  const { isSuperAdmin } = usePermissions();
   const { workspaceId } = useParams();
   const resolvedWorkspaceId = Array.isArray(workspaceId)
     ? (workspaceId[0] as string)
@@ -126,13 +128,13 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
       workspace_id: resolvedWorkspaceId,
     };
 
-    // Handle request sent filter
     if (filterBelumDikirim) {
+      // Belum dikirim AND belum diterima
       baseFilter.requestSent = null; // or 0, depending on API implementation
+      baseFilter.productionReceived = false;
     }
 
-    // Handle production received filter
-    if (filterBelumDiterima) {
+    if (filterBelumDiterima && !filterBelumDikirim) {
       baseFilter.productionReceived = false;
     }
 
@@ -540,7 +542,8 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
           null;
         const sender =
           record.sentBy ?? (record as any)?.sent_by ?? null;
-        const disabled = isDone || !sender || !resolvedReceiver;
+        const disabled =
+          !isSuperAdmin() || isDone || !sender || !resolvedReceiver;
 
         return (
           <Checkbox
@@ -767,7 +770,7 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
                 style={{ flex: "1 1 300px", minWidth: "260px" }}
               />
               <Input
-                placeholder="Scan Short ID"
+                placeholder="Scan Barcode"
                 allowClear
                 value={scanInput}
                 onChange={(e) => setScanInput(e.target.value)}
@@ -775,34 +778,6 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
                 style={{ flex: "1 1 300px", minWidth: "260px" }}
                 ref={scanInputRef as any}
               />
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <Button
-                  type="primary"
-                  onClick={() => handleScanSubmit()}
-                  disabled={!scanInput.trim()}
-                >
-                  Cari Short ID
-                </Button>
-                <Button
-                  size="small"
-                  icon={<Camera size={14} />}
-                  onClick={() =>
-                    message.info("Scan kamera (dev) belum terhubung ke backend.")
-                  }
-                >
-                  Camera (dev)
-                </Button>
-              </div>
-              {shortIdFilter !== null && (
-                <Tag
-                  color="blue"
-                  closable
-                  onClose={() => setShortIdFilter(null)}
-                  style={{ marginLeft: 4 }}
-                >
-                  Short ID: {shortIdFilter}
-                </Tag>
-              )}
             </div>
           <div style={{ display: "flex", flexDirection: "row" }}>
 

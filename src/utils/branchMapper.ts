@@ -4,12 +4,12 @@
  */
 
 const ozzyClothingShort: Record<string, string> = {
-  "ozzy clothing indonesia": "WBT",
-  "ozzy clothing pusat": "PBR", 
-  "ozzy clothing kabupaten": "KBT",
+  "ozzy clothing warungboto": "WBT",
   "ozzy clothing maguwo": "MGW",
+  "ozzy clothing kabupaten": "KBT",
+  "ozzy clothing klaten": "KLT",
   "ozzy clothing solo": "SLO",
-  "ozzy clothing klaten": "KLT"
+  "ozzy clothing indonesia": "PBR",
 };
 
 /**

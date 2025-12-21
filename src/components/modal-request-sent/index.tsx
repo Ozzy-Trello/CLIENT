@@ -776,8 +776,8 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     const formatted =
       numericInitial !== null && Number.isFinite(numericInitial)
         ? numericInitial.toFixed(2).replace(/\.?0+$/, (m) =>
-            m === "." ? "" : m
-          )
+          m === "." ? "" : m
+        )
         : "";
     setSisaInput(
       shouldBlank
@@ -1568,7 +1568,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
                   }
                 />
 
-                <Tooltip
+                {!record.barcodePrinted && <Tooltip
                   title={
                     isLocked ? "Buka edit jumlah" : "Kunci jumlah"
                   }
@@ -1597,7 +1597,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
                     }}
                     className="text-gray-500 hover:text-blue-600"
                   />
-                </Tooltip>
+                </Tooltip>}
               </>
             );
           })()}
@@ -1867,7 +1867,10 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       width: 100,
       align: "center" as const,
       render: (_: unknown, record: RequestItem) => {
-        const disabled = !record.warehouseReturned || record.isDone || !record.barcodePrinted
+        const disabled =
+          record.warehouseReturned == null ||
+          record.isDone === true ||
+          record.barcodePrinted !== true;
         return (
           <Button
             type="primary"
@@ -2337,8 +2340,8 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
         }}
         onOk={handleSaveSisa}
         styles={{
-          body:{
-            padding:"1rem"
+          body: {
+            padding: "1rem"
           }
         }}
         okText="Simpan"
