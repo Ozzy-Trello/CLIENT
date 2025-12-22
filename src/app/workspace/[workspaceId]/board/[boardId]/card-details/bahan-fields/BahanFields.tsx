@@ -31,6 +31,7 @@ import {
   resolveProductKey,
   resolveProductUnit,
 } from "./productHelpers";
+import { buildRequestItemMeta } from "./requestPayload";
 
 const getRequestedSkuForBahanFields = (
   item?: any
@@ -481,9 +482,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
         const productForPayload = payloadProduct || snapshotProduct;
         if (!productForPayload) return;
 
-        const requestedItemId = getRequestedSkuForBahanFields(
-          productForPayload
-        );
+        const meta = buildRequestItemMeta(productForPayload);
 
         const latestBahanTab =
           snapshotProduct?.bahanTabs?.[bahanTabIndex] ?? null;
@@ -499,19 +498,18 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
           requestSent: value,
           requestAmount: value,
           request_type: "NEW_ORDER",
-          item_name:
-            productForPayload?.product_name || productForPayload?.name || "",
-          satuan: resolveProductUnit(productForPayload) || "",
-          unit_price: getUnitPriceFromProduct(productForPayload),
+          item_name: meta.item_name,
+          satuan: meta.satuan,
+          unit_price: meta.unit_price,
           beli: "Tidak",
           est_bahan: estBahanValue,
           efisiensi: efisiensiValue,
         };
 
-        payload.source = requestSource;
+        payload.source = meta.source ?? requestSource;
 
-        if (requestedItemId) {
-          payload.requested_item_id = requestedItemId;
+        if (meta.requested_item_id) {
+          payload.requested_item_id = meta.requested_item_id;
         }
 
         await updateRequest(requestId.toString(), payload);
@@ -564,9 +562,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
         const productForPayload = payloadProduct || snapshotProduct;
         if (!productForPayload) return;
 
-        const requestedItemId = getRequestedSkuForBahanFields(
-          productForPayload
-        );
+        const meta = buildRequestItemMeta(productForPayload);
 
         const latestBahanTab =
           snapshotProduct?.bahanTabs?.[bahanTabIndex] ?? null;
@@ -581,19 +577,18 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
           requestReceived: value,
           requestLeft: leftValue,
           request_type: "NEW_ORDER",
-          item_name:
-            productForPayload?.product_name || productForPayload?.name || "",
-          satuan: resolveProductUnit(productForPayload) || "",
-          unit_price: getUnitPriceFromProduct(productForPayload),
+          item_name: meta.item_name,
+          satuan: meta.satuan,
+          unit_price: meta.unit_price,
           beli: "Tidak",
           est_bahan: estBahanValue,
           efisiensi: efisiensiValue,
         };
 
-        payload.source = requestSource;
+        payload.source = meta.source ?? requestSource;
 
-        if (requestedItemId) {
-          payload.requested_item_id = requestedItemId;
+        if (meta.requested_item_id) {
+          payload.requested_item_id = meta.requested_item_id;
         }
 
         await updateRequest(requestId.toString(), payload);

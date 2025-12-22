@@ -51,26 +51,33 @@ export const getRequestedItemIdFromProduct = (
 ): string | undefined => {
   if (!item) return undefined;
 
-  // Prefer a composite key (id + db/source) to avoid collisions across databases.
-  const compositeKey = buildProductSelectionKey(item);
-  if (compositeKey) {
-    return compositeKey;
-  }
-
-  const candidate =
+  // Persist plain SKU to the request table (avoid composite selection keys).
+  const skuCandidate =
     item.sku ??
     item.product_code ??
     item.productCode ??
+    item.warehouseProduct?.sku ??
+    item.warehouseProduct?.product_code ??
+    item.warehouseProduct?.productCode;
+  if (skuCandidate !== undefined && skuCandidate !== null) {
+    const value = String(skuCandidate).trim();
+    if (value.length > 0) {
+      return value;
+    }
+  }
+
+  const idCandidate =
     item.accurateId ??
     item.accurate_id ??
     item.productId ??
     item.id ??
-    item.warehouseProduct?.sku ??
-    item.warehouseProduct?.accurate_id ??
     item.warehouseProduct?.accurateId ??
+    item.warehouseProduct?.accurate_id ??
+    item.warehouseProduct?.productId ??
     item.warehouseProduct?.id;
-  return candidate !== undefined && candidate !== null
-    ? String(candidate)
+
+  return idCandidate !== undefined && idCandidate !== null
+    ? String(idCandidate)
     : undefined;
 };
 

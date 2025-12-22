@@ -1,3 +1,4 @@
+import React from "react";
 import { MainCategoryWithSubcategories } from "../../../../../../../types/category";
 
 export interface BahanFieldsProps {
@@ -111,6 +112,51 @@ export interface POSectionProps {
   clearCategoryError?: (poProductCategoryId: string) => void;
 }
 
+export interface ProductTabsProps {
+  po: POItem;
+  products: any[];
+  colors: any;
+  categories: any[];
+  isLoadingCategories?: boolean;
+  onTerloadingChange: (
+    poIndex: number,
+    productIndex: number,
+    bahanTabIndex: number,
+    value: number,
+    resolvedProduct?: any
+  ) => Promise<void>;
+  onBahanTerpakaiChange: (
+    poIndex: number,
+    productIndex: number,
+    bahanTabIndex: number,
+    value: number,
+    resolvedProduct?: any
+  ) => void;
+  onEstBahanChange: (
+    poIndex: number,
+    productIndex: number,
+    bahanTabIndex: number,
+    value: number
+  ) => void;
+  onCategoryValueChange: (
+    poIndex: number,
+    productIndex: number,
+    categoryId: string,
+    subcategoryId: string,
+    value: number
+  ) => void;
+  onOrderStatusChange: (
+    poIndex: number,
+    productIndex: number,
+    orderCreated: boolean,
+    requestId?: number | null
+  ) => void;
+  isCategoryLoading?: (poProductCategoryId: string) => boolean;
+  getCategoryError?: (poProductCategoryId: string) => string | null;
+  clearCategoryError?: (poProductCategoryId: string) => void;
+  onRemoveProduct: (productId: string) => void;
+}
+
 
 
 export interface BahanTabProps {
@@ -163,4 +209,48 @@ export interface CategorySectionProps {
   isCategoryLoading?: (poProductCategoryId: string) => boolean;
   getCategoryError?: (poProductCategoryId: string) => string | null;
   clearCategoryError?: (poProductCategoryId: string) => void;
+}
+
+export interface BahanControlsProps {
+  colors: any;
+  product: ProductItem;
+  bahanTab: BahanTab;
+  showSyncSuccess: boolean;
+  isTerloadingEditing: boolean;
+  terloadingInputValue: string | null;
+  onTerloadingFocus: () => void;
+  onTerloadingBlur: () => void;
+  onTerloadingChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  shouldDisableTerloadingInput: boolean;
+  getEditableInputStyle: (disabled: boolean) => React.CSSProperties;
+  formatNumericValue: (value?: number | null, fallback?: string) => string;
+  formatDisplayValue: (value?: number | null, fallback?: string) => string;
+  handleTerloadingButtonClick: () => void;
+  shouldDisableInputs: boolean;
+  terpakaiInputValue: string | null;
+  onTerpakaiFocus: () => void;
+  onTerpakaiBlur: () => void;
+  onTerpakaiChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  selectedSentBy?: string;
+  requestByOptions: { value: string; label: string }[];
+  onSentByChange: (value: string | undefined) => void;
+  description: string;
+  onDescriptionChange: (value: string) => void;
+  onDescriptionBlur: () => void;
+  isSavingDescription: boolean;
+  zeroLoadingModalOpen: boolean;
+  closeZeroModal: () => void;
+  handleConfirmZeroLoading: () => void;
+  selectedLoadingCardId: string | null;
+  setSelectedLoadingCardId: (value: string | null) => void;
+  zeroLoadingCandidates: {
+    id: string;
+    title: string;
+    description?: string;
+    isCurrent?: boolean;
+  }[];
+  isConfirmingZeroLoading: boolean;
+  handleLoadingClick: () => void;
+  disableLoadingButton: boolean;
+  isOrderAlreadyCreated: boolean;
 }

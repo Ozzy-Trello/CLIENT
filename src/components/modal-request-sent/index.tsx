@@ -566,10 +566,20 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
   });
 
   const saveSisaMutation = useMutation({
-    mutationFn: ({ id, sisa }: { id: string; sisa: number }) =>
-      updateRequest(id, { requestLeft: sisa, warehouseReturned: true }),
-    onSuccess: async (_, { id }) => {
+    mutationFn: ({
+      id,
+      sisa,
+      terpakai,
+    }: { id: string; sisa: number; terpakai: number }) =>
+      updateRequest(id, {
+        requestLeft: sisa,
+        requestReceived: terpakai,
+        warehouseReturned: true,
+      }),
+    onSuccess: async (_, { id, sisa, terpakai }) => {
       message.success("Sisa Bahan berhasil disimpan");
+      setRequestLeftValues((prev) => ({ ...prev, [id]: sisa }));
+      setRequestReceivedValues((prev) => ({ ...prev, [id]: terpakai }));
       setScannedRequest(null);
       setSisaInput("");
       setShortIdFilter(null);
@@ -653,6 +663,9 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       productionReceived: checked,
     });
   };
+  const getProductionReceivedValue = (record: RequestItem): boolean =>
+    productionReceivedOverrides[record.id] ??
+    Boolean(record.productionReceived ?? record.productionRecieved);
   const handlePrintBarcode = async (
     targetRequest?: RequestItem
   ) => {
@@ -785,8 +798,12 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       return Number.isFinite(parsed) && parsed === Number(shortId);
     });
     if (!match) {
+      return;
+    }
+    const productionReceived = getProductionReceivedValue(match);
+    if (!productionReceived) {
       if (!suppressWarning) {
-        message.warning("Request dengan Short ID tersebut tidak ditemukan.");
+        message.warning("Belum diterima produksi");
       }
       return;
     }
@@ -824,13 +841,21 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
 
   const handleSaveSisa = () => {
     if (!scannedRequest) return;
-    const numeric = Number(sisaInput);
+    const numeric = Number(
+      typeof sisaInput === "string" ? sisaInput.replace(/,/g, ".") : sisaInput
+    );
     if (Number.isNaN(numeric)) {
       message.warning("Masukkan angka untuk Sisa Bahan");
       return;
     }
+    const sentAmount = getRequestSentValue(scannedRequest);
+    const terpakaiAmount = Math.max(sentAmount - numeric, 0);
     setIsSavingSisa(true);
-    saveSisaMutation.mutate({ id: scannedRequest.id, sisa: numeric });
+    saveSisaMutation.mutate({
+      id: scannedRequest.id,
+      sisa: numeric,
+      terpakai: terpakaiAmount,
+    });
   };
   const handleExport = async () => {
     setExportModalOpen(true);
@@ -939,7 +964,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
         receivedByOverrides[record.id] ||
         (record as any)?.received_by ||
         "";
-      const diterimaProduksi = record.productionReceived
+      const diterimaProduksi = getProductionReceivedValue(record)
         ? "Ya"
         : "Tidak";
       const sisaBahan = getRequestLeftValue(record) ?? "";
@@ -948,7 +973,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       const status = (() => {
         if (record.is_done || record.isDone) return "Done";
         if (record.is_rejected || record.isRejected) return "Rejected";
-        if (record.productionReceived) return "Diterima produksi";
+        if (getProductionReceivedValue(record)) return "Diterima produksi";
         if (record.requestSent) return "Dikirim";
         return "Belum dikirim";
       })();
@@ -1223,11 +1248,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       record.receivedBy ??
       (record as any)?.received_by;
     const hasReceivedBy = Boolean(receivedByValue);
-    const productionReceived =
-      productionReceivedOverrides[record.id] ??
-      record.productionReceived ??
-      record.productionRecieved ??
-      false;
+    const productionReceived = getProductionReceivedValue(record);
     const warehouseReturned = getWarehouseReturnedValue(record);
     const jumlahLocked = isJumlahDikirimLocked(record);
 
@@ -1263,12 +1284,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       missing.push("Cabang");
     }
     const barcodeRequired =
-      getWarehouseReturnedValue(record) ||
-      Boolean(
-        productionReceivedOverrides[record.id] ??
-        record.productionReceived ??
-        record.productionRecieved
-      );
+      getWarehouseReturnedValue(record) || getProductionReceivedValue(record);
     if (barcodeRequired && !getBarcodePrintedValue(record)) {
       missing.push("Cetak Barcode");
     }
@@ -1812,7 +1828,9 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
         const leftValue = getRequestLeftValue(record);
         const workflow = getWorkflowState(record);
         const disabled =
-          !isRowUnlocked(record) || workflow.warehouseReturned;
+          !isRowUnlocked(record) ||
+          workflow.warehouseReturned ||
+          !workflow.productionReceived;
         return (
           <Input
             type="text"
@@ -1874,7 +1892,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
             </span>
           );
         }
-        if (record.productionReceived) {
+        if (getProductionReceivedValue(record)) {
           return <span style={{ color: "#52c41a" }}>Diterima produksi</span>;
         }
         if (record.requestSent) {
@@ -1933,7 +1951,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
         const isEditing = editingTerpakaiId === record.id;
         return (
           <Space size={4}>
-            {!record.productionReceived && (
+            {!getProductionReceivedValue(record) && (
               <Tooltip title={isEditing ? "Editing" : "Edit"}>
                 <Button
                   type="text"
