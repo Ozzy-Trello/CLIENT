@@ -50,6 +50,13 @@ export const getRequestedItemIdFromProduct = (
   item?: any
 ): string | undefined => {
   if (!item) return undefined;
+
+  // Prefer a composite key (id + db/source) to avoid collisions across databases.
+  const compositeKey = buildProductSelectionKey(item);
+  if (compositeKey) {
+    return compositeKey;
+  }
+
   const candidate =
     item.sku ??
     item.product_code ??

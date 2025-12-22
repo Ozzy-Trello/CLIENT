@@ -212,26 +212,25 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
     const targetKey = resolveProductKey(product);
     const targetDbId = resolveAccurateDbId(product);
 
-    return (
-      warehouseProducts.find((item: any) => {
-        const keyMatches = resolveProductKey(item) === targetKey;
-        const nameMatches =
-          product?.name && item.name ? item.name === product.name : false;
+    const candidates = warehouseProducts.filter((item: any) => {
+      const keyMatches = resolveProductKey(item) === targetKey;
+      if (!keyMatches) return false;
 
-        if (!keyMatches && !nameMatches) {
-          return false;
-        }
+      if (targetDbId) {
+        const itemDbId = resolveAccurateDbId(item);
+        return itemDbId ? itemDbId === targetDbId : false;
+      }
 
-        if (targetDbId) {
-          const itemDbId = resolveAccurateDbId(item);
-          if (!itemDbId || itemDbId !== targetDbId) {
-            return false;
-          }
-        }
+      return true;
+    });
 
-        return true;
-      }) ?? null
+    if (candidates.length === 0) return null;
+    if (candidates.length === 1) return candidates[0];
+
+    const byName = candidates.find(
+      (item: any) => item.name && product.name && item.name === product.name
     );
+    return byName ?? candidates[0];
   };
 
   const resolvedProduct = useMemo(

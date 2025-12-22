@@ -37,6 +37,9 @@ const getRequestedSkuForBahanFields = (
 ): string | undefined => {
   if (!item) return undefined;
 
+  const composite = buildProductSelectionKey(item);
+  if (composite) return composite;
+
   const candidate =
     item.sku ??
     item.productSku ??
@@ -400,25 +403,28 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
     const targetId = resolveProductKey(product);
     const targetDbId = resolveAccurateDbId(product);
 
-    const match =
-      warehouseProducts.find((item: any) => {
-        const keyMatches = resolveProductKey(item) === targetId;
-        const nameMatches =
-          item.name && product.name ? item.name === product.name : false;
+    const candidates = warehouseProducts.filter((item: any) => {
+      const keyMatches = resolveProductKey(item) === targetId;
+      if (!keyMatches) return false;
 
-        if (!keyMatches && !nameMatches) {
-          return false;
-        }
+      if (targetDbId) {
+        const itemDbId = resolveAccurateDbId(item);
+        return itemDbId ? itemDbId === targetDbId : false;
+      }
 
-        if (targetDbId) {
-          const itemDbId = resolveAccurateDbId(item);
-          if (!itemDbId || itemDbId !== targetDbId) {
-            return false;
-          }
-        }
+      return true;
+    });
 
-        return true;
-      }) ?? null;
+    let match: any = null;
+    if (candidates.length === 1) {
+      match = candidates[0];
+    } else if (candidates.length > 1) {
+      // Prefer exact name match when DB id is unknown
+      const byName = candidates.find(
+        (item: any) => item.name && product.name && item.name === product.name
+      );
+      match = byName ?? candidates[0];
+    }
 
     if (match) {
       product.warehouseProduct = match;
