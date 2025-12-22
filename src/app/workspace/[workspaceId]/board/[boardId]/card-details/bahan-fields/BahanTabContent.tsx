@@ -15,6 +15,8 @@ import {
   getRequestedItemIdFromProduct,
   getUnitPriceFromProduct,
   resolveProductSource,
+  resolveAccurateDbId,
+  resolveProductKey,
 } from "./productHelpers";
 import { updatePOProductCategory } from "@api/po-product";
 import { useParams } from "next/navigation";
@@ -206,23 +208,28 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
   const findWarehouseProduct = () => {
     if (product.warehouseProduct) return product.warehouseProduct;
     if (!warehouseProducts || warehouseProducts.length === 0) return null;
+
+    const targetKey = resolveProductKey(product);
+    const targetDbId = resolveAccurateDbId(product);
+
     return (
       warehouseProducts.find((item: any) => {
-        const matchesAccurateId =
-          item.accurate_id?.toString() === product?.id ||
-          (item.accurateId && product?.warehouseProduct?.accurateId
-            ? item.accurateId.toString() ===
-              product.warehouseProduct.accurateId?.toString()
-            : false);
-        return (
-          item.sku === product?.sku ||
-          item.product_code === product?.product_code ||
-          item.productId === product?.id ||
-          item.id?.toString() === product?.id ||
-          item.accurateId?.toString() === product?.id ||
-          matchesAccurateId ||
-          (product?.name && item.name === product.name)
-        );
+        const keyMatches = resolveProductKey(item) === targetKey;
+        const nameMatches =
+          product?.name && item.name ? item.name === product.name : false;
+
+        if (!keyMatches && !nameMatches) {
+          return false;
+        }
+
+        if (targetDbId) {
+          const itemDbId = resolveAccurateDbId(item);
+          if (!itemDbId || itemDbId !== targetDbId) {
+            return false;
+          }
+        }
+
+        return true;
       }) ?? null
     );
   };

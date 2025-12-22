@@ -5,7 +5,7 @@ import BahanTabContent from "./BahanTabContent";
 import { POSectionProps } from "./types";
 import { useDeletePOProduct } from "@hooks/usePOProducts";
 import { Camera } from "lucide-react";
-import { resolveProductSource } from "./productHelpers";
+import { buildProductSelectionKey, resolveProductSource } from "./productHelpers";
 
 const POSection: React.FC<POSectionProps> = ({
   po,
@@ -56,6 +56,9 @@ const POSection: React.FC<POSectionProps> = ({
   }, [po.products, activeProductTab]);
 
   const getProductValue = (product: any) => {
+    const selectionKey = buildProductSelectionKey(product);
+    if (selectionKey) return selectionKey;
+
     const rawValue = product?.accurateId ?? product?.id ?? product?.productId;
     return rawValue !== undefined && rawValue !== null
       ? rawValue.toString()

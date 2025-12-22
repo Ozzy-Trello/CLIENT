@@ -1,4 +1,54 @@
-export const getRequestedItemIdFromProduct = (item?: any): string | undefined => {
+export const resolveProductKey = (product: any): string => {
+  const rawKey =
+    product?.accurateId ??
+    product?.id ??
+    product?.productId ??
+    product?.accurate_id ??
+    product?.product_id;
+  return rawKey !== undefined && rawKey !== null ? rawKey.toString() : "";
+};
+
+export const resolveAccurateDbId = (product: any): string | undefined => {
+  const raw =
+    product?.accurateDbId ??
+    product?.accurate_db_id ??
+    product?.warehouseProduct?.accurateDbId ??
+    product?.warehouseProduct?.accurate_db_id;
+
+  if (raw === undefined || raw === null) return undefined;
+  const trimmed = String(raw).trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+};
+
+export const resolveProductUnit = (product: any): string | undefined => {
+  if (!product) return undefined;
+  if (product.unitType) return product.unitType;
+  if ((product as any).unit_type) return (product as any).unit_type;
+
+  const unitData = product.unitData ?? (product as any).unit_data;
+  if (unitData) {
+    try {
+      const parsed =
+        typeof unitData === "string" ? JSON.parse(unitData) : unitData;
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return (
+          parsed[0]?.name ||
+          parsed[0]?.unit ||
+          parsed[0]?.unitType ||
+          parsed[0]?.unit_type
+        );
+      }
+    } catch (error) {
+      console.warn("Failed to parse unit data for product", error);
+    }
+  }
+
+  return undefined;
+};
+
+export const getRequestedItemIdFromProduct = (
+  item?: any
+): string | undefined => {
   if (!item) return undefined;
   const candidate =
     item.sku ??
@@ -12,7 +62,9 @@ export const getRequestedItemIdFromProduct = (item?: any): string | undefined =>
     item.warehouseProduct?.accurate_id ??
     item.warehouseProduct?.accurateId ??
     item.warehouseProduct?.id;
-  return candidate !== undefined && candidate !== null ? String(candidate) : undefined;
+  return candidate !== undefined && candidate !== null
+    ? String(candidate)
+    : undefined;
 };
 
 export const getUnitPriceFromProduct = (item?: any): number => {
@@ -72,4 +124,60 @@ export const resolveProductSource = (item?: any): string | undefined => {
   }
 
   return undefined;
+};
+
+export const buildProductSelectionKey = (product: any): string => {
+  const baseKey = resolveProductKey(product);
+  if (!baseKey) return "";
+
+  const accurateDbId = resolveAccurateDbId(product);
+  const source = resolveProductSource(product);
+  const parts = [`id:${baseKey}`];
+
+  if (accurateDbId) {
+    parts.push(`db:${accurateDbId}`);
+  }
+
+  if (source) {
+    parts.push(`src:${source}`);
+  }
+
+  return parts.join("|");
+};
+
+export const parseProductSelectionKey = (
+  selection: string | undefined | null
+): { productId: string; accurateDbId?: string; source?: string } => {
+  const rawSelection = selection ? selection.toString().trim() : "";
+  const parts = rawSelection.split("|");
+
+  let productId = rawSelection;
+  let accurateDbId: string | undefined;
+  let source: string | undefined;
+
+  parts.forEach((part) => {
+    if (part.startsWith("id:")) {
+      productId = part.slice(3);
+    } else if (part.startsWith("db:")) {
+      const value = part.slice(3);
+      if (value && value !== "unknown") {
+        accurateDbId = value;
+      }
+    } else if (part.startsWith("src:")) {
+      const value = part.slice(4);
+      if (value) {
+        source = value;
+      }
+    }
+  });
+
+  if (
+    productId &&
+    productId.includes("|") &&
+    !productId.startsWith("id:")
+  ) {
+    productId = productId.split("|")[0];
+  }
+
+  return { productId, accurateDbId, source };
 };

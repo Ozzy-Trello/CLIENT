@@ -25,6 +25,11 @@ import { usePOsByCardId } from "./hooks/usePOsByCardId";
 import {
   getUnitPriceFromProduct,
   resolveProductSource,
+  buildProductSelectionKey,
+  parseProductSelectionKey,
+  resolveAccurateDbId,
+  resolveProductKey,
+  resolveProductUnit,
 } from "./productHelpers";
 
 const getRequestedSkuForBahanFields = (
@@ -392,13 +397,28 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
       return product;
     }
 
+    const targetId = resolveProductKey(product);
+    const targetDbId = resolveAccurateDbId(product);
+
     const match =
-      warehouseProducts.find(
-        (item: any) =>
-          item.accurate_id?.toString() === product.id ||
-          item.accurateId?.toString() === product.id ||
-          item.name === product.name
-      ) ?? null;
+      warehouseProducts.find((item: any) => {
+        const keyMatches = resolveProductKey(item) === targetId;
+        const nameMatches =
+          item.name && product.name ? item.name === product.name : false;
+
+        if (!keyMatches && !nameMatches) {
+          return false;
+        }
+
+        if (targetDbId) {
+          const itemDbId = resolveAccurateDbId(item);
+          if (!itemDbId || itemDbId !== targetDbId) {
+            return false;
+          }
+        }
+
+        return true;
+      }) ?? null;
 
     if (match) {
       product.warehouseProduct = match;
@@ -406,48 +426,13 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
       if (resolvedSource && !(product as any).source) {
         (product as any).source = resolvedSource;
       }
-      if (match.accurateDbId && !(product as any).accurateDbId) {
-        (product as any).accurateDbId = match.accurateDbId;
+      const accurateDbId = resolveAccurateDbId(match);
+      if (accurateDbId && !(product as any).accurateDbId) {
+        (product as any).accurateDbId = accurateDbId;
       }
     }
 
     return product;
-  };
-
-  const resolveProductKey = (product: any): string => {
-    const rawKey =
-      product?.accurateId ??
-      product?.id ??
-      product?.productId ??
-      product?.accurate_id ??
-      product?.product_id;
-    return rawKey !== undefined && rawKey !== null ? rawKey.toString() : "";
-  };
-
-  const resolveProductUnit = (product: any): string | undefined => {
-    if (!product) return undefined;
-    if (product.unitType) return product.unitType;
-    if ((product as any).unit_type) return (product as any).unit_type;
-
-    const unitData = product.unitData ?? (product as any).unit_data;
-    if (unitData) {
-      try {
-        const parsed =
-          typeof unitData === "string" ? JSON.parse(unitData) : unitData;
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return (
-            parsed[0]?.name ||
-            parsed[0]?.unit ||
-            parsed[0]?.unitType ||
-            parsed[0]?.unit_type
-          );
-        }
-      } catch (error) {
-        console.warn("Failed to parse unit data for product", error);
-      }
-    }
-
-    return undefined;
   };
 
   const handleTerloadingChange = async (
@@ -1024,6 +1009,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
         // Call backend to resolve barcode -> product
         const result = await getOzzyBarcodeProduct(value);
         const accurateId = result?.product?.accurateId;
+        const accurateDbId = resolveAccurateDbId(result?.product);
         const scannedQtyRaw = result?.quantity ?? "0";
         // Quantity comes as string from API; parse to number safely (supports id-ID separators)
         const scannedQty = parseLocaleNumber(scannedQtyRaw);
@@ -1045,7 +1031,16 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
         // Find the item in product list that matches the accurateId from scan
         const matchedItem = items.find((item: any) => {
           const key = resolveProductKey(item);
-          return key === accurateId.toString();
+          if (key !== accurateId.toString()) {
+            return false;
+          }
+
+          if (accurateDbId) {
+            const itemDbId = resolveAccurateDbId(item);
+            return itemDbId ? itemDbId === accurateDbId.toString() : false;
+          }
+
+          return true;
         });
 
         if (!matchedItem) {
@@ -1059,13 +1054,17 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
         const currentPOIndex = poData.findIndex((po) => po.id === poId);
         const currentPO =
           currentPOIndex !== -1 ? poData[currentPOIndex] : null;
-        const matchedKey = resolveProductKey(matchedItem);
-        if (!matchedKey) {
+        const matchedSelectionKey =
+          buildProductSelectionKey(matchedItem) ||
+          resolveProductKey(matchedItem);
+        const { productId: matchedProductId } =
+          parseProductSelectionKey(matchedSelectionKey);
+        if (!matchedSelectionKey || !matchedProductId) {
           message.error("Scanned product is missing an identifier.");
           return;
         }
         const existingProductIndex = currentPO
-          ? currentPO.products.findIndex((p) => p.id === matchedKey)
+          ? currentPO.products.findIndex((p) => p.id === matchedProductId)
           : -1;
 
         if (currentPO && existingProductIndex !== -1) {
@@ -1087,10 +1086,15 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
           // Product not yet in this PO: prefill dropdown and add it, then set initial Terloading from scanned quantity
           setSelectedProductIds((prev) => ({
             ...prev,
-            [poId]: matchedKey,
+            [poId]: matchedProductId,
           }));
 
-          await handleSelectProduct(poId, matchedKey, scannedQty);
+          await handleSelectProduct(
+            poId,
+            matchedSelectionKey,
+            scannedQty,
+            matchedItem
+          );
         }
       } catch (error) {
         console.error("Failed to fetch product by scanned barcode:", error);
@@ -1265,16 +1269,45 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
 
   const handleSelectProduct = async (
     poId: string,
-    productId: string,
-    initialTerloading?: number
+    productSelectionValue: string,
+    initialTerloading?: number,
+    preselectedProduct?: any
   ) => {
     // Starting product selection
 
+    const {
+      productId: parsedProductId,
+      accurateDbId: parsedAccurateDbId,
+      source: parsedSource,
+    } = parseProductSelectionKey(productSelectionValue);
+    const targetProductId = parsedProductId || productSelectionValue;
+    if (!targetProductId) {
+      message.error("Selected product is missing an identifier");
+      setSelectedProductIds((prev) => ({ ...prev, [poId]: "" }));
+      return;
+    }
+
     // Find the selected product from warehouse items
     const selectedProduct =
-      (warehouseProducts || []).find(
-        (item: any) => resolveProductKey(item) === productId
-      ) || null;
+      preselectedProduct ??
+      ((warehouseProducts || []).find((item: any) => {
+        const keyMatches = resolveProductKey(item) === targetProductId;
+        if (!keyMatches) return false;
+
+        if (parsedAccurateDbId) {
+          const itemDbId = resolveAccurateDbId(item);
+          if (!itemDbId || itemDbId !== parsedAccurateDbId) {
+            return false;
+          }
+        } else if (parsedSource) {
+          const itemSource = resolveProductSource(item);
+          if (itemSource && itemSource !== parsedSource) {
+            return false;
+          }
+        }
+
+        return true;
+      }) ?? null);
 
     // Selected product found
 
@@ -1304,6 +1337,10 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
       // Different POs can have the same product - only prevent duplicates within the same PO
 
       try {
+        const productSource =
+          parsedSource ?? resolveProductSource(selectedProduct);
+        const accurateDbId = resolveAccurateDbId(selectedProduct);
+
         // Extract satuan from product unit data
         const satuan = resolveProductUnit(selectedProduct);
         const hasInitialTerloading =
@@ -1315,7 +1352,10 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
         // Get GL account information using the same logic as modal request
         // Starting GL account selection
 
-        const glAccountInfo = await selectGLAccount(selectedProduct);
+        const glAccountInfo = await selectGLAccount({
+          ...selectedProduct,
+          source: productSource ?? selectedProduct.source,
+        });
         // GL account selection completed
 
         // Additional validation
@@ -1382,10 +1422,8 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
                 id: productKey,
                 name: selectedProduct.name,
                 poProductId: createdPOProductId,
-                source: resolveProductSource(selectedProduct),
-                accurateDbId:
-                  (selectedProduct as any)?.accurateDbId ??
-                  (selectedProduct as any)?.accurate_db_id,
+                source: productSource,
+                accurateDbId: accurateDbId,
                 satuan,
                 adjustment_no: glAccountInfo.adjustment_no,
                 adjustment_name: glAccountInfo.adjustment_name,
