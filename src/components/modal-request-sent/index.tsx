@@ -28,12 +28,11 @@ import {
 } from "antd";
 import type { InputRef } from "antd";
 import type { AxiosError } from "axios";
-import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
+import { DeleteOutlined, DownloadOutlined, EditOutlined, QrcodeOutlined } from "@ant-design/icons";
 import { debounce } from "lodash";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { formatRequestQuantity } from "@utils/request-format";
 import { Filter, RefreshCw, RotateCcw, Warehouse, Truck } from "lucide-react";
-import { DownloadOutlined } from "@ant-design/icons";
 import dayjs, { Dayjs } from "dayjs";
 import {
   ApiResponse,
@@ -185,6 +184,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
   >([null, null]);
   const [isPrintingBarcode, setIsPrintingBarcode] = useState(false);
   const [barcodeModalOpen, setBarcodeModalOpen] = useState(false);
+  const [barcodeModalTarget, setBarcodeModalTarget] = useState<RequestItem | null>(null);
   const [scannedRequest, setScannedRequest] = useState<RequestItem | null>(null);
   const [sisaInput, setSisaInput] = useState<string>("");
   const [isSavingSisa, setIsSavingSisa] = useState(false);
@@ -653,10 +653,12 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       productionReceived: checked,
     });
   };
-  const handlePrintBarcode = async () => {
+  const handlePrintBarcode = async (
+    targetRequest?: RequestItem
+  ) => {
     setIsPrintingBarcode(true);
     try {
-      const response = await printWarehouseBarcodes();
+      const response = await printWarehouseBarcodes(targetRequest?.id);
       const items =
         (Array.isArray(response?.items) && response.items) ||
         (Array.isArray(response?.data?.items) && response.data.items) ||
@@ -671,14 +673,22 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
         response?.download_url ||
         response?.downloadUrl;
       if (printedCount > 0) {
-        message.success(`Barcode print triggered for ${printedCount} item${printedCount === 1 ? "" : "s"}.`);
+        message.success(
+          targetRequest
+            ? "Barcode print triggered untuk request ini."
+            : `Barcode print triggered for ${printedCount} item${printedCount === 1 ? "" : "s"}.`
+        );
         if (downloadUrl) {
           window.open(downloadUrl, "_blank", "noopener,noreferrer");
         }
         await refetch();
         setLastRefreshedAt(new Date());
       } else {
-        message.info("Tidak ada request yang perlu dicetak barcode.");
+        message.info(
+          targetRequest
+            ? "Request ini belum memenuhi syarat cetak barcode."
+            : "Tidak ada request yang perlu dicetak barcode."
+        );
       }
     } catch (error: any) {
       const reason = extractApiErrorReason(error);
@@ -690,19 +700,22 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
   const handleBarcodeModalClose = () => {
     if (!isPrintingBarcode) {
       setBarcodeModalOpen(false);
+      setBarcodeModalTarget(null);
     }
   };
 
-  const handleBarcodeTypeSelect = async (type: BarcodeType) => {
-    if (type === "warehouse") {
-      setBarcodeModalOpen(false);
-      await handlePrintBarcode();
-      return;
-    }
+  const handlePrintShippingBarcodes = async (
+    targetRequest?: RequestItem
+  ) => {
     setIsPrintingBarcode(true);
-    setBarcodeModalOpen(false);
     try {
-      const response = await printShippingBarcodes();
+      const shortId = targetRequest ? getShortIdValue(targetRequest) : undefined;
+      if (targetRequest && shortId === undefined) {
+        message.warning("Request ini belum memiliki Short ID untuk cetak barcode.");
+        return;
+      }
+
+      const response = await printShippingBarcodes(shortId);
       const blob: Blob = response?.data;
       const contentType =
         response?.headers?.["content-type"] || blob?.type || "";
@@ -718,7 +731,9 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
         })();
         const msg =
           payload?.message ||
-          "Tidak ada barcode pengiriman yang perlu dicetak.";
+          (targetRequest
+            ? "Tidak ada barcode pengiriman untuk request ini."
+            : "Tidak ada barcode pengiriman yang perlu dicetak.");
         message.info(msg);
         return;
       }
@@ -731,7 +746,11 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
         setTimeout(() => URL.revokeObjectURL(url), 60_000);
         message.success("Barcode pengiriman siap diunduh.");
       } else {
-        message.info("Tidak ada barcode pengiriman yang perlu dicetak.");
+        message.info(
+          targetRequest
+            ? "Tidak ada barcode pengiriman untuk request ini."
+            : "Tidak ada barcode pengiriman yang perlu dicetak."
+        );
       }
     } catch (error: any) {
       const reason = extractApiErrorReason(error);
@@ -739,6 +758,19 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     } finally {
       setIsPrintingBarcode(false);
     }
+  };
+
+  const handleBarcodeTypeSelect = async (type: BarcodeType) => {
+    const targetRequest = barcodeModalTarget ?? undefined;
+    setBarcodeModalOpen(false);
+    setBarcodeModalTarget(null);
+
+    if (type === "warehouse") {
+      await handlePrintBarcode(targetRequest);
+      return;
+    }
+
+    await handlePrintShippingBarcodes(targetRequest);
   };
 
   const findAndOpenScannedRequest = (
@@ -1136,6 +1168,12 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     if (!rawCabang) return "";
     const normalized = String(rawCabang).trim();
     return normalized;
+  };
+
+  const getShortIdValue = (record: RequestItem): number | undefined => {
+    const rawShortId = record.shortId ?? record.short_id;
+    const parsed = Number(rawShortId);
+    return Number.isFinite(parsed) ? parsed : undefined;
   };
 
   const getWarehouseReturnedValue = (record: RequestItem): boolean =>
@@ -1893,7 +1931,6 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       align: "center" as const,
       render: (_: unknown, record: RequestItem) => {
         const isEditing = editingTerpakaiId === record.id;
-        const isDone = record.is_done || record.isDone;
         return (
           <Space size={4}>
             {!record.productionReceived && (
@@ -1913,6 +1950,18 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
                 />
               </Tooltip>
             )}
+            <Tooltip title="Cetak Barcode">
+              <Button
+                type="text"
+                size="small"
+                icon={<QrcodeOutlined />}
+                disabled={isPrintingBarcode}
+                onClick={() => {
+                  setBarcodeModalTarget(record);
+                  setBarcodeModalOpen(true);
+                }}
+              />
+            </Tooltip>
             {isSuperAdmin() && (
               <Button
                 type="text"
@@ -2057,7 +2106,10 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
             </Button>
             <Button
               size="small"
-              onClick={() => setBarcodeModalOpen(true)}
+              onClick={() => {
+                setBarcodeModalTarget(null);
+                setBarcodeModalOpen(true);
+              }}
               loading={isPrintingBarcode}
               style={{
                 fontSize: "12px",
@@ -2377,27 +2429,50 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
           }
         }}
         title="Pilih jenis barcode"
-      >
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 14,
-          }}
         >
-          <span style={{ fontSize: 13, color: "#555" }}>
-            Pilih jenis barcode yang ingin dicetak untuk permintaan gudang.
-          </span>
-          <div style={{ display: "flex", flexDirection: "row", gap: 10 }}>
-            <Button
-              block
-              size="large"
-              icon={<Truck size={18} />}
-              onClick={() => handleBarcodeTypeSelect("shipping")}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 14,
+            }}
+          >
+            <span style={{ fontSize: 13, color: "#555" }}>
+              {barcodeModalTarget
+                ? "Pilih jenis barcode yang ingin dicetak untuk request ini."
+                : "Pilih jenis barcode yang ingin dicetak untuk permintaan gudang."}
+            </span>
+            {barcodeModalTarget && (
+              <div
+                style={{
+                  background: "#f5f5f5",
+                  border: "1px solid #e8e8e8",
+                  borderRadius: 6,
+                  padding: "10px 12px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 4,
+                }}
+              >
+                <div style={{ fontWeight: 600 }}>
+                  {barcodeModalTarget.itemName || "-"}
+                </div>
+                <div style={{ fontSize: 12, color: "#666" }}>
+                  Short ID: {getShortIdValue(barcodeModalTarget) ?? "Tidak tersedia"}
+                </div>
+              </div>
+            )}
+            <div style={{ display: "flex", flexDirection: "row", gap: 10 }}>
+              <Button
+                block
+                size="large"
+                icon={<Truck size={18} />}
+                onClick={() => handleBarcodeTypeSelect("shipping")}
+                loading={isPrintingBarcode}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
                 gap: 10,
                 textAlign: "left",
               }}

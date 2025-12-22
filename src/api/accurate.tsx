@@ -153,13 +153,21 @@ export const getRequestNotificationCounts = async () => {
   return data;
 };
 
-export const printWarehouseBarcodes = async () => {
-  const { data } = await api.post("/request/print-barcode");
+export const printWarehouseBarcodes = async (
+  requestId?: string | number
+) => {
+  const payload =
+    requestId === undefined ? undefined : { requestId };
+  const { data } = await api.post("/request/print-barcode", payload);
   return data;
 };
 
-export const printShippingBarcodes = async () => {
-  return api.post("/request/print-barcode-pengiriman", undefined, {
+export const printShippingBarcodes = async (
+  requestShortId?: string | number
+) => {
+  const payload =
+    requestShortId === undefined ? undefined : { requestId: requestShortId };
+  return api.post("/request/print-barcode-pengiriman", payload, {
     responseType: "blob",
   });
 };
