@@ -32,7 +32,7 @@ import { DeleteOutlined, DownloadOutlined, EditOutlined, QrcodeOutlined } from "
 import { debounce } from "lodash";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { formatRequestQuantity } from "@utils/request-format";
-import { Filter, RefreshCw, RotateCcw, Warehouse, Truck } from "lucide-react";
+import { Camera, Filter, RefreshCw, RotateCcw, Warehouse, Truck } from "lucide-react";
 import dayjs, { Dayjs } from "dayjs";
 import {
   ApiResponse,
@@ -42,6 +42,8 @@ import {
 } from "@myTypes/request";
 import { usePermissions } from "@hooks/account";
 import UserSelectionForModal from "@components/UserSelectionForModal";
+import { getOzzyBarcodeProduct } from "@api/ozzy-warehouse";
+import { Scanner } from "@yudiel/react-qr-scanner";
 
 type BasicStatusFilter = "SUDAH" | "BELUM";
 type BeliStatusFilter = "BELUM" | "YA" | "TIDAK";
@@ -188,6 +190,12 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
   const [scannedRequest, setScannedRequest] = useState<RequestItem | null>(null);
   const [sisaInput, setSisaInput] = useState<string>("");
   const [isSavingSisa, setIsSavingSisa] = useState(false);
+  const [activeJumlahScanId, setActiveJumlahScanId] = useState<string | null>(null);
+  const [jumlahScanModalOpen, setJumlahScanModalOpen] = useState(false);
+  const [useCameraJumlahScanner, setUseCameraJumlahScanner] = useState(true);
+  const [isProcessingJumlahScan, setIsProcessingJumlahScan] = useState(false);
+  const [jumlahScanInput, setJumlahScanInput] = useState("");
+  const isDevMode = process.env.NODE_ENV !== "production";
 
   const queryClient = useQueryClient();
   const debouncedSearch = useRef(
@@ -1209,6 +1217,24 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     return Number.isFinite(parsed) ? parsed : undefined;
   };
 
+  const resolveRecordById = (id?: string | null) =>
+    (data?.data || []).find((item) => item.id === id);
+
+  const normalizeItemName = (name?: string | null) =>
+    (name ?? "").toString().trim().toLowerCase();
+
+  const parseQuantityFromBarcode = (raw: any): number => {
+    if (raw === null || raw === undefined) return NaN;
+    const str = String(raw).trim();
+    if (!str) return NaN;
+    const normalized =
+      str.includes(".") && str.includes(",")
+        ? str.replace(/\./g, "").replace(/,/g, ".")
+        : str.replace(/,/g, ".");
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : NaN;
+  };
+
   const getWarehouseReturnedValue = (record: RequestItem): boolean =>
     warehouseReturnOverrides[record.id] ?? Boolean(record.warehouseReturned);
 
@@ -1352,6 +1378,20 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     }));
   };
 
+  const handleJumlahInputEnter = async (
+    record: RequestItem,
+    rawValue: string
+  ) => {
+    const trimmed = rawValue.trim();
+    if (!trimmed) return;
+    const isNumeric = /^-?\d+(?:[.,]\d+)?$/.test(trimmed);
+    if (isNumeric) {
+      handleRequestSentChange(record.id, trimmed);
+      return;
+    }
+    await handleJumlahBarcodeScan(record, trimmed);
+  };
+
 
   const handleSearchChange = (
     event: React.ChangeEvent<HTMLInputElement>
@@ -1388,6 +1428,70 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     setScanInput("");
     setPagination((prev) => ({ ...prev, page: 1 }));
     findAndOpenScannedRequest(numeric, true);
+  };
+
+  const openJumlahScanModalForRecord = (record: RequestItem) => {
+    setActiveJumlahScanId(record.id);
+    setJumlahScanInput("");
+    setUseCameraJumlahScanner(true);
+    setJumlahScanModalOpen(true);
+  };
+
+  const handleJumlahManualSubmit = async () => {
+    const target = resolveRecordById(activeJumlahScanId);
+    if (!target) {
+      message.warning("Pilih baris Jumlah Dikirim terlebih dahulu");
+      return;
+    }
+    if (!jumlahScanInput.trim()) {
+      message.warning("Masukkan barcode terlebih dahulu");
+      return;
+    }
+    await handleJumlahBarcodeScan(target, jumlahScanInput.trim());
+  };
+
+  const handleJumlahCameraScan = async (rawValue?: string) => {
+    if (!rawValue) return;
+    const target = resolveRecordById(activeJumlahScanId);
+    if (!target) {
+      message.warning("Pilih baris Jumlah Dikirim terlebih dahulu");
+      return;
+    }
+    await handleJumlahBarcodeScan(target, rawValue);
+    setJumlahScanModalOpen(false);
+  };
+
+  const handleJumlahBarcodeScan = async (record: RequestItem, barcode: string) => {
+    if (!barcode || !record) return;
+    setIsProcessingJumlahScan(true);
+    try {
+      const response = await getOzzyBarcodeProduct(barcode);
+      const scannedName = normalizeItemName(response?.product?.name);
+      const targetName = normalizeItemName(
+        record.itemName || (record as any)?.item_name
+      );
+      if (!scannedName || scannedName !== targetName) {
+        message.error("Barang berbeda");
+        return;
+      }
+
+      const parsedQty = parseQuantityFromBarcode(response?.quantity);
+      if (!Number.isFinite(parsedQty)) {
+        message.error("Jumlah pada barcode tidak valid");
+        return;
+      }
+
+      setRequestSentValues((prev) => ({
+        ...prev,
+        [record.id]: parsedQty.toString(),
+      }));
+      message.success("Jumlah Dikirim diisi dari barcode");
+    } catch (error) {
+      console.error("Failed to process barcode:", error);
+      message.error("Gagal memproses barcode");
+    } finally {
+      setIsProcessingJumlahScan(false);
+    }
   };
 
   const executeDeleteRequest = (id: string) => {
@@ -1628,6 +1732,11 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
                   onChange={(event) =>
                     handleRequestSentChange(record.id, event.target.value)
                   }
+                  onPressEnter={(event) =>
+                    handleJumlahInputEnter(record, event.currentTarget.value)
+                  }
+                  onFocus={() => setActiveJumlahScanId(record.id)}
+                  placeholder="Scan/Input qty"
                 />
 
                 {!record.barcodePrinted && <Tooltip
@@ -1660,6 +1769,21 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
                     className="text-gray-500 hover:text-blue-600"
                   />
                 </Tooltip>}
+                {isDevMode && (
+                  <Tooltip title="Scan barcode (camera)">
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={<Camera size={16} />}
+                      disabled={!canEdit}
+                      onClick={() => {
+                        if (!canEdit) return;
+                        setActiveJumlahScanId(record.id);
+                        openJumlahScanModalForRecord(record);
+                      }}
+                    />
+                  </Tooltip>
+                )}
               </>
             );
           })()}
@@ -2537,6 +2661,89 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
             </Button>
 
           </div>
+        </div>
+      </Modal>
+      <Modal
+        open={jumlahScanModalOpen}
+        onCancel={() => {
+          setJumlahScanModalOpen(false);
+          setActiveJumlahScanId(null);
+        }}
+        footer={null}
+        title="Scan Jumlah Dikirim"
+        styles={{ body: { padding: "1rem" } }}
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {activeJumlahScanId && (
+            <div style={{ padding: "8px 10px", background: "#f5f5f5", borderRadius: 6 }}>
+              <div style={{ fontWeight: 600 }}>
+                {resolveRecordById(activeJumlahScanId)?.itemName || "-"}
+              </div>
+              <div style={{ fontSize: 12, color: "#666" }}>
+                {resolveRecordById(activeJumlahScanId)?.cardName ||
+                  (resolveRecordById(activeJumlahScanId) as any)?.card_name ||
+                  ""}
+              </div>
+            </div>
+          )}
+          <Input
+            placeholder="Scan atau tempel barcode"
+            value={jumlahScanInput}
+            onChange={(e) => setJumlahScanInput(e.target.value)}
+            onPressEnter={handleJumlahManualSubmit}
+            disabled={isProcessingJumlahScan}
+          />
+          <Button
+            type="primary"
+            onClick={handleJumlahManualSubmit}
+            loading={isProcessingJumlahScan}
+          >
+            Gunakan barcode
+          </Button>
+          {isDevMode && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: 12, color: "#555" }}>
+                  Mode kamera (dev only)
+                </span>
+                <Button
+                  size="small"
+                  onClick={() =>
+                    setUseCameraJumlahScanner((prev) => !prev)
+                  }
+                >
+                  {useCameraJumlahScanner ? "Gunakan input scanner" : "Gunakan kamera"}
+                </Button>
+              </div>
+              {useCameraJumlahScanner && (
+                <div style={{ border: "1px solid #e5e5e5", borderRadius: 8, overflow: "hidden" }}>
+                  <div style={{ aspectRatio: "4 / 3", width: "100%" }}>
+                    <Scanner
+                      onScan={(result) => {
+                        const raw =
+                          (result && (result as any)[0]?.rawValue) ||
+                          (Array.isArray(result) &&
+                            typeof (result as any)[0] === "string"
+                            ? (result as any)[0]
+                            : null);
+                        if (raw) {
+                          handleJumlahCameraScan(raw);
+                        }
+                      }}
+                      onError={(error) => {
+                        console.error("Scanner error:", error);
+                        message.error("Camera scanning failed.");
+                      }}
+                      styles={{
+                        container: { width: "100%", height: "100%" },
+                        video: { width: "100%", height: "100%" },
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </Modal>
       <Modal
