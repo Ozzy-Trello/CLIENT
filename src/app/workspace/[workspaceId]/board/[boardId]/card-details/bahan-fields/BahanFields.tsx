@@ -32,6 +32,7 @@ import {
   resolveProductUnit,
 } from "./productHelpers";
 import { buildRequestItemMeta } from "./requestPayload";
+import { useCardCustomField } from "@hooks/card_custom_field";
 
 const getRequestedSkuForBahanFields = (
   item?: any
@@ -144,6 +145,84 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
     },
   });
   const updatePOProductMutation = useUpdatePOProduct();
+  const {
+    cardCustomFields,
+    setNumberValue: setCustomFieldNumberValue,
+    getNumberValue: getCustomFieldNumberValue,
+  } = useCardCustomField(cardId, workspaceId);
+  const lastSyncedTotalsRef = useRef<{ terloading: number; terpakai: number }>({
+    terloading: -1,
+    terpakai: -1,
+  });
+
+  const syncBahanCustomFields = useCallback(
+    (data: POItem[]) => {
+      if (!cardCustomFields || cardCustomFields.length === 0) return;
+
+      const totalTerloading = data.reduce((poAcc, po) => {
+        const productTotal = (po.products || []).reduce((prodAcc, product) => {
+          const terloadingValue =
+            product.bahanTabs && product.bahanTabs[0]
+              ? Number(product.bahanTabs[0].terloading || 0)
+              : 0;
+          return prodAcc + (Number.isFinite(terloadingValue) ? terloadingValue : 0);
+        }, 0);
+        return poAcc + productTotal;
+      }, 0);
+
+      const totalBahanTerpakai = data.reduce((poAcc, po) => {
+        const productTotal = (po.products || []).reduce((prodAcc, product) => {
+          const terpakaiValue =
+            product.bahanTabs && product.bahanTabs[0]
+              ? Number(product.bahanTabs[0].bahanTerpakai || 0)
+              : 0;
+          return prodAcc + (Number.isFinite(terpakaiValue) ? terpakaiValue : 0);
+        }, 0);
+        return poAcc + productTotal;
+      }, 0);
+
+      const findFieldByName = (needle: string) =>
+        cardCustomFields.find((field: any) =>
+          (field.name || "").toLowerCase().includes(needle)
+        );
+
+      // Skip if totals haven't changed since last sync to avoid redundant mutations
+      const last = lastSyncedTotalsRef.current;
+      if (
+        last &&
+        last.terloading === totalTerloading &&
+        last.terpakai === totalBahanTerpakai
+      ) {
+        return;
+      }
+
+      const terloadingField = findFieldByName("bahan terloading");
+      if (terloadingField?.id) {
+        const existing = Number(
+          getCustomFieldNumberValue?.(terloadingField.id) ?? 0
+        );
+        if (!Number.isFinite(existing) || existing !== totalTerloading) {
+          setCustomFieldNumberValue(terloadingField.id, totalTerloading);
+        }
+      }
+
+      const terpakaiField = findFieldByName("bahan terpakai");
+      if (terpakaiField?.id) {
+        const existing = Number(
+          getCustomFieldNumberValue?.(terpakaiField.id) ?? 0
+        );
+        if (!Number.isFinite(existing) || existing !== totalBahanTerpakai) {
+          setCustomFieldNumberValue(terpakaiField.id, totalBahanTerpakai);
+        }
+      }
+
+      lastSyncedTotalsRef.current = {
+        terloading: totalTerloading,
+        terpakai: totalBahanTerpakai,
+      };
+    },
+    [cardCustomFields, getCustomFieldNumberValue, setCustomFieldNumberValue]
+  );
 
   // Note: Removed complex mapping logic - now using direct POProduct access
 
@@ -271,8 +350,9 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
       });
       setPOData(updatedPOData);
       setSelectedProductIds({}); // Reset selected products when PO data changes
+      syncBahanCustomFields(updatedPOData);
     }
-  }, [apiPOData, poProductsResponse, warehouseProducts]);
+  }, [apiPOData, poProductsResponse, warehouseProducts, syncBahanCustomFields]);
 
   // Calculate derived values
   const calculateSisaBahan = (
@@ -442,9 +522,30 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
     return product;
   };
 
+  const findProductPosition = (
+    data: POItem[],
+    poId: string,
+    productId: string
+  ) => {
+    const poIndex = data.findIndex((po) => po.id === poId);
+    if (poIndex === -1) return null;
+
+    const productIndex = data[poIndex].products.findIndex(
+      (p) => p.id === productId || p.poProductId === productId
+    );
+    if (productIndex === -1) return null;
+
+    return {
+      poIndex,
+      productIndex,
+      po: data[poIndex],
+      product: data[poIndex].products[productIndex],
+    };
+  };
+
   const handleTerloadingChange = async (
-    poIndex: number,
-    productIndex: number,
+    poId: string,
+    productId: string,
     bahanTabIndex: number,
     value: number,
     resolvedProduct?: any
@@ -452,12 +553,26 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
     let requestId: number | undefined;
     let snapshotProduct: any | null = null;
     const payloadProduct = resolvedProduct ?? null;
+    let nextData: POItem[] | null = null;
 
     setPOData((prevData) => {
       const newData = [...prevData];
-      const po = newData[poIndex];
-      const product = po.products[productIndex];
-      const bahanTab = product.bahanTabs[bahanTabIndex];
+      const target = findProductPosition(newData, poId, productId);
+      if (!target) {
+        console.warn(
+          `❌ Unable to find PO/Product for terloading change (poId=${poId}, productId=${productId})`
+        );
+        return prevData;
+      }
+
+      const { po, product } = target;
+      const bahanTab = product.bahanTabs?.[bahanTabIndex];
+      if (!bahanTab) {
+        console.warn(
+          `❌ Bahan tab index ${bahanTabIndex} not found for product ${productId}`
+        );
+        return prevData;
+      }
 
       bahanTab.terloading = value;
       bahanTab.sisaBahan = calculateSisaBahan(value, bahanTab.bahanTerpakai);
@@ -474,8 +589,13 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
       requestId = product.requestId;
       snapshotProduct = product;
 
+      nextData = newData;
       return newData;
     });
+
+    if (nextData) {
+      syncBahanCustomFields(nextData);
+    }
 
     if (requestId) {
       try {
@@ -522,8 +642,8 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
   };
 
   const handleBahanTerpakaiChange = async (
-    poIndex: number,
-    productIndex: number,
+    poId: string,
+    productId: string,
     bahanTabIndex: number,
     value: number,
     resolvedProduct?: any
@@ -532,12 +652,26 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
     let sentValue = 0;
     let snapshotProduct: any | null = null;
     const payloadProduct = resolvedProduct ?? null;
+    let nextData: POItem[] | null = null;
 
     setPOData((prevData) => {
       const newData = [...prevData];
-      const po = newData[poIndex];
-      const product = po.products[productIndex];
-      const bahanTab = product.bahanTabs[bahanTabIndex];
+      const target = findProductPosition(newData, poId, productId);
+      if (!target) {
+        console.warn(
+          `❌ Unable to find PO/Product for terpakai change (poId=${poId}, productId=${productId})`
+        );
+        return prevData;
+      }
+
+      const { po, product } = target;
+      const bahanTab = product.bahanTabs?.[bahanTabIndex];
+      if (!bahanTab) {
+        console.warn(
+          `❌ Bahan tab index ${bahanTabIndex} not found for product ${productId}`
+        );
+        return prevData;
+      }
 
       bahanTab.bahanTerpakai = value;
       bahanTab.sisaBahan = calculateSisaBahan(bahanTab.terloading, value);
@@ -553,8 +687,13 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
         });
       }
 
+      nextData = newData;
       return newData;
     });
+
+    if (nextData) {
+      syncBahanCustomFields(nextData);
+    }
 
     if (requestId !== undefined) {
       const leftValue = Math.max(sentValue - value, 0);
@@ -601,8 +740,8 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
   };
 
   const handleEstBahanChange = (
-    poIndex: number,
-    productIndex: number,
+    poId: string,
+    productId: string,
     bahanTabIndex: number,
     value: number
   ) => {
@@ -611,9 +750,22 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
 
     setPOData((prevData) => {
       const newData = [...prevData];
-      const po = newData[poIndex];
-      const product = po.products[productIndex];
-      const bahanTab = product.bahanTabs[bahanTabIndex];
+      const target = findProductPosition(newData, poId, productId);
+      if (!target) {
+        console.warn(
+          `❌ Unable to find PO/Product for est_bahan change (poId=${poId}, productId=${productId})`
+        );
+        return prevData;
+      }
+
+      const { po, product } = target;
+      const bahanTab = product.bahanTabs?.[bahanTabIndex];
+      if (!bahanTab) {
+        console.warn(
+          `❌ Bahan tab index ${bahanTabIndex} not found for product ${productId}`
+        );
+        return prevData;
+      }
 
       // Update Est Bahan value
       bahanTab.estBahan = value;
@@ -698,15 +850,23 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
 
   // Handle category value change
   const handleCategoryValueChange = (
-    poIndex: number,
-    productIndex: number,
+    poId: string,
+    productId: string,
     categoryId: string,
     subcategoryId: string,
     value: number
   ) => {
     setPOData((prev) => {
       const newItems = [...prev];
-      const product = newItems[poIndex].products[productIndex];
+      const target = findProductPosition(newItems, poId, productId);
+      if (!target) {
+        console.warn(
+          `❌ Unable to find PO/Product for category change (poId=${poId}, productId=${productId})`
+        );
+        return prev;
+      }
+
+      const { product } = target;
 
       if (!product.categoryData) {
         product.categoryData = [];
@@ -846,15 +1006,22 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
 
   // Handle order status change
   const handleOrderStatusChange = (
-    poIndex: number,
-    productIndex: number,
+    poId: string,
+    productId: string,
     orderCreated: boolean,
     requestId?: number | null
   ) => {
     setPOData((prevData) => {
       const newData = [...prevData];
-      const po = newData[poIndex];
-      const product = po.products[productIndex];
+      const target = findProductPosition(newData, poId, productId);
+      if (!target) {
+        console.warn(
+          `❌ Unable to find PO/Product for order status change (poId=${poId}, productId=${productId})`
+        );
+        return prevData;
+      }
+
+      const { product } = target;
 
       // Update local state
       product.orderCreated = orderCreated;
@@ -1078,10 +1245,11 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
 
           // Update local state and persist to backend
           await handleTerloadingChange(
-            currentPOIndex,
-            existingProductIndex,
+            poId,
+            existingProduct.id,
             0,
-            newTerloading
+            newTerloading,
+            existingProduct
           );
         } else {
           // Product not yet in this PO: prefill dropdown and add it, then set initial Terloading from scanned quantity
@@ -1337,19 +1505,59 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
       // Note: Removed validation for products existing in other POs
       // Different POs can have the same product - only prevent duplicates within the same PO
 
+      const productSource =
+        parsedSource ?? resolveProductSource(selectedProduct);
+      const accurateDbId = resolveAccurateDbId(selectedProduct);
+      const satuan = resolveProductUnit(selectedProduct);
+      const hasInitialTerloading =
+        typeof initialTerloading === "number" &&
+        Number.isFinite(initialTerloading);
+
+      const optimisticId = `temp-${productKey}-${Date.now()}`;
+      const optimisticProduct: ProductItem = {
+        id: optimisticId,
+        name: selectedProduct.name,
+        poProductId: undefined,
+        source: productSource,
+        accurateDbId: accurateDbId,
+        satuan,
+        adjustment_no: undefined,
+        adjustment_name: undefined,
+        orderCreated: false,
+        bahanTabs: [
+          {
+            id: optimisticId,
+            name: selectedProduct.name,
+            description: selectedProduct.description ?? null,
+            terloading: hasInitialTerloading ? initialTerloading || 0 : 0,
+            bahanTerpakai: 0,
+            sisaBahan: calculateSisaBahan(
+              hasInitialTerloading ? initialTerloading || 0 : 0,
+              0
+            ),
+            jmlProduksi: 0,
+            estBahan: 0,
+            efisiensi: 0,
+          },
+        ],
+        categoryData: [],
+        warehouseProduct: selectedProduct,
+      };
+
+      // Optimistically add product
+      setPOData((prevData) =>
+        prevData.map((poItem) => {
+          if (poItem.id !== poId) return poItem;
+          const exists = poItem.products.some((p) => p.id === optimisticId);
+          if (exists) return poItem;
+          return {
+            ...poItem,
+            products: [...poItem.products, optimisticProduct],
+          };
+        })
+      );
+
       try {
-        const productSource =
-          parsedSource ?? resolveProductSource(selectedProduct);
-        const accurateDbId = resolveAccurateDbId(selectedProduct);
-
-        // Extract satuan from product unit data
-        const satuan = resolveProductUnit(selectedProduct);
-        const hasInitialTerloading =
-          typeof initialTerloading === "number" &&
-          Number.isFinite(initialTerloading);
-
-        // Extracted satuan and available units
-
         // Get GL account information using the same logic as modal request
         // Starting GL account selection
 
@@ -1405,50 +1613,57 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
             console.error("❌ Failed to set initial Terloading:", e);
           }
 
-          // Optimistically add the new product with its initial terloading so the UI reflects the scanned qty immediately
+          // Replace optimistic product with real IDs and values
           setPOData((prevData) =>
             prevData.map((poItem) => {
               if (poItem.id !== poId) return poItem;
-
-              const alreadyExists = poItem.products.some(
-                (p) =>
-                  p.poProductId === createdPOProductId ||
-                  p.id === productKey
-              );
-              if (alreadyExists) return poItem;
-
-              const terloadingValue = initialTerloading ?? 0;
-
-              const newProduct: ProductItem = {
-                id: productKey,
-                name: selectedProduct.name,
-                poProductId: createdPOProductId,
-                source: productSource,
-                accurateDbId: accurateDbId,
-                satuan,
-                adjustment_no: glAccountInfo.adjustment_no,
-                adjustment_name: glAccountInfo.adjustment_name,
-                orderCreated: false,
-                bahanTabs: [
-                  {
-                    id: createdPOProductId,
-                    name: selectedProduct.name,
-                    description: selectedProduct.description ?? null,
-                    terloading: terloadingValue,
-                    bahanTerpakai: 0,
-                    sisaBahan: calculateSisaBahan(terloadingValue, 0),
-                    jmlProduksi: 0,
-                    estBahan: 0,
-                    efisiensi: calculateEfisiensi(0, 0),
-                  },
-                ],
-                categoryData: [],
-                warehouseProduct: selectedProduct,
-              };
-
               return {
                 ...poItem,
-                products: [...poItem.products, newProduct],
+                products: poItem.products.map((p) =>
+                  p.id === optimisticId
+                    ? {
+                        ...p,
+                        id: productKey,
+                        poProductId: createdPOProductId,
+                        adjustment_no: glAccountInfo.adjustment_no,
+                        adjustment_name: glAccountInfo.adjustment_name,
+                        bahanTabs: [
+                          {
+                            ...p.bahanTabs[0],
+                            id: createdPOProductId,
+                            terloading: initialTerloading ?? 0,
+                            sisaBahan: calculateSisaBahan(
+                              initialTerloading ?? 0,
+                              0
+                            ),
+                            efisiensi: calculateEfisiensi(0, 0),
+                          },
+                        ],
+                      }
+                    : p
+                ),
+              };
+            })
+          );
+        } else {
+          // For non-scan add, replace optimistic with backend ID
+          const realId = createdPOProductId || productKey;
+          setPOData((prevData) =>
+            prevData.map((poItem) => {
+              if (poItem.id !== poId) return poItem;
+              return {
+                ...poItem,
+                products: poItem.products.map((p) =>
+                  p.id === optimisticId
+                    ? {
+                        ...p,
+                        id: realId,
+                        poProductId: createdPOProductId ?? p.poProductId,
+                        adjustment_no: glAccountInfo.adjustment_no ?? p.adjustment_no,
+                        adjustment_name: glAccountInfo.adjustment_name ?? p.adjustment_name,
+                      }
+                    : p
+                ),
               };
             })
           );
@@ -1459,6 +1674,19 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
         console.error("🚀 [PO PROD DEBUG] Failed to create PO Product:", error);
         message.error(
           `Failed to add product "${selectedProduct.name}". Please try again.`
+        );
+        // rollback optimistic product
+        setPOData((prevData) =>
+          prevData.map((poItem) =>
+            poItem.id === poId
+              ? {
+                  ...poItem,
+                  products: poItem.products.filter(
+                    (p) => p.id !== optimisticId
+                  ),
+                }
+              : poItem
+          )
         );
       }
     } else {

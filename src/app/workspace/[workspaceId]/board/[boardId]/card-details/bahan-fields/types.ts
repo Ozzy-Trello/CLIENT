@@ -83,24 +83,24 @@ export interface POSectionProps {
   onOpenCameraScan?: (poId: string) => void;
   onOpenSummary: (poId: string) => void;
   onTerloadingChange: (
-    poIndex: number,
-    productIndex: number,
+    poId: string,
+    productId: string,
     bahanTabIndex: number,
     value: number,
     resolvedProduct?: any
   ) => Promise<void>;
   onBahanTerpakaiChange: (
-    poIndex: number,
-    productIndex: number,
+    poId: string,
+    productId: string,
     bahanTabIndex: number,
     value: number,
     resolvedProduct?: any
   ) => void;
-  onEstBahanChange: (poIndex: number, productIndex: number, bahanTabIndex: number, value: number) => void;
-  onCategoryValueChange: (poIndex: number, productIndex: number, categoryId: string, subcategoryId: string, value: number) => void;
+  onEstBahanChange: (poId: string, productId: string, bahanTabIndex: number, value: number) => void;
+  onCategoryValueChange: (poId: string, productId: string, categoryId: string, subcategoryId: string, value: number) => void;
   onOrderStatusChange: (
-    poIndex: number,
-    productIndex: number,
+    poId: string,
+    productId: string,
     orderCreated: boolean,
     requestId?: number | null
   ) => void;
@@ -110,6 +110,14 @@ export interface POSectionProps {
   isCategoryLoading?: (poProductCategoryId: string) => boolean;
   getCategoryError?: (poProductCategoryId: string) => string | null;
   clearCategoryError?: (poProductCategoryId: string) => void;
+  onLoadingStateChange?: (state: {
+    poId: string;
+    productId: string;
+    disableLoadingButton: boolean;
+    isOrderAlreadyCreated: boolean;
+    handleLoadingClick: () => void;
+    isLoadingAction?: boolean;
+  }) => void;
 }
 
 export interface ProductTabsProps {
@@ -119,38 +127,39 @@ export interface ProductTabsProps {
   categories: any[];
   isLoadingCategories?: boolean;
   onTerloadingChange: (
-    poIndex: number,
-    productIndex: number,
+    poId: string,
+    productId: string,
     bahanTabIndex: number,
     value: number,
     resolvedProduct?: any
   ) => Promise<void>;
   onBahanTerpakaiChange: (
-    poIndex: number,
-    productIndex: number,
+    poId: string,
+    productId: string,
     bahanTabIndex: number,
     value: number,
     resolvedProduct?: any
   ) => void;
   onEstBahanChange: (
-    poIndex: number,
-    productIndex: number,
+    poId: string,
+    productId: string,
     bahanTabIndex: number,
     value: number
   ) => void;
   onCategoryValueChange: (
-    poIndex: number,
-    productIndex: number,
+    poId: string,
+    productId: string,
     categoryId: string,
     subcategoryId: string,
     value: number
   ) => void;
   onOrderStatusChange: (
-    poIndex: number,
-    productIndex: number,
+    poId: string,
+    productId: string,
     orderCreated: boolean,
     requestId?: number | null
   ) => void;
+  deletingProductIds?: string[];
   isCategoryLoading?: (poProductCategoryId: string) => boolean;
   getCategoryError?: (poProductCategoryId: string) => string | null;
   clearCategoryError?: (poProductCategoryId: string) => void;
@@ -167,28 +176,26 @@ export interface BahanTabProps {
   colors: any;
   categories: any[];
   isLoadingCategories?: boolean;
-  poIndex: number;
-  productIndex: number;
   bahanTabIndex: number;
   onTerloadingChange: (
-    poIndex: number,
-    productIndex: number,
+    poId: string,
+    productId: string,
     bahanTabIndex: number,
     value: number,
     resolvedProduct?: any
   ) => Promise<void>;
   onBahanTerpakaiChange: (
-    poIndex: number,
-    productIndex: number,
+    poId: string,
+    productId: string,
     bahanTabIndex: number,
     value: number,
     resolvedProduct?: any
   ) => void;
-  onEstBahanChange: (poIndex: number, productIndex: number, bahanTabIndex: number, value: number) => void;
-  onCategoryValueChange: (poIndex: number, productIndex: number, categoryId: string, subcategoryId: string, value: number) => void;
+  onEstBahanChange: (poId: string, productId: string, bahanTabIndex: number, value: number) => void;
+  onCategoryValueChange: (poId: string, productId: string, categoryId: string, subcategoryId: string, value: number) => void;
   onOrderStatusChange: (
-    poIndex: number,
-    productIndex: number,
+    poId: string,
+    productId: string,
     orderCreated: boolean,
     requestId?: number | null
   ) => void;
@@ -196,6 +203,14 @@ export interface BahanTabProps {
   isCategoryLoading?: (poProductCategoryId: string) => boolean;
   getCategoryError?: (poProductCategoryId: string) => string | null;
   clearCategoryError?: (poProductCategoryId: string) => void;
+  onLoadingStateChange?: (state: {
+    poId: string;
+    productId: string;
+    disableLoadingButton: boolean;
+    isOrderAlreadyCreated: boolean;
+    handleLoadingClick: () => void;
+    isLoadingAction?: boolean;
+  }) => void;
 }
 
 export interface CategorySectionProps {
@@ -250,7 +265,4 @@ export interface BahanControlsProps {
     isCurrent?: boolean;
   }[];
   isConfirmingZeroLoading: boolean;
-  handleLoadingClick: () => void;
-  disableLoadingButton: boolean;
-  isOrderAlreadyCreated: boolean;
 }

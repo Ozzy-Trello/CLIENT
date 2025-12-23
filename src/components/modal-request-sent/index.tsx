@@ -1587,7 +1587,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       dataIndex: "requestSent",
       key: "requestSent",
       ellipsis: true,
-      width: "auto",
+      width: 140,
       render: (_: unknown, record: RequestItem) => (
         <div className="flex items-center gap-2">
           {(() => {
@@ -1747,7 +1747,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       title: "Terpakai",
       key: "requestReceivedInput",
       ellipsis: true,
-      width: "auto",
+      width: 140,
       render: (_: unknown, record: RequestItem) => {
         const sentValue = getRequestSentValue(record);
         const storedReceived = requestReceivedValues[record.id];
@@ -1822,7 +1822,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       title: "Sisa Bahan",
       key: "requestLeft",
       ellipsis: true,
-      width: "auto",
+      width: 140,
       render: (_: unknown, record: RequestItem) => {
         const sentValue = getRequestSentValue(record);
         const leftValue = getRequestLeftValue(record);
@@ -1932,7 +1932,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
             type="primary"
             size="small"
             onClick={() => handleMarkDone(record)}
-            disabled={disabled}
+            // disabled={disabled}
             loading={markingDone === record.id}
             style={{ minWidth: "70px" }}
           >
@@ -2094,7 +2094,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
               Refresh
             </Button>
             <Input
-              placeholder="Scan Short ID"
+              placeholder="Scan Sisa Bahan"
               allowClear
               size="small"
               value={scanInput}

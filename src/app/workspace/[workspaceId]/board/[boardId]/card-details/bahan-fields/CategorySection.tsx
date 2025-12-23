@@ -23,7 +23,9 @@ const CategorySection: React.FC<CategorySectionProps> = ({
   const [activeTab, setActiveTab] = useState<string>(
     () => sortedCategories[0]?.id || ""
   );
-  const [pendingValues, setPendingValues] = useState<Record<string, string>>({});
+  const [pendingValues, setPendingValues] = useState<
+    Record<string, { value: string; categoryKey: string }>
+  >({});
 
   useEffect(() => {
     if (sortedCategories.length === 0) {
@@ -34,6 +36,25 @@ const CategorySection: React.FC<CategorySectionProps> = ({
       setActiveTab(sortedCategories[0].id);
     }
   }, [sortedCategories, activeTab]);
+
+  // Clear pending values once the backend is done loading (or no error) to avoid flicker
+  useEffect(() => {
+    setPendingValues((prev) => {
+      let changed = false;
+      const next = { ...prev };
+
+      Object.entries(prev).forEach(([pendingKey, entry]) => {
+        const loading = isCategoryLoading?.(entry.categoryKey) || false;
+        const error = getCategoryError?.(entry.categoryKey);
+        if (!loading && !error) {
+          delete next[pendingKey];
+          changed = true;
+        }
+      });
+
+      return changed ? next : prev;
+    });
+  }, [isCategoryLoading, getCategoryError]);
 
   // Helper function to get category data for a specific category
   const getCategoryData = (categoryId: string): CategoryData | undefined => {
@@ -109,7 +130,7 @@ const CategorySection: React.FC<CategorySectionProps> = ({
     const pendingKey = `${po.id}-${product.id}-${category.id}-${subcategory.id}`;
     const inputValue =
       pendingValues[pendingKey] !== undefined
-        ? pendingValues[pendingKey]
+        ? pendingValues[pendingKey].value
         : Number.isFinite(value)
         ? String(value)
         : "";
@@ -139,7 +160,7 @@ const CategorySection: React.FC<CategorySectionProps> = ({
               ) {
                 setPendingValues((prev) => ({
                   ...prev,
-                  [pendingKey]: "",
+                  [pendingKey]: { value: "", categoryKey },
                 }));
               }
             }}
@@ -148,7 +169,10 @@ const CategorySection: React.FC<CategorySectionProps> = ({
                 clearCategoryError(categoryKey);
               }
               const val = e.target.value;
-              setPendingValues((prev) => ({ ...prev, [pendingKey]: val }));
+              setPendingValues((prev) => ({
+                ...prev,
+                [pendingKey]: { value: val, categoryKey },
+              }));
             }}
             onBlur={() => {
               const pending = pendingValues[pendingKey];
@@ -156,15 +180,10 @@ const CategorySection: React.FC<CategorySectionProps> = ({
                 return;
               }
 
-              const numericValue = pending === ""
-                ? 0
-                : Number.parseFloat(pending);
-
-              setPendingValues((prev) => {
-                const next = { ...prev };
-                delete next[pendingKey];
-                return next;
-              });
+              const numericValue =
+                pending.value === ""
+                  ? 0
+                  : Number.parseFloat(pending.value);
 
               const safeValue = Number.isFinite(numericValue)
                 ? numericValue
@@ -249,12 +268,6 @@ const CategorySection: React.FC<CategorySectionProps> = ({
   if (isLoadingCategories) {
     return (
       <div className="mt-6">
-        <h4
-          className="text-sm font-medium mb-3"
-          style={{ color: `rgb(${colors.text})` }}
-        >
-          Category Details
-        </h4>
         <div
           className="text-sm p-4 rounded border"
           style={{

@@ -37,9 +37,6 @@ const BahanControls: React.FC<BahanControlsProps> = ({
   setSelectedLoadingCardId,
   zeroLoadingCandidates,
   isConfirmingZeroLoading,
-  handleLoadingClick,
-  disableLoadingButton,
-  isOrderAlreadyCreated,
 }) => {
   return (
     <>
@@ -223,7 +220,10 @@ const BahanControls: React.FC<BahanControlsProps> = ({
         </div>
       </div>
 
-      <div className="mb-4">
+      <div className="flex flex-row w-full gap-2 space-2">
+
+
+      <div className="mb-4 w-1/2">
         <label
           className="block text-xs font-medium mb-1"
           style={{
@@ -233,7 +233,7 @@ const BahanControls: React.FC<BahanControlsProps> = ({
           Dikirim Oleh
         </label>
         <Select
-          placeholder="Pilih Request By"
+          placeholder="Pilih Pengirim"
           value={selectedSentBy}
           options={requestByOptions}
           style={{ width: "100%" }}
@@ -249,7 +249,7 @@ const BahanControls: React.FC<BahanControlsProps> = ({
         />
       </div>
 
-      <div className="mb-6">
+      <div className="mb-6 w-1/2">
         <label
           className="block text-xs font-medium mb-1"
           style={{
@@ -265,18 +265,15 @@ const BahanControls: React.FC<BahanControlsProps> = ({
           required
           placeholder="Tambahkan catatan untuk request"
         />
-        {isSavingDescription && (
-          <Typography.Text type="secondary" className="text-xs">
-            Menyimpan deskripsi...
-          </Typography.Text>
-        )}
       </div>
+      </div>
+
 
       <Modal
         open={zeroLoadingModalOpen}
         title="Konfirmasi Loading"
         onCancel={closeZeroModal}
-        bodyStyle={{ padding: "24px" }}
+        styles={{ body: { padding: "24px" } }}
         footer={[
           <Button key="cancel" onClick={closeZeroModal}>
             Cancel
@@ -326,22 +323,6 @@ const BahanControls: React.FC<BahanControlsProps> = ({
           </div>
         </Radio.Group>
       </Modal>
-
-      <div className="mt-6 flex justify-center">
-        <button
-          onClick={handleLoadingClick}
-          disabled={disableLoadingButton}
-          className={`px-6 py-3 text-sm font-medium border rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 shadow-sm ${
-            isOrderAlreadyCreated
-              ? "bg-green-600 border-green-600 text-white cursor-not-allowed opacity-75"
-              : disableLoadingButton
-              ? "bg-gray-300 border-gray-300 text-gray-600 cursor-not-allowed opacity-75"
-              : "bg-blue-600 border-blue-600 hover:bg-blue-700 hover:border-blue-700 focus:ring-blue-500 text-white"
-          }`}
-        >
-          {isOrderAlreadyCreated ? "Terloading ✓" : "Loading"}
-        </button>
-      </div>
     </>
   );
 };

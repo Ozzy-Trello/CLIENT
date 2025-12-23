@@ -186,8 +186,6 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
   colors,
   categories,
   isLoadingCategories = false,
-  poIndex,
-  productIndex,
   bahanTabIndex,
   onTerloadingChange,
   onBahanTerpakaiChange,
@@ -197,6 +195,7 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
   isCategoryLoading,
   getCategoryError,
   clearCategoryError,
+  onLoadingStateChange,
 }) => {
   const params = useParams();
   const workspaceId = (params as any)?.workspaceId?.toString?.() || "";
@@ -299,6 +298,7 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
   );
   const [isSavingDescription, setIsSavingDescription] = useState(false);
   const lastSavedDescriptionRef = useRef<string | null>(null);
+  const [isLoadingAction, setIsLoadingAction] = useState(false);
 
   const { cardAttachments } = useCardAttachment(po.cardId);
   const [zeroLoadingModalOpen, setZeroLoadingModalOpen] = useState(false);
@@ -318,8 +318,8 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
         0;
       if (Number.isFinite(fallbackEst)) {
         onEstBahanChange(
-          poIndex,
-          productIndex,
+          po.id,
+          product.id,
           bahanTabIndex,
           Number(fallbackEst)
         );
@@ -329,10 +329,10 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
     bahanTab.estBahan,
     bahanTab.terloading,
     productTerloading,
-    poIndex,
-    productIndex,
     bahanTabIndex,
     onEstBahanChange,
+    po.id,
+    product.id,
   ]);
 
   useEffect(() => {
@@ -443,8 +443,8 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
   const persistTerloadingValue = (value: number) => {
     const payloadProduct = getProductForRequest();
     const updateResult = onTerloadingChange(
-      poIndex,
-      productIndex,
+      po.id,
+      product.id,
       bahanTabIndex,
       value,
       payloadProduct
@@ -610,7 +610,7 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
           : undefined;
 
       // Update local state to reflect the order creation
-      onOrderStatusChange(poIndex, productIndex, true, validRequestId);
+      onOrderStatusChange(po.id, product.id, true, validRequestId);
 
       message.success(
         `Order created successfully for ${product.name} in ${po.name}`
@@ -634,7 +634,11 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
     typeof description === "string" && description.trim().length > 0;
   const hasSender = Boolean(selectedSentBy && selectedSentBy.trim().length > 0);
   const disableLoadingButton =
-    isOrderAlreadyCreated || isSyncingRequest || !hasDescription || !hasSender;
+    isOrderAlreadyCreated ||
+    isSyncingRequest ||
+    isLoadingAction ||
+    !hasDescription ||
+    !hasSender;
 
   const handleConfirmZeroLoading = async () => {
     if (!selectedLoadingCardId) {
@@ -690,35 +694,38 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
     }
   };
 
-  const handleLoadingClick = () => {
+  const handleLoadingClick = React.useCallback(async () => {
+    setIsLoadingAction(true);
     if (disableLoadingButton) {
-      if (!hasDescription) {
+      if (!hasSender) {
+        message.warning("Pilih 'Dikirim Oleh' sebelum loading.");
+      } else if (!hasDescription) {
         message.warning("Isi deskripsi terlebih dahulu sebelum loading.");
       }
+      setIsLoadingAction(false);
       return;
     }
 
     if (hasTerloadingValue) {
-      void handleCreateNewOrder(po, product);
-      return;
-    }
-
-    // Require a description on at least one candidate before allowing loading
-    const hasValidDescription =
-      zeroLoadingCandidates.length > 0 &&
-      zeroLoadingCandidates.some(
-        (c) =>
-          typeof c.description === "string" &&
-          c.description.trim().length > 0
-      );
-
-    if (!hasValidDescription) {
-      message.warning("Isi deskripsi terlebih dahulu sebelum terloading.");
+      try {
+        await handleCreateNewOrder(po, product);
+      } finally {
+        setIsLoadingAction(false);
+      }
       return;
     }
 
     setZeroLoadingModalOpen(true);
-  };
+    setIsLoadingAction(false);
+  }, [
+    disableLoadingButton,
+    hasSender,
+    hasDescription,
+    hasTerloadingValue,
+    handleCreateNewOrder,
+    po,
+    product,
+  ]);
 
   const handleDescriptionBlur = async () => {
     await persistDescription();
@@ -759,8 +766,8 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
     ) {
       const payloadProduct = getProductForRequest();
       onBahanTerpakaiChange(
-        poIndex,
-        productIndex,
+        po.id,
+        product.id,
         bahanTabIndex,
         parseFloat(bahanTab.bahanTerpakai.toFixed(2)),
         payloadProduct
@@ -774,16 +781,67 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
     const normalized = normalizeNumericInput(value);
     const payloadProduct = getProductForRequest();
     onBahanTerpakaiChange(
-      poIndex,
-      productIndex,
+      po.id,
+      product.id,
       bahanTabIndex,
       normalized ?? 0,
       payloadProduct
     );
   };
 
+  React.useEffect(() => {
+    onLoadingStateChange?.({
+      poId: po.id,
+      productId: product.id,
+      disableLoadingButton,
+      isOrderAlreadyCreated,
+      handleLoadingClick,
+      isLoadingAction: isLoadingAction || isConfirmingZeroLoading,
+    });
+  }, [
+    onLoadingStateChange,
+    po.id,
+    product.id,
+    disableLoadingButton,
+    isOrderAlreadyCreated,
+    handleLoadingClick,
+    isLoadingAction,
+    isConfirmingZeroLoading,
+  ]);
+
   return (
     <div>
+
+      {/* Category Section */}
+      <CategorySection
+        product={product}
+        po={po}
+        colors={colors}
+        categories={categories || []}
+        isLoadingCategories={isLoadingCategories}
+        onCategoryValueChange={(
+          poId,
+          productId,
+          categoryId,
+          subcategoryId,
+          value
+        ) => {
+          // Category value change called
+          onCategoryValueChange(
+            poId,
+            productId,
+            categoryId,
+            subcategoryId,
+            value
+          );
+        }}
+        isCategoryLoading={isCategoryLoading}
+        getCategoryError={getCategoryError}
+        clearCategoryError={clearCategoryError}
+      />
+      <br />
+      <hr/ >
+      <br />
       <BahanControls
         colors={colors}
         product={product}
@@ -818,38 +876,8 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
         setSelectedLoadingCardId={setSelectedLoadingCardId}
         zeroLoadingCandidates={zeroLoadingCandidates}
         isConfirmingZeroLoading={isConfirmingZeroLoading}
-        handleLoadingClick={handleLoadingClick}
-        disableLoadingButton={disableLoadingButton}
-        isOrderAlreadyCreated={isOrderAlreadyCreated}
       />
 
-      {/* Category Section */}
-      <CategorySection
-        product={product}
-        po={po}
-        colors={colors}
-        categories={categories || []}
-        isLoadingCategories={isLoadingCategories}
-        onCategoryValueChange={(
-          poId,
-          productId,
-          categoryId,
-          subcategoryId,
-          value
-        ) => {
-          // Category value change called
-          onCategoryValueChange(
-            poIndex,
-            productIndex,
-            categoryId,
-            subcategoryId,
-            value
-          );
-        }}
-        isCategoryLoading={isCategoryLoading}
-        getCategoryError={getCategoryError}
-        clearCategoryError={clearCategoryError}
-      />
 
     </div>
   );

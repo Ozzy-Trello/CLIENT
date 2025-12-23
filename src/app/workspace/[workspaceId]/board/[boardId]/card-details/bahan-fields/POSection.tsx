@@ -35,6 +35,9 @@ const POSection: React.FC<POSectionProps> = ({
   const [activeProductTab, setActiveProductTab] = useState<string>(
     po.products.length > 0 ? po.products[0].id : ""
   );
+  const [deletingProductIds, setDeletingProductIds] = useState<Set<string>>(
+    () => new Set()
+  );
 
   const queryClient = useQueryClient();
   // Delete mutation hook
@@ -53,12 +56,26 @@ const POSection: React.FC<POSectionProps> = ({
   }, [po.products, activeProductTab]);
 
   const handleRemoveProduct = async (productId: string) => {
+    if (deletingProductIds.has(productId)) {
+      return;
+    }
+    setDeletingProductIds((prev) => {
+      const next = new Set(prev);
+      next.add(productId);
+      return next;
+    });
+
     try {
       // Find the product to get the correct poProductId for API call
       const productToDelete = po.products.find((prod) => prod.id === productId);
       
       if (!productToDelete || !productToDelete.poProductId) {
         message.error("Cannot delete product: Product ID not found");
+        setDeletingProductIds((prev) => {
+          const next = new Set(prev);
+          next.delete(productId);
+          return next;
+        });
         return;
       }
 
@@ -88,22 +105,16 @@ const POSection: React.FC<POSectionProps> = ({
         )
       );
 
-      // If we removed the active tab, switch to the first remaining product
-      if (activeProductTab === productId && po.products.length > 1) {
-        const remainingProducts = po.products.filter(
-          (prod) => prod.id !== productId
-        );
-        if (remainingProducts.length > 0) {
-          setActiveProductTab(remainingProducts[0].id);
-        } else {
-          setActiveProductTab("");
-        }
-      }
-
       message.success("Product deleted successfully");
     } catch (error) {
       console.error("Error deleting product:", error);
       message.error("Failed to delete product. Please try again.");
+    } finally {
+      setDeletingProductIds((prev) => {
+        const next = new Set(prev);
+        next.delete(productId);
+        return next;
+      });
     }
   };
 
@@ -164,6 +175,7 @@ const POSection: React.FC<POSectionProps> = ({
             colors={colors}
             categories={categories}
             isLoadingCategories={isLoadingCategories}
+            deletingProductIds={[...deletingProductIds]}
             onTerloadingChange={onTerloadingChange}
             onBahanTerpakaiChange={onBahanTerpakaiChange}
             onEstBahanChange={onEstBahanChange}

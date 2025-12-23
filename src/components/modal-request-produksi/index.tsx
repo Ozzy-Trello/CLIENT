@@ -770,7 +770,7 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
                 style={{ flex: "1 1 300px", minWidth: "260px" }}
               />
               <Input
-                placeholder="Scan Barcode"
+                placeholder="Scan Diterima"
                 allowClear
                 value={scanInput}
                 onChange={(e) => setScanInput(e.target.value)}
