@@ -32,7 +32,7 @@ import { DeleteOutlined, DownloadOutlined, EditOutlined, QrcodeOutlined } from "
 import { debounce } from "lodash";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { formatRequestQuantity } from "@utils/request-format";
-import { Camera, Filter, RefreshCw, RotateCcw, Warehouse, Truck } from "lucide-react";
+import { Filter, RefreshCw, RotateCcw, Warehouse, Truck } from "lucide-react";
 import dayjs, { Dayjs } from "dayjs";
 import {
   ApiResponse,
@@ -44,6 +44,7 @@ import { usePermissions } from "@hooks/account";
 import UserSelectionForModal from "@components/UserSelectionForModal";
 import { getOzzyBarcodeProduct } from "@api/ozzy-warehouse";
 import { Scanner } from "@yudiel/react-qr-scanner";
+import ScannerIcon from "@components/icons/ScannerIcon";
 
 type BasicStatusFilter = "SUDAH" | "BELUM";
 type BeliStatusFilter = "BELUM" | "YA" | "TIDAK";
@@ -197,6 +198,12 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
   const [jumlahScanInput, setJumlahScanInput] = useState("");
   const isDevMode = process.env.NODE_ENV !== "production";
   const jumlahScanInputRef = useRef<InputRef | null>(null);
+  const focusJumlahInput = () => {
+    requestAnimationFrame(() => {
+      jumlahScanInputRef.current?.focus?.();
+      setTimeout(() => jumlahScanInputRef.current?.focus?.(), 0);
+    });
+  };
 
   const queryClient = useQueryClient();
   const debouncedSearch = useRef(
@@ -1456,6 +1463,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       return;
     }
     await handleJumlahBarcodeScan(target, jumlahScanInput.trim());
+    focusJumlahInput();
   };
 
   const handleJumlahCameraScan = async (rawValue?: string) => {
@@ -1473,9 +1481,9 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
 
   useEffect(() => {
     if (jumlahScanModalOpen) {
-      setTimeout(() => jumlahScanInputRef.current?.focus?.(), 50);
+      focusJumlahInput();
     }
-  }, [jumlahScanModalOpen]);
+  }, [jumlahScanModalOpen, activeJumlahScanId]);
 
   const handleJumlahBarcodeScan = async (record: RequestItem, barcode: string) => {
     if (!barcode || !record) return;
@@ -1542,6 +1550,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       console.error("Failed to process barcode:", error);
       message.error("Gagal memproses barcode");
     } finally {
+      focusJumlahInput();
       setIsProcessingJumlahScan(false);
       setJumlahScanInput("");
     }
@@ -1820,11 +1829,11 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
                   />
                 </Tooltip>}
                 {/* {isDevMode && ( */}
-                <Tooltip title="Scan barcode (camera)">
-                  <Button
-                    type="text"
-                    size="small"
-                    icon={<Camera size={16} />}
+                  <Tooltip title="Scan barcode">
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={<ScannerIcon size={16} />}
                     disabled={!canEdit}
                     onClick={() => {
                       if (!canEdit) return;
@@ -2719,6 +2728,9 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
           setJumlahScanModalOpen(false);
           setActiveJumlahScanId(null);
         }}
+        afterOpenChange={(open) => {
+          if (open) focusJumlahInput();
+        }}
         footer={null}
         title="Scan Jumlah Dikirim"
         styles={{ body: { padding: "1rem" } }}
@@ -2761,8 +2773,9 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
             onPressEnter={handleJumlahManualSubmit}
             disabled={isProcessingJumlahScan}
             ref={jumlahScanInputRef as any}
+            autoFocus
           />
-          {isDevMode && <Button
+          {/* {isDevMode && <Button
             type="primary"
             onClick={handleJumlahManualSubmit}
             loading={isProcessingJumlahScan}
@@ -2812,7 +2825,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
                 </div>
               )}
             </div>
-          )}
+          )} */}
         </div>
       </Modal>
       <Modal

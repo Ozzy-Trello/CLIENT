@@ -21,7 +21,7 @@ import {
   Table,
   Typography,
 } from "antd";
-import { Camera } from "lucide-react";
+import ScannerIcon from "@components/icons/ScannerIcon";
 import React, { useEffect, useMemo, useState } from "react";
 import QRGuideOverlay from "@components/qr-overlay";
 
@@ -498,7 +498,7 @@ const ModalPacking: React.FC<ModalPackingProps> = ({ open, onClose }) => {
                     />
                     <Button
                       type="default"
-                      icon={<Camera size={16} />}
+                      icon={<ScannerIcon size={16} />}
                       onClick={() => setShowCameraScanner(true)}
                       className="flex items-center gap-2"
                       size="large"

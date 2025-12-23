@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Modal, Form, Input, Button, message, Typography, Space } from "antd";
-import { Package, QrCode, Camera } from "lucide-react";
+import { Package, QrCode } from "lucide-react";
+import ScannerIcon from "@components/icons/ScannerIcon";
 import { Scanner } from "@yudiel/react-qr-scanner";
 import QRGuideOverlay from "@components/qr-overlay";
 import { generateQRCodesPDF } from "@api/qr";
@@ -275,7 +276,7 @@ const ModalPOQR: React.FC<ModalPOQRProps> = ({
                 className="flex-1"
               />
               <Button
-                icon={<Camera size={16} />}
+                icon={<ScannerIcon size={16} />}
                 onClick={toggleCameraScanner}
                 size="large"
                 type={showCameraScanner ? "primary" : "default"}

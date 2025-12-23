@@ -14,8 +14,8 @@ import {
   Package,
   ShoppingCart,
   CheckCircle,
-  Camera,
 } from "lucide-react";
+import ScannerIcon from "@components/icons/ScannerIcon";
 import { Scanner } from "@yudiel/react-qr-scanner";
 import URLShortener from "@utils/url-shortener";
 import { getCardByShortId } from "@api/card";
@@ -312,7 +312,7 @@ const ModalPackingPOScan: React.FC<ModalPackingPOScanProps> = ({
                 </Text>
                 <Button
                   type="default"
-                  icon={<Camera size={16} />}
+                  icon={<ScannerIcon size={16} />}
                   onClick={() => setShowCameraScanner(true)}
                   className="flex items-center gap-2"
                 >

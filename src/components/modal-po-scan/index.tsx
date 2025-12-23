@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Modal, Form, Input, Button, message, Typography, Space } from "antd";
-import { Search, Package, Camera } from "lucide-react";
+import { Search, Package } from "lucide-react";
+import ScannerIcon from "@components/icons/ScannerIcon";
 import { Scanner } from "@yudiel/react-qr-scanner";
 import QRGuideOverlay from "@components/qr-overlay";
 import URLShortener from "@utils/url-shortener";
@@ -270,7 +271,7 @@ const ModalPOScan: React.FC<ModalPOScanProps> = ({
               </Text>
               <Button
                 type="default"
-                icon={<Camera size={16} />}
+                icon={<ScannerIcon size={16} />}
                 onClick={() => setShowCameraScanner(true)}
                 className="flex items-center gap-2"
               >
