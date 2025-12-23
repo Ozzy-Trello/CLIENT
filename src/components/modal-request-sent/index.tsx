@@ -43,8 +43,8 @@ import {
 import { usePermissions } from "@hooks/account";
 import UserSelectionForModal from "@components/UserSelectionForModal";
 
-type BasicStatusFilter = "ALL" | "SUDAH" | "BELUM";
-type BeliStatusFilter = "ALL" | "BELUM" | "YA" | "TIDAK";
+type BasicStatusFilter = "SUDAH" | "BELUM";
+type BeliStatusFilter = "BELUM" | "YA" | "TIDAK";
 type BarcodeType = "warehouse" | "shipping";
 
 interface ModalRequestSentProps {
@@ -130,15 +130,15 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     total: 0,
   });
   const [filterDikirim, setFilterDikirim] =
-    useState<BasicStatusFilter>("ALL");
+    useState<BasicStatusFilter | null>(null);
   const [filterDiterima, setFilterDiterima] =
-    useState<BasicStatusFilter>("ALL");
+    useState<BasicStatusFilter | null>(null);
   const [filterBeliStatus, setFilterBeliStatus] =
-    useState<BeliStatusFilter>("ALL");
+    useState<BeliStatusFilter | null>(null);
   const [filterKembali, setFilterKembali] =
-    useState<BasicStatusFilter>("ALL");
+    useState<BasicStatusFilter | null>(null);
   const [filterAccurate, setFilterAccurate] =
-    useState<BasicStatusFilter>("ALL");
+    useState<BasicStatusFilter | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [labelFilter, setLabelFilter] = useState<string>("");
   const [requestTypeFilter, setRequestTypeFilter] = useState<string>("");
@@ -206,52 +206,62 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       baseFilter.shortId = shortIdFilter;
     }
 
-    switch (filterAccurate) {
-      case "SUDAH":
-        baseFilter.isDone = true;
-        break;
-      case "BELUM":
-        baseFilter.isDone = false;
-        break;
+    if (filterAccurate) {
+      switch (filterAccurate) {
+        case "SUDAH":
+          baseFilter.isDone = true;
+          break;
+        case "BELUM":
+          baseFilter.isDone = false;
+          break;
+      }
     }
 
-    switch (filterDikirim) {
-      case "SUDAH":
-        baseFilter.requestSentStatus = "SENT";
-        break;
-      case "BELUM":
-        baseFilter.sentByEmpty = true;
-        break;
+    if (filterDikirim) {
+      switch (filterDikirim) {
+        case "SUDAH":
+          baseFilter.requestSentStatus = "SENT";
+          break;
+        case "BELUM":
+          baseFilter.sentByEmpty = true;
+          break;
+      }
     }
 
-    switch (filterDiterima) {
-      case "SUDAH":
-        baseFilter.productionReceived = true;
-        break;
-      case "BELUM":
-        baseFilter.productionReceived = false;
-        break;
+    if (filterDiterima) {
+      switch (filterDiterima) {
+        case "SUDAH":
+          baseFilter.productionReceived = true;
+          break;
+        case "BELUM":
+          baseFilter.productionReceived = false;
+          break;
+      }
     }
 
-    switch (filterBeliStatus) {
-      case "BELUM":
-        baseFilter.beliEmpty = true;
-        break;
-      case "YA":
-        baseFilter.beli = "Ya";
-        break;
-      case "TIDAK":
-        baseFilter.beli = "Tidak";
-        break;
+    if (filterBeliStatus) {
+      switch (filterBeliStatus) {
+        case "BELUM":
+          baseFilter.beliEmpty = true;
+          break;
+        case "YA":
+          baseFilter.beli = "Ya";
+          break;
+        case "TIDAK":
+          baseFilter.beli = "Tidak";
+          break;
+      }
     }
 
-    switch (filterKembali) {
-      case "SUDAH":
-        baseFilter.warehouseReturned = true;
-        break;
-      case "BELUM":
-        baseFilter.warehouseReturned = false;
-        break;
+    if (filterKembali) {
+      switch (filterKembali) {
+        case "SUDAH":
+          baseFilter.warehouseReturned = true;
+          break;
+        case "BELUM":
+          baseFilter.warehouseReturned = false;
+          break;
+      }
     }
 
     if (labelFilter) {
@@ -352,13 +362,11 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
   }, [data]);
 
   const dropdownStatusOptions: { label: string; value: BasicStatusFilter }[] = [
-    { label: "Semua", value: "ALL" },
     { label: "Sudah", value: "SUDAH" },
     { label: "Belum", value: "BELUM" },
   ];
 
   const beliDropdownOptions: { label: string; value: BeliStatusFilter }[] = [
-    { label: "Semua", value: "ALL" },
     { label: "Belum", value: "BELUM" },
     { label: "Ya", value: "YA" },
     { label: "Tidak", value: "TIDAK" },
@@ -2001,11 +2009,11 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
 
   // Calculate active filters count
   const activeFiltersCount = [
-    filterDikirim !== "ALL",
-    filterDiterima !== "ALL",
-    filterBeliStatus !== "ALL",
-    filterKembali !== "ALL",
-    filterAccurate !== "ALL",
+    filterDikirim !== null,
+    filterDiterima !== null,
+    filterBeliStatus !== null,
+    filterKembali !== null,
+    filterAccurate !== null,
     Boolean(labelFilter),
     Boolean(requestTypeFilter),
     Boolean(searchTerm),
@@ -2016,11 +2024,11 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
 
   // Reset all filters function
   const resetFilters = () => {
-    setFilterDikirim("ALL");
-    setFilterDiterima("ALL");
-    setFilterBeliStatus("ALL");
-    setFilterKembali("ALL");
-    setFilterAccurate("ALL");
+    setFilterDikirim(null);
+    setFilterDiterima(null);
+    setFilterBeliStatus(null);
+    setFilterKembali(null);
+    setFilterAccurate(null);
     setLabelFilter("");
     setRequestTypeFilter("");
     setSearchInput("");
@@ -2271,9 +2279,11 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
               Dikirim
             </span>
             <Select
-              value={filterDikirim}
+              allowClear
+              placeholder="Semua"
+              value={filterDikirim ?? undefined}
               onChange={(value) => {
-                setFilterDikirim(value as BasicStatusFilter);
+                setFilterDikirim((value as BasicStatusFilter) ?? null);
                 setPagination((prev) => ({ ...prev, page: 1 }));
               }}
               options={dropdownStatusOptions}
@@ -2290,9 +2300,11 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
               Diterima
             </span>
             <Select
-              value={filterDiterima}
+              allowClear
+              placeholder="Semua"
+              value={filterDiterima ?? undefined}
               onChange={(value) => {
-                setFilterDiterima(value as BasicStatusFilter);
+                setFilterDiterima((value as BasicStatusFilter) ?? null);
                 setPagination((prev) => ({ ...prev, page: 1 }));
               }}
               options={dropdownStatusOptions}
@@ -2309,9 +2321,11 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
               Beli
             </span>
             <Select
-              value={filterBeliStatus}
+              allowClear
+              placeholder="Semua"
+              value={filterBeliStatus ?? undefined}
               onChange={(value) => {
-                setFilterBeliStatus(value as BeliStatusFilter);
+                setFilterBeliStatus((value as BeliStatusFilter) ?? null);
                 setPagination((prev) => ({ ...prev, page: 1 }));
               }}
               options={beliDropdownOptions}
@@ -2328,9 +2342,11 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
               Kembali
             </span>
             <Select
-              value={filterKembali}
+              allowClear
+              placeholder="Semua"
+              value={filterKembali ?? undefined}
               onChange={(value) => {
-                setFilterKembali(value as BasicStatusFilter);
+                setFilterKembali((value as BasicStatusFilter) ?? null);
                 setPagination((prev) => ({ ...prev, page: 1 }));
               }}
               options={dropdownStatusOptions}
@@ -2347,9 +2363,11 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
               Accurate
             </span>
             <Select
-              value={filterAccurate}
+              allowClear
+              placeholder="Semua"
+              value={filterAccurate ?? undefined}
               onChange={(value) => {
-                setFilterAccurate(value as BasicStatusFilter);
+                setFilterAccurate((value as BasicStatusFilter) ?? null);
                 setPagination((prev) => ({ ...prev, page: 1 }));
               }}
               options={dropdownStatusOptions}

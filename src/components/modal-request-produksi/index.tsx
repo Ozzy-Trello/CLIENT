@@ -22,13 +22,14 @@ import {
   Tag,
   Tooltip,
   Typography,
+  DatePicker,
 } from "antd";
 import { EditOutlined } from "@ant-design/icons";
 import { debounce } from "lodash";
-import { Factory, Filter, RefreshCw, Truck, Camera } from "lucide-react";
+import { Factory, Filter, RefreshCw, RotateCcw } from "lucide-react";
 import { useParams } from "next/navigation";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import dayjs from "dayjs";
+import dayjs, { Dayjs } from "dayjs";
 import { formatRequestQuantity } from "@utils/request-format";
 import UserSelectionForModal from "@components/UserSelectionForModal";
 import { useAccountListForModal } from "@hooks/account";
@@ -67,6 +68,8 @@ interface ModalRequestProduksiProps {
   onClose: () => void;
 }
 
+type BasicStatusFilter = "SUDAH" | "BELUM";
+
 const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
   open,
   onClose,
@@ -88,11 +91,16 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
   const [receivedByOverrides, setReceivedByOverrides] = useState<
     Record<string, string>
   >({});
-  const [filterBelumDikirim, setFilterBelumDikirim] = useState(false);
-  const [filterBelumDiterima, setFilterBelumDiterima] = useState(false);
+  const [filterDikirim, setFilterDikirim] =
+    useState<BasicStatusFilter | null>(null);
+  const [filterDiterima, setFilterDiterima] =
+    useState<BasicStatusFilter | null>(null);
+  const [requestTypeFilter, setRequestTypeFilter] = useState<string>("");
   const [labelFilter, setLabelFilter] = useState<string>("");
-  const [searchInput, setSearchInput] = useState("");
-  const [searchTerm, setSearchTerm] = useState("");
+  const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null]>([
+    null,
+    null,
+  ]);
   const [scanInput, setScanInput] = useState("");
   const [shortIdFilter, setShortIdFilter] = useState<number | null>(null);
   const lastProcessedShortIdRef = useRef<number | null>(null);
@@ -116,34 +124,50 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
       refetch();
     }, 300)
   ).current;
-  const debouncedSearch = useRef(
-    debounce((value: string) => {
-      setSearchTerm(value.trim());
-    }, 400)
-  ).current;
 
   // Build filter object based on current filter states
   const filterParams = useMemo(() => {
     const baseFilter: Record<string, any> = {
       workspace_id: resolvedWorkspaceId,
+      isVerified: true,
+      isRejected: false,
     };
 
-    if (filterBelumDikirim) {
-      // Belum dikirim AND belum diterima
-      baseFilter.requestSent = null; // or 0, depending on API implementation
-      baseFilter.productionReceived = false;
-    }
-
-    if (filterBelumDiterima && !filterBelumDikirim) {
-      baseFilter.productionReceived = false;
+    if (requestTypeFilter) {
+      baseFilter.requestType = requestTypeFilter;
     }
 
     if (labelFilter) {
       baseFilter.labelName = labelFilter;
     }
 
-    if (searchTerm) {
-      baseFilter.search = searchTerm;
+    if (filterDikirim) {
+      switch (filterDikirim) {
+        case "SUDAH":
+          baseFilter.requestSentStatus = "SENT";
+          break;
+        case "BELUM":
+          baseFilter.sentByEmpty = true;
+          break;
+      }
+    }
+
+    if (filterDiterima) {
+      switch (filterDiterima) {
+        case "SUDAH":
+          baseFilter.productionReceived = true;
+          break;
+        case "BELUM":
+          baseFilter.productionReceived = false;
+          break;
+      }
+    }
+
+    if (dateRange[0] || dateRange[1]) {
+      baseFilter.requestReceived = {
+        from: dateRange[0]?.startOf("day").toISOString(),
+        to: dateRange[1]?.endOf("day").toISOString(),
+      };
     }
 
     if (shortIdFilter !== null) {
@@ -151,16 +175,25 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
     }
 
     return baseFilter;
-  }, [resolvedWorkspaceId, filterBelumDikirim, filterBelumDiterima, searchTerm, labelFilter, shortIdFilter]);
+  }, [
+    resolvedWorkspaceId,
+    requestTypeFilter,
+    labelFilter,
+    filterDikirim,
+    filterDiterima,
+    dateRange,
+    shortIdFilter,
+  ]);
 
   const resetFilters = () => {
-    setFilterBelumDikirim(false);
-    setFilterBelumDiterima(false);
+    setFilterDikirim(null);
+    setFilterDiterima(null);
     setLabelFilter("");
-    setSearchInput("");
-    setSearchTerm("");
+    setRequestTypeFilter("");
+    setDateRange([null, null]);
     setScanInput("");
     setShortIdFilter(null);
+    lastProcessedShortIdRef.current = null;
     setPagination((prev) => ({ ...prev, page: 1 }));
   };
 
@@ -198,13 +231,6 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
     }
   }, [open]);
 
-  useEffect(
-    () => () => {
-      debouncedSearch.cancel();
-    },
-    [debouncedSearch]
-  );
-
   const handleScanSubmit = (value?: string) => {
     const raw = (value ?? scanInput).trim();
     const numeric = Number(raw);
@@ -220,8 +246,6 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
     setShortIdFilter(numeric);
     lastProcessedShortIdRef.current = null;
     setScanInput("");
-    setSearchInput("");
-    setSearchTerm("");
     setPagination((prev) => ({ ...prev, page: 1 }));
   };
 
@@ -262,26 +286,6 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
     },
   });
 
-  const handleSearchChange = (
-    event: React.ChangeEvent<HTMLInputElement>
-  ): void => {
-    const value = event.target.value;
-    setSearchInput(value);
-    if (value.trim() === "") {
-      debouncedSearch.cancel();
-      setSearchTerm("");
-    } else {
-      debouncedSearch(value);
-    }
-    setPagination((prev) => ({ ...prev, page: 1 }));
-  };
-
-  const handleSearchSubmit = () => {
-    debouncedSearch.cancel();
-    setSearchTerm(searchInput.trim());
-    setPagination((prev) => ({ ...prev, page: 1 }));
-  };
-
   const handleRefresh = async () => {
     try {
       setIsRefreshing(true);
@@ -304,6 +308,38 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
       second: "2-digit",
     })
     : "Belum pernah";
+
+  const formatRequestTypeLabel = (type: string) =>
+    type
+      .split("_")
+      .map(
+        (word) =>
+          word.charAt(0).toUpperCase() +
+          word.slice(1).toLowerCase()
+      )
+      .join(" ");
+
+  const requestTypeOptions = useMemo(() => {
+    const defaults = ["NEW_ORDER", "REJECT", "KEKURANGAN", "KESALAHAN"];
+    const collected = new Set(defaults);
+
+    data?.data.forEach((item) => {
+      const derivedType =
+        (item as any).request_type ?? (item as any).requestType ?? "";
+      if (derivedType) {
+        collected.add(String(derivedType).toUpperCase());
+      }
+    });
+
+    return Array.from(collected).filter(Boolean);
+  }, [data]);
+
+  const labelOptions = useMemo(() => ["Ozzy", "Steady"], []);
+
+  const dropdownStatusOptions: { label: string; value: BasicStatusFilter }[] = [
+    { label: "Sudah", value: "SUDAH" },
+    { label: "Belum", value: "BELUM" },
+  ];
 
   const { mutate: updateRequestFields } = useUpdateRequestFields();
   const undoDoneMutation = useMutation({
@@ -585,13 +621,15 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
   ];
 
   const totalRequests = data?.pagination?.total || 0;
-  const activeFilters = [
-    filterBelumDikirim,
-    filterBelumDiterima,
+  const activeFiltersCount = [
+    filterDikirim !== null,
+    filterDiterima !== null,
     Boolean(labelFilter),
-    Boolean(searchTerm),
+    Boolean(requestTypeFilter),
     shortIdFilter !== null,
   ].filter(Boolean).length;
+  const activeDateFilter = Boolean(dateRange[0] || dateRange[1]);
+  const totalActiveFilters = activeFiltersCount + (activeDateFilter ? 1 : 0);
 
   const resolveReceivedBy = (record: RequestItem) =>
     receivedByOverrides[record.id] ??
@@ -600,7 +638,7 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
     null;
 
   useEffect(() => {
-    if (!shortIdFilter || !data?.data) return;
+    if (shortIdFilter === null || !data?.data) return;
     if (lastProcessedShortIdRef.current === shortIdFilter) return;
 
     const match = data.data.find((record) => {
@@ -703,47 +741,74 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
         },
       }}
     >
-      {/* Enhanced Filter Section */}
       <Card
         size="small"
         style={{
           marginBottom: 20,
           borderRadius: 8,
           boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+          border: "1px solid #e8e8e8",
         }}
         title={
-          <Space>
+          <Space align="center">
             <Filter size={16} style={{ color: "#1890ff" }} />
-            <span style={{ fontWeight: 600 }}>Filter & Pencarian</span>
-            {activeFilters > 0 && (
+            <span style={{ fontWeight: 600 }}>🔍 Filter Requests</span>
+            {totalActiveFilters > 0 && (
               <Badge
-                count={activeFilters}
-                style={{ backgroundColor: "#1890ff" }}
+                count={totalActiveFilters}
+                style={{ backgroundColor: "#faad14" }}
               />
             )}
           </Space>
         }
         extra={
-          <Space size="small">
+          <Space size="small" align="center">
             <Button
               type="text"
               size="small"
               icon={<RefreshCw size={14} />}
               onClick={handleRefresh}
               loading={isRefreshing}
+              style={{
+                fontSize: "12px",
+                height: "24px",
+                padding: "0 8px",
+              }}
             >
               Refresh
             </Button>
-            <Text type="secondary" style={{ fontSize: 12 }}>
+            <Input
+              placeholder="Scan Diterima"
+              allowClear
+              size="small"
+              value={scanInput}
+              ref={scanInputRef as any}
+              onChange={(e) => {
+                setScanInput(e.target.value);
+                if (!e.target.value.trim()) {
+                  setShortIdFilter(null);
+                }
+              }}
+              onPressEnter={() => handleScanSubmit()}
+              style={{ width: 180 }}
+            />
+            <span style={{ fontSize: 12, color: "#666" }}>
               Last refreshed: {formattedLastRefresh}
-            </Text>
-            {activeFilters > 0 && (
+            </span>
+            {totalActiveFilters > 0 && (
               <Button
-                type="link"
+                type="text"
                 size="small"
+                icon={<RotateCcw size={14} />}
                 onClick={resetFilters}
+                style={{
+                  color: "#666",
+                  fontSize: "12px",
+                  height: "24px",
+                  padding: "0 8px",
+                }}
               >
-                Reset Filter
+                Reset
               </Button>
             )}
           </Space>
@@ -751,79 +816,128 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
       >
         <div
           style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 12,
-            flexDirection: "column",
-            padding: "8px 0",
-            justifyContent: "flex-start"
+            width: "100%",
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+            gap: 10,
           }}
         >
-
-            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-              <Input
-                placeholder="Search"
-                allowClear
-                value={searchInput}
-                onChange={handleSearchChange}
-                onPressEnter={handleSearchSubmit}
-                style={{ flex: "1 1 300px", minWidth: "260px" }}
-              />
-              <Input
-                placeholder="Scan Diterima"
-                allowClear
-                value={scanInput}
-                onChange={(e) => setScanInput(e.target.value)}
-                onPressEnter={() => handleScanSubmit()}
-                style={{ flex: "1 1 300px", minWidth: "260px" }}
-                ref={scanInputRef as any}
-              />
-            </div>
-          <div style={{ display: "flex", flexDirection: "row" }}>
-
-            <div style={{ display: "flex", alignItems: "center", gap: 8, flexDirection: "row" }}>
-              <Text strong>Label</Text>
-              <Select
-                allowClear
-                placeholder="Semua Label"
-                value={labelFilter || undefined}
-                onChange={(value) => {
-                  setLabelFilter(value || "");
-                  setPagination((prev) => ({ ...prev, page: 1 }));
-                }}
-                options={[
-                  { value: "", label: "Semua Label" },
-                  { value: "Ozzy", label: "Ozzy" },
-                  { value: "Steady", label: "Steady" },
-                ]}
-                style={{ minWidth: 160 }}
-              />
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <Truck size={16} style={{ color: "#ff7a00" }} />
-              <Checkbox
-                checked={filterBelumDikirim}
-                onChange={(e) => {
-                  setFilterBelumDikirim(e.target.checked);
-                  setPagination((prev) => ({ ...prev, page: 1 }));
-                }}
-              >
-                <Text strong>Belum Dikirim</Text>
-              </Checkbox>
-            </div>
-          </div>
-
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <Factory size={16} style={{ color: "#52c41a" }} />
-            <Checkbox
-              checked={filterBelumDiterima}
-              onChange={(e) => {
-                setFilterBelumDiterima(e.target.checked);
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 4,
+            }}
+          >
+            <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
+              Tanggal (Dari - Sampai)
+            </span>
+            <DatePicker.RangePicker
+              value={dateRange}
+              onChange={(dates) => {
+                setDateRange([dates?.[0] ?? null, dates?.[1] ?? null]);
                 setPagination((prev) => ({ ...prev, page: 1 }));
               }}
-            >
-              <Text strong>Belum Diterima Produksi</Text>
-            </Checkbox>
+              allowEmpty={[true, true]}
+              style={{ width: "100%" }}
+              format="YYYY-MM-DD"
+            />
+          </div>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 4,
+            }}
+          >
+            <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
+              Type
+            </span>
+            <Select
+              allowClear
+              placeholder="Pilih type"
+              value={requestTypeFilter || undefined}
+              onChange={(value) => {
+                setRequestTypeFilter(value || "");
+                setPagination((prev) => ({ ...prev, page: 1 }));
+              }}
+              options={[
+                { value: "", label: "Semua Type" },
+                ...requestTypeOptions.map((type) => ({
+                  value: type,
+                  label: formatRequestTypeLabel(type),
+                })),
+              ]}
+            />
+          </div>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 4,
+            }}
+          >
+            <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
+              Label
+            </span>
+            <Select
+              allowClear
+              placeholder="Pilih label"
+              value={labelFilter || undefined}
+              onChange={(value) => {
+                setLabelFilter(value || "");
+                setPagination((prev) => ({ ...prev, page: 1 }));
+              }}
+              options={[
+                { value: "", label: "Semua Label" },
+                ...labelOptions.map((label) => ({
+                  value: label,
+                  label,
+                })),
+              ]}
+            />
+          </div>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 4,
+            }}
+          >
+            <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
+              Dikirim
+            </span>
+            <Select
+              allowClear
+              placeholder="Semua"
+              value={filterDikirim ?? undefined}
+              onChange={(value) => {
+                setFilterDikirim((value as BasicStatusFilter) ?? null);
+                setPagination((prev) => ({ ...prev, page: 1 }));
+              }}
+              options={dropdownStatusOptions}
+            />
+          </div>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 4,
+            }}
+          >
+            <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
+              Diterima
+            </span>
+            <Select
+              allowClear
+              placeholder="Semua"
+              value={filterDiterima ?? undefined}
+              onChange={(value) => {
+                setFilterDiterima((value as BasicStatusFilter) ?? null);
+                setPagination((prev) => ({ ...prev, page: 1 }));
+              }}
+              options={dropdownStatusOptions}
+            />
           </div>
         </div>
       </Card>
@@ -861,11 +975,11 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
               description={
                 <div style={{ textAlign: "center" }}>
                   <Text type="secondary" style={{ fontSize: 16 }}>
-                    {activeFilters > 0
+                    {totalActiveFilters > 0
                       ? "Tidak ada data yang sesuai dengan filter"
                       : "Belum ada request produksi"}
                   </Text>
-                  {activeFilters > 0 && (
+                  {totalActiveFilters > 0 && (
                     <div style={{ marginTop: 12 }}>
                       <Button
                         type="primary"

@@ -1,22 +1,25 @@
-import React, { useEffect, useState } from "react";
-import { Modal, Table, Button, message, Space, Tag, Tooltip } from "antd";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Modal, Table, Button, message, Space, Tag, Tooltip, Card, Input, Select, Badge } from "antd";
 import {
   useRequestsOptimized,
   useVerifyRequest,
   useRejectRequest,
 } from "@hooks/accurate";
 import { formatRequestQuantity } from "@utils/request-format";
-import { RefreshCw } from "lucide-react";
+import { Filter, RefreshCw, RotateCcw } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { DeleteOutlined } from "@ant-design/icons";
 import { deleteRequest } from "@api/accurate";
 import { usePermissions } from "@hooks/account";
 import type { RequestItem } from "@myTypes/request";
+import { debounce } from "lodash";
 
 interface ModalListRequestProps {
   open: boolean;
   onClose: () => void;
 }
+
+type VerifiedFilter = "VERIFIED" | "PENDING";
 
 const ModalListRequest: React.FC<ModalListRequestProps> = ({
   open,
@@ -27,22 +30,38 @@ const ModalListRequest: React.FC<ModalListRequestProps> = ({
     limit: 10,
   });
 
-  // Add filter state for unverified requests
-  const [showUnverifiedOnly, setShowUnverifiedOnly] = useState(false);
+  const [verifiedFilter, setVerifiedFilter] =
+    useState<VerifiedFilter | null>(null);
+  const [requestTypeFilter, setRequestTypeFilter] = useState<string>("");
+  const [searchInput, setSearchInput] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
   const [deletingRequestId, setDeletingRequestId] = useState<string | null>(null);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const debouncedSearch = useRef(
+    debounce((value: string) => {
+      setSearchTerm(value.trim());
+    }, 400)
+  ).current;
+
+  const filterParams = useMemo(() => {
+    const base: Record<string, any> = {};
+    if (verifiedFilter === "VERIFIED") base.isVerified = true;
+    if (verifiedFilter === "PENDING") base.isVerified = false;
+    if (requestTypeFilter) base.requestType = requestTypeFilter;
+    if (searchTerm) base.search = searchTerm;
+    return base;
+  }, [verifiedFilter, requestTypeFilter, searchTerm]);
 
   // Use optimized hooks with filter
   const {
     data: requestsData,
     isLoading,
-    error,
     refetch,
   } = useRequestsOptimized(
     pagination.page,
     pagination.limit,
-    open ? { isVerified: showUnverifiedOnly ? false : undefined } : undefined // Only fetch when modal is open
+    open ? filterParams : undefined // Only fetch when modal is open
   );
 
   const verifyMutation = useVerifyRequest();
@@ -92,6 +111,13 @@ const ModalListRequest: React.FC<ModalListRequestProps> = ({
     }
   }, [requestsData]);
 
+  useEffect(
+    () => () => {
+      debouncedSearch.cancel();
+    },
+    [debouncedSearch]
+  );
+
   const handleRefresh = async () => {
     try {
       setIsRefreshing(true);
@@ -129,11 +155,60 @@ const ModalListRequest: React.FC<ModalListRequestProps> = ({
     });
   };
 
-  // Toggle filter function
-  const toggleUnverifiedFilter = () => {
-    setShowUnverifiedOnly(!showUnverifiedOnly);
-    // Reset pagination when filter changes
-    setPagination({ page: 1, limit: pagination.limit });
+  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const value = event.target.value;
+    setSearchInput(value);
+    if (value.trim() === "") {
+      debouncedSearch.cancel();
+      setSearchTerm("");
+    } else {
+      debouncedSearch(value);
+    }
+    setPagination((prev) => ({ ...prev, page: 1 }));
+  };
+
+  const handleSearchSubmit = () => {
+    debouncedSearch.cancel();
+    setSearchTerm(searchInput.trim());
+    setPagination((prev) => ({ ...prev, page: 1 }));
+  };
+
+  const formatRequestTypeLabel = (type: string) =>
+    type
+      .split("_")
+      .map(
+        (word) =>
+          word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+      )
+      .join(" ");
+
+  const requestTypeOptions = useMemo(() => {
+    const defaults = ["NEW_ORDER", "REJECT", "KEKURANGAN", "KESALAHAN"];
+    const collected = new Set(defaults);
+
+    requestsData?.data?.forEach((item: any) => {
+      const derivedType =
+        (item as any).request_type ?? (item as any).requestType ?? "";
+      if (derivedType) {
+        collected.add(String(derivedType).toUpperCase());
+      }
+    });
+
+    return Array.from(collected).filter(Boolean);
+  }, [requestsData]);
+
+  const activeFiltersCount = [
+    verifiedFilter !== null,
+    Boolean(requestTypeFilter),
+    Boolean(searchTerm),
+  ].filter(Boolean).length;
+
+  const resetFilters = () => {
+    setVerifiedFilter(null);
+    setRequestTypeFilter("");
+    setSearchInput("");
+    setSearchTerm("");
+    setPagination((prev) => ({ ...prev, page: 1 }));
   };
 
   const dataSource = requestsData?.data || [];
@@ -393,35 +468,143 @@ const ModalListRequest: React.FC<ModalListRequestProps> = ({
       }}
       destroyOnHidden
     >
-      {/* Filter Button */}
-      <div
+      <Card
+        size="small"
         style={{
           marginBottom: 16,
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
+          borderRadius: 8,
+          boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+          border: "1px solid #e8e8e8",
         }}
+        title={
+          <Space align="center">
+            <Filter size={16} style={{ color: "#1890ff" }} />
+            <span style={{ fontWeight: 600 }}>🔍 Filter Requests</span>
+            {activeFiltersCount > 0 && (
+              <Badge
+                count={activeFiltersCount}
+                style={{ backgroundColor: "#faad14" }}
+              />
+            )}
+          </Space>
+        }
+        extra={
+          <Space size="small" align="center">
+            <Button
+              type="text"
+              size="small"
+              icon={<RefreshCw size={14} />}
+              onClick={handleRefresh}
+              loading={isRefreshing}
+              style={{
+                fontSize: "12px",
+                height: "24px",
+                padding: "0 8px",
+              }}
+            >
+              Refresh
+            </Button>
+            <span style={{ fontSize: 12, color: "#666" }}>
+              Last refreshed: {formattedLastRefresh}
+            </span>
+            {activeFiltersCount > 0 && (
+              <Button
+                type="text"
+                size="small"
+                icon={<RotateCcw size={14} />}
+                onClick={resetFilters}
+                style={{
+                  color: "#666",
+                  fontSize: "12px",
+                  height: "24px",
+                  padding: "0 8px",
+                }}
+              >
+                Reset
+              </Button>
+            )}
+          </Space>
+        }
       >
-        <Button
-          type={showUnverifiedOnly ? "primary" : "default"}
-          onClick={toggleUnverifiedFilter}
-          icon={<span className="fi fi-rr-filter" />}
+        <div
+          style={{
+            width: "100%",
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+            gap: 10,
+          }}
         >
-          {showUnverifiedOnly ? "Show All Requests" : "Show Unverified Only"}
-        </Button>
-        <Button
-          type="text"
-          size="small"
-          icon={<RefreshCw size={16} />}
-          onClick={handleRefresh}
-          loading={isRefreshing}
-        >
-          Refresh
-        </Button>
-        <span style={{ fontSize: 12, color: "#666" }}>
-          Last refreshed: {formattedLastRefresh}
-        </span>
-      </div>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 4,
+            }}
+          >
+            <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
+              Search
+            </span>
+            <Input
+              placeholder="Cari PO, item, deskripsi..."
+              allowClear
+              value={searchInput}
+              onChange={handleSearchChange}
+              onPressEnter={handleSearchSubmit}
+            />
+          </div>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 4,
+            }}
+          >
+            <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
+              Status Verifikasi
+            </span>
+            <Select
+              allowClear
+              placeholder="Semua"
+              value={verifiedFilter ?? undefined}
+              onChange={(value) => {
+                setVerifiedFilter((value as VerifiedFilter) ?? null);
+                setPagination((prev) => ({ ...prev, page: 1 }));
+              }}
+              options={[
+                { label: "Verified", value: "VERIFIED" },
+                { label: "Pending", value: "PENDING" },
+              ]}
+            />
+          </div>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 4,
+            }}
+          >
+            <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
+              Type
+            </span>
+            <Select
+              allowClear
+              placeholder="Pilih type"
+              value={requestTypeFilter || undefined}
+              onChange={(value) => {
+                setRequestTypeFilter(value || "");
+                setPagination((prev) => ({ ...prev, page: 1 }));
+              }}
+              options={[
+                { value: "", label: "Semua Type" },
+                ...requestTypeOptions.map((type) => ({
+                  value: type,
+                  label: formatRequestTypeLabel(type),
+                })),
+              ]}
+            />
+          </div>
+        </div>
+      </Card>
 
       <Table
         dataSource={dataSource}
