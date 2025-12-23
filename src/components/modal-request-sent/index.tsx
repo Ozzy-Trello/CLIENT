@@ -1235,6 +1235,14 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     return Number.isFinite(parsed) ? parsed : NaN;
   };
 
+  const formatJumlahInputValue = (
+    value: string | number | null | undefined
+  ): string => {
+    const parsed = parseQuantityFromBarcode(value);
+    if (!Number.isFinite(parsed) || parsed === 0) return "";
+    return parsed.toString();
+  };
+
   const getWarehouseReturnedValue = (record: RequestItem): boolean =>
     warehouseReturnOverrides[record.id] ?? Boolean(record.warehouseReturned);
 
@@ -1481,10 +1489,25 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
         return;
       }
 
-      setRequestSentValues((prev) => ({
-        ...prev,
-        [record.id]: parsedQty.toString(),
-      }));
+      // Accumulate with existing jumlah dikirim (typed as string in state)
+      const existingRaw =
+        requestSentValues[record.id] ??
+        (record.requestSent !== undefined && record.requestSent !== null
+          ? String(record.requestSent)
+          : "");
+      const existing = parseQuantityFromBarcode(existingRaw);
+      const base = Number.isFinite(existing) ? existing : 0;
+      const nextValue = base + parsedQty;
+
+      setRequestSentValues((prev) => {
+        const next = { ...prev };
+        if (nextValue === 0) {
+          delete next[record.id];
+        } else {
+          next[record.id] = nextValue.toString();
+        }
+        return next;
+      });
       message.success("Jumlah Dikirim diisi dari barcode");
     } catch (error) {
       console.error("Failed to process barcode:", error);
@@ -1717,11 +1740,8 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
                   step="0.01"
                   value={
                     requestSentValues[record.id] !== undefined
-                      ? requestSentValues[record.id]
-                      : record.requestSent !== null &&
-                        record.requestSent !== undefined
-                        ? Number(record.requestSent)
-                        : ""
+                      ? formatJumlahInputValue(requestSentValues[record.id])
+                      : formatJumlahInputValue(record.requestSent as any)
                   }
                   disabled={disableInput}
                   className={`flex-1 ${disableInput
@@ -1769,7 +1789,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
                     className="text-gray-500 hover:text-blue-600"
                   />
                 </Tooltip>}
-                {isDevMode && (
+                {/* {isDevMode && (
                   <Tooltip title="Scan barcode (camera)">
                     <Button
                       type="text"
@@ -1783,7 +1803,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
                       }}
                     />
                   </Tooltip>
-                )}
+                )} */}
               </>
             );
           })()}
