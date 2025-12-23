@@ -1471,6 +1471,12 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     setTimeout(() => jumlahScanInputRef.current?.focus?.(), 50);
   };
 
+  useEffect(() => {
+    if (jumlahScanModalOpen) {
+      setTimeout(() => jumlahScanInputRef.current?.focus?.(), 50);
+    }
+  }, [jumlahScanModalOpen]);
+
   const handleJumlahBarcodeScan = async (record: RequestItem, barcode: string) => {
     if (!barcode || !record) return;
     setIsProcessingJumlahScan(true);
@@ -1479,7 +1485,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       const scannedName = normalizeItemName(response?.product?.name);
       const scannedAccurateId =
         response?.product?.accurateId !== undefined &&
-        response?.product?.accurateId !== null
+          response?.product?.accurateId !== null
           ? String(response.product.accurateId).trim()
           : "";
       const targetName = normalizeItemName(
@@ -1488,8 +1494,8 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       const recordAccurateId = (() => {
         const raw =
           (record as any)?.requested_item_id ??
-          (record as any)?.requestedItemId 
-          "";
+          (record as any)?.requestedItemId
+        "";
         return raw !== undefined && raw !== null ? String(raw).trim() : "";
       })();
 
@@ -1537,6 +1543,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       message.error("Gagal memproses barcode");
     } finally {
       setIsProcessingJumlahScan(false);
+      setJumlahScanInput("");
     }
   };
 
@@ -1813,19 +1820,19 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
                   />
                 </Tooltip>}
                 {/* {isDevMode && ( */}
-                  <Tooltip title="Scan barcode (camera)">
-                    <Button
-                      type="text"
-                      size="small"
-                      icon={<Camera size={16} />}
-                      disabled={!canEdit}
-                      onClick={() => {
-                        if (!canEdit) return;
-                        setActiveJumlahScanId(record.id);
-                        openJumlahScanModalForRecord(record);
-                      }}
-                    />
-                  </Tooltip>
+                <Tooltip title="Scan barcode (camera)">
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<Camera size={16} />}
+                    disabled={!canEdit}
+                    onClick={() => {
+                      if (!canEdit) return;
+                      setActiveJumlahScanId(record.id);
+                      openJumlahScanModalForRecord(record);
+                    }}
+                  />
+                </Tooltip>
                 {/* )} */}
               </>
             );
@@ -2632,50 +2639,50 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
           }
         }}
         title="Pilih jenis barcode"
+      >
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 14,
+          }}
         >
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 14,
-            }}
-          >
-            <span style={{ fontSize: 13, color: "#555" }}>
-              {barcodeModalTarget
-                ? "Pilih jenis barcode yang ingin dicetak untuk request ini."
-                : "Pilih jenis barcode yang ingin dicetak untuk permintaan gudang."}
-            </span>
-            {barcodeModalTarget && (
-              <div
-                style={{
-                  background: "#f5f5f5",
-                  border: "1px solid #e8e8e8",
-                  borderRadius: 6,
-                  padding: "10px 12px",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 4,
-                }}
-              >
-                <div style={{ fontWeight: 600 }}>
-                  {barcodeModalTarget.itemName || "-"}
-                </div>
-                <div style={{ fontSize: 12, color: "#666" }}>
-                  Short ID: {getShortIdValue(barcodeModalTarget) ?? "Tidak tersedia"}
-                </div>
+          <span style={{ fontSize: 13, color: "#555" }}>
+            {barcodeModalTarget
+              ? "Pilih jenis barcode yang ingin dicetak untuk request ini."
+              : "Pilih jenis barcode yang ingin dicetak untuk permintaan gudang."}
+          </span>
+          {barcodeModalTarget && (
+            <div
+              style={{
+                background: "#f5f5f5",
+                border: "1px solid #e8e8e8",
+                borderRadius: 6,
+                padding: "10px 12px",
+                display: "flex",
+                flexDirection: "column",
+                gap: 4,
+              }}
+            >
+              <div style={{ fontWeight: 600 }}>
+                {barcodeModalTarget.itemName || "-"}
               </div>
-            )}
-            <div style={{ display: "flex", flexDirection: "row", gap: 10 }}>
-              <Button
-                block
-                size="large"
-                icon={<Truck size={18} />}
-                onClick={() => handleBarcodeTypeSelect("shipping")}
-                loading={isPrintingBarcode}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
+              <div style={{ fontSize: 12, color: "#666" }}>
+                Short ID: {getShortIdValue(barcodeModalTarget) ?? "Tidak tersedia"}
+              </div>
+            </div>
+          )}
+          <div style={{ display: "flex", flexDirection: "row", gap: 10 }}>
+            <Button
+              block
+              size="large"
+              icon={<Truck size={18} />}
+              onClick={() => handleBarcodeTypeSelect("shipping")}
+              loading={isPrintingBarcode}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
                 gap: 10,
                 textAlign: "left",
               }}
@@ -2722,6 +2729,14 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
               <div style={{ fontWeight: 600 }}>
                 {resolveRecordById(activeJumlahScanId)?.itemName || "-"}
               </div>
+              <div style={{ fontSize: 12, color: "#444", marginTop: 4 }}>
+                Jumlah request:{" "}
+                {(() => {
+                  const current = resolveRecordById(activeJumlahScanId);
+                  const jumlah = current?.requestAmount;
+                  return jumlah !== undefined ? formatRequestQuantity(jumlah) : "-";
+                })()}
+              </div>
               <div style={{ fontSize: 12, color: "#666" }}>
                 {resolveRecordById(activeJumlahScanId)?.cardName ||
                   (resolveRecordById(activeJumlahScanId) as any)?.card_name ||
@@ -2747,13 +2762,13 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
             disabled={isProcessingJumlahScan}
             ref={jumlahScanInputRef as any}
           />
-          <Button
+          {isDevMode && <Button
             type="primary"
             onClick={handleJumlahManualSubmit}
             loading={isProcessingJumlahScan}
           >
             Gunakan barcode
-          </Button>
+          </Button>}
           {isDevMode && (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
