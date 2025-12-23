@@ -224,6 +224,13 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
     [cardCustomFields, getCustomFieldNumberValue, setCustomFieldNumberValue]
   );
 
+  const poSignatureRef = useRef<string>("");
+  const buildPOSignature = (data: POItem[]) =>
+    data
+      .map((po) => `${po.id}:${po.products?.length ?? 0}`)
+      .sort()
+      .join("|");
+
   // Note: Removed complex mapping logic - now using direct POProduct access
 
   // Update local state when API data changes
@@ -341,7 +348,25 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
 
               // Note: Total field calculations are now handled purely in the frontend (CategorySection.tsx)
             });
+
+            // Remove any stale products that no longer exist in the backend response
+            const allowedIds = new Set(
+              relatedProducts
+                .map((p) => p.poProductId)
+                .filter(Boolean) as (string | number)[]
+            );
+            po.products = po.products.filter((p) =>
+              p.poProductId ? allowedIds.has(p.poProductId) : true
+            );
+          } else {
+            // No related products returned; clear products for this PO
+            po.products = [];
           }
+        });
+      } else if (poProductsResponse?.data && poProductsResponse.data.length === 0) {
+        // Explicitly clear products when API returns an empty list
+        updatedPOData.forEach((po) => {
+          po.products = [];
         });
       }
 
@@ -349,7 +374,12 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
         po.products.forEach((product) => mapWarehouseProduct(product));
       });
       setPOData(updatedPOData);
-      setSelectedProductIds({}); // Reset selected products when PO data changes
+
+      const newSignature = buildPOSignature(updatedPOData);
+      if (newSignature !== poSignatureRef.current) {
+        poSignatureRef.current = newSignature;
+        setSelectedProductIds({}); // Reset selected products only when PO structure changes
+      }
       syncBahanCustomFields(updatedPOData);
     }
   }, [apiPOData, poProductsResponse, warehouseProducts, syncBahanCustomFields]);

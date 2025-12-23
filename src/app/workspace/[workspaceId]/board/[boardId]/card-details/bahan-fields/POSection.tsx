@@ -93,17 +93,25 @@ const POSection: React.FC<POSectionProps> = ({
         queryKey: ["pos", po.cardId]
       });
       
-      // Update local state after successful deletion
-      setPOData((prevData) =>
-        prevData.map((p) =>
-          p.id === po.id
-            ? {
-                ...p,
-                products: p.products.filter((prod) => prod.id !== productId),
-              }
-            : p
-        )
-      );
+      // Update local state after successful deletion using latest state
+      setPOData((prevData) => {
+        let nextActive = activeProductTab;
+        const updated = prevData.map((p) => {
+          const newProducts = p.products.filter(
+            (prod) =>
+              prod.id !== productId &&
+              prod.poProductId !== productToDelete.poProductId
+          );
+          if (p.id === po.id && activeProductTab === productId) {
+            nextActive = newProducts[0]?.id || "";
+          }
+          return p.id === po.id ? { ...p, products: newProducts } : p;
+        });
+        if (activeProductTab === productId) {
+          setActiveProductTab(nextActive);
+        }
+        return updated;
+      });
 
       message.success("Product deleted successfully");
     } catch (error) {
