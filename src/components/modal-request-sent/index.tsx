@@ -196,6 +196,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
   const [isProcessingJumlahScan, setIsProcessingJumlahScan] = useState(false);
   const [jumlahScanInput, setJumlahScanInput] = useState("");
   const isDevMode = process.env.NODE_ENV !== "production";
+  const jumlahScanInputRef = useRef<InputRef | null>(null);
 
   const queryClient = useQueryClient();
   const debouncedSearch = useRef(
@@ -474,7 +475,6 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     mutationFn: ({ id, amount }: { id: string; amount: number }) =>
       updateRequest(id, amount),
     onSuccess: (_, { id }) => {
-      message.success("Lihat Request (Gudang) successfully");
       queryClient.invalidateQueries({ queryKey: ["requests"] });
     },
     onError: () => {
@@ -1466,7 +1466,9 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       return;
     }
     await handleJumlahBarcodeScan(target, rawValue);
-    setJumlahScanModalOpen(false);
+    setJumlahScanInput("");
+    // Keep modal open for multi-scan; focus back on input for seamless scanning
+    setTimeout(() => jumlahScanInputRef.current?.focus?.(), 50);
   };
 
   const handleJumlahBarcodeScan = async (record: RequestItem, barcode: string) => {
@@ -1475,12 +1477,32 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     try {
       const response = await getOzzyBarcodeProduct(barcode);
       const scannedName = normalizeItemName(response?.product?.name);
+      const scannedAccurateId =
+        response?.product?.accurateId !== undefined &&
+        response?.product?.accurateId !== null
+          ? String(response.product.accurateId).trim()
+          : "";
       const targetName = normalizeItemName(
         record.itemName || (record as any)?.item_name
       );
-      if (!scannedName || scannedName !== targetName) {
-        message.error("Barang berbeda");
-        return;
+      const recordAccurateId = (() => {
+        const raw =
+          (record as any)?.requested_item_id ??
+          (record as any)?.requestedItemId 
+          "";
+        return raw !== undefined && raw !== null ? String(raw).trim() : "";
+      })();
+
+      const isAccurateMatch =
+        scannedAccurateId &&
+        recordAccurateId &&
+        scannedAccurateId === recordAccurateId;
+
+      if (!isAccurateMatch) {
+        if (!scannedName || !targetName || scannedName !== targetName) {
+          message.error("Barang berbeda");
+          return;
+        }
       }
 
       const parsedQty = parseQuantityFromBarcode(response?.quantity);
@@ -1508,6 +1530,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
         }
         return next;
       });
+      sendRequest({ id: record.id, amount: nextValue });
       message.success("Jumlah Dikirim diisi dari barcode");
     } catch (error) {
       console.error("Failed to process barcode:", error);
@@ -1789,7 +1812,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
                     className="text-gray-500 hover:text-blue-600"
                   />
                 </Tooltip>}
-                {/* {isDevMode && (
+                {/* {isDevMode && ( */}
                   <Tooltip title="Scan barcode (camera)">
                     <Button
                       type="text"
@@ -1803,7 +1826,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
                       }}
                     />
                   </Tooltip>
-                )} */}
+                {/* )} */}
               </>
             );
           })()}
@@ -2704,14 +2727,25 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
                   (resolveRecordById(activeJumlahScanId) as any)?.card_name ||
                   ""}
               </div>
+              <div style={{ fontSize: 12, color: "#444", marginTop: 4 }}>
+                Jumlah dikirim saat ini:{" "}
+                {(() => {
+                  const current = resolveRecordById(activeJumlahScanId);
+                  const jumlah = current
+                    ? getResolvedRequestSent(current)
+                    : undefined;
+                  return jumlah !== undefined ? jumlah : 0;
+                })()}
+              </div>
             </div>
           )}
           <Input
-            placeholder="Scan atau tempel barcode"
+            placeholder="Scan"
             value={jumlahScanInput}
             onChange={(e) => setJumlahScanInput(e.target.value)}
             onPressEnter={handleJumlahManualSubmit}
             disabled={isProcessingJumlahScan}
+            ref={jumlahScanInputRef as any}
           />
           <Button
             type="primary"
