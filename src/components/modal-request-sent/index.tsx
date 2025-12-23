@@ -1940,7 +1940,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
             type="primary"
             size="small"
             onClick={() => handleMarkDone(record)}
-            // disabled={disabled}
+            disabled={disabled}
             loading={markingDone === record.id}
             style={{ minWidth: "70px" }}
           >
