@@ -198,6 +198,10 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
   const [jumlahScanInput, setJumlahScanInput] = useState("");
   const isDevMode = process.env.NODE_ENV !== "production";
   const jumlahScanInputRef = useRef<InputRef | null>(null);
+  const jumlahScanQueueRef = useRef<{ recordId: string; barcode: string }[]>(
+    []
+  );
+  const isProcessingJumlahQueueRef = useRef(false);
   const focusJumlahInput = () => {
     requestAnimationFrame(() => {
       jumlahScanInputRef.current?.focus?.();
@@ -1452,6 +1456,26 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     setJumlahScanModalOpen(true);
   };
 
+  const processJumlahScanQueue = async () => {
+    if (isProcessingJumlahQueueRef.current) return;
+    isProcessingJumlahQueueRef.current = true;
+    while (jumlahScanQueueRef.current.length > 0) {
+      const next = jumlahScanQueueRef.current.shift();
+      if (!next) break;
+      const target = resolveRecordById(next.recordId);
+      if (!target) continue;
+      await handleJumlahBarcodeScan(target, next.barcode);
+    }
+    isProcessingJumlahQueueRef.current = false;
+  };
+
+  const enqueueJumlahScan = (record: RequestItem, barcode: string) => {
+    const trimmed = (barcode || "").trim();
+    if (!trimmed) return;
+    jumlahScanQueueRef.current.push({ recordId: record.id, barcode: trimmed });
+    void processJumlahScanQueue();
+  };
+
   const handleJumlahManualSubmit = async () => {
     const target = resolveRecordById(activeJumlahScanId);
     if (!target) {
@@ -1462,7 +1486,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       message.warning("Masukkan barcode terlebih dahulu");
       return;
     }
-    await handleJumlahBarcodeScan(target, jumlahScanInput.trim());
+    enqueueJumlahScan(target, jumlahScanInput.trim());
     focusJumlahInput();
   };
 
@@ -1473,7 +1497,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       message.warning("Pilih baris Jumlah Dikirim terlebih dahulu");
       return;
     }
-    await handleJumlahBarcodeScan(target, rawValue);
+    enqueueJumlahScan(target, rawValue);
     setJumlahScanInput("");
     // Keep modal open for multi-scan; focus back on input for seamless scanning
     setTimeout(() => jumlahScanInputRef.current?.focus?.(), 50);
