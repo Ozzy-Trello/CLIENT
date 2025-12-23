@@ -123,56 +123,6 @@ const RequestFields: React.FC = () => {
       dataIndex: "description",
       key: "description",
     },
-    {
-      title: "",
-      key: "action",
-      width: 50,
-      align: "center" as const,
-      render: (_: unknown, record: CardRequest) => {
-        // Handler for opening the modal
-        const handleClick = () => {
-          setActiveRequest(record);
-          setIsModalVisible(true);
-        };
-
-        // Handler for "habis" action
-        const handleHabisClick = () => {
-          if (record.requestSent) {
-            updateRequestMutation.mutate({
-              id: record.id.toString(),
-              amount: record.requestSent,
-            });
-          }
-        };
-
-        return (
-          <Dropdown
-            menu={{
-              items: [
-                {
-                  key: "sisa",
-                  label: "Sisa",
-                  onClick: handleClick,
-                },
-                {
-                  key: "habis",
-                  label: "Habis",
-                  onClick: handleHabisClick,
-                },
-              ],
-            }}
-            trigger={["click"]}
-            placement="bottomRight"
-          >
-            <Button
-              type="text"
-              icon={<MoreOutlined />}
-              className="border-none shadow-none"
-            />
-          </Dropdown>
-        );
-      },
-    },
   ];
 
   const handleModalOk = () => {
