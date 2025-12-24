@@ -33,13 +33,13 @@ export interface RequestItem {
   requestAmount: number;
   adjustmentName: string;
   description: string;
-  requestSent?: number;
+  requestSent?: number | null;
   isVerified?: boolean;
   productionReceived?: boolean;
   productionRecieved?: boolean;
   warehouseReturned?: boolean;
   warehouseFinalUsedAmount?: number;
-  requestReceived?: number;
+  requestReceived?: number | null;
   requestLeft?: number;
   request_left?: number;
   type?: string;

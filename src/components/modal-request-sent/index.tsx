@@ -403,7 +403,11 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     const initialProductionReceived: Record<string, boolean> = {};
     const initialSentLocks: Record<string, boolean> = {};
     data.data.forEach((item) => {
-      const numericSent = Number(item.requestSent);
+      const hasRequestSent =
+        item.requestSent !== null &&
+        item.requestSent !== undefined &&
+        (item.requestSent as any) !== "";
+      const numericSent = hasRequestSent ? Number(item.requestSent) : NaN;
       if (!Number.isNaN(numericSent)) {
         initialSentValues[item.id] = String(numericSent);
         initialSentLocks[item.id] = true; // lock if already has sent value
@@ -1250,7 +1254,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     value: string | number | null | undefined
   ): string => {
     const parsed = parseQuantityFromBarcode(value);
-    if (!Number.isFinite(parsed) || parsed === 0) return "";
+    if (!Number.isFinite(parsed)) return "";
     return parsed.toString();
   };
 
@@ -1401,7 +1405,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     record: RequestItem,
     rawValue: string
   ) => {
-    const trimmed = rawValue.trim();
+    const trimmed = `${rawValue ?? ""}`.trim();
     if (!trimmed) return;
     const isNumeric = /^-?\d+(?:[.,]\d+)?$/.test(trimmed);
     if (isNumeric) {
@@ -1561,11 +1565,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
 
       setRequestSentValues((prev) => {
         const next = { ...prev };
-        if (nextValue === 0) {
-          delete next[record.id];
-        } else {
-          next[record.id] = nextValue.toString();
-        }
+        next[record.id] = nextValue.toString();
         return next;
       });
       sendRequest({ id: record.id, amount: nextValue });
@@ -1785,7 +1785,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       dataIndex: "requestSent",
       key: "requestSent",
       ellipsis: true,
-      width: 140,
+      width: 200,
       render: (_: unknown, record: RequestItem) => (
         <div className="flex items-center gap-2">
           {(() => {
@@ -1796,16 +1796,16 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
               workflow.beliSelected;
             const isLocked = workflow.jumlahLocked;
             const disableInput = !canEdit || isLocked;
+            const displaySent =
+              requestSentValues[record.id] !== undefined
+                ? requestSentValues[record.id]
+                : formatJumlahInputValue(record.requestSent);
             return (
               <>
                 <Input
                   type="text"
                   step="0.01"
-                  value={
-                    requestSentValues[record.id] !== undefined
-                      ? formatJumlahInputValue(requestSentValues[record.id])
-                      : formatJumlahInputValue(record.requestSent as any)
-                  }
+                  value={displaySent}
                   disabled={disableInput}
                   className={`flex-1 ${disableInput
                     ? "bg-gray-100 text-gray-500"
@@ -1853,11 +1853,11 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
                   />
                 </Tooltip>}
                 {/* {isDevMode && ( */}
-                  <Tooltip title="Scan barcode">
-                    <Button
-                      type="text"
-                      size="small"
-                      icon={<ScannerIcon size={16} />}
+                <Tooltip title="Scan barcode">
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<ScannerIcon size={16} />}
                     disabled={!canEdit}
                     onClick={() => {
                       if (!canEdit) return;
