@@ -105,22 +105,44 @@ const TopBar: React.FC = React.memo(() => {
   const boardName = (currentBoard?.name || "").trim().toLowerCase();
   const isDateline = boardName === "dateline";
 
-  const requestRoles = [
-    "Admin Produksi",
-    "Warehouse Bahan",
-    "Kepala Produksi",
-    "Operator Cutting",
-    "Numbering",
-    "Helper Line",
-    "SPV Sewing",
-    "SPV Operator Bordir",
-    "Finishing & Packing",
-    "Operator Krah Manset",
-    "Kepala Gudang"
-  ];
-  const produksiRoles = requestRoles;
-  const lihatRequestRoles = ["Kepala Produksi"];
-  const gudangRoles = ["Warehouse Bahan", "Kepala Gudang", "Purchasing"];
+ const ROLES = {
+  ADMIN_PRODUKSI: "Admin Produksi",
+  WAREHOUSE_BAHAN: "Warehouse Bahan",
+  CUTTING: "Cutting",
+  KEPALA_PRODUKSI: "Kepala Produksi",
+  OPERATOR_CUTTING: "Operator Cutting",
+  NUMBERING: "Numbering",
+  HELPER_LINE: "Helper Line",
+  SPV_SEWING: "SPV Sewing",
+  SPV_BORDIR: "SPV Operator Bordir",
+  FINISHING: "Finishing & Packing",
+  OPERATOR_KRAH: "Operator Krah Manset",
+  KEPALA_GUDANG: "Kepala Gudang",
+  PURCHASING: "Purchasing",
+} as const;
+
+type Role = typeof ROLES[keyof typeof ROLES];
+
+const produksiRoles: Role[] = [
+  ROLES.ADMIN_PRODUKSI,
+  ROLES.KEPALA_PRODUKSI,
+  ROLES.OPERATOR_CUTTING,
+  ROLES.CUTTING,
+  ROLES.NUMBERING,
+  ROLES.HELPER_LINE,
+  ROLES.SPV_SEWING,
+  ROLES.SPV_BORDIR,
+  ROLES.FINISHING,
+  ROLES.OPERATOR_KRAH,
+  ROLES.KEPALA_GUDANG,
+];
+
+const gudangRoles: Role[] = [ROLES.WAREHOUSE_BAHAN, ROLES.KEPALA_GUDANG, ROLES.PURCHASING];
+
+const lihatRequestRoles: Role[] = [ROLES.KEPALA_PRODUKSI];
+
+// requestRoles = produksi + gudang (auto, no duplication)
+const requestRoles: Role[] = Array.from(new Set([...produksiRoles, ...gudangRoles]));
 
   const roleInList = (allowed: string[]) =>
     allowed.some(
