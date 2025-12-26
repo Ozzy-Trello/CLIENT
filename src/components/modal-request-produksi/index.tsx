@@ -97,6 +97,8 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
     useState<BasicStatusFilter | null>(null);
   const [requestTypeFilter, setRequestTypeFilter] = useState<string>("");
   const [labelFilter, setLabelFilter] = useState<string>("");
+  const [searchInput, setSearchInput] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
   const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null]>([
     null,
     null,
@@ -123,6 +125,11 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
     debounce(() => {
       refetch();
     }, 300)
+  ).current;
+  const debouncedSearch = useRef(
+    debounce((value: string) => {
+      setSearchTerm(value.trim());
+    }, 400)
   ).current;
 
   // Build filter object based on current filter states
@@ -174,6 +181,10 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
       baseFilter.shortId = shortIdFilter;
     }
 
+    if (searchTerm) {
+      baseFilter.search = searchTerm;
+    }
+
     return baseFilter;
   }, [
     resolvedWorkspaceId,
@@ -183,6 +194,7 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
     filterDiterima,
     dateRange,
     shortIdFilter,
+    searchTerm,
   ]);
 
   const resetFilters = () => {
@@ -191,6 +203,8 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
     setLabelFilter("");
     setRequestTypeFilter("");
     setDateRange([null, null]);
+    setSearchInput("");
+    setSearchTerm("");
     setScanInput("");
     setShortIdFilter(null);
     lastProcessedShortIdRef.current = null;
@@ -223,6 +237,13 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
     }
   }, [data]);
 
+  useEffect(
+    () => () => {
+      debouncedSearch.cancel();
+    },
+    [debouncedSearch]
+  );
+
   useEffect(() => {
     if (open) {
       setTimeout(() => {
@@ -246,6 +267,24 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
     setShortIdFilter(numeric);
     lastProcessedShortIdRef.current = null;
     setScanInput("");
+    setPagination((prev) => ({ ...prev, page: 1 }));
+  };
+
+  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const value = event.target.value;
+    setSearchInput(value);
+    if (value.trim() === "") {
+      debouncedSearch.cancel();
+      setSearchTerm("");
+    } else {
+      debouncedSearch(value);
+    }
+    setPagination((prev) => ({ ...prev, page: 1 }));
+  };
+
+  const handleSearchSubmit = () => {
+    debouncedSearch.cancel();
+    setSearchTerm(searchInput.trim());
     setPagination((prev) => ({ ...prev, page: 1 }));
   };
 
@@ -626,6 +665,7 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
     filterDiterima !== null,
     Boolean(labelFilter),
     Boolean(requestTypeFilter),
+    Boolean(searchTerm),
     shortIdFilter !== null,
   ].filter(Boolean).length;
   const activeDateFilter = Boolean(dateRange[0] || dateRange[1]);
@@ -841,6 +881,24 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
               allowEmpty={[true, true]}
               style={{ width: "100%" }}
               format="YYYY-MM-DD"
+            />
+          </div>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 4,
+            }}
+          >
+            <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
+              Search
+            </span>
+            <Input
+              placeholder="Cari produk, PO, atau deskripsi"
+              allowClear
+              value={searchInput}
+              onChange={handleSearchChange}
+              onPressEnter={handleSearchSubmit}
             />
           </div>
           <div
