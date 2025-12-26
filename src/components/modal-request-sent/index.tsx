@@ -1293,7 +1293,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     const beliSelected = Boolean(beliSelection && beliSelection !== "-");
     const resolvedSent = getResolvedRequestSent(record);
     const sentAmount = resolvedSent ?? 0;
-    const hasJumlahDikirim = resolvedSent !== undefined;
+    const hasJumlahDikirim = record.requestSent ? +record.requestSent > 0 : record.requestSent
     const sentMoreThanZero = sentAmount > 0;
     const sentByValue =
       sentByOverrides[record.id] ??

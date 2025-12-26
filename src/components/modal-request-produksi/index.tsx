@@ -154,7 +154,7 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
           baseFilter.requestSentStatus = "SENT";
           break;
         case "BELUM":
-          baseFilter.sentByEmpty = true;
+          baseFilter.requestSentStatus = "NOT_SENT";
           break;
       }
     }
