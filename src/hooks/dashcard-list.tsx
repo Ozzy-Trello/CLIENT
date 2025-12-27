@@ -6,7 +6,15 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useCardDetailContext } from "@providers/card-detail-context";
 import { useEffect } from "react";
 
-export const useDashcardList = (card: Card | null) => {
+type UseDashcardListOptions = {
+  syncContext?: boolean;
+};
+
+export const useDashcardList = (
+  card: Card | null,
+  options: UseDashcardListOptions = {}
+) => {
+  const { syncContext = false } = options;
   const { setItemDashcard, setDashcardConfig } = useCardDetailContext();
   const queryClient = useQueryClient();
   const params = useParams();
@@ -29,11 +37,13 @@ export const useDashcardList = (card: Card | null) => {
   };
 
   useEffect(() => {
-    if (result.isSuccess) {
-      setItemDashcard(result.data?.data?.items || []);
-      setDashcardConfig(result.data?.data?.dashConfig);
-    }
-  }, [result.isSuccess, result.data?.data]);
+    if (!syncContext) return;
+    if (!result.isSuccess) return;
+    if (!cardId) return;
+
+    setItemDashcard(result.data?.data?.items || []);
+    setDashcardConfig(result.data?.data?.dashConfig);
+  }, [syncContext, result.isSuccess, result.data?.data, cardId, setItemDashcard, setDashcardConfig]);
 
   return { resultData: result.data?.data, ...result, refetchList };
 };

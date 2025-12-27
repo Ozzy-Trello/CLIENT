@@ -19,7 +19,7 @@ const ModalDashcardDetail: FC<ModalDashcardDetailProps> = ({
   card,
 }) => {
   const { itemDashcard } = useCardDetailContext();
-  useDashcardList(card);
+  useDashcardList(card, { syncContext: true });
 
   const itemTabs: TabsProps["items"] = [
     {
