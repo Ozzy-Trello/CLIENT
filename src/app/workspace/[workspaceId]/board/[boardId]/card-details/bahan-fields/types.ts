@@ -110,6 +110,7 @@ export interface POSectionProps {
   isCategoryLoading?: (poProductCategoryId: string) => boolean;
   getCategoryError?: (poProductCategoryId: string) => string | null;
   clearCategoryError?: (poProductCategoryId: string) => void;
+  isCabangFilled?: boolean;
   onLoadingStateChange?: (state: {
     poId: string;
     productId: string;
@@ -163,6 +164,7 @@ export interface ProductTabsProps {
   isCategoryLoading?: (poProductCategoryId: string) => boolean;
   getCategoryError?: (poProductCategoryId: string) => string | null;
   clearCategoryError?: (poProductCategoryId: string) => void;
+  isCabangFilled?: boolean;
   onRemoveProduct: (productId: string) => void;
 }
 
@@ -203,6 +205,7 @@ export interface BahanTabProps {
   isCategoryLoading?: (poProductCategoryId: string) => boolean;
   getCategoryError?: (poProductCategoryId: string) => string | null;
   clearCategoryError?: (poProductCategoryId: string) => void;
+  isCabangFilled?: boolean;
   onLoadingStateChange?: (state: {
     poId: string;
     productId: string;

@@ -195,6 +195,7 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
   isCategoryLoading,
   getCategoryError,
   clearCategoryError,
+  isCabangFilled = false,
   onLoadingStateChange,
 }) => {
   const params = useParams();
@@ -638,7 +639,8 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
     isSyncingRequest ||
     isLoadingAction ||
     !hasDescription ||
-    !hasSender;
+    !hasSender ||
+    !isCabangFilled;
 
   const handleConfirmZeroLoading = async () => {
     if (!selectedLoadingCardId) {
@@ -789,14 +791,38 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
     );
   };
 
+  const lastLoadingStateRef = React.useRef<{
+    disableLoadingButton: boolean;
+    isOrderAlreadyCreated: boolean;
+    isLoadingAction: boolean;
+  } | null>(null);
+
   React.useEffect(() => {
+    const nextState = {
+      disableLoadingButton,
+      isOrderAlreadyCreated,
+      isLoadingAction: isLoadingAction || isConfirmingZeroLoading,
+    };
+
+    const last = lastLoadingStateRef.current;
+    if (
+      last &&
+      last.disableLoadingButton === nextState.disableLoadingButton &&
+      last.isOrderAlreadyCreated === nextState.isOrderAlreadyCreated &&
+      last.isLoadingAction === nextState.isLoadingAction
+    ) {
+      return;
+    }
+
+    lastLoadingStateRef.current = nextState;
+
     onLoadingStateChange?.({
       poId: po.id,
       productId: product.id,
-      disableLoadingButton,
-      isOrderAlreadyCreated,
+      disableLoadingButton: nextState.disableLoadingButton,
+      isOrderAlreadyCreated: nextState.isOrderAlreadyCreated,
       handleLoadingClick,
-      isLoadingAction: isLoadingAction || isConfirmingZeroLoading,
+      isLoadingAction: nextState.isLoadingAction,
     });
   }, [
     onLoadingStateChange,

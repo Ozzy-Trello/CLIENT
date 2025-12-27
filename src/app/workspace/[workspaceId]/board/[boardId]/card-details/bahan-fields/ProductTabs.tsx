@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Tabs } from "antd";
 import BahanTabContent from "./BahanTabContent";
 import { ProductTabsProps } from "./types";
@@ -9,6 +9,7 @@ const ProductTabs: React.FC<ProductTabsProps> = ({
   colors,
   categories,
   isLoadingCategories,
+  isCabangFilled = false,
   onTerloadingChange,
   onBahanTerpakaiChange,
   onEstBahanChange,
@@ -26,11 +27,52 @@ const ProductTabs: React.FC<ProductTabsProps> = ({
       {
         disableLoadingButton: boolean;
         isOrderAlreadyCreated: boolean;
-        handleLoadingClick: () => void;
         isLoadingAction?: boolean;
       }
     >
   >({});
+  const loadingHandlersRef = useRef<Record<string, () => void>>({});
+
+  const handleLoadingStateChange = React.useCallback(
+    ({
+      productId,
+      disableLoadingButton,
+      isOrderAlreadyCreated,
+      handleLoadingClick,
+      isLoadingAction,
+    }: {
+      productId: string;
+      disableLoadingButton: boolean;
+      isOrderAlreadyCreated: boolean;
+      handleLoadingClick: () => void;
+      isLoadingAction?: boolean;
+    }) => {
+      // Keep handlers out of state to avoid render loops from changing function identities
+      loadingHandlersRef.current[productId] = handleLoadingClick;
+
+      setLoadingStates((prev) => {
+        const existing = prev[productId];
+        if (
+          existing &&
+          existing.disableLoadingButton === disableLoadingButton &&
+          existing.isOrderAlreadyCreated === isOrderAlreadyCreated &&
+          existing.isLoadingAction === isLoadingAction
+        ) {
+          return prev;
+        }
+
+        return {
+          ...prev,
+          [productId]: {
+            disableLoadingButton,
+            isOrderAlreadyCreated,
+            isLoadingAction,
+          },
+        };
+      });
+    },
+    []
+  );
 
   const [activeProductTab, setActiveProductTab] = useState<string>(
     po.products.length > 0 ? po.products[0].id : ""
@@ -116,23 +158,8 @@ const ProductTabs: React.FC<ProductTabsProps> = ({
                 isCategoryLoading={isCategoryLoading}
                 getCategoryError={getCategoryError}
                 clearCategoryError={clearCategoryError}
-                onLoadingStateChange={({
-                  productId,
-                  disableLoadingButton,
-                  isOrderAlreadyCreated,
-                  handleLoadingClick,
-                  isLoadingAction,
-                }) => {
-                  setLoadingStates((prev) => ({
-                    ...prev,
-                    [productId]: {
-                      disableLoadingButton,
-                      isOrderAlreadyCreated,
-                      handleLoadingClick,
-                      isLoadingAction,
-                    },
-                  }));
-                }}
+                isCabangFilled={isCabangFilled}
+                onLoadingStateChange={handleLoadingStateChange}
               />
             ) : (
               <div
@@ -153,7 +180,9 @@ const ProductTabs: React.FC<ProductTabsProps> = ({
             {loadingStates[product.id] && (
               <div className="mt-6 flex justify-center">
                 <button
-                  onClick={loadingStates[product.id].handleLoadingClick}
+                  onClick={() =>
+                    loadingHandlersRef.current[product.id]?.()
+                  }
                   disabled={
                     loadingStates[product.id].disableLoadingButton ||
                     loadingStates[product.id].isLoadingAction

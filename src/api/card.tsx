@@ -142,6 +142,19 @@ export const mapBackendCardToFrontend = (backendCard: any): Card => {
     mapped.labels = [];
   }
 
+  if (backendCard.jumlah_dikirim !== undefined) {
+    mapped.jumlahDikirim = backendCard.jumlah_dikirim;
+  } else if (backendCard.jumlahDikirim !== undefined) {
+    mapped.jumlahDikirim = backendCard.jumlahDikirim;
+  }
+  if (backendCard.jumlah_produksi !== undefined) {
+    mapped.jumlahProduksi = backendCard.jumlah_produksi;
+  } else if (backendCard.jumlahProduksi !== undefined) {
+    mapped.jumlahProduksi = backendCard.jumlahProduksi;
+  } else if (mapped.jumlahDikirim !== undefined) {
+    mapped.jumlahProduksi = mapped.jumlahDikirim;
+  }
+
   if (backendCard.custom_fields || backendCard.customFields) {
     const fields = backendCard.custom_fields ?? backendCard.customFields;
     mapped.customFields = (fields as any[]).map(mapCustomFieldToFrontend);

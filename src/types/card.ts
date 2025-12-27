@@ -75,6 +75,8 @@ export interface Card {
     code: string;
     description?: string;
   };
+  jumlahDikirim?: number | string | null;
+  jumlahProduksi?: number | string | null;
   
   // Backend API response properties (snake_case versions)
   list_id?: string;

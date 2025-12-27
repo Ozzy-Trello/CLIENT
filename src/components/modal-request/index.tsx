@@ -229,32 +229,51 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
     }
   }, [cardsQuery.data, productsQuery.data, glaccountQuery.data]);
 
-  const listPO = cards?.map((card: any) => {
-    const cardName = card.name || "";
-    const safeCardName = cardName || "Tanpa nama";
-    const listName = card.listName ?? card.list_name ?? "";
-    const displayLabel = [safeCardName, listName].filter(Boolean).join(" - ");
-    const searchText = `${safeCardName} ${listName}`.trim();
-    return {
-      value: card.id,
-      label: (
-        <Tooltip title={safeCardName}>
-        <div style={{ lineHeight: 1.2 }}>
-          <div style={{ fontWeight: 600, color: "#000", fontSize:"12px" }}>
-            {safeCardName}
-          </div>
-          <div style={{ fontSize: 10, color: "#8c8c8c" }}>
-            {listName || "Tanpa list"}
-          </div>
-        </div>
-        </Tooltip>
+  const formatJumlahProduksi = (rawVal: any): string => {
+    if (rawVal === null || rawVal === undefined || rawVal === "") return "-";
+    const numeric = Number(rawVal);
+    if (Number.isFinite(numeric)) {
+      return Number.isInteger(numeric) ? `${numeric}` : `${numeric}`;
+    }
+    return String(rawVal);
+  };
 
-      ),
-      displayLabel,
-      listName,
-      searchText,
-    };
-  });
+  const listPO = useMemo(() => {
+    return cards?.map((card: any) => {
+      const cardName = card.name || "";
+      const safeCardName = cardName || "Tanpa nama";
+      const listName = card.listName ?? card.list_name ?? "";
+      const rawVal =
+        card?.jumlahProduksi ??
+        card?.jumlahDikirim ??
+        card?.customFields?.find?.((f: any) =>
+          (f?.name || "").toString().toLowerCase().includes("jml produksi")
+        )?.valueNumber ??
+        null;
+      const jmlDikirimValue = formatJumlahProduksi(rawVal);
+      const displayLabel = [safeCardName, listName].filter(Boolean).join(" - ");
+      const searchText = `${safeCardName} ${listName} ${jmlDikirimValue}`.trim();
+      return {
+        value: card.id,
+        label: (
+          <Tooltip title={safeCardName}>
+            <div style={{ lineHeight: 1.2 }}>
+              <div style={{ fontWeight: 600, color: "#000", fontSize: "12px" }}>
+                {safeCardName}
+              </div>
+              <div style={{ fontSize: 10, color: "#8c8c8c" }}>
+                {(listName || "Tanpa list") +
+                  ` · Jml Produksi: ${jmlDikirimValue}`}
+              </div>
+            </div>
+          </Tooltip>
+        ),
+        displayLabel,
+        listName,
+        searchText,
+      };
+    });
+  }, [cards]);
 
   const actionTypes = [
     { value: "NEW_ORDER", label: "New Order" },
@@ -835,10 +854,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
                           });
                         }
                       } catch (err) {
-                        console.warn(
-                          "[ModalRequest] Failed to parse unit_data",
-                          err
-                        );
+                        // Ignore unit parsing errors and fall back to default unit handling
                       }
                     }
 

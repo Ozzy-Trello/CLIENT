@@ -31,6 +31,7 @@ const POSection: React.FC<POSectionProps> = ({
   isCategoryLoading,
   getCategoryError,
   clearCategoryError,
+  isCabangFilled,
 }) => {
   const [activeProductTab, setActiveProductTab] = useState<string>(
     po.products.length > 0 ? po.products[0].id : ""
@@ -192,6 +193,7 @@ const POSection: React.FC<POSectionProps> = ({
             isCategoryLoading={isCategoryLoading}
             getCategoryError={getCategoryError}
             clearCategoryError={clearCategoryError}
+            isCabangFilled={isCabangFilled}
             onRemoveProduct={handleRemoveProduct}
           />
         </div>

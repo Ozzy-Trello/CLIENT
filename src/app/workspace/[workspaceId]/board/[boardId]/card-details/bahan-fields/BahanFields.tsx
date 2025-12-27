@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { message, Modal, Input, Button } from "antd";
 import { useSelector } from "react-redux";
 import { selectTheme } from "@store/app_slice";
@@ -33,6 +33,8 @@ import {
 } from "./productHelpers";
 import { buildRequestItemMeta } from "./requestPayload";
 import { useCardCustomField } from "@hooks/card_custom_field";
+
+const CABANG_CUSTOM_FIELD_ID = "8fce8a0b-5a47-4bc5-a2de-c9a0d3e47e47";
 
 const getRequestedSkuForBahanFields = (
   item?: any
@@ -154,6 +156,40 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
     terloading: -1,
     terpakai: -1,
   });
+
+  const cabangField = useMemo(() => {
+    if (!cardCustomFields) return null;
+
+    const normalizeId = (field: any) =>
+      field?.id ??
+      (field as any)?.customFieldId ??
+      (field as any)?.custom_field_id ??
+      null;
+
+    const byId = cardCustomFields.find(
+      (field: any) => normalizeId(field) === CABANG_CUSTOM_FIELD_ID
+    );
+    if (byId) return byId;
+
+    return (
+      cardCustomFields.find((field: any) =>
+        (field?.name || "").toString().toLowerCase().includes("cabang")
+      ) || null
+    );
+  }, [cardCustomFields]);
+
+  const isCabangFilled = useMemo(() => {
+    if (!cabangField) return false;
+
+    const optionValue = (cabangField as any).valueOption;
+    if (optionValue === null || optionValue === undefined) return false;
+
+    if (typeof optionValue === "string") {
+      return optionValue.trim().length > 0;
+    }
+
+    return Boolean(optionValue);
+  }, [cabangField]);
 
   const syncBahanCustomFields = useCallback(
     (data: POItem[]) => {
@@ -1822,6 +1858,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
             isCategoryLoading={isCategoryLoading}
             getCategoryError={getCategoryError}
             clearCategoryError={clearCategoryError}
+            isCabangFilled={isCabangFilled}
           />
         ))}
       </div>

@@ -14,7 +14,7 @@ import {
   EnumCustomFieldSource,
   EnumCustomFieldType,
 } from "@myTypes/custom-field";
-import { useMemo } from "react";
+import { useMemo, useCallback } from "react";
 
 export const useCardCustomField = (cardId: string, workspaceId: string) => {
   const queryClient = useQueryClient();
@@ -336,19 +336,22 @@ export const useCardCustomField = (cardId: string, workspaceId: string) => {
   };
 
   // Helper function to check if a custom field has any value
-  const hasValue = (customFieldId: string): boolean => {
-    const field = getCustomField(customFieldId);
-    if (!field) return false;
+  const hasValue = useCallback(
+    (customFieldId: string): boolean => {
+      const field = getCustomField(customFieldId);
+      if (!field) return false;
 
-    return !!(
-      (field.valueString && field.valueString !== "") ||
-      field.valueNumber !== undefined ||
-      (field.valueOption && field.valueOption !== "") ||
-      field.valueCheckbox !== undefined ||
-      field.valueDate ||
-      (field.valueUserId && field.valueUserId !== "")
-    );
-  };
+      return !!(
+        (field.valueString && field.valueString !== "") ||
+        field.valueNumber !== undefined ||
+        (field.valueOption && field.valueOption !== "") ||
+        field.valueCheckbox !== undefined ||
+        field.valueDate ||
+        (field.valueUserId && field.valueUserId !== "")
+      );
+    },
+    [dedupedCustomFields]
+  );
 
   return {
     // Query data and state
