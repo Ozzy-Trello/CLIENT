@@ -1189,9 +1189,14 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     value: number | string | null | undefined
   ): number | undefined => {
     if (value === null || value === undefined) return undefined;
-    const normalized =
-      typeof value === "string" ? value.replace(/,/g, ".") : value;
-    const numeric = Number(normalized);
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (trimmed === "") return undefined;
+      const normalized = trimmed.replace(/,/g, ".");
+      const numeric = Number(normalized);
+      return Number.isNaN(numeric) ? undefined : numeric;
+    }
+    const numeric = Number(value);
     return Number.isNaN(numeric) ? undefined : numeric;
   };
 
@@ -1293,7 +1298,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     const beliSelected = Boolean(beliSelection && beliSelection !== "-");
     const resolvedSent = getResolvedRequestSent(record);
     const sentAmount = resolvedSent ?? 0;
-    const hasJumlahDikirim = record.requestSent ? +record.requestSent > 0 : record.requestSent
+    const hasJumlahDikirim = resolvedSent !== undefined;
     const sentMoreThanZero = sentAmount > 0;
     const sentByValue =
       sentByOverrides[record.id] ??
