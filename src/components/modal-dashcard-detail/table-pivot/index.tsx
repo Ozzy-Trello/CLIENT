@@ -222,7 +222,6 @@ const TablePivot: FC = () => {
       );
 
       updateVisibleColumns(visibleColumns);
-      tableRef.current?.setColumnOrder(nextOrder);
       updateColumnOrder(nextOrder);
 
       return nextOrder;
@@ -336,7 +335,6 @@ const TablePivot: FC = () => {
         );
 
         updateVisibleColumns(visibleColumns);
-        tableRef.current?.setColumnOrder(nextOrder);
         updateColumnOrder(nextOrder);
 
         return nextOrder;
@@ -895,6 +893,8 @@ const TablePivot: FC = () => {
     onSortingChange: setSorting,
   });
 
+  const rowCount = table.getRowCount();
+
   useEffect(() => {
     tableRef.current = table;
   }, [table]);
@@ -1029,19 +1029,9 @@ const TablePivot: FC = () => {
   }, [columnVisibility, dashcardConfig, dynamicColumns, updateVisibleColumns, baseColumnIds]);
 
   useEffect(() => {
-    const handlePageSize = () => {
-      if (grouping.length > 0) {
-        setPageSize(table.getRowCount());
-        return;
-      }
-
-      if (grouping.length === 0) {
-        setPageSize(10);
-      }
-    };
-
-    handlePageSize();
-  }, [grouping, table.getRowCount()]);
+    const next = grouping.length > 0 ? rowCount : 10;
+    setPageSize((prev) => (prev === next ? prev : next));
+  }, [grouping.length, rowCount]);
 
   return (
     <div className="flex flex-col gap-3">
