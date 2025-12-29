@@ -21,7 +21,6 @@ import MembersList from "@components/members-list";
 import { useParams } from "next/navigation";
 import { useCustomFields } from "@hooks/custom_field";
 import { LookupCache } from "@utils/lookup-cache";
-import * as XLSX from "xlsx";
 import { useSelector } from "react-redux";
 import { selectCurrentWorkspace } from "@store/workspace_slice";
 import dynamic from "next/dynamic";
@@ -51,6 +50,8 @@ type ColumnSort = {
   desc: boolean;
 };
 type SortingState = ColumnSort[];
+const arraysEqual = (a: string[], b: string[]) =>
+  a.length === b.length && a.every((val, idx) => val === b[idx]);
 
 const TablePivot: FC = () => {
   const [grouping, setGrouping] = useState<string[]>([]);
@@ -71,6 +72,7 @@ const TablePivot: FC = () => {
     processedItemDashcard,
     dashcardConfig,
     updateVisibleColumns,
+    updateColumnOrder,
   } = useCardDetailContext();
   const baseColumnIds = useMemo(
     () => [
@@ -126,30 +128,57 @@ const TablePivot: FC = () => {
       ...Array.from(workspaceCustomFields),
     ]);
     const columns = Array.from(allColumns);
+    return columns;
+  }, [processedItemDashcard, customFields]);
+
+  useEffect(() => {
     const savedVisibleColumns = dashcardConfig?.visibleColumns;
+    const columns = dynamicColumns;
 
     setColumnVisibility((prev) => {
       const newVisibility = { ...prev };
-      const allColumnIds = [...baseColumnIds, ...columns];
+      const allIds = [...baseColumnIds, ...columns];
+      let changed = false;
 
-      allColumnIds.forEach((col) => {
-        if (savedVisibleColumns) {
-          newVisibility[col] = savedVisibleColumns.includes(col);
-        } else if (newVisibility[col] === undefined) {
-          // Show base columns by default, hide custom fields until explicitly enabled
-          newVisibility[col] = baseColumnIds.includes(col);
+      allIds.forEach((col) => {
+        const nextVal = savedVisibleColumns
+          ? savedVisibleColumns.includes(col)
+          : newVisibility[col] !== undefined
+          ? newVisibility[col]
+          : baseColumnIds.includes(col);
+
+        if (newVisibility[col] !== nextVal) {
+          newVisibility[col] = nextVal;
+          changed = true;
         }
       });
 
-      return newVisibility;
+      return changed ? newVisibility : prev;
     });
-
-    return columns;
-  }, [processedItemDashcard, customFields, dashcardConfig?.visibleColumns, baseColumnIds]);
+  }, [dynamicColumns, baseColumnIds, dashcardConfig?.visibleColumns]);
 
   const allColumnIds = useMemo(
     () => [...baseColumnIds, ...dynamicColumns],
     [baseColumnIds, dynamicColumns]
+  );
+
+  const preferredColumnOrder = useMemo(() => {
+    if (dashcardConfig?.columnOrder?.length) {
+      return dashcardConfig.columnOrder;
+    }
+    if (dashcardConfig?.visibleColumns?.length) {
+      return dashcardConfig.visibleColumns;
+    }
+    return [];
+  }, [dashcardConfig?.columnOrder, dashcardConfig?.visibleColumns]);
+
+  const mergeColumnOrder = useCallback(
+    (orderSource: string[]) => {
+      const filtered = orderSource.filter((id) => allColumnIds.includes(id));
+      const missing = allColumnIds.filter((id) => !filtered.includes(id));
+      return [...filtered, ...missing];
+    },
+    [allColumnIds]
   );
 
   useEffect(() => {
@@ -158,11 +187,20 @@ const TablePivot: FC = () => {
       return;
     }
 
-    const savedColumns = dashcardConfig?.visibleColumns ?? [];
-    const validSaved = savedColumns.filter((col) => allColumnIds.includes(col));
-    const missing = allColumnIds.filter((col) => !validSaved.includes(col));
-    setColumnOrder([...validSaved, ...missing]);
-  }, [allColumnIds, dashcardConfig?.visibleColumns]);
+    setColumnOrder((prev) => {
+      const base = prev.length ? prev : preferredColumnOrder;
+      const next = mergeColumnOrder(base);
+      return arraysEqual(prev, next) ? prev : next;
+    });
+  }, [allColumnIds, preferredColumnOrder, mergeColumnOrder]);
+
+  useEffect(() => {
+    const persistedOrder = dashcardConfig?.columnOrder ?? [];
+    if (!columnOrder.length && !persistedOrder.length) return;
+    if (!arraysEqual(columnOrder, persistedOrder)) {
+      updateColumnOrder(columnOrder);
+    }
+  }, [columnOrder, dashcardConfig?.columnOrder, updateColumnOrder]);
 
   const effectiveColumnOrder = useMemo(
     () => (columnOrder.length ? columnOrder : allColumnIds),
@@ -185,10 +223,11 @@ const TablePivot: FC = () => {
 
       updateVisibleColumns(visibleColumns);
       tableRef.current?.setColumnOrder(nextOrder);
+      updateColumnOrder(nextOrder);
 
       return nextOrder;
     },
-    [columnVisibility, updateVisibleColumns]
+    [columnVisibility, updateVisibleColumns, updateColumnOrder]
   );
 
   const reorderColumns = useCallback(
@@ -239,11 +278,24 @@ const TablePivot: FC = () => {
   }, [allMenuColumns, effectiveColumnOrder]);
 
   const filteredColumns = useMemo(() => {
-    if (!columnSearchValue) return menuColumnsOrdered;
-    return menuColumnsOrdered.filter((columnId) =>
-      columnId.toLowerCase().includes(columnSearchValue.toLowerCase())
-    );
-  }, [menuColumnsOrdered, columnSearchValue]);
+    const base = !columnSearchValue
+      ? menuColumnsOrdered
+      : menuColumnsOrdered.filter((columnId) =>
+          columnId.toLowerCase().includes(columnSearchValue.toLowerCase())
+        );
+
+    // Keep selected (visible) columns grouped at the top, preserving relative order
+    const visible: string[] = [];
+    const hidden: string[] = [];
+    base.forEach((col) => {
+      if (columnVisibility[col] !== false) {
+        visible.push(col);
+      } else {
+        hidden.push(col);
+      }
+    });
+    return [...visible, ...hidden];
+  }, [menuColumnsOrdered, columnSearchValue, columnVisibility]);
 
   const handleMenuDragEnd = useCallback(
     (result: DropResult) => {
@@ -285,11 +337,12 @@ const TablePivot: FC = () => {
 
         updateVisibleColumns(visibleColumns);
         tableRef.current?.setColumnOrder(nextOrder);
+        updateColumnOrder(nextOrder);
 
         return nextOrder;
       });
     },
-    [filteredColumns, allColumnIds, columnVisibility, updateVisibleColumns]
+    [filteredColumns, allColumnIds, columnVisibility, updateVisibleColumns, updateColumnOrder]
   );
 
   const humanizeColumnId = (columnId: string) =>
@@ -501,6 +554,14 @@ const TablePivot: FC = () => {
       column: string,
       value: string | boolean | number
     ) => {
+      const formatNumberValue = (raw: any) => {
+        const num =
+          typeof raw === "number" ? raw : parseFloat(String(raw ?? "").trim());
+        if (!Number.isFinite(num)) return raw;
+        // Limit floating noise, then drop trailing zeros (e.g., 12.550000 -> 12.55, 12.0000 -> 12)
+        return Number(num.toFixed(6)).toString();
+      };
+
       const findColumn = processedItemDashcard.find((item) => item.id === id);
 
       if (!findColumn) {
@@ -525,6 +586,10 @@ const TablePivot: FC = () => {
         // Try to get human-readable value from lookup cache for text fields
         const humanValue = LookupCache.any(String(value));
         return humanValue || value;
+      }
+
+      if (type === "number") {
+        return formatNumberValue(value);
       }
 
       if (type === "checkbox") {
@@ -835,7 +900,8 @@ const TablePivot: FC = () => {
   }, [table]);
 
   // Excel export function
-  const exportToExcel = useCallback(() => {
+  const exportToExcel = useCallback(async () => {
+    const XLSX = await import("xlsx");
     const allColumnsForExport = Array.from(
       new Set([...baseColumnIds, ...dynamicColumns])
     );
@@ -991,7 +1057,7 @@ const TablePivot: FC = () => {
         <div>
           <Button
             icon={<Download className="h-4 w-4" />}
-            onClick={exportToExcel}
+            onClick={() => exportToExcel()}
             type="default"
           >
             Export to Excel

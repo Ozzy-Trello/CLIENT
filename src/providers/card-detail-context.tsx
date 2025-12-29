@@ -47,6 +47,7 @@ type CardDetailContextType = {
   updateDisplayConfig: (displayConfig: any) => void;
   updateBackgroundColor: (backgroundColor: string) => void;
   updateVisibleColumns: (columns: string[]) => void;
+  updateColumnOrder: (columns: string[]) => void;
   refetchCardDetails: () => void;
 
   dashcardConfig: DashcardConfig | undefined;
@@ -97,6 +98,7 @@ const CardDetailContext = createContext<CardDetailContextType>({
   updateDisplayConfig: () => {},
   updateBackgroundColor: () => {},
   updateVisibleColumns: () => {},
+  updateColumnOrder: () => {},
   refetchCardDetails: () => {},
 
   isUpdatingCard: false,
@@ -499,6 +501,37 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
     handleVisibleColumnsUpdate(columns);
   };
 
+  const handleColumnOrderUpdate = useDebouncedCallback(
+    (columnOrder: string[]) => {
+      if (!selectedCard || !dashcardConfig) {
+        console.warn(
+          "Cannot update column order: missing selectedCard or dashcardConfig"
+        );
+        return;
+      }
+
+      mutate({
+        dashConfig: {
+          ...dashcardConfig,
+          columnOrder,
+        },
+      });
+    },
+    TIMEOUT
+  );
+
+  const updateColumnOrder = (columns: string[]) => {
+    setDashcardConfig((prev) =>
+      prev
+        ? {
+            ...prev,
+            columnOrder: columns,
+          }
+        : prev
+    );
+    handleColumnOrderUpdate(columns);
+  };
+
   // Handle URL changes
   useEffect(() => {
     const cardId = searchParams.get("cardId");
@@ -555,6 +588,7 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
         updateDisplayConfig,
         updateBackgroundColor,
         updateVisibleColumns,
+        updateColumnOrder,
         refetchCardDetails: cardDetailsQuery.refetch,
         isUpdatingCard: isPending,
         isLoadingCardDetails: cardDetailsQuery.isFetching,
