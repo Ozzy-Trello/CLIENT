@@ -1189,14 +1189,9 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     value: number | string | null | undefined
   ): number | undefined => {
     if (value === null || value === undefined) return undefined;
-    if (typeof value === "string") {
-      const trimmed = value.trim();
-      if (trimmed === "") return undefined;
-      const normalized = trimmed.replace(/,/g, ".");
-      const numeric = Number(normalized);
-      return Number.isNaN(numeric) ? undefined : numeric;
-    }
-    const numeric = Number(value);
+    const normalized =
+      typeof value === "string" ? value.replace(/,/g, ".") : value;
+    const numeric = Number(normalized);
     return Number.isNaN(numeric) ? undefined : numeric;
   };
 
@@ -1298,7 +1293,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     const beliSelected = Boolean(beliSelection && beliSelection !== "-");
     const resolvedSent = getResolvedRequestSent(record);
     const sentAmount = resolvedSent ?? 0;
-    const hasJumlahDikirim = resolvedSent !== undefined;
+    const hasJumlahDikirim = record.requestSent ? +record.requestSent > 0 : record.requestSent
     const sentMoreThanZero = sentAmount > 0;
     const sentByValue =
       sentByOverrides[record.id] ??
@@ -2641,17 +2636,25 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
         onOk={handleSaveSisa}
         styles={{
           body: {
-            padding: "1rem"
-          }
+            padding: "1rem",
+          },
         }}
         okText="Simpan"
         confirmLoading={isSavingSisa}
         title="Update Sisa Bahan"
+        afterOpenChange={(open) => {
+          if (open) {
+            setTimeout(() => {
+              const input = document.querySelector(
+                '[placeholder="Scan barcode sisa bahan"]'
+              ) as HTMLInputElement;
+              input?.focus();
+            }, 100);
+          }
+        }}
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <div style={{ fontWeight: 600 }}>
-            {scannedRequest?.itemName}
-          </div>
+          <div style={{ fontWeight: 600 }}>{scannedRequest?.itemName}</div>
           <div style={{ color: "#666" }}>
             {scannedRequest?.cardName ||
               (scannedRequest as any)?.card_name ||
@@ -2660,9 +2663,15 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <span style={{ fontSize: 12, color: "#555" }}>Sisa Bahan</span>
             <Input
-              placeholder="Masukkan sisa bahan"
+              placeholder="Scan barcode sisa bahan"
               value={sisaInput}
               onChange={(e) => setSisaInput(e.target.value)}
+              onPressEnter={handleSaveSisa}
+              autoFocus
+              style={{
+                cursor: "default",
+                backgroundColor: "#f5f5f5",
+              }}
             />
           </div>
         </div>
