@@ -48,6 +48,7 @@ type CardDetailContextType = {
   updateBackgroundColor: (backgroundColor: string) => void;
   updateVisibleColumns: (columns: string[]) => void;
   updateColumnOrder: (columns: string[]) => void;
+  saveColumnsConfig: (visibleColumns: string[], columnOrder: string[]) => Promise<void>;
   refetchCardDetails: () => void;
 
   dashcardConfig: DashcardConfig | undefined;
@@ -99,6 +100,7 @@ const CardDetailContext = createContext<CardDetailContextType>({
   updateBackgroundColor: () => {},
   updateVisibleColumns: () => {},
   updateColumnOrder: () => {},
+  saveColumnsConfig: async () => {},
   refetchCardDetails: () => {},
 
   isUpdatingCard: false,
@@ -178,7 +180,7 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
     // and the useEffect above will update the selectedCard state
   };
 
-  const { mutate, isPending } = useMutation({
+  const { mutate, mutateAsync, isPending } = useMutation({
     mutationFn: (data: Partial<Card>) => {
       // For dashcard configuration updates, we don't need to send listId
       // Only include listId if we're actually moving the card to a different list
@@ -532,6 +534,56 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
     handleColumnOrderUpdate(columns);
   };
 
+  const lastSavedColumnsRef = useRef<string>("");
+  const isSavingColumnsRef = useRef<boolean>(false);
+
+  const saveColumnsConfig = useCallback(
+    async (visibleColumns: string[], columnOrder: string[]) => {
+      if (!selectedCard || !dashcardConfig) {
+        console.warn(
+          "Cannot save columns: missing selectedCard or dashcardConfig",
+          {
+            selectedCard: !!selectedCard,
+            dashcardConfig: !!dashcardConfig,
+          }
+        );
+        return;
+      }
+
+      if (isSavingColumnsRef.current) {
+        return;
+      }
+
+      const payloadKey = `${visibleColumns.join("|")}__${columnOrder.join("|")}`;
+      if (lastSavedColumnsRef.current === payloadKey) {
+        return;
+      }
+
+      const nextConfig = {
+        ...dashcardConfig,
+        visibleColumns,
+        columnOrder,
+      };
+
+      try {
+        isSavingColumnsRef.current = true;
+        lastSavedColumnsRef.current = payloadKey;
+        await mutateAsync({
+          dashConfig: nextConfig,
+        });
+        setDashcardConfig(nextConfig);
+      } catch (err) {
+        lastSavedColumnsRef.current = "";
+        throw err;
+      } finally {
+        isSavingColumnsRef.current = false;
+        // if the caller tries to save the same payload again after completion, allow it
+        // (the ref stays set, but isSavingColumnsRef gate prevents loops during the save)
+      }
+    },
+    [dashcardConfig, mutateAsync, selectedCard]
+  );
+
   // Handle URL changes
   useEffect(() => {
     const cardId = searchParams.get("cardId");
@@ -589,6 +641,7 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
         updateBackgroundColor,
         updateVisibleColumns,
         updateColumnOrder,
+        saveColumnsConfig,
         refetchCardDetails: cardDetailsQuery.refetch,
         isUpdatingCard: isPending,
         isLoadingCardDetails: cardDetailsQuery.isFetching,

@@ -9,6 +9,10 @@ type PivotToolbarProps = {
   columnsDropdownContent?: ReactNode;
   columnsDropdownOpen?: boolean;
   onColumnsDropdownChange?: (open: boolean) => void;
+  onSave?: () => void;
+  saveDisabled?: boolean;
+  saveLoading?: boolean;
+  saveSucceeded?: boolean;
 };
 
 const PivotToolbar: FC<PivotToolbarProps> = ({
@@ -18,6 +22,10 @@ const PivotToolbar: FC<PivotToolbarProps> = ({
   columnsDropdownContent,
   columnsDropdownOpen,
   onColumnsDropdownChange,
+  onSave,
+  saveDisabled,
+  saveLoading,
+  saveSucceeded,
 }) => {
   return (
     <div className="flex justify-end gap-3 items-center">
@@ -46,6 +54,19 @@ const PivotToolbar: FC<PivotToolbarProps> = ({
           >
             <Button>Columns</Button>
           </Dropdown>
+        </div>
+      )}
+      {onSave && (
+        <div>
+          <Button
+            type={saveSucceeded ? "default" : "primary"}
+            size="small"
+            onClick={onSave}
+            disabled={saveDisabled || saveLoading}
+            loading={saveLoading}
+          >
+            {saveSucceeded ? "Saved" : "Save"}
+          </Button>
         </div>
       )}
     </div>

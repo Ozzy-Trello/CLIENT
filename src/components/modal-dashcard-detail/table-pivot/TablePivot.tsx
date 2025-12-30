@@ -1,4 +1,4 @@
-import { FC, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FC, ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import {
   createColumnHelper,
   getCoreRowModel,
@@ -9,7 +9,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { Checkbox, Dropdown, MenuProps } from "antd";
+import { Checkbox, Dropdown, MenuProps, message } from "antd";
 import { ChevronDown, ChevronRight, MoreHorizontal } from "lucide-react";
 import { ItemType } from "antd/es/menu/interface";
 import { useSelector } from "react-redux";
@@ -23,9 +23,9 @@ import { LookupCache } from "@utils/lookup-cache";
 import PivotTable from "./components/PivotTable";
 import PivotToolbar from "./components/PivotToolbar";
 import PivotPagination from "./components/PivotPagination";
-import ColumnSelector from "./components/ColumnSelector";
 import { usePivotData } from "./hooks/usePivotData";
-import { DropResult } from "@hello-pangea/dnd";
+import { usePivotColumns } from "./hooks/usePivotColumns";
+import ColumnsDropdown from "./components/ColumnsDropdown";
 
 type ColumnType = {
   type: string;
@@ -62,15 +62,12 @@ const TablePivot: FC = () => {
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [sorting, setSorting] = useState<SortingState>([]);
-  const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>({});
-  const [columnSearchValue, setColumnSearchValue] = useState("");
-  const [columnsDropdownOpen, setColumnsDropdownOpen] = useState(false);
-  const lastPersistedVisibilityRef = useRef<string[]>([]);
-  const [columnOrder, setColumnOrder] = useState<string[]>([]);
-  const lastPersistedOrderRef = useRef<string[]>([]);
+  const [isSavingColumns, setIsSavingColumns] = useState(false);
+  const [saveSucceeded, setSaveSucceeded] = useState(false);
+  const [lastSavedVisibility, setLastSavedVisibility] = useState<Record<string, boolean>>({});
+  const [lastSavedOrder, setLastSavedOrder] = useState<string[]>([]);
 
-  const { processedItemDashcard, dashcardConfig, updateVisibleColumns, updateColumnOrder } =
-    useCardDetailContext();
+  const { processedItemDashcard, dashcardConfig, saveColumnsConfig } = useCardDetailContext();
 
   const baseColumnIds = useMemo(() => {
     const base = [
@@ -83,9 +80,8 @@ const TablePivot: FC = () => {
       "productInfo",
       "warnaInfo",
     ];
-
-
-    return ["name", ...base];
+    const sorted = base.sort((a, b) => humanizeColumnId(a).localeCompare(humanizeColumnId(b)));
+    return ["name", ...sorted];
   }, []);
 
   const { workspaceId } = useParams();
@@ -117,110 +113,83 @@ const TablePivot: FC = () => {
     }
 
     const combined = Array.from(new Set([...Array.from(dashcardColumns), ...Array.from(workspaceCustomFields)]));
-    return combined.sort((a, b) => a.localeCompare(b));
+    return combined
   }, [processedItemDashcard, customFields]);
 
   const pivotData = usePivotData(processedItemDashcard, customFields);
 
   const columnHelper = createColumnHelper<any>();
 
-  const sameColumns = (a: string[], b: string[]) => {
-    if (a.length !== b.length) return false;
-    const setB = new Set(b);
-    return a.every((val) => setB.has(val));
-  };
+  const {
+    columnVisibility,
+    setColumnVisibility,
+    setColumnOrder,
+    columnSearchValue,
+    setColumnSearchValue,
+    columnsDropdownOpen,
+    setColumnsDropdownOpen,
+    filteredColumns,
+    effectiveColumnOrder,
+    allColumnIds,
+    handleHeaderDragStart,
+    handleHeaderDrop,
+    handleMenuDragEnd,
+  } = usePivotColumns({
+    baseColumnIds,
+    dynamicColumns,
+    dashcardConfig,
+    updateVisibleColumns: () => { },
+    updateColumnOrder: () => { },
+    autoPersist: false,
+  });
 
-  const sameOrder = (a: string[], b: string[]) =>
-    a.length === b.length && a.every((val, idx) => val === b[idx]);
-
-  const allColumnIds = useMemo(
-    () => [...baseColumnIds, ...dynamicColumns],
-    [baseColumnIds, dynamicColumns]
+  const arraysEqual = useCallback(
+    (a: string[], b: string[]) => a.length === b.length && a.every((val, idx) => val === b[idx]),
+    []
   );
 
-  const defaultOrder = useMemo(() => allColumnIds, [allColumnIds]);
-
-  const normalizeOrder = useCallback(
-    (order: string[]) => {
-      if (!defaultOrder.length) return [];
-      const known = new Set(defaultOrder);
-      const filtered = order.filter((id) => known.has(id));
-      const missing = defaultOrder.filter((id) => !filtered.includes(id));
+  const mergeColumnOrder = useCallback(
+    (orderSource: string[]) => {
+      const filtered = orderSource.filter((id) => allColumnIds.includes(id));
+      const missing = allColumnIds.filter((id) => !filtered.includes(id));
       return [...filtered, ...missing];
     },
-    [defaultOrder]
+    [allColumnIds]
   );
 
-  // Sync local visibility from saved config once it changes
   useEffect(() => {
     if (!allColumnIds.length) return;
-    const saved = dashcardConfig?.visibleColumns;
-    const useSaved = saved && saved.length && saved.length !== allColumnIds.length;
-    const defaultVisible = useSaved ? saved : baseColumnIds;
 
-    const nextVisibility: Record<string, boolean> = {};
-    allColumnIds.forEach((col) => {
-      nextVisibility[col] = defaultVisible.includes(col);
+    setLastSavedVisibility((prev) => {
+      const savedVisibleColumns = dashcardConfig?.visibleColumns;
+      const next: Record<string, boolean> = {};
+      allColumnIds.forEach((col) => {
+        next[col] = savedVisibleColumns ? savedVisibleColumns.includes(col) : baseColumnIds.includes(col);
+      });
+      const unchanged =
+        Object.keys(prev).length === Object.keys(next).length &&
+        allColumnIds.every((id) => prev[id] === next[id]);
+      return unchanged ? prev : next;
     });
 
-    setColumnVisibility((prev) => {
-      const isSame =
-        allColumnIds.every((col) => prev[col] === nextVisibility[col]) &&
-        Object.keys(prev).length === Object.keys(nextVisibility).length;
-      if (!isSame) {
-        lastPersistedVisibilityRef.current = defaultVisible;
-        return nextVisibility;
-      }
-      return prev;
+    setLastSavedOrder((prev) => {
+      const source = dashcardConfig?.columnOrder?.length
+        ? dashcardConfig.columnOrder
+        : dashcardConfig?.visibleColumns ?? [];
+      const next = mergeColumnOrder(source).filter(
+        (id) => !dashcardConfig?.visibleColumns?.length || dashcardConfig.visibleColumns.includes(id)
+      );
+      return arraysEqual(prev, next) ? prev : next;
     });
-  }, [allColumnIds, dashcardConfig?.visibleColumns, baseColumnIds]);
+  }, [
+    allColumnIds,
+    baseColumnIds,
+    dashcardConfig?.visibleColumns,
+    dashcardConfig?.columnOrder,
+    mergeColumnOrder,
+    arraysEqual,
+  ]);
 
-  // Persist visibility only when dropdown is closed to avoid thrashing renders
-  useEffect(() => {
-    if (!allColumnIds.length) return;
-    if (columnsDropdownOpen) return;
-    const visible = allColumnIds.filter((col) => columnVisibility[col] !== false);
-    const saved = dashcardConfig?.visibleColumns || [];
-    if (sameColumns(visible, lastPersistedVisibilityRef.current)) return;
-    lastPersistedVisibilityRef.current = visible;
-    if (!sameColumns(visible, saved)) updateVisibleColumns(visible);
-  }, [columnsDropdownOpen, columnVisibility, allColumnIds, dashcardConfig?.visibleColumns, updateVisibleColumns]);
-
-  // Sync column order from saved config
-  useEffect(() => {
-    if (!defaultOrder.length) return;
-    const saved = dashcardConfig?.columnOrder || [];
-    const next = saved.length ? normalizeOrder(saved) : defaultOrder;
-    setColumnOrder((prev) => (sameOrder(prev, next) ? prev : next));
-  }, [defaultOrder, dashcardConfig?.columnOrder, normalizeOrder]);
-
-  // Persist order when dropdown is closed
-  useEffect(() => {
-    if (!defaultOrder.length) return;
-    if (columnsDropdownOpen) return;
-    const effective = columnOrder.length ? normalizeOrder(columnOrder) : defaultOrder;
-    const saved = normalizeOrder(dashcardConfig?.columnOrder || []);
-    if (sameOrder(effective, lastPersistedOrderRef.current)) return;
-    lastPersistedOrderRef.current = effective;
-    if (!sameOrder(effective, saved)) {
-      updateColumnOrder(effective);
-    }
-  }, [columnOrder, columnsDropdownOpen, defaultOrder, dashcardConfig?.columnOrder, normalizeOrder, updateColumnOrder]);
-
-  const filteredColumns = useMemo(() => {
-    const term = columnSearchValue.trim().toLowerCase();
-    const effectiveOrder = columnOrder.length ? normalizeOrder(columnOrder) : defaultOrder;
-    const base = term
-      ? effectiveOrder.filter((id) => humanizeColumnId(id).toLowerCase().includes(term))
-      : effectiveOrder;
-    const visible: string[] = [];
-    const hidden: string[] = [];
-    base.forEach((col) => {
-      if (columnVisibility[col] !== false) visible.push(col);
-      else hidden.push(col);
-    });
-    return [...visible, ...hidden];
-  }, [columnSearchValue, columnOrder, columnVisibility, humanizeColumnId, normalizeOrder, defaultOrder]);
 
   const handleMenuClick = (key: string, columnId: string) => {
     if (key === "pivot") {
@@ -521,31 +490,16 @@ const TablePivot: FC = () => {
         })
       ) || [];
 
-    const columnDefinitions = [...baseColumns, ...dynamicColumnsDefinitions];
-    const effectiveOrder = columnOrder.length ? normalizeOrder(columnOrder) : defaultOrder;
+    return [...baseColumns, ...dynamicColumnsDefinitions];
+  }, [processedItemDashcard, grouping, sorting, dynamicColumns, currentWorkspaceId]);
 
-    const orderedColumns =
-      effectiveOrder.length > 0
-        ? effectiveOrder
-          .map((colId) => columnDefinitions.find((col) => col.id === colId))
-          .filter((col): col is typeof columnDefinitions[number] => Boolean(col))
-        : [];
 
-    const remainingColumns = columnDefinitions.filter(
-      (col) => !orderedColumns.some((ordered) => ordered.id === col.id)
-    );
 
-    return [...orderedColumns, ...remainingColumns];
-  }, [
-    processedItemDashcard,
-    grouping,
-    sorting,
-    dynamicColumns,
-    currentWorkspaceId,
-    columnOrder,
-    normalizeOrder,
-    defaultOrder,
-  ]);
+  const visibleColumnsOrdered = useMemo(
+    () => effectiveColumnOrder.filter((col) => columnVisibility[col] === true),
+    [effectiveColumnOrder, columnVisibility]
+  );
+
 
   const table = useReactTable({
     data: pivotData,
@@ -560,7 +514,7 @@ const TablePivot: FC = () => {
         pageSize,
       },
       columnVisibility,
-      columnOrder,
+      columnOrder: visibleColumnsOrdered,
     },
     onExpandedChange: (value) => setExpanded(value as Record<string, boolean>),
     onColumnVisibilityChange: setColumnVisibility,
@@ -573,6 +527,20 @@ const TablePivot: FC = () => {
     getSortedRowModel: getSortedRowModel(),
     onSortingChange: setSorting,
   });
+
+
+  const hasSavedVisibility = allColumnIds.every((id) =>
+    Object.prototype.hasOwnProperty.call(lastSavedVisibility, id)
+  );
+  const hasVisibilityChanges = hasSavedVisibility
+    ? allColumnIds.some(
+        (id) => (columnVisibility[id] === true) !== (lastSavedVisibility[id] === true)
+      )
+    : false;
+  const hasOrderChanges = lastSavedOrder.length
+    ? !arraysEqual(visibleColumnsOrdered, lastSavedOrder)
+    : false;
+  const hasUnsavedChanges = hasVisibilityChanges || hasOrderChanges;
 
   const rowCount = table.getRowCount();
 
@@ -666,50 +634,61 @@ const TablePivot: FC = () => {
     const filename = `table-export-${timestamp}.xlsx`;
 
     XLSX.writeFile(workbook, filename);
-  }, [baseColumnIds, dynamicColumns, columnVisibility, table, humanizeColumnId, currentWorkspaceId]);
+  }, [baseColumnIds, dynamicColumns, columnVisibility, table, currentWorkspaceId]);
 
   useEffect(() => {
     const next = grouping.length > 0 ? rowCount : 10;
     setPageSize((prev) => (prev === next ? prev : next));
   }, [grouping.length, rowCount]);
 
-  const handleColumnsDragEnd = useCallback(
-    (result: DropResult) => {
-      const { source, destination } = result;
-      if (!destination) return;
-      if (source.index === destination.index) return;
+  useEffect(() => {
+    if (saveSucceeded && hasUnsavedChanges) {
+      setSaveSucceeded(false);
+    }
+  }, [hasUnsavedChanges, saveSucceeded]);
 
-      const effectiveOrder = columnOrder.length ? normalizeOrder(columnOrder) : defaultOrder;
-      const movingId = filteredColumns[source.index];
-      const targetId = filteredColumns[destination.index];
-      if (!movingId || !targetId || movingId === targetId) return;
+  const handleSaveColumns = useCallback(async () => {
+    setIsSavingColumns(true);
+    try {
+      await saveColumnsConfig(visibleColumnsOrdered, visibleColumnsOrdered);
+      setLastSavedVisibility(columnVisibility);
+      setLastSavedOrder(visibleColumnsOrdered);
+      setSaveSucceeded(true);
+      setColumnsDropdownOpen(false);
+    } catch (error) {
+      message.error("Failed to save column settings");
+    } finally {
+      setIsSavingColumns(false);
+    }
+  }, [
+    columnVisibility,
+    visibleColumnsOrdered,
+    saveColumnsConfig,
+    setColumnsDropdownOpen,
+  ]);
 
-      setColumnOrder((prev) => {
-        const base = prev.length ? normalizeOrder(prev) : effectiveOrder;
-        const fromIndex = base.indexOf(movingId);
-        const toIndex = base.indexOf(targetId);
-        if (fromIndex === -1 || toIndex === -1) return prev;
-        const next = [...base];
-        next.splice(fromIndex, 1);
-        next.splice(toIndex, 0, movingId);
-        return next;
-      });
-    },
-    [filteredColumns]
-  );
-
-  const columnDropdownContent = (
-    <ColumnSelector
-      columns={filteredColumns}
-      columnVisibility={columnVisibility}
-      onToggle={(columnId, visible) =>
-        setColumnVisibility((prev) => ({ ...prev, [columnId]: visible }))
-      }
-      searchValue={columnSearchValue}
-      onSearchChange={setColumnSearchValue}
-      humanizeColumnId={humanizeColumnId}
-      onReorder={handleColumnsDragEnd}
-    />
+  const columnsDropdownContent = useMemo(
+    () => (
+      <ColumnsDropdown
+        filteredColumns={filteredColumns}
+        columnVisibility={columnVisibility}
+        onToggle={(columnId, visible) =>
+          setColumnVisibility((prev) => ({ ...prev, [columnId]: visible }))
+        }
+        columnSearchValue={columnSearchValue}
+        onSearchChange={setColumnSearchValue}
+        onDragEnd={handleMenuDragEnd}
+        humanizeColumnId={humanizeColumnId}
+      />
+    ),
+    [
+      filteredColumns,
+      columnVisibility,
+      columnSearchValue,
+      handleMenuDragEnd,
+      setColumnVisibility,
+      setColumnSearchValue,
+    ]
   );
 
   return (
@@ -718,11 +697,19 @@ const TablePivot: FC = () => {
         searchValue={searchValue}
         onSearchChange={setSearchValue}
         onExport={exportToExcel}
-        columnsDropdownContent={columnDropdownContent}
+        columnsDropdownContent={columnsDropdownContent}
         columnsDropdownOpen={columnsDropdownOpen}
         onColumnsDropdownChange={setColumnsDropdownOpen}
+        onSave={handleSaveColumns}
+        saveDisabled={!hasUnsavedChanges}
+        saveLoading={isSavingColumns}
+        saveSucceeded={saveSucceeded}
       />
-      <PivotTable table={table} />
+      <PivotTable
+        table={table}
+        onHeaderDragStart={handleHeaderDragStart}
+        onHeaderDrop={handleHeaderDrop}
+      />
       {grouping.length === 0 && (
         <PivotPagination
           table={table}

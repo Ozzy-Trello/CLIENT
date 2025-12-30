@@ -18,6 +18,7 @@ type UsePivotColumnsProps = {
   dashcardConfig?: { visibleColumns?: string[]; columnOrder?: string[] };
   updateVisibleColumns: (columns: string[]) => void;
   updateColumnOrder: (order: string[]) => void;
+  autoPersist?: boolean;
 };
 
 export const usePivotColumns = ({
@@ -26,6 +27,7 @@ export const usePivotColumns = ({
   dashcardConfig,
   updateVisibleColumns,
   updateColumnOrder,
+  autoPersist = true,
 }: UsePivotColumnsProps) => {
   const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>({});
   const [columnOrder, setColumnOrder] = useState<string[]>([]);
@@ -100,10 +102,10 @@ export const usePivotColumns = ({
   useEffect(() => {
     const persistedOrder = dashcardConfig?.columnOrder ?? [];
     if (!columnOrder.length && !persistedOrder.length) return;
-    if (!arraysEqual(columnOrder, persistedOrder)) {
+    if (autoPersist && !arraysEqual(columnOrder, persistedOrder)) {
       updateColumnOrder(columnOrder);
     }
-  }, [columnOrder, dashcardConfig?.columnOrder, updateColumnOrder]);
+  }, [autoPersist, columnOrder, dashcardConfig?.columnOrder, updateColumnOrder]);
 
   const effectiveColumnOrder = useMemo(
     () => (columnOrder.length ? columnOrder : allColumnIds),
@@ -152,12 +154,14 @@ export const usePivotColumns = ({
 
       const visibleColumns = nextOrder.filter((col) => columnVisibility[col] !== false);
 
-      updateVisibleColumns(visibleColumns);
-      updateColumnOrder(nextOrder);
+      if (autoPersist) {
+        updateVisibleColumns(visibleColumns);
+        updateColumnOrder(nextOrder);
+      }
 
       return nextOrder;
     },
-    [columnVisibility, updateVisibleColumns, updateColumnOrder]
+    [autoPersist, columnVisibility, updateVisibleColumns, updateColumnOrder]
   );
 
   const reorderColumns = useCallback(
@@ -225,13 +229,22 @@ export const usePivotColumns = ({
 
         const visibleColumns = nextOrder.filter((col) => columnVisibility[col] !== false);
 
-        updateVisibleColumns(visibleColumns);
-        updateColumnOrder(nextOrder);
+        if (autoPersist) {
+          updateVisibleColumns(visibleColumns);
+          updateColumnOrder(nextOrder);
+        }
 
         return nextOrder;
       });
     },
-    [filteredColumns, allColumnIds, columnVisibility, updateVisibleColumns, updateColumnOrder]
+    [
+      autoPersist,
+      filteredColumns,
+      allColumnIds,
+      columnVisibility,
+      updateVisibleColumns,
+      updateColumnOrder,
+    ]
   );
 
   useEffect(() => {
@@ -241,10 +254,16 @@ export const usePivotColumns = ({
       saved.length === visibleColumns.length &&
       saved.every((col) => visibleColumns.includes(col));
 
-    if (!isSame) {
+    if (autoPersist && !isSame) {
       updateVisibleColumns(visibleColumns);
     }
-  }, [columnVisibility, dashcardConfig?.visibleColumns, allColumnIds, updateVisibleColumns]);
+  }, [
+    autoPersist,
+    columnVisibility,
+    dashcardConfig?.visibleColumns,
+    allColumnIds,
+    updateVisibleColumns,
+  ]);
 
   return {
     columnVisibility,
@@ -264,4 +283,3 @@ export const usePivotColumns = ({
     humanizeColumnId,
   };
 };
-
