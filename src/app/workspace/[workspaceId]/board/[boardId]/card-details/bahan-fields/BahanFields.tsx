@@ -707,18 +707,62 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
     }
   };
 
-  const handleBahanTerpakaiChange = async (
+  const terpakaiRequestPending = useRef<
+    Record<string, { payload: Record<string, any> }>
+  >({});
+  const terpakaiRequestTimers = useRef<
+    Record<string, ReturnType<typeof setTimeout>>
+  >({});
+
+  const flushTerpakaiRequest = async (requestId: string) => {
+    const pending = terpakaiRequestPending.current[requestId];
+    if (!pending) return;
+    clearTimeout(terpakaiRequestTimers.current[requestId]);
+    delete terpakaiRequestTimers.current[requestId];
+    delete terpakaiRequestPending.current[requestId];
+    try {
+      await updateRequest(requestId, pending.payload);
+    } catch (error) {
+      console.error("❌ Failed to sync request terpakai:", error);
+      message.error("Gagal menyelaraskan bahan terpakai ke request");
+    }
+  };
+
+  const scheduleTerpakaiRequest = (
+    requestId: string,
+    payload: Record<string, any>,
+    commitNow?: boolean
+  ) => {
+    terpakaiRequestPending.current[requestId] = { payload };
+    if (commitNow) {
+      void flushTerpakaiRequest(requestId);
+      return;
+    }
+    if (terpakaiRequestTimers.current[requestId]) {
+      clearTimeout(terpakaiRequestTimers.current[requestId]);
+    }
+    terpakaiRequestTimers.current[requestId] = setTimeout(() => {
+      void flushTerpakaiRequest(requestId);
+    }, 600);
+  };
+
+  const handleBahanTerpakaiChange = (
     poId: string,
     productId: string,
     bahanTabIndex: number,
-    value: number,
-    resolvedProduct?: any
+    value: number | null,
+    resolvedProduct?: any,
+    options?: { commit?: boolean }
   ) => {
     let requestId: number | undefined;
     let sentValue = 0;
     let snapshotProduct: any | null = null;
     const payloadProduct = resolvedProduct ?? null;
     let nextData: POItem[] | null = null;
+    const commitNow = options?.commit === true;
+    const normalizedValue =
+      typeof value === "number" && !Number.isNaN(value) ? value : null;
+    const numericForCalc = normalizedValue ?? 0;
 
     setPOData((prevData) => {
       const newData = [...prevData];
@@ -739,9 +783,15 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
         return prevData;
       }
 
-      bahanTab.bahanTerpakai = value;
-      bahanTab.sisaBahan = calculateSisaBahan(bahanTab.terloading, value);
-      bahanTab.efisiensi = calculateEfisiensi(bahanTab.estBahan, value);
+      bahanTab.bahanTerpakai = numericForCalc;
+      bahanTab.sisaBahan = calculateSisaBahan(
+        bahanTab.terloading,
+        numericForCalc
+      );
+      bahanTab.efisiensi = calculateEfisiensi(
+        bahanTab.estBahan,
+        numericForCalc
+      );
 
       requestId = product.requestId;
       snapshotProduct = product;
@@ -749,7 +799,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
 
       if (product.poProductId) {
         debouncedPOProductUpdate(product.poProductId, {
-          bahan_terpakai: value,
+          bahan_terpakai: numericForCalc,
         });
       }
 
@@ -762,46 +812,43 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
     }
 
     if (requestId !== undefined) {
-      const leftValue = Math.max(sentValue - value, 0);
-      try {
-        const productForPayload = payloadProduct || snapshotProduct;
-        if (!productForPayload) return;
+      const productForPayload = payloadProduct || snapshotProduct;
+      if (!productForPayload) return;
 
-        const meta = buildRequestItemMeta(productForPayload);
+      const leftValue =
+        normalizedValue === null ? null : Math.max(sentValue - normalizedValue, 0);
+      const meta = buildRequestItemMeta(productForPayload);
 
-        const latestBahanTab =
-          snapshotProduct?.bahanTabs?.[bahanTabIndex] ?? null;
-        const estBahanValue =
-          latestBahanTab?.estBahan ?? sentValue ?? null;
-        const efisiensiValue =
-          (latestBahanTab?.estBahan ?? sentValue ?? 0) - value;
-        const requestSource =
-          resolveProductSource(productForPayload) ?? "Hikmat";
+      const latestBahanTab =
+        snapshotProduct?.bahanTabs?.[bahanTabIndex] ?? null;
+      const estBahanValue =
+        latestBahanTab?.estBahan ?? sentValue ?? null;
+      const efisiensiValue =
+        normalizedValue === null
+          ? null
+          : (latestBahanTab?.estBahan ?? sentValue ?? 0) - normalizedValue;
+      const requestSource =
+        resolveProductSource(productForPayload) ?? "Hikmat";
 
-        const payload: Record<string, any> = {
-          requestReceived: value,
-          requestLeft: leftValue,
-          request_type: "NEW_ORDER",
-          item_name: meta.item_name,
-          satuan: meta.satuan,
-          unit_price: meta.unit_price,
-          beli: "Tidak",
-          est_bahan: estBahanValue,
-          efisiensi: efisiensiValue,
-        };
+      const payload: Record<string, any> = {
+        requestReceived: normalizedValue,
+        requestLeft: leftValue,
+        request_type: "NEW_ORDER",
+        item_name: meta.item_name,
+        satuan: meta.satuan,
+        unit_price: meta.unit_price,
+        beli: "Tidak",
+        est_bahan: estBahanValue,
+        efisiensi: efisiensiValue,
+      };
 
-        payload.source = meta.source ?? requestSource;
+      payload.source = meta.source ?? requestSource;
 
-        if (meta.requested_item_id) {
-          payload.requested_item_id = meta.requested_item_id;
-        }
-
-        await updateRequest(requestId.toString(), payload);
-      } catch (error) {
-        console.error("❌ Failed to sync request terpakai:", error);
-        message.error("Gagal menyelaraskan bahan terpakai ke request");
-        throw error;
+      if (meta.requested_item_id) {
+        payload.requested_item_id = meta.requested_item_id;
       }
+
+      scheduleTerpakaiRequest(requestId.toString(), payload, commitNow);
     }
   };
 

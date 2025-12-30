@@ -762,33 +762,21 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
     if (terpakaiInputValue === "") {
       setTerpakaiInputValue(null);
     }
-    if (
-      typeof bahanTab.bahanTerpakai === "number" &&
-      !Number.isNaN(bahanTab.bahanTerpakai)
-    ) {
-      const payloadProduct = getProductForRequest();
-      onBahanTerpakaiChange(
-        po.id,
-        product.id,
-        bahanTabIndex,
-        parseFloat(bahanTab.bahanTerpakai.toFixed(2)),
-        payloadProduct
-      );
-    }
-  };
-
-  const handleTerpakaiChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setTerpakaiInputValue(value);
-    const normalized = normalizeNumericInput(value);
+    const normalized = normalizeNumericInput(terpakaiInputValue);
     const payloadProduct = getProductForRequest();
     onBahanTerpakaiChange(
       po.id,
       product.id,
       bahanTabIndex,
-      normalized ?? 0,
-      payloadProduct
+      normalized,
+      payloadProduct,
+      { commit: true }
     );
+  };
+
+  const handleTerpakaiChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setTerpakaiInputValue(value);
   };
 
   const lastLoadingStateRef = React.useRef<{

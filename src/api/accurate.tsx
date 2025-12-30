@@ -49,8 +49,8 @@ export const verifyRequest = async (id: string) => {
 type RequestUpdatePayload = {
   requestSent?: number;
   requestAmount?: number;
-  requestReceived?: number;
-  requestLeft?: number;
+  requestReceived?: number | null;
+  requestLeft?: number | null;
   beli?: BeliStatus;
   is_done?: boolean;
   description?: string | null;

@@ -517,8 +517,8 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       request_left,
     }: {
       id: string;
-      request_received: number;
-      request_left: number;
+      request_received: number | null;
+      request_left: number | null;
     }) =>
       updateRequest(id, {
         requestReceived: request_received,
@@ -627,7 +627,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
   const [markingDone, setMarkingDone] = useState<string | null>(null);
 
   const requestReceivedDebounceMap = useRef<
-    Record<string, (payload: { amount: number; left: number }) => void>
+    Record<string, (payload: { amount: number | null; left: number | null }) => void>
   >({});
 
   const parseLocalizedNumberInput = (rawValue: string): number => {
@@ -1125,12 +1125,12 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     : "Belum pernah";
   const handleRequestReceivedUpdate = (
     id: string,
-    amount: number,
-    left: number
+    amount: number | null,
+    left: number | null
   ) => {
     if (!requestReceivedDebounceMap.current[id]) {
       requestReceivedDebounceMap.current[id] = debounce(
-        (payload: { amount: number; left: number }) => {
+        (payload: { amount: number | null; left: number | null }) => {
           updateRequestReceivedAndLeft({
             id,
             request_received: payload.amount,
@@ -1149,6 +1149,20 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     rawValue: string,
     sentValue: number
   ) => {
+    if (rawValue.trim() === "") {
+      setRequestReceivedValues((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+      setRequestLeftValues((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+      handleRequestReceivedUpdate(id, null, null);
+      return;
+    }
     const normalizedValue = parseLocalizedNumberInput(rawValue);
     const leftAmount = Math.max(sentValue - normalizedValue, 0);
 
@@ -1182,6 +1196,10 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       return stored;
     }
     const leftFromRecord = record.requestLeft ?? record.request_left ?? undefined;
+    const hasWarehouseReturned = Boolean(record.warehouseReturned);
+    if (!hasWarehouseReturned) {
+      return "";
+    }
     return leftFromRecord as string | number | undefined;
   };
 
@@ -1191,6 +1209,9 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     if (value === null || value === undefined) return undefined;
     const normalized =
       typeof value === "string" ? value.replace(/,/g, ".") : value;
+    if (typeof normalized === "string" && normalized.trim() === "") {
+      return undefined;
+    }
     const numeric = Number(normalized);
     return Number.isNaN(numeric) ? undefined : numeric;
   };
@@ -1373,6 +1394,19 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     rawValue: string,
     sentValue: number
   ) => {
+    if (rawValue.trim() === "") {
+      setRequestLeftValues((prev) => ({
+        ...prev,
+        [id]: "",
+      }));
+      setRequestReceivedValues((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+      handleRequestReceivedUpdate(id, null, null);
+      return;
+    }
     const normalizedValue = parseLocalizedNumberInput(rawValue);
     const sanitizedSent = Number.isNaN(sentValue) ? 0 : sentValue;
     const calculatedReceived = Math.max(sanitizedSent - normalizedValue, 0);
