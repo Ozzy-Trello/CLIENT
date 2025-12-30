@@ -93,9 +93,12 @@ export const usePivotColumns = ({
     }
 
     setColumnOrder((prev) => {
-      const base = prev.length ? prev : preferredColumnOrder;
-      const next = mergeColumnOrder(base);
-      return arraysEqual(prev, next) ? prev : next;
+      const preferredMerged = mergeColumnOrder(preferredColumnOrder);
+      if (!prev.length) {
+        return preferredMerged;
+      }
+      const currentMerged = mergeColumnOrder(prev);
+      return arraysEqual(currentMerged, preferredMerged) ? prev : preferredMerged;
     });
   }, [allColumnIds, preferredColumnOrder, mergeColumnOrder]);
 
