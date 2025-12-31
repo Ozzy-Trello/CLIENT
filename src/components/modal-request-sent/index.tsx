@@ -28,7 +28,12 @@ import {
 } from "antd";
 import type { InputRef } from "antd";
 import type { AxiosError } from "axios";
-import { DeleteOutlined, DownloadOutlined, EditOutlined, QrcodeOutlined } from "@ant-design/icons";
+import {
+  DeleteOutlined,
+  DownloadOutlined,
+  EditOutlined,
+  QrcodeOutlined,
+} from "@ant-design/icons";
 import { debounce } from "lodash";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { formatRequestQuantity } from "@utils/request-format";
@@ -132,14 +137,16 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     limit: 10,
     total: 0,
   });
-  const [filterDikirim, setFilterDikirim] =
-    useState<BasicStatusFilter | null>(null);
+  const [filterDikirim, setFilterDikirim] = useState<BasicStatusFilter | null>(
+    null
+  );
   const [filterDiterima, setFilterDiterima] =
     useState<BasicStatusFilter | null>(null);
   const [filterBeliStatus, setFilterBeliStatus] =
     useState<BeliStatusFilter | null>(null);
-  const [filterKembali, setFilterKembali] =
-    useState<BasicStatusFilter | null>(null);
+  const [filterKembali, setFilterKembali] = useState<BasicStatusFilter | null>(
+    null
+  );
   const [filterAccurate, setFilterAccurate] =
     useState<BasicStatusFilter | null>(null);
   const [isExporting, setIsExporting] = useState(false);
@@ -161,9 +168,9 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     null
   );
   const [reopenedIds, setReopenedIds] = useState<Set<string>>(new Set());
-  const [sentByOverrides, setSentByOverrides] = useState<Record<string, string>>(
-    {}
-  );
+  const [sentByOverrides, setSentByOverrides] = useState<
+    Record<string, string>
+  >({});
   const [sentLockOverrides, setSentLockOverrides] = useState<
     Record<string, boolean>
   >({});
@@ -187,11 +194,16 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
   >([null, null]);
   const [isPrintingBarcode, setIsPrintingBarcode] = useState(false);
   const [barcodeModalOpen, setBarcodeModalOpen] = useState(false);
-  const [barcodeModalTarget, setBarcodeModalTarget] = useState<RequestItem | null>(null);
-  const [scannedRequest, setScannedRequest] = useState<RequestItem | null>(null);
+  const [barcodeModalTarget, setBarcodeModalTarget] =
+    useState<RequestItem | null>(null);
+  const [scannedRequest, setScannedRequest] = useState<RequestItem | null>(
+    null
+  );
   const [sisaInput, setSisaInput] = useState<string>("");
   const [isSavingSisa, setIsSavingSisa] = useState(false);
-  const [activeJumlahScanId, setActiveJumlahScanId] = useState<string | null>(null);
+  const [activeJumlahScanId, setActiveJumlahScanId] = useState<string | null>(
+    null
+  );
   const [jumlahScanModalOpen, setJumlahScanModalOpen] = useState(false);
   const [useCameraJumlahScanner, setUseCameraJumlahScanner] = useState(true);
   const [isProcessingJumlahScan, setIsProcessingJumlahScan] = useState(false);
@@ -373,9 +385,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
   const labelOptions = useMemo(() => {
     const collected = new Set<string>();
     data?.data.forEach((item) => {
-      (item.card_labels || []).forEach((label) =>
-        collected.add(label.trim())
-      );
+      (item.card_labels || []).forEach((label) => collected.add(label.trim()));
     });
     const base = ["Ozzy", "Steady"];
     return Array.from(new Set([...base, ...Array.from(collected).sort()]));
@@ -601,7 +611,11 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       id,
       sisa,
       terpakai,
-    }: { id: string; sisa: number; terpakai: number }) =>
+    }: {
+      id: string;
+      sisa: number;
+      terpakai: number;
+    }) =>
       updateRequest(id, {
         requestLeft: sisa,
         requestReceived: terpakai,
@@ -638,10 +652,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     return Number.isNaN(numericValue) ? 0 : numericValue;
   };
 
-  const attemptSendRequest = (
-    id: string,
-    record?: RequestItem
-  ): boolean => {
+  const attemptSendRequest = (id: string, record?: RequestItem): boolean => {
     const rawInput =
       requestSentValues[id] ??
       (record?.requestSent !== undefined && record?.requestSent !== null
@@ -697,9 +708,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
   const getProductionReceivedValue = (record: RequestItem): boolean =>
     productionReceivedOverrides[record.id] ??
     Boolean(record.productionReceived ?? record.productionRecieved);
-  const handlePrintBarcode = async (
-    targetRequest?: RequestItem
-  ) => {
+  const handlePrintBarcode = async (targetRequest?: RequestItem) => {
     setIsPrintingBarcode(true);
     try {
       const response = await printWarehouseBarcodes(targetRequest?.id);
@@ -720,7 +729,9 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
         message.success(
           targetRequest
             ? "Barcode print triggered untuk request ini."
-            : `Barcode print triggered for ${printedCount} item${printedCount === 1 ? "" : "s"}.`
+            : `Barcode print triggered for ${printedCount} item${
+                printedCount === 1 ? "" : "s"
+              }.`
         );
         if (downloadUrl) {
           window.open(downloadUrl, "_blank", "noopener,noreferrer");
@@ -748,14 +759,16 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     }
   };
 
-  const handlePrintShippingBarcodes = async (
-    targetRequest?: RequestItem
-  ) => {
+  const handlePrintShippingBarcodes = async (targetRequest?: RequestItem) => {
     setIsPrintingBarcode(true);
     try {
-      const shortId = targetRequest ? getShortIdValue(targetRequest) : undefined;
+      const shortId = targetRequest
+        ? getShortIdValue(targetRequest)
+        : undefined;
       if (targetRequest && shortId === undefined) {
-        message.warning("Request ini belum memiliki Short ID untuk cetak barcode.");
+        message.warning(
+          "Request ini belum memiliki Short ID untuk cetak barcode."
+        );
         return;
       }
 
@@ -855,16 +868,16 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       numericInitial === 0;
     const formatted =
       numericInitial !== null && Number.isFinite(numericInitial)
-        ? numericInitial.toFixed(2).replace(/\.?0+$/, (m) =>
-          m === "." ? "" : m
-        )
+        ? numericInitial
+            .toFixed(2)
+            .replace(/\.?0+$/, (m) => (m === "." ? "" : m))
         : "";
     setSisaInput(
       shouldBlank
         ? ""
         : initialSisa !== null && initialSisa !== undefined
-          ? formatted || String(initialSisa)
-          : ""
+        ? formatted || String(initialSisa)
+        : ""
     );
   };
 
@@ -911,11 +924,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     const all: RequestItem[] = [];
     // eslint-disable-next-line no-constant-condition
     while (true) {
-      const resp = await getAllRequests(
-        page,
-        limit,
-        buildExportFilter(range)
-      );
+      const resp = await getAllRequests(page, limit, buildExportFilter(range));
       const chunk: RequestItem[] = resp?.data ?? [];
       all.push(...chunk);
       const total = resp?.pagination?.total ?? chunk.length;
@@ -963,10 +972,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
         ? dayjs(record.createdAt).format("YYYY-MM-DD HH:mm")
         : "-";
       const labels = (() => {
-        const raw =
-          record.card_labels ||
-          record.cardLabels ||
-          [];
+        const raw = record.card_labels || record.cardLabels || [];
         const normalized = raw.map((l) => String(l).toLowerCase());
         const parts: string[] = [];
         if (normalized.some((l) => l === "ozzy")) parts.push("Ozzy");
@@ -979,16 +985,10 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       const efisiensi = formatRequestQuantity(record.efisiensi);
       const verified = record.isVerified ? "Verified" : "Pending";
       const beliValue =
-        (record.beli as BeliSelection) ??
-        DEFAULT_BELI_STATUS ??
-        "-";
-      const jumlahDikirimValue =
-        getResolvedRequestSent(record) ?? "";
+        (record.beli as BeliSelection) ?? DEFAULT_BELI_STATUS ?? "-";
+      const jumlahDikirimValue = getResolvedRequestSent(record) ?? "";
       const sentByName =
-        record.sentByName ||
-        record.sentBy ||
-        sentByOverrides[record.id] ||
-        "";
+        record.sentByName || record.sentBy || sentByOverrides[record.id] || "";
       const receivedByName =
         record.receivedByName ||
         record.receivedBy ||
@@ -1043,9 +1043,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `gudang-requests-${dayjs().format(
-      "YYYYMMDD-HHmmss"
-    )}.csv`;
+    link.download = `gudang-requests-${dayjs().format("YYYYMMDD-HHmmss")}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -1086,7 +1084,9 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     }
 
     const [start, end] =
-      exportDraftRange[0] || exportDraftRange[1] ? exportDraftRange : exportRange;
+      exportDraftRange[0] || exportDraftRange[1]
+        ? exportDraftRange
+        : exportRange;
 
     const anchor = start || end;
     if (!anchor) return false;
@@ -1285,8 +1285,8 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
   const getBarcodePrintedValue = (record: RequestItem): boolean =>
     Boolean(
       (record as any)?.barcode_printed ??
-      (record as any)?.barcodePrinted ??
-      false
+        (record as any)?.barcodePrinted ??
+        false
     );
 
   const getBeliSelection = (record: RequestItem): BeliSelection => {
@@ -1317,9 +1317,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     const hasJumlahDikirim = record.requestSent;
     const sentMoreThanZero = sentAmount > 0;
     const sentByValue =
-      sentByOverrides[record.id] ??
-      record.sentBy ??
-      (record as any)?.sent_by;
+      sentByOverrides[record.id] ?? record.sentBy ?? (record as any)?.sent_by;
     const hasSentBy = Boolean(sentByValue);
     const receivedByValue =
       receivedByOverrides[record.id] ??
@@ -1376,14 +1374,13 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     getMissingDoneFields(record).length === 0;
 
   const isDoneButtonDisabled = (record: RequestItem): boolean => {
-    const doneLocked = (record.is_done || record.isDone) && !isRowUnlocked(record);
+    const doneLocked =
+      (record.is_done || record.isDone) && !isRowUnlocked(record);
     if (doneLocked || record.is_rejected || record.isRejected) {
       return true;
     }
     const workflow = getWorkflowState(record);
-    if (
-      !workflow.warehouseReturned
-    ) {
+    if (!workflow.warehouseReturned) {
       return true;
     }
     return !isReadyForDone(record);
@@ -1448,7 +1445,6 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     }
     await handleJumlahBarcodeScan(record, trimmed);
   };
-
 
   const handleSearchChange = (
     event: React.ChangeEvent<HTMLInputElement>
@@ -1547,7 +1543,10 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     }
   }, [jumlahScanModalOpen, activeJumlahScanId]);
 
-  const handleJumlahBarcodeScan = async (record: RequestItem, barcode: string) => {
+  const handleJumlahBarcodeScan = async (
+    record: RequestItem,
+    barcode: string
+  ) => {
     if (!barcode || !record) return;
     setIsProcessingJumlahScan(true);
     try {
@@ -1555,7 +1554,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       const scannedName = normalizeItemName(response?.product?.name);
       const scannedAccurateId =
         response?.product?.accurateId !== undefined &&
-          response?.product?.accurateId !== null
+        response?.product?.accurateId !== null
           ? String(response.product.accurateId).trim()
           : "";
       const targetName = normalizeItemName(
@@ -1564,8 +1563,8 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       const recordAccurateId = (() => {
         const raw =
           (record as any)?.requested_item_id ??
-          (record as any)?.requestedItemId
-        "";
+          (record as any)?.requestedItemId;
+        ("");
         return raw !== undefined && raw !== null ? String(raw).trim() : "";
       })();
 
@@ -1719,7 +1718,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       width: 120,
       render: (_: unknown, record: RequestItem) => {
         const labels = record.card_labels || record.cardLabels || [];
-        console.log(labels, '<< in i isi lables')
+        console.log(labels, "<< in i isi lables");
         const hasOzzy = labels.some((l) => l.toLowerCase() === "ozzy");
         const hasSteady = labels.some((l) => l.toLowerCase() === "steady");
         if (!hasOzzy && !hasSteady) return <Tag color="default">-</Tag>;
@@ -1841,10 +1840,9 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
                   step="0.01"
                   value={displaySent}
                   disabled={disableInput}
-                  className={`flex-1 ${disableInput
-                    ? "bg-gray-100 text-gray-500"
-                    : ""
-                    }`}
+                  className={`flex-1 ${
+                    disableInput ? "bg-gray-100 text-gray-500" : ""
+                  }`}
                   style={{ width: "100%" }}
                   onChange={(event) =>
                     handleRequestSentChange(record.id, event.target.value)
@@ -1856,36 +1854,36 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
                   placeholder="Scan/Input qty"
                 />
 
-                {!record.barcodePrinted && <Tooltip
-                  title={
-                    isLocked ? "Buka edit jumlah" : "Kunci jumlah"
-                  }
-                >
-                  <Button
-                    type="text"
-                    size="small"
-                    icon={<EditOutlined />}
-                    disabled={!canEdit}
-                    onClick={() => {
-                      if (!canEdit) return;
-                      if (isLocked) {
+                {!record.barcodePrinted && (
+                  <Tooltip
+                    title={isLocked ? "Buka edit jumlah" : "Kunci jumlah"}
+                  >
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={<EditOutlined />}
+                      disabled={!canEdit}
+                      onClick={() => {
+                        if (!canEdit) return;
+                        if (isLocked) {
+                          setSentLockOverrides((prev) => ({
+                            ...prev,
+                            [record.id]: false,
+                          }));
+                          return;
+                        }
+                        if (!attemptSendRequest(record.id, record)) {
+                          return;
+                        }
                         setSentLockOverrides((prev) => ({
                           ...prev,
-                          [record.id]: false,
+                          [record.id]: true,
                         }));
-                        return;
-                      }
-                      if (!attemptSendRequest(record.id, record)) {
-                        return;
-                      }
-                      setSentLockOverrides((prev) => ({
-                        ...prev,
-                        [record.id]: true,
-                      }));
-                    }}
-                    className="text-gray-500 hover:text-blue-600"
-                  />
-                </Tooltip>}
+                      }}
+                      className="text-gray-500 hover:text-blue-600"
+                    />
+                  </Tooltip>
+                )}
                 {/* {isDevMode && ( */}
                 <Tooltip title="Scan barcode">
                   <Button
@@ -2002,7 +2000,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
         const storedReceived = requestReceivedValues[record.id];
         const initialReceived =
           record.requestReceived !== null &&
-            record.requestReceived !== undefined
+          record.requestReceived !== undefined
             ? Number(record.requestReceived)
             : undefined;
         const displayValue =
@@ -2021,10 +2019,11 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
             onChange={(e) =>
               handleRequestReceivedChange(record.id, e.target.value, sentValue)
             }
-            className={`w-full px-3 py-2 rounded-md text-sm ${!isEditingRow || isDone
-              ? "cursor-not-allowed opacity-80"
-              : "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              }`}
+            className={`w-full px-3 py-2 rounded-md text-sm ${
+              !isEditingRow || isDone
+                ? "cursor-not-allowed opacity-80"
+                : "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            }`}
             style={{
               border: `1px solid #d9d9d9`,
               backgroundColor: !isEditingRow || isDone ? "#f5f5f5" : "#ffffff",
@@ -2114,9 +2113,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
         return (
           <Checkbox
             checked={workflow.warehouseReturned}
-            onChange={(e) =>
-              handleWarehouseReturn(record.id, e.target.checked)
-            }
+            onChange={(e) => handleWarehouseReturn(record.id, e.target.checked)}
             disabled={disabled}
             style={{ margin: 0 }}
           />
@@ -2682,7 +2679,13 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
               const input = document.querySelector(
                 '[placeholder="Scan barcode sisa bahan"]'
               ) as HTMLInputElement;
-              input?.focus();
+
+              if (input) {
+                input.focus();
+                if (input.value) {
+                  input.select(); // 🔥 langsung blok kalau ada value
+                }
+              }
             }, 100);
           }
         }}
@@ -2716,8 +2719,8 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
         footer={null}
         styles={{
           body: {
-            padding: '1rem'
-          }
+            padding: "1rem",
+          },
         }}
         title="Pilih jenis barcode"
       >
@@ -2749,7 +2752,8 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
                 {barcodeModalTarget.itemName || "-"}
               </div>
               <div style={{ fontSize: 12, color: "#666" }}>
-                Short ID: {getShortIdValue(barcodeModalTarget) ?? "Tidak tersedia"}
+                Short ID:{" "}
+                {getShortIdValue(barcodeModalTarget) ?? "Tidak tersedia"}
               </div>
             </div>
           )}
@@ -2790,7 +2794,6 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
                 <div style={{ fontWeight: 600 }}>Sisa Bahan</div>
               </div>
             </Button>
-
           </div>
         </div>
       </Modal>
@@ -2809,7 +2812,13 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {activeJumlahScanId && (
-            <div style={{ padding: "8px 10px", background: "#f5f5f5", borderRadius: 6 }}>
+            <div
+              style={{
+                padding: "8px 10px",
+                background: "#f5f5f5",
+                borderRadius: 6,
+              }}
+            >
               <div style={{ fontWeight: 600 }}>
                 {resolveRecordById(activeJumlahScanId)?.itemName || "-"}
               </div>
@@ -2818,7 +2827,9 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
                 {(() => {
                   const current = resolveRecordById(activeJumlahScanId);
                   const jumlah = current?.requestAmount;
-                  return jumlah !== undefined ? formatRequestQuantity(jumlah) : "-";
+                  return jumlah !== undefined
+                    ? formatRequestQuantity(jumlah)
+                    : "-";
                 })()}
               </div>
               <div style={{ fontSize: 12, color: "#666" }}>
@@ -2915,7 +2926,9 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
           </span>
           <DatePicker.RangePicker
             value={exportRange}
-            onChange={(dates) => setExportRange([dates?.[0] ?? null, dates?.[1] ?? null])}
+            onChange={(dates) =>
+              setExportRange([dates?.[0] ?? null, dates?.[1] ?? null])
+            }
             onCalendarChange={(dates) =>
               setExportDraftRange([dates?.[0] ?? null, dates?.[1] ?? null])
             }
