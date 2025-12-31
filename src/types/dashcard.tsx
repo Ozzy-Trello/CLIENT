@@ -89,6 +89,7 @@ export interface DashcardConfig {
   filters: DashcardFilter[];
   displayConfig?: DashcardDisplayConfig; // Optional, defaults to card count
   visibleColumns?: string[];
+  columnOrder?: string[];
 }
 
 // Sample filters data

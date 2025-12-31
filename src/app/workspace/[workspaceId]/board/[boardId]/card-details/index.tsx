@@ -342,9 +342,8 @@ const CardDetails: React.FC = (props) => {
               <div className="flex items-center gap-2 mb-4">
                 <Checkbox
                   className={`custom-circular-checkbox absolute left-0 -ml-6 transition-all duration-300 
-                    ${selectedCard?.isComplete ? "completed" : ""} ${
-                    !canUpdateCard() ? "opacity-50 cursor-not-allowed" : ""
-                  }`}
+                    ${selectedCard?.isComplete ? "completed" : ""} ${!canUpdateCard() ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
                   checked={selectedCard?.isComplete}
                   disabled={!canUpdateCard()}
                   onChange={(e) => {
@@ -370,11 +369,10 @@ const CardDetails: React.FC = (props) => {
                   />
                 ) : (
                   <h1
-                    className={`text-5xl font-bold mb-0 ml-2 px-2 py-1 rounded-md ${
-                      canUpdateCard()
+                    className={`text-5xl font-bold mb-0 ml-2 px-2 py-1 rounded-md ${canUpdateCard()
                         ? "cursor-pointer hover:bg-gray-50"
                         : "cursor-not-allowed opacity-60"
-                    }`}
+                      }`}
                     onClick={() => {
                       if (canUpdateCard()) {
                         setNewTitle(selectedCard?.name || "");
@@ -565,7 +563,7 @@ const CardDetails: React.FC = (props) => {
                 />
               )}
 
-              {selectedCard && shouldShowProduk && (
+              {selectedCard && shouldShowProduk && selectedCard?.type !== "dashcard" && (
                 <CollapsibleSection
                   title="Produk"
                   defaultExpanded={true}
@@ -588,7 +586,7 @@ const CardDetails: React.FC = (props) => {
 
               {selectedCard &&
                 selectedCard?.location &&
-                selectedCard?.location != "" && (
+                selectedCard?.location != "" && selectedCard?.type !== "dashcard" && (
                   <LocationDisplay coordinate={selectedCard?.location} />
                 )}
 
@@ -626,7 +624,7 @@ const CardDetails: React.FC = (props) => {
                 </CollapsibleSection>
               )}
 
-              <CollapsibleSection
+              {selectedCard && selectedCard?.type !== "dashcard" && <CollapsibleSection
                 title="Request Fields"
                 defaultExpanded={false}
                 icon={
@@ -643,7 +641,7 @@ const CardDetails: React.FC = (props) => {
                 }
               >
                 <RequestFields />
-              </CollapsibleSection>
+              </CollapsibleSection>}
 
               {selectedCard && (
                 <CollapsibleSection
@@ -659,7 +657,7 @@ const CardDetails: React.FC = (props) => {
               )}
 
               {/* Split Job Section */}
-              {selectedCard && (
+              {selectedCard && selectedCard?.type !== "dashcard" && (
                 <CollapsibleSection
                   title="Split Job Fields"
                   defaultExpanded={false}
@@ -673,7 +671,7 @@ const CardDetails: React.FC = (props) => {
               )}
 
               {/* Checklist Section */}
-              {selectedCard && (
+              {selectedCard && selectedCard?.type !== "dashcard" && (
                 <CollapsibleSection
                   title="Checklist"
                   defaultExpanded={true}

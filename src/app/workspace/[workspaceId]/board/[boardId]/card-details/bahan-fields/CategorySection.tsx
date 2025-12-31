@@ -285,12 +285,6 @@ const CategorySection: React.FC<CategorySectionProps> = ({
   if (!categories || categories.length === 0) {
     return (
       <div className="mt-6">
-        <h4
-          className="text-sm font-medium mb-3"
-          style={{ color: `rgb(${colors.text})` }}
-        >
-          Category Details
-        </h4>
         <div
           className="text-sm p-4 rounded border"
           style={{
@@ -307,12 +301,6 @@ const CategorySection: React.FC<CategorySectionProps> = ({
 
   return (
     <div className="mt-6">
-      <h4
-        className="text-sm font-medium mb-3"
-        style={{ color: `rgb(${colors.text})` }}
-      >
-        Category Details
-      </h4>
       <Tabs
         activeKey={activeTab}
         onChange={setActiveTab}

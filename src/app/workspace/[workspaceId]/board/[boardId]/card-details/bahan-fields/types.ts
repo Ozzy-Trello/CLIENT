@@ -93,8 +93,9 @@ export interface POSectionProps {
     poId: string,
     productId: string,
     bahanTabIndex: number,
-    value: number,
-    resolvedProduct?: any
+    value: number | null,
+    resolvedProduct?: any,
+    options?: { commit?: boolean }
   ) => void;
   onEstBahanChange: (poId: string, productId: string, bahanTabIndex: number, value: number) => void;
   onCategoryValueChange: (poId: string, productId: string, categoryId: string, subcategoryId: string, value: number) => void;
@@ -138,8 +139,9 @@ export interface ProductTabsProps {
     poId: string,
     productId: string,
     bahanTabIndex: number,
-    value: number,
-    resolvedProduct?: any
+    value: number | null,
+    resolvedProduct?: any,
+    options?: { commit?: boolean }
   ) => void;
   onEstBahanChange: (
     poId: string,
@@ -190,8 +192,9 @@ export interface BahanTabProps {
     poId: string,
     productId: string,
     bahanTabIndex: number,
-    value: number,
-    resolvedProduct?: any
+    value: number | null,
+    resolvedProduct?: any,
+    options?: { commit?: boolean }
   ) => void;
   onEstBahanChange: (poId: string, productId: string, bahanTabIndex: number, value: number) => void;
   onCategoryValueChange: (poId: string, productId: string, categoryId: string, subcategoryId: string, value: number) => void;
