@@ -27,10 +27,16 @@ interface ModalRequestProps {
 const { Option } = Select;
 
 const MPI_KUI_ACCOUNT_MAPPINGS = [
+  { accountName: "HPP Bahan HEMCA Stok", keywords: ["hemca", "hemca stok"] },
+  { accountName: "HPP Bahan Reject", keywords: ["bahan reject", "reject"] },
+  { accountName: "Beban Penyesuaian Produk", keywords: ["penyesuaian produk", "produk penyesuaian"] },
+  { accountName: "Beban Penyesuaian Bahan", keywords: ["penyesuaian bahan", "bahan penyesuaian"] },
+  { accountName: "Persediaan Produk Reject", keywords: ["produk reject", "persediaan produk"] },
+  { accountName: "Beban Penyesuaian Aksesoris", keywords: ["penyesuaian aksesoris", "aksesoris"] },
   { accountName: "HPP Hang Tag", keywords: ["hangtag", "hang tag"] },
   { accountName: "HPP Kancing", keywords: ["kancing"] },
   { accountName: "HPP Label", keywords: ["label"] },
-  { accountName: "HPP Plastik OPP", keywords: ["plastik opp"] },
+  { accountName: "HPP Plastik OPP", keywords: ["plastik opp", "opp hemca", "opp"] },
   { accountName: "HPP Resleting", keywords: ["resleting", "reslet"] },
   { accountName: "HPP Benang", keywords: ["benang"] },
   { accountName: "HPP Kain Keras", keywords: ["kain keras"] },
@@ -49,6 +55,26 @@ const MPI_KUI_ACCOUNT_MAPPINGS = [
     ],
   },
 ];
+
+const findBestMappingByKeywords = (name: string) => {
+  const normalizedName = (name || "").toLowerCase();
+  let best: { mapping: (typeof MPI_KUI_ACCOUNT_MAPPINGS)[number]; score: number } | null = null;
+
+  MPI_KUI_ACCOUNT_MAPPINGS.forEach((mapping) => {
+    mapping.keywords.forEach((kw) => {
+      const keyword = (kw || "").toLowerCase().trim();
+      if (!keyword) return;
+      if (normalizedName.includes(keyword)) {
+        const score = keyword.length; // prefer the most specific/longest keyword match
+        if (!best || score > best.score) {
+          best = { mapping, score };
+        }
+      }
+    });
+  });
+
+  return best?.mapping;
+};
 
 const findAccountByName = (accounts: any[], accountName: string) => {
   if (!Array.isArray(accounts)) return undefined;
@@ -410,11 +436,14 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
         const normalizedSource =
           (itemSource || selectedItemSource || "").toLowerCase();
 
-        if (normalizedSource === "mpi" || normalizedSource === "kui") {
+        const isMpiSource =
+          normalizedSource === "mpi" || normalizedSource.includes("mpi");
+        const isKuiSource =
+          normalizedSource === "kui" || normalizedSource.includes("kui");
+
+        if (isMpiSource || isKuiSource) {
           const normalizedName = selectedItem.name?.toLowerCase() || "";
-          const mpiMapping = MPI_KUI_ACCOUNT_MAPPINGS.find((mapping) =>
-            mapping.keywords.some((keyword) => normalizedName.includes(keyword))
-          );
+          const mpiMapping = findBestMappingByKeywords(normalizedName);
 
           if (mpiMapping) {
             const matchingAccount = findAccountByName(
