@@ -319,14 +319,7 @@ const TablePivot: FC = () => {
       }
 
       if (type === "date") {
-        if (!value) return "-";
-        const parsed = new Date(value as string);
-        if (isNaN(parsed.getTime())) return "-";
-        return new Intl.DateTimeFormat("id-ID", {
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-        }).format(parsed);
+        return formatDate(value as any);
       }
 
       const humanValue = LookupCache.any(String(value));
@@ -337,11 +330,10 @@ const TablePivot: FC = () => {
       if (!value && value !== 0) return "-";
       const date = typeof value === "string" || typeof value === "number" ? new Date(value) : value;
       if (!date || isNaN(date.getTime())) return "-";
-      return new Intl.DateTimeFormat("id-ID", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      }).format(date);
+      const day = String(date.getDate()).padStart(2, "0");
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const year = date.getFullYear();
+      return `${day}/${month}/${year}`;
     };
 
     const renderGroupedCell = (columnId: string, row: any, renderer: () => ReactNode) => {

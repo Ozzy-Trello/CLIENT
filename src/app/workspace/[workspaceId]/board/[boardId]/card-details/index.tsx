@@ -201,6 +201,22 @@ const CardDetails: React.FC = (props) => {
     setIsDashcardModalOpen(true);
   }, []);
 
+  useEffect(() => {
+    if (!selectedCard) {
+      setIsDashcardModalOpen(false);
+      setDashcardModalCard(null);
+      return;
+    }
+
+    if (selectedCard.type === "dashcard") {
+      setDashcardModalCard(selectedCard);
+      setIsDashcardModalOpen(true);
+    } else {
+      setIsDashcardModalOpen(false);
+      setDashcardModalCard(null);
+    }
+  }, [selectedCard]);
+
   const onCompletionChange = (e: CheckboxChangeEvent) => {
     e.stopPropagation();
     if (!canUpdateCard()) {

@@ -33,6 +33,7 @@ const ModalListRequest: React.FC<ModalListRequestProps> = ({
   const [verifiedFilter, setVerifiedFilter] =
     useState<VerifiedFilter | null>(null);
   const [requestTypeFilter, setRequestTypeFilter] = useState<string>("");
+  const [labelFilter, setLabelFilter] = useState<string>("");
   const [searchInput, setSearchInput] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [deletingRequestId, setDeletingRequestId] = useState<string | null>(null);
@@ -49,9 +50,10 @@ const ModalListRequest: React.FC<ModalListRequestProps> = ({
     if (verifiedFilter === "VERIFIED") base.isVerified = true;
     if (verifiedFilter === "PENDING") base.isVerified = false;
     if (requestTypeFilter) base.requestType = requestTypeFilter;
+    if (labelFilter) base.labelName = labelFilter;
     if (searchTerm) base.search = searchTerm;
     return base;
-  }, [verifiedFilter, requestTypeFilter, searchTerm]);
+  }, [verifiedFilter, requestTypeFilter, labelFilter, searchTerm]);
 
   // Use optimized hooks with filter
   const {
@@ -197,15 +199,19 @@ const ModalListRequest: React.FC<ModalListRequestProps> = ({
     return Array.from(collected).filter(Boolean);
   }, [requestsData]);
 
+  const labelOptions = useMemo(() => ["Ozzy", "Steady"], []);
+
   const activeFiltersCount = [
     verifiedFilter !== null,
     Boolean(requestTypeFilter),
+    Boolean(labelFilter),
     Boolean(searchTerm),
   ].filter(Boolean).length;
 
   const resetFilters = () => {
     setVerifiedFilter(null);
     setRequestTypeFilter("");
+    setLabelFilter("");
     setSearchInput("");
     setSearchTerm("");
     setPagination((prev) => ({ ...prev, page: 1 }));
@@ -291,7 +297,25 @@ const ModalListRequest: React.FC<ModalListRequestProps> = ({
       ellipsis: true,
       width: 100,
     },
-    
+    {
+      title: "Ozzy / Steady",
+      key: "card_labels",
+      ellipsis: true,
+      width: 130,
+      render: (_: unknown, record: RequestItem) => {
+        const labels = record.card_labels || record.cardLabels || [];
+        const hasOzzy = labels.some((l: any) => l.toLowerCase() === "ozzy");
+        const hasSteady = labels.some((l: any) => l.toLowerCase() === "steady");
+        if (!hasOzzy && !hasSteady) return <Tag color="default">-</Tag>;
+        return (
+          <Space size={4}>
+            {hasOzzy && <Tag color="navy">Ozzy</Tag>}
+            {hasSteady && <Tag color="red">Steady</Tag>}
+          </Space>
+        );
+      },
+    },
+
     {
       title: "Item",
       dataIndex: "itemName",
@@ -599,6 +623,33 @@ const ModalListRequest: React.FC<ModalListRequestProps> = ({
                 ...requestTypeOptions.map((type) => ({
                   value: type,
                   label: formatRequestTypeLabel(type),
+                })),
+              ]}
+            />
+          </div>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 4,
+            }}
+          >
+            <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
+              Label
+            </span>
+            <Select
+              allowClear
+              placeholder="Pilih label"
+              value={labelFilter || undefined}
+              onChange={(value) => {
+                setLabelFilter(value || "");
+                setPagination((prev) => ({ ...prev, page: 1 }));
+              }}
+              options={[
+                { value: "", label: "Semua Label" },
+                ...labelOptions.map((label) => ({
+                  value: label,
+                  label,
                 })),
               ]}
             />
