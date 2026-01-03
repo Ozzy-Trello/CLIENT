@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import camelcaseKeys from "camelcase-keys";
 import { EnumUserActionEvent } from "@myTypes/event";
@@ -67,6 +67,42 @@ export function useWebSocket() {
 // Hook to handle WebSocket card updates with query invalidation
 export function useWebSocketCardUpdates(socket: WebSocket | null) {
   const queryClient = useQueryClient();
+  const dashcardLastInvalidatedRef = useRef(0);
+  const dashcardTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const DASHCARD_INTERVAL_MS = 2 * 60 * 1000; // 2 minutes
+
+  const scheduleDashcardInvalidation = () => {
+    const now = Date.now();
+    const elapsed = now - dashcardLastInvalidatedRef.current;
+
+    if (elapsed >= DASHCARD_INTERVAL_MS) {
+      queryClient.invalidateQueries({
+        queryKey: ["dashcardCount"],
+        exact: false,
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["list-dashcard"],
+        exact: false,
+      });
+      dashcardLastInvalidatedRef.current = now;
+      return;
+    }
+
+    if (!dashcardTimeoutRef.current) {
+      dashcardTimeoutRef.current = setTimeout(() => {
+        queryClient.invalidateQueries({
+          queryKey: ["dashcardCount"],
+          exact: false,
+        });
+        queryClient.invalidateQueries({
+          queryKey: ["list-dashcard"],
+          exact: false,
+        });
+        dashcardLastInvalidatedRef.current = Date.now();
+        dashcardTimeoutRef.current = null;
+      }, DASHCARD_INTERVAL_MS - elapsed);
+    }
+  };
 
   useEffect(() => {
     if (!socket) return;
@@ -823,14 +859,7 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
         }
 
         if (refreshDashcard) {
-          queryClient.invalidateQueries({
-            queryKey: ["dashcardCount"],
-            exact: false,
-          });
-          queryClient.invalidateQueries({
-            queryKey: ["list-dashcard"],
-            exact: false,
-          });
+          scheduleDashcardInvalidation();
         }
       } catch (e) {
         console.error("Invalid WebSocket data:", e);
@@ -841,6 +870,10 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
 
     return () => {
       socket.removeEventListener("message", handleMessage);
+      if (dashcardTimeoutRef.current) {
+        clearTimeout(dashcardTimeoutRef.current);
+        dashcardTimeoutRef.current = null;
+      }
     };
   }, [socket, queryClient]);
 }

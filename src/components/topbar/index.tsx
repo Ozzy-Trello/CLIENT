@@ -1,60 +1,28 @@
 "use client";
-import { BellOutlined, FileOutlined, UserOutlined } from "@ant-design/icons";
+import { FileOutlined, UserOutlined } from "@ant-design/icons";
 import type { MenuProps } from "antd";
-import { Avatar, Badge, Button, Dropdown, Input, Typography, List } from "antd";
+import { Avatar, Badge, Button, Dropdown, Input, List, Modal, Tabs, Typography } from "antd";
 import Link from "next/link";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import logo from "@assets/images/Logo_Ozzy_Clothing_png.png";
 import ImageDynamicContrast from "../image-dynamic-contrast";
-import { useSelector } from "react-redux";
-import {
-  selectTheme,
-  selectUser,
-  selectIsDarkMode,
-  setUser,
-  toggleTheme,
-} from "@store/app_slice";
+import { useDispatch, useSelector } from "react-redux";
+import { selectIsDarkMode, selectTheme, selectUser, toggleTheme } from "@store/app_slice";
 import { Sun, Moon } from "lucide-react";
-import { useDispatch } from "react-redux";
-import { useRouter, useParams } from "next/navigation";
-import { WorkspaceSelection } from "../selection";
+import { useParams, useRouter } from "next/navigation";
 import ModalRequest from "../modal-request";
 import ModalListRequest from "../modal-list-request";
 import ModalRequestSent from "../modal-request-sent";
 import ModalRequestProduksi from "../modal-request-produksi";
+import SewingModal from "../sewing-modal";
 import WebSocketDebugModal from "../websocket-debug-modal";
-import { searchCards } from "@api/card";
 import { getRequestNotificationCounts } from "@api/accurate";
-import { Card } from "@myTypes/card";
 import TokenStorage from "@utils/token-storage";
-import { useCurrentAccount } from "@hooks/account";
-import {
-  useUnifiedSearch,
-  SearchResult,
-  GroupedSearchResults,
-} from "@hooks/search";
-import { selectCurrentWorkspace, selectCurrentBoard } from "@store/workspace_slice";
+import { SearchResult, useUnifiedSearch } from "@hooks/search";
+import { selectCurrentBoard, selectCurrentWorkspace } from "@store/workspace_slice";
 import { useRecentlyViewed } from "@hooks/recently-viewed";
 
 const { Text } = Typography;
-
-// Basic role categorization helper reused in multiple spots
-const getRoleCategory = (
-  roleName: string
-): "super_admin" | "supervisor" | "warehouse" | "production" => {
-  if (!roleName) return "production";
-  const lower = roleName.toLowerCase();
-  if (lower === "super admin" || lower === "super_admin" || lower === "superadmin") {
-    return "super_admin";
-  }
-  if (lower.includes("spv") || lower.includes("supervisor")) {
-    return "supervisor";
-  }
-  if (lower.includes("warehouse")) {
-    return "warehouse";
-  }
-  return "production";
-};
 
 const TopBar: React.FC = React.memo(() => {
   const [notificationVisible, setNotificationVisible] = useState(false);
@@ -63,6 +31,9 @@ const TopBar: React.FC = React.memo(() => {
   const [modalListRequestOpen, setModalListRequestOpen] = useState(false);
   const [modalRequestSentOpen, setModalRequestSentOpen] = useState(false);
   const [modalRequestProduksiOpen, setModalRequestProduksiOpen] = useState(false);
+  const [modalSewingOpen, setModalSewingOpen] = useState(false);
+  const [modalBordirOpen, setModalBordirOpen] = useState(false);
+  const [modalKrahOpen, setModalKrahOpen] = useState(false);
   const [wsDebugModalOpen, setWsDebugModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
@@ -105,44 +76,48 @@ const TopBar: React.FC = React.memo(() => {
   const boardName = (currentBoard?.name || "").trim().toLowerCase();
   const isDateline = boardName === "dateline";
 
- const ROLES = {
-  ADMIN_PRODUKSI: "Admin Produksi",
-  WAREHOUSE_BAHAN: "Warehouse Bahan",
-  CUTTING: "Cutting",
-  KEPALA_PRODUKSI: "Kepala Produksi",
-  OPERATOR_CUTTING: "Operator Cutting",
-  NUMBERING: "Numbering",
-  HELPER_LINE: "Helper Line",
-  SPV_SEWING: "SPV Sewing",
-  SPV_BORDIR: "SPV Operator Bordir",
-  FINISHING: "Finishing & Packing",
-  OPERATOR_KRAH: "Operator Krah Manset",
-  KEPALA_GUDANG: "Kepala Gudang",
-  PURCHASING: "Purchasing",
-} as const;
+  const ROLES = {
+    ADMIN_PRODUKSI: "Admin Produksi",
+    WAREHOUSE_BAHAN: "Warehouse Bahan",
+    CUTTING: "Cutting",
+    KEPALA_PRODUKSI: "Kepala Produksi",
+    OPERATOR_CUTTING: "Operator Cutting",
+    NUMBERING: "Numbering",
+    HELPER_LINE: "Helper Line",
+    SPV_SEWING: "SPV Sewing",
+    SPV_BORDIR: "SPV Operator Bordir",
+    FINISHING: "Finishing & Packing",
+    OPERATOR_KRAH: "Operator Krah Manset",
+    KEPALA_GUDANG: "Kepala Gudang",
+    PURCHASING: "Purchasing",
+  } as const;
 
-type Role = typeof ROLES[keyof typeof ROLES];
+  type Role = typeof ROLES[keyof typeof ROLES];
 
-const produksiRoles: Role[] = [
-  ROLES.ADMIN_PRODUKSI,
-  ROLES.KEPALA_PRODUKSI,
-  ROLES.OPERATOR_CUTTING,
-  ROLES.CUTTING,
-  ROLES.NUMBERING,
-  ROLES.HELPER_LINE,
-  ROLES.SPV_SEWING,
-  ROLES.SPV_BORDIR,
-  ROLES.FINISHING,
-  ROLES.OPERATOR_KRAH,
-  ROLES.KEPALA_GUDANG,
-];
+  const produksiRoles: Role[] = [
+    ROLES.ADMIN_PRODUKSI,
+    ROLES.KEPALA_PRODUKSI,
+    ROLES.OPERATOR_CUTTING,
+    ROLES.CUTTING,
+    ROLES.NUMBERING,
+    ROLES.HELPER_LINE,
+    ROLES.SPV_SEWING,
+    ROLES.SPV_BORDIR,
+    ROLES.FINISHING,
+    ROLES.OPERATOR_KRAH,
+    ROLES.KEPALA_GUDANG,
+  ];
 
-const gudangRoles: Role[] = [ROLES.WAREHOUSE_BAHAN, ROLES.KEPALA_GUDANG, ROLES.PURCHASING];
+  const gudangRoles: Role[] = [
+    ROLES.WAREHOUSE_BAHAN,
+    ROLES.KEPALA_GUDANG,
+    ROLES.PURCHASING,
+  ];
 
-const lihatRequestRoles: Role[] = [ROLES.KEPALA_PRODUKSI];
+  const lihatRequestRoles: Role[] = [ROLES.KEPALA_PRODUKSI];
 
-// requestRoles = produksi + gudang (auto, no duplication)
-const requestRoles: Role[] = Array.from(new Set([...produksiRoles, ...gudangRoles]));
+  // requestRoles = produksi + gudang (auto, no duplication)
+  const requestRoles: Role[] = Array.from(new Set([...produksiRoles, ...gudangRoles]));
 
   const roleInList = (allowed: string[]) =>
     allowed.some(
@@ -228,11 +203,6 @@ const requestRoles: Role[] = Array.from(new Set([...produksiRoles, ...gudangRole
 
   // Recently viewed hook
   const { recentlyViewedItems } = useRecentlyViewed();
-
-  const { data: currentAccountData } = useCurrentAccount();
-  const currentUser = currentAccountData?.data;
-  const userRoleDerived = (currentUser?.role?.name || userRole || "").trim();
-  const roleCategory = getRoleCategory(userRoleDerived);
 
   const handleLogout = () => {
     router.push("/login");
@@ -379,8 +349,39 @@ const requestRoles: Role[] = Array.from(new Set([...produksiRoles, ...gudangRole
         )}
 
         {canSeeButton("produksi") && (
-          <Button onClick={() => setModalRequestProduksiOpen(true)}>Produksi</Button>
+          <>
+            <Button onClick={() => setModalRequestProduksiOpen(true)}>
+              Produksi
+            </Button>
+          </>
         )}
+        {isSuperAdmin &&
+          <Dropdown
+            menu={{
+              items: [
+                {
+                  key: "sewing",
+                  label: "Sewing",
+                  onClick: () => setModalSewingOpen(true),
+                },
+                {
+                  key: "bordir",
+                  label: "Bordir",
+                  onClick: () => setModalBordirOpen(true),
+                },
+                {
+                  key: "krah",
+                  label: "Krah & Manset",
+                  onClick: () => setModalKrahOpen(true),
+                },
+              ],
+            }}
+            placement="bottom"
+            trigger={["click"]}
+          >
+            <Button>Capacity Planner</Button>
+          </Dropdown>
+        }
 
         {/* WebSocket Debug Button - Only show in development */}
         {process.env.NODE_ENV === "development" && (
@@ -675,10 +676,86 @@ const requestRoles: Role[] = Array.from(new Set([...produksiRoles, ...gudangRole
         open={modalRequestProduksiOpen}
         onClose={() => setModalRequestProduksiOpen(false)}
       />
+      <SewingModal
+        open={modalSewingOpen}
+        onClose={() => setModalSewingOpen(false)}
+      />
       <WebSocketDebugModal
         open={wsDebugModalOpen}
         onClose={() => setWsDebugModalOpen(false)}
       />
+
+      <Modal
+        open={modalBordirOpen}
+        onCancel={() => setModalBordirOpen(false)}
+        footer={null}
+        title="Bordir"
+        width="70vw"
+      >
+        <Tabs
+          defaultActiveKey="input"
+          items={[
+            {
+              key: "input",
+              label: "Input",
+              children: (
+                <div style={{ padding: "8px 0" }}>
+                  <Typography.Text type="secondary">
+                    Coming soon
+                  </Typography.Text>
+                </div>
+              ),
+            },
+            {
+              key: "planner",
+              label: "Planner",
+              children: (
+                <div style={{ padding: "8px 0" }}>
+                  <Typography.Text type="secondary">
+                    Coming soon
+                  </Typography.Text>
+                </div>
+              ),
+            },
+          ]}
+        />
+      </Modal>
+
+      <Modal
+        open={modalKrahOpen}
+        onCancel={() => setModalKrahOpen(false)}
+        footer={null}
+        title="Krah & Manset"
+        width="70vw"
+      >
+        <Tabs
+          defaultActiveKey="input"
+          items={[
+            {
+              key: "input",
+              label: "Input",
+              children: (
+                <div style={{ padding: "8px 0" }}>
+                  <Typography.Text type="secondary">
+                    Coming soon
+                  </Typography.Text>
+                </div>
+              ),
+            },
+            {
+              key: "planner",
+              label: "Planner",
+              children: (
+                <div style={{ padding: "8px 0" }}>
+                  <Typography.Text type="secondary">
+                    Coming soon
+                  </Typography.Text>
+                </div>
+              ),
+            },
+          ]}
+        />
+      </Modal>
     </div>
   );
 });

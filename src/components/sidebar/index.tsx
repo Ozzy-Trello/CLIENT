@@ -279,6 +279,19 @@ const Sidebar = () => {
         ),
         icon: <Database size={16} />,
       });
+
+      menus.push({
+        key: `/workspace/${resolvedWorkspaceId}/master-planner`,
+        label: (
+          <Link
+            className="block w-full"
+            href={`/workspace/${resolvedWorkspaceId}/master-planner`}
+          >
+            Master Planner
+          </Link>
+        ),
+        icon: <Layers size={16} />,
+      });
     }
 
     return menus;

@@ -28,8 +28,11 @@ export const useDashcardCount = (dashcardId: string) => {
       const result = await cardCount(dashcardId, workspaceId);
       return result.data || 0;
     },
-    staleTime: 30000, // 30 seconds
-    enabled: !!dashcardId,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    refetchInterval: 2 * 60 * 1000, // background refresh every 2 minutes
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    enabled: !!dashcardId && !!workspaceId,
   });
 
   /**

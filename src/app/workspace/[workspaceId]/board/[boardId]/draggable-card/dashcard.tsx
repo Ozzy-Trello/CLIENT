@@ -62,7 +62,17 @@ const Dashcard: React.FC<DashcardProps> = (props) => {
   const items = resultData?.items || [];
 
   // Calculate display value based on configuration
-  const getDisplayValue = () => {
+  const getDisplayValue = (): string => {
+    const formatCount = () => {
+      const numericCount =
+        typeof count === "number"
+          ? count
+          : typeof count === "string"
+          ? parseInt(count, 10)
+          : 0;
+      return numericCount.toLocaleString();
+    };
+
     const displayConfig = card?.dashConfig?.displayConfig;
 
     if (
@@ -73,7 +83,7 @@ const Dashcard: React.FC<DashcardProps> = (props) => {
       const customField = customFields?.find(
         (field) => field.id === displayConfig.customFieldId
       );
-      if (!customField) return count;
+      if (!customField) return formatCount();
 
       // Calculate sum of the custom field using the field name
       const sum = items.reduce((total, item) => {
@@ -97,7 +107,7 @@ const Dashcard: React.FC<DashcardProps> = (props) => {
     }
 
     // Default to card count (also format with separators)
-    return parseInt(count).toLocaleString();
+    return formatCount();
   };
 
   // Get display label based on configuration
