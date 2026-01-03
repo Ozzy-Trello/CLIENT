@@ -56,9 +56,12 @@ const MPI_KUI_ACCOUNT_MAPPINGS = [
   },
 ];
 
-const findBestMappingByKeywords = (name: string) => {
+type MpiKuiMapping = (typeof MPI_KUI_ACCOUNT_MAPPINGS)[number];
+
+const findBestMappingByKeywords = (name: string): MpiKuiMapping | undefined => {
   const normalizedName = (name || "").toLowerCase();
-  let best: { mapping: (typeof MPI_KUI_ACCOUNT_MAPPINGS)[number]; score: number } | null = null;
+  let bestMapping: MpiKuiMapping | undefined;
+  let bestScore = -1;
 
   MPI_KUI_ACCOUNT_MAPPINGS.forEach((mapping) => {
     mapping.keywords.forEach((kw) => {
@@ -66,14 +69,15 @@ const findBestMappingByKeywords = (name: string) => {
       if (!keyword) return;
       if (normalizedName.includes(keyword)) {
         const score = keyword.length; // prefer the most specific/longest keyword match
-        if (!best || score > best.score) {
-          best = { mapping, score };
+        if (score > bestScore) {
+          bestScore = score;
+          bestMapping = mapping;
         }
       }
     });
   });
 
-  return best?.mapping;
+  return bestMapping;
 };
 
 const findAccountByName = (accounts: any[], accountName: string) => {
