@@ -230,6 +230,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
     "Siap Bordir",
     "Bordir / DTF",
     "Finishing Packing",
+    "Clearkan PO Lama"
   ].map((l) => l.toLowerCase());
 
   useEffect(() => {
