@@ -34,7 +34,7 @@ export const useCardCustomField = (cardId: string, workspaceId: string) => {
       updatedData,
     }: {
       customFieldId: string;
-      updatedData: Partial<CardCustomField>;
+      updatedData: Partial<CardCustomField> & { valueNumber?: number | null };
     }) =>
       setCardCustomFieldValue(workspaceId, cardId, customFieldId, updatedData),
     onMutate: async ({ customFieldId, updatedData }) => {
