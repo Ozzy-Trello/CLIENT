@@ -34,22 +34,43 @@ export async function fetchPDFBytes(
   url: string,
   providedHeaders?: HeadersInit
 ): Promise<Uint8Array> {
-  let fetchUrl = url;
+  // Normalize: if a file-proxy URL is passed (with or without origin), extract the target and use pdf-proxy instead
+  const stripFileProxy = (u: string) => {
+    const prefixes = [
+      "/api/file-proxy/",
+      typeof window !== "undefined" ? `${window.location.origin}/api/file-proxy/` : "",
+    ].filter(Boolean);
+    for (const prefix of prefixes) {
+      if (u.startsWith(prefix)) {
+        return u.replace(prefix, "");
+      }
+    }
+    return u;
+  };
+
+  const normalizedUrl = stripFileProxy(url);
   const headers: HeadersInit = { ...providedHeaders };
 
-  // Determine the correct URL and headers based on the URL type
-  if (url.startsWith("/api/file-proxy/")) {
-    // Already a proxy URL - use provided headers
-  } else if (
-    url.startsWith("http") &&
+  const isSignedUrl =
+    normalizedUrl.includes("X-Amz-Algorithm") ||
+    normalizedUrl.includes("X-Amz-Signature");
+
+  // Use proxy for external URLs to avoid CORS, but never proxy signed URLs (would break signature)
+  let fetchUrl = normalizedUrl;
+  if (
+    normalizedUrl.startsWith("http") &&
     typeof window !== "undefined" &&
-    !url.includes(window.location.origin)
+    !normalizedUrl.startsWith("/api/pdf-proxy") &&
+    !isSignedUrl
   ) {
-    // External URL, use proxy
-    fetchUrl = `/api/proxy-image?url=${encodeURIComponent(url)}&inline=true`;
+    fetchUrl = `/api/pdf-proxy?url=${encodeURIComponent(normalizedUrl)}`;
+  } else if (normalizedUrl.startsWith("http")) {
+    // Direct fetch with encoding preserved
+    fetchUrl = encodeURI(normalizedUrl);
   }
 
-  const response = await fetch(fetchUrl, { headers });
+  // Fetch via chosen URL (pdf-proxy when external)
+  let response = await fetch(fetchUrl, { headers });
 
   if (!response.ok) {
     throw new Error(

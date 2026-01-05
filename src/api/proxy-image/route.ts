@@ -7,18 +7,55 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function GET(request: NextRequest) {
   try {
     // Get the URL from the query parameter
-    const url = request.nextUrl.searchParams.get('url');
+    const rawUrl = request.nextUrl.searchParams.get('url');
 
     // Validate URL
-    if (!url) {
+    if (!rawUrl) {
       return NextResponse.json({ error: 'URL parameter is required' }, { status: 400 });
     }
     
-    // Basic URL validation
-    try {
-      new URL(url);
-    } catch (e) {
+    // Basic URL validation with fallback encoding for spaces/pipes
+    const tryParse = (candidate: string | null) => {
+      if (!candidate) return null;
+      try {
+        return new URL(candidate);
+      } catch {
+        return null;
+      }
+    };
+
+    let targetUrl = (() => {
+      try {
+        return decodeURIComponent(rawUrl.trim());
+      } catch {
+        return rawUrl.trim();
+      }
+    })();
+    let parsed = tryParse(targetUrl);
+
+    if (!parsed) {
+      const encoded = encodeURI(rawUrl);
+      parsed = tryParse(encoded);
+      if (parsed) {
+        targetUrl = encoded;
+      }
+    }
+
+    if (!parsed) {
       return NextResponse.json({ error: 'Invalid URL format' }, { status: 400 });
+    }
+
+    // Safely encode path segments to handle spaces/pipes and similar chars
+    try {
+      const rebuilt = new URL(targetUrl);
+      const encodedPath = rebuilt.pathname
+        .split("/")
+        .map((seg) => encodeURIComponent(decodeURIComponent(seg)))
+        .join("/");
+      rebuilt.pathname = encodedPath;
+      targetUrl = rebuilt.toString();
+    } catch {
+      // If rebuild fails, fall back to targetUrl
     }
     
     // Optional: Restrict to specific domains for security
@@ -32,7 +69,7 @@ export async function GET(request: NextRequest) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
     
-    const response = await fetch(url, {
+    const response = await fetch(targetUrl, {
       signal: controller.signal,
       headers: {
         // Some servers require a user-agent

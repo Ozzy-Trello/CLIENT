@@ -1,6 +1,13 @@
 import { api } from ".";
-import { Card, CardCustomField, CopycardPost, ListDashcardDataResponse } from "../types/card";
+import {
+  Card,
+  CardAttachment,
+  CardCustomField,
+  CopycardPost,
+  ListDashcardDataResponse,
+} from "../types/card";
 import { ApiResponse } from "../types/type";
+import { FileUpload } from "@myTypes/file-upload";
 
 const mapLabelToFrontend = (label: any) => ({
   id: label.id ?? label.label_id,
@@ -36,6 +43,32 @@ const mapMemberToFrontend = (member: any) => ({
   email: member.email,
   name: member.name ?? member.username,
 });
+
+const mapBackendFileToFrontend = (file: any): FileUpload => ({
+  ...file,
+  sizeUnit: file.sizeUnit ?? file.size_unit,
+  mimeType: file.mimeType ?? file.mime_type,
+  createdBy: file.createdBy ?? file.created_by,
+  createdAt: file.createdAt ?? file.created_at,
+  updatedAt: file.updatedAt ?? file.updated_at,
+});
+
+export const mapBackendAttachmentToFrontend = (attachment: any): CardAttachment => ({
+  id: attachment.id ?? attachment.attachment_id,
+  cardId: attachment.cardId ?? attachment.card_id,
+  attachableType: attachment.attachableType ?? attachment.attachable_type,
+  attachableId: attachment.attachableId ?? attachment.attachable_id,
+  isCover: attachment.isCover ?? attachment.is_cover ?? false,
+  isPrinted: attachment.isPrinted ?? attachment.is_printed ?? false,
+  type: attachment.type,
+  createdBy: attachment.createdBy ?? attachment.created_by,
+  createdAt: attachment.createdAt ?? attachment.created_at,
+  file: attachment.file ? mapBackendFileToFrontend(attachment.file) : undefined,
+  targetCard: attachment.target_card
+    ? mapBackendCardToFrontend({ ...attachment.target_card, attachments: undefined })
+    : undefined,
+  name: attachment.name,
+} as CardAttachment);
 
 // Helper function to map backend response to frontend Card format
 export const mapBackendCardToFrontend = (backendCard: any): Card => {
@@ -110,7 +143,9 @@ export const mapBackendCardToFrontend = (backendCard: any): Card => {
   }
 
   if (backendCard.attachments) {
-    mapped.attachments = backendCard.attachments;
+    mapped.attachments = (backendCard.attachments as any[]).map(
+      mapBackendAttachmentToFrontend
+    );
     // Derive cover from attachments if not explicitly set
     if (!mapped.cover) {
       const coverAttachment = (backendCard.attachments as any[]).find(

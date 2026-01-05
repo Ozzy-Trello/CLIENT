@@ -125,11 +125,11 @@ export const useCardCustomField = (cardId: string, workspaceId: string) => {
   };
 
   // Helper function to set number value
-  const setNumberValue = (customFieldId: string, value: number) => {
+  const setNumberValue = (customFieldId: string, value: number | null) => {
     setValueMutation.mutate({
       customFieldId,
       updatedData: {
-        valueNumber: value,
+        valueNumber: value === null ? undefined : value,
       },
     });
   };
@@ -196,7 +196,15 @@ export const useCardCustomField = (cardId: string, workspaceId: string) => {
         setStringValue(customFieldId, value);
         break;
       case EnumCustomFieldType.Number:
-        setNumberValue(customFieldId, Number(value));
+        if (value === null || value === undefined || value === "") {
+          setNumberValue(customFieldId, null);
+        } else {
+          const parsed = Number(value);
+          setNumberValue(
+            customFieldId,
+            Number.isFinite(parsed) ? parsed : null
+          );
+        }
         break;
       case EnumCustomFieldType.Dropdown:
         // Support clearing dropdown value via special sentinel or null

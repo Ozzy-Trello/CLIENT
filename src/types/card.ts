@@ -113,6 +113,7 @@ export interface CardAttachment {
   type: TCardAttachmentType;
   createdBy?: string;
   createdAt?: string;
+  name?: string;
   file?: FileUpload;
   targetCard?: Card;
 }

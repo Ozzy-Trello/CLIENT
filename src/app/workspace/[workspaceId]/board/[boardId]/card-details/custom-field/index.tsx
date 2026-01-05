@@ -162,7 +162,7 @@ const sanitizeCustomFieldNumber = (input: string): number | null => {
 const EnterToSaveNumberInput: React.FC<{
   placeholder?: string;
   initialValue: number | undefined | null;
-  onSave: (value: number) => void;
+  onSave: (value: number | null) => void;
   className?: string;
   fieldName?: string; // For debugging
   customFieldId?: string; // Added for split job integration
@@ -179,16 +179,14 @@ const EnterToSaveNumberInput: React.FC<{
   const params = useParams();
   const { selectedCard } = useCardDetailContext();
   const cardId = selectedCard?.id || "";
-    const { value, hasChanges, onChange, onKeyPress, onBlur } = useEnterToSave(
-      formatCustomFieldNumberValue(initialValue),
-      (stringValue) => {
-        const numValue = sanitizeCustomFieldNumber(stringValue);
-        if (numValue !== null) {
-          onSave(numValue);
-        }
-      },
-      { saveOnBlur: true }
-    );
+  const { value, hasChanges, onChange, onKeyPress, onBlur } = useEnterToSave(
+    formatCustomFieldNumberValue(initialValue),
+    (stringValue) => {
+      const numValue = sanitizeCustomFieldNumber(stringValue);
+      onSave(numValue);
+    },
+    { saveOnBlur: true }
+  );
 
   // // Only show Split Job button for "Jml Produksi" field
   // const showSplitJob = fieldName === "Jml Produksi";
@@ -373,7 +371,7 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
     setStringValue(fieldId, value);
   };
 
-  const handleNumberValueChange = (fieldId: string, value: number) => {
+  const handleNumberValueChange = (fieldId: string, value: number | null) => {
     if (!fieldId) {
       messageApi.error("Missing field ID");
       return;

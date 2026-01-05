@@ -320,7 +320,9 @@ const Actions: React.FC<{
       const buktiFile = new File([file], buktiFileName, { type: file.type });
 
       // Upload the file with the new name
-      const buktiResult = await uploadFile(buktiFile);
+      const buktiResult = await uploadFile(buktiFile, {
+        cardId: selectedCard?.id,
+      });
 
       if (buktiResult?.data && selectedCard) {
         // Add the attachment with the bukti file
@@ -349,7 +351,9 @@ const Actions: React.FC<{
       const poFile = new File([file], poFileName, { type: file.type });
 
       // Upload the file with the new name
-      const poResult = await uploadFile(poFile);
+      const poResult = await uploadFile(poFile, {
+        cardId: selectedCard?.id,
+      });
 
       if (poResult?.data && selectedCard) {
         addAttachment({

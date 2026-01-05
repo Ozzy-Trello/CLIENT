@@ -44,7 +44,7 @@ import { useCardDetails } from "@hooks/card-details";
 import { useCardActivity } from "@hooks/card_activity";
 import { useCardMembers } from "@hooks/card_member";
 import { useLabels } from "@hooks/label";
-import { Card } from "@myTypes/card";
+import { Card, EnumAttachmentType, EnumCardAttachmentType } from "@myTypes/card";
 import { CardLabel } from "@myTypes/label";
 import { useBoardPermissionsContext } from "@providers/board-permissions-context";
 import { selectUser } from "@store/app_slice";
@@ -63,6 +63,9 @@ import ProdukFields from "./produk-fields";
 import RequestFields from "./request-field";
 import SplitJobFields from "./split-job-field";
 import CardTimeInList from "./time-in-lists";
+import { uploadFile } from "@api/file";
+import { createCardAttachment } from "@api/card_attachment";
+import { message } from "antd";
 
 const CardDetails: React.FC = (props) => {
   const params = useParams();
@@ -203,6 +206,8 @@ const CardDetails: React.FC = (props) => {
   const { canUpdateCard } = useBoardPermissionsContext();
   const [dashcardModalCard, setDashcardModalCard] = useState<Card | null>(null);
   const [isDashcardModalOpen, setIsDashcardModalOpen] = useState(false);
+  const [isDraggingFiles, setIsDraggingFiles] = useState(false);
+  const [isUploadingDrop, setIsUploadingDrop] = useState(false);
   const handleOpenDashcardDetail = useCallback((card: Card) => {
     setDashcardModalCard(card);
     setIsDashcardModalOpen(true);
@@ -242,6 +247,67 @@ const CardDetails: React.FC = (props) => {
       });
     }
   };
+
+  const handleFilesUpload = useCallback(
+    async (files: FileList | null) => {
+      if (!files || !selectedCard?.id) return;
+      setIsUploadingDrop(true);
+      try {
+        for (const file of Array.from(files)) {
+          const res = await uploadFile(file, { cardId: selectedCard.id });
+          const uploaded = res?.data;
+          if (uploaded?.id) {
+            await createCardAttachment({
+              cardId: selectedCard.id,
+              attachableType: EnumAttachmentType.File,
+              attachableId: uploaded.id,
+              isCover: false,
+              type: EnumCardAttachmentType.Attachment,
+            });
+          }
+        }
+        message.success("File(s) uploaded");
+      } catch (err: any) {
+        console.error("Drag/drop upload failed", err);
+        message.error(err?.message || "Upload failed");
+      } finally {
+        setIsUploadingDrop(false);
+      }
+    },
+    [selectedCard?.id]
+  );
+
+  useEffect(() => {
+    if (!isCardDetailOpen) {
+      setIsDraggingFiles(false);
+      return;
+    }
+    const handleDragOver = (e: DragEvent) => {
+      e.preventDefault();
+      setIsDraggingFiles(true);
+    };
+    const handleDragLeave = (e: DragEvent) => {
+      e.preventDefault();
+      setIsDraggingFiles(false);
+    };
+    const handleDrop = (e: DragEvent) => {
+      e.preventDefault();
+      setIsDraggingFiles(false);
+      const dt = e.dataTransfer;
+      if (dt?.files?.length) {
+        void handleFilesUpload(dt.files);
+      }
+    };
+
+    window.addEventListener("dragover", handleDragOver);
+    window.addEventListener("dragleave", handleDragLeave);
+    window.addEventListener("drop", handleDrop);
+    return () => {
+      window.removeEventListener("dragover", handleDragOver);
+      window.removeEventListener("dragleave", handleDragLeave);
+      window.removeEventListener("drop", handleDrop);
+    };
+  }, [handleFilesUpload, isCardDetailOpen]);
 
   const handleSaveTitleClick = () => {
     if (!selectedCard) return;
@@ -358,7 +424,14 @@ const CardDetails: React.FC = (props) => {
       width={1050}
       destroyOnClose
     >
-      <div className="overflow-x-hidden max-w-full">
+      <div className="overflow-x-hidden max-w-full relative">
+        {isDraggingFiles && (
+          <div className="absolute inset-0 z-50 bg-blue-500/10 border-2 border-dashed border-blue-500 flex items-center justify-center pointer-events-none">
+            <div className="bg-white px-4 py-2 rounded shadow text-blue-700 font-semibold">
+              {isUploadingDrop ? "Uploading..." : "Drop files to attach"}
+            </div>
+          </div>
+        )}
         {/* Cover Image Section */}
         {selectedCard && <Cover card={selectedCard} />}
 
@@ -613,7 +686,7 @@ const CardDetails: React.FC = (props) => {
                 />
               )}
 
-              {selectedCard && shouldShowProduk && selectedCard?.type !== "dashcard" && (
+              {/* {selectedCard && shouldShowProduk && selectedCard?.type !== "dashcard" && (
                 <CollapsibleSection
                   title="Produk"
                   defaultExpanded={true}
@@ -636,7 +709,7 @@ const CardDetails: React.FC = (props) => {
                     viewOnly={isViewOnlyProdukBoard}
                   />
                 </CollapsibleSection>
-              )}
+              )} */}
 
               {selectedCard &&
                 selectedCard?.location &&
@@ -735,7 +808,6 @@ const CardDetails: React.FC = (props) => {
                 </CollapsibleSection>
               )}
 
-              {/* Attachments Section */}
               {selectedCard && (
                 <CollapsibleSection
                   title="Attachments"
@@ -749,19 +821,6 @@ const CardDetails: React.FC = (props) => {
                   />
                 </CollapsibleSection>
               )}
-              {/* {selectedCard?.attachments && (
-                <div className="pt-2 border-t border-gray-200">
-                  <div className="flex items-center mb-2">
-                    <span className="text-gray-500 mr-2">
-                      <i className="fi fi-rs-clip"></i>
-                    </span>
-                    <Typography.Title level={5} className="m-0">
-                      Attachments
-                    </Typography.Title>
-                  </div>
-                  <Attachments attachments={selectedCard?.attachments} />
-                </div>
-              )} */}
 
               {/* Activity Section */}
               {selectedCard && (

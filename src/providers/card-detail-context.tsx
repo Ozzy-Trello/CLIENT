@@ -272,6 +272,16 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
     const prevAttachments = Array.isArray((prev as any).attachments) ? (prev as any).attachments : [];
     const nextAttachments = Array.isArray((next as any).attachments) ? (next as any).attachments : [];
     if (prevAttachments.length !== nextAttachments.length) return false;
+    const signature = (atts: any[]) =>
+      atts
+        .map(
+          (a) =>
+            `${a.id}-${a.is_cover ?? a.isCover ?? a.isCover}-${a.is_printed ?? a.isPrinted ?? a.isPrinted}-${
+              a.file?.url || ""
+            }-${a.type || ""}`
+        )
+        .join("|");
+    if (signature(prevAttachments) !== signature(nextAttachments)) return false;
 
     const keys: Array<keyof Card> = [
       "name",

@@ -5,6 +5,7 @@ import {
   updateCardAttachment,
   getCardAttachments,
 } from "../api/card_attachment";
+import { mapBackendAttachmentToFrontend } from "../api/card";
 import { ApiResponse } from "../types/type";
 import {
   TAttachableType,
@@ -17,20 +18,32 @@ import { queryKeys } from "../constants/query-keys";
 /**
  * Hook to manage card attachments
  */
-export function useCardAttachment(cardId: string) {
+export function useCardAttachment(
+  cardId: string,
+  options?: {
+    initialData?: CardAttachment[] | any[];
+    fetch?: boolean;
+  }
+) {
   const queryClient = useQueryClient();
+  const shouldFetch = options?.fetch !== false;
 
   // Main query for card attachments
   const cardAttachmentQuery = useQuery({
     queryKey: ["cardAttachment", cardId],
     queryFn: () => getCardAttachments(cardId),
-    enabled: !!cardId,
+    enabled: !!cardId && shouldFetch,
     staleTime: 5000,
+    initialData: options?.initialData
+      ? {
+          data: options.initialData,
+        }
+      : undefined,
   });
 
   // WebSocket real-time refetch
   useEffect(() => {
-    if (!cardId) return;
+    if (!cardId || !shouldFetch) return;
     const socket =
       typeof window !== "undefined" ? (window as any).socket : null;
     if (!socket) return;
@@ -53,7 +66,7 @@ export function useCardAttachment(cardId: string) {
     return () => {
       socket.removeEventListener("message", handler);
     };
-  }, [cardId, queryClient]);
+  }, [cardId, queryClient, shouldFetch]);
 
   // Create attachment mutation with simple refetch approach
   const addAttachmentMutation = useMutation({
@@ -148,37 +161,20 @@ export function useCardAttachment(cardId: string) {
     },
   });
 
-  const mappedAttachments = useMemo(
-    () =>
-      cardAttachmentQuery.data?.data?.map((a: any) => ({
-        ...a,
-        cardId: a.cardId || a.card_id,
-        attachableType: a.attachableType || a.attachable_type,
-        attachableId: a.attachableId || a.attachable_id,
-        isCover: a.isCover ?? a.is_cover,
-        isPrinted: a.isPrinted ?? a.is_printed,
-        file: a.file
-          ? {
-              ...a.file,
-              sizeUnit: a.file.sizeUnit || a.file.size_unit,
-              mimeType: a.file.mimeType || a.file.mime_type,
-              createdBy: a.file.createdBy || a.file.created_by,
-              createdAt: a.file.createdAt || a.file.created_at,
-              updatedAt: a.file.updatedAt || a.file.updated_at,
-            }
-          : undefined,
-      })) || [],
-    [cardAttachmentQuery.data]
-  );
+  const mappedAttachments = useMemo(() => {
+    const sourceData =
+      cardAttachmentQuery.data?.data ?? options?.initialData ?? [];
+    return (sourceData as any[]).map(mapBackendAttachmentToFrontend);
+  }, [cardAttachmentQuery.data, options?.initialData]);
 
   return {
     cardAttachments:
       (mappedAttachments && mappedAttachments.length > 0
         ? mappedAttachments
         : cardAttachmentQuery.data?.data) || [],
-    isLoading: cardAttachmentQuery.isLoading,
-    isError: cardAttachmentQuery.isError,
-    error: cardAttachmentQuery.error,
+    isLoading: shouldFetch ? cardAttachmentQuery.isLoading : false,
+    isError: shouldFetch ? cardAttachmentQuery.isError : false,
+    error: shouldFetch ? cardAttachmentQuery.error : undefined,
     addAttachment: addAttachmentMutation.mutate,
     deleteAttachment: deleteAttachmentMutation.mutate,
     isAddingAttachment: addAttachmentMutation.isPending,
@@ -186,5 +182,6 @@ export function useCardAttachment(cardId: string) {
     markPrinted: markPrintedMutation.mutate,
     isMarkingCover: markCoverMutation.isPending,
     markCover: markCoverMutation.mutate,
+    refetch: cardAttachmentQuery.refetch,
   };
 }

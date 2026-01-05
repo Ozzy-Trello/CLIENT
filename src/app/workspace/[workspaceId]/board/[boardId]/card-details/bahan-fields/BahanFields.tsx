@@ -269,8 +269,21 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
 
   // Note: Removed complex mapping logic - now using direct POProduct access
 
+  const lastDataSignatureRef = useRef<string>("");
+
   // Update local state when API data changes
   useEffect(() => {
+    const signature = [
+      apiPOData?.length ?? 0,
+      poProductsResponse?.data?.length ?? 0,
+      warehouseProducts?.length ?? 0,
+    ].join("|");
+
+    if (signature === lastDataSignatureRef.current) {
+      return;
+    }
+    lastDataSignatureRef.current = signature;
+
     if (apiPOData?.length > 0) {
       const updatedPOData = [...apiPOData];
 
