@@ -181,7 +181,6 @@ const Actions: React.FC<{
   const {
     canManageCardMembers,
     canManageCardLabels,
-    canManageCardDates,
     canManageCardAttachments,
     canManageCardChecklists,
     canManageCardCustomFields,
@@ -731,37 +730,23 @@ const Actions: React.FC<{
       )}
 
       {/* Dates */}
-      {canManageCardDates() ? (
-        <PopoverDates
-          open={openDates}
-          setOpen={setOpenDates}
-          triggerEl={
-            <PermissionButton
-              canPerform={canManageCardDates()}
-              tooltip="Manage card dates"
-              permissionLevel={permissionLevel}
-              buttonStyle={buttonStyle}
-            >
-              <span className="text-xs" style={iconStyle}>
-                <Clock size={14} />
-              </span>
-              <span className="text-xs">Dates</span>
-            </PermissionButton>
-          }
-        />
-      ) : (
-        <PermissionButton
-          canPerform={canManageCardDates()}
-          tooltip="Manage card dates"
-          permissionLevel={permissionLevel}
-          buttonStyle={buttonStyle}
-        >
-          <span className="text-xs" style={iconStyle}>
-            <Clock size={14} />
-          </span>
-          <span className="text-xs">Dates</span>
-        </PermissionButton>
-      )}
+      <PopoverDates
+        open={openDates}
+        setOpen={setOpenDates}
+        triggerEl={
+          <PermissionButton
+            canPerform={true}
+            tooltip="Manage card dates"
+            permissionLevel={permissionLevel}
+            buttonStyle={buttonStyle}
+          >
+            <span className="text-xs" style={iconStyle}>
+              <Clock size={14} />
+            </span>
+            <span className="text-xs">Dates</span>
+          </PermissionButton>
+        }
+      />
 
       {/* Custom Fields */}
       {canManageCardCustomFields() ? (
