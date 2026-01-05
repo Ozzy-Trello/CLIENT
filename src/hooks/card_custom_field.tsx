@@ -129,7 +129,8 @@ export const useCardCustomField = (cardId: string, workspaceId: string) => {
     setValueMutation.mutate({
       customFieldId,
       updatedData: {
-        valueNumber: value === null ? undefined : value,
+        // Send null explicitly so backend clears the stored number
+        valueNumber: value === null ? null : value,
       },
     });
   };
