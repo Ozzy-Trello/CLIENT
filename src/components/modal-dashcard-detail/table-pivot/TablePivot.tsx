@@ -15,6 +15,7 @@ import { ItemType } from "antd/es/menu/interface";
 import { useSelector } from "react-redux";
 import { useParams } from "next/navigation";
 import { useDebounce } from "@hooks/debounce";
+import { usePermissions } from "@hooks/account";
 import { useCardDetailContext } from "@providers/card-detail-context";
 import { useCustomFields } from "@hooks/custom_field";
 import { selectCurrentWorkspace } from "@store/workspace_slice";
@@ -66,6 +67,9 @@ const TablePivot: FC = () => {
   const [saveSucceeded, setSaveSucceeded] = useState(false);
   const [lastSavedVisibility, setLastSavedVisibility] = useState<Record<string, boolean>>({});
   const [lastSavedOrder, setLastSavedOrder] = useState<string[]>([]);
+
+  const { isSuperAdmin } = usePermissions();
+  const isSuperAdminUser = isSuperAdmin();
 
   const { processedItemDashcard, dashcardConfig, saveColumnsConfig } = useCardDetailContext();
 
@@ -696,6 +700,7 @@ const TablePivot: FC = () => {
         saveDisabled={!hasUnsavedChanges}
         saveLoading={isSavingColumns}
         saveSucceeded={saveSucceeded}
+        isSuperAdmin={isSuperAdminUser}
       />
       <PivotTable
         table={table}

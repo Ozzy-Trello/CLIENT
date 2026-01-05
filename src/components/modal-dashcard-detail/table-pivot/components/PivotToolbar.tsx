@@ -13,6 +13,7 @@ type PivotToolbarProps = {
   saveDisabled?: boolean;
   saveLoading?: boolean;
   saveSucceeded?: boolean;
+  isSuperAdmin?: boolean;
 };
 
 const PivotToolbar: FC<PivotToolbarProps> = ({
@@ -26,6 +27,7 @@ const PivotToolbar: FC<PivotToolbarProps> = ({
   saveDisabled,
   saveLoading,
   saveSucceeded,
+  isSuperAdmin = false,
 }) => {
   return (
     <div className="flex justify-end gap-3 items-center">
@@ -42,7 +44,7 @@ const PivotToolbar: FC<PivotToolbarProps> = ({
           Export to Excel
         </Button>
       </div>
-      {columnsDropdownContent && (
+      {isSuperAdmin && columnsDropdownContent && (
         <div>
           <Dropdown
             menu={{ items: [] }}
@@ -56,7 +58,7 @@ const PivotToolbar: FC<PivotToolbarProps> = ({
           </Dropdown>
         </div>
       )}
-      {onSave && (
+      {isSuperAdmin && onSave && (
         <div>
           <Button
             type={saveSucceeded ? "default" : "primary"}
