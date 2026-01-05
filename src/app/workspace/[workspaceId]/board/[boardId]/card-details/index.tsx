@@ -321,6 +321,33 @@ const CardDetails: React.FC = (props) => {
     }
   }, [allLabels]);
 
+  // Keyboard shortcut: open Label popover with "L" when card detail is focused and not typing
+  useEffect(() => {
+    if (!isCardDetailOpen) return;
+
+    const handler = (e: KeyboardEvent) => {
+      if ((e.key === "l" || e.key === "L") && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        const active = document.activeElement as HTMLElement | null;
+        const tag = active?.tagName?.toLowerCase();
+        const isTyping =
+          active &&
+          (active.isContentEditable ||
+            tag === "input" ||
+            tag === "textarea" ||
+            tag === "select" ||
+            tag === "button");
+
+        if (!isTyping) {
+          e.preventDefault();
+          setOpenLabel((prev) => !prev);
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [isCardDetailOpen]);
+
   return (
     <Modal
       title={null}

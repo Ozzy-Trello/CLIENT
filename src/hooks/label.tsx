@@ -7,6 +7,7 @@ import {
   getLabels,
   getAllLabels,
   getWorkspaceLabels,
+  getTopLabels,
 } from "@api/label";
 import { addCardLabel, removeLabelFromCard, getCardLabels } from "@api/card";
 import { Label, CardLabel } from "@myTypes/label";
@@ -529,5 +530,35 @@ export function useWorkspaceLabels(workspaceId: string, search?: string) {
     loadMore,
     reset,
     refetch,
+  };
+}
+
+export function useTopWorkspaceLabels(workspaceId: string, limit: number = 2) {
+  const { data, isFetching, error } = useQuery({
+    queryKey: ["workspaceTopLabels", workspaceId, limit],
+    queryFn: async () => {
+      const res = await getTopLabels(workspaceId, limit);
+      const top = res.data ?? [];
+
+      return top.map((label: any) => ({
+        id: label.id,
+        labelId: label.id,
+        name: label.name,
+        value: label.value,
+        valueType: label.value_type || label.valueType,
+        workspaceId: label.workspace_id || label.workspaceId,
+        usageCount: label.usage_count ?? label.usageCount ?? 0,
+        createdAt: label.created_at || label.createdAt,
+        updatedAt: label.updated_at || label.updatedAt,
+        isAssigned: false,
+      }));
+    },
+    enabled: !!workspaceId,
+  });
+
+  return {
+    topLabels: data || [],
+    isFetching,
+    error,
   };
 }

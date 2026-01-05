@@ -8,6 +8,7 @@ export interface Label {
   createdBy?: string;
   createdAt?: Date;
   updatedAt?: Date;
+  usageCount?: number;
 }
 
 export interface CardLabel {
@@ -22,6 +23,7 @@ export interface CardLabel {
   createdBy?: string;
   createdAt?: Date;
   updatedAt?: Date;
+  usageCount?: number;
 }
 
 export interface LabelAttributes {

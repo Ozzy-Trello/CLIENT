@@ -80,3 +80,17 @@ export const labelDetails = async (
   const { data } = await api.get(`/label/${labelId}`);
   return data;
 };
+
+export const getTopLabels = async (
+  workspaceId: string,
+  limit: number = 2
+): Promise<ApiResponse<LabelAttributes[]>> => {
+  const params = new URLSearchParams({
+    limit: limit.toString(),
+  });
+
+  const { data } = await api.get(`/label/workspace/top?${params}`, {
+    headers: { "workspace-id": workspaceId },
+  });
+  return data;
+};
