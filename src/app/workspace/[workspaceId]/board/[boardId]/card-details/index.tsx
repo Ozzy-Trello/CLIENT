@@ -75,10 +75,6 @@ const CardDetails: React.FC = (props) => {
   // Boards where the Produk section should be visible (name-based, case-insensitive)
   const ALLOWED_BOARD_NAMES = [
     "Request Desain | Outlet",
-    "List PO | Outlet",
-    "Dateline",
-    "Delivery",
-    "List Purchase | Produksi",
     "TEST BOARD"
   ];
   // Optional: if you know the exact board IDs, add them here for stronger matching

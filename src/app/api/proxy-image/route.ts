@@ -24,10 +24,20 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch the file (image, PDF, etc.)
+    const upstreamHeaders: Record<string, string> = {
+      'User-Agent': 'Mozilla/5.0 (compatible; OzzyDND/1.0)',
+    };
+    const authHeader = request.headers.get('authorization');
+    const cookieHeader = request.headers.get('cookie');
+    if (authHeader) {
+      upstreamHeaders['Authorization'] = authHeader;
+    }
+    if (cookieHeader) {
+      upstreamHeaders['Cookie'] = cookieHeader;
+    }
+
     const response = await fetch(fileUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; OzzyDND/1.0)',
-      },
+      headers: upstreamHeaders,
     });
 
     if (!response.ok) {

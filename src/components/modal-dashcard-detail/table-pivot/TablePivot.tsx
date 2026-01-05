@@ -1,4 +1,4 @@
-import { FC, ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { FC, MouseEvent, ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import {
   createColumnHelper,
   getCoreRowModel,
@@ -365,15 +365,22 @@ const TablePivot: FC = () => {
           headerTemplate("Name", getColumnMenu("name").items || [], getColumnMenu("name").onClick),
         cell: (info) => {
           const row = info.row;
-          const openInNewTab = () => {
+          const openInNewTab = (event: MouseEvent) => {
+            if (event.button !== 0 && event.button !== 1) return;
+            event.preventDefault();
             if (typeof window === "undefined") return;
             const workspaceSegment = currentWorkspaceId || "";
             const url = `/workspace/${workspaceSegment}/board/${row.original.boardId}?cardId=${row.original.id}&listId=${row.original.listId}`;
-            window.open(url, "_blank");
+            const newTab = window.open(url, "_blank", "noopener,noreferrer");
+
+            if (event.button === 1) {
+              newTab?.blur();
+              window.focus();
+            }
           };
 
           return renderGroupedCell("name", row, () => (
-            <span className="cursor-pointer" onClick={openInNewTab}>
+            <span className="cursor-pointer" onClick={openInNewTab} onAuxClick={openInNewTab}>
               {info.getValue()}
             </span>
           ));
