@@ -33,9 +33,10 @@ const getContrastColor = (hexColor: string): string => {
 interface ProdukFieldsProps {
   card: Card;
   setCard: React.Dispatch<React.SetStateAction<Card | null>>;
+  viewOnly?: boolean;
 }
 
-const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard }) => {
+const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard, viewOnly = false }) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [productCodes, setProductCodes] = useState<ProductCode[]>([]);
   const [bahans, setBahans] = useState<Bahan[]>([]);
@@ -51,6 +52,8 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard }) => {
     card?.boardId || ""
   );
   const { canUpdateCard } = useBoardPermissionsContext();
+  const canEdit = canUpdateCard();
+  const isViewOnly = viewOnly || !canEdit;
 
   // Load products on component mount
   useEffect(() => {
@@ -152,7 +155,7 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard }) => {
   }, [card.bahanId]);
 
   const handleProductChange = (productId: string) => {
-    if (!canUpdateCard()) return;
+    if (isViewOnly) return;
 
     // Handle '-' clear option
     const isClear = productId === CLEAR_VALUE;
@@ -190,7 +193,7 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard }) => {
   };
 
   const handleProductCodeChange = (productCodeId: string) => {
-    if (!canUpdateCard()) return;
+    if (isViewOnly) return;
 
     const isClear = productCodeId === CLEAR_VALUE;
     // Send null to explicitly clear
@@ -210,7 +213,7 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard }) => {
   };
 
   const handleBahanChange = (bahanId: string) => {
-    if (!canUpdateCard()) return;
+    if (isViewOnly) return;
 
     const isClear = bahanId === CLEAR_VALUE;
     // Send null to explicitly clear
@@ -242,7 +245,7 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard }) => {
   };
 
   const handleWarnaChange = (warnaId: string) => {
-    if (!canUpdateCard()) return;
+    if (isViewOnly) return;
 
     const isClear = warnaId === CLEAR_VALUE;
     // Send null to explicitly clear
@@ -279,7 +282,7 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard }) => {
           placeholder="Search product..."
           className="w-full"
           loading={loadingProducts}
-          disabled={!canUpdateCard() || loadingProducts}
+          disabled={isViewOnly || loadingProducts}
           showSearch
           filterOption={(input, option) =>
             option?.children
@@ -312,7 +315,7 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard }) => {
           }
           className="w-full"
           loading={loadingProductCodes}
-          disabled={!canUpdateCard() || !card.productId || loadingProductCodes}
+          disabled={isViewOnly || !card.productId || loadingProductCodes}
           showSearch
           filterOption={(input, option) =>
             option?.children
@@ -345,7 +348,7 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard }) => {
           }
           className="w-full"
           loading={loadingBahans}
-          disabled={!canUpdateCard() || !card.productId || loadingBahans}
+          disabled={isViewOnly || !card.productId || loadingBahans}
           showSearch
           filterOption={(input, option) =>
             option?.children
@@ -376,7 +379,7 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard }) => {
           placeholder={!card.bahanId ? "Select bahan first" : "Search warna..."}
           className="w-full"
           loading={loadingWarnas}
-          disabled={!canUpdateCard() || !card.bahanId || loadingWarnas}
+          disabled={isViewOnly || !card.bahanId || loadingWarnas}
           showSearch
         filterOption={(input, option) => {
           const labelText =

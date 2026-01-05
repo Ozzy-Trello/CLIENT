@@ -77,6 +77,10 @@ const CardDetails: React.FC = (props) => {
     "Request Desain | Outlet",
     "TEST BOARD"
   ];
+   const CAN_VIEW_BOARD = [
+    "Dateline",
+    "Delivery"
+  ];
   // Optional: if you know the exact board IDs, add them here for stronger matching
   const ALLOWED_BOARD_IDS = new Set<string>([
     // e.g. "uuid-1234-...",
@@ -96,10 +100,17 @@ const CardDetails: React.FC = (props) => {
     currentBoard?.name ||
     ""
   ).trim();
+  const viewOnlyBoardNamesSet = new Set(
+    CAN_VIEW_BOARD.map((n) => n.toLowerCase().trim())
+  );
   const allowedNamesSet = new Set(
     ALLOWED_BOARD_NAMES.map((n) => n.toLowerCase().trim())
   );
+  const isViewOnlyProdukBoard =
+    !!effectiveBoardName &&
+    viewOnlyBoardNamesSet.has(effectiveBoardName.toLowerCase());
   const shouldShowProduk =
+    isViewOnlyProdukBoard ||
     (effectiveBoardName &&
       allowedNamesSet.has(effectiveBoardName.toLowerCase())) ||
     (typeof boardId === "string" && ALLOWED_BOARD_IDS.has(boardId));
@@ -592,7 +603,11 @@ const CardDetails: React.FC = (props) => {
                     </svg>
                   }
                 >
-                  <ProdukFields card={selectedCard} setCard={setSelectedCard} />
+                  <ProdukFields
+                    card={selectedCard}
+                    setCard={setSelectedCard}
+                    viewOnly={isViewOnlyProdukBoard}
+                  />
                 </CollapsibleSection>
               )}
 
