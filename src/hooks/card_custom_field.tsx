@@ -130,7 +130,7 @@ export const useCardCustomField = (cardId: string, workspaceId: string) => {
       customFieldId,
       updatedData: {
         // Send null explicitly so backend clears the stored number
-        valueNumber: value === null ? null : value,
+        valueNumber: value === null ? undefined : value,
       },
     });
   };
