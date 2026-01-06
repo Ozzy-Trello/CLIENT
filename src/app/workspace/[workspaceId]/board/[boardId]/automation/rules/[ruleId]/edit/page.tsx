@@ -190,12 +190,15 @@ export default function EditRulePage() {
     // Convert actions
     const convertedActions =
       ruleData.action?.map((action) => {
+        const condition = action.condition || {};
+        const { type: _condType, label: _condLabel, ...cleanCondition } =
+          condition as any;
         return {
           id: action.id, // Include action ID for direct updates
           groupType: action.groupType,
           selectedActionItem: {
             type: action.type,
-            ...action.condition,
+            ...cleanCondition,
           },
         };
       }) || [];
