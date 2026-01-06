@@ -4,6 +4,7 @@ import {
   CardAttachment,
   TCardAttachmentType,
 } from "../types/card";
+import { mapBackendCardToFrontend } from "./card";
 import { ApiResponse } from "../types/type";
 
 const transformFile = (f: any) => {
@@ -46,7 +47,11 @@ const transformAttachment = (a: any): CardAttachment => {
     createdBy,
     createdAt,
     file: transformFile(a.file),
-    targetCard: a.targetCard || a.target_card,
+    targetCard: a.targetCard
+      ? mapBackendCardToFrontend(a.targetCard)
+      : a.target_card
+      ? mapBackendCardToFrontend(a.target_card)
+      : undefined,
   };
 };
 

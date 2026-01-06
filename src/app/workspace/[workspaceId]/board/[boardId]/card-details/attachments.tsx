@@ -1,6 +1,12 @@
 import { PaperClipOutlined, DownloadOutlined, UploadOutlined } from "@ant-design/icons";
 import { QrCode } from "lucide-react";
-import { Card, CardAttachment, EnumCardAttachmentType } from "@myTypes/card";
+import {
+  Card,
+  CardAttachment,
+  EnumAttachmentType,
+  EnumCardAttachmentType,
+  EnumCardType,
+} from "@myTypes/card";
 import { Button, List, Tag, Typography, Image } from "antd";
 import React, { useMemo, useRef, useState } from "react";
 import { formatFileSize, getFileIcon, isImageFile, isPDFFile } from "./attachment-helpers";
@@ -8,8 +14,8 @@ import { useCardAttachment } from "@hooks/card_attachment";
 import { useAttachmentPrinting } from "./hooks/useAttachmentPrinting";
 import { useParams } from "next/navigation";
 import { uploadFile } from "@api/file";
-import { EnumAttachmentType } from "@myTypes/card";
 import { message } from "antd";
+import AttachedCard from "./attached-card";
 
 interface AttachmentsProps {
   card: Card;
@@ -53,6 +59,23 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
     return card.attachments || [];
   }, [cardAttachments, card.attachments]);
 
+  const cardLinkAttachments = useMemo(
+    () =>
+      attachments.filter(
+        (att) => att.attachableType === EnumAttachmentType.Card
+      ),
+    [attachments]
+  );
+
+  // Default everything that is not an explicit card link to file attachments to keep old data working
+  const fileAttachments = useMemo(
+    () =>
+      attachments.filter(
+        (att) => att.attachableType !== EnumAttachmentType.Card
+      ),
+    [attachments]
+  );
+
   React.useEffect(() => {
     // Debug helper to verify data flow
     if (process.env.NODE_ENV !== "production") {
@@ -74,30 +97,30 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
 
   const buktiAttachments = useMemo(
     () =>
-      attachments.filter(
+      fileAttachments.filter(
         (att) =>
           att.type === EnumCardAttachmentType.Bukti 
       ),
-    [attachments]
+    [fileAttachments]
   );
 
   const poAttachments = useMemo(
     () =>
-      attachments.filter(
+      fileAttachments.filter(
         (att) =>
           att.type === EnumCardAttachmentType.PO 
       ),
-    [attachments]
+    [fileAttachments]
   );
 
   const otherAttachments = useMemo(
     () =>
-      attachments.filter(
+      fileAttachments.filter(
         (att) =>
           !att.type ||
           att.type === EnumCardAttachmentType.Attachment 
       ),
-    [attachments]
+    [fileAttachments]
   );
 
   const handleDownload = (url?: string, name?: string) => {
@@ -297,6 +320,44 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
     </div>
   );
 
+  const renderCardLinks = () => (
+    <div className="mb-6">
+      <Typography.Text className="text-xs text-gray-500 uppercase font-semibold">
+        Linked Cards
+      </Typography.Text>
+      <List
+        className="mt-2"
+        grid={{ gutter: 12, column: 3 }}
+        dataSource={cardLinkAttachments}
+        locale={{ emptyText: "No card attachments yet" }}
+        renderItem={(attachment) => {
+          const linkedCard: Card =
+            attachment.targetCard ||
+            ({
+              id: attachment.attachableId,
+              name: attachment.name || "Linked card",
+              listId: card.listId,
+              listName: card.listName,
+              boardId: card.boardId,
+              boardName: card.boardName,
+              type: EnumCardType.Regular,
+            } as Card);
+
+          return (
+            <List.Item key={attachment.id} className="p-0 border-none">
+              <AttachedCard
+                card={linkedCard}
+                onDelete={() =>
+                  deleteAttachment({ attachmentId: attachment.id, cardId: card.id })
+                }
+              />
+            </List.Item>
+          );
+        }}
+      />
+    </div>
+  );
+
   return (
     <div className="bg-white p-4 rounded-lg mt-2">
       <div className="flex items-center mb-4">
@@ -340,11 +401,12 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
           type="file"
           multiple
           ref={inputRef}
-          onChange={handleSelect}
-          className="hidden"
-        />
+        onChange={handleSelect}
+        className="hidden"
+      />
       </div> */}
 
+      {renderCardLinks()}
       {renderSection("PO", poAttachments)}
       {renderSection("Bukti", buktiAttachments)}
       {renderSection("Other", otherAttachments)}
