@@ -45,8 +45,8 @@ interface FieldValueInputProps extends SelectionProps {
     source: string;
     option?: Array<{ label: string; value: string }>;
   };
-  value?: string;
-  onChange?: (value: string, option?: any) => void;
+  value?: string | string[];
+  onChange?: (value: string | string[], option?: any) => void;
   placeholder?: string;
 }
 export interface SelectionRef {
