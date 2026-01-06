@@ -474,6 +474,8 @@ export const ListSelection = forwardRef<SelectionRef, ListSelectionProps>(
   }
 );
 
+type BoardSelectionValue = string | string[] | undefined;
+
 export const BoardSelection = forwardRef<SelectionRef, SelectionProps>(
   (
     {
@@ -484,13 +486,15 @@ export const BoardSelection = forwardRef<SelectionRef, SelectionProps>(
       className = "",
       value,
       onChange,
+      mode,
+      disabled,
     },
     ref
   ) => {
     const [options, setOptions] = useState<{ label: string; value: string }[]>(
       []
     );
-    const [selectedValue, setSelectedValue] = useState<string | undefined>(
+    const [selectedValue, setSelectedValue] = useState<BoardSelectionValue>(
       value
     );
     const [selectedObject, setSelectedObject] = useState<{
@@ -504,7 +508,7 @@ export const BoardSelection = forwardRef<SelectionRef, SelectionProps>(
     const [boardsData, setBoardsData] = useState<Board[]>([]);
 
     useImperativeHandle(ref, () => ({
-      getValue: () => selectedValue,
+      getValue: () => selectedValue as string | undefined,
       getObject: () => selectedObject,
       setValue: (value: string) => {
         setSelectedValue(value);
@@ -515,22 +519,22 @@ export const BoardSelection = forwardRef<SelectionRef, SelectionProps>(
       },
     }));
 
-    const handleChange = (value: string, option: any) => {
-      setSelectedValue(value);
-      // Store the entire selected object
+    const handleChange = (val: any, option: any) => {
+      setSelectedValue(val as BoardSelectionValue);
       if (Array.isArray(option)) {
-        // Handle case if Select allows multiple selection
         const selectedOptions = option.map((opt) => ({
           label: opt.label,
           value: opt.value,
         }));
         setSelectedObject(selectedOptions[0]);
-      } else {
+      } else if (option) {
         setSelectedObject({ label: option.label, value: option.value });
+      } else {
+        setSelectedObject(undefined);
       }
 
       if (onChange) {
-        onChange(value, option);
+        onChange(val, option);
       }
     };
 
@@ -556,7 +560,16 @@ export const BoardSelection = forwardRef<SelectionRef, SelectionProps>(
 
     // When options change, update the selected object if value is already set
     useEffect(() => {
-      if (selectedValue && options.length > 0) {
+      if (!selectedValue || options.length === 0) return;
+
+      if (Array.isArray(selectedValue)) {
+        const first = selectedValue[0];
+        if (!first) return;
+        const found = options.find((opt) => opt.value === first);
+        if (found) {
+          setSelectedObject(found);
+        }
+      } else {
         const foundOption = options.find((opt) => opt.value === selectedValue);
         if (foundOption) {
           setSelectedObject(foundOption);
@@ -575,6 +588,8 @@ export const BoardSelection = forwardRef<SelectionRef, SelectionProps>(
         options={options}
         size={size}
         className={`${className} min-w-[200px]`}
+        mode={mode}
+        disabled={disabled}
         notFoundContent={
           boards?.length === 0 ? "No board available" : "No match found"
         }

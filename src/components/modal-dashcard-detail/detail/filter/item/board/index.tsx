@@ -1,5 +1,5 @@
 import { FC, useMemo, useEffect, useState } from "react";
-import { DashcardFilter, dashcardsFilter } from "@myTypes/dashcard";
+import { DashcardFilter, dashcardsFilter, FilterOperator } from "@myTypes/dashcard";
 import { useCardDetailContext } from "@providers/card-detail-context";
 import { convertOperatorToText } from "@components/modal-dashcard-detail/util";
 import { Button, Input, Select } from "antd";
@@ -17,7 +17,11 @@ const BoardItemFilter: FC<DashcardFilter> = ({ id, operator, value, label }) => 
     handleDeleteFilter,
   } = useCardDetailContext();
 
-  const isNoValueInput = String(operator) === "on_this_board";
+  const normalizedOperator = String(operator || "").replace(/\s+/g, "_");
+  const isNoValueInput = normalizedOperator === "on_this_board";
+  const isMultiSelect =
+    normalizedOperator === FilterOperator.IS_ONE_OF ||
+    normalizedOperator === FilterOperator.IS_NOT_ONE_OF;
   const [lookupVersion, setLookupVersion] = useState(0);
 
   // Fetch lookup data for the board value if not cached
@@ -53,7 +57,7 @@ const BoardItemFilter: FC<DashcardFilter> = ({ id, operator, value, label }) => 
     return (
       <div className="flex items-center gap-3 justify-between">
         <div className="flex gap-3 items-center">
-          <div className="font-semibold min-w-16">{label || "Board"}</div>
+          <div className="font-semibold min-w-16">{label || "Board"} cokkk</div>
           <div className="p-2 rounded-lg w-full">
             <Select
               options={options}
@@ -67,12 +71,32 @@ const BoardItemFilter: FC<DashcardFilter> = ({ id, operator, value, label }) => 
           {!isNoValueInput && (
             <div className="p-2 rounded-lg">
               <BoardSelection
-                value={(valueEdit?.value as string) ?? ""}
-                onChange={(selectedValue: string) =>
-                   handleChangeFilter({ id, value: selectedValue })
-                 }
+                value={
+                  isMultiSelect
+                    ? (Array.isArray(valueEdit?.value)
+                        ? valueEdit?.value
+                        : typeof valueEdit?.value === "string"
+                        ? valueEdit?.value
+                            .split(",")
+                            .map((v) => v.trim())
+                            .filter(Boolean)
+                        : valueEdit?.value
+                        ? [String(valueEdit?.value)]
+                        : [])
+                    : (valueEdit?.value as string)
+                }
+                onChange={(selectedValue: string | string[]) => {
+                  const nextValue = isMultiSelect
+                    ? selectedValue
+                    : Array.isArray(selectedValue)
+                    ? selectedValue[0]
+                    : selectedValue;
+
+                  handleChangeFilter({ id, value: nextValue });
+                }}
                 placeholder="Select board"
                 size="small"
+                mode={isMultiSelect ? "multiple" : undefined}
               />
             </div>
           )}

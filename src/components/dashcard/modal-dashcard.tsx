@@ -68,6 +68,9 @@ const LIST_OPERATORS = [
   { label: "name matches", value: "name_matches" },
 ];
 
+const normalizeOperator = (op?: string | null) =>
+  op ? op.toString().trim().toLowerCase().replace(/\s+/g, "_") : undefined;
+
 // Function to get custom field icon based on type
 const getCustomFieldIcon = (type: string) => {
   switch (type) {
@@ -159,7 +162,7 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
       const processedFilters = initialData.filters.map((filter, index) => {
         const isBoard = filter.type === EnumCardAttributeType.BOARD;
         const isList = filter.type === EnumCardAttributeType.LIST;
-        const operator = String(filter.operator);
+        const operator = normalizeOperator(filter.operator as string);
         const isMultiOp =
           operator === "is_one_of" || operator === "is_not_one_of";
 
@@ -168,6 +171,8 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
           (isBoard || isList) && isMultiOp
             ? Array.isArray(filter.value)
               ? filter.value
+              : typeof filter.value === "string"
+              ? filter.value.split(",").map((v) => v.trim()).filter(Boolean)
               : filter.value
               ? [String(filter.value)]
               : []
@@ -202,6 +207,7 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
           );
           return {
             ...filter,
+            operator,
             value: normalizedValue,
             label: baseFilter?.label || filter.type,
           };
@@ -304,30 +310,42 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
   };
 
   const handleFilterOperatorChange = (filterId: string, value: string) => {
+    const normalizedOp = normalizeOperator(value);
     setSelectedFilters((prev) =>
       prev.map((filter) =>
         filter.id === filterId
           ? (() => {
+              const currentOp = normalizeOperator(filter.operator as string);
               const next: DashcardFilter = {
                 ...filter,
-                operator: value as FilterOperator,
+                operator: normalizedOp as FilterOperator,
               };
 
               // Normalize board/list values when switching to multi-select operators
               const isBoard = filter.type === EnumCardAttributeType.BOARD;
               const isList = filter.type === EnumCardAttributeType.LIST;
-              const isMultiOp = value === "is_one_of" || value === "is_not_one_of";
-              const isNoValueOp = value === "on_this_board" || value === "on_this_list";
+              const isMultiOp =
+                normalizedOp === "is_one_of" || normalizedOp === "is_not_one_of";
+              const isNoValueOp =
+                normalizedOp === "on_this_board" || normalizedOp === "on_this_list";
 
               if ((isBoard || isList) && isMultiOp) {
                 const currentVal = filter.value;
                 next.value = Array.isArray(currentVal)
                   ? currentVal
+                  : typeof currentVal === "string"
+                  ? currentVal.split(",").map((v) => v.trim()).filter(Boolean)
                   : currentVal
                   ? [String(currentVal)]
                   : [];
               } else if ((isBoard || isList) && isNoValueOp) {
                 next.value = undefined;
+              } else if ((isBoard || isList) && currentOp !== normalizedOp) {
+                // For other operators, ensure value is a string (single) or undefined
+                const currentVal = filter.value;
+                if (Array.isArray(currentVal)) {
+                  next.value = currentVal[0] ?? undefined;
+                }
               }
 
               return next;
@@ -339,9 +357,27 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
 
   const handleFilterValueChange = (filterId: string, value: FilterValue) => {
     setSelectedFilters((prev) =>
-      prev.map((filter) =>
-        filter.id === filterId ? { ...filter, value } : filter
-      )
+      prev.map((filter) => {
+        if (filter.id !== filterId) return filter;
+
+        const isBoard = filter.type === EnumCardAttributeType.BOARD;
+        const isList = filter.type === EnumCardAttributeType.LIST;
+        const op = normalizeOperator(filter.operator as string);
+        const isMulti = op === "is_one_of" || op === "is_not_one_of";
+
+        if ((isBoard || isList) && isMulti) {
+          const normalizedValue = Array.isArray(value)
+            ? value
+            : typeof value === "string"
+            ? value.split(",").map((v) => v.trim()).filter(Boolean)
+            : value
+            ? [String(value)]
+            : [];
+          return { ...filter, value: normalizedValue };
+        }
+
+        return { ...filter, value };
+      })
     );
   };
 
@@ -448,12 +484,31 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
     const cleanedFilters = selectedFilters.map((filter) => {
       // For instance filters, use the original type but keep the instance ID for uniqueness
       const baseType = filter.type;
+      const operator = normalizeOperator(filter.operator as string) as
+        | FilterOperator
+        | undefined;
+
+      const isBoard = filter.type === EnumCardAttributeType.BOARD;
+      const isList = filter.type === EnumCardAttributeType.LIST;
+      const isMulti =
+        operator === "is_one_of" || operator === "is_not_one_of";
+
+      const value =
+        isBoard || isList
+          ? Array.isArray(filter.value)
+            ? filter.value
+            : typeof filter.value === "string"
+            ? filter.value.split(",").map((v) => v.trim()).filter(Boolean)
+            : filter.value
+            ? [String(filter.value)]
+            : []
+          : filter.value;
 
       return {
         id: filter.id, // Keep the unique instance ID
         type: baseType, // Preserve original type for backend compatibility
-        operator: filter.operator,
-        value: filter.value,
+        operator,
+        value,
       };
     });
 
@@ -649,14 +704,16 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
                     // Determine if this is a board/list filter
                     const isBoard = filter.type === EnumCardAttributeType.BOARD;
                     const isList = filter.type === EnumCardAttributeType.LIST;
-                    const operator = String(filter.operator);
+                    const operator = normalizeOperator(filter.operator as string) || "";
                     // Operator-specific input logic
                     const isMultiSelect =
                       operator === "is_one_of" || operator === "is_not_one_of";
-                    const normalizedBoardListValue =
-                      (isBoard || isList) && isMultiSelect
+                    const boardListValue =
+                      isBoard || isList
                         ? Array.isArray(filter.value)
                           ? filter.value
+                          : typeof filter.value === "string"
+                          ? filter.value.split(",").map((v) => v.trim()).filter(Boolean)
                           : filter.value
                           ? [String(filter.value)]
                           : []
@@ -701,19 +758,19 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
                         <td className="py-2 px-2 flex-1">
                           {/* Board/List operator-specific value input */}
                           {(isBoard || isList) && isMultiSelect ? (
-                            <Select
-                              mode="multiple"
-                              size="small"
-                              className="w-full"
-                              options={isBoard ? boardOptions : listOptions}
-                              value={normalizedBoardListValue as string[]}
-                              onChange={(val) =>
-                                handleFilterValueChange(filter.id, val)
-                              }
-                              placeholder={`Select ${
-                                isBoard ? "boards" : "lists"
-                              }`}
-                            />
+                          <Select
+                            mode="multiple"
+                            size="small"
+                            className="w-full"
+                            options={isBoard ? boardOptions : listOptions}
+                            value={boardListValue as string[]}
+                            onChange={(val) =>
+                              handleFilterValueChange(filter.id, val)
+                            }
+                            placeholder={`Select ${
+                              isBoard ? "boards" : "lists"
+                            }`}
+                          />
                           ) : (isBoard || isList) && isTextInput ? (
                             <Input
                               size="small"
