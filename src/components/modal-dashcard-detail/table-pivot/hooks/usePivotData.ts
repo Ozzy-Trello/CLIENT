@@ -8,6 +8,7 @@ export const usePivotData = (processedItemDashcard: any[], customFields: any[]) 
         name: item.name,
         listId: item.listId,
         boardId: item.boardId,
+        board: (item as any).boardName || item.boardId || "",
         members: item.member,
         description: item.description,
         dueDate: item.dueDate,
@@ -33,4 +34,3 @@ export const usePivotData = (processedItemDashcard: any[], customFields: any[]) 
       return pivotedItem;
     });
   }, [processedItemDashcard, customFields]);
-

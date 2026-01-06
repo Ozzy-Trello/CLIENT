@@ -176,11 +176,15 @@ const Detail: FC = () => {
         // Add board and list names
         if (item.boardId) {
           processedItem.boardName =
-            LookupCache.label("board", item.boardId) || item.boardId;
+            LookupCache.label("board", item.boardId) ||
+            item.boardName ||
+            item.boardId;
         }
         if (item.listId) {
           processedItem.listName =
-            LookupCache.label("list", item.listId) || item.listId;
+            LookupCache.label("list", item.listId) ||
+            item.listName ||
+            item.listId;
         }
 
         // Process members with names

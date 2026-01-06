@@ -203,6 +203,7 @@ export interface IItemDashcard {
   member: TMemberDashcard[];
   description: string;
   boardId: string;
+  boardName?: string;
   listId: string;
   columns: TDynamicColumnDashcard[];
   dueDate?: Date | null;

@@ -37,6 +37,10 @@ type ColumnType = {
 type DataType = {
   id: string;
   name: string;
+  board?: string;
+  boardId: string;
+  listId: string;
+  listName?: string;
   members: { id: string; name: string }[];
   description: string;
   columns: ColumnType[];
@@ -76,6 +80,7 @@ const TablePivot: FC = () => {
   const baseColumnIds = useMemo(() => {
     const base = [
       "bahanInfo",
+      "board",
       "createdAt",
       "description",
       "dueDate",
@@ -392,6 +397,15 @@ const TablePivot: FC = () => {
         cell: (info) => {
           const row = info.row;
           return renderGroupedCell("listName", row, () => <span>{row.original.listName || "-"}</span>);
+        },
+      }),
+      columnHelper.accessor("board", {
+        header: () =>
+          headerTemplate("Board", getColumnMenu("board").items || [], getColumnMenu("board").onClick),
+        cell: (info) => {
+          const row = info.row;
+          const boardName = info.getValue() as string;
+          return renderGroupedCell("board", row, () => <span>{boardName || "-"}</span>);
         },
       }),
       columnHelper.accessor("members", {

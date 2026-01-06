@@ -223,7 +223,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
     "Purchasing",
     "Loading (Gudang)",
     "Cutting",
-    "Numbering (Dist.Cutting)",
+    "Numbering (Dist. Cutting)",
     "Loading Line",
     "Sewing",
     "QC",
