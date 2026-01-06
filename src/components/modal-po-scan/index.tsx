@@ -261,7 +261,6 @@ const ModalPOScan: React.FC<ModalPOScanProps> = ({
         30
       ),
     enabled: open,
-    keepPreviousData: true,
   });
 
   const finishingCardOptions = (finishingCardsQuery.data || []).map(

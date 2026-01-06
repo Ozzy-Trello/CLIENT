@@ -1,21 +1,21 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Modal,
-  Form,
-  DatePicker,
-  Select,
-  Input,
-  Button,
   AutoComplete,
-  Table,
-  Typography,
-  Space,
+  Button,
+  DatePicker,
   Divider,
+  Form,
+  Input,
   InputNumber,
   message,
+  Modal,
+  Select,
+  Space,
   Spin,
+  Table,
+  Typography,
 } from "antd";
-import type { InputRef } from "antd";
+import type { BaseSelectRef } from "rc-select";
 import { CalendarOutlined, DeleteOutlined } from "@ant-design/icons";
 import { ShoppingCart, Camera } from "lucide-react";
 import { Scanner } from "@yudiel/react-qr-scanner";
@@ -65,7 +65,7 @@ const { TextArea } = Input;
 
 const ModalPengiriman: React.FC<ModalPengirimanProps> = ({ open, onClose }) => {
   const [form] = Form.useForm();
-  const soInputRef = useRef<InputRef>(null);
+  const soInputRef = useRef<BaseSelectRef>(null);
 
   // UI and data states
   const [loading, setLoading] = useState(false);
