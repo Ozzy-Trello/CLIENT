@@ -159,10 +159,11 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
       setDashcardName(initialData.name);
 
       // Process existing filters to add proper labels and normalize values for multiple instances
-      const processedFilters = initialData.filters.map((filter, index) => {
+      const processedFilters: DashcardFilter[] = initialData.filters.map((filter, index) => {
         const isBoard = filter.type === EnumCardAttributeType.BOARD;
         const isList = filter.type === EnumCardAttributeType.LIST;
         const operator = normalizeOperator(filter.operator as string);
+        const normalizedOperator = operator as FilterOperator | undefined;
         const isMultiOp =
           operator === "is_one_of" || operator === "is_not_one_of";
 
@@ -197,6 +198,7 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
 
           return {
             ...filter,
+            operator: normalizedOperator,
             value: normalizedValue,
             label: `${baseLabel} #${instanceNumber}`,
           };
@@ -207,7 +209,7 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
           );
           return {
             ...filter,
-            operator,
+            operator: normalizedOperator,
             value: normalizedValue,
             label: baseFilter?.label || filter.type,
           };
@@ -373,10 +375,10 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
             : value
             ? [String(value)]
             : [];
-          return { ...filter, value: normalizedValue };
+          return { ...filter, value: normalizedValue } as DashcardFilter;
         }
 
-        return { ...filter, value };
+        return { ...filter, value } as DashcardFilter;
       })
     );
   };

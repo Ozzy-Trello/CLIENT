@@ -63,8 +63,8 @@ interface SelectionProps {
   size?: "small" | "middle" | "large";
   style?: React.CSSProperties;
   className?: string;
-  value?: string;
-  onChange?: (value: string, option?: any) => void;
+  value?: string | string[];
+  onChange?: (value: string | string[], option?: any) => void;
   mode?: "multiple" | "tags" | undefined;
   excludeIds?: string[];
   roleIds?: string[];
