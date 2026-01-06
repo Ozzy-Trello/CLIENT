@@ -4,13 +4,11 @@ import {
   Button,
   Checkbox,
   CheckboxChangeEvent,
-  Col,
   Flex,
   Modal,
-  Row,
+  Popover,
   Tag,
   Tooltip,
-  Typography
 } from "antd";
 import {
   CheckSquare,
@@ -19,8 +17,9 @@ import {
   ListRestart,
   MessageSquare,
   Paperclip,
+  RectangleEllipsis,
   ShirtIcon,
-  TextCursorInput
+  TextCursorInput,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -208,6 +207,7 @@ const CardDetails: React.FC = (props) => {
   const [isDashcardModalOpen, setIsDashcardModalOpen] = useState(false);
   const [isDraggingFiles, setIsDraggingFiles] = useState(false);
   const [isUploadingDrop, setIsUploadingDrop] = useState(false);
+  const [isActionsPopoverOpen, setIsActionsPopoverOpen] = useState(false);
   const handleOpenDashcardDetail = useCallback((card: Card) => {
     setDashcardModalCard(card);
     setIsDashcardModalOpen(true);
@@ -421,7 +421,7 @@ const CardDetails: React.FC = (props) => {
       onCancel={closeCardDetail}
       footer={null}
       className="modal-card-form full-height-modal"
-      width={1050}
+      width="min(1050px, 95vw)"
       destroyOnClose
     >
       <div className="overflow-x-hidden max-w-full relative">
@@ -460,9 +460,9 @@ const CardDetails: React.FC = (props) => {
         )}
 
         <div className="p-5">
-          <Row>
-            <Col flex="0 0 75%" style={{ maxWidth: "75%", minWidth: 0 }}>
-              <div className="flex items-center gap-2 mb-4">
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="relative flex items-center gap-2 min-w-0">
                 <Checkbox
                   className={`custom-circular-checkbox absolute left-0 -ml-6 transition-all duration-300 
                     ${selectedCard?.isComplete ? "completed" : ""} ${!canUpdateCard() ? "opacity-50 cursor-not-allowed" : ""
@@ -474,144 +474,172 @@ const CardDetails: React.FC = (props) => {
                   }}
                   onClick={(e) => e.stopPropagation()}
                 />
-                {isEditingTitle ? (
-                  <input
-                    type="text"
-                    value={newTitle}
-                    onChange={(e) => setNewTitle(e.target.value)}
-                    onBlur={handleSaveTitleClick}
-                    autoFocus
-                    className="font-bold mb-0 ml-2 px-2 py-1 w-full border border-blue-400 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        handleSaveTitleClick();
-                      } else if (e.key === "Escape") {
-                        setIsEditingTitle(false);
-                      }
-                    }}
-                  />
-                ) : (
-                  <h1
-                    className={`text-5xl font-bold mb-0 ml-2 px-2 py-1 rounded-md ${canUpdateCard()
-                        ? "cursor-pointer hover:bg-gray-50"
-                        : "cursor-not-allowed opacity-60"
-                      }`}
-                    onClick={() => {
-                      if (canUpdateCard()) {
-                        setNewTitle(selectedCard?.name || "");
-                        setIsEditingTitle(true);
-                      }
-                    }}
-                  >
-                    {selectedCard?.name}
-                  </h1>
-                )}
+                <div className="flex-1 min-w-0">
+                  {isEditingTitle ? (
+                    <input
+                      type="text"
+                      value={newTitle}
+                      onChange={(e) => setNewTitle(e.target.value)}
+                      onBlur={handleSaveTitleClick}
+                      autoFocus
+                      className="font-bold mb-0 ml-2 px-2 py-1 w-full border border-blue-400 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          handleSaveTitleClick();
+                        } else if (e.key === "Escape") {
+                          setIsEditingTitle(false);
+                        }
+                      }}
+                    />
+                  ) : (
+                    <h1
+                      className={`text-5xl font-bold mb-0 ml-2 px-2 py-1 rounded-md break-words ${canUpdateCard()
+                          ? "cursor-pointer hover:bg-gray-50"
+                          : "cursor-not-allowed opacity-60"
+                        }`}
+                      onClick={() => {
+                        if (canUpdateCard()) {
+                          setNewTitle(selectedCard?.name || "");
+                          setIsEditingTitle(true);
+                        }
+                      }}
+                    >
+                      {selectedCard?.name}
+                    </h1>
+                  )}
+                </div>
               </div>
-
-              <div className="space-y-3 ml-8">
-                <div className="flex items-center space-x-2">
-                  {/* List Section */}
-                  <div>
-                    <span className="text-gray-500 text-sm mr-2">in list</span>
-                    <ListSelection
-                      ref={listSelectionRef}
-                      size="small"
-                      width={"fit-content"}
-                      value={selectedCard?.listId}
-                      onChange={onListChange}
-                      disabled={!canUpdateCard()}
+              <Popover
+                open={isActionsPopoverOpen}
+                onOpenChange={setIsActionsPopoverOpen}
+                trigger="click"
+                placement="bottomRight"
+                overlayStyle={{ width: 360 }}
+                content={
+                  <div className="max-h-[70vh] overflow-y-auto">
+                    <Actions
+                      boardName={effectiveBoardName}
+                      userRole={userRole}
+                      isSuperAdmin={isSuperAdmin}
                     />
                   </div>
+                }
+              >
+                <Button
+                  size="small"
+                  className="flex items-center gap-2 px-3 py-1 rounded-md"
+                  type="default"
+                >
+                  <RectangleEllipsis size={16} />
+                  <span className="text-sm font-semibold">Actions</span>
+                </Button>
+              </Popover>
+            </div>
 
-                  {/* <Button
+            <div className="space-y-3 md:ml-8">
+              <div className="flex items-center space-x-2">
+                {/* List Section */}
+                <div>
+                  <span className="text-gray-500 text-sm mr-2">in list</span>
+                  <ListSelection
+                    ref={listSelectionRef}
+                    size="small"
+                    width={"fit-content"}
+                    value={selectedCard?.listId}
+                    onChange={onListChange}
+                    disabled={!canUpdateCard()}
+                  />
+                </div>
+
+                {/* <Button
+                  icon={<Eye size={14} />}
+                  size="small"
+                  className="rounded-md hover:bg-gray-50"
+                /> */}
+              </div>
+
+              <Flex wrap gap="middle">
+                {/* Members */}
+                <div className="space-y-2 text-xs">
+                  <span className="text-gray-300 font-semibold text-xs block">
+                    Members
+                  </span>
+                  <div>
+                    <MembersList
+                      members={effectiveMembers}
+                      membersLength={effectiveMembers?.length || 0}
+                      membersLoopLimit={3}
+                      openAddMember={openAddMember && canUpdateCard()}
+                      setOpenAddMember={setOpenAddMember}
+                      onUserSelectionChange={onUserSelectionChange}
+                      onRemoveMember={handleRemoveMember}
+                    />
+                  </div>
+                </div>
+
+                {/* Labels */}
+                <div className="space-y-2 text-xs">
+                  <span className="text-gray-300 font-semibold text-xs block">
+                    Labels
+                  </span>
+                  <div className="flex gap-1">
+                    {effectiveLabels?.map((label: CardLabel, index: number) => (
+                      <Tooltip
+                        title={`color: ${label.value}, title: ${label.name}`}
+                        key={index}
+                      >
+                        <Tag color={label.value} className="rounded-md">
+                          {label?.name}
+                        </Tag>
+                      </Tooltip>
+                    ))}
+
+                    <PopoverLabel
+                      open={openLabel}
+                      setOpen={setOpenLabel}
+                      triggerEl={
+                        <Tag className="cursor-pointer rounded-md border-dashed hover:bg-gray-50">
+                          +
+                        </Tag>
+                      }
+                    />
+                  </div>
+                </div>
+
+                {/* Notifications & Watch */}
+                {/* <div className="space-y-2 text-xs">
+                  <span className="text-gray-300 font-semibold text-xs block">
+                    Notifications
+                  </span>
+                  <Button
                     icon={<Eye size={14} />}
                     size="small"
                     className="rounded-md hover:bg-gray-50"
-                  /> */}
+                  >
+                    Watch
+                  </Button>
+                </div> */}
+
+                {/* Time in List */}
+                <div className="space-y-2 text-xs">
+                  <span className="text-gray-300 font-semibold text-xs block">
+                    Time in List
+                  </span>
+                  <Button
+                    size="small"
+                    className="rounded-md hover:bg-gray-50"
+                  >
+                    {selectedCard?.timeInLists?.find(
+                      (item) => item.listId == selectedCard.listId
+                    )?.formattedTimeInList || "0m"}
+                  </Button>
                 </div>
 
-                <Flex wrap gap="middle">
-                  {/* Members */}
-                  <div className="space-y-2 text-xs">
-                    <span className="text-gray-300 font-semibold text-xs block">
-                      Members
-                    </span>
-                    <div>
-                      <MembersList
-                        members={effectiveMembers}
-                        membersLength={effectiveMembers?.length || 0}
-                        membersLoopLimit={3}
-                        openAddMember={openAddMember && canUpdateCard()}
-                        setOpenAddMember={setOpenAddMember}
-                        onUserSelectionChange={onUserSelectionChange}
-                        onRemoveMember={handleRemoveMember}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Labels */}
-                  <div className="space-y-2 text-xs">
-                    <span className="text-gray-300 font-semibold text-xs block">
-                      Labels
-                    </span>
-                    <div className="flex gap-1">
-                      {effectiveLabels?.map((label: CardLabel, index: number) => (
-                        <Tooltip
-                          title={`color: ${label.value}, title: ${label.name}`}
-                          key={index}
-                        >
-                          <Tag color={label.value} className="rounded-md">
-                            {label?.name}
-                          </Tag>
-                        </Tooltip>
-                      ))}
-
-                      <PopoverLabel
-                        open={openLabel}
-                        setOpen={setOpenLabel}
-                        triggerEl={
-                          <Tag className="cursor-pointer rounded-md border-dashed hover:bg-gray-50">
-                            +
-                          </Tag>
-                        }
-                      />
-                    </div>
-                  </div>
-
-                  {/* Notifications & Watch */}
-                  {/* <div className="space-y-2 text-xs">
-                    <span className="text-gray-300 font-semibold text-xs block">
-                      Notifications
-                    </span>
-                    <Button
-                      icon={<Eye size={14} />}
-                      size="small"
-                      className="rounded-md hover:bg-gray-50"
-                    >
-                      Watch
-                    </Button>
-                  </div> */}
-
-                  {/* Time in List */}
-                  <div className="space-y-2 text-xs">
-                    <span className="text-gray-300 font-semibold text-xs block">
-                      Time in List
-                    </span>
-                    <Button
-                      size="small"
-                      className="rounded-md hover:bg-gray-50"
-                    >
-                      {selectedCard?.timeInLists?.find(
-                        (item) => item.listId == selectedCard.listId
-                      )?.formattedTimeInList || "0m"}
-                    </Button>
-                  </div>
-
-                  {/* Time on Board */}
-                  <div className="space-y-2 text-xs">
-                    <span className="text-gray-300 font-semibold text-xs block">
-                      Time on Board
-                    </span>
+                {/* Time on Board */}
+                <div className="space-y-2 text-xs">
+                  <span className="text-gray-300 font-semibold text-xs block">
+                    Time on Board
+                  </span>
                     <Button
                       size="small"
                       className="rounded-md hover:bg-gray-50"
@@ -620,64 +648,63 @@ const CardDetails: React.FC = (props) => {
                     </Button>
                   </div>
 
-                  {/* Start and Due Dates */}
-                  {selectedCard && (
-                    <div className="space-y-2 text-xs">
-                      <span className="text-gray-300 font-semibold text-xs block">
-                        Dates
-                      </span>
-                      <Button
-                        icon={<Clock size={12} />}
-                        size="small"
-                        className="rounded-md hover:bg-gray-50"
-                      >
-                        <CardDateDisplay card={selectedCard} />
-                      </Button>
-                    </div>
-                  )}
+                {/* Start and Due Dates */}
+                {selectedCard && (
+                  <div className="space-y-2 text-xs">
+                    <span className="text-gray-300 font-semibold text-xs block">
+                      Dates
+                    </span>
+                    <Button
+                      icon={<Clock size={12} />}
+                      size="small"
+                      className="rounded-md hover:bg-gray-50"
+                    >
+                      <CardDateDisplay card={selectedCard} />
+                    </Button>
+                  </div>
+                )}
 
-                  {selectedCard && canMaterialRequirement && (
-                    <div className="space-y-2 text-xs">
-                      <span className="text-gray-300 font-semibold text-xs block">
-                        Material Requirements
-                      </span>
-                      <Checkbox
-                        checked={selectedCard.bahan || false}
-                        onChange={(e: CheckboxChangeEvent) => {
-                          if (!canUpdateCard()) return;
+                {selectedCard && canMaterialRequirement && (
+                  <div className="space-y-2 text-xs">
+                    <span className="text-gray-300 font-semibold text-xs block">
+                      Material Requirements
+                    </span>
+                    <Checkbox
+                      checked={selectedCard.bahan || false}
+                      onChange={(e: CheckboxChangeEvent) => {
+                        if (!canUpdateCard()) return;
 
-                          const newBahanValue = e.target.checked;
+                        const newBahanValue = e.target.checked;
 
-                          // Update local state immediately for better UX
-                          const updatedCard = {
-                            ...selectedCard,
-                            bahan: newBahanValue,
-                          };
-                          setSelectedCard(updatedCard);
-                          updateCardDetails({ bahan: newBahanValue });
-                        }}
-                        className="text-sm"
-                      >
-                        Butuh Bahan
-                      </Checkbox>
-                    </div>
-                  )}
+                        // Update local state immediately for better UX
+                        const updatedCard = {
+                          ...selectedCard,
+                          bahan: newBahanValue,
+                        };
+                        setSelectedCard(updatedCard);
+                        updateCardDetails({ bahan: newBahanValue });
+                      }}
+                      className="text-sm"
+                    >
+                      Butuh Bahan
+                    </Checkbox>
+                  </div>
+                )}
 
-                  {selectedCard && canPOSection && (
-                    <POAmount
-                      card={selectedCard}
-                      setSelectedCard={setSelectedCard}
-                    />
-                  )}
+                {selectedCard && canPOSection && (
+                  <POAmount
+                    card={selectedCard}
+                    setSelectedCard={setSelectedCard}
+                  />
+                )}
 
-                  {selectedCard && canPOSection && (
-                    <POSizeAssignment
-                      card={selectedCard}
-                      setSelectedCard={setSelectedCard}
-                    />
-                  )}
-                </Flex>
-              </div>
+                {selectedCard && canPOSection && (
+                  <POSizeAssignment
+                    card={selectedCard}
+                    setSelectedCard={setSelectedCard}
+                  />
+                )}
+              </Flex>
 
               {selectedCard && (
                 <Description
@@ -836,20 +863,8 @@ const CardDetails: React.FC = (props) => {
                   />
                 </CollapsibleSection>
               )}
-            </Col>
-            <Col flex="0 0 25%" style={{ maxWidth: "25%", minWidth: 0 }}>
-              <div className="pl-4">
-                <Typography.Title level={5} className="m-0 mb-2 text-gray-700">
-                  Actions
-                </Typography.Title>
-                <Actions
-                  boardName={effectiveBoardName}
-                  userRole={userRole}
-                  isSuperAdmin={isSuperAdmin}
-                />
-              </div>
-            </Col>
-          </Row>
+            </div>
+          </div>
         </div>
         <ModalDashcardDetail
           open={isDashcardModalOpen}

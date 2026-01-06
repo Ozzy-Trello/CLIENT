@@ -505,3 +505,26 @@ export const validateCardInFinishingPacking = async (
   const { data } = await api.get(`/card/${cardId}/validate-finishing-packing`);
   return data;
 };
+
+export interface FinishingPackingCard {
+  id: string;
+  name?: string;
+  shortId?: number;
+  listId?: string;
+}
+
+export const getFinishingPackingCards = async (
+  search?: string,
+  limit = 20
+): Promise<FinishingPackingCard[]> => {
+  const { data } = await api.get("/card/finishing-packing", {
+    params: { search, limit },
+  });
+  const cards: any[] = data.data || [];
+  return cards.map((card) => ({
+    id: card.id,
+    name: card.name,
+    shortId: card.short_id,
+    listId: card.list_id,
+  }));
+};

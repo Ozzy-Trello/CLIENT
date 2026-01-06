@@ -11,7 +11,7 @@ import {
   Search,
 } from "lucide-react";
 import SplitJobSlider from "@components/split-job/SplitJobSlider";
-import { Fragment, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLists } from "@hooks/list";
 import { useParams } from "next/navigation";
 import api from "@api/index";
@@ -445,15 +445,6 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
     return [];
   };
 
-  // Group fields into rows of 3
-  const getFieldRows = () => {
-    const rows = [];
-    for (let i = 0; i < filteredCustomFields.length; i += 3) {
-      rows.push(filteredCustomFields.slice(i, i + 3));
-    }
-    return rows;
-  };
-
   // Render appropriate input based on field type
   const renderFieldInput = (field: CardCustomField) => {
     if (!field.id) return null;
@@ -663,7 +654,7 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
           <div className="mb-2 text-sm text-blue-500">Saving...</div>
         )}
         {/* Search Bar */}
-        <div className="ml-8 mb-4">
+        <div className="ml-0 md:ml-8 mb-4">
           <Input
             placeholder="Search custom fields..."
             prefix={<Search size={16} className="text-gray-400" />}
@@ -674,44 +665,35 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
           />
         </div>
 
-        <div className="grid grid-cols-3 gap-4 ml-8">
-          {getFieldRows().map((row, rowIndex) => (
-            <Fragment key={`row-${rowIndex}`}>
-              {row.map((field) => {
-                // Use the permission flags directly (backend already handles public fields)
-                const canView = field.canView !== false;
-                const canEdit =
-                  canUpdateCard() &&
-                  canManageCardCustomFields() &&
-                  field.canEdit !== false;
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 ml-0 md:ml-8">
+          {filteredCustomFields.map((field) => {
+            const canView = field.canView !== false;
+            const canEdit =
+              canUpdateCard() &&
+              canManageCardCustomFields() &&
+              field.canEdit !== false;
 
-                // Hide fields that user can't view
-                if (!canView) {
-                  return null;
-                }
+            if (!canView) {
+              return null;
+            }
 
-                return (
-                  <div key={field.id} className="space-y-2">
-                    <div className="w-full">
-                      <div className="flex items-center gap-2 text-gray-700 font-medium">
-                        {getFieldIcon(field)}
-                        <Tooltip title={field.name}>
-                          <span
-                            className="truncate"
-                            style={{ fontSize: "14px" }}
-                          >
-                            {field.name}
-                          </span>
-                        </Tooltip>
-                      </div>
-
-                      <div>{renderFieldInput(field)}</div>
-                    </div>
+            return (
+              <div key={field.id} className="space-y-2">
+                <div className="w-full">
+                  <div className="flex items-center gap-2 text-gray-700 font-medium">
+                    {getFieldIcon(field)}
+                    <Tooltip title={field.name}>
+                      <span className="truncate" style={{ fontSize: "14px" }}>
+                        {field.name}
+                      </span>
+                    </Tooltip>
                   </div>
-                );
-              })}
-            </Fragment>
-          ))}
+
+                  <div>{renderFieldInput(field)}</div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     </>

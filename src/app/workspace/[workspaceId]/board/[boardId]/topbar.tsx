@@ -161,7 +161,8 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
   console.log("[TOPBAR LOGS] Current User Role:", userRole);
 
   const canShowDelivery =
-    isSuperAdmin || (isDateline && roleInList(["Kurir", "Kepala Produksi"]));
+    isSuperAdmin || (isDateline && roleInList(["Kurir", "Kepala Produksi", "Warehouse Bahan",
+      "Kepala Gudang"]));
   const canShowCetakQR =
     isSuperAdmin ||
     (isDateline &&
@@ -404,11 +405,10 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
         >
           <Star
             size={16}
-            className={`transition-colors cursor-pointer ${
-              isFavorited
+            className={`transition-colors cursor-pointer ${isFavorited
                 ? "fill-yellow-400 text-yellow-400"
                 : "text-gray-400 hover:text-yellow-400"
-            }`}
+              }`}
             onClick={handleStarClick}
             style={{
               opacity: isTogglingFavorite ? 0.6 : 1,

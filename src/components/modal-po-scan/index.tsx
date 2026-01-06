@@ -1,12 +1,26 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Modal, Form, Input, Button, message, Typography, Space } from "antd";
+import {
+  Modal,
+  Form,
+  Input,
+  Button,
+  message,
+  Typography,
+  Space,
+  AutoComplete,
+} from "antd";
 import { Search, Package } from "lucide-react";
 import ScannerIcon from "@components/icons/ScannerIcon";
 import { Scanner } from "@yudiel/react-qr-scanner";
 import QRGuideOverlay from "@components/qr-overlay";
 import URLShortener from "@utils/url-shortener";
-import { getCardByShortId } from "@api/card";
-import { validateCardInFinishingPacking } from "@api/card";
+import {
+  getCardByShortId,
+  getFinishingPackingCards,
+  type FinishingPackingCard,
+  validateCardInFinishingPacking,
+} from "@api/card";
+import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 
 interface ModalPOScanProps {
@@ -31,6 +45,9 @@ const ModalPOScan: React.FC<ModalPOScanProps> = ({
   const scannerInputRef = useRef<string>("");
   const scannerBufferRef = useRef<string>("");
   const scannerTimeoutRef = useRef<NodeJS.Timeout>();
+  const [finishingSearch, setFinishingSearch] = useState("");
+  const [debouncedFinishingSearch, setDebouncedFinishingSearch] = useState("");
+  const [finishingListId, setFinishingListId] = useState<string | undefined>();
   const router = useRouter();
 
   // Reset form when modal opens/closes
@@ -42,8 +59,25 @@ const ModalPOScan: React.FC<ModalPOScanProps> = ({
       setShowCameraScanner(false);
       scannerInputRef.current = "";
       scannerBufferRef.current = "";
+      setFinishingSearch("");
+      setDebouncedFinishingSearch("");
     }
   }, [open, form]);
+
+  useEffect(() => {
+    if (finishingSearch.trim() === "") {
+      setFinishingListId(undefined);
+    }
+  }, [finishingSearch]);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedFinishingSearch(finishingSearch);
+    }, 300);
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [finishingSearch]);
 
   // Handle external scanner input (barcode scanner that acts like keyboard)
   useEffect(() => {
@@ -91,7 +125,10 @@ const ModalPOScan: React.FC<ModalPOScanProps> = ({
   };
 
   // Validate card and open if valid
-  const validateAndOpenCard = async (targetCardId: string) => {
+  const validateAndOpenCard = async (
+    targetCardId: string,
+    listIdOverride?: string
+  ) => {
     if (!targetCardId.trim()) {
       message.error("Please enter a Card ID");
       return;
@@ -108,7 +145,8 @@ const ModalPOScan: React.FC<ModalPOScanProps> = ({
         message.success("Card is in Finishing Packing list. Opening card...");
 
         // Navigate to the card details with query parameters
-        const navigationUrl = `/workspace/${boardId}/board/${boardId}?cardId=${targetCardId}&listId=${listId}`;
+        const targetList = listIdOverride ?? finishingListId ?? listId;
+        const navigationUrl = `/workspace/${boardId}/board/${boardId}?cardId=${targetCardId}&listId=${targetList}`;
         router.push(navigationUrl);
 
         // Close modal after opening card
@@ -215,6 +253,38 @@ const ModalPOScan: React.FC<ModalPOScanProps> = ({
     await validateAndOpenCard(cardId);
   };
 
+  const finishingCardsQuery = useQuery({
+    queryKey: ["finishing-packing-cards", debouncedFinishingSearch],
+    queryFn: () =>
+      getFinishingPackingCards(
+        debouncedFinishingSearch.trim() || undefined,
+        30
+      ),
+    enabled: open,
+    keepPreviousData: true,
+  });
+
+  const finishingCardOptions = (finishingCardsQuery.data || []).map(
+    (card: FinishingPackingCard) => ({
+      value: card.id,
+      label: card.shortId
+        ? `#${card.shortId} · ${card.name || card.id}`
+        : card.name || card.id,
+    })
+  );
+
+  const handleFinishingCardSelect = async (selectedCardId: string) => {
+    if (!selectedCardId) return;
+    const selectedCard = finishingCardsQuery.data?.find(
+      (card) => card.id === selectedCardId
+    );
+    setFinishingListId(selectedCard?.listId);
+    setFinishingSearch("");
+    setCardId(selectedCardId);
+    form.setFieldsValue({ cardId: selectedCardId });
+    await validateAndOpenCard(selectedCardId, selectedCard?.listId);
+  };
+
   const handleCancel = () => {
     form.resetFields();
     setCardId("");
@@ -241,6 +311,29 @@ const ModalPOScan: React.FC<ModalPOScanProps> = ({
       >
         <div style={{ padding: "1rem" }}>
           <Form form={form} layout="vertical" onFinish={handleValidateCard}>
+            <Form.Item
+              label={
+                <Text strong className="text-gray-700">
+                  Cari Card Finishing &amp; Packing
+                </Text>
+              }
+            >
+              <AutoComplete
+                value={finishingSearch}
+                onChange={setFinishingSearch}
+                onSelect={handleFinishingCardSelect}
+                placeholder="Ketik nama card atau short ID..."
+                options={finishingCardOptions}
+                filterOption={false}
+                className="w-full"
+                allowClear
+                notFoundContent={
+                  finishingCardsQuery.isFetching
+                    ? "Memuat..."
+                    : "Card tidak ditemukan"
+                }
+              />
+            </Form.Item>
             <Form.Item
               label={
                 <Text strong className="text-gray-700">

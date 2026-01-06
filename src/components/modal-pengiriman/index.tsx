@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Modal,
   Form,
@@ -15,6 +15,7 @@ import {
   message,
   Spin,
 } from "antd";
+import type { InputRef } from "antd";
 import { CalendarOutlined, DeleteOutlined } from "@ant-design/icons";
 import { ShoppingCart, Camera } from "lucide-react";
 import { Scanner } from "@yudiel/react-qr-scanner";
@@ -64,6 +65,7 @@ const { TextArea } = Input;
 
 const ModalPengiriman: React.FC<ModalPengirimanProps> = ({ open, onClose }) => {
   const [form] = Form.useForm();
+  const soInputRef = useRef<InputRef>(null);
 
   // UI and data states
   const [loading, setLoading] = useState(false);
@@ -118,6 +120,9 @@ const ModalPengiriman: React.FC<ModalPengirimanProps> = ({ open, onClose }) => {
       setSelectedSalesOrders([]);
       setSelectedProducts([]);
       setShowCameraScanner(false);
+      requestAnimationFrame(() => {
+        soInputRef.current?.focus();
+      });
     }
   }, [open, form]);
 
@@ -384,6 +389,7 @@ const ModalPengiriman: React.FC<ModalPengirimanProps> = ({ open, onClose }) => {
               <Form.Item label="Cari atau Scan Nomor SO">
                 <div className="flex gap-2">
                   <AutoComplete
+                    ref={soInputRef}
                     value={soSearchValue}
                     onChange={setSOSearchValue}
                     onSelect={handleSOSelect}
