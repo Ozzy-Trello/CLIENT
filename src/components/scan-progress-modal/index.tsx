@@ -1,6 +1,6 @@
-import React, { useEffect, useRef, useState, useMemo } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useQueries, useQueryClient } from "@tanstack/react-query";
-import { Button, message, Modal, Progress } from "antd";
+import { Button, message, Modal, Progress, Tooltip } from "antd";
 import {
   getPOsByCardId,
   getPOScanProgress,
@@ -25,117 +25,159 @@ const ScanProgressModal: React.FC<ScanProgressModalProps> = ({
   cardId,
   boardId,
 }) => {
-  const [scanProgress, setScanProgress] = useState<
-    Record<string, ScanProgressResponse>
-  >({});
   const [scannerInput, setScannerInput] = useState("");
   const [card, setCard] = useState<Card | null>(null);
   const [pos, setPOs] = useState<PO[]>([]);
-  const [isScanning, setIsScanning] = useState(false);
+  const [scanningKey, setScanningKey] = useState<string | null>(null); // per-item / per-scan loading key
+
   const scannerRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
-  // Fetch card details and POs when cardId and boardId are provided
+  /**
+   * Fetch card details + POs when modal opens
+   */
   useEffect(() => {
-    if (cardId && boardId && isOpen) {
-      // Fetch card details
-      cardDetails(cardId, boardId)
-        .then((response) => {
-          if (response.data) {
-            setCard(response.data);
-          }
-        })
-        .catch((error) => {
-          console.error("Failed to fetch card details:", error);
-          message.error("Failed to fetch card details");
-        });
+    if (!cardId || !boardId || !isOpen) return;
 
-      // Fetch POs for the card
-      getPOsByCardId(cardId)
-        .then((response) => {
-          if (response.data) {
-            setPOs(response.data);
-          }
-        })
-        .catch((error) => {
-          console.error("Failed to fetch POs:", error);
-          message.error("Failed to fetch POs");
-        });
-    }
+    let cancelled = false;
+
+    // Fetch card details
+    cardDetails(cardId, boardId)
+      .then((response) => {
+        if (cancelled) return;
+        if (response.data) setCard(response.data);
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        console.error("Failed to fetch card details:", error);
+        message.error("Failed to fetch card details");
+      });
+
+    // Fetch POs for the card
+    getPOsByCardId(cardId)
+      .then((response) => {
+        if (cancelled) return;
+        if (response.data) setPOs(response.data);
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        console.error("Failed to fetch POs:", error);
+        message.error("Failed to fetch POs");
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [cardId, boardId, isOpen]);
 
-  // Create queries for scan progress of each PO
+  /**
+   * Poll scan progress for each PO (every 2s while modal open)
+   */
   const scanProgressQueries = useQueries({
     queries: pos.map((po) => ({
       queryKey: ["scanProgress", po.id],
       queryFn: () => getPOScanProgress(po.id),
       enabled: !!po.id && isOpen,
-      refetchInterval: 2000, // Refetch every 2 seconds when modal is open
+      refetchInterval: 2000,
     })),
   });
 
-  // Memoize the progress data to avoid infinite re-renders
-  const currentProgress = useMemo(() => {
-    const newProgress: Record<string, ScanProgressResponse> = {};
+  /**
+   * Build a map { [poId]: ScanProgressResponse }
+   * Memoized by query update timestamps + PO ids to keep stable behavior.
+   */
+  const progressByPoId = useMemo(() => {
+    const next: Record<string, ScanProgressResponse> = {};
+
     scanProgressQueries.forEach((q, idx) => {
       const po = pos[idx];
-      if (po && q.data && q.data.data) {
-        // API returns { status_code, message, data: ScanProgressResponse }
-        newProgress[po.id] = q.data.data as ScanProgressResponse;
-      }
+      if (!po?.id) return;
+
+      const data = (q.data as any)?.data as ScanProgressResponse | undefined;
+      if (data) next[po.id] = data;
     });
-    return newProgress;
+
+    return next;
   }, [
+    // Only recompute when actual query data updates or PO ids change
     scanProgressQueries.map((q) => q.dataUpdatedAt ?? 0).join(","),
     pos.map((po) => po.id).join(","),
   ]);
 
-  // Update progress state only when the actual data changes
-  useEffect(() => {
-    // Only update if the progress data has actually changed
-    const currentProgressKeys = Object.keys(currentProgress).sort();
-    const scanProgressKeys = Object.keys(scanProgress).sort();
-
-    const hasChanged =
-      currentProgressKeys.length !== scanProgressKeys.length ||
-      currentProgressKeys.some(
-        (key) =>
-          JSON.stringify(currentProgress[key]) !==
-          JSON.stringify(scanProgress[key])
-      );
-
-    if (hasChanged) {
-      setScanProgress(currentProgress);
-    }
-  }, [currentProgress, scanProgress]);
-
+  /**
+   * Overall progress (sum across all POs)
+   */
   const overallProgress = useMemo(() => {
     let scanned = 0;
     let total = 0;
-    Object.values(scanProgress).forEach((progress) => {
+
+    Object.values(progressByPoId).forEach((progress) => {
       scanned += progress?.scanned ?? 0;
       total += progress?.total ?? 0;
     });
+
     return {
       scanned,
       total,
       percentage: total > 0 ? Math.round((scanned / total) * 100) : 0,
     };
-  }, [scanProgress]);
+  }, [progressByPoId]);
 
-  // Focus scanner input when modal opens
+  /**
+   * Keep scanner input focused while open
+   */
   useEffect(() => {
-    if (isOpen && scannerRef.current) {
-      scannerRef.current.focus();
-      const refocusInput = () => {
-        if (scannerRef.current) scannerRef.current.focus();
-      };
-      const focusInterval = setInterval(refocusInput, 100);
-      return () => clearInterval(focusInterval);
-    }
+    if (!isOpen || !scannerRef.current) return;
+
+    scannerRef.current.focus();
+
+    const refocusInput = () => {
+      scannerRef.current?.focus();
+    };
+
+    const focusInterval = setInterval(refocusInput, 100);
+    return () => clearInterval(focusInterval);
   }, [isOpen]);
 
-  // Handle scanner input
+  /**
+   * Refresh all PO scan progress queries (fast UI update after scanning)
+   */
+  const refreshAllProgress = () => {
+    pos.forEach((poItem) => {
+      queryClient.invalidateQueries({ queryKey: ["scanProgress", poItem.id] });
+    });
+  };
+
+  /**
+   * Unified scan submitter: used by BOTH scanner Enter + per-item button
+   */
+  const submitScan = async (qrCode: string, loadingKey: string) => {
+    const value = qrCode.trim();
+    if (!value) return;
+
+    // prevent parallel scans
+    if (scanningKey) return;
+
+    setScanningKey(loadingKey);
+    try {
+      const response = await scanPOItem({ qrCode: value });
+      message.success(response?.message || `Scanned: ${value}`);
+      refreshAllProgress();
+    } catch (error) {
+      const errorMessage =
+        (error as any)?.response?.data?.message ||
+        (error as Error)?.message ||
+        "Failed to process scan. Please try again.";
+      message.error(errorMessage);
+    } finally {
+      setScanningKey(null);
+      scannerRef.current?.focus();
+    }
+  };
+
+  /**
+   * Handle scanner Enter
+   */
   const handleScannerKeyPress = async (
     e: React.KeyboardEvent<HTMLInputElement>
   ) => {
@@ -145,29 +187,25 @@ const ScanProgressModal: React.FC<ScanProgressModalProps> = ({
     const value = scannerInput.trim();
     setScannerInput("");
 
-    if (!value || isScanning) {
-      return;
-    }
+    if (!value) return;
 
-    setIsScanning(true);
-    try {
-      const response = await scanPOItem({ qrCode: value });
-      message.success(response?.message || `Scanned: ${value}`);
+    // scanner run key
+    await submitScan(value, `scanner:${value}`);
+  };
 
-      // Refresh scan progress for every PO in this card so UI reflects the latest data
-      pos.forEach((poItem) => {
-        queryClient.invalidateQueries({ queryKey: ["scanProgress", poItem.id] });
-      });
-    } catch (error) {
-      const errorMessage =
-        (error as any)?.response?.data?.message ||
-        (error as Error)?.message ||
-        "Failed to process scan. Please try again.";
-      message.error(errorMessage);
-    } finally {
-      setIsScanning(false);
-      scannerRef.current?.focus();
-    }
+  /**
+   * Helper: find QR value from item shape (adjust key names if your backend differs)
+   */
+  const getItemQrCode = (item: any): string | null => {
+    const qr =
+      item?.qrCode ??
+      item?.qr_code ??
+      item?.qrcode ??
+      item?.qr ??
+      item?.code ??
+      null;
+
+    return qr ? String(qr) : null;
   };
 
   return (
@@ -176,9 +214,7 @@ const ScanProgressModal: React.FC<ScanProgressModalProps> = ({
         <div>
           <div>Scan Progress</div>
           {card && (
-            <div
-              style={{ fontSize: "14px", fontWeight: "normal", color: "#666" }}
-            >
+            <div style={{ fontSize: "14px", fontWeight: "normal", color: "#666" }}>
               Card: {card.name}
             </div>
           )}
@@ -192,13 +228,9 @@ const ScanProgressModal: React.FC<ScanProgressModalProps> = ({
         </Button>,
       ]}
       width={800}
-      styles={{
-        body: {
-          padding: "1rem",
-        },
-      }}
+      styles={{ body: { padding: "1rem" } }}
     >
-      {/* Scanner input */}
+      {/* Hidden scanner input (keyboard wedge) */}
       <input
         ref={scannerRef}
         type="text"
@@ -222,6 +254,7 @@ const ScanProgressModal: React.FC<ScanProgressModalProps> = ({
 
       <div onClick={() => scannerRef.current?.focus()}>
         <div className="space-y-4">
+          {/* Overall progress */}
           {overallProgress.total > 0 && (
             <div className="p-4 rounded-lg border bg-white shadow-sm">
               <div className="flex items-center justify-between text-sm font-medium text-gray-700">
@@ -241,12 +274,11 @@ const ScanProgressModal: React.FC<ScanProgressModalProps> = ({
               </div>
             </div>
           )}
+
           {/* Loading State */}
           {scanProgressQueries.some((q) => q.isLoading) && (
             <div className="text-center py-4">
-              <div className="text-sm text-gray-600">
-                Loading scan progress...
-              </div>
+              <div className="text-sm text-gray-600">Loading scan progress...</div>
             </div>
           )}
 
@@ -282,25 +314,26 @@ const ScanProgressModal: React.FC<ScanProgressModalProps> = ({
               .map((po: PO, idx: number) => {
                 const queryIndex = pos.findIndex((p) => p.id === po.id);
                 const query = scanProgressQueries[queryIndex];
-                const progressData = query?.data?.data as ScanProgressResponse;
+
+                const progressData = (query?.data as any)?.data as
+                  | ScanProgressResponse
+                  | undefined;
+
                 const scanned = progressData?.scanned ?? 0;
                 const total = progressData?.total ?? 0;
-                const percentage =
-                  total > 0 ? Math.round((scanned / total) * 100) : 0;
+                const percentage = total > 0 ? Math.round((scanned / total) * 100) : 0;
+
                 return (
                   <div key={po.id} className="p-4 rounded-lg border bg-gray-50">
                     <div className="flex items-center justify-between">
-                      <span className="font-medium">PO: {idx + 1} </span>
+                      <span className="font-medium">PO: {idx + 1}</span>
                       <span className="text-sm font-medium">
                         {scanned}/{total} ({percentage}%)
                       </span>
                     </div>
+
                     <div className="mt-2">
-                      <Progress
-                        percent={percentage}
-                        size="small"
-                        showInfo={false}
-                      />
+                      <Progress percent={percentage} size="small" showInfo={false} />
                     </div>
 
                     {/* Individual Items */}
@@ -308,11 +341,9 @@ const ScanProgressModal: React.FC<ScanProgressModalProps> = ({
                       {(progressData?.items || [])
                         .slice()
                         .sort((a: any, b: any) => {
-                          // Stable sort by size then itemNumber ascending
-                          const sizeCmp = String(a.size).localeCompare(
-                            String(b.size)
-                          );
+                          const sizeCmp = String(a.size).localeCompare(String(b.size));
                           if (sizeCmp !== 0) return sizeCmp;
+
                           const aNum =
                             typeof a.itemNumber === "number"
                               ? a.itemNumber
@@ -321,13 +352,13 @@ const ScanProgressModal: React.FC<ScanProgressModalProps> = ({
                             typeof b.itemNumber === "number"
                               ? b.itemNumber
                               : b.item_number ?? 0;
+
                           return aNum - bNum;
                         })
                         .map((item: any) => {
                           const scannedAt = item.scannedAt || item.scanned_at;
-                          const scannedByUserId =
-                            item.scannedBy || item.scanned_by;
-                          // Prefer backend-provided name, fallback to lookup cache, then UUID
+                          const scannedByUserId = item.scannedBy || item.scanned_by;
+
                           const scannedByName =
                             item.scannedByName ||
                             item.scanned_by_name ||
@@ -335,8 +366,10 @@ const ScanProgressModal: React.FC<ScanProgressModalProps> = ({
                               ? LookupCache.label("user", scannedByUserId)
                               : null) ||
                             scannedByUserId;
+
                           const subcategoryName =
                             item.subcategoryName || item.subcategory_name;
+
                           const formattedTime = scannedAt
                             ? new Date(scannedAt).toLocaleString("en-US", {
                                 month: "short",
@@ -346,56 +379,96 @@ const ScanProgressModal: React.FC<ScanProgressModalProps> = ({
                               })
                             : null;
 
+                          const itemNumber =
+                            item.itemNumber ?? item.item_number ?? 0;
+
+                          const itemKey = `${po.id}:${item.id ?? `${item.size}-${itemNumber}`}`;
+                          const itemQr = getItemQrCode(item);
+
+                          const isItemScanning = scanningKey === `item:${itemKey}`;
+                          const isAnyScanning = !!scanningKey;
+
                           return (
                             <div
-                              key={item.id}
+                              key={item.id ?? itemKey}
                               className={`rounded-md bg-white border px-3 py-2 ${
-                                item.scanned
-                                  ? "border-green-200"
-                                  : "border-gray-200"
+                                item.scanned ? "border-green-200" : "border-gray-200"
                               }`}
                             >
                               <div className="flex items-center justify-between">
+                                {/* left */}
                                 <div className="flex items-center gap-2">
                                   <span className="font-mono font-semibold text-sm">
                                     {item.size}-
-                                    {String(
-                                      item.itemNumber ?? item.item_number
-                                    ).padStart(3, "0")}
+                                    {String(itemNumber).padStart(3, "0")}
                                   </span>
+
                                   {subcategoryName && (
                                     <span className="text-xs text-gray-500 px-2 py-0.5 bg-gray-100 rounded">
                                       {subcategoryName}
                                     </span>
                                   )}
                                 </div>
-                                <span
-                                  className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                                    item.scanned
-                                      ? "bg-green-100 text-green-700 border border-green-200"
-                                      : "bg-gray-100 text-gray-700 border border-gray-200"
-                                  }`}
-                                >
-                                  {item.scanned ? "✓ Scanned" : "Pending"}
-                                </span>
+
+                                {/* right */}
+                                <div className="flex items-center gap-2">
+                                  {/* Manual check button when no scanner */}
+                                  {/* {!item.scanned && (
+                                    <Tooltip
+                                      title={
+                                        itemQr
+                                          ? "Mark as scanned (manual)"
+                                          : "No QR code value found on this item data"
+                                      }
+                                    >
+                                      <Button
+                                        size="small"
+                                        type="primary"
+                                        loading={isItemScanning}
+                                        disabled={!itemQr || isAnyScanning}
+                                        onClick={async () => {
+                                          if (!itemQr) {
+                                            message.error(
+                                              "This item has no QR code value to scan. (Check item.qrCode / item.qr_code)"
+                                            );
+                                            return;
+                                          }
+                                          await submitScan(String(itemQr), `item:${itemKey}`);
+                                        }}
+                                      >
+                                        ✓ Check
+                                      </Button>
+                                    </Tooltip>
+                                  )} */}
+
+                                  <span
+                                    className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                                      item.scanned
+                                        ? "bg-green-100 text-green-700 border border-green-200"
+                                        : "bg-gray-100 text-gray-700 border border-gray-200"
+                                    }`}
+                                  >
+                                    {item.scanned ? "✓ Scanned" : "Pending"}
+                                  </span>
+                                </div>
                               </div>
-                              {item.scanned &&
-                                (scannedByName || formattedTime) && (
-                                  <div className="mt-1 flex items-center gap-3 text-xs text-gray-500">
-                                    {scannedByName && (
-                                      <span className="flex items-center gap-1">
-                                        <span className="font-medium">By:</span>
-                                        <span>{scannedByName}</span>
-                                      </span>
-                                    )}
-                                    {formattedTime && (
-                                      <span className="flex items-center gap-1">
-                                        <span className="font-medium">At:</span>
-                                        <span>{formattedTime}</span>
-                                      </span>
-                                    )}
-                                  </div>
-                                )}
+
+                              {item.scanned && (scannedByName || formattedTime) && (
+                                <div className="mt-1 flex items-center gap-3 text-xs text-gray-500">
+                                  {scannedByName && (
+                                    <span className="flex items-center gap-1">
+                                      <span className="font-medium">By:</span>
+                                      <span>{scannedByName}</span>
+                                    </span>
+                                  )}
+                                  {formattedTime && (
+                                    <span className="flex items-center gap-1">
+                                      <span className="font-medium">At:</span>
+                                      <span>{formattedTime}</span>
+                                    </span>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           );
                         })}

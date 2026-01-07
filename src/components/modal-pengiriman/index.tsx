@@ -207,6 +207,7 @@ const ModalPengiriman: React.FC<ModalPengirimanProps> = ({ open, onClose }) => {
     try {
       setLoading(true);
       const soDetails = await getOzzySalesOrderById(soNumber);
+      console.log(soDetails,'<< isi soDetails')
       if (!soDetails) {
         message.error("Sales Order tidak ditemukan!");
         return;

@@ -657,7 +657,7 @@ export const getOzzySalesOrderById = async (
           id: item.whProductId,
           accurateId: 0,
           accurateDbId: 0,
-          name: `Product ${item.whProductId}`,
+          name: `${item.product?.name || item.whProductId}`,
           sku: `SKU-${item.whProductId}`,
           barcode: '',
           unitType: item.unitType,
