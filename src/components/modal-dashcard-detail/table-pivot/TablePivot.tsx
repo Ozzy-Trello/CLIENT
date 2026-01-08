@@ -367,27 +367,49 @@ const TablePivot: FC = () => {
     const baseColumns = [
       columnHelper.accessor("name", {
         header: () =>
-          headerTemplate("Name", getColumnMenu("name").items || [], getColumnMenu("name").onClick),
+          headerTemplate(
+            "Name",
+            getColumnMenu("name").items || [],
+            getColumnMenu("name").onClick
+          ),
         cell: (info) => {
           const row = info.row;
-          const openInNewTab = (event: MouseEvent) => {
-            if (event.button !== 0 && event.button !== 1) return;
-            event.preventDefault();
-            if (typeof window === "undefined") return;
-            const workspaceSegment = currentWorkspaceId || "";
-            const url = `/workspace/${workspaceSegment}/board/${row.original.boardId}?cardId=${row.original.id}&listId=${row.original.listId}`;
-            const newTab = window.open(url, "_blank", "noopener,noreferrer");
 
-            if (event.button === 1) {
-              newTab?.blur();
-              window.focus();
+          const workspaceSegment = currentWorkspaceId || "";
+          const url = `/workspace/${workspaceSegment}/board/${row.original.boardId}?cardId=${row.original.id}&listId=${row.original.listId}`;
+
+          const handleClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
+            // Let the browser handle:
+            // - right click context menu
+            // - middle click
+            // - cmd/ctrl click
+            // - shift click
+            if (
+              event.button !== 0 ||
+              event.metaKey ||
+              event.ctrlKey ||
+              event.shiftKey ||
+              event.altKey
+            ) {
+              return;
             }
+
+            // Optional: if you want to open in a new tab even on normal left-click:
+            // event.preventDefault();
+            // window.open(url, "_blank", "noopener,noreferrer");
           };
 
           return renderGroupedCell("name", row, () => (
-            <span className="cursor-pointer" onClick={openInNewTab} onAuxClick={openInNewTab}>
+            <a
+              href={url}
+              className="cursor-pointer"
+              onClick={handleClick}
+            // optional: always open left-click in new tab natively
+            // target="_blank"
+            // rel="noopener noreferrer"
+            >
               {info.getValue()}
-            </span>
+            </a>
           ));
         },
       }),
@@ -551,8 +573,8 @@ const TablePivot: FC = () => {
   );
   const hasVisibilityChanges = hasSavedVisibility
     ? allColumnIds.some(
-        (id) => (columnVisibility[id] === true) !== (lastSavedVisibility[id] === true)
-      )
+      (id) => (columnVisibility[id] === true) !== (lastSavedVisibility[id] === true)
+    )
     : false;
   const hasOrderChanges = lastSavedOrder.length
     ? !arraysEqual(visibleColumnsOrdered, lastSavedOrder)

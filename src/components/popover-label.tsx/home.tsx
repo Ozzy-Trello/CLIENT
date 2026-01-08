@@ -11,6 +11,8 @@ import {
   useTopWorkspaceLabels,
   useWorkspaceLabels,
 } from "@hooks/label";
+import { useSelector } from "react-redux";
+import { selectUser } from "@store/app_slice";
 
 interface LabelManagerProps {
   popoverPage: "home" | "add" | "update";
@@ -27,7 +29,12 @@ const Home: React.FC<LabelManagerProps> = ({
 }) => {
   const { workspaceId } = useParams();
   const [searchTerm, setSearchTerm] = useState("");
-
+  const currentUser = useSelector(selectUser);
+  const userRole = (currentUser?.role?.name || "").trim().toLowerCase();
+  const isSuperAdmin =
+    userRole === "super admin" ||
+    userRole === "super_admin" ||
+    userRole === "superadmin";
   const {
     labels: workspaceLabels,
     isFetching: isLoadingWorkspaceLabels,
@@ -117,11 +124,10 @@ const Home: React.FC<LabelManagerProps> = ({
             {suggestionsWithAssignment.map((label) => (
               <div
                 key={`suggestion-${label.id || label.labelId}`}
-                className={`flex items-center justify-between px-2 py-1 rounded transition ${
-                  label.isAssigned
-                    ? "bg-blue-50 border border-blue-200"
-                    : "hover:bg-gray-100 border border-transparent"
-                }`}
+                className={`flex items-center justify-between px-2 py-1 rounded transition ${label.isAssigned
+                  ? "bg-blue-50 border border-blue-200"
+                  : "hover:bg-gray-100 border border-transparent"
+                  }`}
               >
                 <div className="flex items-center gap-2 flex-1">
                   <Checkbox
@@ -158,11 +164,10 @@ const Home: React.FC<LabelManagerProps> = ({
         {labelsWithAssignment.map((label) => (
           <div
             key={label.id}
-            className={`flex items-center justify-between px-2 py-1 rounded transition ${
-              label.isAssigned
-                ? "bg-blue-50 border border-blue-200"
-                : "hover:bg-gray-100 border border-transparent"
-            }`}
+            className={`flex items-center justify-between px-2 py-1 rounded transition ${label.isAssigned
+              ? "bg-blue-50 border border-blue-200"
+              : "hover:bg-gray-100 border border-transparent"
+              }`}
           >
             <div className="flex items-center gap-2 flex-1">
               <Checkbox
@@ -180,14 +185,14 @@ const Home: React.FC<LabelManagerProps> = ({
                 {label.name}
               </div>
             </div>
-            <Tooltip title="Edit label">
+            {isSuperAdmin && <Tooltip title="Edit label">
               <button
                 onClick={() => handleEdit(label)}
                 className="p-1 hover:bg-gray-200 rounded-sm transition-colors ml-2"
               >
                 <Pencil size={14} className="text-gray-500" />
               </button>
-            </Tooltip>
+            </Tooltip>}
           </div>
         ))}
       </div>
@@ -211,11 +216,11 @@ const Home: React.FC<LabelManagerProps> = ({
         </div>
       )}
 
-      <div className="mt-4">
+      {isSuperAdmin && <div className="mt-4">
         <Button block size="small" onClick={() => setPopoverPage("add")}>
           Create a new label
         </Button>
-      </div>
+      </div>}
     </div>
   );
 };

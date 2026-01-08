@@ -520,7 +520,7 @@ const CardDetails: React.FC = (props) => {
             width={"fit-content"}
             value={selectedCard?.listId}
             onChange={onListChange}
-            disabled={!canUpdateCard()}
+            disabled={true}
           />
         </div>
 
