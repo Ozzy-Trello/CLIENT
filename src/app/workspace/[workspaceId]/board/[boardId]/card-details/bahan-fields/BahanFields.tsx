@@ -1678,7 +1678,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
           if (exists) return poItem;
           return {
             ...poItem,
-            products: [...poItem.products, optimisticProduct],
+            products: [...poItem.products],
           };
         })
       );
