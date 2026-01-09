@@ -40,6 +40,7 @@ const Attachments = dynamic(() => import("./attachments"), {
 import { CardDateDisplay } from "@components/card-dates";
 import CollapsibleSection from "@components/collapsible-section";
 import ModalDashcardDetail from "@components/modal-dashcard-detail";
+import PopoverDates from "@components/popover-dates.tsx";
 import PopoverLabel from "@components/popover-label.tsx";
 import { ListSelection, SelectionRef } from "@components/selection";
 import { useBoardDetails } from "@hooks/board";
@@ -82,12 +83,10 @@ const CardDetails: React.FC = (props) => {
   const ALLOWED_BOARD_NAMES = [
     "Request Desain | Outlet",
     "TEST BOARD",
-    "List Purchase | Produksi"
-  ];
-   const CAN_VIEW_BOARD = [
+    "List Purchase | Produksi",
     "Dateline",
-    "Delivery"
   ];
+  const CAN_VIEW_BOARD = ["Delivery"];
   // Optional: if you know the exact board IDs, add them here for stronger matching
   const ALLOWED_BOARD_IDS = new Set<string>([
     // e.g. "uuid-1234-...",
@@ -193,6 +192,7 @@ const CardDetails: React.FC = (props) => {
   );
   const [openAddMember, setOpenAddMember] = useState<boolean>(false);
   const [openLabel, setOpenLabel] = useState<boolean>(false);
+  const [openDates, setOpenDates] = useState<boolean>(false);
   const {
     completeCard,
     incompleteCard,
@@ -621,13 +621,19 @@ const CardDetails: React.FC = (props) => {
             <span className="text-gray-300 font-semibold text-xs block">
               Dates
             </span>
-            <Button
-              icon={<Clock size={12} />}
-              size="small"
-              className="rounded-md hover:bg-gray-50"
-            >
-              <CardDateDisplay card={selectedCard} />
-            </Button>
+            <PopoverDates
+              open={openDates}
+              setOpen={setOpenDates}
+              triggerEl={
+                <Button
+                  icon={<Clock size={12} />}
+                  size="small"
+                  className="rounded-md hover:bg-gray-50"
+                >
+                  <CardDateDisplay card={selectedCard} />
+                </Button>
+              }
+            />
           </div>
         )}
 

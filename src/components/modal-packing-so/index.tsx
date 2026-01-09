@@ -32,7 +32,7 @@ const ModalPackingSO: React.FC<ModalPackingSOProps> = ({ open, onClose }) => {
   // Fetch SO list with packing=0 filter
   const { data: salesOrders = [], isLoading: isLoadingSO } = useQuery({
     queryKey: ["sales-orders-packing", 0],
-    queryFn: () => getOzzySalesOrders(50, 0),
+    queryFn: () => getOzzySalesOrders(1000, 0),
     enabled: open,
   });
 

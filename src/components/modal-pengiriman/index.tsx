@@ -107,7 +107,7 @@ const ModalPengiriman: React.FC<ModalPengirimanProps> = ({ open, onClose }) => {
     OzzyPackingData[]
   >({
     queryKey: ["ozzy-sales-orders", "pengiriman"],
-    queryFn: () => getOzzySalesOrders(50, 1),
+    queryFn: () => getOzzySalesOrders(1000, 1),
     enabled: open,
   });
 
@@ -340,7 +340,12 @@ const ModalPengiriman: React.FC<ModalPengirimanProps> = ({ open, onClose }) => {
       };
 
       const result = await createOzzyDeliveryOrder(payload);
+      const attachmentUrl =
+        result?.attachment ?? result?.data?.attachment ?? null;
       if (result) {
+        if (attachmentUrl && typeof window !== "undefined") {
+          window.open(attachmentUrl, "_blank");
+        }
         message.success("Delivery Order berhasil dibuat!");
         handleCancel();
       } else {

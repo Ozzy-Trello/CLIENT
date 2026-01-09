@@ -1,5 +1,5 @@
 import React, { ReactNode, useEffect, useState } from "react";
-import { Popover, Typography } from "antd";
+import { Popover, Typography, message } from "antd";
 import { ChevronLeft, X } from "lucide-react";
 import { useParams } from "next/navigation";
 import { UserSelection } from "../selection";
@@ -19,8 +19,9 @@ const PopoverDates: React.FC<PopoverCustomFieldProps> = ({
   triggerEl,
 }) => {
   const { workspaceId, boardId } = useParams();
-  const { selectedCard, setSelectedCard, activeList } = useCardDetailContext();
-  const { updateCard, isUpdating } = useCardDetails(
+  const { selectedCard, setSelectedCard, activeList, refetchCardDetails } =
+    useCardDetailContext();
+  const { updateCardAsync, isUpdating, refetch } = useCardDetails(
     selectedCard?.id || "",
     activeList?.id || "",
     (boardId as string) || ""
@@ -35,17 +36,27 @@ const PopoverDates: React.FC<PopoverCustomFieldProps> = ({
     startDate: Date | null,
     dueDate: Date | null,
     reminder: string | null
-  ) => {
+  ): Promise<void> => {
     setDates({
       startDate: startDate,
       dueDate: dueDate,
       dueDateReminder: reminder,
     });
-    updateCard({
-      startDate: startDate || undefined,
-      dueDate: dueDate || undefined,
-      dueDateReminder: reminder || "",
-    });
+
+    try {
+      await updateCardAsync({
+        startDate: startDate || undefined,
+        dueDate: dueDate || undefined,
+        dueDateReminder: reminder || "",
+      });
+      message.success("Card dates updated");
+      refetch?.();
+      refetchCardDetails?.();
+      setOpen(false);
+    } catch (error) {
+      message.error("Failed to update card dates");
+      throw error;
+    }
   };
 
   useEffect(() => {
@@ -54,7 +65,7 @@ const PopoverDates: React.FC<PopoverCustomFieldProps> = ({
       dueDate: selectedCard?.dueDate || null,
       dueDateReminder: selectedCard?.dueDateReminder || "",
     });
-  }, []);
+  }, [selectedCard]);
 
   useEffect(() => {
     if (!isUpdating && selectedCard && dates) {

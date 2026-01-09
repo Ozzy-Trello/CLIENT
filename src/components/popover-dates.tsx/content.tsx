@@ -5,7 +5,7 @@ import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
 
 interface DateSetterProps {
-  onSave: (startDate: Date | null, dueDate: Date | null, reminder: string | null) => void;
+  onSave: (startDate: Date | null, dueDate: Date | null, reminder: string | null) => Promise<void>;
   initialStartDate?: Date | null;
   initialDueDate?: Date | null;
   initialReminder?: string | null;
@@ -23,6 +23,7 @@ const DateSetter: React.FC<DateSetterProps> = ({
   const [dueTime, setDueTime] = useState<Dayjs | null>(initialDueDate ? dayjs(initialDueDate) : dayjs());
   const [reminder, setReminder] = useState<string | null>(initialReminder);
   const [showDueDate, setShowDueDate] = useState<boolean>(!!initialDueDate);
+  const [isProcessing, setIsProcessing] = useState(false);
   
   // Calendar navigation state
   const [currentMonth, setCurrentMonth] = useState<Dayjs>(dayjs());
@@ -108,9 +109,11 @@ const DateSetter: React.FC<DateSetterProps> = ({
   };
   
   // Save and remove handlers
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (isProcessing) return;
+    setIsProcessing(true);
     let finalDueDate = null;
-    
+
     if (dueDate && dueTime) {
       finalDueDate = dueDate
         .hour(dueTime.hour())
@@ -118,16 +121,26 @@ const DateSetter: React.FC<DateSetterProps> = ({
         .second(0)
         .toDate();
     }
-    
-    onSave(startDate?.toDate() || null, finalDueDate, reminder);
+
+    try {
+      await onSave(startDate?.toDate() || null, finalDueDate, reminder);
+    } finally {
+      setIsProcessing(false);
+    }
   };
-  
-  const handleRemove = () => {
+
+  const handleRemove = async () => {
+    if (isProcessing) return;
+    setIsProcessing(true);
     setStartDate(null);
     setDueDate(null);
     setDueTime(null);
     setReminder(null);
-    onSave(null, null, null);
+    try {
+      await onSave(null, null, null);
+    } finally {
+      setIsProcessing(false);
+    }
   };
   
   // Helper to check if a date is the current date
@@ -288,6 +301,7 @@ const DateSetter: React.FC<DateSetterProps> = ({
           block
           onClick={handleSave}
           className="h-10"
+          loading={isProcessing}
         >
           Save
         </Button>
@@ -295,6 +309,7 @@ const DateSetter: React.FC<DateSetterProps> = ({
           block
           onClick={handleRemove}
           className="h-10"
+          disabled={isProcessing}
         >
           Remove
         </Button>
