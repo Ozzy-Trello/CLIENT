@@ -11,6 +11,7 @@ import {
 import { cardDetails } from "@api/card";
 import { Card } from "@myTypes/card";
 import { LookupCache } from "@utils/lookup-cache";
+import { usePermissions } from "@hooks/account";
 
 interface ScanProgressModalProps {
   isOpen: boolean;
@@ -32,6 +33,10 @@ const ScanProgressModal: React.FC<ScanProgressModalProps> = ({
 
   const scannerRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
+  const { user, isSuperAdmin } = usePermissions();
+  const roleLower = (user?.role?.name || "").trim().toLowerCase();
+  const isSuperAdminUser = isSuperAdmin();
+  const canManualMark = isSuperAdminUser || roleLower === "kepala produksi";
 
   /**
    * Fetch card details + POs when modal opens
@@ -412,8 +417,8 @@ const ScanProgressModal: React.FC<ScanProgressModalProps> = ({
 
                                 {/* right */}
                                 <div className="flex items-center gap-2">
-                                  {/* Manual check button when no scanner */}
-                                  {/* {!item.scanned && (
+                                  {/* Manual check button for authorized roles */}
+                                  {canManualMark && !item.scanned && (
                                     <Tooltip
                                       title={
                                         itemQr
@@ -439,7 +444,7 @@ const ScanProgressModal: React.FC<ScanProgressModalProps> = ({
                                         ✓ Check
                                       </Button>
                                     </Tooltip>
-                                  )} */}
+                                  )}
 
                                   <span
                                     className={`px-2 py-0.5 rounded-full text-xs font-medium ${
