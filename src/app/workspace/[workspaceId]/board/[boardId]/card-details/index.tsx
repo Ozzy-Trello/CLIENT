@@ -9,6 +9,7 @@ import {
   Grid,
   Modal,
   Popover,
+  Spin,
   Row,
   Tag,
   Tooltip,
@@ -320,6 +321,23 @@ const CardDetails: React.FC = (props) => {
       window.removeEventListener("dragleave", handleDragLeave);
       window.removeEventListener("drop", handleDrop);
     };
+  }, [handleFilesUpload, isCardDetailOpen]);
+
+  // Support paste-to-upload for files copied from explorer or other apps
+  useEffect(() => {
+    if (!isCardDetailOpen) return;
+
+    const handlePaste = (e: ClipboardEvent) => {
+      const files = e.clipboardData?.files;
+      if (files && files.length > 0) {
+        e.preventDefault();
+        setIsDraggingFiles(false);
+        void handleFilesUpload(files);
+      }
+    };
+
+    window.addEventListener("paste", handlePaste);
+    return () => window.removeEventListener("paste", handlePaste);
   }, [handleFilesUpload, isCardDetailOpen]);
 
   const handleSaveTitleClick = () => {
@@ -841,10 +859,13 @@ const CardDetails: React.FC = (props) => {
       destroyOnClose
     >
       <div className="overflow-x-hidden max-w-full relative">
-        {isDraggingFiles && (
+        {(isDraggingFiles || isUploadingDrop) && (
           <div className="absolute inset-0 z-50 bg-blue-500/10 border-2 border-dashed border-blue-500 flex items-center justify-center pointer-events-none">
-            <div className="bg-white px-4 py-2 rounded shadow text-blue-700 font-semibold">
-              {isUploadingDrop ? "Uploading..." : "Drop files to attach"}
+            <div className="bg-white px-4 py-2 rounded shadow text-blue-700 font-semibold flex items-center gap-2">
+              {isUploadingDrop && <Spin size="small" />}
+              {isUploadingDrop
+                ? "Uploading attachments..."
+                : "Drop files to attach"}
             </div>
           </div>
         )}

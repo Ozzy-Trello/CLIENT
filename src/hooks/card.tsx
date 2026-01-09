@@ -380,6 +380,7 @@ export function useCards(listId: string, boardId: string) {
     isError: cardsQuery.isError,
     error: cardsQuery.error,
     addCard: addCardMutation.mutate,
+    addCardAsync: addCardMutation.mutateAsync,
     updateCard: updateCardMutation.mutate,
     deleteCard: deleteCardMutation.mutate,
     isAddingCard: addCardMutation.isPending,
@@ -646,6 +647,7 @@ export function useCardsPaginated(
     loadMoreError,
     retryLoadMore,
     addCard: addCardMutation.mutate,
+    addCardAsync: addCardMutation.mutateAsync,
     isAddingCard: addCardMutation.isPending,
     totalCards,
   };

@@ -1,4 +1,4 @@
-import { FC, MouseEvent, ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { FC, MouseEvent, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   createColumnHelper,
   getCoreRowModel,
@@ -27,6 +27,10 @@ import PivotPagination from "./components/PivotPagination";
 import { usePivotData } from "./hooks/usePivotData";
 import { usePivotColumns } from "./hooks/usePivotColumns";
 import ColumnsDropdown from "./components/ColumnsDropdown";
+import {
+  PageSizeOption,
+  PAGE_SIZE_SELECT_OPTIONS,
+} from "./paginationConstants";
 
 type ColumnType = {
   type: string;
@@ -66,11 +70,15 @@ const TablePivot: FC = () => {
   const [searchValue, setSearchValue] = useState("");
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(10);
+  const [pageSizeOption, setPageSizeOption] = useState<PageSizeOption>(10);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [isSavingColumns, setIsSavingColumns] = useState(false);
   const [saveSucceeded, setSaveSucceeded] = useState(false);
   const [lastSavedVisibility, setLastSavedVisibility] = useState<Record<string, boolean>>({});
   const [lastSavedOrder, setLastSavedOrder] = useState<string[]>([]);
+  const groupingPageSizeRef = useRef(false);
+  const groupingPreviousPageSizeOptionRef = useRef<PageSizeOption>(10);
+  const lastPageSizeOptionRef = useRef<PageSizeOption>(pageSizeOption);
 
   const { isSuperAdmin } = usePermissions();
   const isSuperAdminUser = isSuperAdmin();
@@ -583,6 +591,29 @@ const TablePivot: FC = () => {
 
   const rowCount = table.getRowCount();
 
+  useEffect(() => {
+    const normalizedPageSize =
+      pageSizeOption === "all" ? Math.max(rowCount, 1) : pageSizeOption;
+    setPageSize(normalizedPageSize);
+    if (lastPageSizeOptionRef.current !== pageSizeOption) {
+      setPageIndex(0);
+      lastPageSizeOptionRef.current = pageSizeOption;
+    }
+  }, [pageSizeOption, rowCount]);
+
+  useEffect(() => {
+    if (grouping.length > 0) {
+      if (!groupingPageSizeRef.current) {
+        groupingPageSizeRef.current = true;
+        groupingPreviousPageSizeOptionRef.current = pageSizeOption;
+        setPageSizeOption("all");
+      }
+    } else if (groupingPageSizeRef.current) {
+      groupingPageSizeRef.current = false;
+      setPageSizeOption(groupingPreviousPageSizeOptionRef.current);
+    }
+  }, [grouping.length, pageSizeOption]);
+
   const exportToExcel = useCallback(async () => {
     const XLSX = await import("xlsx");
     const allColumnsForExport = Array.from(new Set([...baseColumnIds, ...dynamicColumns]));
@@ -676,11 +707,6 @@ const TablePivot: FC = () => {
   }, [baseColumnIds, dynamicColumns, columnVisibility, table, currentWorkspaceId]);
 
   useEffect(() => {
-    const next = grouping.length > 0 ? rowCount : 10;
-    setPageSize((prev) => (prev === next ? prev : next));
-  }, [grouping.length, rowCount]);
-
-  useEffect(() => {
     if (saveSucceeded && hasUnsavedChanges) {
       setSaveSucceeded(false);
     }
@@ -755,6 +781,8 @@ const TablePivot: FC = () => {
           table={table}
           onPrev={() => setPageIndex(table.getState().pagination.pageIndex - 1)}
           onNext={() => setPageIndex(table.getState().pagination.pageIndex + 1)}
+          pageSizeOption={pageSizeOption}
+          onPageSizeChange={setPageSizeOption}
         />
       )}
     </div>

@@ -34,6 +34,9 @@ export interface Card {
   formattedTimeInBoard?: string;
   formattedTimeInList?: string;
   activity?: CardActivity[];
+  attachmentsCount?: number;
+  activitiesCount?: number;
+  commentsCount?: number;
   checklists?: Checklist[];
   isWatched?: boolean;
   isComplete?: boolean;

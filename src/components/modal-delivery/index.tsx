@@ -38,6 +38,8 @@ import {
   type CreateDeliveryOrderPayload,
 } from "@api/ozzy-warehouse";
 import dayjs from "dayjs";
+import { useSelector } from "react-redux";
+import { selectUser } from "@store/app_slice";
 
 interface ModalDeliveryProps {
   open: boolean;
@@ -77,6 +79,10 @@ const { Option } = Select;
 const { TextArea } = Input;
 
 const ModalDelivery: React.FC<ModalDeliveryProps> = ({ open, onClose }) => {
+  const currentUser = useSelector(selectUser);
+  const userRole = (currentUser?.role?.name || "").trim().toLowerCase();
+  const canEditQuantities =
+    userRole === "super admin" || userRole === "kepala produksi";
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [soSearchValue, setSOSearchValue] = useState("");
@@ -842,6 +848,7 @@ const ModalDelivery: React.FC<ModalDeliveryProps> = ({ open, onClose }) => {
                       <InputNumber
                         min={0}
                         value={value}
+                        disabled={!canEditQuantities}
                         onChange={(newValue) =>
                           handleValidationQuantityChange(
                             record.id,
@@ -863,6 +870,7 @@ const ModalDelivery: React.FC<ModalDeliveryProps> = ({ open, onClose }) => {
                       <InputNumber
                         min={0}
                         value={value}
+                        disabled={!canEditQuantities}
                         onChange={(newValue) =>
                           handleValidationQuantityChange(
                             record.id,

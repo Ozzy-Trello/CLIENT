@@ -9,7 +9,7 @@ const ozzyClothingShort: Record<string, string> = {
   "ozzy clothing kabupaten": "KBT",
   "ozzy clothing klaten": "KLT",
   "ozzy clothing solo": "SLO",
-  "ozzy clothing indonesia": "IDN",
+  "ozzy clothing indonesia": "IND",
 };
 
 /**

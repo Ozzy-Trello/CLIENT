@@ -21,7 +21,8 @@ import {
   validateCardInFinishingPacking,
 } from "@api/card";
 import { useQuery } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
+import { triggerOzzyDeliveryForCard } from "@api/ozzy-warehouse";
 
 interface ModalPOScanProps {
   open: boolean;
@@ -48,7 +49,25 @@ const ModalPOScan: React.FC<ModalPOScanProps> = ({
   const [finishingSearch, setFinishingSearch] = useState("");
   const [debouncedFinishingSearch, setDebouncedFinishingSearch] = useState("");
   const [finishingListId, setFinishingListId] = useState<string | undefined>();
-  const router = useRouter();
+  const params = useParams();
+  const workspaceParam = Array.isArray(params.workspaceId)
+    ? params.workspaceId[0]
+    : params.workspaceId;
+
+  const detectFinishingListId = async (
+    targetCardId: string
+  ): Promise<string | undefined> => {
+    try {
+      const cards = await getFinishingPackingCards(targetCardId, 1);
+      const matchedCard = cards.find((card) => card.id === targetCardId);
+      if (matchedCard?.listId) {
+        return matchedCard.listId;
+      }
+    } catch (error) {
+      console.warn("Failed to detect finishing listId:", error);
+    }
+    return undefined;
+  };
 
   // Reset form when modal opens/closes
   useEffect(() => {
@@ -120,15 +139,8 @@ const ModalPOScan: React.FC<ModalPOScanProps> = ({
     };
   }, [open]);
 
-  const handleCardIdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setCardId(e.target.value);
-  };
-
   // Validate card and open if valid
-  const validateAndOpenCard = async (
-    targetCardId: string,
-    listIdOverride?: string
-  ) => {
+  const validateAndTriggerDelivery = async (targetCardId: string) => {
     if (!targetCardId.trim()) {
       message.error("Please enter a Card ID");
       return;
@@ -136,24 +148,25 @@ const ModalPOScan: React.FC<ModalPOScanProps> = ({
 
     setIsValidating(true);
     try {
-      // Validate if card is in Finishing Packing list
       const validationResponse = await validateCardInFinishingPacking(
         targetCardId.trim()
       );
 
-      if (validationResponse.data?.isValid) {
-        message.success("Card is in Finishing Packing list. Opening card...");
-
-        // Navigate to the card details with query parameters
-        const targetList = listIdOverride ?? finishingListId ?? listId;
-        const navigationUrl = `/workspace/${boardId}/board/${boardId}?cardId=${targetCardId}&listId=${targetList}`;
-        router.push(navigationUrl);
-
-        // Close modal after opening card
-        onClose();
-      } else {
+      if (!validationResponse.data?.isValid) {
         message.error("Card is not yet in Finishing Packing list");
+        return;
       }
+
+      const response = await triggerOzzyDeliveryForCard(targetCardId.trim());
+      message.success(
+        response?.message ?? "Delivery automation triggered successfully"
+      );
+
+      if (!finishingListId && response?.card_id) {
+        setFinishingListId(finishingListId);
+      }
+
+      onClose();
     } catch (error) {
       console.error("❌ [DEBUG] Validation error:", error);
       message.error(
@@ -217,6 +230,7 @@ const ModalPOScan: React.FC<ModalPOScanProps> = ({
 
     if (extractedCardId) {
       setCardId(extractedCardId);
+      setFinishingSearch(extractedCardId);
       form.setFieldsValue({ cardId: extractedCardId });
       message.success(`Card ID scanned: ${extractedCardId}`);
 
@@ -235,6 +249,7 @@ const ModalPOScan: React.FC<ModalPOScanProps> = ({
 
       if (extractedCardId) {
         setCardId(extractedCardId);
+        setFinishingSearch(extractedCardId);
         form.setFieldsValue({ cardId: extractedCardId });
         message.success("QR code scanned successfully! Validating...");
 
@@ -247,6 +262,29 @@ const ModalPOScan: React.FC<ModalPOScanProps> = ({
       console.error("❌ [DEBUG] Error processing scanned QR code:", error);
       message.error("Error processing scanned QR code");
     }
+  };
+
+  // Validate the card, ensure we know its listId, then trigger delivery automation
+  const validateAndOpenCard = async (
+    targetCardId: string,
+    resolvedListId?: string
+  ) => {
+    const trimmedCardId = targetCardId?.trim();
+    if (!trimmedCardId) {
+      message.error("Please enter a Card ID");
+      return;
+    }
+
+    // Try to capture listId from selection or fallback lookup
+    const listIdToUse =
+      resolvedListId ||
+      finishingListId ||
+      (await detectFinishingListId(trimmedCardId));
+    if (listIdToUse) {
+      setFinishingListId(listIdToUse);
+    }
+
+    await validateAndTriggerDelivery(trimmedCardId);
   };
 
   const handleValidateCard = async () => {
@@ -269,16 +307,29 @@ const ModalPOScan: React.FC<ModalPOScanProps> = ({
       label: card.shortId
         ? `#${card.shortId} · ${card.name || card.id}`
         : card.name || card.id,
+      listId: card.listId,
     })
   );
 
-  const handleFinishingCardSelect = async (selectedCardId: string) => {
+  const handleFinishingCardSelect = async (
+    selectedCardId: string,
+    option?: { label?: React.ReactNode }
+  ) => {
     if (!selectedCardId) return;
+    const listIdFromOption = (option as { listId?: string } | undefined)
+      ?.listId;
     const selectedCard = finishingCardsQuery.data?.find(
       (card) => card.id === selectedCardId
     );
-    setFinishingListId(selectedCard?.listId);
-    setFinishingSearch("");
+    const resolvedListId = listIdFromOption ?? selectedCard?.listId;
+    setFinishingListId(resolvedListId);
+    const label =
+      typeof option?.label === "string"
+        ? option.label
+        : selectedCard?.shortId
+        ? `#${selectedCard.shortId} · ${selectedCard.name || selectedCard.id}`
+        : selectedCard?.name || selectedCardId;
+    setFinishingSearch(label);
     setCardId(selectedCardId);
     form.setFieldsValue({ cardId: selectedCardId });
     await validateAndOpenCard(selectedCardId, selectedCard?.listId);
@@ -313,15 +364,28 @@ const ModalPOScan: React.FC<ModalPOScanProps> = ({
             <Form.Item
               label={
                 <Text strong className="text-gray-700">
-                  Cari Card Finishing &amp; Packing
+                  Cari atau Scan Card Finishing &amp; Packing
                 </Text>
               }
+              name="cardId"
+              rules={[
+                {
+                  required: true,
+                  message: "Please enter or scan a Card ID",
+                },
+              ]}
             >
               <AutoComplete
                 value={finishingSearch}
-                onChange={setFinishingSearch}
-                onSelect={handleFinishingCardSelect}
-                placeholder="Ketik nama card atau short ID..."
+                onSearch={(value) => setFinishingSearch(value)}
+                onChange={(value) => {
+                  setFinishingSearch(value);
+                  setCardId(value);
+                }}
+                onSelect={(value, option) =>
+                  handleFinishingCardSelect(value as string, option)
+                }
+                placeholder="Ketik nama card, short ID, atau scan QR code..."
                 options={finishingCardOptions}
                 filterOption={false}
                 className="w-full"
@@ -331,30 +395,9 @@ const ModalPOScan: React.FC<ModalPOScanProps> = ({
                     ? "Memuat..."
                     : "Card tidak ditemukan"
                 }
-              />
-            </Form.Item>
-            <Form.Item
-              label={
-                <Text strong className="text-gray-700">
-                  Card ID
-                </Text>
-              }
-              name="cardId"
-              rules={[
-                {
-                  required: true,
-                  message: "Please enter a Card ID or scan a QR code",
-                },
-              ]}
-            >
-              <Input
-                value={cardId}
-                onChange={handleCardIdChange}
-                placeholder="Enter Card ID or scan QR code..."
-                size="large"
-                className="rounded-lg"
-                autoFocus
-              />
+              >
+                <Input size="large" className="rounded-lg" autoFocus />
+              </AutoComplete>
             </Form.Item>
 
             <div className="mb-4 flex items-center justify-between">

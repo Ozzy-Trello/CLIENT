@@ -1,8 +1,4 @@
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   cardCustomFields,
   setCardCustomFieldValue,
@@ -18,6 +14,29 @@ import { useMemo, useCallback } from "react";
 
 export const useCardCustomField = (cardId: string, workspaceId: string) => {
   const queryClient = useQueryClient();
+
+  // helper to retry once in the background so saves still complete if UI is closed
+  const saveWithRetry = async (
+    customFieldId: string,
+    updatedData: Partial<CardCustomField> & { valueNumber?: number | null }
+  ) => {
+    let lastError: any;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        return await setCardCustomFieldValue(
+          workspaceId,
+          cardId,
+          customFieldId,
+          updatedData
+        );
+      } catch (err) {
+        lastError = err;
+        // brief backoff before retry
+        await new Promise((resolve) => setTimeout(resolve, 400));
+      }
+    }
+    throw lastError;
+  };
 
   // Main query for card custom fields
   const cardCustomFieldQuery = useQuery({
@@ -36,7 +55,7 @@ export const useCardCustomField = (cardId: string, workspaceId: string) => {
       customFieldId: string;
       updatedData: Partial<CardCustomField> & { valueNumber?: number | null };
     }) =>
-      setCardCustomFieldValue(workspaceId, cardId, customFieldId, updatedData),
+      saveWithRetry(customFieldId, updatedData),
     onMutate: async ({ customFieldId, updatedData }) => {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({

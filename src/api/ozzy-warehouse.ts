@@ -713,6 +713,13 @@ export const createOzzyDeliveryOrder = async (
   return data;
 };
 
+export const triggerOzzyDeliveryForCard = async (cardId: string) => {
+  const { data } = await api.post("/warehouse/ozzy/delivery-card", {
+    card_id: cardId,
+  });
+  return data;
+};
+
 export const createOzzyPacking = async (
   payload: CreatePackingPayload
 ): Promise<any> => {

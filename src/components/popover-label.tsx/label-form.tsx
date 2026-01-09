@@ -1,12 +1,14 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Input, Button } from "antd";
+import { Input, Button, message } from "antd";
 import { X } from "lucide-react";
 import { CardLabel } from "@myTypes/label";
 import { useParams } from "next/navigation";
 import { useLabels } from "@hooks/label";
 import { Card } from "@myTypes/card";
+import { useSelector } from "react-redux";
+import { selectUser } from "@store/app_slice";
 
 interface LabelFormProps {
   popoverPage: "home" | "add" | "update";
@@ -64,6 +66,12 @@ const LabelForm: React.FC<LabelFormProps> = (props) => {
     selectedCard?.id,
     { cardId: selectedCard?.id }
   );
+  const currentUser = useSelector(selectUser);
+  const userRole = (currentUser?.role?.name || "").trim().toLowerCase();
+  const isSuperAdmin =
+    userRole === "super admin" ||
+    userRole === "super_admin" ||
+    userRole === "superadmin";
   const [newLabel, setNewLabel] = useState<CardLabel>({
     id: "",
     name: "",
@@ -73,6 +81,11 @@ const LabelForm: React.FC<LabelFormProps> = (props) => {
   });
 
   const handleSave = () => {
+    if (!isSuperAdmin) {
+      message.warning("Only Super Admin can modify labels.");
+      return;
+    }
+
     if (newLabel?.labelId) {
       updateLabelAsync({ id: newLabel?.labelId, updates: newLabel });
     } else {
@@ -82,6 +95,11 @@ const LabelForm: React.FC<LabelFormProps> = (props) => {
   };
 
   const handleDelete = () => {
+    if (!isSuperAdmin) {
+      message.warning("Only Super Admin can delete labels.");
+      return;
+    }
+
     if (newLabel?.labelId) {
       deleteLabelAsync(newLabel?.labelId);
     }
@@ -170,10 +188,11 @@ const LabelForm: React.FC<LabelFormProps> = (props) => {
           variant="solid"
           size="small"
           onClick={handleDelete}
+          disabled={!isSuperAdmin}
         >
           Delete
         </Button>
-        <Button type="primary" onClick={handleSave} size="small">
+        <Button type="primary" onClick={handleSave} size="small" disabled={!isSuperAdmin}>
           Save
         </Button>
       </div>

@@ -1,5 +1,4 @@
-import { PaperClipOutlined, DownloadOutlined, UploadOutlined } from "@ant-design/icons";
-import { QrCode } from "lucide-react";
+import { PaperClipOutlined, DownloadOutlined, EditOutlined } from "@ant-design/icons";
 import {
   Card,
   CardAttachment,
@@ -7,13 +6,13 @@ import {
   EnumCardAttachmentType,
   EnumCardType,
 } from "@myTypes/card";
-import { Button, List, Tag, Typography, Image } from "antd";
+import { Button, Image, Input, List, Tag, Tooltip, Typography } from "antd";
 import React, { useMemo, useRef, useState } from "react";
 import { formatFileSize, getFileIcon, isImageFile, isPDFFile } from "./attachment-helpers";
 import { useCardAttachment } from "@hooks/card_attachment";
 import { useAttachmentPrinting } from "./hooks/useAttachmentPrinting";
 import { useParams } from "next/navigation";
-import { uploadFile } from "@api/file";
+import { uploadFile, updateFileName } from "@api/file";
 import { message } from "antd";
 import AttachedCard from "./attached-card";
 
@@ -141,6 +140,10 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
 
   const [isUploading, setIsUploading] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const [editingAttachment, setEditingAttachment] =
+    useState<CardAttachment | null>(null);
+  const [editingValue, setEditingValue] = useState("");
+  const [isRenaming, setIsRenaming] = useState(false);
 
   const uploadFiles = async (fileList: FileList | null) => {
     if (!fileList || !card.id) return;
@@ -180,6 +183,43 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
     uploadFiles(e.target.files);
   };
 
+  const startRename = (attachment: CardAttachment) => {
+    if (!attachment.file?.id) {
+      message.error("Cannot rename this attachment");
+      return;
+    }
+    setEditingAttachment(attachment);
+    setEditingValue(attachment.file?.name || "");
+  };
+
+  const cancelRename = () => {
+    setEditingAttachment(null);
+    setEditingValue("");
+  };
+
+  const submitRename = async () => {
+    if (!editingAttachment?.file?.id || isRenaming) {
+      return;
+    }
+    const nextName = editingValue.trim();
+    if (!nextName) {
+      message.warning("Attachment name cannot be empty");
+      return;
+    }
+    setIsRenaming(true);
+    try {
+      await updateFileName(editingAttachment.file.id, nextName);
+      message.success("Attachment renamed");
+      refetch?.();
+      cancelRename();
+    } catch (error) {
+      console.error("Rename failed", error);
+      message.error("Failed to rename attachment");
+    } finally {
+      setIsRenaming(false);
+    }
+  };
+
   const renderSection = (title: string, data: CardAttachment[]) => (
     <div className="mb-6">
       <Typography.Text className="text-xs text-gray-500 uppercase font-semibold">
@@ -189,11 +229,23 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
         className="mt-2"
         dataSource={data}
         locale={{ emptyText: "No attachments yet" }}
-        renderItem={(attachment) => (
-          <List.Item className="flex items-center p-2 hover:bg-gray-50 rounded">
-            <div className="flex-shrink-0 mr-3 w-14 h-14 flex items-center justify-center bg-gray-100 rounded overflow-hidden">
-              {attachment.file?.url &&
-              isImageFile(attachment.file.name || "", attachment.file.mimeType) ? (
+        renderItem={(attachment) => {
+          const isEditing = editingAttachment?.id === attachment.id;
+          const printed =
+            (attachment as any).isPrinted ?? (attachment as any).is_printed ?? false;
+          const isImage = isImageFile(
+            attachment.file?.name || "",
+            attachment.file?.mimeType
+          );
+          const isPdf = isPDFFile(
+            attachment.file?.name || "",
+            attachment.file?.mimeType
+          );
+          return (
+            <List.Item className="flex items-center p-2 hover:bg-gray-50 rounded">
+              <div className="flex-shrink-0 mr-3 w-14 h-14 flex items-center justify-center bg-gray-100 rounded overflow-hidden">
+                {attachment.file?.url &&
+              isImage ? (
                 <Image
                   src={attachment.file.url}
                   alt={attachment.file.name || "attachment"}
@@ -204,7 +256,7 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
                   fallback={attachment.file.url}
                 />
               ) : attachment.file?.url &&
-                isPDFFile(attachment.file.name || "", attachment.file.mimeType) ? (
+                isPdf ? (
                 <div className="flex items-center justify-center w-full h-full text-red-500 font-semibold text-xs">
                   PDF
                 </div>
@@ -216,18 +268,52 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
             <div className="flex-grow min-w-0">
               <div className="flex items-center justify-between">
                 <div className="min-w-0">
-                  <div className="text-sm font-medium text-gray-900 truncate">
-                    {attachment.file?.url ? (
+                  <div className="text-sm font-medium text-gray-900 truncate flex items-center gap-2">
+                    {isEditing ? (
+                      <Input
+                        size="small"
+                        value={editingValue}
+                        onChange={(e) => setEditingValue(e.target.value)}
+                        onPressEnter={submitRename}
+                        onKeyDown={(e) => {
+                          if (e.key === "Escape") {
+                            cancelRename();
+                          }
+                        }}
+                        onBlur={submitRename}
+                        autoFocus
+                        className="w-full max-w-[220px]"
+                        disabled={isRenaming}
+                      />
+                    ) : attachment.file?.url ? (
                       <a
                         href={attachment.file.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="hover:underline"
+                        className="hover:underline truncate"
                       >
                         {attachment.file?.name || "Unnamed file"}
                       </a>
                     ) : (
-                      attachment.file?.name || "Unnamed file"
+                      <span className="truncate">
+                        {attachment.file?.name || "Unnamed file"}
+                      </span>
+                    )}
+                    {!isEditing && attachment.file?.id && (
+                      <Tooltip title="Rename file">
+                        <Button
+                          type="text"
+                          size="small"
+                          icon={<EditOutlined />}
+                          className="text-gray-500 hover:text-blue-600"
+                          onClick={() => startRename(attachment)}
+                        />
+                      </Tooltip>
+                    )}
+                    {printed && (
+                      <Tooltip title="Already printed with QR code">
+                        <span className="text-green-600 text-xs font-semibold">✓</span>
+                      </Tooltip>
                     )}
                   </div>
                   <div className="text-xs text-gray-500 space-x-2">
@@ -254,19 +340,22 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
                       Cover
                     </Tag>
                   )}
+                  {/*
                   {attachment.file?.url &&
                     attachment.type &&
-                    (attachment.type === EnumCardAttachmentType.PO &&
-                      !isPDFFile(
-                        attachment.file.name 
-                      )) && (
+                    attachment.type === EnumCardAttachmentType.PO && (
                       <Button
                         size="small"
                         type="link"
                         className="p-0 text-xs"
                         icon={<QrCode size={14} />}
                         onClick={() => {
-                          if (isPDFFile(attachment.file?.name || "", attachment.file?.mimeType)) {
+                          if (
+                            isPDFFile(
+                              attachment.file?.name || "",
+                              attachment.file?.mimeType
+                            )
+                          ) {
                             handlePrintPDFWithQR(
                               attachment.file?.url,
                               attachment.file?.name || "PDF",
@@ -284,11 +373,15 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
                         QR
                       </Button>
                     )}
+                    */}
                   {attachment.file?.url && (
                     <DownloadOutlined
                       className="text-gray-500 hover:text-blue-600 cursor-pointer"
                       onClick={() =>
-                        handleDownload(attachment.file?.url, attachment.file?.name)
+                        handleDownload(
+                          attachment.file?.url,
+                          attachment.file?.name
+                        )
                       }
                     />
                   )}
@@ -297,7 +390,12 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
                     type="link"
                     danger
                     className="p-0 text-xs"
-                    onClick={() => deleteAttachment({ attachmentId: attachment.id, cardId: card.id })}
+                    onClick={() =>
+                      deleteAttachment({
+                        attachmentId: attachment.id,
+                        cardId: card.id,
+                      })
+                    }
                   >
                     Delete
                   </Button>
@@ -315,7 +413,8 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
               </div>
             </div>
           </List.Item>
-        )}
+          );
+        }}
       />
     </div>
   );

@@ -1,7 +1,14 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import React, { useCallback, useEffect, useState, useRef } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useState,
+  useRef,
+} from "react";
 import BoardTopbar from "./topbar";
 import { useSelector } from "react-redux";
 import { selectTheme } from "@store/app_slice";
@@ -11,7 +18,7 @@ import { useParams } from "next/navigation";
 import { generateId } from "@utils/general";
 // import { Droppable, DropResult, DragUpdate } from "@hello-pangea/dnd";
 import List from "./draggable-list";
-import { Button, Input } from "antd";
+import { Button, Input, Spin } from "antd";
 import { Plus, X } from "lucide-react";
 import { CardDetailProvider } from "@providers/card-detail-context";
 import { CardFocusProvider } from "@providers/card-focus-context";
@@ -41,6 +48,7 @@ import HorizontalSlider from "@components/horizontal-slider";
 import { BoardPermissionsProvider } from "@providers/board-permissions-context";
 import { useRecentlyViewed } from "@hooks/recently-viewed";
 import type { DropResult, DragUpdate } from "@hello-pangea/dnd";
+import { cards } from "@api/card";
 
 const DragDropContext = dynamic(
   () => import("@hello-pangea/dnd").then((mod) => mod.DragDropContext),
@@ -57,6 +65,10 @@ const BoardContentWithPermissions: React.FC<{
   lists: AnyList[] | undefined;
   isLoading: boolean;
   shouldRenderLists: boolean;
+  boardReady: boolean;
+  cardsFetchEnabled: boolean;
+  cardPrefetchError?: string | null;
+  onListCardsHydrated?: (listId: string) => void;
   onListDragEnd: (result: DropResult) => void;
   onDragStart: (start: any) => void;
   onDragUpdate: (update: DragUpdate) => void;
@@ -101,14 +113,51 @@ const BoardContentWithPermissions: React.FC<{
   onTouchStart,
   onTouchMove,
   onTouchEnd,
+  cardPrefetchError,
+  boardReady,
+  cardsFetchEnabled,
+  onListCardsHydrated,
 }) => {
+  const containerOverflowClass = boardReady ? "overflow-x-auto" : "overflow-hidden";
   // Now we can safely use the context hook inside the provider
   const { canCreateList } = useBoardPermissionsContext();
+  const [boardRect, setBoardRect] = useState<DOMRect | null>(null);
+
+  useLayoutEffect(() => {
+    const element = boardScrollContainerRef.current;
+    if (!element) {
+      setBoardRect(null);
+      return;
+    }
+
+    const updateRect = () => {
+      const rect = boardScrollContainerRef.current?.getBoundingClientRect();
+      setBoardRect(rect ?? null);
+    };
+
+    updateRect();
+
+    const handleWindowEvent = () => updateRect();
+    window.addEventListener("resize", handleWindowEvent);
+    window.addEventListener("scroll", handleWindowEvent, true);
+
+    let resizeObserver: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== "undefined") {
+      resizeObserver = new ResizeObserver(updateRect);
+      resizeObserver.observe(element);
+    }
+
+    return () => {
+      window.removeEventListener("resize", handleWindowEvent);
+      window.removeEventListener("scroll", handleWindowEvent, true);
+      resizeObserver?.disconnect();
+    };
+  }, [boardScrollContainerRef]);
 
   return (
     <div
       ref={boardScrollContainerRef}
-      className={`h-auto min-h-[770px] w-full overflow-x-auto overflow-y-hidden custom-horizontal-scrollbar board-scroll-container ${
+      className={`relative h-auto min-h-[770px] w-full ${containerOverflowClass} overflow-y-hidden custom-horizontal-scrollbar board-scroll-container ${
         isDraggingToScroll ? "cursor-grabbing select-none" : "cursor-grab"
       }`}
       onMouseDown={onMouseDown}
@@ -119,6 +168,30 @@ const BoardContentWithPermissions: React.FC<{
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
     >
+      {!boardReady && (
+        <div
+          className="z-40 flex flex-col items-center justify-center gap-3 rounded-lg bg-black/40 text-white backdrop-blur-sm"
+          style={
+            boardRect
+              ? {
+                  position: "fixed",
+                  top: boardRect.top,
+                  left: boardRect.left,
+                  width: boardRect.width,
+                  height: boardRect.height,
+                }
+              : {
+                  position: "absolute",
+                  inset: 0,
+                }
+          }
+        >
+          <Spin size="large" className="text-white" />
+          <p className="text-center text-sm font-medium">
+            Loading all lists and cards…
+          </p>
+        </div>
+      )}
       {shouldRenderLists && (
         <DragDropContext
           onDragEnd={onListDragEnd}
@@ -153,6 +226,8 @@ const BoardContentWithPermissions: React.FC<{
                         boardId={resolvedBoardId}
                         updateList={updateList}
                         deleteList={deleteList}
+                        prefetchReady={cardsFetchEnabled}
+                        onCardsHydrated={onListCardsHydrated}
                       />
                     );
                   })}
@@ -199,7 +274,16 @@ const BoardContentWithPermissions: React.FC<{
         </DragDropContext>
       )}
 
-      {!shouldRenderLists && <ListSkeleton />}
+      {!shouldRenderLists && (
+        <div>
+          {cardPrefetchError && (
+            <div className="px-4 text-sm text-red-600 text-center mb-4">
+              {cardPrefetchError}
+            </div>
+          )}
+          <ListSkeleton />
+        </div>
+      )}
     </div>
   );
 };
@@ -358,6 +442,17 @@ const Board: React.FC = () => {
 
   const { lists, addList, isLoading, updateList, deleteList } =
     useLists(resolvedBoardId);
+  const listIds = useMemo(
+    () => (lists ? lists.map((list) => list.id) : []),
+    [lists]
+  );
+  const [areAllCardsFetched, setAreAllCardsFetched] = useState(false);
+  const [cardPrefetchError, setCardPrefetchError] = useState<string | null>(null);
+  const initialBoardIdRef = useRef<string | null>(null);
+  const prefetchedListIdsRef = useRef<string[]>([]);
+  const initialPrefetchInProgressRef = useRef(false);
+  const [listsHydrated, setListsHydrated] = useState(false);
+  const listReadySetRef = useRef<Set<string>>(new Set());
 
   // Fetch board details and update Redux state when boardId changes
   const { board: boardDetails } = useBoardDetails(
@@ -396,8 +491,113 @@ const Board: React.FC = () => {
   } | null>(null);
 
   // Show lists directly from React Query cache - no local state needed
+  const cardsFetchEnabled = areAllCardsFetched;
+  const boardReady = areAllCardsFetched && listsHydrated;
   const shouldRenderLists =
-    !isLoading && Array.isArray(lists) && lists.length >= 0;
+    !isLoading &&
+    Array.isArray(lists) &&
+    lists.length >= 0 &&
+    areAllCardsFetched;
+
+  const handleListHydrated = useCallback(
+    (listId: string) => {
+      if (listReadySetRef.current.has(listId)) return;
+      listReadySetRef.current.add(listId);
+      if (listReadySetRef.current.size >= listIds.length) {
+        setListsHydrated(true);
+      }
+    },
+    [listIds.length]
+  );
+
+  useEffect(() => {
+    if (!resolvedBoardId || isLoading || !lists) return;
+
+    if (initialBoardIdRef.current === resolvedBoardId && areAllCardsFetched) {
+      return;
+    }
+
+    if (listIds.length === 0) {
+      initialBoardIdRef.current = resolvedBoardId;
+      prefetchedListIdsRef.current = [];
+      listReadySetRef.current.clear();
+      setAreAllCardsFetched(true);
+      setListsHydrated(true);
+      setCardPrefetchError(null);
+      return;
+    }
+
+    if (initialPrefetchInProgressRef.current) {
+      return;
+    }
+
+    let isActive = true;
+    initialPrefetchInProgressRef.current = true;
+    prefetchedListIdsRef.current = [];
+    listReadySetRef.current.clear();
+    setAreAllCardsFetched(false);
+    setListsHydrated(false);
+    setCardPrefetchError(null);
+
+    const prefetchPromises = listIds.map((listId) =>
+      queryClient.prefetchQuery({
+        queryKey: queryKeys.cards.list(listId),
+        queryFn: () => cards(listId, resolvedBoardId),
+      })
+    );
+
+    Promise.allSettled(prefetchPromises)
+      .then((results) => {
+        if (!isActive) return;
+        if (results.some((result) => result.status === "rejected")) {
+          setCardPrefetchError(
+            "Unable to load some lists. Please refresh if this persists."
+          );
+        }
+        initialBoardIdRef.current = resolvedBoardId;
+        prefetchedListIdsRef.current = listIds;
+        setAreAllCardsFetched(true);
+      })
+      .finally(() => {
+        initialPrefetchInProgressRef.current = false;
+      });
+
+    return () => {
+      isActive = false;
+      initialPrefetchInProgressRef.current = false;
+    };
+  }, [listIds, lists, queryClient, resolvedBoardId, isLoading, areAllCardsFetched]);
+
+  useEffect(() => {
+    if (
+      !resolvedBoardId ||
+      isLoading ||
+      !lists ||
+      initialBoardIdRef.current !== resolvedBoardId
+    ) {
+      return;
+    }
+
+    const newListIds = listIds.filter(
+      (id) => !prefetchedListIdsRef.current.includes(id)
+    );
+
+    if (newListIds.length === 0) {
+      return;
+    }
+
+    newListIds.forEach((listId) => {
+      queryClient.prefetchQuery({
+        queryKey: queryKeys.cards.list(listId),
+        queryFn: () => cards(listId, resolvedBoardId),
+      });
+    });
+
+    prefetchedListIdsRef.current = [
+      ...prefetchedListIdsRef.current,
+      ...newListIds,
+    ];
+  }, [listIds, lists, queryClient, resolvedBoardId, isLoading]);
 
   // Update Redux state when board details are fetched (same pattern as sidebar)
   useEffect(() => {
@@ -773,10 +973,19 @@ const Board: React.FC = () => {
                 onTouchStart={handleTouchStart}
                 onTouchMove={handleTouchMove}
                 onTouchEnd={handleTouchEnd}
+                boardReady={boardReady}
+                cardsFetchEnabled={cardsFetchEnabled}
+                onListCardsHydrated={handleListHydrated}
+                cardPrefetchError={cardPrefetchError}
               />
               <HorizontalSlider
                 containerRef={boardScrollContainerRef}
                 widthPercent={20}
+                className={
+                  boardReady
+                    ? ""
+                    : "pointer-events-none opacity-0 transition-opacity duration-200"
+                }
               />
             </div>
 

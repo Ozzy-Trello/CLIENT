@@ -1,10 +1,10 @@
-import { Draggable, Droppable, DroppableProvided } from "@hello-pangea/dnd";
+import { Draggable, Droppable } from "@hello-pangea/dnd";
 import ListName from "./list-name";
 import { useCardsPaginated } from "@hooks/card";
 import DraggableCard from "../draggable-card";
 import AddCard from "./add-card";
 import { UseMutateFunction } from "@tanstack/react-query";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { AnyList } from "@myTypes/list";
 import { usePermissions } from "@hooks/account";
 import { useBoardPermissionsContext } from "@providers/board-permissions-context";
@@ -20,6 +20,8 @@ interface DraggableListProps {
     unknown
   >;
   deleteList: UseMutateFunction<any, Error, { listId: string }, unknown>;
+  prefetchReady: boolean;
+  onCardsHydrated?: (listId: string) => void;
 }
 
 const DraggableList: React.FC<DraggableListProps> = ({
@@ -28,48 +30,15 @@ const DraggableList: React.FC<DraggableListProps> = ({
   boardId,
   updateList,
   deleteList,
+  prefetchReady,
+  onCardsHydrated,
 }) => {
-  const [isVisible, setIsVisible] = useState(false);
-  const listRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    const el = listRef.current;
-    if (!el) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            setIsVisible(true);
-            observer.disconnect();
-          }
-        });
-      },
-      {
-        root: null,
-        rootMargin: "200px",
-        threshold: 0.1,
-      }
-    );
-
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
-  // Combine drag ref and visibility ref
-  const setRefs = useCallback(
-    (el: HTMLDivElement | null) => {
-      listRef.current = el;
-      if (el) {
-        // provided.innerRef will be attached later inside render
-      }
-    },
-    [listRef]
-  );
-
+  const listReadyReportedRef = useRef(false);
   const {
     cards,
     addCard,
+    addCardAsync,
     isLoading,
     isError,
     hasMoreCards,
@@ -78,7 +47,26 @@ const DraggableList: React.FC<DraggableListProps> = ({
     loadMoreError,
     retryLoadMore,
     totalCards,
-  } = useCardsPaginated(list.id, boardId, { enabled: isVisible });
+  } = useCardsPaginated(list.id, boardId, { enabled: prefetchReady });
+
+  useEffect(() => {
+    listReadyReportedRef.current = false;
+  }, [list.id]);
+
+  useEffect(() => {
+    if (
+      listReadyReportedRef.current ||
+      !prefetchReady ||
+      isLoading ||
+      isError ||
+      !onCardsHydrated
+    ) {
+      return;
+    }
+
+    listReadyReportedRef.current = true;
+    onCardsHydrated(list.id);
+  }, [isError, isLoading, list.id, onCardsHydrated, prefetchReady]);
   const { canMove, canCreate } = usePermissions();
   const { canMoveList, canCreateCard } = useBoardPermissionsContext();
 
@@ -99,10 +87,7 @@ const DraggableList: React.FC<DraggableListProps> = ({
       {(provided, snapshot) => {
         return (
           <div
-            ref={(el) => {
-              setRefs(el);
-              provided.innerRef(el);
-            }}
+            ref={provided.innerRef}
             {...provided.dragHandleProps}
             {...provided.draggableProps}
             style={{
@@ -229,7 +214,7 @@ const DraggableList: React.FC<DraggableListProps> = ({
             </Droppable>
             {canCreateCardPermission && (
               <div className="px-2 py-2 border-t border-gray-200">
-                <AddCard listId={list.id || ""} addCard={addCard} />
+                <AddCard listId={list.id || ""} addCard={addCard} addCardAsync={addCardAsync} />
               </div>
             )}
           </div>

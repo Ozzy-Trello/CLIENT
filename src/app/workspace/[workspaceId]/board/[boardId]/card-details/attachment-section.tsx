@@ -1,6 +1,7 @@
 import {
   DeleteOutlined,
   DownloadOutlined,
+  EditOutlined,
   PlusOutlined,
   RotateLeftOutlined,
   RotateRightOutlined,
@@ -8,11 +9,12 @@ import {
   ZoomOutOutlined,
 } from "@ant-design/icons";
 import { QrCode } from "lucide-react";
-import { Button, Image, List, Space, Tag, Tooltip } from "antd";
-import React from "react";
+import { Button, Image, Input, List, Tag, Tooltip, message } from "antd";
+import React, { useState } from "react";
 import { CardAttachment, EnumCardAttachmentType } from "@myTypes/card";
 import { PDFPreview } from "@components/pdf-preview";
 import { formatFileSize, getFileIcon, isImageFile, isPDFFile } from "./attachment-helpers";
+import { updateFileName } from "@api/file";
 
 type SectionType = "bukti" | "po" | "other";
 
@@ -30,6 +32,7 @@ interface AttachmentSectionProps {
   onOpenPdfPreview: (url: string, fileName: string) => void;
   onPrintImageWithQR?: (url?: string, fileName?: string, attachmentId?: string) => void;
   onPrintPdfWithQR?: (url?: string, fileName?: string, attachmentId?: string) => void;
+  onRenameComplete?: () => void;
 }
 
 interface AttachmentItemProps
@@ -46,6 +49,12 @@ interface AttachmentItemProps
     | "onPrintPdfWithQR"
   > {
   attachment: CardAttachment;
+  isEditing?: boolean;
+  editingValue?: string;
+  onChangeEditingValue?: (value: string) => void;
+  onSubmitEditing?: () => void;
+  onCancelEditing?: () => void;
+  onStartEditing?: (attachment: CardAttachment) => void;
 }
 
 const AttachmentItem: React.FC<AttachmentItemProps> = ({
@@ -59,6 +68,12 @@ const AttachmentItem: React.FC<AttachmentItemProps> = ({
   onOpenPdfPreview,
   onPrintImageWithQR,
   onPrintPdfWithQR,
+  isEditing,
+  editingValue,
+  onChangeEditingValue,
+  onSubmitEditing,
+  onCancelEditing,
+  onStartEditing,
 }) => {
   const printed =
     (attachment as any).isPrinted ?? (attachment as any).is_printed ?? false;
@@ -114,9 +129,34 @@ const AttachmentItem: React.FC<AttachmentItemProps> = ({
         <div className="flex items-center justify-between">
           <div className="flex-grow min-w-0">
             <p className="text-sm font-medium text-gray-900 truncate flex items-center gap-2">
-              <span className="truncate">
-                {attachment.file?.name || "Unnamed file"}
-              </span>
+              {isEditing ? (
+                <Input
+                  size="small"
+                  value={editingValue}
+                  onChange={(e) => onChangeEditingValue?.(e.target.value)}
+                  onPressEnter={() => onSubmitEditing?.()}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") {
+                      onCancelEditing?.();
+                    }
+                  }}
+                  autoFocus
+                  className="w-full max-w-[180px]"
+                />
+              ) : (
+                <>
+                  <span className="truncate">{attachment.file?.name || "Unnamed file"}</span>
+                    <Tooltip title="Rename file">
+                      <Button
+                        type="text"
+                        size="small"
+                        icon={<EditOutlined />}
+                        className="text-gray-500 hover:text-blue-600 ml-1"
+                        onClick={() => onStartEditing?.(attachment)}
+                      />
+                    </Tooltip>
+                </>
+              )}
               {printed && (
                 <Tooltip title="Already printed with QR code">
                   <span className="text-green-600 text-xs font-semibold">✓</span>
@@ -134,7 +174,7 @@ const AttachmentItem: React.FC<AttachmentItemProps> = ({
                 <>
                   <span>•</span>
                   <span>{attachment.file.mimeType}</span>
-                </>
+              </>
               )}
               {attachment.createdAt && (
                 <>
@@ -147,17 +187,18 @@ const AttachmentItem: React.FC<AttachmentItemProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center space-x-1 ml-2">
-            <Button
-              type="text"
-              size="small"
-              icon={<DownloadOutlined />}
-              onClick={() =>
-                onDownload(attachment.file?.url, attachment.file?.name)
-              }
-              className="text-gray-500 hover:text-blue-600"
-            />
+            <div className="flex items-center space-x-1 ml-2">
+              <Button
+                type="text"
+                size="small"
+                icon={<DownloadOutlined />}
+                onClick={() =>
+                  onDownload(attachment.file?.url, attachment.file?.name)
+                }
+                className="text-gray-500 hover:text-blue-600"
+              />
 
+{/* 
             {sectionType === "po" && isImage && (
               <Button
                 type="text"
@@ -172,7 +213,7 @@ const AttachmentItem: React.FC<AttachmentItemProps> = ({
                 }
                 className="text-gray-500 hover:text-green-600"
               />
-            )}
+            )} */}
 
             {sectionType === "po" && isPdf && (
               <Button
@@ -239,7 +280,48 @@ const AttachmentSection: React.FC<AttachmentSectionProps> = ({
   onOpenPdfPreview,
   onPrintImageWithQR,
   onPrintPdfWithQR,
+  onRenameComplete,
 }) => {
+  const [editingAttachment, setEditingAttachment] = useState<CardAttachment | null>(null);
+  const [editingValue, setEditingValue] = useState("");
+  const [isRenaming, setIsRenaming] = useState(false);
+
+  const startInlineRename = (attachment: CardAttachment) => {
+    if (!attachment.file?.id) {
+      message.error("Cannot rename this attachment");
+      return;
+    }
+    setEditingAttachment(attachment);
+    setEditingValue(attachment.file?.name || "");
+  };
+
+  const cancelInlineRename = () => {
+    setEditingAttachment(null);
+    setEditingValue("");
+  };
+
+  const handleInlineRenameSubmit = async () => {
+    if (!editingAttachment?.file?.id || isRenaming) {
+      return;
+    }
+    const nextName = editingValue.trim();
+    if (!nextName) {
+      message.warning("Attachment name cannot be empty");
+      return;
+    }
+    setIsRenaming(true);
+    try {
+      await updateFileName(editingAttachment.file.id, nextName);
+      message.success("Attachment renamed");
+      onRenameComplete?.();
+      cancelInlineRename();
+    } catch (error) {
+      console.error("Rename failed", error);
+      message.error("Failed to rename attachment");
+    } finally {
+      setIsRenaming(false);
+    }
+  };
   if (attachments.length === 0) {
     return (
       <div className="mb-6">
@@ -313,6 +395,12 @@ const AttachmentSection: React.FC<AttachmentSectionProps> = ({
             onOpenPdfPreview={onOpenPdfPreview}
             onPrintImageWithQR={onPrintImageWithQR}
             onPrintPdfWithQR={onPrintPdfWithQR}
+            isEditing={editingAttachment?.id === attachment.id}
+            editingValue={editingValue}
+            onChangeEditingValue={setEditingValue}
+            onSubmitEditing={handleInlineRenameSubmit}
+            onCancelEditing={cancelInlineRename}
+            onStartEditing={startInlineRename}
           />
         )}
       />

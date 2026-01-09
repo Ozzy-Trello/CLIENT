@@ -27,3 +27,11 @@ export const uploadFile = async (
     throw error;
   }
 };
+
+export const updateFileName = async (
+  fileId: string,
+  name: string
+): Promise<ApiResponse<FileUpload>> => {
+  const { data } = await api.put(`/file/${fileId}`, { name });
+  return data;
+};

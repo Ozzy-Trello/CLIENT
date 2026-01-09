@@ -124,6 +124,15 @@ export const mapBackendCardToFrontend = (backendCard: any): Card => {
   if (backendCard.formatted_time_in_board !== undefined) {
     mapped.formattedTimeInBoard = backendCard.formatted_time_in_board;
   }
+  if (backendCard.attachments_count !== undefined) {
+    mapped.attachmentsCount = backendCard.attachments_count;
+  }
+  if (backendCard.activities_count !== undefined) {
+    mapped.activitiesCount = backendCard.activities_count;
+  }
+  if (backendCard.comments_count !== undefined) {
+    mapped.commentsCount = backendCard.comments_count;
+  }
 
   if (backendCard.list_info) {
     mapped.listId = mapped.listId ?? backendCard.list_info.id;

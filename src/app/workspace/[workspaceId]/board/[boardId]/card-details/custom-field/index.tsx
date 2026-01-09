@@ -2,7 +2,7 @@ import { SelectionRef, UserSelection } from "@components/selection";
 import { useCardCustomField } from "@hooks/card_custom_field";
 import { useCardDetailContext } from "@providers/card-detail-context";
 import { useBoardPermissionsContext } from "@providers/board-permissions-context";
-import { Checkbox, DatePicker, Input, Select, Tooltip, message } from "antd";
+import { AutoComplete, Checkbox, DatePicker, Input, Tooltip, message } from "antd";
 import {
   List,
   StretchHorizontal,
@@ -445,6 +445,49 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
     return [];
   };
 
+  const [autoCompleteInput, setAutoCompleteInput] = useState<Record<string, string>>(
+    {}
+  );
+
+  const buildDropdownOptions = (field: CardCustomField) => {
+    const raw = field.options || [];
+    const formatted = raw.map((option: any) => {
+      const label =
+        option.label ?? option.name ?? option.value ?? String(option.id ?? "");
+      const value = option.value ?? option.name ?? option.id ?? label;
+      return { label, value };
+    });
+    return [{ label: "-", value: "__CLEAR__" }, ...formatted];
+  };
+
+  const getAutoCompleteValue = (field: CardCustomField) => {
+    if (!field.id) return "";
+    if (autoCompleteInput[field.id] !== undefined) {
+      return autoCompleteInput[field.id];
+    }
+    return field.valueOption ?? "";
+  };
+
+  const handleAutoCompleteChange = (fieldId: string, value: string) => {
+    setAutoCompleteInput((prev) => ({ ...prev, [fieldId]: value }));
+  };
+
+  const handleAutoCompleteFocus = (fieldId: string) => {
+    setAutoCompleteInput((prev) => ({ ...prev, [fieldId]: "" }));
+  };
+
+  const handleAutoCompleteBlur = (field: CardCustomField) => {
+    const fieldId = field.id;
+    if (!fieldId) return;
+    if (!autoCompleteInput[fieldId]) {
+      setAutoCompleteInput((prev) => {
+        const next = { ...prev };
+        delete next[fieldId];
+        return next;
+      });
+    }
+  };
+
   // Render appropriate input based on field type
   const renderFieldInput = (field: CardCustomField) => {
     if (!field.id) return null;
@@ -584,30 +627,46 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
           );
         } else {
           // Custom dropdown options
-          return (
-            <div>
-              <Select
-                className={`w-full ${
-                  !canEdit ? "bg-gray-100 cursor-not-allowed" : ""
-                }`}
-                placeholder={`Select ${field.name}...`}
-                value={(field.valueOption as string) || undefined}
-                onChange={(value) => {
-                  if (!canEdit) return;
-                  if (value === "__CLEAR__") {
-                    clearOptionValue(field.id!);
-                  } else if (value) {
-                    handleOptionValueChange(field.id!, value);
-                  }
-                }}
-                options={[
-                  { label: "-", value: "__CLEAR__" },
-                  ...(field?.options || []),
-                ]}
-                disabled={!canEdit}
-              />
-            </div>
-          );
+        const dropdownOptions = buildDropdownOptions(field);
+
+        const handleSelect = (value: string) => {
+          const fieldId = field.id;
+          if (!fieldId || !canEdit) return;
+          if (value === "__CLEAR__") {
+            clearOptionValue(fieldId);
+          } else {
+            handleOptionValueChange(fieldId, value);
+          }
+          setAutoCompleteInput((prev) => ({
+            ...prev,
+            [fieldId]: value === "__CLEAR__" ? "" : value,
+          }));
+        };
+
+        return (
+          <AutoComplete
+            className={`w-full ${
+              !canEdit ? "bg-gray-100 cursor-not-allowed" : ""
+            }`}
+            placeholder={`Select ${field.name}...`}
+            options={dropdownOptions}
+            value={getAutoCompleteValue(field)}
+            onSearch={(value) => handleAutoCompleteChange(field.id!, value)}
+            onChange={(value) => handleAutoCompleteChange(field.id!, value)}
+            onSelect={handleSelect}
+            onFocus={() => handleAutoCompleteFocus(field.id!)}
+            onBlur={() => handleAutoCompleteBlur(field)}
+            allowClear
+            disabled={!canEdit}
+            filterOption={(inputValue, option) =>
+              (option?.label ?? "")
+                .toLowerCase()
+                .includes(inputValue.toLowerCase())
+            }
+          >
+            <Input size="middle" />
+          </AutoComplete>
+        );
         }
 
       case EnumCustomFieldType.Checkbox:

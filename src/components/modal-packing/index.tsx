@@ -24,6 +24,8 @@ import {
 import ScannerIcon from "@components/icons/ScannerIcon";
 import React, { useEffect, useMemo, useState } from "react";
 import QRGuideOverlay from "@components/qr-overlay";
+import { useSelector } from "react-redux";
+import { selectUser } from "@store/app_slice";
 
 interface ModalPackingProps {
   open: boolean;
@@ -41,6 +43,10 @@ interface SelectedSalesOrder {
 }
 
 const ModalPacking: React.FC<ModalPackingProps> = ({ open, onClose }) => {
+  const currentUser = useSelector(selectUser);
+  const userRole = (currentUser?.role?.name || "").trim().toLowerCase();
+  const canEditQuantities =
+    userRole === "super admin" || userRole === "kepala produksi";
   const [form] = Form.useForm();
   const [soSearchValue, setSOSearchValue] = useState("");
   const [selectedSalesOrders, setSelectedSalesOrders] = useState<
@@ -567,6 +573,27 @@ const ModalPacking: React.FC<ModalPackingProps> = ({ open, onClose }) => {
                       key: "kuantitas",
                       width: "15%",
                       align: "center",
+                      render: (value: number, record) => (
+                        <Input
+                          value={value}
+                          disabled={!canEditQuantities}
+                          onChange={(e) => {
+                            const parsed = Number(e.target.value);
+                            if (!Number.isFinite(parsed)) return;
+                            setSelectedSalesOrders((prev) =>
+                              prev.map((so) => ({
+                                ...so,
+                                products: so.products.map((prod) =>
+                                  (prod.name || prod.productName) === record.namaBarang
+                                    ? { ...prod, quantity: parsed }
+                                    : prod
+                                ),
+                              }))
+                            );
+                          }}
+                          className="text-center"
+                        />
+                      ),
                     },
                     {
                       title: "Satuan",

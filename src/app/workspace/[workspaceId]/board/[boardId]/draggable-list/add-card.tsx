@@ -1,14 +1,18 @@
-import { Card, EnumCardType } from "@myTypes/card";
+import { Card, EnumAttachmentType, EnumCardAttachmentType, EnumCardType } from "@myTypes/card";
 import { generateId } from "@utils/general";
-import { Button } from "antd";
+import { Button, message } from "antd";
 import { Plus } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { ClipboardEvent, useEffect, useRef, useState } from "react";
+import { uploadFile } from "@api/file";
+import { createCardAttachment } from "@api/card_attachment";
+import { UseMutateAsyncFunction } from "@tanstack/react-query";
 
 interface AddCardProps {
   listId: string;
   addCard: ({ card, listId }: { card: Partial<Card>; listId: string }) => void;
+  addCardAsync?: UseMutateAsyncFunction<any, unknown, { card: Partial<Card>; listId: string }, unknown>;
 }
-const AddCard: React.FC<AddCardProps> = ({ listId, addCard }) => {
+const AddCard: React.FC<AddCardProps> = ({ listId, addCard, addCardAsync }) => {
   const [isAddingCard, setIsAddingCard] = useState<boolean>(false);
   const [newCardName, setNewCardName] = useState<string>("");
   const columnRef = useRef<HTMLDivElement | null>(null);
@@ -43,6 +47,53 @@ const AddCard: React.FC<AddCardProps> = ({ listId, addCard }) => {
     }
   };
 
+  const handleFileAttachment = async (file: File) => {
+    if (!listId || !addCardAsync) {
+      message.warning("File paste is not available right now.");
+      return;
+    }
+    const cardPayload: Card = {
+      id: generateId(),
+      listId: listId,
+      name: file.name,
+      type: EnumCardType.Regular,
+    };
+
+    try {
+      const response = await addCardAsync({ card: cardPayload, listId });
+      const createdCard = response?.data?.data;
+      if (createdCard?.id) {
+        const uploadResult = await uploadFile(file, { cardId: createdCard.id });
+        const fileData = uploadResult?.data;
+        const fileId = fileData?.id ?? (fileData as any)?.id;
+        if (fileId) {
+          await createCardAttachment({
+            cardId: createdCard.id,
+            attachableType: EnumAttachmentType.File,
+            attachableId: fileId,
+            isCover: false,
+            type: EnumCardAttachmentType.Attachment,
+          });
+        }
+      }
+      message.success("Card created with attachment");
+    } catch (error) {
+      console.error("Failed to create card from file:", error);
+      message.error("Failed to create card from pasted file");
+    } finally {
+      setIsAddingCard(false);
+      setNewCardName("");
+    }
+  };
+
+  const handlePaste = (e: ClipboardEvent<HTMLInputElement>) => {
+    const clipboardItems = e.clipboardData?.files;
+    if (!clipboardItems || clipboardItems.length === 0) return;
+    const file = clipboardItems[0];
+    e.preventDefault();
+    handleFileAttachment(file);
+  };
+
   const handleClickOutside = (e: MouseEvent): void => {
     if (columnRef.current && !columnRef.current.contains(e.target as Node)) {
       if (isAddingCard) {
@@ -74,6 +125,7 @@ const AddCard: React.FC<AddCardProps> = ({ listId, addCard }) => {
                 handleCancelAddCard();
               }
             }}
+            onPaste={handlePaste}
             className="p-2 rounded border border-gray-300 w-full mb-2"
             autoFocus
           />

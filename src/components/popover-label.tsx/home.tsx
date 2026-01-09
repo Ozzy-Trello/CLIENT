@@ -145,14 +145,16 @@ const Home: React.FC<LabelManagerProps> = ({
                     {label.name}
                   </div>
                 </div>
-                <Tooltip title="Edit label">
-                  <button
-                    onClick={() => handleEdit(label)}
-                    className="p-1 hover:bg-gray-200 rounded-sm transition-colors ml-2"
-                  >
-                    <Pencil size={14} className="text-gray-500" />
-                  </button>
-                </Tooltip>
+                {isSuperAdmin && (
+                  <Tooltip title="Edit label">
+                    <button
+                      onClick={() => handleEdit(label)}
+                      className="p-1 hover:bg-gray-200 rounded-sm transition-colors ml-2"
+                    >
+                      <Pencil size={14} className="text-gray-500" />
+                    </button>
+                  </Tooltip>
+                )}
               </div>
             ))}
           </div>
