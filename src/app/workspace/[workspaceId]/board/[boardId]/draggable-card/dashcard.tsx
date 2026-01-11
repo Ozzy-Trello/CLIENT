@@ -5,8 +5,8 @@ import { selectIsDarkMode } from "@store/app_slice";
 import { useParams } from "next/navigation";
 import { useBoardFullStore } from "@store/board-full-store";
 import { useDashcardCountStore } from "@store/dashcard-count-store";
+import { DashcardMetric, normalizeDashcardMetric } from "@myTypes/dashcard-metric";
 import "./styles.css";
-import { useEffect } from "react";
 
 interface DashcardProps {
   card: Card;
@@ -60,48 +60,44 @@ const Dashcard: React.FC<DashcardProps> = (props) => {
 
   const dashcardIdKey = card.id.toLowerCase().replace(/-/g, "");
 
-  const seededCount = useBoardFullStore((state) =>
+  const seededMetric = useBoardFullStore((state) =>
     boardId
       ? state.boards[boardId]?.dashcardCounts?.[dashcardIdKey]
       : undefined
   );
 
-  useEffect(() => {
-    console.log("boards snapshot", useBoardFullStore.getState().boards);
-  }, []);
-
   // Workspace-level fallback populated during board hydration
-  const workspaceSeededCount = useDashcardCountStore((state) =>
+  const workspaceSeededMetric = useDashcardCountStore((state) =>
     workspaceId ? state.getCount(workspaceId as string, card.id) : undefined
   );
 
-  const rawCount =
-    seededCount ??
-    workspaceSeededCount ??
-    (card as any).dashcardCount ??
-    (card as any).dashcard_count ??
-    0;
-  const resolvedCount =
-    typeof rawCount === "object" && rawCount !== null && "data" in rawCount
-      ? (rawCount as any).data
-      : rawCount;
-  const count =
-    typeof resolvedCount === "number"
-      ? resolvedCount
-      : typeof resolvedCount === "string"
-        ? parseInt(resolvedCount, 10)
-        : 0;
+  const metric: DashcardMetric =
+    normalizeDashcardMetric(
+      seededMetric ??
+      workspaceSeededMetric ??
+      card.dashcardCount ??
+      (card as any).dashcard_count
+    ) ?? {
+      type: "card_count",
+      value: 0,
+      customFieldId:
+        card?.dashConfig?.displayConfig?.customFieldId ??
+        (card as any)?.dashConfig?.displayConfig?.custom_field_id,
+      customFieldName:
+        card?.dashConfig?.displayConfig?.customFieldName ??
+        (card as any)?.dashConfig?.displayConfig?.custom_field_name,
+    };
 
   // Calculate display value based on configuration
   const getDisplayValue = (): string => {
     const formatCount = () => {
       const numericCount =
-        typeof count === "number"
-          ? count
-          : typeof count === "string"
-            ? parseInt(count, 10)
-            : 0;
-      return numericCount.toLocaleString();
+        typeof metric.value === "number"
+          ? metric.value
+          : Number(metric.value ?? 0);
+      return Number.isFinite(numericCount)
+        ? numericCount.toLocaleString()
+        : "0";
     };
 
     // Default to card count (also format with separators)
@@ -110,7 +106,15 @@ const Dashcard: React.FC<DashcardProps> = (props) => {
 
   // Get display label based on configuration
   const getDisplayLabel = () => {
-    return card?.dashConfig?.name || "Cards";
+    if (metric.type === "custom_field_sum") {
+      return (
+        metric.customFieldName ||
+        card?.dashConfig?.displayConfig?.customFieldName ||
+        card?.name ||
+        "Custom field sum"
+      );
+    }
+    return card?.dashConfig?.name || card?.name || "Cards";
   };
 
   return (

@@ -1,15 +1,20 @@
+import { DashcardMetric } from "@myTypes/dashcard-metric";
 import { create } from "zustand";
 
-type DashcardCountMap = Record<string, number>;
+type DashcardCountMap = Record<string, DashcardMetric>;
 
 interface DashcardCountState {
   countsByWorkspace: Record<string, DashcardCountMap>;
   setCounts: (workspaceId: string, counts: DashcardCountMap) => void;
-  setCount: (workspaceId: string, dashcardId: string, count: number) => void;
+  setCount: (
+    workspaceId: string,
+    dashcardId: string,
+    count: DashcardMetric
+  ) => void;
   getCount: (
     workspaceId?: string,
     dashcardId?: string
-  ) => number | undefined;
+  ) => DashcardMetric | undefined;
   clearWorkspace: (workspaceId: string) => void;
 }
 

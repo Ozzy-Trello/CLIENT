@@ -233,7 +233,6 @@ const CardDetails: React.FC = (props) => {
 
     if (selectedCard.type === "dashcard") {
       setDashcardModalCard(selectedCard);
-      setIsDashcardModalOpen(true);
     } else {
       setIsDashcardModalOpen(false);
       setDashcardModalCard(null);

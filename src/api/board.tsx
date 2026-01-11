@@ -1,5 +1,6 @@
 import { api } from ".";
 import { Board } from "../types/board";
+import { DashcardCounts } from "@myTypes/dashcard-metric";
 import { ApiResponse } from "../types/type";
 
 export interface Role {
@@ -36,7 +37,7 @@ export const boardFull = async (
   ApiResponse<{
     board: Board;
     lists: any[];
-    dashcardCounts: Record<string, number>;
+    dashcardCounts: DashcardCounts;
   }>
 > => {
   const { data } = await api.get(`/board/${boardId}/full`, {

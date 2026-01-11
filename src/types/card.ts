@@ -1,6 +1,7 @@
 import { CustomOption } from "@dto/types";
 import { EnumCustomFieldSource, EnumCustomFieldType } from "./custom-field";
 import { DashcardConfig } from "./dashcard";
+import { DashcardMetric } from "./dashcard-metric";
 import { FileUpload } from "./file-upload";
 import { AcitivitySource, Checklist } from "./type";
 import { User } from "./user";
@@ -48,6 +49,7 @@ export interface Card {
   dueDate?: Date;
   dueDateReminder?: string;
   dashConfig?: DashcardConfig | undefined;
+  dashcardCount?: DashcardMetric;
   createdAt?: string;
   updatedAt?: string;
   itemDashcard?: IItemDashcard[] | null;

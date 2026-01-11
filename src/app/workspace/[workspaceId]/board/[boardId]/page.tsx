@@ -52,6 +52,7 @@ import { cards, mapBackendCardToFrontend } from "@api/card";
 import { boardFull } from "@api/board";
 import { DashcardCounts, useBoardFullStore } from "@store/board-full-store";
 import { useDashcardCountStore } from "@store/dashcard-count-store";
+import { normalizeDashcardMetric } from "@myTypes/dashcard-metric";
 
 const DragDropContext = dynamic(
   () => import("@hello-pangea/dnd").then((mod) => mod.DragDropContext),
@@ -62,6 +63,21 @@ const Droppable = dynamic(
   () => import("@hello-pangea/dnd").then((mod) => mod.Droppable),
   { ssr: false }
 );
+
+const normalizeDashcardCountMap = (
+  source: Record<string, any> | undefined,
+  keyTransform?: (id: string) => string
+): DashcardCounts =>
+  Object.fromEntries(
+    Object.entries(source ?? {}).map(([id, raw]) => {
+      const metric = normalizeDashcardMetric(raw) ?? {
+        type: "card_count",
+        value: 0,
+      };
+      const key = keyTransform ? keyTransform(id) : id;
+      return [key, metric];
+    })
+  );
 
 // Component that uses BoardPermissionsContext - must be inside the provider
 const BoardContentWithPermissions: React.FC<{
@@ -538,23 +554,20 @@ const Board: React.FC = () => {
             0,
         }));
 
+        const rawDashcardCounts = payload.dashcardCounts || {};
+
         if (resolvedWorkspaceId && payload.dashcardCounts) {
           setDashcardCounts(
             resolvedWorkspaceId,
-            payload.dashcardCounts || {}
+            normalizeDashcardCountMap(rawDashcardCounts)
           );
         }
 
         if (resolvedBoardId && resolvedWorkspaceId) {
-          console.log(payload, '<< ini isi payload')
-          const normalizedDashcardCounts: DashcardCounts = Object.fromEntries(
-            Object.entries(payload.dashcardCounts ?? {}).map(
-              ([id, count]): [string, number] => [
-                id.toLowerCase().replace(/-/g, ""),
-                Number(count), // enforce number
-              ]
-            )
-          );
+          const normalizedDashcardCounts: DashcardCounts =
+            normalizeDashcardCountMap(rawDashcardCounts, (id: string) =>
+              id.toLowerCase().replace(/-/g, "")
+            );
 
           setBoardFullStore(resolvedBoardId, resolvedWorkspaceId, {
             board: payload.board,
@@ -581,7 +594,9 @@ const Board: React.FC = () => {
           const mappedCards = cardsRaw.map((card: any) => {
             const withDashCount = {
               ...card,
-              dashcardCount: payload.dashcardCounts?.[card.id],
+              dashcardCount: normalizeDashcardMetric(
+                rawDashcardCounts?.[card.id]
+              ),
             };
             return mapBackendCardToFrontend(withDashCount);
           });

@@ -79,6 +79,7 @@ const TablePivot: FC = () => {
   const groupingPageSizeRef = useRef(false);
   const groupingPreviousPageSizeOptionRef = useRef<PageSizeOption>(10);
   const lastPageSizeOptionRef = useRef<PageSizeOption>(pageSizeOption);
+  const numberFormatter = useMemo(() => new Intl.NumberFormat("id-ID"), []);
 
   const { isSuperAdmin } = usePermissions();
   const isSuperAdminUser = isSuperAdmin();
@@ -303,7 +304,7 @@ const TablePivot: FC = () => {
       const formatNumberValue = (raw: any) => {
         const num = typeof raw === "number" ? raw : parseFloat(String(raw ?? "").trim());
         if (!Number.isFinite(num)) return raw;
-        return Number(num.toFixed(6)).toString();
+        return numberFormatter.format(num);
       };
 
       const findColumn = processedItemDashcard.find((item) => item.id === id);
@@ -538,7 +539,7 @@ const TablePivot: FC = () => {
       ) || [];
 
     return [...baseColumns, ...dynamicColumnsDefinitions];
-  }, [processedItemDashcard, grouping, sorting, dynamicColumns, currentWorkspaceId]);
+  }, [processedItemDashcard, grouping, sorting, dynamicColumns, currentWorkspaceId, numberFormatter]);
 
 
 

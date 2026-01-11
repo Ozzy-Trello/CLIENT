@@ -1,6 +1,7 @@
+import { DashcardCounts, DashcardMetric } from "@myTypes/dashcard-metric";
 import { create } from "zustand";
 
-export type DashcardCounts = Record<string, number>;
+export type { DashcardCounts, DashcardMetric } from "@myTypes/dashcard-metric";
 
 export interface BoardFullPayload {
   board: any;
@@ -23,7 +24,7 @@ interface BoardFullState {
   getDashcardCount: (
     boardId: string,
     dashcardId: string
-  ) => number | undefined;
+  ) => DashcardMetric | undefined;
 }
 
 export const useBoardFullStore = create<BoardFullState>((set, get) => ({

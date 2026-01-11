@@ -8,6 +8,7 @@ import {
 } from "../types/card";
 import { ApiResponse } from "../types/type";
 import { FileUpload } from "@myTypes/file-upload";
+import { normalizeDashcardMetric } from "@myTypes/dashcard-metric";
 
 const mapLabelToFrontend = (label: any) => ({
   id: label.id ?? label.label_id,
@@ -129,8 +130,9 @@ export const mapBackendCardToFrontend = (backendCard: any): Card => {
   }
   const backendDashCount =
     (backendCard as any).dashcardCount ?? (backendCard as any).dashcard_count;
-  if (backendDashCount !== undefined) {
-    (mapped as any).dashcardCount = backendDashCount;
+  const normalizedDashMetric = normalizeDashcardMetric(backendDashCount);
+  if (normalizedDashMetric) {
+    (mapped as any).dashcardCount = normalizedDashMetric;
     prefetched.dashcardCount = true;
   }
   if (backendCard.attachments_count !== undefined) {
