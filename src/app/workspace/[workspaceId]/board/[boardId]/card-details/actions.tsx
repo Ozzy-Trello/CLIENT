@@ -168,7 +168,9 @@ const Actions: React.FC<{
   const roleIn = (roles: string[]) =>
     roles.some((r) => r.toLowerCase() === roleLower);
   const { isMember, toggleMember, isAddingMember, isRemovingMember } =
-    useCardMembers(selectedCard?.id || "");
+    useCardMembers(selectedCard?.id || "", {
+      enabled: !!selectedCard?.id && !((selectedCard as any)?._prefetched?.members),
+    });
 
   // Get card attachments for Bukti functionality
   const { cardAttachments, addAttachment } = useCardAttachment(

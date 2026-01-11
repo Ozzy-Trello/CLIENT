@@ -12,8 +12,24 @@ import {
 } from "@myTypes/custom-field";
 import { useMemo, useCallback } from "react";
 
-export const useCardCustomField = (cardId: string, workspaceId: string) => {
+export const useCardCustomField = (
+  cardId: string,
+  workspaceId: string,
+  options?: {
+    enabled?: boolean;
+    initialData?: CardCustomField[];
+  }
+) => {
   const queryClient = useQueryClient();
+  const isEnabled =
+    !!cardId && !!workspaceId && (options?.enabled ?? true);
+  const initialData = options?.initialData
+    ? ({
+        status_code: 200,
+        message: "prefetched",
+        data: options.initialData,
+      } as ApiResponse<CardCustomField[]>)
+    : undefined;
 
   // helper to retry once in the background so saves still complete if UI is closed
   const saveWithRetry = async (
@@ -42,8 +58,9 @@ export const useCardCustomField = (cardId: string, workspaceId: string) => {
   const cardCustomFieldQuery = useQuery({
     queryKey: ["cardCustomField", cardId, workspaceId],
     queryFn: () => cardCustomFields(cardId, workspaceId),
-    enabled: !!cardId && !!workspaceId,
+    enabled: isEnabled,
     staleTime: 5000,
+    initialData,
   });
 
   // Set card custom field value mutation with optimistic update

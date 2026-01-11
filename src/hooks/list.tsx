@@ -9,14 +9,20 @@ import { queryKeys } from "../constants/query-keys";
 export function useLists(boardId: string) {
   const queryClient = useQueryClient();
 
+  const cachedLists = queryClient.getQueryData<ApiResponse<AnyList[]>>([
+    "lists",
+    boardId,
+  ]);
+
   const listsQuery = useQuery({
     queryKey: ["lists", boardId],
     queryFn: () => lists(boardId),
-    enabled: !!boardId,
-    staleTime: 5000,
-    refetchOnMount: true,
+    enabled: !!boardId && !cachedLists,
+    staleTime: 60 * 1000,
+    refetchOnMount: false,
     refetchOnWindowFocus: false,
     retry: 3,
+    initialData: cachedLists,
   });
 
   const addListMutation = useMutation({
@@ -498,8 +504,6 @@ export function useDeleteAllCardsInList() {
       // Always refetch after error or success - use specific query keys
       queryClient.invalidateQueries({ queryKey: queryKeys.cards.list(variables.listId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.lists.all });
-      // Also invalidate any dashcard queries that might depend on card counts
-      queryClient.invalidateQueries({ queryKey: ["dashcardCount"], exact: false });
     },
   });
 

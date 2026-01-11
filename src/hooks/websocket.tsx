@@ -67,42 +67,6 @@ export function useWebSocket() {
 // Hook to handle WebSocket card updates with query invalidation
 export function useWebSocketCardUpdates(socket: WebSocket | null) {
   const queryClient = useQueryClient();
-  const dashcardLastInvalidatedRef = useRef(0);
-  const dashcardTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const DASHCARD_INTERVAL_MS = 2 * 60 * 1000; // 2 minutes
-
-  const scheduleDashcardInvalidation = () => {
-    const now = Date.now();
-    const elapsed = now - dashcardLastInvalidatedRef.current;
-
-    if (elapsed >= DASHCARD_INTERVAL_MS) {
-      queryClient.invalidateQueries({
-        queryKey: ["dashcardCount"],
-        exact: false,
-      });
-      queryClient.invalidateQueries({
-        queryKey: ["list-dashcard"],
-        exact: false,
-      });
-      dashcardLastInvalidatedRef.current = now;
-      return;
-    }
-
-    if (!dashcardTimeoutRef.current) {
-      dashcardTimeoutRef.current = setTimeout(() => {
-        queryClient.invalidateQueries({
-          queryKey: ["dashcardCount"],
-          exact: false,
-        });
-        queryClient.invalidateQueries({
-          queryKey: ["list-dashcard"],
-          exact: false,
-        });
-        dashcardLastInvalidatedRef.current = Date.now();
-        dashcardTimeoutRef.current = null;
-      }, DASHCARD_INTERVAL_MS - elapsed);
-    }
-  };
 
   useEffect(() => {
     if (!socket) return;
@@ -117,7 +81,6 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
           return;
         }
 
-        let refreshDashcard = false;
         switch (message.event) {
           case "connection":
             break;
@@ -139,7 +102,6 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             queryClient.invalidateQueries({
               queryKey: queryKeys.cards.detail(card.id),
             });
-            refreshDashcard = true;
             break;
 
           case EnumUserActionEvent.CardUpdated:
@@ -153,7 +115,6 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             queryClient.invalidateQueries({
               queryKey: queryKeys.cards.detail(updatedCard.id),
             });
-            refreshDashcard = true;
             break;
 
           case EnumUserActionEvent.CardRenamed:
@@ -172,7 +133,6 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             queryClient.invalidateQueries({
               queryKey: queryKeys.cards.detail(renamedCard.id),
             });
-            refreshDashcard = true;
             break;
 
           case EnumUserActionEvent.CardCreated:
@@ -183,12 +143,6 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             queryClient.invalidateQueries({
               queryKey: queryKeys.cards.list(newCardListId),
             });
-            // Dashcard counters may be affected (new card)
-            queryClient.invalidateQueries({
-              queryKey: ["dashcardCount"],
-              exact: false,
-            });
-            refreshDashcard = true;
             break;
 
           case EnumUserActionEvent.CardDeleted:
@@ -204,7 +158,6 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             queryClient.removeQueries({
               queryKey: queryKeys.cards.detail(deletedCardId),
             });
-            refreshDashcard = true;
             break;
 
           case EnumUserActionEvent.CardArchived:
@@ -225,7 +178,6 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             queryClient.invalidateQueries({
               queryKey: queryKeys.cards.archived(),
             });
-            refreshDashcard = true;
             break;
 
           case "additional_field:updated": {
@@ -303,7 +255,6 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             queryClient.invalidateQueries({
               queryKey: queryKeys.boards.withLists(createdBoardId),
             });
-            refreshDashcard = true;
             break;
 
           case EnumUserActionEvent.ListMoved:
@@ -328,7 +279,6 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             queryClient.invalidateQueries({
               queryKey: queryKeys.lists.detail(movedList.id),
             });
-            refreshDashcard = true;
             break;
 
           case EnumUserActionEvent.ListUpdated:
@@ -347,7 +297,6 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             queryClient.invalidateQueries({
               queryKey: queryKeys.boards.withLists(updatedBoardId),
             });
-            refreshDashcard = true;
             break;
 
           case EnumUserActionEvent.ListDeleted:
@@ -371,7 +320,6 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             queryClient.removeQueries({
               queryKey: queryKeys.cards.list(deletedListId),
             });
-            refreshDashcard = true;
             break;
 
           // Checklist events
@@ -387,7 +335,6 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             queryClient.invalidateQueries({
               queryKey: ["checklist", checklist.id],
             });
-            refreshDashcard = true;
             break;
           }
 
@@ -410,7 +357,6 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
                 exact: false,
               });
             }
-            refreshDashcard = true;
             break;
           }
 
@@ -424,7 +370,6 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             queryClient.invalidateQueries({
               queryKey: queryKeys.cards.detail(cardId),
             });
-            refreshDashcard = true;
             break;
           }
 
@@ -470,7 +415,6 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             });
 
             // Label changes might affect dashcard filtering/counting
-            refreshDashcard = true;
             break;
           }
 
@@ -493,7 +437,6 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             });
 
             // Label changes might affect dashcard filtering/counting
-            refreshDashcard = true;
             break;
           }
 
@@ -558,7 +501,6 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             });
 
             // Label changes might affect dashcard filtering/counting
-            refreshDashcard = true;
             break;
           }
 
@@ -593,7 +535,6 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             });
 
             // Automation can change card properties that affect dashcards
-            refreshDashcard = true;
             break;
           }
 
@@ -617,7 +558,6 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             });
 
             // Automation label changes affect dashcards
-            refreshDashcard = true;
             break;
           }
 
@@ -641,7 +581,6 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             });
 
             // Automation label changes affect dashcards
-            refreshDashcard = true;
             break;
           }
 
@@ -668,23 +607,12 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             // Invalidate dashcard-related queries
             if (cardId) {
               queryClient.invalidateQueries({
-                queryKey: ["dashcardCount", cardId],
-              });
-              queryClient.invalidateQueries({
                 queryKey: ["list-dashcard", cardId, workspaceId],
               });
               queryClient.invalidateQueries({
                 queryKey: queryKeys.cards.detail(cardId),
               });
             }
-
-            // Also invalidate general dashcard queries
-            queryClient.invalidateQueries({
-              queryKey: ["dashcardCount"],
-              exact: false,
-            });
-
-            refreshDashcard = true;
             break;
           }
 
@@ -696,23 +624,12 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             // Invalidate dashcard-related queries
             if (cardId) {
               queryClient.invalidateQueries({
-                queryKey: ["dashcardCount", cardId],
-              });
-              queryClient.invalidateQueries({
                 queryKey: ["list-dashcard", cardId, workspaceId],
               });
               queryClient.invalidateQueries({
                 queryKey: queryKeys.cards.detail(cardId),
               });
             }
-
-            // Also invalidate general dashcard queries
-            queryClient.invalidateQueries({
-              queryKey: ["dashcardCount"],
-              exact: false,
-            });
-
-            refreshDashcard = true;
             break;
           }
 
@@ -758,8 +675,6 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
 
             // Invalidate lists to refresh any list-level aggregations
             queryClient.invalidateQueries({ queryKey: queryKeys.lists.all });
-
-            refreshDashcard = true;
             break;
           }
 
@@ -825,8 +740,6 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
                 queryKey: queryKeys.boards.withLists(boardId),
               });
             }
-
-            refreshDashcard = true;
             break;
           }
 
@@ -849,8 +762,6 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
                 queryKey: queryKeys.cards.list(listId),
               });
             }
-
-            refreshDashcard = true;
             break;
           }
 
@@ -858,9 +769,6 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             break;
         }
 
-        if (refreshDashcard) {
-          scheduleDashcardInvalidation();
-        }
       } catch (e) {
         console.error("Invalid WebSocket data:", e);
       }
@@ -870,10 +778,6 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
 
     return () => {
       socket.removeEventListener("message", handleMessage);
-      if (dashcardTimeoutRef.current) {
-        clearTimeout(dashcardTimeoutRef.current);
-        dashcardTimeoutRef.current = null;
-      }
     };
   }, [socket, queryClient]);
 }

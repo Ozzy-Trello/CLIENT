@@ -332,6 +332,7 @@ const CardContextMenu: React.FC<CardContextMenuProps> = ({
       <PopoverLabel
         open={openLabel}
         setOpen={setOpenLabel}
+        enabled={openLabel}
         card={card}
         triggerEl={
           <div

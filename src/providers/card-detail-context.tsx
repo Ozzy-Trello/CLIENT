@@ -205,9 +205,6 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
       queryClient.refetchQueries({
         queryKey: ["list-dashcard", selectedCard?.id, workspaceId],
       });
-      queryClient.refetchQueries({
-        queryKey: ["dashcardCount", selectedCard?.id],
-      });
     },
     onError: (error) => {
       console.error("Error updating dashcard:", error);

@@ -451,7 +451,11 @@ export function usePaginatedLabels(
   };
 }
 
-export function useWorkspaceLabels(workspaceId: string, search?: string) {
+export function useWorkspaceLabels(
+  workspaceId: string,
+  search?: string,
+  options?: { enabled?: boolean }
+) {
   const [page, setPage] = useState(1);
   const [labels, setLabels] = useState<any[]>([]);
   const [hasMore, setHasMore] = useState(true);
@@ -510,7 +514,7 @@ export function useWorkspaceLabels(workspaceId: string, search?: string) {
 
       return transformedData;
     },
-    enabled: !!workspaceId,
+    enabled: !!workspaceId && (options?.enabled ?? true),
   });
 
   const loadMore = () => setPage((p) => p + 1);
@@ -533,7 +537,11 @@ export function useWorkspaceLabels(workspaceId: string, search?: string) {
   };
 }
 
-export function useTopWorkspaceLabels(workspaceId: string, limit: number = 2) {
+export function useTopWorkspaceLabels(
+  workspaceId: string,
+  limit: number = 2,
+  options?: { enabled?: boolean }
+) {
   const { data, isFetching, error } = useQuery({
     queryKey: ["workspaceTopLabels", workspaceId, limit],
     queryFn: async () => {
@@ -553,7 +561,7 @@ export function useTopWorkspaceLabels(workspaceId: string, limit: number = 2) {
         isAssigned: false,
       }));
     },
-    enabled: !!workspaceId,
+    enabled: !!workspaceId && (options?.enabled ?? true),
   });
 
   return {

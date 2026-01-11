@@ -4,7 +4,7 @@ import { Card, EnumCardType } from "@myTypes/card";
 import { AnyList } from "@myTypes/list";
 import { Draggable } from "@hello-pangea/dnd";
 import { CheckboxChangeEvent } from "antd";
-import { useState } from "react";
+import { memo, useState } from "react";
 import RegularCard from "./regular";
 import Dashcard from "./dashcard";
 import { usePermissions } from "@hooks/account";
@@ -17,9 +17,15 @@ interface DraggableCardProps {
   card: Card;
   index: number;
   list: AnyList;
+  compactMode?: boolean;
 }
 
-const DraggableCard: React.FC<DraggableCardProps> = ({ card, index, list }) => {
+const DraggableCardComponent: React.FC<DraggableCardProps> = ({
+  card,
+  index,
+  list,
+  compactMode = false,
+}) => {
   const { openCardDetail } = useCardDetailContext();
   const { focusedCardId, setFocusedCardId, isCardFocused } = useCardFocus();
   const { boardId } = useParams();
@@ -115,6 +121,7 @@ const DraggableCard: React.FC<DraggableCardProps> = ({ card, index, list }) => {
             {card.type == EnumCardType.Dashcard ? (
               <Dashcard
                 card={card}
+                boardId={boardId as string | undefined}
                 isHovered={isHovered}
                 onCompletionChange={onChange}
                 isDragging={snapshot.isDragging}
@@ -125,6 +132,7 @@ const DraggableCard: React.FC<DraggableCardProps> = ({ card, index, list }) => {
                 isHovered={isHovered}
                 onCompletionChange={onChange}
                 isDragging={snapshot.isDragging}
+                compactMode={compactMode}
               />
             )}
 
@@ -145,4 +153,4 @@ const DraggableCard: React.FC<DraggableCardProps> = ({ card, index, list }) => {
   );
 };
 
-export default DraggableCard;
+export default memo(DraggableCardComponent);

@@ -24,7 +24,6 @@ import {
   DashcardDisplayType,
 } from "@myTypes/dashcard";
 import { LookupCache } from "@utils/lookup-cache";
-import { useDashcardCount } from "@hooks/dashcard";
 import { useCustomFields } from "@hooks/custom_field";
 import { useParams } from "next/navigation";
 

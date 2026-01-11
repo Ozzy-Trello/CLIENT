@@ -3,11 +3,12 @@ import ListName from "./list-name";
 import { useCardsPaginated } from "@hooks/card";
 import DraggableCard from "../draggable-card";
 import AddCard from "./add-card";
-import { UseMutateFunction } from "@tanstack/react-query";
-import { useEffect, useRef } from "react";
+import { UseMutateFunction, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
 import { AnyList } from "@myTypes/list";
 import { usePermissions } from "@hooks/account";
 import { useBoardPermissionsContext } from "@providers/board-permissions-context";
+import { useParams } from "next/navigation";
 
 interface DraggableListProps {
   list: AnyList;
@@ -22,6 +23,7 @@ interface DraggableListProps {
   deleteList: UseMutateFunction<any, Error, { listId: string }, unknown>;
   prefetchReady: boolean;
   onCardsHydrated?: (listId: string) => void;
+  compactMode?: boolean;
 }
 
 const DraggableList: React.FC<DraggableListProps> = ({
@@ -32,9 +34,15 @@ const DraggableList: React.FC<DraggableListProps> = ({
   deleteList,
   prefetchReady,
   onCardsHydrated,
+  compactMode = false,
 }) => {
 
+  const queryClient = useQueryClient();
   const listReadyReportedRef = useRef(false);
+  const params = useParams();
+  const resolvedWorkspaceId = Array.isArray(params.workspaceId)
+    ? params.workspaceId[0]
+    : (params.workspaceId as string | undefined);
   const {
     cards,
     addCard,
@@ -47,7 +55,111 @@ const DraggableList: React.FC<DraggableListProps> = ({
     loadMoreError,
     retryLoadMore,
     totalCards,
-  } = useCardsPaginated(list.id, boardId, { enabled: prefetchReady });
+  } = useCardsPaginated(list.id, boardId, {
+    enabled: prefetchReady,
+    compactMode,
+    allowFetchInCompact: (list as any).cards_truncated,
+    initialTotal:
+      (list as any).cards_paginate?.total_data || (list as any).cards_total,
+    initialHasMore:
+      (list as any).cards_truncated === true ||
+      ((list as any).cards_paginate?.next_page ?? null) !== null ||
+      ((list as any).cards_total ?? 0) >
+        ((list as any).cards?.length ?? 0) ||
+      false,
+    expectedTotalOverride:
+      (list as any).cards_paginate?.total_data ??
+      (list as any).cards_total,
+    workspaceId: resolvedWorkspaceId,
+  });
+  const parseCount = (value: any): number => {
+    if (typeof value === "number" && !Number.isNaN(value)) return value;
+    if (typeof value === "string") {
+      const parsed = parseInt(value, 10);
+      return Number.isNaN(parsed) ? 0 : parsed;
+    }
+    return 0;
+  };
+  const cachedCardsQuery = queryClient.getQueryData<any>(
+    ["cards", "list", list.id]
+  );
+  const cachedTotal = parseCount(
+    cachedCardsQuery?.paginate?.totalData ??
+      cachedCardsQuery?.paginate?.total_data
+  );
+  const listTotalFromMeta = parseCount(
+    (list as any).cards_paginate?.total_data ??
+      (list as any).cards_paginate?.totalData ??
+      (list as any).cardsPaginate?.totalData
+  );
+  const effectiveTotalFromHook =
+    typeof totalCards === "number" && totalCards > 0
+      ? totalCards
+      : undefined;
+  let displayTotalCards =
+    listTotalFromMeta ??
+    effectiveTotalFromHook ??
+    cachedTotal ??
+    cards.length;
+  // Never show fewer than we have in memory
+  displayTotalCards = Math.max(
+    displayTotalCards,
+    cards.length,
+    (list as any).cards ? (list as any).cards.length : 0
+  );
+  const pageSize =
+    parseCount(
+      (list as any).cards_paginate?.limit ??
+        (list as any).cardsPaginate?.limit
+    ) || 20;
+  const canLoadMore =
+    hasMoreCards ||
+    (displayTotalCards > cards.length && displayTotalCards > pageSize);
+
+  const [renderCount, setRenderCount] = useState<number>(compactMode ? 40 : Infinity);
+  const growthTimerRef = useRef<any>(null);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    // reset chunking on list change
+    setRenderCount(compactMode ? 20 : Infinity);
+  }, [list.id, compactMode]);
+
+  useEffect(() => {
+    // progressively increase renderCount in compact mode to avoid jank
+    if (!compactMode) return;
+    if (renderCount >= cards.length) return;
+    if (growthTimerRef.current) {
+      clearTimeout(growthTimerRef.current);
+    }
+    growthTimerRef.current = setTimeout(() => {
+      setRenderCount((prev) => Math.min(prev + 20, cards.length));
+    }, 16);
+    return () => {
+      if (growthTimerRef.current) clearTimeout(growthTimerRef.current);
+    };
+  }, [cards.length, renderCount, compactMode]);
+
+  // Auto-load more when sentinel enters the viewport
+  useEffect(() => {
+    if (!canLoadMore) return;
+    const target = loadMoreRef.current;
+    if (!target) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && !isLoadingMore) {
+            loadMoreError ? retryLoadMore() : loadMoreCards();
+          }
+        });
+      },
+      { root: null, rootMargin: "200px", threshold: 0 }
+    );
+
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [canLoadMore, isLoadingMore, loadMoreCards, loadMoreError, retryLoadMore]);
 
   useEffect(() => {
     listReadyReportedRef.current = false;
@@ -125,14 +237,14 @@ const DraggableList: React.FC<DraggableListProps> = ({
                 : undefined
             }
           >
-            <ListName
-              list={list}
-              boardId={boardId}
-              updateList={updateList}
-              deleteList={deleteList}
-              cardsCount={cards.length}
-              totalCards={totalCards}
-            />
+              <ListName
+                list={list}
+                boardId={boardId}
+                updateList={updateList}
+                deleteList={deleteList}
+                cardsCount={cards.length}
+                totalCards={displayTotalCards}
+              />
             <Droppable
               droppableId={`droppable-card-area-${list.id}`}
               direction="vertical"
@@ -152,62 +264,30 @@ const DraggableList: React.FC<DraggableListProps> = ({
                  `}
                 >
                   <div className="space-y-3">
-                    {cards?.map((card, index) => (
+                    {cards?.slice(0, renderCount).map((card, index) => (
                       <DraggableCard
                         key={card.id}
                         card={card}
                         list={list}
                         index={index}
+                        compactMode={compactMode}
                       />
                     ))}
                     {provided.placeholder}
 
-                    {/* Load More Button */}
-                    {!isLoading &&
-                      cards.length > 0 &&
-                      (hasMoreCards || loadMoreError) && (
-                        <div className="flex flex-col items-center py-2 space-y-2">
-                          {loadMoreError && (
-                            <div className="text-xs text-red-500 text-center px-2">
-                              {loadMoreError}
-                            </div>
-                          )}
-                          <button
-                            onClick={
-                              loadMoreError ? retryLoadMore : loadMoreCards
-                            }
-                            disabled={isLoadingMore}
-                            className="
-                            px-4 py-2 
-                            text-sm 
-                            text-gray-600 
-                            bg-gray-100 
-                            hover:bg-gray-200 
-                            disabled:bg-gray-50 
-                            disabled:text-gray-400 
-                            rounded-lg 
-                            border 
-                            border-gray-200 
-                            transition-colors 
-                            duration-200
-                            flex 
-                            items-center 
-                            gap-2
-                          "
-                          >
-                            {isLoadingMore ? (
-                              <>
-                                <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
-                                Loading...
-                              </>
-                            ) : loadMoreError ? (
-                              "Retry"
-                            ) : (
-                              "Load More"
-                            )}
-                          </button>
-                        </div>
-                      )}
+                    {/* Infinite scroll sentinel */}
+                    {!isLoading && cards.length > 0 && canLoadMore && (
+                      <div
+                        ref={loadMoreRef}
+                        className="py-2 flex items-center justify-center text-xs text-gray-500"
+                      >
+                        {isLoadingMore
+                          ? "Loading…"
+                          : loadMoreError
+                          ? "Tap to retry"
+                          : "Loading more…"}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

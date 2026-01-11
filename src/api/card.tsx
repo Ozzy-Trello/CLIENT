@@ -73,6 +73,9 @@ export const mapBackendAttachmentToFrontend = (attachment: any): CardAttachment 
 // Helper function to map backend response to frontend Card format
 export const mapBackendCardToFrontend = (backendCard: any): Card => {
   const mapped: any = { ...backendCard };
+  const prefetched: Record<string, boolean> = mapped._prefetched
+    ? { ...mapped._prefetched }
+    : {};
 
   // Map backend snake_case to frontend camelCase
   if (backendCard.product_id !== undefined) {
@@ -123,6 +126,12 @@ export const mapBackendCardToFrontend = (backendCard: any): Card => {
   }
   if (backendCard.formatted_time_in_board !== undefined) {
     mapped.formattedTimeInBoard = backendCard.formatted_time_in_board;
+  }
+  const backendDashCount =
+    (backendCard as any).dashcardCount ?? (backendCard as any).dashcard_count;
+  if (backendDashCount !== undefined) {
+    (mapped as any).dashcardCount = backendDashCount;
+    prefetched.dashcardCount = true;
   }
   if (backendCard.attachments_count !== undefined) {
     mapped.attachmentsCount = backendCard.attachments_count;
@@ -180,10 +189,9 @@ export const mapBackendCardToFrontend = (backendCard: any): Card => {
     mapped.requests = backendCard.requests;
   }
 
-  if (backendCard.labels) {
+  if (backendCard.labels !== undefined) {
     mapped.labels = (backendCard.labels as any[]).map(mapLabelToFrontend);
-  } else {
-    mapped.labels = [];
+    prefetched.labels = true;
   }
 
   if (backendCard.jumlah_dikirim !== undefined) {
@@ -202,14 +210,16 @@ export const mapBackendCardToFrontend = (backendCard: any): Card => {
   if (backendCard.custom_fields || backendCard.customFields) {
     const fields = backendCard.custom_fields ?? backendCard.customFields;
     mapped.customFields = (fields as any[]).map(mapCustomFieldToFrontend);
-  } else {
-    mapped.customFields = [];
+    prefetched.customFields = true;
   }
 
-  if (backendCard.members) {
+  if (backendCard.members !== undefined) {
     mapped.members = (backendCard.members as any[]).map(mapMemberToFrontend);
-  } else {
-    mapped.members = [];
+    prefetched.members = true;
+  }
+
+  if (Object.keys(prefetched).length > 0) {
+    mapped._prefetched = prefetched;
   }
 
   return mapped;
@@ -270,6 +280,15 @@ export const cards = async (
   // Map backend response to frontend format
   if (data.data && Array.isArray(data.data)) {
     data.data = data.data.map(mapBackendCardToFrontend);
+  }
+  if (data.paginate) {
+    // normalize snake_case to camelCase for pagination fields
+    (data as any).paginate.totalData =
+      data.paginate.totalData ?? data.paginate.total_data;
+    (data as any).paginate.nextPage =
+      (data.paginate as any).nextPage ?? (data.paginate as any).next_page;
+    (data as any).paginate.prevPage =
+      (data.paginate as any).prevPage ?? (data.paginate as any).prev_page;
   }
 
   return data;

@@ -44,6 +44,7 @@ interface RegularCardProps {
   isHovered: boolean;
   onCompletionChange: (e: CheckboxChangeEvent, card: Card) => void;
   isDragging?: boolean;
+  compactMode?: boolean;
 }
 
 // Utility: decide black/white text based on background color
@@ -61,13 +62,41 @@ function getContrastTextColor(hex: string): string {
 }
 
 const RegularCard: React.FC<RegularCardProps> = (props) => {
-  const { card, isHovered, onCompletionChange, isDragging = false } = props;
-  const { workspaceId } = useParams();
-  const { cardMembers } = useCardMembers(card?.id);
-  const { cardCustomFields } = useCardCustomField(
+  const {
+    card,
+    isHovered,
+    onCompletionChange,
+    isDragging = false,
+    compactMode = false,
+  } = props;
+  const params = useParams();
+  const workspaceId =
+    Array.isArray(params.workspaceId) && params.workspaceId.length > 0
+      ? params.workspaceId[0]
+      : (params.workspaceId as string | undefined);
+  const prefetched = (card as any)._prefetched || {};
+
+  const inlineMembers =
+    compactMode || prefetched.members ? card.members || [] : undefined;
+  const { cardMembers: fetchedCardMembers } = useCardMembers(card?.id, {
+    enabled: inlineMembers === undefined && !!card?.id,
+  });
+  const cardMembers = inlineMembers ?? fetchedCardMembers;
+
+  const inlineCustomFields =
+    compactMode || prefetched.customFields
+      ? card.customFields || (card as any).custom_fields || []
+      : undefined;
+  const { cardCustomFields: fetchedCardCustomFields } = useCardCustomField(
     card.id,
-    workspaceId as string
+    workspaceId as string,
+    {
+      enabled:
+        inlineCustomFields === undefined && !!card.id && !!workspaceId,
+      initialData: inlineCustomFields,
+    }
   );
+  const cardCustomFields = inlineCustomFields ?? fetchedCardCustomFields;
   const [frontCustomFields, setfrontCustomFields] = useState<CardCustomField[]>(
     []
   );
@@ -75,13 +104,17 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
   const [lookupVersion, setLookupVersion] = useState(0);
 
   // Fetch labels assigned to this card
-  const { cardLabels } = useLabels(
-    Array.isArray(workspaceId)
-      ? (workspaceId[0] as string)
-      : (workspaceId as string),
+  const inlineLabels =
+    compactMode || prefetched.labels ? (card as any).labels || [] : undefined;
+  const { cardLabels: fetchedCardLabels } = useLabels(
+    workspaceId as string,
     card.id,
-    { cardId: card.id }
+    { cardId: card.id },
+    {
+      enabled: inlineLabels === undefined && !!card.id && !!workspaceId,
+    }
   );
+  const cardLabels = inlineLabels ?? fetchedCardLabels;
 
   // useEffect(() => {
   //   if (cardCustomFields) {
@@ -92,9 +125,10 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
 
   // Ensure any referenced userIds are cached for quick label lookup
   useEffect(() => {
+    if (compactMode) return;
     const userIds: string[] = [];
     // from custom fields
-    cardCustomFields?.forEach((f) => {
+    cardCustomFields?.forEach((f: CardCustomField) => {
       if (f.valueUserId) userIds.push(f.valueUserId);
     });
     // from card members
@@ -111,7 +145,7 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
         setLookupVersion((v) => v + 1);
       })();
     }
-  }, [cardCustomFields, cardMembers]);
+  }, [cardCustomFields, cardMembers, compactMode]);
 
   const attachmentCount =
     card.attachmentsCount ?? card.attachments?.length ?? 0;
@@ -119,6 +153,13 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
     card.commentsCount ??
     card.activitiesCount ??
     (card.activity ? card.activity.length : 0);
+
+  useEffect(() => {
+    const filtered =
+      cardCustomFields?.filter((item: CardCustomField) => item.isShowAtFront) ||
+      [];
+    setfrontCustomFields(filtered);
+  }, [cardCustomFields]);
 
   return (
     <div className="w-full">
@@ -311,7 +352,7 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
 
         {/* Custom fields */}
         <div className="space-y-2 mb-3">
-          {cardCustomFields?.map((item: CardCustomField, index) => {
+          {cardCustomFields?.map((item: CardCustomField, index: number) => {
             if (!item.isShowAtFront) return null;
 
             const renderValue = () => {

@@ -28,6 +28,23 @@ export const boardDetails = async (
   return response.data;
 };
 
+// Aggregated board data: board + lists + cards + dashcard counts
+export const boardFull = async (
+  boardId: string,
+  workspaceId: string
+): Promise<
+  ApiResponse<{
+    board: Board;
+    lists: any[];
+    dashcardCounts: Record<string, number>;
+  }>
+> => {
+  const { data } = await api.get(`/board/${boardId}/full`, {
+    headers: { "workspace-id": workspaceId },
+  });
+  return data;
+};
+
 export const createBoard = async (
   board: Partial<Board> & { roleIds?: string[] },
   workspaceId: string

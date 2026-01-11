@@ -48,7 +48,10 @@ import HorizontalSlider from "@components/horizontal-slider";
 import { BoardPermissionsProvider } from "@providers/board-permissions-context";
 import { useRecentlyViewed } from "@hooks/recently-viewed";
 import type { DropResult, DragUpdate } from "@hello-pangea/dnd";
-import { cards } from "@api/card";
+import { cards, mapBackendCardToFrontend } from "@api/card";
+import { boardFull } from "@api/board";
+import { DashcardCounts, useBoardFullStore } from "@store/board-full-store";
+import { useDashcardCountStore } from "@store/dashcard-count-store";
 
 const DragDropContext = dynamic(
   () => import("@hello-pangea/dnd").then((mod) => mod.DragDropContext),
@@ -69,6 +72,8 @@ const BoardContentWithPermissions: React.FC<{
   cardsFetchEnabled: boolean;
   cardPrefetchError?: string | null;
   onListCardsHydrated?: (listId: string) => void;
+  compactMode: boolean;
+  visibleListsCount: number;
   onListDragEnd: (result: DropResult) => void;
   onDragStart: (start: any) => void;
   onDragUpdate: (update: DragUpdate) => void;
@@ -100,6 +105,8 @@ const BoardContentWithPermissions: React.FC<{
   resolvedBoardId,
   updateList,
   deleteList,
+  compactMode,
+  visibleListsCount,
   isAddingList,
   setIsAddingList,
   newListName,
@@ -118,175 +125,182 @@ const BoardContentWithPermissions: React.FC<{
   cardsFetchEnabled,
   onListCardsHydrated,
 }) => {
-  const containerOverflowClass = boardReady ? "overflow-x-auto" : "overflow-hidden";
-  // Now we can safely use the context hook inside the provider
-  const { canCreateList } = useBoardPermissionsContext();
-  const [boardRect, setBoardRect] = useState<DOMRect | null>(null);
+    const containerOverflowClass = boardReady ? "overflow-x-auto" : "overflow-hidden";
+    // Now we can safely use the context hook inside the provider
+    const { canCreateList } = useBoardPermissionsContext();
+    const [boardRect, setBoardRect] = useState<DOMRect | null>(null);
 
-  useLayoutEffect(() => {
-    const element = boardScrollContainerRef.current;
-    if (!element) {
-      setBoardRect(null);
-      return;
-    }
+    useLayoutEffect(() => {
+      const element = boardScrollContainerRef.current;
+      if (!element) {
+        setBoardRect(null);
+        return;
+      }
 
-    const updateRect = () => {
-      const rect = boardScrollContainerRef.current?.getBoundingClientRect();
-      setBoardRect(rect ?? null);
-    };
+      const updateRect = () => {
+        const rect = boardScrollContainerRef.current?.getBoundingClientRect();
+        setBoardRect(rect ?? null);
+      };
 
-    updateRect();
+      updateRect();
 
-    const handleWindowEvent = () => updateRect();
-    window.addEventListener("resize", handleWindowEvent);
-    window.addEventListener("scroll", handleWindowEvent, true);
+      const handleWindowEvent = () => updateRect();
+      window.addEventListener("resize", handleWindowEvent);
+      window.addEventListener("scroll", handleWindowEvent, true);
 
-    let resizeObserver: ResizeObserver | null = null;
-    if (typeof ResizeObserver !== "undefined") {
-      resizeObserver = new ResizeObserver(updateRect);
-      resizeObserver.observe(element);
-    }
+      let resizeObserver: ResizeObserver | null = null;
+      if (typeof ResizeObserver !== "undefined") {
+        resizeObserver = new ResizeObserver(updateRect);
+        resizeObserver.observe(element);
+      }
 
-    return () => {
-      window.removeEventListener("resize", handleWindowEvent);
-      window.removeEventListener("scroll", handleWindowEvent, true);
-      resizeObserver?.disconnect();
-    };
-  }, [boardScrollContainerRef]);
+      return () => {
+        window.removeEventListener("resize", handleWindowEvent);
+        window.removeEventListener("scroll", handleWindowEvent, true);
+        resizeObserver?.disconnect();
+      };
+    }, [boardScrollContainerRef]);
 
-  return (
-    <div
-      ref={boardScrollContainerRef}
-      className={`relative h-auto min-h-[770px] w-full ${containerOverflowClass} overflow-y-hidden custom-horizontal-scrollbar board-scroll-container ${
-        isDraggingToScroll ? "cursor-grabbing select-none" : "cursor-grab"
-      }`}
-      onMouseDown={onMouseDown}
-      onMouseMove={onMouseMove}
-      onMouseUp={onMouseUp}
-      onMouseLeave={onMouseLeave}
-      onTouchStart={onTouchStart}
-      onTouchMove={onTouchMove}
-      onTouchEnd={onTouchEnd}
-    >
-      {!boardReady && (
-        <div
-          className="z-40 flex flex-col items-center justify-center gap-3 rounded-lg bg-black/40 text-white backdrop-blur-sm"
-          style={
-            boardRect
-              ? {
+    return (
+      <div
+        ref={boardScrollContainerRef}
+        className={`relative h-auto min-h-[770px] w-full ${containerOverflowClass} overflow-y-hidden custom-horizontal-scrollbar board-scroll-container ${isDraggingToScroll ? "cursor-grabbing select-none" : "cursor-grab"
+          }`}
+        onMouseDown={onMouseDown}
+        onMouseMove={onMouseMove}
+        onMouseUp={onMouseUp}
+        onMouseLeave={onMouseLeave}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+      >
+        {!boardReady && (
+          <div
+            className="z-40 flex flex-col items-center justify-center gap-3 rounded-lg bg-black/40 text-white backdrop-blur-sm"
+            style={
+              boardRect
+                ? {
                   position: "fixed",
                   top: boardRect.top,
                   left: boardRect.left,
                   width: boardRect.width,
                   height: boardRect.height,
                 }
-              : {
+                : {
                   position: "absolute",
                   inset: 0,
                 }
-          }
-        >
-          <Spin size="large" className="text-white" />
-          <p className="text-center text-sm font-medium">
-            Loading all lists and cards…
-          </p>
-        </div>
-      )}
-      {shouldRenderLists && (
-        <DragDropContext
-          onDragEnd={onListDragEnd}
-          onDragStart={onDragStart}
-          onDragUpdate={onDragUpdate}
-        >
-          <Droppable
-            droppableId="droppable-list-area"
-            direction="horizontal"
-            type="list"
+            }
           >
-            {(provided, snapshot) => {
-              return (
-                <div
-                  {...provided.droppableProps}
-                  ref={provided.innerRef}
-                  className="flex gap-4 p-4 items-start"
-                  style={{
-                    backgroundColor: snapshot.isDraggingOver
-                      ? "#e3f2fd"
-                      : "transparent",
-                    minWidth: "calc(100% + 100px)", // Force content to be wider than container
-                    width: "max-content", // Allow content to expand beyond container width
-                  }}
-                >
-                  {lists?.map((list: AnyList, index: number) => {
-                    return (
-                      <List
-                        key={list.id}
-                        list={list}
-                        index={index}
-                        boardId={resolvedBoardId}
-                        updateList={updateList}
-                        deleteList={deleteList}
-                        prefetchReady={cardsFetchEnabled}
-                        onCardsHydrated={onListCardsHydrated}
-                      />
-                    );
-                  })}
-                  {provided.placeholder}
-
-                  {/* Add list section - only show if user can create lists */}
-                  {canCreateList() && (
-                    <>
-                      {isAddingList ? (
-                        <div className="add-list-wrapper p-4 rounded-sm bg-white shadow-sm">
-                          <Input
-                            type="text"
-                            placeholder="New List Title"
-                            value={newListName}
-                            onChange={(e) => setNewListName(e.target.value)}
-                            onPressEnter={handleAddList}
+            <Spin size="large" className="text-white" />
+            <p className="text-center text-sm font-medium">
+              Loading all lists and cards…
+            </p>
+          </div>
+        )}
+        {shouldRenderLists && (
+          <DragDropContext
+            onDragEnd={onListDragEnd}
+            onDragStart={onDragStart}
+            onDragUpdate={onDragUpdate}
+          >
+            <Droppable
+              droppableId="droppable-list-area"
+              direction="horizontal"
+              type="list"
+            >
+              {(provided, snapshot) => {
+                return (
+                  <div
+                    {...provided.droppableProps}
+                    ref={provided.innerRef}
+                    className="flex gap-4 p-4 items-start"
+                    style={{
+                      backgroundColor: snapshot.isDraggingOver
+                        ? "#e3f2fd"
+                        : "transparent",
+                      minWidth: "calc(100% + 100px)", // Force content to be wider than container
+                      width: "max-content", // Allow content to expand beyond container width
+                    }}
+                  >
+                    {(lists || [])
+                      .slice(
+                        0,
+                        compactMode
+                          ? Math.min(visibleListsCount, lists?.length || 0)
+                          : lists?.length || 0
+                      )
+                      .map((list: AnyList, index: number) => {
+                        return (
+                          <List
+                            key={list.id}
+                            list={list}
+                            index={index}
+                            boardId={resolvedBoardId}
+                            updateList={updateList}
+                            deleteList={deleteList}
+                            prefetchReady={cardsFetchEnabled}
+                            compactMode={compactMode}
+                            onCardsHydrated={onListCardsHydrated}
                           />
-                          <div className="flex items-center gap-2 mt-2">
-                            <Button size="small" onClick={handleAddList}>
-                              Add List
-                            </Button>
-                            <Button
-                              size="small"
-                              onClick={() => setIsAddingList(false)}
-                              icon={<X size={15} />}
-                            />
-                          </div>
-                        </div>
-                      ) : (
-                        <Button
-                          onClick={() => setIsAddingList(true)}
-                          className="mt-2"
-                          icon={<Plus size={15} />}
-                        >
-                          Add a list
-                        </Button>
-                      )}
-                    </>
-                  )}
-                </div>
-              );
-            }}
-          </Droppable>
-        </DragDropContext>
-      )}
+                        );
+                      })}
+                    {provided.placeholder}
 
-      {!shouldRenderLists && (
-        <div>
-          {cardPrefetchError && (
-            <div className="px-4 text-sm text-red-600 text-center mb-4">
-              {cardPrefetchError}
-            </div>
-          )}
-          <ListSkeleton />
-        </div>
-      )}
-    </div>
-  );
-};
+                    {/* Add list section - only show if user can create lists */}
+                    {canCreateList() && (
+                      <>
+                        {isAddingList ? (
+                          <div className="add-list-wrapper p-4 rounded-sm bg-white shadow-sm">
+                            <Input
+                              type="text"
+                              placeholder="New List Title"
+                              value={newListName}
+                              onChange={(e) => setNewListName(e.target.value)}
+                              onPressEnter={handleAddList}
+                            />
+                            <div className="flex items-center gap-2 mt-2">
+                              <Button size="small" onClick={handleAddList}>
+                                Add List
+                              </Button>
+                              <Button
+                                size="small"
+                                onClick={() => setIsAddingList(false)}
+                                icon={<X size={15} />}
+                              />
+                            </div>
+                          </div>
+                        ) : (
+                          <Button
+                            onClick={() => setIsAddingList(true)}
+                            className="mt-2"
+                            icon={<Plus size={15} />}
+                          >
+                            Add a list
+                          </Button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                );
+              }}
+            </Droppable>
+          </DragDropContext>
+        )}
+
+        {!shouldRenderLists && (
+          <div>
+            {cardPrefetchError && (
+              <div className="px-4 text-sm text-red-600 text-center mb-4">
+                {cardPrefetchError}
+              </div>
+            )}
+            <ListSkeleton />
+          </div>
+        )}
+      </div>
+    );
+  };
 
 const Board: React.FC = () => {
   const { boardId, workspaceId } = useParams();
@@ -453,6 +467,10 @@ const Board: React.FC = () => {
   const initialPrefetchInProgressRef = useRef(false);
   const [listsHydrated, setListsHydrated] = useState(false);
   const listReadySetRef = useRef<Set<string>>(new Set());
+  const [dashcardCountsReady, setDashcardCountsReady] = useState(false);
+  const [compactMode, setCompactMode] = useState(false);
+  const [visibleListsCount, setVisibleListsCount] = useState<number>(Infinity);
+  const [isHydratingFullData, setIsHydratingFullData] = useState(false);
 
   // Fetch board details and update Redux state when boardId changes
   const { board: boardDetails } = useBoardDetails(
@@ -467,18 +485,149 @@ const Board: React.FC = () => {
   const [newListName, setNewListName] = useState<string>("");
   const [boardScopeMenu, setBoardScopeMenu] = useState<boolean>(false);
   const { addCard } = useCards("", "");
-  const { moveCard } = useCardMove(resolvedBoardId);
-  const { moveList } = useListMove();
   const queryClient = useQueryClient();
+  const refetchBoardData = useCallback(() => {
+    if (!resolvedBoardId) return;
+    queryClient.invalidateQueries({ queryKey: queryKeys.boards.withLists(resolvedBoardId) });
+    queryClient.invalidateQueries({ queryKey: queryKeys.boards.detail(resolvedBoardId) });
+    queryClient.invalidateQueries({ queryKey: queryKeys.lists.board(resolvedBoardId) });
+    queryClient.invalidateQueries({ queryKey: ["lists", resolvedBoardId] });
+  }, [queryClient, resolvedBoardId]);
+  const { moveCard } = useCardMove(resolvedBoardId, { onSettled: refetchBoardData });
+  const { moveList } = useListMove();
   const [openDashcardModal, setOpenDashcardModal] = useState<boolean>(false);
   const [dashcardConfig, setDashcardConfig] = useState<DashcardConfig>();
   const selectedBoard = useSelector(selectCurrentBoard);
   const currentWorkspace = useSelector(selectCurrentWorkspace);
   const { canCreate } = usePermissions();
   const { addRecentlyViewedBoard } = useRecentlyViewed();
+  const setBoardFullStore = useBoardFullStore((state) => state.setBoardFull);
+  const setDashcardCounts = useDashcardCountStore((state) => state.setCounts);
 
   // Enable real-time updates via WebSocket
   useRealtimeUpdates();
+
+  // Hydrate all lists, cards, and dashcard counts with a single payload
+  useEffect(() => {
+    if (!resolvedBoardId || !resolvedWorkspaceId) return;
+
+    let isActive = true;
+    setIsHydratingFullData(true);
+    setCardPrefetchError(null);
+
+    boardFull(resolvedBoardId, resolvedWorkspaceId)
+      .then((resp) => {
+        if (!isActive) return;
+        const payload = (resp as any)?.data?.data || (resp as any)?.data;
+        if (!payload) return;
+
+        setCompactMode(!!payload.meta?.isLargeBoard);
+        setVisibleListsCount(
+          payload.meta?.isLargeBoard
+            ? Math.min(6, (payload.lists || []).length)
+            : (payload.lists || []).length
+        );
+
+        const listsFromPayload = payload.lists || [];
+        const normalizedLists = listsFromPayload.map((list: any) => ({
+          ...list,
+          position:
+            (list as any).position ??
+            (list as any).order ??
+            (list as any).order_index ??
+            0,
+        }));
+
+        if (resolvedWorkspaceId && payload.dashcardCounts) {
+          setDashcardCounts(
+            resolvedWorkspaceId,
+            payload.dashcardCounts || {}
+          );
+        }
+
+        if (resolvedBoardId && resolvedWorkspaceId) {
+          console.log(payload, '<< ini isi payload')
+          const normalizedDashcardCounts: DashcardCounts = Object.fromEntries(
+            Object.entries(payload.dashcardCounts ?? {}).map(
+              ([id, count]): [string, number] => [
+                id.toLowerCase().replace(/-/g, ""),
+                Number(count), // enforce number
+              ]
+            )
+          );
+
+          setBoardFullStore(resolvedBoardId, resolvedWorkspaceId, {
+            board: payload.board,
+            lists: normalizedLists,
+            dashcardCounts: normalizedDashcardCounts || {},
+            meta: payload.meta,
+          });
+        }
+
+        // Seed lists cache
+        queryClient.setQueryData(["lists", resolvedBoardId], {
+          status_code: 200,
+          message: "Success",
+          data: normalizedLists,
+        });
+
+        // Seed cards per list
+        const listIdsFromPayload = normalizedLists.map((l: any) => l.id);
+        prefetchedListIdsRef.current = listIdsFromPayload;
+        listReadySetRef.current = new Set(listIdsFromPayload);
+
+        normalizedLists.forEach((list: any) => {
+          const cardsRaw = list.cards || [];
+          const mappedCards = cardsRaw.map((card: any) => {
+            const withDashCount = {
+              ...card,
+              dashcardCount: payload.dashcardCounts?.[card.id],
+            };
+            return mapBackendCardToFrontend(withDashCount);
+          });
+          queryClient.setQueryData(queryKeys.cards.list(list.id), {
+            status_code: 200,
+            message: "Success",
+            data: mappedCards,
+            paginate: {
+              totalData:
+                list.cards_paginate?.total_data ??
+                list.cards_total ??
+                mappedCards.length,
+              page: list.cards_paginate?.page ?? 1,
+              limit: list.cards_paginate?.limit ?? mappedCards.length,
+              totalPage:
+                list.cards_paginate?.total_page ??
+                Math.ceil(
+                  (list.cards_total ?? mappedCards.length) /
+                  ((list.cards_paginate?.limit ?? mappedCards.length) || 1)
+                ),
+            },
+          });
+        });
+
+
+        initialBoardIdRef.current = resolvedBoardId;
+        setAreAllCardsFetched(true);
+        setListsHydrated(true);
+        const skippedMeta = payload.meta?.skipped;
+        const skipDashCounts = skippedMeta?.dashcardCounts === true;
+        setDashcardCountsReady(!skipDashCounts);
+      })
+      .catch((error) => {
+        console.error("Failed to hydrate board data", error);
+        if (!isActive) return;
+        setCardPrefetchError("Unable to load board data. Please try again.");
+      })
+      .finally(() => {
+        if (!isActive) return;
+        setIsHydratingFullData(false);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [resolvedBoardId, resolvedWorkspaceId, queryClient]);
 
   // Track current drag state for immediate updates
   const currentDragState = useRef<{
@@ -492,12 +641,41 @@ const Board: React.FC = () => {
 
   // Show lists directly from React Query cache - no local state needed
   const cardsFetchEnabled = areAllCardsFetched;
-  const boardReady = areAllCardsFetched && listsHydrated;
+  const boardReady =
+    areAllCardsFetched && listsHydrated && dashcardCountsReady;
   const shouldRenderLists =
     !isLoading &&
     Array.isArray(lists) &&
     lists.length >= 0 &&
     areAllCardsFetched;
+
+  // Gradually reveal lists in compact mode to avoid blocking the main thread
+  useEffect(() => {
+    if (!compactMode) {
+      setVisibleListsCount(lists?.length || 0);
+      return;
+    }
+    if (!lists || lists.length === 0) return;
+
+    let cancelled = false;
+    const step = 4;
+    const tick = () => {
+      setVisibleListsCount((prev) => {
+        const next = Math.min(prev + step, lists.length);
+        return next;
+      });
+      if (!cancelled && visibleListsCount < lists.length) {
+        setTimeout(tick, 30);
+      }
+    };
+
+    // start progression shortly after mount
+    setTimeout(tick, 50);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [compactMode, lists?.length, lists]);
 
   const handleListHydrated = useCallback(
     (listId: string) => {
@@ -511,7 +689,7 @@ const Board: React.FC = () => {
   );
 
   useEffect(() => {
-    if (!resolvedBoardId || isLoading || !lists) return;
+    if (!resolvedBoardId || isLoading || !lists || isHydratingFullData) return;
 
     if (initialBoardIdRef.current === resolvedBoardId && areAllCardsFetched) {
       return;
@@ -531,6 +709,7 @@ const Board: React.FC = () => {
       return;
     }
 
+    const PREFETCH_BATCH_SIZE = 3;
     let isActive = true;
     initialPrefetchInProgressRef.current = true;
     prefetchedListIdsRef.current = [];
@@ -539,28 +718,40 @@ const Board: React.FC = () => {
     setListsHydrated(false);
     setCardPrefetchError(null);
 
-    const prefetchPromises = listIds.map((listId) =>
-      queryClient.prefetchQuery({
-        queryKey: queryKeys.cards.list(listId),
-        queryFn: () => cards(listId, resolvedBoardId),
-      })
-    );
+    const runPrefetch = async () => {
+      let encounteredError = false;
+      for (let i = 0; i < listIds.length && isActive; i += PREFETCH_BATCH_SIZE) {
+        const batch = listIds.slice(i, i + PREFETCH_BATCH_SIZE);
+        const results = await Promise.allSettled(
+          batch.map((listId) =>
+            queryClient.prefetchQuery({
+              queryKey: queryKeys.cards.list(listId),
+              queryFn: () => cards(listId, resolvedBoardId),
+            })
+          )
+        );
 
-    Promise.allSettled(prefetchPromises)
-      .then((results) => {
-        if (!isActive) return;
         if (results.some((result) => result.status === "rejected")) {
-          setCardPrefetchError(
-            "Unable to load some lists. Please refresh if this persists."
-          );
+          encounteredError = true;
         }
-        initialBoardIdRef.current = resolvedBoardId;
-        prefetchedListIdsRef.current = listIds;
-        setAreAllCardsFetched(true);
-      })
-      .finally(() => {
-        initialPrefetchInProgressRef.current = false;
-      });
+      }
+
+      if (!isActive) return;
+
+      if (encounteredError) {
+        setCardPrefetchError(
+          "Unable to load some lists. Please refresh if this persists."
+        );
+      }
+
+      initialBoardIdRef.current = resolvedBoardId;
+      prefetchedListIdsRef.current = listIds;
+      setAreAllCardsFetched(true);
+    };
+
+    runPrefetch().finally(() => {
+      initialPrefetchInProgressRef.current = false;
+    });
 
     return () => {
       isActive = false;
@@ -831,60 +1022,165 @@ const Board: React.FC = () => {
 
     // Perform cache updates now that drag is complete (prevents re-renders during drag)
     if (actualMove && originalCard && originalListId) {
+      // Helper to update cards cache and keep paginate totals in sync
+      const updateCardsCache = (
+        listId: string,
+        mutate: (cards: Card[]) => Card[],
+        deltaTotal: number
+      ) => {
+        queryClient.setQueryData<ApiResponse<Card[]>>(
+          queryKeys.cards.list(listId),
+          (old) => {
+            const prevData = old?.data ?? [];
+            const newData = mutate(prevData);
+
+            const basePaginate = (old as any)?.paginate || {};
+            const limit =
+              basePaginate.limit ??
+              basePaginate.limit ??
+              20;
+            const page = basePaginate.page ?? 1;
+            const prevTotal =
+              basePaginate.totalData ??
+              basePaginate.total_data ??
+              prevData.length;
+            const newTotal = Math.max(
+              prevTotal + deltaTotal,
+              newData.length
+            );
+            const totalPage = Math.max(
+              1,
+              Math.ceil(newTotal / (limit || 1))
+            );
+            const nextPageCandidate =
+              basePaginate.nextPage ??
+              basePaginate.next_page ??
+              (newTotal > newData.length ? page + 1 : null);
+            return {
+              status_code: old?.status_code ?? 200,
+              message: old?.message ?? "Success",
+              data: newData,
+              paginate: {
+                ...basePaginate,
+                limit,
+                page,
+                totalData: newTotal,
+                totalPage,
+                nextPage: newTotal > newData.length ? nextPageCandidate : null,
+                prevPage: page > 1 ? page - 1 : 0,
+              },
+            };
+          }
+        );
+      };
+      // Helper to update list-level totals (cards_total, cards_paginate) used by headers
+      const bumpListTotals = (listId: string, delta: number) => {
+        if (!resolvedBoardId) return;
+
+        const adjustListMeta = (list: any) => {
+          if (!list) return list;
+          const limit =
+            list.cards_paginate?.limit ??
+            list.cardsPaginate?.limit ??
+            list.cards_paginate?.limit ??
+            20;
+          const currentTotal =
+            list.cards_paginate?.total_data ??
+            list.cards_paginate?.totalData ??
+            list.cardsPaginate?.totalData ??
+            list.cards_total ??
+            0;
+          const nextTotal = Math.max(0, (currentTotal as number) + delta);
+          const nextTotalPage = Math.max(
+            1,
+            Math.ceil(nextTotal / (limit || 1))
+          );
+
+          return {
+            ...list,
+            cards_total: nextTotal,
+            cards_paginate: {
+              ...(list.cards_paginate || list.cardsPaginate || {}),
+              total_data: nextTotal,
+              totalData: nextTotal,
+              total_page: nextTotalPage,
+              totalPage: nextTotalPage,
+            },
+          };
+        };
+
+        // lists.board cache
+        queryClient.setQueryData(
+          ["lists", resolvedBoardId],
+          (old: any) => {
+            if (!old?.data) return old;
+            return {
+              ...old,
+              data: old.data.map((l: any) =>
+                l.id === listId ? adjustListMeta(l) : l
+              ),
+            };
+          }
+        );
+
+        // boards.withLists cache
+        queryClient.setQueryData(
+          queryKeys.boards.withLists(resolvedBoardId),
+          (old: any) => {
+            if (!old?.data) return old;
+            const lists = old.data.lists || old.data?.lists;
+            if (!Array.isArray(lists)) return old;
+            const nextLists = lists.map((l: any) =>
+              l.id === listId ? adjustListMeta(l) : l
+            );
+            return {
+              ...old,
+              data: {
+                ...old.data,
+                lists: nextLists,
+              },
+            };
+          }
+        );
+      };
+
       // Handle cross-list moves
       if (destListId !== originalListId) {
         // Remove card from original list
-        queryClient.setQueryData<ApiResponse<Card[]>>(
-          queryKeys.cards.list(originalListId),
-          (old) => {
-            if (!old?.data)
-              return { status_code: 200, message: "Success", data: [] };
-            const newData = old.data.filter((c) => c.id !== cardId);
-            return { ...old, data: newData };
-          }
+        updateCardsCache(
+          originalListId,
+          (cards) => cards.filter((c) => c.id !== cardId),
+          -1
         );
+        bumpListTotals(originalListId, -1);
 
         // Add card to destination list
-        queryClient.setQueryData<ApiResponse<Card[]>>(
-          queryKeys.cards.list(destListId),
-          (old) => {
-            if (!old?.data) {
-              const updatedCard = { ...originalCard, listId: destListId };
-              return {
-                status_code: 200,
-                message: "Success",
-                data: [updatedCard],
-              };
-            }
-
-            const newCards = [...old.data];
+        updateCardsCache(
+          destListId,
+          (cards) => {
+            const newCards = [...cards];
             const insertPosition = Math.min(destIndex, newCards.length);
             const updatedCard = { ...originalCard, listId: destListId };
             newCards.splice(insertPosition, 0, updatedCard);
-
-            return { ...old, data: newCards };
-          }
+            return newCards;
+          },
+          1
         );
+        bumpListTotals(destListId, 1);
       } else {
         // Handle same-list reordering
-        queryClient.setQueryData<ApiResponse<Card[]>>(
-          queryKeys.cards.list(destListId),
-          (old) => {
-            if (!old?.data)
-              return { status_code: 200, message: "Success", data: [] };
-
-            const newCards = [...old.data];
-            // Remove the card from its current position
+        updateCardsCache(
+          destListId,
+          (cards) => {
+            const newCards = [...cards];
             const cardIndex = newCards.findIndex((c) => c.id === cardId);
-            if (cardIndex === -1) return old;
-
+            if (cardIndex === -1) return newCards;
             const [movedCard] = newCards.splice(cardIndex, 1);
-            // Insert at new position
             const insertPosition = Math.min(destIndex, newCards.length);
             newCards.splice(insertPosition, 0, movedCard);
-
-            return { ...old, data: newCards };
-          }
+            return newCards;
+          },
+          0
         );
       }
 
@@ -960,6 +1256,7 @@ const Board: React.FC = () => {
                 resolvedBoardId={resolvedBoardId}
                 updateList={updateList}
                 deleteList={deleteList}
+                compactMode={compactMode}
                 isAddingList={isAddingList}
                 setIsAddingList={setIsAddingList}
                 newListName={newListName}
@@ -977,6 +1274,7 @@ const Board: React.FC = () => {
                 cardsFetchEnabled={cardsFetchEnabled}
                 onListCardsHydrated={handleListHydrated}
                 cardPrefetchError={cardPrefetchError}
+                visibleListsCount={visibleListsCount}
               />
               <HorizontalSlider
                 containerRef={boardScrollContainerRef}

@@ -15,7 +15,7 @@ import {
 import { api } from "../api";
 import { ApiResponse } from "../types/type";
 import { Card, CopycardPost } from "../types/card";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { queryKeys } from "@constants/query-keys";
 
 export function useCards(listId: string, boardId: string) {
@@ -438,19 +438,103 @@ export function useCardsPaginated(
   boardId: string,
   options?: {
     enabled?: boolean;
+    compactMode?: boolean;
+    allowFetchInCompact?: boolean;
+    initialTotal?: number;
+    initialHasMore?: boolean;
+    workspaceId?: string;
+    expectedTotalOverride?: number;
   }
 ) {
   const queryClient = useQueryClient();
+  const initialTotalFromOptions =
+    options?.initialTotal ??
+    options?.expectedTotalOverride ??
+    0;
   const [currentPage, setCurrentPage] = useState(1);
   const [allCards, setAllCards] = useState<Card[]>([]);
-  const [hasMoreCards, setHasMoreCards] = useState(true);
+  const [hasMoreCards, setHasMoreCards] = useState(
+    options?.initialHasMore ?? true
+  );
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
-  const [totalCards, setTotalCards] = useState<number>(0);
+  const [totalCards, setTotalCards] = useState<number>(
+    options?.initialTotal ?? 0
+  );
   const limit = 20;
+  const initialTotalRef = useRef<number>(
+    (options?.initialTotal && options.initialTotal > 0
+      ? options.initialTotal
+      : 0) || 0
+  );
+
+  // Helpers to determine pagination state even when the backend does not return totals
+  const normalizeTotal = (total?: number | null) =>
+    total && total > 0 ? total : undefined;
+  const deriveHasMore = (
+    explicitTotal: number | undefined,
+    currentLength: number,
+    pageSize: number,
+    lastPageLength?: number
+  ) => {
+    if (explicitTotal !== undefined) {
+      return currentLength < explicitTotal;
+    }
+    if (lastPageLength !== undefined) {
+      return lastPageLength >= pageSize;
+    }
+    return currentLength >= pageSize;
+  };
+  const deriveTotal = (
+    explicitTotal: number | undefined,
+    currentLength: number,
+    hasMore: boolean
+  ) => {
+    if (explicitTotal !== undefined) return explicitTotal;
+    // If total is unknown but we think there are more, show a +1 to hint pagination
+    return hasMore ? currentLength + 1 : currentLength;
+  };
+
+  const augmentDashcardCard = (card: Card): Card => card;
+  const coerceTotal = useCallback(
+    (value: number | undefined, lengthHint?: number) => {
+      const numericValue =
+        typeof value === "number" && !Number.isNaN(value) ? value : 0;
+      const length = lengthHint ?? allCards.length;
+      const floorTotal = normalizeTotal(initialTotalFromOptions) ?? 0;
+      const remembered = initialTotalRef.current;
+      return Math.max(numericValue, length, floorTotal, remembered);
+    },
+    [allCards.length, initialTotalFromOptions]
+  );
+  const rememberTotal = useCallback(
+    (maybeTotal?: number | null) => {
+      const normalized = normalizeTotal(maybeTotal);
+      if (normalized !== undefined && normalized > initialTotalRef.current) {
+        initialTotalRef.current = normalized;
+      }
+    },
+    []
+  );
+  useEffect(() => {
+    rememberTotal(initialTotalFromOptions);
+    if (options?.expectedTotalOverride) {
+      rememberTotal(options.expectedTotalOverride);
+    }
+  }, [initialTotalFromOptions, rememberTotal]);
 
   // Initial query for first page
-  const isEnabled = !!listId && (options?.enabled ?? true);
+  const cachedData = queryClient.getQueryData<ApiResponse<Card[]>>(
+    queryKeys.cards.list(listId)
+  );
+  const hasCache = !!cachedData;
+
+  const isEnabled =
+    !!listId &&
+    (options?.enabled ?? true) &&
+    (!options?.compactMode ||
+      options?.allowFetchInCompact === true ||
+      !hasCache);
 
   const cardsQuery = useQuery({
     queryKey: queryKeys.cards.list(listId),
@@ -460,115 +544,291 @@ export function useCardsPaginated(
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
     retry: 3,
-    staleTime: 60000,
+    staleTime: 5 * 60 * 1000,
   });
 
   // Reset pagination when listId changes and initialize from cache if available
   useEffect(() => {
+    // Check cache first
     if (!isEnabled) {
-      setAllCards([]);
-      setHasMoreCards(true);
-      setTotalCards(0);
+      // In compact mode we may rely purely on hydrated cache; do not wipe out cards if cached.
+      if (cachedData?.data && Array.isArray(cachedData.data)) {
+        const explicitTotal = normalizeTotal(
+          cachedData.paginate?.totalData ||
+            (cachedData as any).paginate?.total_data ||
+            initialTotalFromOptions
+        );
+        rememberTotal(explicitTotal);
+        setAllCards(cachedData.data);
+        const hasMore =
+          deriveHasMore(
+            explicitTotal,
+            cachedData.data.length,
+            limit,
+            cachedData.data.length
+          ) || (options?.initialHasMore ?? false);
+        setHasMoreCards(hasMore);
+        setTotalCards(
+          coerceTotal(
+            deriveTotal(explicitTotal, cachedData.data.length, hasMore),
+            cachedData.data.length
+          )
+        );
+      } else {
+        setAllCards([]);
+        setHasMoreCards(options?.initialHasMore ?? true);
+        setTotalCards(coerceTotal(initialTotalFromOptions || 0));
+      }
       return;
     }
 
-    setCurrentPage(1);
+    const initialPage =
+      cachedData?.paginate?.page ||
+      (cachedData as any)?.paginate?.page ||
+      1;
+    setCurrentPage(initialPage);
     setIsLoadingMore(false);
     setLoadMoreError(null);
-    setTotalCards(0);
-    
-    // Check if we have cached data for this listId
-    const cachedData = queryClient.getQueryData<ApiResponse<Card[]>>(
-      queryKeys.cards.list(listId)
-    );
-    
+    setTotalCards(coerceTotal(0));
+
     if (cachedData?.data && Array.isArray(cachedData.data)) {
       // Initialize from cached data
+      const explicitTotal = normalizeTotal(
+        cachedData.paginate?.totalData ||
+          (cachedData as any).paginate?.total_data ||
+          initialTotalFromOptions
+      );
+      rememberTotal(explicitTotal);
       setAllCards(cachedData.data);
-      setHasMoreCards(cachedData.data.length === limit);
-      
-      // Extract total count from cached pagination data
-      const totalCount = cachedData.paginate?.totalData || cachedData.data.length;
-      setTotalCards(totalCount);
+      const hasMore =
+        deriveHasMore(
+          explicitTotal,
+          cachedData.data.length,
+          limit,
+          cachedData.data.length
+        ) || (options?.initialHasMore ?? false);
+      setHasMoreCards(hasMore);
+      setTotalCards(
+        coerceTotal(
+          deriveTotal(explicitTotal, cachedData.data.length, hasMore),
+          cachedData.data.length
+        )
+      );
     } else {
       // No cached data, reset to empty state
       setAllCards([]);
-      setHasMoreCards(true);
+      setHasMoreCards(options?.initialHasMore ?? true);
     }
-  }, [listId, queryClient, limit, isEnabled]);
+  }, [listId, queryClient, limit, isEnabled, coerceTotal, rememberTotal]);
 
   // Update allCards when initial query data changes (for fresh data)
   useEffect(() => {
     if (!isEnabled) return;
+    if (!cardsQuery.data?.data || cardsQuery.isLoading) return;
 
-    if (cardsQuery.data?.data && !cardsQuery.isLoading) {
-      const incoming = cardsQuery.data.data;
+    const incoming = cardsQuery.data.data.map(augmentDashcardCard);
+    const explicitTotal = normalizeTotal(
+      cardsQuery.data.paginate?.totalData ||
+        (cardsQuery.data as any).paginate?.total_data ||
+        initialTotalFromOptions
+    );
+    rememberTotal(explicitTotal);
 
-      if (currentPage > 1) {
-        // Replace the first page with the latest data, keep already loaded pages
-        const incomingIds = new Set(incoming.map((c) => c.id));
-        const rest = allCards
+    if (currentPage > 1) {
+      // Replace the first page with the latest data, keep already loaded pages
+      const incomingIds = new Set(incoming.map((c) => c.id));
+      setAllCards((prev) => {
+        const rest = prev
           // keep items beyond the first page or items not returned anymore (e.g., deleted)
           .filter((_, idx) => idx >= limit && !incomingIds.has(_.id));
         const merged = [...incoming, ...rest];
-        setAllCards(merged);
-        // Keep hasMoreCards as-is; deletion shouldn't reset pagination
-      } else {
-        // Initial load or single-page state
-        setAllCards(incoming);
-        setHasMoreCards(incoming.length === limit);
-        setCurrentPage(1);
-      }
-
-      const totalCount =
-        cardsQuery.data.paginate?.totalData || incoming.length || totalCards;
-      setTotalCards(totalCount);
-      setLoadMoreError(null); // Clear any previous errors
+        const mergedHasMore = deriveHasMore(
+          explicitTotal,
+          merged.length,
+          limit,
+          incoming.length
+        );
+        setHasMoreCards(mergedHasMore);
+        setTotalCards(deriveTotal(explicitTotal, merged.length, mergedHasMore));
+        return merged;
+      });
+    } else {
+      // Initial load or single-page state
+      setAllCards(incoming);
+      const firstPageHasMore =
+        deriveHasMore(explicitTotal, incoming.length, limit, incoming.length) ||
+        (options?.initialHasMore ?? false);
+      setHasMoreCards(firstPageHasMore);
+      setCurrentPage(1);
+      setTotalCards(
+        coerceTotal(
+          deriveTotal(explicitTotal, incoming.length, firstPageHasMore),
+          incoming.length
+        )
+      );
     }
+
+    setLoadMoreError(null); // Clear any previous errors
   }, [
     cardsQuery.data?.data,
     cardsQuery.isLoading,
     limit,
-    allCards,
     currentPage,
-    totalCards,
     isEnabled,
+    options?.initialHasMore,
+    initialTotalFromOptions,
+    coerceTotal,
+    rememberTotal,
   ]);
 
   // Load more cards function
   const loadMoreCards = useCallback(async () => {
-    if (!isEnabled || !hasMoreCards || isLoadingMore) return;
+    const expectedTotal = coerceTotal(
+      totalCards || initialTotalFromOptions,
+      allCards.length
+    );
+    const expectedWithOverride = Math.max(
+      expectedTotal,
+      options?.expectedTotalOverride ?? 0,
+      initialTotalFromOptions
+    );
+    const shouldAttempt =
+      hasMoreCards ||
+      loadMoreError ||
+      allCards.length < expectedWithOverride;
+    const nextPageHint =
+      cardsQuery.data?.paginate?.nextPage ||
+      (cardsQuery.data as any)?.paginate?.next_page ||
+      currentPage + 1;
+
+    console.log("[LOAD MORE] click", {
+      listId,
+      boardId,
+      currentPage,
+      nextPageHint,
+      expectedTotal,
+      loaded: allCards.length,
+      hasMoreCards,
+      loadMoreError,
+      isEnabled,
+      isLoadingMore,
+      shouldAttempt,
+    });
+
+    // if (!isEnabled || !shouldAttempt) {
+    //   console.log("[LOAD MORE] skipping fetch", {
+    //     reason: !isEnabled
+    //       ? "disabled"
+    //       : isLoadingMore
+    //       ? "already loading"
+    //       : "no more to load",
+    //   });
+    //   return;
+    // }
 
     setIsLoadingMore(true);
     setLoadMoreError(null); // Clear previous errors
 
     try {
-      const nextPage = currentPage + 1;
+      const nextPage = Math.max(1, nextPageHint);
       const response = await cards(listId, boardId, nextPage, limit);
 
       const responseData = response.data;
+      const explicitTotal = normalizeTotal(
+        (response as any)?.paginate?.totalData ||
+          (response as any)?.paginate?.total_data ||
+          response.paginate?.totalData ||
+          (response as any).paginate?.total_data ||
+          initialTotalFromOptions
+      );
+      rememberTotal(explicitTotal);
       if (
         responseData &&
         Array.isArray(responseData) &&
         responseData.length > 0
       ) {
-        const newAllCards = [...allCards, ...responseData];
+        const newAllCards = [
+          ...allCards,
+          ...responseData.map(augmentDashcardCard),
+        ];
         setAllCards(newAllCards);
         setCurrentPage(nextPage);
-        setHasMoreCards(responseData.length === limit);
+        const mergedHasMore = deriveHasMore(
+          explicitTotal,
+          newAllCards.length,
+          limit,
+          responseData.length
+        );
+        const nextTotal = deriveTotal(
+          explicitTotal,
+          newAllCards.length,
+          mergedHasMore
+        );
+        setHasMoreCards(mergedHasMore);
+        setTotalCards(coerceTotal(nextTotal, newAllCards.length));
+
+        console.log("[LOAD MORE] success", {
+          fetched: responseData.length,
+          nextPage,
+          mergedHasMore,
+          nextTotal,
+          explicitTotal,
+        });
 
         // Update the query cache with all cards for drag-and-drop compatibility
         queryClient.setQueryData<ApiResponse<Card[]>>(
           queryKeys.cards.list(listId),
-          (old) => ({
-            ...old,
-            status_code: 200,
-            message: "Success",
-            data: newAllCards,
-          })
+          (old) => {
+            const basePaginate =
+              (old as ApiResponse<Card[]> | undefined)?.paginate || {
+                limit,
+                page: nextPage,
+                totalData: nextTotal,
+                totalPage: Math.max(1, Math.ceil(nextTotal / (limit || 1))),
+                nextPage: mergedHasMore ? nextPage + 1 : nextPage,
+                prevPage: nextPage > 1 ? nextPage - 1 : 0,
+              };
+
+            const effectiveLimit = basePaginate.limit ?? limit;
+            const effectivePage = basePaginate.page ?? nextPage;
+            const effectiveTotalPage =
+              basePaginate.totalPage ??
+              Math.max(1, Math.ceil(nextTotal / (effectiveLimit || 1)));
+            const effectivePrevPage =
+              effectivePage > 1 ? effectivePage - 1 : 0;
+            const effectiveNextPage = mergedHasMore
+              ? effectivePage + 1
+              : Math.min(effectiveTotalPage, Math.max(effectivePage, 1));
+
+            return {
+              ...old,
+              status_code: 200,
+              message: "Success",
+              data: newAllCards,
+              paginate: {
+                ...basePaginate,
+                limit: effectiveLimit,
+                page: effectivePage,
+                totalData: nextTotal,
+                totalPage: effectiveTotalPage,
+                nextPage: effectiveNextPage,
+                prevPage: effectivePrevPage,
+              },
+            };
+          }
         );
       } else {
         setHasMoreCards(false);
+        setTotalCards((prev) =>
+          coerceTotal(
+            deriveTotal(explicitTotal, allCards.length, false),
+            allCards.length
+          )
+        );
+        console.log("[LOAD MORE] no data returned", {
+          nextPage,
+          explicitTotal,
+        });
       }
     } catch (error) {
       console.error("Error loading more cards:", error);
@@ -586,6 +846,8 @@ export function useCardsPaginated(
     allCards,
     queryClient,
     isEnabled,
+    coerceTotal,
+    rememberTotal,
   ]);
 
   // Add card mutation with optimistic updates for paginated cards
@@ -656,7 +918,12 @@ export function useCardsPaginated(
 /**
  * Hook to manage card movement between lists or within a list
  */
-export function useCardMove(boardId?: string) {
+export function useCardMove(
+  boardId?: string,
+  options?: {
+    onSettled?: () => void;
+  }
+) {
   const queryClient = useQueryClient();
 
   const cardMoveMutation = useMutation({

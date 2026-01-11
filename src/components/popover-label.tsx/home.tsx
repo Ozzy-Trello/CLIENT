@@ -20,12 +20,14 @@ interface LabelManagerProps {
   selectedLabel: CardLabel | undefined;
   setSelectedLabel: (label: CardLabel | undefined) => void;
   selectedCard: Card | null;
+  enabled: boolean;
 }
 
 const Home: React.FC<LabelManagerProps> = ({
   setPopoverPage,
   setSelectedLabel,
   selectedCard,
+  enabled,
 }) => {
   const { workspaceId } = useParams();
   const [searchTerm, setSearchTerm] = useState("");
@@ -41,14 +43,17 @@ const Home: React.FC<LabelManagerProps> = ({
     hasMore,
     loadMore,
     totalCount,
-  } = useWorkspaceLabels(workspaceId as string, searchTerm);
+  } = useWorkspaceLabels(workspaceId as string, searchTerm, { enabled });
 
-  const { topLabels } = useTopWorkspaceLabels(workspaceId as string, 2);
+  const { topLabels } = useTopWorkspaceLabels(workspaceId as string, 2, {
+    enabled,
+  });
 
   const { cardLabels, addCardLabel, removeCardLabel } = useLabels(
     workspaceId as string,
     selectedCard?.id,
-    { cardId: selectedCard?.id }
+    { cardId: selectedCard?.id },
+    { enabled: enabled && !!selectedCard?.id }
   );
 
   const handleSearchChange = useCallback((value: string) => {

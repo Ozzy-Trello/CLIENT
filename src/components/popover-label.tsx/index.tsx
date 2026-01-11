@@ -14,6 +14,7 @@ interface PopoverLabel {
   setOpen: (open: boolean) => void;
   triggerEl?: ReactNode;
   card?: Card | null;
+  enabled?: boolean;
 }
 
 const PopoverLabel: React.FC<PopoverLabel> = ({
@@ -21,6 +22,7 @@ const PopoverLabel: React.FC<PopoverLabel> = ({
   setOpen,
   triggerEl,
   card,
+  enabled = false,
 }) => {
   const { selectedCard, activeList, setSelectedCard } = useCardDetailContext();
   const { boardId, workspaceId } = useParams();
@@ -32,10 +34,11 @@ const PopoverLabel: React.FC<PopoverLabel> = ({
   );
 
   const targetCard = card ?? selectedCard;
+  const labelsEnabled = (open || enabled) && !!workspaceId && !!targetCard?.id;
 
   const { allLabels } = useLabels(workspaceId as string, targetCard?.id, {
     cardId: targetCard?.id,
-  });
+  }, { enabled: labelsEnabled });
 
   // No need for reset since we're fetching all labels at once
 
@@ -58,6 +61,7 @@ const PopoverLabel: React.FC<PopoverLabel> = ({
             selectedLabel={selectedLabel}
             setSelectedLabel={setSelectedLabel}
             selectedCard={targetCard}
+            enabled={open}
           />
         ) : (
           <LabelForm

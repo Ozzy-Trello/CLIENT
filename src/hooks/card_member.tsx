@@ -16,9 +16,10 @@ export const useCardMembers = (
 ) => {
   const queryClient = useQueryClient();
   const isEnabled = !!cardId && (options?.enabled ?? true);
+  const queryKey = cardId ? ["cardMembers", cardId] : ["cardMembers", "__none__"];
 
   const cardMembersQuery = useQuery({
-    queryKey: ["cardMembers", cardId],
+    queryKey,
     queryFn: () => getCardMember(cardId),
     enabled: isEnabled,
     staleTime: 30000, // 30 seconds

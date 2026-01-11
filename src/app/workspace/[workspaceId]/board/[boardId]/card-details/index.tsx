@@ -151,6 +151,7 @@ const CardDetails: React.FC = (props) => {
   const [newTitle, setNewTitle] = useState<string>("");
   // Only need mutations; avoid fetching full list data just to update a card
   const { updateCard } = useCardMutationsOnly();
+  const selectedCardPrefetched = (selectedCard as any)?._prefetched || {};
   const {
     cardMembers,
     addMember,
@@ -161,6 +162,7 @@ const CardDetails: React.FC = (props) => {
     enabled:
       isCardDetailOpen &&
       !!selectedCard?.id &&
+      !selectedCardPrefetched.members &&
       !(selectedCard?.members && selectedCard.members.length > 0),
   });
   const { cardLabels, allLabels } = useLabels(
@@ -171,6 +173,7 @@ const CardDetails: React.FC = (props) => {
       enabled:
         isCardDetailOpen &&
         !!selectedCard?.id &&
+        !selectedCardPrefetched.labels &&
         !(selectedCard?.labels && selectedCard.labels.length > 0),
     }
   );
@@ -588,6 +591,7 @@ const CardDetails: React.FC = (props) => {
             <PopoverLabel
               open={openLabel}
               setOpen={setOpenLabel}
+              enabled={openLabel}
               triggerEl={
                 <Tag className="cursor-pointer rounded-md border-dashed hover:bg-gray-50">
                   +

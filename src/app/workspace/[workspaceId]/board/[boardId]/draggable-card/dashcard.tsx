@@ -1,17 +1,16 @@
 import { Card } from "@myTypes/card";
 import { Checkbox, CheckboxChangeEvent, Typography } from "antd";
-import { useDashcardCount } from "@hooks/dashcard";
-import { useDashcardList } from "@hooks/dashcard-list";
 import { useSelector } from "react-redux";
 import { selectIsDarkMode } from "@store/app_slice";
-import { DashcardDisplayType } from "@myTypes/dashcard";
-import { useCustomFields } from "@hooks/custom_field";
 import { useParams } from "next/navigation";
-import { EnumCustomFieldType } from "@myTypes/custom-field";
+import { useBoardFullStore } from "@store/board-full-store";
+import { useDashcardCountStore } from "@store/dashcard-count-store";
 import "./styles.css";
+import { useEffect } from "react";
 
 interface DashcardProps {
   card: Card;
+  boardId?: string;
   isHovered: boolean;
   onCompletionChange: (e: CheckboxChangeEvent, card: Card) => void;
   isDragging?: boolean;
@@ -47,19 +46,51 @@ const getFadeColor = (hex: string, isDarkMode: boolean, amount = 0.8) => {
 };
 
 const Dashcard: React.FC<DashcardProps> = (props) => {
-  const { card, isHovered, onCompletionChange, isDragging = false } = props;
+  const { card, boardId: boardIdProp, isHovered, onCompletionChange, isDragging = false } = props;
   const isDarkMode = useSelector(selectIsDarkMode);
-  const { workspaceId } = useParams();
-  const { customFields } = useCustomFields(
-    Array.isArray(workspaceId) ? workspaceId[0] : workspaceId
+  const params = useParams();
+  const workspaceId = Array.isArray(params.workspaceId)
+    ? params.workspaceId[0]
+    : (params.workspaceId as string | undefined);
+  const boardId =
+    boardIdProp ||
+    (card as any).boardId ||
+    (card as any).board_id ||
+    (Array.isArray(params.boardId) ? params.boardId[0] : params.boardId);
+
+  const dashcardIdKey = card.id.toLowerCase().replace(/-/g, "");
+
+  const seededCount = useBoardFullStore((state) =>
+    boardId
+      ? state.boards[boardId]?.dashcardCounts?.[dashcardIdKey]
+      : undefined
   );
 
-  // Use our custom hook to fetch and manage dashcard count
-  const { count } = useDashcardCount(card.id);
+  useEffect(() => {
+    console.log("boards snapshot", useBoardFullStore.getState().boards);
+  }, []);
 
-  // Use dashcard list hook to get items with custom field data
-  const { resultData } = useDashcardList(card);
-  const items = resultData?.items || [];
+  // Workspace-level fallback populated during board hydration
+  const workspaceSeededCount = useDashcardCountStore((state) =>
+    workspaceId ? state.getCount(workspaceId as string, card.id) : undefined
+  );
+
+  const rawCount =
+    seededCount ??
+    workspaceSeededCount ??
+    (card as any).dashcardCount ??
+    (card as any).dashcard_count ??
+    0;
+  const resolvedCount =
+    typeof rawCount === "object" && rawCount !== null && "data" in rawCount
+      ? (rawCount as any).data
+      : rawCount;
+  const count =
+    typeof resolvedCount === "number"
+      ? resolvedCount
+      : typeof resolvedCount === "string"
+        ? parseInt(resolvedCount, 10)
+        : 0;
 
   // Calculate display value based on configuration
   const getDisplayValue = (): string => {
@@ -68,43 +99,10 @@ const Dashcard: React.FC<DashcardProps> = (props) => {
         typeof count === "number"
           ? count
           : typeof count === "string"
-          ? parseInt(count, 10)
-          : 0;
+            ? parseInt(count, 10)
+            : 0;
       return numericCount.toLocaleString();
     };
-
-    const displayConfig = card?.dashConfig?.displayConfig;
-
-    if (
-      displayConfig?.type === DashcardDisplayType.CUSTOM_FIELD_SUM &&
-      displayConfig.customFieldId
-    ) {
-      // Find the custom field to get its name
-      const customField = customFields?.find(
-        (field) => field.id === displayConfig.customFieldId
-      );
-      if (!customField) return formatCount();
-
-      // Calculate sum of the custom field using the field name
-      const sum = items.reduce((total, item) => {
-        const customFieldColumn = item.columns?.find(
-          (col) => col.column === customField.name
-        );
-        if (!customFieldColumn) return total;
-
-        const value = customFieldColumn.value;
-        const numValue =
-          typeof value === "string"
-            ? parseFloat(value)
-            : typeof value === "number"
-            ? value
-            : 0;
-        return total + (isNaN(numValue) ? 0 : numValue);
-      }, 0);
-
-      // Format number with separators
-      return Math.round(sum).toLocaleString();
-    }
 
     // Default to card count (also format with separators)
     return formatCount();
@@ -112,19 +110,7 @@ const Dashcard: React.FC<DashcardProps> = (props) => {
 
   // Get display label based on configuration
   const getDisplayLabel = () => {
-    const displayConfig = card?.dashConfig?.displayConfig;
-
-    if (
-      displayConfig?.type === DashcardDisplayType.CUSTOM_FIELD_SUM &&
-      displayConfig.customFieldId
-    ) {
-      const customField = customFields?.find(
-        (field) => field.id === displayConfig.customFieldId
-      );
-      return customField ? `${customField.name} Total` : "Custom Field Total";
-    }
-
-    return "Cards";
+    return card?.dashConfig?.name || "Cards";
   };
 
   return (
@@ -132,13 +118,12 @@ const Dashcard: React.FC<DashcardProps> = (props) => {
       className="w-full p-3 rounded-lg"
       style={{
         backgroundImage: card?.dashConfig?.backgroundColor
-          ? `linear-gradient(180deg, ${
-              card.dashConfig.backgroundColor
-            } 0%, ${getFadeColor(
-              card.dashConfig.backgroundColor,
-              isDarkMode,
-              1
-            )} 110%)`
+          ? `linear-gradient(180deg, ${card.dashConfig.backgroundColor
+          } 0%, ${getFadeColor(
+            card.dashConfig.backgroundColor,
+            isDarkMode,
+            1
+          )} 110%)`
           : undefined,
         backgroundColor: card?.dashConfig?.backgroundColor,
         minHeight: "110px",
@@ -161,9 +146,8 @@ const Dashcard: React.FC<DashcardProps> = (props) => {
         <div className="flex items-center space-x-2 relative mt-5">
           {/* Checkbox: visible on hover or when completed */}
           <Checkbox
-            className={`custom-circular-checkbox absolute left-0 -ml-6 ${
-              isHovered || card?.isComplete ? "opacity-100" : "opacity-0"
-            } ${card?.isComplete ? "completed" : ""}`}
+            className={`custom-circular-checkbox absolute left-0 -ml-6 ${isHovered || card?.isComplete ? "opacity-100" : "opacity-0"
+              } ${card?.isComplete ? "completed" : ""}`}
             checked={card?.isComplete}
             onChange={(e) => onCompletionChange(e, card)}
             onClick={(e) => e.stopPropagation()}
@@ -171,10 +155,9 @@ const Dashcard: React.FC<DashcardProps> = (props) => {
           <h3
             className={`
               text-blue-800 font-semibold text-lg
-              ${
-                isHovered || card?.isComplete
-                  ? "translate-x-6"
-                  : "translate-x-0"
+              ${isHovered || card?.isComplete
+                ? "translate-x-6"
+                : "translate-x-0"
               }
             `}
             style={{ color: isDarkMode ? "white" : undefined }}

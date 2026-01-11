@@ -320,7 +320,16 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
     setUserValue,
     isUpdating,
     isLoading,
-  } = useCardCustomField(card?.id || "", workspaceId);
+  } = useCardCustomField(card?.id || "", workspaceId, {
+    enabled:
+      !!card?.id &&
+      !!workspaceId &&
+      !((card as any)?._prefetched?.customFields === true),
+    initialData:
+      (card as any)?._prefetched?.customFields && card?.customFields
+        ? card.customFields
+        : undefined,
+  });
 
   // Get board-level permissions
   const { canManageCardCustomFields, canUpdateCard } =
