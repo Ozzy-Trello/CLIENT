@@ -28,7 +28,9 @@ const DateSetter: React.FC<DateSetterProps> = ({
   // Calendar navigation state
   const [currentMonth, setCurrentMonth] = useState<Dayjs>(dayjs());
   
-  // Reset component state when the modal becomes visible
+  // Reset component state when the incoming values actually change
+  const startKey = initialStartDate ? new Date(initialStartDate).getTime() : null;
+  const dueKey = initialDueDate ? new Date(initialDueDate).getTime() : null;
   useEffect(() => {
     setStartDate(initialStartDate ? dayjs(initialStartDate) : null);
     setDueDate(initialDueDate ? dayjs(initialDueDate) : null);
@@ -36,7 +38,7 @@ const DateSetter: React.FC<DateSetterProps> = ({
     setReminder(initialReminder);
     setShowDueDate(!!initialDueDate);
     setCurrentMonth(initialDueDate ? dayjs(initialDueDate) : dayjs());
-  }, [initialStartDate, initialDueDate, initialReminder]);
+  }, [startKey, dueKey, initialReminder]);
 
   // Calendar generation functions
   const getDaysInMonth = (date: Dayjs) => {
