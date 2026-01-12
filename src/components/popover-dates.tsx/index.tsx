@@ -1,8 +1,7 @@
 import React, { ReactNode, useEffect, useState } from "react";
 import { Popover, Typography, message } from "antd";
-import { ChevronLeft, X } from "lucide-react";
+import { X } from "lucide-react";
 import { useParams } from "next/navigation";
-import { UserSelection } from "../selection";
 import DateSetter from "./content";
 import { useCardDetailContext } from "@providers/card-detail-context";
 import { useCardDetails } from "@hooks/card-details";
@@ -21,7 +20,7 @@ const PopoverDates: React.FC<PopoverCustomFieldProps> = ({
   const { workspaceId, boardId } = useParams();
   const { selectedCard, setSelectedCard, activeList, refetchCardDetails } =
     useCardDetailContext();
-  const { updateCardAsync, isUpdating, refetch } = useCardDetails(
+  const { updateCardAsync, refetch } = useCardDetails(
     selectedCard?.id || "",
     activeList?.id || "",
     (boardId as string) || ""
@@ -31,6 +30,44 @@ const PopoverDates: React.FC<PopoverCustomFieldProps> = ({
     dueDate: Date | null;
     dueDateReminder: string | null;
   }>();
+
+  const normalizeDateValue = (value?: Date | string | null) =>
+    value ? new Date(value) : null;
+
+  const datesMatch = (
+    prev?:
+      | {
+          startDate: Date | null;
+          dueDate: Date | null;
+          dueDateReminder: string | null;
+        }
+      | undefined,
+    next?:
+      | {
+          startDate: Date | null;
+          dueDate: Date | null;
+          dueDateReminder: string | null;
+        }
+      | undefined
+  ) => {
+    if (!prev || !next) return false;
+
+    const sameStart =
+      (prev.startDate === null && next.startDate === null) ||
+      (prev.startDate &&
+        next.startDate &&
+        prev.startDate.getTime() === next.startDate.getTime());
+
+    const sameDue =
+      (prev.dueDate === null && next.dueDate === null) ||
+      (prev.dueDate &&
+        next.dueDate &&
+        prev.dueDate.getTime() === next.dueDate.getTime());
+
+    return (
+      sameStart && sameDue && prev.dueDateReminder === next.dueDateReminder
+    );
+  };
 
   const onSave = async (
     startDate: Date | null,
@@ -49,6 +86,16 @@ const PopoverDates: React.FC<PopoverCustomFieldProps> = ({
         dueDate: dueDate || undefined,
         dueDateReminder: reminder || "",
       });
+      setSelectedCard((prevCard) => {
+        if (!prevCard) return prevCard;
+        if (selectedCard && prevCard.id !== selectedCard.id) return prevCard;
+        return {
+          ...prevCard,
+          startDate: startDate || undefined,
+          dueDate: dueDate || undefined,
+          dueDateReminder: reminder || "",
+        };
+      });
       message.success("Card dates updated");
       refetch?.();
       refetchCardDetails?.();
@@ -60,26 +107,29 @@ const PopoverDates: React.FC<PopoverCustomFieldProps> = ({
   };
 
   useEffect(() => {
-    setDates({
-      startDate: selectedCard?.startDate || new Date(),
-      dueDate: selectedCard?.dueDate || null,
-      dueDateReminder: selectedCard?.dueDateReminder || "",
-    });
-  }, [selectedCard]);
-
-  useEffect(() => {
-    if (!isUpdating && selectedCard && dates) {
-      setSelectedCard((prevCard) => {
-        if (!prevCard) return prevCard;
-        return {
-          ...prevCard,
-          startDate: dates.startDate || undefined,
-          dueDate: dates.dueDate || undefined,
-          dueDateReminder: dates.dueDateReminder || "",
-        };
-      });
+    if (!selectedCard) {
+      setDates(undefined);
+      return;
     }
-  }, [isUpdating, dates]);
+
+    const nextDates = {
+      startDate: normalizeDateValue(selectedCard.startDate),
+      dueDate: normalizeDateValue(selectedCard.dueDate),
+      dueDateReminder: selectedCard.dueDateReminder || "",
+    };
+
+    setDates((prevDates) => {
+      if (datesMatch(prevDates, nextDates)) {
+        return prevDates;
+      }
+      return nextDates;
+    });
+  }, [
+    selectedCard?.id,
+    selectedCard?.startDate,
+    selectedCard?.dueDate,
+    selectedCard?.dueDateReminder,
+  ]);
 
   return (
     <Popover
