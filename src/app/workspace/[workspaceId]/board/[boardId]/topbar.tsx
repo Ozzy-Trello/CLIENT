@@ -210,15 +210,20 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
 
     setIsLoadingInvoice(true);
     try {
-      // Add your invoice submission logic here
-      // For example: await api.post('/invoices', { invoiceNumber, boardId: currentBoard?.id });
+      const response = await api.post("/accurate/invoice/process", {
+        soNumber: invoiceNumber.trim(),
+      });
 
-      message.success("Invoice added successfully");
+      const messageText =
+        response?.data?.message || "Invoice added successfully";
+      message.success(messageText);
       setInvoiceNumber("");
       setShowInvoiceInput(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error submitting invoice:", error);
-      message.error("Failed to add invoice");
+      const errorMessage =
+        error?.response?.data?.message || "Failed to add invoice";
+      message.error(errorMessage);
     } finally {
       setIsLoadingInvoice(false);
     }
