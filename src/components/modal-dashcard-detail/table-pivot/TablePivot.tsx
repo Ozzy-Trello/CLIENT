@@ -52,13 +52,14 @@ type ColumnSort = {
 };
 type SortingState = ColumnSort[];
 
-const humanizeColumnId = (columnId: string) =>
-  columnId
-    .replace(/([A-Z])/g, " $1")
-    .replace(/_/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .replace(/^./, (c) => c.toUpperCase());
+const humanizeColumnId = (columnId: string) => {
+  const cleaned = columnId.replace(/[_\s]+/g, " ").trim();
+  const withBoundaries = cleaned
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/([A-Z])([A-Z][a-z])/g, "$1 $2");
+  const normalized = withBoundaries.replace(/\s+/g, " ");
+  return normalized ? normalized.replace(/^./, (c) => c.toUpperCase()) : "";
+};
 
 const TablePivot: FC = () => {
   const [grouping, setGrouping] = useState<string[]>([]);
@@ -584,96 +585,141 @@ const TablePivot: FC = () => {
   const rowCount = table.getRowCount();
 
   const exportToExcel = useCallback(async () => {
+    console.log("[TablePivot] Export to Excel triggered");
     const XLSX = await import("xlsx");
-    const allColumnsForExport = Array.from(new Set([...baseColumnIds, ...dynamicColumns]));
-    const visibleColumns = allColumnsForExport.filter((col) => columnVisibility[col] !== false);
+    const orderedColumns =
+      visibleColumnsOrdered.length > 0
+        ? visibleColumnsOrdered
+        : allColumnIds.filter((col) => columnVisibility[col] !== false);
+    const exportColumns = ["name", "URL", ...orderedColumns.filter((col) => col !== "name")];
 
-    const headers = [...visibleColumns.map(humanizeColumnId), "URL"];
+    const headers = exportColumns.map((col) => (col === "URL" ? "URL" : humanizeColumnId(col)));
     const stripHtml = (value: string) => value.replace(/<[^>]*>/g, "");
+    const stripJmlTrailingZeros = (columnId: string, rawValue: any) => {
+      if (!columnId.toLowerCase().includes("jml")) return rawValue;
+      if (rawValue === null || rawValue === undefined) return rawValue;
+      const asString = String(rawValue);
+      const trimmed = asString.replace(/\.0+$/, "");
+      if (trimmed === asString) return rawValue;
+      const asNumber = Number(trimmed);
+      return Number.isFinite(asNumber) ? asNumber : trimmed;
+    };
+    const sanitizeFilename = (name: string) =>
+      name.replace(/[\\\\/:*?"<>|]/g, "").trim() || "dashcard";
 
-    const excelData = table.getFilteredRowModel().rows.map((row) => {
-      const rowData: any = {};
+    const excelRows = table.getFilteredRowModel().rows.map((row) => {
+      const cardData = row.original;
+      const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
+      const cardUrl = `${baseUrl}/workspace/${currentWorkspaceId}/board/${cardData.boardId}?listId=${cardData.listId}&cardId=${cardData.id}`;
 
-      visibleColumns.forEach((col) => {
-        const value = row.original[col];
+      return exportColumns.map((col) => {
+        if (col === "URL") {
+          return cardUrl;
+        }
+
+        const value = cardData[col];
 
         switch (col) {
           case "name":
-            rowData[humanizeColumnId(col)] = value || "";
-            break;
+            return stripJmlTrailingZeros(col, value || "");
           case "members":
-            rowData[humanizeColumnId(col)] =
+            return stripJmlTrailingZeros(
+              col,
               value && Array.isArray(value)
                 ? value
-                  .map(
-                    (member: any) =>
-                      LookupCache.label("user", member.id) || member.name || member.id
-                  )
-                  .join(", ")
-                : "";
-            break;
+                    .map(
+                      (member: any) =>
+                        LookupCache.label("user", member.id) || member.name || member.id
+                    )
+                    .join(", ")
+                : ""
+            );
           case "description":
-            rowData[humanizeColumnId(col)] = value ? stripHtml(value as string) : "";
-            break;
+            return stripJmlTrailingZeros(col, value ? stripHtml(value as string) : "");
           case "dueDate":
           case "createdAt":
             if (!value && value !== 0) {
-              rowData[humanizeColumnId(col)] = "";
-              break;
+              return "";
             }
             {
               const parsed = new Date(value as string);
-              rowData[humanizeColumnId(col)] = isNaN(parsed.getTime())
+              return isNaN(parsed.getTime())
                 ? ""
-                : parsed.toLocaleDateString();
+                : stripJmlTrailingZeros(col, parsed.toLocaleDateString());
             }
-            break;
           case "productInfo":
           case "bahanInfo":
           case "warnaInfo":
-            rowData[humanizeColumnId(col)] =
-              (value as any)?.name || (value as any)?.label || "";
-            break;
+            return stripJmlTrailingZeros(
+              col,
+              (value as any)?.name || (value as any)?.label || ""
+            );
           default: {
             if (value === null || value === undefined) {
-              rowData[humanizeColumnId(col)] = "";
-            } else if (typeof value === "string") {
-              const cachedValue = LookupCache.any(value);
-              rowData[humanizeColumnId(col)] = cachedValue || value;
-            } else if (Array.isArray(value)) {
-              rowData[humanizeColumnId(col)] = value
-                .map((v) => {
-                  if (typeof v === "string") {
-                    return LookupCache.any(v) || v;
-                  }
-                  return String(v);
-                })
-                .join(", ");
-            } else if (typeof value === "boolean") {
-              rowData[humanizeColumnId(col)] = value ? "Yes" : "No";
-            } else {
-              rowData[humanizeColumnId(col)] = String(value);
+              return "";
             }
+            if (typeof value === "string") {
+              const cachedValue = LookupCache.any(value);
+              return stripJmlTrailingZeros(col, cachedValue || value);
+            }
+            if (Array.isArray(value)) {
+              return stripJmlTrailingZeros(
+                col,
+                value
+                  .map((v) => {
+                    if (typeof v === "string") {
+                      return LookupCache.any(v) || v;
+                    }
+                    return String(v);
+                  })
+                  .join(", ")
+              );
+            }
+            if (typeof value === "boolean") {
+              return stripJmlTrailingZeros(col, value ? "Yes" : "No");
+            }
+            return stripJmlTrailingZeros(col, String(value));
           }
         }
       });
-
-      const cardData = row.original;
-      const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
-      rowData["URL"] = `${baseUrl}/workspace/${currentWorkspaceId}/board/${cardData.boardId}?listId=${cardData.listId}&cardId=${cardData.id}`;
-
-      return rowData;
     });
 
-    const worksheet = XLSX.utils.json_to_sheet(excelData, { header: headers });
+    const worksheet = XLSX.utils.aoa_to_sheet([headers, ...excelRows]);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Table Data");
 
     const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, "-");
-    const filename = `table-export-${timestamp}.xlsx`;
+    const safeName = sanitizeFilename(dashcardConfig?.name || "dashcard");
+    const filename = `${safeName}-${timestamp}.xlsx`;
 
-    XLSX.writeFile(workbook, filename);
-  }, [baseColumnIds, dynamicColumns, columnVisibility, table, currentWorkspaceId]);
+    try {
+      if (typeof XLSX.writeFileXLSX === "function") {
+        XLSX.writeFileXLSX(workbook, filename, { compression: true });
+      } else {
+        const wbout = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+        const blob = new Blob([wbout], {
+          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+      console.log("[TablePivot] Export to Excel completed:", filename);
+    } catch (error) {
+      console.error("[TablePivot] Export to Excel failed:", error);
+      message.error("Failed to export Excel");
+    }
+  }, [
+    visibleColumnsOrdered,
+    allColumnIds,
+    columnVisibility,
+    table,
+    currentWorkspaceId,
+    dashcardConfig?.name,
+  ]);
 
   useEffect(() => {
     const next = grouping.length > 0 ? rowCount : 10;

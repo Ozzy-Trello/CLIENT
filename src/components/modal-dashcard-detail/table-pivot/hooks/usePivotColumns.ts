@@ -4,13 +4,14 @@ import { DropResult } from "@hello-pangea/dnd";
 const arraysEqual = (a: string[], b: string[]) =>
   a.length === b.length && a.every((val, idx) => val === b[idx]);
 
-const humanizeColumnId = (columnId: string) =>
-  columnId
-    .replace(/([A-Z])/g, " $1")
-    .replace(/_/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .replace(/^./, (c) => c.toUpperCase());
+const humanizeColumnId = (columnId: string) => {
+  const cleaned = columnId.replace(/[_\s]+/g, " ").trim();
+  const withBoundaries = cleaned
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/([A-Z])([A-Z][a-z])/g, "$1 $2");
+  const normalized = withBoundaries.replace(/\s+/g, " ");
+  return normalized ? normalized.replace(/^./, (c) => c.toUpperCase()) : "";
+};
 
 type UsePivotColumnsProps = {
   baseColumnIds: string[];
