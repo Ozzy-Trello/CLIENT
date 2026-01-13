@@ -41,7 +41,7 @@ const PivotToolbar: FC<PivotToolbarProps> = ({
       </div>
       <div>
         <Button icon={<Download className="h-4 w-4" />} onClick={onExport} type="default">
-          Export to Excel
+          Export to CSV
         </Button>
       </div>
       {isSuperAdmin && columnsDropdownContent && (
