@@ -586,7 +586,6 @@ const TablePivot: FC = () => {
 
   const exportToExcel = useCallback(async () => {
     console.log("[TablePivot] Export to Excel triggered");
-    const XLSX = await import("xlsx");
     const orderedColumns =
       visibleColumnsOrdered.length > 0
         ? visibleColumnsOrdered
@@ -684,33 +683,35 @@ const TablePivot: FC = () => {
       });
     });
 
-    const worksheet = XLSX.utils.aoa_to_sheet([headers, ...excelRows]);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Table Data");
-
     const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, "-");
     const safeName = sanitizeFilename(dashcardConfig?.name || "dashcard");
-    const filename = `${safeName}-${timestamp}.xlsx`;
+    const filename = `${safeName}-${timestamp}.csv`;
+
+    const escapeCsv = (val: any) => {
+      const str = val === null || val === undefined ? "" : String(val);
+      if (/[",\r\n]/.test(str)) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
 
     try {
-      if (typeof XLSX.writeFileXLSX === "function") {
-        XLSX.writeFileXLSX(workbook, filename, { compression: true });
-      } else {
-        const wbout = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
-        const blob = new Blob([wbout], {
-          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = filename;
-        a.click();
-        URL.revokeObjectURL(url);
-      }
-      console.log("[TablePivot] Export to Excel completed:", filename);
+      const csvContent = [headers, ...excelRows]
+        .map((row) => row.map(escapeCsv).join(","))
+        .join("\r\n");
+
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      console.log("[TablePivot] Export to CSV completed:", filename);
     } catch (error) {
-      console.error("[TablePivot] Export to Excel failed:", error);
-      message.error("Failed to export Excel");
+      console.error("[TablePivot] Export to CSV failed:", error);
+      message.error("Failed to export CSV");
     }
   }, [
     visibleColumnsOrdered,
