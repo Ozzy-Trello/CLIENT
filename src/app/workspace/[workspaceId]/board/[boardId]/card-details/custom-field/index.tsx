@@ -168,6 +168,7 @@ const EnterToSaveNumberInput: React.FC<{
   fieldName?: string; // For debugging
   customFieldId?: string; // Added for split job integration
   disabled?: boolean;
+  onSplitJobsSaved?: () => void;
 }> = ({
   placeholder,
   initialValue,
@@ -176,6 +177,7 @@ const EnterToSaveNumberInput: React.FC<{
   fieldName,
   customFieldId,
   disabled = false,
+  onSplitJobsSaved,
 }) => {
   const params = useParams();
   const { selectedCard } = useCardDetailContext();
@@ -194,7 +196,11 @@ const EnterToSaveNumberInput: React.FC<{
     .replace(/\s+/g, " ")
     .trim()
     .toLowerCase();
-  const showSplitJob = normalizedFieldName === "jml produksi";
+  const numericValue = sanitizeCustomFieldNumber(value) ?? 0;
+  const showSplitJob =
+    normalizedFieldName === "jml produksi" &&
+    Number.isFinite(numericValue) &&
+    numericValue > 0;
 
   // Handle key down to prevent invalid characters
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -287,11 +293,8 @@ const EnterToSaveNumberInput: React.FC<{
               workspaceId={params.workspaceId as string}
               customFieldId={customFieldId || ""}
               cardId={cardId}
-              value={parseFloat(value) || 0}
-              onChange={(val) => {
-                onChange(val.toString());
-                onBlur();
-              }}
+              jmlValue={numericValue}
+              onSplitJobsSaved={onSplitJobsSaved}
             />
           ) : undefined
         }
@@ -326,6 +329,16 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
     isUpdating,
     isLoading,
   } = useCardCustomField(card?.id || "", workspaceId);
+
+  const handleSplitJobsSaved = () => {
+    if (!cardCustomFields || !cardCustomFields.length) return;
+    const cuttingField = cardCustomFields.find(
+      (field) => field.name?.trim().toLowerCase() === "cutting"
+    );
+    if (cuttingField?.id) {
+      setCheckboxValue(cuttingField.id, true);
+    }
+  };
 
   // Get board-level permissions
   const { canManageCardCustomFields, canUpdateCard } =
@@ -517,6 +530,7 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
               canEdit ? handleNumberValueChange(field.id!, value) : undefined
             }
             disabled={!canEdit}
+            onSplitJobsSaved={handleSplitJobsSaved}
           />
         );
 
