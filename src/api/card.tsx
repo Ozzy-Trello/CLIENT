@@ -528,3 +528,17 @@ export const getFinishingPackingCards = async (
     listId: card.list_id,
   }));
 };
+
+export interface TriggerDeliveryResponse {
+  success: boolean;
+  message: string;
+  cardId?: string;
+  customFieldId?: string;
+}
+
+export const triggerDelivery = async (
+  cardId: string
+): Promise<TriggerDeliveryResponse> => {
+  const { data } = await api.post(`/card/${cardId}/trigger-delivery`);
+  return data;
+};

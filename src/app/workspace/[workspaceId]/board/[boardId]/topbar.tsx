@@ -10,7 +10,7 @@ import {
   Space,
   Tag,
 } from "antd";
-import { Dispatch, SetStateAction, useEffect, useState } from "react";
+import { Dispatch, SetStateAction, useEffect, useState, useRef, useCallback } from "react";
 import { useWorkspaceSidebar } from "@providers/workspace-sidebar-context";
 import MembersList from "@components/members-list";
 import {
@@ -28,6 +28,7 @@ import {
   ShoppingCart,
   Truck,
   Camera,
+  ScanLine,
 } from "lucide-react";
 import ModalStokQR from "@components/modal-stok-qr";
 import ModalPOQR from "@components/modal-po-qr";
@@ -129,6 +130,10 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
   const [scanProgressCardId, setScanProgressCardId] = useState<string | null>(
     null
   );
+  // External scanner state
+  const [externalScannerActive, setExternalScannerActive] = useState(false);
+  const scannerBufferRef = useRef<string>("");
+  const scannerTimeoutRef = useRef<NodeJS.Timeout>();
   const router = useRouter();
   const { socket } = useWebSocket();
   const params = useParams();
@@ -201,6 +206,108 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
       );
     }
   };
+
+  // External scanner - extract card ID from scanned data
+  const extractCardIdFromScan = useCallback(async (
+    scannedData: string
+  ): Promise<string | null> => {
+    const trimmedData = scannedData.trim();
+    if (trimmedData.length === 0) return null;
+
+    // Check if it's a shortId URL format (e.g., https://domain.com/qr/123)
+    try {
+      const url = new URL(
+        trimmedData.startsWith("http")
+          ? trimmedData
+          : `https://example.com${trimmedData}`
+      );
+      const pathParts = url.pathname.split("/");
+
+      // Check for /qr/[shortId] pattern
+      if (pathParts.length >= 3 && pathParts[1] === "qr") {
+        const shortId = parseInt(pathParts[2]);
+        if (!isNaN(shortId)) {
+          try {
+            const response = await api.get(`/card/short/${shortId}`);
+            if (response.data?.data?.id) {
+              return response.data.data.id;
+            }
+          } catch (error) {
+            console.warn("Failed to resolve shortId:", error);
+          }
+        }
+      }
+
+      // Check if it's a full card URL with cardId param
+      const cardIdParam = url.searchParams.get("cardId");
+      if (cardIdParam) {
+        return cardIdParam;
+      }
+    } catch (error) {
+      // Not a valid URL
+    }
+
+    // If URL parsing fails, treat as direct card ID (UUID format)
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (uuidRegex.test(trimmedData)) {
+      return trimmedData;
+    }
+
+    return null;
+  }, []);
+
+  // Handle external scanner result
+  const handleExternalScan = useCallback(async (scannedData: string) => {
+    const cardId = await extractCardIdFromScan(scannedData);
+    if (cardId) {
+      message.success("Card found! Opening...");
+      // Navigate to the card
+      const listId = currentBoard?.lists?.[0]?.id || "";
+      router.push(`/workspace/${params.workspaceId}/board/${params.boardId}?cardId=${cardId}&listId=${listId}`);
+      setExternalScannerActive(false);
+    } else {
+      message.error("Could not find card from scanned data");
+    }
+  }, [extractCardIdFromScan, currentBoard, params, router]);
+
+  // External scanner keyboard listener
+  useEffect(() => {
+    if (!externalScannerActive) return;
+
+    const handleKeyPress = (event: KeyboardEvent) => {
+      // Check if it's Enter key (scanner typically sends Enter after scanning)
+      if (event.key === "Enter") {
+        const scannedData = scannerBufferRef.current.trim();
+        if (scannedData.length > 0) {
+          handleExternalScan(scannedData);
+          scannerBufferRef.current = "";
+        }
+        return;
+      }
+
+      // Accumulate characters for scanner input
+      if (event.key.length === 1) {
+        scannerBufferRef.current += event.key;
+
+        // Clear buffer after timeout (in case it's manual typing)
+        if (scannerTimeoutRef.current) {
+          clearTimeout(scannerTimeoutRef.current);
+        }
+        scannerTimeoutRef.current = setTimeout(() => {
+          scannerBufferRef.current = "";
+        }, 1000);
+      }
+    };
+
+    document.addEventListener("keypress", handleKeyPress);
+
+    return () => {
+      document.removeEventListener("keypress", handleKeyPress);
+      if (scannerTimeoutRef.current) {
+        clearTimeout(scannerTimeoutRef.current);
+      }
+    };
+  }, [externalScannerActive, handleExternalScan]);
 
   const handleInvoiceSubmit = async () => {
     if (!invoiceNumber.trim()) {
@@ -411,8 +518,8 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
           <Star
             size={16}
             className={`transition-colors cursor-pointer ${isFavorited
-                ? "fill-yellow-400 text-yellow-400"
-                : "text-gray-400 hover:text-yellow-400"
+              ? "fill-yellow-400 text-yellow-400"
+              : "text-gray-400 hover:text-yellow-400"
               }`}
             onClick={handleStarClick}
             style={{
@@ -574,11 +681,20 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
                 <span>Share</span>
               </Button>
             </Tooltip> */}
-            <Tooltip title="Scan QR Code">
+            <Tooltip title="Scan QR Code (Camera)">
               <Button
                 size="small"
                 icon={<QrCode size={16} />}
                 onClick={() => setShowScanner(true)}
+              />
+            </Tooltip>
+            <Tooltip title={externalScannerActive ? "Scanner Active - Scan Now!" : "Open Card via Scanner"}>
+              <Button
+                size="small"
+                icon={<ScanLine size={16} />}
+                onClick={() => setExternalScannerActive(!externalScannerActive)}
+                type={externalScannerActive ? "primary" : "default"}
+                className={externalScannerActive ? "animate-pulse" : ""}
               />
             </Tooltip>
             {showMoveCardsButton && (

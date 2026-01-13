@@ -2,14 +2,13 @@ import React, { useState, useEffect, useRef } from "react";
 import {
   Modal,
   Form,
-  Input,
   Button,
   message,
   Typography,
   Space,
   AutoComplete,
 } from "antd";
-import { Search, Package } from "lucide-react";
+import { Search, Package, Truck } from "lucide-react";
 import ScannerIcon from "@components/icons/ScannerIcon";
 import { Scanner } from "@yudiel/react-qr-scanner";
 import QRGuideOverlay from "@components/qr-overlay";
@@ -18,10 +17,9 @@ import {
   getCardByShortId,
   getFinishingPackingCards,
   type FinishingPackingCard,
-  validateCardInFinishingPacking,
+  triggerDelivery,
 } from "@api/card";
 import { useQuery } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
 
 interface ModalPOScanProps {
   open: boolean;
@@ -39,45 +37,36 @@ const ModalPOScan: React.FC<ModalPOScanProps> = ({
   listId,
 }) => {
   const [form] = Form.useForm();
-  const [cardId, setCardId] = useState<string>("");
-  const [isValidating, setIsValidating] = useState(false);
+  const [searchValue, setSearchValue] = useState<string>("");
+  const [selectedCardId, setSelectedCardId] = useState<string>("");
+  const [isProcessing, setIsProcessing] = useState(false);
   const [showCameraScanner, setShowCameraScanner] = useState(false);
-  const scannerInputRef = useRef<string>("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const scannerBufferRef = useRef<string>("");
   const scannerTimeoutRef = useRef<NodeJS.Timeout>();
-  const [finishingSearch, setFinishingSearch] = useState("");
-  const [debouncedFinishingSearch, setDebouncedFinishingSearch] = useState("");
-  const [finishingListId, setFinishingListId] = useState<string | undefined>();
-  const router = useRouter();
 
   // Reset form when modal opens/closes
   useEffect(() => {
     if (open) {
       form.resetFields();
-      setCardId("");
-      setIsValidating(false);
+      setSearchValue("");
+      setSelectedCardId("");
+      setIsProcessing(false);
       setShowCameraScanner(false);
-      scannerInputRef.current = "";
       scannerBufferRef.current = "";
-      setFinishingSearch("");
-      setDebouncedFinishingSearch("");
+      setDebouncedSearch("");
     }
   }, [open, form]);
 
-  useEffect(() => {
-    if (finishingSearch.trim() === "") {
-      setFinishingListId(undefined);
-    }
-  }, [finishingSearch]);
-
+  // Debounce search
   useEffect(() => {
     const handler = setTimeout(() => {
-      setDebouncedFinishingSearch(finishingSearch);
+      setDebouncedSearch(searchValue);
     }, 300);
     return () => {
       clearTimeout(handler);
     };
-  }, [finishingSearch]);
+  }, [searchValue]);
 
   // Handle external scanner input (barcode scanner that acts like keyboard)
   useEffect(() => {
@@ -120,47 +109,33 @@ const ModalPOScan: React.FC<ModalPOScanProps> = ({
     };
   }, [open]);
 
-  const handleCardIdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setCardId(e.target.value);
-  };
-
-  // Validate card and open if valid
-  const validateAndOpenCard = async (
-    targetCardId: string,
-    listIdOverride?: string
-  ) => {
-    if (!targetCardId.trim()) {
-      message.error("Please enter a Card ID");
+  // Trigger Delivery and publish automation event
+  const processDelivery = async (cardId: string) => {
+    if (!cardId.trim()) {
+      message.error("Please select or scan a card");
       return;
     }
 
-    setIsValidating(true);
+    setIsProcessing(true);
     try {
-      // Validate if card is in Finishing Packing list
-      const validationResponse = await validateCardInFinishingPacking(
-        targetCardId.trim()
-      );
+      const result = await triggerDelivery(cardId.trim());
 
-      if (validationResponse.data?.isValid) {
-        message.success("Card is in Finishing Packing list. Opening card...");
-
-        // Navigate to the card details with query parameters
-        const targetList = listIdOverride ?? finishingListId ?? listId;
-        const navigationUrl = `/workspace/${boardId}/board/${boardId}?cardId=${targetCardId}&listId=${targetList}`;
-        router.push(navigationUrl);
-
-        // Close modal after opening card
-        onClose();
+      if (result.success) {
+        message.success("Delivery triggered successfully! Automation will run.");
+        setSearchValue("");
+        setSelectedCardId("");
+        // Keep modal open for more scans
       } else {
-        message.error("Card is not yet in Finishing Packing list");
+        message.error(result.message || "Failed to trigger delivery");
       }
-    } catch (error) {
-      console.error("❌ [DEBUG] Validation error:", error);
+    } catch (error: any) {
+      console.error("❌ [DEBUG] Delivery trigger error:", error);
       message.error(
-        "Failed to validate card. Please check the Card ID and try again."
+        error?.response?.data?.message ||
+        "Failed to trigger delivery. Please try again."
       );
     } finally {
-      setIsValidating(false);
+      setIsProcessing(false);
     }
   };
 
@@ -216,12 +191,12 @@ const ModalPOScan: React.FC<ModalPOScanProps> = ({
     const extractedCardId = await extractCardIdFromScan(scannedData);
 
     if (extractedCardId) {
-      setCardId(extractedCardId);
-      form.setFieldsValue({ cardId: extractedCardId });
-      message.success(`Card ID scanned: ${extractedCardId}`);
+      setSelectedCardId(extractedCardId);
+      setSearchValue("");
+      message.success(`Card scanned: ${extractedCardId.slice(0, 8)}...`);
 
-      // Automatically validate and open the scanned card
-      await validateAndOpenCard(extractedCardId);
+      // Automatically trigger delivery for scanned card
+      await processDelivery(extractedCardId);
     } else {
       message.error("Could not extract card ID from scanned data");
     }
@@ -234,12 +209,12 @@ const ModalPOScan: React.FC<ModalPOScanProps> = ({
       const extractedCardId = await extractCardIdFromScan(result);
 
       if (extractedCardId) {
-        setCardId(extractedCardId);
-        form.setFieldsValue({ cardId: extractedCardId });
-        message.success("QR code scanned successfully! Validating...");
+        setSelectedCardId(extractedCardId);
+        setSearchValue("");
+        message.success("QR code scanned successfully! Processing...");
 
-        // Automatically validate and open card after successful scan
-        await validateAndOpenCard(extractedCardId);
+        // Automatically trigger delivery after successful scan
+        await processDelivery(extractedCardId);
       } else {
         message.error("Could not extract card ID from scanned QR code");
       }
@@ -249,21 +224,17 @@ const ModalPOScan: React.FC<ModalPOScanProps> = ({
     }
   };
 
-  const handleValidateCard = async () => {
-    await validateAndOpenCard(cardId);
-  };
-
   const finishingCardsQuery = useQuery({
-    queryKey: ["finishing-packing-cards", debouncedFinishingSearch],
+    queryKey: ["finishing-packing-cards", debouncedSearch],
     queryFn: () =>
       getFinishingPackingCards(
-        debouncedFinishingSearch.trim() || undefined,
+        debouncedSearch.trim() || undefined,
         30
       ),
     enabled: open,
   });
 
-  const finishingCardOptions = (finishingCardsQuery.data || []).map(
+  const cardOptions = (finishingCardsQuery.data || []).map(
     (card: FinishingPackingCard) => ({
       value: card.id,
       label: card.shortId
@@ -272,22 +243,20 @@ const ModalPOScan: React.FC<ModalPOScanProps> = ({
     })
   );
 
-  const handleFinishingCardSelect = async (selectedCardId: string) => {
-    if (!selectedCardId) return;
-    const selectedCard = finishingCardsQuery.data?.find(
-      (card) => card.id === selectedCardId
-    );
-    setFinishingListId(selectedCard?.listId);
-    setFinishingSearch("");
-    setCardId(selectedCardId);
-    form.setFieldsValue({ cardId: selectedCardId });
-    await validateAndOpenCard(selectedCardId, selectedCard?.listId);
+  const handleCardSelect = async (cardId: string) => {
+    if (!cardId) return;
+    setSelectedCardId(cardId);
+    setSearchValue("");
+
+    // Automatically trigger delivery
+    await processDelivery(cardId);
   };
 
   const handleCancel = () => {
     form.resetFields();
-    setCardId("");
-    setIsValidating(false);
+    setSearchValue("");
+    setSelectedCardId("");
+    setIsProcessing(false);
     onClose();
   };
 
@@ -296,9 +265,9 @@ const ModalPOScan: React.FC<ModalPOScanProps> = ({
       <Modal
         title={
           <div className="flex items-center gap-2">
-            <Search size={20} className="text-green-600" />
+            <Truck size={20} className="text-green-600" />
             <Title level={4} className="mb-0">
-              Scan PO Card
+              Scan Delivery
             </Title>
           </div>
         }
@@ -309,57 +278,37 @@ const ModalPOScan: React.FC<ModalPOScanProps> = ({
         destroyOnHidden
       >
         <div style={{ padding: "1rem" }}>
-          <Form form={form} layout="vertical" onFinish={handleValidateCard}>
+          <Form form={form} layout="vertical">
             <Form.Item
               label={
                 <Text strong className="text-gray-700">
-                  Cari Card Finishing &amp; Packing
+                  Search or Scan Card
                 </Text>
               }
             >
               <AutoComplete
-                value={finishingSearch}
-                onChange={setFinishingSearch}
-                onSelect={handleFinishingCardSelect}
-                placeholder="Ketik nama card atau short ID..."
-                options={finishingCardOptions}
+                value={searchValue}
+                onChange={setSearchValue}
+                onSelect={handleCardSelect}
+                placeholder="Type card name, short ID, or scan QR..."
+                options={cardOptions}
                 filterOption={false}
                 className="w-full"
                 allowClear
+                size="large"
                 notFoundContent={
                   finishingCardsQuery.isFetching
-                    ? "Memuat..."
-                    : "Card tidak ditemukan"
+                    ? "Loading..."
+                    : searchValue.trim()
+                      ? "No cards found"
+                      : "Start typing to search"
                 }
-              />
-            </Form.Item>
-            <Form.Item
-              label={
-                <Text strong className="text-gray-700">
-                  Card ID
-                </Text>
-              }
-              name="cardId"
-              rules={[
-                {
-                  required: true,
-                  message: "Please enter a Card ID or scan a QR code",
-                },
-              ]}
-            >
-              <Input
-                value={cardId}
-                onChange={handleCardIdChange}
-                placeholder="Enter Card ID or scan QR code..."
-                size="large"
-                className="rounded-lg"
-                autoFocus
               />
             </Form.Item>
 
             <div className="mb-4 flex items-center justify-between">
               <Text type="secondary" className="text-sm">
-                💡 You can scan a QR code or manually enter the Card ID
+                💡 Search by name, scan QR, or use barcode scanner
               </Text>
               <Button
                 type="default"
@@ -367,33 +316,26 @@ const ModalPOScan: React.FC<ModalPOScanProps> = ({
                 onClick={() => setShowCameraScanner(true)}
                 className="flex items-center gap-2"
               >
-                Use Camera
+                Camera
               </Button>
             </div>
 
-            <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="mb-4 p-3 bg-green-50 rounded-lg border border-green-200">
               <div className="flex items-center gap-2 mb-2">
-                <Package size={16} className="text-blue-600" />
-                <Text strong className="text-blue-800">
-                  Status: {isValidating ? "Validating..." : "Ready to scan"}
+                <Package size={16} className="text-green-600" />
+                <Text strong className="text-green-800">
+                  Status: {isProcessing ? "Processing..." : "Ready to scan"}
                 </Text>
               </div>
+              <Text className="text-green-700 text-sm">
+                Scanning a card will trigger the &quot;Delivery&quot; checkbox and run automations
+              </Text>
             </div>
 
             <Form.Item className="mb-0">
-              <Space className="w-full justify-between">
-                <Button onClick={handleCancel} disabled={isValidating}>
-                  Cancel
-                </Button>
-                <Button
-                  type="primary"
-                  htmlType="submit"
-                  loading={isValidating}
-                  disabled={!cardId.trim()}
-                  icon={<Search size={16} />}
-                  className="bg-green-600 hover:bg-green-700"
-                >
-                  {isValidating ? "Validating..." : "Validate & Open Card"}
+              <Space className="w-full justify-end">
+                <Button onClick={handleCancel} disabled={isProcessing}>
+                  Close
                 </Button>
               </Space>
             </Form.Item>

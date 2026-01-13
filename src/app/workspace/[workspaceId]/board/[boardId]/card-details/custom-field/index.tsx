@@ -2,7 +2,7 @@ import { SelectionRef, UserSelection } from "@components/selection";
 import { useCardCustomField } from "@hooks/card_custom_field";
 import { useCardDetailContext } from "@providers/card-detail-context";
 import { useBoardPermissionsContext } from "@providers/board-permissions-context";
-import { Checkbox, DatePicker, Input, Select, Tooltip, message } from "antd";
+import { Checkbox, DatePicker, Input, Select, Tooltip, message, AutoComplete } from "antd";
 import {
   List,
   StretchHorizontal,
@@ -113,32 +113,32 @@ const EnterToSaveInput: React.FC<{
   fieldName,
   disabled = false,
 }) => {
-  const { value, hasChanges, onChange, onKeyPress, onBlur } = useEnterToSave(
-    initialValue,
-    onSave,
-    { saveOnBlur: true }
-  );
+    const { value, hasChanges, onChange, onKeyPress, onBlur } = useEnterToSave(
+      initialValue,
+      onSave,
+      { saveOnBlur: true }
+    );
 
-  return (
-    <div className="relative">
-      <Input
-        type={type}
-        placeholder={placeholder}
-        className={`${className} ${hasChanges ? "border-blue-400" : ""}`}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onKeyPress={onKeyPress}
-        onBlur={onBlur}
-        disabled={disabled}
-      />
-      {hasChanges && (
-        <div className="absolute right-2 top-1/2 transform -translate-y-1/2 pointer-events-none">
-          <span className="text-xs text-blue-500 bg-white px-1">↵</span>
-        </div>
-      )}
-    </div>
-  );
-};
+    return (
+      <div className="relative">
+        <Input
+          type={type}
+          placeholder={placeholder}
+          className={`${className} ${hasChanges ? "border-blue-400" : ""}`}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyPress={onKeyPress}
+          onBlur={onBlur}
+          disabled={disabled}
+        />
+        {hasChanges && (
+          <div className="absolute right-2 top-1/2 transform -translate-y-1/2 pointer-events-none">
+            <span className="text-xs text-blue-500 bg-white px-1">↵</span>
+          </div>
+        )}
+      </div>
+    );
+  };
 
 // Enter-to-save Number Input component
 const formatCustomFieldNumberValue = (value?: number | null): string => {
@@ -179,132 +179,210 @@ const EnterToSaveNumberInput: React.FC<{
   disabled = false,
   onSplitJobsSaved,
 }) => {
-  const params = useParams();
-  const { selectedCard } = useCardDetailContext();
-  const cardId = selectedCard?.id || "";
-  const { value, hasChanges, onChange, onKeyPress, onBlur } = useEnterToSave(
-    formatCustomFieldNumberValue(initialValue),
-    (stringValue) => {
-      const numValue = sanitizeCustomFieldNumber(stringValue);
-      onSave(numValue);
-    },
-    { saveOnBlur: true }
-  );
+    const params = useParams();
+    const { selectedCard } = useCardDetailContext();
+    const cardId = selectedCard?.id || "";
+    const { value, hasChanges, onChange, onKeyPress, onBlur } = useEnterToSave(
+      formatCustomFieldNumberValue(initialValue),
+      (stringValue) => {
+        const numValue = sanitizeCustomFieldNumber(stringValue);
+        onSave(numValue);
+      },
+      { saveOnBlur: true }
+    );
 
-  const normalizedFieldName = fieldName
-    ?.normalize("NFKD")
-    .replace(/\s+/g, " ")
-    .trim()
-    .toLowerCase();
-  const numericValue = sanitizeCustomFieldNumber(value) ?? 0;
-  const showSplitJob =
-    normalizedFieldName === "jml produksi" &&
-    Number.isFinite(numericValue) &&
-    numericValue > 0;
+    const normalizedFieldName = fieldName
+      ?.normalize("NFKD")
+      .replace(/\s+/g, " ")
+      .trim()
+      .toLowerCase();
+    const numericValue = sanitizeCustomFieldNumber(value) ?? 0;
+    const showSplitJob =
+      normalizedFieldName === "jml produksi" &&
+      Number.isFinite(numericValue) &&
+      numericValue > 0;
 
-  // Handle key down to prevent invalid characters
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    // Allow: backspace, delete, tab, escape, enter, home, end, left, right, up, down
-    const allowedKeys = [
-      "Backspace",
-      "Delete",
-      "Tab",
-      "Escape",
-      "Enter",
-      "Home",
-      "End",
-      "ArrowLeft",
-      "ArrowRight",
-      "ArrowUp",
-      "ArrowDown",
-    ];
+    // Handle key down to prevent invalid characters
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+      // Allow: backspace, delete, tab, escape, enter, home, end, left, right, up, down
+      const allowedKeys = [
+        "Backspace",
+        "Delete",
+        "Tab",
+        "Escape",
+        "Enter",
+        "Home",
+        "End",
+        "ArrowLeft",
+        "ArrowRight",
+        "ArrowUp",
+        "ArrowDown",
+      ];
 
-    // Allow: Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X, Ctrl+Z
-    if (e.ctrlKey && ["a", "c", "v", "x", "z"].includes(e.key.toLowerCase())) {
-      return;
-    }
+      // Allow: Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X, Ctrl+Z
+      if (e.ctrlKey && ["a", "c", "v", "x", "z"].includes(e.key.toLowerCase())) {
+        return;
+      }
 
-    // Allow allowed keys
-    if (allowedKeys.includes(e.key)) {
-      return;
-    }
+      // Allow allowed keys
+      if (allowedKeys.includes(e.key)) {
+        return;
+      }
 
-    // Allow numbers (0-9)
-    if (e.key >= "0" && e.key <= "9") {
-      return;
-    }
+      // Allow numbers (0-9)
+      if (e.key >= "0" && e.key <= "9") {
+        return;
+      }
 
-    // Allow decimal point, but only one
-    if (e.key === "." && !value.includes(".")) {
-      return;
-    }
+      // Allow decimal point, but only one
+      if (e.key === "." && !value.includes(".")) {
+        return;
+      }
 
-    // Allow minus sign only at the beginning
-    if (e.key === "-" && value.length === 0) {
-      return;
-    }
+      // Allow minus sign only at the beginning
+      if (e.key === "-" && value.length === 0) {
+        return;
+      }
 
-    // Prevent all other keys (including 'e', 'E', '+')
-    e.preventDefault();
+      // Prevent all other keys (including 'e', 'E', '+')
+      e.preventDefault();
+    };
+
+    // Handle paste to filter out invalid characters
+    const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+      e.preventDefault();
+      const pastedText = e.clipboardData.getData("text");
+
+      // Remove all non-numeric characters except decimal point and minus sign
+      const cleanedText = pastedText.replace(/[^0-9.-]/g, "");
+
+      // Ensure only one decimal point
+      const parts = cleanedText.split(".");
+      const finalText =
+        parts.length > 2 ? parts[0] + "." + parts.slice(1).join("") : cleanedText;
+
+      // Ensure minus sign is only at the beginning
+      const minusCount = (finalText.match(/-/g) || []).length;
+      if (
+        minusCount > 1 ||
+        (finalText.includes("-") && !finalText.startsWith("-"))
+      ) {
+        const withoutMinus = finalText.replace(/-/g, "");
+        onChange(finalText.startsWith("-") ? "-" + withoutMinus : withoutMinus);
+      } else {
+        onChange(finalText);
+      }
+    };
+
+    return (
+      <div className="relative">
+        <Input
+          type="text" // Changed from "number" to "text" for better control
+          placeholder={placeholder}
+          className={`${className} ${hasChanges ? "border-blue-400" : ""}`}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyPress={onKeyPress}
+          onKeyDown={handleKeyDown}
+          onPaste={handlePaste}
+          onBlur={onBlur}
+          disabled={disabled}
+          suffix={
+            showSplitJob ? (
+              <SplitJobSlider
+                workspaceId={params.workspaceId as string}
+                customFieldId={customFieldId || ""}
+                cardId={cardId}
+                jmlValue={numericValue}
+                onSplitJobsSaved={onSplitJobsSaved}
+              />
+            ) : undefined
+          }
+        />
+        {hasChanges && (
+          <div className="absolute right-2 top-1/2 transform -translate-y-1/2 pointer-events-none">
+            <span className="text-xs text-blue-500 bg-white px-1">↵</span>
+          </div>
+        )}
+      </div>
+    );
   };
 
-  // Handle paste to filter out invalid characters
-  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
-    e.preventDefault();
-    const pastedText = e.clipboardData.getData("text");
+// Option AutoComplete component for dropdown custom fields with case-insensitive search
+interface OptionAutoCompleteProps {
+  options: { label: string; value: string }[];
+  value?: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  disabled?: boolean;
+  className?: string;
+}
 
-    // Remove all non-numeric characters except decimal point and minus sign
-    const cleanedText = pastedText.replace(/[^0-9.-]/g, "");
+const OptionAutoComplete: React.FC<OptionAutoCompleteProps> = ({
+  options,
+  value,
+  onChange,
+  placeholder,
+  disabled = false,
+  className = "",
+}) => {
+  const [searchText, setSearchText] = useState("");
+  const [isOpen, setIsOpen] = useState(false);
 
-    // Ensure only one decimal point
-    const parts = cleanedText.split(".");
-    const finalText =
-      parts.length > 2 ? parts[0] + "." + parts.slice(1).join("") : cleanedText;
+  // Find label for current value
+  const selectedOption = options.find((opt) => opt.value === value);
+  const displayValue = isOpen ? searchText : (selectedOption?.label || "");
 
-    // Ensure minus sign is only at the beginning
-    const minusCount = (finalText.match(/-/g) || []).length;
-    if (
-      minusCount > 1 ||
-      (finalText.includes("-") && !finalText.startsWith("-"))
-    ) {
-      const withoutMinus = finalText.replace(/-/g, "");
-      onChange(finalText.startsWith("-") ? "-" + withoutMinus : withoutMinus);
-    } else {
-      onChange(finalText);
-    }
+  // Filter options based on search text (case-insensitive)
+  const filteredOptions = options.filter((opt) => {
+    if (!searchText) return true;
+    return opt.label.toLowerCase().includes(searchText.toLowerCase());
+  });
+
+  const handleSelect = (selectedValue: string) => {
+    onChange(selectedValue);
+    setSearchText("");
+    setIsOpen(false);
+  };
+
+  const handleSearch = (text: string) => {
+    setSearchText(text);
+  };
+
+  const handleFocus = () => {
+    setIsOpen(true);
+    setSearchText("");
+  };
+
+  const handleBlur = () => {
+    // Delay to allow click on option to register
+    setTimeout(() => {
+      setIsOpen(false);
+      setSearchText("");
+    }, 200);
   };
 
   return (
-    <div className="relative">
-      <Input
-        type="text" // Changed from "number" to "text" for better control
-        placeholder={placeholder}
-        className={`${className} ${hasChanges ? "border-blue-400" : ""}`}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onKeyPress={onKeyPress}
-        onKeyDown={handleKeyDown}
-        onPaste={handlePaste}
-        onBlur={onBlur}
-        disabled={disabled}
-        suffix={
-          showSplitJob ? (
-            <SplitJobSlider
-              workspaceId={params.workspaceId as string}
-              customFieldId={customFieldId || ""}
-              cardId={cardId}
-              jmlValue={numericValue}
-              onSplitJobsSaved={onSplitJobsSaved}
-            />
-          ) : undefined
-        }
-      />
-      {hasChanges && (
-        <div className="absolute right-2 top-1/2 transform -translate-y-1/2 pointer-events-none">
-          <span className="text-xs text-blue-500 bg-white px-1">↵</span>
-        </div>
-      )}
-    </div>
+    <AutoComplete
+      className={`w-full ${className}`}
+      value={displayValue}
+      options={filteredOptions.map((opt) => ({
+        value: opt.value,
+        label: opt.label,
+      }))}
+      onSelect={handleSelect}
+      onSearch={handleSearch}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
+      placeholder={placeholder}
+      disabled={disabled}
+      allowClear
+      onClear={() => {
+        onChange("__CLEAR__");
+        setSearchText("");
+      }}
+      filterOption={false} // We handle filtering ourselves for case-insensitive
+    />
   );
 };
 
@@ -505,9 +583,8 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
           <EnterToSaveInput
             fieldName={field.name}
             placeholder={`Add ${field.name}...`}
-            className={`w-full ${
-              !canEdit ? "bg-gray-100 cursor-not-allowed" : ""
-            }`}
+            className={`w-full ${!canEdit ? "bg-gray-100 cursor-not-allowed" : ""
+              }`}
             initialValue={field.valueString || ""}
             onSave={(value) =>
               canEdit ? handleStringValueChange(field.id!, value) : undefined
@@ -521,9 +598,8 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
           <EnterToSaveNumberInput
             fieldName={field.name}
             placeholder={`Add ${field.name}...`}
-            className={`w-full ${
-              !canEdit ? "bg-gray-100 cursor-not-allowed" : ""
-            }`}
+            className={`w-full ${!canEdit ? "bg-gray-100 cursor-not-allowed" : ""
+              }`}
             initialValue={field.valueNumber}
             customFieldId={field.id}
             onSave={(value) =>
@@ -538,9 +614,8 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
         const dateValue = field.valueDate ? dayjs(field.valueDate) : null;
         return (
           <DatePicker
-            className={`w-full ${
-              !canEdit ? "bg-gray-100 cursor-not-allowed" : ""
-            }`}
+            className={`w-full ${!canEdit ? "bg-gray-100 cursor-not-allowed" : ""
+              }`}
             placeholder={`Select ${field.name}...`}
             value={dateValue}
             onChange={(date: Dayjs | null) => {
@@ -594,38 +669,35 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
               }
               placeholder={`Select ${field.name}...`}
               size="middle"
-              className={`w-full ${
-                !canEdit ? "bg-gray-100 cursor-not-allowed" : ""
-              }`}
+              className={`w-full ${!canEdit ? "bg-gray-100 cursor-not-allowed" : ""
+                }`}
               roleIds={roleIds} // Pass role IDs for filtering
               disabled={!canEdit}
             />
           );
         } else {
-          // Custom dropdown options
+          // Custom dropdown options with searchable AutoComplete
+          const options = [
+            { label: "-", value: "__CLEAR__" },
+            ...(field?.options || []),
+          ];
+
           return (
-            <div>
-              <Select
-                className={`w-full ${
-                  !canEdit ? "bg-gray-100 cursor-not-allowed" : ""
-                }`}
-                placeholder={`Select ${field.name}...`}
-                value={(field.valueOption as string) || undefined}
-                onChange={(value) => {
-                  if (!canEdit) return;
-                  if (value === "__CLEAR__") {
-                    clearOptionValue(field.id!);
-                  } else if (value) {
-                    handleOptionValueChange(field.id!, value);
-                  }
-                }}
-                options={[
-                  { label: "-", value: "__CLEAR__" },
-                  ...(field?.options || []),
-                ]}
-                disabled={!canEdit}
-              />
-            </div>
+            <OptionAutoComplete
+              options={options}
+              value={field.valueOption as string}
+              onChange={(value) => {
+                if (!canEdit) return;
+                if (value === "__CLEAR__") {
+                  clearOptionValue(field.id!);
+                } else if (value) {
+                  handleOptionValueChange(field.id!, value);
+                }
+              }}
+              placeholder={`Select ${field.name}...`}
+              disabled={!canEdit}
+              className={!canEdit ? "bg-gray-100 cursor-not-allowed" : ""}
+            />
           );
         }
 
