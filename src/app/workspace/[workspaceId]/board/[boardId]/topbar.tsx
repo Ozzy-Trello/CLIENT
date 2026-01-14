@@ -130,7 +130,18 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
   const [scanProgressCardId, setScanProgressCardId] = useState<string | null>(
     null
   );
-  // External scanner state
+  // External scanner state - check if any modal is open
+  const anyModalOpen =
+    showScanner ||
+    modalDeliveryOpen ||
+    modalStokQROpen ||
+    modalPOQROpen ||
+    modalPOScanOpen ||
+    modalPackingOpen ||
+    modalPackingPOScanOpen ||
+    modalPengirimanOpen ||
+    scanProgressOpen;
+
   const [externalScannerActive, setExternalScannerActive] = useState(false);
   const scannerBufferRef = useRef<string>("");
   const scannerTimeoutRef = useRef<NodeJS.Timeout>();
@@ -258,17 +269,45 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
 
   // Handle external scanner result
   const handleExternalScan = useCallback(async (scannedData: string) => {
+    console.log('[SCANNER] Scanned data:', scannedData);
     const cardId = await extractCardIdFromScan(scannedData);
+    console.log('[SCANNER] Extracted card ID:', cardId);
+
     if (cardId) {
       message.success("Card found! Opening...");
-      // Navigate to the card
-      const listId = currentBoard?.lists?.[0]?.id || "";
-      router.push(`/workspace/${params.workspaceId}/board/${params.boardId}?cardId=${cardId}&listId=${listId}`);
-      setExternalScannerActive(false);
+      // Get the card details to find its list and board
+      try {
+        const response = await api.get(`/card/${cardId}`);
+        const card = response.data?.data;
+
+        if (card) {
+          const listId = card.list_id;
+          const boardId = card.list?.board_id || params.boardId;
+          const workspaceId = params.workspaceId;
+
+          // Navigate to the card
+          router.push(`/workspace/${workspaceId}/board/${boardId}?cardId=${cardId}&listId=${listId}`);
+          setExternalScannerActive(false);
+        } else {
+          message.error("Card not found");
+        }
+      } catch (error) {
+        console.error('[SCANNER] Error fetching card:', error);
+        message.error("Could not find card from scanned data");
+      }
     } else {
-      message.error("Could not find card from scanned data");
+      message.error("Could not extract card ID from scanned data");
     }
-  }, [extractCardIdFromScan, currentBoard, params, router]);
+  }, [extractCardIdFromScan, params, router]);
+
+  // Auto-enable scanner when no modals are open
+  useEffect(() => {
+    if (!anyModalOpen && !externalScannerActive) {
+      setExternalScannerActive(true);
+    } else if (anyModalOpen && externalScannerActive) {
+      setExternalScannerActive(false);
+    }
+  }, [anyModalOpen]);
 
   // External scanner keyboard listener
   useEffect(() => {
@@ -465,9 +504,11 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
                           // Check if the result is a valid URL
                           const parsedUrl = new URL(url);
 
-                          // Check if the URL contains 'ozzy' or 'localhost'
+                          // Check if the URL is from a valid domain
                           const urlString = url.toLowerCase();
-                          if (!urlString.includes(window.location.hostname)) {
+                          const validDomains = ['ozzyclothing.co.id', 'localhost', '127.0.0.1'];
+                          const isValidDomain = validDomains.some(domain => urlString.includes(domain));
+                          if (!isValidDomain) {
                             message.error("URL invalid.");
                             return;
                           }
