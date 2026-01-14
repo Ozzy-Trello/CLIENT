@@ -13,7 +13,7 @@ import { selectUser } from "@store/app_slice";
 import { selectCurrentBoard } from "@store/workspace_slice";
 
 // ⚠️ TEMPORARY FEATURE FLAG - SET TO false TO ALLOW ALL USERS TO CREATE CARDS
-const RESTRICT_CARD_CREATION = true;
+const RESTRICT_CARD_CREATION = false;
 
 interface DraggableListProps {
   list: AnyList;
