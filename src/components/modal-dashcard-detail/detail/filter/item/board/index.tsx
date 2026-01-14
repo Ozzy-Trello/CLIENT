@@ -28,12 +28,12 @@ const BoardItemFilter: FC<DashcardFilter> = ({ id, operator, value, label }) => 
   useEffect(() => {
     const fetchBoardLookup = async () => {
       if (!value) return;
-      
+
       const boardIds = Array.isArray(value) ? value : [value];
       const unknownBoardIds = boardIds
         .filter((id): id is string => typeof id === 'string')
         .filter(id => !LookupCache.label("board", id));
-      
+
       if (unknownBoardIds.length > 0) {
         await fetchLookups("board", unknownBoardIds, boardDetails as any);
         setLookupVersion(v => v + 1);
@@ -57,7 +57,7 @@ const BoardItemFilter: FC<DashcardFilter> = ({ id, operator, value, label }) => 
     return (
       <div className="flex items-center gap-3 justify-between">
         <div className="flex gap-3 items-center">
-          <div className="font-semibold min-w-16">{label || "Board"} cokkk</div>
+          <div className="font-semibold min-w-16">{label || "Board"}</div>
           <div className="p-2 rounded-lg w-full">
             <Select
               options={options}
@@ -74,23 +74,23 @@ const BoardItemFilter: FC<DashcardFilter> = ({ id, operator, value, label }) => 
                 value={
                   isMultiSelect
                     ? (Array.isArray(valueEdit?.value)
+                      ? valueEdit?.value
+                      : typeof valueEdit?.value === "string"
                         ? valueEdit?.value
-                        : typeof valueEdit?.value === "string"
-                        ? valueEdit?.value
-                            .split(",")
-                            .map((v) => v.trim())
-                            .filter(Boolean)
+                          .split(",")
+                          .map((v) => v.trim())
+                          .filter(Boolean)
                         : valueEdit?.value
-                        ? [String(valueEdit?.value)]
-                        : [])
+                          ? [String(valueEdit?.value)]
+                          : [])
                     : (valueEdit?.value as string)
                 }
                 onChange={(selectedValue: string | string[]) => {
                   const nextValue = isMultiSelect
                     ? selectedValue
                     : Array.isArray(selectedValue)
-                    ? selectedValue[0]
-                    : selectedValue;
+                      ? selectedValue[0]
+                      : selectedValue;
 
                   handleChangeFilter({ id, value: nextValue });
                 }}
@@ -110,19 +110,19 @@ const BoardItemFilter: FC<DashcardFilter> = ({ id, operator, value, label }) => 
 
   const displayValue = useMemo(() => {
     if (!value) return value;
-    
+
     if (typeof value === 'string') {
       return LookupCache.label("board", value) || LookupCache.any(value) || value;
     }
-    
+
     if (Array.isArray(value)) {
-      return value.map(v => 
-        typeof v === 'string' 
-          ? LookupCache.label("board", v) || LookupCache.any(v) || v 
+      return value.map(v =>
+        typeof v === 'string'
+          ? LookupCache.label("board", v) || LookupCache.any(v) || v
           : v
       ).join(', ');
     }
-    
+
     return value;
   }, [value, lookupVersion]);
 
