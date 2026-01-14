@@ -102,10 +102,10 @@ const DraggableList: React.FC<DraggableListProps> = ({
       userRole === "super_admin" ||
       userRole === "superadmin";
     const boardName = (currentBoard?.name || "").trim().toLowerCase();
-    const isDateline = boardName === "dateline";
+    const isBoardAllowed = boardName === "dateline" || boardName === "list po selesai";
 
     // Override permission: only allow if super admin AND on Dateline board
-    canCreateCardPermission = canCreateCardPermission && isSuperAdmin && isDateline;
+    canCreateCardPermission = canCreateCardPermission && isSuperAdmin && isBoardAllowed;
   }
 
   // Check if card limit is exceeded
