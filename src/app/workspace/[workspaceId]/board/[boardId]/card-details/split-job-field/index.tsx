@@ -72,11 +72,11 @@ const SplitJobFields: React.FC<SplitJobFieldsProps> = ({ card, setCard }) => {
 
   const relevantTemplates = card.customFields
     ? templates.filter((template) =>
-        // @ts-ignore
-        card.customFields.some(
-          (field: any) => field.id === template.custom_field_id
-        )
+      // @ts-ignore
+      card.customFields.some(
+        (field: any) => field.id === template.custom_field_id
       )
+    )
     : [];
 
   // Count total values across all custom fields
@@ -225,18 +225,7 @@ const SplitJobFields: React.FC<SplitJobFieldsProps> = ({ card, setCard }) => {
                     );
 
                     return (
-                      <List.Item
-                        actions={[
-                          <Button
-                            key="delete"
-                            type="text"
-                            icon={<DeleteOutlined />}
-                            size="small"
-                            danger
-                            onClick={() => handleDeleteValue(value)}
-                          />,
-                        ]}
-                      >
+                      <List.Item>
                         <div className="flex items-center justify-between w-full">
                           <div>
                             <Text strong>{value.name}</Text>
@@ -248,17 +237,9 @@ const SplitJobFields: React.FC<SplitJobFieldsProps> = ({ card, setCard }) => {
                               </div>
                             )}
                           </div>
-                          <InputNumber
-                            size="small"
-                            min={0}
-                            defaultValue={Number(value.value)}
-                            onChange={(newValue) => {
-                              if (newValue !== null) {
-                                handleValueChange(value.id, newValue);
-                              }
-                            }}
-                            className="w-20"
-                          />
+                          <div className="w-20 text-right">
+                            <Text strong>{Number(value.value)}</Text>
+                          </div>
                         </div>
                       </List.Item>
                     );

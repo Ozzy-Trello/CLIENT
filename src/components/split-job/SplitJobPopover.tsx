@@ -23,6 +23,7 @@ interface SplitJobPopoverProps {
   jmlTotal: number;
   onSuccess?: () => void;
   children: React.ReactElement;
+  isSuperAdmin?: boolean; // Only super admins can add new templates
 }
 
 const normalizeNumberValue = (value?: number | null): number => {
@@ -80,26 +81,38 @@ const SplitJobPopover: React.FC<SplitJobPopoverProps> = ({
     isTotalMatching &&
     !isSaving;
 
+  // Track if we just opened the popover (to know when to initialize draftValues)
+  const [needsInit, setNeedsInit] = useState(false);
+
+  // When popover opens, trigger refetches and mark that we need to initialize
   useEffect(() => {
     if (open) {
+      setNeedsInit(true);
       refetch();
       refetchValues();
     }
   }, [open, refetch, refetchValues]);
 
+  // Once templates and values are loaded after opening, initialize draftValues
   useEffect(() => {
-    if (!open) return;
+    if (!needsInit || isLoading || isLoadingValues) return;
+
+    // Both templates and values are now loaded, initialize draft
     const nextValues: Record<string, number> = {};
     templates.forEach((template) => {
+      // Check both camelCase and snake_case keys since backend might return either
       const existing = values.find(
-        (value) => value.split_job_template_id === template.id
+        (value: any) =>
+          (value.splitJobTemplateId === template.id) ||
+          (value.split_job_template_id === template.id)
       );
       nextValues[template.id] = existing
         ? normalizeNumberValue(existing.value)
         : 0;
     });
     setDraftValues(nextValues);
-  }, [open, templates, values]);
+    setNeedsInit(false); // Done initializing
+  }, [needsInit, isLoading, isLoadingValues, templates, values, customFieldId, cardId]);
 
   useEffect(() => {
     if (!open) {
@@ -150,8 +163,11 @@ const SplitJobPopover: React.FC<SplitJobPopoverProps> = ({
       await Promise.all(
         templates.map(async (template) => {
           const targetValue = draftValues[template.id] ?? 0;
+          // Check both camelCase and snake_case keys for existing value
           const existingValue = values.find(
-            (value) => value.split_job_template_id === template.id
+            (value: any) =>
+              (value.splitJobTemplateId === template.id) ||
+              (value.split_job_template_id === template.id)
           );
           if (targetValue === 0) {
             if (existingValue) {
@@ -200,7 +216,7 @@ const SplitJobPopover: React.FC<SplitJobPopoverProps> = ({
   const content = (
     <div className="w-72">
       {contextHolder}
-      <Title level={5}>Split Job Templates</Title>
+      <Title level={5}>Split Job Cutting</Title>
       {isError && (
         <Text type="danger" className="block mb-2">
           {String(error)}
