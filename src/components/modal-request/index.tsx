@@ -227,6 +227,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
     "Loading Line",
     "Sewing",
     "QC",
+    "Siap DTF / Sablon",
     "Siap Bordir",
     "Bordir / DTF",
     "Finishing Packing",

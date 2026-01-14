@@ -8,6 +8,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AnyList } from "@myTypes/list";
 import { usePermissions } from "@hooks/account";
 import { useBoardPermissionsContext } from "@providers/board-permissions-context";
+import { useSelector } from "react-redux";
+import { selectUser } from "@store/app_slice";
+import { selectCurrentBoard } from "@store/workspace_slice";
+
+// ⚠️ TEMPORARY FEATURE FLAG - SET TO false TO ALLOW ALL USERS TO CREATE CARDS
+const RESTRICT_CARD_CREATION = true;
 
 interface DraggableListProps {
   list: AnyList;
@@ -81,10 +87,26 @@ const DraggableList: React.FC<DraggableListProps> = ({
   } = useCardsPaginated(list.id, boardId, { enabled: isVisible });
   const { canMove, canCreate } = usePermissions();
   const { canMoveList, canCreateCard } = useBoardPermissionsContext();
+  const currentUser = useSelector(selectUser);
+  const currentBoard = useSelector(selectCurrentBoard);
 
   // Check if user can move lists and create cards using board-specific permissions
   const canMoveListPermission = canMoveList();
-  const canCreateCardPermission = canCreateCard();
+  let canCreateCardPermission = canCreateCard();
+
+  // ⚠️ TEMPORARY RESTRICTION - Only super admin on Dateline board can create cards
+  if (RESTRICT_CARD_CREATION) {
+    const userRole = (currentUser?.role?.name || "").trim().toLowerCase();
+    const isSuperAdmin =
+      userRole === "super admin" ||
+      userRole === "super_admin" ||
+      userRole === "superadmin";
+    const boardName = (currentBoard?.name || "").trim().toLowerCase();
+    const isDateline = boardName === "dateline";
+
+    // Override permission: only allow if super admin AND on Dateline board
+    canCreateCardPermission = canCreateCardPermission && isSuperAdmin && isDateline;
+  }
 
   // Check if card limit is exceeded
   const isLimitExceeded = list.cardLimit && cards.length > list.cardLimit;
@@ -136,8 +158,8 @@ const DraggableList: React.FC<DraggableListProps> = ({
               !canMoveListPermission
                 ? "You don't have permission to move lists"
                 : isLimitExceeded
-                ? `Card limit exceeded (${cards.length}/${list.cardLimit})`
-                : undefined
+                  ? `Card limit exceeded (${cards.length}/${list.cardLimit})`
+                  : undefined
             }
           >
             <ListName

@@ -729,7 +729,8 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
                 onClick={() => setShowScanner(true)}
               />
             </Tooltip>
-            <Tooltip title={externalScannerActive ? "Scanner Active - Scan Now!" : "Open Card via Scanner"}>
+            {/* Scanner is always active in background - button hidden */}
+            {/* <Tooltip title={externalScannerActive ? "Scanner Active - Scan Now!" : "Open Card via Scanner"}>
               <Button
                 size="small"
                 icon={<ScanLine size={16} />}
@@ -737,7 +738,7 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
                 type={externalScannerActive ? "primary" : "default"}
                 className={externalScannerActive ? "animate-pulse" : ""}
               />
-            </Tooltip>
+            </Tooltip> */}
             {showMoveCardsButton && (
               <Tooltip title="Closing Terpending">
                 <Button
