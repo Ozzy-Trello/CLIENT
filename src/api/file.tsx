@@ -27,3 +27,15 @@ export const uploadFile = async (
     throw error;
   }
 };
+
+export const renameFile = async (
+  fileId: string,
+  newName: string
+): Promise<ApiResponse<FileUpload>> => {
+  try {
+    const { data } = await api.patch(`/file/${fileId}/rename`, { name: newName });
+    return data;
+  } catch (error) {
+    throw error;
+  }
+};

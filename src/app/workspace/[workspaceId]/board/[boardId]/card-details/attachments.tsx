@@ -1,5 +1,5 @@
-import { PaperClipOutlined, DownloadOutlined, UploadOutlined } from "@ant-design/icons";
-import { QrCode } from "lucide-react";
+import { PaperClipOutlined, DownloadOutlined, UploadOutlined, EditOutlined } from "@ant-design/icons";
+import { QrCode, Pencil } from "lucide-react";
 import {
   Card,
   CardAttachment,
@@ -13,8 +13,8 @@ import { formatFileSize, getFileIcon, isImageFile, isPDFFile } from "./attachmen
 import { useCardAttachment } from "@hooks/card_attachment";
 import { useAttachmentPrinting } from "./hooks/useAttachmentPrinting";
 import { useParams } from "next/navigation";
-import { uploadFile } from "@api/file";
-import { message } from "antd";
+import { uploadFile, renameFile } from "@api/file";
+import { message, Input } from "antd";
 import AttachedCard from "./attached-card";
 
 interface AttachmentsProps {
@@ -99,7 +99,7 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
     () =>
       fileAttachments.filter(
         (att) =>
-          att.type === EnumCardAttachmentType.Bukti 
+          att.type === EnumCardAttachmentType.Bukti
       ),
     [fileAttachments]
   );
@@ -108,7 +108,7 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
     () =>
       fileAttachments.filter(
         (att) =>
-          att.type === EnumCardAttachmentType.PO 
+          att.type === EnumCardAttachmentType.PO
       ),
     [fileAttachments]
   );
@@ -118,7 +118,7 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
       fileAttachments.filter(
         (att) =>
           !att.type ||
-          att.type === EnumCardAttachmentType.Attachment 
+          att.type === EnumCardAttachmentType.Attachment
       ),
     [fileAttachments]
   );
@@ -140,6 +140,9 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
   };
 
   const [isUploading, setIsUploading] = useState(false);
+  const [renamingFileId, setRenamingFileId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [isRenaming, setIsRenaming] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   const uploadFiles = async (fileList: FileList | null) => {
@@ -180,6 +183,36 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
     uploadFiles(e.target.files);
   };
 
+  const handleStartRename = (fileId: string, currentName: string) => {
+    setRenamingFileId(fileId);
+    setRenameValue(currentName);
+  };
+
+  const handleCancelRename = () => {
+    setRenamingFileId(null);
+    setRenameValue("");
+  };
+
+  const handleSaveRename = async (fileId: string) => {
+    if (!renameValue.trim()) {
+      message.error("File name cannot be empty");
+      return;
+    }
+    setIsRenaming(true);
+    try {
+      await renameFile(fileId, renameValue.trim());
+      message.success("File renamed successfully");
+      setRenamingFileId(null);
+      setRenameValue("");
+      refetch?.();
+    } catch (err: any) {
+      console.error("Rename failed", err);
+      message.error(err?.response?.data?.message || "Failed to rename file");
+    } finally {
+      setIsRenaming(false);
+    }
+  };
+
   const renderSection = (title: string, data: CardAttachment[]) => (
     <div className="mb-6">
       <Typography.Text className="text-xs text-gray-500 uppercase font-semibold">
@@ -193,7 +226,7 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
           <List.Item className="flex items-center p-2 hover:bg-gray-50 rounded">
             <div className="flex-shrink-0 mr-3 w-14 h-14 flex items-center justify-center bg-gray-100 rounded overflow-hidden">
               {attachment.file?.url &&
-              isImageFile(attachment.file.name || "", attachment.file.mimeType) ? (
+                isImageFile(attachment.file.name || "", attachment.file.mimeType) ? (
                 <Image
                   src={attachment.file.url}
                   alt={attachment.file.name || "attachment"}
@@ -216,18 +249,59 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
             <div className="flex-grow min-w-0">
               <div className="flex items-center justify-between">
                 <div className="min-w-0">
-                  <div className="text-sm font-medium text-gray-900 truncate">
-                    {attachment.file?.url ? (
-                      <a
-                        href={attachment.file.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="hover:underline"
-                      >
-                        {attachment.file?.name || "Unnamed file"}
-                      </a>
+                  <div className="text-sm font-medium text-gray-900 truncate flex items-center gap-1">
+                    {renamingFileId === attachment.file?.id ? (
+                      <div className="flex items-center gap-1">
+                        <Input
+                          size="small"
+                          value={renameValue}
+                          onChange={(e) => setRenameValue(e.target.value)}
+                          onPressEnter={() => handleSaveRename(attachment.file!.id)}
+                          autoFocus
+                          style={{ width: 180 }}
+                        />
+                        <Button
+                          size="small"
+                          type="primary"
+                          loading={isRenaming}
+                          onClick={() => handleSaveRename(attachment.file!.id)}
+                        >
+                          Save
+                        </Button>
+                        <Button
+                          size="small"
+                          onClick={handleCancelRename}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
                     ) : (
-                      attachment.file?.name || "Unnamed file"
+                      <>
+                        {attachment.file?.url ? (
+                          <a
+                            href={attachment.file.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="hover:underline"
+                          >
+                            {attachment.file?.name || "Unnamed file"}
+                          </a>
+                        ) : (
+                          attachment.file?.name || "Unnamed file"
+                        )}
+                        {attachment.file?.id && (
+                          <Pencil
+                            size={12}
+                            className="text-gray-400 hover:text-blue-600 cursor-pointer ml-1"
+                            onClick={() =>
+                              handleStartRename(
+                                attachment.file!.id,
+                                attachment.file?.name || ""
+                              )
+                            }
+                          />
+                        )}
+                      </>
                     )}
                   </div>
                   <div className="text-xs text-gray-500 space-x-2">
@@ -258,7 +332,7 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
                     attachment.type &&
                     (attachment.type === EnumCardAttachmentType.PO &&
                       !isPDFFile(
-                        attachment.file.name 
+                        attachment.file.name
                       )) && (
                       <Button
                         size="small"

@@ -307,25 +307,41 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
     } else if (anyModalOpen && externalScannerActive) {
       setExternalScannerActive(false);
     }
-  }, [anyModalOpen]);
+  }, [anyModalOpen, externalScannerActive]);
 
-  // External scanner keyboard listener
+  // External scanner keyboard listener (capture phase to intercept before shortcuts)
   useEffect(() => {
     if (!externalScannerActive) return;
 
-    const handleKeyPress = (event: KeyboardEvent) => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Ignore if user is typing in an input field
+      const target = event.target as HTMLElement;
+      const isInputElement =
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable;
+      if (isInputElement) {
+        return;
+      }
+
       // Check if it's Enter key (scanner typically sends Enter after scanning)
       if (event.key === "Enter") {
         const scannedData = scannerBufferRef.current.trim();
         if (scannedData.length > 0) {
+          event.preventDefault();
+          event.stopPropagation();
           handleExternalScan(scannedData);
           scannerBufferRef.current = "";
         }
         return;
       }
 
-      // Accumulate characters for scanner input
-      if (event.key.length === 1) {
+      // Accumulate characters for scanner input (single printable chars)
+      if (event.key.length === 1 && !event.metaKey && !event.ctrlKey && !event.altKey) {
+        // Stop the event from reaching other handlers (like label shortcut)
+        event.preventDefault();
+        event.stopPropagation();
+
         scannerBufferRef.current += event.key;
 
         // Clear buffer after timeout (in case it's manual typing)
@@ -338,10 +354,11 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
       }
     };
 
-    document.addEventListener("keypress", handleKeyPress);
+    // Use capture phase to intercept events before they reach other handlers
+    document.addEventListener("keydown", handleKeyDown, true);
 
     return () => {
-      document.removeEventListener("keypress", handleKeyPress);
+      document.removeEventListener("keydown", handleKeyDown, true);
       if (scannerTimeoutRef.current) {
         clearTimeout(scannerTimeoutRef.current);
       }

@@ -312,13 +312,44 @@ const CardDetails: React.FC = (props) => {
       }
     };
 
+    // Handle paste for file attachments
+    const handlePaste = (e: ClipboardEvent) => {
+      // Ignore paste if user is typing in an input field
+      const target = e.target as HTMLElement;
+      const isInputElement =
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable;
+      if (isInputElement) {
+        return;
+      }
+
+      const clipboardData = e.clipboardData;
+      if (!clipboardData?.files?.length) {
+        return;
+      }
+
+      e.preventDefault();
+      const fileCount = clipboardData.files.length;
+      message.loading({
+        content: `Uploading ${fileCount} file${fileCount > 1 ? "s" : ""}...`,
+        key: "paste-upload",
+        duration: 0,
+      });
+      void handleFilesUpload(clipboardData.files).finally(() => {
+        message.destroy("paste-upload");
+      });
+    };
+
     window.addEventListener("dragover", handleDragOver);
     window.addEventListener("dragleave", handleDragLeave);
     window.addEventListener("drop", handleDrop);
+    window.addEventListener("paste", handlePaste);
     return () => {
       window.removeEventListener("dragover", handleDragOver);
       window.removeEventListener("dragleave", handleDragLeave);
       window.removeEventListener("drop", handleDrop);
+      window.removeEventListener("paste", handlePaste);
     };
   }, [handleFilesUpload, isCardDetailOpen]);
 
@@ -471,8 +502,8 @@ const CardDetails: React.FC = (props) => {
           ) : (
             <h1
               className={`text-5xl font-bold mb-0 ml-2 px-2 py-1 rounded-md break-words ${canUpdateCard()
-                  ? "cursor-pointer hover:bg-gray-50"
-                  : "cursor-not-allowed opacity-60"
+                ? "cursor-pointer hover:bg-gray-50"
+                : "cursor-not-allowed opacity-60"
                 }`}
               onClick={() => {
                 if (canUpdateCard()) {
