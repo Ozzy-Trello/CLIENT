@@ -18,10 +18,8 @@ export default function Home() {
       return;
     }
 
-    if (!isLoading && defaultWorkspace) {
-      router.push(`/workspace/${defaultWorkspaceId}/board`);
-    }
-  }, [accessToken, defaultWorkspace, isLoading, router]);
+    router.push(`/workspace/${defaultWorkspaceId}/board`);
+  }, [accessToken, isLoading, router]);
 
   return null;
 }
