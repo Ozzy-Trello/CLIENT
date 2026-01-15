@@ -446,7 +446,7 @@ export function useCardsPaginated(
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
   const [totalCards, setTotalCards] = useState<number>(0);
-  const limit = 20;
+  const limit = 10;
 
   // Initial query for first page
   const isEnabled = !!listId && (options?.enabled ?? true);
@@ -475,17 +475,17 @@ export function useCardsPaginated(
     setIsLoadingMore(false);
     setLoadMoreError(null);
     setTotalCards(0);
-    
+
     // Check if we have cached data for this listId
     const cachedData = queryClient.getQueryData<ApiResponse<Card[]>>(
       queryKeys.cards.list(listId)
     );
-    
+
     if (cachedData?.data && Array.isArray(cachedData.data)) {
       // Initialize from cached data
       setAllCards(cachedData.data);
       setHasMoreCards(cachedData.data.length === limit);
-      
+
       // Extract total count from cached pagination data
       const totalCount = cachedData.paginate?.totalData || cachedData.data.length;
       setTotalCards(totalCount);

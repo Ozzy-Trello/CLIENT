@@ -2,7 +2,7 @@ import { SelectionRef, UserSelection } from "@components/selection";
 import { useCardCustomField } from "@hooks/card_custom_field";
 import { useBoardPermissionsContext } from "@providers/board-permissions-context";
 import { DatePicker, Input, Tooltip } from "antd";
-import { List, StretchHorizontal, CheckSquare, Search } from "lucide-react";
+import { List, StretchHorizontal, CheckSquare, Search, Loader2 } from "lucide-react";
 import { useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { EnumCustomFieldSource, EnumCustomFieldType } from "@myTypes/custom-field";
@@ -40,6 +40,7 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
     clearOptionValue,
     setUserValue,
     isLoading,
+    isUpdating,
   } = useCardCustomField(card?.id || "", workspaceId);
 
   const { canManageCardCustomFields, canUpdateCard } = useBoardPermissionsContext();
@@ -222,7 +223,14 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
   }
 
   return (
-    <div>
+    <div className="relative min-h-[200px]">
+      {isUpdating && (
+        <div className="fixed inset-0 bg-white/60 z-[9999] flex items-center justify-center backdrop-blur-[1px]">
+          <div className="bg-white p-3 rounded-full shadow-lg">
+            <Loader2 className="animate-spin text-blue-600" size={32} />
+          </div>
+        </div>
+      )}
       <div className="ml-0 md:ml-8 mb-4">
         <Input
           placeholder="Search custom fields..."

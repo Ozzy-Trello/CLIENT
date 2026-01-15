@@ -393,6 +393,7 @@ export const useCardCustomField = (cardId: string, workspaceId: string) => {
 
     // Mutation states
     isUpdating: setValueMutation.isPending,
+    updatingFieldId: setValueMutation.isPending ? setValueMutation.variables?.customFieldId : null,
     updateError: setValueMutation.error,
 
     // Helper functions
