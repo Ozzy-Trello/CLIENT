@@ -12,7 +12,7 @@ export interface POItem {
   poNumber: string;
   name: string; // Display name derived from poNumber
   terloading: number;
-  bahanTerpakai: number;
+  bahanTerpakai: number | null;
   products: ProductItem[];
   createdAt: Date;
   updatedAt: Date;
@@ -61,7 +61,7 @@ export interface BahanTab {
   name: string;
   description?: string | null;
   terloading: number;
-  bahanTerpakai: number;
+  bahanTerpakai: number | null;
   sisaBahan: number;
   jmlProduksi: number;
   estBahan: number;

@@ -152,10 +152,8 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
     setNumberValue: setCustomFieldNumberValue,
     getNumberValue: getCustomFieldNumberValue,
   } = useCardCustomField(cardId, workspaceId);
-  const lastSyncedTotalsRef = useRef<{ terloading: number; terpakai: number }>({
-    terloading: -1,
-    terpakai: -1,
-  });
+  // Synchronization to custom fields is now handled by the backend
+  // to prevent race conditions and ensure data integrity.
 
   const cabangField = useMemo(() => {
     if (!cardCustomFields) return null;
@@ -191,74 +189,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
     return Boolean(optionValue);
   }, [cabangField]);
 
-  const syncBahanCustomFields = useCallback(
-    (data: POItem[]) => {
-      if (!cardCustomFields || cardCustomFields.length === 0) return;
 
-      const totalTerloading = data.reduce((poAcc, po) => {
-        const productTotal = (po.products || []).reduce((prodAcc, product) => {
-          const terloadingValue =
-            product.bahanTabs && product.bahanTabs[0]
-              ? Number(product.bahanTabs[0].terloading || 0)
-              : 0;
-          return prodAcc + (Number.isFinite(terloadingValue) ? terloadingValue : 0);
-        }, 0);
-        return poAcc + productTotal;
-      }, 0);
-
-      const totalBahanTerpakai = data.reduce((poAcc, po) => {
-        const productTotal = (po.products || []).reduce((prodAcc, product) => {
-          const terpakaiValue =
-            product.bahanTabs && product.bahanTabs[0]
-              ? Number(product.bahanTabs[0].bahanTerpakai || 0)
-              : 0;
-          return prodAcc + (Number.isFinite(terpakaiValue) ? terpakaiValue : 0);
-        }, 0);
-        return poAcc + productTotal;
-      }, 0);
-
-      const findFieldByName = (needle: string) =>
-        cardCustomFields.find((field: any) =>
-          (field.name || "").toLowerCase().includes(needle)
-        );
-
-      // Skip if totals haven't changed since last sync to avoid redundant mutations
-      const last = lastSyncedTotalsRef.current;
-      if (
-        last &&
-        last.terloading === totalTerloading &&
-        last.terpakai === totalBahanTerpakai
-      ) {
-        return;
-      }
-
-      const terloadingField = findFieldByName("bahan terloading");
-      if (terloadingField?.id) {
-        const existing = Number(
-          getCustomFieldNumberValue?.(terloadingField.id) ?? 0
-        );
-        if (!Number.isFinite(existing) || existing !== totalTerloading) {
-          setCustomFieldNumberValue(terloadingField.id, totalTerloading);
-        }
-      }
-
-      const terpakaiField = findFieldByName("bahan terpakai");
-      if (terpakaiField?.id) {
-        const existing = Number(
-          getCustomFieldNumberValue?.(terpakaiField.id) ?? 0
-        );
-        if (!Number.isFinite(existing) || existing !== totalBahanTerpakai) {
-          setCustomFieldNumberValue(terpakaiField.id, totalBahanTerpakai);
-        }
-      }
-
-      lastSyncedTotalsRef.current = {
-        terloading: totalTerloading,
-        terpakai: totalBahanTerpakai,
-      };
-    },
-    [cardCustomFields, getCustomFieldNumberValue, setCustomFieldNumberValue]
-  );
 
   const poSignatureRef = useRef<string>("");
   const buildPOSignature = (data: POItem[]) =>
@@ -429,9 +360,10 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
         poSignatureRef.current = newSignature;
         setSelectedProductIds({}); // Reset selected products only when PO structure changes
       }
-      syncBahanCustomFields(updatedPOData);
+      // NOTE: Do NOT sync custom fields on initial load - only sync on user interaction
+      // to prevent overwriting saved custom field values
     }
-  }, [apiPOData, poProductsResponse, warehouseProducts, syncBahanCustomFields]);
+  }, [apiPOData, poProductsResponse, warehouseProducts]);
 
   // Calculate derived values
   const calculateSisaBahan = (
@@ -654,10 +586,10 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
       }
 
       bahanTab.terloading = value;
-      bahanTab.sisaBahan = calculateSisaBahan(value, bahanTab.bahanTerpakai);
+      bahanTab.sisaBahan = calculateSisaBahan(value, bahanTab.bahanTerpakai ?? 0);
       bahanTab.efisiensi = calculateEfisiensi(
         bahanTab.estBahan,
-        bahanTab.bahanTerpakai
+        bahanTab.bahanTerpakai ?? 0
       );
 
       // Call API to persist the change
@@ -672,9 +604,8 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
       return newData;
     });
 
-    if (nextData) {
-      syncBahanCustomFields(nextData);
-    }
+    // Sync to custom field is handled by backend
+
 
     if (requestId) {
       try {
@@ -820,9 +751,8 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
       return newData;
     });
 
-    if (nextData) {
-      syncBahanCustomFields(nextData);
-    }
+    // Sync to custom field is handled by backend
+
 
     if (requestId !== undefined) {
       const productForPayload = payloadProduct || snapshotProduct;
@@ -1472,17 +1402,17 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
           selectedItem?.itemCategory?.name ||
           (selectedItem as any)?.categoryName ||
           (selectedItem as any)?.category_name;
-          const itemCategoryName = rawCategoryName
-            ? rawCategoryName.toLowerCase()
-            : "";
-          const normalizedSource = itemSource
-            ? itemSource.toLowerCase()
-            : null;
+        const itemCategoryName = rawCategoryName
+          ? rawCategoryName.toLowerCase()
+          : "";
+        const normalizedSource = itemSource
+          ? itemSource.toLowerCase()
+          : null;
 
-          let suitableAccount = null;
+        let suitableAccount = null;
 
-          if (itemCategoryName) {
-            suitableAccount = glaccounts.data.d.find((acc: any) => {
+        if (itemCategoryName) {
+          suitableAccount = glaccounts.data.d.find((acc: any) => {
             const accountName = acc.name.toLowerCase();
             const cleanAccountName = accountName
               .replace("hpp ", "")
@@ -1491,14 +1421,14 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
             const directMatch = accountName.includes(itemCategoryName);
             const reverseMatch = itemCategoryName.includes(cleanAccountName);
 
-                return directMatch || reverseMatch;
-              });
+            return directMatch || reverseMatch;
+          });
 
-              if (!suitableAccount && normalizedSource === "hikmat") {
-                const hikmatCategoryKeywords = [
-                  "krah",
-                  "manset",
-                  "rib",
+          if (!suitableAccount && normalizedSource === "hikmat") {
+            const hikmatCategoryKeywords = [
+              "krah",
+              "manset",
+              "rib",
               "bahan",
               "kain",
             ];
@@ -1528,17 +1458,17 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
                 );
               });
             }
-              }
+          }
 
-              // General fallback: Use the first available account from the same source
-              if (!suitableAccount && normalizedSource) {
-                suitableAccount = glaccounts.data.d.find((acc: any) => {
-                  const accountSource = (acc.source || "").toLowerCase();
-                  return accountSource === normalizedSource;
-                });
-              }
+          // General fallback: Use the first available account from the same source
+          if (!suitableAccount && normalizedSource) {
+            suitableAccount = glaccounts.data.d.find((acc: any) => {
+              const accountSource = (acc.source || "").toLowerCase();
+              return accountSource === normalizedSource;
+            });
+          }
 
-              // Last resort: Use the first available account
+          // Last resort: Use the first available account
           if (!suitableAccount && glaccounts.data.d.length > 0) {
             suitableAccount = glaccounts.data.d[0];
           }
@@ -1656,10 +1586,10 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
             name: selectedProduct.name,
             description: selectedProduct.description ?? null,
             terloading: hasInitialTerloading ? initialTerloading || 0 : 0,
-            bahanTerpakai: 0,
+            bahanTerpakai: null, // Initialize as null - only sync when user sets a value
             sisaBahan: calculateSisaBahan(
               hasInitialTerloading ? initialTerloading || 0 : 0,
-              0
+              0 // sisaBahan calc uses 0 for null bahanTerpakai
             ),
             jmlProduksi: 0,
             estBahan: 0,
@@ -1748,24 +1678,24 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
                 products: poItem.products.map((p) =>
                   p.id === optimisticId
                     ? {
-                        ...p,
-                        id: productKey,
-                        poProductId: createdPOProductId,
-                        adjustment_no: glAccountInfo.adjustment_no,
-                        adjustment_name: glAccountInfo.adjustment_name,
-                        bahanTabs: [
-                          {
-                            ...p.bahanTabs[0],
-                            id: createdPOProductId,
-                            terloading: initialTerloading ?? 0,
-                            sisaBahan: calculateSisaBahan(
-                              initialTerloading ?? 0,
-                              0
-                            ),
-                            efisiensi: calculateEfisiensi(0, 0),
-                          },
-                        ],
-                      }
+                      ...p,
+                      id: productKey,
+                      poProductId: createdPOProductId,
+                      adjustment_no: glAccountInfo.adjustment_no,
+                      adjustment_name: glAccountInfo.adjustment_name,
+                      bahanTabs: [
+                        {
+                          ...p.bahanTabs[0],
+                          id: createdPOProductId,
+                          terloading: initialTerloading ?? 0,
+                          sisaBahan: calculateSisaBahan(
+                            initialTerloading ?? 0,
+                            0
+                          ),
+                          efisiensi: calculateEfisiensi(0, 0),
+                        },
+                      ],
+                    }
                     : p
                 ),
               };
@@ -1782,12 +1712,12 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
                 products: poItem.products.map((p) =>
                   p.id === optimisticId
                     ? {
-                        ...p,
-                        id: realId,
-                        poProductId: createdPOProductId ?? p.poProductId,
-                        adjustment_no: glAccountInfo.adjustment_no ?? p.adjustment_no,
-                        adjustment_name: glAccountInfo.adjustment_name ?? p.adjustment_name,
-                      }
+                      ...p,
+                      id: realId,
+                      poProductId: createdPOProductId ?? p.poProductId,
+                      adjustment_no: glAccountInfo.adjustment_no ?? p.adjustment_no,
+                      adjustment_name: glAccountInfo.adjustment_name ?? p.adjustment_name,
+                    }
                     : p
                 ),
               };
@@ -1806,11 +1736,11 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
           prevData.map((poItem) =>
             poItem.id === poId
               ? {
-                  ...poItem,
-                  products: poItem.products.filter(
-                    (p) => p.id !== optimisticId
-                  ),
-                }
+                ...poItem,
+                products: poItem.products.filter(
+                  (p) => p.id !== optimisticId
+                ),
+              }
               : poItem
           )
         );
@@ -1835,8 +1765,8 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
               {isLoadingPOs && isLoadingPOProducts
                 ? "Loading Purchase Orders and Products..."
                 : isLoadingPOs
-                ? "Loading Purchase Orders..."
-                : "Loading PO Products..."}
+                  ? "Loading Purchase Orders..."
+                  : "Loading PO Products..."}
             </p>
           </div>
         </div>

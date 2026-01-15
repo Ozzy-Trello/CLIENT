@@ -174,6 +174,19 @@ export const transformPOProductToProductItem = (
     return Number.isFinite(n) ? n : 0;
   };
 
+  // Helper to coerce potentially locale-formatted numeric strings to numbers, returning null for empty inputs
+  const toNullableNumber = (input: any): number | null => {
+    if (input === null || input === undefined) return null;
+    if (typeof input === "number") return Number.isFinite(input) ? input : null;
+    const str = String(input).trim();
+    if (!str) return null;
+    const normalized = str.includes(".") && str.includes(",")
+      ? str.replace(/\./g, "").replace(/,/g, ".")
+      : str.replace(/,/g, ".");
+    const n = Number(normalized);
+    return Number.isFinite(n) ? n : null;
+  };
+
   const description =
     poProduct.categories?.find((cat) => cat.description)?.description ?? null;
   const categoryIds = poProduct.categories?.map((cat) => cat.id) || [];
@@ -198,7 +211,7 @@ export const transformPOProductToProductItem = (
         name: poProduct.productName,
         description,
         terloading: toNumber(poProduct.terloading), // Ensure numeric type for calculations
-        bahanTerpakai: toNumber(poProduct.bahanTerpakai),
+        bahanTerpakai: toNullableNumber(poProduct.bahanTerpakai),
         sisaBahan: 0,
         jmlProduksi: 0,
         estBahan: 0,

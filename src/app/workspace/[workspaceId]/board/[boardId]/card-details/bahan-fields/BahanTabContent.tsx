@@ -620,8 +620,7 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
     } catch (error) {
       console.error("❌ [BahanTabContent] Failed to create order:", error);
       message.error(
-        `Failed to create order for ${product.name}: ${
-          error instanceof Error ? error.message : "Unknown error"
+        `Failed to create order for ${product.name}: ${error instanceof Error ? error.message : "Unknown error"
         }`
       );
       return false;
@@ -664,8 +663,8 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
       product.poProductCategoryIds && product.poProductCategoryIds.length > 0
         ? product.poProductCategoryIds.filter(Boolean)
         : product.poProductCategoryId
-        ? [product.poProductCategoryId]
-        : [];
+          ? [product.poProductCategoryId]
+          : [];
 
     targetCategoryIds.forEach((catId) => {
       work.push(
@@ -753,7 +752,7 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
   };
 
   const handleTerpakaiFocus = () => {
-    if (bahanTab.bahanTerpakai === 0) {
+    if (bahanTab.bahanTerpakai === 0 || bahanTab.bahanTerpakai === null) {
       setTerpakaiInputValue("");
     }
   };
@@ -854,7 +853,7 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
         clearCategoryError={clearCategoryError}
       />
       <br />
-      <hr/ >
+      <hr />
       <br />
       <BahanControls
         colors={colors}

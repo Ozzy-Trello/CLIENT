@@ -112,7 +112,8 @@ const ProductTabs: React.FC<ProductTabsProps> = ({
       }}
       items={po.products.map((product) => {
         // Check if "Tercutting" tag should show: bahanTerpakai > 0 AND orderCreated is true
-        const hasBahanTerpakai = product.bahanTabs?.[0]?.bahanTerpakai > 0;
+        const bahanTerpakaiValue = product.bahanTabs?.[0]?.bahanTerpakai ?? 0;
+        const hasBahanTerpakai = bahanTerpakaiValue > 0;
         const showTercutting = hasBahanTerpakai && product.orderCreated === true;
 
         return {

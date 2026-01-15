@@ -19,7 +19,7 @@ export default function Home() {
     }
 
     if (!isLoading && defaultWorkspace) {
-      router.push(`/workspace/${defaultWorkspace.id}/boards`);
+      router.push(`/workspace/${defaultWorkspace.id}/board`);
     }
   }, [accessToken, defaultWorkspace, isLoading, router]);
 

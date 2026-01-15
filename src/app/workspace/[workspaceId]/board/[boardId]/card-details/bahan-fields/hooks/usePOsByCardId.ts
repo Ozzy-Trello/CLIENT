@@ -12,7 +12,7 @@ const transformPOToItem = (po: any, index: number): POItem => {
     poNumber: po.poNumber || po.po_number, // Handle both naming conventions
     name: `PO ${index + 1}`, // Display name using simple index (PO 1, PO 2, etc.)
     terloading: 0, // Initialize with default values
-    bahanTerpakai: 0, // Initialize with default values
+    bahanTerpakai: null, // Initialize as null - only sync when user actually sets a value
     products: [], // Initialize with empty array - products come from POProduct API via dropdown selection
     createdAt: po.createdAt || po.created_at, // Handle both naming conventions
     updatedAt: po.updatedAt || po.updated_at, // Handle both naming conventions
@@ -29,17 +29,17 @@ const normalizeAPIResponse = (response: any): PO[] => {
   if (response && typeof response === 'object' && 'data' in response) {
     return response.data || [];
   }
-  
+
   // If response is an array, it's the direct format
   if (Array.isArray(response)) {
     return response;
   }
-  
+
   // If response.data is an array, use that
   if (response && response.data && Array.isArray(response.data)) {
     return response.data;
   }
-  
+
   // Fallback to empty array
   return [];
 };
@@ -52,13 +52,13 @@ export const usePOsByCardId = (cardId: string) => {
     queryKey: ["pos", cardId],
     queryFn: async () => {
       const response = await getPOsByCardId(cardId);
-      
+
       // Normalize the response to handle both formats
       const normalizedData = normalizeAPIResponse(response);
-      
+
       // Transform backend PO data to frontend POItem structure
       const transformedPOs = normalizedData.map((po, index) => transformPOToItem(po, index));
-      
+
       return transformedPOs;
     },
     enabled: !!cardId, // Only run query if cardId is provided
