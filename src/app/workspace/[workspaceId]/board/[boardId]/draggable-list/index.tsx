@@ -37,6 +37,7 @@ const DraggableList: React.FC<DraggableListProps> = ({
 }) => {
   const [isVisible, setIsVisible] = useState(false);
   const listRef = useRef<HTMLDivElement | null>(null);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const el = listRef.current;
@@ -89,6 +90,28 @@ const DraggableList: React.FC<DraggableListProps> = ({
   const { canMoveList, canCreateCard } = useBoardPermissionsContext();
   const currentUser = useSelector(selectUser);
   const currentBoard = useSelector(selectCurrentBoard);
+
+  // Infinite scroll observer
+  useEffect(() => {
+    const el = loadMoreRef.current;
+    if (!el || isLoadingMore || !hasMoreCards || loadMoreError) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          loadMoreCards();
+        }
+      },
+      {
+        root: null,
+        rootMargin: "100px",
+        threshold: 0.1,
+      }
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [isLoadingMore, hasMoreCards, loadMoreError, loadMoreCards]);
 
   // Check if user can move lists and create cards using board-specific permissions
   const canMoveListPermission = canMoveList();
@@ -200,51 +223,35 @@ const DraggableList: React.FC<DraggableListProps> = ({
                     {provided.placeholder}
 
                     {/* Load More Button */}
-                    {!isLoading &&
-                      cards.length > 0 &&
-                      (hasMoreCards || loadMoreError) && (
-                        <div className="flex flex-col items-center py-2 space-y-2">
-                          {loadMoreError && (
-                            <div className="text-xs text-red-500 text-center px-2">
-                              {loadMoreError}
-                            </div>
-                          )}
-                          <button
-                            onClick={
-                              loadMoreError ? retryLoadMore : loadMoreCards
-                            }
-                            disabled={isLoadingMore}
-                            className="
-                            px-4 py-2 
-                            text-sm 
-                            text-gray-600 
-                            bg-gray-100 
-                            hover:bg-gray-200 
-                            disabled:bg-gray-50 
-                            disabled:text-gray-400 
-                            rounded-lg 
-                            border 
-                            border-gray-200 
-                            transition-colors 
-                            duration-200
-                            flex 
-                            items-center 
-                            gap-2
-                          "
-                          >
-                            {isLoadingMore ? (
-                              <>
-                                <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
-                                Loading...
-                              </>
-                            ) : loadMoreError ? (
-                              "Retry"
-                            ) : (
-                              "Load More"
-                            )}
-                          </button>
+                    {/* Infinite Scroll Sentinel & Loading Indicator */}
+                    {!isLoading && cards.length > 0 && (hasMoreCards || isLoadingMore) && !loadMoreError && (
+                      <div
+                        ref={loadMoreRef}
+                        className="flex justify-center p-2 min-h-[40px]"
+                      >
+                        {isLoadingMore && (
+                          <div className="flex items-center gap-2 text-gray-500 text-sm">
+                            <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                            Loading...
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Retry Button (Only when error) */}
+                    {loadMoreError && (
+                      <div className="flex flex-col items-center py-2 space-y-2">
+                        <div className="text-xs text-red-500 text-center px-2">
+                          {loadMoreError}
                         </div>
-                      )}
+                        <button
+                          onClick={retryLoadMore}
+                          className="px-4 py-2 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg"
+                        >
+                          Retry
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
