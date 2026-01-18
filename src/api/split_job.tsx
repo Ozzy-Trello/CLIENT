@@ -22,6 +22,46 @@ export interface SplitJobValue {
   updated_at?: string;
 }
 
+export interface SplitJobValueWithDetails extends SplitJobValue {
+  template_name?: string | null;
+  custom_field_name?: string | null;
+  card_name?: string | null;
+  list_name?: string | null;
+  board_name?: string | null;
+  board_id?: string | null;
+  list_id?: string | null;
+  card_due_date?: string | null;
+}
+
+export interface SplitJobGroup {
+  custom_field_id?: string | null;
+  custom_field_name: string;
+  values: SplitJobValueWithDetails[];
+}
+
+export interface SplitJobCardGroupItem {
+  id: string;
+  name: string;
+  value: number | null;
+  templateId?: string | null;
+  templateName?: string | null;
+  customFieldId?: string | null;
+  customFieldName?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+}
+
+export interface SplitJobCardGroup {
+  cardId?: string | null;
+  cardName: string;
+  boardId?: string | null;
+  boardName?: string | null;
+  listId?: string | null;
+  listName?: string | null;
+  dueDate?: string | null;
+  items: SplitJobCardGroupItem[];
+}
+
 // Get split job templates for a workspace and custom field
 export const getSplitJobTemplates = async (
   workspaceId: string,
@@ -114,5 +154,15 @@ export const getSplitJobValuesByCustomField = async (
 ): Promise<ApiResponse<GroupedSplitJobValues>> => {
   const params = { card_id: cardId };
   const { data } = await api.get("/split-job/values-by-custom-field", { params });
+  return data;
+};
+
+// Get all split jobs grouped by custom field (workspace scoped optional)
+export const getAllSplitJobs = async (
+  workspaceId?: string
+): Promise<ApiResponse<SplitJobGroup[]>> => {
+  const params: Record<string, string> = {};
+  if (workspaceId) params.workspace_id = workspaceId;
+  const { data } = await api.get("/split-job/all", { params });
   return data;
 };

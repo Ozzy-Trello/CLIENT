@@ -292,6 +292,19 @@ const Sidebar = () => {
         ),
         icon: <Layers size={16} />,
       });
+
+      menus.push({
+        key: `/workspace/${resolvedWorkspaceId}/split-jobs`,
+        label: (
+          <Link
+            className="block w-full"
+            href={`/workspace/${resolvedWorkspaceId}/split-jobs`}
+          >
+            Split Jobs
+          </Link>
+        ),
+        icon: <Package size={16} />,
+      });
     }
 
     return menus;

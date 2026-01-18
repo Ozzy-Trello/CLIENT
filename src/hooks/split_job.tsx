@@ -8,8 +8,12 @@ import {
   deleteSplitJobValue,
   deleteSplitJobTemplate,
   getSplitJobValuesByCustomField,
+  getAllSplitJobs,
   SplitJobTemplate,
   SplitJobValue,
+  SplitJobGroup,
+  SplitJobCardGroup,
+  SplitJobCardGroupItem,
   GroupedSplitJobValues
 } from '@api/split_job';
 
@@ -237,4 +241,70 @@ export const useSplitJobValuesByCustomField = (cardId?: string) => {
     isUpdating: updateValueMutation.isPending,
     isDeleting: deleteValueMutation.isPending,
   };
+};
+
+export const useAllSplitJobs = (workspaceId?: string) => {
+  return useQuery<SplitJobCardGroup[]>({
+    queryKey: ['allSplitJobs', workspaceId],
+    queryFn: async () => {
+      const res = await getAllSplitJobs(workspaceId);
+      const groups = (res.data || []) as any[];
+
+      const cardMap = new Map<string, SplitJobCardGroup>();
+
+      const parseNumber = (val: any): number | null => {
+        if (val === null || val === undefined) return null;
+        if (typeof val === "number" && Number.isFinite(val)) return val;
+        const num = Number(String(val).replace(/,/g, ""));
+        return Number.isFinite(num) ? num : null;
+      };
+
+      groups.forEach((rawGroup) => {
+        const group: SplitJobGroup = {
+          custom_field_id: rawGroup.custom_field_id ?? rawGroup.customFieldId,
+          custom_field_name: rawGroup.custom_field_name ?? rawGroup.customFieldName,
+          values: rawGroup.values || [],
+        };
+
+        (group.values || []).forEach((v: any) => {
+          const value = v ?? {};
+          const item: SplitJobCardGroupItem = {
+            id: value.id,
+            name: value.name,
+            value: parseNumber(value.value),
+            templateId: value.split_job_template_id ?? value.splitJobTemplateId,
+            templateName: value.template_name ?? value.templateName ?? undefined,
+            customFieldId: value.custom_field_id ?? value.customFieldId,
+            customFieldName:
+              value.custom_field_name ??
+              value.customFieldName ??
+              group.custom_field_name,
+            createdAt: value.created_at ?? value.createdAt ?? null,
+            updatedAt: value.updated_at ?? value.updatedAt ?? null,
+          };
+
+          const cardId = value.card_id ?? value.cardId ?? null;
+          const key = cardId || value.card_name || value.cardName || "unknown-card";
+          const existing = cardMap.get(key);
+          if (!existing) {
+            cardMap.set(key, {
+              cardId,
+              cardName: value.card_name ?? value.cardName ?? "Unknown Card",
+              boardId: value.board_id ?? value.boardId ?? null,
+              boardName: value.board_name ?? value.boardName ?? null,
+              listId: value.list_id ?? value.listId ?? null,
+              listName: value.list_name ?? value.listName ?? null,
+              dueDate: value.card_due_date ?? value.cardDueDate ?? null,
+              items: [item],
+            });
+          } else {
+            existing.items.push(item);
+          }
+        });
+      });
+
+      return Array.from(cardMap.values());
+    },
+    staleTime: 2 * 60 * 1000,
+  });
 };
