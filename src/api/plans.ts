@@ -26,8 +26,65 @@ export interface SewingPlanList {
   total: number;
   page: number;
   limit: number;
-   masterPlanner: MasterPlanner | null;
+  masterPlanner: MasterPlanner | null;
 }
+
+// Generic Plan Types
+export interface PlanItem {
+  id: string;
+  name: string;
+  createdAt?: string | null;
+  dueDate?: string | null;
+  listName?: string | null;
+  listId?: string | null;
+  productName?: string | null;
+  targetDate?: string | null;
+  quantity?: number | null;
+  kapasitasHarian?: number | null;
+  sisaKapasitas?: number | null;
+  isHoliday?: boolean;
+  isHalfDay?: boolean;
+  statusProduksi?: "Aman" | "Overload" | null;
+  overdueDays?: number | null;
+  [key: string]: any;
+}
+
+export interface PlanList {
+  items: PlanItem[];
+  total: number;
+  page: number;
+  limit: number;
+  masterPlanner?: any;
+  master_planner?: any; // backend snake_case compatibility
+  columns?: { header: string; key: string }[];
+  boardId?: string;
+  board_id?: string; // backend snake_case compatibility
+}
+
+export const getPlan = async (
+  plannerId: number,
+  params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    date?: string;
+    include_lists?: string[];
+  }
+): Promise<ApiResponse<PlanList>> => {
+  const { data } = await api.get(`/plans/${plannerId}`, { params });
+  return data;
+};
+
+export const bulkUpdatePlanDate = async (
+  plannerId: number,
+  payload: { cardIds: string[]; date: string }
+): Promise<ApiResponse<null>> => {
+  const { data } = await api.post(`/plans/${plannerId}/bulk-date`, {
+    card_ids: payload.cardIds,
+    date: payload.date,
+  });
+  return data;
+};
 
 export const getSewingPlans = async (
   params?: {

@@ -21,8 +21,67 @@ import TokenStorage from "@utils/token-storage";
 import { SearchResult, useUnifiedSearch } from "@hooks/search";
 import { selectCurrentBoard, selectCurrentWorkspace } from "@store/workspace_slice";
 import { useRecentlyViewed } from "@hooks/recently-viewed";
+import GenericPlannerView from "@components/generic-planner-view";
+import GenericPlannerInputView from "@components/generic-planner-view/input-view";
 
 const { Text } = Typography;
+
+type PlannerModalProps = {
+  open: boolean;
+  title: string;
+  plannerName: string;
+  onClose: () => void;
+  defaultTab?: "input" | "planner";
+};
+
+// Reusable planner modal to keep padding/layout consistent across Cutting/Bordir/Krah
+const PlannerModal: React.FC<PlannerModalProps> = ({
+  open,
+  title,
+  plannerName,
+  onClose,
+  defaultTab = "input",
+}) => {
+  return (
+    <Modal
+      open={open}
+      onCancel={onClose}
+      footer={null}
+      title={title}
+      width="90vw"
+      destroyOnClose
+      styles={{
+        body: {
+          padding: "1rem",
+        },
+      }}
+    >
+      <Tabs
+        defaultActiveKey={defaultTab}
+        items={[
+          {
+            key: "input",
+            label: "Input",
+            children: (
+              <div style={{ padding: "8px 0" }}>
+                <GenericPlannerInputView plannerName={plannerName} />
+              </div>
+            ),
+          },
+          {
+            key: "planner",
+            label: "Planner",
+            children: (
+              <div style={{ padding: "8px 0" }}>
+                <GenericPlannerView plannerName={plannerName} />
+              </div>
+            ),
+          },
+        ]}
+      />
+    </Modal>
+  );
+};
 
 const TopBar: React.FC = React.memo(() => {
   const [notificationVisible, setNotificationVisible] = useState(false);
@@ -32,6 +91,7 @@ const TopBar: React.FC = React.memo(() => {
   const [modalRequestSentOpen, setModalRequestSentOpen] = useState(false);
   const [modalRequestProduksiOpen, setModalRequestProduksiOpen] = useState(false);
   const [modalSewingOpen, setModalSewingOpen] = useState(false);
+  const [modalCuttingOpen, setModalCuttingOpen] = useState(false);
   const [modalBordirOpen, setModalBordirOpen] = useState(false);
   const [modalKrahOpen, setModalKrahOpen] = useState(false);
   const [wsDebugModalOpen, setWsDebugModalOpen] = useState(false);
@@ -360,6 +420,11 @@ const TopBar: React.FC = React.memo(() => {
             menu={{
               items: [
                 {
+                  key: "cutting",
+                  label: "Cutting",
+                  onClick: () => setModalCuttingOpen(true),
+                },
+                {
                   key: "sewing",
                   label: "Sewing",
                   onClick: () => setModalSewingOpen(true),
@@ -685,77 +750,26 @@ const TopBar: React.FC = React.memo(() => {
         onClose={() => setWsDebugModalOpen(false)}
       />
 
-      <Modal
-        open={modalBordirOpen}
-        onCancel={() => setModalBordirOpen(false)}
-        footer={null}
-        title="Bordir"
-        width="70vw"
-      >
-        <Tabs
-          defaultActiveKey="input"
-          items={[
-            {
-              key: "input",
-              label: "Input",
-              children: (
-                <div style={{ padding: "8px 0" }}>
-                  <Typography.Text type="secondary">
-                    Coming soon
-                  </Typography.Text>
-                </div>
-              ),
-            },
-            {
-              key: "planner",
-              label: "Planner",
-              children: (
-                <div style={{ padding: "8px 0" }}>
-                  <Typography.Text type="secondary">
-                    Coming soon
-                  </Typography.Text>
-                </div>
-              ),
-            },
-          ]}
-        />
-      </Modal>
+      <PlannerModal
+        open={modalCuttingOpen}
+        onClose={() => setModalCuttingOpen(false)}
+        title="Cutting"
+        plannerName="Cutting"
+      />
 
-      <Modal
+      <PlannerModal
+        open={modalBordirOpen}
+        onClose={() => setModalBordirOpen(false)}
+        title="Bordir"
+        plannerName="Bordir"
+      />
+
+      <PlannerModal
         open={modalKrahOpen}
-        onCancel={() => setModalKrahOpen(false)}
-        footer={null}
+        onClose={() => setModalKrahOpen(false)}
         title="Krah & Manset"
-        width="70vw"
-      >
-        <Tabs
-          defaultActiveKey="input"
-          items={[
-            {
-              key: "input",
-              label: "Input",
-              children: (
-                <div style={{ padding: "8px 0" }}>
-                  <Typography.Text type="secondary">
-                    Coming soon
-                  </Typography.Text>
-                </div>
-              ),
-            },
-            {
-              key: "planner",
-              label: "Planner",
-              children: (
-                <div style={{ padding: "8px 0" }}>
-                  <Typography.Text type="secondary">
-                    Coming soon
-                  </Typography.Text>
-                </div>
-              ),
-            },
-          ]}
-        />
-      </Modal>
+        plannerName="Knitting (KM)"
+      />
     </div>
   );
 });
