@@ -78,6 +78,18 @@ const Description: React.FC<{
     setIsEditingDescription(false);
   };
 
+  useEffect(() => {
+    // When switching cards, reset edit state and sync description
+    setIsEditingDescription(false);
+    setNewDescription(card?.description || "");
+  }, [card?.id]);
+
+  useEffect(() => {
+    if (!isEditingDescription) {
+      setNewDescription(card?.description || "");
+    }
+  }, [card?.description, isEditingDescription]);
+
   return (
     <div className="mt-6">
       <div className="flex items-center justify-between mb-2">
@@ -162,7 +174,7 @@ const Description: React.FC<{
           {card.description ? (
             <div
               className="prose prose-sm max-w-none"
-              dangerouslySetInnerHTML={{ __html: newDescription }}
+              dangerouslySetInnerHTML={{ __html: card.description || newDescription }}
             />
           ) : (
             <span style={{ color: `rgb(${colors["text-muted"]})` }}>
