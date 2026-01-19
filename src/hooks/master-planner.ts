@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createMasterPlanner,
   deleteMasterPlanner,
+  getHardcodedMasterPlanner,
   getMasterPlanners,
   updateMasterPlanner,
 } from "@api/master-planner";
@@ -66,5 +67,18 @@ export const useDeleteMasterPlanner = () => {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey });
     },
+  });
+};
+
+export const useMasterPlannerV2 = (type: string) => {
+  return useQuery({
+    queryKey: ["master-planner-v2", type],
+    queryFn: async () => {
+      if (!type) return null;
+      const response = await getHardcodedMasterPlanner(type);
+      return response.data;
+    },
+    staleTime: 2 * 60 * 1000,
+    enabled: !!type,
   });
 };

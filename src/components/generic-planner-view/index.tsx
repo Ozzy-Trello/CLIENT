@@ -15,9 +15,9 @@ import {
     Spin,
 } from "antd";
 import dayjs from "dayjs";
-import { usePlan } from "@hooks/usePlan";
+import { usePlanSummary } from "@hooks/usePlan";
 import { PlanFilterParam, PlanItem } from "@api/plans";
-import { useMasterPlanners } from "@hooks/master-planner";
+import { useMasterPlanners, useMasterPlannerV2 } from "@hooks/master-planner";
 import { Filter, RotateCcw } from "lucide-react";
 
 const { Text } = Typography;
@@ -60,9 +60,10 @@ const getDateFieldName = (plannerName: string, plannerConfigDate?: string) => {
         cutting: "Tgl Cutting",
         bordir: "Tgl Bordir",
         "knitting (km)": "Tgl Knitting (KM)",
+        "knitting": "Tgl Knitting (KM)",
     };
     const key = plannerName.toLowerCase();
-    return plannerConfigDate || map[key];
+    return plannerConfigDate || map[key] || map[key.replace(/\s+/g, "")] || "Tanggal";
 };
 
 const GenericPlannerView: React.FC<GenericPlannerViewProps> = ({
@@ -79,7 +80,22 @@ const GenericPlannerView: React.FC<GenericPlannerViewProps> = ({
     const [dynamicFilters, setDynamicFilters] = useState<Record<string, string>>({});
     const [dynamicDateFilters, setDynamicDateFilters] = useState<Record<string, string>>({});
 
-    // Fetch all planners to find ID by name if not provided
+    const getV2Type = (name: string): string | null => {
+        const n = name.toLowerCase().trim();
+        if (n === "sewing") return "sewing";
+        if (n === "cutting") return "cutting";
+        if (n === "bordir") return "bordir";
+        if (n === "knitting (km)" || n === "knitting" || n.includes("krah")) return "knitting";
+        return null;
+    };
+
+    const v2Type = getV2Type(plannerName);
+
+    // Fetch V2 Data
+    const { data: v2Data, isLoading: loadingV2 } = useMasterPlannerV2(v2Type || "");
+
+    // Fetch all planners to find ID by name if not provided (V1 Legacy)
+    // Only needed if NOT V2
     const { data: planners = [], isLoading: loadingPlanners } = useMasterPlanners();
 
     const normalizedPlannerName = plannerName.toLowerCase().trim();
@@ -92,10 +108,11 @@ const GenericPlannerView: React.FC<GenericPlannerViewProps> = ({
 
     const resolvedPlannerId = resolvedPlanner?.id;
 
+    // Config Decision: V2 vs V1
     const plannerConfig =
         (resolvedPlanner as any)?.plannerConfig ||
         (resolvedPlanner as any)?.planner_config ||
-        {};
+        (v2Data?.config ?? {});
 
     const includeLists: string[] = plannerConfig.include_lists || plannerConfig.includeLists || [];
     const dateField = getDateFieldName(plannerName, plannerConfig?.date_field || plannerConfig?.dateField);
@@ -114,7 +131,7 @@ const GenericPlannerView: React.FC<GenericPlannerViewProps> = ({
         filtersPayload.push({ field, value, operator: "eq" });
     });
 
-    const { data, isLoading: loadingPlan } = usePlan(resolvedPlannerId, {
+    const { data: summaryData, isLoading: loadingPlan, refetch: refetchSummary } = usePlanSummary(resolvedPlannerId, {
         page,
         limit,
         search: search || undefined,
@@ -122,9 +139,21 @@ const GenericPlannerView: React.FC<GenericPlannerViewProps> = ({
         filters: filtersPayload,
     });
 
-    const isLoading = loadingPlanners || loadingPlan;
-    const columns = (data?.columns ?? []).filter((col) => col.header !== dateField);
+    const isLoading = v2Type ? loadingV2 : (loadingPlanners || loadingPlan);
+
+    // Columns
+    const rawColumns = Array.isArray(summaryData?.columns)
+        ? summaryData?.columns
+        : Array.isArray(plannerConfig?.columns)
+            ? plannerConfig.columns
+            : [];
+
     const plannerColumns = Array.isArray(plannerConfig?.columns) ? plannerConfig.columns : [];
+    const columns = rawColumns.filter((col: any) => col.header !== dateField);
+    const filterColumns = plannerColumns.length ? plannerColumns : rawColumns;
+
+    // Data Items Logic (already aggregated by backend summary API)
+    const items: any[] = (summaryData as any)?.items ?? [];
 
     const columnMetaByHeader = new Map<string, any>();
     plannerColumns.forEach((c: any) => {
@@ -154,7 +183,7 @@ const GenericPlannerView: React.FC<GenericPlannerViewProps> = ({
         return systemField === "product_name";
     };
 
-    const filterableColumns = columns.filter((col) => {
+    const filterableColumns = filterColumns.filter((col: any) => {
         if (isListHeader(col.header)) return false;
         if (isProductHeader(col.header)) return false;
         if (col.header === dateField) return false;
@@ -171,97 +200,146 @@ const GenericPlannerView: React.FC<GenericPlannerViewProps> = ({
         return undefined;
     };
 
-    // Build table columns dynamically
-    const tableColumns = columns.map((col) => {
-        const key = col.key;
-        return {
-            title: col.header,
-            dataIndex: key,
-            key,
-            width: 120,
-            render: (value: any, record: PlanItem) => {
-                // Check dynamic values first (using header as key)
-                const dynamicVal = getDynamicValue(record, col.header);
-                if (dynamicVal !== undefined && dynamicVal !== null) {
-                    // Format dates
-                    if (typeof dynamicVal === "string" && dynamicVal.match(/^\d{4}-\d{2}-\d{2}/)) {
-                        return formatDate(dynamicVal);
-                    }
-                    const numVal = parseNumeric(dynamicVal);
-                    if (numVal !== null) return formatNumber(numVal);
-                    return dynamicVal;
-                }
-                // Then check standard fields
-                if (key === "name") return <Text strong>{record.name}</Text>;
-                if (key === "createdAt" || key === "created_at") return formatDate(record.createdAt);
-                if (key === "dueDate" || key === "due_date") return formatDate(record.dueDate);
-                if (key === "listName" || key === "list_name") return record.listName ?? "-";
-                if (key === "productName" || key === "product_name") return record.productName ?? "-";
-                return value ?? "-";
-            },
+    const normalizeDateKey = (val: any): string | null => {
+        if (!val) return null;
+        if (typeof val === "string") {
+            const trimmed = val.trim();
+            if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+            const parsedStrict = dayjs(trimmed, ["DD/MM/YYYY", "YYYY/MM/DD", "YYYY-MM-DD"], true);
+            if (parsedStrict.isValid()) return parsedStrict.format("YYYY-MM-DD");
+        }
+        const d = dayjs(val);
+        if (!d.isValid()) return null;
+        return d.format("YYYY-MM-DD");
+    };
+
+    const capacityForDate = (() => {
+        const holidays = new Set(
+            (plannerConfig?.holidays || []).map((d: any) => normalizeDateKey(d)).filter((d: string | null): d is string => !!d)
+        );
+        const halfDays = new Set(
+            (plannerConfig?.half_days || plannerConfig?.halfDays || []).map((d: any) => normalizeDateKey(d)).filter((d: string | null): d is string => !!d)
+        );
+        const lines = plannerConfig?.lines || [];
+        const fullCapacity = lines.reduce((sum: number, line: any) => {
+            const cap = parseNumeric(line?.capacity) || 0;
+            return sum + cap;
+        }, 0);
+        const halfCapacity = lines.reduce((sum: number, line: any) => {
+            const cap = parseNumeric(line?.capacity) || 0;
+            const halfCap = parseNumeric((line as any)?.half_day_capacity) ?? cap / 2;
+            return sum + halfCap;
+        }, 0);
+
+        return (dateKey: string | null): number | null => {
+            if (!dateKey) return null;
+            if (holidays.has(dateKey)) return 0;
+            if (halfDays.has(dateKey)) return halfCapacity;
+            return fullCapacity;
         };
-    });
+    })();
 
-    // Editable date column (read-only here) using the configured/planned field name
-    if (dateField) {
-        tableColumns.unshift({
-            title: dateField,
-            dataIndex: dateField,
-            key: dateField,
-            width: 140,
-            render: (_: any, record: PlanItem) => {
-                const val =
-                    getDynamicValue(record, dateField) ??
-                    (record as any).targetDate ??
-                    (record as any).target_date ??
-                    record.targetDate ??
-                    record.target_date ??
-                    null;
-                return formatDate(val as string | null);
-            },
+    const displayItems = React.useMemo(() => {
+        if (!v2Type) return items as any[];
+
+        const grouped = new Map<string, { totalJml: number; capacity: number | null }>();
+        items.forEach((item: any) => {
+            const dateKey = normalizeDateKey(
+                (item as any).date ??
+                (dateField ? (item[dateField] ?? (item as any).targetDate ?? (item as any).target_date) : (item as any).targetDate ?? (item as any).target_date)
+            );
+            if (!dateKey) return;
+            const jml =
+                parseNumeric(getDynamicValue(item as any, "Jml Produksi")) ??
+                parseNumeric((item as any).jmlProduksi) ??
+                parseNumeric((item as any).jml_produksi) ??
+                parseNumeric((item as any).quantity) ??
+                parseNumeric((item as any).jml_produksi) ?? // backend summary shape
+                parseNumeric((item as any).jmlProduksi) ??
+                0;
+            const capacity = (item as any).kapasitasHarian ?? (item as any).kapasitas_harian ?? capacityForDate(dateKey);
+            const current = grouped.get(dateKey) ?? { totalJml: 0, capacity };
+            current.totalJml += jml || 0;
+            if (current.capacity === null && capacity !== null) current.capacity = capacity;
+            grouped.set(dateKey, current);
         });
-    }
 
-    // Add standard capacity columns
-    tableColumns.push(
+        return Array.from(grouped.entries())
+            .map(([dateKey, info]) => {
+                const capacity = info.capacity ?? capacityForDate(dateKey);
+                const sisa = capacity !== null ? capacity - info.totalJml : null;
+                const status = capacity === null || sisa === null ? null : sisa > 0 ? "Aman" : "Overload";
+                return {
+                    date: dateKey,
+                    jml_produksi: info.totalJml || null,
+                    kapasitas_harian: capacity,
+                    sisa_kapasitas: sisa,
+                    status_produksi: status,
+                    overdue_days: null,
+                };
+            })
+            .sort((a, b) => a.date.localeCompare(b.date));
+    }, [items, v2Type, dateField, capacityForDate]);
+
+    const tableColumns = [
         {
-            title: "Qty",
-            dataIndex: "quantity",
-            key: "quantity",
-            width: 80,
-            render: (v: number | null) =>
-                v !== null && v !== undefined ? formatNumber(v) : "-",
+            title: dateField || "Tanggal Produksi",
+            dataIndex: "date",
+            key: "date",
+            width: 140,
+            render: (v: any) => formatDate(v as string | null),
+        },
+        {
+            title: "Jml Produksi",
+            dataIndex: "jml_produksi",
+            key: "jml_produksi",
+            width: 140,
+            render: (v: any) => {
+                const numVal = parseNumeric(v);
+                return numVal !== null ? formatNumber(numVal) : "-";
+            },
         },
         {
             title: "Kapasitas",
-            dataIndex: "kapasitasHarian",
-            key: "kapasitasHarian",
-            width: 90,
+            dataIndex: "kapasitas_harian",
+            key: "kapasitas_harian",
+            width: 120,
             render: (v: number | null) =>
                 v !== null && v !== undefined ? formatNumber(v) : "-",
         },
         {
-            title: "Sisa",
-            dataIndex: "sisaKapasitas",
-            key: "sisaKapasitas",
-            width: 80,
+            title: "Sisa Kapasitas",
+            dataIndex: "sisa_kapasitas",
+            key: "sisa_kapasitas",
+            width: 130,
             render: (v: number | null) =>
                 v !== null && v !== undefined ? formatNumber(v) : "-",
         },
         {
             title: "Status",
-            dataIndex: "statusProduksi",
-            key: "statusProduksi",
-            width: 90,
+            dataIndex: "status_produksi",
+            key: "status_produksi",
+            width: 110,
             render: (v: "Aman" | "Overload" | null) => {
                 if (v === "Aman") return <Tag color="green">Aman</Tag>;
                 if (v === "Overload") return <Tag color="red">Overload</Tag>;
                 return "-";
             },
-        }
-    );
+        },
+        {
+            title: "Overdue (Hari)",
+            dataIndex: "overdue_days",
+            key: "overdue_days",
+            width: 130,
+            render: (v: number | null) => {
+                if (v === null || v === undefined) return "-";
+                if (v > 0) return <Tag color="red">{formatNumber(v)}</Tag>;
+                return <Tag color="green">0</Tag>;
+            },
+        },
+    ];
 
-    if (!resolvedPlannerId && !loadingPlanners) {
+    if (!v2Type && !resolvedPlannerId && !loadingPlanners) {
         return (
             <div style={{ textAlign: "center", padding: 40 }}>
                 <Text type="secondary">Planner &quot;{plannerName}&quot; not found</Text>
@@ -376,7 +454,7 @@ const GenericPlannerView: React.FC<GenericPlannerViewProps> = ({
                     }}
                 />
             </div>
-            {filterableColumns.map((col) => {
+            {filterableColumns.map((col: any) => {
                 const dateLike = isDateHeader(col.header);
                 return (
                     <div
@@ -427,12 +505,12 @@ const GenericPlannerView: React.FC<GenericPlannerViewProps> = ({
                     </Space>
                 }
                 extra={
-                    activeFiltersCount > 0 ? (
+                    <Space>
                         <Button
                             type="text"
                             size="small"
                             icon={<RotateCcw size={14} />}
-                            onClick={resetFilters}
+                            onClick={() => refetchSummary()}
                             style={{
                                 color: "#666",
                                 fontSize: "12px",
@@ -440,9 +518,27 @@ const GenericPlannerView: React.FC<GenericPlannerViewProps> = ({
                                 padding: "0 8px",
                             }}
                         >
-                            Reset
+                            Refresh
                         </Button>
-                    ) : null
+                        {activeFiltersCount > 0 && (
+                            <Button
+                                type="text"
+                                size="small"
+                                onClick={() => {
+                                    resetFilters();
+                                    refetchSummary();
+                                }}
+                                style={{
+                                    color: "#666",
+                                    fontSize: "12px",
+                                    height: "24px",
+                                    padding: "0 8px",
+                                }}
+                            >
+                                Reset
+                            </Button>
+                        )}
+                    </Space>
                 }
             >
                 {filterGrid}
@@ -454,9 +550,9 @@ const GenericPlannerView: React.FC<GenericPlannerViewProps> = ({
                 </div>
             ) : (
                 <Table
-                    rowKey="id"
+                    rowKey="date"
                     columns={tableColumns}
-                    dataSource={data?.items ?? []}
+                    dataSource={displayItems as any[]}
                     size="small"
                     pagination={false}
                     scroll={{ x: "max-content", y: 400 }}

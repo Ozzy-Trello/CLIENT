@@ -39,3 +39,10 @@ export const deleteMasterPlanner = async (
   const { data } = await api.delete(`/master-planner/${id}`);
   return data;
 };
+
+export const getHardcodedMasterPlanner = async (
+  type: string
+): Promise<ApiResponse<any>> => {
+  const { data } = await api.get(`/master-planner/v2/${type}`);
+  return data;
+};

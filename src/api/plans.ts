@@ -67,6 +67,24 @@ export interface PlanList {
   board_id?: string; // backend snake_case compatibility
 }
 
+export interface PlanSummaryItem {
+  date: string;
+  jml_produksi: number | null;
+  kapasitas_harian: number | null;
+  sisa_kapasitas: number | null;
+  status_produksi: "Aman" | "Overload" | null;
+  overdue_days: number | null;
+}
+
+export interface PlanSummaryList {
+  items: PlanSummaryItem[];
+  total: number;
+  page: number;
+  limit: number;
+  master_planner?: any;
+  columns?: { header: string; key: string }[];
+}
+
 export const getPlan = async (
   plannerId: number,
   params?: {
@@ -79,6 +97,32 @@ export const getPlan = async (
   }
 ): Promise<ApiResponse<PlanList>> => {
   const { data } = await api.get(`/plans/${plannerId}`, {
+    params: {
+      ...params,
+      filters:
+        params?.filters && params.filters.length
+          ? JSON.stringify(
+            params.filters
+              .filter((f) => f && f.field && f.value !== undefined && f.value !== null && String(f.value) !== "")
+          )
+          : undefined,
+    },
+  });
+  return data;
+};
+
+export const getPlanSummary = async (
+  plannerId: number,
+  params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    date?: string;
+    include_lists?: string[];
+    filters?: PlanFilterParam[];
+  }
+): Promise<ApiResponse<PlanSummaryList>> => {
+  const { data } = await api.get(`/plans/${plannerId}/summary`, {
     params: {
       ...params,
       filters:

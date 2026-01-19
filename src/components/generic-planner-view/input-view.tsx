@@ -94,6 +94,11 @@ const GenericPlannerInputView: React.FC<GenericPlannerInputViewProps> = ({
     const [inlineUpdatingId, setInlineUpdatingId] = useState<string | null>(null);
 
     const queryClient = useQueryClient();
+    const refreshPlan = () => {
+        if (resolvedPlannerId) {
+            queryClient.invalidateQueries({ queryKey: ["plan", resolvedPlannerId] });
+        }
+    };
 
     const { data: planners = [], isLoading: loadingPlanners } = useMasterPlanners();
 
@@ -178,7 +183,7 @@ const GenericPlannerInputView: React.FC<GenericPlannerInputViewProps> = ({
     const isLoading = loadingPlanners || loadingPlan;
 
     const handleRefresh = () => {
-        queryClient.invalidateQueries({ queryKey: ["plan", resolvedPlannerId] });
+        refreshPlan();
     };
 
     const activeFiltersCount =
@@ -439,6 +444,14 @@ const GenericPlannerInputView: React.FC<GenericPlannerInputViewProps> = ({
         return undefined;
     };
 
+    const getJmlProduksiValue = (record: PlanItem) => {
+        const dynamicVal = getDynamicValue(record, "Jml Produksi");
+        if (dynamicVal !== undefined && dynamicVal !== null) return dynamicVal;
+        if (record.jmlProduksi !== undefined && record.jmlProduksi !== null) return record.jmlProduksi;
+        if ((record as any).jml_produksi !== undefined && (record as any).jml_produksi !== null) return (record as any).jml_produksi;
+        return null;
+    };
+
     // Add remaining generic columns (excluding the editable date column)
     if (data?.columns) {
         data.columns.forEach((col) => {
@@ -463,15 +476,29 @@ const GenericPlannerInputView: React.FC<GenericPlannerInputViewProps> = ({
         });
     }
 
+    const hasJmlProduksiColumn = tableColumns.some(
+        (col: any) =>
+            (typeof col.title === "string" && col.title.toLowerCase().includes("jml produksi")) ||
+            col.key === "jmlProduksi" ||
+            col.dataIndex === "jmlProduksi"
+    );
+
+    if (!hasJmlProduksiColumn) {
+        tableColumns.push({
+            title: "Jml Produksi",
+            dataIndex: "jmlProduksi",
+            key: "jmlProduksi",
+            width: 120,
+            render: (_: any, record: PlanItem) => {
+                const val = getJmlProduksiValue(record);
+                const numVal = parseNumeric(val);
+                return numVal !== null ? formatNumber(numVal) : "-";
+            },
+        });
+    }
+
     // Capacity columns
     tableColumns.push(
-        {
-            title: "Qty",
-            dataIndex: "quantity",
-            key: "quantity",
-            width: 80,
-            render: (v: number | null) => (v !== null && v !== undefined ? formatNumber(v) : "-"),
-        },
         {
             title: "Kapasitas",
             dataIndex: "kapasitasHarian",
@@ -507,26 +534,6 @@ const GenericPlannerInputView: React.FC<GenericPlannerInputViewProps> = ({
                 if (v > 0) return <Tag color="red">Late {v} days</Tag>;
                 return <Tag color="green">On Time</Tag>;
             },
-        },
-        {
-            title: "Evaluasi Jadwal",
-            key: "evaluasi_jadwal",
-            width: 200,
-            render: (_: any, record: PlanItem) => {
-                const prodStatus = record.statusProduksi;
-                const isOverdue = (record.overdueDays ?? 0) > 0;
-
-                if (prodStatus === "Overload" && isOverdue)
-                    return <Tag color="red">Segera Reschedule</Tag>;
-                if (prodStatus === "Overload" && !isOverdue)
-                    return <Tag color="gold">Padat, Potensi Terlambat</Tag>;
-                if (prodStatus === "Aman" && !isOverdue)
-                    return <Tag color="green">Sesuai</Tag>;
-                if (prodStatus === "Aman" && isOverdue)
-                    return <Tag color="red">Late but Aman?</Tag>; // Rare case: Capacity ok but late.
-
-                return "-";
-            }
         }
     );
 
@@ -578,6 +585,9 @@ const GenericPlannerInputView: React.FC<GenericPlannerInputViewProps> = ({
             >
                 {filterGrid}
             </Card>
+            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
+                <Button size="small" onClick={handleRefresh}>Refresh</Button>
+            </div>
             {selectedRowKeys.length > 0 && (
                 <div style={{ marginBottom: 8 }}>
                     <Button type="primary" onClick={() => setBulkModalOpen(true)}>
