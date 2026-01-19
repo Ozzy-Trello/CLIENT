@@ -66,7 +66,8 @@ const TablePivot: FC = () => {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [searchValue, setSearchValue] = useState("");
   const [pageIndex, setPageIndex] = useState(0);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(100000);
+  const [pageSizeChoice, setPageSizeChoice] = useState<"all" | "10" | "20" | "50" | "100">("all");
   const [sorting, setSorting] = useState<SortingState>([]);
   const [isSavingColumns, setIsSavingColumns] = useState(false);
   const [saveSucceeded, setSaveSucceeded] = useState(false);
@@ -583,6 +584,16 @@ const TablePivot: FC = () => {
   const hasUnsavedChanges = hasVisibilityChanges || hasOrderChanges;
 
   const rowCount = table.getRowCount();
+  const pageSizeOptions = useMemo(
+    () => [
+      { label: "All", value: "all" },
+      { label: "10", value: "10" },
+      { label: "20", value: "20" },
+      { label: "50", value: "50" },
+      { label: "100", value: "100" },
+    ],
+    []
+  );
 
   const exportToExcel = useCallback(async () => {
     console.log("[TablePivot] Export to Excel triggered");
@@ -723,9 +734,13 @@ const TablePivot: FC = () => {
   ]);
 
   useEffect(() => {
-    const next = grouping.length > 0 ? rowCount : 10;
-    setPageSize((prev) => (prev === next ? prev : next));
-  }, [grouping.length, rowCount]);
+    const desired =
+      pageSizeChoice === "all" ? rowCount || 100000 : Number(pageSizeChoice);
+    if (desired && desired !== pageSize) {
+      setPageSize(desired);
+      setPageIndex(0);
+    }
+  }, [pageSizeChoice, rowCount, pageSize]);
 
   useEffect(() => {
     if (saveSucceeded && hasUnsavedChanges) {
@@ -802,6 +817,11 @@ const TablePivot: FC = () => {
           table={table}
           onPrev={() => setPageIndex(table.getState().pagination.pageIndex - 1)}
           onNext={() => setPageIndex(table.getState().pagination.pageIndex + 1)}
+          pageSizeChoice={pageSizeChoice}
+          pageSizeOptions={pageSizeOptions}
+          onPageSizeChange={(val) => {
+            setPageSizeChoice(val as any);
+          }}
         />
       )}
     </div>

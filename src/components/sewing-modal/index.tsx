@@ -378,9 +378,7 @@ const SewingModal: React.FC<Props> = ({ open, onClose }) => {
                         onChange={(e) => {
                           const val = e.target.value;
                           setSewingFilters((prev) => {
-                            const next = { ...prev, routing: val };
-                            if (!val) delete next.routing;
-                            return next;
+                            return { ...prev, routing: val || "" };
                           });
                           setSewingPage(1);
                         }}
@@ -393,9 +391,7 @@ const SewingModal: React.FC<Props> = ({ open, onClose }) => {
                         onChange={(e) => {
                           const val = e.target.value;
                           setSewingFilters((prev) => {
-                            const next = { ...prev, produksi: val };
-                            if (!val) delete next.produksi;
-                            return next;
+                            return { ...prev, produksi: val || "" };
                           });
                           setSewingPage(1);
                         }}
@@ -408,9 +404,7 @@ const SewingModal: React.FC<Props> = ({ open, onClose }) => {
                         onChange={(e) => {
                           const val = e.target.value;
                           setSewingFilters((prev) => {
-                            const next = { ...prev, product_name: val };
-                            if (!val) delete next.product_name;
-                            return next;
+                            return { ...prev, product_name: val || "" };
                           });
                           setSewingPage(1);
                         }}
@@ -422,9 +416,7 @@ const SewingModal: React.FC<Props> = ({ open, onClose }) => {
                         value={sewingFilters["status_produksi"] || undefined}
                         onChange={(val) => {
                           setSewingFilters((prev) => {
-                            const next = { ...prev, status_produksi: val || "" };
-                            if (!val) delete next.status_produksi;
-                            return next;
+                            return { ...prev, status_produksi: val || "" };
                           });
                           setSewingPage(1);
                         }}
