@@ -65,7 +65,7 @@ export function useCards(listId: string, boardId: string) {
           if (!old) return { data: [tempCard] };
           return {
             ...old,
-            data: [...(old.data ?? []), tempCard],
+            data: [tempCard, ...(old.data ?? [])],
           };
         }
       );
@@ -81,7 +81,7 @@ export function useCards(listId: string, boardId: string) {
               if (list.id !== listId) return list;
               return {
                 ...list,
-                cards: [...(list.cards || []), tempCard],
+                cards: [tempCard, ...(list.cards || [])],
               };
             }),
           };
@@ -603,8 +603,8 @@ export function useCardsPaginated(
         listId,
       } as Card;
 
-      // Add to the end of allCards
-      setAllCards((prev) => [...prev, tempCard]);
+      // Add to the beginning of allCards (prepend for "Add to Top")
+      setAllCards((prev) => [tempCard, ...prev]);
 
       return { tempId, listId };
     },

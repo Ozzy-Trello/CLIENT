@@ -4,54 +4,71 @@ import camelcaseKeys from "camelcase-keys";
 import { EnumUserActionEvent } from "@myTypes/event";
 import { queryKeys } from "@constants/query-keys";
 
-// Custom hook to manage WebSocket connection
+function toWebSocketUrl(baseUrl: string) {
+  if (baseUrl.startsWith("https://")) {
+    return baseUrl.replace("https://", "wss://");
+  }
+  if (baseUrl.startsWith("http://")) {
+    return baseUrl.replace("http://", "ws://");
+  }
+  return baseUrl;
+}
+
 export function useWebSocket() {
-  const [socket, setSocket] = useState<WebSocket | null>(null);
+  const socketRef = useRef<WebSocket | null>(null);
+
   const [isConnected, setIsConnected] = useState(false);
   const [connectionAttempts, setConnectionAttempts] = useState(0);
   const [lastError, setLastError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Make sure the WebSocket URL is correctly formatted
-    const wsUrl =
-      process.env.NEXT_PUBLIC_BE_BASE_URL?.replace("http", "ws") + "/ws";
+    const baseUrl = process.env.NEXT_PUBLIC_BE_BASE_URL;
+
+    if (!baseUrl) {
+      console.error("[WS] NEXT_PUBLIC_BE_BASE_URL is not defined");
+      setLastError("Missing backend URL");
+      return;
+    }
+
+    const wsUrl = `${toWebSocketUrl(baseUrl)}/ws`;
+    console.log("[WS] Connecting to:", wsUrl);
 
     const ws = new WebSocket(wsUrl);
+    socketRef.current = ws;
     setConnectionAttempts((prev) => prev + 1);
 
+    const timeout = setTimeout(() => {
+      if (ws.readyState === WebSocket.CONNECTING) {
+        console.error("[WS] Connection timeout");
+        ws.close();
+        setLastError("WebSocket connection timeout");
+      }
+    }, 10000);
+
     ws.onopen = () => {
+      console.log("[WS] Connected");
+      clearTimeout(timeout);
       setIsConnected(true);
-      setSocket(ws);
       setLastError(null);
     };
 
     ws.onclose = (event) => {
+      console.warn("[WS] Closed", {
+        code: event.code,
+        reason: event.reason,
+      });
       setIsConnected(false);
-      setSocket(null);
+      socketRef.current = null;
     };
 
-    ws.onerror = (error) => {
+    ws.onerror = (event) => {
+      console.error("[WS] Error", event);
       setIsConnected(false);
-      setLastError(`WebSocket error at ${new Date().toISOString()}`);
-    };
-
-    // Add connection timeout
-    const connectionTimeout = setTimeout(() => {
-      if (ws.readyState === WebSocket.CONNECTING) {
-        ws.close();
-        setLastError("Connection timeout");
-      }
-    }, 10000); // 10 second timeout
-
-    ws.onopen = (event) => {
-      clearTimeout(connectionTimeout);
-      setIsConnected(true);
-      setSocket(ws);
-      setLastError(null);
+      setLastError("WebSocket error");
     };
 
     return () => {
-      clearTimeout(connectionTimeout);
+      clearTimeout(timeout);
       if (
         ws.readyState === WebSocket.OPEN ||
         ws.readyState === WebSocket.CONNECTING
@@ -61,21 +78,25 @@ export function useWebSocket() {
     };
   }, []);
 
-  return { socket, isConnected, connectionAttempts, lastError };
+  return {
+    socket: socketRef.current,
+    isConnected,
+    connectionAttempts,
+    lastError,
+  };
 }
 
-// Hook to handle WebSocket card updates with query invalidation
 export function useWebSocketCardUpdates(socket: WebSocket | null) {
   const queryClient = useQueryClient();
-  const dashcardLastInvalidatedRef = useRef(0);
-  const dashcardTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const DASHCARD_INTERVAL_MS = 2 * 60 * 1000; // 2 minutes
+  const dashcardTimeoutRef = useRef<any>(null);
+  const dashcardLastInvalidatedRef = useRef<number>(0);
+  const DASHCARD_INTERVAL_MS = 2000;
 
   const scheduleDashcardInvalidation = () => {
     const now = Date.now();
     const elapsed = now - dashcardLastInvalidatedRef.current;
 
-    if (elapsed >= DASHCARD_INTERVAL_MS) {
+    if (elapsed > DASHCARD_INTERVAL_MS) {
       queryClient.invalidateQueries({
         queryKey: ["dashcardCount"],
         exact: false,
@@ -176,12 +197,14 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             break;
 
           case EnumUserActionEvent.CardCreated:
+            console.log("[WebSocket] CardCreated event received:", message.data);
             const { card: newCard, listId: newCardListId } = message.data;
 
             // Invalidate relevant queries
             queryClient.invalidateQueries({ queryKey: queryKeys.lists.all });
             queryClient.invalidateQueries({
               queryKey: queryKeys.cards.list(newCardListId),
+              refetchType: "all",
             });
             // Dashcard counters may be affected (new card)
             queryClient.invalidateQueries({
