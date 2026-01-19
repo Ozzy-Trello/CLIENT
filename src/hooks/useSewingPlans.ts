@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { getSewingPlans, getSewingPlanner, SewingPlan, SewingPlanList } from "@api/plans";
+import { getSewingPlans, getSewingPlanner, PlanFilterParam, SewingPlan, SewingPlanList } from "@api/plans";
 
 export const useSewingPlans = (params: {
   page: number;
@@ -9,6 +9,7 @@ export const useSewingPlans = (params: {
   excludeLists?: string[];
   excludeListNameLike?: string;
   includeLists?: string[];
+  filters?: PlanFilterParam[];
 }) => {
   const {
     page,
@@ -18,6 +19,7 @@ export const useSewingPlans = (params: {
     excludeLists,
     excludeListNameLike,
     includeLists,
+    filters,
   } = params;
   return useQuery<SewingPlanList>({
     queryKey: [
@@ -29,6 +31,7 @@ export const useSewingPlans = (params: {
       excludeLists,
       excludeListNameLike,
       includeLists,
+      filters,
     ],
     queryFn: async () => {
       const res = await getSewingPlans({
@@ -39,6 +42,7 @@ export const useSewingPlans = (params: {
         exclude_lists: excludeLists,
         exclude_list_name_like: excludeListNameLike,
         include_lists: includeLists,
+        filters,
       });
       return (
         res.data ?? {

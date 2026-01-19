@@ -15,7 +15,7 @@ import {
 import dayjs from "dayjs";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSewingPlans, useSewingPlanner } from "@hooks/useSewingPlans";
-import { bulkUpdateTglSewing } from "@api/plans";
+import { PlanFilterParam, bulkUpdateTglSewing } from "@api/plans";
 import { useSelector } from "react-redux";
 import { selectCurrentWorkspace } from "@store/workspace_slice";
 import { boards } from "@api/board";
@@ -37,11 +37,13 @@ const formatDate = (val?: string | null) => {
 const SewingModal: React.FC<Props> = ({ open, onClose }) => {
   const currentWorkspace = useSelector(selectCurrentWorkspace);
   const [sewingPage, setSewingPage] = useState(1);
-  const [sewingPageSize, setSewingPageSize] = useState(20);
+  const [sewingPageSize, setSewingPageSize] = useState(100000);
+  const [sewingPageSizeChoice, setSewingPageSizeChoice] = useState<"all" | "10" | "20" | "50" | "100">("all");
   const [sewingSearch, setSewingSearch] = useState("");
   const [sewingSearchInput, setSewingSearchInput] = useState("");
   const [sewingDate, setSewingDate] = useState<string | undefined>(undefined);
   const [sewingListFilter, setSewingListFilter] = useState<string[]>([]);
+  const [sewingFilters, setSewingFilters] = useState<Record<string, string>>({});
   const [sewingSelectedRowKeys, setSewingSelectedRowKeys] = useState<
     React.Key[]
   >([]);
@@ -54,6 +56,10 @@ const SewingModal: React.FC<Props> = ({ open, onClose }) => {
   const [listOptions, setListOptions] = useState<
     { label: string; value: string }[]
   >([]);
+
+  const sewingFiltersPayload: PlanFilterParam[] = Object.entries(sewingFilters)
+    .filter(([, v]) => v !== undefined && v !== null && String(v).trim() !== "")
+    .map(([field, value]) => ({ field, value, operator: "like" }));
 
   const { data: sewingData, isLoading: sewingLoading } = useSewingPlans({
     page: sewingPage,
@@ -68,6 +74,7 @@ const SewingModal: React.FC<Props> = ({ open, onClose }) => {
     ],
     excludeListNameLike: "Filter",
     includeLists: sewingListFilter.length ? sewingListFilter : undefined,
+    filters: sewingFiltersPayload,
   });
   const { data: sewingPlannerData, isLoading: sewingPlannerLoading } =
     useSewingPlanner();
@@ -92,6 +99,14 @@ const SewingModal: React.FC<Props> = ({ open, onClose }) => {
     return { full, half };
   };
   const { full: fullCap, half: halfCap } = computeCapacities();
+
+  const pageSizeOptions = [
+    { label: "All", value: "all" },
+    { label: "10", value: "10" },
+    { label: "20", value: "20" },
+    { label: "50", value: "50" },
+    { label: "100", value: "100" },
+  ];
 
   useEffect(() => {
     if (sewingPlans.length === 0 && sewingSelectedRowKeys.length) {
@@ -355,12 +370,90 @@ const SewingModal: React.FC<Props> = ({ open, onClose }) => {
                         }}
                         options={listOptions}
                       />
+                      <AntInput
+                        placeholder="Filter Routing"
+                        allowClear
+                        style={{ width: 160 }}
+                        value={sewingFilters["routing"] || ""}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setSewingFilters((prev) => {
+                            const next = { ...prev, routing: val };
+                            if (!val) delete next.routing;
+                            return next;
+                          });
+                          setSewingPage(1);
+                        }}
+                      />
+                      <AntInput
+                        placeholder="Filter Produksi"
+                        allowClear
+                        style={{ width: 160 }}
+                        value={sewingFilters["produksi"] || ""}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setSewingFilters((prev) => {
+                            const next = { ...prev, produksi: val };
+                            if (!val) delete next.produksi;
+                            return next;
+                          });
+                          setSewingPage(1);
+                        }}
+                      />
+                      <AntInput
+                        placeholder="Filter Product"
+                        allowClear
+                        style={{ width: 180 }}
+                        value={sewingFilters["product_name"] || ""}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setSewingFilters((prev) => {
+                            const next = { ...prev, product_name: val };
+                            if (!val) delete next.product_name;
+                            return next;
+                          });
+                          setSewingPage(1);
+                        }}
+                      />
+                      <Select
+                        allowClear
+                        placeholder="Status"
+                        style={{ width: 140 }}
+                        value={sewingFilters["status_produksi"] || undefined}
+                        onChange={(val) => {
+                          setSewingFilters((prev) => {
+                            const next = { ...prev, status_produksi: val || "" };
+                            if (!val) delete next.status_produksi;
+                            return next;
+                          });
+                          setSewingPage(1);
+                        }}
+                        options={[
+                          { label: "Aman", value: "Aman" },
+                          { label: "Overload", value: "Overload" },
+                        ]}
+                      />
                       {(fullCap || halfCap) && (
                         <Typography.Text type="secondary">
                           Kapasitas: Full {fullCap || 0} | Half {halfCap || 0}
                         </Typography.Text>
                       )}
                     </Space>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8, gap: 8 }}>
+                    <span style={{ fontSize: 12, color: "#666", alignSelf: "center" }}>Page Size:</span>
+                    <Select
+                      size="small"
+                      value={sewingPageSizeChoice}
+                      style={{ width: 120 }}
+                      options={pageSizeOptions}
+                      onChange={(val) => {
+                        setSewingPageSizeChoice(val);
+                        const next = val === "all" ? (sewingData?.total ?? 100000) : Number(val);
+                        setSewingPageSize(next);
+                        setSewingPage(1);
+                      }}
+                    />
                   </div>
                   {sewingLoading ? (
                     <Typography.Text type="secondary">Loading…</Typography.Text>
@@ -376,14 +469,11 @@ const SewingModal: React.FC<Props> = ({ open, onClose }) => {
                       pagination={{
                         current: sewingPage,
                         pageSize: sewingPageSize,
-                        total: sewingData?.total || 0,
-                        onChange: (page, pageSize) => {
-                          setSewingPage(page);
-                          setSewingPageSize(pageSize);
-                        },
-                        showSizeChanger: true,
-                        showTotal: (total, range) =>
-                          `${range[0]}-${range[1]} of ${total}`,
+                        total: sewingData?.total ?? sewingPlans.length,
+                        onChange: (p) => setSewingPage(p),
+                        showTotal: (total, range) => `${range[0]}-${range[1]} of ${total}`,
+                        showSizeChanger: false,
+                        size: "small",
                       }}
                       scroll={{ y: 320 }}
                     />

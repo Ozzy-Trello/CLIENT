@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { getPlan, PlanList } from "@api/plans";
+import { getPlan, PlanFilterParam, PlanList } from "@api/plans";
 
 export const usePlan = (
     plannerId: number | undefined,
@@ -9,12 +9,13 @@ export const usePlan = (
         search?: string;
         date?: string;
         includeLists?: string[];
+        filters?: PlanFilterParam[];
     }
 ) => {
-    const { page, limit, search, date, includeLists } = params;
+    const { page, limit, search, date, includeLists, filters } = params;
 
     return useQuery<PlanList>({
-        queryKey: ["plan", plannerId, page, limit, search, date, includeLists],
+        queryKey: ["plan", plannerId, page, limit, search, date, includeLists, filters],
         queryFn: async () => {
             if (!plannerId) {
                 return {
@@ -31,6 +32,7 @@ export const usePlan = (
                 search,
                 date,
                 include_lists: includeLists,
+                filters,
             });
             return (
                 res.data ?? {

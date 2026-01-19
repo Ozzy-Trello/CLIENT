@@ -2,8 +2,12 @@
 
 import React, { useState } from "react";
 import {
+    Badge,
+    Button,
+    Card,
     DatePicker,
     Input,
+    Select,
     Space,
     Table,
     Tag,
@@ -12,8 +16,9 @@ import {
 } from "antd";
 import dayjs from "dayjs";
 import { usePlan } from "@hooks/usePlan";
-import { PlanItem } from "@api/plans";
+import { PlanFilterParam, PlanItem } from "@api/plans";
 import { useMasterPlanners } from "@hooks/master-planner";
+import { Filter, RotateCcw } from "lucide-react";
 
 const { Text } = Typography;
 
@@ -65,31 +70,96 @@ const GenericPlannerView: React.FC<GenericPlannerViewProps> = ({
     plannerId: propPlannerId,
 }) => {
     const [page, setPage] = useState(1);
-    const [limit] = useState(50);
+    const [limit] = useState(100000);
     const [search, setSearch] = useState("");
+    const [searchInput, setSearchInput] = useState("");
     const [date, setDate] = useState<string | undefined>(undefined);
+    const [listFilter, setListFilter] = useState<string | undefined>(undefined);
+    const [productFilter, setProductFilter] = useState<string>("");
+    const [dynamicFilters, setDynamicFilters] = useState<Record<string, string>>({});
+    const [dynamicDateFilters, setDynamicDateFilters] = useState<Record<string, string>>({});
 
     // Fetch all planners to find ID by name if not provided
     const { data: planners = [], isLoading: loadingPlanners } = useMasterPlanners();
 
+    const normalizedPlannerName = plannerName.toLowerCase().trim();
+    const candidateNames = [normalizedPlannerName];
+
     const resolvedPlanner =
         propPlannerId
             ? planners.find((p) => p.id === propPlannerId)
-            : planners.find((p) => p.name.toLowerCase() === plannerName.toLowerCase());
+            : planners.find((p) => candidateNames.includes(p.name.toLowerCase()));
 
     const resolvedPlannerId = resolvedPlanner?.id;
-    const dateField = getDateFieldName(plannerName, (resolvedPlanner as any)?.plannerConfig?.date_field);
 
-    // Fetch plan data
+    const plannerConfig =
+        (resolvedPlanner as any)?.plannerConfig ||
+        (resolvedPlanner as any)?.planner_config ||
+        {};
+
+    const includeLists: string[] = plannerConfig.include_lists || plannerConfig.includeLists || [];
+    const dateField = getDateFieldName(plannerName, plannerConfig?.date_field || plannerConfig?.dateField);
+
+    // Build filters payload for backend
+    const filtersPayload: PlanFilterParam[] = [];
+    if (listFilter) filtersPayload.push({ field: "list_name", value: listFilter, operator: "eq" });
+    if (productFilter) filtersPayload.push({ field: "product_name", value: productFilter, operator: "like" });
+    if (date && dateField) filtersPayload.push({ field: dateField, value: date, operator: "eq" });
+    Object.entries(dynamicFilters).forEach(([field, value]) => {
+        if (!value) return;
+        filtersPayload.push({ field, value, operator: "like" });
+    });
+    Object.entries(dynamicDateFilters).forEach(([field, value]) => {
+        if (!value) return;
+        filtersPayload.push({ field, value, operator: "eq" });
+    });
+
     const { data, isLoading: loadingPlan } = usePlan(resolvedPlannerId, {
         page,
         limit,
         search: search || undefined,
         date,
+        filters: filtersPayload,
     });
 
     const isLoading = loadingPlanners || loadingPlan;
     const columns = (data?.columns ?? []).filter((col) => col.header !== dateField);
+    const plannerColumns = Array.isArray(plannerConfig?.columns) ? plannerConfig.columns : [];
+
+    const columnMetaByHeader = new Map<string, any>();
+    plannerColumns.forEach((c: any) => {
+        if (c?.header) columnMetaByHeader.set(c.header, c);
+    });
+
+    const isDateHeader = (header: string) => {
+        const meta = columnMetaByHeader.get(header);
+        const systemField = meta?.system_field || meta?.systemField;
+        const fieldName = meta?.field_name || meta?.fieldName;
+        const h = header.toLowerCase();
+        if (systemField && ["due_date", "created_at"].includes(systemField)) return true;
+        if (fieldName && fieldName.toLowerCase().includes("tgl")) return true;
+        if (h.includes("tgl") || h.includes("date")) return true;
+        return false;
+    };
+
+    const isListHeader = (header: string) => {
+        const meta = columnMetaByHeader.get(header);
+        const systemField = meta?.system_field || meta?.systemField;
+        return systemField === "list_name";
+    };
+
+    const isProductHeader = (header: string) => {
+        const meta = columnMetaByHeader.get(header);
+        const systemField = meta?.system_field || meta?.systemField;
+        return systemField === "product_name";
+    };
+
+    const filterableColumns = columns.filter((col) => {
+        if (isListHeader(col.header)) return false;
+        if (isProductHeader(col.header)) return false;
+        if (col.header === dateField) return false;
+        return true;
+    });
 
     // Helper to access dynamic fields robustly
     const getDynamicValue = (record: PlanItem, key: string) => {
@@ -199,27 +269,184 @@ const GenericPlannerView: React.FC<GenericPlannerViewProps> = ({
         );
     }
 
-    return (
-        <div>
-            <Space style={{ marginBottom: 16 }}>
-                <Input.Search
+    const activeFiltersCount =
+        (search ? 1 : 0) +
+        (date ? 1 : 0) +
+        (listFilter ? 1 : 0) +
+        (productFilter ? 1 : 0) +
+        Object.values(dynamicFilters).filter((v) => v !== undefined && v !== null && String(v).trim() !== "").length +
+        Object.values(dynamicDateFilters).filter((v) => v !== undefined && v !== null && String(v).trim() !== "").length;
+
+    const resetFilters = () => {
+        setSearch("");
+        setSearchInput("");
+        setDate(undefined);
+        setListFilter(undefined);
+        setProductFilter("");
+        setDynamicFilters({});
+        setDynamicDateFilters({});
+        setPage(1);
+    };
+
+    const handleTextFilterChange = (key: string, val: string) => {
+        setDynamicFilters((prev) => {
+            const next = { ...prev, [key]: val };
+            if (!val) delete next[key];
+            return next;
+        });
+        setPage(1);
+    };
+
+    const handleDateFilterChange = (key: string, val?: string) => {
+        setDynamicDateFilters((prev) => {
+            const next = { ...prev, [key]: val || "" };
+            if (!val) delete next[key];
+            return next;
+        });
+        setPage(1);
+    };
+
+    const filterGrid = (
+        <div
+            style={{
+                width: "100%",
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+                gap: 10,
+            }}
+        >
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>Search</span>
+                <Input
                     placeholder="Search cards..."
                     allowClear
-                    onSearch={(val) => {
-                        setSearch(val);
+                    value={searchInput}
+                    onChange={(e) => {
+                        const val = e.target.value;
+                        setSearchInput(val);
+                        if (!val.trim()) {
+                            setSearch("");
+                            setPage(1);
+                        }
+                    }}
+                    onPressEnter={() => {
+                        setSearch(searchInput.trim());
                         setPage(1);
                     }}
-                    style={{ width: 200 }}
                 />
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
+                    {dateField || "Tanggal"}
+                </span>
                 <DatePicker
                     placeholder="Filter by date"
+                    value={date ? dayjs(date) : null}
                     onChange={(d) => {
                         setDate(d ? d.format("YYYY-MM-DD") : undefined);
                         setPage(1);
                     }}
                     allowClear
+                    style={{ width: "100%" }}
                 />
-            </Space>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>List</span>
+                <Select
+                    allowClear
+                    placeholder="Pilih List"
+                    value={listFilter}
+                    options={includeLists.map((l: string) => ({ label: l, value: l }))}
+                    onChange={(val) => {
+                        setListFilter(val || undefined);
+                        setPage(1);
+                    }}
+                    style={{ width: "100%" }}
+                />
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>Product</span>
+                <Input
+                    placeholder="Filter Product"
+                    allowClear
+                    value={productFilter}
+                    onChange={(e) => {
+                        setProductFilter(e.target.value);
+                        setPage(1);
+                    }}
+                />
+            </div>
+            {filterableColumns.map((col) => {
+                const dateLike = isDateHeader(col.header);
+                return (
+                    <div
+                        key={col.header}
+                        style={{ display: "flex", flexDirection: "column", gap: 4 }}
+                    >
+                        <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
+                            {col.header}
+                        </span>
+                        {dateLike ? (
+                            <DatePicker
+                                allowClear
+                                style={{ width: "100%" }}
+                                value={dynamicDateFilters[col.header] ? dayjs(dynamicDateFilters[col.header]) : null}
+                                onChange={(d) => handleDateFilterChange(col.header, d ? d.format("YYYY-MM-DD") : undefined)}
+                            />
+                        ) : (
+                            <Input
+                                allowClear
+                                placeholder={`Filter ${col.header}`}
+                                value={dynamicFilters[col.header] || ""}
+                                onChange={(e) => handleTextFilterChange(col.header, e.target.value)}
+                            />
+                        )}
+                    </div>
+                );
+            })}
+        </div>
+    );
+
+    return (
+        <div>
+            <Card
+                size="small"
+                style={{
+                    marginBottom: 16,
+                    borderRadius: 8,
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+                    border: "1px solid #e8e8e8",
+                }}
+                title={
+                    <Space align="center">
+                        <Filter size={16} style={{ color: "#1890ff" }} />
+                        <span style={{ fontWeight: 600 }}>🔍 Filter Planner</span>
+                        {activeFiltersCount > 0 && (
+                            <Badge count={activeFiltersCount} style={{ backgroundColor: "#faad14" }} />
+                        )}
+                    </Space>
+                }
+                extra={
+                    activeFiltersCount > 0 ? (
+                        <Button
+                            type="text"
+                            size="small"
+                            icon={<RotateCcw size={14} />}
+                            onClick={resetFilters}
+                            style={{
+                                color: "#666",
+                                fontSize: "12px",
+                                height: "24px",
+                                padding: "0 8px",
+                            }}
+                        >
+                            Reset
+                        </Button>
+                    ) : null
+                }
+            >
+                {filterGrid}
+            </Card>
 
             {isLoading ? (
                 <div style={{ textAlign: "center", padding: 40 }}>
@@ -231,14 +458,7 @@ const GenericPlannerView: React.FC<GenericPlannerViewProps> = ({
                     columns={tableColumns}
                     dataSource={data?.items ?? []}
                     size="small"
-                    pagination={{
-                        current: page,
-                        pageSize: limit,
-                        total: data?.total ?? 0,
-                        onChange: (p) => setPage(p),
-                        showTotal: (total, range) => `${range[0]}-${range[1]} of ${total}`,
-                        size: "small",
-                    }}
+                    pagination={false}
                     scroll={{ x: "max-content", y: 400 }}
                     locale={{
                         emptyText: "No items found",

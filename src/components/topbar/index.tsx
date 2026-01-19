@@ -14,7 +14,6 @@ import ModalRequest from "../modal-request";
 import ModalListRequest from "../modal-list-request";
 import ModalRequestSent from "../modal-request-sent";
 import ModalRequestProduksi from "../modal-request-produksi";
-import SewingModal from "../sewing-modal";
 import WebSocketDebugModal from "../websocket-debug-modal";
 import { getRequestNotificationCounts } from "@api/accurate";
 import TokenStorage from "@utils/token-storage";
@@ -741,13 +740,15 @@ const TopBar: React.FC = React.memo(() => {
         open={modalRequestProduksiOpen}
         onClose={() => setModalRequestProduksiOpen(false)}
       />
-      <SewingModal
-        open={modalSewingOpen}
-        onClose={() => setModalSewingOpen(false)}
-      />
       <WebSocketDebugModal
         open={wsDebugModalOpen}
         onClose={() => setWsDebugModalOpen(false)}
+      />
+      <PlannerModal
+        open={modalSewingOpen}
+        onClose={() => setModalSewingOpen(false)}
+        title="Sewing"
+        plannerName="Sewing"
       />
 
       <PlannerModal

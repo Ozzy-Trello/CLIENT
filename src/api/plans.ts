@@ -2,6 +2,12 @@ import { api } from ".";
 import { ApiResponse } from "@myTypes/api";
 import { MasterPlanner } from "@myTypes/master-planner";
 
+export interface PlanFilterParam {
+  field: string;
+  value: string | number;
+  operator?: "like" | "eq" | "gte" | "lte";
+}
+
 export interface SewingPlan {
   id: string;
   name: string;
@@ -69,9 +75,21 @@ export const getPlan = async (
     search?: string;
     date?: string;
     include_lists?: string[];
+    filters?: PlanFilterParam[];
   }
 ): Promise<ApiResponse<PlanList>> => {
-  const { data } = await api.get(`/plans/${plannerId}`, { params });
+  const { data } = await api.get(`/plans/${plannerId}`, {
+    params: {
+      ...params,
+      filters:
+        params?.filters && params.filters.length
+          ? JSON.stringify(
+            params.filters
+              .filter((f) => f && f.field && f.value !== undefined && f.value !== null && String(f.value) !== "")
+          )
+          : undefined,
+    },
+  });
   return data;
 };
 
@@ -95,9 +113,21 @@ export const getSewingPlans = async (
     exclude_lists?: string[];
     exclude_list_name_like?: string;
     include_lists?: string[];
+    filters?: PlanFilterParam[];
   }
 ): Promise<ApiResponse<SewingPlanList>> => {
-  const { data } = await api.get("/plans/sewing", { params });
+  const { data } = await api.get("/plans/sewing", {
+    params: {
+      ...params,
+      filters:
+        params?.filters && params.filters.length
+          ? JSON.stringify(
+            params.filters
+              .filter((f) => f && f.field && f.value !== undefined && f.value !== null && String(f.value) !== "")
+          )
+          : undefined,
+    },
+  });
   return data;
 };
 
