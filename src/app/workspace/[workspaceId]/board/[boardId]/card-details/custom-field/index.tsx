@@ -311,16 +311,20 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
                       </span>
                     </Tooltip>
                   </div>
-                  <Tooltip title="Copy value">
-                    <button
-                      type="button"
-                      onClick={() => copyFieldValue(field)}
-                      className="text-gray-500 hover:text-gray-800 transition-colors"
-                      aria-label={`Copy ${field.name}`}
-                    >
-                      <Copy size={14} />
-                    </button>
-                  </Tooltip>
+                  {["no faktur", "no do", "no ri"].includes(
+                    String(field.name || "").trim().toLowerCase()
+                  ) && (
+                    <Tooltip title="Copy value">
+                      <button
+                        type="button"
+                        onClick={() => copyFieldValue(field)}
+                        className="text-gray-500 hover:text-gray-800 transition-colors"
+                        aria-label={`Copy ${field.name}`}
+                      >
+                        <Copy size={14} />
+                      </button>
+                    </Tooltip>
+                  )}
                 </div>
                 <div>{renderFieldInput(field)}</div>
               </div>
