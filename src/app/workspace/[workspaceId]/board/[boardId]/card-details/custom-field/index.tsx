@@ -1,8 +1,8 @@
 import { SelectionRef, UserSelection } from "@components/selection";
 import { useCardCustomField } from "@hooks/card_custom_field";
 import { useBoardPermissionsContext } from "@providers/board-permissions-context";
-import { DatePicker, Input, Tooltip } from "antd";
-import { List, StretchHorizontal, CheckSquare, Search, Loader2 } from "lucide-react";
+import { DatePicker, Input, Tooltip, message } from "antd";
+import { List, StretchHorizontal, CheckSquare, Search, Loader2, Copy } from "lucide-react";
 import { useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { EnumCustomFieldSource, EnumCustomFieldType } from "@myTypes/custom-field";
@@ -47,6 +47,7 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
 
   const [searchTerm, setSearchTerm] = useState<string>("");
   const userSelectionRefs = useRef<Map<string, SelectionRef>>(new Map());
+  const [messageApi, contextHolder] = message.useMessage();
 
   const filteredCustomFields =
     cardCustomFields?.filter((field) => {
@@ -214,6 +215,56 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
     }
   };
 
+  const getFieldDisplayValue = (field: CardCustomField): string => {
+    switch (field.type) {
+      case EnumCustomFieldType.Checkbox: {
+        const checked = normalizeCheckboxValue(field?.valueCheckbox, (field as any)?.value_checkbox);
+        return checked ? "true" : "false";
+      }
+      case EnumCustomFieldType.Number: {
+        if (field.valueNumber === 0) return "0";
+        if (field.valueNumber) return String(field.valueNumber);
+        return "";
+      }
+      case EnumCustomFieldType.Date: {
+        if (field.valueDate) {
+          const d = dayjs(field.valueDate);
+          if (d.isValid()) return d.format("YYYY-MM-DD HH:mm");
+        }
+        return "";
+      }
+      default: {
+        return (
+          field.valueOption ||
+          field.valueString ||
+          (field as any)?.value_option ||
+          (field as any)?.value_string ||
+          (field.valueNumber ? String(field.valueNumber) : "") ||
+          ""
+        );
+      }
+    }
+  };
+
+  const copyFieldValue = async (field: CardCustomField) => {
+    const text = getFieldDisplayValue(field);
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textarea = document.createElement("textarea");
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+      }
+      messageApi.success("Copied");
+    } catch (err) {
+      messageApi.error("Copy failed");
+    }
+  };
+
   if (isLoading) {
     return <div className="ml-8 text-gray-500">Loading custom fields...</div>;
   }
@@ -224,6 +275,7 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
 
   return (
     <div className="relative min-h-[200px]">
+      {contextHolder}
       {isUpdating && (
         <div className="fixed inset-0 bg-white/60 z-[9999] flex items-center justify-center backdrop-blur-[1px]">
           <div className="bg-white p-3 rounded-full shadow-lg">
@@ -250,12 +302,24 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
           return (
             <div key={field.id} className="space-y-2">
               <div className="w-full">
-                <div className="flex items-center gap-2 text-gray-700 font-medium">
-                  {getFieldIcon(field)}
-                  <Tooltip title={field.name}>
-                    <span className="truncate" style={{ fontSize: "14px" }}>
-                      {field.name}
-                    </span>
+                <div className="flex items-center gap-2 text-gray-700 font-medium justify-between">
+                  <div className="flex items-center gap-2 min-w-0">
+                    {getFieldIcon(field)}
+                    <Tooltip title={field.name}>
+                      <span className="truncate" style={{ fontSize: "14px" }}>
+                        {field.name}
+                      </span>
+                    </Tooltip>
+                  </div>
+                  <Tooltip title="Copy value">
+                    <button
+                      type="button"
+                      onClick={() => copyFieldValue(field)}
+                      className="text-gray-500 hover:text-gray-800 transition-colors"
+                      aria-label={`Copy ${field.name}`}
+                    >
+                      <Copy size={14} />
+                    </button>
                   </Tooltip>
                 </div>
                 <div>{renderFieldInput(field)}</div>
