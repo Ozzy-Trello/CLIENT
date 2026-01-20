@@ -625,6 +625,17 @@ export function useCardsPaginated(
         );
       }
     },
+    onSettled: (_data, _error, variables) => {
+      // Ensure list data stays in sync after create
+      if (variables?.listId) {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.cards.list(variables.listId),
+        });
+      }
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.lists.board(boardId),
+      });
+    },
   });
 
   // Retry function for failed load more attempts

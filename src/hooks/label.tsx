@@ -23,6 +23,7 @@ export function useLabels(
   }
 ) {
   const queryClient = useQueryClient();
+  const isTempCard = cardId?.startsWith("temp-card");
   const isGloballyEnabled = options?.enabled ?? true;
 
   // ---------- Queries ----------
@@ -51,7 +52,8 @@ export function useLabels(
       if (!cardId) throw new Error("cardId is required to fetch card labels");
       return getCardLabels(workspaceId, cardId);
     },
-    enabled: isGloballyEnabled && !!workspaceId && !!cardId,
+    enabled:
+      isGloballyEnabled && !!workspaceId && !!cardId && !isTempCard,
   });
 
   // ---------- Mutations ----------

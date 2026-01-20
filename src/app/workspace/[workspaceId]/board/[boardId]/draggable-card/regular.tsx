@@ -63,11 +63,14 @@ function getContrastTextColor(hex: string): string {
 const RegularCard: React.FC<RegularCardProps> = (props) => {
   const { card, isHovered, onCompletionChange, isDragging = false } = props;
   const { workspaceId } = useParams();
-  const { cardMembers } = useCardMembers(card?.id);
-  const { cardCustomFields } = useCardCustomField(
-    card.id,
-    workspaceId as string
-  );
+  const isTempCard = card?.id?.startsWith("temp-card");
+
+  const { cardMembers } = useCardMembers(card?.id, {
+    enabled: !isTempCard,
+  });
+  const { cardCustomFields } = useCardCustomField(card.id, workspaceId as string, {
+    enabled: !isTempCard,
+  });
   const [frontCustomFields, setfrontCustomFields] = useState<CardCustomField[]>(
     []
   );
@@ -80,7 +83,8 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
       ? (workspaceId[0] as string)
       : (workspaceId as string),
     card.id,
-    { cardId: card.id }
+    { cardId: card.id },
+    { enabled: !isTempCard }
   );
 
   // useEffect(() => {

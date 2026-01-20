@@ -88,15 +88,16 @@ export function useWebSocket() {
 
 export function useWebSocketCardUpdates(socket: WebSocket | null) {
   const queryClient = useQueryClient();
+  // Dashcard invalidation disabled for performance; refs kept for cleanup compatibility.
   const dashcardTimeoutRef = useRef<any>(null);
   const dashcardLastInvalidatedRef = useRef<number>(0);
-  const DASHCARD_INTERVAL_MS = 2000;
+  const DASHCARD_INTERVAL_MS = 180000; // 3 minutes throttle
 
   const scheduleDashcardInvalidation = () => {
     const now = Date.now();
     const elapsed = now - dashcardLastInvalidatedRef.current;
 
-    if (elapsed > DASHCARD_INTERVAL_MS) {
+    if (elapsed >= DASHCARD_INTERVAL_MS) {
       queryClient.invalidateQueries({
         queryKey: ["dashcardCount"],
         exact: false,
@@ -206,12 +207,7 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
               queryKey: queryKeys.cards.list(newCardListId),
               refetchType: "all",
             });
-            // Dashcard counters may be affected (new card)
-            queryClient.invalidateQueries({
-              queryKey: ["dashcardCount"],
-              exact: false,
-            });
-            refreshDashcard = true;
+            // Skip dashcard invalidation to reduce churn
             break;
 
           case EnumUserActionEvent.CardDeleted:
@@ -227,7 +223,6 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             queryClient.removeQueries({
               queryKey: queryKeys.cards.detail(deletedCardId),
             });
-            refreshDashcard = true;
             break;
 
           case EnumUserActionEvent.CardArchived:
@@ -248,7 +243,6 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             queryClient.invalidateQueries({
               queryKey: queryKeys.cards.archived(),
             });
-            refreshDashcard = true;
             break;
 
           case "additional_field:updated": {

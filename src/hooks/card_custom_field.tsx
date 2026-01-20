@@ -16,14 +16,19 @@ import {
 } from "@myTypes/custom-field";
 import { useMemo, useCallback } from "react";
 
-export const useCardCustomField = (cardId: string, workspaceId: string) => {
+export const useCardCustomField = (
+  cardId: string,
+  workspaceId: string,
+  options?: { enabled?: boolean }
+) => {
   const queryClient = useQueryClient();
+  const isEnabled = !!cardId && !!workspaceId && (options?.enabled ?? true);
 
   // Main query for card custom fields
   const cardCustomFieldQuery = useQuery({
     queryKey: ["cardCustomField", cardId, workspaceId],
     queryFn: () => cardCustomFields(cardId, workspaceId),
-    enabled: !!cardId && !!workspaceId,
+    enabled: isEnabled,
     staleTime: 5000,
   });
 

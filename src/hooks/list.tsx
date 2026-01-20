@@ -498,8 +498,6 @@ export function useDeleteAllCardsInList() {
       // Always refetch after error or success - use specific query keys
       queryClient.invalidateQueries({ queryKey: queryKeys.cards.list(variables.listId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.lists.all });
-      // Also invalidate any dashcard queries that might depend on card counts
-      queryClient.invalidateQueries({ queryKey: ["dashcardCount"], exact: false });
     },
   });
 
