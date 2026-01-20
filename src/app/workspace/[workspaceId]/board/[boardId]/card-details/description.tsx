@@ -162,14 +162,11 @@ const Description: React.FC<{
         </div>
       ) : (
         <div
-          className={`ml-8 p-3 rounded-md min-h-20 transition-colors ${
-            canUpdateCard() ? "cursor-pointer hover:opacity-80" : "cursor-not-allowed opacity-60"
-          }`}
+          className={`ml-8 p-3 rounded-md min-h-20 transition-colors`}
           style={{
             backgroundColor: `rgb(${colors.muted})`,
             color: `rgb(${colors.text})`,
           }}
-          onClick={enableEditDescription}
         >
           {card.description ? (
             <div

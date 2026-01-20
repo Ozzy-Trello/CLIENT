@@ -144,6 +144,8 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
   const [renameValue, setRenameValue] = useState("");
   const [isRenaming, setIsRenaming] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string>("");
 
   const uploadFiles = async (fileList: FileList | null) => {
     if (!fileList || !card.id) return;
@@ -278,14 +280,26 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
                     ) : (
                       <>
                         {attachment.file?.url ? (
-                          <a
-                            href={attachment.file.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="hover:underline"
-                          >
-                            {attachment.file?.name || "Unnamed file"}
-                          </a>
+                          isImageFile(attachment.file.name || "", attachment.file.mimeType) ? (
+                            <span
+                              className="hover:underline cursor-pointer text-blue-600"
+                              onClick={() => {
+                                setImagePreviewUrl(attachment.file?.url || "");
+                                setImagePreviewOpen(true);
+                              }}
+                            >
+                              {attachment.file?.name || "Unnamed file"}
+                            </span>
+                          ) : (
+                            <a
+                              href={attachment.file.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="hover:underline"
+                            >
+                              {attachment.file?.name || "Unnamed file"}
+                            </a>
+                          )
                         ) : (
                           attachment.file?.name || "Unnamed file"
                         )}
@@ -484,6 +498,20 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
       {renderSection("PO", poAttachments)}
       {renderSection("Bukti", buktiAttachments)}
       {renderSection("Other", otherAttachments)}
+
+      <div style={{ display: "none" }}>
+        <Image
+          src={imagePreviewUrl}
+          preview={{
+            visible: imagePreviewOpen,
+            onVisibleChange: (visible) => {
+              setImagePreviewOpen(visible);
+              if (!visible) setImagePreviewUrl("");
+            },
+            src: imagePreviewUrl,
+          }}
+        />
+      </div>
     </div>
   );
 };
