@@ -429,6 +429,7 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
                               .replace(/<[^>]*>/g, "")
                               .trim();
                             if (!plain) return;
+                            if (!item.id) return;
                             updateComment(item.id, editingContent);
                             setEditingCommentId(null);
                             setEditingContent("");
@@ -466,6 +467,7 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
                         size="small"
                         className="text-xs text-gray-500 hover:text-blue-600 p-0 h-auto ml-2"
                         onClick={() => {
+                          if (!item.id) return;
                           setEditingCommentId(item.id);
                           setEditingContent(item?.comment?.text || "");
                         }}

@@ -195,6 +195,7 @@ const DraggableList: React.FC<DraggableListProps> = ({
               <div
                 className="flex flex-col items-center justify-center py-4 px-2 gap-2 w-full"
                 onClick={() => onToggleCollapse && onToggleCollapse(list.id)}
+                style={{ minHeight: "140px" }}
               >
                 <div
                   className="whitespace-normal text-center text-sm font-semibold text-gray-700"
