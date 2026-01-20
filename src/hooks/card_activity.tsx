@@ -1,4 +1,4 @@
-import { addCardActivity, cardAcitivities } from "@api/card_activity";
+import { addCardActivity, cardAcitivities, updateCardActivityComment } from "@api/card_activity";
 import { CardActivity } from "@myTypes/card";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
@@ -12,6 +12,7 @@ export const useCardActivity = (
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [allActivities, setAllActivities] = useState<CardActivity[]>([]);
+  const [filter, setFilter] = useState<"all" | "action" | "comment">("all");
   const limit = 10;
   const isEnabled = !!cardId && (options?.enabled ?? true);
 
@@ -21,8 +22,8 @@ export const useCardActivity = (
     isLoading,
     refetch,
   } = useQuery({
-    queryKey: ["cardActivity", cardId, page],
-    queryFn: () => cardAcitivities(cardId, page, limit),
+    queryKey: ["cardActivity", cardId, page, filter],
+    queryFn: () => cardAcitivities(cardId, page, limit, filter),
     enabled: isEnabled,
     staleTime: 5000,
   });
@@ -97,8 +98,27 @@ export const useCardActivity = (
     },
   });
 
+  const updateCommentMutation = useMutation({
+    mutationFn: ({ activityId, text }: { activityId: string; text: string }) => {
+      if (!cardId) {
+        throw new Error("Card ID is required");
+      }
+      return updateCardActivityComment(cardId, activityId, text);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["cardActivity", cardId] });
+      setPage(1);
+      refetch();
+    },
+  });
+
   return {
     cardActivities: allActivities,
+    filter,
+    setFilter: (value: "all" | "action" | "comment") => {
+      setFilter(value);
+      setPage(1);
+    },
     isLoading,
     isLoadingMore,
     hasMore,
@@ -106,7 +126,12 @@ export const useCardActivity = (
     addCardActivity: (payload: CardActivity) => {
       addCardActivityMutation.mutate(payload);
     },
+    updateComment: (activityId: string, text: string) => {
+      updateCommentMutation.mutate({ activityId, text });
+    },
     isAddingActivity: addCardActivityMutation.isPending,
+    isUpdatingComment: updateCommentMutation.isPending,
+    updateCommentError: updateCommentMutation.error,
     addActivityError: addCardActivityMutation.error,
     mutationState: addCardActivityMutation.status,
     resetMutation: addCardActivityMutation.reset,

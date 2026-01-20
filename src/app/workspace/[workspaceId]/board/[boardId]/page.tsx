@@ -77,6 +77,8 @@ const BoardContentWithPermissions: React.FC<{
   onTouchStart: (e: React.TouchEvent) => void;
   onTouchMove: (e: React.TouchEvent) => void;
   onTouchEnd: () => void;
+  collapsedLists: Record<string, boolean>;
+  onToggleCollapse: (listId: string) => void;
 }> = ({
   lists,
   isLoading,
@@ -101,6 +103,8 @@ const BoardContentWithPermissions: React.FC<{
   onTouchStart,
   onTouchMove,
   onTouchEnd,
+  collapsedLists,
+  onToggleCollapse,
 }) => {
   // Now we can safely use the context hook inside the provider
   const { canCreateList } = useBoardPermissionsContext();
@@ -153,6 +157,8 @@ const BoardContentWithPermissions: React.FC<{
                         boardId={resolvedBoardId}
                         updateList={updateList}
                         deleteList={deleteList}
+                        collapsed={!!collapsedLists[list.id]}
+                        onToggleCollapse={onToggleCollapse}
                       />
                     );
                   })}
@@ -214,6 +220,27 @@ const Board: React.FC = () => {
 
   // Ref for the scrollable board container to control scrolling during drag
   const boardScrollContainerRef = useRef<HTMLDivElement>(null);
+  const [collapsedLists, setCollapsedLists] = useState<Record<string, boolean>>(
+    () => {
+      if (typeof window === "undefined") return {};
+      try {
+        const raw = localStorage.getItem("ozzy_collapsed_lists");
+        return raw ? JSON.parse(raw) : {};
+      } catch {
+        return {};
+      }
+    }
+  );
+
+  const handleToggleCollapse = useCallback((listId: string) => {
+    setCollapsedLists((prev) => {
+      const next = { ...prev, [listId]: !prev[listId] };
+      if (typeof window !== "undefined") {
+        localStorage.setItem("ozzy_collapsed_lists", JSON.stringify(next));
+      }
+      return next;
+    });
+  }, []);
 
   // Drag-to-scroll state management
   const [isDraggingToScroll, setIsDraggingToScroll] = useState(false);
@@ -770,10 +797,12 @@ const Board: React.FC = () => {
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUp}
                 onMouseLeave={handleMouseLeave}
-                onTouchStart={handleTouchStart}
-                onTouchMove={handleTouchMove}
-                onTouchEnd={handleTouchEnd}
-              />
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+              collapsedLists={collapsedLists}
+              onToggleCollapse={handleToggleCollapse}
+            />
               <HorizontalSlider
                 containerRef={boardScrollContainerRef}
                 widthPercent={20}

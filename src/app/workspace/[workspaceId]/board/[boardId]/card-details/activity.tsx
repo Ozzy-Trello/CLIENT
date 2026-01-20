@@ -23,11 +23,15 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
   const { currentUser, card, setCard } = props;
   const {
     cardActivities,
+    filter,
+    setFilter,
     hasMore,
     isLoadingMore,
     loadMore,
     addCardActivity,
+    updateComment,
     isAddingActivity,
+    isUpdatingComment,
     addActivityError,
     mutationState,
     resetMutation,
@@ -49,6 +53,9 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
     userId: string;
     username: string;
   } | null>(null);
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editingContent, setEditingContent] = useState<string>("");
+  const editEditorRef = useRef<any>(null);
 
   // Get board permissions
   const { canCommentOnCard } = useBoardPermissionsContext();
@@ -271,13 +278,29 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
           <ListCollapse size={18} />
           <h1 className="text-5xl font-bold mb-0">Activity</h1>
         </div>
-        <Button
-          type="text"
-          size="small"
-          className="text-xs text-gray-500 hover:text-gray-700 flex items-center"
-        >
-          Hide details
-        </Button>
+        <div className="flex items-center gap-2">
+          {[
+            { key: "all", label: "All" },
+            { key: "comment", label: "Comments" },
+            { key: "action", label: "Activity" },
+          ].map((opt) => (
+            <Button
+              key={opt.key}
+              type={filter === opt.key ? "primary" : "default"}
+              size="small"
+              className={`text-xs ${
+                filter === opt.key
+                  ? "bg-blue-600 text-white"
+                  : "text-gray-600"
+              }`}
+              onClick={() =>
+                setFilter(opt.key as "all" | "comment" | "action")
+              }
+            >
+              {opt.label}
+            </Button>
+          ))}
+        </div>
       </div>
 
       <div className="flex py-2">
@@ -376,6 +399,45 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
                         </span>
                       )}
                     </div>
+                  ) : editingCommentId === item.id ? (
+                    <div className="space-y-2">
+                      <RichTextEditor
+                        ref={editEditorRef}
+                        initialValue={editingContent}
+                        placeholder="Edit your comment..."
+                        className="w-full text-sm"
+                        onChange={(val: string) => setEditingContent(val)}
+                        workspaceId={workspaceId}
+                        boardId={boardId}
+                      />
+                      <div className="flex gap-2">
+                        <Button
+                          size="small"
+                          onClick={() => {
+                            setEditingCommentId(null);
+                            setEditingContent("");
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          type="primary"
+                          size="small"
+                          loading={isUpdatingComment}
+                          onClick={() => {
+                            const plain = editingContent
+                              .replace(/<[^>]*>/g, "")
+                              .trim();
+                            if (!plain) return;
+                            updateComment(item.id, editingContent);
+                            setEditingCommentId(null);
+                            setEditingContent("");
+                          }}
+                        >
+                          Save
+                        </Button>
+                      </div>
+                    </div>
                   ) : (
                     <div
                       className="prose prose-sm max-w-none text-sm"
@@ -398,6 +460,19 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
                     >
                       Reply
                     </Button>
+                    {!item.action && currentUser?.id === item?.senderUserId && (
+                      <Button
+                        type="link"
+                        size="small"
+                        className="text-xs text-gray-500 hover:text-blue-600 p-0 h-auto ml-2"
+                        onClick={() => {
+                          setEditingCommentId(item.id);
+                          setEditingContent(item?.comment?.text || "");
+                        }}
+                      >
+                        Edit
+                      </Button>
+                    )}
                   </div>
                 </div>
               </div>

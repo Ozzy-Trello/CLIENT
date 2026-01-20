@@ -14,7 +14,7 @@ import {
   Select,
   Radio,
 } from "antd";
-import { Ellipsis } from "lucide-react";
+import { Ellipsis, ChevronsLeft } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { useBoardPermissionsContext } from "@providers/board-permissions-context";
@@ -33,6 +33,7 @@ interface ListNameProps {
   deleteList: UseMutateFunction<any, Error, { listId: string }, unknown>;
   cardsCount: number;
   totalCards: number;
+  onToggleCollapse?: (listId: string) => void;
 }
 
 const colorOptions = [
@@ -55,6 +56,7 @@ const ListName: React.FC<ListNameProps> = ({
   deleteList,
   cardsCount,
   totalCards,
+  onToggleCollapse,
 }) => {
   const queryClient = useQueryClient();
   const [isEditListName, setIsEditListName] = useState<boolean>(false);
@@ -581,6 +583,21 @@ const ListName: React.FC<ListNameProps> = ({
         )}
 
         <div className="flex items-center justify-end gap-1">
+          {onToggleCollapse && (
+            <Tooltip title={"Collapse list"}>
+              <Button
+                type="text"
+                size="small"
+                className="flex items-center justify-center"
+                style={{
+                  color: getTextColor(),
+                }}
+                onClick={() => onToggleCollapse(list.id)}
+              >
+                <ChevronsLeft size={18} />
+              </Button>
+            </Tooltip>
+          )}
           <div
             className="rounded-full px-2 py-1 text-xs font-medium"
             style={{
