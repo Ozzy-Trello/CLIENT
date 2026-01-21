@@ -23,7 +23,7 @@ interface SplitJobPopoverProps {
   jmlTotal: number;
   onSuccess?: () => void;
   children: React.ReactElement;
-  isSuperAdmin?: boolean; // Only super admins can add new templates
+  isSuperAdmin?: boolean; // Only super admins can manage templates
 }
 
 const normalizeNumberValue = (value?: number | null): number => {
@@ -42,6 +42,7 @@ const SplitJobPopover: React.FC<SplitJobPopoverProps> = ({
   jmlTotal,
   onSuccess,
   children,
+  isSuperAdmin = false,
 }) => {
   const [open, setOpen] = useState(false);
   const [newTemplateName, setNewTemplateName] = useState("");
@@ -61,6 +62,7 @@ const SplitJobPopover: React.FC<SplitJobPopoverProps> = ({
   const [messageApi, contextHolder] = message.useMessage();
 
   const normalizedJml = Number.isFinite(jmlTotal) ? jmlTotal : 0;
+  const canManageTemplates = !!isSuperAdmin;
 
   const [draftValues, setDraftValues] = useState<Record<string, number>>({});
 
@@ -121,6 +123,7 @@ const SplitJobPopover: React.FC<SplitJobPopoverProps> = ({
   }, [open]);
 
   const handleCreateTemplate = async () => {
+    if (!canManageTemplates) return;
     if (!customFieldId) return;
     if (!newTemplateName.trim()) return;
     try {
@@ -140,6 +143,7 @@ const SplitJobPopover: React.FC<SplitJobPopoverProps> = ({
     templateId: string,
     templateName: string
   ) => {
+    if (!canManageTemplates) return;
     try {
       await deleteTemplate(templateId);
       messageApi.success(`Template "${templateName}" deleted`);
@@ -222,23 +226,25 @@ const SplitJobPopover: React.FC<SplitJobPopoverProps> = ({
           {String(error)}
         </Text>
       )}
-      <div className="mb-3">
-        <Input
-          placeholder="New template name"
-          value={newTemplateName}
-          onChange={(e) => setNewTemplateName(e.target.value)}
-          onPressEnter={handleCreateTemplate}
-          suffix={
-            <Button
-              type="text"
-              icon={<PlusOutlined />}
-              onClick={handleCreateTemplate}
-              size="small"
-              disabled={!newTemplateName.trim() || isCreating}
-            />
-          }
-        />
-      </div>
+      {canManageTemplates && (
+        <div className="mb-3">
+          <Input
+            placeholder="New template name"
+            value={newTemplateName}
+            onChange={(e) => setNewTemplateName(e.target.value)}
+            onPressEnter={handleCreateTemplate}
+            suffix={
+              <Button
+                type="text"
+                icon={<PlusOutlined />}
+                onClick={handleCreateTemplate}
+                size="small"
+                disabled={!newTemplateName.trim() || isCreating}
+              />
+            }
+          />
+        </div>
+      )}
       <Divider className="my-2" />
       {isAnyLoading ? (
         <div className="flex justify-center py-4">
@@ -253,17 +259,21 @@ const SplitJobPopover: React.FC<SplitJobPopoverProps> = ({
               <List.Item
                 className="items-center"
                 key={template.id}
-                actions={[
-                  <Button
-                    key="delete"
-                    type="text"
-                    size="small"
-                    icon={<DeleteOutlined />}
-                    danger
-                    onClick={() => handleDeleteTemplate(template.id, template.name)}
-                    loading={isDeleting}
-                  />,
-                ]}
+                actions={
+                  canManageTemplates
+                    ? [
+                        <Button
+                          key="delete"
+                          type="text"
+                          size="small"
+                          icon={<DeleteOutlined />}
+                          danger
+                          onClick={() => handleDeleteTemplate(template.id, template.name)}
+                          loading={isDeleting}
+                        />,
+                      ]
+                    : undefined
+                }
               >
                 <div className="flex items-center justify-between w-full gap-2">
                   <div>
@@ -306,7 +316,9 @@ const SplitJobPopover: React.FC<SplitJobPopoverProps> = ({
         </>
       ) : (
         <div className="text-xs text-gray-500">
-          No split job templates found. Create one above to continue.
+          {canManageTemplates
+            ? "No split job templates found. Create one above to continue."
+            : "No split job templates available."}
         </div>
       )}
     </div>

@@ -130,11 +130,9 @@ const CardDetails: React.FC = (props) => {
     isLoadingCardDetails,
   } = useCardDetailContext();
   const currentUser = useSelector(selectUser);
+  const SUPER_ADMIN_ROLE_ID = "f97c942c-5d0c-49c3-b74d-5b149c08634f";
   const userRole = (currentUser?.role?.name || "").trim().toLowerCase();
-  const isSuperAdmin =
-    userRole === "super admin" ||
-    userRole === "super_admin" ||
-    userRole === "superadmin";
+  const isSuperAdmin = currentUser?.role?.id === SUPER_ADMIN_ROLE_ID;
   const isDatelineBoard =
     effectiveBoardName.toLowerCase() === "dateline" || boardId === "Dateline";
   const roleIn = (roles: string[]) =>
@@ -753,7 +751,11 @@ const CardDetails: React.FC = (props) => {
           defaultExpanded={true}
           icon={<TextCursorInput size={18} />}
         >
-          <CustomFields card={selectedCard} setCard={setSelectedCard} />
+          <CustomFields
+            card={selectedCard}
+            setCard={setSelectedCard}
+            isSuperAdmin={isSuperAdmin}
+          />
         </CollapsibleSection>
       )}
 

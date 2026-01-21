@@ -9,6 +9,7 @@ interface SplitJobSliderProps {
   cardId: string;
   jmlValue: number;
   onSplitJobsSaved?: () => void;
+  isSuperAdmin?: boolean;
 }
 
 const SplitJobSlider: React.FC<SplitJobSliderProps> = ({
@@ -17,6 +18,7 @@ const SplitJobSlider: React.FC<SplitJobSliderProps> = ({
   cardId,
   jmlValue,
   onSplitJobsSaved,
+  isSuperAdmin,
 }) => {
   return (
     <Tooltip title="Split Job">
@@ -27,6 +29,7 @@ const SplitJobSlider: React.FC<SplitJobSliderProps> = ({
           cardId={cardId}
           jmlTotal={jmlValue}
           onSuccess={onSplitJobsSaved}
+          isSuperAdmin={isSuperAdmin}
         >
           <div className="rounded hover:bg-gray-100">
             <PartitionOutlined className="text-gray-500" />

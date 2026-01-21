@@ -18,10 +18,11 @@ import { normalizeCheckboxValue, parseRoleSource } from "./utils";
 interface CustomFieldsProps {
   card: Card | null;
   setCard: React.Dispatch<React.SetStateAction<Card | null>>;
+  isSuperAdmin?: boolean;
 }
 
 const CustomFields: React.FC<CustomFieldsProps> = (props) => {
-  const { card } = props;
+  const { card, isSuperAdmin } = props;
   const params = useParams();
   const workspaceId = Array.isArray(params.workspaceId)
     ? params.workspaceId[0]
@@ -113,6 +114,7 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
             onSave={(value) => canEdit ? setNumberValue(field.id!, value) : undefined}
             disabled={!canEdit}
             onSplitJobsSaved={handleSplitJobsSaved}
+            isSuperAdmin={isSuperAdmin}
           />
         );
 

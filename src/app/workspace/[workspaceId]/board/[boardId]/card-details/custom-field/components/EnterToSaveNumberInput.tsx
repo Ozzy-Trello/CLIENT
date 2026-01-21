@@ -14,6 +14,7 @@ interface EnterToSaveNumberInputProps {
     customFieldId?: string;
     disabled?: boolean;
     onSplitJobsSaved?: () => void;
+    isSuperAdmin?: boolean;
 }
 
 export const EnterToSaveNumberInput: React.FC<EnterToSaveNumberInputProps> = ({
@@ -25,6 +26,7 @@ export const EnterToSaveNumberInput: React.FC<EnterToSaveNumberInputProps> = ({
     customFieldId,
     disabled = false,
     onSplitJobsSaved,
+    isSuperAdmin,
 }) => {
     const params = useParams();
     const { selectedCard } = useCardDetailContext();
@@ -98,16 +100,17 @@ export const EnterToSaveNumberInput: React.FC<EnterToSaveNumberInputProps> = ({
                 disabled={disabled}
                 suffix={
                     showSplitJob ? (
-                        <SplitJobSlider
-                            workspaceId={params.workspaceId as string}
-                            customFieldId={customFieldId || ""}
-                            cardId={cardId}
-                            jmlValue={numericValue}
-                            onSplitJobsSaved={onSplitJobsSaved}
-                        />
-                    ) : undefined
-                }
-            />
+                    <SplitJobSlider
+                        workspaceId={params.workspaceId as string}
+                        customFieldId={customFieldId || ""}
+                        cardId={cardId}
+                        jmlValue={numericValue}
+                        onSplitJobsSaved={onSplitJobsSaved}
+                        isSuperAdmin={isSuperAdmin}
+                    />
+                ) : undefined
+            }
+        />
             {hasChanges && (
                 <div className="absolute right-2 top-1/2 transform -translate-y-1/2 pointer-events-none">
                     <span className="text-xs text-blue-500 bg-white px-1">↵</span>
