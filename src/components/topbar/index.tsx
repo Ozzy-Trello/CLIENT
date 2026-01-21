@@ -129,6 +129,8 @@ const TopBar: React.FC = React.memo(() => {
     return undefined;
   };
 
+  console.log(user,'<< ini isi user')
+
   const userRole = (user?.role?.name || "").trim();
   const isSuperAdmin =
     userRole.toLowerCase() === "super admin" || userRole === "Super Admin";
@@ -185,7 +187,7 @@ const TopBar: React.FC = React.memo(() => {
 
   const canSeeButton = (key: "buat" | "produksi" | "lihat" | "gudang") => {
     if (isSuperAdmin) return true;
-    if (!isDateline) return false;
+
     switch (key) {
       case "buat":
         return roleInList(requestRoles);
