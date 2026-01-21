@@ -725,61 +725,63 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
                 </Popover>
               </Tooltip>
             )}
-            <Popover
-              content={
-                <div className="p-2">
-                  <Space
-                    direction="vertical"
-                    size="small"
-                    style={{ width: "100%" }}
-                  >
-                    <Typography.Text strong>
-                      Enter Invoice Number
-                    </Typography.Text>
-                    <Input
-                      placeholder="Invoice Number"
-                      value={invoiceNumber}
-                      onChange={(e) => setInvoiceNumber(e.target.value)}
-                      onPressEnter={handleInvoiceSubmit}
-                      style={{ width: "200px" }}
-                    />
-                    <Space>
-                      <Button
-                        type="primary"
-                        size="small"
-                        loading={isLoadingInvoice}
-                        onClick={handleInvoiceSubmit}
-                      >
-                        Add
-                      </Button>
-                      <Button
-                        size="small"
-                        onClick={() => {
-                          setShowInvoiceInput(false);
-                          setInvoiceNumber("");
-                        }}
-                      >
-                        Cancel
-                      </Button>
+            {isDateline && (
+              <Popover
+                content={
+                  <div className="p-2">
+                    <Space
+                      direction="vertical"
+                      size="small"
+                      style={{ width: "100%" }}
+                    >
+                      <Typography.Text strong>
+                        Enter Invoice Number
+                      </Typography.Text>
+                      <Input
+                        placeholder="Invoice Number"
+                        value={invoiceNumber}
+                        onChange={(e) => setInvoiceNumber(e.target.value)}
+                        onPressEnter={handleInvoiceSubmit}
+                        style={{ width: "200px" }}
+                      />
+                      <Space>
+                        <Button
+                          type="primary"
+                          size="small"
+                          loading={isLoadingInvoice}
+                          onClick={handleInvoiceSubmit}
+                        >
+                          Add
+                        </Button>
+                        <Button
+                          size="small"
+                          onClick={() => {
+                            setShowInvoiceInput(false);
+                            setInvoiceNumber("");
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                      </Space>
                     </Space>
-                  </Space>
-                </div>
-              }
-              trigger="click"
-              open={showInvoiceInput}
-              onOpenChange={setShowInvoiceInput}
-              placement="bottomRight"
-            >
-              <Tooltip title="Add Invoice">
-                <Button
-                  size="small"
-                  icon={<FileText size={16} />}
-                  onClick={() => setShowInvoiceInput(true)}
-                >
-                  <span>Invoice</span>
-                </Button>
-              </Tooltip>
-            </Popover>
+                  </div>
+                }
+                trigger="click"
+                open={showInvoiceInput}
+                onOpenChange={setShowInvoiceInput}
+                placement="bottomRight"
+              >
+                <Tooltip title="Add Invoice">
+                  <Button
+                    size="small"
+                    icon={<FileText size={16} />}
+                    onClick={() => setShowInvoiceInput(true)}
+                  >
+                    <span>Invoice</span>
+                  </Button>
+                </Tooltip>
+              </Popover>
+            )}
 
             {canShowCetakQR && (
               <Dropdown
