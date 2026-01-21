@@ -91,6 +91,7 @@ const DraggableList: React.FC<DraggableListProps> = ({
     loadMoreError,
     retryLoadMore,
     totalCards,
+    isAddingCard,
   } = useCardsPaginated(list.id, boardId, { enabled: isVisible });
   const { canMove, canCreate } = usePermissions();
   const { canMoveList, canCreateCard } = useBoardPermissionsContext();
@@ -246,9 +247,19 @@ const DraggableList: React.FC<DraggableListProps> = ({
                        px-3
                        py-2
                        min-h-[50px]
-                       overflow-y-auto              
+                       overflow-y-auto
+                       relative
                      `}
                     >
+                      {/* Loading overlay when adding card */}
+                      {isAddingCard && (
+                        <div className="absolute inset-0 bg-white/70 z-10 flex items-start justify-center pt-4">
+                          <div className="flex items-center gap-2 text-gray-600 text-sm bg-white px-3 py-2 rounded-lg shadow-sm">
+                            <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                            Adding card...
+                          </div>
+                        </div>
+                      )}
                       <div className="space-y-3">
                         {cards?.map((card, index) => (
                           <DraggableCard
