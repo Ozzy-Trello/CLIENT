@@ -437,6 +437,7 @@ export function useCardsPaginated(
   boardId: string,
   options?: {
     enabled?: boolean;
+    labelIds?: string[];
   }
 ) {
   const queryClient = useQueryClient();
@@ -450,10 +451,16 @@ export function useCardsPaginated(
 
   // Initial query for first page
   const isEnabled = !!listId && (options?.enabled ?? true);
+  const labelIds = options?.labelIds;
+
+  // Include labelIds in query key so different filters are cached separately
+  const queryKey = labelIds && labelIds.length > 0
+    ? [...queryKeys.cards.list(listId), 'filtered', labelIds.sort().join(',')]
+    : queryKeys.cards.list(listId);
 
   const cardsQuery = useQuery({
-    queryKey: queryKeys.cards.list(listId),
-    queryFn: () => cards(listId, boardId, 1, limit),
+    queryKey,
+    queryFn: () => cards(listId, boardId, 1, limit, labelIds),
     enabled: isEnabled,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
@@ -462,7 +469,7 @@ export function useCardsPaginated(
     staleTime: 60000,
   });
 
-  // Reset pagination when listId changes and initialize from cache if available
+  // Reset pagination when listId or labelIds changes and initialize from cache if available
   useEffect(() => {
     if (!isEnabled) {
       setAllCards([]);
@@ -476,10 +483,8 @@ export function useCardsPaginated(
     setLoadMoreError(null);
     setTotalCards(0);
 
-    // Check if we have cached data for this listId
-    const cachedData = queryClient.getQueryData<ApiResponse<Card[]>>(
-      queryKeys.cards.list(listId)
-    );
+    // Check if we have cached data for this listId + labelIds combination
+    const cachedData = queryClient.getQueryData<ApiResponse<Card[]>>(queryKey);
 
     if (cachedData?.data && Array.isArray(cachedData.data)) {
       // Initialize from cached data
@@ -494,7 +499,7 @@ export function useCardsPaginated(
       setAllCards([]);
       setHasMoreCards(true);
     }
-  }, [listId, queryClient, limit, isEnabled]);
+  }, [listId, labelIds?.join(','), queryClient, limit, isEnabled]);
 
   // Update allCards when initial query data changes (for fresh data)
   useEffect(() => {
@@ -543,7 +548,7 @@ export function useCardsPaginated(
 
     try {
       const nextPage = currentPage + 1;
-      const response = await cards(listId, boardId, nextPage, limit);
+      const response = await cards(listId, boardId, nextPage, limit, labelIds);
 
       const responseData = response.data;
       if (
@@ -558,7 +563,7 @@ export function useCardsPaginated(
 
         // Update the query cache with all cards for drag-and-drop compatibility
         queryClient.setQueryData<ApiResponse<Card[]>>(
-          queryKeys.cards.list(listId),
+          queryKey,
           (old) => ({
             ...old,
             status_code: 200,
@@ -585,6 +590,8 @@ export function useCardsPaginated(
     allCards,
     queryClient,
     isEnabled,
+    labelIds,
+    queryKey,
   ]);
 
   // Add card mutation with optimistic updates for paginated cards

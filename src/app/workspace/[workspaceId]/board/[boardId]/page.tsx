@@ -79,6 +79,7 @@ const BoardContentWithPermissions: React.FC<{
   onTouchEnd: () => void;
   collapsedLists: Record<string, boolean>;
   onToggleCollapse: (listId: string) => void;
+  selectedLabelIds: string[];
 }> = ({
   lists,
   isLoading,
@@ -105,110 +106,111 @@ const BoardContentWithPermissions: React.FC<{
   onTouchEnd,
   collapsedLists,
   onToggleCollapse,
+  selectedLabelIds,
 }) => {
-  // Now we can safely use the context hook inside the provider
-  const { canCreateList } = useBoardPermissionsContext();
+    // Now we can safely use the context hook inside the provider
+    const { canCreateList } = useBoardPermissionsContext();
 
-  return (
-    <div
-      ref={boardScrollContainerRef}
-      className={`h-auto min-h-[770px] w-full overflow-x-auto overflow-y-hidden custom-horizontal-scrollbar board-scroll-container ${
-        isDraggingToScroll ? "cursor-grabbing select-none" : "cursor-grab"
-      }`}
-      onMouseDown={onMouseDown}
-      onMouseMove={onMouseMove}
-      onMouseUp={onMouseUp}
-      onMouseLeave={onMouseLeave}
-      onTouchStart={onTouchStart}
-      onTouchMove={onTouchMove}
-      onTouchEnd={onTouchEnd}
-    >
-      {shouldRenderLists && (
-        <DragDropContext
-          onDragEnd={onListDragEnd}
-          onDragStart={onDragStart}
-          onDragUpdate={onDragUpdate}
-        >
-          <Droppable
-            droppableId="droppable-list-area"
-            direction="horizontal"
-            type="list"
+    return (
+      <div
+        ref={boardScrollContainerRef}
+        className={`h-auto min-h-[770px] w-full overflow-x-auto overflow-y-hidden custom-horizontal-scrollbar board-scroll-container ${isDraggingToScroll ? "cursor-grabbing select-none" : "cursor-grab"
+          }`}
+        onMouseDown={onMouseDown}
+        onMouseMove={onMouseMove}
+        onMouseUp={onMouseUp}
+        onMouseLeave={onMouseLeave}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+      >
+        {shouldRenderLists && (
+          <DragDropContext
+            onDragEnd={onListDragEnd}
+            onDragStart={onDragStart}
+            onDragUpdate={onDragUpdate}
           >
-            {(provided, snapshot) => {
-              return (
-                <div
-                  {...provided.droppableProps}
-                  ref={provided.innerRef}
-                  className="flex gap-4 p-4 items-start"
-                  style={{
-                    backgroundColor: snapshot.isDraggingOver
-                      ? "#e3f2fd"
-                      : "transparent",
-                    minWidth: "calc(100% + 100px)", // Force content to be wider than container
-                    width: "max-content", // Allow content to expand beyond container width
-                  }}
-                >
-                  {lists?.map((list: AnyList, index: number) => {
-                    return (
-                      <List
-                        key={list.id}
-                        list={list}
-                        index={index}
-                        boardId={resolvedBoardId}
-                        updateList={updateList}
-                        deleteList={deleteList}
-                        collapsed={!!collapsedLists[list.id]}
-                        onToggleCollapse={onToggleCollapse}
-                      />
-                    );
-                  })}
-                  {provided.placeholder}
+            <Droppable
+              droppableId="droppable-list-area"
+              direction="horizontal"
+              type="list"
+            >
+              {(provided, snapshot) => {
+                return (
+                  <div
+                    {...provided.droppableProps}
+                    ref={provided.innerRef}
+                    className="flex gap-4 p-4 items-start"
+                    style={{
+                      backgroundColor: snapshot.isDraggingOver
+                        ? "#e3f2fd"
+                        : "transparent",
+                      minWidth: "calc(100% + 100px)", // Force content to be wider than container
+                      width: "max-content", // Allow content to expand beyond container width
+                    }}
+                  >
+                    {lists?.map((list: AnyList, index: number) => {
+                      return (
+                        <List
+                          key={list.id}
+                          list={list}
+                          index={index}
+                          boardId={resolvedBoardId}
+                          updateList={updateList}
+                          deleteList={deleteList}
+                          collapsed={!!collapsedLists[list.id]}
+                          onToggleCollapse={onToggleCollapse}
+                          selectedLabelIds={selectedLabelIds}
+                        />
+                      );
+                    })}
+                    {provided.placeholder}
 
-                  {/* Add list section - only show if user can create lists */}
-                  {canCreateList() && (
-                    <>
-                      {isAddingList ? (
-                        <div className="add-list-wrapper p-4 rounded-sm bg-white shadow-sm">
-                          <Input
-                            type="text"
-                            placeholder="New List Title"
-                            value={newListName}
-                            onChange={(e) => setNewListName(e.target.value)}
-                            onPressEnter={handleAddList}
-                          />
-                          <div className="flex items-center gap-2 mt-2">
-                            <Button size="small" onClick={handleAddList}>
-                              Add List
-                            </Button>
-                            <Button
-                              size="small"
-                              onClick={() => setIsAddingList(false)}
-                              icon={<X size={15} />}
+                    {/* Add list section - only show if user can create lists */}
+                    {canCreateList() && (
+                      <>
+                        {isAddingList ? (
+                          <div className="add-list-wrapper p-4 rounded-sm bg-white shadow-sm">
+                            <Input
+                              type="text"
+                              placeholder="New List Title"
+                              value={newListName}
+                              onChange={(e) => setNewListName(e.target.value)}
+                              onPressEnter={handleAddList}
                             />
+                            <div className="flex items-center gap-2 mt-2">
+                              <Button size="small" onClick={handleAddList}>
+                                Add List
+                              </Button>
+                              <Button
+                                size="small"
+                                onClick={() => setIsAddingList(false)}
+                                icon={<X size={15} />}
+                              />
+                            </div>
                           </div>
-                        </div>
-                      ) : (
-                        <Button
-                          onClick={() => setIsAddingList(true)}
-                          className="mt-2"
-                          icon={<Plus size={15} />}
-                        >
-                          Add a list
-                        </Button>
-                      )}
-                    </>
-                  )}
-                </div>
-              );
-            }}
-          </Droppable>
-        </DragDropContext>
-      )}
+                        ) : (
+                          <Button
+                            onClick={() => setIsAddingList(true)}
+                            className="mt-2"
+                            icon={<Plus size={15} />}
+                          >
+                            Add a list
+                          </Button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                );
+              }}
+            </Droppable>
+          </DragDropContext>
+        )}
 
-      {!shouldRenderLists && <ListSkeleton />}
-    </div>
-  );
-};
+        {!shouldRenderLists && <ListSkeleton />}
+      </div>
+    );
+  };
 
 const Board: React.FC = () => {
   const { boardId, workspaceId } = useParams();
@@ -409,6 +411,14 @@ const Board: React.FC = () => {
   const currentWorkspace = useSelector(selectCurrentWorkspace);
   const { canCreate } = usePermissions();
   const { addRecentlyViewedBoard } = useRecentlyViewed();
+
+  // Label filter state
+  const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
+
+  // Reset label filter when board changes
+  useEffect(() => {
+    setSelectedLabelIds([]);
+  }, [resolvedBoardId]);
 
   useEffect(() => {
     if (!resolvedBoardId || !boards?.length) return;
@@ -783,6 +793,8 @@ const Board: React.FC = () => {
           openDashcardModal={openDashcardModal}
           setOpenDashcardModal={setOpenDashcardModal}
           board={boardDetails}
+          selectedLabelIds={selectedLabelIds}
+          onLabelFilterChange={setSelectedLabelIds}
         />
         <CardFocusProvider>
           <CardDetailProvider>
@@ -809,12 +821,13 @@ const Board: React.FC = () => {
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUp}
                 onMouseLeave={handleMouseLeave}
-              onTouchStart={handleTouchStart}
-              onTouchMove={handleTouchMove}
-              onTouchEnd={handleTouchEnd}
-              collapsedLists={collapsedLists}
-              onToggleCollapse={handleToggleCollapse}
-            />
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+                collapsedLists={collapsedLists}
+                onToggleCollapse={handleToggleCollapse}
+                selectedLabelIds={selectedLabelIds}
+              />
               <HorizontalSlider
                 containerRef={boardScrollContainerRef}
                 widthPercent={20}

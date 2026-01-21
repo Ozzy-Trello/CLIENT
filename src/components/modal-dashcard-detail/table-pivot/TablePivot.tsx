@@ -66,8 +66,8 @@ const TablePivot: FC = () => {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [searchValue, setSearchValue] = useState("");
   const [pageIndex, setPageIndex] = useState(0);
-  const [pageSize, setPageSize] = useState(100000);
-  const [pageSizeChoice, setPageSizeChoice] = useState<"all" | "10" | "20" | "50" | "100">("all");
+  const [pageSize, setPageSize] = useState(10);
+  const [pageSizeChoice, setPageSizeChoice] = useState<"all" | "10" | "20" | "50" | "100">("10");
   const [sorting, setSorting] = useState<SortingState>([]);
   const [isSavingColumns, setIsSavingColumns] = useState(false);
   const [saveSucceeded, setSaveSucceeded] = useState(false);

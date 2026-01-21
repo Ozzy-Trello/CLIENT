@@ -251,11 +251,19 @@ export const cards = async (
   listId: string,
   boardId: string,
   page: number = 1,
-  limit: number = 20
+  limit: number = 20,
+  labelIds?: string[]
 ): Promise<ApiResponse<Card[]>> => {
+  const params: any = { page, limit };
+
+  // Add label_ids as comma-separated string if provided
+  if (labelIds && labelIds.length > 0) {
+    params.label_ids = labelIds.join(',');
+  }
+
   const { data } = await api.get("/card", {
     headers: { "list-id": listId, "board-id": boardId },
-    params: { page, limit },
+    params,
   });
 
   // Map backend response to frontend format

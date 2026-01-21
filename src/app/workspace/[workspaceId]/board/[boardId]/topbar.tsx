@@ -50,6 +50,8 @@ import { FineGrainedPermissions } from "../../../../../types/board";
 import ModalDelivery from "@components/modal-delivery";
 import ScanProgressModal from "@components/scan-progress-modal";
 import QRGuideOverlay from "@components/qr-overlay";
+import { useLabels } from "@hooks/label";
+import { Checkbox } from "antd";
 
 // Helper function to derive permission level from fine-grained permissions
 const getPermissionLevelFromFineGrained = (
@@ -87,6 +89,8 @@ interface BoardTopbarProps {
   openDashcardModal: boolean;
   setOpenDashcardModal: Dispatch<SetStateAction<boolean>>;
   board?: any; // Board data from API response
+  selectedLabelIds?: string[];
+  onLabelFilterChange?: (labelIds: string[]) => void;
 }
 
 const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
@@ -95,6 +99,8 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
     setBoardScopeMenuOpen,
     openDashcardModal,
     setOpenDashcardModal,
+    selectedLabelIds = [],
+    onLabelFilterChange,
   } = props;
   const { collapsed, siderSmall, siderWide } = useWorkspaceSidebar();
   const [showRightColMenu, setIsShowRighColtMenu] = useState(true);
@@ -130,6 +136,9 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
   const [scanProgressCardId, setScanProgressCardId] = useState<string | null>(
     null
   );
+  // Label filter state
+  const [labelFilterOpen, setLabelFilterOpen] = useState<boolean>(false);
+  const [labelSearchQuery, setLabelSearchQuery] = useState<string>("");
   // External scanner state - check if any modal is open
   const anyModalOpen =
     showScanner ||
@@ -160,6 +169,11 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
   // User board order hook for favorites
   const { userBoardOrder, toggleFavorite, isTogglingFavorite } =
     useUserBoardOrder(params.workspaceId as string);
+
+  // Fetch workspace labels for filtering
+  const { allLabels: workspaceLabels, isLoadingAllLabels: isLoadingLabels } = useLabels(
+    params.workspaceId as string
+  );
 
   // Move old cards hook
   const moveOldCardsMutation = useMoveOldCards();
@@ -606,15 +620,111 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
                 </Button>
               </Tooltip>
             )}
-            {/* <Tooltip title={"filter"}>
-              <Button
-                size="small"
-                shape="default"
-                icon={<ListFilter size={16} />}
-              >
-                <span>Filter</span>
-              </Button>
-            </Tooltip> */}
+            {onLabelFilterChange && (
+              <Tooltip title="Filter by labels">
+                <Popover
+                  open={labelFilterOpen}
+                  onOpenChange={(open) => {
+                    setLabelFilterOpen(open);
+                    if (!open) setLabelSearchQuery("");
+                  }}
+                  content={
+                    <div className="p-2 min-w-[280px] max-h-[450px] flex flex-col">
+                      <Typography.Text strong className="block mb-2">
+                        Filter by Labels
+                      </Typography.Text>
+
+                      {/* Search input */}
+                      <Input
+                        placeholder="Search labels..."
+                        value={labelSearchQuery}
+                        onChange={(e) => setLabelSearchQuery(e.target.value)}
+                        className="mb-3"
+                        size="small"
+                        allowClear
+                      />
+
+                      {isLoadingLabels ? (
+                        <div className="text-center py-4 text-gray-500">
+                          Loading labels...
+                        </div>
+                      ) : workspaceLabels && workspaceLabels.length > 0 ? (
+                        <div className="overflow-y-auto flex-1">
+                          <Space direction="vertical" size="small" style={{ width: "100%" }}>
+                            {workspaceLabels
+                              .filter((label) =>
+                                label.name.toLowerCase().includes(labelSearchQuery.toLowerCase())
+                              )
+                              .map((label) => (
+                                <div
+                                  key={label.id}
+                                  className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer"
+                                  onClick={() => {
+                                    const isSelected = selectedLabelIds.includes(label.id);
+                                    if (isSelected) {
+                                      onLabelFilterChange(selectedLabelIds.filter(id => id !== label.id));
+                                    } else {
+                                      onLabelFilterChange([...selectedLabelIds, label.id]);
+                                    }
+                                  }}
+                                >
+                                  <Checkbox
+                                    checked={selectedLabelIds.includes(label.id)}
+                                    onChange={(e) => {
+                                      e.stopPropagation();
+                                      const isChecked = e.target.checked;
+                                      if (isChecked) {
+                                        onLabelFilterChange([...selectedLabelIds, label.id]);
+                                      } else {
+                                        onLabelFilterChange(selectedLabelIds.filter(id => id !== label.id));
+                                      }
+                                    }}
+                                  />
+                                  <div
+                                    className="w-4 h-4 rounded"
+                                    style={{ backgroundColor: label.value || '#gray' }}
+                                  />
+                                  <span className="flex-1">{label.name}</span>
+                                </div>
+                              ))}
+                            {selectedLabelIds.length > 0 && (
+                              <Button
+                                size="small"
+                                type="link"
+                                onClick={() => onLabelFilterChange([])}
+                                className="mt-2 w-full"
+                              >
+                                Clear all filters
+                              </Button>
+                            )}
+                          </Space>
+                        </div>
+                      ) : (
+                        <div className="text-center py-4 text-gray-500">
+                          No labels found in this workspace
+                        </div>
+                      )}
+                    </div>
+                  }
+                  trigger="click"
+                  placement="bottomRight"
+                >
+                  <Button
+                    size="small"
+                    shape="default"
+                    icon={<ListFilter size={16} />}
+                    type={selectedLabelIds.length > 0 ? "primary" : "default"}
+                  >
+                    <span>Filter</span>
+                    {selectedLabelIds.length > 0 && (
+                      <Tag color="blue" className="ml-1">
+                        {selectedLabelIds.length}
+                      </Tag>
+                    )}
+                  </Button>
+                </Popover>
+              </Tooltip>
+            )}
             <Popover
               content={
                 <div className="p-2">

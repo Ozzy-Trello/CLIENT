@@ -30,6 +30,7 @@ interface DraggableListProps {
   deleteList: UseMutateFunction<any, Error, { listId: string }, unknown>;
   collapsed?: boolean;
   onToggleCollapse?: (listId: string) => void;
+  selectedLabelIds?: string[];
 }
 
 const DraggableList: React.FC<DraggableListProps> = ({
@@ -40,6 +41,7 @@ const DraggableList: React.FC<DraggableListProps> = ({
   deleteList,
   collapsed = false,
   onToggleCollapse,
+  selectedLabelIds = [],
 }) => {
   const [isVisible, setIsVisible] = useState(false);
   const listRef = useRef<HTMLDivElement | null>(null);
@@ -92,7 +94,10 @@ const DraggableList: React.FC<DraggableListProps> = ({
     retryLoadMore,
     totalCards,
     isAddingCard,
-  } = useCardsPaginated(list.id, boardId, { enabled: isVisible });
+  } = useCardsPaginated(list.id, boardId, {
+    enabled: isVisible,
+    labelIds: selectedLabelIds.length > 0 ? selectedLabelIds : undefined,
+  });
   const { canMove, canCreate } = usePermissions();
   const { canMoveList, canCreateCard } = useBoardPermissionsContext();
   const currentUser = useSelector(selectUser);
