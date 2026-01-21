@@ -1,7 +1,7 @@
 import "./globals.css";
 import { Metadata } from "next";
 import { Providers } from "../providers";
-import { ChunkLoadErrorHandler } from "@/components/ChunkLoadErrorHandler";
+import { ChunkLoadErrorHandler } from "@components/ChunkLoadErrorHandler";
 
 export const metadata: Metadata = {
   title: "Ozzy Clothing Workflow",
