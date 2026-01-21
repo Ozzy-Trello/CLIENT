@@ -147,7 +147,20 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
           case EnumUserActionEvent.CardMoved:
             const { card, fromListId, toListId } = message.data;
 
-            // invalidate all related queries
+            // CRITICAL FIX: Explicitly remove card from source list cache
+            // This prevents ghost cards when automation moves cards
+            queryClient.setQueryData(
+              queryKeys.cards.list(fromListId),
+              (old: any) => {
+                if (!old?.data) return old;
+                return {
+                  ...old,
+                  data: old.data.filter((c: any) => c.id !== card.id),
+                };
+              }
+            );
+
+            // invalidate all related queries to refetch fresh data
             queryClient.invalidateQueries({ queryKey: queryKeys.lists.all });
             queryClient.invalidateQueries({
               queryKey: queryKeys.cards.list(fromListId),
