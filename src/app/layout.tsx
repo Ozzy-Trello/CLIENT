@@ -1,6 +1,7 @@
 import "./globals.css";
 import { Metadata } from "next";
 import { Providers } from "../providers";
+import { ChunkLoadErrorHandler } from "@/components/ChunkLoadErrorHandler";
 
 export const metadata: Metadata = {
   title: "Ozzy Clothing Workflow",
@@ -24,6 +25,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
+        <ChunkLoadErrorHandler />
         <Providers>{children}</Providers>
       </body>
     </html>

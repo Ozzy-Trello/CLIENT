@@ -6,6 +6,10 @@ const __dirname = path.dirname(__filename);
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Generate unique build ID to prevent cache issues
+  generateBuildId: async () => {
+    return `build-${Date.now()}`;
+  },
   output: 'standalone',
   swcMinify: true,
   compress: true,
