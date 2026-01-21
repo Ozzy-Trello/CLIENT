@@ -53,6 +53,7 @@ import { Card, EnumAttachmentType, EnumCardAttachmentType } from "@myTypes/card"
 import { CardLabel } from "@myTypes/label";
 import { useBoardPermissionsContext } from "@providers/board-permissions-context";
 import { selectUser } from "@store/app_slice";
+import { selectCurrentBoard } from "@store/workspace_slice";
 import { LookupCache } from "@utils/lookup-cache";
 import { useParams } from "next/navigation";
 import { useSelector } from "react-redux";
@@ -101,9 +102,9 @@ const CardDetails: React.FC = (props) => {
       refetchOnWindowFocus: false,
     }
   );
+  const reduxBoard = useSelector(selectCurrentBoard);
   const effectiveBoardName = (
-    cachedBoardName ||
-    currentBoard?.name ||
+    reduxBoard?.name ||
     ""
   ).trim();
   const viewOnlyBoardNamesSet = new Set(
