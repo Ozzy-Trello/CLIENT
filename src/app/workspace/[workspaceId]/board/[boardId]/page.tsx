@@ -30,7 +30,7 @@ import {
 } from "@store/workspace_slice";
 
 import { usePermissions } from "@hooks/account";
-import { useBoardDetails } from "@hooks/board";
+import { useBoardDetails, useBoards } from "@hooks/board";
 import { useBoardPermissionsContext } from "@providers/board-permissions-context";
 import { useDispatch } from "react-redux";
 import { useQueryClient } from "@tanstack/react-query";
@@ -383,6 +383,7 @@ const Board: React.FC = () => {
     ? workspaceId[0]
     : workspaceId;
 
+  const { boards } = useBoards(resolvedWorkspaceId || "");
   const { lists, addList, isLoading, updateList, deleteList } =
     useLists(resolvedBoardId);
 
@@ -409,6 +410,14 @@ const Board: React.FC = () => {
   const { canCreate } = usePermissions();
   const { addRecentlyViewedBoard } = useRecentlyViewed();
 
+  useEffect(() => {
+    if (!resolvedBoardId || !boards?.length) return;
+    const boardMatch = boards.find((board) => board.id === resolvedBoardId);
+    if (boardMatch && boardMatch.id !== selectedBoard?.id) {
+      dispatch(setCurrentBoard(boardMatch));
+    }
+  }, [resolvedBoardId, boards, selectedBoard?.id, dispatch]);
+
   // Enable real-time updates via WebSocket
   useRealtimeUpdates();
 
@@ -421,6 +430,7 @@ const Board: React.FC = () => {
     originalPosition: number;
     currentPosition?: number;
   } | null>(null);
+  const lastViewedBoardIdRef = useRef<string | null>(null);
 
   // Show lists directly from React Query cache - no local state needed
   const shouldRenderLists =
@@ -428,23 +438,25 @@ const Board: React.FC = () => {
 
   // Update Redux state when board details are fetched (same pattern as sidebar)
   useEffect(() => {
-    if (boardDetails && boardDetails.id !== selectedBoard?.id) {
-      dispatch(setCurrentBoard(boardDetails));
+    if (!boardDetails) return;
 
-      // Add to recently viewed boards
+    dispatch(setCurrentBoard(boardDetails));
+
+    if (boardDetails.id !== lastViewedBoardIdRef.current) {
       addRecentlyViewedBoard({
         id: boardDetails.id,
         name: boardDetails.name || "Untitled Board",
         workspaceId: resolvedWorkspaceId,
         workspaceName: currentWorkspace?.name || "Untitled Workspace",
       });
+      lastViewedBoardIdRef.current = boardDetails.id;
     }
   }, [
     boardDetails,
-    selectedBoard?.id,
     dispatch,
     addRecentlyViewedBoard,
     resolvedWorkspaceId,
+    currentWorkspace?.name,
   ]);
 
   const onListDragEnd = useCallback(

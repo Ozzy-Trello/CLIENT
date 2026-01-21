@@ -24,6 +24,7 @@ import { FileUpload } from "@myTypes/file-upload";
 import { useBoardPermissionsContext } from "@providers/board-permissions-context";
 import { useCardDetailContext } from "@providers/card-detail-context";
 import { selectIsDarkMode, selectTheme } from "@store/app_slice";
+import { selectCurrentBoard } from "@store/workspace_slice";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button, message, Modal, Tooltip, Checkbox } from "antd";
 import {
@@ -54,6 +55,7 @@ import { useSelector } from "react-redux";
 import AutomateButtons from "./automate-buttons";
 import { LookupCache } from "@utils/lookup-cache";
 import { useBoardDetails } from "@hooks/board";
+import { resolve } from "path";
 
 // Helper component for permission-controlled buttons - moved outside to prevent re-creation
 const PermissionButton: React.FC<{
@@ -154,16 +156,23 @@ const Actions: React.FC<{
     workspaceId as string,
     { enabled: !!boardId }
   );
-  const resolvedBoardName = (boardName ||
+  const currentBoardFromStore = useSelector(selectCurrentBoard);
+  const storeBoardName = currentBoardFromStore?.name?.trim() || "";
+  const resolvedBoardName = (
+    boardName ||
+    storeBoardName ||
     LookupCache.label("board", boardId as string) ||
     fetchedBoard?.name ||
-    "")!
+    ""
+  )
     .trim()
     .toLowerCase();
 
   const isDateline = resolvedBoardName === "dateline";
   const isDelivery = resolvedBoardName === "delivery";
   const isListPOOutlet = resolvedBoardName === "list po | outlet";
+
+  console.log(resolvedBoardName,"<<< ini apa")
 
   const roleIn = (roles: string[]) =>
     roles.some((r) => r.toLowerCase() === roleLower);
