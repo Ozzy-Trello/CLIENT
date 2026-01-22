@@ -20,6 +20,9 @@ import { useParams } from "next/navigation";
 import { useBoardPermissionsContext } from "@providers/board-permissions-context";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@constants/query-keys";
+import { useCurrentAccount } from "@hooks/account";
+import { useSelector } from "react-redux";
+import { selectUser } from "@store/app_slice";
 
 interface ListNameProps {
   list: AnyList;
@@ -68,6 +71,16 @@ const ListName: React.FC<ListNameProps> = ({
   const workspaceId = Array.isArray(workspaceIdParam)
     ? workspaceIdParam[0]
     : workspaceIdParam;
+
+  // Get current user for super admin check
+  const currentUser = useSelector(selectUser);
+  const SUPER_ADMIN_ROLE_ID = "f97c942c-5d0c-49c3-b74d-5b149c08634f";
+  const userRole = (currentUser?.role?.name || "").trim().toLowerCase();
+  const isSuperAdmin =
+    currentUser?.role?.id === SUPER_ADMIN_ROLE_ID ||
+    userRole === "super admin" ||
+    userRole === "super_admin" ||
+    userRole === "superadmin";
 
   // Hook for deleting all cards in the list
   const { deleteAllCards, isDeletingAllCards } = useDeleteAllCardsInList();
@@ -415,6 +428,8 @@ const ListName: React.FC<ListNameProps> = ({
         </div>
       </div>
 
+      {/* Super Admin Only Section */}
+      {isSuperAdmin && (
       <div className="border-t pt-2">
         {canArchiveList() && (
           <>
@@ -533,6 +548,7 @@ const ListName: React.FC<ListNameProps> = ({
           Delete List
         </Button>
       </div>
+      )}
     </div>
   );
 

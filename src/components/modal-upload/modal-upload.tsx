@@ -285,11 +285,21 @@ const UploadModal: React.FC<UploadModalProps> = ({
     }
   };
 
-  // Support paste-from-clipboard into modal
+  // Support paste-from-clipboard into modal (CTRL+V / CMD+V)
   useEffect(() => {
     if (!isVisible) return;
 
     const handlePaste = (event: ClipboardEvent) => {
+      // Check if we're in an input/textarea - if so, don't intercept
+      const target = event.target as HTMLElement;
+      if (
+        target?.tagName === "INPUT" ||
+        target?.tagName === "TEXTAREA" ||
+        target?.isContentEditable
+      ) {
+        return;
+      }
+
       const items = event.clipboardData?.items;
       if (!items) return;
 
@@ -304,23 +314,32 @@ const UploadModal: React.FC<UploadModalProps> = ({
         }
       }
 
-      if (files.length) {
+      if (files.length > 0) {
         event.preventDefault();
+        event.stopPropagation();
+
         const validFiles = files.filter(validateFile);
-        if (validFiles.length === 0) return;
+        if (validFiles.length === 0) {
+          message.warning("No valid files found in clipboard");
+          return;
+        }
 
         setSelectedFiles((prev) =>
           multiple ? [...prev, ...validFiles] : [validFiles[0]]
         );
+
+        message.success(
+          `${validFiles.length} file${validFiles.length > 1 ? "s" : ""} added from clipboard`
+        );
       }
     };
 
-    const target = dropAreaRef.current || document;
-    target.addEventListener("paste", handlePaste as any);
+    // Listen on document to catch all paste events when modal is open
+    document.addEventListener("paste", handlePaste as any);
     return () => {
-      target.removeEventListener("paste", handlePaste as any);
+      document.removeEventListener("paste", handlePaste as any);
     };
-  }, [isVisible, multiple]);
+  }, [isVisible, multiple, validateFile]);
 
   // Get pretty file size
   const formatFileSize = (bytes: number): string => {
@@ -387,6 +406,11 @@ const UploadModal: React.FC<UploadModalProps> = ({
           )}
           {selectedFiles.length > 0 ? (
             <div className="space-y-4">
+              {multiple && (
+                <div className="text-xs text-gray-600 bg-blue-50 border border-blue-200 rounded p-2 mb-2">
+                  💡 <span className="font-medium">Tip:</span> Press CTRL+V (or CMD+V) to paste more files from clipboard
+                </div>
+              )}
               {selectedFiles.map((file, index) => (
                 <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                   <div className="flex items-center space-x-3">
@@ -398,9 +422,9 @@ const UploadModal: React.FC<UploadModalProps> = ({
                       </p>
                     </div>
                   </div>
-                  <Button 
-                    danger 
-                    icon={<DeleteOutlined />} 
+                  <Button
+                    danger
+                    icon={<DeleteOutlined />}
                     onClick={() => handleRemoveFile(index)}
                     shape="circle"
                   />
@@ -442,10 +466,14 @@ const UploadModal: React.FC<UploadModalProps> = ({
                   : 'Click or drag file to this area to upload'}
               </p>
               <p className="text-xs text-gray-500 mt-1">
-                Supports {getAcceptableTypesDescription()} 
+                Supports {getAcceptableTypesDescription()}
                 {multiple ? ' (multiple files allowed)' : ''}
                 <br />
                 Max size: {formatFileSize(fileTypeConfig.maxSize)}
+                <br />
+                <span className="text-blue-600 font-medium">
+                  💡 Tip: Press CTRL+V (or CMD+V) to paste files from clipboard
+                </span>
               </p>
             </div>
           )}
