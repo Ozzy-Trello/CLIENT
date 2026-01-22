@@ -14,6 +14,7 @@ export interface SearchResult {
   workspaceId?: string; // Converted from backend workspace_id
   workspaceName?: string; // Converted from backend workspace_name
   cover?: string;
+  noFaktur?: string | null; // Converted from backend no_faktur
   createdAt?: Date; // Converted from backend created_at
   updatedAt?: Date; // Converted from backend updated_at
 }

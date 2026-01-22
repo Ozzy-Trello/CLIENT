@@ -6,9 +6,9 @@ import Link from "next/link";
 import React, { useEffect, useRef, useState } from "react";
 import logo from "@assets/images/Logo_Ozzy_Clothing_png.png";
 import ImageDynamicContrast from "../image-dynamic-contrast";
-import { useDispatch, useSelector } from "react-redux";
-import { selectIsDarkMode, selectTheme, selectUser, toggleTheme } from "@store/app_slice";
-import { Sun, Moon } from "lucide-react";
+import { useSelector } from "react-redux";
+import { selectTheme, selectUser } from "@store/app_slice";
+import { Menu as MenuIcon } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import ModalRequest from "../modal-request";
 import ModalListRequest from "../modal-list-request";
@@ -95,6 +95,7 @@ const TopBar: React.FC = React.memo(() => {
   const [modalKrahOpen, setModalKrahOpen] = useState(false);
   const [wsDebugModalOpen, setWsDebugModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
   const [requestCounts, setRequestCounts] = useState<{
     pendingVerification: number;
@@ -102,9 +103,7 @@ const TopBar: React.FC = React.memo(() => {
   }>({ pendingVerification: 0, pendingWarehouseSend: 0 });
   const searchRef = useRef<HTMLDivElement>(null);
   const theme = useSelector(selectTheme);
-  const isDarkMode = useSelector(selectIsDarkMode);
   const { colors } = theme;
-  const dispatch = useDispatch();
   const router = useRouter();
   const params = useParams();
   const user = useSelector(selectUser);
@@ -249,18 +248,24 @@ const TopBar: React.FC = React.memo(() => {
 
   const workspaceId = getWorkspaceId();
 
-  // Handle theme toggle
-  const handleThemeToggle = () => {
-    dispatch(toggleTheme());
-  };
+  // Debounce search so we don't hit the API on every keystroke
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery.trim());
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [searchQuery]);
 
   // Use unified search hook with fallback workspaceId
   const {
     data: searchResults = { cards: [], boards: [] },
     isLoading: isSearching,
-  } = useUnifiedSearch(searchQuery, workspaceId, {
-    enabled: !!searchQuery && searchQuery.trim().length > 0,
+  } = useUnifiedSearch(debouncedSearchQuery, workspaceId, {
+    enabled: debouncedSearchQuery.length > 0,
   });
+  const isDebouncing =
+    searchQuery.trim().length > 0 && searchQuery.trim() !== debouncedSearchQuery;
+  const showSearchingState = isSearching || isDebouncing;
 
   // Recently viewed hook
   const { recentlyViewedItems } = useRecentlyViewed();
@@ -300,6 +305,73 @@ const TopBar: React.FC = React.memo(() => {
       ),
     },
   ];
+
+  const mobileActionMenuItems: MenuProps["items"] = [];
+  if (canSeeButton("buat")) {
+    mobileActionMenuItems.push({
+      key: "buat-request",
+      label: "Buat Request",
+      onClick: () => setModalRequestOpen(true),
+    });
+  }
+  if (canSeeButton("lihat")) {
+    mobileActionMenuItems.push({
+      key: "lihat-request",
+      label: (
+        <div className="flex items-center justify-between gap-3">
+          <span>Lihat Request</span>
+          <Badge count={requestCounts.pendingVerification} overflowCount={99} />
+        </div>
+      ),
+      onClick: () => setModalListRequestOpen(true),
+    });
+  }
+  if (canSeeButton("gudang")) {
+    mobileActionMenuItems.push({
+      key: "gudang-request",
+      label: (
+        <div className="flex items-center justify-between gap-3">
+          <span>Gudang</span>
+          <Badge count={requestCounts.pendingWarehouseSend} overflowCount={99} />
+        </div>
+      ),
+      onClick: () => setModalRequestSentOpen(true),
+    });
+  }
+  if (canSeeButton("produksi")) {
+    mobileActionMenuItems.push({
+      key: "produksi-request",
+      label: "Produksi",
+      onClick: () => setModalRequestProduksiOpen(true),
+    });
+  }
+
+  if (isSuperAdmin) {
+    if (mobileActionMenuItems.length > 0) {
+      mobileActionMenuItems.push({ type: "divider" });
+    }
+    mobileActionMenuItems.push({
+      key: "capacity-planner",
+      label: "Capacity Planner",
+      children: [
+        { key: "planner-cutting", label: "Cutting", onClick: () => setModalCuttingOpen(true) },
+        { key: "planner-sewing", label: "Sewing", onClick: () => setModalSewingOpen(true) },
+        { key: "planner-bordir", label: "Bordir", onClick: () => setModalBordirOpen(true) },
+        { key: "planner-krah", label: "Krah & Manset", onClick: () => setModalKrahOpen(true) },
+      ],
+    });
+  }
+
+  if (process.env.NODE_ENV === "development") {
+    if (mobileActionMenuItems.length > 0) {
+      mobileActionMenuItems.push({ type: "divider" });
+    }
+    mobileActionMenuItems.push({
+      key: "ws-debug",
+      label: "WS Debug",
+      onClick: () => setWsDebugModalOpen(true),
+    });
+  }
 
   // Handle search input change
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -378,95 +450,105 @@ const TopBar: React.FC = React.memo(() => {
         {/* <WorkspaceSelection /> */}
       </div>
 
-      <div className="flex items-center gap-5 w-100vh">
-        {canSeeButton("buat") && (
-          <Button onClick={() => setModalRequestOpen(true)}>
-            Buat Request
-          </Button>
-        )}
-
-        {canSeeButton("lihat") && (
-          <Badge
-            count={requestCounts.pendingVerification}
-            overflowCount={99}
-            offset={[-4, 6]}
-          >
-            <Button onClick={() => setModalListRequestOpen(true)}>
-              Lihat Request
+      <div className="flex items-center gap-2 flex-1 justify-end min-w-0">
+        <div className="hidden sm:flex items-center gap-5 flex-shrink-0">
+          {canSeeButton("buat") && (
+            <Button onClick={() => setModalRequestOpen(true)}>
+              Buat Request
             </Button>
-          </Badge>
-        )}
+          )}
 
-        {canSeeButton("gudang") && (
-          <Badge
-            count={requestCounts.pendingWarehouseSend}
-            overflowCount={99}
-            offset={[-6, 8]}
-          >
-            <Button onClick={() => setModalRequestSentOpen(true)}>
-              Gudang
-            </Button>
-          </Badge>
-        )}
+          {canSeeButton("lihat") && (
+            <div className="hidden md:block">
+              <Badge
+                count={requestCounts.pendingVerification}
+                overflowCount={99}
+                offset={[-4, 6]}
+              >
+                <Button onClick={() => setModalListRequestOpen(true)}>
+                  Lihat Request
+                </Button>
+              </Badge>
+            </div>
+          )}
 
-        {canSeeButton("produksi") && (
-          <>
-            <Button onClick={() => setModalRequestProduksiOpen(true)}>
-              Produksi
-            </Button>
-          </>
-        )}
-        {isSuperAdmin &&
-          <Dropdown
-            menu={{
-              items: [
-                {
-                  key: "cutting",
-                  label: "Cutting",
-                  onClick: () => setModalCuttingOpen(true),
-                },
-                {
-                  key: "sewing",
-                  label: "Sewing",
-                  onClick: () => setModalSewingOpen(true),
-                },
-                {
-                  key: "bordir",
-                  label: "Bordir",
-                  onClick: () => setModalBordirOpen(true),
-                },
-                {
-                  key: "krah",
-                  label: "Krah & Manset",
-                  onClick: () => setModalKrahOpen(true),
-                },
-              ],
-            }}
-            placement="bottom"
-            trigger={["click"]}
-          >
-            <Button>Capacity Planner</Button>
-          </Dropdown>
-        }
+          {canSeeButton("gudang") && (
+            <div className="hidden lg:block">
+              <Badge
+                count={requestCounts.pendingWarehouseSend}
+                overflowCount={99}
+                offset={[-6, 8]}
+              >
+                <Button onClick={() => setModalRequestSentOpen(true)}>
+                  Gudang
+                </Button>
+              </Badge>
+            </div>
+          )}
 
-        {/* WebSocket Debug Button - Only show in development */}
-        {process.env.NODE_ENV === "development" && (
-          <Button
-            type="dashed"
-            size="small"
-            onClick={() => setWsDebugModalOpen(true)}
-            title="WebSocket Debug"
-          >
-            WS Debug
-          </Button>
-        )}
+          {canSeeButton("produksi") && (
+            <div className="hidden lg:block">
+              <Button onClick={() => setModalRequestProduksiOpen(true)}>
+                Produksi
+              </Button>
+            </div>
+          )}
 
-        <div className="relative" ref={searchRef}>
+          {isSuperAdmin && (
+            <div className="hidden lg:block">
+              <Dropdown
+                menu={{
+                  items: [
+                    {
+                      key: "cutting",
+                      label: "Cutting",
+                      onClick: () => setModalCuttingOpen(true),
+                    },
+                    {
+                      key: "sewing",
+                      label: "Sewing",
+                      onClick: () => setModalSewingOpen(true),
+                    },
+                    {
+                      key: "bordir",
+                      label: "Bordir",
+                      onClick: () => setModalBordirOpen(true),
+                    },
+                    {
+                      key: "krah",
+                      label: "Krah & Manset",
+                      onClick: () => setModalKrahOpen(true),
+                    },
+                  ],
+                }}
+                placement="bottom"
+                trigger={["click"]}
+              >
+                <Button>Capacity Planner</Button>
+              </Dropdown>
+            </div>
+          )}
+
+          {/* WebSocket Debug Button - Only show in development */}
+          {process.env.NODE_ENV === "development" && (
+            <div className="hidden lg:block">
+              <Button
+                type="dashed"
+                size="small"
+                onClick={() => setWsDebugModalOpen(true)}
+                title="WebSocket Debug"
+              >
+                WS Debug
+              </Button>
+            </div>
+          )}
+        </div>
+
+        <div className="relative flex-1 sm:flex-none sm:w-[240px] md:w-[320px] lg:w-[500px]" ref={searchRef}>
           <Input
             placeholder="Search…"
             prefix={<i className="fi fi-rr-search" />}
-            className={`rounded transition-all duration-200 ease-in-out`}
-            style={{ width: showSearchDropdown ? "500px" : "200px" }}
+            className={`w-full rounded transition-all duration-200 ease-in-out`}
             value={searchQuery}
             onChange={handleSearchChange}
             onFocus={handleSearchFocus}
@@ -474,11 +556,10 @@ const TopBar: React.FC = React.memo(() => {
 
           {showSearchDropdown && (
             <div
-              className="absolute z-50 top-full left-0 mt-1 bg-white rounded-md shadow-lg border border-gray-200"
-              style={{ width: showSearchDropdown ? "500px" : "200px" }}
+              className="absolute z-[999] top-full left-0 mt-1 w-full bg-white rounded-md shadow-lg border border-gray-200"
             >
               <div className="max-h-80 overflow-auto p-2">
-                {isSearching ? (
+                {showSearchingState ? (
                   <div className="flex justify-center py-4">
                     <span>Searching...</span>
                   </div>
@@ -529,6 +610,13 @@ const TopBar: React.FC = React.memo(() => {
                                         {item.listName || "Unknown List"}
                                       </span>
                                     </div>
+                                    {item.noFaktur && (
+                                      <div className="flex items-center gap-1 mb-1">
+                                        <span className="font-medium">No Faktur</span>
+                                        <span>•</span>
+                                        <span className="truncate">{item.noFaktur}</span>
+                                      </div>
+                                    )}
                                     {/* Description */}
                                     {item.description && (
                                       <div
@@ -618,7 +706,7 @@ const TopBar: React.FC = React.memo(() => {
                     {/* No Results */}
                     {searchResults.cards.length === 0 &&
                       searchResults.boards.length === 0 &&
-                      !isSearching && (
+                      !showSearchingState && (
                         <div className="text-center py-4 text-gray-500 text-sm">
                           No results found
                         </div>
@@ -665,6 +753,23 @@ const TopBar: React.FC = React.memo(() => {
           )}
         </div>
 
+        {mobileActionMenuItems.length > 0 && (
+          <div className="lg:hidden">
+            <Dropdown
+              menu={{ items: mobileActionMenuItems }}
+              trigger={["click"]}
+              placement="bottomRight"
+            >
+              <Button
+                size="small"
+                type="text"
+                icon={<MenuIcon size={18} />}
+                aria-label="Open menu"
+              />
+            </Dropdown>
+          </div>
+        )}
+
         {/* <Dropdown
           menu={{ items: notificationItems }}
           trigger={["click"]}
@@ -675,36 +780,6 @@ const TopBar: React.FC = React.memo(() => {
             <BellOutlined className="text-xl cursor-pointer" />
           </Badge>
         </Dropdown> */}
-
-        {/* Theme Toggle Button */}
-        <div
-          onClick={handleThemeToggle}
-          className="relative inline-flex items-center w-12 h-6 rounded-full cursor-pointer transition-all duration-300 ease-in-out mb-1 pb-2"
-          style={{
-            backgroundColor: isDarkMode
-              ? `rgb(${colors.primary})`
-              : `rgb(${colors.muted})`,
-            border: `1px solid rgb(${colors.border})`,
-          }}
-          title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
-        >
-          {/* Toggle Circle */}
-          <div
-            className="absolute w-5 h-5 rounded-full transition-all duration-300 ease-in-out flex items-center justify-center"
-            style={{
-              backgroundColor: `rgb(${colors.surface})`,
-              left: isDarkMode ? "26px" : "2px",
-              top: "2px",
-              boxShadow: "0 2px 4px rgba(0, 0, 0, 0.2)",
-            }}
-          >
-            {isDarkMode ? (
-              <Moon size={12} style={{ color: `rgb(${colors.primary})` }} />
-            ) : (
-              <Sun size={12} style={{ color: `rgb(${colors.primary})` }} />
-            )}
-          </div>
-        </div>
 
         <Dropdown
           menu={{ items: avatarMenuItems }}

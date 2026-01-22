@@ -7,7 +7,7 @@ import {
   EnumCardAttachmentType,
   EnumCardType,
 } from "@myTypes/card";
-import { Button, List, Tag, Typography, Image } from "antd";
+import { Button, List, Tag, Typography, Image, Modal } from "antd";
 import React, { useMemo, useRef, useState } from "react";
 import { formatFileSize, getFileIcon, isImageFile, isPDFFile } from "./attachment-helpers";
 import { useCardAttachment } from "@hooks/card_attachment";
@@ -126,12 +126,33 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
   const handleDownload = (url?: string, name?: string) => {
     if (!url) return;
     const link = document.createElement("a");
-    link.href = url;
+    // The `download` attribute is ignored for cross-origin URLs in most browsers.
+    // Proxy via same-origin API route so clicks download instead of opening inline (PDF/images).
+    const isFileProxyUrl =
+      url.startsWith("/api/file-proxy/") ||
+      (typeof window !== "undefined" &&
+        url.startsWith(`${window.location.origin}/api/file-proxy/`));
+
+    link.href = url.startsWith("http") && !isFileProxyUrl
+      ? `/api/file-proxy/${encodeURIComponent(url)}`
+      : url;
     link.download = name || "download";
-    link.target = "_blank";
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const handleDeleteWithConfirm = (attachmentId: string) => {
+    Modal.confirm({
+      title: "Delete Attachment",
+      content: "Are you sure you want to delete this attachment?",
+      okText: "Yes",
+      okType: "danger",
+      cancelText: "No",
+      onOk() {
+        deleteAttachment({ attachmentId, cardId: card.id });
+      },
+    });
   };
 
   const handleMakeCover = (attachmentId: string) => {
@@ -380,15 +401,6 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
                       }
                     />
                   )}
-                  <Button
-                    size="small"
-                    type="link"
-                    danger
-                    className="p-0 text-xs"
-                    onClick={() => deleteAttachment({ attachmentId: attachment.id, cardId: card.id })}
-                  >
-                    Delete
-                  </Button>
                   {!attachment.isCover && (
                     <Button
                       size="small"
@@ -399,6 +411,15 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
                       Make Cover
                     </Button>
                   )}
+                  <Button
+                    size="small"
+                    type="link"
+                    danger
+                    className="p-0 text-xs"
+                    onClick={() => handleDeleteWithConfirm(attachment.id)}
+                  >
+                    Delete
+                  </Button>
                 </div>
               </div>
             </div>

@@ -41,7 +41,7 @@ const DraggableCard: React.FC<DraggableCardProps> = ({ card, index, list }) => {
     }
   };
 
-  // Check if user can move cards
+  // Check if user can move cards (no super admin restriction for cards)
   const canMoveCard = canMove("card");
 
   // Determine if this card should be blurred

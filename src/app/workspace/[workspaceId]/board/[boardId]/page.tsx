@@ -412,13 +412,50 @@ const Board: React.FC = () => {
   const { canCreate } = usePermissions();
   const { addRecentlyViewedBoard } = useRecentlyViewed();
 
-  // Label filter state
-  const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
+  // Label filter state with localStorage persistence
+  const getFilterStorageKey = useCallback((workspaceId: string, boardId: string) => {
+    return `ozzy_filters_${workspaceId}_${boardId}`;
+  }, []);
 
-  // Reset label filter when board changes
+  const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const key = getFilterStorageKey(resolvedWorkspaceId, resolvedBoardId);
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const filters = JSON.parse(raw);
+        return filters.labelIds || [];
+      }
+    } catch {
+      return [];
+    }
+    return [];
+  });
+
+  // Save filters to localStorage when they change
   useEffect(() => {
-    setSelectedLabelIds([]);
-  }, [resolvedBoardId]);
+    if (typeof window === "undefined") return;
+    const key = getFilterStorageKey(resolvedWorkspaceId, resolvedBoardId);
+    const filters = { labelIds: selectedLabelIds };
+    localStorage.setItem(key, JSON.stringify(filters));
+  }, [selectedLabelIds, resolvedWorkspaceId, resolvedBoardId, getFilterStorageKey]);
+
+  // Load filters when board changes
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const key = getFilterStorageKey(resolvedWorkspaceId, resolvedBoardId);
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const filters = JSON.parse(raw);
+        setSelectedLabelIds(filters.labelIds || []);
+      } else {
+        setSelectedLabelIds([]);
+      }
+    } catch {
+      setSelectedLabelIds([]);
+    }
+  }, [resolvedBoardId, resolvedWorkspaceId, getFilterStorageKey]);
 
   useEffect(() => {
     if (!resolvedBoardId || !boards?.length) return;

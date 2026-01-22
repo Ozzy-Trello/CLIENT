@@ -424,15 +424,21 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
                           type="primary"
                           size="small"
                           loading={isUpdatingComment}
-                          onClick={() => {
+                          onClick={async () => {
                             const plain = editingContent
                               .replace(/<[^>]*>/g, "")
                               .trim();
                             if (!plain) return;
                             if (!item.id) return;
-                            updateComment(item.id, editingContent);
-                            setEditingCommentId(null);
-                            setEditingContent("");
+                            try {
+                              await updateComment(item.id, editingContent);
+                              // Only reset edit state after successful update
+                              setEditingCommentId(null);
+                              setEditingContent("");
+                            } catch (error) {
+                              console.error("Failed to update comment:", error);
+                              // Don't reset edit state on error so user can retry
+                            }
                           }}
                         >
                           Save

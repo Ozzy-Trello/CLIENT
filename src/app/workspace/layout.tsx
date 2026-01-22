@@ -32,7 +32,7 @@ const WorkspaceLayout: React.FC<BaseLayoutProps> = ({ children }) => {
 
   return (
     <Layout className="base-layout">
-      <Header style={{ position: "fixed", zIndex: 1, width: "100%" }}>
+      <Header style={{ position: "fixed", zIndex: 500, width: "100%" }}>
         <TopBar />
       </Header>
       <Sidebar />

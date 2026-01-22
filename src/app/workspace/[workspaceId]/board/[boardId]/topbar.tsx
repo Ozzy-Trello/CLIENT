@@ -9,6 +9,7 @@ import {
   Input,
   Space,
   Tag,
+  Modal,
 } from "antd";
 import { Dispatch, SetStateAction, useEffect, useState, useRef, useCallback } from "react";
 import { useWorkspaceSidebar } from "@providers/workspace-sidebar-context";
@@ -139,6 +140,9 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
   // Label filter state
   const [labelFilterOpen, setLabelFilterOpen] = useState<boolean>(false);
   const [labelSearchQuery, setLabelSearchQuery] = useState<string>("");
+  const [labelFilterModalOpen, setLabelFilterModalOpen] =
+    useState<boolean>(false);
+  const [invoiceModalOpen, setInvoiceModalOpen] = useState<boolean>(false);
   // External scanner state - check if any modal is open
   const anyModalOpen =
     showScanner ||
@@ -396,6 +400,7 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
       message.success(messageText);
       setInvoiceNumber("");
       setShowInvoiceInput(false);
+      setInvoiceModalOpen(false);
     } catch (error: any) {
       console.error("Error submitting invoice:", error);
       const errorMessage =
@@ -510,9 +515,212 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
     // },
   ];
 
+  const labelFilterContent = (
+    <div className="p-2 min-w-[280px] max-h-[450px] flex flex-col">
+      <div className="flex items-center justify-between mb-2">
+        <Typography.Text strong>
+          Filter by Labels
+        </Typography.Text>
+        {selectedLabelIds.length > 0 && (
+          <Button
+            size="small"
+            type="link"
+            onClick={() => onLabelFilterChange?.([])}
+            danger
+          >
+            Clear all
+          </Button>
+        )}
+      </div>
+
+      <Input
+        placeholder="Search labels..."
+        value={labelSearchQuery}
+        onChange={(e) => setLabelSearchQuery(e.target.value)}
+        className="mb-3"
+        size="small"
+        allowClear
+      />
+
+      {isLoadingLabels ? (
+        <div className="text-center py-4 text-gray-500">
+          Loading labels...
+        </div>
+      ) : workspaceLabels && workspaceLabels.length > 0 ? (
+        <div className="overflow-y-auto flex-1">
+          <Space direction="vertical" size="small" style={{ width: "100%" }}>
+            {workspaceLabels
+              .filter((label) =>
+                label.name
+                  .toLowerCase()
+                  .includes(labelSearchQuery.toLowerCase())
+              )
+              .map((label) => (
+                <div
+                  key={label.id}
+                  className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer"
+                  onClick={() => {
+                    const isSelected = selectedLabelIds.includes(label.id);
+                    if (isSelected) {
+                      onLabelFilterChange?.(
+                        selectedLabelIds.filter((id) => id !== label.id)
+                      );
+                    } else {
+                      onLabelFilterChange?.([...selectedLabelIds, label.id]);
+                    }
+                  }}
+                >
+                  <Checkbox
+                    checked={selectedLabelIds.includes(label.id)}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      const isChecked = e.target.checked;
+                      if (isChecked) {
+                        onLabelFilterChange?.([...selectedLabelIds, label.id]);
+                      } else {
+                        onLabelFilterChange?.(
+                          selectedLabelIds.filter((id) => id !== label.id)
+                        );
+                      }
+                    }}
+                  />
+                  <div
+                    className="w-4 h-4 rounded"
+                    style={{ backgroundColor: label.value || "#gray" }}
+                  />
+                  <span className="flex-1">{label.name}</span>
+                </div>
+              ))}
+          </Space>
+        </div>
+      ) : (
+        <div className="text-center py-4 text-gray-500">
+          No labels found in this workspace
+        </div>
+      )}
+    </div>
+  );
+
+  const invoiceContent = (
+    <div className="p-2">
+      <Space direction="vertical" size="small" style={{ width: "100%" }}>
+        <Typography.Text strong>
+          Enter Invoice Number
+        </Typography.Text>
+        <Input
+          placeholder="Invoice Number"
+          value={invoiceNumber}
+          onChange={(e) => setInvoiceNumber(e.target.value)}
+          onPressEnter={handleInvoiceSubmit}
+          style={{ width: "200px" }}
+        />
+        <Space>
+          <Button
+            type="primary"
+            size="small"
+            loading={isLoadingInvoice}
+            onClick={handleInvoiceSubmit}
+          >
+            Add
+          </Button>
+          <Button
+            size="small"
+            onClick={() => {
+              setShowInvoiceInput(false);
+              setInvoiceModalOpen(false);
+              setInvoiceNumber("");
+            }}
+          >
+            Cancel
+          </Button>
+        </Space>
+      </Space>
+    </div>
+  );
+
+  const mobileMenuItems: MenuProps["items"] = [];
+
+  if (isSuperAdmin) {
+    mobileMenuItems.push({
+      key: "track",
+      label: "Track",
+      onClick: () => setOpenDashcardModal(true),
+    });
+  }
+
+  if (onLabelFilterChange) {
+    mobileMenuItems.push({
+      key: "filter",
+      label: (
+        <div className="flex items-center justify-between gap-3">
+          <span>Filter</span>
+          {selectedLabelIds.length > 0 && (
+            <Tag color="blue">{selectedLabelIds.length}</Tag>
+          )}
+        </div>
+      ),
+      onClick: () => setLabelFilterModalOpen(true),
+    });
+  }
+
+  if (isDateline) {
+    mobileMenuItems.push({
+      key: "invoice",
+      label: "Invoice",
+      onClick: () => setInvoiceModalOpen(true),
+    });
+  }
+
+  if (canShowCetakQR) {
+    mobileMenuItems.push({
+      key: "cetak-qr",
+      label: "Cetak QR",
+      children: generateQRMenuItems.map((item: any) => ({
+        ...item,
+        key: `cetak-qr-${item?.key}`,
+      })),
+    });
+  }
+
+  if (canShowPacking) {
+    mobileMenuItems.push({
+      key: "packing",
+      label: "Packing",
+      children: packingMenuItems,
+    });
+  }
+
+  if (canShowDelivery) {
+    mobileMenuItems.push({
+      key: "delivery",
+      label: "Delivery",
+      children: deliveryMenuItems,
+    });
+  }
+
+  mobileMenuItems.push({
+    key: "scan-qr-camera",
+    label: "Scan QR (Camera)",
+    onClick: () => setShowScanner(true),
+  });
+
+  if (showMoveCardsButton) {
+    mobileMenuItems.push({
+      key: "closing-terpending",
+      label: "Closing Terpending",
+      onClick: handleMoveCards,
+    });
+  }
+
+  mobileMenuItems.push({
+    key: "more",
+    label: "More",
+    onClick: () => setBoardScopeMenuOpen(true),
+  });
+
   return (
     <div
-      className="flex items-center justify-between h-[45px] absolute top-[45px] border-b border-gray-200 px-4"
+      className="flex items-center justify-between h-auto min-h-[45px] absolute top-[45px] border-b border-gray-200 px-2 sm:px-4 py-1 sm:py-0 flex-wrap sm:flex-nowrap gap-2"
       style={{
         width: collapsed
           ? `calc(100% - ${siderSmall}px)`
@@ -578,10 +786,10 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
         </div>
       )}
 
-      <div className="flex items-center gap-2 ml-5">
+      <div className="flex items-center gap-2 ml-2 sm:ml-5 min-w-0 flex-shrink-0">
         <title>{currentBoard?.name}</title>
 
-        <Typography.Title level={4} className="m-0">
+        <Typography.Title level={4} className="m-0 text-sm sm:text-base truncate">
           {currentBoard?.name}
         </Typography.Title>
         <Tooltip
@@ -589,7 +797,7 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
         >
           <Star
             size={16}
-            className={`transition-colors cursor-pointer ${isFavorited
+            className={`transition-colors cursor-pointer flex-shrink-0 ${isFavorited
               ? "fill-yellow-400 text-yellow-400"
               : "text-gray-400 hover:text-yellow-400"
               }`}
@@ -602,9 +810,10 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
         </Tooltip>
       </div>
 
-      <div>
+      <div className="flex-shrink-0 w-auto order-3 sm:order-2">
         {showRightColMenu ? (
-          <div className="flex items-center justify-end gap-2">
+          <>
+            <div className="hidden sm:flex items-center justify-end gap-1 sm:gap-2 flex-wrap">
             {isSuperAdmin && (
               <Tooltip title={"track"}>
                 <Button
@@ -628,84 +837,7 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
                     setLabelFilterOpen(open);
                     if (!open) setLabelSearchQuery("");
                   }}
-                  content={
-                    <div className="p-2 min-w-[280px] max-h-[450px] flex flex-col">
-                      <Typography.Text strong className="block mb-2">
-                        Filter by Labels
-                      </Typography.Text>
-
-                      {/* Search input */}
-                      <Input
-                        placeholder="Search labels..."
-                        value={labelSearchQuery}
-                        onChange={(e) => setLabelSearchQuery(e.target.value)}
-                        className="mb-3"
-                        size="small"
-                        allowClear
-                      />
-
-                      {isLoadingLabels ? (
-                        <div className="text-center py-4 text-gray-500">
-                          Loading labels...
-                        </div>
-                      ) : workspaceLabels && workspaceLabels.length > 0 ? (
-                        <div className="overflow-y-auto flex-1">
-                          <Space direction="vertical" size="small" style={{ width: "100%" }}>
-                            {workspaceLabels
-                              .filter((label) =>
-                                label.name.toLowerCase().includes(labelSearchQuery.toLowerCase())
-                              )
-                              .map((label) => (
-                                <div
-                                  key={label.id}
-                                  className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer"
-                                  onClick={() => {
-                                    const isSelected = selectedLabelIds.includes(label.id);
-                                    if (isSelected) {
-                                      onLabelFilterChange(selectedLabelIds.filter(id => id !== label.id));
-                                    } else {
-                                      onLabelFilterChange([...selectedLabelIds, label.id]);
-                                    }
-                                  }}
-                                >
-                                  <Checkbox
-                                    checked={selectedLabelIds.includes(label.id)}
-                                    onChange={(e) => {
-                                      e.stopPropagation();
-                                      const isChecked = e.target.checked;
-                                      if (isChecked) {
-                                        onLabelFilterChange([...selectedLabelIds, label.id]);
-                                      } else {
-                                        onLabelFilterChange(selectedLabelIds.filter(id => id !== label.id));
-                                      }
-                                    }}
-                                  />
-                                  <div
-                                    className="w-4 h-4 rounded"
-                                    style={{ backgroundColor: label.value || '#gray' }}
-                                  />
-                                  <span className="flex-1">{label.name}</span>
-                                </div>
-                              ))}
-                            {selectedLabelIds.length > 0 && (
-                              <Button
-                                size="small"
-                                type="link"
-                                onClick={() => onLabelFilterChange([])}
-                                className="mt-2 w-full"
-                              >
-                                Clear all filters
-                              </Button>
-                            )}
-                          </Space>
-                        </div>
-                      ) : (
-                        <div className="text-center py-4 text-gray-500">
-                          No labels found in this workspace
-                        </div>
-                      )}
-                    </div>
-                  }
+                  content={labelFilterContent}
                   trigger="click"
                   placement="bottomRight"
                 >
@@ -727,45 +859,7 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
             )}
             {isDateline && (
               <Popover
-                content={
-                  <div className="p-2">
-                    <Space
-                      direction="vertical"
-                      size="small"
-                      style={{ width: "100%" }}
-                    >
-                      <Typography.Text strong>
-                        Enter Invoice Number
-                      </Typography.Text>
-                      <Input
-                        placeholder="Invoice Number"
-                        value={invoiceNumber}
-                        onChange={(e) => setInvoiceNumber(e.target.value)}
-                        onPressEnter={handleInvoiceSubmit}
-                        style={{ width: "200px" }}
-                      />
-                      <Space>
-                        <Button
-                          type="primary"
-                          size="small"
-                          loading={isLoadingInvoice}
-                          onClick={handleInvoiceSubmit}
-                        >
-                          Add
-                        </Button>
-                        <Button
-                          size="small"
-                          onClick={() => {
-                            setShowInvoiceInput(false);
-                            setInvoiceNumber("");
-                          }}
-                        >
-                          Cancel
-                        </Button>
-                      </Space>
-                    </Space>
-                  </div>
-                }
+                content={invoiceContent}
                 trigger="click"
                 open={showInvoiceInput}
                 onOpenChange={setShowInvoiceInput}
@@ -892,7 +986,25 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
                 }}
               ></Button>
             </Tooltip>
-          </div>
+            </div>
+
+            <div className="sm:hidden">
+              <Dropdown
+                menu={{ items: mobileMenuItems }}
+                trigger={["click"]}
+                placement="bottomRight"
+              >
+                <Tooltip title="Menu">
+                  <Button
+                    size="small"
+                    type="text"
+                    icon={<Menu size={18} />}
+                    aria-label="Open menu"
+                  />
+                </Tooltip>
+              </Dropdown>
+            </div>
+          </>
         ) : (
           <Dropdown
             menu={{ items: rightMenu }}
@@ -908,6 +1020,32 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
           </Dropdown>
         )}
       </div>
+
+      <Modal
+        open={labelFilterModalOpen}
+        onCancel={() => {
+          setLabelFilterModalOpen(false);
+          setLabelSearchQuery("");
+        }}
+        footer={null}
+        title="Filter by Labels"
+        destroyOnClose
+      >
+        {labelFilterContent}
+      </Modal>
+
+      <Modal
+        open={invoiceModalOpen}
+        onCancel={() => {
+          setInvoiceModalOpen(false);
+          setInvoiceNumber("");
+        }}
+        footer={null}
+        title="Invoice"
+        destroyOnClose
+      >
+        {invoiceContent}
+      </Modal>
 
       <ModalDelivery
         open={modalDeliveryOpen}

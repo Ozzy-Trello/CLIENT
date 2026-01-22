@@ -47,7 +47,7 @@ const AutomateButtons: React.FC = () => {
 
         setCardButtons(buttons);
       } catch (error) {
-        message.error("Failed to load automation buttons");
+        // message.error("Failed to load automation buttons");
       } finally {
         setLoading(false);
       }

@@ -125,8 +125,15 @@ const DraggableList: React.FC<DraggableListProps> = ({
     return () => observer.disconnect();
   }, [isLoadingMore, hasMoreCards, loadMoreError, loadMoreCards]);
 
-  // Check if user can move lists and create cards using board-specific permissions
-  const canMoveListPermission = canMoveList();
+  // Check if user is super admin for reorder restrictions
+  const userRole = (currentUser?.role?.name || "").trim().toLowerCase();
+  const isSuperAdmin =
+    userRole === "super admin" ||
+    userRole === "super_admin" ||
+    userRole === "superadmin";
+
+  // Restrict list reordering to super admin only
+  const canMoveListPermission = canMoveList() && isSuperAdmin;
   let canCreateCardPermission = canCreateCard();
 
   // ⚠️ TEMPORARY RESTRICTION - Only super admin on Dateline board can create cards
