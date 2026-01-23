@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
-import { Button, Input, Avatar, Typography, Divider } from "antd";
+import { Button, Input, Avatar, Typography, Divider, Popconfirm } from "antd";
 import { MessageOutlined } from "@ant-design/icons";
 import { generateId } from "@utils/general";
 import RichTextEditor from "@components/rich-text-editor";
@@ -30,8 +30,10 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
     loadMore,
     addCardActivity,
     updateComment,
+    deleteComment,
     isAddingActivity,
     isUpdatingComment,
+    isDeletingComment,
     addActivityError,
     mutationState,
     resetMutation,
@@ -468,18 +470,39 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
                       Reply
                     </Button>
                     {!item.action && currentUser?.id === item?.senderUserId && (
-                      <Button
-                        type="link"
-                        size="small"
-                        className="text-xs text-gray-500 hover:text-blue-600 p-0 h-auto ml-2"
-                        onClick={() => {
-                          if (!item.id) return;
-                          setEditingCommentId(item.id);
-                          setEditingContent(item?.comment?.text || "");
-                        }}
-                      >
-                        Edit
-                      </Button>
+                      <>
+                        <Button
+                          type="link"
+                          size="small"
+                          className="text-xs text-gray-500 hover:text-blue-600 p-0 h-auto ml-2"
+                          onClick={() => {
+                            if (!item.id) return;
+                            setEditingCommentId(item.id);
+                            setEditingContent(item?.comment?.text || "");
+                          }}
+                        >
+                          Edit
+                        </Button>
+                        <Popconfirm
+                          title="Delete comment"
+                          description="Are you sure you want to delete this comment?"
+                          onConfirm={() => {
+                            if (!item.id) return;
+                            deleteComment(item.id);
+                          }}
+                          okText="Delete"
+                          cancelText="Cancel"
+                          okButtonProps={{ danger: true, loading: isDeletingComment }}
+                        >
+                          <Button
+                            type="link"
+                            size="small"
+                            className="text-xs text-gray-500 hover:text-red-600 p-0 h-auto ml-2"
+                          >
+                            Delete
+                          </Button>
+                        </Popconfirm>
+                      </>
                     )}
                   </div>
                 </div>

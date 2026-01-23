@@ -1,4 +1,4 @@
-import { addCardActivity, cardAcitivities, updateCardActivityComment } from "@api/card_activity";
+import { addCardActivity, cardAcitivities, updateCardActivityComment, deleteCardActivityComment } from "@api/card_activity";
 import { CardActivity } from "@myTypes/card";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
@@ -112,6 +112,20 @@ export const useCardActivity = (
     },
   });
 
+  const deleteCommentMutation = useMutation({
+    mutationFn: (activityId: string) => {
+      if (!cardId) {
+        throw new Error("Card ID is required");
+      }
+      return deleteCardActivityComment(cardId, activityId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["cardActivity", cardId] });
+      setPage(1);
+      refetch();
+    },
+  });
+
   return {
     cardActivities: allActivities,
     filter,
@@ -129,9 +143,14 @@ export const useCardActivity = (
     updateComment: (activityId: string, text: string) => {
       updateCommentMutation.mutate({ activityId, text });
     },
+    deleteComment: (activityId: string) => {
+      deleteCommentMutation.mutate(activityId);
+    },
     isAddingActivity: addCardActivityMutation.isPending,
     isUpdatingComment: updateCommentMutation.isPending,
+    isDeletingComment: deleteCommentMutation.isPending,
     updateCommentError: updateCommentMutation.error,
+    deleteCommentError: deleteCommentMutation.error,
     addActivityError: addCardActivityMutation.error,
     mutationState: addCardActivityMutation.status,
     resetMutation: addCardActivityMutation.reset,

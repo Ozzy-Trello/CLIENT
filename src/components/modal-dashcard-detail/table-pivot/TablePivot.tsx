@@ -560,13 +560,15 @@ const TablePivot: FC = () => {
     onExpandedChange: (value) => setExpanded(value as Record<string, boolean>),
     onColumnVisibilityChange: setColumnVisibility,
     onColumnOrderChange: setColumnOrder,
+    onGroupingChange: setGrouping,
+    onSortingChange: setSorting,
+    globalFilterFn: "auto",
     getExpandedRowModel: getExpandedRowModel(),
     getGroupedRowModel: getGroupedRowModel(),
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    onSortingChange: setSorting,
   });
 
 

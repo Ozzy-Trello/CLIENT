@@ -342,6 +342,12 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
         return;
       }
 
+      // Skip scanner capture when card detail modal is open (allow shortcuts like "L")
+      const isCardDetailOpen = document.querySelector('.ant-modal-wrap:not(.ant-modal-wrap-hidden)');
+      if (isCardDetailOpen) {
+        return;
+      }
+
       // Check if it's Enter key (scanner typically sends Enter after scanning)
       if (event.key === "Enter") {
         const scannedData = scannerBufferRef.current.trim();
@@ -555,6 +561,13 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
                   .toLowerCase()
                   .includes(labelSearchQuery.toLowerCase())
               )
+              .sort((a, b) => {
+                const aSelected = selectedLabelIds.includes(a.id);
+                const bSelected = selectedLabelIds.includes(b.id);
+                if (aSelected && !bSelected) return -1;
+                if (!aSelected && bSelected) return 1;
+                return a.name.localeCompare(b.name);
+              })
               .map((label) => (
                 <div
                   key={label.id}

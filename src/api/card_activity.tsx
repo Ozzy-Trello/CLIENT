@@ -40,3 +40,11 @@ export const updateCardActivityComment = async (
   );
   return data;
 };
+
+export const deleteCardActivityComment = async (
+  cardId: string,
+  activityId: string
+): Promise<ApiResponse<any>> => {
+  const { data } = await api.delete(`/card/${cardId}/activity/${activityId}`);
+  return data;
+};

@@ -307,7 +307,15 @@ const CardDetails: React.FC = (props) => {
       setIsDraggingFiles(false);
       const dt = e.dataTransfer;
       if (dt?.files?.length) {
-        void handleFilesUpload(dt.files);
+        const fileCount = dt.files.length;
+        message.loading({
+          content: `Uploading ${fileCount} file${fileCount > 1 ? "s" : ""}...`,
+          key: "drag-upload",
+          duration: 0,
+        });
+        void handleFilesUpload(dt.files).finally(() => {
+          message.destroy("drag-upload");
+        });
       }
     };
 
