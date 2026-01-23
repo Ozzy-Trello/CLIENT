@@ -4,6 +4,22 @@ import camelcaseKeys from "camelcase-keys";
 import { EnumUserActionEvent } from "@myTypes/event";
 import { queryKeys } from "@constants/query-keys";
 
+// Mutation tracking utility to prevent double invalidation
+// When a frontend mutation fires, it registers the mutation key.
+// WebSocket handler skips invalidation if the same mutation was just performed locally.
+const recentMutationsSet = new Set<string>();
+const MUTATION_EXPIRY_MS = 3000; // 3 seconds
+
+export function registerMutation(eventType: string, entityId: string) {
+  const key = `${eventType}:${entityId}`;
+  recentMutationsSet.add(key);
+  setTimeout(() => recentMutationsSet.delete(key), MUTATION_EXPIRY_MS);
+}
+
+export function wasRecentlyMutated(eventType: string, entityId: string): boolean {
+  return recentMutationsSet.has(`${eventType}:${entityId}`);
+}
+
 function toWebSocketUrl(baseUrl: string) {
   if (baseUrl.startsWith("https://")) {
     return baseUrl.replace("https://", "wss://");
@@ -145,7 +161,7 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             break;
 
           case EnumUserActionEvent.CardMoved:
-            const { card, fromListId, toListId } = message.data;
+            const { card, fromListId, toListId, boardId } = message.data;
 
             // CRITICAL FIX: Explicitly remove card from source list cache
             // This prevents ghost cards when automation moves cards
@@ -160,8 +176,7 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
               }
             );
 
-            // invalidate all related queries to refetch fresh data
-            queryClient.invalidateQueries({ queryKey: queryKeys.lists.all });
+            // Invalidate only the affected lists, not all lists
             queryClient.invalidateQueries({
               queryKey: queryKeys.cards.list(fromListId),
             });
@@ -174,14 +189,19 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             queryClient.invalidateQueries({
               queryKey: queryKeys.cards.detail(card.id),
             });
+            // Invalidate board-specific list queries if boardId is provided
+            if (boardId) {
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.lists.board(boardId),
+              });
+            }
             refreshDashcard = true;
             break;
 
           case EnumUserActionEvent.CardUpdated:
             const { card: updatedCard, listId } = message.data;
 
-            // Invalidate relevant queries
-            queryClient.invalidateQueries({ queryKey: queryKeys.lists.all });
+            // Invalidate only affected queries - removed lists.all for performance
             queryClient.invalidateQueries({
               queryKey: queryKeys.cards.list(listId),
             });
@@ -199,8 +219,7 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
               renamedBy,
             } = message.data;
 
-            // Invalidate relevant queries to refresh the UI
-            queryClient.invalidateQueries({ queryKey: queryKeys.lists.all });
+            // Invalidate only affected queries - removed lists.all for performance
             queryClient.invalidateQueries({
               queryKey: queryKeys.cards.list(renamedListId),
             });
@@ -214,8 +233,7 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             console.log("[WebSocket] CardCreated event received:", message.data);
             const { card: newCard, listId: newCardListId } = message.data;
 
-            // Invalidate relevant queries
-            queryClient.invalidateQueries({ queryKey: queryKeys.lists.all });
+            // Invalidate only the affected list - removed lists.all for performance
             queryClient.invalidateQueries({
               queryKey: queryKeys.cards.list(newCardListId),
               refetchType: "all",
@@ -227,8 +245,7 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             const { cardId: deletedCardId, listId: deletedCardListId } =
               message.data;
 
-            // Invalidate relevant queries
-            queryClient.invalidateQueries({ queryKey: queryKeys.lists.all });
+            // Invalidate only the affected list - removed lists.all for performance
             queryClient.invalidateQueries({
               queryKey: queryKeys.cards.list(deletedCardListId),
             });
@@ -244,8 +261,7 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             // Get the correct listId (handle both camelCase and snake_case)
             const archiveListId = archivedCard.listId || archivedCard.list_id;
 
-            // Invalidate relevant queries
-            queryClient.invalidateQueries({ queryKey: queryKeys.lists.all });
+            // Invalidate only affected queries - removed lists.all for performance
             queryClient.invalidateQueries({
               queryKey: queryKeys.cards.list(archiveListId),
             });
@@ -486,6 +502,11 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             const { cardId, labelId, label, workspaceId, addedBy } =
               message.data;
 
+            // Skip if this was just mutated by us (prevents double invalidation)
+            if (wasRecentlyMutated("label:added", `${cardId}:${labelId}`)) {
+              break;
+            }
+
             // Only invalidate specific queries for this card/workspace
             // Removed card detail invalidation - labels are already optimistically updated
             if (workspaceId && cardId) {
@@ -506,6 +527,11 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
 
           case "card_label:removed": {
             const { cardId, labelId, workspaceId } = message.data;
+
+            // Skip if this was just mutated by us (prevents double invalidation)
+            if (wasRecentlyMutated("label:removed", `${cardId}:${labelId}`)) {
+              break;
+            }
 
             // Only invalidate specific queries for this card/workspace
             // FIXED: Use specific keys instead of exact: false which invalidated ALL labels
@@ -614,17 +640,18 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
               });
             }
 
-            // Invalidate card labels queries to refresh label changes
-            queryClient.invalidateQueries({
-              queryKey: ["cardLabels"],
-              exact: false,
-            });
-
-            // Invalidate custom fields queries to refresh field changes
-            queryClient.invalidateQueries({
-              queryKey: ["customFields"],
-              exact: false,
-            });
+            // Use targeted invalidation with workspaceId if available
+            if (workspaceId && cardId) {
+              queryClient.invalidateQueries({
+                queryKey: ["cardLabels", workspaceId, cardId],
+              });
+              queryClient.invalidateQueries({
+                queryKey: ["cardCustomFields", cardId],
+              });
+              queryClient.invalidateQueries({
+                queryKey: ["customFields", workspaceId],
+              });
+            }
 
             // Automation can change card properties that affect dashcards
             refreshDashcard = true;
@@ -815,13 +842,7 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
               queryKey: queryKeys.cards.detail(cardId),
             });
 
-            // Invalidate custom fields queries
-            queryClient.invalidateQueries({
-              queryKey: ["customFields"],
-              exact: false,
-            });
-
-            // Invalidate card custom fields
+            // Invalidate card custom fields with specific keys
             queryClient.invalidateQueries({
               queryKey: ["cardCustomFields", cardId],
             });
@@ -830,15 +851,7 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
               queryClient.invalidateQueries({
                 queryKey: ["cardCustomField", cardId, workspaceId],
               });
-            } else {
-              queryClient.invalidateQueries({
-                queryKey: ["cardCustomField", cardId],
-                exact: false,
-              });
-            }
-
-            // Invalidate workspace custom fields if workspaceId is provided
-            if (workspaceId) {
+              // Invalidate workspace custom fields
               queryClient.invalidateQueries({
                 queryKey: ["customFields", workspaceId],
               });
@@ -851,22 +864,10 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
               });
             }
 
-            // CRITICAL: Invalidate lists and boards for real-time draggable card updates
-            // This ensures that when automation moves cards based on custom field changes,
-            // the UI updates immediately without requiring manual refresh
-            queryClient.invalidateQueries({
-              queryKey: queryKeys.lists.all,
-            });
-
+            // Use board-specific invalidation instead of lists.all
             if (boardId) {
               queryClient.invalidateQueries({
                 queryKey: queryKeys.lists.board(boardId),
-              });
-              queryClient.invalidateQueries({
-                queryKey: queryKeys.boards.detail(boardId),
-              });
-              queryClient.invalidateQueries({
-                queryKey: queryKeys.boards.withLists(boardId),
               });
             }
 

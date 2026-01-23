@@ -13,6 +13,7 @@ import { addCardLabel, removeLabelFromCard, getCardLabels } from "@api/card";
 import { Label, CardLabel } from "@myTypes/label";
 import { ApiResponse } from "@myTypes/type";
 import { useState, useEffect } from "react";
+import { registerMutation } from "./websocket";
 
 export function useLabels(
   workspaceId: string,
@@ -208,6 +209,10 @@ export function useLabels(
           queryKey: ["cardLabels", workspaceId, cardId],
         });
     },
+    onSuccess: (_, { labelId }) => {
+      // Register this mutation so WebSocket handler skips duplicate invalidation
+      if (cardId) registerMutation("label:added", `${cardId}:${labelId}`);
+    },
     onSettled: () => {
       // Only invalidate label queries - optimistic update handles UI
       // Removed card detail invalidation for performance
@@ -256,6 +261,10 @@ export function useLabels(
         queryClient.invalidateQueries({
           queryKey: ["cardLabels", workspaceId, cardId],
         });
+    },
+    onSuccess: (_, { labelId }) => {
+      // Register this mutation so WebSocket handler skips duplicate invalidation
+      if (cardId) registerMutation("label:removed", `${cardId}:${labelId}`);
     },
     onSettled: () => {
       // Only invalidate label queries - optimistic update handles UI
