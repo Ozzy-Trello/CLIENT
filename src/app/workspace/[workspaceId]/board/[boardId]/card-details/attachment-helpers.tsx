@@ -68,8 +68,23 @@ export const formatFileSize = (bytes?: number): string => {
   return (bytes / (1024 * 1024 * 1024)).toFixed(1) + " GB";
 };
 
-export const formatFileSizeInMB = (bytes?: number): string => {
-  if (!bytes) return "0.0 MB";
+const SIZE_MULTIPLIER: Record<string, number> = {
+  B: 1,
+  KB: 1024,
+  MB: 1024 * 1024,
+  GB: 1024 * 1024 * 1024,
+};
+
+export const formatFileSizeInMB = (
+  size?: number,
+  unit?: string
+): string => {
+  if (!size || Number.isNaN(size)) return "0.0 MB";
+
+  const normalizedUnit = unit?.toUpperCase() ?? "B";
+  const multiplier =
+    SIZE_MULTIPLIER[normalizedUnit] ?? SIZE_MULTIPLIER["B"];
+  const bytes = size * multiplier;
   const mbValue = bytes / (1024 * 1024);
-  return `${mbValue.toFixed(1)} MB`;
+  return `${mbValue.toFixed(2)} MB`;
 };

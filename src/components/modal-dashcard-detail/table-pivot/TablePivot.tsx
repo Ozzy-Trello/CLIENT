@@ -455,36 +455,36 @@ const TablePivot: FC = () => {
           ));
         },
       }),
-      columnHelper.accessor("productInfo", {
+      columnHelper.accessor((row) => row.productInfo?.name || "", {
+        id: "productInfo",
         header: () =>
           headerTemplate("Produk", getColumnMenu("productInfo").items || [], getColumnMenu("productInfo").onClick),
         cell: (info) => {
           const row = info.row;
-          const productInfo = info.getValue() as any;
           return renderGroupedCell("productInfo", row, () => (
-            <div className="max-w-xs truncate">{productInfo?.name || "-"}</div>
+            <div className="max-w-xs truncate">{info.getValue() || "-"}</div>
           ));
         },
       }),
-      columnHelper.accessor("bahanInfo", {
+      columnHelper.accessor((row) => row.bahanInfo?.name || "", {
+        id: "bahanInfo",
         header: () =>
           headerTemplate("Bahan", getColumnMenu("bahanInfo").items || [], getColumnMenu("bahanInfo").onClick),
         cell: (info) => {
           const row = info.row;
-          const bahanInfo = info.getValue() as any;
           return renderGroupedCell("bahanInfo", row, () => (
-            <div className="max-w-xs truncate">{bahanInfo?.name || "-"}</div>
+            <div className="max-w-xs truncate">{info.getValue() || "-"}</div>
           ));
         },
       }),
-      columnHelper.accessor("warnaInfo", {
+      columnHelper.accessor((row) => row.warnaInfo?.name || "", {
+        id: "warnaInfo",
         header: () =>
           headerTemplate("Warna", getColumnMenu("warnaInfo").items || [], getColumnMenu("warnaInfo").onClick),
         cell: (info) => {
           const row = info.row;
-          const warnaInfo = info.getValue() as any;
           return renderGroupedCell("warnaInfo", row, () => (
-            <div className="max-w-xs truncate">{warnaInfo?.name || "-"}</div>
+            <div className="max-w-xs truncate">{info.getValue() || "-"}</div>
           ));
         },
       }),
@@ -638,12 +638,12 @@ const TablePivot: FC = () => {
               col,
               value && Array.isArray(value)
                 ? value
-                    .map(
-                      (member: any) =>
-                        // Backend now sends member.name (username) directly
-                        member.name || member.id
-                    )
-                    .join(", ")
+                  .map(
+                    (member: any) =>
+                      // Backend now sends member.name (username) directly
+                      member.name || member.id
+                  )
+                  .join(", ")
                 : ""
             );
           case "description":

@@ -341,7 +341,13 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
                   </div>
                   <div className="text-xs text-gray-500 space-x-2">
                     {attachment.file?.size !== undefined && (
-                      <span>{formatFileSizeInMB(attachment.file.size)}</span>
+                      <span>
+                        {formatFileSizeInMB(
+                          attachment.file?.size,
+                          (attachment.file as any)?.size_unit ||
+                            (attachment.file as any)?.sizeUnit
+                        )}
+                      </span>
                     )}
                     {attachment.file?.mimeType && (
                       <>
