@@ -363,7 +363,7 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
                       Cover
                     </Tag>
                   )}
-                  {attachment.file?.url &&
+                  {/* {attachment.file?.url &&
                     attachment.type &&
                     (attachment.type === EnumCardAttachmentType.PO &&
                       !isPDFFile(
@@ -392,7 +392,7 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
                       >
                         QR
                       </Button>
-                    )}
+                    )} */}
                   {attachment.file?.url && (
                     <DownloadOutlined
                       className="text-gray-500 hover:text-blue-600 cursor-pointer"
