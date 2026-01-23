@@ -20,7 +20,6 @@ import { useCardDetailContext } from "@providers/card-detail-context";
 import { useCustomFields } from "@hooks/custom_field";
 import { selectCurrentWorkspace } from "@store/workspace_slice";
 import MembersList from "@components/members-list";
-import { LookupCache } from "@utils/lookup-cache";
 import PivotTable from "./components/PivotTable";
 import PivotToolbar from "./components/PivotToolbar";
 import PivotPagination from "./components/PivotPagination";
@@ -303,22 +302,22 @@ const TablePivot: FC = () => {
       const findColumn = processedItemDashcard.find((item) => item.id === id);
 
       if (!findColumn) {
-        const humanValue = LookupCache.any(String(value));
-        return humanValue || value;
+        // Backend now sends resolved names, not IDs - just return the value
+        return value;
       }
 
       const findColumnValue = findColumn.columns.find((col) => col.column === column);
 
       if (!findColumnValue) {
-        const humanValue = LookupCache.any(String(value));
-        return humanValue || value;
+        // Backend now sends resolved names, not IDs - just return the value
+        return value;
       }
 
       const type = findColumnValue.type;
 
       if (type === "text") {
-        const humanValue = LookupCache.any(String(value));
-        return humanValue || value;
+        // Backend now sends resolved names for user fields, etc.
+        return value;
       }
 
       if (type === "number") {
@@ -333,8 +332,8 @@ const TablePivot: FC = () => {
         return formatDate(value as any);
       }
 
-      const humanValue = LookupCache.any(String(value));
-      return humanValue || value;
+      // For dropdown and other types, backend now sends labels not IDs
+      return value;
     };
 
     const formatDate = (value: string | Date | number | null | undefined) => {
@@ -641,7 +640,8 @@ const TablePivot: FC = () => {
                 ? value
                     .map(
                       (member: any) =>
-                        LookupCache.label("user", member.id) || member.name || member.id
+                        // Backend now sends member.name (username) directly
+                        member.name || member.id
                     )
                     .join(", ")
                 : ""
@@ -671,17 +671,15 @@ const TablePivot: FC = () => {
               return "";
             }
             if (typeof value === "string") {
-              const cachedValue = LookupCache.any(value);
-              return stripJmlTrailingZeros(col, cachedValue || value);
+              // Backend now sends resolved names, not IDs
+              return stripJmlTrailingZeros(col, value);
             }
             if (Array.isArray(value)) {
               return stripJmlTrailingZeros(
                 col,
                 value
                   .map((v) => {
-                    if (typeof v === "string") {
-                      return LookupCache.any(v) || v;
-                    }
+                    // Backend now sends resolved names
                     return String(v);
                   })
                   .join(", ")

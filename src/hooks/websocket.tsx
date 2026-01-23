@@ -486,44 +486,42 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             const { cardId, labelId, label, workspaceId, addedBy } =
               message.data;
 
-            // Invalidate card labels queries
-            queryClient.invalidateQueries({
-              queryKey: ["cardLabels", workspaceId, cardId],
-            });
-            queryClient.invalidateQueries({
-              queryKey: ["labels", workspaceId],
-            });
+            // Only invalidate specific queries for this card/workspace
+            // Removed card detail invalidation - labels are already optimistically updated
+            if (workspaceId && cardId) {
+              queryClient.invalidateQueries({
+                queryKey: ["cardLabels", workspaceId, cardId],
+              });
+            }
+            if (workspaceId) {
+              queryClient.invalidateQueries({
+                queryKey: ["labels", workspaceId],
+                exact: false, // Allow partial match for labels with params
+              });
+            }
 
-            // Also invalidate card detail to refresh label display
-            queryClient.invalidateQueries({
-              queryKey: queryKeys.cards.detail(cardId),
-            });
-
-            // Label changes might affect dashcard filtering/counting
-            refreshDashcard = true;
+            // Skip dashcard refresh for label changes - too expensive
             break;
           }
 
           case "card_label:removed": {
-            const { cardId, labelId } = message.data;
+            const { cardId, labelId, workspaceId } = message.data;
 
-            // Invalidate card labels queries
-            queryClient.invalidateQueries({
-              queryKey: ["cardLabels"],
-              exact: false,
-            });
-            queryClient.invalidateQueries({
-              queryKey: ["labels"],
-              exact: false,
-            });
+            // Only invalidate specific queries for this card/workspace
+            // FIXED: Use specific keys instead of exact: false which invalidated ALL labels
+            if (workspaceId && cardId) {
+              queryClient.invalidateQueries({
+                queryKey: ["cardLabels", workspaceId, cardId],
+              });
+            }
+            if (workspaceId) {
+              queryClient.invalidateQueries({
+                queryKey: ["labels", workspaceId],
+                exact: false, // Allow partial match for labels with params
+              });
+            }
 
-            // Also invalidate card detail to refresh label display
-            queryClient.invalidateQueries({
-              queryKey: queryKeys.cards.detail(cardId),
-            });
-
-            // Label changes might affect dashcard filtering/counting
-            refreshDashcard = true;
+            // Skip dashcard refresh for label changes - too expensive
             break;
           }
 
@@ -570,25 +568,31 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
           }
 
           case "card_labels:removed_all": {
-            const { cardId } = message.data;
+            const { cardId, workspaceId } = message.data;
 
-            // Invalidate card labels queries
-            queryClient.invalidateQueries({
-              queryKey: ["cardLabels"],
-              exact: false,
-            });
-            queryClient.invalidateQueries({
-              queryKey: ["labels"],
-              exact: false,
-            });
+            // Only invalidate specific queries for this card
+            // FIXED: Use specific keys instead of exact: false which invalidated ALL labels
+            if (workspaceId && cardId) {
+              queryClient.invalidateQueries({
+                queryKey: ["cardLabels", workspaceId, cardId],
+              });
+            } else if (cardId) {
+              // Fallback: invalidate card labels matching this cardId
+              queryClient.invalidateQueries({
+                predicate: (query) => {
+                  const key = query.queryKey;
+                  return key[0] === "cardLabels" && key[2] === cardId;
+                },
+              });
+            }
+            if (workspaceId) {
+              queryClient.invalidateQueries({
+                queryKey: ["labels", workspaceId],
+                exact: false,
+              });
+            }
 
-            // Also invalidate card detail to refresh label display
-            queryClient.invalidateQueries({
-              queryKey: queryKeys.cards.detail(cardId),
-            });
-
-            // Label changes might affect dashcard filtering/counting
-            refreshDashcard = true;
+            // Skip dashcard refresh for label changes - too expensive
             break;
           }
 
@@ -628,50 +632,60 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
           }
 
           case "automation:label_added": {
-            const { cardId, labelId, automationRuleId, triggeredBy, addedBy } =
+            const { cardId, labelId, automationRuleId, triggeredBy, addedBy, workspaceId } =
               message.data;
 
-            // Invalidate card labels queries
-            queryClient.invalidateQueries({
-              queryKey: ["cardLabels"],
-              exact: false,
-            });
-            queryClient.invalidateQueries({
-              queryKey: ["labels"],
-              exact: false,
-            });
+            // Only invalidate specific queries for this card
+            // FIXED: Use specific keys instead of exact: false
+            if (workspaceId && cardId) {
+              queryClient.invalidateQueries({
+                queryKey: ["cardLabels", workspaceId, cardId],
+              });
+            } else if (cardId) {
+              queryClient.invalidateQueries({
+                predicate: (query) => {
+                  const key = query.queryKey;
+                  return key[0] === "cardLabels" && key[2] === cardId;
+                },
+              });
+            }
+            if (workspaceId) {
+              queryClient.invalidateQueries({
+                queryKey: ["labels", workspaceId],
+                exact: false,
+              });
+            }
 
-            // Also invalidate card detail to refresh label display
-            queryClient.invalidateQueries({
-              queryKey: queryKeys.cards.detail(cardId),
-            });
-
-            // Automation label changes affect dashcards
-            refreshDashcard = true;
+            // Skip dashcard refresh for automation label changes
             break;
           }
 
           case "automation:label_removed": {
-            const { cardId, labelId, automationRuleId, triggeredBy } =
+            const { cardId, labelId, automationRuleId, triggeredBy, workspaceId } =
               message.data;
 
-            // Invalidate card labels queries
-            queryClient.invalidateQueries({
-              queryKey: ["cardLabels"],
-              exact: false,
-            });
-            queryClient.invalidateQueries({
-              queryKey: ["labels"],
-              exact: false,
-            });
+            // Only invalidate specific queries for this card
+            // FIXED: Use specific keys instead of exact: false
+            if (workspaceId && cardId) {
+              queryClient.invalidateQueries({
+                queryKey: ["cardLabels", workspaceId, cardId],
+              });
+            } else if (cardId) {
+              queryClient.invalidateQueries({
+                predicate: (query) => {
+                  const key = query.queryKey;
+                  return key[0] === "cardLabels" && key[2] === cardId;
+                },
+              });
+            }
+            if (workspaceId) {
+              queryClient.invalidateQueries({
+                queryKey: ["labels", workspaceId],
+                exact: false,
+              });
+            }
 
-            // Also invalidate card detail to refresh label display
-            queryClient.invalidateQueries({
-              queryKey: queryKeys.cards.detail(cardId),
-            });
-
-            // Automation label changes affect dashcards
-            refreshDashcard = true;
+            // Skip dashcard refresh for automation label changes
             break;
           }
 

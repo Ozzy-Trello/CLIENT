@@ -2,18 +2,10 @@ import { FC, useEffect, useState } from "react";
 import { useCardDetailContext } from "@providers/card-detail-context";
 import ShowFilter from "./filter/show";
 import EditFilter from "./filter/edit";
-import { IItemDashcard } from "@myTypes/card";
-import { LookupCache } from "@utils/lookup-cache";
-import { fetchLookups } from "@utils/fetch-lookups";
-import { boardDetails } from "@api/board";
-import { listDetails } from "@api/list";
-import { userDetails } from "@api/account";
-import { customFieldDetails } from "@api/custom_field";
 import { DashcardDisplayType, DashcardDisplayConfig } from "@myTypes/dashcard";
 import { useCustomFields } from "@hooks/custom_field";
 import { useParams } from "next/navigation";
-import { Select, Button, ColorPicker } from "antd";
-import { EnumCustomFieldType } from "@myTypes/custom-field";
+import { Button, ColorPicker } from "antd";
 import { Edit } from "lucide-react";
 
 const Detail: FC = () => {
@@ -34,7 +26,6 @@ const Detail: FC = () => {
     Array.isArray(workspaceId) ? workspaceId[0] : workspaceId
   );
 
-  const [lookupVersion, setLookupVersion] = useState(0);
   const [isEditingDisplay, setIsEditingDisplay] = useState(false);
   const [displayConfig, setDisplayConfig] = useState<DashcardDisplayConfig>(
     dashcardConfig?.displayConfig || { type: DashcardDisplayType.CARD_COUNT }
@@ -91,146 +82,35 @@ const Detail: FC = () => {
     }
   }, [dashcardConfig]);
 
-  // Process items and cache lookups
+  // Process items - backend now sends all names resolved, no need to fetch lookups
   useEffect(() => {
     if (!itemDashcard.length) {
       setProcessedItemDashcard([]);
       return;
     }
 
-    const processItems = async () => {
-      // Collect all IDs that need to be cached
-      const boardIds = new Set<string>();
-      const listIds = new Set<string>();
-      const userIds = new Set<string>();
-      const fieldIds = new Set<string>();
+    // Backend now sends:
+    // - boardName directly
+    // - listName directly (via list_name)
+    // - member[].name (username) directly
+    // - columns[].column is already the field name
+    // - columns[].value for dropdowns is the label, not option ID
+    // - User custom field values are resolved to usernames
+    const processed = itemDashcard.map((item) => {
+      const processedItem = { ...item } as any;
 
-      itemDashcard.forEach((item) => {
-        if (item.boardId) boardIds.add(item.boardId);
-        if (item.listId) listIds.add(item.listId);
-
-        // Collect member IDs
-        item.member?.forEach((member) => {
-          if (member.id) userIds.add(member.id);
-        });
-
-        // Collect custom field IDs from columns
-        item.columns?.forEach((col) => {
-          if (col.column && col.column.startsWith("custom_field_")) {
-            const fieldId = col.column.replace("custom_field_", "");
-            fieldIds.add(fieldId);
-          }
-        });
-      });
-
-      // Fetch missing lookups
-      const promises = [];
-
-      if (boardIds.size > 0) {
-        const unknownBoards = Array.from(boardIds).filter(
-          (id) => !LookupCache.label("board", id)
-        );
-        if (unknownBoards.length > 0) {
-          promises.push(
-            fetchLookups("board", unknownBoards, boardDetails as any)
-          );
-        }
+      // Ensure boardName and listName are set (backend sends them)
+      if (!processedItem.boardName && item.boardId) {
+        processedItem.boardName = item.boardId; // Fallback to ID if name missing
+      }
+      if (!processedItem.listName && (item as any).list_name) {
+        processedItem.listName = (item as any).list_name;
       }
 
-      if (listIds.size > 0) {
-        const unknownLists = Array.from(listIds).filter(
-          (id) => !LookupCache.label("list", id)
-        );
-        if (unknownLists.length > 0) {
-          promises.push(fetchLookups("list", unknownLists, listDetails as any));
-        }
-      }
+      return processedItem;
+    });
 
-      if (userIds.size > 0) {
-        const unknownUsers = Array.from(userIds).filter(
-          (id) => !LookupCache.label("user", id)
-        );
-        if (unknownUsers.length > 0) {
-          promises.push(fetchLookups("user", unknownUsers, userDetails as any));
-        }
-      }
-
-      if (fieldIds.size > 0) {
-        const unknownFields = Array.from(fieldIds).filter(
-          (id) => !LookupCache.label("field", id)
-        );
-        if (unknownFields.length > 0) {
-          promises.push(
-            fetchLookups("field", unknownFields, customFieldDetails as any)
-          );
-        }
-      }
-
-      // Wait for all lookups to complete
-      await Promise.all(promises);
-
-      // Process items with cached data
-      const processed = itemDashcard.map((item) => {
-        const processedItem = { ...item } as any;
-
-        // Add board and list names
-        if (item.boardId) {
-          processedItem.boardName =
-            LookupCache.label("board", item.boardId) ||
-            item.boardName ||
-            item.boardId;
-        }
-        if (item.listId) {
-          processedItem.listName =
-            LookupCache.label("list", item.listId) ||
-            item.listName ||
-            item.listId;
-        }
-
-        // Process members with names
-        if (item.member) {
-          processedItem.member = item.member.map((member) => ({
-            ...member,
-            name:
-              LookupCache.label("user", member.id) || member.name || member.id,
-          }));
-        }
-
-        // Process custom field columns
-        if (item.columns) {
-          processedItem.columns = item.columns.map((col) => {
-            const processedCol = { ...col };
-
-            // If it's a custom field, try to get the field name and option labels
-            if (col.column.startsWith("custom_field_")) {
-              const fieldId = col.column.replace("custom_field_", "");
-              const fieldName = LookupCache.label("field", fieldId);
-
-              if (fieldName) {
-                processedCol.column = fieldName;
-              }
-
-              // Try to get option label for the value
-              if (col.value && col.type === "select") {
-                const optionLabel = LookupCache.label("field", col.value);
-                if (optionLabel) {
-                  processedCol.value = optionLabel;
-                }
-              }
-            }
-
-            return processedCol;
-          });
-        }
-
-        return processedItem;
-      });
-
-      setProcessedItemDashcard(processed);
-      setLookupVersion((v) => v + 1);
-    };
-
-    processItems();
+    setProcessedItemDashcard(processed);
   }, [itemDashcard]);
 
   return (

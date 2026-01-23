@@ -628,8 +628,10 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
   };
 
   const isOrderAlreadyCreated = !!product.orderCreated;
+  const normalizedTerloading = toNumberOrNull(bahanTab.terloading);
   const hasTerloadingValue =
-    typeof bahanTab.terloading === "number" && bahanTab.terloading > 0;
+    typeof normalizedTerloading === "number" &&
+    normalizedTerloading > 0;
   const hasDescription =
     typeof description === "string" && description.trim().length > 0;
   const hasSender = Boolean(selectedSentBy && selectedSentBy.trim().length > 0);

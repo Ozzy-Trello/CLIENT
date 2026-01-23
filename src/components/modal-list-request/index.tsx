@@ -19,7 +19,7 @@ interface ModalListRequestProps {
   onClose: () => void;
 }
 
-type VerifiedFilter = "VERIFIED" | "PENDING";
+type VerifiedFilter = "VERIFIED" | "PENDING" | "REJECTED";
 
 const ModalListRequest: React.FC<ModalListRequestProps> = ({
   open,
@@ -47,8 +47,14 @@ const ModalListRequest: React.FC<ModalListRequestProps> = ({
 
   const filterParams = useMemo(() => {
     const base: Record<string, any> = {};
-    if (verifiedFilter === "VERIFIED") base.isVerified = true;
-    if (verifiedFilter === "PENDING") base.isVerified = false;
+    if (verifiedFilter === "VERIFIED") {
+      base.isVerified = true;
+    } else if (verifiedFilter === "PENDING") {
+      base.isVerified = false;
+      base.isRejected = false;
+    } else if (verifiedFilter === "REJECTED") {
+      base.isRejected = true;
+    }
     if (requestTypeFilter) base.requestType = requestTypeFilter;
     if (labelFilter) base.labelName = labelFilter;
     if (searchTerm) base.search = searchTerm;
@@ -597,6 +603,7 @@ const ModalListRequest: React.FC<ModalListRequestProps> = ({
               options={[
                 { label: "Verified", value: "VERIFIED" },
                 { label: "Pending", value: "PENDING" },
+                { label: "Rejected", value: "REJECTED" },
               ]}
             />
           </div>

@@ -4,7 +4,7 @@ import { ApiResponse } from "../types/type";
 
 export const uploadFile = async (
   file: File,
-  options?: { cardId?: string }
+  options?: { cardId?: string; type?: string }
 ): Promise<ApiResponse<FileUpload>> => {
   const formData = new FormData();
   formData.append("file", file);
@@ -12,6 +12,9 @@ export const uploadFile = async (
   formData.append("prefix", file.type);
   if (options?.cardId) {
     formData.append("card_id", options.cardId);
+  }
+  if (options?.type) {
+    formData.append("type", options.type);
   }
 
   try {

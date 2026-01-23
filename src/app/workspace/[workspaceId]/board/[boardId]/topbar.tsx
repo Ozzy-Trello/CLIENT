@@ -169,6 +169,7 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
     userRole === "superadmin";
   const boardName = (currentBoard?.name || "").trim().toLowerCase();
   const isDateline = boardName === "dateline";
+  const isListPOOutlet = boardName === "list po | outlet";
 
   // User board order hook for favorites
   const { userBoardOrder, toggleFavorite, isTogglingFavorite } =
@@ -849,7 +850,7 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
                 </Popover>
               </Tooltip>
             )}
-            {isDateline && (
+            {isListPOOutlet && (
               <Popover
                 content={invoiceContent}
                 trigger="click"

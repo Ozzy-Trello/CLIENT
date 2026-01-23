@@ -9,7 +9,7 @@ import {
 } from "@myTypes/card";
 import { Button, List, Tag, Typography, Image, Modal } from "antd";
 import React, { useMemo, useRef, useState } from "react";
-import { formatFileSize, getFileIcon, isImageFile, isPDFFile } from "./attachment-helpers";
+import { formatFileSizeInMB, getFileIcon, isImageFile, isPDFFile } from "./attachment-helpers";
 import { useCardAttachment } from "@hooks/card_attachment";
 import { useAttachmentPrinting } from "./hooks/useAttachmentPrinting";
 import { useParams } from "next/navigation";
@@ -341,7 +341,7 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
                   </div>
                   <div className="text-xs text-gray-500 space-x-2">
                     {attachment.file?.size !== undefined && (
-                      <span>{formatFileSize(attachment.file.size)}</span>
+                      <span>{formatFileSizeInMB(attachment.file.size)}</span>
                     )}
                     {attachment.file?.mimeType && (
                       <>

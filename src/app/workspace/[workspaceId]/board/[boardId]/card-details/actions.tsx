@@ -362,6 +362,7 @@ const Actions: React.FC<{
       // Upload the file with the new name
       const poResult = await uploadFile(poFile, {
         cardId: selectedCard?.id,
+        type: EnumCardAttachmentType.PO,
       });
 
       if (poResult?.data && selectedCard) {

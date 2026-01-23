@@ -176,7 +176,9 @@ export function useLabels(
       return addCardLabel(workspaceId, labelId, cardId);
     },
     onMutate: async ({ labelId }) => {
-      await queryClient.cancelQueries();
+      // Only cancel label-related queries, not everything
+      await queryClient.cancelQueries({ queryKey: ["labels", workspaceId], exact: false });
+      await queryClient.cancelQueries({ queryKey: ["cardLabels", workspaceId, cardId] });
 
       const labelKey = ["labels", workspaceId, labelQueryParams || {}];
       const cardLabelKey = ["cardLabels", workspaceId, cardId];
@@ -207,6 +209,8 @@ export function useLabels(
         });
     },
     onSettled: () => {
+      // Only invalidate label queries - optimistic update handles UI
+      // Removed card detail invalidation for performance
       queryClient.invalidateQueries({
         queryKey: ["labels", workspaceId, labelQueryParams || {}],
       });
@@ -214,11 +218,6 @@ export function useLabels(
         queryClient.invalidateQueries({
           queryKey: ["cardLabels", workspaceId, cardId],
         });
-      if (cardId) {
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.cards.detail(cardId),
-        });
-      }
     },
   });
 
@@ -229,7 +228,9 @@ export function useLabels(
       return removeLabelFromCard(labelId, cardId);
     },
     onMutate: async ({ labelId }) => {
-      await queryClient.cancelQueries();
+      // Only cancel label-related queries, not everything
+      await queryClient.cancelQueries({ queryKey: ["labels", workspaceId], exact: false });
+      await queryClient.cancelQueries({ queryKey: ["cardLabels", workspaceId, cardId] });
 
       const updateIsAssigned = (queryKey: any) => {
         const data =
@@ -257,16 +258,13 @@ export function useLabels(
         });
     },
     onSettled: () => {
+      // Only invalidate label queries - optimistic update handles UI
+      // Removed card detail invalidation for performance
       queryClient.invalidateQueries({ queryKey: ["labels", workspaceId] });
       if (cardId)
         queryClient.invalidateQueries({
           queryKey: ["cardLabels", workspaceId, cardId],
         });
-      if (cardId) {
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.cards.detail(cardId),
-        });
-      }
     },
   });
 
@@ -340,7 +338,9 @@ export function usePaginatedLabels(
       return addCardLabel(workspaceId, labelId, cardId);
     },
     onMutate: async ({ labelId, cardId }) => {
-      await queryClient.cancelQueries();
+      // Only cancel label-related queries, not everything
+      await queryClient.cancelQueries({ queryKey: ["labels", workspaceId], exact: false });
+      await queryClient.cancelQueries({ queryKey: ["cardLabels", workspaceId, cardId] });
 
       const labelKey = ["labels", workspaceId, labelQueryParams, page];
       const cardLabelKey = ["cardLabels", workspaceId, cardId];
@@ -370,8 +370,7 @@ export function usePaginatedLabels(
       });
     },
     onSettled: () => {
-      // Invalidate both paginated labels and card labels queries
-      reset();
+      // Skip reset() to avoid flickering - optimistic update already applied
       queryClient.invalidateQueries({
         queryKey: ["labels", workspaceId, labelQueryParams, page],
       });
@@ -386,7 +385,9 @@ export function usePaginatedLabels(
       return removeLabelFromCard(labelId, cardId);
     },
     onMutate: async ({ labelId, cardId }) => {
-      await queryClient.cancelQueries();
+      // Only cancel label-related queries, not everything
+      await queryClient.cancelQueries({ queryKey: ["labels", workspaceId], exact: false });
+      await queryClient.cancelQueries({ queryKey: ["cardLabels", workspaceId, cardId] });
 
       const labelKey = ["labels", workspaceId, labelQueryParams, page];
       const cardLabelKey = ["cardLabels", workspaceId, cardId];
@@ -418,8 +419,7 @@ export function usePaginatedLabels(
       });
     },
     onSettled: () => {
-      // Invalidate both paginated labels and card labels queries
-      reset();
+      // Skip reset() to avoid flickering - optimistic update already applied
       queryClient.invalidateQueries({
         queryKey: ["labels", workspaceId, labelQueryParams, page],
       });

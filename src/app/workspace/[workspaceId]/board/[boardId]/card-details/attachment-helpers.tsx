@@ -67,3 +67,9 @@ export const formatFileSize = (bytes?: number): string => {
   if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + " MB";
   return (bytes / (1024 * 1024 * 1024)).toFixed(1) + " GB";
 };
+
+export const formatFileSizeInMB = (bytes?: number): string => {
+  if (!bytes) return "0.0 MB";
+  const mbValue = bytes / (1024 * 1024);
+  return `${mbValue.toFixed(1)} MB`;
+};
