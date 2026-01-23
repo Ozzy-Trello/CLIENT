@@ -648,21 +648,6 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
     });
   }
 
-  if (onLabelFilterChange) {
-    mobileMenuItems.push({
-      key: "filter",
-      label: (
-        <div className="flex items-center justify-between gap-3">
-          <span>Filter</span>
-          {selectedLabelIds.length > 0 && (
-            <Tag color="blue">{selectedLabelIds.length}</Tag>
-          )}
-        </div>
-      ),
-      onClick: () => setLabelFilterModalOpen(true),
-    });
-  }
-
   if (isDateline) {
     mobileMenuItems.push({
       key: "invoice",
@@ -697,12 +682,6 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
       children: deliveryMenuItems,
     });
   }
-
-  mobileMenuItems.push({
-    key: "scan-qr-camera",
-    label: "Scan QR (Camera)",
-    onClick: () => setShowScanner(true),
-  });
 
   if (showMoveCardsButton) {
     mobileMenuItems.push({
@@ -988,7 +967,25 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
             </Tooltip>
             </div>
 
-            <div className="sm:hidden">
+            <div className="sm:hidden flex items-center gap-1">
+              {onLabelFilterChange && (
+                <Tooltip title="Filter">
+                  <Button
+                    size="small"
+                    type={selectedLabelIds.length > 0 ? "primary" : "text"}
+                    icon={<ListFilter size={18} />}
+                    onClick={() => setLabelFilterModalOpen(true)}
+                  />
+                </Tooltip>
+              )}
+              <Tooltip title="Scan QR">
+                <Button
+                  size="small"
+                  type="text"
+                  icon={<QrCode size={18} />}
+                  onClick={() => setShowScanner(true)}
+                />
+              </Tooltip>
               <Dropdown
                 menu={{ items: mobileMenuItems }}
                 trigger={["click"]}
