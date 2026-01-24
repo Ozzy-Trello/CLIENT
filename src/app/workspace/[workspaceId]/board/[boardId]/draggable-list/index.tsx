@@ -43,33 +43,8 @@ const DraggableList: React.FC<DraggableListProps> = ({
   onToggleCollapse,
   selectedLabelIds = [],
 }) => {
-  const [isVisible, setIsVisible] = useState(false);
   const listRef = useRef<HTMLDivElement | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    const el = listRef.current;
-    if (!el) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            setIsVisible(true);
-            observer.disconnect();
-          }
-        });
-      },
-      {
-        root: null,
-        rootMargin: "200px",
-        threshold: 0.1,
-      }
-    );
-
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
 
   // Combine drag ref and visibility ref
   const setRefs = useCallback(
@@ -95,7 +70,6 @@ const DraggableList: React.FC<DraggableListProps> = ({
     totalCards,
     isAddingCard,
   } = useCardsPaginated(list.id, boardId, {
-    enabled: isVisible,
     labelIds: selectedLabelIds.length > 0 ? selectedLabelIds : undefined,
   });
   const { canMove, canCreate } = usePermissions();
