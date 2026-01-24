@@ -274,3 +274,9 @@ export const executeCardButton = async (
   );
   return data;
 };
+
+// Get Telegram channels
+export const getTelegramChannels = async (): Promise<ApiResponse<any>> => {
+  const { data } = await api.get(`/automation-rule/telegram-channels`);
+  return data;
+};

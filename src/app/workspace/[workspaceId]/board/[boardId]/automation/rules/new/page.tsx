@@ -18,7 +18,13 @@ import {
 import SelectTrigger from "./select-trigger";
 import { extractPlaceholders } from "@utils/general";
 import { createRule } from "@api/automation_rule";
-import { EnumSelectionType, EnumInputType, TriggerType } from "@myTypes/automation-rule";
+import {
+  ActionType,
+  EnumSelectionType,
+  EnumInputType,
+  TriggerType,
+} from "@myTypes/automation-rule";
+import { EnumActions } from "@myTypes/event";
 import { useCustomFields } from "@hooks/custom_field";
 import { EnumUserActionEvent } from "@myTypes/event";
 
@@ -218,6 +224,22 @@ const NewRulePage: React.FC = () => {
           }
         }
       });
+
+      // Force Telegram metadata so backend routing triggers correctly
+      if (
+        action.selectedActionItem?.type ===
+          ActionType.SendTelegramChannelNotification &&
+        !actionCondition[EnumSelectionType.Action]
+      ) {
+        actionCondition[EnumSelectionType.Action] = EnumActions.Notify;
+      }
+      if (
+        action.selectedActionItem?.type ===
+          ActionType.SendTelegramChannelNotification &&
+        !actionCondition[EnumSelectionType.Channel]
+      ) {
+        actionCondition[EnumSelectionType.Channel] = "telegram";
+      }
 
       // Ensure constant action field is included even if not in placeholders
       if (

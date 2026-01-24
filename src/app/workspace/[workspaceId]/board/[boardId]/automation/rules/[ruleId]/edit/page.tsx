@@ -43,7 +43,12 @@ import {
   updateActionById,
   deleteActionById,
 } from "@api/automation_rule";
-import { EnumSelectionType, EnumInputType } from "@myTypes/automation-rule";
+import {
+  ActionType,
+  EnumSelectionType,
+  EnumInputType,
+} from "@myTypes/automation-rule";
+import { EnumActions } from "@myTypes/event";
 import { useCustomFields } from "@hooks/custom_field";
 import { renderRulePatternHuman } from "@utils/rule-render";
 import { useRuleLookups } from "@hooks/useRuleLookups";
@@ -363,6 +368,22 @@ export default function EditRulePage() {
           }
         }
       });
+
+      // Force Telegram metadata so backend routing triggers correctly
+      if (
+        action.selectedActionItem?.type ===
+          ActionType.SendTelegramChannelNotification &&
+        !actionCondition[EnumSelectionType.Action]
+      ) {
+        actionCondition[EnumSelectionType.Action] = EnumActions.Notify;
+      }
+      if (
+        action.selectedActionItem?.type ===
+          ActionType.SendTelegramChannelNotification &&
+        !actionCondition[EnumSelectionType.Channel]
+      ) {
+        actionCondition[EnumSelectionType.Channel] = "telegram";
+      }
 
       // Ensure constant action field is included even if not in placeholders
       if (

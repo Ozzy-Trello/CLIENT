@@ -30,7 +30,12 @@ import {
 } from "antd";
 import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
-import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
+import {
+  DragDropContext,
+  Droppable,
+  Draggable,
+  DropResult,
+} from "@hello-pangea/dnd";
 import {
   Edit,
   Plus,
@@ -122,7 +127,9 @@ const ProductTable: React.FC<{
   const { isSuperAdmin } = usePermissions();
 
   // Sort products by order field (ascending)
-  const sortedProducts = [...dataSource].sort((a, b) => (a.order || 0) - (b.order || 0));
+  const sortedProducts = [...dataSource].sort(
+    (a, b) => (a.order || 0) - (b.order || 0)
+  );
 
   const handleDragEnd = (result: DropResult) => {
     if (!result.destination) return;
@@ -141,7 +148,12 @@ const ProductTable: React.FC<{
   };
 
   if (loading) {
-    return <Spin size="large" style={{ display: 'block', textAlign: 'center', padding: '50px' }} />;
+    return (
+      <Spin
+        size="large"
+        style={{ display: "block", textAlign: "center", padding: "50px" }}
+      />
+    );
   }
 
   return (
@@ -153,15 +165,17 @@ const ProductTable: React.FC<{
             ref={provided.innerRef}
             style={{ width: "100%" }}
           >
-            <div style={{ 
-              display: 'grid', 
-              gridTemplateColumns: '40px 1fr 120px', 
-              gap: '8px', 
-              padding: '8px 16px',
-              backgroundColor: '#fafafa',
-              borderBottom: '1px solid #f0f0f0',
-              fontWeight: 'bold'
-            }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "40px 1fr 120px",
+                gap: "8px",
+                padding: "8px 16px",
+                backgroundColor: "#fafafa",
+                borderBottom: "1px solid #f0f0f0",
+                fontWeight: "bold",
+              }}
+            >
               <div></div>
               <div>Product Name</div>
               <div>Actions</div>
@@ -179,30 +193,32 @@ const ProductTable: React.FC<{
                     {...provided.draggableProps}
                     style={{
                       ...provided.draggableProps.style,
-                      display: 'grid',
-                      gridTemplateColumns: '40px 1fr 120px',
-                      gap: '8px',
-                      padding: '12px 16px',
-                      backgroundColor: snapshot.isDragging ? '#e6f7ff' : '#fff',
-                      border: snapshot.isDragging ? '1px solid #1890ff' : '1px solid #f0f0f0',
-                      borderRadius: '4px',
-                      marginBottom: '4px',
-                      alignItems: 'center',
-                      cursor: isSuperAdmin() ? 'grab' : 'default',
+                      display: "grid",
+                      gridTemplateColumns: "40px 1fr 120px",
+                      gap: "8px",
+                      padding: "12px 16px",
+                      backgroundColor: snapshot.isDragging ? "#e6f7ff" : "#fff",
+                      border: snapshot.isDragging
+                        ? "1px solid #1890ff"
+                        : "1px solid #f0f0f0",
+                      borderRadius: "4px",
+                      marginBottom: "4px",
+                      alignItems: "center",
+                      cursor: isSuperAdmin() ? "grab" : "default",
                     }}
                   >
                     <div
                       {...provided.dragHandleProps}
                       style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: '#8c8c8c',
-                        fontSize: '16px',
-                        cursor: isSuperAdmin() ? 'grab' : 'default',
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "#8c8c8c",
+                        fontSize: "16px",
+                        cursor: isSuperAdmin() ? "grab" : "default",
                       }}
                     >
-                      {isSuperAdmin() ? '⋮⋮' : ''}
+                      {isSuperAdmin() ? "⋮⋮" : ""}
                     </div>
                     <div>
                       <Typography.Text strong>{product.name}</Typography.Text>
@@ -340,7 +356,7 @@ const WarnaTable: React.FC<{
               }}
             />
           )}
-          <Typography.Text code>{hexCode || "N/A"}</Typography.Text>
+          <Typography.Text code>{hexCode || "-"}</Typography.Text>
         </Space>
       ),
     },
@@ -417,7 +433,7 @@ const ProductCodeTable: React.FC<{
       dataIndex: ["product", "name"],
       key: "product_name",
       render: (text: string, record: ProductCode) => (
-        <span>{record.product?.name || "N/A"}</span>
+        <span>{record.product?.name || "-"}</span>
       ),
     },
     {
@@ -429,7 +445,7 @@ const ProductCodeTable: React.FC<{
       title: "Description",
       dataIndex: "description",
       key: "description",
-      render: (text: string) => text || "N/A",
+      render: (text: string) => text || "-",
     },
 
     {
@@ -481,7 +497,7 @@ const ColorPickerInput: React.FC<{
         defaultFormat="hex"
         format="hex"
         disabledAlpha={false}
-        value={value || '#000000'}
+        value={value || "#000000"}
         onChange={(color) => {
           const hexValue = color.toHexString();
           onChange?.(hexValue);
@@ -602,7 +618,7 @@ const MasterData: React.FC = () => {
       });
 
       const results = await Promise.all(updatePromises);
-      
+
       message.success("Product order updated successfully");
     } catch (error) {
       // Revert optimistic update on error
@@ -957,8 +973,8 @@ const MasterData: React.FC = () => {
       const response = await getWarnas(page, limit);
       if (response.data) {
         // Sort warnas alphabetically by name (A-Z)
-        const sortedWarnas = response.data.sort((a, b) => 
-          a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+        const sortedWarnas = response.data.sort((a, b) =>
+          a.name.localeCompare(b.name, undefined, { sensitivity: "base" })
         );
         setWarnas(sortedWarnas);
       }
@@ -1003,8 +1019,6 @@ const MasterData: React.FC = () => {
       console.error("Error deleting product:", error);
     }
   };
-
-
 
   const handleDeleteBahan = async (bahan: Bahan) => {
     try {

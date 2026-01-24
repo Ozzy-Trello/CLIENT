@@ -34,6 +34,7 @@ import { MultipleDatesProvider } from "./multiple-dates/context";
 import RichTextInput from "@components/rich-text-input";
 import ExpressionBuilder from "@components/expression-builder";
 import { renderRuleStateHuman } from "@utils/rule-render";
+import { useTelegramChannels } from "@hooks/automation-rule";
 
 // Helper function to extract placeholders from a pattern
 function extractPlaceholders(pattern: string): string[] {
@@ -90,6 +91,9 @@ const SelectOption = ({
   const fieldValueInputRef = useRef<SelectionRef>(null);
   const boardSelectionRef = useRef<SelectionRef>(null);
   const labelSelectionRef = useRef<SelectionRef>(null);
+
+  // Fetch Telegram channels
+  const { data: telegramChannelsData } = useTelegramChannels();
 
   const options = data?.options?.map((optionItem: GeneralOptions) => ({
     value: optionItem.value,
@@ -243,6 +247,49 @@ const SelectOption = ({
         mode={
           placeholder === EnumSelectionType.MultiUsers ? "multiple" : undefined
         }
+      />
+    );
+  }
+
+  // Handle Telegram Channel selection
+  if (placeholder === EnumSelectionType.TelegramChannel) {
+    const telegramChannelOptions = telegramChannelsData?.data?.map((channel: any) => ({
+      value: channel.id,
+      label: channel.label,
+    })) || [];
+
+    return (
+      <Select
+        style={{ width: "fit-content", minWidth: "200px" }}
+        value={(actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value?.value || undefined}
+        onChange={(value: string) => {
+          const selectedChannel = telegramChannelOptions.find((opt: any) => opt.value === value);
+          if (selectedChannel) {
+            const selectedOption = {
+              value: selectedChannel.value,
+              label: selectedChannel.label,
+            };
+
+            setActionsData((prevActionsData) => {
+              const newActionsData = [...prevActionsData];
+              const currentGroup = newActionsData[groupIndex];
+              if (currentGroup && currentGroup.items) {
+                const currentItem = currentGroup.items[index];
+                if (currentItem) {
+                  (currentItem as any)[placeholder] = {
+                    value: selectedOption,
+                    options: telegramChannelOptions,
+                  };
+                }
+              }
+              return newActionsData;
+            });
+          }
+        }}
+        className="mx-2"
+        placeholder="Select Telegram channel"
+        key={`telegram-channel-selection-${index}`}
+        options={telegramChannelOptions}
       />
     );
   }

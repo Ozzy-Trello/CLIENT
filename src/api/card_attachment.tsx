@@ -61,7 +61,7 @@ const transformAttachment = (a: any): CardAttachment => {
  * @returns Promise with the attachments data
  */
 export const getCardAttachments = async (cardId: string): Promise<ApiResponse<CardAttachment[]>> => {
-  const { data } = await api.get(`/card-attachment?card_id=${cardId}`);
+  const { data } = await api.get(`/card-attachment?card_id=${cardId}&page=1&limit=100`);
   if (Array.isArray(data.data)) {
     data.data = data.data.map(transformAttachment);
   }

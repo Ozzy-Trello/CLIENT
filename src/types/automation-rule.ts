@@ -91,6 +91,7 @@ export enum EnumSelectionType {
   Expression = "expression", // mathematical expression builder
   Operation = "operation", // mathematical operations
   Target = "target",
+  TelegramChannel = "telegram_channel", // Telegram channel selection
 }
 
 export enum EnumInputType {
@@ -232,6 +233,9 @@ export enum ActionType {
 
   // calculate custom field using mathematical expression
   CalculateCustomField = `calculate-custom-field-<${EnumSelectionType.Target}>-using-<${EnumSelectionType.Expression}>`,
+
+  // Telegram notifications
+  SendTelegramChannelNotification = `send-telegram-notification-to-<${EnumSelectionType.TelegramChannel}>-with-message-<${EnumSelectionType.TextInput}>-and-custom-fields-<${EnumSelectionType.MultiFields}>`,
 }
 
 // filter type

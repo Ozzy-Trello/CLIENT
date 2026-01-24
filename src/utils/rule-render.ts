@@ -14,6 +14,27 @@ export interface ValueLike {
   [key: string]: any;
 }
 
+// Static mapping of Telegram channel IDs to friendly names
+const TELEGRAM_CHANNEL_NAMES: Record<string, string> = {
+  "-4933920951": "TestNotifikasi",
+  "-1002633960642": "TargetDealMaker",
+  "-1002790652396": "OutputBordir",
+  "-1002791018801": "OutputSewing",
+  "-4977128310": "OutputDesainerOutlet",
+  "-4892546483": "OutputKrahManset",
+  "-4924217020": "OutputDesainerBordir",
+  "-1002592744504": "ProgressDateline",
+  "-4823642745": "OutputFinishingBordir",
+  "-4666929799": "OutputCutting",
+  "-4937997117": "Marketing",
+  "-4879898572": "SablonDTF",
+  "-4790577514": "HR",
+  "-4974656138": "CustomerCare",
+  "-4884206656": "LogDeveloper",
+  "-4977558452": "OutputFinishing",
+  "-5070829727": "CSBackEnd",
+};
+
 // Utility function to prefetch and cache data for rule rendering
 export async function prefetchRuleData(
   workspaceId: string,
@@ -100,6 +121,12 @@ function stringify(val: any): string {
   if (val == null) return "";
   if (typeof val === "string") {
     const noTags = val.replace(/<[^>]*>/g, "");
+
+    // Check if this is a Telegram channel ID
+    if (TELEGRAM_CHANNEL_NAMES[noTags]) {
+      return TELEGRAM_CHANNEL_NAMES[noTags];
+    }
+
     if (isUUID(noTags)) {
       const lbl = LookupCache.any(noTags);
       if (lbl) return lbl;
@@ -131,10 +158,18 @@ function stringify(val: any): string {
 
 function lookup(condition: any, key: string): any {
   if (!condition) return undefined;
-  
+
   // Try direct key lookup
   let value = condition[key];
   if (value !== undefined) {
+    // Special handling for Telegram channels
+    if (key === 'telegram_channel' && typeof value === 'string') {
+      const friendlyName = TELEGRAM_CHANNEL_NAMES[value];
+      if (friendlyName) {
+        return friendlyName;
+      }
+    }
+
     // If the value looks like a UUID, try to resolve it using LookupCache
     if (typeof value === 'string' && isUUID(value)) {
       const resolved = LookupCache.any(value);
@@ -149,6 +184,13 @@ function lookup(condition: any, key: string): any {
   const camel = key.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
   if (camel in condition) {
     value = condition[camel];
+    // Special handling for Telegram channels
+    if ((key === 'telegram_channel' || camel === 'telegramChannel') && typeof value === 'string') {
+      const friendlyName = TELEGRAM_CHANNEL_NAMES[value];
+      if (friendlyName) {
+        return friendlyName;
+      }
+    }
     if (typeof value === 'string' && isUUID(value)) {
       const resolved = LookupCache.any(value);
       if (resolved) {
@@ -157,11 +199,18 @@ function lookup(condition: any, key: string): any {
     }
     return value;
   }
-  
+
   // camelCase -> snake_case
   const snake = key.replace(/([A-Z])/g, "_$1").toLowerCase();
   if (snake in condition) {
     value = condition[snake];
+    // Special handling for Telegram channels
+    if ((key === 'telegram_channel' || snake === 'telegram_channel') && typeof value === 'string') {
+      const friendlyName = TELEGRAM_CHANNEL_NAMES[value];
+      if (friendlyName) {
+        return friendlyName;
+      }
+    }
     if (typeof value === 'string' && isUUID(value)) {
       const resolved = LookupCache.any(value);
       if (resolved) {
@@ -175,6 +224,13 @@ function lookup(condition: any, key: string): any {
   if (condition.condition && typeof condition.condition === 'object') {
     value = condition.condition[key];
     if (value !== undefined) {
+      // Special handling for Telegram channels
+      if (key === 'telegram_channel' && typeof value === 'string') {
+        const friendlyName = TELEGRAM_CHANNEL_NAMES[value];
+        if (friendlyName) {
+          return friendlyName;
+        }
+      }
       if (typeof value === 'string' && isUUID(value)) {
         const resolved = LookupCache.any(value);
         if (resolved) {
@@ -183,10 +239,17 @@ function lookup(condition: any, key: string): any {
       }
       return value;
     }
-    
+
     // Try camelCase in nested condition
     if (camel in condition.condition) {
       value = condition.condition[camel];
+      // Special handling for Telegram channels
+      if ((key === 'telegram_channel' || camel === 'telegramChannel') && typeof value === 'string') {
+        const friendlyName = TELEGRAM_CHANNEL_NAMES[value];
+        if (friendlyName) {
+          return friendlyName;
+        }
+      }
       if (typeof value === 'string' && isUUID(value)) {
         const resolved = LookupCache.any(value);
         if (resolved) {
@@ -195,10 +258,17 @@ function lookup(condition: any, key: string): any {
       }
       return value;
     }
-    
+
     // Try snake_case in nested condition
     if (snake in condition.condition) {
       value = condition.condition[snake];
+      // Special handling for Telegram channels
+      if ((key === 'telegram_channel' || snake === 'telegram_channel') && typeof value === 'string') {
+        const friendlyName = TELEGRAM_CHANNEL_NAMES[value];
+        if (friendlyName) {
+          return friendlyName;
+        }
+      }
       if (typeof value === 'string' && isUUID(value)) {
         const resolved = LookupCache.any(value);
         if (resolved) {

@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getRule, deleteRule } from "@api/automation_rule";
+import { getRule, deleteRule, getTelegramChannels } from "@api/automation_rule";
 import { AutomationRuleApiData } from "@myTypes/type";
 import { message } from "antd";
 
@@ -50,5 +50,19 @@ export const useDeleteAutomationRule = () => {
     onError: (error: any) => {
       message.error("Failed to delete rule. Please try again.");
     },
+  });
+};
+
+/**
+ * Hook for fetching Telegram channels
+ */
+export const useTelegramChannels = () => {
+  return useQuery({
+    queryKey: ["telegramChannels"],
+    queryFn: getTelegramChannels,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
   });
 };

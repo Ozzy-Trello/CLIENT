@@ -2641,6 +2641,23 @@ export const actions: AutomationRuleAction[] = [
           value: null,
         },
       },
+      {
+        type: ActionType.SendTelegramChannelNotification,
+        label:
+          "Send Telegram notification to <telegram_channel> with message <text_input> and custom fields <multi_fields>",
+        [EnumSelectionType.TelegramChannel]: {
+          options: [],
+          value: null,
+        },
+        [EnumSelectionType.TextInput]: {
+          placeholder: "Enter your message here (use {cardname}, {listname}, {boardname} as placeholders)...",
+          value: "",
+        },
+        [EnumSelectionType.MultiFields]: {
+          options: [],
+          value: null,
+        },
+      },
     ],
   },
 ];
