@@ -4,8 +4,8 @@ import { Providers } from "../providers";
 import { ChunkLoadErrorHandler } from "@components/ChunkLoadErrorHandler";
 
 export const metadata: Metadata = {
-  title: "Ozzy Clothing Workflow",
-  description: "Ozzy Clothing workflow app",
+  title: "Ozzy Clothing Production",
+  description: "Ozzy Clothing Production app",
   icons: "favicon.ico",
   openGraph: {
     type: "website",
@@ -13,7 +13,7 @@ export const metadata: Metadata = {
     url: "https://ozzyclothing.co.id",
     siteName: "Ozzy Clothing",
     title: "Ozzy Clothing",
-    description: "Ozzy Clothing workflow app",
+    description: "Ozzy Clothing Production app",
   },
 };
 

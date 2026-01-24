@@ -129,6 +129,21 @@ const CardDetails: React.FC = (props) => {
     closeCardDetail,
     isLoadingCardDetails,
   } = useCardDetailContext();
+  const boardName =
+    currentBoard?.name ||
+    reduxBoard?.name ||
+    cachedBoardName ||
+    process.env.NEXT_PUBLIC_APP_TITLE ||
+    "Ozzy Clothing Production";
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    if (isCardDetailOpen && selectedCard?.name) {
+      document.title = `${selectedCard.name} | ${boardName}`;
+    } else {
+      document.title = boardName;
+    }
+  }, [isCardDetailOpen, selectedCard?.name, boardName]);
   const currentUser = useSelector(selectUser);
   const SUPER_ADMIN_ROLE_ID = "f97c942c-5d0c-49c3-b74d-5b149c08634f";
   const userRole = (currentUser?.role?.name || "").trim().toLowerCase();
