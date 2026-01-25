@@ -34,10 +34,10 @@ const TELEGRAM_CHANNEL_NAMES: Record<string, string> = {
   "-4977558452": "Notifikasi Output Finishing",
   "-5070829727": "Notifikasi CS BackEnd",
   "-1003659623498": "Notifikasi Status Warehouse (supergroup)",
-  "-5297850591": "Konfirm Desain | Bordir",
-  "-5100057716": "Request Desain | Outlet",
-  "-5029831039": "List Purchase | Umum",
-  "-5026682482": "Komplain",
+  "-1003870903405": "Konfirm Desain | Bordir",
+  "-1003808184350": "Request Desain | Outlet",
+  "-1003896691946": "List Purchase | Umum",
+  "-1003194464606": "Komplain",
 };
 
 // Utility function to prefetch and cache data for rule rendering
@@ -51,7 +51,7 @@ export async function prefetchRuleData(
     lists?: any[];
     boards?: any[];
     products?: any[];
-  } = {}
+  } = {},
 ) {
   // Cache labels
   if (options.labels && options.labels.length > 0) {
@@ -60,7 +60,7 @@ export async function prefetchRuleData(
       options.labels.map((l: { id: string; name: string }) => ({
         id: l.id,
         name: l.name,
-      }))
+      })),
     );
   }
 
@@ -71,7 +71,7 @@ export async function prefetchRuleData(
       options.customFields.map((f: { id: string; name: string }) => ({
         id: f.id,
         name: f.name,
-      }))
+      })),
     );
   }
 
@@ -83,8 +83,8 @@ export async function prefetchRuleData(
         (u: { id: string; name?: string; username?: string }) => ({
           id: u.id,
           name: u.name || u.username || u.id,
-        })
-      )
+        }),
+      ),
     );
   }
 
@@ -95,7 +95,7 @@ export async function prefetchRuleData(
       options.lists.map((l: { id: string; name: string }) => ({
         id: l.id,
         name: l.name,
-      }))
+      })),
     );
   }
 
@@ -106,7 +106,7 @@ export async function prefetchRuleData(
       options.boards.map((b: { id: string; name: string }) => ({
         id: b.id,
         name: b.name,
-      }))
+      })),
     );
   }
 
@@ -117,7 +117,7 @@ export async function prefetchRuleData(
       options.products.map((p: { id: string; name?: string }) => ({
         id: p.id,
         name: p.name || p.id,
-      }))
+      })),
     );
   }
 }
@@ -168,7 +168,7 @@ function lookup(condition: any, key: string): any {
   let value = condition[key];
   if (value !== undefined) {
     // Special handling for Telegram channels
-    if (key === 'telegram_channel' && typeof value === 'string') {
+    if (key === "telegram_channel" && typeof value === "string") {
       const friendlyName = TELEGRAM_CHANNEL_NAMES[value];
       if (friendlyName) {
         return friendlyName;
@@ -176,7 +176,7 @@ function lookup(condition: any, key: string): any {
     }
 
     // If the value looks like a UUID, try to resolve it using LookupCache
-    if (typeof value === 'string' && isUUID(value)) {
+    if (typeof value === "string" && isUUID(value)) {
       const resolved = LookupCache.any(value);
       if (resolved) {
         return resolved;
@@ -184,19 +184,22 @@ function lookup(condition: any, key: string): any {
     }
     return value;
   }
-  
+
   // snake_case -> camelCase
   const camel = key.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
   if (camel in condition) {
     value = condition[camel];
     // Special handling for Telegram channels
-    if ((key === 'telegram_channel' || camel === 'telegramChannel') && typeof value === 'string') {
+    if (
+      (key === "telegram_channel" || camel === "telegramChannel") &&
+      typeof value === "string"
+    ) {
       const friendlyName = TELEGRAM_CHANNEL_NAMES[value];
       if (friendlyName) {
         return friendlyName;
       }
     }
-    if (typeof value === 'string' && isUUID(value)) {
+    if (typeof value === "string" && isUUID(value)) {
       const resolved = LookupCache.any(value);
       if (resolved) {
         return resolved;
@@ -210,13 +213,16 @@ function lookup(condition: any, key: string): any {
   if (snake in condition) {
     value = condition[snake];
     // Special handling for Telegram channels
-    if ((key === 'telegram_channel' || snake === 'telegram_channel') && typeof value === 'string') {
+    if (
+      (key === "telegram_channel" || snake === "telegram_channel") &&
+      typeof value === "string"
+    ) {
       const friendlyName = TELEGRAM_CHANNEL_NAMES[value];
       if (friendlyName) {
         return friendlyName;
       }
     }
-    if (typeof value === 'string' && isUUID(value)) {
+    if (typeof value === "string" && isUUID(value)) {
       const resolved = LookupCache.any(value);
       if (resolved) {
         return resolved;
@@ -224,19 +230,19 @@ function lookup(condition: any, key: string): any {
     }
     return value;
   }
-  
+
   // Try looking in nested condition property (for filter data)
-  if (condition.condition && typeof condition.condition === 'object') {
+  if (condition.condition && typeof condition.condition === "object") {
     value = condition.condition[key];
     if (value !== undefined) {
       // Special handling for Telegram channels
-      if (key === 'telegram_channel' && typeof value === 'string') {
+      if (key === "telegram_channel" && typeof value === "string") {
         const friendlyName = TELEGRAM_CHANNEL_NAMES[value];
         if (friendlyName) {
           return friendlyName;
         }
       }
-      if (typeof value === 'string' && isUUID(value)) {
+      if (typeof value === "string" && isUUID(value)) {
         const resolved = LookupCache.any(value);
         if (resolved) {
           return resolved;
@@ -249,13 +255,16 @@ function lookup(condition: any, key: string): any {
     if (camel in condition.condition) {
       value = condition.condition[camel];
       // Special handling for Telegram channels
-      if ((key === 'telegram_channel' || camel === 'telegramChannel') && typeof value === 'string') {
+      if (
+        (key === "telegram_channel" || camel === "telegramChannel") &&
+        typeof value === "string"
+      ) {
         const friendlyName = TELEGRAM_CHANNEL_NAMES[value];
         if (friendlyName) {
           return friendlyName;
         }
       }
-      if (typeof value === 'string' && isUUID(value)) {
+      if (typeof value === "string" && isUUID(value)) {
         const resolved = LookupCache.any(value);
         if (resolved) {
           return resolved;
@@ -268,13 +277,16 @@ function lookup(condition: any, key: string): any {
     if (snake in condition.condition) {
       value = condition.condition[snake];
       // Special handling for Telegram channels
-      if ((key === 'telegram_channel' || snake === 'telegram_channel') && typeof value === 'string') {
+      if (
+        (key === "telegram_channel" || snake === "telegram_channel") &&
+        typeof value === "string"
+      ) {
         const friendlyName = TELEGRAM_CHANNEL_NAMES[value];
         if (friendlyName) {
           return friendlyName;
         }
       }
-      if (typeof value === 'string' && isUUID(value)) {
+      if (typeof value === "string" && isUUID(value)) {
         const resolved = LookupCache.any(value);
         if (resolved) {
           return resolved;
@@ -283,13 +295,14 @@ function lookup(condition: any, key: string): any {
       return value;
     }
   }
-  
+
   return undefined;
 }
 
 // Helper function to check if a string looks like a UUID
 function isUUID(str: string): boolean {
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  const uuidRegex =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
   return uuidRegex.test(str);
 }
 
@@ -328,7 +341,7 @@ function renderDateExpressionsHuman(expressions: any[]): string {
 
 export function renderRulePattern(
   pattern: string,
-  condition: Record<string, any>
+  condition: Record<string, any>,
 ): string {
   if (!pattern) return "";
 
@@ -541,7 +554,7 @@ export function renderRulePattern(
         // If we can't find a replacement, show a user-friendly placeholder
         console.warn(
           `[RULE-RENDER] No replacement found for placeholder: ${key}`,
-          { condition }
+          { condition },
         );
         const friendlyKey = key.replace(/_/g, " ");
 
@@ -572,7 +585,7 @@ export function renderRulePattern(
 
 export function renderRulePatternHuman(
   pattern: string,
-  condition: Record<string, any>
+  condition: Record<string, any>,
 ): string {
   if (!pattern) {
     console.warn("[RULE-RENDER] Empty pattern provided");
@@ -586,7 +599,7 @@ export function renderRulePatternHuman(
     // Handle date expressions
     if (condition.date_expression && condition.date_expression.expressions) {
       const dateExpr = renderDateExpressionsHuman(
-        condition.date_expression.expressions
+        condition.date_expression.expressions,
       );
       if (dateExpr) {
         sentence = sentence.replace(/\bdate expression\b/gi, dateExpr);
@@ -611,7 +624,11 @@ export function renderRulePatternHuman(
     }
 
     // Handle filter placeholders that show as [filter]
-    if (condition.filter && Array.isArray(condition.filter) && condition.filter.length > 0) {
+    if (
+      condition.filter &&
+      Array.isArray(condition.filter) &&
+      condition.filter.length > 0
+    ) {
       const filterText = renderFiltersHuman(condition.filter);
       if (filterText) {
         sentence = sentence.replace(/\[filter\]/gi, filterText.trim());
@@ -627,16 +644,16 @@ export function renderRulePatternHuman(
       // Handle text comparison if present
       if (condition.text_comparison || condition.textComparison) {
         const textComp = renderTextComparisonHuman(
-          condition.text_comparison || condition.textComparison
+          condition.text_comparison || condition.textComparison,
         );
         if (textComp && textComp.trim() !== "") {
           sentence = sentence.replace(
             /attachment is added/gi,
-            `attachment ${textComp} is added`
+            `attachment ${textComp} is added`,
           );
           sentence = sentence.replace(
             /attachment is removed/gi,
-            `attachment ${textComp} is removed`
+            `attachment ${textComp} is removed`,
           );
         }
       }
@@ -644,19 +661,19 @@ export function renderRulePatternHuman(
       // Clean up awkward phrasing when no text comparison
       sentence = sentence.replace(
         /when an attachment is card attachment added/gi,
-        "when an attachment is added"
+        "when an attachment is added",
       );
       sentence = sentence.replace(
         /when an attachment is card attachment removed/gi,
-        "when an attachment is removed"
+        "when an attachment is removed",
       );
       sentence = sentence.replace(
         /when an attachment is attachment added/gi,
-        "when an attachment is added"
+        "when an attachment is added",
       );
       sentence = sentence.replace(
         /when an attachment is attachment removed/gi,
-        "when an attachment is removed"
+        "when an attachment is removed",
       );
     }
 
@@ -683,7 +700,7 @@ export function renderRulePatternHuman(
 // Enhanced version specifically for rule state display
 export function renderRuleStateHuman(
   pattern: string,
-  condition: Record<string, any>
+  condition: Record<string, any>,
 ): string {
   const humanReadable = renderRulePatternHuman(pattern, condition);
 
@@ -823,7 +840,7 @@ function cleanupRedundantText(text: string): string {
       // Fix "Check custom field custom field" -> "Check custom field"
       .replace(
         /\b(check|set|update) custom field custom field\b/gi,
-        "$1 custom field"
+        "$1 custom field",
       )
       // Fix "custom field custom field" -> "custom field"
       .replace(/\bcustom field custom field\b/gi, "custom field")
@@ -842,12 +859,12 @@ function cleanupRedundantText(text: string): string {
       // Fix "when an attachment is card attachment added" -> "when an attachment is added"
       .replace(
         /\bwhen an attachment (.*?) is card attachment added\b/gi,
-        "when an attachment $1 is added"
+        "when an attachment $1 is added",
       )
       // Fix "when an attachment is attachment added" -> "when an attachment is added"
       .replace(
         /\bwhen an attachment (.*?) is attachment added\b/gi,
-        "when an attachment $1 is added"
+        "when an attachment $1 is added",
       )
       // Fix "is card added-to" -> "is added to"
       .replace(/\bis card (added-to|moved-to|removed-from)\b/gi, "is $1")
