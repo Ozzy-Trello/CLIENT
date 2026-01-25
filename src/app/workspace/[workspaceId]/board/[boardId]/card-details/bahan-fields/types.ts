@@ -63,7 +63,7 @@ export interface BahanTab {
   terloading: number;
   bahanTerpakai: number | null;
   sisaBahan: number;
-  jmlProduksi: number;
+  jmlCutting: number;
   estBahan: number;
   efisiensi: number;
 }

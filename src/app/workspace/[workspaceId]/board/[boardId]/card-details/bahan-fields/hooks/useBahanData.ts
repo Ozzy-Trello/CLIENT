@@ -150,7 +150,7 @@ export const useBahanData = (
                                 updatedBahanTab.terloading = existingBahanTab.terloading;
                                 updatedBahanTab.bahanTerpakai = existingBahanTab.bahanTerpakai;
                                 updatedBahanTab.sisaBahan = existingBahanTab.sisaBahan;
-                                updatedBahanTab.jmlProduksi = existingBahanTab.jmlProduksi;
+                                updatedBahanTab.jmlCutting = existingBahanTab.jmlCutting;
                                 updatedBahanTab.estBahan = existingBahanTab.estBahan;
                                 updatedBahanTab.efisiensi = existingBahanTab.efisiensi;
                             }

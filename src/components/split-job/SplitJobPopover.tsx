@@ -47,8 +47,17 @@ const SplitJobPopover: React.FC<SplitJobPopoverProps> = ({
   const [open, setOpen] = useState(false);
   const [newTemplateName, setNewTemplateName] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-  const { templates, isLoading, isError, error, refetch, createTemplate, isCreating, deleteTemplate, isDeleting } =
-    useSplitJobTemplates(workspaceId, customFieldId);
+  const {
+    templates,
+    isLoading,
+    isError,
+    error,
+    refetch,
+    createTemplate,
+    isCreating,
+    deleteTemplate,
+    isDeleting,
+  } = useSplitJobTemplates(workspaceId, customFieldId);
   const queryClient = useQueryClient();
   const {
     values,
@@ -70,18 +79,18 @@ const SplitJobPopover: React.FC<SplitJobPopoverProps> = ({
 
   const totalAmount = useMemo(
     () =>
-      Object.values(draftValues).reduce((sum, value) => sum + normalizeNumberValue(value), 0),
-    [draftValues]
+      Object.values(draftValues).reduce(
+        (sum, value) => sum + normalizeNumberValue(value),
+        0,
+      ),
+    [draftValues],
   );
 
   const isTotalMatching =
     normalizedJml > 0 && Math.abs(totalAmount - normalizedJml) < 0.0001;
 
   const canSave =
-    templates.length > 0 &&
-    normalizedJml > 0 &&
-    isTotalMatching &&
-    !isSaving;
+    templates.length > 0 && normalizedJml > 0 && isTotalMatching && !isSaving;
 
   // Track if we just opened the popover (to know when to initialize draftValues)
   const [needsInit, setNeedsInit] = useState(false);
@@ -105,8 +114,8 @@ const SplitJobPopover: React.FC<SplitJobPopoverProps> = ({
       // Check both camelCase and snake_case keys since backend might return either
       const existing = values.find(
         (value: any) =>
-          (value.splitJobTemplateId === template.id) ||
-          (value.split_job_template_id === template.id)
+          value.splitJobTemplateId === template.id ||
+          value.split_job_template_id === template.id,
       );
       nextValues[template.id] = existing
         ? normalizeNumberValue(existing.value)
@@ -114,7 +123,15 @@ const SplitJobPopover: React.FC<SplitJobPopoverProps> = ({
     });
     setDraftValues(nextValues);
     setNeedsInit(false); // Done initializing
-  }, [needsInit, isLoading, isLoadingValues, templates, values, customFieldId, cardId]);
+  }, [
+    needsInit,
+    isLoading,
+    isLoadingValues,
+    templates,
+    values,
+    customFieldId,
+    cardId,
+  ]);
 
   useEffect(() => {
     if (!open) {
@@ -141,7 +158,7 @@ const SplitJobPopover: React.FC<SplitJobPopoverProps> = ({
 
   const handleDeleteTemplate = async (
     templateId: string,
-    templateName: string
+    templateName: string,
   ) => {
     if (!canManageTemplates) return;
     try {
@@ -170,8 +187,8 @@ const SplitJobPopover: React.FC<SplitJobPopoverProps> = ({
           // Check both camelCase and snake_case keys for existing value
           const existingValue = values.find(
             (value: any) =>
-              (value.splitJobTemplateId === template.id) ||
-              (value.split_job_template_id === template.id)
+              value.splitJobTemplateId === template.id ||
+              value.split_job_template_id === template.id,
           );
           if (targetValue === 0) {
             if (existingValue) {
@@ -190,7 +207,7 @@ const SplitJobPopover: React.FC<SplitJobPopoverProps> = ({
               value: targetValue,
             });
           }
-        })
+        }),
       );
       if (onSuccess) {
         onSuccess();
@@ -268,7 +285,9 @@ const SplitJobPopover: React.FC<SplitJobPopoverProps> = ({
                           size="small"
                           icon={<DeleteOutlined />}
                           danger
-                          onClick={() => handleDeleteTemplate(template.id, template.name)}
+                          onClick={() =>
+                            handleDeleteTemplate(template.id, template.name)
+                          }
                           loading={isDeleting}
                         />,
                       ]
@@ -296,9 +315,11 @@ const SplitJobPopover: React.FC<SplitJobPopoverProps> = ({
             )}
           />
           <div className="flex items-center justify-between mt-3 text-sm">
-            <Text>Total: {totalAmount} / {normalizedJml}</Text>
+            <Text>
+              Total: {totalAmount} / {normalizedJml}
+            </Text>
             {!isTotalMatching && normalizedJml > 0 ? (
-              <Text type="danger">Jml Produksi belum sama</Text>
+              <Text type="danger">Jml Cutting belum sama</Text>
             ) : (
               <Text type="success">Ready to save</Text>
             )}

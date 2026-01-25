@@ -294,7 +294,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
                   updatedBahanTab.bahanTerpakai =
                     existingBahanTab.bahanTerpakai;
                   updatedBahanTab.sisaBahan = existingBahanTab.sisaBahan;
-                  updatedBahanTab.jmlProduksi = existingBahanTab.jmlProduksi;
+                  updatedBahanTab.jmlCutting = existingBahanTab.jmlCutting;
                   updatedBahanTab.estBahan = existingBahanTab.estBahan;
                   updatedBahanTab.efisiensi = existingBahanTab.efisiensi;
                 }
@@ -1591,7 +1591,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
               hasInitialTerloading ? initialTerloading || 0 : 0,
               0 // sisaBahan calc uses 0 for null bahanTerpakai
             ),
-            jmlProduksi: 0,
+            jmlCutting: 0,
             estBahan: 0,
             efisiensi: 0,
           },

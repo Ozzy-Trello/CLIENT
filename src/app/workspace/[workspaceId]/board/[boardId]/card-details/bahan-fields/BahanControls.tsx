@@ -128,7 +128,7 @@ const BahanControls: React.FC<BahanControlsProps> = ({
               color: `rgb(${colors["text-muted"]})`,
             }}
           >
-            Jml. Produksi (+/-)
+            Jml Cutting (+/-)
           </label>
           <input
             className="w-full px-3 py-2 rounded-md text-sm cursor-not-allowed"
@@ -137,7 +137,7 @@ const BahanControls: React.FC<BahanControlsProps> = ({
               backgroundColor: `rgb(${colors.muted})`,
               color: `rgb(${colors["text-muted"]})`,
             }}
-            value={bahanTab.jmlProduksi}
+            value={bahanTab.jmlCutting}
             readOnly
           />
         </div>

@@ -29,14 +29,29 @@ const { Option } = Select;
 const MPI_KUI_ACCOUNT_MAPPINGS = [
   { accountName: "HPP Bahan HEMCA Stok", keywords: ["hemca", "hemca stok"] },
   { accountName: "HPP Bahan Reject", keywords: ["bahan reject", "reject"] },
-  { accountName: "Beban Penyesuaian Produk", keywords: ["penyesuaian produk", "produk penyesuaian"] },
-  { accountName: "Beban Penyesuaian Bahan", keywords: ["penyesuaian bahan", "bahan penyesuaian"] },
-  { accountName: "Persediaan Produk Reject", keywords: ["produk reject", "persediaan produk"] },
-  { accountName: "Beban Penyesuaian Aksesoris", keywords: ["penyesuaian aksesoris", "aksesoris"] },
+  {
+    accountName: "Beban Penyesuaian Produk",
+    keywords: ["penyesuaian produk", "produk penyesuaian"],
+  },
+  {
+    accountName: "Beban Penyesuaian Bahan",
+    keywords: ["penyesuaian bahan", "bahan penyesuaian"],
+  },
+  {
+    accountName: "Persediaan Produk Reject",
+    keywords: ["produk reject", "persediaan produk"],
+  },
+  {
+    accountName: "Beban Penyesuaian Aksesoris",
+    keywords: ["penyesuaian aksesoris", "aksesoris"],
+  },
   { accountName: "HPP Hang Tag", keywords: ["hangtag", "hang tag"] },
   { accountName: "HPP Kancing", keywords: ["kancing"] },
   { accountName: "HPP Label", keywords: ["label"] },
-  { accountName: "HPP Plastik OPP", keywords: ["plastik opp", "opp hemca", "opp"] },
+  {
+    accountName: "HPP Plastik OPP",
+    keywords: ["plastik opp", "opp hemca", "opp"],
+  },
   { accountName: "HPP Resleting", keywords: ["resleting", "reslet"] },
   { accountName: "HPP Benang", keywords: ["benang"] },
   { accountName: "HPP Kain Keras", keywords: ["kain keras"] },
@@ -86,12 +101,12 @@ const findAccountByName = (accounts: any[], accountName: string) => {
   return (
     accounts.find(
       (acc: any) =>
-        typeof acc.name === "string" && acc.name.toLowerCase() === normalized
+        typeof acc.name === "string" && acc.name.toLowerCase() === normalized,
     ) ||
     accounts.find(
       (acc: any) =>
         typeof acc.name === "string" &&
-        acc.name.toLowerCase().includes(normalized)
+        acc.name.toLowerCase().includes(normalized),
     )
   );
 };
@@ -125,11 +140,10 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
   const [items, setItems] = React.useState<OzzyProductWithSource[]>([]);
   const [glaccounts, setGlaccounts] = React.useState<any>([]);
   const [selectedCardId, setSelectedCardId] = React.useState<string | null>(
-    null
+    null,
   );
-  const [selectedActionType, setSelectedActionType] = React.useState<string>(
-    ""
-  );
+  const [selectedActionType, setSelectedActionType] =
+    React.useState<string>("");
   const [isAkunPenyesuaianDisabled, setIsAkunPenyesuaianDisabled] =
     React.useState<boolean>(false);
   const [barangSearchValue, setBarangSearchValue] = React.useState<string>("");
@@ -194,10 +208,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
       normalizedActionType,
     ],
     queryFn: () => getPOProductsByCardId(selectedCardId as string),
-    enabled:
-      open &&
-      !!selectedCardId &&
-      shouldRestrictToHikmat,
+    enabled: open && !!selectedCardId && shouldRestrictToHikmat,
     staleTime: 5 * 60 * 1000,
   });
 
@@ -211,8 +222,11 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
     return new Set<string>(
       poProductsData
         .map((product: any) => product?.hikmatProductId)
-        .filter((id: unknown): id is string | number => id !== undefined && id !== null)
-        .map((id) => String(id))
+        .filter(
+          (id: unknown): id is string | number =>
+            id !== undefined && id !== null,
+        )
+        .map((id) => String(id)),
     );
   }, [poProductsData]);
 
@@ -231,7 +245,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
     "Siap Bordir",
     "Bordir / DTF",
     "Finishing Packing",
-    "Clearkan PO Lama"
+    "Clearkan PO Lama",
   ].map((l) => l.toLowerCase());
 
   useEffect(() => {
@@ -251,7 +265,6 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
 
       setCards(filteredCards);
     }
-
 
     const productItems = productsQuery.data || [];
     setItems(productItems);
@@ -279,12 +292,13 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
         card?.jumlahProduksi ??
         card?.jumlahDikirim ??
         card?.customFields?.find?.((f: any) =>
-          (f?.name || "").toString().toLowerCase().includes("jml produksi")
+          (f?.name || "").toString().toLowerCase().includes("jml cutting"),
         )?.valueNumber ??
         null;
       const jmlDikirimValue = formatJumlahProduksi(rawVal);
       const displayLabel = [safeCardName, listName].filter(Boolean).join(" - ");
-      const searchText = `${safeCardName} ${listName} ${jmlDikirimValue}`.trim();
+      const searchText =
+        `${safeCardName} ${listName} ${jmlDikirimValue}`.trim();
       return {
         value: card.id,
         label: (
@@ -320,11 +334,11 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
     const searchTerm = barangSearchValue.toLowerCase();
     const filteredItems = searchTerm
       ? items.filter((item) => {
-        const matches = [item.name, item.sku, item.barcode, item.source].some(
-          (value) => value?.toString().toLowerCase().includes(searchTerm)
-        );
-        return matches;
-      })
+          const matches = [item.name, item.sku, item.barcode, item.source].some(
+            (value) => value?.toString().toLowerCase().includes(searchTerm),
+          );
+          return matches;
+        })
       : items;
 
     const actionFilteredItems = filteredItems.filter((item) => {
@@ -333,8 +347,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
       }
 
       const source = (item.source || "").toString().toLowerCase();
-      const isHikmatItem =
-        source === "hikmat" || source.includes("hikmat");
+      const isHikmatItem = source === "hikmat" || source.includes("hikmat");
 
       if (!isHikmatItem) {
         return false;
@@ -344,17 +357,12 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
         return false;
       }
 
-      const candidateIds = [
-        item.accurateId,
-        item.id,
-        item.sku,
-        item.barcode,
-      ]
+      const candidateIds = [item.accurateId, item.id, item.sku, item.barcode]
         .filter((value) => value !== undefined && value !== null)
         .map((value) => String(value));
 
       return candidateIds.some((candidate) =>
-        allowedHikmatProductIds.has(candidate)
+        allowedHikmatProductIds.has(candidate),
       );
     });
 
@@ -421,7 +429,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
     const trySetAccountById = () => {
       if (!selectedItemGlAccountId) return false;
       const matching = glaccounts.d.find(
-        (acc: any) => Number(acc.id) === selectedItemGlAccountId
+        (acc: any) => Number(acc.id) === selectedItemGlAccountId,
       );
       if (matching) {
         setAccountField(matching);
@@ -434,13 +442,16 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
     if (selectedBarangValue) {
       const selectedItem = items.find(
         (item: any) =>
-          `${item.name} (${item.source || "Unknown"})` === selectedBarangValue
+          `${item.name} (${item.source || "Unknown"})` === selectedBarangValue,
       );
 
       if (selectedItem) {
         const itemSource = selectedItem.source;
-        const normalizedSource =
-          (itemSource || selectedItemSource || "").toLowerCase();
+        const normalizedSource = (
+          itemSource ||
+          selectedItemSource ||
+          ""
+        ).toLowerCase();
 
         const isMpiSource =
           normalizedSource === "mpi" || normalizedSource.includes("mpi");
@@ -454,7 +465,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
           if (mpiMapping) {
             const matchingAccount = findAccountByName(
               glaccounts.d,
-              mpiMapping.accountName
+              mpiMapping.accountName,
             );
 
             if (matchingAccount) {
@@ -474,7 +485,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
 
           if (cogsGlAccountId) {
             const matchingGlAccount = glaccounts.d.find(
-              (acc: any) => acc.id === cogsGlAccountId
+              (acc: any) => acc.id === cogsGlAccountId,
             );
 
             if (matchingGlAccount) {
@@ -511,7 +522,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
                 ];
 
                 const matchingKeyword = hikmatCategoryKeywords.find((keyword) =>
-                  itemCategoryName.includes(keyword)
+                  itemCategoryName.includes(keyword),
                 );
 
                 if (matchingKeyword) {
@@ -521,7 +532,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
                       accountName.includes(matchingKeyword) ||
                       accountName.includes("penyesuaian " + matchingKeyword) ||
                       accountName.includes(
-                        "beban penyesuaian " + matchingKeyword
+                        "beban penyesuaian " + matchingKeyword,
                       )
                     );
                   });
@@ -541,7 +552,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
 
               if (!suitableAccount && itemSource) {
                 suitableAccount = glaccounts.d.find(
-                  (acc: any) => acc.source === itemSource
+                  (acc: any) => acc.source === itemSource,
                 );
               }
 
@@ -577,7 +588,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
       label: string | React.ReactNode;
       searchText?: string;
       displayLabel?: string;
-    }
+    },
   ) => {
     if (!option) return false;
     const searchText =
@@ -620,11 +631,11 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
       const card = listPO.find(
         (opt: any) =>
           opt.displayLabel === values.listPO ||
-          (typeof opt.label === "string" && opt.label === values.listPO)
+          (typeof opt.label === "string" && opt.label === values.listPO),
       );
       const item = barangList.find(
         (opt: any) =>
-          typeof opt.label === "string" && opt.label === values.barang
+          typeof opt.label === "string" && opt.label === values.barang,
       );
       const selectedProduct = item?.item as OzzyProductWithSource | undefined;
       const adjustment = akunPenyesuaianList.find((opt: any) => {
@@ -666,7 +677,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
 
       // Find the selected user for received_by
       const selectedUser = userOptions.find(
-        (user) => user.value === values.requestBy
+        (user) => user.value === values.requestBy,
       );
 
       const requestedItemId = selectedProduct?.sku;
@@ -789,7 +800,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
                 setCardSearchValue(input);
 
                 const match = listPO.find(
-                  (opt: any) => opt.displayLabel === input
+                  (opt: any) => opt.displayLabel === input,
                 );
                 if (!match) {
                   form.setFieldsValue({ listPO: input });
@@ -901,14 +912,14 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
 
                     const selectedItemUnitType =
                       selectedItem.unitType !== undefined &&
-                        selectedItem.unitType !== null
+                      selectedItem.unitType !== null
                         ? String(selectedItem.unitType)
                         : "";
 
                     const preferredUnit =
                       (selectedItemUnitType &&
                         units.some(
-                          (u) => String(u.value) === selectedItemUnitType
+                          (u) => String(u.value) === selectedItemUnitType,
                         ) &&
                         selectedItemUnitType) ||
                       (units.length > 0 ? String(units[0].value) : "");
@@ -928,7 +939,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
                   setSelectedItemUnitPrice(
                     unitPrice !== undefined && unitPrice !== null
                       ? String(unitPrice)
-                      : ""
+                      : "",
                   );
 
                   // Use COGS GL account from the selected item when provided
@@ -1048,7 +1059,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
                 if (!isAkunPenyesuaianDisabled) {
                   const match = akunPenyesuaianList.find(
                     (opt: any) =>
-                      typeof opt.label === "string" && opt.label === input
+                      typeof opt.label === "string" && opt.label === input,
                   );
                   if (!match) {
                     form.setFieldsValue({ akunPenyesuaian: input });
