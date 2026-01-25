@@ -159,7 +159,7 @@ export const useUpdatePOProductCategories = () => {
 
 export const transformPOProductToProductItem = (
   poProduct: POProductWithCategories,
-  categories?: any[]
+  categories?: any[],
 ): ProductItem => {
   // Helper to coerce potentially locale-formatted numeric strings to numbers
   const toNumber = (input: any): number => {
@@ -167,9 +167,10 @@ export const transformPOProductToProductItem = (
     if (typeof input === "number") return Number.isFinite(input) ? input : 0;
     const str = String(input).trim();
     if (!str) return 0;
-    const normalized = str.includes(".") && str.includes(",")
-      ? str.replace(/\./g, "").replace(/,/g, ".")
-      : str.replace(/,/g, ".");
+    const normalized =
+      str.includes(".") && str.includes(",")
+        ? str.replace(/\./g, "").replace(/,/g, ".")
+        : str.replace(/,/g, ".");
     const n = Number(normalized);
     return Number.isFinite(n) ? n : 0;
   };
@@ -180,9 +181,10 @@ export const transformPOProductToProductItem = (
     if (typeof input === "number") return Number.isFinite(input) ? input : null;
     const str = String(input).trim();
     if (!str) return null;
-    const normalized = str.includes(".") && str.includes(",")
-      ? str.replace(/\./g, "").replace(/,/g, ".")
-      : str.replace(/,/g, ".");
+    const normalized =
+      str.includes(".") && str.includes(",")
+        ? str.replace(/\./g, "").replace(/,/g, ".")
+        : str.replace(/,/g, ".");
     const n = Number(normalized);
     return Number.isFinite(n) ? n : null;
   };
@@ -213,7 +215,7 @@ export const transformPOProductToProductItem = (
         terloading: toNumber(poProduct.terloading), // Ensure numeric type for calculations
         bahanTerpakai: toNullableNumber(poProduct.bahanTerpakai),
         sisaBahan: 0,
-        jmlProduksi: 0,
+        jmlCutting: 0,
         estBahan: 0,
         efisiensi: 0,
       },
@@ -246,7 +248,7 @@ export const transformPOProductToProductItem = (
           const categoryInfo = categories.find((cat) => cat.id === categoryId);
           if (categoryInfo?.subcategories) {
             const subcategoryInfo = categoryInfo.subcategories.find(
-              (sub: any) => sub.id === category.subcategoryId
+              (sub: any) => sub.id === category.subcategoryId,
             );
             if (subcategoryInfo?.junction) {
               isTotalField = subcategoryInfo.junction.isTotalField || false;
