@@ -24,6 +24,7 @@ import {
   Users,
   QrCode,
   FileText,
+  Download,
   ArrowRight,
   Package,
   ShoppingCart,
@@ -45,6 +46,7 @@ import api from "@api/index";
 import { useWebSocket } from "@hooks/websocket";
 import { useMoveOldCards } from "@hooks/card";
 import { useUserBoardOrder } from "@hooks/user-board-order";
+import { useExportBoardCSV } from "@hooks/board";
 import { selectUser } from "@store/app_slice";
 import { useParams } from "next/navigation";
 import { FineGrainedPermissions } from "../../../../../types/board";
@@ -82,6 +84,37 @@ const getPermissionLevelFromFineGrained = (
 
   // Observer: Limited permissions
   return "OBSERVER";
+};
+
+const parseFilenameFromContentDisposition = (
+  contentDisposition?: string
+): string | undefined => {
+  if (!contentDisposition) return undefined;
+  const matches = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(
+    contentDisposition
+  );
+  if (!matches || !matches[1]) return undefined;
+  return matches[1].replace(/['"]/g, "");
+};
+
+const formatExportFilename = (boardName?: string, fallback?: string): string => {
+  const baseName = boardName?.trim() || fallback || "board";
+  const cleaned = baseName
+    .replace(/[^a-zA-Z0-9\s-_]/g, "")
+    .trim()
+    .replace(/\s+/g, "_");
+  return `${cleaned || "board"}.csv`;
+};
+
+const downloadBlob = (blob: Blob, filename: string) => {
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
 };
 
 interface BoardTopbarProps {
@@ -161,6 +194,12 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
   const router = useRouter();
   const { socket } = useWebSocket();
   const params = useParams();
+  const normalizedWorkspaceId = Array.isArray(params.workspaceId)
+    ? params.workspaceId[0]
+    : params.workspaceId;
+  const normalizedBoardId = Array.isArray(params.boardId)
+    ? params.boardId[0]
+    : params.boardId;
   const currentUser = useSelector(selectUser);
   const userRole = (currentUser?.role?.name || "").trim().toLowerCase();
   const isSuperAdmin =
@@ -189,6 +228,42 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
     moveOldCardsMutation.mutate();
   };
   const isMoveCardsPending = moveOldCardsMutation.isPending;
+  const exportBoardMutation = useExportBoardCSV();
+  const handleExportBoardCSV = useCallback(() => {
+    if (!normalizedBoardId || !normalizedWorkspaceId) {
+      message.error(
+        "Board or workspace information is missing. Please refresh and try again."
+      );
+      return;
+    }
+
+    exportBoardMutation.mutate(
+      {
+        boardId: normalizedBoardId,
+        workspaceId: normalizedWorkspaceId,
+      },
+      {
+        onSuccess: (result) => {
+          const headerFilename = parseFilenameFromContentDisposition(
+            result.filename
+          );
+          const downloadName =
+            headerFilename ||
+            formatExportFilename(currentBoard?.name, normalizedBoardId);
+          downloadBlob(result.blob, downloadName);
+          message.success("Board CSV export started");
+        },
+        onError: () => {
+          message.error("Failed to export board CSV");
+        },
+      }
+    );
+  }, [
+    normalizedBoardId,
+    normalizedWorkspaceId,
+    exportBoardMutation,
+    currentBoard?.name,
+  ]);
 
   const roleInList = (allowed: string[]) =>
     allowed.some((role) => role.toLowerCase() === userRole);
@@ -938,6 +1013,14 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
                 <span>Share</span>
               </Button>
             </Tooltip> */}
+            <Tooltip title="Export board CSV">
+              <Button
+                size="small"
+                icon={<Download size={16} />}
+                onClick={handleExportBoardCSV}
+                loading={exportBoardMutation.isPending}
+              />
+            </Tooltip>
             <Tooltip title="Scan QR Code (Camera)">
               <Button
                 size="small"

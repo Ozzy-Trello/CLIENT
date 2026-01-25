@@ -8,6 +8,11 @@ export interface Role {
   description: string;
 }
 
+export interface ExportBoardCsvResult {
+  blob: Blob;
+  filename?: string;
+}
+
 export const boards = async (
   workspaceId: string
 ): Promise<ApiResponse<Board[]>> => {
@@ -63,4 +68,23 @@ export const getAllRoles = async (
     headers: { "workspace-id": workspaceId },
   });
   return data;
+};
+
+export const exportBoardCsv = async (
+  boardId: string,
+  workspaceId?: string
+): Promise<ExportBoardCsvResult> => {
+  const response = await api.get(`/board/${boardId}/export/csv`, {
+    responseType: "blob",
+    headers: workspaceId
+      ? {
+          "workspace-id": workspaceId,
+        }
+      : undefined,
+  });
+
+  return {
+    blob: response.data,
+    filename: response.headers["content-disposition"],
+  };
 };

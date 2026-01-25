@@ -6,6 +6,7 @@ import {
   getBoardRoles,
   getAllRoles,
   Role,
+  exportBoardCsv,
 } from "../api/board";
 import { api } from "../api";
 import { ApiResponse } from "../types/type";
@@ -207,6 +208,15 @@ export function useUpdateBoard(workspaceId: string) {
         queryKey: ["board-roles", variables.boardId],
       });
     },
+  });
+}
+
+export function useExportBoardCSV() {
+  return useMutation({
+    mutationFn: (data: {
+      boardId: string;
+      workspaceId?: string;
+    }) => exportBoardCsv(data.boardId, data.workspaceId),
   });
 }
 
