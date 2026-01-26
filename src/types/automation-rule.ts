@@ -92,6 +92,9 @@ export enum EnumSelectionType {
   Operation = "operation", // mathematical operations
   Target = "target",
   ThreadId = "thread_id",
+  IncludeProduk = "include_produk",
+  IncludeBahan = "include_bahan",
+  IncludeWarna = "include_warna",
   TelegramChannel = "telegram_channel", // Telegram channel selection
 }
 

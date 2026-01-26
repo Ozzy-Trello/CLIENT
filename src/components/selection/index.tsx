@@ -50,11 +50,12 @@ interface FieldValueInputProps extends SelectionProps {
   placeholder?: string;
 }
 export interface SelectionRef {
-  getValue: () => string | undefined;
+  getValue: () => string | string[] | undefined;
   getObject: () =>
     | { label: string | JSX.Element | undefined; value: string }
+    | Array<{ label: string | JSX.Element | undefined; value: string }>
     | undefined;
-  setValue: (value: string) => void;
+  setValue: (value: string | string[]) => void;
 }
 
 interface SelectionProps {
@@ -154,9 +155,10 @@ export const UserSelection = forwardRef<SelectionRef, SelectionProps>(
     useImperativeHandle(ref, () => ({
       getValue: () => selectedValue,
       getObject: () => selectedObject,
-      setValue: (value: string) => {
-        setSelectedValue(value);
-        const foundOption = options.find((opt) => opt.value === value);
+      setValue: (value: string | string[]) => {
+        const val = Array.isArray(value) ? value[0] : value;
+        setSelectedValue(val);
+        const foundOption = options.find((opt) => opt.value === val);
         if (foundOption) {
           setSelectedObject(foundOption);
         }
@@ -345,17 +347,24 @@ export const ListSelection = forwardRef<SelectionRef, ListSelectionProps>(
         }
         return selectedObject;
       },
-      setValue: (value: string) => {
+      setValue: (value: string | string[]) => {
         if (mode === "multiple") {
-          const values = value.split(",").filter(Boolean);
+          const values = Array.isArray(value)
+            ? value
+            : value
+            ? value.split(",").filter(Boolean)
+            : [];
           setSelectedValue(values);
           const foundOptions = (options || []).filter((opt) =>
             values.includes(opt.value)
           );
           setSelectedObject(foundOptions);
         } else {
-          setSelectedValue(value);
-          const foundOption = options.find((opt) => opt.value === value);
+          const val = Array.isArray(value) ? value[0] : value;
+          setSelectedValue(val);
+          const foundOption = val
+            ? options.find((opt) => opt.value === val)
+            : undefined;
           if (foundOption) {
             setSelectedObject(foundOption);
           }
@@ -508,11 +517,12 @@ export const BoardSelection = forwardRef<SelectionRef, SelectionProps>(
     const [boardsData, setBoardsData] = useState<Board[]>([]);
 
     useImperativeHandle(ref, () => ({
-      getValue: () => selectedValue as string | undefined,
+      getValue: () => selectedValue,
       getObject: () => selectedObject,
-      setValue: (value: string) => {
-        setSelectedValue(value);
-        const foundOption = options.find((opt) => opt.value === value);
+      setValue: (value: string | string[]) => {
+        const val = Array.isArray(value) ? value[0] : value;
+        setSelectedValue(val);
+        const foundOption = options.find((opt) => opt.value === val);
         if (foundOption) {
           setSelectedObject(foundOption);
         }
@@ -633,9 +643,10 @@ export const CardPositionSelection = forwardRef<SelectionRef, SelectionProps>(
     useImperativeHandle(ref, () => ({
       getValue: () => selectedValue,
       getObject: () => selectedObject,
-      setValue: (value: string) => {
-        setSelectedValue(value);
-        const foundOption = options.find((opt) => opt.value === value);
+      setValue: (value: string | string[]) => {
+        const val = Array.isArray(value) ? value[0] : value;
+        setSelectedValue(val);
+        const foundOption = options.find((opt) => opt.value === val);
         if (foundOption) {
           setSelectedObject(foundOption);
         }
@@ -767,9 +778,10 @@ export const LabelSelection = forwardRef<SelectionRef, SelectionProps>(
     useImperativeHandle(ref, () => ({
       getValue: () => selectedValue,
       getObject: () => selectedObject,
-      setValue: (value: string) => {
-        setSelectedValue(value);
-        const foundOption = options.find((opt) => opt.value === value);
+      setValue: (value: string | string[]) => {
+        const val = Array.isArray(value) ? value[0] : value;
+        setSelectedValue(val);
+        const foundOption = options.find((opt) => opt.value === val);
         if (foundOption) {
           setSelectedObject(foundOption);
         }
@@ -862,9 +874,10 @@ export const ProductSelection = forwardRef<SelectionRef, SelectionProps>(
     useImperativeHandle(ref, () => ({
       getValue: () => selectedValue,
       getObject: () => selectedObject,
-      setValue: (val: string) => {
-        setSelectedValue(val);
-        const foundOption = options.find((opt) => opt.value === val);
+      setValue: (val: string | string[]) => {
+        const normalizedVal = Array.isArray(val) ? val[0] : val;
+        setSelectedValue(normalizedVal);
+        const foundOption = options.find((opt) => opt.value === normalizedVal);
         if (foundOption) {
           setSelectedObject(foundOption);
         }
@@ -934,17 +947,29 @@ export const CustomFieldSelection = forwardRef<
       onChange,
       multi = false,
       filterTypes,
+      value,
     },
     ref
   ) => {
+    const normalizeValue = (
+      val?: string | string[] | { value?: string }[] | { value?: string },
+    ): string | string[] | undefined => {
+      if (Array.isArray(val)) {
+        return val.map((v) => (typeof v === "object" && v !== null ? (v as any).value : (v as any))) as string[];
+      }
+      if (val && typeof val === "object" && "value" in val) {
+        return (val as any).value;
+      }
+      return val as any;
+    };
+
     const [options, setOptions] = useState<{ label: string; value: string }[]>(
       []
     );
-    const [selectedValue, setSelectedValue] = useState<string>();
-    const [selectedObject, setSelectedObject] = useState<{
-      label: string;
-      value: string;
-    }>();
+    const [selectedValue, setSelectedValue] = useState<
+      string | string[] | undefined
+    >(normalizeValue(value));
+    const [selectedObject, setSelectedObject] = useState<any>();
     const params = useParams();
     const workspaceId = decodeURIComponent(params.workspaceId as string);
     const boardId = decodeURIComponent(params.boardId as string);
@@ -955,16 +980,31 @@ export const CustomFieldSelection = forwardRef<
     useImperativeHandle(ref, () => ({
       getValue: () => selectedValue,
       getObject: () => selectedObject,
-      setValue: (value: string) => {
-        setSelectedValue(value);
-        const foundOption = options.find((opt) => opt.value === value);
-        if (foundOption) {
-          setSelectedObject(foundOption);
+      setValue: (val: string | string[]) => {
+        const normalized = normalizeValue(val);
+        setSelectedValue(normalized);
+        if (normalized) {
+          if (Array.isArray(normalized)) {
+            const foundOptions = options.filter((opt) =>
+              normalized.includes(opt.value)
+            );
+            if (foundOptions.length > 0) {
+              setSelectedObject(foundOptions);
+            }
+          } else {
+            const foundOption = options.find(
+              (opt) => opt.value === normalized
+            );
+            if (foundOption) {
+              setSelectedObject(foundOption);
+            }
+          }
         }
       },
     }));
 
-    const handleChange = (value: string, option: any) => {
+    const handleChange = (val: string | string[], option: any) => {
+      const normalizedVal = normalizeValue(val);
       setSelectedValue(value);
       // Store the entire selected object
       if (Array.isArray(option)) {
@@ -973,15 +1013,38 @@ export const CustomFieldSelection = forwardRef<
           label: opt.label,
           value: opt.value,
         }));
-        setSelectedObject(selectedOptions[0]);
+        setSelectedObject(selectedOptions);
       } else {
         setSelectedObject({ label: option.label, value: option.value });
       }
 
       if (onChange) {
-        onChange(value, option);
+        onChange(normalizedVal ?? val, option);
       }
     };
+
+    // Sync when value prop changes
+    useEffect(() => {
+      const normalized = normalizeValue(value);
+      setSelectedValue(normalized);
+      if (normalized && options.length > 0) {
+        if (Array.isArray(normalized)) {
+          const foundOptions = options.filter((opt) =>
+            normalized.includes(opt.value)
+          );
+          if (foundOptions.length > 0) {
+            setSelectedObject(foundOptions);
+          }
+        } else {
+          const foundOption = options.find(
+            (opt) => opt.value === normalized
+          );
+          if (foundOption) {
+            setSelectedObject(foundOption);
+          }
+        }
+      }
+    }, [value, options]);
 
     useEffect(() => {
       if (customFields) {
@@ -1109,20 +1172,24 @@ export const RoleSelection = forwardRef<SelectionRef, SelectionProps>(
         return selectedValue;
       },
       getObject: () => selectedObject,
-      setValue: (value: string) => {
-        // Handle both comma-separated strings and regular strings
-        if (mode === "multiple" && value && value.includes(",")) {
-          const valueArray = value.split(",").map((v) => v.trim());
-          setSelectedValue(valueArray);
+      setValue: (value: string | string[]) => {
+        const normalizedArray =
+          Array.isArray(value) || (mode === "multiple" && typeof value === "string" && value.includes(","))
+            ? (Array.isArray(value) ? value : value.split(",").map((v) => v.trim()))
+            : null;
+
+        if (mode === "multiple" && normalizedArray) {
+          setSelectedValue(normalizedArray);
           const foundOptions = options.filter((opt) =>
-            valueArray.includes(opt.value)
+            normalizedArray.includes(opt.value)
           );
           if (foundOptions.length > 0) {
             setSelectedObject(foundOptions[0]); // Store first one for compatibility
           }
         } else {
-          setSelectedValue(value);
-          const foundOption = options.find((opt) => opt.value === value);
+          const val = Array.isArray(value) ? value[0] : value;
+          setSelectedValue(val);
+          const foundOption = options.find((opt) => opt.value === val);
           if (foundOption) {
             setSelectedObject(foundOption);
           }
@@ -1275,10 +1342,11 @@ export const FieldValueInput = forwardRef<SelectionRef, FieldValueInputProps>(
     useImperativeHandle(ref, () => ({
       getValue: () => inputValue,
       getObject: () => selectedObject,
-      setValue: (val: string) => {
-        setInputValue(val);
+      setValue: (val: string | string[]) => {
+        const normalizedVal = Array.isArray(val) ? val[0] : val;
+        setInputValue(normalizedVal);
         const foundOption = field?.option?.find(
-          (opt: { value: string }) => opt.value === val
+          (opt: { value: string }) => opt.value === normalizedVal
         );
         if (foundOption) {
           setSelectedObject(foundOption);
@@ -1446,8 +1514,12 @@ export const MultiFieldValueInput = forwardRef<
     useImperativeHandle(ref, () => ({
       getValue: () => inputValues.join(","),
       getObject: () => selectedObjects[0] || { label: "", value: "" },
-      setValue: (val: string) => {
-        const vals = val.split(",").filter(Boolean);
+      setValue: (val: string | string[]) => {
+        const vals = Array.isArray(val)
+          ? val
+          : val
+          ? val.split(",").filter(Boolean)
+          : [];
         setInputValues(vals);
         if (field?.option) {
           const foundOptions = field.option.filter((opt) =>

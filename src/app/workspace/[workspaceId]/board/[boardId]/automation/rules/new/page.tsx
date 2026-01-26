@@ -204,6 +204,7 @@ const NewRulePage: React.FC = () => {
           const value = action.selectedActionItem[placeholder];
           if (
             placeholder === EnumSelectionType.Fields ||
+            placeholder === EnumSelectionType.MultiFields ||
             placeholder === EnumInputType.FieldValue
           ) {
             // Keep the full option object so backend has label/type etc.
@@ -224,6 +225,34 @@ const NewRulePage: React.FC = () => {
           }
         }
       });
+
+      if (
+        action.selectedActionItem?.[EnumSelectionType.IncludeProduk] !==
+        undefined
+      ) {
+        actionCondition[EnumSelectionType.IncludeProduk] = Boolean(
+          (action.selectedActionItem as any)[EnumSelectionType.IncludeProduk]
+            ?.value,
+        );
+      }
+      if (
+        action.selectedActionItem?.[EnumSelectionType.IncludeBahan] !==
+        undefined
+      ) {
+        actionCondition[EnumSelectionType.IncludeBahan] = Boolean(
+          (action.selectedActionItem as any)[EnumSelectionType.IncludeBahan]
+            ?.value,
+        );
+      }
+      if (
+        action.selectedActionItem?.[EnumSelectionType.IncludeWarna] !==
+        undefined
+      ) {
+        actionCondition[EnumSelectionType.IncludeWarna] = Boolean(
+          (action.selectedActionItem as any)[EnumSelectionType.IncludeWarna]
+            ?.value,
+        );
+      }
 
       // Force Telegram metadata so backend routing triggers correctly
       if (

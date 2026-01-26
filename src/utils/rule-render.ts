@@ -125,6 +125,20 @@ export async function prefetchRuleData(
 
 function stringify(val: any): string {
   if (val == null) return "";
+  if (Array.isArray(val)) {
+    if (val.length === 0) return "";
+    const items = val
+      .map((item) => {
+        // Preserve objects with label/value, or plain strings/numbers
+        if (item && typeof item === "object") {
+          if ("label" in item) return stringify((item as any).label);
+          if ("value" in item) return stringify((item as any).value);
+        }
+        return stringify(item);
+      })
+      .filter(Boolean);
+    return items.join(", ");
+  }
   if (typeof val === "string") {
     const noTags = val.replace(/<[^>]*>/g, "");
 
@@ -160,6 +174,61 @@ function stringify(val: any): string {
     }
   }
   return "";
+}
+
+function normalizeMultiFields(condition: any): string[] {
+  if (!condition) return [];
+
+  // Potential shapes:
+  // - array of strings/objects at condition.multi_fields / multiFields
+  // - object with .value array
+  // - nested under condition.condition (for some backends)
+  const candidates: any[] = [];
+
+  const direct = condition.multi_fields ?? condition.multiFields;
+  if (direct !== undefined) {
+    candidates.push(direct);
+  }
+  if (direct?.value !== undefined) {
+    candidates.push(direct.value);
+  }
+  const nested = condition.condition?.multi_fields ?? condition.condition?.multiFields;
+  if (nested !== undefined) {
+    candidates.push(nested);
+  }
+  if (nested?.value !== undefined) {
+    candidates.push(nested.value);
+  }
+
+  // Flatten candidates into strings
+  const labels: string[] = [];
+  candidates.forEach((candidate) => {
+    if (Array.isArray(candidate)) {
+      candidate.forEach((item) => {
+        if (item && typeof item === "object") {
+          if ("label" in item) {
+            labels.push(stringify((item as any).label));
+            return;
+          }
+          if ("value" in item) {
+            labels.push(stringify((item as any).value));
+            return;
+          }
+        }
+        labels.push(stringify(item));
+      });
+    } else if (candidate) {
+      labels.push(stringify(candidate));
+    }
+  });
+
+  // Deduplicate while preserving order
+  const seen = new Set<string>();
+  return labels.filter((lbl) => {
+    if (!lbl || seen.has(lbl)) return false;
+    seen.add(lbl);
+    return true;
+  });
 }
 
 function lookup(condition: any, key: string): any {
@@ -537,6 +606,14 @@ export function renderRulePattern(
         return;
       }
 
+      if (key === "multi_fields" || key === EnumSelectionType.MultiFields) {
+        const labels = normalizeMultiFields(condition);
+        if (labels.length > 0) {
+          parts.push(labels.join(", "));
+        }
+        return;
+      }
+
       const replacement = stringify(lookup(condition, key));
       if (replacement) {
         const quotedKeys = [
@@ -552,6 +629,10 @@ export function renderRulePattern(
           : replacement;
         parts.push(quoted);
       } else {
+        // For multi_fields or other optional arrays, omit placeholder when empty/missing
+        if (key === "multi_fields" || key === EnumSelectionType.MultiFields) {
+          return;
+        }
         // If we can't find a replacement, show a user-friendly placeholder
         console.warn(
           `[RULE-RENDER] No replacement found for placeholder: ${key}`,

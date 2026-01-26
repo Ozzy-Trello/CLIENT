@@ -2678,6 +2678,18 @@ export const actions: AutomationRuleAction[] = [
           options: [],
           value: null,
         },
+        [EnumSelectionType.IncludeProduk]: {
+          value: false as any,
+          label: "Include Produk (name & code)",
+        },
+        [EnumSelectionType.IncludeBahan]: {
+          value: false as any,
+          label: "Include Bahan",
+        },
+        [EnumSelectionType.IncludeWarna]: {
+          value: false as any,
+          label: "Include Warna",
+        },
       },
     ],
   },

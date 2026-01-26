@@ -1,5 +1,5 @@
 "use client";
-import { Button, Input, Select, Typography, Popover, Modal } from "antd";
+import { Button, Input, Select, Typography, Popover, Modal, Checkbox } from "antd";
 import { actions } from "@constants/automation-rule/data";
 import { Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
 import { Plus, Calendar, X, Check } from "lucide-react";
@@ -203,14 +203,25 @@ const SelectOption = ({
     placeholder === EnumSelectionType.Fields ||
     placeholder === EnumSelectionType.MultiFields
   ) {
+    const normalizeValue = (val: any) => {
+      if (Array.isArray(val)) {
+        return val.map((v) => (typeof v === "object" && v !== null ? (v as any).value ?? v : v));
+      }
+      if (val && typeof val === "object" && "value" in val) {
+        return (val as any).value;
+      }
+      return val;
+    };
+
+    const currentValue = normalizeValue(
+      (actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value,
+    );
+
     return (
       <CustomFieldSelection
         width={"fit-content"}
         ref={customFieldSelectionRef}
-        value={
-          (actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value
-            ?.value || ""
-        }
+        value={currentValue}
         onChange={(val: string, option: any) => {
           onCustomFieldChange(option, placeholder);
         }}
@@ -748,10 +759,19 @@ const renderLabelWithSelects = (
     );
   }
 
+  const includeConfigs = [
+    EnumSelectionType.IncludeProduk,
+    EnumSelectionType.IncludeBahan,
+    EnumSelectionType.IncludeWarna,
+  ].map((key) => ({
+    key,
+    config: (item as any)[key],
+  })).filter((entry) => entry.config !== undefined);
+
   // Split the label by <...> or [...] placeholders
   const parts = item.label.split(/(<[^>]+>|\[[^\]]+\])/);
 
-  return (
+  const labelContent = (
     <div className="flex items-center flex-wrap">
       {parts.map((part: string, indexPart: number) => {
         // Check if this part is a placeholder
@@ -1065,6 +1085,49 @@ const renderLabelWithSelects = (
       )}
     </div>
   );
+
+  if (includeConfigs.length > 0) {
+    return (
+      <div className="flex flex-col gap-2">
+        {labelContent}
+        <div className="flex flex-col gap-1">
+          {includeConfigs.map(({ key, config }) => (
+            <Checkbox
+              key={key}
+              checked={Boolean(
+                (props.actionsData[groupIndex]?.items?.[index] as any)?.[key]
+                  ?.value,
+              )}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                props.setActionsData((prev) => {
+                  const copy = [...prev];
+                  if (copy[groupIndex]?.items?.[index]) {
+                    (copy[groupIndex].items[index] as any)[key] = {
+                      ...(copy[groupIndex].items[index] as any)[key],
+                      value: checked,
+                    };
+                  }
+                  return copy;
+                });
+              }}
+            >
+              {config.label ||
+                (key === EnumSelectionType.IncludeProduk
+                  ? "Include Produk Data"
+                  : key === EnumSelectionType.IncludeBahan
+                    ? "Include Bahan"
+                    : key === EnumSelectionType.IncludeWarna
+                      ? "Include Warna"
+                      : "Include")}
+            </Checkbox>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return labelContent;
 };
 
 // Component for text input in actions
@@ -2170,6 +2233,55 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
         (newActionItem.selectedActionItem as any)[EnumSelectionType.Action] =
           actionValue;
       }
+
+      if (itemConfig?.[EnumSelectionType.IncludeProduk] !== undefined) {
+        if (!newActionItem.selectedActionItem) {
+          newActionItem.selectedActionItem = {
+            type:
+              actionsData[groupIndex]?.items?.[index]?.type ||
+              existingAction?.selectedActionItem?.type ||
+              "",
+            label:
+              actionsData[groupIndex]?.items?.[index]?.label ||
+              existingAction?.selectedActionItem?.label ||
+              "",
+          };
+        }
+        (newActionItem.selectedActionItem as any)[EnumSelectionType.IncludeProduk] =
+          itemConfig[EnumSelectionType.IncludeProduk];
+      }
+      if (itemConfig?.[EnumSelectionType.IncludeBahan] !== undefined) {
+        if (!newActionItem.selectedActionItem) {
+          newActionItem.selectedActionItem = {
+            type:
+              actionsData[groupIndex]?.items?.[index]?.type ||
+              existingAction?.selectedActionItem?.type ||
+              "",
+            label:
+              actionsData[groupIndex]?.items?.[index]?.label ||
+              existingAction?.selectedActionItem?.label ||
+              "",
+          };
+        }
+        (newActionItem.selectedActionItem as any)[EnumSelectionType.IncludeBahan] =
+          itemConfig[EnumSelectionType.IncludeBahan];
+      }
+      if (itemConfig?.[EnumSelectionType.IncludeWarna] !== undefined) {
+        if (!newActionItem.selectedActionItem) {
+          newActionItem.selectedActionItem = {
+            type:
+              actionsData[groupIndex]?.items?.[index]?.type ||
+              existingAction?.selectedActionItem?.type ||
+              "",
+            label:
+              actionsData[groupIndex]?.items?.[index]?.label ||
+              existingAction?.selectedActionItem?.label ||
+              "",
+          };
+        }
+        (newActionItem.selectedActionItem as any)[EnumSelectionType.IncludeWarna] =
+          itemConfig[EnumSelectionType.IncludeWarna];
+      }
     } else {
       // In add mode, create new action from template data
       newActionItem = {
@@ -2250,6 +2362,37 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
         const actionValue = actionConfig?.value?.value || actionConfig?.value;
         (newActionItem.selectedActionItem as any)[EnumSelectionType.Action] =
           actionValue;
+      }
+
+      if (itemConfig?.[EnumSelectionType.IncludeProduk] !== undefined) {
+        if (!newActionItem.selectedActionItem) {
+          newActionItem.selectedActionItem = {
+            type: actionsData[groupIndex]?.items?.[index]?.type || "",
+            label: actionsData[groupIndex]?.items?.[index]?.label || "",
+          };
+        }
+        (newActionItem.selectedActionItem as any)[EnumSelectionType.IncludeProduk] =
+          itemConfig[EnumSelectionType.IncludeProduk];
+      }
+      if (itemConfig?.[EnumSelectionType.IncludeBahan] !== undefined) {
+        if (!newActionItem.selectedActionItem) {
+          newActionItem.selectedActionItem = {
+            type: actionsData[groupIndex]?.items?.[index]?.type || "",
+            label: actionsData[groupIndex]?.items?.[index]?.label || "",
+          };
+        }
+        (newActionItem.selectedActionItem as any)[EnumSelectionType.IncludeBahan] =
+          itemConfig[EnumSelectionType.IncludeBahan];
+      }
+      if (itemConfig?.[EnumSelectionType.IncludeWarna] !== undefined) {
+        if (!newActionItem.selectedActionItem) {
+          newActionItem.selectedActionItem = {
+            type: actionsData[groupIndex]?.items?.[index]?.type || "",
+            label: actionsData[groupIndex]?.items?.[index]?.label || "",
+          };
+        }
+        (newActionItem.selectedActionItem as any)[EnumSelectionType.IncludeWarna] =
+          itemConfig[EnumSelectionType.IncludeWarna];
       }
     }
 
@@ -2375,10 +2518,10 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
               value = userSelection;
             }
 
-            // Update the placeholder with user's selection
-            (actionToUpdate.selectedActionItem as any)[placeholder] = value;
-          }
-        });
+        // Update the placeholder with user's selection
+        (actionToUpdate.selectedActionItem as any)[placeholder] = value;
+      }
+    });
 
         // Update constant action field if present
         if (currentFormData[EnumSelectionType.Action]) {
@@ -2394,6 +2537,28 @@ const SelectAction: React.FC<SelectActionProps> = (props) => {
             actionToUpdate.selectedActionItem = { type: "", label: "" };
           }
           (actionToUpdate.selectedActionItem as any)[EnumSelectionType.Action] = actionValue;
+        }
+
+        if (currentFormData[EnumSelectionType.IncludeProduk] !== undefined) {
+          if (!actionToUpdate.selectedActionItem) {
+            actionToUpdate.selectedActionItem = { type: "", label: "" };
+          }
+          (actionToUpdate.selectedActionItem as any)[EnumSelectionType.IncludeProduk] =
+            currentFormData[EnumSelectionType.IncludeProduk];
+        }
+        if (currentFormData[EnumSelectionType.IncludeBahan] !== undefined) {
+          if (!actionToUpdate.selectedActionItem) {
+            actionToUpdate.selectedActionItem = { type: "", label: "" };
+          }
+          (actionToUpdate.selectedActionItem as any)[EnumSelectionType.IncludeBahan] =
+            currentFormData[EnumSelectionType.IncludeBahan];
+        }
+        if (currentFormData[EnumSelectionType.IncludeWarna] !== undefined) {
+          if (!actionToUpdate.selectedActionItem) {
+            actionToUpdate.selectedActionItem = { type: "", label: "" };
+          }
+          (actionToUpdate.selectedActionItem as any)[EnumSelectionType.IncludeWarna] =
+            currentFormData[EnumSelectionType.IncludeWarna];
         }
 
         // Update the specific action in the array
