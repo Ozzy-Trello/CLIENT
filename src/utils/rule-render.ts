@@ -16,7 +16,7 @@ export interface ValueLike {
 
 // Static mapping of Telegram channel IDs to friendly names
 const TELEGRAM_CHANNEL_NAMES: Record<string, string> = {
-  "-4933920951": "Test Notifikasi",
+  "-1003773553581": "Test Notifikasi",
   "-1002633960642": "Notifikasi Target Deal Maker (Supergroup)",
   "-1002790652396": "Notifikasi Output Bordir (Supergroup)",
   "-1002791018801": "Notifikasi Output Sewing (Supergroup)",
@@ -38,6 +38,7 @@ const TELEGRAM_CHANNEL_NAMES: Record<string, string> = {
   "-1003808184350": "Request Desain | Outlet",
   "-1003896691946": "List Purchase | Umum",
   "-1003194464606": "Komplain",
+  "-1003583079905": "List PO | Outlet",
 };
 
 // Utility function to prefetch and cache data for rule rendering
