@@ -91,6 +91,7 @@ export enum EnumSelectionType {
   Expression = "expression", // mathematical expression builder
   Operation = "operation", // mathematical operations
   Target = "target",
+  ThreadId = "thread_id",
   TelegramChannel = "telegram_channel", // Telegram channel selection
 }
 
@@ -236,6 +237,7 @@ export enum ActionType {
 
   // Telegram notifications
   SendTelegramChannelNotification = `send-telegram-notification-to-<${EnumSelectionType.TelegramChannel}>-with-message-<${EnumSelectionType.TextInput}>-and-custom-fields-<${EnumSelectionType.MultiFields}>`,
+  SendTelegramForumNotification = `send-telegram-forum-notification-to-<${EnumSelectionType.TelegramChannel}>-thread-<${EnumSelectionType.ThreadId}>-with-message-<${EnumSelectionType.TextInput}>-and-custom-fields-<${EnumSelectionType.MultiFields}>`,
 }
 
 // filter type

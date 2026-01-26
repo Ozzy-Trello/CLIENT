@@ -294,6 +294,35 @@ const SelectOption = ({
     );
   }
 
+  if (placeholder === EnumSelectionType.ThreadId) {
+    const currentValue =
+      (actionsData[groupIndex]?.items?.[index] as any)?.[placeholder]?.value ||
+      "";
+
+    return (
+      <Input
+        style={{ width: "150px" }}
+        type="number"
+        value={currentValue}
+        onChange={(e) => {
+          const value = e.target.value;
+          setActionsData((prev) => {
+            const updated = [...prev];
+            if (updated[groupIndex]?.items?.[index]) {
+              (updated[groupIndex].items[index] as any)[placeholder] = {
+                ...(updated[groupIndex].items[index] as any)[placeholder],
+                value,
+              };
+            }
+            return updated;
+          });
+        }}
+        className="mx-2"
+        placeholder="Thread ID"
+      />
+    );
+  }
+
   // Check if this should render as ListSelection
   if (
     placeholder === EnumSelectionType.List ||

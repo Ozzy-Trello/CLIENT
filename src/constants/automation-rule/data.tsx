@@ -2658,6 +2658,27 @@ export const actions: AutomationRuleAction[] = [
           value: null,
         },
       },
+      {
+        type: ActionType.SendTelegramForumNotification,
+        label:
+          "Send Telegram forum notification to <telegram_channel> thread <thread_id> with message <text_input> and custom fields <multi_fields>",
+        [EnumSelectionType.TelegramChannel]: {
+          options: [],
+          value: null,
+        },
+        [EnumSelectionType.ThreadId]: {
+          placeholder: "Enter thread ID number...",
+          value: "",
+        },
+        [EnumSelectionType.TextInput]: {
+          placeholder: "Enter your message here (use {cardname}, {listname}, {boardname} as placeholders)...",
+          value: "",
+        },
+        [EnumSelectionType.MultiFields]: {
+          options: [],
+          value: null,
+        },
+      },
     ],
   },
 ];

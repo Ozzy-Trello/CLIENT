@@ -240,6 +240,20 @@ const NewRulePage: React.FC = () => {
       ) {
         actionCondition[EnumSelectionType.Channel] = "telegram";
       }
+      if (
+        action.selectedActionItem?.type ===
+          ActionType.SendTelegramForumNotification &&
+        !actionCondition[EnumSelectionType.Action]
+      ) {
+        actionCondition[EnumSelectionType.Action] = EnumActions.Notify;
+      }
+      if (
+        action.selectedActionItem?.type ===
+          ActionType.SendTelegramForumNotification &&
+        !actionCondition[EnumSelectionType.Channel]
+      ) {
+        actionCondition[EnumSelectionType.Channel] = "telegram_forum";
+      }
 
       // Ensure constant action field is included even if not in placeholders
       if (
