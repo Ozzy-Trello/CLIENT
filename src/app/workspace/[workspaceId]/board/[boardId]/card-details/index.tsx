@@ -57,7 +57,7 @@ import { useBoardPermissionsContext } from "@providers/board-permissions-context
 import { selectUser } from "@store/app_slice";
 import { selectCurrentBoard } from "@store/workspace_slice";
 import { LookupCache } from "@utils/lookup-cache";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useSelector } from "react-redux";
 import Actions from "./actions";
 import BahanFields from "./bahan-fields";
@@ -76,6 +76,7 @@ import { createCardAttachment } from "@api/card_attachment";
 
 const CardDetails: React.FC = (props) => {
   const params = useParams();
+  const searchParams = useSearchParams();
   const workspaceId = Array.isArray(params.workspaceId)
     ? params.workspaceId[0]
     : params.workspaceId;
@@ -138,15 +139,30 @@ const CardDetails: React.FC = (props) => {
     cachedBoardName ||
     process.env.NEXT_PUBLIC_APP_TITLE ||
     "Ozzy Clothing Production";
+  const cardIdQuery = searchParams.get("cardId");
+  const listIdQuery = searchParams.get("listId");
 
   useEffect(() => {
     if (typeof document === "undefined") return;
-    if (isCardDetailOpen && selectedCard?.name) {
-      document.title = `${selectedCard.name} | ${boardName}`;
-    } else {
-      document.title = boardName;
-    }
-  }, [isCardDetailOpen, selectedCard?.name, boardName]);
+    const desiredTitle =
+      isCardDetailOpen && selectedCard?.name
+        ? `${selectedCard.name} | ${boardName}`
+        : boardName;
+
+    // Next.js can update <title> after navigation; re-apply on next ticks to win.
+    document.title = desiredTitle;
+    const t0 = window.setTimeout(() => {
+      if (document.title !== desiredTitle) document.title = desiredTitle;
+    }, 0);
+    const t1 = window.setTimeout(() => {
+      if (document.title !== desiredTitle) document.title = desiredTitle;
+    }, 80);
+
+    return () => {
+      window.clearTimeout(t0);
+      window.clearTimeout(t1);
+    };
+  }, [isCardDetailOpen, selectedCard?.name, boardName, cardIdQuery, listIdQuery]);
 
   useEffect(() => {
     if (!isCardDetailOpen) {

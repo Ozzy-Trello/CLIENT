@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useCardDetailContext } from "@providers/card-detail-context";
 import { useSelector } from "react-redux";
-import { selectTheme } from "@store/app_slice";
+import { selectTheme, selectUser } from "@store/app_slice";
 import {
   getCardButtonsForBoard,
   executeCardButton,
@@ -60,6 +60,24 @@ const AutomateButtons: React.FC = () => {
 
     fetchCardButtons();
   }, [workspaceId, boardId]);
+
+  // Hardcoded role permissions
+  const ALLOWED_ROLES: Record<string, string[]> = {
+    "Revisi": ["Adm Produksi", "Kepala Produksi"],
+    "Konfirm Bordir": ["Spv Desainer Bordir", "Desainer Bordir"],
+    "Split Job": ["SPV Sewing", "Kepala Produksi"]
+  };
+
+  const currentUser = useSelector(selectUser);
+
+  // Filter buttons based on role
+  const visibleButtons = cardButtons.filter(button => {
+    const allowedRoles = ALLOWED_ROLES[button.label];
+    if (!allowedRoles) return true; // Visible to everyone if not in the list
+    
+    const userRole = (currentUser as any)?.roleName || (currentUser as any)?.role?.name;
+    return userRole && allowedRoles.includes(userRole);
+  });
 
   const handleButtonClick = async (button: CardButton) => {
     if (!selectedCard?.id || !workspaceId || !boardId) {
@@ -128,7 +146,7 @@ const AutomateButtons: React.FC = () => {
       <div className="w-full rounded-lg">
       {/* Card Buttons */}
       <div className={isAutomationRunning ? "pointer-events-none" : ""}>
-        {cardButtons.map((button) => (
+        {visibleButtons.map((button) => (
           <Tooltip
             key={button.id}
             title={`Execute automation: ${button.label}`}
