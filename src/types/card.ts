@@ -85,8 +85,8 @@ export interface Card {
   board_name?: string;
   workspace_id?: string;
   workspace_name?: string;
-  short_id?: number;
-  po_amount?: number;
+  attachmentCount?: number;
+  commentCount?: number;
 }
 
 export enum EnumAttachmentType {

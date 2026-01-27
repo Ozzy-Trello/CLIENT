@@ -264,13 +264,13 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
           <TouchAwareTooltip title={"comments"}>
             <div className="flex items-center gap-1 text-[10px]">
               <MessageSquare size={12} strokeWidth={2} className="font-bold" />
-              <span className="text-sm">{card?.activity?.length || 0}</span>
+              <span className="text-sm">{card?.commentCount || 0}</span>
             </div>
           </TouchAwareTooltip>
           <TouchAwareTooltip title={"attachments"}>
             <div className="flex items-center gap-1 text-[10px]">
               <Paperclip size={12} strokeWidth={2} />
-              <span className="text-sm">{card?.attachments?.length || 0}</span>
+              <span className="text-sm">{card?.attachmentCount || 0}</span>
             </div>
           </TouchAwareTooltip>
           {/* <div className="text-green-600 text-[14px]">
