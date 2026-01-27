@@ -90,6 +90,8 @@ const Description: React.FC<{
     }
   }, [card?.description, isEditingDescription]);
 
+  const readOnlyDescription = card.description || newDescription;
+
   return (
     <div className="mt-6">
       <div className="flex items-center justify-between mb-2">
@@ -168,10 +170,10 @@ const Description: React.FC<{
             color: `rgb(${colors.text})`,
           }}
         >
-          {card.description ? (
+          {readOnlyDescription ? (
             <div
               className="prose prose-sm max-w-none"
-              dangerouslySetInnerHTML={{ __html: card.description || newDescription }}
+              dangerouslySetInnerHTML={{ __html: readOnlyDescription }}
             />
           ) : (
             <span style={{ color: `rgb(${colors["text-muted"]})` }}>
