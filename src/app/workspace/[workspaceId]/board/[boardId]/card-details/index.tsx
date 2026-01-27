@@ -20,6 +20,7 @@ import {
   Camera,
   Clock,
   Copy,
+  X,
   Info,
   ListRestart,
   MessageSquare,
@@ -854,16 +855,17 @@ const CardDetails: React.FC = (props) => {
               ]}
               title="Camera"
               width={420}
+              centered
               styles={{ body: { padding: 0 } }}
               destroyOnClose
             >
-              <div className="w-full bg-black">
+              <div className="w-full bg-black overflow-hidden">
                 <video
                   ref={videoRef}
                   autoPlay
                   playsInline
                   muted
-                  className="w-full h-auto"
+                  className="w-full h-auto max-h-[45vh] object-contain"
                 />
               </div>
             </Modal>
@@ -1207,6 +1209,11 @@ const CardDetails: React.FC = (props) => {
       className="modal-card-form full-height-modal"
       width="min(1050px, 95vw)"
       destroyOnClose
+      closeIcon={
+        <span className="inline-flex items-center justify-center rounded-md bg-red-50 hover:bg-red-100 text-red-600 p-1 transition-colors">
+          <X size={16} />
+        </span>
+      }
     >
       <div className="overflow-x-hidden max-w-full relative">
         {isDraggingFiles && (

@@ -8,7 +8,7 @@ import {
   FormOutlined,
   TagOutlined,
 } from "@ant-design/icons";
-import { Bot } from "lucide-react";
+import { Bot, Download } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
 import { selectCurrentBoard } from "@store/workspace_slice";
@@ -31,6 +31,7 @@ import {
   createCustomField,
 } from "@api/custom_field";
 import { EnumCustomFieldType, CustomField } from "@myTypes/custom-field";
+import { useExportBoardCSV } from "@hooks/board";
 
 interface BoardMenuSidebarProps {
   visible: boolean;
@@ -127,6 +128,38 @@ const BoardScopeMenu: React.FC<BoardMenuSidebarProps> = ({
     refetch: refetchArchived,
   } = useArchivedCards(boardIdString, searchArchived, archivedOpen);
   const archivedCards: Card[] = archivedResp?.data || [];
+  const exportBoardMutation = useExportBoardCSV();
+
+  const handleExportBoardCSV = () => {
+    if (!boardIdString || !resolvedWorkspaceId) {
+      message.error(
+        "Board or workspace information is missing. Please refresh and try again."
+      );
+      return;
+    }
+
+    exportBoardMutation.mutate(
+      {
+        boardId: boardIdString,
+        workspaceId: resolvedWorkspaceId,
+      },
+      {
+        onSuccess: (result) => {
+          const headerFilename = parseFilenameFromContentDisposition(
+            result.filename
+          );
+          const downloadName =
+            headerFilename ||
+            formatExportFilename(currentBoard?.name, boardIdString);
+          downloadBlob(result.blob, downloadName);
+          message.success("Board CSV export started");
+        },
+        onError: () => {
+          message.error("Failed to export board CSV");
+        },
+      }
+    );
+  };
 
   const onClose = () => {
     setIsVisible(false);
@@ -180,6 +213,40 @@ const BoardScopeMenu: React.FC<BoardMenuSidebarProps> = ({
       return EnumCustomFieldType.Checkbox;
     if (unique.length <= 10) return EnumCustomFieldType.Dropdown;
     return EnumCustomFieldType.Text;
+  };
+
+  const parseFilenameFromContentDisposition = (
+    contentDisposition?: string
+  ): string | undefined => {
+    if (!contentDisposition) return undefined;
+    const matches = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(
+      contentDisposition
+    );
+    if (!matches || !matches[1]) return undefined;
+    return matches[1].replace(/['"]/g, "");
+  };
+
+  const formatExportFilename = (
+    boardName?: string,
+    fallback?: string
+  ): string => {
+    const baseName = boardName?.trim() || fallback || "board";
+    const cleaned = baseName
+      .replace(/[^a-zA-Z0-9\s-_]/g, "")
+      .trim()
+      .replace(/\s+/g, "_");
+    return `${cleaned || "board"}.csv`;
+  };
+
+  const downloadBlob = (blob: Blob, filename: string) => {
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
   };
 
   const handleClickupParseComplete = async (_file: File, rows: any[]) => {
@@ -474,6 +541,17 @@ const BoardScopeMenu: React.FC<BoardMenuSidebarProps> = ({
                 ? "You don't have permission to manage automation"
                 : undefined
             }
+          />
+
+          <MenuItem
+            icon={<Download size={16} />}
+            text={
+              exportBoardMutation.isPending
+                ? "Exporting..."
+                : "Export board CSV"
+            }
+            onClick={handleExportBoardCSV}
+            disabled={exportBoardMutation.isPending}
           />
 
           <MenuItem
