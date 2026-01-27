@@ -1,6 +1,12 @@
 import { AnyList } from "@myTypes/list";
 import { UseMutateFunction } from "@tanstack/react-query";
-import { useDeleteAllCardsInList, useArchiveList, useMoveAllCardsInList, useArchiveAllCardsInList, useLists } from "@hooks/list";
+import {
+  useDeleteAllCardsInList,
+  useArchiveList,
+  useMoveAllCardsInList,
+  useArchiveAllCardsInList,
+  useLists,
+} from "@hooks/list";
 import { useBoards } from "@hooks/board";
 import {
   Button,
@@ -78,18 +84,19 @@ const ListName: React.FC<ListNameProps> = ({
   const activeSortOption =
     LIST_SORT_OPTIONS.find((option) => option.key === currentSortKey) ??
     LIST_SORT_OPTIONS[0];
-  const filterableSortGroups = useMemo(() => {
-    const groups: Record<string, ListSortOption[]> = {};
-    LIST_SORT_OPTIONS.filter((option) => option.showInFilter).forEach(
-      (option) => {
-        const groupKey = option.group || "Sort";
-        groups[groupKey] = groups[groupKey] ?? [];
-        groups[groupKey].push(option);
-      }
-    );
-    return groups;
-  }, []);
-  const [sortPopoverOpen, setSortPopoverOpen] = useState(false);
+
+
+  const [menuView, setMenuView] = useState<
+    "main" | "sort" | "color" | "move" | "limit" | "actions"
+  >("main");
+  
+  const handlePopoverOpenChange = (open: boolean) => {
+    setActionsPopoverOpen(open);
+    if (!open) {
+      setTimeout(() => setMenuView("main"), 300);
+    }
+  };
+
 
   // Get current user for super admin check
   const currentUser = useSelector(selectUser);
@@ -103,22 +110,26 @@ const ListName: React.FC<ListNameProps> = ({
 
   // Hook for deleting all cards in the list
   const { deleteAllCards, isDeletingAllCards } = useDeleteAllCardsInList();
-  const { archiveList: archiveListMutate, isArchivingList } = useArchiveList(boardId);
+  const { archiveList: archiveListMutate, isArchivingList } =
+    useArchiveList(boardId);
   const { moveAllCards, isMovingAllCards } = useMoveAllCardsInList();
   const { archiveAllCards, isArchivingAllCards } = useArchiveAllCardsInList();
   const [targetBoardId, setTargetBoardId] = useState<string>(boardId);
   const { lists: moveLists, isLoading: isLoadingMoveLists } = useLists(
-    targetBoardId || boardId
+    targetBoardId || boardId,
   );
   const { boards: availableBoards, isLoading: isLoadingBoards } = useBoards(
-    workspaceId || ""
+    workspaceId || "",
   );
-  const { canArchiveList, canMoveCard, canUpdateCard } = useBoardPermissionsContext();
+  const { canArchiveList, canMoveCard, canUpdateCard } =
+    useBoardPermissionsContext();
 
-  const [targetListId, setTargetListId] = useState<string | undefined>(undefined);
+  const [targetListId, setTargetListId] = useState<string | undefined>(
+    undefined,
+  );
 
   const [tempLimit, setTempLimit] = useState<number | null>(
-    list.cardLimit || 0
+    list.cardLimit || 0,
   );
 
   const handleListNameClick = (): void => {
@@ -127,7 +138,7 @@ const ListName: React.FC<ListNameProps> = ({
   };
 
   const handleListNameOnChange = (
-    e: React.ChangeEvent<HTMLInputElement>
+    e: React.ChangeEvent<HTMLInputElement>,
   ): void => {
     setNewListName(e.target.value);
   };
@@ -161,33 +172,11 @@ const ListName: React.FC<ListNameProps> = ({
     setNewListName("");
   };
 
-  const sortFilterContent = (
-    <div className="w-52 space-y-4 text-sm">
-      {Object.entries(filterableSortGroups).map(([group, options]) => (
-        <div key={group}>
-          <div className="text-[10px] uppercase tracking-[0.2em] text-gray-500 mb-1">
-            {group}
-          </div>
-          <div className="grid grid-cols-2 gap-1">
-            {options.map((option) => (
-              <Button
-                key={option.key}
-                size="small"
-                type={currentSortKey === option.key ? "primary" : "text"}
-                className="text-xs leading-tight px-2 py-1 rounded-md"
-                onClick={() => {
-                  onSortChange(option.key);
-                  setSortPopoverOpen(false);
-                }}
-              >
-                {option.label}
-              </Button>
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
+  const applySort = (key: ListSortKey) => {
+    onSortChange(key);
+    const label = LIST_SORT_OPTIONS.find((opt) => opt.key === key)?.label;
+    message.success(`Sorted by ${label || "selected"}`);
+  };
 
   const handleDeleteList = () => {
     Modal.confirm({
@@ -251,15 +240,14 @@ const ListName: React.FC<ListNameProps> = ({
             onSuccess: (response) => {
               const deletedCount = response?.data?.deleted_count || 0;
               message.success(
-                `Successfully deleted all card${deletedCount !== 1 ? "s" : ""}!`
+                `Successfully deleted all card${deletedCount !== 1 ? "s" : ""}!`,
               );
-              setActionsPopoverOpen(false);
             },
             onError: (error) => {
               message.error("Failed to delete cards. Please try again.");
               console.error("Delete all cards error:", error);
             },
-          }
+          },
         );
       },
     });
@@ -311,31 +299,62 @@ const ListName: React.FC<ListNameProps> = ({
     };
   }, [isEditListName, newListName]);
 
-  const actionsContent = (
+  const sortActionsContent = (
+    <div className="space-y-1">
+      <div className="flex items-center gap-2 mb-2 pb-2 border-b">
+        <Button
+          size="small"
+          type="text"
+          icon={<ChevronsLeft size={16} />}
+          onClick={() => setMenuView("main")}
+        />
+        <span className="text-sm font-medium">Sort List</span>
+      </div>
+      {LIST_SORT_OPTIONS.map((option) => (
+        <Button
+          key={option.key}
+          size="small"
+          type={currentSortKey === option.key ? "primary" : "text"}
+          block
+          onClick={() => applySort(option.key)}
+          className="text-left justify-start"
+        >
+          {option.label}
+        </Button>
+      ))}
+    </div>
+  );
+
+  const colorActionsContent = (
     <div className="w-64 p-2">
-      {/* Color Selection */}
-      <div className="mb-4">
-        <div className="text-sm font-medium mb-2">List Color</div>
-        <div className="grid grid-cols-5 gap-2">
-          {colorOptions.map((color) => (
-            <button
-              key={color}
-              className={`w-8 h-8 rounded border-2 ${
-                list.background === color
-                  ? "border-gray-800"
-                  : "border-gray-300"
-              }`}
-              style={{ backgroundColor: color }}
-              onClick={() => {
-                updateList({
-                  listId: list.id,
-                  updates: { background: color },
-                });
-                setActionsPopoverOpen(false);
-              }}
-            />
-          ))}
-        </div>
+      <div className="flex items-center gap-2 mb-2 pb-2 border-b">
+        <Button
+          size="small"
+          type="text"
+          icon={<ChevronsLeft size={16} />}
+          onClick={() => setMenuView("main")}
+        />
+        <span className="text-sm font-medium">List Color</span>
+      </div>
+      <div className="grid grid-cols-5 gap-2">
+        {colorOptions.map((color) => (
+          <button
+            key={color}
+            className={`w-8 h-8 rounded border-2 ${
+              list.background === color
+                ? "border-gray-800"
+                : "border-gray-300"
+            }`}
+            style={{ backgroundColor: color }}
+            onClick={() => {
+              updateList({
+                listId: list.id,
+                updates: { background: color },
+              });
+            }}
+          />
+        ))}
+      </div>
       <button
         onClick={() => {
           updateList({
@@ -343,138 +362,128 @@ const ListName: React.FC<ListNameProps> = ({
             updates: { background: "#ffffff" },
           });
           message.success("List color removed!");
-          setActionsPopoverOpen(false);
         }}
-        className="w-full mt-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded flex items-center justify-center gap-2"
+        className="w-full mt-3 py-2 px-3 text-sm text-gray-600 hover:bg-gray-100 rounded flex items-center justify-start gap-2"
       >
         <span>✕</span> Remove color
       </button>
     </div>
+  );
 
-    {/* Sort Cards */}
-    <div className="mb-4">
-      <div className="text-sm font-medium mb-2">Sort cards</div>
-      <div className="space-y-2">
-        {LIST_SORT_OPTIONS.map((option) => (
-          <Button
-            key={option.key}
-            size="small"
-            type={currentSortKey === option.key ? "primary" : "text"}
-            block
-            onClick={() => {
-              onSortChange(option.key);
-              setActionsPopoverOpen(false);
-            }}
-          >
-            <div className="flex flex-col items-start text-left">
-              <span>{option.label}</span>
-              {option.description && (
-                <span className="text-xs text-gray-500">
-                  {option.description}
-                </span>
-              )}
-            </div>
-          </Button>
-        ))}
+  const moveActionsContent = (
+    <div className="w-64 p-2">
+      <div className="flex items-center gap-2 mb-2 pb-2 border-b">
+        <Button
+          size="small"
+          type="text"
+          icon={<ChevronsLeft size={16} />}
+          onClick={() => setMenuView("main")}
+        />
+        <span className="text-sm font-medium">Move all cards</span>
       </div>
-    </div>
-
-      {/* Move All Cards */}
-      {canMoveCard() && (
-        <div className="mb-4">
-          <div className="text-sm font-medium mb-2">Move all cards</div>
-          <Select
-            size="small"
-            placeholder="Select target board"
-            className="w-full mb-2"
-            value={targetBoardId}
-            onChange={(val) => {
-              setTargetBoardId(val);
-              setTargetListId(undefined);
-            }}
-            loading={isLoadingBoards}
-            options={(availableBoards || []).map((b) => ({
-              label: b.name,
-              value: b.id,
-            }))}
-          />
-          <Select
-            size="small"
-            placeholder="Select target list"
-            className="w-full mb-2"
-            value={targetListId}
-            onChange={(val) => setTargetListId(val)}
-            loading={isLoadingMoveLists}
-            disabled={!targetBoardId}
-            options={(moveLists || [])
-              .filter((l) => !(targetBoardId === boardId && l.id === list.id))
-              .map((l) => ({ label: l.name, value: l.id }))}
-          />
-          <Button
-            size="small"
-            type="primary"
-            disabled={!targetBoardId || !targetListId || isMovingAllCards}
-            loading={isMovingAllCards}
-            onClick={() => {
-              if (!targetListId) return;
-              Modal.confirm({
-                title: "Move all cards",
-                content: (
-                  <div className="py-4">
-                    <p className="mb-0">
-                      Move all cards from <strong>"{list.name}"</strong> to the selected list?
-                    </p>
-                    <p className="mb-0 text-gray-600 mt-2">
-                      This will move all cards
-                    </p>
-                  </div>
-                ),
-                okText: "Move",
-                cancelText: "Cancel",
-                centered: true,
-                onOk: () => {
-                  moveAllCards(
-                    { sourceListId: list.id, targetListId },
-                    {
-                      onSuccess: (res) => {
-                        queryClient.invalidateQueries({
-                          queryKey: queryKeys.cards.list(list.id),
-                          refetchType: "active",
-                        });
-                        queryClient.invalidateQueries({
-                          queryKey: queryKeys.cards.list(targetListId),
-                          refetchType: "active",
-                        });
-                        queryClient.invalidateQueries({
-                          queryKey: queryKeys.lists.all,
-                          refetchType: "active",
-                        });
-                        const moved = res?.data?.moved_count ?? undefined;
-                        message.success(
-                          moved != null
-                            ? `Moved ${moved} card${moved === 1 ? "" : "s"}`
-                            : "All cards moved"
-                        );
-                        setActionsPopoverOpen(false);
-                        setTargetListId(undefined);
-                      },
-                      onError: () => {
-                        message.error("Failed to move cards. Please try again.");
-                      },
-                    }
-                  );
+      <Select
+        size="small"
+        placeholder="Select target board"
+        className="w-full mb-2"
+        value={targetBoardId}
+        onChange={(val) => {
+          setTargetBoardId(val);
+          setTargetListId(undefined);
+        }}
+        loading={isLoadingBoards}
+        options={(availableBoards || []).map((b) => ({
+          label: b.name,
+          value: b.id,
+        }))}
+      />
+      <Select
+        size="small"
+        placeholder="Select target list"
+        className="w-full mb-2"
+        value={targetListId}
+        onChange={(val) => setTargetListId(val)}
+        loading={isLoadingMoveLists}
+        disabled={!targetBoardId}
+        options={(moveLists || [])
+          .filter((l) => !(targetBoardId === boardId && l.id === list.id))
+          .map((l) => ({ label: l.name, value: l.id }))}
+      />
+      <Button
+        size="small"
+        type="primary"
+        block
+        disabled={!targetBoardId || !targetListId || isMovingAllCards}
+        loading={isMovingAllCards}
+        onClick={() => {
+          if (!targetListId) return;
+          Modal.confirm({
+            title: "Move all cards",
+            content: (
+              <div className="py-4">
+                <p className="mb-0">
+                  Move all cards from <strong>"{list.name}"</strong> to the
+                  selected list?
+                </p>
+                <p className="mb-0 text-gray-600 mt-2">
+                  This will move all cards
+                </p>
+              </div>
+            ),
+            okText: "Move",
+            cancelText: "Cancel",
+            centered: true,
+            onOk: () => {
+              moveAllCards(
+                { sourceListId: list.id, targetListId },
+                {
+                  onSuccess: (res) => {
+                    queryClient.invalidateQueries({
+                      queryKey: queryKeys.cards.list(list.id),
+                      refetchType: "active",
+                    });
+                    queryClient.invalidateQueries({
+                      queryKey: queryKeys.cards.list(targetListId),
+                      refetchType: "active",
+                    });
+                    queryClient.invalidateQueries({
+                      queryKey: queryKeys.lists.all,
+                      refetchType: "active",
+                    });
+                    const moved = res?.data?.moved_count ?? undefined;
+                    message.success(
+                      moved != null
+                        ? `Moved ${moved} card${moved === 1 ? "" : "s"}`
+                        : "All cards moved",
+                    );
+                    setTargetListId(undefined);
+                  },
+                  onError: () => {
+                    message.error("Failed to move cards. Please try again.");
+                  },
                 },
-              });
-            }}
-          >
-            Move
-          </Button>
-        </div>
-      )}
+              );
+            },
+          });
+        }}
+      >
+        Move
+      </Button>
+    </div>
+  );
 
-      {/* Limit Setting */}
-      <div className="mb-4">
-        <div className="text-sm font-medium mb-2">Card Limit</div>
+  const limitActionsContent = (
+    <div className="w-64 p-2">
+      <div className="flex items-center gap-2 mb-2 pb-2 border-b">
+        <Button
+          size="small"
+          type="text"
+          icon={<ChevronsLeft size={16} />}
+          onClick={() => setMenuView("main")}
+        />
+        <span className="text-sm font-medium">Card Limit</span>
+      </div>
+      <div className="mb-2">
+        <div className="text-xs text-gray-500 mb-1">Max cards in this list</div>
         <div className="flex items-center gap-2">
           <InputNumber
             size="small"
@@ -494,7 +503,6 @@ const ListName: React.FC<ListNameProps> = ({
                   updates: { cardLimit: tempLimit },
                 });
                 message.success(`List limit set to ${tempLimit}`);
-                setActionsPopoverOpen(false);
               }
             }}
           >
@@ -502,127 +510,212 @@ const ListName: React.FC<ListNameProps> = ({
           </Button>
         </div>
       </div>
+    </div>
+  );
 
+  const otherActionsContent = (
+    <div className="w-64 p-2">
+      <div className="flex items-center gap-2 mb-2 pb-2 border-b">
+        <Button
+          size="small"
+          type="text"
+          icon={<ChevronsLeft size={16} />}
+          onClick={() => setMenuView("main")}
+        />
+        <span className="text-sm font-medium">Actions</span>
+      </div>
       {/* Super Admin Only Section */}
       {isSuperAdmin && (
-      <div className="border-t pt-2">
-        {canArchiveList() && (
-          <>
-            <Button
-              type="text"
-              block
-              onClick={() => {
-                Modal.confirm({
-                  title: "Archive all cards",
-                  content: (
-                    <div className="py-4">
-                      <p className="mb-0">
-                        Archive all cards in <strong>"{list.name}"</strong>?
-                      </p>
-                      <p className="mb-0 text-gray-600 mt-2">
-                        This will move all cards
-                      </p>
-                    </div>
-                  ),
-                  okText: "Archive",
-                  cancelText: "Cancel",
-                  centered: true,
-                  onOk: () => {
-                    archiveAllCards(
-                      { listId: list.id },
-                      {
-                        onSuccess: (res) => {
-                          const archivedCount = res?.data?.archived_count || cardsCount;
-                          message.success(
-                            `Archived ${archivedCount} card${archivedCount === 1 ? "" : "s"}`
-                          );
-                          setActionsPopoverOpen(false);
+        <>
+          {canArchiveList() && (
+            <>
+              <Button
+                type="text"
+                block
+                onClick={() => {
+                  Modal.confirm({
+                    title: "Archive all cards",
+                    content: (
+                      <div className="py-4">
+                        <p className="mb-0">
+                          Archive all cards in <strong>"{list.name}"</strong>?
+                        </p>
+                        <p className="mb-0 text-gray-600 mt-2">
+                          This will move all cards
+                        </p>
+                      </div>
+                    ),
+                    okText: "Archive",
+                    cancelText: "Cancel",
+                    centered: true,
+                    onOk: () => {
+                      archiveAllCards(
+                        { listId: list.id },
+                        {
+                          onSuccess: (res) => {
+                            const archivedCount =
+                              res?.data?.archived_count || cardsCount;
+                            message.success(
+                              `Archived ${archivedCount} card${
+                                archivedCount === 1 ? "" : "s"
+                              }`,
+                            );
+                          },
+                          onError: () => {
+                            message.error("Failed to archive cards.");
+                          },
                         },
-                        onError: () => {
-                          message.error("Failed to archive cards.");
-                        },
-                      }
-                    );
-                  },
-                });
-              }}
-              className="text-left justify-start mb-2"
-              disabled={cardsCount === 0 || isArchivingAllCards}
-              loading={isArchivingAllCards}
-            >
-              Archive all cards in this list
-            </Button>
+                      );
+                    },
+                  });
+                }}
+                className="text-left justify-start mb-2"
+                disabled={cardsCount === 0 || isArchivingAllCards}
+                loading={isArchivingAllCards}
+              >
+                Archive all cards in this list
+              </Button>
 
-            <Button
-              type="text"
-              block
-              onClick={() => {
-                Modal.confirm({
-                  title: "Archive List",
-                  content: (
-                    <div className="py-4">
-                      <p className="mb-0">
-                        Are you sure you want to archive <strong>"{list.name}"</strong>?
-                      </p>
-                      <p className="mb-0 text-gray-600 mt-2">
-                        The list will be hidden from the board but can be restored later.
-                      </p>
-                    </div>
-                  ),
-                  okText: "Archive",
-                  cancelText: "Cancel",
-                  centered: true,
-                  onOk: () => {
-                    archiveListMutate(
-                      { listId: list.id },
-                      {
-                        onSuccess: () => {
-                          message.success("List archived successfully!");
-                          setActionsPopoverOpen(false);
+              <Button
+                type="text"
+                block
+                onClick={() => {
+                  Modal.confirm({
+                    title: "Archive List",
+                    content: (
+                      <div className="py-4">
+                        <p className="mb-0">
+                          Are you sure you want to archive{" "}
+                          <strong>"{list.name}"</strong>?
+                        </p>
+                        <p className="mb-0 text-gray-600 mt-2">
+                          The list will be hidden from the board but can be
+                          restored later.
+                        </p>
+                      </div>
+                    ),
+                    okText: "Archive",
+                    cancelText: "Cancel",
+                    centered: true,
+                    onOk: () => {
+                      archiveListMutate(
+                        { listId: list.id },
+                        {
+                          onSuccess: () => {
+                            message.success("List archived successfully!");
+                          },
+                          onError: () => {
+                            message.error("Failed to archive list.");
+                          },
                         },
-                        onError: () => {
-                          message.error("Failed to archive list.");
-                        },
-                      }
-                    );
-                  },
-                });
-              }}
-              className="text-left justify-start mb-2"
-              disabled={isArchivingList}
-              loading={isArchivingList}
-            >
-              Archive List
-            </Button>
-          </>
-        )}
+                      );
+                    },
+                  });
+                }}
+                className="text-left justify-start mb-2"
+                disabled={isArchivingList}
+                loading={isArchivingList}
+              >
+                Archive List
+              </Button>
+            </>
+          )}
 
-        <Button
-          type="text"
-          danger
-          block
-          onClick={() => {
-            handleDeleteAllCards();
-          }}
-          className="text-left justify-start mb-2"
-          disabled={cardsCount === 0 || isDeletingAllCards}
-          loading={isDeletingAllCards}
-        >
-          Delete all cards in this list
-        </Button>
-        <Button
-          type="text"
-          danger
-          block
-          onClick={() => {
-            handleDeleteList();
-            setActionsPopoverOpen(false);
-          }}
-          className="text-left justify-start"
-        >
-          Delete List
-        </Button>
-      </div>
+          <Button
+            type="text"
+            danger
+            block
+            onClick={() => {
+              handleDeleteAllCards();
+            }}
+            className="text-left justify-start mb-2"
+            disabled={cardsCount === 0 || isDeletingAllCards}
+            loading={isDeletingAllCards}
+          >
+            Delete all cards in this list
+          </Button>
+          <Button
+            type="text"
+            danger
+            block
+            onClick={() => {
+              handleDeleteList();
+            }}
+            className="text-left justify-start"
+          >
+            Delete List
+          </Button>
+        </>
+      )}
+    </div>
+  );
+
+  const actionsContent = (
+    <div className="w-64 p-2">
+      {menuView === "sort" && sortActionsContent}
+      {menuView === "color" && colorActionsContent}
+      {menuView === "move" && moveActionsContent}
+      {menuView === "limit" && limitActionsContent}
+      {menuView === "actions" && otherActionsContent}
+      
+      {menuView === "main" && (
+        <div className="space-y-1">
+          {/* Sort Cards Button */}
+          <Button
+            block
+            size="small"
+            onClick={() => setMenuView("sort")}
+            className="text-left justify-start"
+          >
+            Sort by
+          </Button>
+
+          {/* List Color Button */}
+          <Button
+            block
+            size="small"
+            onClick={() => setMenuView("color")}
+            className="text-left justify-start"
+          >
+            List Color
+          </Button>
+
+          {/* Move All Cards Button */}
+          {canMoveCard() && (
+            <Button
+              block
+              size="small"
+              onClick={() => setMenuView("move")}
+              className="text-left justify-start"
+            >
+              Move all cards
+            </Button>
+          )}
+
+          {/* Card Limit Button */}
+          <Button
+            block
+            size="small"
+            onClick={() => setMenuView("limit")}
+            className="text-left justify-start"
+          >
+            Card Limit
+          </Button>
+
+          {/* Other Actions Button */}
+          {isSuperAdmin && (
+             <Button
+             block
+             size="small"
+             danger
+             onClick={() => setMenuView("actions")}
+             className="text-left justify-start mt-2 border-t pt-2 rounded-t-none"
+             style={{ marginTop: '0.5rem' }}
+           >
+             Archive / Delete
+           </Button>
+          )}
+        </div>
       )}
     </div>
   );
@@ -642,8 +735,8 @@ const ListName: React.FC<ListNameProps> = ({
           borderColor: isLimitExceeded
             ? "#f59e0b"
             : headerColor
-            ? `${headerColor}30`
-            : undefined,
+              ? `${headerColor}30`
+              : undefined,
         }}
       >
         {isEditListName ? (
@@ -689,48 +782,7 @@ const ListName: React.FC<ListNameProps> = ({
               </Button>
             </Tooltip>
           )}
-          <div className="flex items-center gap-2">
-            <div
-              className="rounded-full px-2 py-1 text-xs font-medium"
-              style={{
-                backgroundColor: isLimitExceeded
-                  ? "#f59e0b"
-                  : headerColor
-                  ? `${headerColor}40`
-                  : "#e5e7eb",
-                color: isLimitExceeded ? "#ffffff" : "black",
-              }}
-            >
-              {list.cardLimit != null && list.cardLimit > 0
-                ? `${cardsCount} of ${totalCards} | limit ${list.cardLimit}`
-                : `${cardsCount} of ${totalCards}`}
-            </div>
-            <Popover
-              content={sortFilterContent}
-              trigger="click"
-              open={sortPopoverOpen}
-              overlayClassName="max-w-[280px] p-2"
-              placement="bottom"
-              onOpenChange={setSortPopoverOpen}
-            >
-              <Button
-                type={sortPopoverOpen ? "primary" : "text"}
-                size="small"
-                icon={<Filter size={16} />}
-                aria-label="Sort options"
-                style={{
-                  color:
-                    currentSortKey !== "manual" && !sortPopoverOpen
-                      ? "#0f62fe"
-                      : undefined,
-                  backgroundColor:
-                    currentSortKey !== "manual" && !sortPopoverOpen
-                      ? "#e0edff"
-                      : undefined,
-                }}
-              />
-            </Popover>
-          </div>
+
           {/* Collapse list button */}
           {/* <Tooltip title={"collapse list"}>
             <Button
@@ -773,7 +825,7 @@ const ListName: React.FC<ListNameProps> = ({
             trigger="click"
             placement="bottomRight"
             open={actionsPopoverOpen}
-            onOpenChange={setActionsPopoverOpen}
+            onOpenChange={handlePopoverOpenChange}
           >
             <Tooltip title={"List actions"}>
               <Button
