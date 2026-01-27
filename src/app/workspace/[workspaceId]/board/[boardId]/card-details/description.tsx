@@ -91,6 +91,102 @@ const Description: React.FC<{
   }, [card?.description, isEditingDescription]);
 
   const readOnlyDescription = card.description || newDescription;
+  const normalizedReadOnlyDescription = (() => {
+    if (!readOnlyDescription) return "";
+    if (typeof window === "undefined") return readOnlyDescription;
+
+    try {
+      const doc = new DOMParser().parseFromString(
+        readOnlyDescription,
+        "text/html"
+      );
+
+      // Quill sometimes stores bullet lists as <ol><li data-list="bullet">...</li></ol>
+      // and indentation via class names like "ql-indent-1". Convert to more standard HTML.
+      const ols = Array.from(doc.querySelectorAll("ol"));
+      for (const ol of ols) {
+        const lis = Array.from(ol.querySelectorAll(":scope > li"));
+        if (!lis.length) continue;
+
+        const hasBullet = lis.some((li) => li.getAttribute("data-list") === "bullet");
+        const hasOrdered = lis.some(
+          (li) => li.getAttribute("data-list") === "ordered"
+        );
+
+        // Only convert when it is clearly a bullet list
+        if (hasBullet && !hasOrdered) {
+          const ul = doc.createElement("ul");
+          // preserve attributes/styles where possible
+          for (const attr of Array.from(ol.attributes)) {
+            ul.setAttribute(attr.name, attr.value);
+          }
+          while (ol.firstChild) {
+            ul.appendChild(ol.firstChild);
+          }
+          ol.replaceWith(ul);
+        }
+      }
+
+      // Remove Quill list markers
+      const listLis = Array.from(doc.querySelectorAll("li[data-list]"));
+      for (const li of listLis) {
+        li.removeAttribute("data-list");
+      }
+
+      // Convert Quill indentation classes to inline margins so it renders without Quill CSS
+      const indented = Array.from(
+        doc.querySelectorAll(
+          '[class*="ql-indent-"], [class*="ql-align-"], [class*="ql-direction-"]'
+        )
+      ) as HTMLElement[];
+      for (const el of indented) {
+        const classList = Array.from(el.classList);
+
+        const indentClass = classList.find((c) => c.startsWith("ql-indent-"));
+        if (indentClass) {
+          const n = Number(indentClass.replace("ql-indent-", ""));
+          if (Number.isFinite(n) && n > 0) {
+            const existing = el.getAttribute("style") || "";
+            const marginLeft = `${n * 1.5}em`;
+            el.setAttribute(
+              "style",
+              `${existing}${existing && !existing.trim().endsWith(";") ? ";" : ""}margin-left:${marginLeft};`
+            );
+          }
+          el.classList.remove(indentClass);
+        }
+
+        const alignClass = classList.find((c) => c.startsWith("ql-align-"));
+        if (alignClass) {
+          const align = alignClass.replace("ql-align-", "");
+          if (align === "center" || align === "right" || align === "justify") {
+            const existing = el.getAttribute("style") || "";
+            el.setAttribute(
+              "style",
+              `${existing}${existing && !existing.trim().endsWith(";") ? ";" : ""}text-align:${align};`
+            );
+          }
+          el.classList.remove(alignClass);
+        }
+      }
+
+      // Ensure lists have visible markers & indentation even without typography defaults
+      const lists = Array.from(doc.querySelectorAll("ul, ol")) as HTMLElement[];
+      for (const list of lists) {
+        const tag = list.tagName.toLowerCase();
+        const existing = list.getAttribute("style") || "";
+        const listStyle = tag === "ol" ? "decimal" : "disc";
+        list.setAttribute(
+          "style",
+          `${existing}${existing && !existing.trim().endsWith(";") ? ";" : ""}padding-left:1.25em;list-style:${listStyle};`
+        );
+      }
+
+      return doc.body.innerHTML;
+    } catch (e) {
+      return readOnlyDescription;
+    }
+  })();
 
   return (
     <div className="mt-6">
@@ -172,8 +268,8 @@ const Description: React.FC<{
         >
           {readOnlyDescription ? (
             <div
-              className="prose prose-sm max-w-none"
-              dangerouslySetInnerHTML={{ __html: readOnlyDescription }}
+              className="prose prose-sm max-w-none prose-ul:list-disc prose-ol:list-decimal prose-ul:pl-5 prose-ol:pl-5"
+              dangerouslySetInnerHTML={{ __html: normalizedReadOnlyDescription }}
             />
           ) : (
             <span style={{ color: `rgb(${colors["text-muted"]})` }}>
