@@ -40,6 +40,7 @@ const TELEGRAM_CHANNEL_NAMES: Record<string, string> = {
   "-1003194464606": "Komplain",
   "-1003583079905": "List PO | Outlet",
   "-1003722231738": "Delivery",
+  "-1003865555285": "General Affair"
 };
 
 // Utility function to prefetch and cache data for rule rendering
