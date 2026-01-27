@@ -1,5 +1,6 @@
 'use client';
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useCardDetailContext } from "@providers/card-detail-context";
 import { useSelector } from "react-redux";
 import { selectTheme } from "@store/app_slice";
@@ -19,18 +20,22 @@ interface CardButton {
 
 const AutomateButtons: React.FC = () => {
   const [cardButtons, setCardButtons] = useState<CardButton[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [isFetchingButtons, setIsFetchingButtons] = useState(false);
+  const [loadingByRuleId, setLoadingByRuleId] = useState<
+    Record<string, boolean>
+  >({});
   const { selectedCard, refetchCardDetails } = useCardDetailContext();
   const { workspaceId, boardId } = useParams();
   const theme = useSelector(selectTheme);
   const { colors } = theme;
+  const isAutomationRunning = Object.values(loadingByRuleId).some(Boolean);
 
   useEffect(() => {
     const fetchCardButtons = async () => {
       if (!workspaceId || !boardId) return;
 
       try {
-        setLoading(true);
+        setIsFetchingButtons(true);
         const response = await getCardButtonsForBoard(
           workspaceId as string,
           boardId as string
@@ -49,7 +54,7 @@ const AutomateButtons: React.FC = () => {
       } catch (error) {
         // message.error("Failed to load automation buttons");
       } finally {
-        setLoading(false);
+        setIsFetchingButtons(false);
       }
     };
 
@@ -63,20 +68,31 @@ const AutomateButtons: React.FC = () => {
     }
 
     try {
-      setLoading(true);
+      setLoadingByRuleId((prev) => ({ ...prev, [button.ruleId]: true }));
+      message.loading({
+        key: `automation-${button.ruleId}`,
+        content: `Running "${button.label}"...`,
+        duration: 0,
+      });
       await executeCardButton(
         workspaceId as string,
         boardId as string,
         button.ruleId,
         selectedCard.id
       );
-      message.success(`"${button.label}" executed successfully!`);
+      message.success({
+        key: `automation-${button.ruleId}`,
+        content: `"${button.label}" executed successfully!`,
+      });
       // Refetch card details to update the UI
       refetchCardDetails();
     } catch (error) {
-      message.error(`Failed to execute "${button.label}"`);
+      message.error({
+        key: `automation-${button.ruleId}`,
+        content: `Failed to execute "${button.label}"`,
+      });
     } finally {
-      setLoading(false);
+      setLoadingByRuleId((prev) => ({ ...prev, [button.ruleId]: false }));
     }
   };
 
@@ -95,24 +111,45 @@ const AutomateButtons: React.FC = () => {
     return null;
   }
 
+  const overlay =
+    isAutomationRunning && typeof document !== "undefined"
+      ? createPortal(
+          <div className="fixed inset-0 z-[1000] bg-black/40 backdrop-blur-sm flex flex-col items-center justify-center gap-2 text-white text-sm font-medium pointer-events-auto">
+            <span>Automation is running…</span>
+            <span className="text-[11px] opacity-80">Hold tight, just a moment.</span>
+          </div>,
+          document.body
+        )
+      : null;
+
   return (
-    <div className="w-full rounded-lg">
+    <>
+      {overlay}
+      <div className="w-full rounded-lg">
       {/* Card Buttons */}
-      {cardButtons.map((button) => (
-        <Tooltip key={button.id} title={`Execute automation: ${button.label}`}>
-          <button
-            onClick={() => handleButtonClick(button)}
-            disabled={loading}
-            className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 rounded-md transition-colors mb-1 hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed"
-            style={buttonStyle}
+      <div className={isAutomationRunning ? "pointer-events-none" : ""}>
+        {cardButtons.map((button) => (
+          <Tooltip
+            key={button.id}
+            title={`Execute automation: ${button.label}`}
           >
-            <Zap size={14} style={iconStyle} />
-            <span className="text-xs">{button.label}</span>
-            {loading && <span className="text-xs ml-auto opacity-60">...</span>}
-          </button>
-        </Tooltip>
-      ))}
-    </div>
+            <button
+              onClick={() => handleButtonClick(button)}
+              disabled={isFetchingButtons || !!loadingByRuleId[button.ruleId]}
+              className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 rounded-md transition-colors mb-1 hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed"
+              style={buttonStyle}
+            >
+              <Zap size={14} style={iconStyle} />
+              <span className="text-xs">{button.label}</span>
+              {!!loadingByRuleId[button.ruleId] && (
+                <span className="text-xs ml-auto opacity-60">...</span>
+              )}
+            </button>
+          </Tooltip>
+        ))}
+      </div>
+      </div>
+    </>
   );
 };
 

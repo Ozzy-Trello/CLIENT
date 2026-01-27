@@ -12,9 +12,15 @@ export const useCardActivity = (
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [allActivities, setAllActivities] = useState<CardActivity[]>([]);
-  const [filter, setFilter] = useState<"all" | "action" | "comment">("all");
+  const [filter, setFilter] = useState<"all" | "action" | "comment">("comment");
   const limit = 10;
   const isEnabled = !!cardId && (options?.enabled ?? true);
+
+  useEffect(() => {
+    if (!isEnabled) return;
+    setPage(1);
+    setAllActivities([]);
+  }, [filter, cardId, isEnabled]);
 
   // Use React Query for the main activities query
   const {

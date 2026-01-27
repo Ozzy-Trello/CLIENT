@@ -21,9 +21,15 @@ interface ModalBuatSOProps {
   open: boolean;
   onClose: () => void;
   cardId?: string;
+  noFaktur?: string | null;
 }
 
-const ModalBuatSO: React.FC<ModalBuatSOProps> = ({ open, onClose, cardId }) => {
+const ModalBuatSO: React.FC<ModalBuatSOProps> = ({
+  open,
+  onClose,
+  cardId,
+  noFaktur,
+}) => {
   const [selectedCustomer, setSelectedCustomer] = useState<string>("");
   const [tanggal, setTanggal] = useState<any>(dayjs());
   const [alamatPengiriman, setAlamatPengiriman] = useState<string>("");
@@ -89,7 +95,7 @@ const ModalBuatSO: React.FC<ModalBuatSOProps> = ({ open, onClose, cardId }) => {
         no: item.sku,
         source: item.sku, // Using SKU as source for consistency
         unit1Name: item.unitType,
-        quantity: 1 
+        quantity: 6 
       }]);
       setProductSearch("");
     }
@@ -126,6 +132,10 @@ const ModalBuatSO: React.FC<ModalBuatSOProps> = ({ open, onClose, cardId }) => {
 
   const handleSubmit = () => {
     // Validation
+    if (noFaktur && noFaktur.toString().trim()) {
+      message.error("No Faktur sudah terisi, tidak bisa buat SO");
+      return;
+    }
     if (!selectedCustomer) {
       message.error("Silakan pilih customer");
       return;
@@ -136,6 +146,14 @@ const ModalBuatSO: React.FC<ModalBuatSOProps> = ({ open, onClose, cardId }) => {
     }
     if (selectedProducts.length === 0) {
       message.error("Silakan pilih minimal satu produk");
+      return;
+    }
+
+    const invalidQty = selectedProducts.find(
+      (p) => !Number.isFinite(p.quantity) || p.quantity % 6 !== 0
+    );
+    if (invalidQty) {
+      message.error("Qty SO harus kelipatan 6 (tiap baris produk)");
       return;
     }
 
@@ -195,9 +213,10 @@ const ModalBuatSO: React.FC<ModalBuatSOProps> = ({ open, onClose, cardId }) => {
       width: 120,
       render: (_: any, record: SelectedProduct) => (
         <InputNumber
-          min={1}
+          min={6}
+          step={6}
           value={record.quantity}
-          onChange={(value) => handleQuantityChange(record.id, value || 1)}
+          onChange={(value) => handleQuantityChange(record.id, value || 6)}
           size="small"
         />
       ),

@@ -43,7 +43,11 @@ const Home: React.FC<LabelManagerProps> = ({
     totalCount,
   } = useWorkspaceLabels(workspaceId as string, searchTerm);
 
-  const { topLabels } = useTopWorkspaceLabels(workspaceId as string, 2);
+  const { topLabels } = useTopWorkspaceLabels(
+    workspaceId as string,
+    2,
+    currentUser?.id
+  );
 
   const { cardLabels, addCardLabel, removeCardLabel } = useLabels(
     workspaceId as string,

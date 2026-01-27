@@ -544,9 +544,13 @@ export function useWorkspaceLabels(workspaceId: string, search?: string) {
   };
 }
 
-export function useTopWorkspaceLabels(workspaceId: string, limit: number = 2) {
+export function useTopWorkspaceLabels(
+  workspaceId: string,
+  limit: number = 2,
+  userId?: string | null
+) {
   const { data, isFetching, error } = useQuery({
-    queryKey: ["workspaceTopLabels", workspaceId, limit],
+    queryKey: ["workspaceTopLabels", workspaceId, limit, userId || "anon"],
     queryFn: async () => {
       const res = await getTopLabels(workspaceId, limit);
       const top = res.data ?? [];

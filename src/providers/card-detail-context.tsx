@@ -215,6 +215,42 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
 
   const snapshotCard = useCallback((card: Card | null) => {
     if (!card) return "";
+
+    const customFieldValueSignature = (c: any) => {
+      const fields = Array.isArray(c?.customFields)
+        ? c.customFields
+        : Array.isArray(c?.custom_fields)
+        ? c.custom_fields
+        : [];
+
+      return (fields as any[])
+        .map((f) => {
+          const id = String(
+            f?.id ?? f?.customFieldId ?? f?.custom_field_id ?? ""
+          ).trim();
+          if (!id) return "";
+
+          const raw =
+            f?.valueString ??
+            f?.value_string ??
+            f?.valueOption ??
+            f?.value_option ??
+            f?.valueNumber ??
+            f?.value_number ??
+            f?.valueCheckbox ??
+            f?.value_checkbox ??
+            f?.valueDate ??
+            f?.value_date ??
+            "";
+
+          const v = raw === null || raw === undefined ? "" : String(raw).trim();
+          return v ? `${id}:${v}` : "";
+        })
+        .filter(Boolean)
+        .sort()
+        .join("|");
+    };
+
     const stable = {
       id: card.id,
       updatedAt: (card as any).updatedAt || (card as any).updated_at || null,
@@ -235,6 +271,7 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
         : Array.isArray((card as any).custom_fields)
         ? (card as any).custom_fields.length
         : 0,
+      customFieldsValueSig: customFieldValueSignature(card),
       requestsLen: Array.isArray((card as any).requests)
         ? (card as any).requests.length
         : 0,
@@ -277,6 +314,52 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
         )
         .join("|");
     if (signature(prevAttachments) !== signature(nextAttachments)) return false;
+
+    const prevCustomFields = Array.isArray((prev as any).customFields)
+      ? (prev as any).customFields
+      : Array.isArray((prev as any).custom_fields)
+      ? (prev as any).custom_fields
+      : [];
+    const nextCustomFields = Array.isArray((next as any).customFields)
+      ? (next as any).customFields
+      : Array.isArray((next as any).custom_fields)
+      ? (next as any).custom_fields
+      : [];
+    if (prevCustomFields.length !== nextCustomFields.length) return false;
+
+    const customFieldValueSignature = (fields: any[]) =>
+      (fields || [])
+        .map((f: any) => {
+          const id = String(
+            f?.id ?? f?.customFieldId ?? f?.custom_field_id ?? ""
+          ).trim();
+          if (!id) return "";
+
+          const raw =
+            f?.valueString ??
+            f?.value_string ??
+            f?.valueOption ??
+            f?.value_option ??
+            f?.valueNumber ??
+            f?.value_number ??
+            f?.valueCheckbox ??
+            f?.value_checkbox ??
+            f?.valueDate ??
+            f?.value_date ??
+            "";
+          const v = raw === null || raw === undefined ? "" : String(raw).trim();
+          return v ? `${id}:${v}` : "";
+        })
+        .filter(Boolean)
+        .sort()
+        .join("|");
+
+    if (
+      customFieldValueSignature(prevCustomFields) !==
+      customFieldValueSignature(nextCustomFields)
+    ) {
+      return false;
+    }
 
     const keys: Array<keyof Card> = [
       "name",

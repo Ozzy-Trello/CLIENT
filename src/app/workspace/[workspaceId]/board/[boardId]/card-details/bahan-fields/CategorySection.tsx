@@ -73,18 +73,45 @@ const CategorySection: React.FC<CategorySectionProps> = ({
     return Number(subcategoryValue?.value ?? 0);
   };
 
+  const parsePendingValue = (
+    categoryId: string,
+    subcategoryId: string
+  ): number | null => {
+    const pendingKey = `${po.id}-${product.id}-${categoryId}-${subcategoryId}`;
+    const pending = pendingValues[pendingKey];
+    if (pending === undefined) {
+      return null;
+    }
+    if (pending.value === "") {
+      return 0;
+    }
+    const parsed = Number(pending.value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+
+  const resolveValueForTotal = (
+    categoryId: string,
+    subcategory: any
+  ): number => {
+    const pendingValue = parsePendingValue(categoryId, subcategory.id);
+    if (pendingValue !== null) {
+      return pendingValue;
+    }
+    return getSubcategoryValue(categoryId, subcategory.id);
+  };
+
   // Helper function to calculate total for a category
   const calculateCategoryTotal = (categoryId: string): number => {
     const category = categories.find((cat) => cat.id === categoryId);
     if (!category?.subcategories) return 0;
 
-    let total = 0;
-    category.subcategories.forEach((subcategory: any) => {
-      const value = getSubcategoryValue(categoryId, subcategory.id);
-      total += value;
-    });
-
-    return total;
+    return category.subcategories.reduce((sum, subcategory: any) => {
+      if (subcategory?.junction?.isTotalField) {
+        return sum;
+      }
+      const value = resolveValueForTotal(categoryId, subcategory);
+      return sum + value;
+    }, 0);
   };
 
   // Render hardcoded Total field

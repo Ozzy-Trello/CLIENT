@@ -18,6 +18,7 @@ import { useCurrentAccount, usePermissions } from "@hooks/account";
 import { useCards } from "@hooks/card";
 import { useCardDetails } from "@hooks/card-details";
 import { useCardAttachment } from "@hooks/card_attachment";
+import { useCardCustomField } from "@hooks/card_custom_field";
 import { useCardMembers } from "@hooks/card_member";
 import { EnumAttachmentType, EnumCardAttachmentType } from "@myTypes/card";
 import { FileUpload } from "@myTypes/file-upload";
@@ -50,7 +51,7 @@ import {
   Users,
 } from "lucide-react";
 import { useParams, useSearchParams } from "next/navigation";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import AutomateButtons from "./automate-buttons";
 import { LookupCache } from "@utils/lookup-cache";
@@ -125,6 +126,55 @@ const Actions: React.FC<{
   const workspaceId = params.workspaceId as string;
   const searchParams = useSearchParams();
   const { selectedCard } = useCardDetailContext();
+
+  const NO_FAKTUR_CUSTOM_FIELD_ID = "6c7f05f1-85bc-42f3-98b2-6a6509cc539c";
+
+  const { cardCustomFields, isLoading: isLoadingCardCustomFields } =
+    useCardCustomField(selectedCard?.id || "", workspaceId, {
+      enabled: !!selectedCard?.id && !!workspaceId,
+    });
+
+  const noFakturValue = useMemo(() => {
+    const normalizeId = (field: any) =>
+      String(
+        field?.id ?? field?.customFieldId ?? field?.custom_field_id ?? ""
+      ).trim();
+
+    const getValue = (field: any) => {
+      const raw =
+        field?.valueString ??
+        field?.value_string ??
+        field?.valueOption ??
+        field?.value_option ??
+        field?.valueNumber ??
+        field?.value_number ??
+        "";
+      return raw === null || raw === undefined ? "" : String(raw).trim();
+    };
+
+    const sources: any[][] = [
+      Array.isArray(cardCustomFields) ? cardCustomFields : [],
+      Array.isArray(selectedCard?.customFields) ? selectedCard?.customFields : [],
+    ];
+
+    for (const fields of sources) {
+      const byId = fields.find((f: any) => normalizeId(f) === NO_FAKTUR_CUSTOM_FIELD_ID);
+      const byName = fields.find(
+        (f: any) => String(f?.name || "").trim().toLowerCase() === "no faktur"
+      );
+
+      const v1 = byId ? getValue(byId) : "";
+      if (v1) return v1;
+
+      const v2 = byName ? getValue(byName) : "";
+      if (v2) return v2;
+    }
+
+    // last resort: some endpoints include this shaped field
+    return String((selectedCard as any)?.noFaktur || "").trim();
+  }, [cardCustomFields, selectedCard?.customFields, selectedCard]);
+
+  const isBuatSODisabled = isLoadingCardCustomFields || !!noFakturValue;
 
   const theme = useSelector(selectTheme) as any;
   const isDarkMode = useSelector(selectIsDarkMode);
@@ -666,10 +716,19 @@ const Actions: React.FC<{
       {/* Buat SO Button */}
       <PermissionButton
         canPerform={canBuatSO && canManageCardAttachments()}
-        onClick={() => setOpenBuatSOModal(true)}
-        tooltip="Create Sales Order"
+        onClick={() => {
+          if (isBuatSODisabled) {
+            message.error("SO Sudah ada");
+            return;
+          }
+          setOpenBuatSOModal(true);
+        }}
+        tooltip={
+          isBuatSODisabled ? "SO Sudah ada" : "Create Sales Order"
+        }
         permissionLevel={permissionLevel}
         buttonStyle={buttonStyle}
+        disabled={isBuatSODisabled}
       >
         <span className="text-xs" style={iconStyle}>
           <FileText size={14} />
@@ -830,34 +889,35 @@ const Actions: React.FC<{
         {/* Automate Buttons */}
         <AutomateButtons />
 
-        {/* Move Card */}
-        {canMoveCard() ? (
-          <PopoverMoveCard
-            open={openMoveCard}
-            setOpen={setOpenMoveCard}
-            triggerEl={
-              <PermissionButton
-                canPerform={canMoveCard()}
-                tooltip="Move this card to another list"
-                permissionLevel={permissionLevel}
-                buttonStyle={buttonStyle}
-              >
-                <MoveRight size={14} />
-                <span className="text-xs">Move</span>
-              </PermissionButton>
-            }
-          />
-        ) : (
-          <PermissionButton
-            canPerform={canMoveCard()}
-            tooltip="Move this card to another list"
-            permissionLevel={permissionLevel}
-            buttonStyle={buttonStyle}
-          >
-            <MoveRight size={14} />
-            <span className="text-xs">Move</span>
-          </PermissionButton>
-        )}
+        {/* Move Card (Super Admin only) */}
+        {superAdmin &&
+          (canMoveCard() ? (
+            <PopoverMoveCard
+              open={openMoveCard}
+              setOpen={setOpenMoveCard}
+              triggerEl={
+                <PermissionButton
+                  canPerform={canMoveCard()}
+                  tooltip="Move this card to another list"
+                  permissionLevel={permissionLevel}
+                  buttonStyle={buttonStyle}
+                >
+                  <MoveRight size={14} />
+                  <span className="text-xs">Move</span>
+                </PermissionButton>
+              }
+            />
+          ) : (
+            <PermissionButton
+              canPerform={canMoveCard()}
+              tooltip="Move this card to another list"
+              permissionLevel={permissionLevel}
+              buttonStyle={buttonStyle}
+            >
+              <MoveRight size={14} />
+              <span className="text-xs">Move</span>
+            </PermissionButton>
+          ))}
 
         {/* Copy Card */}
         {canCopyCard() ? (
@@ -1049,6 +1109,7 @@ const Actions: React.FC<{
           open={openBuatSOModal}
           onClose={() => setOpenBuatSOModal(false)}
           cardId={selectedCard?.id}
+          noFaktur={noFakturValue || null}
         />
       </div>
     </div>

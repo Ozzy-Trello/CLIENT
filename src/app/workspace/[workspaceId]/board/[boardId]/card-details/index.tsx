@@ -17,7 +17,9 @@ import {
 } from "antd";
 import {
   CheckSquare,
+  Camera,
   Clock,
+  Copy,
   Info,
   ListRestart,
   MessageSquare,
@@ -25,6 +27,7 @@ import {
   RectangleEllipsis,
   ShirtIcon,
   TextCursorInput,
+  Upload,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -127,6 +130,7 @@ const CardDetails: React.FC = (props) => {
     isCardDetailOpen,
     openCardDetail,
     closeCardDetail,
+    refetchCardDetails,
     isLoadingCardDetails,
   } = useCardDetailContext();
   const boardName =
@@ -144,9 +148,22 @@ const CardDetails: React.FC = (props) => {
       document.title = boardName;
     }
   }, [isCardDetailOpen, selectedCard?.name, boardName]);
+
+  useEffect(() => {
+    if (!isCardDetailOpen) {
+      setIsEditingTitle(false);
+      setNewTitle("");
+      return;
+    }
+
+    // Prevent stale edit state when switching cards
+    setIsEditingTitle(false);
+    setNewTitle("");
+  }, [isCardDetailOpen, selectedCard?.id]);
   const currentUser = useSelector(selectUser);
   const SUPER_ADMIN_ROLE_ID = "f97c942c-5d0c-49c3-b74d-5b149c08634f";
   const userRole = (currentUser?.role?.name || "").trim().toLowerCase();
+  const isKurirRole = userRole.includes("kurir");
   const isSuperAdmin = currentUser?.role?.id === SUPER_ADMIN_ROLE_ID;
   const isDatelineBoard =
     effectiveBoardName.toLowerCase() === "dateline" || boardId === "Dateline";
@@ -162,6 +179,7 @@ const CardDetails: React.FC = (props) => {
   const listSelectionRef = useRef<SelectionRef>(null);
   const [isEditingTitle, setIsEditingTitle] = useState<boolean>(false);
   const [newTitle, setNewTitle] = useState<string>("");
+  const skipNextTitleBlurSaveRef = useRef(false);
   // Only need mutations; avoid fetching full list data just to update a card
   const { updateCard } = useCardMutationsOnly();
   const {
@@ -221,12 +239,20 @@ const CardDetails: React.FC = (props) => {
   );
 
   // Get board permissions
-  const { canUpdateCard } = useBoardPermissionsContext();
+  const { canUpdateCard, canManageCardAttachments } = useBoardPermissionsContext();
   const [dashcardModalCard, setDashcardModalCard] = useState<Card | null>(null);
   const [isDashcardModalOpen, setIsDashcardModalOpen] = useState(false);
   const [isDraggingFiles, setIsDraggingFiles] = useState(false);
   const [isUploadingDrop, setIsUploadingDrop] = useState(false);
   const [isActionsPopoverOpen, setIsActionsPopoverOpen] = useState(false);
+  const [quickUploadLoading, setQuickUploadLoading] = useState<
+    "camera" | "file" | null
+  >(null);
+  const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const cameraInputRef = useRef<HTMLInputElement | null>(null); // fallback for older browsers
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const screens = Grid.useBreakpoint();
   const isDesktop = !!screens.md;
   const handleOpenDashcardDetail = useCallback((card: Card) => {
@@ -304,6 +330,124 @@ const CardDetails: React.FC = (props) => {
     [selectedCard?.id]
   );
 
+  const handleQuickUpload = useCallback(
+    async (file: File, kind: "camera" | "file") => {
+      if (!selectedCard?.id) return;
+      setQuickUploadLoading(kind);
+      const toastKey = `quick-upload-${kind}`;
+      message.loading({
+        key: toastKey,
+        content: "Uploading attachment...",
+        duration: 0,
+      });
+      try {
+        const res = await uploadFile(file, { cardId: selectedCard.id });
+        const uploaded = res?.data;
+        if (uploaded?.id) {
+          await createCardAttachment({
+            cardId: selectedCard.id,
+            attachableType: EnumAttachmentType.File,
+            attachableId: uploaded.id,
+            isCover: false,
+            type: EnumCardAttachmentType.Attachment,
+          });
+        }
+        message.success({ key: toastKey, content: "Uploaded" });
+        refetchCardDetails?.();
+      } catch (err: any) {
+        message.error({
+          key: toastKey,
+          content: err?.message || "Upload failed",
+        });
+      } finally {
+        setQuickUploadLoading(null);
+      }
+    },
+    [refetchCardDetails, selectedCard?.id]
+  );
+
+  const stopCameraStream = useCallback(() => {
+    const stream = streamRef.current;
+    if (stream) {
+      stream.getTracks().forEach((t) => t.stop());
+    }
+    streamRef.current = null;
+    if (videoRef.current) {
+      (videoRef.current as any).srcObject = null;
+    }
+  }, []);
+
+  const openCamera = useCallback(async () => {
+    if (quickUploadLoading) return;
+    if (typeof navigator === "undefined") return;
+
+    const media = (navigator as any).mediaDevices;
+    if (!media?.getUserMedia) {
+      // Fallback: may show chooser (device dependent)
+      cameraInputRef.current?.click();
+      return;
+    }
+
+    try {
+      setIsCameraModalOpen(true);
+      const stream: MediaStream = await media.getUserMedia({
+        video: { facingMode: { ideal: "environment" } },
+        audio: false,
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        (videoRef.current as any).srcObject = stream;
+        await videoRef.current.play?.();
+      }
+    } catch (err: any) {
+      setIsCameraModalOpen(false);
+      message.error(err?.message || "Failed to open camera");
+    }
+  }, [quickUploadLoading]);
+
+  const captureAndUpload = useCallback(async () => {
+    if (!videoRef.current) return;
+    const video = videoRef.current;
+
+    const width = video.videoWidth || 1280;
+    const height = video.videoHeight || 720;
+    if (!width || !height) {
+      message.error("Camera not ready");
+      return;
+    }
+
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      message.error("Failed to capture image");
+      return;
+    }
+
+    ctx.drawImage(video, 0, 0, width, height);
+    const blob: Blob | null = await new Promise((resolve) =>
+      canvas.toBlob(resolve, "image/jpeg", 0.92)
+    );
+    if (!blob) {
+      message.error("Failed to capture image");
+      return;
+    }
+
+    const filename = `camera-${Date.now()}.jpg`;
+    const file = new File([blob], filename, { type: "image/jpeg" });
+    stopCameraStream();
+    setIsCameraModalOpen(false);
+    void handleQuickUpload(file, "camera");
+  }, [handleQuickUpload, stopCameraStream]);
+
+  useEffect(() => {
+    if (!isCameraModalOpen) {
+      stopCameraStream();
+    }
+    return () => stopCameraStream();
+  }, [isCameraModalOpen, stopCameraStream]);
+
   useEffect(() => {
     if (!isCardDetailOpen) {
       setIsDraggingFiles(false);
@@ -377,11 +521,21 @@ const CardDetails: React.FC = (props) => {
 
   const handleSaveTitleClick = () => {
     if (!selectedCard) return;
+    const trimmed = newTitle.trim();
+    if (!trimmed) {
+      setNewTitle(selectedCard.name || "");
+      setIsEditingTitle(false);
+      return;
+    }
+    if ((selectedCard.name || "").trim() === trimmed) {
+      setIsEditingTitle(false);
+      return;
+    }
     updateCard(
       {
         cardId: selectedCard.id,
         updates: {
-          name: newTitle,
+          name: trimmed,
         },
       },
       {
@@ -391,7 +545,7 @@ const CardDetails: React.FC = (props) => {
               if (!prevCard) return prevCard;
               return {
                 ...prevCard,
-                name: newTitle,
+                name: trimmed,
               };
             });
           }
@@ -402,6 +556,29 @@ const CardDetails: React.FC = (props) => {
         },
       }
     );
+  };
+
+  const copyCardName = async () => {
+    const text = (selectedCard?.name || "").toString();
+    if (!text.trim()) return;
+
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else if (typeof document !== "undefined") {
+        const textarea = document.createElement("textarea");
+        textarea.value = text;
+        textarea.style.position = "fixed";
+        textarea.style.left = "-9999px";
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+      }
+      message.success("Copied");
+    } catch (err) {
+      message.error("Copy failed");
+    }
   };
 
   const onListChange = (value: string, option: object) => {
@@ -504,60 +681,210 @@ const CardDetails: React.FC = (props) => {
           }}
           onClick={(e) => e.stopPropagation()}
         />
-        <div className="flex-1 min-w-0">
-          {isEditingTitle ? (
+	        <div className="flex-1 min-w-0">
+	          {isEditingTitle ? (
+	            <div className="flex items-start gap-1">
+	              <input
+	                type="text"
+	                value={newTitle}
+	                onChange={(e) => setNewTitle(e.target.value)}
+	                onBlur={() => {
+	                  if (skipNextTitleBlurSaveRef.current) {
+	                    skipNextTitleBlurSaveRef.current = false;
+	                    return;
+	                  }
+	                  handleSaveTitleClick();
+	                }}
+	                autoFocus
+	                className="font-bold mb-0 ml-2 px-2 py-1 w-full border border-blue-400 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+	                onKeyDown={(e) => {
+	                  if (e.key === "Enter") {
+	                    e.preventDefault();
+	                    e.stopPropagation();
+	                    skipNextTitleBlurSaveRef.current = true;
+	                    handleSaveTitleClick();
+	                  } else if (e.key === "Escape") {
+	                    setNewTitle(selectedCard?.name || "");
+	                    setIsEditingTitle(false);
+	                  }
+	                }}
+	              />
+	              <Tooltip title="Copy name">
+	                <button
+	                  type="button"
+	                  className="p-1 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-800 transition-colors"
+	                  onMouseDown={(e) => e.preventDefault()}
+	                  onClick={(e) => {
+	                    e.stopPropagation();
+	                    void copyCardName();
+	                  }}
+	                  aria-label="Copy card name"
+	                >
+	                  <Copy size={16} />
+	                </button>
+	              </Tooltip>
+	            </div>
+	          ) : (
+	            <div className="flex items-start gap-1 min-w-0">
+	              <h1
+	                className={`text-5xl font-bold mb-0 ml-2 px-2 py-1 rounded-md break-words min-w-0 ${canUpdateCard()
+	                  ? "cursor-pointer hover:bg-gray-50"
+	                  : "cursor-not-allowed opacity-60"
+	                  }`}
+	                onClick={() => {
+	                  if (canUpdateCard()) {
+	                    setNewTitle(selectedCard?.name || "");
+	                    setIsEditingTitle(true);
+	                  }
+	                }}
+	              >
+	                {selectedCard?.name}
+	              </h1>
+	              <Tooltip title="Copy name">
+	                <button
+	                  type="button"
+	                  className="p-1 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-800 transition-colors flex-shrink-0 mt-1"
+	                  onMouseDown={(e) => e.preventDefault()}
+	                  onClick={(e) => {
+	                    e.stopPropagation();
+	                    void copyCardName();
+	                  }}
+	                  aria-label="Copy card name"
+	                >
+	                  <Copy size={16} />
+	                </button>
+	              </Tooltip>
+	            </div>
+	          )}
+	        </div>
+      </div>
+      {!isDesktop &&
+        (isKurirRole ? (
+          <div className="flex items-center gap-2">
             <input
-              type="text"
-              value={newTitle}
-              onChange={(e) => setNewTitle(e.target.value)}
-              onBlur={handleSaveTitleClick}
-              autoFocus
-              className="font-bold mb-0 ml-2 px-2 py-1 w-full border border-blue-400 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  handleSaveTitleClick();
-                } else if (e.key === "Escape") {
-                  setIsEditingTitle(false);
-                }
+              ref={cameraInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                e.target.value = "";
+                if (!file) return;
+                void handleQuickUpload(file, "camera");
               }}
             />
-          ) : (
-            <h1
-              className={`text-5xl font-bold mb-0 ml-2 px-2 py-1 rounded-md break-words ${canUpdateCard()
-                ? "cursor-pointer hover:bg-gray-50"
-                : "cursor-not-allowed opacity-60"
-                }`}
-              onClick={() => {
-                if (canUpdateCard()) {
-                  setNewTitle(selectedCard?.name || "");
-                  setIsEditingTitle(true);
-                }
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                e.target.value = "";
+                if (!file) return;
+                void handleQuickUpload(file, "file");
               }}
+            />
+
+            <Tooltip
+              title={
+                canManageCardAttachments()
+                  ? "Open camera"
+                  : "You don't have permission"
+              }
             >
-              {selectedCard?.name}
-            </h1>
-          )}
-        </div>
-      </div>
-      {!isDesktop && (
-        <Popover
-          open={isActionsPopoverOpen}
-          onOpenChange={setIsActionsPopoverOpen}
-          trigger="click"
-          placement="bottomRight"
-          overlayStyle={{ width: 360 }}
-          content={actionList}
-        >
-          <Button
-            size="small"
-            className="flex items-center gap-2 px-3 py-1 rounded-md"
-            type="default"
+              <Button
+                size="small"
+                type="default"
+                loading={quickUploadLoading === "camera"}
+                disabled={
+                  !canManageCardAttachments() || quickUploadLoading !== null
+                }
+                icon={<Camera size={16} />}
+                onClick={() => {
+                  if (!canManageCardAttachments()) return;
+                  void openCamera();
+                }}
+              />
+            </Tooltip>
+            <Tooltip
+              title={
+                canManageCardAttachments()
+                  ? "Upload file"
+                  : "You don't have permission"
+              }
+            >
+              <Button
+                size="small"
+                type="default"
+                loading={quickUploadLoading === "file"}
+                disabled={
+                  !canManageCardAttachments() || quickUploadLoading !== null
+                }
+                icon={<Upload size={16} />}
+                onClick={() => fileInputRef.current?.click()}
+              />
+            </Tooltip>
+
+            <Modal
+              open={isCameraModalOpen}
+              onCancel={() => {
+                setIsCameraModalOpen(false);
+                stopCameraStream();
+              }}
+              footer={[
+                <Button
+                  key="cancel"
+                  onClick={() => {
+                    setIsCameraModalOpen(false);
+                    stopCameraStream();
+                  }}
+                >
+                  Cancel
+                </Button>,
+                <Button
+                  key="capture"
+                  type="primary"
+                  onClick={() => void captureAndUpload()}
+                >
+                  Capture
+                </Button>,
+              ]}
+              title="Camera"
+              width={420}
+              styles={{ body: { padding: 0 } }}
+              destroyOnClose
+            >
+              <div className="w-full bg-black">
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="w-full h-auto"
+                />
+              </div>
+            </Modal>
+          </div>
+        ) : (
+          <Popover
+            open={isActionsPopoverOpen}
+            onOpenChange={setIsActionsPopoverOpen}
+            trigger="click"
+            placement="bottomRight"
+            overlayStyle={{ width: 360 }}
+            content={actionList}
           >
-            <RectangleEllipsis size={16} />
-            <span className="text-sm font-semibold">Actions</span>
-          </Button>
-        </Popover>
-      )}
+            <Button
+              size="small"
+              className="flex items-center gap-2 px-3 py-1 rounded-md"
+              type="default"
+            >
+              <RectangleEllipsis size={16} />
+              <span className="text-sm font-semibold">Actions</span>
+            </Button>
+          </Popover>
+        ))}
     </div>
   );
 
