@@ -680,40 +680,42 @@ const ListName: React.FC<ListNameProps> = ({
             List Color
           </Button>
 
-          {/* Move All Cards Button */}
-          {canMoveCard() && (
-            <Button
-              block
-              size="small"
-              onClick={() => setMenuView("move")}
-              className="text-left justify-start"
-            >
-              Move all cards
-            </Button>
-          )}
-
-          {/* Card Limit Button */}
-          <Button
-            block
-            size="small"
-            onClick={() => setMenuView("limit")}
-            className="text-left justify-start"
-          >
-            Card Limit
-          </Button>
-
           {/* Other Actions Button */}
           {isSuperAdmin && (
-             <Button
-             block
-             size="small"
-             danger
-             onClick={() => setMenuView("actions")}
-             className="text-left justify-start mt-2 border-t pt-2 rounded-t-none"
-             style={{ marginTop: '0.5rem' }}
-           >
-             Archive / Delete
-           </Button>
+            <>
+              {/* Move All Cards Button */}
+              {canMoveCard() && (
+                <Button
+                  block
+                  size="small"
+                  onClick={() => setMenuView("move")}
+                  className="text-left justify-start"
+                >
+                  Move all cards
+                </Button>
+              )}
+
+              {/* Card Limit Button */}
+              <Button
+                block
+                size="small"
+                onClick={() => setMenuView("limit")}
+                className="text-left justify-start"
+              >
+                Card Limit
+              </Button>
+
+              <Button
+                block
+                size="small"
+                danger
+                onClick={() => setMenuView("actions")}
+                className="text-left justify-start mt-2 border-t pt-2 rounded-t-none"
+                style={{ marginTop: "0.5rem" }}
+              >
+                Archive / Delete
+              </Button>
+            </>
           )}
         </div>
       )}
@@ -763,6 +765,9 @@ const ListName: React.FC<ListNameProps> = ({
             }}
           >
             {list.name}
+            <span className="ml-2 text-xs font-normal text-gray-500">
+              ({cardsCount} of {totalCards})
+            </span>
           </Typography.Text>
         )}
 
