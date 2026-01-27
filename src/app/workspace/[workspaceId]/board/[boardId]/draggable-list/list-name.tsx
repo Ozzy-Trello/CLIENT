@@ -13,7 +13,6 @@ import {
   Input,
   Popover,
   Tooltip,
-  Typography,
   InputNumber,
   message,
   Modal,
@@ -757,18 +756,18 @@ const ListName: React.FC<ListNameProps> = ({
             />
           </div>
         ) : (
-          <Typography.Text
+          <div
             onClick={handleListNameClick}
-            className="text-sm font-semibold cursor-pointer mt-0 mb-0"
+            className="text-sm font-semibold cursor-pointer mt-0 mb-0 flex items-center"
             style={{
               color: "black",
             }}
           >
             {list.name}
-            <span className="ml-2 text-xs font-normal text-gray-500">
-              ({cardsCount} of {totalCards})
+            <span className="ml-2 font-semibold text-black" style={{ fontSize: '12px' }}>
+              {cardsCount} of {totalCards}
             </span>
-          </Typography.Text>
+          </div>
         )}
 
         <div className="flex items-center justify-end gap-1">
