@@ -1,4 +1,4 @@
-'use client';
+"use client";
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useCardDetailContext } from "@providers/card-detail-context";
@@ -38,7 +38,7 @@ const AutomateButtons: React.FC = () => {
         setIsFetchingButtons(true);
         const response = await getCardButtonsForBoard(
           workspaceId as string,
-          boardId as string
+          boardId as string,
         );
 
         const buttons: CardButton[] = (response.data || []).map(
@@ -47,7 +47,7 @@ const AutomateButtons: React.FC = () => {
             label:
               rule.condition?.buttonLabel || rule.condition?.label || "Button",
             ruleId: rule.id,
-          })
+          }),
         );
 
         setCardButtons(buttons);
@@ -63,19 +63,20 @@ const AutomateButtons: React.FC = () => {
 
   // Hardcoded role permissions
   const ALLOWED_ROLES: Record<string, string[]> = {
-    "Revisi": ["Adm Produksi", "Kepala Produksi"],
-    "Konfirm Bordir": ["Spv Desainer Bordir", "Desainer Bordir"],
-    "Split Job": ["SPV Sewing", "Kepala Produksi"]
+    Revisi: ["Adm Produksi", "Kepala Produksi", "Super Admin"],
+    "Konfirm Bordir": ["Spv Desainer Bordir", "Desainer Bordir", "Super Admin"],
+    "Split Job": ["SPV Sewing", "Kepala Produksi", "Super Admin"],
   };
 
   const currentUser = useSelector(selectUser);
 
   // Filter buttons based on role
-  const visibleButtons = cardButtons.filter(button => {
+  const visibleButtons = cardButtons.filter((button) => {
     const allowedRoles = ALLOWED_ROLES[button.label];
     if (!allowedRoles) return true; // Visible to everyone if not in the list
-    
-    const userRole = (currentUser as any)?.roleName || (currentUser as any)?.role?.name;
+
+    const userRole =
+      (currentUser as any)?.roleName || (currentUser as any)?.role?.name;
     return userRole && allowedRoles.includes(userRole);
   });
 
@@ -96,7 +97,7 @@ const AutomateButtons: React.FC = () => {
         workspaceId as string,
         boardId as string,
         button.ruleId,
-        selectedCard.id
+        selectedCard.id,
       );
       message.success({
         key: `automation-${button.ruleId}`,
@@ -134,9 +135,11 @@ const AutomateButtons: React.FC = () => {
       ? createPortal(
           <div className="fixed inset-0 z-[1000] bg-black/40 backdrop-blur-sm flex flex-col items-center justify-center gap-2 text-white text-sm font-medium pointer-events-auto">
             <span>Automation is running…</span>
-            <span className="text-[11px] opacity-80">Hold tight, just a moment.</span>
+            <span className="text-[11px] opacity-80">
+              Hold tight, just a moment.
+            </span>
           </div>,
-          document.body
+          document.body,
         )
       : null;
 
@@ -144,28 +147,28 @@ const AutomateButtons: React.FC = () => {
     <>
       {overlay}
       <div className="w-full rounded-lg">
-      {/* Card Buttons */}
-      <div className={isAutomationRunning ? "pointer-events-none" : ""}>
-        {visibleButtons.map((button) => (
-          <Tooltip
-            key={button.id}
-            title={`Execute automation: ${button.label}`}
-          >
-            <button
-              onClick={() => handleButtonClick(button)}
-              disabled={isFetchingButtons || !!loadingByRuleId[button.ruleId]}
-              className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 rounded-md transition-colors mb-1 hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed"
-              style={buttonStyle}
+        {/* Card Buttons */}
+        <div className={isAutomationRunning ? "pointer-events-none" : ""}>
+          {visibleButtons.map((button) => (
+            <Tooltip
+              key={button.id}
+              title={`Execute automation: ${button.label}`}
             >
-              <Zap size={14} style={iconStyle} />
-              <span className="text-xs">{button.label}</span>
-              {!!loadingByRuleId[button.ruleId] && (
-                <span className="text-xs ml-auto opacity-60">...</span>
-              )}
-            </button>
-          </Tooltip>
-        ))}
-      </div>
+              <button
+                onClick={() => handleButtonClick(button)}
+                disabled={isFetchingButtons || !!loadingByRuleId[button.ruleId]}
+                className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 rounded-md transition-colors mb-1 hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed"
+                style={buttonStyle}
+              >
+                <Zap size={14} style={iconStyle} />
+                <span className="text-xs">{button.label}</span>
+                {!!loadingByRuleId[button.ruleId] && (
+                  <span className="text-xs ml-auto opacity-60">...</span>
+                )}
+              </button>
+            </Tooltip>
+          ))}
+        </div>
       </div>
     </>
   );
