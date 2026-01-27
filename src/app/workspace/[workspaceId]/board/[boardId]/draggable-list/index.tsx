@@ -3,6 +3,7 @@ import ListName from "./list-name";
 import { useCardsPaginated } from "@hooks/card";
 import DraggableCard from "../draggable-card";
 import AddCard from "./add-card";
+import { LIST_SORT_OPTIONS, ListSortKey } from "./sort-options";
 import { UseMutateFunction } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "antd";
@@ -57,6 +58,11 @@ const DraggableList: React.FC<DraggableListProps> = ({
     [listRef]
   );
 
+  const [activeSortKey, setActiveSortKey] = useState<ListSortKey>("manual");
+  const activeSortOption =
+    LIST_SORT_OPTIONS.find((option) => option.key === activeSortKey) ??
+    LIST_SORT_OPTIONS[0];
+
   const {
     cards,
     addCard,
@@ -71,6 +77,8 @@ const DraggableList: React.FC<DraggableListProps> = ({
     isAddingCard,
   } = useCardsPaginated(list.id, boardId, {
     labelIds: selectedLabelIds.length > 0 ? selectedLabelIds : undefined,
+    sortBy: activeSortOption.sortBy,
+    sortOrder: activeSortOption.sortOrder,
   });
   const { canMove, canCreate } = usePermissions();
   const { canMoveList, canCreateCard } = useBoardPermissionsContext();
@@ -98,6 +106,10 @@ const DraggableList: React.FC<DraggableListProps> = ({
     observer.observe(el);
     return () => observer.disconnect();
   }, [isLoadingMore, hasMoreCards, loadMoreError, loadMoreCards]);
+
+  useEffect(() => {
+    setActiveSortKey("manual");
+  }, [list.id]);
 
   // Check if user is super admin for reorder restrictions
   const userRole = (currentUser?.role?.name || "").trim().toLowerCase();
@@ -215,6 +227,8 @@ const DraggableList: React.FC<DraggableListProps> = ({
                   deleteList={deleteList}
                   cardsCount={cards.length}
                   totalCards={totalCards}
+                  currentSortKey={activeSortKey}
+                  onSortChange={(key) => setActiveSortKey(key)}
                   onToggleCollapse={onToggleCollapse}
                 />
                 <Droppable

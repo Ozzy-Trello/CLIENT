@@ -12,10 +12,9 @@ import {
   message,
   Modal,
   Select,
-  Radio,
 } from "antd";
-import { Ellipsis, ChevronsLeft } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Ellipsis, ChevronsLeft, Filter } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { useBoardPermissionsContext } from "@providers/board-permissions-context";
 import { useQueryClient } from "@tanstack/react-query";
@@ -23,6 +22,7 @@ import { queryKeys } from "@constants/query-keys";
 import { useCurrentAccount } from "@hooks/account";
 import { useSelector } from "react-redux";
 import { selectUser } from "@store/app_slice";
+import { LIST_SORT_OPTIONS, ListSortKey, ListSortOption } from "./sort-options";
 
 interface ListNameProps {
   list: AnyList;
@@ -36,6 +36,8 @@ interface ListNameProps {
   deleteList: UseMutateFunction<any, Error, { listId: string }, unknown>;
   cardsCount: number;
   totalCards: number;
+  currentSortKey: ListSortKey;
+  onSortChange: (key: ListSortKey) => void;
   onToggleCollapse?: (listId: string) => void;
 }
 
@@ -59,6 +61,8 @@ const ListName: React.FC<ListNameProps> = ({
   deleteList,
   cardsCount,
   totalCards,
+  currentSortKey,
+  onSortChange,
   onToggleCollapse,
 }) => {
   const queryClient = useQueryClient();
@@ -71,6 +75,21 @@ const ListName: React.FC<ListNameProps> = ({
   const workspaceId = Array.isArray(workspaceIdParam)
     ? workspaceIdParam[0]
     : workspaceIdParam;
+  const activeSortOption =
+    LIST_SORT_OPTIONS.find((option) => option.key === currentSortKey) ??
+    LIST_SORT_OPTIONS[0];
+  const filterableSortGroups = useMemo(() => {
+    const groups: Record<string, ListSortOption[]> = {};
+    LIST_SORT_OPTIONS.filter((option) => option.showInFilter).forEach(
+      (option) => {
+        const groupKey = option.group || "Sort";
+        groups[groupKey] = groups[groupKey] ?? [];
+        groups[groupKey].push(option);
+      }
+    );
+    return groups;
+  }, []);
+  const [sortPopoverOpen, setSortPopoverOpen] = useState(false);
 
   // Get current user for super admin check
   const currentUser = useSelector(selectUser);
@@ -141,6 +160,34 @@ const ListName: React.FC<ListNameProps> = ({
     setIsEditListName(false);
     setNewListName("");
   };
+
+  const sortFilterContent = (
+    <div className="w-52 space-y-4 text-sm">
+      {Object.entries(filterableSortGroups).map(([group, options]) => (
+        <div key={group}>
+          <div className="text-[10px] uppercase tracking-[0.2em] text-gray-500 mb-1">
+            {group}
+          </div>
+          <div className="grid grid-cols-2 gap-1">
+            {options.map((option) => (
+              <Button
+                key={option.key}
+                size="small"
+                type={currentSortKey === option.key ? "primary" : "text"}
+                className="text-xs leading-tight px-2 py-1 rounded-md"
+                onClick={() => {
+                  onSortChange(option.key);
+                  setSortPopoverOpen(false);
+                }}
+              >
+                {option.label}
+              </Button>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 
   const handleDeleteList = () => {
     Modal.confirm({
@@ -289,20 +336,48 @@ const ListName: React.FC<ListNameProps> = ({
             />
           ))}
         </div>
-        <button
-          onClick={() => {
-            updateList({
-              listId: list.id,
-              updates: { background: "#ffffff" },
-            });
-            message.success("List color removed!");
-            setActionsPopoverOpen(false);
-          }}
-          className="w-full mt-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded flex items-center justify-center gap-2"
-        >
-          <span>✕</span> Remove color
-        </button>
+      <button
+        onClick={() => {
+          updateList({
+            listId: list.id,
+            updates: { background: "#ffffff" },
+          });
+          message.success("List color removed!");
+          setActionsPopoverOpen(false);
+        }}
+        className="w-full mt-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded flex items-center justify-center gap-2"
+      >
+        <span>✕</span> Remove color
+      </button>
+    </div>
+
+    {/* Sort Cards */}
+    <div className="mb-4">
+      <div className="text-sm font-medium mb-2">Sort cards</div>
+      <div className="space-y-2">
+        {LIST_SORT_OPTIONS.map((option) => (
+          <Button
+            key={option.key}
+            size="small"
+            type={currentSortKey === option.key ? "primary" : "text"}
+            block
+            onClick={() => {
+              onSortChange(option.key);
+              setActionsPopoverOpen(false);
+            }}
+          >
+            <div className="flex flex-col items-start text-left">
+              <span>{option.label}</span>
+              {option.description && (
+                <span className="text-xs text-gray-500">
+                  {option.description}
+                </span>
+              )}
+            </div>
+          </Button>
+        ))}
       </div>
+    </div>
 
       {/* Move All Cards */}
       {canMoveCard() && (
@@ -614,20 +689,47 @@ const ListName: React.FC<ListNameProps> = ({
               </Button>
             </Tooltip>
           )}
-          <div
-            className="rounded-full px-2 py-1 text-xs font-medium"
-            style={{
-              backgroundColor: isLimitExceeded
-                ? "#f59e0b"
-                : headerColor
-                ? `${headerColor}40`
-                : "#e5e7eb",
-              color: isLimitExceeded ? "#ffffff" : "black",
-            }}
-          >
-            {list.cardLimit != null && list.cardLimit > 0
-              ? `${cardsCount} of ${totalCards} | limit ${list.cardLimit}`
-              : `${cardsCount} of ${totalCards}`}
+          <div className="flex items-center gap-2">
+            <div
+              className="rounded-full px-2 py-1 text-xs font-medium"
+              style={{
+                backgroundColor: isLimitExceeded
+                  ? "#f59e0b"
+                  : headerColor
+                  ? `${headerColor}40`
+                  : "#e5e7eb",
+                color: isLimitExceeded ? "#ffffff" : "black",
+              }}
+            >
+              {list.cardLimit != null && list.cardLimit > 0
+                ? `${cardsCount} of ${totalCards} | limit ${list.cardLimit}`
+                : `${cardsCount} of ${totalCards}`}
+            </div>
+            <Popover
+              content={sortFilterContent}
+              trigger="click"
+              open={sortPopoverOpen}
+              overlayClassName="max-w-[280px] p-2"
+              placement="bottom"
+              onOpenChange={setSortPopoverOpen}
+            >
+              <Button
+                type={sortPopoverOpen ? "primary" : "text"}
+                size="small"
+                icon={<Filter size={16} />}
+                aria-label="Sort options"
+                style={{
+                  color:
+                    currentSortKey !== "manual" && !sortPopoverOpen
+                      ? "#0f62fe"
+                      : undefined,
+                  backgroundColor:
+                    currentSortKey !== "manual" && !sortPopoverOpen
+                      ? "#e0edff"
+                      : undefined,
+                }}
+              />
+            </Popover>
           </div>
           {/* Collapse list button */}
           {/* <Tooltip title={"collapse list"}>

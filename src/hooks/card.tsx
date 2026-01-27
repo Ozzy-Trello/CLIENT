@@ -3,6 +3,8 @@ import {
   addCardLabel,
   cardArchive,
   cards,
+  CardListSortBy,
+  CardSortOrder,
   cardUnarchive,
   copyCard,
   getCardLabels,
@@ -438,6 +440,8 @@ export function useCardsPaginated(
   options?: {
     enabled?: boolean;
     labelIds?: string[];
+    sortBy?: CardListSortBy;
+    sortOrder?: CardSortOrder;
   }
 ) {
   const queryClient = useQueryClient();
@@ -452,15 +456,31 @@ export function useCardsPaginated(
   // Initial query for first page
   const isEnabled = !!listId && (options?.enabled ?? true);
   const labelIds = options?.labelIds;
-
-  // Include labelIds in query key so different filters are cached separately
-  const queryKey = labelIds && labelIds.length > 0
-    ? [...queryKeys.cards.list(listId), 'filtered', labelIds.sort().join(',')]
-    : queryKeys.cards.list(listId);
+  const normalizedLabelKey =
+    labelIds && labelIds.length > 0
+      ? [...labelIds].sort().join(",")
+      : undefined;
+  const sortSegment =
+    options?.sortBy && options?.sortOrder
+      ? `sort:${options.sortBy}:${options.sortOrder}`
+      : "sort:manual";
+  const baseKey = queryKeys.cards.list(listId);
+  const queryKey = normalizedLabelKey
+    ? [...baseKey, "filtered", normalizedLabelKey, sortSegment]
+    : [...baseKey, sortSegment];
 
   const cardsQuery = useQuery({
     queryKey,
-    queryFn: () => cards(listId, boardId, 1, limit, labelIds),
+    queryFn: () =>
+      cards(
+        listId,
+        boardId,
+        1,
+        limit,
+        labelIds,
+        options?.sortBy,
+        options?.sortOrder
+      ),
     enabled: isEnabled,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
@@ -499,7 +519,15 @@ export function useCardsPaginated(
       setAllCards([]);
       setHasMoreCards(true);
     }
-  }, [listId, labelIds?.join(','), queryClient, limit, isEnabled]);
+  }, [
+    listId,
+    labelIds?.join(","),
+    queryClient,
+    limit,
+    isEnabled,
+    options?.sortBy,
+    options?.sortOrder,
+  ]);
 
   // Update allCards when initial query data changes (for fresh data)
   useEffect(() => {
@@ -548,7 +576,15 @@ export function useCardsPaginated(
 
     try {
       const nextPage = currentPage + 1;
-      const response = await cards(listId, boardId, nextPage, limit, labelIds);
+      const response = await cards(
+        listId,
+        boardId,
+        nextPage,
+        limit,
+        labelIds,
+        options?.sortBy,
+        options?.sortOrder
+      );
 
       const responseData = response.data;
       if (
@@ -591,6 +627,8 @@ export function useCardsPaginated(
     queryClient,
     isEnabled,
     labelIds,
+    options?.sortBy,
+    options?.sortOrder,
     queryKey,
   ]);
 
