@@ -137,7 +137,7 @@ const Actions: React.FC<{
   const noFakturValue = useMemo(() => {
     const normalizeId = (field: any) =>
       String(
-        field?.id ?? field?.customFieldId ?? field?.custom_field_id ?? ""
+        field?.id ?? field?.customFieldId ?? field?.custom_field_id ?? "",
       ).trim();
 
     const getValue = (field: any) => {
@@ -154,13 +154,20 @@ const Actions: React.FC<{
 
     const sources: any[][] = [
       Array.isArray(cardCustomFields) ? cardCustomFields : [],
-      Array.isArray(selectedCard?.customFields) ? selectedCard?.customFields : [],
+      Array.isArray(selectedCard?.customFields)
+        ? selectedCard?.customFields
+        : [],
     ];
 
     for (const fields of sources) {
-      const byId = fields.find((f: any) => normalizeId(f) === NO_FAKTUR_CUSTOM_FIELD_ID);
+      const byId = fields.find(
+        (f: any) => normalizeId(f) === NO_FAKTUR_CUSTOM_FIELD_ID,
+      );
       const byName = fields.find(
-        (f: any) => String(f?.name || "").trim().toLowerCase() === "no faktur"
+        (f: any) =>
+          String(f?.name || "")
+            .trim()
+            .toLowerCase() === "no faktur",
       );
 
       const v1 = byId ? getValue(byId) : "";
@@ -182,11 +189,11 @@ const Actions: React.FC<{
   const { archiveCard, unarchiveCard } = useCardDetails(
     selectedCard?.id || "",
     selectedCard?.listId || "",
-    boardId as string
+    boardId as string,
   );
   const { deleteCard } = useCards(
     selectedCard?.listId || "",
-    boardId as string
+    boardId as string,
   );
 
   // Get current user and card members
@@ -204,7 +211,7 @@ const Actions: React.FC<{
   const { board: fetchedBoard } = useBoardDetails(
     boardId as string,
     workspaceId as string,
-    { enabled: !!boardId }
+    { enabled: !!boardId },
   );
   const currentBoardFromStore = useSelector(selectCurrentBoard);
   const storeBoardName = currentBoardFromStore?.name?.trim() || "";
@@ -222,7 +229,7 @@ const Actions: React.FC<{
   const isDelivery = resolvedBoardName === "delivery";
   const isListPOOutlet = resolvedBoardName === "list po | outlet";
 
-  console.log(resolvedBoardName,"<<< ini apa")
+  console.log(resolvedBoardName, "<<< ini apa");
 
   const roleIn = (roles: string[]) =>
     roles.some((r) => r.toLowerCase() === roleLower);
@@ -231,7 +238,7 @@ const Actions: React.FC<{
 
   // Get card attachments for Bukti functionality
   const { cardAttachments, addAttachment } = useCardAttachment(
-    selectedCard?.id || ""
+    selectedCard?.id || "",
   );
   const poUploadSequenceRef = useRef(0);
   const poGeneratedNamesRef = useRef<Set<string>>(new Set());
@@ -285,7 +292,7 @@ const Actions: React.FC<{
     (cardAttachments || []).filter(
       (attachment) =>
         attachment.attachableType === EnumAttachmentType.File &&
-        attachment.type === EnumCardAttachmentType.PO
+        attachment.type === EnumCardAttachmentType.PO,
     ).length;
 
   const buildPOFileName = (originalName: string) => {
@@ -298,7 +305,7 @@ const Actions: React.FC<{
       .filter(
         (attachment) =>
           attachment.attachableType === EnumAttachmentType.File &&
-          attachment.type === EnumCardAttachmentType.PO
+          attachment.type === EnumCardAttachmentType.PO,
       )
       .map((att) => att.file?.name || att.name)
       .filter(Boolean) as string[];
@@ -352,7 +359,7 @@ const Actions: React.FC<{
     return cardAttachments?.some(
       (attachment) =>
         attachment.attachableType === EnumAttachmentType.File &&
-        attachment.file?.name?.startsWith("bukti")
+        attachment.file?.name?.startsWith("bukti"),
     );
   };
 
@@ -361,7 +368,7 @@ const Actions: React.FC<{
     return cardAttachments?.some(
       (attachment) =>
         attachment.attachableType === EnumAttachmentType.File &&
-        attachment.file?.name?.startsWith("PO")
+        attachment.file?.name?.startsWith("PO"),
     );
   };
 
@@ -456,7 +463,7 @@ const Actions: React.FC<{
         message.success("QR code PDF generated successfully!");
       } else {
         message.error(
-          "Failed to open PDF. Please check your popup blocker settings."
+          "Failed to open PDF. Please check your popup blocker settings.",
         );
       }
     } catch (error) {
@@ -560,8 +567,8 @@ const Actions: React.FC<{
             {isAddingMember || isRemovingMember
               ? "Loading..."
               : isCurrentUserMember
-              ? "Leave"
-              : "Join"}
+                ? "Leave"
+                : "Join"}
           </span>
         </button>
       </Tooltip>
@@ -657,7 +664,6 @@ const Actions: React.FC<{
           triggerEl={
             <PermissionButton
               canPerform={canManageCardAttachments()}
-              tooltip="Manage card attachments"
               permissionLevel={permissionLevel}
               buttonStyle={buttonStyle}
             >
@@ -671,7 +677,6 @@ const Actions: React.FC<{
       ) : (
         <PermissionButton
           canPerform={canManageCardAttachments()}
-          tooltip="Manage card attachments"
           permissionLevel={permissionLevel}
           buttonStyle={buttonStyle}
         >
@@ -723,9 +728,7 @@ const Actions: React.FC<{
           }
           setOpenBuatSOModal(true);
         }}
-        tooltip={
-          isBuatSODisabled ? "SO Sudah ada" : "Create Sales Order"
-        }
+        tooltip={isBuatSODisabled ? "SO Sudah ada" : "Create Sales Order"}
         permissionLevel={permissionLevel}
         buttonStyle={buttonStyle}
         disabled={isBuatSODisabled}

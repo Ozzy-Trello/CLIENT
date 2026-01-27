@@ -27,7 +27,6 @@ import {
   RectangleEllipsis,
   ShirtIcon,
   TextCursorInput,
-  Upload,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -163,7 +162,6 @@ const CardDetails: React.FC = (props) => {
   const currentUser = useSelector(selectUser);
   const SUPER_ADMIN_ROLE_ID = "f97c942c-5d0c-49c3-b74d-5b149c08634f";
   const userRole = (currentUser?.role?.name || "").trim().toLowerCase();
-  const isKurirRole = userRole.includes("kurir");
   const isSuperAdmin = currentUser?.role?.id === SUPER_ADMIN_ROLE_ID;
   const isDatelineBoard =
     effectiveBoardName.toLowerCase() === "dateline" || boardId === "Dateline";
@@ -246,13 +244,12 @@ const CardDetails: React.FC = (props) => {
   const [isUploadingDrop, setIsUploadingDrop] = useState(false);
   const [isActionsPopoverOpen, setIsActionsPopoverOpen] = useState(false);
   const [quickUploadLoading, setQuickUploadLoading] = useState<
-    "camera" | "file" | null
+    "camera" | null
   >(null);
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const cameraInputRef = useRef<HTMLInputElement | null>(null); // fallback for older browsers
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const screens = Grid.useBreakpoint();
   const isDesktop = !!screens.md;
   const handleOpenDashcardDetail = useCallback((card: Card) => {
@@ -331,10 +328,10 @@ const CardDetails: React.FC = (props) => {
   );
 
   const handleQuickUpload = useCallback(
-    async (file: File, kind: "camera" | "file") => {
+    async (file: File) => {
       if (!selectedCard?.id) return;
-      setQuickUploadLoading(kind);
-      const toastKey = `quick-upload-${kind}`;
+      setQuickUploadLoading("camera");
+      const toastKey = `quick-upload-camera`;
       message.loading({
         key: toastKey,
         content: "Uploading attachment...",
@@ -438,7 +435,7 @@ const CardDetails: React.FC = (props) => {
     const file = new File([blob], filename, { type: "image/jpeg" });
     stopCameraStream();
     setIsCameraModalOpen(false);
-    void handleQuickUpload(file, "camera");
+    void handleQuickUpload(file);
   }, [handleQuickUpload, stopCameraStream]);
 
   useEffect(() => {
@@ -759,7 +756,7 @@ const CardDetails: React.FC = (props) => {
 	        </div>
       </div>
       {!isDesktop &&
-        (isKurirRole ? (
+        (
           <div className="flex items-center gap-2">
             <input
               ref={cameraInputRef}
@@ -771,18 +768,7 @@ const CardDetails: React.FC = (props) => {
                 const file = e.target.files?.[0];
                 e.target.value = "";
                 if (!file) return;
-                void handleQuickUpload(file, "camera");
-              }}
-            />
-            <input
-              ref={fileInputRef}
-              type="file"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                e.target.value = "";
-                if (!file) return;
-                void handleQuickUpload(file, "file");
+                void handleQuickUpload(file);
               }}
             />
 
@@ -807,24 +793,24 @@ const CardDetails: React.FC = (props) => {
                 }}
               />
             </Tooltip>
-            <Tooltip
-              title={
-                canManageCardAttachments()
-                  ? "Upload file"
-                  : "You don't have permission"
-              }
+
+            <Popover
+              open={isActionsPopoverOpen}
+              onOpenChange={setIsActionsPopoverOpen}
+              trigger="click"
+              placement="bottomRight"
+              overlayStyle={{ width: 360 }}
+              content={actionList}
             >
               <Button
                 size="small"
+                className="flex items-center gap-2 px-3 py-1 rounded-md"
                 type="default"
-                loading={quickUploadLoading === "file"}
-                disabled={
-                  !canManageCardAttachments() || quickUploadLoading !== null
-                }
-                icon={<Upload size={16} />}
-                onClick={() => fileInputRef.current?.click()}
-              />
-            </Tooltip>
+              >
+                <RectangleEllipsis size={16} />
+                <span className="text-sm font-semibold">Actions</span>
+              </Button>
+            </Popover>
 
             <Modal
               open={isCameraModalOpen}
@@ -866,25 +852,7 @@ const CardDetails: React.FC = (props) => {
               </div>
             </Modal>
           </div>
-        ) : (
-          <Popover
-            open={isActionsPopoverOpen}
-            onOpenChange={setIsActionsPopoverOpen}
-            trigger="click"
-            placement="bottomRight"
-            overlayStyle={{ width: 360 }}
-            content={actionList}
-          >
-            <Button
-              size="small"
-              className="flex items-center gap-2 px-3 py-1 rounded-md"
-              type="default"
-            >
-              <RectangleEllipsis size={16} />
-              <span className="text-sm font-semibold">Actions</span>
-            </Button>
-          </Popover>
-        ))}
+        )}
     </div>
   );
 
