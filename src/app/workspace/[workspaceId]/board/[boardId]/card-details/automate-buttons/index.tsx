@@ -61,11 +61,16 @@ const AutomateButtons: React.FC = () => {
     fetchCardButtons();
   }, [workspaceId, boardId]);
 
+  //   - Revisi: Adm Produksi, Kepala Produksi, SPV Desainer Outlet
+  // - Konfirm Bordir: Spv Desainer Bordir, Desainer Bordir
+  // - Split Job: SPV Sewing, Kepala Produksi
+  // - Checked: SPV Desainer Outlet, SPV Outlet
   // Hardcoded role permissions
   const ALLOWED_ROLES: Record<string, string[]> = {
-    Revisi: ["Adm Produksi", "Kepala Produksi", "Super Admin"],
+    Revisi: ["Admin Produksi", "Kepala Produksi", "Super Admin"],
     "Konfirm Bordir": ["Spv Desainer Bordir", "Desainer Bordir", "Super Admin"],
     "Split Job": ["SPV Sewing", "Kepala Produksi", "Super Admin"],
+    "Checked": ["SPV Desainer Outlet", "SPV Outlet", "Super Admin"],
   };
 
   const currentUser = useSelector(selectUser);

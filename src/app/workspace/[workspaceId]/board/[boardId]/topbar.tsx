@@ -201,7 +201,7 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
   console.log("[TOPBAR LOGS] Current User Role:", userRole);
 
   const canShowDelivery =
-    isSuperAdmin || (isDateline && roleInList(["Kurir", "Kepala Produksi", "Warehouse Bahan",
+    isSuperAdmin || (isDateline && roleInList(["Kurir", "Kepala Produksi", "Admin Produksi", "Warehouse Bahan",
       "Kepala Gudang"]));
   const canShowCetakQR =
     isSuperAdmin ||
