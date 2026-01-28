@@ -305,7 +305,7 @@ const DraggableList: React.FC<DraggableListProps> = ({
                     </div>
                   )}
                 </Droppable>
-                {canCreateCardPermission && (
+                {(
                   <div className="px-2 py-2 border-t border-gray-200">
                     <AddCard listId={list.id || ""} addCard={addCard} />
                   </div>
