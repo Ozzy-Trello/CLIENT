@@ -65,11 +65,11 @@ const Cover: React.FC<CoverProps> = (props) => {
           <Image
             src={imageCover}
             style={{
-              objectFit: "cover",
+              objectFit: "contain",
               objectPosition: "center",
               display: "block",
             }}
-            className="rounded-t-lg"
+            className="rounded-t-lg bg-gray-200"
             height={144}
             width={"100%"}
           />

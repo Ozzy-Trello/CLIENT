@@ -30,6 +30,10 @@ import {
   TextCursorInput,
   Plus,
   Users,
+  FileCheck,
+  FileText,
+  QrCode,
+  Zap,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -49,7 +53,13 @@ import PopoverDates from "@components/popover-dates.tsx";
 import PopoverLabel from "@components/popover-label.tsx";
 import PopoverChecklist from "@components/popover-checklist";
 import PopoverUser from "@components/popover-user";
+import PopoverAttach from "@components/popover-attach";
+import UploadModal from "@components/modal-upload/modal-upload";
+import AutomateButtons from "./automate-buttons";
 import { ListSelection, SelectionRef } from "@components/selection";
+import { useCurrentAccount } from "@hooks/account";
+import { generateQRCodesPDF } from "@api/qr";
+
 import { useBoardDetails } from "@hooks/board";
 import { useCardMutationsOnly } from "@hooks/card";
 import { useCardDetails } from "@hooks/card-details";
@@ -78,6 +88,7 @@ import SplitJobFields from "./split-job-field";
 import CardTimeInList from "./time-in-lists";
 import { uploadFile } from "@api/file";
 import { createCardAttachment } from "@api/card_attachment";
+import { useCardAttachment } from "@hooks/card_attachment";
 
 const CardDetails: React.FC = (props) => {
   const params = useParams();
@@ -258,7 +269,8 @@ const CardDetails: React.FC = (props) => {
   );
 
   // Get board permissions
-  const { canUpdateCard, canManageCardAttachments } = useBoardPermissionsContext();
+  const { canUpdateCard, canManageCardAttachments, canGenerateQR } = useBoardPermissionsContext();
+  const roleLower = userRole; // Alias for consistency with toolbar logic
   const [dashcardModalCard, setDashcardModalCard] = useState<Card | null>(null);
   const [isDashcardModalOpen, setIsDashcardModalOpen] = useState(false);
   const [isDraggingFiles, setIsDraggingFiles] = useState(false);
@@ -273,10 +285,149 @@ const CardDetails: React.FC = (props) => {
   const cameraInputRef = useRef<HTMLInputElement | null>(null); // fallback for older browsers
   const screens = Grid.useBreakpoint();
   const isDesktop = !!screens.md;
+
+  // --- Toolbar Logic Extraction ---
+  // State for Toolbar Actions
+  const [openAttach, setOpenAttach] = useState(false);
+  const [openBuktiModal, setOpenBuktiModal] = useState(false);
+  const [openPOModal, setOpenPOModal] = useState(false);
+  const [isPOPelengkap, setIsPOPelengkap] = useState(false);
+  
+  // Refs for PO logic
+  const poUploadSequenceRef = useRef(0);
+  const poGeneratedNamesRef = useRef<Set<string>>(new Set());
+
+  // Role Checks & Permissions for Toolbar
+  // const roleLower = (userRole || currentUser?.role?.name || "").trim().toLowerCase(); // Already defined above
+  // const isDateline = effectiveBoardName?.toLowerCase() === "dateline"; // Already defined above or partially available
+  const canPOActions = isSuperAdmin || (isDatelineBoard && roleIn(["admin produksi", "kepala produksi"]));
+  const isListPOOutlet = effectiveBoardName?.toLowerCase() === "list po | outlet";
+  const isDelivery = effectiveBoardName?.toLowerCase() === "delivery";
+  const canBukti = isSuperAdmin || (isListPOOutlet && roleIn(["deal maker", "spv deal maker"]));
+  const canGenerateQRPermission = isSuperAdmin || (canGenerateQR && canGenerateQR()) || ((isListPOOutlet || isDatelineBoard || isDelivery) && roleLower !== "kurir");
+
+  // Attachment Logic for Toolbar
+  const { cardAttachments, addAttachment } = useCardAttachment(selectedCard?.id || "");
+
+  const hasBuktiAttachment = () => {
+    return cardAttachments?.some(
+      (attachment: any) =>
+        attachment.attachableType === EnumAttachmentType.File &&
+        attachment.file?.name?.startsWith("bukti"),
+    );
+  };
+
+  // PO Logic
+  useEffect(() => {
+    if (openPOModal) {
+      poUploadSequenceRef.current = 0;
+      poGeneratedNamesRef.current = new Set();
+      setIsPOPelengkap(false);
+    }
+  }, [openPOModal]);
+
+  const buildPOFileName = (originalName: string) => {
+    const dotIndex = originalName.lastIndexOf(".");
+    const base = dotIndex >= 0 ? originalName.slice(0, dotIndex) : originalName;
+    const ext = dotIndex >= 0 ? originalName.slice(dotIndex) : "";
+    const prefix = isPOPelengkap ? "PO Pelengkap - " : "PO - ";
+
+    const existingNames = (cardAttachments || [])
+      .filter(
+        (attachment: any) =>
+          attachment.attachableType === EnumAttachmentType.File &&
+          attachment.type === EnumCardAttachmentType.PO,
+      )
+      .map((att: any) => att.file?.name || att.name)
+      .filter(Boolean) as string[];
+
+    let index = 0;
+    let candidate = `${prefix}${base}${ext}`;
+    while (
+      existingNames.includes(candidate) ||
+      poGeneratedNamesRef.current.has(candidate)
+    ) {
+      index += 1;
+      candidate = `${prefix}${base} (${index})${ext}`;
+    }
+
+    poGeneratedNamesRef.current.add(candidate);
+    return candidate;
+  };
+
+  const handleBuktiUpload = (file: File, result: any) => {
+      // Result comes from UploadModal's internal upload
+      if (result && selectedCard) {
+        addAttachment({
+          cardId: selectedCard.id,
+          attachableType: EnumAttachmentType.File,
+          attachableId: result.id,
+          isCover: false,
+          type: EnumCardAttachmentType.Bukti,
+        });
+
+        message.success("Bukti uploaded successfully!");
+        setOpenBuktiModal(false);
+      }
+  };
+
+  const handlePOUpload = (file: File, result: any) => {
+      if (result && selectedCard) {
+        addAttachment({
+          cardId: selectedCard.id,
+          attachableType: EnumAttachmentType.File,
+          attachableId: result.id,
+          isCover: false,
+          type: EnumCardAttachmentType.PO,
+        });
+
+        message.success("PO uploaded successfully!");
+        setOpenPOModal(false);
+      }
+  };
+
+  const handleGenerateQR = async () => {
+    if (!selectedCard?.id) {
+        message.error("No card selected for QR generation");
+        return;
+    }
+    try {
+        const blob = await generateQRCodesPDF(selectedCard.id);
+        const url = URL.createObjectURL(blob);
+        const newWindow = window.open(url, "_blank");
+        if (newWindow) {
+            setTimeout(() => { URL.revokeObjectURL(url); }, 1000);
+            message.success("QR code PDF generated successfully!");
+        } else {
+            message.error("Failed to open PDF. Please check your popup blocker settings.");
+        }
+    } catch (error) {
+        console.error("Error generating QR PDF:", error);
+        message.error("Failed to generate QR code PDF. Please try again.");
+    }
+  };
+
   const handleOpenDashcardDetail = useCallback((card: Card) => {
     setDashcardModalCard(card);
     setIsDashcardModalOpen(true);
   }, []);
+
+  useEffect(() => {
+    if (!selectedCard) {
+      setIsDashcardModalOpen(false);
+      setDashcardModalCard(null);
+      return;
+    }
+
+    if (selectedCard.type === "dashcard") {
+      setDashcardModalCard(selectedCard);
+      setIsDashcardModalOpen(true);
+    }
+  }, [selectedCard]);
+
+// ... (omitted code)
+
+// ... (omitted code)
 
   useEffect(() => {
     if (!selectedCard) {
@@ -1163,29 +1314,9 @@ const CardDetails: React.FC = (props) => {
   );
 
   // Define Toolbar components
-  // + Add Button
-  const toolbarAddButton = (
-      <Popover
-        trigger="click"
-        placement="bottomLeft"
-        content={
-            <div className="w-[300px] h-96 overflow-y-scroll">
-                <Actions
-                    boardName={effectiveBoardName}
-                    userRole={userRole}
-                    isSuperAdmin={isSuperAdmin}
-                    exclude={["Labels", "Dates", "Checklist", "Members"]}
-                />
-            </div>
-        }
-      >
-          <Button size="small" type="default" className="bg-gray-200 hover:bg-gray-300 border-none font-medium">
-             <Plus size={14} className="mr-1" /> Add
-          </Button>
-      </Popover>
-  );
-
-  // Labels Button
+  // Define Toolbar components (consolidated)
+  
+  // 1. Labels
   const toolbarLabelsButton = (
       <PopoverLabel
         open={openLabel}
@@ -1197,8 +1328,46 @@ const CardDetails: React.FC = (props) => {
         }
       />
   );
+  
+  // 2. Attachments
+  const toolbarAttachButton = canManageCardAttachments && canManageCardAttachments() ? (
+     <PopoverAttach
+        open={openAttach}
+        setOpen={setOpenAttach}
+        triggerEl={
+             <Button size="small" type="default" className="bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-200">
+                <Paperclip className="mr-1" size={14} /> Attachment
+             </Button>
+        }
+     />
+  ) : null;
 
-  // Dates Button
+  // 3. Upload Bukti
+  const toolbarBuktiButton = (canBukti && canManageCardAttachments && canManageCardAttachments()) ? (
+      <Tooltip title={hasBuktiAttachment() ? "Bukti already exists" : "Upload bukti file"}>
+        <Button 
+            size="small" type="default" 
+            className="bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-200"
+            onClick={() => setOpenBuktiModal(true)}
+            disabled={hasBuktiAttachment()}
+        >
+             <FileCheck className="mr-1" size={14} /> Upload Bukti
+        </Button>
+      </Tooltip>
+  ) : null;
+
+  // 4. Upload File PO
+  const toolbarPOButton = (canPOActions && canManageCardAttachments && canManageCardAttachments()) ? (
+      <Button 
+        size="small" type="default" 
+        className="bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-200"
+        onClick={() => setOpenPOModal(true)}
+      >
+         <FileText className="mr-1" size={14} /> Upload File PO
+      </Button>
+  ) : null;
+
+  // 5. Dates
   const toolbarDatesButton = (
       <PopoverDates
         open={openDates}
@@ -1210,43 +1379,92 @@ const CardDetails: React.FC = (props) => {
         }
       />
   );
-
-   // Checklist Button
-   const [openChecklist, setOpenChecklist] = useState(false);
-   const toolbarChecklistButton = (
-      <PopoverChecklist
-         open={openChecklist}
-         setOpen={setOpenChecklist}
-         triggerEl={
-             <Button size="small" type="default" className="bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-200">
-                <CheckSquare size={14} className="mr-1" /> Checklist
-             </Button>
-         }
+  
+  // 6. Generate QR
+  const toolbarQRButton = canGenerateQRPermission ? (
+      <Button 
+        size="small" type="default" 
+        className="bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-200"
+        onClick={handleGenerateQR}
+      >
+         <QrCode className="mr-1" size={14} /> Generate QR
+      </Button>
+  ) : null;
+  
+  // 7. Automation
+  const toolbarAutomationButton = (
+      <AutomateButtons 
+         boardName={effectiveBoardName}
+         exclude={[]}
+         isToolbar={true}
       />
-   );
+  );
+  
+  // 8. Checklist
+  const [openChecklist, setOpenChecklist] = useState(false);
+  const toolbarChecklistButton = (
+    <PopoverChecklist
+        open={openChecklist}
+        setOpen={setOpenChecklist}
+        triggerEl={
+            <Button size="small" type="default" className="bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-200">
+            <CheckSquare size={14} className="mr-1" /> Checklist
+            </Button>
+        }
+    />
+  );
 
-   // Members Button
-   const [openMembersToolbar, setOpenMembersToolbar] = useState(false);
-   const toolbarMembersButton = (
-       <PopoverUser
-          open={openMembersToolbar}
-          setOpen={setOpenMembersToolbar}
-          triggerEl={
-             <Button size="small" type="default" className="bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-200">
-                <Users size={14} className="mr-1" /> Members
-             </Button>
-          }
-       />
-    );
-
+  // 9. Members
+  const [openMembersToolbar, setOpenMembersToolbar] = useState(false);
+  const toolbarMembersButton = (
+      <PopoverUser
+        open={openMembersToolbar}
+        setOpen={setOpenMembersToolbar}
+        triggerEl={
+            <Button size="small" type="default" className="bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-200">
+            <Users size={14} className="mr-1" /> Members
+            </Button>
+        }
+      />
+  );
+  
+  // 10. + Actions (Dropdown)
+  const toolbarAddButton = (
+      <Popover
+        trigger="click"
+        placement="bottomLeft"
+        content={
+            <div className="w-[300px] h-96 overflow-y-scroll">
+                <Actions
+                    boardName={effectiveBoardName}
+                    userRole={userRole}
+                    isSuperAdmin={isSuperAdmin}
+                    exclude={[
+                        "Labels", "Dates", "Checklist", "Members",
+                        "Attachment", "Bukti", "PO", "QR", "Automation"
+                    ]}
+                />
+            </div>
+        }
+      >
+          <Button size="small" type="default" className="bg-gray-200 hover:bg-gray-300 border-none font-medium">
+             <Plus size={14} className="mr-1" /> Actions
+          </Button>
+      </Popover>
+  );
 
   const actionsToolbar = (
       <div className="flex flex-wrap items-center gap-2 mb-4 md:ml-8">
-          {toolbarAddButton}
           {toolbarLabelsButton}
+          {toolbarAttachButton}
+          {toolbarBuktiButton}
+          {toolbarPOButton}
           {toolbarDatesButton}
+          {toolbarQRButton}
           {toolbarChecklistButton}
           {toolbarMembersButton}
+          {toolbarAutomationButton}
+          {toolbarAddButton}
       </div>
   );
 
@@ -1273,6 +1491,39 @@ const CardDetails: React.FC = (props) => {
             </div>
           </div>
         )}
+        
+        {/* Modals for Toolbar Actions */}
+        <UploadModal
+            isVisible={openBuktiModal}
+            onClose={() => setOpenBuktiModal(false)}
+            onUploadComplete={handleBuktiUpload}
+            title="Upload Bukti"
+            acceptableExtensions=".pdf,.jpg,.jpeg,.png"
+            maxSize={10 * 1024 * 1024}
+        />
+        
+        <UploadModal
+            isVisible={openPOModal}
+            onClose={() => setOpenPOModal(false)}
+            onUploadComplete={handlePOUpload}
+            title="Upload File PO"
+            acceptableExtensions=".pdf,.jpg,.jpeg,.png"
+            maxSize={10 * 1024 * 1024}
+            onBeforeUpload={(file: File) => {
+                 const poFileName = buildPOFileName(file.name);
+                 return new File([file], poFileName, { type: file.type });
+            }}
+            extraContent={
+                <div className="mb-4">
+                    <Checkbox
+                        checked={isPOPelengkap}
+                        onChange={(e) => setIsPOPelengkap(e.target.checked)}
+                    >
+                        Mark as PO Pelengkap
+                    </Checkbox>
+                </div>
+            }
+        />
         {/* Cover Image Section */}
         {selectedCard && <Cover card={selectedCard} />}
 

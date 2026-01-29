@@ -18,7 +18,11 @@ interface CardButton {
   ruleId: string;
 }
 
-const AutomateButtons: React.FC = () => {
+const AutomateButtons: React.FC<{
+  boardName?: string;
+  exclude?: string[];
+  isToolbar?: boolean;
+}> = ({ boardName, exclude = [], isToolbar = false }) => {
   const [cardButtons, setCardButtons] = useState<CardButton[]>([]);
   const [isFetchingButtons, setIsFetchingButtons] = useState(false);
   const [loadingByRuleId, setLoadingByRuleId] = useState<
@@ -162,7 +166,9 @@ const AutomateButtons: React.FC = () => {
               <button
                 onClick={() => handleButtonClick(button)}
                 disabled={isFetchingButtons || !!loadingByRuleId[button.ruleId]}
-                className="text-xs flex items-center gap-3 w-full text-left py-2 px-2 rounded-md transition-colors mb-1 hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed"
+                className={`text-xs flex items-center gap-1 text-left px-2 rounded-sm transition-colors hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed ${
+                  isToolbar ? "h-[24px] mr-1 inline-flex border" : "w-full mb-1 py-2"
+                }`}
                 style={buttonStyle}
               >
                 <Zap size={14} style={iconStyle} />
