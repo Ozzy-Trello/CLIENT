@@ -68,7 +68,7 @@ const AutomateButtons: React.FC = () => {
   // Hardcoded role permissions
   const ALLOWED_ROLES: Record<string, string[]> = {
     Revisi: ["Admin Produksi", "SPV Desainer Outlet", "Kepala Produksi", "Super Admin"],
-    "Konfirm Bordir": ["Spv Desainer Bordir", "Desainer Bordir", "Super Admin"],
+    "Konfirm Bordir": ["SPV Desainer Bordir", "Desainer Bordir", "Super Admin"],
     "Split Job": ["SPV Sewing", "Kepala Produksi", "Super Admin"],
     "Checked": ["SPV Desainer Outlet", "SPV Outlet", "Super Admin"],
   };
