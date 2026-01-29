@@ -156,10 +156,12 @@ export const V2FilterGrid: React.FC<V2FilterGridProps> = ({
   }, [cards]);
 
   const productionDateOptions = React.useMemo(() => {
-    if (!filterConfig.productionDateField) return [];
+    const prodField = filterConfig.productionDateField;
+    if (!prodField) return [];
     const set = new Set<string>();
-    const fieldId = filterConfig.productionDateField.id;
-    const fieldName = filterConfig.productionDateField.name;
+    const fieldId = prodField.id;
+    const fieldName = prodField.name;
+    const fieldLabel = prodField.label;
     (cards || []).forEach((card: any) => {
       const cfs = card?.customFieldValues || card?.custom_field_values || {};
       const raw =
@@ -167,7 +169,7 @@ export const V2FilterGrid: React.FC<V2FilterGridProps> = ({
         card?.targetDate ||
         (fieldId && cfs[fieldId]) ||
         (fieldName && cfs[fieldName]) ||
-        cfs[filterConfig.productionDateField.label];
+        (fieldLabel ? cfs[fieldLabel] : undefined);
       const key = normalizeDateKey(raw);
       if (key) set.add(key);
     });
