@@ -18,7 +18,15 @@ import dayjs from "dayjs";
 import { usePlanSummary } from "@hooks/usePlan";
 import { PlanFilterParam, PlanItem } from "@api/plans";
 import { useMasterPlanners, useMasterPlannerV2 } from "@hooks/master-planner";
+import { useProducts } from "@hooks/useProducts";
 import { Filter, RotateCcw } from "lucide-react";
+import {
+  V2FilterGrid,
+  V2FilterConfig,
+  buildV2FiltersPayload,
+  countActiveV2Filters,
+  useV2FilterState,
+} from "./shared-filters";
 
 const { Text } = Typography;
 
@@ -77,31 +85,68 @@ const GenericPlannerView: React.FC<GenericPlannerViewProps> = ({
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [date, setDate] = useState<string | undefined>(undefined);
-  const [listFilter, setListFilter] = useState<string | undefined>(undefined);
-  const [productFilter, setProductFilter] = useState<string>("");
+  const [listFilter, setListFilter] = useState<string[]>([]);
+  const [statusFilter, setStatusFilter] = useState<"any" | "Aman" | "Overload">("any");
   const [dynamicFilters, setDynamicFilters] = useState<Record<string, string>>(
     {},
   );
   const [dynamicDateFilters, setDynamicDateFilters] = useState<
     Record<string, string>
   >({});
+  // Use shared V2 filter state hook
+  const v2FilterHook = useV2FilterState();
 
   const getV2Type = (name: string): string | null => {
     const n = name.toLowerCase().trim();
-    if (n === "sewing") return "sewing";
-    if (n === "cutting") return "cutting";
-    if (n === "bordir") return "bordir";
-    if (n === "knitting (km)" || n === "knitting" || n.includes("krah"))
+    if (n.includes("sewing")) return "sewing";
+    if (n.includes("cutting")) return "cutting";
+    if (n.includes("bordir")) return "bordir";
+    if (n.includes("knitting") || n.includes("krah"))
       return "knitting";
     return null;
   };
 
   const v2Type = getV2Type(plannerName);
 
-  // Fetch V2 Data
+  // Fetch V2 Data with filters using shared helper
+  const v2Filters = React.useMemo(
+    () => buildV2FiltersPayload(v2FilterHook.state),
+    [v2FilterHook.state]
+  );
+  // Fetch V2 Data for date options (exclude date filters so options don't collapse)
+  const v2OptionFilters = React.useMemo(() => {
+    const state = v2FilterHook.state;
+    return buildV2FiltersPayload({
+      ...state,
+      dueDateValues: [],
+      productionDateValues: [],
+    });
+  }, [v2FilterHook.state]);
+  
   const { data: v2Data, isLoading: loadingV2 } = useMasterPlannerV2(
     v2Type || "",
+    v2Type ? v2Filters : undefined,
   );
+  const { data: v2OptionsData } = useMasterPlannerV2(
+    v2Type || "",
+    v2Type ? v2OptionFilters : undefined,
+  );
+  const v2FilterConfig = (v2Data as any)?.filterConfig as V2FilterConfig | null;
+  const v2Cards = (v2Data as any)?.cards ?? [];
+  const v2OptionCards = (v2OptionsData as any)?.cards ?? v2Cards;
+  const isV2 = !!v2Type;
+
+  // Reset filters on planner type change
+  React.useEffect(() => {
+    v2FilterHook.resetForPlannerChange();
+  }, [v2Type]);
+
+  // Initialize filters from API defaults
+  React.useEffect(() => {
+    if (isV2 && v2FilterConfig) {
+      v2FilterHook.initializeFromDefaults(v2FilterConfig);
+    }
+  }, [isV2, v2FilterConfig]);
 
   // Fetch all planners to find ID by name if not provided (V1 Legacy)
   // Only needed if NOT V2
@@ -111,6 +156,9 @@ const GenericPlannerView: React.FC<GenericPlannerViewProps> = ({
   const normalizedPlannerName = plannerName.toLowerCase().trim();
   const candidateNames = [normalizedPlannerName];
 
+  // Fetch products for filter dropdown
+  const { data: products = [] } = useProducts();
+
   const resolvedPlanner = propPlannerId
     ? planners.find((p) => p.id === propPlannerId)
     : planners.find((p) => candidateNames.includes(p.name.toLowerCase()));
@@ -118,13 +166,17 @@ const GenericPlannerView: React.FC<GenericPlannerViewProps> = ({
   const resolvedPlannerId = resolvedPlanner?.id;
 
   // Config Decision: V2 vs V1
-  const plannerConfig =
-    (resolvedPlanner as any)?.plannerConfig ||
-    (resolvedPlanner as any)?.planner_config ||
-    (v2Data?.config ?? {});
+  const plannerConfig = isV2
+    ? (v2Data?.config ?? {})
+    : ((resolvedPlanner as any)?.plannerConfig ||
+      (resolvedPlanner as any)?.planner_config ||
+      {});
 
   const includeLists: string[] =
-    plannerConfig.include_lists || plannerConfig.includeLists || [];
+    plannerConfig.include_lists ||
+    plannerConfig.includeLists ||
+    plannerConfig.filterLists ||
+    [];
   const dateField = getDateFieldName(
     plannerName,
     plannerConfig?.date_field || plannerConfig?.dateField,
@@ -132,16 +184,16 @@ const GenericPlannerView: React.FC<GenericPlannerViewProps> = ({
 
   // Build filters payload for backend
   const filtersPayload: PlanFilterParam[] = [];
-  if (listFilter)
+  if (listFilter.length > 0)
     filtersPayload.push({
       field: "list_name",
-      value: listFilter,
-      operator: "eq",
+      value: listFilter.join(","),
+      operator: "like",
     });
-  if (productFilter)
+  if (v2FilterHook.state.productFilter.length > 0)
     filtersPayload.push({
-      field: "product_name",
-      value: productFilter,
+      field: "product_id",
+      value: v2FilterHook.state.productFilter.join(","),
       operator: "like",
     });
   if (date && dateField)
@@ -215,6 +267,7 @@ const GenericPlannerView: React.FC<GenericPlannerViewProps> = ({
   };
 
   const filterableColumns = filterColumns.filter((col: any) => {
+    if (isV2) return false; // V2 filters are applied server-side; UI shows badges instead.
     if (isListHeader(col.header)) return false;
     if (isProductHeader(col.header)) return false;
     if (col.header === dateField) return false;
@@ -222,19 +275,21 @@ const GenericPlannerView: React.FC<GenericPlannerViewProps> = ({
   });
 
   // Helper to access dynamic fields robustly
-  const getDynamicValue = (record: PlanItem, key: string) => {
-    if (record[key] !== undefined) return record[key];
+  const getDynamicValue = React.useCallback((record: PlanItem, key: string) => {
+    const cfValues = (record as any)?.custom_field_values;
+    if (cfValues && cfValues[key] !== undefined) return cfValues[key];
+    if ((record as any)?.[key] !== undefined) return (record as any)[key];
     const camelKey = key
       .replace(/(?:^\w|[A-Z]|\b\w)/g, (word, idx) =>
         idx === 0 ? word.toLowerCase() : word.toUpperCase(),
       )
       .replace(/\s+/g, "");
-    if (record[camelKey] !== undefined) return record[camelKey];
+    if ((record as any)?.[camelKey] !== undefined) return (record as any)[camelKey];
     const simpleCamel =
       key.charAt(0).toLowerCase() + key.slice(1).replace(/\s+/g, "");
-    if (record[simpleCamel] !== undefined) return record[simpleCamel];
+    if ((record as any)?.[simpleCamel] !== undefined) return (record as any)[simpleCamel];
     return undefined;
-  };
+  }, []);
 
   const normalizeDateKey = (val: any): string | null => {
     if (!val) return null;
@@ -253,93 +308,160 @@ const GenericPlannerView: React.FC<GenericPlannerViewProps> = ({
     return d.format("YYYY-MM-DD");
   };
 
-  const capacityForDate = (() => {
-    const holidays = new Set(
-      (plannerConfig?.holidays || [])
-        .map((d: any) => normalizeDateKey(d))
-        .filter((d: string | null): d is string => !!d),
-    );
-    const halfDays = new Set(
-      (plannerConfig?.half_days || plannerConfig?.halfDays || [])
-        .map((d: any) => normalizeDateKey(d))
-        .filter((d: string | null): d is string => !!d),
-    );
-    const lines = plannerConfig?.lines || [];
-    const fullCapacity = lines.reduce((sum: number, line: any) => {
-      const cap = parseNumeric(line?.capacity) || 0;
-      return sum + cap;
-    }, 0);
-    const halfCapacity = lines.reduce((sum: number, line: any) => {
-      const cap = parseNumeric(line?.capacity) || 0;
-      const halfCap = parseNumeric((line as any)?.half_day_capacity) ?? cap / 2;
-      return sum + halfCap;
-    }, 0);
+  const resolveTargetDate = React.useCallback((card: any): string | null => {
+    const cfValues = card?.custom_field_values || {};
+    const dateVal =
+      card?.target_date ||
+      (plannerConfig?.targetDateId && cfValues[plannerConfig.targetDateId]) ||
+      (plannerConfig?.targetDateName &&
+        cfValues[plannerConfig.targetDateName]) ||
+      cfValues[dateField] ||
+      card?.due_date ||
+      card?.dueDate ||
+      card?.targetDate ||
+      card?.target_date;
+    return normalizeDateKey(dateVal);
+  }, [plannerConfig?.targetDateId, plannerConfig?.targetDateName, dateField]);
 
-    return (dateKey: string | null): number | null => {
-      if (!dateKey) return null;
-      if (holidays.has(dateKey)) return 0;
-      if (halfDays.has(dateKey)) return halfCapacity;
-      return fullCapacity;
-    };
-  })();
+  const resolveQuantity = React.useCallback((card: any): number => {
+    const qtyVal =
+      parseNumeric(card?.jml_produksi ?? card?.quantity) ??
+      parseNumeric(getDynamicValue(card as any, "quantity"));
+    return qtyVal ?? 0;
+  }, [getDynamicValue]);
 
-  const displayItems = React.useMemo(() => {
-    if (!v2Type) return items as any[];
+  const textIncludes = (source: any, needle: string) => {
+    if (!needle) return true;
+    const src = typeof source === "string" ? source : String(source ?? "");
+    return src.toLowerCase().includes(needle.toLowerCase());
+  };
+
+  // Helper to get CF value by ID or name
+  const getCfValue = React.useCallback((card: any, idOrName?: string) => {
+    if (!idOrName) return undefined;
+    const cfValues = card?.custom_field_values || {};
+    return cfValues[idOrName];
+  }, []);
+
+  const filteredV2Cards = React.useMemo(() => {
+    if (!isV2) return [];
+    const searchTerm = (search || "").trim().toLowerCase();
+    const filterCfg = v2FilterConfig;
+
+    return v2Cards.filter((card: any) => {
+      // Local filters only - V2 filters (checkbox, qty, present, option) are handled by backend
+      if (searchTerm) {
+        const nameMatch = (card?.name || "").toLowerCase().includes(searchTerm);
+        const cfMatch = Object.values(card?.custom_field_values || {}).some((v) =>
+          typeof v === "string"
+            ? v.toLowerCase().includes(searchTerm)
+            : false,
+        );
+        if (!nameMatch && !cfMatch) return false;
+      }
+
+      if (listFilter.length > 0 && !listFilter.includes(card?.list_name)) return false;
+
+      const cardDate = resolveTargetDate(card);
+      if (date && cardDate !== date) return false;
+
+      // Note: V2 filters (checkboxFilter, qtyFilter, presentFilter, optionFilter, productFilter) 
+      // are now handled by the backend API, so we don't filter them client-side
+
+      for (const [key, val] of Object.entries(dynamicFilters)) {
+        if (!val) continue;
+        const cardVal =
+          getDynamicValue(card as any, key) ??
+          (card?.custom_field_values || {})[key];
+        if (!textIncludes(cardVal, val)) return false;
+      }
+
+      for (const [key, val] of Object.entries(dynamicDateFilters)) {
+        if (!val) continue;
+        const filterDate = normalizeDateKey(val);
+        const cardDateVal = normalizeDateKey(
+          getDynamicValue(card as any, key) ??
+            (card?.custom_field_values || {})[key],
+        );
+        if (filterDate && cardDateVal !== filterDate) return false;
+      }
+
+      return true;
+    });
+  }, [
+    isV2,
+    v2Cards,
+    search,
+    listFilter,
+    date,
+    dynamicFilters,
+    dynamicDateFilters,
+    resolveTargetDate,
+    getDynamicValue,
+    textIncludes,
+    normalizeDateKey,
+  ]);
+
+  // V2: aggregate filtered cards into daily capacity rows
+  const v2DisplayItems = React.useMemo(() => {
+    if (!isV2) return [];
 
     const grouped = new Map<
       string,
       { totalJml: number; capacity: number | null }
     >();
-    items.forEach((item: any) => {
-      const dateKey = normalizeDateKey(
-        (item as any).date ??
-          (dateField
-            ? (item[dateField] ??
-              (item as any).targetDate ??
-              (item as any).target_date)
-            : ((item as any).targetDate ?? (item as any).target_date)),
-      );
-      if (!dateKey) return;
-      const jml =
-        parseNumeric(getDynamicValue(item as any, "Jml Cutting")) ??
-        parseNumeric((item as any).jmlProduksi) ??
-        parseNumeric((item as any).jml_produksi) ??
-        parseNumeric((item as any).quantity) ??
-        parseNumeric((item as any).jml_produksi) ?? // backend summary shape
-        parseNumeric((item as any).jmlProduksi) ??
-        0;
-      const capacity =
-        (item as any).kapasitasHarian ??
-        (item as any).kapasitas_harian ??
-        capacityForDate(dateKey);
-      const current = grouped.get(dateKey) ?? { totalJml: 0, capacity };
-      current.totalJml += jml || 0;
-      if (current.capacity === null && capacity !== null)
-        current.capacity = capacity;
+
+    filteredV2Cards.forEach((card: any) => {
+      const dateKey = resolveTargetDate(card) || card?.due_date || card?.dueDate || "No Date";
+      const qty = resolveQuantity(card) || 0;
+      const capacity = card?.kapasitas_harian ?? card?.kapasitasHarian ?? null;
+      const sisa = card?.sisa_kapasitas ?? card?.sisaKapasitas ?? null;
+      const status = card?.status_produksi ?? card?.statusProduksi ?? null;
+      const overdue = card?.overdue_days ?? card?.overdueDays ?? null;
+      const current = grouped.get(dateKey) ?? {
+        totalJml: 0,
+        capacity: null as number | null,
+        sisa: null as number | null,
+        status: null as "Aman" | "Overload" | null,
+        overdue: null as number | null,
+      };
+      current.totalJml += qty;
+      if (current.capacity === null && capacity !== null) current.capacity = capacity;
+      if (current.sisa === null && sisa !== null) current.sisa = sisa;
+      if (current.status === null && status !== null) current.status = status;
+      if (current.overdue === null && overdue !== null) current.overdue = overdue;
       grouped.set(dateKey, current);
     });
 
     return Array.from(grouped.entries())
-      .map(([dateKey, info]) => {
-        const capacity = info.capacity ?? capacityForDate(dateKey);
-        const sisa = capacity !== null ? capacity - info.totalJml : null;
-        const status =
-          capacity === null || sisa === null
-            ? null
-            : sisa > 0
-              ? "Aman"
-              : "Overload";
-        return {
-          date: dateKey,
-          jml_produksi: info.totalJml || null,
-          kapasitas_harian: capacity,
-          sisa_kapasitas: sisa,
-          status_produksi: status,
-          overdue_days: null,
-        };
-      })
+      .map(([dateKey, info]) => ({
+        date: dateKey,
+        jml_produksi: info.totalJml || null,
+        kapasitas_harian: info.capacity,
+        sisa_kapasitas: info.sisa,
+        status_produksi: info.status,
+        overdue_days: info.overdue,
+      }))
       .sort((a, b) => a.date.localeCompare(b.date));
-  }, [items, v2Type, dateField, capacityForDate]);
+  }, [isV2, filteredV2Cards, resolveTargetDate, resolveQuantity]);
+
+  const displayItems = React.useMemo(() => {
+    if (isV2) return v2DisplayItems;
+    return items as any[];
+  }, [isV2, v2DisplayItems, items]);
+
+  const filteredDisplayItems = React.useMemo(() => {
+    if (statusFilter === "any") return displayItems;
+    return (displayItems || []).filter((item: any) => {
+      const status = item?.status_produksi ?? item?.statusProduksi ?? item?.status;
+      return status === statusFilter;
+    });
+  }, [displayItems, statusFilter]);
+
+  const qtyLabel =
+    plannerConfig?.filterLabels?.qty ||
+    (plannerConfig?.columns || []).find((col: any) => col?.id === plannerConfig?.qtyId)?.header ||
+    "Jumlah";
 
   const tableColumns = [
     {
@@ -350,7 +472,7 @@ const GenericPlannerView: React.FC<GenericPlannerViewProps> = ({
       render: (v: any) => formatDate(v as string | null),
     },
     {
-      title: "Jml Produksi",
+      title: qtyLabel,
       dataIndex: "jml_produksi",
       key: "jml_produksi",
       width: 140,
@@ -358,14 +480,6 @@ const GenericPlannerView: React.FC<GenericPlannerViewProps> = ({
         const numVal = parseNumeric(v);
         return numVal !== null ? formatNumber(numVal) : "-";
       },
-    },
-    {
-      title: "Kapasitas",
-      dataIndex: "kapasitas_harian",
-      key: "kapasitas_harian",
-      width: 120,
-      render: (v: number | null) =>
-        v !== null && v !== undefined ? formatNumber(v) : "-",
     },
     {
       title: "Sisa Kapasitas",
@@ -412,23 +526,27 @@ const GenericPlannerView: React.FC<GenericPlannerViewProps> = ({
   const activeFiltersCount =
     (search ? 1 : 0) +
     (date ? 1 : 0) +
-    (listFilter ? 1 : 0) +
-    (productFilter ? 1 : 0) +
+    (listFilter.length > 0 ? 1 : 0) +
+    (statusFilter !== "any" ? 1 : 0) +
     Object.values(dynamicFilters).filter(
       (v) => v !== undefined && v !== null && String(v).trim() !== "",
     ).length +
     Object.values(dynamicDateFilters).filter(
       (v) => v !== undefined && v !== null && String(v).trim() !== "",
-    ).length;
+    ).length +
+    // V2 filter counts using shared helper
+    (isV2 ? countActiveV2Filters(v2FilterConfig, v2FilterHook.state) : 0);
 
   const resetFilters = () => {
     setSearch("");
     setSearchInput("");
     setDate(undefined);
-    setListFilter(undefined);
-    setProductFilter("");
+    setListFilter([]);
+    setStatusFilter("any");
     setDynamicFilters({});
     setDynamicDateFilters({});
+    // Reset V2 filters to API defaults using shared helper
+    v2FilterHook.resetToDefaults(v2FilterConfig);
     setPage(1);
   };
 
@@ -481,92 +599,148 @@ const GenericPlannerView: React.FC<GenericPlannerViewProps> = ({
           }}
         />
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
-          {dateField || "Tanggal"}
-        </span>
-        <DatePicker
-          placeholder="Filter by date"
-          value={date ? dayjs(date) : null}
-          onChange={(d) => {
-            setDate(d ? d.format("YYYY-MM-DD") : undefined);
-            setPage(1);
-          }}
-          allowClear
-          style={{ width: "100%" }}
+      {!isV2 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
+            {dateField || "Tanggal"}
+          </span>
+          <DatePicker
+            placeholder="Filter by date"
+            value={date ? dayjs(date) : null}
+            onChange={(d) => {
+              setDate(d ? d.format("YYYY-MM-DD") : undefined);
+              setPage(1);
+            }}
+            allowClear
+            style={{ width: "100%" }}
+          />
+        </div>
+      )}
+      {!isV2 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
+            List
+          </span>
+          <Select
+            mode="multiple"
+            allowClear
+            placeholder="Pilih List"
+            value={listFilter}
+            options={includeLists.map((l: string) => ({ label: l, value: l }))}
+            onChange={(val) => {
+              setListFilter(val || []);
+              setPage(1);
+            }}
+            style={{ width: "100%" }}
+          />
+        </div>
+      )}
+      {/* Product filter - only for non-V2 (V2 has it in shared component) */}
+      {!isV2 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
+            Product
+          </span>
+          <Select
+            mode="multiple"
+            allowClear
+            placeholder="Filter Product"
+            value={v2FilterHook.state.productFilter}
+            options={products.map((p: any) => ({ label: p.name, value: p.id }))}
+            onChange={(val) => {
+              v2FilterHook.actions.setProductFilter(val || []);
+              setPage(1);
+            }}
+            style={{ width: "100%" }}
+            filterOption={(input, option) =>
+              (option?.label ?? "").toLowerCase().includes(input.toLowerCase())
+            }
+            showSearch
+          />
+        </div>
+      )}
+      {!isV2 &&
+        filterableColumns.map((col: any) => {
+          const dateLike = isDateHeader(col.header);
+          return (
+            <div
+              key={col.header}
+              style={{ display: "flex", flexDirection: "column", gap: 4 }}
+            >
+              <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
+                {col.header}
+              </span>
+              {dateLike ? (
+                <DatePicker
+                  allowClear
+                  style={{ width: "100%" }}
+                  value={
+                    dynamicDateFilters[col.header]
+                      ? dayjs(dynamicDateFilters[col.header])
+                      : null
+                  }
+                  onChange={(d) =>
+                    handleDateFilterChange(
+                      col.header,
+                      d ? d.format("YYYY-MM-DD") : undefined,
+                    )
+                  }
+                />
+              ) : (
+                <Input
+                  allowClear
+                  placeholder={`Filter ${col.header}`}
+                  value={dynamicFilters[col.header] || ""}
+                  onChange={(e) =>
+                    handleTextFilterChange(col.header, e.target.value)
+                  }
+                />
+              )}
+            </div>
+          );
+        })}
+      {/* V2 Planner Filters - shared component */}
+      {isV2 && (
+        <V2FilterGrid
+          filterConfig={v2FilterConfig}
+          filterState={v2FilterHook.state}
+          filterActions={v2FilterHook.actions}
+          products={products}
+          cards={v2OptionCards}
         />
-      </div>
+      )}
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
-          List
+          Status Produksi
         </span>
         <Select
-          allowClear
-          placeholder="Pilih List"
-          value={listFilter}
-          options={includeLists.map((l: string) => ({ label: l, value: l }))}
+          value={statusFilter}
+          options={[
+            { label: "Any", value: "any" },
+            { label: "Aman", value: "Aman" },
+            { label: "Overload", value: "Overload" },
+          ]}
           onChange={(val) => {
-            setListFilter(val || undefined);
+            setStatusFilter(val);
             setPage(1);
           }}
           style={{ width: "100%" }}
         />
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
-          Product
-        </span>
-        <Input
-          placeholder="Filter Product"
-          allowClear
-          value={productFilter}
-          onChange={(e) => {
-            setProductFilter(e.target.value);
-            setPage(1);
-          }}
-        />
-      </div>
-      {filterableColumns.map((col: any) => {
-        const dateLike = isDateHeader(col.header);
-        return (
-          <div
-            key={col.header}
-            style={{ display: "flex", flexDirection: "column", gap: 4 }}
-          >
-            <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
-              {col.header}
-            </span>
-            {dateLike ? (
-              <DatePicker
-                allowClear
-                style={{ width: "100%" }}
-                value={
-                  dynamicDateFilters[col.header]
-                    ? dayjs(dynamicDateFilters[col.header])
-                    : null
-                }
-                onChange={(d) =>
-                  handleDateFilterChange(
-                    col.header,
-                    d ? d.format("YYYY-MM-DD") : undefined,
-                  )
-                }
-              />
-            ) : (
-              <Input
-                allowClear
-                placeholder={`Filter ${col.header}`}
-                value={dynamicFilters[col.header] || ""}
-                onChange={(e) =>
-                  handleTextFilterChange(col.header, e.target.value)
-                }
-              />
-            )}
-          </div>
-        );
-      })}
     </div>
   );
+
+  // Planner capacity info
+  const capacityTotals = React.useMemo(() => {
+    const lines = plannerConfig?.lines || [];
+    const full = lines.reduce((sum: number, l: any) => sum + (parseNumeric(l?.capacity) || 0), 0);
+    const half = lines.reduce((sum: number, l: any) => {
+      const cap = parseNumeric(l?.capacity) || 0;
+      const halfCap = parseNumeric(l?.half_day_capacity) ?? cap / 2;
+      return sum + halfCap;
+    }, 0);
+    return { full, half };
+  }, [plannerConfig?.lines]);
 
   return (
     <div>
@@ -582,6 +756,11 @@ const GenericPlannerView: React.FC<GenericPlannerViewProps> = ({
           <Space align="center">
             <Filter size={16} style={{ color: "#1890ff" }} />
             <span style={{ fontWeight: 600 }}>🔍 Filter Planner</span>
+            {capacityTotals.full > 0 && (
+              <span style={{ color: "#888", fontSize: 12 }}>
+                Kapasitas: {formatNumber(capacityTotals.full)} | Half-day: {formatNumber(capacityTotals.half)}
+              </span>
+            )}
             {activeFiltersCount > 0 && (
               <Badge
                 count={activeFiltersCount}
@@ -638,7 +817,7 @@ const GenericPlannerView: React.FC<GenericPlannerViewProps> = ({
         <Table
           rowKey="date"
           columns={tableColumns}
-          dataSource={displayItems as any[]}
+          dataSource={filteredDisplayItems as any[]}
           size="small"
           pagination={false}
           scroll={{ x: "max-content", y: 400 }}

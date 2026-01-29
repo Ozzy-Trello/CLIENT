@@ -19,10 +19,18 @@ import {
 import dayjs from "dayjs";
 import { usePlan } from "@hooks/usePlan";
 import { PlanFilterParam, PlanItem, bulkUpdatePlanDate } from "@api/plans";
-import { useMasterPlanners } from "@hooks/master-planner";
+import { useMasterPlanners, useMasterPlannerV2 } from "@hooks/master-planner";
 import { useQueryClient } from "@tanstack/react-query";
+import { useProducts } from "@hooks/useProducts";
 import { useParams } from "next/navigation";
 import { Filter, RotateCcw } from "lucide-react";
+import {
+    V2FilterGrid,
+    V2FilterConfig,
+    buildV2FiltersPayload,
+    countActiveV2Filters,
+    useV2FilterState,
+} from "./shared-filters";
 
 const { Text } = Typography;
 
@@ -69,6 +77,16 @@ const getDateFieldName = (plannerName: string, plannerConfigDate?: string) => {
     return plannerConfigDate || map[key];
 };
 
+const getV2Type = (name: string): string | null => {
+    const n = name.toLowerCase().trim();
+    if (n.includes("sewing")) return "sewing";
+    if (n.includes("cutting")) return "cutting";
+    if (n.includes("bordir")) return "bordir";
+    if (n.includes("knitting") || n.includes("krah")) return "knitting";
+    return null;
+};
+
+
 const GenericPlannerInputView: React.FC<GenericPlannerInputViewProps> = ({
     plannerName,
     plannerId: propPlannerId,
@@ -78,20 +96,24 @@ const GenericPlannerInputView: React.FC<GenericPlannerInputViewProps> = ({
     const [pageSizeChoice, setPageSizeChoice] = useState<"all" | "10" | "20" | "50" | "100">("all");
     const [search, setSearch] = useState("");
     const [searchInput, setSearchInput] = useState("");
-    const params = useParams();
-    const workspaceId = Array.isArray(params?.workspaceId) ? params.workspaceId[0] : params?.workspaceId;
     const [date, setDate] = useState<string | undefined>(undefined);
     const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
-    const [listFilter, setListFilter] = useState<string | undefined>(undefined);
-    const [productFilter, setProductFilter] = useState<string>("");
+    const [listFilter, setListFilter] = useState<string[]>([]);
+    const [statusFilter, setStatusFilter] = useState<"any" | "Aman" | "Overload">("any");
     const [dynamicFilters, setDynamicFilters] = useState<Record<string, string>>({});
     const [dynamicDateFilters, setDynamicDateFilters] = useState<Record<string, string>>({});
+
+    // Use shared V2 filter state hook
+    const v2FilterHook = useV2FilterState();
 
     // Bulk update state
     const [bulkModalOpen, setBulkModalOpen] = useState(false);
     const [bulkDate, setBulkDate] = useState<string | null>(null);
     const [bulkUpdating, setBulkUpdating] = useState(false);
     const [inlineUpdatingId, setInlineUpdatingId] = useState<string | null>(null);
+
+    const params = useParams();
+    const workspaceId = Array.isArray(params?.workspaceId) ? params.workspaceId[0] : params?.workspaceId;
 
     const queryClient = useQueryClient();
     const refreshPlan = () => {
@@ -101,9 +123,53 @@ const GenericPlannerInputView: React.FC<GenericPlannerInputViewProps> = ({
     };
 
     const { data: planners = [], isLoading: loadingPlanners } = useMasterPlanners();
+    const v2Type = getV2Type(plannerName);
+
+    // Build V2 filters for API call using shared helper
+    const v2Filters = React.useMemo(
+        () => buildV2FiltersPayload(v2FilterHook.state),
+        [v2FilterHook.state]
+    );
+    const v2OptionFilters = React.useMemo(() => {
+        const state = v2FilterHook.state;
+        return buildV2FiltersPayload({
+            ...state,
+            dueDateValues: [],
+            productionDateValues: [],
+        });
+    }, [v2FilterHook.state]);
+
+    const { data: v2Data, isLoading: loadingV2 } = useMasterPlannerV2(
+        v2Type || "",
+        v2Type ? v2Filters : undefined
+    );
+    const { data: v2OptionsData } = useMasterPlannerV2(
+        v2Type || "",
+        v2Type ? v2OptionFilters : undefined
+    );
+    const v2Cards = (v2Data as any)?.cards ?? [];
+    const v2OptionCards = (v2OptionsData as any)?.cards ?? v2Cards;
+    const v2FilterConfig = (v2Data as any)?.filterConfig as V2FilterConfig | null;
+    const v2BoardId = (v2Data as any)?.board_id || (v2Data as any)?.boardId;
+
+    // Initialize filters from API defaults and reset on planner change
+    React.useEffect(() => {
+        v2FilterHook.resetForPlannerChange();
+    }, [v2Type]);
+
+    React.useEffect(() => {
+        if (v2Type && v2FilterConfig) {
+            v2FilterHook.initializeFromDefaults(v2FilterConfig);
+        }
+    }, [v2Type, v2FilterConfig]);
 
     const normalizedPlannerName = plannerName.toLowerCase().trim();
     const candidateNames = [normalizedPlannerName];
+
+    // Fetch products for filter dropdown
+    const { data: products = [] } = useProducts();
+
+
 
     const resolvedPlanner =
         propPlannerId
@@ -111,11 +177,31 @@ const GenericPlannerInputView: React.FC<GenericPlannerInputViewProps> = ({
             : planners.find((p) => candidateNames.includes(p.name.toLowerCase()));
 
     const resolvedPlannerId = resolvedPlanner?.id;
-    const plannerConfig =
-        (resolvedPlanner as any)?.plannerConfig ||
-        (resolvedPlanner as any)?.planner_config ||
-        {};
-    const includeLists: string[] = plannerConfig.include_lists || plannerConfig.includeLists || [];
+    const isV2 = !!v2Type;
+    const plannerConfig = isV2
+        ? (v2Data?.config ?? {})
+        : ((resolvedPlanner as any)?.plannerConfig ||
+            (resolvedPlanner as any)?.planner_config ||
+            {});
+    const effectiveColumns = (v2Data as any)?.config?.columns || plannerConfig?.columns || [];
+
+    React.useEffect(() => {
+        if (!plannerName.toLowerCase().includes("sewing")) return;
+        console.log("[SEWING DEBUG] isV2:", isV2);
+        console.log("[SEWING DEBUG] plannerName:", plannerName);
+        console.log("[SEWING DEBUG] effectiveColumns:", effectiveColumns);
+        console.log("[SEWING DEBUG] v2Data.config.columns:", (v2Data as any)?.config?.columns);
+        console.log("[SEWING DEBUG] v2Cards sample:", v2Cards?.[0]);
+        console.log(
+            "[SEWING DEBUG] sample custom_field_values keys:",
+            Object.keys(((v2Cards?.[0] as any)?.custom_field_values || (v2Cards?.[0] as any)?.customFieldValues || {}))
+        );
+    }, [plannerName, isV2, effectiveColumns, v2Data, v2Cards]);
+    const includeLists: string[] =
+        plannerConfig.include_lists ||
+        plannerConfig.includeLists ||
+        plannerConfig.filterLists ||
+        [];
     const dateField = getDateFieldName(
         plannerName,
         plannerConfig?.date_field || plannerConfig?.dateField
@@ -123,8 +209,8 @@ const GenericPlannerInputView: React.FC<GenericPlannerInputViewProps> = ({
 
     // Build filters payload
     const filtersPayload: PlanFilterParam[] = [];
-    if (listFilter) filtersPayload.push({ field: "list_name", value: listFilter, operator: "eq" });
-    if (productFilter) filtersPayload.push({ field: "product_name", value: productFilter, operator: "like" });
+    if (listFilter.length > 0) filtersPayload.push({ field: "list_name", value: listFilter.join(","), operator: "like" });
+    if (v2FilterHook.state.productFilter.length > 0) filtersPayload.push({ field: "product_id", value: v2FilterHook.state.productFilter.join(","), operator: "like" });
     if (date && dateField) filtersPayload.push({ field: dateField, value: date, operator: "eq" });
     Object.entries(dynamicFilters).forEach(([field, value]) => {
         if (!value) return;
@@ -142,8 +228,12 @@ const GenericPlannerInputView: React.FC<GenericPlannerInputViewProps> = ({
         date,
         filters: filtersPayload,
     });
-    const columns = (data?.columns ?? []).filter((col) => col.header !== dateField);
-    const plannerColumns = Array.isArray(plannerConfig?.columns) ? plannerConfig.columns : [];
+    const v1BoardId = (data as any)?.boardId || (data as any)?.board_id;
+    const baseColumns = isV2
+        ? (Array.isArray(effectiveColumns) ? effectiveColumns : [])
+        : (data?.columns ?? []);
+    const columns = (baseColumns ?? []).filter((col) => col.header !== dateField);
+    const plannerColumns = Array.isArray(effectiveColumns) ? effectiveColumns : [];
 
     const columnMetaByHeader = new Map<string, any>();
     plannerColumns.forEach((c: any) => {
@@ -174,23 +264,94 @@ const GenericPlannerInputView: React.FC<GenericPlannerInputViewProps> = ({
     };
 
     const filterableColumns = columns.filter((col) => {
+        if (isV2) return false; // V2 filters are enforced server-side; hide ad-hoc inputs.
         if (isListHeader(col.header)) return false;
         if (isProductHeader(col.header)) return false;
         if (col.header === dateField) return false;
         return true;
     });
 
-    const isLoading = loadingPlanners || loadingPlan;
+
+    const cfHeaderById = React.useMemo(() => {
+        const map = new Map<string, string>();
+        (effectiveColumns || []).forEach((col: any) => {
+            if (col?.id) map.set(col.id, col.header);
+            if (col?.field_name && !col?.id) map.set(col.field_name, col.header);
+            if (col?.name && !col?.id) map.set(col.name, col.header);
+        });
+        return map;
+    }, [effectiveColumns]);
+
+    const cfIdByHeader = React.useMemo(() => {
+        const map = new Map<string, string>();
+        (effectiveColumns || []).forEach((col: any) => {
+            if (col?.header && col?.id) map.set(col.header, col.id);
+        });
+        return map;
+    }, [effectiveColumns]);
+
+    const labelForCf = React.useCallback(
+        (cfId?: string, cfName?: string) => {
+            if (cfId && cfHeaderById.has(cfId)) return cfHeaderById.get(cfId);
+            if (cfName) return cfName;
+            if (cfId) return cfId;
+            return "Custom Field";
+        },
+        [cfHeaderById],
+    );
+
+    const appliedFilters = React.useMemo(() => {
+        if (!isV2) return [];
+        const arr: { label: string }[] = [];
+
+        if (plannerConfig?.presentFilter) {
+            const lbl = labelForCf(
+                plannerConfig.presentFilter.cfId,
+                plannerConfig.presentFilter.cfName,
+            );
+            arr.push({ label: `${lbl}: must have value` });
+        }
+
+        if (plannerConfig?.qtyMinFilter) {
+            const lbl = labelForCf(
+                plannerConfig.qtyMinFilter.cfId,
+                plannerConfig.qtyMinFilter.cfName,
+            );
+            arr.push({ label: `${lbl}: ≥ ${plannerConfig.qtyMinFilter.minValue}` });
+        }
+
+        if (plannerConfig?.extraFilter) {
+            const lbl = labelForCf(plannerConfig.extraFilter.cfId);
+            arr.push({ label: `${lbl}: ${plannerConfig.extraFilter.values.join(", ")}` });
+        }
+
+        if (plannerConfig?.filterCfUnchecked || plannerConfig?.filterCfUncheckedName) {
+            const lbl = labelForCf(
+                plannerConfig.filterCfUnchecked,
+                plannerConfig.filterCfUncheckedName,
+            );
+            arr.push({ label: `${lbl}: unchecked` });
+        }
+
+        return arr;
+    }, [isV2, plannerConfig, labelForCf]);
+
+    const isLoading = loadingPlanners || loadingPlan || (isV2 && loadingV2);
 
     const handleRefresh = () => {
         refreshPlan();
     };
 
-    const activeFiltersCount =
-        (search ? 1 : 0) +
+    const activeFiltersCount = isV2
+        ? (search ? 1 : 0) +
         (date ? 1 : 0) +
-        (listFilter ? 1 : 0) +
-        (productFilter ? 1 : 0) +
+        (statusFilter !== "any" ? 1 : 0) +
+        countActiveV2Filters(v2FilterConfig, v2FilterHook.state)
+        : (search ? 1 : 0) +
+        (date ? 1 : 0) +
+        (listFilter.length > 0 ? 1 : 0) +
+        (statusFilter !== "any" ? 1 : 0) +
+        (v2FilterHook.state.productFilter.length > 0 ? 1 : 0) +
         Object.values(dynamicFilters).filter((v) => v !== undefined && v !== null && String(v).trim() !== "").length +
         Object.values(dynamicDateFilters).filter((v) => v !== undefined && v !== null && String(v).trim() !== "").length;
 
@@ -198,11 +359,12 @@ const GenericPlannerInputView: React.FC<GenericPlannerInputViewProps> = ({
         setSearch("");
         setSearchInput("");
         setDate(undefined);
-        setListFilter(undefined);
-        setProductFilter("");
+        setListFilter([]);
+        setStatusFilter("any");
         setDynamicFilters({});
         setDynamicDateFilters({});
-        setPage(1);
+        // Reset V2 filters to API defaults
+        v2FilterHook.resetToDefaults(v2FilterConfig);
     };
 
     const handleTextFilterChange = (key: string, val: string) => {
@@ -252,47 +414,62 @@ const GenericPlannerInputView: React.FC<GenericPlannerInputViewProps> = ({
                     }}
                 />
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
-                    {dateField || "Tanggal"}
-                </span>
-                <DatePicker
-                    placeholder={`Filter ${dateField || "Date"}`}
-                    value={date ? dayjs(date) : null}
-                    onChange={(d) => {
-                        setDate(d ? d.format("YYYY-MM-DD") : undefined);
-                        setPage(1);
-                    }}
-                    allowClear
-                    style={{ width: "100%" }}
-                />
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>List</span>
-                <Select
-                    allowClear
-                    placeholder="Pilih List"
-                    value={listFilter}
-                    options={includeLists.map((l: string) => ({ label: l, value: l }))}
-                    onChange={(val) => {
-                        setListFilter(val || undefined);
-                        setPage(1);
-                    }}
-                    style={{ width: "100%" }}
-                />
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>Product</span>
-                <Input
-                    placeholder="Filter Product"
-                    allowClear
-                    value={productFilter}
-                    onChange={(e) => {
-                        setProductFilter(e.target.value);
-                        setPage(1);
-                    }}
-                />
-            </div>
+            {!isV2 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
+                        {dateField || "Tanggal"}
+                    </span>
+                    <DatePicker
+                        placeholder={`Filter ${dateField || "Date"}`}
+                        value={date ? dayjs(date) : null}
+                        onChange={(d) => {
+                            setDate(d ? d.format("YYYY-MM-DD") : undefined);
+                            setPage(1);
+                        }}
+                        allowClear
+                        style={{ width: "100%" }}
+                    />
+                </div>
+            )}
+            {!isV2 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>List</span>
+                    <Select
+                        mode="multiple"
+                        allowClear
+                        placeholder="Pilih List"
+                        value={listFilter}
+                        options={includeLists.map((l: string) => ({ label: l, value: l }))}
+                        onChange={(val) => {
+                            setListFilter(val || []);
+                            setPage(1);
+                        }}
+                        style={{ width: "100%" }}
+                    />
+                </div>
+            )}
+            {/* Product filter - only show for non-V2 (V2 has it in shared component) */}
+            {!isV2 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>Product</span>
+                    <Select
+                        mode="multiple"
+                        allowClear
+                        placeholder="Filter Product"
+                        value={v2FilterHook.state.productFilter}
+                        options={products.map((p: any) => ({ label: p.name, value: p.id }))}
+                        onChange={(val) => {
+                            v2FilterHook.actions.setProductFilter(val || []);
+                            setPage(1);
+                        }}
+                        style={{ width: "100%" }}
+                        filterOption={(input, option) =>
+                            (option?.label ?? "").toLowerCase().includes(input.toLowerCase())
+                        }
+                        showSearch
+                    />
+                </div>
+            )}
             {filterableColumns.map((col) => {
                 const dateLike = isDateHeader(col.header);
                 return (
@@ -321,6 +498,34 @@ const GenericPlannerInputView: React.FC<GenericPlannerInputViewProps> = ({
                     </div>
                 );
             })}
+            {/* V2 Planner Filters - shared component */}
+            {isV2 && (
+                <V2FilterGrid
+                    filterConfig={v2FilterConfig}
+                    filterState={v2FilterHook.state}
+                    filterActions={v2FilterHook.actions}
+                    products={products}
+                    cards={v2OptionCards}
+                />
+            )}
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
+                    Status Produksi
+                </span>
+                <Select
+                    value={statusFilter}
+                    options={[
+                        { label: "Any", value: "any" },
+                        { label: "Aman", value: "Aman" },
+                        { label: "Overload", value: "Overload" },
+                    ]}
+                    onChange={(val) => {
+                        setStatusFilter(val);
+                        setPage(1);
+                    }}
+                    style={{ width: "100%" }}
+                />
+            </div>
         </div>
     );
 
@@ -353,11 +558,11 @@ const GenericPlannerInputView: React.FC<GenericPlannerInputViewProps> = ({
             dataIndex: "name",
             key: "name",
             width: 200,
-
             render: (v: string, record: PlanItem) => {
-                const boardId = data?.boardId;
-                if (boardId && record.id && record.listId && workspaceId) {
-                    const url = `/workspace/${workspaceId}/board/${boardId}?cardId=${record.id}&listId=${record.listId}`;
+                const boardId = isV2 ? v2BoardId : v1BoardId;
+                const listId = (record as any)?.listId || (record as any)?.list_id || (record as any)?.listID;
+                if (boardId && record.id && listId && workspaceId) {
+                    const url = `/workspace/${workspaceId}/board/${boardId}?cardId=${record.id}&listId=${listId}`;
                     return (
                         <a
                             href={url}
@@ -380,20 +585,28 @@ const GenericPlannerInputView: React.FC<GenericPlannerInputViewProps> = ({
             dataIndex: "createdAt",
             key: "createdAt",
             width: 120,
-            render: (v: string) => formatDate(v),
+            render: (_: string, record: PlanItem) => {
+                const val = (record as any).createdAt ?? (record as any).created_at;
+                return formatDate(val as any);
+            },
         },
         {
             title: "Due Date",
             dataIndex: "dueDate",
             key: "dueDate",
             width: 120,
-            render: (v: string) => formatDate(v),
+            render: (_: string, record: PlanItem) => {
+                const val = (record as any).dueDate ?? (record as any).due_date;
+                return formatDate(val as any);
+            },
         },
         {
             title: "List",
             dataIndex: "listName",
             key: "listName",
             width: 150,
+            render: (_: string, record: PlanItem) =>
+                (record as any).listName || (record as any).list_name || "-",
         },
     ];
 
@@ -432,65 +645,100 @@ const GenericPlannerInputView: React.FC<GenericPlannerInputViewProps> = ({
 
     // Helper to access dynamic fields robustly (handling potential camelCase conversion)
     const getDynamicValue = (record: PlanItem, key: string) => {
+        const cfValues = (record as any)?.customFieldValues || (record as any)?.custom_field_values || {};
+        // Prefer CF lookup by header -> id
+        const cfId = cfIdByHeader.get(key);
+        if (cfId && cfValues[cfId] !== undefined) return cfValues[cfId];
+
+        if (cfValues[key] !== undefined) return cfValues[key];
+
+        const keyLower = key.toLowerCase();
+        for (const [k, v] of Object.entries(cfValues)) {
+            if (k.toLowerCase() === keyLower) return v;
+        }
+
         if (record[key] !== undefined) return record[key];
         // Try camelCase: "Tgl Bordir" -> "tglBordir"
         const camelKey = key.replace(/(?:^\w|[A-Z]|\b\w)/g, (word, index) => {
             return index === 0 ? word.toLowerCase() : word.toUpperCase();
         }).replace(/\s+/g, '');
+        if (cfValues[camelKey] !== undefined) return cfValues[camelKey];
         if (record[camelKey] !== undefined) return record[camelKey];
         // Simple lower camel case attempt for safety
         const simpleCamel = key.charAt(0).toLowerCase() + key.slice(1).replace(/\s+/g, '');
+        if (cfValues[simpleCamel] !== undefined) return cfValues[simpleCamel];
         if (record[simpleCamel] !== undefined) return record[simpleCamel];
         return undefined;
     };
 
-    const getJmlProduksiValue = (record: PlanItem) => {
-        const dynamicVal = getDynamicValue(record, "Jml Produksi");
+    const qtyLabel = React.useMemo(() => {
+        if (plannerConfig?.filterLabels?.qty) return plannerConfig.filterLabels.qty;
+        if (plannerConfig?.qtyId) {
+            const found = (effectiveColumns || []).find((col: any) => col?.id === plannerConfig.qtyId);
+            if (found?.header) return found.header;
+        }
+        return "Jumlah";
+    }, [plannerConfig, effectiveColumns]);
+
+    const getQtyValue = (record: PlanItem) => {
+        const dynamicVal = getDynamicValue(record, qtyLabel);
         if (dynamicVal !== undefined && dynamicVal !== null) return dynamicVal;
         if (record.jmlProduksi !== undefined && record.jmlProduksi !== null) return record.jmlProduksi;
         if ((record as any).jml_produksi !== undefined && (record as any).jml_produksi !== null) return (record as any).jml_produksi;
         return null;
     };
 
+
     // Add remaining generic columns (excluding the editable date column)
-    if (data?.columns) {
-        data.columns.forEach((col) => {
-            if (["name", "createdAt", "dueDate", "listName", "name", "created_at", "due_date", "list_name"].includes(col.key)) return;
-            if (col.header === dateField) return;
+    const sourceColumns = isV2
+        ? (effectiveColumns || [])
+        : (data?.columns || []);
 
-            tableColumns.push({
-                title: col.header,
-                dataIndex: col.key,
-                key: col.key,
-                width: 120,
-                render: (value: any, record: PlanItem) => {
-                    const dynamicVal = getDynamicValue(record, col.header);
-                    const numVal = parseNumeric(dynamicVal ?? value);
-                    if (numVal !== null) return formatNumber(numVal);
-                    if (typeof dynamicVal === "string" && dynamicVal.match(/^\d{4}-\d{2}-\d{2}/)) {
-                        return formatDate(dynamicVal);
-                    }
-                    return dynamicVal ?? value ?? "-";
+    sourceColumns.forEach((col: any) => {
+        const key = col.key || col.field || col.field_name || col.fieldName || col.id || col.name || col.header;
+        if (!key) return;
+        if (["name", "createdAt", "dueDate", "listName", "created_at", "due_date", "list_name"].includes(key)) return;
+        if (col.header === dateField) return;
+
+        // Special handling for system fields product/warna so we show the joined names
+        const isProduct = key === "product_name" || key === "productName" || col.header?.toLowerCase() === "produk";
+        const isWarna = key === "warna_name" || key === "warnaName" || col.header?.toLowerCase() === "warna";
+
+        tableColumns.push({
+            title: col.header,
+            dataIndex: key,
+            key,
+            width: 140,
+            render: (value: any, record: PlanItem) => {
+                if (isProduct) return (record as any).productName || (record as any).product_name || "-";
+                if (isWarna) return (record as any).warnaName || (record as any).warna_name || "-";
+
+                const dynamicVal = getDynamicValue(record, col.header);
+                const numVal = parseNumeric(dynamicVal ?? value);
+                if (numVal !== null) return formatNumber(numVal);
+                if (typeof dynamicVal === "string" && dynamicVal.match(/^\d{4}-\d{2}-\d{2}/)) {
+                    return formatDate(dynamicVal);
                 }
-            });
+                return dynamicVal ?? value ?? "-";
+            }
         });
-    }
+    });
 
-    const hasJmlProduksiColumn = tableColumns.some(
+    const hasQtyColumn = tableColumns.some(
         (col: any) =>
-            (typeof col.title === "string" && col.title.toLowerCase().includes("jml produksi")) ||
+            (typeof col.title === "string" && col.title.toLowerCase() === qtyLabel.toLowerCase()) ||
             col.key === "jmlProduksi" ||
             col.dataIndex === "jmlProduksi"
     );
 
-    if (!hasJmlProduksiColumn) {
+    if (!isV2 && !hasQtyColumn) {
         tableColumns.push({
-            title: "Jml Produksi",
+            title: qtyLabel,
             dataIndex: "jmlProduksi",
             key: "jmlProduksi",
             width: 120,
             render: (_: any, record: PlanItem) => {
-                const val = getJmlProduksiValue(record);
+                const val = getQtyValue(record);
                 const numVal = parseNumeric(val);
                 return numVal !== null ? formatNumber(numVal) : "-";
             },
@@ -500,25 +748,33 @@ const GenericPlannerInputView: React.FC<GenericPlannerInputViewProps> = ({
     // Capacity columns
     tableColumns.push(
         {
-            title: "Kapasitas",
-            dataIndex: "kapasitasHarian",
-            key: "kapasitasHarian",
-            width: 90,
-            render: (v: number | null) => (v !== null && v !== undefined ? formatNumber(v) : "-"),
-        },
-        {
-            title: "Sisa",
+            title: "Sisa Kapasitas",
             dataIndex: "sisaKapasitas",
             key: "sisaKapasitas",
-            width: 80,
-            render: (v: number | null) => (v !== null && v !== undefined ? formatNumber(v) : "-"),
+            width: 120,
+            render: (v: number | null, record: any) => {
+                if (isV2) {
+                    const sisa = record?.sisa_kapasitas ?? record?.sisaKapasitas ?? null;
+                    return sisa !== null && sisa !== undefined ? formatNumber(sisa) : "-";
+                }
+                const sisa = v ?? (record?.kapasitasHarian !== undefined && record?.jmlProduksi !== undefined
+                    ? record.kapasitasHarian - record.jmlProduksi
+                    : null);
+                return sisa !== null && sisa !== undefined ? formatNumber(sisa) : "-";
+            },
         },
         {
             title: "Status",
             dataIndex: "statusProduksi",
             key: "statusProduksi",
             width: 90,
-            render: (v: "Aman" | "Overload" | null) => {
+            render: (v: "Aman" | "Overload" | null, record: any) => {
+                if (isV2) {
+                    const status = record?.status_produksi ?? record?.statusProduksi ?? null;
+                    if (status === "Aman") return <Tag color="green">Aman</Tag>;
+                    if (status === "Overload") return <Tag color="red">Overload</Tag>;
+                    return "-";
+                }
                 if (v === "Aman") return <Tag color="green">Aman</Tag>;
                 if (v === "Overload") return <Tag color="red">Overload</Tag>;
                 return "-";
@@ -537,6 +793,23 @@ const GenericPlannerInputView: React.FC<GenericPlannerInputViewProps> = ({
         }
     );
 
+    const filteredData = React.useMemo(() => {
+        const source = isV2 ? v2Cards : (data?.items ?? []);
+        if (statusFilter === "any") return source;
+        return source.filter((item: any) => {
+            const status = isV2
+                ? (item?.status_produksi ?? item?.statusProduksi ?? null)
+                : (
+                    item?.statusProduksi ??
+                    item?.status_produksi ??
+                    item?.status ??
+                    item?.status_production
+                );
+            if (!status) return false;
+            return String(status).toLowerCase() === statusFilter.toLowerCase();
+        });
+    }, [isV2, v2Cards, data?.items, statusFilter]);
+
     if (!resolvedPlannerId && !loadingPlanners) {
         return (
             <div style={{ textAlign: "center", padding: 40 }}>
@@ -544,6 +817,17 @@ const GenericPlannerInputView: React.FC<GenericPlannerInputViewProps> = ({
             </div>
         );
     }
+
+    const capacityTotals = React.useMemo(() => {
+        const lines = plannerConfig?.lines || [];
+        const full = lines.reduce((sum: number, l: any) => sum + (parseNumeric(l?.capacity) || 0), 0);
+        const half = lines.reduce((sum: number, l: any) => {
+            const cap = parseNumeric(l?.capacity) || 0;
+            const halfCap = parseNumeric(l?.half_day_capacity) ?? cap / 2;
+            return sum + halfCap;
+        }, 0);
+        return { full, half };
+    }, [plannerConfig?.lines]);
 
     return (
         <div>
@@ -559,6 +843,11 @@ const GenericPlannerInputView: React.FC<GenericPlannerInputViewProps> = ({
                     <Space align="center">
                         <Filter size={16} style={{ color: "#1890ff" }} />
                         <span style={{ fontWeight: 600 }}>🔍 Filter Planner</span>
+                        {capacityTotals.full > 0 && (
+                            <span style={{ color: "#888", fontSize: 12 }}>
+                                Kapasitas: {formatNumber(capacityTotals.full)} | Half-day: {formatNumber(capacityTotals.half)}
+                            </span>
+                        )}
                         {activeFiltersCount > 0 && (
                             <Badge count={activeFiltersCount} style={{ backgroundColor: "#faad14" }} />
                         )}
@@ -623,10 +912,10 @@ const GenericPlannerInputView: React.FC<GenericPlannerInputViewProps> = ({
                     <Spin size="large" />
                 </div>
             ) : (
-                <Table
+            <Table
                     rowKey="id"
                     columns={tableColumns}
-                    dataSource={data?.items ?? []}
+                    dataSource={filteredData}
                     size="small"
                     rowSelection={{
                         selectedRowKeys,
@@ -636,7 +925,7 @@ const GenericPlannerInputView: React.FC<GenericPlannerInputViewProps> = ({
                     pagination={{
                         current: page,
                         pageSize: limit,
-                        total: data?.total ?? 0,
+                        total: filteredData.length,
                         onChange: (p) => setPage(p),
                         showTotal: (total, range) => `${range[0]}-${range[1]} of ${total}`,
                         size: "small",

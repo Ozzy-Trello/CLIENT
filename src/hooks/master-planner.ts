@@ -70,12 +70,23 @@ export const useDeleteMasterPlanner = () => {
   });
 };
 
-export const useMasterPlannerV2 = (type: string) => {
+export interface V2PlannerFilters {
+  checkboxFilter?: string;
+  qtyFilter?: string;
+  presentFilter?: string;
+  optionFilter?: string[];
+  productFilter?: string[];
+  dueDateValues?: string[];
+  productionDateValues?: string[];
+  listFilter?: string[];
+}
+
+export const useMasterPlannerV2 = (type: string, filters?: V2PlannerFilters) => {
   return useQuery({
-    queryKey: ["master-planner-v2", type],
+    queryKey: ["master-planner-v2", type, filters],
     queryFn: async () => {
       if (!type) return null;
-      const response = await getHardcodedMasterPlanner(type);
+      const response = await getHardcodedMasterPlanner(type, filters);
       return response.data;
     },
     staleTime: 2 * 60 * 1000,
