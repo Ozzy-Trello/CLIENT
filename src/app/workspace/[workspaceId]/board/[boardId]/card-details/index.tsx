@@ -28,6 +28,8 @@ import {
   RectangleEllipsis,
   ShirtIcon,
   TextCursorInput,
+  Plus,
+  Users,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -45,6 +47,8 @@ import CollapsibleSection from "@components/collapsible-section";
 import ModalDashcardDetail from "@components/modal-dashcard-detail";
 import PopoverDates from "@components/popover-dates.tsx";
 import PopoverLabel from "@components/popover-label.tsx";
+import PopoverChecklist from "@components/popover-checklist";
+import PopoverUser from "@components/popover-user";
 import { ListSelection, SelectionRef } from "@components/selection";
 import { useBoardDetails } from "@hooks/board";
 import { useCardMutationsOnly } from "@hooks/card";
@@ -811,7 +815,16 @@ const CardDetails: React.FC = (props) => {
               trigger="click"
               placement="bottomRight"
               overlayStyle={{ width: 360 }}
-              content={actionList}
+              content={
+                 <div className="w-[300px] h-96 overflow-y-scroll">
+                    <Actions
+                        boardName={effectiveBoardName}
+                        userRole={userRole}
+                        isSuperAdmin={isSuperAdmin}
+                        exclude={["Labels", "Dates", "Checklist", "Members"]}
+                    />
+                 </div>
+              }
             >
               <Button
                 size="small"
@@ -883,75 +896,49 @@ const CardDetails: React.FC = (props) => {
             disabled={true}
           />
         </div>
-
-        {/* <Button
-          icon={<Eye size={14} />}
-          size="small"
-          className="rounded-md hover:bg-gray-50"
-        /> */}
       </div>
 
       <Flex wrap gap="middle">
         {/* Members */}
-        <div className="space-y-2 text-xs">
-          <span className="text-gray-300 font-semibold text-xs block">
-            Members
-          </span>
-          <div>
-            <MembersList
-              members={effectiveMembers}
-              membersLength={effectiveMembers?.length || 0}
-              membersLoopLimit={3}
-              openAddMember={openAddMember && canUpdateCard()}
-              setOpenAddMember={setOpenAddMember}
-              onUserSelectionChange={onUserSelectionChange}
-              onRemoveMember={handleRemoveMember}
-            />
-          </div>
-        </div>
+        {selectedCard && selectedCard.members && selectedCard.members.length > 0 && (
+            <div className="space-y-2 text-xs">
+              <span className="text-gray-300 font-semibold text-xs block">
+                Members
+              </span>
+              <div>
+                <MembersList
+                  members={effectiveMembers}
+                  membersLength={effectiveMembers?.length || 0}
+                  membersLoopLimit={3}
+                  openAddMember={openAddMember && canUpdateCard()}
+                  setOpenAddMember={setOpenAddMember}
+                  onUserSelectionChange={onUserSelectionChange}
+                  onRemoveMember={handleRemoveMember}
+                />
+              </div>
+            </div>
+        )}
 
         {/* Labels */}
-        <div className="space-y-2 text-xs">
-          <span className="text-gray-300 font-semibold text-xs block">
-            Labels
-          </span>
-          <div className="flex gap-1">
-            {effectiveLabels?.map((label: CardLabel, index: number) => (
-              <Tooltip
-                title={`color: ${label.value}, title: ${label.name}`}
-                key={index}
-              >
-                <Tag color={label.value} className="rounded-md">
-                  {label?.name}
-                </Tag>
-              </Tooltip>
-            ))}
-
-            <PopoverLabel
-              open={openLabel}
-              setOpen={setOpenLabel}
-              triggerEl={
-                <Tag className="cursor-pointer rounded-md border-dashed hover:bg-gray-50">
-                  +
-                </Tag>
-              }
-            />
-          </div>
-        </div>
-
-        {/* Notifications & Watch */}
-        {/* <div className="space-y-2 text-xs">
-          <span className="text-gray-300 font-semibold text-xs block">
-            Notifications
-          </span>
-          <Button
-            icon={<Eye size={14} />}
-            size="small"
-            className="rounded-md hover:bg-gray-50"
-          >
-            Watch
-          </Button>
-        </div> */}
+        {effectiveLabels && effectiveLabels.length > 0 && (
+            <div className="space-y-2 text-xs">
+              <span className="text-gray-300 font-semibold text-xs block">
+                Labels
+              </span>
+              <div className="flex gap-1">
+                {effectiveLabels?.map((label: CardLabel, index: number) => (
+                  <Tooltip
+                    title={`color: ${label.value}, title: ${label.name}`}
+                    key={index}
+                  >
+                    <Tag color={label.value} className="rounded-md">
+                      {label?.name}
+                    </Tag>
+                  </Tooltip>
+                ))}
+              </div>
+            </div>
+        )}
 
         {/* Time in List */}
         <div className="space-y-2 text-xs">
@@ -975,25 +962,20 @@ const CardDetails: React.FC = (props) => {
           </Button>
         </div>
 
-        {/* Start and Due Dates */}
-        {selectedCard && (
+        {/* Start and Due Dates Display Only - Edit via Toolbar */}
+        {selectedCard && (selectedCard.dueDate || selectedCard.startDate) && (
           <div className="space-y-2 text-xs">
             <span className="text-gray-300 font-semibold text-xs block">
               Dates
             </span>
-            <PopoverDates
-              open={openDates}
-              setOpen={setOpenDates}
-              triggerEl={
-                <Button
+             <Button
                   icon={<Clock size={12} />}
                   size="small"
                   className="rounded-md hover:bg-gray-50"
+                  onClick={() => setOpenDates(true)}
                 >
                   <CardDateDisplay card={selectedCard} />
-                </Button>
-              }
-            />
+            </Button>
           </div>
         )}
 
@@ -1177,21 +1159,95 @@ const CardDetails: React.FC = (props) => {
           />
         </CollapsibleSection>
       )}
-
-      {selectedCard && (
-        <CollapsibleSection
-          title="Activity"
-          defaultExpanded={true}
-          icon={<MessageSquare size={18} />}
-        >
-          <Activity
-            currentUser={currentUser}
-            card={selectedCard}
-            setCard={setSelectedCard}
-          />
-        </CollapsibleSection>
-      )}
     </div>
+  );
+
+  // Define Toolbar components
+  // + Add Button
+  const toolbarAddButton = (
+      <Popover
+        trigger="click"
+        placement="bottomLeft"
+        content={
+            <div className="w-[300px] h-96 overflow-y-scroll">
+                <Actions
+                    boardName={effectiveBoardName}
+                    userRole={userRole}
+                    isSuperAdmin={isSuperAdmin}
+                    exclude={["Labels", "Dates", "Checklist", "Members"]}
+                />
+            </div>
+        }
+      >
+          <Button size="small" type="default" className="bg-gray-200 hover:bg-gray-300 border-none font-medium">
+             <Plus size={14} className="mr-1" /> Add
+          </Button>
+      </Popover>
+  );
+
+  // Labels Button
+  const toolbarLabelsButton = (
+      <PopoverLabel
+        open={openLabel}
+        setOpen={setOpenLabel}
+        triggerEl={
+          <Button size="small" type="default" className="bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-200">
+             <Tag className="mr-1" /> Labels
+          </Button>
+        }
+      />
+  );
+
+  // Dates Button
+  const toolbarDatesButton = (
+      <PopoverDates
+        open={openDates}
+        setOpen={setOpenDates}
+        triggerEl={
+          <Button size="small" type="default" className="bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-200">
+             <Clock size={14} className="mr-1" /> Dates
+          </Button>
+        }
+      />
+  );
+
+   // Checklist Button
+   const [openChecklist, setOpenChecklist] = useState(false);
+   const toolbarChecklistButton = (
+      <PopoverChecklist
+         open={openChecklist}
+         setOpen={setOpenChecklist}
+         triggerEl={
+             <Button size="small" type="default" className="bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-200">
+                <CheckSquare size={14} className="mr-1" /> Checklist
+             </Button>
+         }
+      />
+   );
+
+   // Members Button
+   const [openMembersToolbar, setOpenMembersToolbar] = useState(false);
+   const toolbarMembersButton = (
+       <PopoverUser
+          open={openMembersToolbar}
+          setOpen={setOpenMembersToolbar}
+          triggerEl={
+             <Button size="small" type="default" className="bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-200">
+                <Users size={14} className="mr-1" /> Members
+             </Button>
+          }
+       />
+    );
+
+
+  const actionsToolbar = (
+      <div className="flex flex-wrap items-center gap-2 mb-4 md:ml-8">
+          {toolbarAddButton}
+          {toolbarLabelsButton}
+          {toolbarDatesButton}
+          {toolbarChecklistButton}
+          {toolbarMembersButton}
+      </div>
   );
 
   return (
@@ -1201,7 +1257,7 @@ const CardDetails: React.FC = (props) => {
       onCancel={closeCardDetail}
       footer={null}
       className="modal-card-form full-height-modal"
-      width="min(1050px, 95vw)"
+      width="min(1280px, 95vw)" 
       destroyOnClose
       closeIcon={
         <span className="inline-flex items-center justify-center rounded-md bg-red-50 hover:bg-red-100 text-red-600 p-1 transition-colors">
@@ -1244,31 +1300,48 @@ const CardDetails: React.FC = (props) => {
           </div>
         )}
 
-        <div className="p-5">
+        <div className="p-5 h-full">
           {isDesktop ? (
-            <Row gutter={[32, 32]}>
-              <Col xs={24} lg={18}>
-                <div className="space-y-4">
+            <Row gutter={[32, 32]} className="h-full">
+              <Col xs={24} lg={14} className="h-full">
+                <div className="space-y-4 h-[calc(85vh-100px)] overflow-y-auto pr-2 custom-scrollbar">
                   {headerBlock}
+                  {actionsToolbar}
                   {mainBody}
                 </div>
               </Col>
-              <Col xs={24} lg={6}>
-                <div className="pl-4 lg:pl-0">
-                  <Typography.Title
-                    level={5}
-                    className="m-0 mb-2 text-gray-700"
-                  >
-                    Actions
-                  </Typography.Title>
-                  {actionList}
+              <Col xs={24} lg={10} className="h-full">
+                <div className="pl-4 lg:pl-0 h-[calc(85vh-100px)] overflow-y-auto pr-2 custom-scrollbar">
+                   <div className="bg-gray-50/50 rounded-lg p-2 min-h-[400px]">
+                      {selectedCard && (
+                        <Activity
+                          currentUser={currentUser}
+                          card={selectedCard}
+                          setCard={setSelectedCard}
+                        />
+                      )}
+                   </div>
                 </div>
               </Col>
             </Row>
           ) : (
             <div className="space-y-4">
               {headerBlock}
+              {actionsToolbar}
               {mainBody}
+              <div className="mt-8 pt-8 border-t border-gray-100">
+                 <div className="mb-4 flex items-center gap-2 font-semibold">
+                      <MessageSquare size={18} />
+                      <span>Activity</span>
+                 </div>
+                 {selectedCard && (
+                    <Activity
+                      currentUser={currentUser}
+                      card={selectedCard}
+                      setCard={setSelectedCard}
+                    />
+                  )}
+              </div>
             </div>
           )}
         </div>

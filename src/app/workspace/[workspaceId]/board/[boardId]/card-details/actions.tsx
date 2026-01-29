@@ -103,7 +103,8 @@ const Actions: React.FC<{
   boardName?: string;
   userRole?: string;
   isSuperAdmin?: boolean;
-}> = ({ boardName, userRole, isSuperAdmin }) => {
+  exclude?: string[];
+}> = ({ boardName, userRole, isSuperAdmin, exclude = [] }) => {
   const [openCustomField, setOpenCustomField] = useState(false);
   const [openMembers, setOpenMembers] = useState(false);
   const [openDates, setOpenDates] = useState(false);
@@ -574,42 +575,43 @@ const Actions: React.FC<{
       </Tooltip>
 
       {/* Menu Items */}
-      {/* Labels Button */}
-      {canManageCardLabels() ? (
-        <PopoverLabel
-          open={openLabels}
-          setOpen={setOpenLabels}
-          triggerEl={
-            <PermissionButton
-              canPerform={canManageCardLabels()}
-              tooltip="Manage card labels"
-              permissionLevel={permissionLevel}
-              buttonStyle={buttonStyle}
-            >
-              <span className="text-xs" style={iconStyle}>
-                <Tag size={14} />
-              </span>
-              <span className="text-xs">Labels</span>
-            </PermissionButton>
-          }
-        />
-      ) : (
-        <PermissionButton
-          canPerform={canManageCardLabels()}
-          tooltip="Manage card labels"
-          permissionLevel={permissionLevel}
-          buttonStyle={buttonStyle}
-        >
-          <span className="text-xs" style={iconStyle}>
-            <Tag size={14} />
-          </span>
-          <span className="text-xs">Labels</span>
-        </PermissionButton>
-      )}
+      {/* Labels Button (Super Admin only) */}
+      {!exclude.includes("Labels") && superAdmin &&
+        (canManageCardLabels() ? (
+          <PopoverLabel
+            open={openLabels}
+            setOpen={setOpenLabels}
+            triggerEl={
+              <PermissionButton
+                canPerform={canManageCardLabels()}
+                tooltip="Manage card labels"
+                permissionLevel={permissionLevel}
+                buttonStyle={buttonStyle}
+              >
+                <span className="text-xs" style={iconStyle}>
+                  <Tag size={14} />
+                </span>
+                <span className="text-xs">Labels</span>
+              </PermissionButton>
+            }
+          />
+        ) : (
+          <PermissionButton
+            canPerform={canManageCardLabels()}
+            tooltip="Manage card labels"
+            permissionLevel={permissionLevel}
+            buttonStyle={buttonStyle}
+          >
+            <span className="text-xs" style={iconStyle}>
+              <Tag size={14} />
+            </span>
+            <span className="text-xs">Labels</span>
+          </PermissionButton>
+        ))}
 
-      {/* Regular menu items (excluding Checklist and Labels) */}
+      {/* Regular menu items (excluding Checklist and Labels and any passed in exclude) */}
       {menuItems
-        .filter((item) => item.label !== "Checklist" && item.label !== "Labels")
+        .filter((item) => item.label !== "Checklist" && item.label !== "Labels" && !exclude.includes(item.label))
         .map((item, index) => (
           <button
             key={index}
@@ -624,7 +626,7 @@ const Actions: React.FC<{
         ))}
 
       {/* Checklist with Popover */}
-      {canManageCardChecklists() ? (
+      {!exclude.includes("Checklist") && (canManageCardChecklists() ? (
         <PopoverChecklist
           open={openChecklist}
           setOpen={setOpenChecklist}
@@ -654,7 +656,7 @@ const Actions: React.FC<{
           </span>
           <span className="text-xs">Checklist</span>
         </PermissionButton>
-      )}
+      ))}
 
       {/* Attachment */}
       {canManageCardAttachments() ? (
@@ -824,38 +826,39 @@ const Actions: React.FC<{
         }
       />
 
-      {/* Custom Fields */}
-      {canManageCardCustomFields() ? (
-        <PopoverCustomField
-          open={openCustomField}
-          setOpen={setOpenCustomField}
-          triggerEl={
-            <PermissionButton
-              canPerform={canManageCardCustomFields()}
-              tooltip="Manage custom fields"
-              permissionLevel={permissionLevel}
-              buttonStyle={buttonStyle}
-            >
-              <span className="text-xs" style={iconStyle}>
-                <RectangleEllipsis size={14} />
-              </span>
-              <span className="text-xs">Custom fields</span>
-            </PermissionButton>
-          }
-        />
-      ) : (
-        <PermissionButton
-          canPerform={canManageCardCustomFields()}
-          tooltip="Manage custom fields"
-          permissionLevel={permissionLevel}
-          buttonStyle={buttonStyle}
-        >
-          <span className="text-xs" style={iconStyle}>
-            <RectangleEllipsis size={14} />
-          </span>
-          <span className="text-xs">Custom fields</span>
-        </PermissionButton>
-      )}
+      {/* Custom Fields (Super Admin only) */}
+      {superAdmin &&
+        (canManageCardCustomFields() ? (
+          <PopoverCustomField
+            open={openCustomField}
+            setOpen={setOpenCustomField}
+            triggerEl={
+              <PermissionButton
+                canPerform={canManageCardCustomFields()}
+                tooltip="Manage custom fields"
+                permissionLevel={permissionLevel}
+                buttonStyle={buttonStyle}
+              >
+                <span className="text-xs" style={iconStyle}>
+                  <RectangleEllipsis size={14} />
+                </span>
+                <span className="text-xs">Custom fields</span>
+              </PermissionButton>
+            }
+          />
+        ) : (
+          <PermissionButton
+            canPerform={canManageCardCustomFields()}
+            tooltip="Manage custom fields"
+            permissionLevel={permissionLevel}
+            buttonStyle={buttonStyle}
+          >
+            <span className="text-xs" style={iconStyle}>
+              <RectangleEllipsis size={14} />
+            </span>
+            <span className="text-xs">Custom fields</span>
+          </PermissionButton>
+        ))}
 
       {/* Power-Ups Section */}
       {/* <div className="mt-4 mb-2">
@@ -980,28 +983,30 @@ const Actions: React.FC<{
           </PermissionButton>
         )}
 
-        {/* Archive/Restore Card */}
-        <PermissionButton
-          canPerform={canArchiveCard()}
-          onClick={handleArchival}
-          tooltip={
-            selectedCard?.archive ? "Restore this card" : "Archive this card"
-          }
-          permissionLevel={permissionLevel}
-          buttonStyle={buttonStyle}
-        >
-          {selectedCard?.archive ? (
-            <>
-              <RotateCcw size={14} />
-              <span className="text-xs">Restore</span>
-            </>
-          ) : (
-            <>
-              <Archive size={14} />
-              <span className="text-xs">Archive</span>
-            </>
-          )}
-        </PermissionButton>
+        {/* Archive/Restore Card (Super Admin only) */}
+        {superAdmin && (
+          <PermissionButton
+            canPerform={canArchiveCard()}
+            onClick={handleArchival}
+            tooltip={
+              selectedCard?.archive ? "Restore this card" : "Archive this card"
+            }
+            permissionLevel={permissionLevel}
+            buttonStyle={buttonStyle}
+          >
+            {selectedCard?.archive ? (
+              <>
+                <RotateCcw size={14} />
+                <span className="text-xs">Restore</span>
+              </>
+            ) : (
+              <>
+                <Archive size={14} />
+                <span className="text-xs">Archive</span>
+              </>
+            )}
+          </PermissionButton>
+        )}
 
         {/* Delete Card (only for archived cards) */}
         {selectedCard?.archive && (
