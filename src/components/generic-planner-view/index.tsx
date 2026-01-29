@@ -408,7 +408,13 @@ const GenericPlannerView: React.FC<GenericPlannerViewProps> = ({
 
     const grouped = new Map<
       string,
-      { totalJml: number; capacity: number | null }
+      { 
+        totalJml: number; 
+        capacity: number | null;
+        sisa: number | null;
+        status: "Aman" | "Overload" | null;
+        overdue: number | null;
+      }
     >();
 
     filteredV2Cards.forEach((card: any) => {
