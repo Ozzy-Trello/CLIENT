@@ -203,11 +203,12 @@ export const V2FilterGrid: React.FC<V2FilterGridProps> = ({
       )}
 
       {/* Production Date Filter (Tgl Sewing/Cutting/Bordir/Knitting) */}
-      {filterConfig.productionDateField &&
-        /tgl|date/i.test(filterConfig.productionDateField.label || "") && (
+      {filterConfig.productionDateField && (
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
           <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
-            {filterConfig.productionDateField.label}
+            {/tgl|date/i.test(filterConfig.productionDateField.label || "")
+              ? filterConfig.productionDateField.label
+              : "Tgl Produksi"}
           </span>
           <Select
             mode="multiple"
