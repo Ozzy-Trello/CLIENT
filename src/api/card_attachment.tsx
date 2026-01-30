@@ -52,6 +52,7 @@ const transformAttachment = (a: any): CardAttachment => {
       : a.target_card
       ? mapBackendCardToFrontend(a.target_card)
       : undefined,
+    metadata: a.metadata,
   };
 };
 
@@ -73,7 +74,18 @@ export const getCardAttachments = async (cardId: string): Promise<ApiResponse<Ca
  * @param params Object containing card_id, file_id, and type
  * @returns Promise with the created attachment data
  */
-export const createCardAttachment = async (params: { cardId: string; attachableType: TAttachableType, attachableId: string; isCover: boolean; type?: TCardAttachmentType }): Promise<ApiResponse<CardAttachment>> => {
+export const createCardAttachment = async (params: {
+  cardId: string;
+  attachableType: TAttachableType;
+  attachableId?: string;
+  isCover: boolean;
+  type?: TCardAttachmentType;
+  metadata?: {
+    url?: string;
+    displayText?: string;
+    favicon?: string;
+  };
+}): Promise<ApiResponse<CardAttachment>> => {
   const { data } = await api.post('/card-attachment', params);
   if (data.data) data.data = transformAttachment(data.data);
   return data;
@@ -96,6 +108,11 @@ export const updateCardAttachment = async (
     is_cover?: boolean;
     type?: TCardAttachmentType;
     cardId?: string;
+    metadata?: {
+      url?: string;
+      displayText?: string;
+      favicon?: string;
+    };
   }
 ): Promise<ApiResponse<CardAttachment>> => {
   const { cardId, ...rest } = payload;

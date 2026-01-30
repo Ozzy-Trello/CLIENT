@@ -52,12 +52,29 @@ const PopoverAttach: React.FC<PopoverAttachProps> = ({
     setOpen(false);
   };
 
+  const handleAttachLink = (url: string, displayText: string) => {
+    if (selectedCard) {
+      addAttachment({
+        cardId: selectedCard.id,
+        attachableType: EnumAttachmentType.Link,
+        isCover: false,
+        metadata: {
+          url: url,
+          displayText: displayText,
+        },
+      });
+      message.success(`Link attached successfully!`);
+    }
+    setOpen(false);
+  };
+
   return (
     <Popover
       content={
         <ContentAttach
           onAttachFile={handleAttachFile}
           onAttachCard={handleAttachCard}
+          onAttachLink={handleAttachLink}
           onClose={() => setOpen(false)}
           card={selectedCard}
           workspaceId={workspaceId}

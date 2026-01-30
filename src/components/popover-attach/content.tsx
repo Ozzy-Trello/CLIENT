@@ -14,14 +14,25 @@ const { Text } = Typography;
 interface ContentAttachProps {
   onAttachFile: (file: File, result: FileUpload) => void;
   onAttachCard: (cardId: string) => void;
+  onAttachLink: (url: string, displayText: string) => void;
   onClose: () => void;
   card: Card | null;
   workspaceId: string;
 }
 
+const isValidUrl = (str: string): boolean => {
+  try {
+    new URL(str);
+    return str.startsWith('http://') || str.startsWith('https://');
+  } catch {
+    return false;
+  }
+};
+
 const ContentAttach: React.FC<ContentAttachProps> = ({
   onAttachFile,
   onAttachCard,
+  onAttachLink,
   onClose,
   card,
   workspaceId,
@@ -208,10 +219,8 @@ const ContentAttach: React.FC<ContentAttachProps> = ({
           type="primary"
           onClick={() => {
             // If there's a valid link entered, attach it
-            if (searchQuery && searchQuery.startsWith("http")) {
-              // Here you would handle link attachment
-              // For now just close the popover
-              onClose();
+            if (isValidUrl(searchQuery)) {
+              onAttachLink(searchQuery, displayText || searchQuery);
             } else {
               // Otherwise open the file upload modal
               handleOpenUploadModal();

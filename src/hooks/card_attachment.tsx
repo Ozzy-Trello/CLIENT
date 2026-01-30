@@ -76,12 +76,18 @@ export function useCardAttachment(
       attachableId,
       isCover,
       type,
+      metadata,
     }: {
       cardId: string;
       attachableType: TAttachableType;
-      attachableId: string;
+      attachableId?: string;
       isCover: boolean;
       type?: TCardAttachmentType;
+      metadata?: {
+        url?: string;
+        displayText?: string;
+        favicon?: string;
+      };
     }) => {
       return createCardAttachment({
         cardId,
@@ -89,6 +95,7 @@ export function useCardAttachment(
         attachableId,
         isCover,
         type,
+        metadata,
       });
     },
     onSuccess: (data, variables) => {
@@ -161,6 +168,31 @@ export function useCardAttachment(
     },
   });
 
+  const updateLinkDisplayTextMutation = useMutation({
+    mutationFn: ({
+      attachmentId,
+      cardId,
+      displayText,
+      url,
+    }: {
+      attachmentId: string;
+      cardId: string;
+      displayText: string;
+      url: string;
+    }) => updateCardAttachment(attachmentId, {
+      cardId,
+      metadata: { displayText, url },
+    }),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["cardAttachment", variables.cardId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.cards.detail(variables.cardId),
+      });
+    },
+  });
+
   const mappedAttachments = useMemo(() => {
     const sourceData =
       cardAttachmentQuery.data?.data ?? options?.initialData ?? [];
@@ -180,6 +212,8 @@ export function useCardAttachment(
     isAddingAttachment: addAttachmentMutation.isPending,
     isDeletingAttachment: deleteAttachmentMutation.isPending,
     markPrinted: markPrintedMutation.mutate,
+    updateLinkDisplayText: updateLinkDisplayTextMutation.mutate,
+    isUpdatingLinkDisplayText: updateLinkDisplayTextMutation.isPending,
     isMarkingCover: markCoverMutation.isPending,
     markCover: markCoverMutation.mutate,
     refetch: cardAttachmentQuery.refetch,

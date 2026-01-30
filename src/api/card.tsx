@@ -68,6 +68,7 @@ export const mapBackendAttachmentToFrontend = (attachment: any): CardAttachment 
     ? mapBackendCardToFrontend({ ...attachment.target_card, attachments: undefined })
     : undefined,
   name: attachment.name,
+  metadata: attachment.metadata,
 } as CardAttachment);
 
 // Helper function to map backend response to frontend Card format

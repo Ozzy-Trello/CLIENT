@@ -1,9 +1,9 @@
 import CardAttachmentImageListModal from "@components/modal-list-card-attachment-images";
 import RichTextEditor from "@components/rich-text-editor";
-import { useCards } from "@hooks/card";
+import { useCardDetails } from "@hooks/card-details";
 import { Card } from "@myTypes/card";
 import { Button, Typography } from "antd";
-import { AlignLeft, Edit } from "lucide-react";
+import { AlignLeft, Edit, Loader2 } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useCallback } from "react";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
@@ -36,7 +36,11 @@ const Description: React.FC<{
   const [selectedattachmentImageUrl, setSelectedAttachmentImageUrl] =
     useState<string>("");
 
-  const { updateCard } = useCards(card.listId, boardId || "");
+  const { updateCardAsync, isUpdating, refetch } = useCardDetails(
+    card.id,
+    card.listId,
+    boardId || ""
+  );
 
   // Get board permissions
   const { canUpdateCard } = useBoardPermissionsContext();
@@ -51,31 +55,28 @@ const Description: React.FC<{
     setIsEditingDescription(false);
   };
 
-  const handleSaveDescriptionClick = () => {
-    updateCard(
-      {
-        cardId: card.id,
-        updates: {
-          description: newDescription,
-        },
-        listId: card.listId,
-        destinationListId: card.listId,
-      },
-      {
-        onSuccess: (data) => {
-          if (setSelectedCard) {
-            setSelectedCard((prevCard) => {
-              if (!prevCard) return prevCard;
-              return {
-                ...prevCard,
-                description: newDescription,
-              };
-            });
-          }
-        },
+  const handleSaveDescriptionClick = async () => {
+    try {
+      await updateCardAsync({
+        description: newDescription,
+      });
+      
+      if (setSelectedCard) {
+        setSelectedCard((prevCard) => {
+          if (!prevCard) return prevCard;
+          return {
+            ...prevCard,
+            description: newDescription,
+          };
+        });
       }
-    );
-    setIsEditingDescription(false);
+      // Refetch card details to get the newest state
+      refetch();
+      setIsEditingDescription(false);
+    } catch (error) {
+      console.error("Failed to save description:", error);
+      // isUpdating will automatically be reset to false on error
+    }
   };
 
   useEffect(() => {
@@ -89,6 +90,85 @@ const Description: React.FC<{
       setNewDescription(card?.description || "");
     }
   }, [card?.description, isEditingDescription]);
+
+  // Linkify plain text URLs that are not already inside anchor tags
+  const linkifyText = (html: string): string => {
+    if (!html || typeof window === 'undefined') return html;
+
+    try {
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      const walker = document.createTreeWalker(
+        doc.body,
+        NodeFilter.SHOW_TEXT,
+        null
+      );
+
+      const urlRegex = /(https?:\/\/[^\s<>"]+)/gi;
+      const textNodes: Text[] = [];
+
+      let node;
+      while ((node = walker.nextNode() as Text)) {
+        if (node.parentElement?.tagName === 'A') continue;
+        textNodes.push(node);
+      }
+
+      for (const node of textNodes) {
+        const text = node.textContent || '';
+        let match;
+        let lastIndex = 0;
+        const fragments: Node[] = [];
+
+        // Reset regex state
+        urlRegex.lastIndex = 0;
+
+        while ((match = urlRegex.exec(text)) !== null) {
+          const url = match[0];
+          const index = match.index;
+
+          // Text before match
+          if (index > lastIndex) {
+            fragments.push(document.createTextNode(text.slice(lastIndex, index)));
+          }
+
+          // Link
+          const a = document.createElement('a');
+          a.href = url;
+          a.target = '_blank';
+          a.rel = 'noopener noreferrer';
+          a.className = 'text-blue-600 hover:underline cursor-pointer';
+          a.textContent = url;
+          // Fallback style in case classes are stripped or overridden
+          a.style.color = '#2563eb';
+          a.style.textDecoration = 'underline';
+          a.style.cursor = 'pointer';
+          
+          fragments.push(a);
+
+          lastIndex = index + url.length;
+        }
+
+        // Only replace if matches were found
+        if (fragments.length > 0) {
+          // Remaining text
+          if (lastIndex < text.length) {
+            fragments.push(document.createTextNode(text.slice(lastIndex)));
+          }
+
+          const parent = node.parentNode;
+          if (parent) {
+            for (const fragment of fragments) {
+              parent.insertBefore(fragment, node);
+            }
+            parent.removeChild(node);
+          }
+        }
+      }
+
+      return doc.body.innerHTML;
+    } catch (e) {
+      return html;
+    }
+  };
 
   const readOnlyDescription = card.description || newDescription;
   const normalizedReadOnlyDescription = (() => {
@@ -182,7 +262,8 @@ const Description: React.FC<{
         );
       }
 
-      return doc.body.innerHTML;
+      // Apply linkification to convert plain text URLs to clickable links
+      return linkifyText(doc.body.innerHTML);
     } catch (e) {
       return readOnlyDescription;
     }
@@ -245,6 +326,7 @@ const Description: React.FC<{
               onClick={disableEditDescription}
               size="middle"
               className="mr-2 rounded-md"
+              disabled={isUpdating}
             >
               Cancel
             </Button>
@@ -253,8 +335,10 @@ const Description: React.FC<{
               onClick={handleSaveDescriptionClick}
               size="middle"
               className="rounded-md bg-blue-600 hover:bg-blue-700"
+              loading={isUpdating}
+              disabled={isUpdating}
             >
-              Save
+              {isUpdating ? "Saving..." : "Save"}
             </Button>
           </div>
         </div>
@@ -268,8 +352,20 @@ const Description: React.FC<{
         >
           {readOnlyDescription ? (
             <div
-              className="prose prose-sm max-w-none prose-ul:list-disc prose-ol:list-decimal prose-ul:pl-5 prose-ol:pl-5"
+              className="prose prose-sm max-w-none prose-ul:list-disc prose-ol:list-decimal prose-ul:pl-5 prose-ol:pl-5 prose-a:text-blue-600 prose-a:underline prose-a:cursor-pointer"
               dangerouslySetInnerHTML={{ __html: normalizedReadOnlyDescription }}
+              onClick={(e) => {
+                // Handle link clicks to open in new tab
+                const target = e.target as HTMLElement;
+                if (target.tagName === 'A') {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const href = target.getAttribute('href');
+                  if (href) {
+                    window.open(href, '_blank', 'noopener,noreferrer');
+                  }
+                }
+              }}
             />
           ) : (
             <span style={{ color: `rgb(${colors["text-muted"]})` }}>

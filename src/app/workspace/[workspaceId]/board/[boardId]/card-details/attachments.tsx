@@ -1,4 +1,4 @@
-import { PaperClipOutlined, DownloadOutlined, UploadOutlined, EditOutlined } from "@ant-design/icons";
+import { PaperClipOutlined, DownloadOutlined, UploadOutlined, EditOutlined, LinkOutlined } from "@ant-design/icons";
 import { QrCode, Pencil } from "lucide-react";
 import {
   Card,
@@ -40,6 +40,8 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
     deleteAttachment,
     addAttachment,
     refetch,
+    updateLinkDisplayText,
+    isUpdatingLinkDisplayText,
   } = useCardAttachment(card.id, {
     initialData: card.attachments,
     fetch: true,
@@ -67,11 +69,19 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
     [attachments]
   );
 
-  // Default everything that is not an explicit card link to file attachments to keep old data working
+  const linkAttachments = useMemo(
+    () =>
+      attachments.filter(
+        (att) => att.attachableType === EnumAttachmentType.Link
+      ),
+    [attachments]
+  );
+
+  // Default everything that is not an explicit card link or URL link to file attachments to keep old data working
   const fileAttachments = useMemo(
     () =>
       attachments.filter(
-        (att) => att.attachableType !== EnumAttachmentType.Card
+        (att) => att.attachableType !== EnumAttachmentType.Card && att.attachableType !== EnumAttachmentType.Link
       ),
     [attachments]
   );
@@ -83,9 +93,12 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
         cardId: card.id,
         fromHook: cardAttachments?.length,
         fromCard: card.attachments?.length,
+        allAttachments: attachments,
+        linkAttachments: linkAttachments,
+        attachableTypes: attachments.map(a => a.attachableType),
       });
     }
-  }, [card.id, cardAttachments, card.attachments]);
+  }, [card.id, cardAttachments, card.attachments, attachments, linkAttachments]);
 
   const hasRefetched = React.useRef(false);
   React.useEffect(() => {
@@ -167,6 +180,10 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string>("");
+
+  // Link rename state
+  const [renamingLinkId, setRenamingLinkId] = useState<string | null>(null);
+  const [linkRenameValue, setLinkRenameValue] = useState("");
 
   const uploadFiles = async (fileList: FileList | null) => {
     if (!fileList || !card.id) return;
@@ -435,6 +452,136 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
     </div>
   );
 
+  const handleStartLinkRename = (attachmentId: string, currentDisplayText: string) => {
+    setRenamingLinkId(attachmentId);
+    setLinkRenameValue(currentDisplayText);
+  };
+
+  const handleCancelLinkRename = () => {
+    setRenamingLinkId(null);
+    setLinkRenameValue("");
+  };
+
+  const handleSaveLinkRename = (attachmentId: string, url: string) => {
+    if (!linkRenameValue.trim()) {
+      message.error("Display text cannot be empty");
+      return;
+    }
+    updateLinkDisplayText({
+      attachmentId,
+      cardId: card.id,
+      displayText: linkRenameValue.trim(),
+      url,
+    });
+    setRenamingLinkId(null);
+    setLinkRenameValue("");
+    message.success("Link renamed successfully");
+  };
+
+  const renderLinkSection = () => {
+    if (linkAttachments.length === 0) return null;
+
+    return (
+      <div className="mb-6">
+        <Typography.Text className="text-xs text-gray-500 uppercase font-semibold">
+          Links
+        </Typography.Text>
+        <div className="mt-2 space-y-2">
+          {linkAttachments.map((attachment) => {
+            const url = attachment.metadata?.url || "";
+            const displayText = attachment.metadata?.displayText || attachment.name || url || "Link";
+            const isRenaming = renamingLinkId === attachment.id;
+
+            return (
+              <div
+                key={attachment.id}
+                className="flex items-center p-3 hover:bg-blue-50 rounded-lg border border-gray-200 transition-colors"
+              >
+                <div className="flex-shrink-0 mr-3 w-10 h-10 flex items-center justify-center bg-blue-100 rounded-lg">
+                  <LinkOutlined className="text-blue-600 text-lg" />
+                </div>
+                <div className="flex-grow min-w-0">
+                  {isRenaming ? (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        size="small"
+                        value={linkRenameValue}
+                        onChange={(e) => setLinkRenameValue(e.target.value)}
+                        onPressEnter={() => handleSaveLinkRename(attachment.id, url)}
+                        autoFocus
+                        className="flex-grow"
+                        placeholder="Display text"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <Button
+                        size="small"
+                        type="primary"
+                        loading={isUpdatingLinkDisplayText}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSaveLinkRename(attachment.id, url);
+                        }}
+                      >
+                        Save
+                      </Button>
+                      <Button
+                        size="small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCancelLinkRename();
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-1">
+                        <a
+                          href={url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline truncate"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {displayText}
+                        </a>
+                        <Pencil
+                          size={12}
+                          className="text-gray-400 hover:text-blue-600 cursor-pointer flex-shrink-0"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleStartLinkRename(attachment.id, displayText);
+                          }}
+                        />
+                      </div>
+                      <div className="text-xs text-blue-400 truncate">
+                        {url}
+                      </div>
+                    </>
+                  )}
+                </div>
+                <div className="flex items-center ml-3">
+                  <Button
+                    size="small"
+                    type="link"
+                    danger
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteWithConfirm(attachment.id);
+                    }}
+                  >
+                    Delete
+                  </Button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   const renderCardLinks = () => (
     <div className="mb-6">
       <Typography.Text className="text-xs text-gray-500 uppercase font-semibold">
@@ -522,6 +669,7 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
       </div> */}
 
       {renderCardLinks()}
+      {renderLinkSection()}
       {renderSection("PO", poAttachments)}
       {renderSection("Bukti", buktiAttachments)}
       {renderSection("Other", otherAttachments)}

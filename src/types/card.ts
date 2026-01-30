@@ -92,6 +92,7 @@ export interface Card {
 export enum EnumAttachmentType {
   File = "file",
   Card = "card",
+  Link = "link",
 }
 
 export enum EnumCardAttachmentType {
@@ -100,7 +101,7 @@ export enum EnumCardAttachmentType {
   PO = "PO",
 }
 
-export type TAttachableType = EnumAttachmentType.File | EnumAttachmentType.Card;
+export type TAttachableType = EnumAttachmentType.File | EnumAttachmentType.Card | EnumAttachmentType.Link;
 export type TCardAttachmentType = EnumCardAttachmentType.Attachment | EnumCardAttachmentType.Bukti | EnumCardAttachmentType.PO;
 
 export interface CardAttachment {
@@ -116,6 +117,11 @@ export interface CardAttachment {
   name?: string;
   file?: FileUpload;
   targetCard?: Card;
+  metadata?: {
+    url?: string;
+    displayText?: string;
+    favicon?: string;
+  };
 }
 
 export interface CardTimeInList {
