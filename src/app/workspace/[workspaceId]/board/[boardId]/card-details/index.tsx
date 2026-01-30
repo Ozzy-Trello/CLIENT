@@ -55,6 +55,7 @@ import PopoverChecklist from "@components/popover-checklist";
 import PopoverUser from "@components/popover-user";
 import PopoverAttach from "@components/popover-attach";
 import UploadModal from "@components/modal-upload/modal-upload";
+import ModalBuatSO from "@components/modal-buat-so";
 import AutomateButtons from "./automate-buttons";
 import { ListSelection, SelectionRef } from "@components/selection";
 import { useCurrentAccount } from "@hooks/account";
@@ -89,6 +90,7 @@ import CardTimeInList from "./time-in-lists";
 import { uploadFile } from "@api/file";
 import { createCardAttachment } from "@api/card_attachment";
 import { useCardAttachment } from "@hooks/card_attachment";
+import { useCardCustomField } from "@hooks/card_custom_field";
 
 const CardDetails: React.FC = (props) => {
   const params = useParams();
@@ -291,11 +293,67 @@ const CardDetails: React.FC = (props) => {
   const [openAttach, setOpenAttach] = useState(false);
   const [openBuktiModal, setOpenBuktiModal] = useState(false);
   const [openPOModal, setOpenPOModal] = useState(false);
+  const [openBuatSOModal, setOpenBuatSOModal] = useState(false);
   const [isPOPelengkap, setIsPOPelengkap] = useState(false);
   
   // Refs for PO logic
   const poUploadSequenceRef = useRef(0);
   const poGeneratedNamesRef = useRef<Set<string>>(new Set());
+
+  const { cardCustomFields, isLoading: isLoadingCardCustomFields } =
+    useCardCustomField(selectedCard?.id || "", workspaceId as string, {
+      enabled: !!selectedCard?.id && !!workspaceId,
+    });
+
+  const noFakturValue = useMemo(() => {
+    const normalizeId = (field: any) =>
+      String(
+        field?.id ?? field?.customFieldId ?? field?.custom_field_id ?? "",
+      ).trim();
+
+    const getValue = (field: any) => {
+      const raw =
+        field?.valueString ??
+        field?.value_string ??
+        field?.valueOption ??
+        field?.value_option ??
+        field?.valueNumber ??
+        field?.value_number ??
+        "";
+      return raw === null || raw === undefined ? "" : String(raw).trim();
+    };
+
+    const sources: any[][] = [
+      Array.isArray(cardCustomFields) ? cardCustomFields : [],
+      Array.isArray(selectedCard?.customFields)
+        ? selectedCard?.customFields
+        : [],
+    ];
+
+    const NO_FAKTUR_CUSTOM_FIELD_ID = "6c7f05f1-85bc-42f3-98b2-6a6509cc539c";
+
+    for (const fields of sources) {
+      const byId = fields.find(
+        (f: any) => normalizeId(f) === NO_FAKTUR_CUSTOM_FIELD_ID,
+      );
+      const byName = fields.find(
+        (f: any) =>
+          String(f?.name || "")
+            .trim()
+            .toLowerCase() === "no faktur",
+      );
+
+      const v1 = byId ? getValue(byId) : "";
+      if (v1) return v1;
+
+      const v2 = byName ? getValue(byName) : "";
+      if (v2) return v2;
+    }
+
+    return String((selectedCard as any)?.noFaktur || "").trim();
+  }, [cardCustomFields, selectedCard?.customFields, selectedCard]);
+
+  const isBuatSODisabled = isLoadingCardCustomFields || !!noFakturValue;
 
   // Role Checks & Permissions for Toolbar
   // const roleLower = (userRole || currentUser?.role?.name || "").trim().toLowerCase(); // Already defined above
@@ -832,6 +890,10 @@ const CardDetails: React.FC = (props) => {
         boardName={effectiveBoardName}
         userRole={userRole}
         isSuperAdmin={isSuperAdmin}
+        card={selectedCard}
+        onOpenBuktiModal={() => setOpenBuktiModal(true)}
+        onOpenPOModal={() => setOpenPOModal(true)}
+        onOpenBuatSOModal={() => setOpenBuatSOModal(true)}
       />
     </div>
   );
@@ -972,7 +1034,11 @@ const CardDetails: React.FC = (props) => {
                         boardName={effectiveBoardName}
                         userRole={userRole}
                         isSuperAdmin={isSuperAdmin}
-                        exclude={["Labels", "Dates", "Checklist", "Members"]}
+                        exclude={[]}
+                        card={selectedCard}
+                        onOpenBuktiModal={() => setOpenBuktiModal(true)}
+                        onOpenPOModal={() => setOpenPOModal(true)}
+                        onOpenBuatSOModal={() => setOpenBuatSOModal(true)}
                     />
                  </div>
               }
@@ -1428,7 +1494,27 @@ const CardDetails: React.FC = (props) => {
       />
   );
   
-  // 10. + Actions (Dropdown)
+  // 10. Buat SO
+  const toolbarBuatSOButton = (canPOActions && canManageCardAttachments && canManageCardAttachments()) ? (
+      <Tooltip title={isBuatSODisabled ? "SO Sudah ada" : "Create Sales Order"}>
+        <Button 
+            size="small" type="default" 
+            className="bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-200"
+            onClick={() => {
+                if (isBuatSODisabled) {
+                    message.error("SO Sudah ada");
+                    return;
+                }
+                setOpenBuatSOModal(true);
+            }}
+            disabled={isBuatSODisabled}
+        >
+             <FileText className="mr-1" size={14} /> Buat SO
+        </Button>
+      </Tooltip>
+  ) : null;
+  
+  // 11. + Actions (Dropdown)
   const toolbarAddButton = (
       <Popover
         trigger="click"
@@ -1441,8 +1527,13 @@ const CardDetails: React.FC = (props) => {
                     isSuperAdmin={isSuperAdmin}
                     exclude={[
                         "Labels", "Dates", "Checklist", "Members",
-                        "Attachment", "Bukti", "PO", "QR", "Automation"
+                        "Attachment", "Upload Bukti", "Upload File PO", 
+                        "Generate QR", "Automation", "Buat SO"
                     ]}
+                    card={selectedCard}
+                    onOpenBuktiModal={() => setOpenBuktiModal(true)}
+                    onOpenPOModal={() => setOpenPOModal(true)}
+                    onOpenBuatSOModal={() => setOpenBuatSOModal(true)}
                 />
             </div>
         }
@@ -1453,7 +1544,7 @@ const CardDetails: React.FC = (props) => {
       </Popover>
   );
 
-  const actionsToolbar = (
+  const actionsToolbar = isDesktop ? (
       <div className="flex flex-wrap items-center gap-2 mb-4 md:ml-8">
           {toolbarLabelsButton}
           {toolbarAttachButton}
@@ -1463,10 +1554,11 @@ const CardDetails: React.FC = (props) => {
           {toolbarQRButton}
           {toolbarChecklistButton}
           {toolbarMembersButton}
+          {toolbarBuatSOButton}
           {toolbarAutomationButton}
           {toolbarAddButton}
       </div>
-  );
+  ) : null;
 
   return (
     <Modal
@@ -1500,8 +1592,9 @@ const CardDetails: React.FC = (props) => {
             title="Upload Bukti"
             acceptableExtensions=".pdf,.jpg,.jpeg,.png"
             maxSize={10 * 1024 * 1024}
+            cardId={selectedCard?.id}
         />
-        
+
         <UploadModal
             isVisible={openPOModal}
             onClose={() => setOpenPOModal(false)}
@@ -1509,6 +1602,8 @@ const CardDetails: React.FC = (props) => {
             title="Upload File PO"
             acceptableExtensions=".pdf,.jpg,.jpeg,.png"
             maxSize={10 * 1024 * 1024}
+            cardId={selectedCard?.id}
+            attachmentType={EnumCardAttachmentType.PO}
             onBeforeUpload={(file: File) => {
                  const poFileName = buildPOFileName(file.name);
                  return new File([file], poFileName, { type: file.type });
@@ -1524,6 +1619,15 @@ const CardDetails: React.FC = (props) => {
                 </div>
             }
         />
+
+        {/* Buat SO Modal */}
+        <ModalBuatSO
+          open={openBuatSOModal}
+          onClose={() => setOpenBuatSOModal(false)}
+          cardId={selectedCard?.id}
+          noFaktur={noFakturValue || null}
+        />
+
         {/* Cover Image Section */}
         {selectedCard && <Cover card={selectedCard} />}
 

@@ -84,6 +84,8 @@ interface UploadModalProps {
   multiple?: boolean; // Support for multiple file upload
   extraContent?: ReactNode; // Optional content rendered above the drop area
   onBeforeUpload?: (file: File, index: number) => Promise<File> | File;
+  cardId?: string; // Card ID for QR code stamping on PO uploads
+  attachmentType?: string; // Type of attachment (e.g., 'PO')
 }
 
 const UploadModal: React.FC<UploadModalProps> = ({
@@ -96,7 +98,9 @@ const UploadModal: React.FC<UploadModalProps> = ({
   acceptableExtensions,
   multiple = false,
   extraContent,
-  onBeforeUpload
+  onBeforeUpload,
+  cardId,
+  attachmentType
 }) => {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -224,7 +228,10 @@ const UploadModal: React.FC<UploadModalProps> = ({
           ? await onBeforeUpload(originalFile, i)
           : originalFile;
 
-        const result = await uploadFile(fileToUpload);
+        const result = await uploadFile(fileToUpload, {
+          cardId,
+          type: attachmentType,
+        });
         
         if (onUploadComplete && result?.data) {
           onUploadComplete(fileToUpload, result?.data);

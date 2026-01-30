@@ -1,9 +1,9 @@
 "use client";
-import { uploadFile } from "@api/file";
+// import { uploadFile } from "@api/file"; // Moved to index.tsx
 import { generateQRCodesPDF } from "@api/qr";
-import UploadModal from "@components/modal-upload/modal-upload";
+// import UploadModal from "@components/modal-upload/modal-upload"; // Moved to index.tsx
 import ScanProgressModal from "@components/scan-progress-modal";
-import ModalBuatSO from "@components/modal-buat-so";
+// import ModalBuatSO from "@components/modal-buat-so"; // Moved to index.tsx
 import PopoverAttach from "@components/popover-attach";
 import PopoverChecklist from "@components/popover-checklist";
 import PopoverCopyCard from "@components/popover-copy-card";
@@ -21,13 +21,13 @@ import { useCardAttachment } from "@hooks/card_attachment";
 import { useCardCustomField } from "@hooks/card_custom_field";
 import { useCardMembers } from "@hooks/card_member";
 import { EnumAttachmentType, EnumCardAttachmentType } from "@myTypes/card";
-import { FileUpload } from "@myTypes/file-upload";
+// import { FileUpload } from "@myTypes/file-upload"; // Moved to index.tsx
 import { useBoardPermissionsContext } from "@providers/board-permissions-context";
 import { useCardDetailContext } from "@providers/card-detail-context";
 import { selectIsDarkMode, selectTheme } from "@store/app_slice";
 import { selectCurrentBoard } from "@store/workspace_slice";
 import { useQueryClient } from "@tanstack/react-query";
-import { Button, message, Modal, Tooltip, Checkbox } from "antd";
+import { Button, message, Modal, Tooltip } from "antd";
 import {
   Archive,
   CheckSquare,
@@ -51,7 +51,7 @@ import {
   Users,
 } from "lucide-react";
 import { useParams, useSearchParams } from "next/navigation";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
 import AutomateButtons from "./automate-buttons";
 import { LookupCache } from "@utils/lookup-cache";
@@ -104,7 +104,11 @@ const Actions: React.FC<{
   userRole?: string;
   isSuperAdmin?: boolean;
   exclude?: string[];
-}> = ({ boardName, userRole, isSuperAdmin, exclude = [] }) => {
+  card?: { id: string; listId?: string } | null;
+  onOpenBuktiModal?: () => void;
+  onOpenPOModal?: () => void;
+  onOpenBuatSOModal?: () => void;
+}> = ({ boardName, userRole, isSuperAdmin, exclude = [], card, onOpenBuktiModal, onOpenPOModal, onOpenBuatSOModal }) => {
   const [openCustomField, setOpenCustomField] = useState(false);
   const [openMembers, setOpenMembers] = useState(false);
   const [openDates, setOpenDates] = useState(false);
@@ -115,10 +119,11 @@ const Actions: React.FC<{
   const [openAttach, setOpenAttach] = useState(false);
   const [openChecklist, setOpenChecklist] = useState(false);
   const [openLabels, setOpenLabels] = useState(false);
-  const [openBuktiModal, setOpenBuktiModal] = useState(false);
-  const [openPOModal, setOpenPOModal] = useState(false);
-  const [openBuatSOModal, setOpenBuatSOModal] = useState(false);
-  const [isPOPelengkap, setIsPOPelengkap] = useState(false);
+  // Moved to index.tsx:
+  // const [openBuktiModal, setOpenBuktiModal] = useState(false);
+  // const [openPOModal, setOpenPOModal] = useState(false);
+  // const [openBuatSOModal, setOpenBuatSOModal] = useState(false);
+  // const [isPOPelengkap, setIsPOPelengkap] = useState(false);
 
   const [isProgressOpen, setIsProgressOpen] = useState(false);
 
@@ -127,6 +132,11 @@ const Actions: React.FC<{
   const workspaceId = params.workspaceId as string;
   const searchParams = useSearchParams();
   const { selectedCard } = useCardDetailContext();
+
+  // Use card prop if provided, fallback to context/URL
+  const cardIdFromUrl = searchParams.get("cardId");
+  const currentCardId = card?.id || selectedCard?.id || cardIdFromUrl || "";
+
 
   const NO_FAKTUR_CUSTOM_FIELD_ID = "6c7f05f1-85bc-42f3-98b2-6a6509cc539c";
 
@@ -238,11 +248,10 @@ const Actions: React.FC<{
     useCardMembers(selectedCard?.id || "");
 
   // Get card attachments for Bukti functionality
-  const { cardAttachments, addAttachment } = useCardAttachment(
+  const { cardAttachments } = useCardAttachment(
     selectedCard?.id || "",
   );
-  const poUploadSequenceRef = useRef(0);
-  const poGeneratedNamesRef = useRef<Set<string>>(new Set());
+  // NOTE: poUploadSequenceRef and poGeneratedNamesRef moved to index.tsx
 
   // Get board-specific permissions
   const {
@@ -280,14 +289,7 @@ const Actions: React.FC<{
   // Scan Progress functionality
   const queryClient = useQueryClient();
 
-  // Reset PO upload sequence when modal is opened
-  useEffect(() => {
-    if (openPOModal) {
-      poUploadSequenceRef.current = 0;
-      poGeneratedNamesRef.current = new Set();
-      setIsPOPelengkap(false);
-    }
-  }, [openPOModal]);
+  // NOTE: PO upload sequence reset useEffect moved to index.tsx
 
   const getPOCount = () =>
     (cardAttachments || []).filter(
@@ -296,34 +298,7 @@ const Actions: React.FC<{
         attachment.type === EnumCardAttachmentType.PO,
     ).length;
 
-  const buildPOFileName = (originalName: string) => {
-    const dotIndex = originalName.lastIndexOf(".");
-    const base = dotIndex >= 0 ? originalName.slice(0, dotIndex) : originalName;
-    const ext = dotIndex >= 0 ? originalName.slice(dotIndex) : "";
-    const prefix = isPOPelengkap ? "PO Pelengkap - " : "PO - ";
-
-    const existingNames = (cardAttachments || [])
-      .filter(
-        (attachment) =>
-          attachment.attachableType === EnumAttachmentType.File &&
-          attachment.type === EnumCardAttachmentType.PO,
-      )
-      .map((att) => att.file?.name || att.name)
-      .filter(Boolean) as string[];
-
-    let index = 0;
-    let candidate = `${prefix}${base}${ext}`;
-    while (
-      existingNames.includes(candidate) ||
-      poGeneratedNamesRef.current.has(candidate)
-    ) {
-      index += 1;
-      candidate = `${prefix}${base} (${index})${ext}`;
-    }
-
-    poGeneratedNamesRef.current.add(candidate);
-    return candidate;
-  };
+  // NOTE: buildPOFileName moved to index.tsx
 
   // Handle join/leave card
   const handleJoinLeave = async () => {
@@ -373,72 +348,7 @@ const Actions: React.FC<{
     );
   };
 
-  // Handle bukti upload
-  const handleBuktiUpload = async (file: File, result: FileUpload) => {
-    try {
-      // Create a new file with the name "bukti" but keep the original extension
-      const originalExtension = file.name.split(".").pop();
-      const uniqueSuffix = `${Date.now()}-${Math.floor(Math.random() * 10000)}`;
-      const buktiFileName = originalExtension
-        ? `bukti-${uniqueSuffix}.${originalExtension}`
-        : `bukti-${uniqueSuffix}`;
-
-      // Create a new file object with the bukti name
-      const buktiFile = new File([file], buktiFileName, { type: file.type });
-
-      // Upload the file with the new name
-      const buktiResult = await uploadFile(buktiFile, {
-        cardId: selectedCard?.id,
-      });
-
-      if (buktiResult?.data && selectedCard) {
-        // Add the attachment with the bukti file
-        addAttachment({
-          cardId: selectedCard.id,
-          attachableType: EnumAttachmentType.File,
-          attachableId: buktiResult.data.id,
-          isCover: false,
-          type: EnumCardAttachmentType.Bukti,
-        });
-
-        message.success("Bukti uploaded successfully!");
-        setOpenBuktiModal(false);
-      }
-    } catch (error) {
-      message.error("Failed to upload bukti. Please try again.");
-    }
-  };
-
-  // Handle PO upload
-  const handlePOUpload = async (file: File, result: FileUpload) => {
-    try {
-      const poFileName = buildPOFileName(file.name);
-
-      // Create a new file object with the PO name
-      const poFile = new File([file], poFileName, { type: file.type });
-
-      // Upload the file with the new name
-      const poResult = await uploadFile(poFile, {
-        cardId: selectedCard?.id,
-        type: EnumCardAttachmentType.PO,
-      });
-
-      if (poResult?.data && selectedCard) {
-        addAttachment({
-          cardId: selectedCard.id,
-          attachableType: EnumAttachmentType.File,
-          attachableId: poResult.data.id,
-          isCover: false,
-          type: EnumCardAttachmentType.PO,
-        });
-
-        message.success("PO uploaded successfully!");
-        setOpenPOModal(false);
-      }
-    } catch (error) {
-      message.error("Failed to upload PO. Please try again.");
-    }
-  };
+  // NOTE: handleBuktiUpload, handlePOBeforeUpload, handlePOUpload moved to index.tsx
 
   // Handle QR generation using topbar's PO QR logic
   const handleGenerateQR = async () => {
@@ -659,7 +569,7 @@ const Actions: React.FC<{
       ))}
 
       {/* Attachment */}
-      {canManageCardAttachments() ? (
+      {!exclude.includes("Attachment") && (canManageCardAttachments() ? (
         <PopoverAttach
           open={openAttach}
           setOpen={setOpenAttach}
@@ -687,59 +597,65 @@ const Actions: React.FC<{
           </span>
           <span className="text-xs">Attachment</span>
         </PermissionButton>
-      )}
+      ))}
 
       {/* Bukti Button */}
-      <PermissionButton
-        canPerform={canBukti && canManageCardAttachments()}
-        onClick={() => setOpenBuktiModal(true)}
-        tooltip={
-          hasBuktiAttachment() ? "Bukti already exists" : "Upload bukti file"
-        }
-        permissionLevel={permissionLevel}
-        buttonStyle={buttonStyle}
-        disabled={hasBuktiAttachment()}
-      >
-        <span className="text-xs" style={iconStyle}>
-          <FileCheck size={14} />
-        </span>
-        <span className="text-xs">Upload Bukti</span>
-      </PermissionButton>
+      {!exclude.includes("Upload Bukti") && (
+        <PermissionButton
+          canPerform={canBukti && canManageCardAttachments()}
+          onClick={() => onOpenBuktiModal?.()}
+          tooltip={
+            hasBuktiAttachment() ? "Bukti already exists" : "Upload bukti file"
+          }
+          permissionLevel={permissionLevel}
+          buttonStyle={buttonStyle}
+          disabled={hasBuktiAttachment()}
+        >
+          <span className="text-xs" style={iconStyle}>
+            <FileCheck size={14} />
+          </span>
+          <span className="text-xs">Upload Bukti</span>
+        </PermissionButton>
+      )}
 
       {/* PO Button */}
-      <PermissionButton
-        canPerform={canPOActions && canManageCardAttachments()}
-        onClick={() => setOpenPOModal(true)}
-        tooltip={"Upload PO file"}
-        permissionLevel={permissionLevel}
-        buttonStyle={buttonStyle}
-      >
-        <span className="text-xs" style={iconStyle}>
-          <FileText size={14} />
-        </span>
-        <span className="text-xs">Upload File PO</span>
-      </PermissionButton>
+      {!exclude.includes("Upload File PO") && (
+        <PermissionButton
+          canPerform={canPOActions && canManageCardAttachments()}
+          onClick={() => onOpenPOModal?.()}
+          tooltip={"Upload PO file"}
+          permissionLevel={permissionLevel}
+          buttonStyle={buttonStyle}
+        >
+          <span className="text-xs" style={iconStyle}>
+            <FileText size={14} />
+          </span>
+          <span className="text-xs">Upload File PO</span>
+        </PermissionButton>
+      )}
 
       {/* Buat SO Button */}
-      <PermissionButton
-        canPerform={canBuatSO && canManageCardAttachments()}
-        onClick={() => {
-          if (isBuatSODisabled) {
-            message.error("SO Sudah ada");
-            return;
-          }
-          setOpenBuatSOModal(true);
-        }}
-        tooltip={isBuatSODisabled ? "SO Sudah ada" : "Create Sales Order"}
-        permissionLevel={permissionLevel}
-        buttonStyle={buttonStyle}
-        disabled={isBuatSODisabled}
-      >
-        <span className="text-xs" style={iconStyle}>
-          <FileText size={14} />
-        </span>
-        <span className="text-xs">Buat SO</span>
-      </PermissionButton>
+      {!exclude.includes("Buat SO") && (
+        <PermissionButton
+          canPerform={canBuatSO && canManageCardAttachments()}
+          onClick={() => {
+            if (isBuatSODisabled) {
+              message.error("SO Sudah ada");
+              return;
+            }
+            onOpenBuatSOModal?.();
+          }}
+          tooltip={isBuatSODisabled ? "SO Sudah ada" : "Create Sales Order"}
+          permissionLevel={permissionLevel}
+          buttonStyle={buttonStyle}
+          disabled={isBuatSODisabled}
+        >
+          <span className="text-xs" style={iconStyle}>
+            <FileText size={14} />
+          </span>
+          <span className="text-xs">Buat SO</span>
+        </PermissionButton>
+      )}
 
       {/* Location */}
       {canManageCardLocation() ? (
@@ -775,7 +691,7 @@ const Actions: React.FC<{
       )}
 
       {/* Members */}
-      {canManageCardMembers() ? (
+      {!exclude.includes("Members") && (canManageCardMembers() ? (
         <PopoverUser
           open={openMembers}
           setOpen={setOpenMembers}
@@ -805,26 +721,28 @@ const Actions: React.FC<{
           </span>
           <span className="text-xs">Members</span>
         </PermissionButton>
-      )}
+      ))}
 
       {/* Dates */}
-      <PopoverDates
-        open={openDates}
-        setOpen={setOpenDates}
-        triggerEl={
-          <PermissionButton
-            canPerform={true}
-            tooltip="Manage card dates"
-            permissionLevel={permissionLevel}
-            buttonStyle={buttonStyle}
-          >
-            <span className="text-xs" style={iconStyle}>
-              <Clock size={14} />
-            </span>
-            <span className="text-xs">Dates</span>
-          </PermissionButton>
-        }
-      />
+      {!exclude.includes("Dates") && (
+        <PopoverDates
+          open={openDates}
+          setOpen={setOpenDates}
+          triggerEl={
+            <PermissionButton
+              canPerform={true}
+              tooltip="Manage card dates"
+              permissionLevel={permissionLevel}
+              buttonStyle={buttonStyle}
+            >
+              <span className="text-xs" style={iconStyle}>
+                <Clock size={14} />
+              </span>
+              <span className="text-xs">Dates</span>
+            </PermissionButton>
+          }
+        />
+      )}
 
       {/* Custom Fields (Super Admin only) */}
       {superAdmin &&
@@ -893,7 +811,7 @@ const Actions: React.FC<{
         </h3>
 
         {/* Automate Buttons */}
-        <AutomateButtons />
+        {!exclude.includes("Automation") && <AutomateButtons />}
 
         {/* Move Card (Super Admin only) */}
         {superAdmin &&
@@ -1055,16 +973,18 @@ const Actions: React.FC<{
         </PermissionButton>
 
         {/* Generate QR Code */}
-        <PermissionButton
-          canPerform={canGenerateQRFinal && canGenerateQRPermission()}
-          onClick={canGenerateQRFinal ? handleGenerateQR : undefined}
-          tooltip="Generate this card QR code PDF"
-          permissionLevel={permissionLevel}
-          buttonStyle={buttonStyle}
-        >
-          <QrCode size={14} />
-          <span className="text-xs">Generate QR</span>
-        </PermissionButton>
+        {!exclude.includes("Generate QR") && (
+          <PermissionButton
+            canPerform={canGenerateQRFinal && canGenerateQRPermission()}
+            onClick={canGenerateQRFinal ? handleGenerateQR : undefined}
+            tooltip="Generate this card QR code PDF"
+            permissionLevel={permissionLevel}
+            buttonStyle={buttonStyle}
+          >
+            <QrCode size={14} />
+            <span className="text-xs">Generate QR</span>
+          </PermissionButton>
+        )}
 
         {/* Scan Progress */}
         <PermissionButton
@@ -1086,39 +1006,8 @@ const Actions: React.FC<{
           boardId={boardId as string}
         />
 
-        {/* Bukti Upload Modal */}
-        <UploadModal
-          isVisible={openBuktiModal}
-          onClose={() => setOpenBuktiModal(false)}
-          onUploadComplete={handleBuktiUpload}
-          title="Upload Bukti"
-          multiple
-        />
-
-        {/* PO Upload Modal */}
-        <UploadModal
-          isVisible={openPOModal}
-          onClose={() => setOpenPOModal(false)}
-          onUploadComplete={handlePOUpload}
-          title="Upload PO"
-          extraContent={
-            <Checkbox
-              checked={isPOPelengkap}
-              onChange={(e) => setIsPOPelengkap(e.target.checked)}
-            >
-              PO Pelengkap
-            </Checkbox>
-          }
-          multiple
-        />
-
-        {/* Buat SO Modal */}
-        <ModalBuatSO
-          open={openBuatSOModal}
-          onClose={() => setOpenBuatSOModal(false)}
-          cardId={selectedCard?.id}
-          noFaktur={noFakturValue || null}
-        />
+        {/* NOTE: Bukti, PO, and Buat SO modals are now in index.tsx */}
+        {/* These were moved outside actions.tsx for better state management */}
       </div>
     </div>
   );
