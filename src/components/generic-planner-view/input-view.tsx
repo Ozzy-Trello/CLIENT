@@ -31,6 +31,7 @@ import {
     countActiveV2Filters,
     useV2FilterState,
 } from "./shared-filters";
+import { queryKeys } from "@constants/query-keys";
 
 const { Text } = Typography;
 
@@ -40,9 +41,12 @@ interface GenericPlannerInputViewProps {
 }
 
 const formatDate = (val?: string | null) => {
+    console.log(`[TGL DEBUG] formatDate input:`, val);
     if (!val) return "-";
     const d = dayjs(val);
-    return d.isValid() ? d.format("DD/MM/YYYY") : val;
+    const result = d.isValid() ? d.format("DD/MM/YYYY") : val;
+    console.log(`[TGL DEBUG] formatDate result:`, result);
+    return result;
 };
 
 const parseNumeric = (val: any): number | null => {
@@ -120,6 +124,8 @@ const GenericPlannerInputView: React.FC<GenericPlannerInputViewProps> = ({
         if (resolvedPlannerId) {
             queryClient.invalidateQueries({ queryKey: ["plan", resolvedPlannerId] });
         }
+        // Also invalidate V2 queries to ensure capacity and other computed fields are refreshed
+        queryClient.invalidateQueries({ queryKey: queryKeys.planner.all });
     };
 
     const { data: planners = [], isLoading: loadingPlanners } = useMasterPlanners();
@@ -530,10 +536,36 @@ const GenericPlannerInputView: React.FC<GenericPlannerInputViewProps> = ({
     );
 
     const handleUpdateDate = async (cardIds: string[], newDate: string) => {
+        console.log(`[TGL DEBUG] handleUpdateDate input:`, { cardIds, newDate });
         if (!resolvedPlannerId) return;
         try {
             if (cardIds.length > 1) setBulkUpdating(true);
             else setInlineUpdatingId(cardIds[0]);
+
+            // Optimistic update for V2 Cache to prevent reset/flicker
+            if (isV2 && v2Type) {
+                const cardIdSet = new Set(cardIds);
+                queryClient.setQueriesData(
+                    { queryKey: queryKeys.planner.all },
+                    (old: any) => {
+                        if (!old || !old.cards) return old;
+                        return {
+                            ...old,
+                            cards: old.cards.map((card: any) => {
+                                if (cardIdSet.has(card.id)) {
+                                    return {
+                                        ...card,
+                                        [dateField as string]: newDate,
+                                        targetDate: newDate,
+                                        target_date: newDate,
+                                    };
+                                }
+                                return card;
+                            }),
+                        };
+                    }
+                );
+            }
 
             await bulkUpdatePlanDate(resolvedPlannerId, { cardIds, date: newDate });
             message.success("Date updated");
@@ -610,38 +642,6 @@ const GenericPlannerInputView: React.FC<GenericPlannerInputViewProps> = ({
         },
     ];
 
-    // Dynamic Date Column (Editable)
-    if (dateField) {
-        tableColumns.push({
-            title: dateField, // Use configured field name as header
-            dataIndex: dateField,
-            key: dateField,
-            width: 160,
-            render: (val: string | null, record: PlanItem) => {
-                // Backend sends snake_case (target_date); also allow dynamic custom-field value
-                const fallback =
-                    getDynamicValue(record, dateField) ??
-                    (record as any).targetDate ??
-                    (record as any).target_date ??
-                    record.targetDate ??
-                    record.target_date ??
-                    null;
-                const current = val ?? fallback;
-                return (
-                    <DatePicker
-                        size="small"
-                        allowClear={false}
-                        format="DD/MM/YYYY"
-                        disabled={inlineUpdatingId === record.id}
-                        value={current ? dayjs(current) : undefined}
-                        onChange={(d) => {
-                            if (d) handleUpdateDate([record.id], d.format("YYYY-MM-DD"));
-                        }}
-                    />
-                );
-            },
-        });
-    }
 
     // Helper to access dynamic fields robustly (handling potential camelCase conversion)
     const getDynamicValue = (record: PlanItem, key: string) => {
@@ -741,6 +741,45 @@ const GenericPlannerInputView: React.FC<GenericPlannerInputViewProps> = ({
                 const val = getQtyValue(record);
                 const numVal = parseNumeric(val);
                 return numVal !== null ? formatNumber(numVal) : "-";
+            },
+        });
+    }
+
+    // Dynamic Date Column (Editable) - Moved here to be after Qty as requested
+    if (dateField) {
+        tableColumns.push({
+            title: dateField, // Use configured field name as header
+            dataIndex: dateField,
+            key: dateField,
+            width: 160,
+            render: (val: string | null, record: PlanItem) => {
+                // Backend sends snake_case (target_date); also allow dynamic custom-field value
+                const fallback =
+                    getDynamicValue(record, dateField) ??
+                    (record as any).targetDate ??
+                    (record as any).target_date ??
+                    record.targetDate ??
+                    record.target_date ??
+                    null;
+                const current = val ?? fallback;
+                console.log(`[TGL DEBUG] Render editable date column for card ${record.id}:`, {
+                    header: dateField,
+                    val,
+                    fallback,
+                    current
+                });
+                return (
+                    <DatePicker
+                        size="small"
+                        allowClear={false}
+                        format="DD/MM/YYYY"
+                        disabled={inlineUpdatingId === record.id}
+                        value={current ? dayjs(current) : undefined}
+                        onChange={(d) => {
+                            if (d) handleUpdateDate([record.id], d.format("YYYY-MM-DD"));
+                        }}
+                    />
+                );
             },
         });
     }

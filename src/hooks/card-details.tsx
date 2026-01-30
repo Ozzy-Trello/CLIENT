@@ -85,6 +85,7 @@ export function useCardDetails(
       queryClient.invalidateQueries({ queryKey: queryKeys.cards.detail(cardId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.cards.list(listId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.lists.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.planner.all });
     },
   });
 
@@ -126,6 +127,7 @@ export function useCardDetails(
       
       queryClient.invalidateQueries({ queryKey: queryKeys.cards.list(listId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.lists.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.planner.all });
     },
   });
 
@@ -253,6 +255,7 @@ export function useCardDetails(
       queryClient.invalidateQueries({ queryKey: queryKeys.cards.detail(cardId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.cards.list(listId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.lists.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.planner.all });
     },
   });
 
@@ -326,6 +329,7 @@ export function useCardDetails(
       queryClient.invalidateQueries({ queryKey: queryKeys.cards.detail(cardId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.cards.list(listId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.lists.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.planner.all });
     },
   });
 
@@ -399,6 +403,7 @@ export function useCardDetails(
       queryClient.invalidateQueries({ queryKey: queryKeys.cards.detail(cardId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.cards.list(listId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.lists.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.planner.all });
     },
   });
 
@@ -442,6 +447,7 @@ export function useCardDetails(
         const { cardId, listId } = variables;
         queryClient.invalidateQueries({ queryKey: queryKeys.cards.detail(cardId) });
         queryClient.invalidateQueries({ queryKey: queryKeys.cards.list(listId) });
+        queryClient.invalidateQueries({ queryKey: queryKeys.planner.all });
       }
     },
   });
@@ -486,6 +492,7 @@ export function useCardDetails(
         const { cardId, listId } = variables;
         queryClient.invalidateQueries({ queryKey: queryKeys.cards.detail(cardId) });
         queryClient.invalidateQueries({ queryKey: queryKeys.cards.list(listId) });
+        queryClient.invalidateQueries({ queryKey: queryKeys.planner.all });
       }
     },
   });

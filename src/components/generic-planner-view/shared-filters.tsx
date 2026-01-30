@@ -206,9 +206,7 @@ export const V2FilterGrid: React.FC<V2FilterGridProps> = ({
       {filterConfig.productionDateField && (
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
           <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
-            {/tgl|date/i.test(filterConfig.productionDateField.label || "")
-              ? filterConfig.productionDateField.label
-              : "Tgl Produksi"}
+            {filterConfig.productionDateField.label || "Tgl Produksi"}
           </span>
           <Select
             mode="multiple"
@@ -224,6 +222,32 @@ export const V2FilterGrid: React.FC<V2FilterGridProps> = ({
               filterActions.setPage(1);
             }}
             style={{ width: "100%" }}
+          />
+        </div>
+      )}
+
+      {/* Option Filter (Extra Filter: e.g., Mesin Bordir) */}
+      {filterConfig.optionField && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
+            {filterConfig.optionField.label}
+          </span>
+          <Select
+            mode="multiple"
+            allowClear
+            placeholder={`Pilih ${filterConfig.optionField.label}`}
+            value={filterState.optionFilter}
+            options={(filterConfig.optionField.options || []).map((opt) => ({
+              label: opt,
+              value: opt,
+            }))}
+            onChange={(val) => {
+              filterActions.setOptionFilter(val || []);
+              filterActions.setPage(1);
+            }}
+            style={{ width: "100%" }}
+            showSearch
+            optionFilterProp="label"
           />
         </div>
       )}

@@ -150,6 +150,9 @@ export function useCards(listId: string, boardId: string) {
       queryClient.invalidateQueries({
         queryKey: queryKeys.lists.board(boardId),
       });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.planner.all,
+      });
     },
   });
 
@@ -322,6 +325,9 @@ export function useCards(listId: string, boardId: string) {
       queryClient.invalidateQueries({
         queryKey: queryKeys.lists.board(boardId),
       });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.planner.all,
+      });
     },
   });
 
@@ -373,6 +379,9 @@ export function useCards(listId: string, boardId: string) {
       queryClient.invalidateQueries({
         queryKey: queryKeys.lists.board(boardId),
       });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.planner.all,
+      });
     },
   });
 
@@ -422,6 +431,7 @@ export function useCardMutationsOnly() {
           queryKey: queryKeys.cards.list(vars.destinationListId),
         });
       }
+      queryClient.invalidateQueries({ queryKey: queryKeys.planner.all });
     },
   });
 
@@ -680,6 +690,9 @@ export function useCardsPaginated(
       queryClient.invalidateQueries({
         queryKey: queryKeys.lists.board(boardId),
       });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.planner.all,
+      });
     },
   });
 
@@ -781,6 +794,9 @@ export function useCardMove(boardId?: string) {
       });
       queryClient.invalidateQueries({
         queryKey: queryKeys.cards.list(variables.targetListId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.planner.all,
       });
 
       // Small delay to catch any missed WebSocket updates during drag

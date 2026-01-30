@@ -28,4 +28,9 @@ export const queryKeys = {
     // For archived cards
     archived: () => [...queryKeys.cards.all, 'archived'] as const,
   },
+
+  planner: {
+    all: ['master-planner-v2'] as const,
+    v2: (type?: string) => [...queryKeys.planner.all, type].filter(Boolean),
+  },
 } as const;

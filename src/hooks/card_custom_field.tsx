@@ -85,6 +85,51 @@ export const useCardCustomField = (
         );
       }
 
+      // Optimistically update the Planner cache if it exists
+      // This prevents the "reset" bug when editing fields that are also shown in the planner
+      const plannerQueries = queryClient.getQueryCache().findAll({
+        queryKey: queryKeys.planner.all,
+      });
+
+      plannerQueries.forEach((query) => {
+        queryClient.setQueryData(query.queryKey, (old: any) => {
+          if (!old || !old.cards) return old;
+          return {
+            ...old,
+            cards: old.cards.map((card: any) => {
+              if (card.id === cardId) {
+                const currentValues = card.custom_field_values || card.customFieldValues || {};
+                
+                // Determine the new value based on updatedData
+                // This covers most common custom field value types
+                const newVal = 
+                  updatedData.valueString !== undefined ? updatedData.valueString :
+                  updatedData.valueNumber !== undefined ? updatedData.valueNumber :
+                  updatedData.valueOption !== undefined ? updatedData.valueOption :
+                  updatedData.valueDate !== undefined ? updatedData.valueDate :
+                  updatedData.valueCheckbox !== undefined ? updatedData.valueCheckbox :
+                  undefined;
+
+                if (newVal === undefined) return card;
+
+                return {
+                  ...card,
+                  custom_field_values: {
+                    ...currentValues,
+                    [customFieldId]: newVal,
+                  },
+                  customFieldValues: {
+                    ...currentValues,
+                    [customFieldId]: newVal,
+                  }
+                };
+              }
+              return card;
+            }),
+          };
+        });
+      });
+
       // Return a context object with the snapshotted value
       return { previousCardCustomFields };
     },
@@ -107,6 +152,9 @@ export const useCardCustomField = (
       }
       queryClient.invalidateQueries({
         queryKey: queryKeys.cards.detail(cardId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.planner.all,
       });
     },
     // Remove onSettled to prevent unnecessary refetches that override our data
