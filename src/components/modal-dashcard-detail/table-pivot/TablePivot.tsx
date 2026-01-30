@@ -655,9 +655,13 @@ const TablePivot: FC = () => {
             }
             {
               const parsed = new Date(value as string);
-              return isNaN(parsed.getTime())
-                ? ""
-                : stripJmlTrailingZeros(col, parsed.toLocaleDateString());
+              if (isNaN(parsed.getTime())) {
+                return "";
+              }
+              const day = String(parsed.getDate()).padStart(2, "0");
+              const month = String(parsed.getMonth() + 1).padStart(2, "0");
+              const year = parsed.getFullYear();
+              return stripJmlTrailingZeros(col, `${day}/${month}/${year}`);
             }
           case "productInfo":
           case "bahanInfo":
@@ -670,6 +674,21 @@ const TablePivot: FC = () => {
             if (value === null || value === undefined) {
               return "";
             }
+            
+            // Check if this column is a date type custom field
+            const columnMeta = cardData.columns?.find((c: any) => c.column === col);
+            const isDateType = columnMeta?.type === "date";
+            
+            if (isDateType && value) {
+              const parsed = new Date(value as string);
+              if (!isNaN(parsed.getTime())) {
+                const day = String(parsed.getDate()).padStart(2, "0");
+                const month = String(parsed.getMonth() + 1).padStart(2, "0");
+                const year = parsed.getFullYear();
+                return stripJmlTrailingZeros(col, `${day}/${month}/${year}`);
+              }
+            }
+            
             if (typeof value === "string") {
               // Backend now sends resolved names, not IDs
               return stripJmlTrailingZeros(col, value);
