@@ -31,6 +31,7 @@ type PlannerModalProps = {
   plannerName: string;
   onClose: () => void;
   defaultTab?: "input" | "planner";
+  disabled?: boolean;
 };
 
 // Reusable planner modal to keep padding/layout consistent across Cutting/Bordir/Krah
@@ -40,6 +41,7 @@ const PlannerModal: React.FC<PlannerModalProps> = ({
   plannerName,
   onClose,
   defaultTab = "input",
+  disabled = false,
 }) => {
   return (
     <Modal
@@ -63,7 +65,7 @@ const PlannerModal: React.FC<PlannerModalProps> = ({
             label: "Input",
             children: (
               <div style={{ padding: "8px 0" }}>
-                <GenericPlannerInputView plannerName={plannerName} />
+                <GenericPlannerInputView plannerName={plannerName} disabled={disabled} />
               </div>
             ),
           },
@@ -72,7 +74,7 @@ const PlannerModal: React.FC<PlannerModalProps> = ({
             label: "Planner",
             children: (
               <div style={{ padding: "8px 0" }}>
-                <GenericPlannerView plannerName={plannerName} />
+                <GenericPlannerView plannerName={plannerName} disabled={disabled} />
               </div>
             ),
           },
@@ -150,6 +152,9 @@ const TopBar: React.FC = React.memo(() => {
     OPERATOR_KRAH: "Operator Krah Manset",
     KEPALA_GUDANG: "Kepala Gudang",
     PURCHASING: "Purchasing",
+    SPV_DEAL_MAKER: "SPV Deal Maker",
+    DEAL_MAKER: "Deal Maker",
+    SPV_OUTLET: "SPV Outlet",
   } as const;
 
   type Role = typeof ROLES[keyof typeof ROLES];
@@ -171,6 +176,22 @@ const TopBar: React.FC = React.memo(() => {
   const gudangRoles: Role[] = [
     ROLES.WAREHOUSE_BAHAN,
     ROLES.KEPALA_GUDANG,
+    ROLES.PURCHASING,
+  ];
+
+  // Capacity Planner: Can Edit
+  const capacityEditRoles: string[] = [
+    ROLES.KEPALA_PRODUKSI,
+    ROLES.ADMIN_PRODUKSI,
+    ROLES.SPV_BORDIR,
+    ROLES.SPV_SEWING,
+  ];
+
+  // Capacity Planner: Can View (disabled editing)
+  const capacityViewRoles: string[] = [
+    ROLES.SPV_DEAL_MAKER,
+    ROLES.DEAL_MAKER,
+    ROLES.SPV_OUTLET,
     ROLES.PURCHASING,
   ];
 
@@ -199,6 +220,19 @@ const TopBar: React.FC = React.memo(() => {
       default:
         return false;
     }
+  };
+
+  // Capacity Planner visibility: only on Dateline board
+  const canSeeCapacity = (): boolean => {
+    if (isSuperAdmin) return true;
+    if (!isDateline) return false;
+    return roleInList([...capacityEditRoles, ...capacityViewRoles]);
+  };
+
+  // Capacity Planner edit permission
+  const canEditCapacity = (): boolean => {
+    if (isSuperAdmin) return true;
+    return roleInList(capacityEditRoles);
   };
 
   // Fetch request/warehouse counts
@@ -346,7 +380,7 @@ const TopBar: React.FC = React.memo(() => {
     });
   }
 
-  if (isSuperAdmin) {
+  if (canSeeCapacity()) {
     if (mobileActionMenuItems.length > 0) {
       mobileActionMenuItems.push({ type: "divider" });
     }
@@ -494,7 +528,7 @@ const TopBar: React.FC = React.memo(() => {
             </div>
           )}
 
-          {isSuperAdmin && (
+          {canSeeCapacity() && (
             <div className="hidden lg:block">
               <Dropdown
                 menu={{
@@ -826,6 +860,7 @@ const TopBar: React.FC = React.memo(() => {
         onClose={() => setModalSewingOpen(false)}
         title="Sewing"
         plannerName="Sewing"
+        disabled={!canEditCapacity()}
       />
 
       <PlannerModal
@@ -833,6 +868,7 @@ const TopBar: React.FC = React.memo(() => {
         onClose={() => setModalCuttingOpen(false)}
         title="Cutting"
         plannerName="Cutting"
+        disabled={!canEditCapacity()}
       />
 
       <PlannerModal
@@ -840,6 +876,7 @@ const TopBar: React.FC = React.memo(() => {
         onClose={() => setModalBordirOpen(false)}
         title="Bordir"
         plannerName="Bordir"
+        disabled={!canEditCapacity()}
       />
 
       <PlannerModal
@@ -847,6 +884,7 @@ const TopBar: React.FC = React.memo(() => {
         onClose={() => setModalKrahOpen(false)}
         title="Krah & Manset"
         plannerName="Knitting (KM)"
+        disabled={!canEditCapacity()}
       />
     </div>
   );

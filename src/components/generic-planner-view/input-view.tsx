@@ -38,6 +38,7 @@ const { Text } = Typography;
 interface GenericPlannerInputViewProps {
     plannerName: string;
     plannerId?: number;
+    disabled?: boolean;
 }
 
 const formatDate = (val?: string | null) => {
@@ -94,6 +95,7 @@ const getV2Type = (name: string): string | null => {
 const GenericPlannerInputView: React.FC<GenericPlannerInputViewProps> = ({
     plannerName,
     plannerId: propPlannerId,
+    disabled = false,
 }) => {
     const [page, setPage] = useState(1);
     const [limit, setLimit] = useState(100000);
@@ -773,7 +775,7 @@ const GenericPlannerInputView: React.FC<GenericPlannerInputViewProps> = ({
                         size="small"
                         allowClear={false}
                         format="DD/MM/YYYY"
-                        disabled={inlineUpdatingId === record.id}
+                        disabled={disabled || inlineUpdatingId === record.id}
                         value={current ? dayjs(current) : undefined}
                         onChange={(d) => {
                             if (d) handleUpdateDate([record.id], d.format("YYYY-MM-DD"));

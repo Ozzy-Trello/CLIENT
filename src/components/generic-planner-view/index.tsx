@@ -33,6 +33,7 @@ const { Text } = Typography;
 interface GenericPlannerViewProps {
   plannerName: string; // e.g. "Bordir", "Knitting (KM)"
   plannerId?: number; // Optional: pass ID directly if known
+  disabled?: boolean;
 }
 
 const formatDate = (val?: string | null) => {
@@ -79,6 +80,7 @@ const getDateFieldName = (plannerName: string, plannerConfigDate?: string) => {
 const GenericPlannerView: React.FC<GenericPlannerViewProps> = ({
   plannerName,
   plannerId: propPlannerId,
+  disabled = false,
 }) => {
   const [page, setPage] = useState(1);
   const [limit] = useState(100000);
