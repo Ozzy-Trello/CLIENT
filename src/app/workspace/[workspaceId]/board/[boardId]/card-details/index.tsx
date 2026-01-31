@@ -295,7 +295,7 @@ const CardDetails: React.FC = (props) => {
   const [openPOModal, setOpenPOModal] = useState(false);
   const [openBuatSOModal, setOpenBuatSOModal] = useState(false);
   const [isPOPelengkap, setIsPOPelengkap] = useState(false);
-  
+
   // Refs for PO logic
   const poUploadSequenceRef = useRef(0);
   const poGeneratedNamesRef = useRef<Set<string>>(new Set());
@@ -371,7 +371,7 @@ const CardDetails: React.FC = (props) => {
     return cardAttachments?.some(
       (attachment: any) =>
         attachment.attachableType === EnumAttachmentType.File &&
-        attachment.file?.name?.startsWith("bukti"),
+        attachment.file?.name?.toLowerCase().startsWith("bukti"),
     );
   };
 
@@ -414,54 +414,54 @@ const CardDetails: React.FC = (props) => {
   };
 
   const handleBuktiUpload = (file: File, result: any) => {
-      // Result comes from UploadModal's internal upload
-      if (result && selectedCard) {
-        addAttachment({
-          cardId: selectedCard.id,
-          attachableType: EnumAttachmentType.File,
-          attachableId: result.id,
-          isCover: false,
-          type: EnumCardAttachmentType.Bukti,
-        });
+    // Result comes from UploadModal's internal upload
+    if (result && selectedCard) {
+      addAttachment({
+        cardId: selectedCard.id,
+        attachableType: EnumAttachmentType.File,
+        attachableId: result.id,
+        isCover: false,
+        type: EnumCardAttachmentType.Bukti,
+      });
 
-        message.success("Bukti uploaded successfully!");
-        setOpenBuktiModal(false);
-      }
+      message.success("Bukti uploaded successfully!");
+      setOpenBuktiModal(false);
+    }
   };
 
   const handlePOUpload = (file: File, result: any) => {
-      if (result && selectedCard) {
-        addAttachment({
-          cardId: selectedCard.id,
-          attachableType: EnumAttachmentType.File,
-          attachableId: result.id,
-          isCover: false,
-          type: EnumCardAttachmentType.PO,
-        });
+    if (result && selectedCard) {
+      addAttachment({
+        cardId: selectedCard.id,
+        attachableType: EnumAttachmentType.File,
+        attachableId: result.id,
+        isCover: false,
+        type: EnumCardAttachmentType.PO,
+      });
 
-        message.success("PO uploaded successfully!");
-        setOpenPOModal(false);
-      }
+      message.success("PO uploaded successfully!");
+      setOpenPOModal(false);
+    }
   };
 
   const handleGenerateQR = async () => {
     if (!selectedCard?.id) {
-        message.error("No card selected for QR generation");
-        return;
+      message.error("No card selected for QR generation");
+      return;
     }
     try {
-        const blob = await generateQRCodesPDF(selectedCard.id);
-        const url = URL.createObjectURL(blob);
-        const newWindow = window.open(url, "_blank");
-        if (newWindow) {
-            setTimeout(() => { URL.revokeObjectURL(url); }, 1000);
-            message.success("QR code PDF generated successfully!");
-        } else {
-            message.error("Failed to open PDF. Please check your popup blocker settings.");
-        }
+      const blob = await generateQRCodesPDF(selectedCard.id);
+      const url = URL.createObjectURL(blob);
+      const newWindow = window.open(url, "_blank");
+      if (newWindow) {
+        setTimeout(() => { URL.revokeObjectURL(url); }, 1000);
+        message.success("QR code PDF generated successfully!");
+      } else {
+        message.error("Failed to open PDF. Please check your popup blocker settings.");
+      }
     } catch (error) {
-        console.error("Error generating QR PDF:", error);
-        message.error("Failed to generate QR code PDF. Please try again.");
+      console.error("Error generating QR PDF:", error);
+      message.error("Failed to generate QR code PDF. Please try again.");
     }
   };
 
@@ -483,9 +483,9 @@ const CardDetails: React.FC = (props) => {
     }
   }, [selectedCard]);
 
-// ... (omitted code)
+  // ... (omitted code)
 
-// ... (omitted code)
+  // ... (omitted code)
 
   useEffect(() => {
     if (!selectedCard) {
@@ -912,76 +912,76 @@ const CardDetails: React.FC = (props) => {
           }}
           onClick={(e) => e.stopPropagation()}
         />
-	        <div className="flex-1 min-w-0">
-	          {isEditingTitle ? (
-	            <div className="flex items-start gap-1">
-	              <input
-	                type="text"
-	                value={newTitle}
-	                onChange={(e) => setNewTitle(e.target.value)}
-	                onBlur={() => {
-	                  handleSaveTitleClick();
-	                }}
-	                autoFocus
-	                className="font-bold mb-0 ml-2 px-2 py-1 w-full border border-blue-400 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-	                onKeyDown={(e) => {
-	                  if (e.key === "Enter") {
-	                    e.preventDefault();
-	                    e.currentTarget.blur();
-	                  } else if (e.key === "Escape") {
-	                    setNewTitle(selectedCard?.name || "");
-	                    setIsEditingTitle(false);
-	                  }
-	                }}
-	              />
-	              <Tooltip title="Copy name">
-	                <button
-	                  type="button"
-	                  className="p-1 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-800 transition-colors"
-	                  onMouseDown={(e) => e.preventDefault()}
-	                  onClick={(e) => {
-	                    e.stopPropagation();
-	                    void copyCardName();
-	                  }}
-	                  aria-label="Copy card name"
-	                >
-	                  <Copy size={16} />
-	                </button>
-	              </Tooltip>
-	            </div>
-	          ) : (
-	            <div className="flex items-start gap-1 min-w-0">
-	              <h1
-	                className={`text-5xl font-bold mb-0 ml-2 px-2 py-1 rounded-md break-words min-w-0 ${canUpdateCard()
-	                  ? "cursor-pointer hover:bg-gray-50"
-	                  : "cursor-not-allowed opacity-60"
-	                  }`}
-	                onClick={() => {
-	                  if (canUpdateCard()) {
-	                    setNewTitle(selectedCard?.name || "");
-	                    setIsEditingTitle(true);
-	                  }
-	                }}
-	              >
-	                {selectedCard?.name}
-	              </h1>
-	              <Tooltip title="Copy name">
-	                <button
-	                  type="button"
-	                  className="p-1 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-800 transition-colors flex-shrink-0 mt-1"
-	                  onMouseDown={(e) => e.preventDefault()}
-	                  onClick={(e) => {
-	                    e.stopPropagation();
-	                    void copyCardName();
-	                  }}
-	                  aria-label="Copy card name"
-	                >
-	                  <Copy size={16} />
-	                </button>
-	              </Tooltip>
-	            </div>
-	          )}
-	        </div>
+        <div className="flex-1 min-w-0">
+          {isEditingTitle ? (
+            <div className="flex items-start gap-1">
+              <input
+                type="text"
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                onBlur={() => {
+                  handleSaveTitleClick();
+                }}
+                autoFocus
+                className="font-bold mb-0 ml-2 px-2 py-1 w-full border border-blue-400 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    e.currentTarget.blur();
+                  } else if (e.key === "Escape") {
+                    setNewTitle(selectedCard?.name || "");
+                    setIsEditingTitle(false);
+                  }
+                }}
+              />
+              <Tooltip title="Copy name">
+                <button
+                  type="button"
+                  className="p-1 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-800 transition-colors"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void copyCardName();
+                  }}
+                  aria-label="Copy card name"
+                >
+                  <Copy size={16} />
+                </button>
+              </Tooltip>
+            </div>
+          ) : (
+            <div className="flex items-start gap-1 min-w-0">
+              <h1
+                className={`text-5xl font-bold mb-0 ml-2 px-2 py-1 rounded-md break-words min-w-0 ${canUpdateCard()
+                  ? "cursor-pointer hover:bg-gray-50"
+                  : "cursor-not-allowed opacity-60"
+                  }`}
+                onClick={() => {
+                  if (canUpdateCard()) {
+                    setNewTitle(selectedCard?.name || "");
+                    setIsEditingTitle(true);
+                  }
+                }}
+              >
+                {selectedCard?.name}
+              </h1>
+              <Tooltip title="Copy name">
+                <button
+                  type="button"
+                  className="p-1 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-800 transition-colors flex-shrink-0 mt-1"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void copyCardName();
+                  }}
+                  aria-label="Copy card name"
+                >
+                  <Copy size={16} />
+                </button>
+              </Tooltip>
+            </div>
+          )}
+        </div>
       </div>
       {!isDesktop &&
         (
@@ -1011,15 +1011,16 @@ const CardDetails: React.FC = (props) => {
                 size="small"
                 type="default"
                 loading={quickUploadLoading === "camera"}
-                disabled={
-                  !canManageCardAttachments() || quickUploadLoading !== null
-                }
-                icon={<Camera size={16} />}
+                icon={<Camera size={20} />}
+                title="Camera"
                 onClick={() => {
                   if (!canManageCardAttachments()) return;
                   void openCamera();
                 }}
-              />
+              >
+                Camera
+              </Button>
+
             </Tooltip>
 
             <Popover
@@ -1029,18 +1030,18 @@ const CardDetails: React.FC = (props) => {
               placement="bottomRight"
               overlayStyle={{ width: 360 }}
               content={
-                 <div className="w-[300px] h-96 overflow-y-scroll">
-                    <Actions
-                        boardName={effectiveBoardName}
-                        userRole={userRole}
-                        isSuperAdmin={isSuperAdmin}
-                        exclude={[]}
-                        card={selectedCard}
-                        onOpenBuktiModal={() => setOpenBuktiModal(true)}
-                        onOpenPOModal={() => setOpenPOModal(true)}
-                        onOpenBuatSOModal={() => setOpenBuatSOModal(true)}
-                    />
-                 </div>
+                <div className="w-[300px] h-96 overflow-y-scroll">
+                  <Actions
+                    boardName={effectiveBoardName}
+                    userRole={userRole}
+                    isSuperAdmin={isSuperAdmin}
+                    exclude={[]}
+                    card={selectedCard}
+                    onOpenBuktiModal={() => setOpenBuktiModal(true)}
+                    onOpenPOModal={() => setOpenPOModal(true)}
+                    onOpenBuatSOModal={() => setOpenBuatSOModal(true)}
+                  />
+                </div>
               }
             >
               <Button
@@ -1118,43 +1119,43 @@ const CardDetails: React.FC = (props) => {
       <Flex wrap gap="middle">
         {/* Members */}
         {selectedCard && selectedCard.members && selectedCard.members.length > 0 && (
-            <div className="space-y-2 text-xs">
-              <span className="text-gray-300 font-semibold text-xs block">
-                Members
-              </span>
-              <div>
-                <MembersList
-                  members={effectiveMembers}
-                  membersLength={effectiveMembers?.length || 0}
-                  membersLoopLimit={3}
-                  openAddMember={openAddMember && canUpdateCard()}
-                  setOpenAddMember={setOpenAddMember}
-                  onUserSelectionChange={onUserSelectionChange}
-                  onRemoveMember={handleRemoveMember}
-                />
-              </div>
+          <div className="space-y-2 text-xs">
+            <span className="text-gray-300 font-semibold text-xs block">
+              Members
+            </span>
+            <div>
+              <MembersList
+                members={effectiveMembers}
+                membersLength={effectiveMembers?.length || 0}
+                membersLoopLimit={3}
+                openAddMember={openAddMember && canUpdateCard()}
+                setOpenAddMember={setOpenAddMember}
+                onUserSelectionChange={onUserSelectionChange}
+                onRemoveMember={handleRemoveMember}
+              />
             </div>
+          </div>
         )}
 
         {/* Labels */}
         {effectiveLabels && effectiveLabels.length > 0 && (
-            <div className="space-y-2 text-xs">
-              <span className="text-gray-300 font-semibold text-xs block">
-                Labels
-              </span>
-              <div className="flex gap-1">
-                {effectiveLabels?.map((label: CardLabel, index: number) => (
-                  <Tooltip
-                    title={`color: ${label.value}, title: ${label.name}`}
-                    key={index}
-                  >
-                    <Tag color={label.value} className="rounded-md">
-                      {label?.name}
-                    </Tag>
-                  </Tooltip>
-                ))}
-              </div>
+          <div className="space-y-2 text-xs">
+            <span className="text-gray-300 font-semibold text-xs block">
+              Labels
+            </span>
+            <div className="flex gap-1">
+              {effectiveLabels?.map((label: CardLabel, index: number) => (
+                <Tooltip
+                  title={`color: ${label.value}, title: ${label.name}`}
+                  key={index}
+                >
+                  <Tag color={label.value} className="rounded-md">
+                    {label?.name}
+                  </Tag>
+                </Tooltip>
+              ))}
             </div>
+          </div>
         )}
 
         {/* Time in List */}
@@ -1185,13 +1186,13 @@ const CardDetails: React.FC = (props) => {
             <span className="text-gray-300 font-semibold text-xs block">
               Dates
             </span>
-             <Button
-                  icon={<Clock size={12} />}
-                  size="small"
-                  className="rounded-md hover:bg-gray-50"
-                  onClick={() => setOpenDates(true)}
-                >
-                  <CardDateDisplay card={selectedCard} />
+            <Button
+              icon={<Clock size={12} />}
+              size="small"
+              className="rounded-md hover:bg-gray-50"
+              onClick={() => setOpenDates(true)}
+            >
+              <CardDateDisplay card={selectedCard} />
             </Button>
           </div>
         )}
@@ -1381,183 +1382,183 @@ const CardDetails: React.FC = (props) => {
 
   // Define Toolbar components
   // Define Toolbar components (consolidated)
-  
+
   // 1. Labels
   const toolbarLabelsButton = (
-      <PopoverLabel
-        open={openLabel}
-        setOpen={setOpenLabel}
-        triggerEl={
-          <Button size="small" type="default" className="bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-200">
-             <Tag className="mr-1" /> Labels
-          </Button>
-        }
-      />
+    <PopoverLabel
+      open={openLabel}
+      setOpen={setOpenLabel}
+      triggerEl={
+        <Button size="small" type="default" className="bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-200">
+          <Tag className="mr-1" /> Labels
+        </Button>
+      }
+    />
   );
-  
+
   // 2. Attachments
   const toolbarAttachButton = canManageCardAttachments && canManageCardAttachments() ? (
-     <PopoverAttach
-        open={openAttach}
-        setOpen={setOpenAttach}
-        triggerEl={
-             <Button size="small" type="default" className="bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-200">
-                <Paperclip className="mr-1" size={14} /> Attachment
-             </Button>
-        }
-     />
+    <PopoverAttach
+      open={openAttach}
+      setOpen={setOpenAttach}
+      triggerEl={
+        <Button size="small" type="default" className="bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-200">
+          <Paperclip className="mr-1" size={14} /> Attachment
+        </Button>
+      }
+    />
   ) : null;
 
   // 3. Upload Bukti
   const toolbarBuktiButton = (canBukti && canManageCardAttachments && canManageCardAttachments()) ? (
-      <Tooltip title={hasBuktiAttachment() ? "Bukti already exists" : "Upload bukti file"}>
-        <Button 
-            size="small" type="default" 
-            className="bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-200"
-            onClick={() => setOpenBuktiModal(true)}
-            disabled={hasBuktiAttachment()}
-        >
-             <FileCheck className="mr-1" size={14} /> Upload Bukti
-        </Button>
-      </Tooltip>
+    <Tooltip title={hasBuktiAttachment() ? "Bukti already exists" : "Upload bukti file"}>
+      <Button
+        size="small" type="default"
+        className="bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-200"
+        onClick={() => setOpenBuktiModal(true)}
+        disabled={hasBuktiAttachment()}
+      >
+        <FileCheck className="mr-1" size={14} /> Upload Bukti
+      </Button>
+    </Tooltip>
   ) : null;
 
   // 4. Upload File PO
   const toolbarPOButton = (canPOActions && canManageCardAttachments && canManageCardAttachments()) ? (
-      <Button 
-        size="small" type="default" 
-        className="bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-200"
-        onClick={() => setOpenPOModal(true)}
-      >
-         <FileText className="mr-1" size={14} /> Upload File PO
-      </Button>
+    <Button
+      size="small" type="default"
+      className="bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-200"
+      onClick={() => setOpenPOModal(true)}
+    >
+      <FileText className="mr-1" size={14} /> Upload File PO
+    </Button>
   ) : null;
 
   // 5. Dates
   const toolbarDatesButton = (
-      <PopoverDates
-        open={openDates}
-        setOpen={setOpenDates}
-        triggerEl={
-          <Button size="small" type="default" className="bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-200">
-             <Clock size={14} className="mr-1" /> Dates
-          </Button>
-        }
-      />
+    <PopoverDates
+      open={openDates}
+      setOpen={setOpenDates}
+      triggerEl={
+        <Button size="small" type="default" className="bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-200">
+          <Clock size={14} className="mr-1" /> Dates
+        </Button>
+      }
+    />
   );
-  
+
   // 6. Generate QR
   const toolbarQRButton = canGenerateQRPermission ? (
-      <Button 
-        size="small" type="default" 
-        className="bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-200"
-        onClick={handleGenerateQR}
-      >
-         <QrCode className="mr-1" size={14} /> Generate QR
-      </Button>
+    <Button
+      size="small" type="default"
+      className="bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-200"
+      onClick={handleGenerateQR}
+    >
+      <QrCode className="mr-1" size={14} /> Generate QR
+    </Button>
   ) : null;
-  
+
   // 7. Automation
   const toolbarAutomationButton = (
-      <AutomateButtons 
-         boardName={effectiveBoardName}
-         exclude={[]}
-         isToolbar={true}
-      />
+    <AutomateButtons
+      boardName={effectiveBoardName}
+      exclude={[]}
+      isToolbar={true}
+    />
   );
-  
+
   // 8. Checklist
   const [openChecklist, setOpenChecklist] = useState(false);
   const toolbarChecklistButton = (
     <PopoverChecklist
-        open={openChecklist}
-        setOpen={setOpenChecklist}
-        triggerEl={
-            <Button size="small" type="default" className="bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-200">
-            <CheckSquare size={14} className="mr-1" /> Checklist
-            </Button>
-        }
+      open={openChecklist}
+      setOpen={setOpenChecklist}
+      triggerEl={
+        <Button size="small" type="default" className="bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-200">
+          <CheckSquare size={14} className="mr-1" /> Checklist
+        </Button>
+      }
     />
   );
 
   // 9. Members
   const [openMembersToolbar, setOpenMembersToolbar] = useState(false);
   const toolbarMembersButton = (
-      <PopoverUser
-        open={openMembersToolbar}
-        setOpen={setOpenMembersToolbar}
-        triggerEl={
-            <Button size="small" type="default" className="bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-200">
-            <Users size={14} className="mr-1" /> Members
-            </Button>
-        }
-      />
+    <PopoverUser
+      open={openMembersToolbar}
+      setOpen={setOpenMembersToolbar}
+      triggerEl={
+        <Button size="small" type="default" className="bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-200">
+          <Users size={14} className="mr-1" /> Members
+        </Button>
+      }
+    />
   );
-  
+
   // 10. Buat SO
   const toolbarBuatSOButton = (canPOActions && canManageCardAttachments && canManageCardAttachments()) ? (
-      <Tooltip title={isBuatSODisabled ? "SO Sudah ada" : "Create Sales Order"}>
-        <Button 
-            size="small" type="default" 
-            className="bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-200"
-            onClick={() => {
-                if (isBuatSODisabled) {
-                    message.error("SO Sudah ada");
-                    return;
-                }
-                setOpenBuatSOModal(true);
-            }}
-            disabled={isBuatSODisabled}
-        >
-             <FileText className="mr-1" size={14} /> Buat SO
-        </Button>
-      </Tooltip>
+    <Tooltip title={isBuatSODisabled ? "SO Sudah ada" : "Create Sales Order"}>
+      <Button
+        size="small" type="default"
+        className="bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-200"
+        onClick={() => {
+          if (isBuatSODisabled) {
+            message.error("SO Sudah ada");
+            return;
+          }
+          setOpenBuatSOModal(true);
+        }}
+        disabled={isBuatSODisabled}
+      >
+        <FileText className="mr-1" size={14} /> Buat SO
+      </Button>
+    </Tooltip>
   ) : null;
-  
+
   // 11. + Actions (Dropdown)
   const toolbarAddButton = (
-      <Popover
-        trigger="click"
-        placement="bottomLeft"
-        content={
-            <div className="w-[300px] h-96 overflow-y-scroll">
-                <Actions
-                    boardName={effectiveBoardName}
-                    userRole={userRole}
-                    isSuperAdmin={isSuperAdmin}
-                    exclude={[
-                        "Labels", "Dates", "Checklist", "Members",
-                        "Attachment", "Upload Bukti", "Upload File PO", 
-                        "Generate QR", "Automation", "Buat SO"
-                    ]}
-                    card={selectedCard}
-                    onOpenBuktiModal={() => setOpenBuktiModal(true)}
-                    onOpenPOModal={() => setOpenPOModal(true)}
-                    onOpenBuatSOModal={() => setOpenBuatSOModal(true)}
-                />
-            </div>
-        }
-      >
-          <Button size="small" type="default" className="bg-gray-200 hover:bg-gray-300 border-none font-medium">
-             <Plus size={14} className="mr-1" /> Actions
-          </Button>
-      </Popover>
+    <Popover
+      trigger="click"
+      placement="bottomLeft"
+      content={
+        <div className="w-[300px] h-96 overflow-y-scroll">
+          <Actions
+            boardName={effectiveBoardName}
+            userRole={userRole}
+            isSuperAdmin={isSuperAdmin}
+            exclude={[
+              "Labels", "Dates", "Checklist", "Members",
+              "Attachment", "Upload Bukti", "Upload File PO",
+              "Generate QR", "Automation", "Buat SO"
+            ]}
+            card={selectedCard}
+            onOpenBuktiModal={() => setOpenBuktiModal(true)}
+            onOpenPOModal={() => setOpenPOModal(true)}
+            onOpenBuatSOModal={() => setOpenBuatSOModal(true)}
+          />
+        </div>
+      }
+    >
+      <Button size="small" type="default" className="bg-gray-200 hover:bg-gray-300 border-none font-medium">
+        <Plus size={14} className="mr-1" /> Actions
+      </Button>
+    </Popover>
   );
 
   const actionsToolbar = isDesktop ? (
-      <div className="flex flex-wrap items-center gap-2 mb-4 md:ml-8">
-          {toolbarLabelsButton}
-          {toolbarAttachButton}
-          {toolbarBuktiButton}
-          {toolbarPOButton}
-          {toolbarDatesButton}
-          {toolbarQRButton}
-          {toolbarChecklistButton}
-          {toolbarMembersButton}
-          {toolbarBuatSOButton}
-          {toolbarAutomationButton}
-          {toolbarAddButton}
-      </div>
+    <div className="flex flex-wrap items-center gap-2 mb-4 md:ml-8">
+      {toolbarLabelsButton}
+      {toolbarAttachButton}
+      {toolbarBuktiButton}
+      {toolbarPOButton}
+      {toolbarDatesButton}
+      {toolbarQRButton}
+      {toolbarChecklistButton}
+      {toolbarMembersButton}
+      {toolbarBuatSOButton}
+      {toolbarAutomationButton}
+      {toolbarAddButton}
+    </div>
   ) : null;
 
   return (
@@ -1567,7 +1568,7 @@ const CardDetails: React.FC = (props) => {
       onCancel={closeCardDetail}
       footer={null}
       className="modal-card-form full-height-modal"
-      width="min(1280px, 95vw)" 
+      width="min(1280px, 95vw)"
       destroyOnClose
       closeIcon={
         <span className="inline-flex items-center justify-center rounded-md bg-red-50 hover:bg-red-100 text-red-600 p-1 transition-colors">
@@ -1583,41 +1584,48 @@ const CardDetails: React.FC = (props) => {
             </div>
           </div>
         )}
-        
+
         {/* Modals for Toolbar Actions */}
         <UploadModal
-            isVisible={openBuktiModal}
-            onClose={() => setOpenBuktiModal(false)}
-            onUploadComplete={handleBuktiUpload}
-            title="Upload Bukti"
-            acceptableExtensions=".pdf,.jpg,.jpeg,.png"
-            maxSize={10 * 1024 * 1024}
-            cardId={selectedCard?.id}
+          isVisible={openBuktiModal}
+          onClose={() => setOpenBuktiModal(false)}
+          onUploadComplete={handleBuktiUpload}
+          title="Upload Bukti"
+          acceptableExtensions=".pdf,.jpg,.jpeg,.png"
+          maxSize={10 * 1024 * 1024}
+          cardId={selectedCard?.id}
+          onBeforeUpload={(file) => {
+            const parts = file.name.split('.');
+            const ext = parts.length > 1 ? parts.pop() : '';
+            const safeCardName = (selectedCard?.name || "card").replace(/[^a-z0-9\- ]/gi, '_');
+            const newName = `Bukti - ${safeCardName}${ext ? '.' + ext : ''}`;
+            return new File([file], newName, { type: file.type });
+          }}
         />
 
         <UploadModal
-            isVisible={openPOModal}
-            onClose={() => setOpenPOModal(false)}
-            onUploadComplete={handlePOUpload}
-            title="Upload File PO"
-            acceptableExtensions=".pdf,.jpg,.jpeg,.png"
-            maxSize={10 * 1024 * 1024}
-            cardId={selectedCard?.id}
-            attachmentType={EnumCardAttachmentType.PO}
-            onBeforeUpload={(file: File) => {
-                 const poFileName = buildPOFileName(file.name);
-                 return new File([file], poFileName, { type: file.type });
-            }}
-            extraContent={
-                <div className="mb-4">
-                    <Checkbox
-                        checked={isPOPelengkap}
-                        onChange={(e) => setIsPOPelengkap(e.target.checked)}
-                    >
-                        Mark as PO Pelengkap
-                    </Checkbox>
-                </div>
-            }
+          isVisible={openPOModal}
+          onClose={() => setOpenPOModal(false)}
+          onUploadComplete={handlePOUpload}
+          title="Upload File PO"
+          acceptableExtensions=".pdf,.jpg,.jpeg,.png"
+          maxSize={10 * 1024 * 1024}
+          cardId={selectedCard?.id}
+          attachmentType={EnumCardAttachmentType.PO}
+          onBeforeUpload={(file: File) => {
+            const poFileName = buildPOFileName(file.name);
+            return new File([file], poFileName, { type: file.type });
+          }}
+          extraContent={
+            <div className="mb-4">
+              <Checkbox
+                checked={isPOPelengkap}
+                onChange={(e) => setIsPOPelengkap(e.target.checked)}
+              >
+                Mark as PO Pelengkap
+              </Checkbox>
+            </div>
+          }
         />
 
         {/* Buat SO Modal */}
@@ -1667,15 +1675,15 @@ const CardDetails: React.FC = (props) => {
               </Col>
               <Col xs={24} lg={10} className="h-full">
                 <div className="pl-4 lg:pl-0 h-[calc(85vh-100px)] overflow-y-auto pr-2 custom-scrollbar">
-                   <div className="bg-gray-50/50 rounded-lg p-2 min-h-[400px]">
-                      {selectedCard && (
-                        <Activity
-                          currentUser={currentUser}
-                          card={selectedCard}
-                          setCard={setSelectedCard}
-                        />
-                      )}
-                   </div>
+                  <div className="bg-gray-50/50 rounded-lg p-2 min-h-[400px]">
+                    {selectedCard && (
+                      <Activity
+                        currentUser={currentUser}
+                        card={selectedCard}
+                        setCard={setSelectedCard}
+                      />
+                    )}
+                  </div>
                 </div>
               </Col>
             </Row>
@@ -1685,17 +1693,17 @@ const CardDetails: React.FC = (props) => {
               {actionsToolbar}
               {mainBody}
               <div className="mt-8 pt-8 border-t border-gray-100">
-                 <div className="mb-4 flex items-center gap-2 font-semibold">
-                      <MessageSquare size={18} />
-                      <span>Activity</span>
-                 </div>
-                 {selectedCard && (
-                    <Activity
-                      currentUser={currentUser}
-                      card={selectedCard}
-                      setCard={setSelectedCard}
-                    />
-                  )}
+                <div className="mb-4 flex items-center gap-2 font-semibold">
+                  <MessageSquare size={18} />
+                  <span>Activity</span>
+                </div>
+                {selectedCard && (
+                  <Activity
+                    currentUser={currentUser}
+                    card={selectedCard}
+                    setCard={setSelectedCard}
+                  />
+                )}
               </div>
             </div>
           )}
