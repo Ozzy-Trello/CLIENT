@@ -362,7 +362,7 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
                         {formatFileSizeInMB(
                           attachment.file?.size,
                           (attachment.file as any)?.size_unit ||
-                            (attachment.file as any)?.sizeUnit
+                          (attachment.file as any)?.sizeUnit
                         )}
                       </span>
                     )}
@@ -375,7 +375,17 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
                     {attachment.createdAt && (
                       <>
                         <span>•</span>
-                        <span>{new Date(attachment.createdAt).toLocaleDateString()}</span>
+                        <span>
+                          {new Date(attachment.createdAt).toLocaleString("id-ID", {
+                            year: "numeric",
+                            month: "numeric",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            hour12: false,
+                            timeZone: "Asia/Jakarta",
+                          })}
+                        </span>
                       </>
                     )}
                   </div>

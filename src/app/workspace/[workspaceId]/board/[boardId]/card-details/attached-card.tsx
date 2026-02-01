@@ -167,7 +167,7 @@ const AttachedCard: React.FC<AttachedCardProps> = ({ card, onDelete }) => {
 
   return (
     <div
-      className={`bg-white rounded-lg border border-gray-200 
+      className={`bg-white rounded-lg border border-gray-200
         w-full relative group cursor-pointer
         hover:border-blue-500 transition-all duration-200
         ${isHovered ? "shadow-md" : ""}
@@ -177,6 +177,7 @@ const AttachedCard: React.FC<AttachedCardProps> = ({ card, onDelete }) => {
       onMouseLeave={() => setIsHovered(false)}
       data-card-id={augmentedCard.id}
     >
+
       {/* Delete button - visible on hover */}
       {onDelete && (
         <Button
@@ -195,6 +196,18 @@ const AttachedCard: React.FC<AttachedCardProps> = ({ card, onDelete }) => {
         isHovered={isHovered}
         onCompletionChange={onCompletionChange}
       />
+      {/* Board and List info badge */}
+      <div className="space-y-1 px-4 pt-2">
+        <div className="text-gray-700 text-[11px]">
+          <span className="font-medium mr-1">Board:</span>
+          {augmentedCard.boardName || "Unknown Board"}
+        </div>
+        <div className="text-gray-700 text-[11px]">
+          <span className="font-medium mr-1">List:</span>
+          {augmentedCard.listName || "Unknown List"}
+        </div>
+      </div>
+
     </div>
   );
 };
