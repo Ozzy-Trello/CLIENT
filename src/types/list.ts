@@ -10,8 +10,10 @@ export interface List {
   cover?: string;
   cardIds?: string[];
   cards?: Card[];
+  cardLimit?: number;
   position?: number;
   type?: string;
+  background?: string;
 }
 
 // Filter List/Column
@@ -22,6 +24,8 @@ export interface FilterList {
   type?: "filter";
   cardIds?: string[];
   cards?: Card[];
+  cardLimit?: number;
   position?: number;
   filterCriteria?: any; // Define specific filter criteria structure
+  background?: string;
 }

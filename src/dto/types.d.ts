@@ -41,6 +41,9 @@ export interface Board {
   createdAt: string;
   updatedBy?: User;
   upatedAt?: string;
+  isFavorite?: boolean;
+  orderIndex?: number;
+  favoriteOrderIndex?: number;
 }
 
 export interface Color {
@@ -63,12 +66,6 @@ export interface Attachment {
   type?: string;
   addedAt: string;
   isCover?: boolean;
-}
-
-export interface Label {
-  id: string;
-  title: string;
-  color: string;
 }
 
 export interface CardTime {
@@ -183,6 +180,12 @@ export interface Card {
   createdAt?: string;
   updatedAt?: string;
   requests?: CardRequest[];
+  bahan?: boolean; // Whether the card requires material/fabric
+  shortId?: string; // Short ID for QR code generation
+  productId?: string; // Foreign key to Product
+  productCodeId?: string; // Foreign key to ProductCode
+  bahanId?: string; // Foreign key to Bahan
+  warnaId?: string; // Foreign key to Warna
 }
 
 // Counter Card (used in filter columns)

@@ -18,7 +18,6 @@ export const uploadFile = async (file: File): Promise<ApiResponse<FileUpload>> =
 
     return data;
   } catch (error) {
-    console.error('Error uploading file:', error);
     throw error;
   }
 };

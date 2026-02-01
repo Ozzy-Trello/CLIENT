@@ -1,18 +1,19 @@
 import { api } from ".";
+import type { BeliStatus } from "@myTypes/request";
 
 export const getAllItemCategories = async () => {
   const { data } = await api.get("/accurate/item-category-list");
   return data;
 };
 
-export const getAllAdjustmentItems = async () => {
-  const { data } = await api.get("/accurate/glaccount-list");
+export const getAllAdjustmentItems = async (source?: string) => {
+  const params = source ? { source } : {};
+  const { data } = await api.get("/accurate/glaccount-list", { params });
   return data;
 };
 
-export const getAllItemList = async (search?: string) => {
-  const params = search ? { search } : {};
-  const { data } = await api.get("/accurate/item-list", { params });
+export const getAllItemList = async () => {
+  const { data } = await api.get("/accurate/item-list");
   return data;
 };
 
@@ -45,8 +46,49 @@ export const verifyRequest = async (id: string) => {
   return data;
 };
 
-export const updateRequest = async (id: string, requestSent: number) => {
-  const { data } = await api.patch(`/request/${id}`, { requestSent });
+type RequestUpdatePayload = {
+  requestSent?: number;
+  requestAmount?: number;
+  requestReceived?: number | null;
+  requestLeft?: number | null;
+  beli?: BeliStatus;
+  is_done?: boolean;
+  description?: string | null;
+  est_bahan?: number | null;
+  efisiensi?: number | null;
+  warehouseReturned?: boolean;
+};
+
+export function updateRequest(
+  id: string,
+  requestSent: number
+): Promise<any>;
+export function updateRequest(
+  id: string,
+  payload: RequestUpdatePayload
+): Promise<any>;
+export async function updateRequest(
+  id: string,
+  requestSentOrPayload: number | RequestUpdatePayload
+) {
+  const body =
+    typeof requestSentOrPayload === "number"
+      ? { requestSent: requestSentOrPayload }
+      : requestSentOrPayload;
+
+  const filteredBody = Object.fromEntries(
+    Object.entries(body).filter(([, value]) => value !== undefined)
+  );
+
+  const { data } = await api.patch(`/request/${id}`, filteredBody);
+  return data;
+}
+
+export const updateProductionReceived = async (
+  id: string,
+  productionReceived: boolean
+) => {
+  const { data } = await api.patch(`/request/${id}`, { production_recieved: productionReceived });
   return data;
 };
 
@@ -81,6 +123,14 @@ export const updateRequestReceived = async (
   return data;
 };
 
+export const updateRequestUserAssignments = async (
+  id: string,
+  updates: { sent_by?: string; received_by?: string }
+) => {
+  const { data } = await api.patch(`/request/${id}`, updates);
+  return data;
+};
+
 export const rejectRequest = async (id: string) => {
   // Use snake_case for API request payload
   const { data } = await api.patch(`/request/${id}`, { is_rejected: true });
@@ -93,7 +143,71 @@ export const markRequestDone = async (id: string) => {
   return data;
 };
 
-export const getItemDetail = async (id: string) => {
-  const { data } = await api.get(`/accurate/item/${id}`);
+export const deleteRequest = async (id: string) => {
+  const { data } = await api.delete(`/request/${id}`);
+  return data;
+};
+
+export const getRequestNotificationCounts = async () => {
+  const { data } = await api.get("/request/notifications/counts");
+  return data;
+};
+
+export const printWarehouseBarcodes = async (
+  requestId?: string | number
+) => {
+  const payload =
+    requestId === undefined ? undefined : { requestId };
+  const { data } = await api.post("/request/print-barcode", payload);
+  return data;
+};
+
+export const printShippingBarcodes = async (
+  requestShortId?: string | number
+) => {
+  const payload =
+    requestShortId === undefined ? undefined : { requestId: requestShortId };
+  return api.post("/request/print-barcode-pengiriman", payload, {
+    responseType: "blob",
+  });
+};
+
+export type RequestQuantity = number | string;
+
+export const createRequestWithPOConnection = async (requestData: {
+  card_id: string;
+  type: string;
+  item_name: string;
+  requested_item_id: string;
+  request_amount: RequestQuantity;
+  request_sent: RequestQuantity;
+  is_verified: boolean;
+  po_product_ids: number[];
+  est_bahan?: number | null;
+  efisiensi?: number | null;
+  sent_by?: string | null;
+}) => {
+  const { data } = await api.post("/request/with-po-connection", requestData);
+  return data;
+};
+
+export const getItemDetail = async (id: string, source?: string) => {
+  const params = source ? `?source=${encodeURIComponent(source)}` : '';
+  const { data } = await api.get(`/accurate/item/${id}${params}`);
+  return data;
+};
+
+export const getHikmatItemList = async () => {
+  const { data } = await api.get("/accurate/hikmat-item-list");
+  return data;
+};
+
+export const getKuiItemList = async () => {
+  const { data } = await api.get("/accurate/kui-item-list");
+  return data;
+};
+
+export const getMpiItemList = async () => {
+  const { data } = await api.get("/accurate/mpi-item-list");
   return data;
 };

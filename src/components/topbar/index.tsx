@@ -10,25 +10,51 @@ import { useSelector } from "react-redux";
 import {
   selectTheme,
   selectUser,
+  selectIsDarkMode,
   setUser,
+  toggleTheme,
 } from "@store/app_slice";
+import { Sun, Moon } from "lucide-react";
 import { useDispatch } from "react-redux";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { WorkspaceSelection } from "../selection";
 import ModalRequest from "../modal-request";
 import ModalListRequest from "../modal-list-request";
 import ModalRequestSent from "../modal-request-sent";
+import ModalRequestProduksi from "../modal-request-produksi";
+import WebSocketDebugModal from "../websocket-debug-modal";
 import { searchCards } from "@api/card";
+import { getRequestNotificationCounts } from "@api/accurate";
 import { Card } from "@myTypes/card";
 import TokenStorage from "@utils/token-storage";
+import { useCurrentAccount } from "@hooks/account";
+import {
+  useUnifiedSearch,
+  SearchResult,
+  GroupedSearchResults,
+} from "@hooks/search";
+import { selectCurrentWorkspace, selectCurrentBoard } from "@store/workspace_slice";
+import { useRecentlyViewed } from "@hooks/recently-viewed";
 
 const { Text } = Typography;
 
-enum MockRole {
-  Supervisor = "supervisor",
-  Warehouse = "warehouse",
-  Production = "production",
-}
+// Basic role categorization helper reused in multiple spots
+const getRoleCategory = (
+  roleName: string
+): "super_admin" | "supervisor" | "warehouse" | "production" => {
+  if (!roleName) return "production";
+  const lower = roleName.toLowerCase();
+  if (lower === "super admin" || lower === "super_admin" || lower === "superadmin") {
+    return "super_admin";
+  }
+  if (lower.includes("spv") || lower.includes("supervisor")) {
+    return "supervisor";
+  }
+  if (lower.includes("warehouse")) {
+    return "warehouse";
+  }
+  return "production";
+};
 
 const TopBar: React.FC = React.memo(() => {
   const [notificationVisible, setNotificationVisible] = useState(false);
@@ -36,33 +62,187 @@ const TopBar: React.FC = React.memo(() => {
   const [modalRequestOpen, setModalRequestOpen] = useState(false);
   const [modalListRequestOpen, setModalListRequestOpen] = useState(false);
   const [modalRequestSentOpen, setModalRequestSentOpen] = useState(false);
+  const [modalRequestProduksiOpen, setModalRequestProduksiOpen] = useState(false);
+  const [wsDebugModalOpen, setWsDebugModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<Card[]>([]);
-  const [recentlyViewedCards, setRecentlyViewedCards] = useState<Card[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+  const [requestCounts, setRequestCounts] = useState<{
+    pendingVerification: number;
+    pendingWarehouseSend: number;
+  }>({ pendingVerification: 0, pendingWarehouseSend: 0 });
   const searchRef = useRef<HTMLDivElement>(null);
   const theme = useSelector(selectTheme);
+  const isDarkMode = useSelector(selectIsDarkMode);
   const { colors } = theme;
   const dispatch = useDispatch();
   const router = useRouter();
+  const params = useParams();
   const user = useSelector(selectUser);
-  const notificationItems: MenuProps["items"] = [
-    { key: "1", label: "Notification 1" },
-    { key: "2", label: "Notification 2" },
-    { key: "3", label: "Notification 3" },
-  ];
-  const [mockRole, setMockRole] = useState(MockRole.Supervisor);
+  const currentWorkspace = useSelector(selectCurrentWorkspace);
+  const currentBoard = useSelector(selectCurrentBoard);
+
+  // Get workspaceId with fallback to URL params
+  const getWorkspaceId = (): string | undefined => {
+    // First try to get from Redux store
+    if (currentWorkspace?.id) {
+      return currentWorkspace.id;
+    }
+
+    // Fallback to URL params if Redux store is not yet populated
+    if (params.workspaceId) {
+      const urlWorkspaceId = Array.isArray(params.workspaceId)
+        ? params.workspaceId[0]
+        : params.workspaceId;
+      return urlWorkspaceId;
+    }
+
+    return undefined;
+  };
+
+  const userRole = (user?.role?.name || "").trim();
+  const isSuperAdmin =
+    userRole.toLowerCase() === "super admin" || userRole === "Super Admin";
+  const boardName = (currentBoard?.name || "").trim().toLowerCase();
+  const isDateline = boardName === "dateline";
+
+ const ROLES = {
+  ADMIN_PRODUKSI: "Admin Produksi",
+  WAREHOUSE_BAHAN: "Warehouse Bahan",
+  CUTTING: "Cutting",
+  KEPALA_PRODUKSI: "Kepala Produksi",
+  OPERATOR_CUTTING: "Operator Cutting",
+  NUMBERING: "Numbering",
+  HELPER_LINE: "Helper Line",
+  SPV_SEWING: "SPV Sewing",
+  SPV_BORDIR: "SPV Operator Bordir",
+  FINISHING: "Finishing & Packing",
+  OPERATOR_KRAH: "Operator Krah Manset",
+  KEPALA_GUDANG: "Kepala Gudang",
+  PURCHASING: "Purchasing",
+} as const;
+
+type Role = typeof ROLES[keyof typeof ROLES];
+
+const produksiRoles: Role[] = [
+  ROLES.ADMIN_PRODUKSI,
+  ROLES.KEPALA_PRODUKSI,
+  ROLES.OPERATOR_CUTTING,
+  ROLES.CUTTING,
+  ROLES.NUMBERING,
+  ROLES.HELPER_LINE,
+  ROLES.SPV_SEWING,
+  ROLES.SPV_BORDIR,
+  ROLES.FINISHING,
+  ROLES.OPERATOR_KRAH,
+  ROLES.KEPALA_GUDANG,
+];
+
+const gudangRoles: Role[] = [ROLES.WAREHOUSE_BAHAN, ROLES.KEPALA_GUDANG, ROLES.PURCHASING];
+
+const lihatRequestRoles: Role[] = [ROLES.KEPALA_PRODUKSI];
+
+// requestRoles = produksi + gudang (auto, no duplication)
+const requestRoles: Role[] = Array.from(new Set([...produksiRoles, ...gudangRoles]));
+
+  const roleInList = (allowed: string[]) =>
+    allowed.some(
+      (role) => role.toLowerCase() === userRole.toLowerCase().trim()
+    );
+
+  const canSeeButton = (key: "buat" | "produksi" | "lihat" | "gudang") => {
+    if (isSuperAdmin) return true;
+    if (!isDateline) return false;
+    switch (key) {
+      case "buat":
+        return roleInList(requestRoles);
+      case "produksi":
+        return roleInList(produksiRoles);
+      case "lihat":
+        return roleInList(lihatRequestRoles);
+      case "gudang":
+        return roleInList(gudangRoles);
+      default:
+        return false;
+    }
+  };
+
+  // Fetch request/warehouse counts
+  useEffect(() => {
+    const fetchCounts = async () => {
+      try {
+        const res = await getRequestNotificationCounts();
+        const counts = res?.data?.data || res?.data || res;
+        setRequestCounts({
+          pendingVerification: counts?.pendingVerification ?? 0,
+          pendingWarehouseSend: counts?.pendingWarehouseSend ?? 0,
+        });
+      } catch (error) {
+        console.error("Failed to load request notification counts", error);
+      }
+    };
+
+    fetchCounts();
+
+    // Listen for websocket updates
+    const wsUrl =
+      process.env.NEXT_PUBLIC_BE_BASE_URL?.replace("http", "ws") + "/ws";
+    const ws = wsUrl ? new WebSocket(wsUrl) : null;
+
+    if (ws) {
+      ws.onmessage = (event) => {
+        try {
+          const payload = JSON.parse(event.data);
+          if (payload?.event === "request:counts") {
+            setRequestCounts({
+              pendingVerification: payload.data?.pendingVerification ?? 0,
+              pendingWarehouseSend: payload.data?.pendingWarehouseSend ?? 0,
+            });
+          }
+        } catch (e) {
+          console.warn("Unable to parse websocket message", e);
+        }
+      };
+    }
+
+    return () => {
+      if (ws) {
+        ws.close();
+      }
+    };
+  }, []);
+
+  const workspaceId = getWorkspaceId();
+
+  // Handle theme toggle
+  const handleThemeToggle = () => {
+    dispatch(toggleTheme());
+  };
+
+  // Use unified search hook with fallback workspaceId
+  const {
+    data: searchResults = { cards: [], boards: [] },
+    isLoading: isSearching,
+  } = useUnifiedSearch(searchQuery, workspaceId, {
+    enabled: !!searchQuery && searchQuery.trim().length > 0,
+  });
+
+  // Recently viewed hook
+  const { recentlyViewedItems } = useRecentlyViewed();
+
+  const { data: currentAccountData } = useCurrentAccount();
+  const currentUser = currentAccountData?.data;
+  const userRoleDerived = (currentUser?.role?.name || userRole || "").trim();
+  const roleCategory = getRoleCategory(userRoleDerived);
+
   const handleLogout = () => {
     router.push("/login");
     TokenStorage.clearTokens();
-    dispatch(setUser({}));
   };
   const avatarMenuItems: MenuProps["items"] = [
     {
       key: "manage-profile",
       label: (
-        <Link href="/workspace/account">
+        <Link href="/account">
           <div className="flex items-center gap-2">
             {user?.avatar ? (
               <Avatar size="small" src={user.avatar} />
@@ -91,28 +271,14 @@ const TopBar: React.FC = React.memo(() => {
   ];
 
   // Handle search input change
-  const handleSearchChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
     setSearchQuery(query);
 
     if (query.trim()) {
-      setIsSearching(true);
       setShowSearchDropdown(true);
-
-      try {
-        const results = await searchCards({ name: query, desription: query });
-        if (results && results?.data) {
-          setSearchResults(results.data);
-        }
-      } catch (error) {
-        console.error("Search failed:", error);
-        setSearchResults([]);
-      } finally {
-        setIsSearching(false);
-      }
     } else {
       setShowSearchDropdown(false);
-      setSearchResults([]);
     }
   };
 
@@ -137,10 +303,39 @@ const TopBar: React.FC = React.memo(() => {
   const handleSearchFocus = () => {
     setShowSearchDropdown(true);
   };
+
+  // Handle clicking on search results
+  const handleSearchResultClick = (result: SearchResult) => {
+    setShowSearchDropdown(false);
+    setSearchQuery("");
+
+    if (result.type === "card") {
+      // Get workspace ID with fallback priority:
+      // 1. result.workspace_id (snake_case - from backend, now properly returned)
+      // 2. result.workspaceId (camelCase - if frontend transforms it)
+      // 3. currentWorkspace?.id (from Redux store)
+      // 4. workspaceId (from URL params)
+      const targetWorkspaceId =
+        result.workspaceId || currentWorkspace?.id || workspaceId;
+
+      if (targetWorkspaceId) {
+        router.push(
+          `/workspace/${targetWorkspaceId}/board/${result.boardId}?listId=${result.listId}&cardId=${result.id}`
+        );
+      }
+    } else if (result.type === "board") {
+      const targetWorkspaceId =
+        result.workspaceId || currentWorkspace?.id || workspaceId;
+
+      if (targetWorkspaceId) {
+        router.push(`/workspace/${targetWorkspaceId}/board/${result.id}`);
+      }
+    }
+  };
   return (
     <div className="flex items-center justify-between h-[45px]">
       <div className="flex items-center gap-2">
-        <Link href="/dashboard">
+        <Link href="/">
           <ImageDynamicContrast
             imageSrc={logo}
             rgbColor={`rgb(${colors.background})`}
@@ -149,59 +344,72 @@ const TopBar: React.FC = React.memo(() => {
             alt="Ozzy Clothing logo"
           />
         </Link>
-        <WorkspaceSelection />
+        {/* <WorkspaceSelection /> */}
       </div>
 
       <div className="flex items-center gap-5 w-100vh">
-        <Dropdown
-          menu={{
-            items: [
-              {
-                key: "supervisor",
-                label: "Supervisor",
-                onClick: () => setMockRole(MockRole.Supervisor),
-              },
-              {
-                key: "warehouse",
-                label: "Warehouse",
-                onClick: () => setMockRole(MockRole.Warehouse),
-              },
-              {
-                key: "production",
-                label: "Production",
-                onClick: () => setMockRole(MockRole.Production),
-              },
-            ],
-          }}
-        >
-          <Button>{mockRole}</Button>
-        </Dropdown>
-        {mockRole === MockRole.Production && (
+        {canSeeButton("buat") && (
           <Button onClick={() => setModalRequestOpen(true)}>
             Buat Request
           </Button>
         )}
-        {mockRole === MockRole.Supervisor && (
-          <Button onClick={() => setModalListRequestOpen(true)}>
-            Lihat Request
-          </Button>
+
+        {canSeeButton("lihat") && (
+          <Badge
+            count={requestCounts.pendingVerification}
+            overflowCount={99}
+            offset={[-4, 6]}
+          >
+            <Button onClick={() => setModalListRequestOpen(true)}>
+              Lihat Request
+            </Button>
+          </Badge>
         )}
-        {mockRole === MockRole.Warehouse && (
-          <Button onClick={() => setModalRequestSentOpen(true)}>Gudang</Button>
+
+        {canSeeButton("gudang") && (
+          <Badge
+            count={requestCounts.pendingWarehouseSend}
+            overflowCount={99}
+            offset={[-6, 8]}
+          >
+            <Button onClick={() => setModalRequestSentOpen(true)}>
+              Gudang
+            </Button>
+          </Badge>
+        )}
+
+        {canSeeButton("produksi") && (
+          <Button onClick={() => setModalRequestProduksiOpen(true)}>Produksi</Button>
+        )}
+
+        {/* WebSocket Debug Button - Only show in development */}
+        {process.env.NODE_ENV === "development" && (
+          <Button
+            type="dashed"
+            size="small"
+            onClick={() => setWsDebugModalOpen(true)}
+            title="WebSocket Debug"
+          >
+            WS Debug
+          </Button>
         )}
 
         <div className="relative" ref={searchRef}>
           <Input
             placeholder="Search…"
             prefix={<i className="fi fi-rr-search" />}
-            className="w-[200px] rounded"
+            className={`rounded transition-all duration-200 ease-in-out`}
+            style={{ width: showSearchDropdown ? "500px" : "200px" }}
             value={searchQuery}
             onChange={handleSearchChange}
             onFocus={handleSearchFocus}
           />
 
           {showSearchDropdown && (
-            <div className="absolute z-50 top-full left-0 mt-1 w-80 bg-white rounded-md shadow-lg border border-gray-200">
+            <div
+              className="absolute z-50 top-full left-0 mt-1 bg-white rounded-md shadow-lg border border-gray-200"
+              style={{ width: showSearchDropdown ? "500px" : "200px" }}
+            >
               <div className="max-h-80 overflow-auto p-2">
                 {isSearching ? (
                   <div className="flex justify-center py-4">
@@ -210,64 +418,170 @@ const TopBar: React.FC = React.memo(() => {
                 ) : searchQuery ? (
                   <div className="w-full">
                     <Text strong>Search Results</Text>
-                    <List
-                      dataSource={searchResults}
-                      renderItem={(item) => (
-                        <List.Item
-                          key={item.id}
-                          className="w-full cursor-pointer hover:bg-gray-50 px-2 rounded"
-                        >
-                          <List.Item.Meta
-                            avatar={
-                              item.cover ? (
-                                <img
-                                  src={item.cover}
-                                  alt={item.name}
-                                  className="w-12 h-auto object-cover rounded"
-                                />
-                              ) : (
-                                <div className="flex justify-center items-center w-12 h-8 rounded bg-gray-200">
-                                  <Avatar
-                                    shape="square"
-                                    size="small"
-                                    src={`https://ui-avatars.com/api/?name=${item?.name}&background=random`}
-                                  ></Avatar>
-                                </div>
-                              )
-                            }
-                            title={item.name}
-                            description={
-                              <div
-                                className="prose prose-sm max-w-none text-[10px]"
-                                dangerouslySetInnerHTML={{
-                                  __html: item.description || "",
-                                }}
+
+                    {/* Cards Section */}
+                    {searchResults.cards.length > 0 && (
+                      <div className="mb-4">
+                        <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide px-2 py-1">
+                          Cards
+                        </div>
+                        <List
+                          dataSource={searchResults.cards}
+                          renderItem={(item) => (
+                            <List.Item
+                              key={item.id}
+                              className="w-full cursor-pointer hover:bg-gray-50 px-2 rounded py-1"
+                              onClick={() => handleSearchResultClick(item)}
+                            >
+                              <List.Item.Meta
+                                avatar={
+                                  item.cover ? (
+                                    <img
+                                      src={item.cover}
+                                      alt={item.name}
+                                      className="w-8 h-6 object-cover rounded"
+                                    />
+                                  ) : (
+                                    <div className="flex justify-center items-center w-8 h-6 rounded bg-gray-200">
+                                      <FileOutlined className="text-gray-500 text-xs" />
+                                    </div>
+                                  )
+                                }
+                                title={
+                                  <span className="text-sm">{item.name}</span>
+                                }
+                                description={
+                                  <div className="text-[10px] text-gray-500">
+                                    {/* Board and List info */}
+                                    <div className="flex items-center gap-1 mb-1">
+                                      <span className="font-medium">
+                                        {item.boardName || "Unknown Board"}
+                                      </span>
+                                      <span>•</span>
+                                      <span>
+                                        {item.listName || "Unknown List"}
+                                      </span>
+                                    </div>
+                                    {/* Description */}
+                                    {item.description && (
+                                      <div
+                                        className="prose prose-sm max-w-none line-clamp-1"
+                                        dangerouslySetInnerHTML={{
+                                          __html:
+                                            item.description.substring(0, 50) +
+                                            (item.description.length > 50
+                                              ? "..."
+                                              : ""),
+                                        }}
+                                      />
+                                    )}
+                                  </div>
+                                }
                               />
-                            }
-                          />
-                        </List.Item>
+                            </List.Item>
+                          )}
+                          className="border-0"
+                        />
+                      </div>
+                    )}
+
+                    {/* Separator */}
+                    {searchResults.cards.length > 0 &&
+                      searchResults.boards.length > 0 && (
+                        <div className="border-t border-gray-200 my-2"></div>
                       )}
-                      locale={{ emptyText: "No results found" }}
-                      className="max-h-48 overflow-auto"
-                    />
+
+                    {/* Boards Section */}
+                    {searchResults.boards.length > 0 && (
+                      <div>
+                        <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide px-2 py-1">
+                          Boards
+                        </div>
+                        <List
+                          dataSource={searchResults.boards}
+                          renderItem={(item) => (
+                            <List.Item
+                              key={item.id}
+                              className="w-full cursor-pointer hover:bg-gray-50 px-2 rounded py-1"
+                              onClick={() => handleSearchResultClick(item)}
+                            >
+                              <List.Item.Meta
+                                avatar={
+                                  <div className="flex justify-center items-center w-8 h-6 rounded bg-blue-100">
+                                    <i className="fi fi-rr-layout-fluid text-blue-600 text-xs"></i>
+                                  </div>
+                                }
+                                title={
+                                  <span className="text-sm font-medium">
+                                    {item.name}
+                                  </span>
+                                }
+                                description={
+                                  <div className="text-[10px] text-gray-500">
+                                    {/* Workspace info */}
+                                    <div className="flex items-center gap-1 mb-1">
+                                      <span className="font-medium">
+                                        {item.workspaceName ||
+                                          "Unknown Workspace"}
+                                      </span>
+                                    </div>
+                                    {/* Description */}
+                                    {item.description && (
+                                      <div
+                                        className="prose prose-sm max-w-none line-clamp-1"
+                                        dangerouslySetInnerHTML={{
+                                          __html:
+                                            item.description.substring(0, 50) +
+                                            (item.description.length > 50
+                                              ? "..."
+                                              : ""),
+                                        }}
+                                      />
+                                    )}
+                                  </div>
+                                }
+                              />
+                            </List.Item>
+                          )}
+                          className="border-0"
+                        />
+                      </div>
+                    )}
+
+                    {/* No Results */}
+                    {searchResults.cards.length === 0 &&
+                      searchResults.boards.length === 0 &&
+                      !isSearching && (
+                        <div className="text-center py-4 text-gray-500 text-sm">
+                          No results found
+                        </div>
+                      )}
                   </div>
                 ) : (
                   <div className="w-full">
                     <Text strong>Recently Viewed</Text>
                     <List
-                      dataSource={recentlyViewedCards}
+                      dataSource={recentlyViewedItems}
                       renderItem={(item) => (
                         <List.Item
-                          key={item.id}
+                          key={`${item.type}-${item.id}`}
                           className="cursor-pointer hover:bg-gray-50 px-2 rounded"
                         >
                           <List.Item.Meta
-                            avatar={<FileOutlined className="text-blue-500" />}
+                            avatar={
+                              item.type === "card" ? (
+                                <FileOutlined className="text-blue-500" />
+                              ) : (
+                                <UserOutlined className="text-green-500" />
+                              )
+                            }
                             title={item.name}
                             description={
                               <div>
                                 <Text type="secondary" className="text-xs">
-                                  Viewed {item.createdAt}
+                                  {item.type === "card" ? "Card" : "Board"} •
+                                  Viewed{" "}
+                                  {new Date(item.viewedAt).toLocaleDateString()}
                                 </Text>
                               </div>
                             }
@@ -294,6 +608,37 @@ const TopBar: React.FC = React.memo(() => {
             <BellOutlined className="text-xl cursor-pointer" />
           </Badge>
         </Dropdown> */}
+
+        {/* Theme Toggle Button */}
+        <div
+          onClick={handleThemeToggle}
+          className="relative inline-flex items-center w-12 h-6 rounded-full cursor-pointer transition-all duration-300 ease-in-out mb-1 pb-2"
+          style={{
+            backgroundColor: isDarkMode
+              ? `rgb(${colors.primary})`
+              : `rgb(${colors.muted})`,
+            border: `1px solid rgb(${colors.border})`,
+          }}
+          title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+        >
+          {/* Toggle Circle */}
+          <div
+            className="absolute w-5 h-5 rounded-full transition-all duration-300 ease-in-out flex items-center justify-center"
+            style={{
+              backgroundColor: `rgb(${colors.surface})`,
+              left: isDarkMode ? "26px" : "2px",
+              top: "2px",
+              boxShadow: "0 2px 4px rgba(0, 0, 0, 0.2)",
+            }}
+          >
+            {isDarkMode ? (
+              <Moon size={12} style={{ color: `rgb(${colors.primary})` }} />
+            ) : (
+              <Sun size={12} style={{ color: `rgb(${colors.primary})` }} />
+            )}
+          </div>
+        </div>
+
         <Dropdown
           menu={{ items: avatarMenuItems }}
           trigger={["click"]}
@@ -325,6 +670,14 @@ const TopBar: React.FC = React.memo(() => {
       <ModalRequestSent
         open={modalRequestSentOpen}
         onClose={() => setModalRequestSentOpen(false)}
+      />
+      <ModalRequestProduksi
+        open={modalRequestProduksiOpen}
+        onClose={() => setModalRequestProduksiOpen(false)}
+      />
+      <WebSocketDebugModal
+        open={wsDebugModalOpen}
+        onClose={() => setWsDebugModalOpen(false)}
       />
     </div>
   );

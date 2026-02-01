@@ -79,6 +79,16 @@
   -ms-overflow-style: none;
 }
 
+/* Tailwind-style scrollbar-none utility */
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
 /* Ant Design Menu overrides */
 .ant-menu-inline {
   border-right: none !important;
@@ -93,9 +103,159 @@
   align-items: center !important;
 }
 
+/* Keep hovered/selected menu items text black for better contrast */
+.ant-menu-item:hover,
+.ant-menu-item-active,
+.ant-menu-item-selected {
+  color: #000 !important;
+}
+
+.ant-menu-item:hover .ant-menu-title-content,
+.ant-menu-item-active .ant-menu-title-content,
+.ant-menu-item-selected .ant-menu-title-content,
+.ant-menu-item:hover a,
+.ant-menu-item-active a,
+.ant-menu-item-selected a,
+.ant-menu-item:hover .ant-menu-item-icon,
+.ant-menu-item-active .ant-menu-item-icon,
+.ant-menu-item-selected .ant-menu-item-icon {
+  color: #000 !important;
+}
+
 /* List Menu */
 
 li:has(.menu-group-title):hover {
   background-color: transparent !important;
   cursor: pointer !important;
+}
+
+/* Drag and Drop Styles */
+.sidebar-boards-droppable {
+  min-height: 8px;
+  transition: background-color 0.2s ease;
+}
+
+.sidebar-boards-droppable.drag-over {
+  background-color: rgba(59, 130, 246, 0.1);
+  border-radius: 4px;
+}
+
+.sidebar-board-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  margin: 2px 0;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: transparent;
+}
+
+.sidebar-board-item:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.sidebar-board-item.selected {
+  background-color: rgba(59, 130, 246, 0.1);
+  border-left: 3px solid #3b82f6;
+}
+
+/* Keep board item text black on hover/selected for better contrast */
+.sidebar-board-item:hover .board-title,
+.sidebar-board-item.selected .board-title {
+  color: #000 !important;
+}
+
+.sidebar-board-item.dragging {
+  opacity: 0.8;
+  background-color: rgba(59, 130, 246, 0.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transform: rotate(2deg);
+}
+
+.sidebar-drag-handle {
+  opacity: 0;
+  margin-right: 8px;
+  color: #9ca3af;
+  transition: opacity 0.2s ease;
+  cursor: grab;
+}
+
+.sidebar-board-item:hover .sidebar-drag-handle {
+  opacity: 1;
+}
+
+.sidebar-drag-handle:active {
+  cursor: grabbing;
+}
+
+.board-icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  background-color: #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.board-title {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+
+
+
+
+/* Global dragging state */
+body.dragging {
+  user-select: none !important;
+  cursor: grabbing !important;
+}
+
+body.dragging * {
+  pointer-events: none;
+}
+
+body.dragging .sidebar-board-item {
+  pointer-events: auto;
+}
+
+/* Smooth placeholder animation */
+.sidebar-board-item + .sidebar-board-item {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Prevent text selection during drag */
+.sidebar-draggable-boards * {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Smooth reordering animation */
+@keyframes smooth-reorder {
+  0% {
+    transform: translateY(-2px);
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.sidebar-board-item:not(.dragging) {
+  animation: smooth-reorder 0.3s ease-out;
 }

@@ -1,344 +1,1509 @@
-import { Avatar, Select, SelectProps, Typography } from "antd";
-import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
+"use client";
+
+import {
+  AutoComplete,
+  Avatar,
+  Input,
+  Select,
+  SelectProps,
+  Typography,
+} from "antd";
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useState,
+} from "react";
+
 import { useWorkspaces } from "@hooks/workspace";
-import { useDispatch } from "react-redux";
-import { selectCurrentWorkspace, setCurrentWorkspace } from "@store/workspace_slice";
+import { useDispatch, useSelector } from "react-redux";
+import {
+  selectCurrentWorkspace,
+  setCurrentWorkspace,
+} from "@store/workspace_slice";
 import { useParams, useRouter } from "next/navigation";
-import { accountList } from "@api/account";
-import { useSelector } from "react-redux";
+import { useAccountList } from "@hooks/account";
+import { Card } from "@myTypes/card";
+import { cards } from "@api/card";
+import { useBoards } from "@hooks/board";
+import { useLabels } from "@hooks/label";
 import { useLists } from "@hooks/list";
 import { useCustomFields } from "@hooks/custom_field";
+import { useRoles } from "@hooks/useRoles";
+import { AnyList } from "@myTypes/list";
+import { lists } from "@api/list";
+import { Board } from "@myTypes/board";
+import { boards } from "@api/board";
+import { useProducts } from "@hooks/useProducts";
 
 // Global SELECTION props
+
+interface FieldValueInputProps extends SelectionProps {
+  field: {
+    type: string;
+    source: string;
+    option?: Array<{ label: string; value: string }>;
+  };
+  value?: string;
+  onChange?: (value: string, option?: any) => void;
+  placeholder?: string;
+}
 export interface SelectionRef {
   getValue: () => string | undefined;
-  getObject: () => { label: string | JSX.Element | undefined; value: string } | undefined;
+  getObject: () =>
+    | { label: string | JSX.Element | undefined; value: string }
+    | undefined;
   setValue: (value: string) => void;
 }
 
 interface SelectionProps {
   placeholder?: string;
   width?: string | number;
-  size?: 'large' | 'middle' | 'small';
+  size?: "small" | "middle" | "large";
   style?: React.CSSProperties;
   className?: string;
   value?: string;
   onChange?: (value: string, option?: any) => void;
+  mode?: "multiple" | "tags" | undefined;
+  excludeIds?: string[];
+  roleIds?: string[];
+  [key: string]: any; // Allow additional props
 }
 
-export const UserSelection = forwardRef<SelectionRef, SelectionProps>(({
-  placeholder = "Select a User",
-  width = "100%",
-  size = "middle",
-  style = {},
-  className = "",
-  value,
-  onChange
-}, ref) => {
-  const { workspaceId, boardId } = useParams();
-  const [options, setOptions] = useState<{ label: JSX.Element | string | undefined; value: string; }[]>([]);
-  const [selectedValue, setSelectedValue] = useState<string | undefined>(value);
-  const [selectedObject, setSelectedObject] = useState<{ label: JSX.Element | string | undefined; value: string }>();
-  
-  // If the value prop changes, update our internal state
-  useEffect(() => {
-    if (value !== undefined && value !== selectedValue) {
-      setSelectedValue(value);
-    }
-  }, [value]);
+interface ListSelectionProps {
+  placeholder?: string;
+  width?: string | number;
+  size?: "small" | "middle" | "large";
+  style?: React.CSSProperties;
+  className?: string;
+  value?: string | string[];
+  onChange?: (value: string | string[], option?: any) => void;
+  mode?: "multiple" | "tags" | undefined;
+  boardIdProp?: string;
+  [key: string]: any;
+}
 
-  // Expose methods via ref
-  useImperativeHandle(ref, () => ({
-    getValue: () => selectedValue,
-    getObject: () => selectedObject,
-    setValue: (value: string) => {
-      setSelectedValue(value);
-      const foundOption = options.find(opt => opt.value === value);
-      if (foundOption) {
-        setSelectedObject(foundOption);
+export const UserSelection = forwardRef<SelectionRef, SelectionProps>(
+  (
+    {
+      placeholder = "Select a User",
+      width = "100%",
+      size = "middle",
+      style = {},
+      className = "",
+      value,
+      onChange,
+      mode,
+      excludeIds = [],
+      roleIds = [],
+      disabled,
+      ...restProps
+    },
+    ref
+  ) => {
+    const { workspaceId, boardId } = useParams();
+    const [selectedValue, setSelectedValue] = useState<string | undefined>(
+      value
+    );
+    const [selectedObject, setSelectedObject] = useState<{
+      label: JSX.Element | string | undefined;
+      value: string;
+    }>();
+
+    const { data: accountListData, isLoading: accountListLoading } =
+      useAccountList({
+        workspaceId: Array.isArray(workspaceId)
+          ? (workspaceId[0] as string)
+          : (workspaceId as string),
+        boardId: Array.isArray(boardId)
+          ? (boardId[0] as string)
+          : (boardId as string),
+        roleIds: roleIds,
+      });
+
+    // If the value prop changes, update our internal state
+    useEffect(() => {
+      if (value !== undefined && value !== selectedValue) {
+        setSelectedValue(value);
       }
-    }
-  }));
-  
-  // Handle selection change
-  const handleChange = (value: string, option: any) => {
-    setSelectedValue(value);
-   
-    // Store the entire selected object
-    if (Array.isArray(option)) {
-      // Handle case if Select allows multiple selection
-      const selectedOptions = option.map(opt => ({ label: opt.label, value: opt.value }));
-      setSelectedObject(selectedOptions[0]);
-    } else {
-      setSelectedObject({ label: option.label, value: option.value });
-    }
-    
-    // Call the onChange prop if provided
-    if (onChange) {
-      onChange(value, option);
-    }
-  };
-  
-  // Fetch user data
-  useEffect(() => {
-    const fetchData = async() => {
-      const wsId = Array.isArray(workspaceId) ? workspaceId[0] : workspaceId;
-      const bId = Array.isArray(boardId) ? boardId[0] : boardId;
-      const result = await accountList(wsId, bId);
-     
-      if (result && result.data) {
-        const opt = result.data.map(item => ({
+    }, [value]);
+
+    const options = useMemo(() => {
+      if (!accountListData?.data) return [];
+
+      return accountListData.data
+        .filter((u) => !excludeIds.includes(u.id))
+        .map((item) => ({
           value: item.id,
           label: (
             <div className="flex justify-start items-center gap-3">
-              <Avatar size={20} className="bg-blue-50 text-blue-500 border border-blue-100">
+              <Avatar
+                size={20}
+                className="bg-blue-50 text-blue-500 border border-blue-100"
+              >
                 {item.username?.substring(0, 2)?.toUpperCase()}
               </Avatar>
               <Typography.Text>{item.username}</Typography.Text>
             </div>
-          )
+          ),
         }));
-        setOptions(opt);
+    }, [accountListData, excludeIds]);
+
+    // Expose methods via ref
+    useImperativeHandle(ref, () => ({
+      getValue: () => selectedValue,
+      getObject: () => selectedObject,
+      setValue: (value: string) => {
+        setSelectedValue(value);
+        const foundOption = options.find((opt) => opt.value === value);
+        if (foundOption) {
+          setSelectedObject(foundOption);
+        }
+      },
+    }));
+
+    // Handle selection change
+    const handleChange = (value: string, option: any) => {
+      setSelectedValue(value);
+
+      // Store the entire selected object
+      if (Array.isArray(option)) {
+        // Handle case if Select allows multiple selection
+        const selectedOptions = option.map((opt) => ({
+          label: opt.label,
+          value: opt.value,
+        }));
+        setSelectedObject(selectedOptions[0]);
+      } else {
+        setSelectedObject({ label: option.label, value: option.value });
+      }
+
+      // Call the onChange prop if provided
+      if (onChange) {
+        onChange(value, option);
       }
     };
-   
-    fetchData();
-  }, [workspaceId, boardId]);
-  
-  // When options change, update the selected object if value is already set
-  useEffect(() => {
-    if (selectedValue && options.length > 0) {
-      const foundOption = options.find(opt => opt.value === selectedValue);
-      if (foundOption) {
-        setSelectedObject(foundOption);
-      }
-    }
-  }, [options, selectedValue]);
-  
-  return (
-    <Select
-      style={{ width, ...style }}
-      showSearch
-      placeholder={placeholder}
-      optionFilterProp="label"
-      onChange={handleChange}
-      value={selectedValue}
-      options={options}
-      size={size}
-      className={className}
-      notFoundContent={options.length === 0 ? "No user available" : "No match found"}
-    />
-  );
-});
+
+    // Fetch user data via react-query (cached across components)
+
+    // When options change, update the selected object if value is already set
+    useEffect(() => {
+      if (!selectedValue || options.length === 0) return;
+
+      const foundOption = options.find((opt) => opt.value === selectedValue);
+      if (!foundOption) return;
+
+      setSelectedObject((prev) => {
+        if (prev?.value === foundOption.value) {
+          return prev;
+        }
+        return foundOption;
+      });
+    }, [options, selectedValue]);
+
+    return (
+      <Select
+        style={{ width, ...style }}
+        mode={mode}
+        showSearch
+        placeholder={placeholder}
+        optionFilterProp="label"
+        onChange={handleChange}
+        value={selectedValue}
+        options={options}
+        size={size}
+        className={`${className} ${
+          mode === "multiple" ? "w-full" : ""
+        } min-w-[157px]`}
+        notFoundContent={
+          options.length === 0 ? "No user available" : "No match found"
+        }
+        disabled={disabled}
+        {...restProps}
+      />
+    );
+  }
+);
 
 export const WorkspaceSelection: React.FC = () => {
-  const [options, setOptions] = useState<{ label: string | JSX.Element; value: string; }[]>([]);
+  const [options, setOptions] = useState<
+    { label: string | JSX.Element; value: string }[]
+  >([]);
   const { workspaces } = useWorkspaces();
   const dispatch = useDispatch();
   const router = useRouter();
   const currentWorkspace = useSelector(selectCurrentWorkspace);
-  
+
   const handleChange = (value: string | undefined) => {
     if (!value) {
       router.push(`/workspace`);
     } else {
-      const w = workspaces.find(item => (item.id === value));
+      const w = workspaces.find((item) => item.id === value);
       if (currentWorkspace?.id !== w?.id) {
         dispatch(setCurrentWorkspace(w));
       }
       router.push(`/workspace/${value}`);
     }
-  }
-  
+  };
+
   useEffect(() => {
     if (workspaces) {
-      const opt = workspaces?.map(item => ({label: item.name, value: item.id}));
+      const opt = workspaces?.map((item) => ({
+        label: item.name,
+        value: item.id,
+      }));
       setOptions(opt);
       if (!currentWorkspace) {
         dispatch(setCurrentWorkspace(workspaces[0]));
         router.push(`/workspace/${workspaces[0]?.id}`);
       }
-    } 
+    }
   }, [workspaces]);
 
-  return(
+  return (
     <Select
-      style={{minWidth: "100px"}}
+      style={{ minWidth: "100px" }}
       showSearch
       placeholder="Select a workspace"
       value={currentWorkspace?.id}
       optionFilterProp="label"
       onChange={handleChange}
       options={options}
-      notFoundContent={workspaces.length === 0 ? "No workspaces available" : "No match found"}
+      notFoundContent={
+        workspaces.length === 0 ? "No workspaces available" : "No match found"
+      }
     />
-  )
-}
+  );
+};
 
 export const VisibilitySelection: React.FC = () => {
-
-  const [ options, setOption ] = useState([
-    {id: "private", label: "Private"},
-    {id: "shared", label: "Shared"},
-    {id: "public", label: "Public"},
+  const [options, setOption] = useState([
+    { id: "private", label: "Private" },
+    { id: "shared", label: "Shared" },
+    { id: "public", label: "Public" },
   ]);
 
   const handleChange = (value: string) => {
-    console.log(`selected ${value}`);
+    // Selected value changed
   };
 
-  return(
+  return (
     <Select
-      defaultValue="workspace-default"                                                                                              
+      defaultValue="workspace-default"
       style={{ width: 200 }}
       onChange={handleChange}
       options={options}
     />
-  )
+  );
+};
+
+export const ListSelection = forwardRef<SelectionRef, ListSelectionProps>(
+  (
+    {
+      placeholder = "Select a List",
+      width = "100%",
+      size = "middle",
+      style = {},
+      className = "",
+      value,
+      onChange,
+      mode,
+      boardIdProp = "",
+      disabled = false,
+    },
+    ref
+  ) => {
+    const [options, setOptions] = useState<{ label: string; value: string }[]>(
+      []
+    );
+    const [selectedValue, setSelectedValue] = useState<
+      string | string[] | undefined
+    >(value);
+    const [selectedObject, setSelectedObject] = useState<
+      { label: string; value: string } | { label: string; value: string }[]
+    >();
+    const [listData, setListData] = useState<AnyList[]>([]);
+    const params = useParams();
+    const boardId = params.boardId
+      ? decodeURIComponent(params.boardId as string)
+      : undefined;
+    const [selectedBoardId, setSelectedBoardId] = useState<string>(
+      boardIdProp || (boardId as string)
+    );
+
+    useImperativeHandle(ref, () => ({
+      getValue: () => {
+        if (mode === "multiple") {
+          return Array.isArray(selectedValue) ? selectedValue.join(",") : "";
+        }
+        return Array.isArray(selectedValue) ? selectedValue[0] : selectedValue;
+      },
+      getObject: () => {
+        if (Array.isArray(selectedObject)) {
+          return selectedObject[0] || { label: "", value: "" };
+        }
+        return selectedObject;
+      },
+      setValue: (value: string) => {
+        if (mode === "multiple") {
+          const values = value.split(",").filter(Boolean);
+          setSelectedValue(values);
+          const foundOptions = (options || []).filter((opt) =>
+            values.includes(opt.value)
+          );
+          setSelectedObject(foundOptions);
+        } else {
+          setSelectedValue(value);
+          const foundOption = options.find((opt) => opt.value === value);
+          if (foundOption) {
+            setSelectedObject(foundOption);
+          }
+        }
+      },
+    }));
+
+    const handleChange = (value: string | string[], option: any) => {
+      setSelectedValue(value);
+
+      if (mode === "multiple") {
+        // Handle multiple selection
+        if (Array.isArray(option)) {
+          const selectedOptions = option.map((opt) => ({
+            label: opt.label,
+            value: opt.value,
+          }));
+          setSelectedObject(selectedOptions);
+        } else {
+          setSelectedObject([{ label: option.label, value: option.value }]);
+        }
+      } else {
+        // Handle single selection
+        if (Array.isArray(option)) {
+          const selectedOptions = option.map((opt) => ({
+            label: opt.label,
+            value: opt.value,
+          }));
+          setSelectedObject(selectedOptions[0]);
+        } else {
+          setSelectedObject({ label: option.label, value: option.value });
+        }
+      }
+
+      if (onChange) {
+        onChange(value, option);
+      }
+    };
+
+    useEffect(() => {
+      if (boardIdProp) {
+        setSelectedBoardId(boardIdProp);
+      }
+    }, [boardIdProp]);
+
+    useEffect(() => {
+      if (listData) {
+        const opt = listData?.map((item) => ({
+          label: item.name ?? "",
+          value: item.id,
+        }));
+        setOptions(opt);
+
+        if (boardIdProp) {
+          setSelectedValue("");
+        }
+      }
+    }, [listData]);
+
+    // When options change, update the selected object if value is already set
+    useEffect(() => {
+      if (selectedValue && options.length > 0) {
+        const foundOption = options.find((opt) => opt.value === selectedValue);
+        if (foundOption) {
+          setSelectedObject(foundOption);
+        }
+      }
+    }, [options, selectedValue]);
+
+    useEffect(() => {
+      const fetchData = async () => {
+        // Fetching lists for boardId
+        try {
+          const data = await lists(selectedBoardId);
+          if (data?.data) {
+            setListData(data.data);
+          }
+        } catch (error) {
+          console.error("[LIST SELECTION] Error fetching lists:", error);
+          setListData([]);
+        }
+      };
+
+      // Only fetch if selectedBoardId is valid (not empty, null, undefined, or just whitespace)
+      if (
+        selectedBoardId &&
+        typeof selectedBoardId === "string" &&
+        selectedBoardId.trim() &&
+        selectedBoardId !== "undefined" &&
+        selectedBoardId !== "null"
+      ) {
+        fetchData();
+      } else {
+        setListData([]);
+      }
+    }, [selectedBoardId]);
+
+    return (
+      <Select
+        mode={mode}
+        style={{ width, ...style }}
+        showSearch
+        placeholder={placeholder}
+        optionFilterProp="label"
+        disabled={disabled}
+        onChange={handleChange}
+        value={selectedValue}
+        options={options}
+        size={size}
+        className={`${className} min-w-[200px]`}
+        notFoundContent={
+          listData?.length === 0 ? "No list available" : "No match found"
+        }
+      />
+    );
+  }
+);
+
+export const BoardSelection = forwardRef<SelectionRef, SelectionProps>(
+  (
+    {
+      placeholder = "Select a Board",
+      width = "100%",
+      size = "middle",
+      style = {},
+      className = "",
+      value,
+      onChange,
+    },
+    ref
+  ) => {
+    const [options, setOptions] = useState<{ label: string; value: string }[]>(
+      []
+    );
+    const [selectedValue, setSelectedValue] = useState<string | undefined>(
+      value
+    );
+    const [selectedObject, setSelectedObject] = useState<{
+      label: string;
+      value: string;
+    }>();
+    const params = useParams();
+    const workspaceId = params.workspaceId
+      ? decodeURIComponent(params.workspaceId as string)
+      : undefined;
+    const [boardsData, setBoardsData] = useState<Board[]>([]);
+
+    useImperativeHandle(ref, () => ({
+      getValue: () => selectedValue,
+      getObject: () => selectedObject,
+      setValue: (value: string) => {
+        setSelectedValue(value);
+        const foundOption = options.find((opt) => opt.value === value);
+        if (foundOption) {
+          setSelectedObject(foundOption);
+        }
+      },
+    }));
+
+    const handleChange = (value: string, option: any) => {
+      setSelectedValue(value);
+      // Store the entire selected object
+      if (Array.isArray(option)) {
+        // Handle case if Select allows multiple selection
+        const selectedOptions = option.map((opt) => ({
+          label: opt.label,
+          value: opt.value,
+        }));
+        setSelectedObject(selectedOptions[0]);
+      } else {
+        setSelectedObject({ label: option.label, value: option.value });
+      }
+
+      if (onChange) {
+        onChange(value, option);
+      }
+    };
+
+    useEffect(() => {
+      if (boardsData) {
+        const opt = boardsData?.map((item) => ({
+          label: item.name ?? "",
+          value: item.id,
+        }));
+        setOptions(opt);
+      }
+    }, [boardsData]);
+
+    useEffect(() => {
+      const fetchData = async () => {
+        const result = await boards(workspaceId as string);
+        if (result && result?.data) {
+          setBoardsData(result?.data || []);
+        }
+      };
+      fetchData();
+    }, []);
+
+    // When options change, update the selected object if value is already set
+    useEffect(() => {
+      if (selectedValue && options.length > 0) {
+        const foundOption = options.find((opt) => opt.value === selectedValue);
+        if (foundOption) {
+          setSelectedObject(foundOption);
+        }
+      }
+    }, [options, selectedValue]);
+
+    return (
+      <Select
+        style={{ width, ...style }}
+        showSearch
+        placeholder={placeholder}
+        optionFilterProp="label"
+        onChange={handleChange}
+        value={selectedValue}
+        options={options}
+        size={size}
+        className={`${className} min-w-[200px]`}
+        notFoundContent={
+          boards?.length === 0 ? "No board available" : "No match found"
+        }
+      />
+    );
+  }
+);
+
+export const CardPositionSelection = forwardRef<SelectionRef, SelectionProps>(
+  (
+    {
+      listId,
+      placeholder = "Select position in List",
+      width = "100%",
+      size = "middle",
+      style = {},
+      className = "",
+      value,
+      onChange,
+      selectedListId,
+    },
+    ref
+  ) => {
+    const [options, setOptions] = useState<{ label: string; value: string }[]>(
+      []
+    );
+    const [selectedValue, setSelectedValue] = useState<string | undefined>(
+      value
+    );
+    const [selectedObject, setSelectedObject] = useState<{
+      label: string;
+      value: string;
+    }>();
+    const params = useParams();
+    const boardId = params.boardId
+      ? decodeURIComponent(params.boardId as string)
+      : undefined;
+    const [cardsInList, setCardsInList] = useState<Card[]>([]);
+    const [isFetchingData, setIsFetchingData] = useState<boolean>(false);
+
+    useImperativeHandle(ref, () => ({
+      getValue: () => selectedValue,
+      getObject: () => selectedObject,
+      setValue: (value: string) => {
+        setSelectedValue(value);
+        const foundOption = options.find((opt) => opt.value === value);
+        if (foundOption) {
+          setSelectedObject(foundOption);
+        }
+      },
+    }));
+
+    const handleChange = (value: string, option: any) => {
+      setSelectedValue(value);
+      // Store the entire selected object
+      if (Array.isArray(option)) {
+        // Handle case if Select allows multiple selection
+        const selectedOptions = option.map((opt) => ({
+          label: opt.label,
+          value: opt.value,
+        }));
+        setSelectedObject(selectedOptions[0]);
+      } else {
+        setSelectedObject({ label: option.label, value: option.value });
+      }
+
+      if (onChange) {
+        onChange(value, option);
+      }
+    };
+
+    // When options change, update the selected object if value is already set
+    useEffect(() => {
+      const foundOption = options.find((opt) => opt.value === selectedValue);
+      if (foundOption) {
+        setSelectedObject(foundOption);
+      }
+    }, [options, selectedValue]);
+
+    useEffect(() => {
+      if (cardsInList) {
+        if (cardsInList?.length > 0) {
+          const opt = cardsInList?.map((item: Card, index: number) => {
+            return {
+              label: (index + 1).toString(),
+              value: (index + 1).toString(),
+            };
+          });
+
+          // Work with the local opt array instead of the options state
+          const copyOpt = [...opt];
+          let nextPos = parseInt(copyOpt[copyOpt.length - 1].value) + 1;
+          copyOpt.push({
+            label: nextPos.toString(),
+            value: nextPos.toString(),
+          });
+          setOptions(copyOpt);
+        } else {
+          setOptions([{ value: "1", label: "1" }]);
+        }
+      }
+    }, [cardsInList]);
+
+    useEffect(() => {
+      const fetchData = async () => {
+        setIsFetchingData(true);
+
+        const data = await cards(listId, boardId as string);
+        if (data && data?.data) {
+          setCardsInList(data?.data || []);
+          setOptions([]);
+          setSelectedValue("");
+        }
+        setIsFetchingData(false);
+      };
+
+      if (selectedListId) {
+        fetchData();
+      }
+    }, [selectedListId]);
+
+    return (
+      <Select
+        style={{ width, ...style }}
+        showSearch
+        placeholder={placeholder}
+        optionFilterProp="label"
+        onChange={handleChange}
+        value={selectedValue}
+        options={options}
+        size={size}
+        className={className}
+        notFoundContent="No cards available in the list"
+        loading={isFetchingData}
+        disabled={isFetchingData}
+      />
+    );
+  }
+);
+
+export const LabelSelection = forwardRef<SelectionRef, SelectionProps>(
+  (
+    {
+      placeholder = "Select a Label",
+      width = "100%",
+      size = "middle",
+      style = {},
+      className = "",
+      value,
+      onChange,
+      mode,
+    },
+    ref
+  ) => {
+    const [selectedValue, setSelectedValue] = useState<string | undefined>(
+      value
+    );
+    const [selectedObject, setSelectedObject] = useState<{
+      label: string;
+      value: string;
+    }>();
+    const params = useParams();
+    const workspaceId = decodeURIComponent(params.workspaceId as string);
+    const { allLabels } = useLabels(workspaceId as string);
+
+    const options = useMemo(() => {
+      return allLabels
+        ?.filter((item) => item.name && item.name.trim() !== "")
+        ?.map((item) => ({
+          label: item.name ?? "",
+          value: item.id ?? "",
+        }));
+    }, [allLabels]);
+
+    useImperativeHandle(ref, () => ({
+      getValue: () => selectedValue,
+      getObject: () => selectedObject,
+      setValue: (value: string) => {
+        setSelectedValue(value);
+        const foundOption = options.find((opt) => opt.value === value);
+        if (foundOption) {
+          setSelectedObject(foundOption);
+        }
+      },
+    }));
+
+    const handleChange = (value: string, option: any) => {
+      setSelectedValue(value);
+      // Store the entire selected object
+      if (Array.isArray(option)) {
+        // Handle case if Select allows multiple selection
+        const selectedOptions = option.map((opt) => ({
+          label: opt.label,
+          value: opt.value,
+        }));
+        setSelectedObject(selectedOptions[0]);
+      } else {
+        setSelectedObject({ label: option.label, value: option.value });
+      }
+
+      if (onChange) {
+        onChange(value, option);
+      }
+    };
+
+    // When options change, update the selected object if value is already set
+    useEffect(() => {
+      if (selectedValue && options.length > 0) {
+        const foundOption = options.find((opt) => opt.value === selectedValue);
+        // Found option in options array
+        if (foundOption) {
+          setSelectedObject(foundOption);
+        }
+      }
+    }, [options, selectedValue]);
+
+    return (
+      <Select
+        style={{ width, ...style }}
+        showSearch
+        placeholder={placeholder}
+        optionFilterProp="label"
+        onChange={handleChange}
+        value={selectedValue}
+        options={options}
+        size={size}
+        className={`${className} min-w-[200px]`}
+        mode={mode}
+        notFoundContent={
+          allLabels?.length === 0 ? "No label available" : "No match found"
+        }
+      />
+    );
+  }
+);
+
+export const ProductSelection = forwardRef<SelectionRef, SelectionProps>(
+  (
+    {
+      placeholder = "Select a Product",
+      width = "100%",
+      size = "middle",
+      style = {},
+      className = "",
+      value,
+      onChange,
+      mode,
+    },
+    ref
+  ) => {
+    const [selectedValue, setSelectedValue] = useState<string | undefined>(
+      value
+    );
+    const [selectedObject, setSelectedObject] = useState<{
+      label: string;
+      value: string;
+    }>();
+
+    const { data: products = [], isLoading } = useProducts();
+
+    const options = useMemo(
+      () =>
+        (products || []).map((product) => ({
+          label: product.name ?? product.id ?? "Unnamed product",
+          value: product.id,
+        })),
+      [products]
+    );
+
+    useImperativeHandle(ref, () => ({
+      getValue: () => selectedValue,
+      getObject: () => selectedObject,
+      setValue: (val: string) => {
+        setSelectedValue(val);
+        const foundOption = options.find((opt) => opt.value === val);
+        if (foundOption) {
+          setSelectedObject(foundOption);
+        }
+      },
+    }));
+
+    useEffect(() => {
+      if (value !== undefined && value !== selectedValue) {
+        setSelectedValue(value);
+      }
+    }, [value]);
+
+    useEffect(() => {
+      if (selectedValue) {
+        const foundOption = options.find((opt) => opt.value === selectedValue);
+        if (foundOption) {
+          setSelectedObject(foundOption);
+        }
+      }
+    }, [options, selectedValue]);
+
+    const handleChange = (val: string, option: any) => {
+      setSelectedValue(val);
+      const normalized = {
+        label: option?.label ?? val,
+        value: val,
+      };
+      setSelectedObject(normalized);
+
+      if (onChange) {
+        onChange(val, normalized);
+      }
+    };
+
+    return (
+      <Select
+        style={{ width, ...style }}
+        showSearch
+        placeholder={placeholder}
+        optionFilterProp="label"
+        onChange={handleChange}
+        value={selectedValue}
+        options={options}
+        size={size}
+        className={`${className} min-w-[200px]`}
+        mode={mode}
+        loading={isLoading}
+        notFoundContent={
+          isLoading ? "Loading products..." : "No products available"
+        }
+      />
+    );
+  }
+);
+
+export const CustomFieldSelection = forwardRef<
+  SelectionRef,
+  SelectionProps & { filterTypes?: string | string[] }
+>(
+  (
+    {
+      placeholder = "Select a Field",
+      width = "100%",
+      size = "middle",
+      style = {},
+      className = "",
+      onChange,
+      multi = false,
+      filterTypes,
+    },
+    ref
+  ) => {
+    const [options, setOptions] = useState<{ label: string; value: string }[]>(
+      []
+    );
+    const [selectedValue, setSelectedValue] = useState<string>();
+    const [selectedObject, setSelectedObject] = useState<{
+      label: string;
+      value: string;
+    }>();
+    const params = useParams();
+    const workspaceId = decodeURIComponent(params.workspaceId as string);
+    const boardId = decodeURIComponent(params.boardId as string);
+    const { customFields } = useCustomFields(
+      Array.isArray(workspaceId) ? workspaceId[0] : workspaceId
+    );
+
+    useImperativeHandle(ref, () => ({
+      getValue: () => selectedValue,
+      getObject: () => selectedObject,
+      setValue: (value: string) => {
+        setSelectedValue(value);
+        const foundOption = options.find((opt) => opt.value === value);
+        if (foundOption) {
+          setSelectedObject(foundOption);
+        }
+      },
+    }));
+
+    const handleChange = (value: string, option: any) => {
+      setSelectedValue(value);
+      // Store the entire selected object
+      if (Array.isArray(option)) {
+        // Handle case if Select allows multiple selection
+        const selectedOptions = option.map((opt) => ({
+          label: opt.label,
+          value: opt.value,
+        }));
+        setSelectedObject(selectedOptions[0]);
+      } else {
+        setSelectedObject({ label: option.label, value: option.value });
+      }
+
+      if (onChange) {
+        onChange(value, option);
+      }
+    };
+
+    useEffect(() => {
+      if (customFields) {
+        const filteredFields = filterTypes
+          ? customFields.filter((item: any) =>
+              Array.isArray(filterTypes)
+                ? filterTypes.includes(item.type)
+                : item.type === filterTypes
+            )
+          : customFields;
+
+        const opt = filteredFields.map((item: any) => ({
+          label: item.name ?? "",
+          value: item.id,
+          option: item.options,
+          source: item.source,
+          type: item.type,
+        }));
+        setOptions(opt);
+      }
+    }, [customFields, filterTypes]);
+
+    // When options change, update the selected object if value is already set
+    useEffect(() => {
+      if (selectedValue && options.length > 0) {
+        const foundOption = options.find((opt) => opt.value === selectedValue);
+        if (foundOption) {
+          setSelectedObject(foundOption);
+        }
+      }
+    }, [options, selectedValue]);
+
+    return (
+      <Select
+        style={{ width, ...style }}
+        showSearch
+        placeholder={placeholder}
+        optionFilterProp="label"
+        popupMatchSelectWidth={false}
+        dropdownStyle={{ maxHeight: 300, overflowY: "auto" }}
+        onChange={handleChange}
+        optionRender={(option: any) => {
+          const fieldType = option?.data?.type ?? option?.type;
+          return (
+            <div className="px-4 py-2  cursor-pointer w-100">
+              <div className="flex flex-col w-full">
+                <span className="text-white font-semibold text-sm leading-tight">
+                  {option.label}
+                </span>
+                <span
+                  style={{
+                    fontSize: "12px",
+                    marginLeft: "10px",
+                    color: "gray",
+                  }}
+                >
+                  {fieldType}
+                </span>
+              </div>
+            </div>
+          );
+        }}
+        value={selectedValue}
+        options={options}
+        size={size}
+        className={className}
+        notFoundContent={
+          customFields?.length === 0 ? "No field available" : "No match found"
+        }
+        mode={multi ? "multiple" : undefined}
+      />
+    );
+  }
+);
+
+export const RoleSelection = forwardRef<SelectionRef, SelectionProps>(
+  (
+    {
+      placeholder = "Select a Role",
+      width = "100%",
+      size = "middle",
+      style = {},
+      className = "",
+      value,
+      onChange,
+      mode,
+    },
+    ref
+  ) => {
+    const { workspaceId } = useParams();
+    const [selectedValue, setSelectedValue] = useState<
+      string | string[] | undefined
+    >(value);
+    const [selectedObject, setSelectedObject] = useState<{
+      label: string;
+      value: string;
+    }>();
+
+    const { roles, loading: rolesLoading } = useRoles(
+      Array.isArray(workspaceId) ? workspaceId[0] : (workspaceId as string)
+    );
+
+    // If the value prop changes, update our internal state
+    useEffect(() => {
+      if (value !== undefined && value !== selectedValue) {
+        setSelectedValue(value);
+      }
+    }, [value]);
+
+    const options = useMemo(() => {
+      if (!roles) return [];
+
+      return roles.map((role) => ({
+        value: role.id,
+        label: role.name,
+      }));
+    }, [roles]);
+
+    // Expose methods via ref (convert arrays to strings for compatibility)
+    useImperativeHandle(ref, () => ({
+      getValue: () => {
+        if (Array.isArray(selectedValue)) {
+          return selectedValue.join(","); // Convert array to comma-separated string
+        }
+        return selectedValue;
+      },
+      getObject: () => selectedObject,
+      setValue: (value: string) => {
+        // Handle both comma-separated strings and regular strings
+        if (mode === "multiple" && value && value.includes(",")) {
+          const valueArray = value.split(",").map((v) => v.trim());
+          setSelectedValue(valueArray);
+          const foundOptions = options.filter((opt) =>
+            valueArray.includes(opt.value)
+          );
+          if (foundOptions.length > 0) {
+            setSelectedObject(foundOptions[0]); // Store first one for compatibility
+          }
+        } else {
+          setSelectedValue(value);
+          const foundOption = options.find((opt) => opt.value === value);
+          if (foundOption) {
+            setSelectedObject(foundOption);
+          }
+        }
+      },
+    }));
+
+    // Handle selection change
+    const handleChange = (value: string | string[], option: any) => {
+      setSelectedValue(value);
+
+      // Store the entire selected object
+      if (Array.isArray(option)) {
+        // Multiple selection
+        const selectedOptions = option.map((opt) => ({
+          label: opt.label,
+          value: opt.value,
+        }));
+        setSelectedObject(selectedOptions[0]); // Store first one for compatibility
+      } else {
+        setSelectedObject({ label: option.label, value: option.value });
+      }
+
+      // Call the onChange prop if provided
+      if (onChange) {
+        onChange(value, option);
+      }
+    };
+
+    // When options change, update the selected object if value is already set
+    useEffect(() => {
+      if (selectedValue && options.length > 0) {
+        if (mode === "multiple" && Array.isArray(selectedValue)) {
+          const foundOptions = options.filter((opt) =>
+            selectedValue.includes(opt.value)
+          );
+          if (foundOptions.length > 0) {
+            setSelectedObject(foundOptions[0]); // Store first one for compatibility
+          }
+        } else {
+          const foundOption = options.find(
+            (opt) => opt.value === selectedValue
+          );
+          if (foundOption) {
+            setSelectedObject(foundOption);
+          }
+        }
+      }
+    }, [options, selectedValue, mode]);
+
+    return (
+      <Select
+        style={{ width, ...style }}
+        mode={mode}
+        showSearch
+        placeholder={placeholder}
+        optionFilterProp="label"
+        onChange={handleChange}
+        value={selectedValue}
+        options={options}
+        size={size}
+        className={`${className} ${
+          mode === "multiple" ? "w-full" : ""
+        } min-w-[120px]`}
+        loading={rolesLoading}
+        notFoundContent={
+          roles?.length === 0 ? "No roles available" : "No match found"
+        }
+      />
+    );
+  }
+);
+
+export const FieldValueInput = forwardRef<SelectionRef, FieldValueInputProps>(
+  (
+    {
+      field,
+      value,
+      onChange,
+      placeholder = "Enter value",
+      width = "100%",
+      size = "middle",
+      style = {},
+      className = "",
+    },
+    ref
+  ) => {
+    const [inputValue, setInputValue] = useState(value || "");
+    const [selectedObject, setSelectedObject] = useState<{
+      label: string;
+      value: string;
+    }>();
+    const { workspaceId, boardId } = useParams();
+    const [userOptions, setUserOptions] = useState<
+      Array<{ label: string; value: string }>
+    >([]);
+
+    // Parse role IDs from source if it's role-based
+    const parseRoleSource = (source: string): string[] => {
+      if (source?.startsWith("user-role:")) {
+        return source
+          .slice(10)
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean);
+      }
+      return [];
+    };
+
+    const roleIds = field?.source?.startsWith("user-role:")
+      ? parseRoleSource(field.source)
+      : [];
+
+    const usersQuery = useAccountList({
+      workspaceId: workspaceId as string,
+      boardId: boardId as string,
+      roleIds: roleIds, // Pass role IDs for filtering
+    });
+
+    // Field information for debugging
+
+    // Only fetch users when needed
+    useEffect(() => {
+      if (
+        (field?.source !== "user" &&
+          !field?.source?.startsWith("user-role:")) ||
+        !workspaceId ||
+        !boardId
+      )
+        return;
+      usersQuery.refetch();
+    }, [field?.source, workspaceId, boardId]);
+
+    useEffect(() => {
+      if (
+        (field?.source === "user" || field?.source?.startsWith("user-role:")) &&
+        usersQuery.data?.data
+      ) {
+        setUserOptions(
+          usersQuery.data.data.map(
+            (item: { username: string; id: string; name?: string }) => ({
+              label: item.username || "Unnamed User",
+              value: item.id,
+            })
+          )
+        );
+      }
+    }, [usersQuery.data, field?.source]);
+
+    useImperativeHandle(ref, () => ({
+      getValue: () => inputValue,
+      getObject: () => selectedObject,
+      setValue: (val: string) => {
+        setInputValue(val);
+        const foundOption = field?.option?.find(
+          (opt: { value: string }) => opt.value === val
+        );
+        if (foundOption) {
+          setSelectedObject(foundOption);
+        }
+      },
+    }));
+
+    useEffect(() => {
+      setInputValue(value || "");
+    }, [value]);
+
+    const handleChange = (val: string, option: any) => {
+      setInputValue(val);
+      setSelectedObject(option);
+      onChange?.(val, option);
+    };
+
+    if (field?.source === "user" || field?.source?.startsWith("user-role:")) {
+      return (
+        <Select
+          style={{ width, ...style }}
+          size={size}
+          className={`${className} min-w-[157px]`}
+          value={inputValue}
+          onChange={(val, option) => handleChange(val, option)}
+          placeholder={placeholder}
+          options={userOptions}
+          showSearch
+          optionFilterProp="label"
+          notFoundContent="No users found"
+        />
+      );
+    }
+
+    if (
+      field?.type === "dropdown" &&
+      field?.source === "custom" &&
+      field?.option?.length
+    ) {
+      return (
+        <Select
+          style={{ width, ...style }}
+          size={size}
+          className={className}
+          value={inputValue}
+          onChange={(val, option) => handleChange(val, option)}
+          placeholder={placeholder}
+          options={field?.option}
+        />
+      );
+    }
+
+    return (
+      <Input
+        style={{
+          width: field ? width : "200px", // Use minimum width when no field is selected
+          ...style,
+        }}
+        size={size}
+        className={className}
+        value={inputValue}
+        onChange={(e) =>
+          handleChange(e.target.value, {
+            value: e.target.value,
+            label: e.target.value,
+          })
+        }
+        placeholder={placeholder}
+      />
+    );
+  }
+);
+
+interface MultiFieldValueInputProps {
+  field: {
+    type: string;
+    source: string;
+    option?: Array<{ label: string; value: string }>;
+  };
+  value?: string[];
+  onChange?: (values: string[], options?: any[]) => void;
+  placeholder?: string;
+  width?: string | number;
+  size?: "small" | "middle" | "large";
+  style?: React.CSSProperties;
+  className?: string;
 }
 
-export const ListSelection = forwardRef<SelectionRef, SelectionProps>(({
-  placeholder = "Select a List",
-  width = "100%",
-  size = "middle",
-  style = {},
-  className = "",
-  value,
-  onChange
-}, ref) => {
-  const [options, setOptions] = useState<{ label: string; value: string; }[]>([]);
-  const [selectedValue, setSelectedValue] = useState<string | undefined>(value);
-  const [selectedObject, setSelectedObject] = useState<{ label: string; value: string }>();
-  const { boardId } = useParams();
-  const { lists } = useLists(Array.isArray(boardId) ? boardId[0] : boardId);
- 
-  useImperativeHandle(ref, () => ({
-    getValue: () => selectedValue,
-    getObject: () => selectedObject,
-    setValue: (value: string) => {
-      setSelectedValue(value);
-      const foundOption = options.find(opt => opt.value === value);
-      if (foundOption) {
-        setSelectedObject(foundOption);
+export const MultiFieldValueInput = forwardRef<
+  SelectionRef,
+  MultiFieldValueInputProps
+>(
+  (
+    {
+      field,
+      value,
+      onChange,
+      placeholder = "Select values",
+      width = "100%",
+      size = "middle",
+      style = {},
+      className = "",
+    },
+    ref
+  ) => {
+    const [inputValues, setInputValues] = useState<string[]>(value || []);
+    const [selectedObjects, setSelectedObjects] = useState<
+      Array<{ label: string; value: string }>
+    >([]);
+    const { workspaceId, boardId } = useParams();
+    const [userOptions, setUserOptions] = useState<
+      Array<{ label: string; value: string }>
+    >([]);
+
+    // Parse role IDs from source if it's role-based
+    const parseRoleSource = (source: string): string[] => {
+      if (source?.startsWith("user-role:")) {
+        return source
+          .slice(10)
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean);
       }
-    }
-  }));
- 
-  const handleChange = (value: string, option: any) => {
-    setSelectedValue(value);
-    // Store the entire selected object
-    if (Array.isArray(option)) {
-      // Handle case if Select allows multiple selection
-      const selectedOptions = option.map(opt => ({ label: opt.label, value: opt.value }));
-      setSelectedObject(selectedOptions[0]);
-    } else {
-      setSelectedObject({ label: option.label, value: option.value });
-    }
+      return [];
+    };
 
-    if (onChange) {
-      onChange(value, option);
-    }
-  };
- 
-  useEffect(() => {
-    if (lists) {
-      const opt = lists?.map(item => ({label: item.name ?? '', value: item.id}));
-      setOptions(opt);
-    }
-  }, [lists]);
+    const roleIds = field?.source?.startsWith("user-role:")
+      ? parseRoleSource(field.source)
+      : [];
 
-  // When options change, update the selected object if value is already set
-  useEffect(() => {
-    if (selectedValue && options.length > 0) {
-      const foundOption = options.find(opt => opt.value === selectedValue);
-      if (foundOption) {
-        setSelectedObject(foundOption);
+    const usersQuery = useAccountList({
+      workspaceId: workspaceId as string,
+      boardId: boardId as string,
+      roleIds: roleIds,
+    });
+
+    // Only fetch users when needed
+    useEffect(() => {
+      if (
+        (field?.source !== "user" &&
+          !field?.source?.startsWith("user-role:")) ||
+        !workspaceId ||
+        !boardId
+      )
+        return;
+      usersQuery.refetch();
+    }, [field?.source, workspaceId, boardId]);
+
+    useEffect(() => {
+      if (
+        (field?.source === "user" || field?.source?.startsWith("user-role:")) &&
+        usersQuery.data?.data
+      ) {
+        setUserOptions(
+          usersQuery.data.data.map(
+            (item: { username: string; id: string; name?: string }) => ({
+              label: item.username || "Unnamed User",
+              value: item.id,
+            })
+          )
+        );
       }
-    }
-  }, [options, selectedValue]);
+    }, [usersQuery.data, field?.source]);
 
-  return (
-    <Select
-      style={{ width, ...style }}
-      showSearch
-      placeholder={placeholder}
-      optionFilterProp="label"
-      onChange={handleChange}
-      value={selectedValue}
-      options={options}
-      size={size}
-      className={className}
-      notFoundContent={lists?.length === 0 ? "No list available" : "No match found"}
-    />
-  );
-});
+    useImperativeHandle(ref, () => ({
+      getValue: () => inputValues.join(","),
+      getObject: () => selectedObjects[0] || { label: "", value: "" },
+      setValue: (val: string) => {
+        const vals = val.split(",").filter(Boolean);
+        setInputValues(vals);
+        if (field?.option) {
+          const foundOptions = field.option.filter((opt) =>
+            vals.includes(opt.value)
+          );
+          setSelectedObjects(foundOptions);
+        }
+      },
+    }));
 
-export const CustomFieldSelection = forwardRef<SelectionRef, SelectionProps>(({
-  placeholder = "Select a Field",
-  width = "100%",
-  size = "middle",
-  style = {},
-  className = ""
-}, ref) => {
-  const [options, setOptions] = useState<{ label: string; value: string; }[]>([]);
-  const [selectedValue, setSelectedValue] = useState<string>();
-  const [selectedObject, setSelectedObject] = useState<{ label: string; value: string }>();
-  const { workspaceId, boardId } = useParams();
-  const { customFields } = useCustomFields(Array.isArray(workspaceId) ? workspaceId[0] : workspaceId);
- 
-  useImperativeHandle(ref, () => ({
-    getValue: () => selectedValue,
-    getObject: () => selectedObject,
-    setValue: (value: string) => {
-      setSelectedValue(value);
-      const foundOption = options.find(opt => opt.value === value);
-      if (foundOption) {
-        setSelectedObject(foundOption);
-      }
-    }
-  }));
- 
-  const handleChange = (value: string, option: any) => {
-    setSelectedValue(value);
-    // Store the entire selected object
-    if (Array.isArray(option)) {
-      // Handle case if Select allows multiple selection
-      const selectedOptions = option.map(opt => ({ label: opt.label, value: opt.value }));
-      setSelectedObject(selectedOptions[0]);
-    } else {
-      setSelectedObject({ label: option.label, value: option.value });
-    }
-  };
- 
-  useEffect(() => {
-    if (customFields) {
-      const opt = customFields?.map(item => ({label: item.name ?? '', value: item.id}));
-      setOptions(opt);
-    }
-  }, [customFields]);
+    useEffect(() => {
+      setInputValues(value || []);
+    }, [value]);
 
-  // When options change, update the selected object if value is already set
-  useEffect(() => {
-    if (selectedValue && options.length > 0) {
-      const foundOption = options.find(opt => opt.value === selectedValue);
-      if (foundOption) {
-        setSelectedObject(foundOption);
-      }
-    }
-  }, [options, selectedValue]);
+    const handleChange = (values: string[], options: any[]) => {
+      setInputValues(values);
+      setSelectedObjects(options);
+      onChange?.(values, options);
+    };
 
-  return (
-    <Select
-      style={{ width, ...style }}
-      showSearch
-      placeholder={placeholder}
-      optionFilterProp="label"
-      onChange={handleChange}
-      value={selectedValue}
-      options={options}
-      size={size}
-      className={className}
-      notFoundContent={customFields?.length === 0 ? "No field available" : "No match found"}
-    />
-  );
-});
+    if (field?.source === "user" || field?.source?.startsWith("user-role:")) {
+      return (
+        <Select
+          mode="multiple"
+          style={{ width, ...style }}
+          size={size}
+          className={`${className} min-w-[200px]`}
+          value={inputValues}
+          onChange={(vals, options) => handleChange(vals, options as any[])}
+          placeholder={placeholder}
+          options={userOptions}
+          showSearch
+          optionFilterProp="label"
+          notFoundContent="No users found"
+        />
+      );
+    }
+
+    if (
+      field?.type === "dropdown" &&
+      field?.source === "custom" &&
+      field?.option?.length
+    ) {
+      return (
+        <Select
+          mode="multiple"
+          style={{ width, ...style }}
+          size={size}
+          className={`${className} min-w-[200px]`}
+          value={inputValues}
+          onChange={(vals, options) => handleChange(vals, options as any[])}
+          placeholder={placeholder}
+          options={field?.option}
+          showSearch
+          optionFilterProp="label"
+        />
+      );
+    }
+
+    // For non-dropdown fields, show a message
+    return (
+      <div
+        style={{ width, ...style }}
+        className={`${className} min-w-[200px] flex items-center px-3 py-1 border border-gray-300 rounded bg-gray-50`}
+      >
+        <span className="text-gray-500 text-sm">
+          {field
+            ? "Multi-select only available for dropdown fields"
+            : "Select a field first"}
+        </span>
+      </div>
+    );
+  }
+);

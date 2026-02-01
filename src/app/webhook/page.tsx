@@ -11,7 +11,11 @@ function parseFragment(fragment: string): Record<string, string> {
   return fragment
     .replace(/^#/, "")
     .split("&")
-    .map((pair) => pair.split("="))
+    .map((pair) => {
+      const [key, ...valueParts] = pair.split("=");
+      const value = valueParts.join("="); // Rejoin in case value contains '='
+      return [key, value];
+    })
     .reduce((acc, [key, value]) => {
       if (key) acc[key] = decodeURIComponent(value || "");
       return acc;
@@ -36,11 +40,37 @@ export default function WebhookPage() {
       return;
     }
     const data = parseFragment(fragment);
-    console.log(data);
-    console.log(fragment, "<< frag");
+
+    // Extract id from user object if it exists
+    let id = null;
+    if (data.user) {
+      try {
+        // The user object might be URL-encoded, so let's try to decode it properly
+        let userString = data.user;
+        // If it's still URL-encoded, decode it
+        if (userString.includes("%")) {
+          userString = decodeURIComponent(userString);
+        }
+        const userObj = JSON.parse(userString);
+        id = userObj.id;
+      } catch (e) {
+        // Failed to parse user object
+      }
+    }
+
+    // Prepare the payload with id included
+    const payload = {
+      access_token: data.access_token,
+      expires_in: data.expires_in,
+      token_type: data.token_type,
+      user: data.user,
+      id: id, // Add the extracted id
+    };
+
+
     fetch(`http://localhost:8872/v1/accurate/webhook`, {
       method: "POST",
-      body: JSON.stringify(data),
+      body: JSON.stringify(payload),
       headers: { "Content-Type": "application/json" },
     })
       .then((res) => {

@@ -1,17 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { 
-  Button, 
-  Input, 
-  List, 
-  Typography, 
-  Space,
-  Upload,
-  Avatar,
-} from "antd";
-import { 
-  FileOutlined, 
-  LinkOutlined
-} from "@ant-design/icons";
+import { Button, Input, List, Typography, Space, Upload, Avatar } from "antd";
+import { FileOutlined, LinkOutlined } from "@ant-design/icons";
 import { FileUpload } from "@myTypes/file-upload"; // Use your existing FileUpload type
 import UploadModal from "../modal-upload/modal-upload";
 import { cards, searchCards } from "@api/card";
@@ -35,7 +24,7 @@ const ContentAttach: React.FC<ContentAttachProps> = ({
   onAttachCard,
   onClose,
   card,
-  workspaceId
+  workspaceId,
 }) => {
   const [displayText, setDisplayText] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -43,14 +32,20 @@ const ContentAttach: React.FC<ContentAttachProps> = ({
   const [searchResults, setSearchResults] = useState<Card[]>([]);
   const [uploadModalVisible, setUploadModalVisible] = useState(false);
 
+  // Helper to display a friendly board name with safe fallbacks
+  const getBoardLabel = (item: Card) => {
+    const boardName = (item as any).boardName ?? (item as any).board_name;
+    const boardId = (item as any).boardId ?? (item as any).board_id;
+    return boardName || boardId || "";
+  };
 
   // Handle search functionality
-  const handleSearch = async(value: string) => {
+  const handleSearch = async (value: string) => {
     setSearchQuery(value);
     if (value.trim().length < 3) return;
-    
-    const results = await searchCards({name: value, desription: value});
-      
+
+    const results = await searchCards({ name: value, desription: value });
+
     if (results && results.data) {
       setSearchResults(results.data);
     } else {
@@ -82,7 +77,7 @@ const ContentAttach: React.FC<ContentAttachProps> = ({
         <Text type="secondary" className="block mt-1">
           You can also drag and drop files to upload them.
         </Text>
-        
+
         <Button
           size="small"
           className="w-full mt-3"
@@ -91,10 +86,10 @@ const ContentAttach: React.FC<ContentAttachProps> = ({
           Choose a file
         </Button>
       </div>
-      
+
       <div className="mb-2">
         <Text strong>Search or paste a link</Text>
-        <Input 
+        <Input
           placeholder="Find recent links or paste a new link"
           value={searchQuery}
           onChange={(e) => handleSearch(e.target.value)}
@@ -102,17 +97,16 @@ const ContentAttach: React.FC<ContentAttachProps> = ({
           prefix={<LinkOutlined className="text-gray-400" />}
         />
       </div>
-      
+
       <div className="mb-2">
         <Text strong>Display text (optional)</Text>
-        <Input 
+        <Input
           placeholder="Text to display"
           value={displayText}
           onChange={(e) => setDisplayText(e.target.value)}
           className="mt-1"
         />
       </div>
-      
 
       <div className="max-h-40 overflow-auto mb-2 p-2">
         {searchQuery ? (
@@ -121,22 +115,45 @@ const ContentAttach: React.FC<ContentAttachProps> = ({
             <List
               dataSource={searchResults}
               renderItem={(item) => (
-                <List.Item 
+                <List.Item
                   key={item.id}
                   onClick={() => handleAttachCard(item.id)}
                   className="w-full cursor-pointer hover:bg-gray-50 px-2 rounded"
                 >
                   <List.Item.Meta
                     avatar={
-                      item.cover? 
-                        <img src={item.cover} alt={item.name} className="w-20 h-auto object-cover rounded"/> :
+                      item.cover ? (
+                        <img
+                          src={item.cover}
+                          alt={item.name}
+                          className="w-20 h-auto object-cover rounded"
+                        />
+                      ) : (
                         <div className="flex justify-center items-center w-20 h-10 rounded bg-gray-200">
-                          <Avatar shape="square" src={`https://ui-avatars.com/api/?name=${item?.name}&background=random`}></Avatar>
+                          <Avatar
+                            shape="square"
+                            src={`https://ui-avatars.com/api/?name=${item?.name}&background=random`}
+                          ></Avatar>
                         </div>
+                      )
                     }
-                    title={item.name}
+                    title={
+                      <div className="flex flex-col">
+                        <span>{item.name}</span>
+                        {getBoardLabel(item) && (
+                          <span className="text-[10px] text-gray-500">{getBoardLabel(item)}</span>
+                        )}
+                      </div>
+                    }
                     description={
-                      <div className="prose prose-sm max-w-none text-[10px]" dangerouslySetInnerHTML={{ __html: item.description || '' }} />
+                      <div>
+                        <div
+                          className="prose prose-sm max-w-none text-[10px]"
+                          dangerouslySetInnerHTML={{
+                            __html: item.description || "",
+                          }}
+                        />
+                      </div>
                     }
                   />
                 </List.Item>
@@ -151,7 +168,7 @@ const ContentAttach: React.FC<ContentAttachProps> = ({
             <List
               dataSource={recentlyViewedCards}
               renderItem={(item) => (
-                <List.Item 
+                <List.Item
                   key={item.id}
                   onClick={() => handleAttachCard(item.id)}
                   className="cursor-pointer hover:bg-gray-50 -mx-2 px-2 rounded"
@@ -161,8 +178,12 @@ const ContentAttach: React.FC<ContentAttachProps> = ({
                     title={item.name}
                     description={
                       <div>
-                        <Text type="secondary" className="text-xs">{item.description}</Text>
-                        <Text type="secondary" className="text-xs mx-1">•</Text>
+                        <Text type="secondary" className="text-xs">
+                          {item.description}
+                        </Text>
+                        <Text type="secondary" className="text-xs mx-1">
+                          •
+                        </Text>
                         <Text type="secondary" className="text-xs">
                           Viewed {item.createdAt}
                         </Text>
@@ -176,7 +197,7 @@ const ContentAttach: React.FC<ContentAttachProps> = ({
           </div>
         )}
       </div>
-      
+
       {/* Action buttons */}
       <div className="flex justify-end gap-3">
         <Button onClick={onClose} size="small">
@@ -184,10 +205,10 @@ const ContentAttach: React.FC<ContentAttachProps> = ({
         </Button>
         <Button
           size="small"
-          type="primary" 
+          type="primary"
           onClick={() => {
             // If there's a valid link entered, attach it
-            if (searchQuery && searchQuery.startsWith('http')) {
+            if (searchQuery && searchQuery.startsWith("http")) {
               // Here you would handle link attachment
               // For now just close the popover
               onClose();

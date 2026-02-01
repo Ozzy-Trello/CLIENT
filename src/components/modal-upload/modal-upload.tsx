@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, ReactNode } from 'react';
 import { Button, message, Modal } from 'antd';
 import { 
   UploadOutlined, 
@@ -82,6 +82,8 @@ interface UploadModalProps {
   maxSize?: number; // Optional custom max size in bytes
   acceptableExtensions?: string; // Optional custom file extensions like ".jpg,.png,.pdf"
   multiple?: boolean; // Support for multiple file upload
+  extraContent?: ReactNode; // Optional content rendered above the drop area
+  onBeforeUpload?: (file: File, index: number) => Promise<File> | File;
 }
 
 const UploadModal: React.FC<UploadModalProps> = ({
@@ -92,7 +94,9 @@ const UploadModal: React.FC<UploadModalProps> = ({
   title = 'Upload File',
   maxSize,
   acceptableExtensions,
-  multiple = false
+  multiple = false,
+  extraContent,
+  onBeforeUpload
 }) => {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -140,10 +144,10 @@ const UploadModal: React.FC<UploadModalProps> = ({
 
   const validateFile = (file: File): boolean => {
     // Check file size
-    if (file.size > fileTypeConfig.maxSize) {
-      message.error(`File size exceeds ${fileTypeConfig.maxSize / 1024 / 1024}MB limit`);
-      return false;
-    }
+    // if (file.size > fileTypeConfig.maxSize) {
+    //   message.error(`File size exceeds ${fileTypeConfig.maxSize / 1024 / 1024}MB limit`);
+    //   return false;
+    // }
 
     // Skip file type validation if accept is '*'
     if (fileTypeConfig.accept === '*') {
@@ -214,11 +218,16 @@ const UploadModal: React.FC<UploadModalProps> = ({
     setIsUploading(true);
     
     try {
-      for (const file of selectedFiles) {
-        const result = await uploadFile(file);
+      for (let i = 0; i < selectedFiles.length; i++) {
+        const originalFile = selectedFiles[i];
+        const fileToUpload = onBeforeUpload
+          ? await onBeforeUpload(originalFile, i)
+          : originalFile;
+
+        const result = await uploadFile(fileToUpload);
         
         if (onUploadComplete && result?.data) {
-          onUploadComplete(file, result?.data);
+          onUploadComplete(fileToUpload, result?.data);
         }
       }
       
@@ -275,6 +284,43 @@ const UploadModal: React.FC<UploadModalProps> = ({
       handleFileDrop(e.dataTransfer.files);
     }
   };
+
+  // Support paste-from-clipboard into modal
+  useEffect(() => {
+    if (!isVisible) return;
+
+    const handlePaste = (event: ClipboardEvent) => {
+      const items = event.clipboardData?.items;
+      if (!items) return;
+
+      const files: File[] = [];
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.kind === "file") {
+          const file = item.getAsFile();
+          if (file) {
+            files.push(file);
+          }
+        }
+      }
+
+      if (files.length) {
+        event.preventDefault();
+        const validFiles = files.filter(validateFile);
+        if (validFiles.length === 0) return;
+
+        setSelectedFiles((prev) =>
+          multiple ? [...prev, ...validFiles] : [validFiles[0]]
+        );
+      }
+    };
+
+    const target = dropAreaRef.current || document;
+    target.addEventListener("paste", handlePaste as any);
+    return () => {
+      target.removeEventListener("paste", handlePaste as any);
+    };
+  }, [isVisible, multiple]);
 
   // Get pretty file size
   const formatFileSize = (bytes: number): string => {
@@ -336,6 +382,9 @@ const UploadModal: React.FC<UploadModalProps> = ({
         ]}
       >
         <div className="mb-6 px-4">
+          {extraContent && (
+            <div className="mb-4">{extraContent}</div>
+          )}
           {selectedFiles.length > 0 ? (
             <div className="space-y-4">
               {selectedFiles.map((file, index) => (

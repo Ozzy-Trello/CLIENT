@@ -1,108 +1,257 @@
-.modal-create-board .selected-background {
-  position: relative;
-  height: 180px;
+/* Modal Container */
+.modal-create-board .ant-modal-content {
+  border-radius: 12px;
   overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
 }
 
-.modal-create-board .image-container {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+/* Modal Header */
+.modal-create-board .ant-modal-header {
+  margin-bottom: 0;
+  padding: 20px 24px;
+  border-bottom: 1px solid #f0f0f0;
+  background: #fafafa;
 }
 
-.modal-create-board .preview-image {
-  width: auto;
+/* Modal Body */
+.modal-create-board .ant-modal-body {
+  padding: 24px;
+}
+
+/* Title */
+.modal-create-board .ant-modal-title {
+  font-weight: 600;
+  font-size: 20px;
+  color: #1f1f1f;
+  line-height: 1.4;
+}
+
+.footer{
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+}
+
+/* Form Items */
+.modal-create-board .ant-form-item {
+  margin-bottom: 20px;
+}
+
+.modal-create-board .ant-form-item-label {
+  padding-bottom: 6px;
+}
+
+.modal-create-board .ant-form-item-label > label {
+  font-weight: 500;
+  color: #434343;
+  font-size: 14px;
+}
+
+/* Input Fields */
+.modal-create-board .ant-input,
+.modal-create-board .ant-select-selector {
+  border-radius: 8px;
+  padding: 10px 14px;
   height: auto;
-  max-width: 85%;
-  max-height: 85%;
-  object-fit: contain;
-  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.15));
-  transition: transform 0.3s ease;
+  font-size: 15px;
+  border: 1px solid #d9d9d9;
+  transition: all 0.2s;
 }
 
-.modal-create-board .preview-image:hover {
-  transform: scale(1.02);
+.modal-create-board .ant-input:focus,
+.modal-create-board .ant-select-selector:focus {
+  border-color: #1890ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
 }
 
+/* Buttons */
+.modal-create-board .ant-btn {
+  border-radius: 8px;
+  height: auto;
+  padding: 8px 20px;
+  font-weight: 500;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+/* Primary Button */
+.modal-create-board .ant-btn-primary {
+  background: #1890ff;
+  border-color: #1890ff;
+  box-shadow: 0 2px 0 rgba(5, 145, 255, 0.1);
+}
+
+.modal-create-board .ant-btn-primary:hover {
+  background: #40a9ff;
+  border-color: #40a9ff;
+}
+
+/* Default Button */
+.modal-create-board .ant-btn-default {
+  margin-right: 0;
+  border-color: #d9d9d9;
+  color: #434343;
+}
+
+.modal-create-board .ant-btn-default:hover {
+  color: #1890ff;
+  border-color: #1890ff;
+}
+
+/* Background Preview */
+.modal-create-board .selected-background {
+  width: 100%;
+  height: 180px;
+  border-radius: 10px;
+  margin: 8px 0 24px;
+  position: relative;
+  overflow: hidden;
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #f0f0f0;
+  transition: all 0.2s;
+}
+
+.modal-create-board .selected-background:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* Background Action Buttons */
 .modal-create-board .background-actions {
   position: absolute;
   bottom: 12px;
   right: 12px;
   display: flex;
   gap: 8px;
+  background: rgba(var(--color-surface), 0.9);
+  padding: 6px;
+  border-radius: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .modal-create-board .background-action-button {
-  background-color: rgba(255, 255, 255, 0.8);
-  color: rgba(0, 0, 0, 0.65);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(var(--color-surface));
+  border: 1px solid rgba(var(--color-border), 0.5);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
   transition: all 0.2s;
 }
 
 .modal-create-board .background-action-button:hover {
-  background-color: rgba(255, 255, 255, 0.95);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  background: #f5f5f5;
+  border-color: rgba(0, 0, 0, 0.2);
+  transform: translateY(-1px);
 }
 
-.modal-create-board .board-form-content {
-  padding: 24px;
+/* Preview Image */
+.modal-create-board .preview-image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  opacity: 0.9;
 }
 
-.modal-create-board .color-picker-item .ant-form-item-control-input {
-  min-height: auto;
-  height: 100px;
+/* Upload Loading Overlay */
+.modal-create-board .upload-loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  color: white;
+  z-index: 2;
+  backdrop-filter: blur(2px);
+}
+
+/* Background Selection */
+.modal-create-board .background-selection {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 0;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.modal-create-board .color-picker-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: nowrap;
+}
+
+.modal-create-board .color-preview {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
+  background-color: var(--selected-color, #f0f0f0);
+  transition: all 0.2s;
 }
 
 .modal-create-board .ant-color-picker-trigger {
-  margin: 10px;
+  margin: 0 !important;
+  flex-shrink: 0;
 }
 
-.modal-create-board .ant-form-item {
-  margin-bottom: 16px;
+.modal-create-board .background-image-text {
+  font-size: 14px;
+  color: #666;
+  font-weight: 400;
 }
 
+/* Form Content */
+.modal-create-board .board-form-content {
+  padding: 4px 0;
+}
+
+/* Form Actions */
 .modal-create-board .form-actions {
-  position: sticky;
-  bottom: 0;
-  margin-top: 24px;
-  margin-bottom: 0;
-  padding: 16px 24px;
-  background: white;
-  border-top: 1px solid rgba(0, 0, 0, 0.06);
-  z-index: 10;
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 32px;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid #f0f0f0;
 }
 
-.modal-create-board .form-action-button {
-  padding: 10px 20px;
+/* Color Picker */
+.modal-create-board .ant-color-picker-trigger {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  border: 1px solid #d9d9d9;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
-.ant-modal-footer {
-  border-top: thin solid lightgray !important;
-}
-
-/* Animations for modal */
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-.modal-create-board .ant-modal-content {
-  animation: fadeIn 0.25s ease-out;
-}
-
-/* Responsive adjustments */
+/* Responsive Adjustments */
 @media (max-width: 576px) {
+  .modal-create-board .ant-modal {
+    max-width: calc(100vw - 32px);
+  }
+  
+  .modal-create-board .ant-modal-body {
+    padding: 16px;
+  }
+  
   .modal-create-board .selected-background {
     height: 150px;
-  }
- 
-  .modal-create-board .board-form-content {
-    padding: 16px;
+    margin-bottom: 20px;
   }
 }

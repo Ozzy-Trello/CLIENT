@@ -54,17 +54,19 @@ header {
   border-style: solid;
 }
 
-.ant-menu-item:hover, .ant-menu-item-selected {
+.ant-menu-item:hover:not(.automation-page-menu *),
+.ant-menu-item-selected:not(.automation-page-menu *) {
   background-color: rgba(var(--color-primary), 0.1) !important;
   filter: brightness(5);
 }
 
-.ant-menu-item-selected {
+.ant-menu-item-selected:not(.automation-page-menu *) {
   border-radius: 0px !important;
   border-width: 0px 0px 0px 2px;
   border-style: solid;
   border-color: rgb(var(--color-primary));
 }
+
 
 li.ant-menu {
   display: flex !important;

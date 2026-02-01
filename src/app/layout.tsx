@@ -13,7 +13,7 @@ export const metadata: Metadata = {
     siteName: "Ozzy Clothing",
     title: "Ozzy Clothing",
     description: "Ozzy Clothing workflow app",
-  }
+  },
 };
 
 export default function RootLayout({
@@ -24,9 +24,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
-        <Providers>
-          {children}
-        </Providers>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

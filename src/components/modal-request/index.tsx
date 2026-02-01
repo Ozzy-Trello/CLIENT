@@ -1,10 +1,6 @@
-import {
-  getAllAdjustmentItems,
-  getAllItemList,
-  submitRequest,
-} from "@api/accurate";
+import { getAllAdjustmentItems, submitRequest } from "@api/accurate";
 import { searchCards } from "@api/card";
-import { useQueries } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import {
   AutoComplete,
   Button,
@@ -13,8 +9,16 @@ import {
   message,
   Modal,
   Select,
+  Avatar,
+  Typography,
+  Tooltip,
 } from "antd";
 import React, { useEffect, useMemo } from "react";
+import { useParams } from "next/navigation";
+import { useAccountListForModal } from "@hooks/account";
+import { getCombinedOzzyProducts } from "@api/ozzy-warehouse";
+import { getPOProductsByCardId } from "@api/po-product";
+import type { OzzyProductWithSource } from "@api/ozzy-warehouse";
 interface ModalRequestProps {
   open: boolean;
   onClose: () => void;
@@ -22,23 +26,110 @@ interface ModalRequestProps {
 
 const { Option } = Select;
 
+const MPI_KUI_ACCOUNT_MAPPINGS = [
+  { accountName: "HPP Hang Tag", keywords: ["hangtag", "hang tag"] },
+  { accountName: "HPP Kancing", keywords: ["kancing"] },
+  { accountName: "HPP Label", keywords: ["label"] },
+  { accountName: "HPP Plastik OPP", keywords: ["plastik opp"] },
+  { accountName: "HPP Resleting", keywords: ["resleting", "reslet"] },
+  { accountName: "HPP Benang", keywords: ["benang"] },
+  { accountName: "HPP Kain Keras", keywords: ["kain keras"] },
+  {
+    accountName: "Beban Perlengkapan",
+    keywords: [
+      "bagor",
+      "gunting",
+      "jarum",
+      "kapur cutting",
+      "lakban",
+      "pensil glass",
+      "tali rafia",
+      "stiker",
+      "perlengkapan produksi",
+    ],
+  },
+];
+
+const findAccountByName = (accounts: any[], accountName: string) => {
+  if (!Array.isArray(accounts)) return undefined;
+  const normalized = accountName.toLowerCase();
+  return (
+    accounts.find(
+      (acc: any) =>
+        typeof acc.name === "string" && acc.name.toLowerCase() === normalized
+    ) ||
+    accounts.find(
+      (acc: any) =>
+        typeof acc.name === "string" &&
+        acc.name.toLowerCase().includes(normalized)
+    )
+  );
+};
+
+const toNumberOrNull = (value: unknown): number | null => {
+  if (value === undefined || value === null) return null;
+  if (typeof value === "number") return value;
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    const parsed = Number(trimmed);
+    return Number.isNaN(parsed) ? null : parsed;
+  }
+  return null;
+};
+
+const getCogsGlAccountIdFromItem = (item?: any): number | null => {
+  if (!item) return null;
+  const rawValue =
+    item.cogs_gl_account_id ??
+    item.cogsGlAccountId ??
+    item.inventory_gl_account_id ??
+    item.inventoryGlAccountId ??
+    null;
+  return toNumberOrNull(rawValue);
+};
+
 const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
+  const { workspaceId, boardId } = useParams();
   const [cards, setCards] = React.useState<any>([]);
-  const [items, setItems] = React.useState<any>([]);
+  const [items, setItems] = React.useState<OzzyProductWithSource[]>([]);
   const [glaccounts, setGlaccounts] = React.useState<any>([]);
   const [selectedCardId, setSelectedCardId] = React.useState<string | null>(
     null
+  );
+  const [selectedActionType, setSelectedActionType] = React.useState<string>(
+    ""
   );
   const [isAkunPenyesuaianDisabled, setIsAkunPenyesuaianDisabled] =
     React.useState<boolean>(false);
   const [barangSearchValue, setBarangSearchValue] = React.useState<string>("");
   const [cardSearchValue, setCardSearchValue] = React.useState<string>("");
-  const [isSearchingBarang, setIsSearchingBarang] =
-    React.useState<boolean>(false);
   const [selectedItemUnit, setSelectedItemUnit] = React.useState<string>("");
   const [availableUnits, setAvailableUnits] = React.useState<
     { label: string; value: string }[]
   >([]);
+  const [selectedItemSource, setSelectedItemSource] =
+    React.useState<string>("");
+  const [selectedItemGlAccountId, setSelectedItemGlAccountId] = React.useState<
+    number | null
+  >(null);
+  const [selectedItemUnitPrice, setSelectedItemUnitPrice] =
+    React.useState<string>("");
+  const [selectedRequestBy, setSelectedRequestBy] = React.useState<string>("");
+  const [isSubmittingRequest, setIsSubmittingRequest] =
+    React.useState<boolean>(false);
+
+  // Fetch users for Request By dropdown
+  const { data: accountListData, isLoading: accountListLoading } =
+    useAccountListForModal({
+      workspaceId: Array.isArray(workspaceId)
+        ? (workspaceId[0] as string)
+        : (workspaceId as string),
+      boardId: Array.isArray(boardId)
+        ? (boardId[0] as string)
+        : (boardId as string),
+    });
+
   const queries = useQueries({
     queries: [
       {
@@ -47,45 +138,142 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
         enabled: open, // Only run when modal is open
       },
       {
-        queryKey: ["items", barangSearchValue],
-        queryFn: () => getAllItemList(barangSearchValue),
-        enabled: open && (barangSearchValue !== "" || barangSearchValue === ""), // Always run when modal is open
+        queryKey: ["items", "ozzy-products"],
+        queryFn: () => getCombinedOzzyProducts(),
+        enabled: open,
       },
       {
-        queryKey: ["glaccounts"],
-        queryFn: () => getAllAdjustmentItems(),
-        enabled: open, // Only run when modal is open
+        queryKey: ["glaccounts", selectedItemSource],
+        queryFn: () => getAllAdjustmentItems(selectedItemSource),
+        enabled: open && !!selectedItemSource, // Only run when modal is open and source is selected
       },
     ],
   });
 
-  useEffect(() => {
-    if (queries[0].data?.data) setCards(queries[0].data.data);
-    if (queries[1].data?.data) {
-      setItems(queries[1].data.data);
-      setIsSearchingBarang(false);
+  const [cardsQuery, productsQuery, glaccountQuery] = queries;
+
+  const normalizedActionType = (selectedActionType || "").toUpperCase();
+  const shouldRestrictToHikmat =
+    normalizedActionType !== "" && normalizedActionType !== "NEW_ORDER";
+
+  const { data: poProductsResponse } = useQuery({
+    queryKey: [
+      "po-products",
+      "modal-request",
+      selectedCardId,
+      normalizedActionType,
+    ],
+    queryFn: () => getPOProductsByCardId(selectedCardId as string),
+    enabled:
+      open &&
+      !!selectedCardId &&
+      shouldRestrictToHikmat,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const poProductsData = poProductsResponse?.data || [];
+
+  const allowedHikmatProductIds = React.useMemo(() => {
+    if (!Array.isArray(poProductsData) || poProductsData.length === 0) {
+      return new Set<string>();
     }
-    if (queries[2].data?.data) setGlaccounts(queries[2].data.data);
-  }, [queries[0].data, queries[1].data, queries[2].data]);
 
-  // Handle barang search loading state
+    return new Set<string>(
+      poProductsData
+        .map((product: any) => product?.hikmatProductId)
+        .filter((id: unknown): id is string | number => id !== undefined && id !== null)
+        .map((id) => String(id))
+    );
+  }, [poProductsData]);
+
+  const isPOSelected = Boolean(selectedCardId);
+  const ALLOWED_LISTS = [
+    "PO Masuk (DM)",
+    "Desain Fix (PPIC)",
+    "Purchasing",
+    "Loading (Gudang)",
+    "Cutting",
+    "Numbering (Dist.Cutting)",
+    "Loading Line",
+    "Sewing",
+    "QC",
+    "Siap Bordir",
+    "Bordir / DTF",
+    "Finishing Packing",
+  ].map((l) => l.toLowerCase());
+
   useEffect(() => {
-    if (queries[1].isLoading) {
-      setIsSearchingBarang(true);
+    const normalize = (v?: string) => v?.trim().toLowerCase();
+
+    if (cardsQuery.data?.data) {
+      const filteredCards = cardsQuery.data.data.filter((card: any) => {
+        const boardName = normalize(card.boardName ?? card.board_name);
+        const listName = normalize(card.listName ?? card.list_name);
+
+        return (
+          boardName === "dateline" &&
+          listName &&
+          ALLOWED_LISTS.includes(listName)
+        );
+      });
+
+      setCards(filteredCards);
     }
-  }, [queries[1].isLoading]);
 
-  // This effect is no longer needed as we're using React Query with enabled: open
-  // useEffect(() => {
-  //   if (open) {
-  //     searchCards({}).then((res) => setCards(res.data || []));
-  //   }
-  // }, [open]);
 
-  const listPO = cards.map((card: any) => ({
-    value: card.id,
-    label: card.name,
-  }));
+    const productItems = productsQuery.data || [];
+    setItems(productItems);
+
+    if (glaccountQuery.data?.data) {
+      setGlaccounts(glaccountQuery.data.data);
+    }
+  }, [cardsQuery.data, productsQuery.data, glaccountQuery.data]);
+
+  const formatJumlahProduksi = (rawVal: any): string => {
+    if (rawVal === null || rawVal === undefined || rawVal === "") return "-";
+    const numeric = Number(rawVal);
+    if (Number.isFinite(numeric)) {
+      return Number.isInteger(numeric) ? `${numeric}` : `${numeric}`;
+    }
+    return String(rawVal);
+  };
+
+  const listPO = useMemo(() => {
+    return cards?.map((card: any) => {
+      const cardName = card.name || "";
+      const safeCardName = cardName || "Tanpa nama";
+      const listName = card.listName ?? card.list_name ?? "";
+      const rawVal =
+        card?.jumlahProduksi ??
+        card?.jumlahDikirim ??
+        card?.customFields?.find?.((f: any) =>
+          (f?.name || "").toString().toLowerCase().includes("jml produksi")
+        )?.valueNumber ??
+        null;
+      const jmlDikirimValue = formatJumlahProduksi(rawVal);
+      const displayLabel = [safeCardName, listName].filter(Boolean).join(" - ");
+      const searchText = `${safeCardName} ${listName} ${jmlDikirimValue}`.trim();
+      return {
+        value: card.id,
+        label: (
+          <Tooltip title={safeCardName}>
+            <div style={{ lineHeight: 1.2 }}>
+              <div style={{ fontWeight: 600, color: "#000", fontSize: "12px" }}>
+                {safeCardName}
+              </div>
+              <div style={{ fontSize: 10, color: "#8c8c8c" }}>
+                {(listName || "Tanpa list") +
+                  ` · Jml Produksi: ${jmlDikirimValue}`}
+              </div>
+            </div>
+          </Tooltip>
+        ),
+        displayLabel,
+        listName,
+        searchText,
+      };
+    });
+  }, [cards]);
 
   const actionTypes = [
     { value: "NEW_ORDER", label: "New Order" },
@@ -95,54 +283,83 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
   ];
 
   const barangList = useMemo(() => {
-    if (!items || !Array.isArray(items)) return [];
-    // Flatten to AntD AutoComplete grouped options
-    return items.map((item: any) => ({
-      value: item.no,
-      label: item.name,
-    }));
-    // return items.flatMap((cat: any) => {
-    //   const hasChildren =
-    //     Array.isArray(cat.children) && cat.children.length > 0;
-    //   const childrenOptions = hasChildren
-    //     ? cat.children.map((child: any) => ({
-    //         value: child.id,
-    //         label: child.name,
-    //         key: `child-${child.id}`,
-    //       }))
-    //     : [
-    //         {
-    //           value: cat.id,
-    //           label: cat.name,
-    //           key: `child-${cat.id}`,
-    //         },
-    //       ];
-    //   return [
-    //     // Header (not selectable)
-    //     {
-    //       value: `__header__${cat.id}`,
-    //       label: (
-    //         <div
-    //           style={{ fontWeight: 600, color: "#888", pointerEvents: "none" }}
-    //         >
-    //           {cat.name}
-    //         </div>
-    //       ),
-    //       disabled: true,
-    //       key: `header-${cat.id}`,
-    //     },
-    //     ...childrenOptions,
-    //   ];
-    // });
-  }, [items]);
+    if (!Array.isArray(items)) return [];
 
-  const akunPenyesuaianList = useMemo(() => {
-    if (!glaccounts || !glaccounts.d) return [];
-    return glaccounts.d.map((acc: any) => ({
-      value: acc.no,
-      label: acc.name,
+    const searchTerm = barangSearchValue.toLowerCase();
+    const filteredItems = searchTerm
+      ? items.filter((item) => {
+        const matches = [item.name, item.sku, item.barcode, item.source].some(
+          (value) => value?.toString().toLowerCase().includes(searchTerm)
+        );
+        return matches;
+      })
+      : items;
+
+    const actionFilteredItems = filteredItems.filter((item) => {
+      if (!shouldRestrictToHikmat) {
+        return true;
+      }
+
+      const source = (item.source || "").toString().toLowerCase();
+      const isHikmatItem =
+        source === "hikmat" || source.includes("hikmat");
+
+      if (!isHikmatItem) {
+        return false;
+      }
+
+      if (!isPOSelected || allowedHikmatProductIds.size === 0) {
+        return false;
+      }
+
+      const candidateIds = [
+        item.accurateId,
+        item.id,
+        item.sku,
+        item.barcode,
+      ]
+        .filter((value) => value !== undefined && value !== null)
+        .map((value) => String(value));
+
+      return candidateIds.some((candidate) =>
+        allowedHikmatProductIds.has(candidate)
+      );
+    });
+
+    return actionFilteredItems.map((item) => ({
+      value: item.sku || `${item.id}`,
+      label: `${item.name} (${item.source === "Hikmat" ? "HKI" : item.source || "Unknown"})`,
+      item,
     }));
-  }, [glaccounts]);
+  }, [
+    items,
+    barangSearchValue,
+    normalizedActionType,
+    shouldRestrictToHikmat,
+    allowedHikmatProductIds,
+    isPOSelected,
+  ]);
+
+  // Create user options for Request By dropdown
+  const userOptions = useMemo(() => {
+    if (!accountListData?.data) return [];
+
+    return accountListData.data.map((item) => ({
+      value: item.id,
+      label: (
+        <div className="flex justify-start items-center gap-3">
+          <Avatar
+            size={20}
+            className="bg-blue-50 text-blue-500 border border-blue-100"
+          >
+            {item.username?.substring(0, 2)?.toUpperCase()}
+          </Avatar>
+          <Typography.Text>{item.username}</Typography.Text>
+        </div>
+      ),
+      username: item.username, // Store username for payload
+    }));
+  }, [accountListData]);
 
   const [form] = Form.useForm();
   const [formValid, setFormValid] = React.useState<boolean>(false);
@@ -157,39 +374,305 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
       .catch(() => setFormValid(false));
   }, [formValues]);
 
+  // Set akun penyesuaian when GL accounts are loaded and we have a selected item
+  React.useEffect(() => {
+    if (!glaccounts?.d) return;
+
+    const setAccountField = (account: any) => {
+      const fullLabel = `${account.name} (${account.source || "Unknown"})`;
+      form.setFieldsValue({
+        akunPenyesuaian: fullLabel,
+      });
+      setIsAkunPenyesuaianDisabled(true);
+    };
+
+    const trySetAccountById = () => {
+      if (!selectedItemGlAccountId) return false;
+      const matching = glaccounts.d.find(
+        (acc: any) => Number(acc.id) === selectedItemGlAccountId
+      );
+      if (matching) {
+        setAccountField(matching);
+        return true;
+      }
+      return false;
+    };
+
+    const selectedBarangValue = form.getFieldValue("barang");
+    if (selectedBarangValue) {
+      const selectedItem = items.find(
+        (item: any) =>
+          `${item.name} (${item.source || "Unknown"})` === selectedBarangValue
+      );
+
+      if (selectedItem) {
+        const itemSource = selectedItem.source;
+        const normalizedSource =
+          (itemSource || selectedItemSource || "").toLowerCase();
+
+        if (normalizedSource === "mpi" || normalizedSource === "kui") {
+          const normalizedName = selectedItem.name?.toLowerCase() || "";
+          const mpiMapping = MPI_KUI_ACCOUNT_MAPPINGS.find((mapping) =>
+            mapping.keywords.some((keyword) => normalizedName.includes(keyword))
+          );
+
+          if (mpiMapping) {
+            const matchingAccount = findAccountByName(
+              glaccounts.d,
+              mpiMapping.accountName
+            );
+
+            if (matchingAccount) {
+              setAccountField(matchingAccount);
+              return;
+            }
+          }
+        }
+
+        if (trySetAccountById()) {
+          return;
+        }
+
+        if (selectedItem.itemCategory) {
+          const cogsGlAccountId =
+            selectedItem.itemCategory.parent?.cogsGlAccountId;
+
+          if (cogsGlAccountId) {
+            const matchingGlAccount = glaccounts.d.find(
+              (acc: any) => acc.id === cogsGlAccountId
+            );
+
+            if (matchingGlAccount) {
+              setAccountField(matchingGlAccount);
+              return;
+            }
+          } else {
+            const itemCategoryName =
+              selectedItem.itemCategory.name?.toLowerCase();
+
+            let suitableAccount = null;
+
+            if (itemCategoryName) {
+              suitableAccount = glaccounts.d.find((acc: any) => {
+                const accountName = acc.name.toLowerCase();
+                const cleanAccountName = accountName
+                  .replace("hpp ", "")
+                  .replace("beban ", "");
+
+                const directMatch = accountName.includes(itemCategoryName);
+                const reverseMatch =
+                  itemCategoryName.includes(cleanAccountName);
+
+                return directMatch || reverseMatch;
+              });
+
+              if (!suitableAccount && itemSource === "Hikmat") {
+                const hikmatCategoryKeywords = [
+                  "krah",
+                  "manset",
+                  "rib",
+                  "bahan",
+                  "kain",
+                ];
+
+                const matchingKeyword = hikmatCategoryKeywords.find((keyword) =>
+                  itemCategoryName.includes(keyword)
+                );
+
+                if (matchingKeyword) {
+                  suitableAccount = glaccounts.d.find((acc: any) => {
+                    const accountName = acc.name.toLowerCase();
+                    return (
+                      accountName.includes(matchingKeyword) ||
+                      accountName.includes("penyesuaian " + matchingKeyword) ||
+                      accountName.includes(
+                        "beban penyesuaian " + matchingKeyword
+                      )
+                    );
+                  });
+                }
+
+                if (!suitableAccount) {
+                  suitableAccount = glaccounts.d.find((acc: any) => {
+                    const accountName = acc.name.toLowerCase();
+                    return (
+                      accountName.includes("hikmat") ||
+                      accountName.includes("adjustment hikmat") ||
+                      accountName.includes("bahan hikmat")
+                    );
+                  });
+                }
+              }
+
+              if (!suitableAccount && itemSource) {
+                suitableAccount = glaccounts.d.find(
+                  (acc: any) => acc.source === itemSource
+                );
+              }
+
+              if (!suitableAccount && glaccounts.d.length > 0) {
+                suitableAccount = glaccounts.d[0];
+              }
+
+              if (suitableAccount) {
+                setAccountField(suitableAccount);
+              }
+            }
+          }
+        }
+      } else {
+        trySetAccountById();
+      }
+    } else {
+      trySetAccountById();
+    }
+  }, [
+    glaccounts,
+    selectedItemSource,
+    items,
+    form,
+    formValues,
+    selectedItemGlAccountId,
+  ]);
+
   const filterOption = (
     inputValue: string,
-    option?: { value: string; label: string | React.ReactNode }
+    option?: {
+      value: string;
+      label: string | React.ReactNode;
+      searchText?: string;
+      displayLabel?: string;
+    }
   ) => {
-    if (!option || typeof option.label !== "string") return false;
-    return option.label.toLowerCase().includes(inputValue.toLowerCase());
+    if (!option) return false;
+    const searchText =
+      (option as any)?.searchText ??
+      (typeof option.label === "string" ? option.label : "");
+    return searchText.toLowerCase().includes(inputValue.toLowerCase());
+  };
+
+  const akunPenyesuaianList = useMemo(() => {
+    if (!glaccounts || !glaccounts.d) return [];
+
+    return glaccounts.d.map((acc: any) => ({
+      value: acc.no,
+      label: `${acc.name} (${acc.source || "Unknown"})`,
+      account: acc, // Store the full account object for later use
+    }));
+  }, [glaccounts]);
+
+  const resetJumlahAndUnit = () => {
+    form.setFieldsValue({ jumlah: "", unit: undefined });
+    setSelectedItemUnit("");
   };
 
   const handleOk = async () => {
+    if (isSubmittingRequest) return;
+    if (!selectedCardId) {
+      message.warning("Pilih PO terlebih dahulu");
+      return;
+    }
+    let values: any;
     try {
-      const values = await form.validateFields();
+      values = await form.validateFields();
+    } catch (validationError) {
+      return;
+    }
+
+    setIsSubmittingRequest(true);
+    try {
       // Find IDs/values from labels for barang, listPO, akunPenyesuaian
-      const card = listPO.find((opt: any) => opt.label === values.listPO);
+      const card = listPO.find(
+        (opt: any) =>
+          opt.displayLabel === values.listPO ||
+          (typeof opt.label === "string" && opt.label === values.listPO)
+      );
       const item = barangList.find(
         (opt: any) =>
           typeof opt.label === "string" && opt.label === values.barang
       );
-      const adjustment = akunPenyesuaianList.find(
-        (opt: any) =>
-          typeof opt.label === "string" && opt.label === values.akunPenyesuaian
+      const selectedProduct = item?.item as OzzyProductWithSource | undefined;
+      const adjustment = akunPenyesuaianList.find((opt: any) => {
+        if (
+          typeof opt.label === "string" &&
+          typeof values.akunPenyesuaian === "string"
+        ) {
+          // Extract account name from form value (remove source suffix)
+          const formValue = values.akunPenyesuaian.replace(/\s*\([^)]*\)$/, "");
+          const optionLabel = opt.label.replace(/\s*\([^)]*\)$/, "");
+          return optionLabel === formValue;
+        }
+        return false;
+      });
+
+      const isKUI = (selectedItemSource || "").toLowerCase() === "kui";
+
+      const adjustmentNumber =
+        adjustment?.value ??
+        (typeof values.akunPenyesuaian === "string"
+          ? values.akunPenyesuaian.trim() || null
+          : null);
+
+      const finalAdjustmentNo = isKUI ? "5001" : adjustmentNumber;
+      const finalAdjustmentName = isKUI
+        ? "HPP Benang Knitting"
+        : adjustment
+          ? adjustment.label
+          : adjustmentNumber || null;
+
+      // Debug the matching process
+      if (typeof values.akunPenyesuaian === "string") {
+        const formValue = values.akunPenyesuaian.replace(/\s*\([^)]*\)$/, "");
+        akunPenyesuaianList.forEach((opt: any, index: number) => {
+          const optionLabel = opt.label.replace(/\s*\([^)]*\)$/, "");
+          const matches = optionLabel === formValue;
+        });
+      }
+
+      // Find the selected user for received_by
+      const selectedUser = userOptions.find(
+        (user) => user.value === values.requestBy
       );
+
+      const requestedItemId = selectedProduct?.sku;
+
+      const normalizeQuantityInput = (raw?: string | number | null) => {
+        if (raw === undefined || raw === null) return 0;
+        const str = `${raw}`.trim();
+        if (!str) return 0;
+
+        if (str.includes(",") && str.includes(".")) {
+          return Number(str.replace(/\./g, "").replace(/,/g, "."));
+        }
+        if (str.includes(",") && !str.includes(".")) {
+          return Number(str.replace(/,/g, "."));
+        }
+        if (str.includes(".") && !str.includes(",")) {
+          return Number(str);
+        }
+        return Number(str.replace(/,/g, ""));
+      };
+
+      const sanitizedAmount = normalizeQuantityInput(values.jumlah);
+
       const payload = {
         card_id: selectedCardId || (card ? card.value : values.listPO),
         request_type: values.actionType,
-        requested_item_id: item ? item.value : values.barang,
-        request_amount: Number(values.jumlah),
-        adjustment_no: adjustment ? adjustment.value : values.akunPenyesuaian,
+        requested_item_id: requestedItemId,
+        request_amount: sanitizedAmount,
+        adjustment_no: finalAdjustmentNo,
         description: values.description,
-        item_name: item ? item.label : values.barang,
-        adjustment_name: adjustment ? adjustment.label : values.akunPenyesuaian,
+        item_name: selectedProduct?.name || item?.label || values.barang,
+        adjustment_name: finalAdjustmentName,
         satuan: selectedItemUnit || "", // Add the selected unit (satuan) to the payload
+        source: selectedItemSource || "", // Add the source field to the payload
+        type: null,
+        received_by: selectedUser ? selectedUser.value : "", // Use UUID for received_by
+        received_by_name: selectedUser ? selectedUser.username : "", // Add received_by_name field
+        unit_price: selectedItemUnitPrice
+          ? Number(selectedItemUnitPrice)
+          : undefined,
       };
-
       await submitRequest(payload);
       message.success("Request submitted successfully");
       await form.resetFields();
@@ -197,6 +680,8 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
       onClose();
     } catch (err) {
       message.error("Failed to submit request");
+    } finally {
+      setIsSubmittingRequest(false);
     }
   };
 
@@ -210,6 +695,11 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
       setAvailableUnits([]);
       setBarangSearchValue("");
       setSelectedCardId(null);
+      setSelectedActionType("");
+      setSelectedItemSource("");
+      setSelectedRequestBy("");
+      setSelectedItemGlAccountId(null);
+      setIsSubmittingRequest(false);
     }
   }, [open]);
 
@@ -220,8 +710,12 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
       onCancel={onClose}
       onOk={handleOk}
       footer={null}
-      destroyOnClose
-      bodyStyle={{ padding: 24 }}
+      destroyOnHidden
+      styles={{
+        body: {
+          padding: 24,
+        },
+      }}
     >
       <Form form={form} layout="vertical" onFinish={handleOk}>
         <div
@@ -243,27 +737,33 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
               placeholder="Cari atau pilih PO"
               filterOption={filterOption}
               onSelect={(value, option) => {
-                if (typeof option.label === "string") {
-                  form.setFieldsValue({ listPO: option.label });
-                  // Save the selected card ID when a card is selected from dropdown
-                  setSelectedCardId(value);
+                const selectedOption = option as any;
+                const displayLabel =
+                  selectedOption?.displayLabel ??
+                  (typeof selectedOption?.label === "string"
+                    ? selectedOption.label
+                    : "");
+                if (displayLabel) {
+                  form.setFieldsValue({ listPO: displayLabel });
                 }
+                // Save the selected card ID when a card is selected from dropdown
+                setSelectedCardId(String(value));
               }}
               onChange={(input) => {
                 // Update search value for the cards query
                 setCardSearchValue(input);
 
                 const match = listPO.find(
-                  (opt: any) =>
-                    typeof opt.label === "string" && opt.label === input
+                  (opt: any) => opt.displayLabel === input
                 );
                 if (!match) {
                   form.setFieldsValue({ listPO: input });
                   // Clear selected card ID if the input doesn't match any card
                   setSelectedCardId(null);
+                  setSelectedActionType("");
                 } else {
                   // If input matches a card label, set the card ID
-                  setSelectedCardId(match.value);
+                  setSelectedCardId(String(match.value));
                 }
               }}
             />
@@ -274,7 +774,11 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
             rules={[{ required: true }]}
             style={{ marginBottom: 16 }}
           >
-            <Select placeholder="Pilih Action">
+            <Select
+              placeholder="Pilih Action"
+              disabled={!isPOSelected}
+              onChange={(value) => setSelectedActionType(value || "")}
+            >
               {actionTypes.map((item) => (
                 <Option key={item.value} value={item.value}>
                   {item.label}
@@ -286,16 +790,16 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
             name="barang"
             label="Barang"
             rules={[{ required: true }]}
-            style={{ marginBottom: 16 }}
+            style={{ marginBottom: 16, gridColumn: "1 / span 2" }}
           >
             <AutoComplete
+              disabled={!isPOSelected}
               options={barangList}
               placeholder="Cari atau pilih Barang"
-              filterOption={false} // Disable client-side filtering as we're using server-side search
-              notFoundContent={
-                isSearchingBarang ? "Searching..." : "No items found"
-              }
+              filterOption={false} // Disable client-side filtering as we're using local search
+              notFoundContent="No items found"
               onSelect={(value, option) => {
+                resetJumlahAndUnit();
                 if (
                   typeof value === "string" &&
                   value.startsWith("__header__")
@@ -305,125 +809,180 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
                 } else if (typeof option.label === "string") {
                   form.setFieldsValue({ barang: option.label });
 
-                  // Find the selected item from the items array
-                  const selectedItem = items.find(
-                    (item: any) => item.name === option.label
-                  );
+                  // Find the selected item from the items array using the stored item object
+                  const selectedItem = option.item;
 
-                  // Store available units
+                  // Set the selected item source to trigger GL accounts fetch
+                  if (selectedItem && selectedItem.source) {
+                    setSelectedItemSource(selectedItem.source);
+                  }
+
+                  // Store available units (include any unitXName fields plus unitType)
                   if (selectedItem) {
-                    const units = [];
-                    if (selectedItem.unit1Name)
-                      units.push({
-                        label: selectedItem.unit1Name,
-                        value: selectedItem.unit1Name,
-                      });
-                    if (selectedItem.unit2Name)
-                      units.push({
-                        label: selectedItem.unit2Name,
-                        value: selectedItem.unit2Name,
-                      });
-                    if (selectedItem.unit3Name)
-                      units.push({
-                        label: selectedItem.unit3Name,
-                        value: selectedItem.unit3Name,
-                      });
-                    if (selectedItem.unit4Name)
-                      units.push({
-                        label: selectedItem.unit4Name,
-                        value: selectedItem.unit4Name,
-                      });
-                    if (selectedItem.unit5Name)
-                      units.push({
-                        label: selectedItem.unit5Name,
-                        value: selectedItem.unit5Name,
-                      });
+                    const unitFields = [
+                      "unit1Name",
+                      "unit2Name",
+                      "unit3Name",
+                      "unit4Name",
+                      "unit5Name",
+                      "unitType",
+                    ];
+                    const unitSet = new Set<string>();
+                    unitFields.forEach((field) => {
+                      const value = (selectedItem as any)[field];
+                      if (value) {
+                        unitSet.add(value);
+                      }
+                    });
 
+                    const rawUnitData =
+                      (selectedItem as any)?.unit_data ??
+                      (selectedItem as any)?.unitData ??
+                      null;
+                    if (rawUnitData) {
+                      try {
+                        const parsed =
+                          typeof rawUnitData === "string"
+                            ? JSON.parse(rawUnitData)
+                            : rawUnitData;
+                        if (Array.isArray(parsed)) {
+                          parsed.forEach((unitEntry: any) => {
+                            const unitName = unitEntry?.name;
+                            if (unitName) {
+                              unitSet.add(String(unitName));
+                            }
+                          });
+                        }
+                      } catch (err) {
+                        // Ignore unit parsing errors and fall back to default unit handling
+                      }
+                    }
+
+                    const units = Array.from(unitSet).map((unit) => ({
+                      label: unit,
+                      value: unit,
+                    }));
                     setAvailableUnits(units);
 
-                    console.log("units", units);
+                    const selectedItemUnitType =
+                      selectedItem.unitType !== undefined &&
+                        selectedItem.unitType !== null
+                        ? String(selectedItem.unitType)
+                        : "";
 
-                    // Set default unit if available
-                    if (units.length > 0) {
-                      setSelectedItemUnit(units[0].value);
-                    } else {
-                      setSelectedItemUnit("");
-                    }
+                    const preferredUnit =
+                      (selectedItemUnitType &&
+                        units.some(
+                          (u) => String(u.value) === selectedItemUnitType
+                        ) &&
+                        selectedItemUnitType) ||
+                      (units.length > 0 ? String(units[0].value) : "");
+
+                    setSelectedItemUnit(preferredUnit);
+                    form.setFieldsValue({
+                      unit: preferredUnit || undefined,
+                    });
                   } else {
                     setAvailableUnits([]);
                     setSelectedItemUnit("");
                   }
 
-                  if (selectedItem && selectedItem.itemCategory) {
-                    // Get the inventory GL account from the item's category
-                    const cogsGlAccountId =
-                      selectedItem.itemCategory.parent?.cogsGlAccountId;
+                  const unitPrice =
+                    (selectedItem as any)?.unitPrice ??
+                    (selectedItem as any)?.unit_price;
+                  setSelectedItemUnitPrice(
+                    unitPrice !== undefined && unitPrice !== null
+                      ? String(unitPrice)
+                      : ""
+                  );
 
-                    if (cogsGlAccountId && glaccounts && glaccounts.d) {
-                      // Find the matching GL account
-                      const matchingGlAccount = glaccounts.d.find(
-                        (acc: any) => acc.id === cogsGlAccountId
-                      );
+                  // Use COGS GL account from the selected item when provided
+                  const cogsGlAccountId =
+                    getCogsGlAccountIdFromItem(selectedItem);
+                  setSelectedItemGlAccountId(cogsGlAccountId);
 
-                      if (matchingGlAccount) {
-                        // Set the akun penyesuaian field value
-                        form.setFieldsValue({
-                          akunPenyesuaian: matchingGlAccount.name,
-                        });
-                        setIsAkunPenyesuaianDisabled(true);
-                      }
-                    }
-                  }
+                  // GL account selection is now handled by the useEffect
+                  // to ensure proper fallback logic for Hikmat items
                 }
               }}
               onChange={(input) => {
-                // Update the search value state which will trigger the query
+                // Update the search value state which will trigger local filtering
                 setBarangSearchValue(input);
                 form.setFieldsValue({ barang: input });
+                resetJumlahAndUnit();
 
                 // If input is empty, reset akun penyesuaian field and units
                 if (!input) {
                   setIsAkunPenyesuaianDisabled(false);
                   setSelectedItemUnit("");
                   setAvailableUnits([]);
+                  setSelectedItemSource("");
+                  setSelectedItemGlAccountId(null);
+                  setSelectedItemUnitPrice("");
                 }
               }}
             />
           </Form.Item>
           <Form.Item
-            name="jumlah"
-            label="Jumlah"
-            rules={[
-              {
-                required: true,
-                pattern: /^\d+$/,
-                message: "Masukkan angka yang valid",
-              },
-            ]}
-            style={{ marginBottom: 16 }}
+            label="Jumlah & Unit"
+            style={{ marginBottom: 16, gridColumn: "1 / span 2" }}
+            required
           >
-            <div className="flex w-full">
-              <AutoComplete
-                options={[]}
-                placeholder="Masukkan jumlah"
-                style={{ width: "100%" }}
-                onSelect={(value, option) => {
-                  form.setFieldsValue({ jumlah: value });
-                }}
-                onChange={(value) => {
-                  if (!/^\d*$/.test(value)) {
-                    form.setFieldsValue({ jumlah: value.replace(/\D/g, "") });
-                  } else {
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "minmax(0, 1fr) 120px",
+                gap: 12,
+                width: "100%",
+              }}
+            >
+              <Form.Item
+                name="jumlah"
+                noStyle
+                rules={[
+                  {
+                    required: true,
+                    pattern: /^[\d,]+$/,
+                    message: "Masukkan angka yang valid",
+                  },
+                ]}
+              >
+                <AutoComplete
+                  disabled={!isPOSelected}
+                  options={[]}
+                  placeholder="Masukkan jumlah"
+                  style={{ width: "100%", minWidth: 140 }}
+                  onSelect={(value, option) => {
                     form.setFieldsValue({ jumlah: value });
-                  }
-                }}
-              />
-              {availableUnits.length > 0 && (
+                  }}
+                  onChange={(value) => {
+                    if (!/^[\d,]*$/.test(value)) {
+                      form.setFieldsValue({
+                        jumlah: value.replace(/[^\d,]/g, ""),
+                      });
+                    } else {
+                      form.setFieldsValue({ jumlah: value });
+                    }
+                  }}
+                />
+              </Form.Item>
+              <Form.Item
+                name="unit"
+                noStyle
+                rules={[
+                  {
+                    required: true,
+                    message: "Pilih unit",
+                  },
+                ]}
+              >
                 <Select
-                  value={selectedItemUnit}
-                  style={{ width: 80, marginLeft: 8 }}
+                  disabled={!isPOSelected || availableUnits.length === 0}
+                  value={selectedItemUnit || undefined}
+                  placeholder="Unit"
                   onChange={(value) => setSelectedItemUnit(value)}
                   dropdownMatchSelectWidth={false}
+                  allowClear={false}
                 >
                   {availableUnits.map((unit) => (
                     <Option key={unit.value} value={unit.value}>
@@ -431,14 +990,14 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
                     </Option>
                   ))}
                 </Select>
-              )}
+              </Form.Item>
             </div>
           </Form.Item>
           <Form.Item
             name="akunPenyesuaian"
             label="Akun Penyesuaian"
-            rules={[{ required: true }]}
-            style={{ marginBottom: 16, gridColumn: "1 / span 2" }}
+            rules={[]}
+            style={{ marginBottom: 16, gridColumn: "1 / span 3" }}
           >
             <AutoComplete
               options={akunPenyesuaianList}
@@ -464,16 +1023,49 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
             />
           </Form.Item>
           <Form.Item
+            name="requestBy"
+            label="Request By"
+            rules={[{ required: true, message: "Request By is required" }]}
+            style={{ marginBottom: 16, gridColumn: "1 / span 3" }}
+          >
+            <Select
+              disabled={!isPOSelected}
+              placeholder="Select a User"
+              loading={accountListLoading}
+              options={userOptions}
+              style={{ width: "100%" }}
+              showSearch
+              filterOption={(input, option) =>
+                (option?.username || "")
+                  .toLowerCase()
+                  .includes(input.toLowerCase())
+              }
+              onChange={(value) => {
+                setSelectedRequestBy(value);
+              }}
+            />
+          </Form.Item>
+          <Form.Item
             name="description"
             label="Description"
             rules={[{ required: true, message: "Description is required" }]}
-            style={{ marginBottom: 16, gridColumn: "1 / span 2" }}
+            style={{ marginBottom: 16, gridColumn: "1 / span 3" }}
           >
-            <Input.TextArea rows={3} placeholder="Tambahkan deskripsi..." />
+            <Input.TextArea
+              rows={3}
+              placeholder="Tambahkan deskripsi..."
+              disabled={!isPOSelected}
+            />
           </Form.Item>
         </div>
         <Form.Item style={{ marginTop: 16 }}>
-          <Button type="primary" htmlType="submit" block disabled={!formValid}>
+          <Button
+            type="primary"
+            htmlType="submit"
+            block
+            disabled={!formValid || isSubmittingRequest || !isPOSelected}
+            loading={isSubmittingRequest}
+          >
             Submit
           </Button>
         </Form.Item>

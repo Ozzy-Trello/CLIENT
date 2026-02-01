@@ -30,7 +30,7 @@ const FilterForm: React.FC = () => {
   };
 
   const handleChange = (value: string) => {
-    console.log(`selected ${value}`);
+    // console.log(`selected ${value}`);
   };
 
   return (

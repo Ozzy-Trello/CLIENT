@@ -51,24 +51,21 @@ const processQueue = (error: any, token: string | null = null) => {
 // Response interceptor with queue management
 api.interceptors.response.use(
   (response) => {
-    if (response.data) {
+    // Skip camelCase conversion for blob responses
+    if (response.data && !(response.data instanceof Blob) && response.config?.responseType !== 'blob') {
       response.data = camelcaseKeys(response.data, { deep: true });
     }
     return response;
   },
   async (error: AxiosError) => {
     const originalRequest = error.config as any;
-    
-    console.log("Error interceptor triggered:", error?.response?.status);
-   
+       
     if (error.response?.status === 401 && !originalRequest._retry) {
       // Mark this request as a retry attempt to prevent infinite loops
       originalRequest._retry = true;
       
       if (isRefreshing) {
-        // If already refreshing, queue this request
-        console.log("Token refresh in progress - queueing request");
-        
+        // If already refreshing, queue this request        
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         }).then(token => {
@@ -82,14 +79,12 @@ api.interceptors.response.use(
         });
       }
 
-      console.log("401 detected - attempting token refresh");
       isRefreshing = true;
       
       const refreshToken = TokenStorage.getRefreshToken();
       const accessToken = TokenStorage.getAccessToken();
       
       if (!refreshToken) {
-        console.log("No refresh token available");
         isRefreshing = false;
         processQueue(error, null);
         window.location.href = '/login';
@@ -103,7 +98,6 @@ api.interceptors.response.use(
         });
         
         if (response?.data?.accessToken) {
-          console.log("Token refresh successful");
           
           const newAccessToken = response.data.accessToken;
           const newRefreshToken = response.data.refreshToken || refreshToken;
@@ -129,7 +123,6 @@ api.interceptors.response.use(
         throw new Error("Invalid refresh response");
         
       } catch (refreshError) {
-        console.log("Token refresh failed:", refreshError);
         
         // Reset state and process queue with error
         isRefreshing = false;

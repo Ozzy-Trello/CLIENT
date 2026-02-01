@@ -9,7 +9,81 @@
   padding: 5px 20px;
 }
 
+.floating-button {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background-color: #1890ff; /* Ant Design primary color */
+  color: white;
+  border: none;
+  border-radius: 50px;
+  padding: 15px 25px;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  transition: background-color 0.3s ease;
+  z-index: 1000;
+}
+
+.floating-button:hover {
+  background-color: #40a9ff; /* Lighter shade on hover */
+}
+
+.floating-button:disabled {
+  background-color: #91d5ff;
+  cursor: not-allowed;
+}
 .board-item {
   cursor: pointer;
   padding: 10px;
+  transition: all 0.2s ease;
+}
+
+.board-item:hover {
+  transform: translateY(-2px);
+}
+
+/* Drag and drop styles */
+.board-item.dragging {
+  transform: rotate(5deg) !important;
+  box-shadow: 0 8px 16px rgba(0,0,0,0.15) !important;
+  z-index: 1000;
+}
+
+.boards-grid-droppable {
+  min-height: 200px;
+  transition: opacity 0.2s ease;
+}
+
+.boards-grid-droppable.drag-over {
+  background-color: rgba(24, 144, 255, 0.05);
+  border-radius: 8px;
+}
+
+/* Drag handle styles */
+.drag-handle {
+  cursor: grab;
+  transition: cursor 0.2s ease;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+/* Loading state for reordering */
+.boards-reordering {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+/* Smooth transitions for board cards */
+.board-card-transition {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.board-card-transition:not(.dragging) {
+  transform: none !important;
 }

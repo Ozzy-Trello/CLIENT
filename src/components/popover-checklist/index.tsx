@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Button, Input, Popover, Typography } from "antd";
 import { useCardDetailContext } from "@providers/card-detail-context";
 import { useCreateChecklist } from "@hooks/checklist";
+import { X } from "lucide-react";
 
 interface PopoverChecklistProps {
   open: boolean;
@@ -33,7 +34,18 @@ const PopoverChecklist: React.FC<PopoverChecklistProps> = ({
   };
 
   const content = (
-    <div className="p-2" style={{ width: "300px" }}>
+    <div
+      className="p-2 relative"
+      style={{ width: "300px" }}
+    >
+      <button
+        type="button"
+        onClick={() => setOpen(false)}
+        className="absolute top-2 right-2 z-10 text-black text-lg font-bold rounded-full bg-white border border-gray-200 shadow-sm p-1 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-400"
+        aria-label="Close checklist popover"
+      >
+        <X size={14} />
+      </button>
       <Typography.Title level={5} className="mb-5">
         Add checklist
       </Typography.Title>
@@ -69,7 +81,7 @@ const PopoverChecklist: React.FC<PopoverChecklistProps> = ({
       onOpenChange={setOpen}
       placement="bottom"
       arrow={true}
-      overlayInnerStyle={{ padding: 0 }}
+      styles={{ body: { padding: 0 } }}
     >
       {triggerEl}
     </Popover>

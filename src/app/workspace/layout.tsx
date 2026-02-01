@@ -1,12 +1,11 @@
 "use client";
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { Layout, Menu } from "antd";
 import TopBar from "@components/topbar";
 import Sidebar from "@components/sidebar";
 import "./style.css";
-import {
-  useWorkspaceSidebar,
-} from "@providers/workspace-sidebar-context";
+import { useWorkspaceSidebar } from "@providers/workspace-sidebar-context";
+import { usePathname } from "next/navigation";
 
 const { Header, Content } = Layout;
 
@@ -15,11 +14,25 @@ interface BaseLayoutProps {
 }
 
 const WorkspaceLayout: React.FC<BaseLayoutProps> = ({ children }) => {
+  const [isClient, setIsClient] = useState(false);
   const { collapsed, siderSmall, siderWide } = useWorkspaceSidebar();
+  const pathname = usePathname();
+
+  // Check if current page is a board page (needs overflow hidden for drag & drop)
+  const isBoardPage = /^\/workspace\/[^/]+\/board\/[^/]+/.test(pathname);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  // Don't render the layout during SSR
+  if (!isClient) {
+    return <div>{children}</div>;
+  }
 
   return (
     <Layout className="base-layout">
-      <Header style={{ position: 'fixed', zIndex: 1, width: '100%' }}>
+      <Header style={{ position: "fixed", zIndex: 1, width: "100%" }}>
         <TopBar />
       </Header>
       <Sidebar />
@@ -27,19 +40,28 @@ const WorkspaceLayout: React.FC<BaseLayoutProps> = ({ children }) => {
         className="workspace-layout"
         style={{
           marginTop: "45px",
-          width: collapsed ? `calc(100%-${siderSmall})` : `calc(100%-${siderWide}) `,
+          width: collapsed
+            ? `calc(100%-${siderSmall})`
+            : `calc(100%-${siderWide}) `,
           transition: "margin-left 0.2s ease",
           height: "calc(100vh - 45px)",
-          overflow: "hidden",
+          overflow: isBoardPage ? "hidden" : "auto",
         }}
       >
-        <Content style={{ 
-          height: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden'
-        }}>
-          <div style={{ flex: 1, overflow: 'hidden' }}>
+        <Content
+          style={{
+            height: isBoardPage ? "100%" : "auto",
+            minHeight: isBoardPage ? "100%" : "calc(100vh - 45px)",
+            display: "flex",
+            flexDirection: "column",
+            overflow: isBoardPage ? "hidden" : "visible",
+          }}
+        >
+          <div style={{ 
+            flex: 1, 
+            overflow: isBoardPage ? "hidden" : "visible",
+            minHeight: isBoardPage ? "auto" : "100%"
+          }}>
             {children}
           </div>
         </Content>

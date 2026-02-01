@@ -12,6 +12,7 @@
 # next.js
 /.next/
 /out/
+.env.production
 
 # production
 /build
@@ -28,10 +29,15 @@ yarn-error.log*
 # local env files
 .env*.local
 .env
-
+.env.production
 # vercel
 .vercel
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+.vscode
+
+# PDF.js worker file (copied from node_modules)
+/public/pdf.worker.min.js

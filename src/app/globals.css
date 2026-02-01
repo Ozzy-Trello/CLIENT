@@ -4,12 +4,19 @@
 
 :root{
   /* Ensure that these colors are the same as the one in the initial appState store */
-  --color-primary: 8, 17, 76;
-  --color-secondary: 255, 204, 0;
-  --color-accent: 255, 111, 97;
-  --color-background:255, 255,255;
-  --color-text: 51, 51, 51;
-  --color-muted:217, 217, 217;
+  --color-primary: 22, 119, 255;
+  --color-secondary: 114, 46, 209;
+  --color-accent: 255, 193, 7;
+  --color-background: 29, 33, 37;
+  --color-surface: 35, 39, 44;
+  --color-muted: 68, 74, 82;
+  --color-text: 182, 194, 207;
+  --color-text-muted: 156, 162, 175;
+  --color-border: 68, 74, 82;
+  --color-success: 40, 167, 69;
+  --color-warning: 255, 193, 7;
+  --color-error: 220, 53, 69;
+  --color-info: 23, 162, 184;
   --color-board-page-background-color: 255, 225, 225;
 
   --font-size-body: 12px;
@@ -62,6 +69,10 @@ div[data-rfd-droppable-id="all-columns"] {
 
 
 /* Ant Design */
+.ant-tag {
+  /* this to remove margin inline end in ant tag */
+  margin-right: 0; 
+}
 .ant-layout {
   background-color: transparent;
 }
@@ -82,20 +93,20 @@ div[data-rfd-droppable-id="all-columns"] {
 .ant-modal-header {
   margin: 0;
   padding: 10px !important;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  border-bottom: 1px solid rgb(var(--color-border));
   position: sticky;
   top: 0;
-  background: white;
+  background: rgb(var(--color-surface));
   z-index: 10;
 }
 
 .ant-modal-body {
   padding: 0;
-  overflow-y: auto;
   flex: 1;
   min-height: 50px;
   max-height: calc(100vh - 10px);
   margin-bottom: 10px;
+  overflow-y: auto;
 }
 
 .modal-cust-footer .ant-modal-body {
@@ -139,12 +150,14 @@ div[data-rfd-droppable-id="all-columns"] {
   height: 100% !important;
   max-height: 100% !important;
   margin-bottom: 0;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 .ant-modal-content.full-height-modal {
   max-height: 100% !important;
   height: 100% !important;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .custom-circular-checkbox .ant-checkbox-inner {
@@ -177,4 +190,110 @@ div[data-rfd-droppable-id="all-columns"] {
 * {
   scrollbar-width: thin;
   scrollbar-color: rgb(var(--color-muted)) transparent;  /* Added transparent for track color */
+}
+
+/* Custom scrollbar for board container */
+.board-scroll-container {
+  scrollbar-width: thin !important; /* Firefox */
+  scrollbar-color: #94a3b8 #f1f5f9 !important; /* More visible colors */
+  overflow-x: auto !important; /* Force horizontal scrollbar to show */
+  overflow-y: hidden !important; /* Keep vertical hidden */
+}
+
+.board-scroll-container::-webkit-scrollbar {
+  width: 12px !important;
+  height: 12px !important; /* Make horizontal scrollbar more visible */
+  display: block !important; /* Force scrollbar to display */
+}
+
+.board-scroll-container::-webkit-scrollbar-track {
+  background-color: #f1f5f9 !important; /* Light gray background */
+  border-radius: 6px !important;
+}
+
+.board-scroll-container::-webkit-scrollbar-thumb {
+  background: #94a3b8 !important; /* Darker gray for better visibility */
+  border-radius: 6px !important;
+  border: 1px solid #e2e8f0 !important;
+}
+
+.board-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: #64748b !important; /* Even darker on hover */
+}
+
+/* Custom horizontal scrollbar styles */
+.custom-horizontal-scrollbar {
+  scrollbar-width: thin !important;
+  scrollbar-color: #94a3b8 #f1f5f9 !important;
+  overflow-x: auto !important; /* Force horizontal scrollbar to show */
+}
+
+.custom-horizontal-scrollbar::-webkit-scrollbar {
+  width: 12px !important;
+  height: 12px !important;
+  display: block !important; /* Force scrollbar to display */
+}
+
+.custom-horizontal-scrollbar::-webkit-scrollbar-track {
+  background-color: #f1f5f9 !important;
+  border-radius: 6px !important;
+}
+
+.custom-horizontal-scrollbar::-webkit-scrollbar-thumb {
+  background: #94a3b8 !important;
+  border-radius: 6px !important;
+  border: 1px solid #e2e8f0 !important;
+}
+
+.custom-horizontal-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #64748b !important;
+}
+
+/* Custom scrollbar for list containers */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--color-muted)) transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background-color: transparent;
+  border-radius: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(var(--color-muted), 0.6);
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background-clip: content-box;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(var(--color-muted), 0.8);
+  background-clip: content-box;
+}
+
+/* React PDF styles */
+.react-pdf__Document {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.react-pdf__Page {
+  max-width: calc(100% - 2em);
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.5);
+  margin: 1em;
+}
+
+.react-pdf__Page__textContent {
+  border: 1px solid transparent;
+}
+
+.react-pdf__Page__annotations {
+  border: 1px solid transparent;
 }

@@ -1,42 +1,61 @@
-import React, { useEffect, useState, useRef } from "react";
-import ReactDOM from "react-dom";
 import {
-  Avatar,
-  Button,
-  Image,
-  List,
-  Typography,
-  message,
-  Space,
-  Upload,
-} from "antd";
-import {
+  DeleteOutlined,
   DownloadOutlined,
-  PrinterOutlined,
+  ExportOutlined,
+  FileExcelOutlined,
+  FileImageOutlined,
+  FileOutlined,
+  FilePdfOutlined,
+  FileTextOutlined,
+  FileWordOutlined,
+  FileZipOutlined,
+  InboxOutlined,
+  PaperClipOutlined,
+  PlusOutlined,
   RotateLeftOutlined,
   RotateRightOutlined,
   ZoomInOutlined,
   ZoomOutOutlined,
-  InboxOutlined,
-  ExportOutlined,
-  EllipsisOutlined,
-  PaperClipOutlined,
-  PlusOutlined,
-  FileImageOutlined,
-  FilePdfOutlined,
-  FileWordOutlined,
-  FileExcelOutlined,
-  FileZipOutlined,
-  FileTextOutlined,
-  FileOutlined
-} from '@ant-design/icons';
-import { useCardAttachment } from '@hooks/card_attachment';
-import UploadModal from '@components/modal-upload/modal-upload';
-import { EnumAttachmentType, Card, CardAttachment } from '@myTypes/card';
-import { User } from '@myTypes/user';
-import { FileUpload } from '@myTypes/file-upload';
-import QRCode from "react-qr-code";
+} from "@ant-design/icons";
+import { QrCode } from "lucide-react";
+import { mapBackendCardToFrontend } from "@api/card";
 import { uploadFile } from "@api/file";
+import { createShortUrl, buildShortUrl } from "@api/short-url";
+import UploadModal from "@components/modal-upload/modal-upload";
+import { PDFModal } from "@components/pdf-modal";
+import { PDFPreview } from "@components/pdf-preview";
+import { useCardAttachment } from "@hooks/card_attachment";
+import {
+  Card,
+  CardAttachment,
+  EnumAttachmentType,
+  EnumCardAttachmentType,
+} from "@myTypes/card";
+import { FileUpload } from "@myTypes/file-upload";
+import { User } from "@myTypes/user";
+import { useBoardPermissionsContext } from "@providers/board-permissions-context";
+import { printPDFWithQR } from "@utils/pdf-qr-utils";
+import TokenStorage from "@utils/token-storage";
+import {
+  Button,
+  Checkbox,
+  Dropdown,
+  Image,
+  List,
+  MenuProps,
+  message,
+  Space,
+  Tag,
+  Tooltip,
+  Typography,
+  Upload,
+} from "antd";
+import React, { useEffect, useRef, useState } from "react";
+import ReactDOM from "react-dom";
+import QRCode from "react-qr-code";
+import { useParams } from "next/navigation";
+import URLShortener from "@utils/url-shortener";
+import AttachedCard from "./attached-card";
 
 interface AttachmentsProps {
   card: Card;
@@ -46,30 +65,141 @@ interface AttachmentsProps {
 
 const Attachments: React.FC<AttachmentsProps> = (props) => {
   const { card, setCard, currentUser } = props;
-  const { cardAttachments, addAttachment } = useCardAttachment(card?.id);
+  const params = useParams();
+  const workspaceId = Array.isArray(params.workspaceId)
+    ? params.workspaceId[0]
+    : params.workspaceId;
+  const boardId = Array.isArray(params.boardId)
+    ? params.boardId[0]
+    : params.boardId;
+
+  const {
+    cardAttachments,
+    addAttachment,
+    deleteAttachment,
+    markPrinted,
+    markCover,
+  } = useCardAttachment(card?.id || "");
   const [openUploadModal, setOpenUploadmodal] = useState<boolean>(false);
+  const [currentAttachmentType, setCurrentAttachmentType] =
+    useState<EnumCardAttachmentType>(EnumCardAttachmentType.Attachment);
+  const [uploadModalTitle, setUploadModalTitle] =
+    useState<string>("Upload attachment");
   const attachmentsRef = useRef<HTMLDivElement>(null);
+  const poGeneratedNamesRef = useRef<Set<string>>(new Set());
+  const [isPOPelengkap, setIsPOPelengkap] = useState(false);
   const [isDraggingOver, setIsDraggingOver] = useState<boolean>(false);
   const [attachedCards, setAttachedCards] = useState<Card[]>([]);
   const [attachedFiles, setAttachedFiles] = useState<FileUpload[]>([]);
+  const [pdfModalVisible, setPdfModalVisible] = useState<boolean>(false);
+  const [selectedPdf, setSelectedPdf] = useState<{
+    url: string;
+    fileName: string;
+  } | null>(null);
+  const [coveringAttachmentId, setCoveringAttachmentId] = useState<string | null>(
+    null
+  );
+  const { canUpdateCard } = useBoardPermissionsContext();
+
+  // Generate short URL for QR codes with backend fallback
+  const generateShortUrl = async (): Promise<string> => {
+    if (!workspaceId || !boardId || !card?.id) {
+      console.log("❌ Missing required data, using fallback URL");
+      return window.location.href; // Fallback to current URL
+    }
+
+    // First priority: Use card's shortId if available (new system)
+    if (card.shortId) {
+      const shortUrl = `${window.location.origin}/qr/${card.shortId}`;
+      console.log("✅ Using card shortId for QR:", shortUrl);
+      return shortUrl;
+    }
+
+    console.log("⚠️ No card.shortId found, trying backend generation...");
+
+    try {
+      // Second priority: Try backend short URL generation
+      const originalUrl = `${window.location.origin}/workspace/${workspaceId}/board/${boardId}?cardId=${card.id}`;
+      const response = await createShortUrl({ original_url: originalUrl });
+
+      if (response.data?.short_code) {
+        const backendUrl = buildShortUrl(response.data.short_code);
+        console.log("✅ Using backend generated short URL:", backendUrl);
+        return backendUrl;
+      }
+    } catch (error) {
+      console.warn(
+        "Backend short URL generation failed, falling back to stateless:",
+        error
+      );
+    }
+
+    // Final fallback: Use stateless URL shortener (legacy system)
+    const legacyUrl = URLShortener.generateShortUrl(
+      card.id,
+      workspaceId,
+      boardId,
+      "stateless"
+    );
+    console.log("⚠️ Using legacy stateless URL shortener:", legacyUrl);
+    return legacyUrl;
+  };
+
+  const handleOpenPdfModal = (url: string, fileName: string) => {
+    setSelectedPdf({ url, fileName });
+    setPdfModalVisible(true);
+  };
+
+  const handleClosePdfModal = () => {
+    setPdfModalVisible(false);
+    setSelectedPdf(null);
+  };
+
+  const openUpload = (type: EnumCardAttachmentType) => {
+    setCurrentAttachmentType(type);
+    setIsPOPelengkap(false);
+    poGeneratedNamesRef.current = new Set();
+    setUploadModalTitle(
+      type === EnumCardAttachmentType.Bukti
+        ? "Upload Bukti"
+        : type === EnumCardAttachmentType.PO
+        ? "Upload PO"
+        : "Upload attachment"
+    );
+    if (canUpdateCard()) {
+      setOpenUploadmodal(true);
+    }
+  };
+
   const handleCloseModal = () => {
     setOpenUploadmodal(false);
   };
 
-  const handleOpenModal = () => {
-    setOpenUploadmodal(true);
-  };
-
   const handleUpload = (file: File, result: FileUpload) => {
     addAttachment({
-      cardId: card.id,
+      cardId: card.id || "",
       attachableType: EnumAttachmentType.File,
       attachableId: result.id,
       isCover: false,
+      type: currentAttachmentType || EnumCardAttachmentType.Attachment,
     });
   };
 
-  // Helper function to determine if a file is an image based on file name or MIME type
+  const handleMarkCover = (attachmentId: string, isAlreadyCover: boolean) => {
+    if (!card.id || isAlreadyCover || coveringAttachmentId) {
+      return;
+    }
+    setCoveringAttachmentId(attachmentId);
+    markCover(
+      { attachmentId, cardId: card.id },
+      {
+        onSettled: () => {
+          setCoveringAttachmentId(null);
+        },
+      }
+    );
+  };
+
   const isImageFile = (fileName: string, mimeType?: string): boolean => {
     const imageExtensions = ["jpg", "jpeg", "png", "gif", "bmp", "svg", "webp"];
     const extension = fileName.split(".").pop()?.toLowerCase() || "";
@@ -81,7 +211,16 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
     return imageExtensions.includes(extension);
   };
 
-  // Helper function to get appropriate file icon based on file extension
+  const isPDFFile = (fileName: string, mimeType?: string): boolean => {
+    const extension = fileName.split(".").pop()?.toLowerCase() || "";
+
+    if (mimeType && mimeType === "application/pdf") {
+      return true;
+    }
+
+    return extension === "pdf";
+  };
+
   const getFileIcon = (fileName: string, mimeType?: string) => {
     if (isImageFile(fileName, mimeType)) {
       return <FileImageOutlined className="text-blue-500 text-2xl" />;
@@ -111,7 +250,71 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
     }
   };
 
-  // Format file size
+  // Helper functions to categorize attachments by type
+  const safeAttachments = cardAttachments || [];
+  const getBuktiAttachments = () =>
+    safeAttachments.filter(
+      (item) =>
+        item.attachableType === EnumAttachmentType.File &&
+        item.type === EnumCardAttachmentType.Bukti
+    );
+
+  const getPOAttachments = () =>
+    safeAttachments.filter(
+      (item) =>
+        item.attachableType === EnumAttachmentType.File &&
+        item.type === EnumCardAttachmentType.PO
+    );
+
+  const getOtherAttachments = () =>
+    safeAttachments.filter(
+      (item) =>
+        item.attachableType === EnumAttachmentType.File &&
+        (!item.type || item.type === EnumCardAttachmentType.Attachment)
+    );
+
+  const buildPOFileName = (originalName: string) => {
+    const dotIndex = originalName.lastIndexOf(".");
+    const base = dotIndex >= 0 ? originalName.slice(0, dotIndex) : originalName;
+    const ext = dotIndex >= 0 ? originalName.slice(dotIndex) : "";
+    const prefix = isPOPelengkap ? "PO Pelengkap - " : "PO - ";
+
+    const existingNames = getPOAttachments()
+      .map((att) => att.file?.name || att.name)
+      .filter(Boolean) as string[];
+
+    let idx = 0;
+    let candidate = `${prefix}${base}${ext}`;
+    while (
+      existingNames.includes(candidate) ||
+      poGeneratedNamesRef.current.has(candidate)
+    ) {
+      idx += 1;
+      candidate = `${prefix}${base} (${idx})${ext}`;
+    }
+
+    poGeneratedNamesRef.current.add(candidate);
+    return candidate;
+  };
+
+  const uploadMenuItems: MenuProps["items"] = [
+    {
+      key: "other",
+      label: "Upload Other",
+      onClick: () => openUpload(EnumCardAttachmentType.Attachment),
+    },
+    {
+      key: "bukti",
+      label: "Upload Bukti",
+      onClick: () => openUpload(EnumCardAttachmentType.Bukti),
+    },
+    {
+      key: "po",
+      label: "Upload PO",
+      onClick: () => openUpload(EnumCardAttachmentType.PO),
+    },
+  ];
+
   const formatFileSize = (bytes?: number): string => {
     if (!bytes) return "";
 
@@ -120,56 +323,64 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
     return (bytes / (1024 * 1024)).toFixed(1) + " MB";
   };
 
-  // Canvas reference for generating QR code images
   const qrCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  // Function to convert external image URL to base64 to avoid CORS issues
   const getBase64FromUrl = async (url: string): Promise<string> => {
     try {
-      // Use a server-side proxy to fetch the image if it's from an external domain
-      // This assumes you have an API endpoint that can proxy the request
-      if (url.startsWith('http') && !url.includes(window.location.hostname)) {
-        // Create a proxy URL through your Next.js API
-        const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(url)}`;
-        const response = await fetch(proxyUrl);
-        
-        if (!response.ok) {
-          throw new Error(`Failed to fetch image: ${response.statusText}`);
+      let fetchUrl = url;
+      const headers: HeadersInit = {};
+
+      if (url.includes(process.env.NEXT_PUBLIC_BE_BASE_URL || "")) {
+        const accessToken = TokenStorage.getAccessToken();
+        if (accessToken) {
+          headers.Authorization = `Bearer ${accessToken}`;
         }
-        
-        const blob = await response.blob();
-        return new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(blob);
-        });
+        fetchUrl = url;
+      } else if (url.startsWith("/api/file-proxy/")) {
+        const accessToken = TokenStorage.getAccessToken();
+        if (accessToken) {
+          headers.Authorization = `Bearer ${accessToken}`;
+        }
+        fetchUrl = url;
+      } else if (
+        url.startsWith("http") &&
+        !url.includes(window.location.hostname)
+      ) {
+        fetchUrl = `/api/proxy-image?url=${encodeURIComponent(url)}`;
       } else {
-        // For same-origin images, fetch directly
-        const response = await fetch(url);
-        const blob = await response.blob();
-        return new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(blob);
-        });
+        fetchUrl = url;
       }
+
+      const response = await fetch(
+        fetchUrl,
+        Object.keys(headers).length > 0 ? { headers } : {}
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch image: ${response.statusText}`);
+      }
+
+      const blob = await response.blob();
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
     } catch (error) {
-      console.error("Error converting image to base64:", error);
       throw error;
     }
   };
 
-  // Function to open image with QR code in print dialog
-  const handlePrintWithQR = async (imageUrl?: string, fileName?: string) => {
+  const handlePrintWithQR = async (
+    imageUrl?: string,
+    fileName?: string,
+    attachmentId?: string
+  ) => {
     if (!imageUrl) return;
 
     try {
-      // Show loading message
       const loadingMsg = message.loading("Preparing print view...", 0);
-
-      // Create a canvas element if it doesn't exist
       if (!qrCanvasRef.current) {
         qrCanvasRef.current = document.createElement("canvas");
       }
@@ -182,29 +393,22 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
         return;
       }
 
-      // Convert the image URL to base64 to avoid CORS issues
       const base64Image = await getBase64FromUrl(imageUrl);
-      
-      // Load the image
-      const img = document.createElement("img");
-      img.crossOrigin = "anonymous"; // Enable CORS
 
-      img.onload = () => {
-        // Set canvas dimensions (same as original image)
-        const qrSize = Math.min(200, img.width * 0.35); // QR code size (35% of image width, max 200px)
-        const padding = 10; // Padding around QR code
+      const img = document.createElement("img");
+      img.crossOrigin = "anonymous";
+
+      img.onload = async () => {
+        const qrSize = Math.min(200, img.width * 0.35);
+        const padding = 10;
 
         canvas.width = img.width;
         canvas.height = img.height;
 
-        // Draw original image
         ctx.drawImage(img, 0, 0, img.width, img.height);
+        const qrX = Math.floor(img.width * 0.2);
+        const qrY = Math.floor(img.height * 0.005);
 
-        // Calculate QR code position (30% from left, 10% from top)
-        const qrX = Math.floor(img.width * 0.3);
-        const qrY = Math.floor(img.height * 0.1);
-
-        // Draw white background for QR code with slight transparency
         ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
         ctx.fillRect(
           qrX - padding,
@@ -212,8 +416,6 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
           qrSize + padding * 2,
           qrSize + padding * 2
         );
-
-        // Add border around QR code
         ctx.strokeStyle = "rgba(0, 0, 0, 0.3)";
         ctx.lineWidth = 1;
         ctx.strokeRect(
@@ -223,14 +425,11 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
           qrSize + padding * 2
         );
 
-        // Create QR code SVG
         const qrSvg = document.createElement("div");
         qrSvg.style.position = "absolute";
         qrSvg.style.top = "-9999px";
         qrSvg.style.left = "-9999px";
         document.body.appendChild(qrSvg);
-
-        // Create QR code element
         const qrElement = document.createElement("div");
         qrElement.style.width = `${qrSize}px`;
         qrElement.style.height = `${qrSize}px`;
@@ -240,10 +439,10 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
         qrElement.style.background = "white";
         document.body.appendChild(qrElement);
 
-        // Render QR code
+        const shortUrl = await generateShortUrl();
         ReactDOM.render(
           <QRCode
-            value={window.location.href}
+            value={shortUrl}
             size={qrSize}
             level="M"
             fgColor="#000000"
@@ -252,7 +451,6 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
           qrElement
         );
 
-        // Convert SVG to image
         const svgElement = qrElement.querySelector("svg");
         if (!svgElement) {
           message.error("Failed to generate QR code");
@@ -269,20 +467,11 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
           btoa(unescape(encodeURIComponent(svgData)));
 
         qrImg.onload = () => {
-          // Draw QR code on canvas
           ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
-
-          // Add small label for QR code
           ctx.font = "bold 12px Arial";
           ctx.fillStyle = "black";
           ctx.textAlign = "center";
-          ctx.fillText(
-            "Scan to view",
-            qrX + qrSize / 2,
-            qrY + qrSize + padding + 12
-          );
 
-          // Create a hidden iframe for printing
           const printFrame = document.createElement("iframe");
           printFrame.style.position = "fixed";
           printFrame.style.right = "-9999px";
@@ -292,10 +481,7 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
           printFrame.style.border = "0";
           document.body.appendChild(printFrame);
 
-          // Convert canvas to data URL
           const dataUrl = canvas.toDataURL("image/png");
-
-          // Set up the print frame content
           const printDocument = printFrame.contentWindow?.document;
           if (!printDocument) {
             message.error("Failed to create print document");
@@ -306,7 +492,6 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
             return;
           }
 
-          // Write the content to the iframe
           printDocument.write(`
             <!DOCTYPE html>
             <html>
@@ -339,26 +524,23 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
 
           printDocument.close();
 
-          // Wait for the image to load before printing
           const img = printDocument.querySelector("img");
           if (img) {
             img.onload = () => {
-              // Short delay to ensure everything is loaded
               setTimeout(() => {
                 try {
-                  // Focus the iframe and print
                   printFrame.contentWindow?.focus();
                   printFrame.contentWindow?.print();
-
-                  // Clean up after printing (with delay to ensure print dialog opens)
                   setTimeout(() => {
                     document.body.removeChild(printFrame);
                     document.body.removeChild(qrSvg);
                     document.body.removeChild(qrElement);
                     loadingMsg();
+                    if (attachmentId) {
+                      markPrinted(attachmentId);
+                    }
                   }, 1000);
                 } catch (error) {
-                  console.error("Print error:", error);
                   document.body.removeChild(printFrame);
                   document.body.removeChild(qrSvg);
                   document.body.removeChild(qrElement);
@@ -400,34 +582,85 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
       img.src = base64Image;
     } catch (error) {
       message.error("An error occurred during download");
-      console.error("Download error:", error);
     }
   };
 
-  // Process files for upload (used by both paste and Upload component)
+  const handlePrintPDFWithQR = async (
+    pdfUrl?: string,
+    fileName?: string,
+    attachmentId?: string
+  ) => {
+    if (!pdfUrl) {
+      console.error("❌ PDF Print with QR: No PDF URL provided");
+      message.error("No PDF URL provided");
+      return;
+    }
+
+    console.log("🖨️ PDF Print with QR started:", { pdfUrl, fileName });
+
+    try {
+      const loadingMsg = message.loading("Preparing PDF with QR code...", 0);
+
+      console.log("🔗 Generating short URL for QR code...");
+      const qrText = await generateShortUrl();
+      console.log("✅ QR text generated:", qrText);
+
+      const token = TokenStorage.getAccessToken();
+      const headers: HeadersInit = {};
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+        console.log("🔐 Authorization header added");
+      }
+
+      console.log("📄 Calling printPDFWithQR utility...");
+      await printPDFWithQR(
+        pdfUrl,
+        fileName || "document",
+        qrText,
+        {
+          qrSize: 50,
+          position: "custom",
+          customX: 0.3, // 30% from left (same as JPEG)
+          customY: 0.8, // 85% from bottom (15% from top)
+          padding: 10,
+        },
+        headers
+      );
+
+      loadingMsg();
+      console.log("✅ PDF with QR code prepared successfully");
+      message.success("PDF with QR code opened for printing");
+      if (attachmentId) {
+        markPrinted(attachmentId);
+      }
+    } catch (error) {
+      console.error("❌ PDF Print with QR failed:", error);
+      message.error(
+        `Failed to prepare PDF with QR code: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+    }
+  };
+
   const processFiles = async (files: File[]) => {
     if (!files.length) return;
 
-    // Show loading message
     const loadingMsg = message.loading("Uploading file...", 0);
 
     try {
-      // Process each file (up to 5 at a time to avoid overwhelming the server)
       const filesToProcess = files.slice(0, 5);
 
       for (const file of filesToProcess) {
         try {
-          // Use the uploadFile function from your API
           const result = await uploadFile(file);
 
           if (result?.data) {
-            // Call the same handler that's used by the upload modal
             handleUpload(file, result.data);
           } else {
             throw new Error("Upload failed");
           }
         } catch (error) {
-          console.error("Upload error for file", file.name, error);
           message.error(`Failed to upload ${file.name}`);
         }
       }
@@ -440,7 +673,6 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
         message.success(`${filesToProcess.length} files uploaded successfully`);
       }
 
-      // If there were more files than we processed, show a message
       if (files.length > 5) {
         message.info(
           `Only the first 5 files were uploaded. Please upload the remaining ${
@@ -450,23 +682,22 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
       }
     } catch (error) {
       message.error("Failed to upload files");
-      console.error("Upload error:", error);
     } finally {
-      // Always close the loading message
       loadingMsg();
     }
   };
 
-  // Handle paste events for file uploads
   useEffect(() => {
     const handlePaste = async (e: Event) => {
-      // Cast to ClipboardEvent to access clipboard data
+      // If the upload modal is open, let it handle paste so we keep the chosen type
+      if (openUploadModal) {
+        return;
+      }
+
       const event = e as ClipboardEvent;
       const items = event.clipboardData?.items;
 
       if (!items) return;
-
-      // Collect all files from the clipboard data
       const files: File[] = [];
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
@@ -479,44 +710,37 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
       }
 
       if (files.length > 0) {
-        // Prevent the default paste behavior
         event.preventDefault();
-        // Process the files
         await processFiles(files);
       }
     };
 
-    // Add the paste event listener to the attachments container
     const attachmentsElement = attachmentsRef.current;
     if (attachmentsElement) {
       attachmentsElement.addEventListener("paste", handlePaste);
     }
 
-    // Also add to document to catch pastes anywhere on the page
     document.addEventListener("paste", handlePaste);
-
-    // Cleanup function
     return () => {
       if (attachmentsElement) {
         attachmentsElement.removeEventListener("paste", handlePaste);
       }
       document.removeEventListener("paste", handlePaste);
     };
-  }, [card?.id]);
+  }, [card?.id, openUploadModal]);
 
-  // Handle file drops anywhere on the card
   useEffect(() => {
-    // Track drag enter/leave with a counter to handle nested elements
     let dragCounter = 0;
 
     const handleDragEnter = (e: DragEvent) => {
       e.preventDefault();
       e.stopPropagation();
 
-      // Increment counter on drag enter
-      dragCounter++;
+      if (!canUpdateCard()) {
+        return;
+      }
 
-      // Only set isDraggingOver to true if we have files
+      dragCounter++;
       if (
         e.dataTransfer?.types.includes("Files") ||
         e.dataTransfer?.types.includes("application/x-moz-file")
@@ -529,10 +753,8 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
       e.preventDefault();
       e.stopPropagation();
 
-      // Decrement counter on drag leave
       dragCounter--;
 
-      // Only set isDraggingOver to false when counter reaches 0
       if (dragCounter === 0) {
         setIsDraggingOver(false);
       }
@@ -542,9 +764,11 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
       e.preventDefault();
       e.stopPropagation();
 
-      // Reset drag state
       dragCounter = 0;
       setIsDraggingOver(false);
+      if (!canUpdateCard()) {
+        return;
+      }
 
       if (!e.dataTransfer) return;
 
@@ -569,19 +793,15 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
       }
     };
 
-    // Create wrapper functions to handle type conversion properly
     const dragEnterHandler = (e: Event) => handleDragEnter(e as DragEvent);
     const dragLeaveHandler = (e: Event) => handleDragLeave(e as DragEvent);
     const dropHandler = (e: Event) => handleFileDrop(e as DragEvent);
     const dragOverHandler = (e: Event) => handleDragOver(e as DragEvent);
 
-    // Add event listeners to the document
     document.addEventListener("dragenter", dragEnterHandler);
     document.addEventListener("dragleave", dragLeaveHandler);
     document.addEventListener("drop", dropHandler);
     document.addEventListener("dragover", dragOverHandler);
-
-    // Cleanup
     return () => {
       document.removeEventListener("dragenter", dragEnterHandler);
       document.removeEventListener("dragleave", dragLeaveHandler);
@@ -589,40 +809,368 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
       document.removeEventListener("dragover", dragOverHandler);
     };
   }, [card?.id]);
-
   useEffect(() => {
-    if (cardAttachments) {
-      // Clear previous state to avoid duplications on re-renders
+    if (!cardAttachments) {
+      // Reset state when no attachments available
       setAttachedCards([]);
       setAttachedFiles([]);
-
-      // Process all attachments
-      cardAttachments.forEach((item: CardAttachment) => {
-        if (item.attachableType === EnumAttachmentType.Card) {
-          if (item.targetCard !== undefined) {
-            setAttachedCards((prev) => [...prev, item.targetCard as Card]);
-          }
-        } else if (item.attachableType === EnumAttachmentType.File) {
-          if (item.file !== undefined) {
-            setAttachedFiles((prev) => [...prev, item.file as FileUpload]);
-          }
-        }
-      });
-
-      // Find cover attachment and update card cover
-      const cover = cardAttachments?.find((item) => item.isCover);
-      if (cover?.file?.url) {
-        setCard((prev: Card | null) =>
-          prev
-            ? {
-                ...prev,
-                cover: cover?.file?.url,
-              }
-            : null
-        );
-      }
+      return;
     }
-  }, [cardAttachments, setCard]);
+
+    // Build new lists
+    const nextAttachedCards: Card[] = [];
+    const nextAttachedFiles: FileUpload[] = [];
+
+    cardAttachments.forEach((item: CardAttachment) => {
+      if (item.attachableType === EnumAttachmentType.Card && item.targetCard) {
+        nextAttachedCards.push(
+          mapBackendCardToFrontend(item.targetCard) as Card
+        );
+      } else if (item.attachableType === EnumAttachmentType.File && item.file) {
+        nextAttachedFiles.push(item.file as FileUpload);
+      }
+    });
+
+    // Only update if arrays actually changed to avoid re-renders
+    setAttachedCards((prev) => {
+      const same =
+        prev.length === nextAttachedCards.length &&
+        prev.every((p, idx) => p.id === nextAttachedCards[idx].id);
+
+      return same ? prev : nextAttachedCards;
+    });
+
+    setAttachedFiles((prev) => {
+      const same =
+        prev.length === nextAttachedFiles.length &&
+        prev.every((p, idx) => p.id === nextAttachedFiles[idx].id);
+
+      return same ? prev : nextAttachedFiles;
+    });
+
+    // ----- FIXED COVER LOGIC -----
+    const newCover = cardAttachments.find((item) => item.isCover)?.file?.url;
+
+    if (newCover && card?.cover !== newCover) {
+      setCard((prev) =>
+        prev
+          ? {
+              ...prev,
+              cover: newCover,
+            }
+          : prev
+      );
+    }
+  }, [cardAttachments]);
+
+  // Reusable component for rendering attachment sections
+  const AttachmentSection: React.FC<{
+    title: string;
+    attachments: CardAttachment[];
+    emptyText?: string;
+    sectionType?: "bukti" | "po" | "other";
+    onOpenUpload?: (type: EnumCardAttachmentType) => void;
+  }> = ({
+    title,
+    attachments,
+    emptyText = "No attachments yet",
+    sectionType,
+    onOpenUpload,
+  }) => {
+    if (attachments.length === 0) {
+      return (
+        <div className="mb-6">
+          <div className="flex items-center justify-between">
+            <div className="text-xs text-gray-500 font-medium uppercase mb-2">
+              {title}
+            </div>
+            {onOpenUpload && canUpdateCard() && sectionType && (
+              <Button
+                type="link"
+                size="small"
+                icon={<PlusOutlined />}
+                onClick={() =>
+                  onOpenUpload(
+                    sectionType === "bukti"
+                      ? EnumCardAttachmentType.Bukti
+                      : sectionType === "po"
+                      ? EnumCardAttachmentType.PO
+                      : EnumCardAttachmentType.Attachment
+                  )
+                }
+              >
+                Upload
+              </Button>
+            )}
+          </div>
+          <div className="text-sm text-gray-400 italic">{emptyText}</div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="mb-6">
+        <div className="flex items-center justify-between">
+          <div className="text-xs text-gray-500 font-medium uppercase mb-2">
+            {title}
+          </div>
+          {onOpenUpload && canUpdateCard() && sectionType && (
+            <Button
+              type="link"
+              size="small"
+              icon={<PlusOutlined />}
+              onClick={() =>
+                onOpenUpload(
+                  sectionType === "bukti"
+                    ? EnumCardAttachmentType.Bukti
+                    : sectionType === "po"
+                    ? EnumCardAttachmentType.PO
+                    : EnumCardAttachmentType.Attachment
+                )
+              }
+            >
+              Upload
+            </Button>
+          )}
+        </div>
+        <List
+          className="space-y-3"
+          dataSource={attachments}
+          locale={{ emptyText }}
+          renderItem={(item) => {
+            const printed =
+              (item as any).isPrinted ?? (item as any).is_printed ?? false;
+            return (
+              <List.Item className="flex items-center p-2 hover:bg-gray-50 rounded">
+                <div className="flex-shrink-0 mr-3 w-20 h-15 flex items-center justify-center">
+                  {isImageFile(item.file?.name || "", item.file?.mimeType) ? (
+                    <div className="w-20 h-15 bg-gray-100 rounded flex items-center justify-center overflow-hidden">
+                      <Image
+                        preview={{
+                          toolbarRender: (
+                            _,
+                            {
+                              transform: { scale },
+                              actions: {
+                                onRotateLeft,
+                                onRotateRight,
+                                onZoomOut,
+                                onZoomIn,
+                              },
+                            }
+                          ) => (
+                            <Space size={12} className="toolbar-wrapper">
+                              <Button onClick={onRotateLeft}>
+                                <RotateLeftOutlined />
+                              </Button>
+                              <Button onClick={onRotateRight}>
+                                <RotateRightOutlined />
+                              </Button>
+                              <Button onClick={onZoomOut}>
+                                <ZoomOutOutlined />
+                              </Button>
+                              <Button onClick={onZoomIn}>
+                                <ZoomInOutlined />
+                              </Button>
+                              {/* Print with QR button only for PO section */}
+                              {sectionType === "po" && (
+                                <Button
+                                  onClick={() => {
+                                    document
+                                      .querySelector(".ant-image-preview-close")
+                                      ?.dispatchEvent(
+                                        new MouseEvent("click", {
+                                          bubbles: true,
+                                        })
+                                      );
+                                    setTimeout(() => {
+                                      handlePrintWithQR(
+                                        item.file?.url,
+                                        item.file?.name || "image",
+                                        item.id
+                                      );
+                                    }, 100);
+                                  }}
+                                >
+                                  <QrCode size={14} />
+                                </Button>
+                              )}
+                            </Space>
+                          ),
+                        }}
+                        src={item.file?.url}
+                        alt={item.file?.name || "attachment"}
+                        width={80}
+                        height={60}
+                        style={{ objectFit: "cover" }}
+                      />
+                    </div>
+                  ) : isPDFFile(item.file?.name || "", item.file?.mimeType) ? (
+                    <div
+                      className="w-20 h-15 overflow-hidden rounded cursor-pointer"
+                      onClick={() =>
+                        handleOpenPdfModal(
+                          item.file?.url || "",
+                          item.file?.name || "PDF Document"
+                        )
+                      }
+                    >
+                      <PDFPreview
+                        url={item.file?.url || ""}
+                        fileName={item.file?.name}
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-20 h-15 bg-gray-100 rounded flex items-center justify-center">
+                      {getFileIcon(item.file?.name || "", item.file?.mimeType)}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex-grow min-w-0">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-grow min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate flex items-center gap-2">
+                        <span className="truncate">
+                          {item.file?.name || "Unnamed file"}
+                        </span>
+                        {printed && (
+                          <Tooltip title="Already printed with QR code">
+                            <span className="text-green-600 text-xs font-semibold">
+                              ✓
+                            </span>
+                          </Tooltip>
+                        )}
+                        {item.isCover && (
+                          <Tag color="success" className="text-[10px] uppercase">
+                            Cover
+                          </Tag>
+                        )}
+                      </p>
+                      <div className="flex items-center text-xs text-gray-500 space-x-2">
+                        <span>{formatFileSize(item.file?.size)}</span>
+                        {item.file?.mimeType && (
+                          <>
+                            <span>•</span>
+                            <span>{item.file.mimeType}</span>
+                          </>
+                        )}
+                        {item.createdAt && (
+                          <>
+                            <span>•</span>
+                            <span>
+                              {new Date(item.createdAt).toLocaleDateString()}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-1 ml-2">
+                      <Button
+                        type="text"
+                        size="small"
+                        icon={<DownloadOutlined />}
+                        onClick={() => {
+                          if (item.file?.url) {
+                            const link = document.createElement("a");
+                            link.href = item.file.url;
+                            link.download = item.file.name || "download";
+                            link.target = "_blank";
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                          }
+                        }}
+                        className="text-gray-500 hover:text-blue-600"
+                      />
+
+                      {/* Print with QR for image files in PO section only */}
+                      {sectionType === "po" &&
+                        isImageFile(
+                          item.file?.name || "",
+                          item.file?.mimeType
+                        ) && (
+                          <Button
+                            type="text"
+                            size="small"
+                            icon={<QrCode size={14} />}
+                            onClick={() =>
+                              handlePrintWithQR(
+                                item.file?.url,
+                                item.file?.name || "image",
+                                item.id
+                              )
+                            }
+                            className="text-gray-500 hover:text-green-600"
+                          />
+                        )}
+
+                      {/* Print with QR for PDF files in PO section only */}
+                      {sectionType === "po" &&
+                        isPDFFile(
+                          item.file?.name || "",
+                          item.file?.mimeType
+                        ) && (
+                          <Button
+                            type="text"
+                            size="small"
+                            icon={<QrCode size={14} />}
+                            onClick={() =>
+                              handlePrintPDFWithQR(
+                                item.file?.url,
+                                item.file?.name || "PDF",
+                                item.id
+                              )
+                            }
+                            className="text-gray-500 hover:text-green-600"
+                          />
+                        )}
+
+                      {canUpdateCard() && (
+                        <Button
+                          type="text"
+                          size="small"
+                          onClick={() =>
+                            handleMarkCover(item.id, Boolean(item.isCover))
+                          }
+                          disabled={
+                            !canUpdateCard() ||
+                            item.isCover ||
+                            (coveringAttachmentId !== null &&
+                              coveringAttachmentId !== item.id)
+                          }
+                          loading={coveringAttachmentId === item.id}
+                          className="text-gray-500 hover:text-blue-600"
+                        >
+                          {item.isCover ? "Cover" : "Make Cover"}
+                        </Button>
+                      )}
+
+                      {canUpdateCard() && (
+                        <Button
+                          type="text"
+                          size="small"
+                          icon={<DeleteOutlined />}
+                          onClick={() =>
+                            deleteAttachment({
+                              attachmentId: item.id,
+                              cardId: card.id || "",
+                            })
+                          }
+                          className="text-gray-500 hover:text-red-600"
+                        />
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </List.Item>
+            );
+          }}
+        />
+      </div>
+    );
+  };
 
   return (
     <>
@@ -638,147 +1186,46 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
               Attachments
             </Typography.Title>
           </div>
-          <Button
-            type="default"
-            size="small"
-            icon={<PlusOutlined />}
-            className="flex items-center"
-            onClick={handleOpenModal}
-          >
-            Add
-          </Button>
+          <Dropdown trigger={["click"]} menu={{ items: uploadMenuItems }}>
+            <Button
+              type="default"
+              size="small"
+              icon={<PlusOutlined />}
+              className={`flex items-center ${
+                !canUpdateCard() ? "opacity-50 cursor-not-allowed" : ""
+              }`}
+              disabled={!canUpdateCard()}
+            >
+              Add
+            </Button>
+          </Dropdown>
         </div>
 
-        <div className="text-xs text-gray-500 font-medium uppercase mb-2">
-          Files
-        </div>
-        <List
-          className="space-y-3"
-          dataSource={cardAttachments?.filter(
-            (item) => item.attachableType === EnumAttachmentType.File
-          )}
-          locale={{ emptyText: "No attachments yet" }}
-          renderItem={(item) => (
-            <List.Item className="flex items-center p-2 hover:bg-gray-50 rounded">
-              <div className="flex-shrink-0 mr-3 w-20 h-15 flex items-center justify-center">
-                {isImageFile(item.file?.name || "", item.file?.mimeType) ? (
-                  <div className="w-20 h-15 bg-gray-100 rounded flex items-center justify-center overflow-hidden">
-                    <Image
-                      preview={{
-                        toolbarRender: (
-                          _,
-                          {
-                            transform: { scale },
-                            actions: {
-                              onRotateLeft,
-                              onRotateRight,
-                              onZoomOut,
-                              onZoomIn,
-                            },
-                          }
-                        ) => (
-                          <Space size={12} className="toolbar-wrapper">
-                            <Button onClick={onRotateLeft}>
-                              <RotateLeftOutlined />
-                            </Button>
-                            <Button onClick={onRotateRight}>
-                              <RotateRightOutlined />
-                            </Button>
-                            <Button onClick={onZoomOut}>
-                              <ZoomOutOutlined />
-                            </Button>
-                            <Button onClick={onZoomIn}>
-                              <ZoomInOutlined />
-                            </Button>
-                            <Button
-                              onClick={() => {
-                                document
-                                  .querySelector(".ant-image-preview-close")
-                                  ?.dispatchEvent(
-                                    new MouseEvent("click", { bubbles: true })
-                                  );
-                                setTimeout(() => {
-                                  handlePrintWithQR(
-                                    item.file?.url,
-                                    item.file?.name || "image"
-                                  );
-                                }, 100);
-                              }}
-                            >
-                              <PrinterOutlined />
-                            </Button>
-                          </Space>
-                        ),
-                      }}
-                      src={item.file?.url}
-                      alt={item.file?.name || "attachment"}
-                      width={80}
-                      height={60}
-                      style={{ objectFit: "cover" }}
-                    />
-                  </div>
-                ) : (
-                  <div className="w-20 h-15 bg-gray-100 rounded flex items-center justify-center">
-                    {getFileIcon(item.file?.name || "", item.file?.mimeType)}
-                  </div>
-                )}
-              </div>
+        {/* Bukti Section */}
+        <AttachmentSection
+          title="Bukti"
+          attachments={getBuktiAttachments()}
+          emptyText="No bukti attachments yet"
+          sectionType="bukti"
+          // onOpenUpload={openUpload}
+        />
 
-              <div className="flex-grow">
-                <div className="text-sm font-medium">{item.file?.name}</div>
-                <div className="text-xs text-gray-500 flex items-center space-x-2">
-                  <span>{formatFileSize(item.file?.size)}</span>
-                  {item.file?.mimeType && <span>•</span>}
-                  <span>{item.file?.mimeType}</span>
-                  {item.isCover && (
-                    <span className="bg-blue-100 text-blue-600 text-xs px-2 py-0.5 rounded">
-                      Cover
-                    </span>
-                  )}
-                </div>
-              </div>
+        {/* PO Section */}
+        <AttachmentSection
+          title="PO"
+          attachments={getPOAttachments()}
+          emptyText="No PO attachments yet"
+          sectionType="po"
+          // onOpenUpload={openUpload}
+        />
 
-              <div className="flex-shrink-0 flex space-x-1">
-                {isImageFile(item.file?.name || "", item.file?.mimeType) ? (
-                  <>
-                    <Button
-                      icon={<DownloadOutlined />}
-                      size="small"
-                      title="Download Original"
-                      onClick={() => window.open(item.file?.url, "_blank")}
-                      className="flex items-center justify-center border-0 shadow-none"
-                    />
-                    <Button
-                      icon={<PrinterOutlined />}
-                      size="small"
-                      title="Print with QR Code"
-                      onClick={() =>
-                        handlePrintWithQR(
-                          item.file?.url,
-                          item.file?.name || "image"
-                        )
-                      }
-                      className="flex items-center justify-center border-0 shadow-none"
-                    />
-                  </>
-                ) : (
-                  <Button
-                    icon={<ExportOutlined />}
-                    size="small"
-                    title="Download"
-                    onClick={() => window.open(item.file?.url, "_blank")}
-                    className="flex items-center justify-center border-0 shadow-none"
-                  />
-                )}
-                <Button
-                  icon={<EllipsisOutlined />}
-                  size="small"
-                  title="More options"
-                  className="flex items-center justify-center border-0 shadow-none"
-                />
-              </div>
-            </List.Item>
-          )}
+        {/* Other Files Section */}
+        <AttachmentSection
+          title="Other Files"
+          attachments={getOtherAttachments()}
+          emptyText="No other attachments yet"
+          sectionType="other"
+          // onOpenUpload={openUpload}
         />
 
         {/* Cards Section */}
@@ -787,59 +1234,30 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
             <div className="text-xs text-gray-500 font-medium uppercase mt-4 mb-2">
               Cards
             </div>
-            <List
-              className="space-y-3"
-              dataSource={attachedCards}
-              locale={{ emptyText: "No attached cards yet" }}
-              renderItem={(item) => (
-                <List.Item className="flex items-center hover:bg-gray-50 rounded">
-                  <div className="flex-shrink-0 mr-3 w-20 h-10 flex items-center justify-center">
-                    {item.cover ? (
-                      <img
-                        src={item.cover}
-                        alt={item.name}
-                        className="w-20 h-15 object-cover rounded"
-                      />
-                    ) : (
-                      <div className="flex justify-center items-center w-20 h-10 rounded bg-gray-200">
-                        <Avatar
-                          shape="square"
-                          src={`https://ui-avatars.com/api/?name=${item?.name}&background=random`}
-                        ></Avatar>
-                      </div>
-                    )}
-                  </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 auto-rows-max">
+              {attachedCards?.map((attachedCard) => {
+                // Find the corresponding attachment to get the attachment ID for deletion
+                const attachment = cardAttachments?.find(
+                  (att) => att.targetCard?.id === attachedCard.id
+                );
 
-                  <div className="flex-grow">
-                    <div className="text-sm font-medium">{item.name}</div>
-                    <div className="text-xs text-gray-500 flex items-center space-x-2">
-                      <div
-                        className="prose prose-sm max-w-none text-[10px]"
-                        dangerouslySetInnerHTML={{
-                          __html: item.description || "",
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex-shrink-0 flex space-x-1">
-                    <Button
-                      icon={<ExportOutlined />}
-                      size="small"
-                      title="Download"
-                      onClick={() => window.open(item.cover, "_blank")}
-                      className="flex items-center justify-center border-0 shadow-none"
-                    />
-                    <Button
-                      icon={<EllipsisOutlined />}
-                      size="small"
-                      title="More options"
-                      className="flex items-center justify-center border-0 shadow-none"
-                    />
-                  </div>
-                </List.Item>
-              )}
-            />
+                return (
+                  <AttachedCard
+                    key={attachedCard.id}
+                    card={attachedCard}
+                    onDelete={
+                      attachment
+                        ? () =>
+                            deleteAttachment({
+                              attachmentId: attachment.id,
+                              cardId: card.id || "",
+                            })
+                        : undefined
+                    }
+                  />
+                );
+              })}
+            </div>
           </>
         )}
 
@@ -848,7 +1266,26 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
           onClose={handleCloseModal}
           onUploadComplete={handleUpload}
           uploadType="all"
-          title="Upload attachment"
+          title={uploadModalTitle}
+          multiple
+          extraContent={
+            currentAttachmentType === EnumCardAttachmentType.PO ? (
+              <Checkbox
+                checked={isPOPelengkap}
+                onChange={(e) => setIsPOPelengkap(e.target.checked)}
+              >
+                PO Pelengkap
+              </Checkbox>
+            ) : null
+          }
+          onBeforeUpload={
+            currentAttachmentType === EnumCardAttachmentType.PO
+              ? async (file) => {
+                  const newName = buildPOFileName(file.name);
+                  return new File([file], newName, { type: file.type });
+                }
+              : undefined
+          }
         />
       </div>
 
@@ -880,6 +1317,14 @@ const Attachments: React.FC<AttachmentsProps> = (props) => {
           </div>
         </div>
       )}
+
+      {/* PDF Modal */}
+      <PDFModal
+        isOpen={pdfModalVisible}
+        onClose={handleClosePdfModal}
+        url={selectedPdf?.url || ""}
+        fileName={selectedPdf?.fileName || "PDF Document"}
+      />
     </>
   );
 };

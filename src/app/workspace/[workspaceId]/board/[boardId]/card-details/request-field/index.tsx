@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button, Dropdown, Modal, Input } from "antd";
 import { MoreOutlined } from "@ant-design/icons";
 import { useState } from "react";
+import { formatRequestQuantity } from "@utils/request-format";
 
 // Constants
 const tabNames = ["Polo", "Oblong", "Kemeja", "Jaket", "Hoodie"];
@@ -27,15 +28,22 @@ const RequestFields: React.FC = () => {
   // Query key for requests
   const requestsQueryKey = ["requests", selectedCard?.id];
 
-  // Query for fetching requests
+  // Query for fetching requests (skip if already present on card)
   const { data: requestData } = useQuery<{ data: CardRequest[] }>({
     queryKey: requestsQueryKey,
     queryFn: async () => {
       if (!selectedCard?.id) return null;
       return getRequestsByCardId(selectedCard.id);
     },
-    enabled: !!selectedCard?.id,
+    enabled:
+      !!selectedCard?.id &&
+      !(selectedCard?.requests && selectedCard.requests.length > 0),
   });
+
+  const requests: CardRequest[] =
+    ((selectedCard?.requests as any) as CardRequest[]) ??
+    requestData?.data ??
+    [];
 
   // Mutation for updating request received amount
   const updateRequestMutation = useMutation({
@@ -64,30 +72,35 @@ const RequestFields: React.FC = () => {
       dataIndex: "itemName",
       key: "itemName",
     },
-    {
-      title: "Diminta",
-      dataIndex: "requestAmount",
-      key: "requestAmount",
-      render: (_: unknown, record: CardRequest) => {
-        return (
-          <span>
-            {record.requestAmount} {record.satuan}
-          </span>
-        );
+      {
+        title: "Diminta",
+        dataIndex: "requestAmount",
+        key: "requestAmount",
+        render: (_: unknown, record: CardRequest) => {
+          return (
+            <span>
+              {formatRequestQuantity(record.requestAmount)} {record.satuan}
+            </span>
+          );
+        },
       },
-    },
-    {
-      title: "Dikirim",
-      dataIndex: "requestSent",
-      key: "requestSent",
-      render: (_: unknown, record: CardRequest) => {
-        return (
-          <span>
-            {record.requestSent ? record.requestSent : 0} {record.satuan}
-          </span>
-        );
+      {
+        title: "Dikirim",
+        dataIndex: "requestSent",
+        key: "requestSent",
+        render: (_: unknown, record: CardRequest) => {
+          return (
+            <span>
+              {formatRequestQuantity(
+                record.requestSent === null || record.requestSent === undefined
+                  ? 0
+                  : record.requestSent
+              )}{" "}
+              {record.satuan}
+            </span>
+          );
+        },
       },
-    },
     {
       title: "Jenis",
       dataIndex: "adjustmentName",
@@ -98,8 +111,8 @@ const RequestFields: React.FC = () => {
 
       render: (_: unknown, record: CardRequest) => {
         return (
-          <span>
-            {record.requestReceived ? record.requestReceived : ""}{" "}
+        <span>
+            {record.requestReceived ? formatRequestQuantity(record.requestReceived) : ""}{" "}
             {record.satuan}
           </span>
         );
@@ -109,56 +122,6 @@ const RequestFields: React.FC = () => {
       title: "Deskripsi",
       dataIndex: "description",
       key: "description",
-    },
-    {
-      title: "",
-      key: "action",
-      width: 50,
-      align: "center" as const,
-      render: (_: unknown, record: CardRequest) => {
-        // Handler for opening the modal
-        const handleClick = () => {
-          setActiveRequest(record);
-          setIsModalVisible(true);
-        };
-
-        // Handler for "habis" action
-        const handleHabisClick = () => {
-          if (record.requestSent) {
-            updateRequestMutation.mutate({
-              id: record.id.toString(),
-              amount: record.requestSent,
-            });
-          }
-        };
-
-        return (
-          <Dropdown
-            menu={{
-              items: [
-                {
-                  key: "sisa",
-                  label: "Sisa",
-                  onClick: handleClick,
-                },
-                {
-                  key: "habis",
-                  label: "Habis",
-                  onClick: handleHabisClick,
-                },
-              ],
-            }}
-            trigger={["click"]}
-            placement="bottomRight"
-          >
-            <Button
-              type="text"
-              icon={<MoreOutlined />}
-              className="border-none shadow-none"
-            />
-          </Dropdown>
-        );
-      },
     },
   ];
 
@@ -179,32 +142,14 @@ const RequestFields: React.FC = () => {
 
   if (!selectedCard?.id) return null;
 
-  if (!requestData?.data || requestData.data.length === 0) return null;
+  if (!requests || requests.length === 0) return null;
 
   return (
-    <div className="mt-8 w-full">
-      {/* Top Row */}
-      <div className="flex items-center gap-2 mb-4">
-        <span className="inline-flex items-center justify-center text-gray-700">
-          <svg
-            width="20"
-            height="20"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            viewBox="0 0 24 24"
-          >
-            <path d="M12 4L4 20h16L12 4z" />
-          </svg>
-        </span>
-        <span className="text-[18px] font-semibold text-gray-900">
-          Requests
-        </span>
-      </div>
+    <div className="w-full">
       <div className="ml-8">
         <Table
           columns={columns}
-          dataSource={requestData?.data || []}
+          dataSource={requests || []}
           pagination={false}
           size="small"
         />

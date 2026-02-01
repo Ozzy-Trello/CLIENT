@@ -1,5 +1,5 @@
-import dynamic from 'next/dynamic';
-import React from 'react';
+import dynamic from "next/dynamic";
+import React, { Dispatch, SetStateAction, forwardRef } from "react";
 import "./style.css";
 
 // Define the props interface here too so it's available for both components
@@ -12,38 +12,49 @@ interface RichTextEditorProps {
   maxHeight?: string | number;
   className?: string;
   readOnly?: boolean;
+  workspaceId?: string;
+  boardId?: string;
+  hasCustomImageSelector?: boolean;
+  openCustomImagesSelector?: boolean;
+  setOpenCustomImageSelector?: Dispatch<SetStateAction<boolean>>;
+  selectedAttachmentImageUrl?: string;
 }
 
 // Create a placeholder component to show while loading
 const EditorPlaceholder: React.FC<{
   minHeight?: string | number;
   width?: string | number;
-}> = ({ minHeight = '100px', width = '100%' }) => {
+}> = ({ minHeight = "100px", width = "100%" }) => {
   return (
-    <div 
-      style={{ 
-        minHeight: typeof minHeight === 'number' ? `${minHeight}px` : minHeight,
-        width: typeof width === 'number' ? `${width}px` : width,
-        backgroundColor: '#f9f9f9', 
-        border: '1px solid #d9d9d9',
-        borderRadius: '4px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center'
+    <div
+      style={{
+        minHeight: typeof minHeight === "number" ? `${minHeight}px` : minHeight,
+        width: typeof width === "number" ? `${width}px` : width,
+        backgroundColor: "#f9f9f9",
+        border: "1px solid #d9d9d9",
+        borderRadius: "4px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
       }}
     >
-      <span style={{ color: '#bfbfbf' }}>Loading editor...</span>
+      <span style={{ color: "#bfbfbf" }}>Loading editor...</span>
     </div>
   );
 };
 
 // Import the component with SSR disabled
 const RichTextEditorClient = dynamic<RichTextEditorProps>(
-  () => import('./client').then(mod => mod.default), 
-  { 
+  () => import("./client").then((mod) => mod.default),
+  {
     ssr: false,
-    loading: () => <EditorPlaceholder />
+    loading: () => <EditorPlaceholder />,
   }
 );
 
-export default RichTextEditorClient;
+// Forward ref to the dynamic component using cloneElement workaround
+const RichTextEditorWithRef = forwardRef<any, RichTextEditorProps>(
+  (props, ref) => <RichTextEditorClient {...props} />
+);
+
+export default RichTextEditorWithRef;

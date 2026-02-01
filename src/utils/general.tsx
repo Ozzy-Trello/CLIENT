@@ -16,7 +16,7 @@ export const getGradientString = (gradientArray: { color: string; percent: numbe
 
 // Function to determine if text should be light or dark based on background
 export const getContrastingTextColor = (backgroundColor: string): string => {
-  console.log("backgroundColor: %o", backgroundColor);
+
   if (typeof backgroundColor !== "string") return '51, 51, 51';
   // Convert hex to RGB
   const rgbArr = backgroundColor.split(',');
@@ -109,16 +109,18 @@ export const createGradientBackground = (): { color: string; percent: number }[]
 };
 
 export function extractPlaceholders(pattern: string): string[] {
-  const regex = /<([^>]+)>/g;
+  const regex = /<([^>]+)>|\[([^\]]+)\]/g;
   const placeholders: string[] = [];
-  
+
   let match;
   while ((match = regex.exec(pattern)) !== null) {
-    placeholders.push(match[1]);
+    // match[1] is from <...>, match[2] is from [...]
+    placeholders.push(match[1] || match[2]);
   }
-  
+
   return placeholders;
 }
+
 
 export function isSpecialKey(key: string): boolean {
   // Add all properties that have specific types in the interfaces

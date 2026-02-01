@@ -8,7 +8,7 @@ import ContentAttach from "./content";
 import { useCardDetailContext } from "@providers/card-detail-context";
 import { useCards } from "@hooks/card";
 import { useCardAttachment } from "@hooks/card_attachment";
-import { EnumAttachmentType } from "@myTypes/card";
+import { EnumAttachmentType, EnumCardAttachmentType } from "@myTypes/card";
 
 interface PopoverAttachProps {
   open: boolean;
@@ -25,24 +25,33 @@ const PopoverAttach: React.FC<PopoverAttachProps> = ({
   const workspaceId = params.workspaceId as string;
   const { selectedCard, activeList, setSelectedCard } = useCardDetailContext();
   const { addAttachment } = useCardAttachment(selectedCard?.id || "");
-  
-  
+
   const handleAttachFile = (file: File, result: FileUpload) => {
+    if (selectedCard && result?.id) {
+      addAttachment({
+        cardId: selectedCard.id,
+        attachableType: EnumAttachmentType.File,
+        attachableId: result.id,
+        isCover: false,
+        type: EnumCardAttachmentType.Attachment,
+      });
+      message.success(`File "${file.name}" attached successfully!`);
+    }
     setOpen(false);
   };
-  
+
   const handleAttachCard = (linkedCardId: string) => {
     if (selectedCard) {
       addAttachment({
         cardId: selectedCard.id,
         attachableType: EnumAttachmentType.Card,
         attachableId: linkedCardId,
-        isCover: false
+        isCover: false,
       });
     }
     setOpen(false);
   };
- 
+
   return (
     <Popover
       content={
@@ -57,13 +66,15 @@ const PopoverAttach: React.FC<PopoverAttachProps> = ({
       title={
         <div className="flex justify-between items-center">
           <div className="flex justify-start items-center gap-2">
-            <Typography.Title level={5} className="m-0">Attach</Typography.Title>
+            <Typography.Title level={5} className="m-0">
+              Attach
+            </Typography.Title>
           </div>
           <button
             onClick={() => setOpen(false)}
             className="hover:bg-gray-100 p-1 rounded-sm transition-colors"
           >
-            <X size={14} className="text-gray-400"/>
+            <X size={14} className="text-gray-400" />
           </button>
         </div>
       }
@@ -72,7 +83,7 @@ const PopoverAttach: React.FC<PopoverAttachProps> = ({
       onOpenChange={setOpen}
       placement="bottom"
       overlayClassName="custom-field-popover"
-      destroyTooltipOnHide
+      destroyOnHidden
     >
       {triggerEl}
     </Popover>

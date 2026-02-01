@@ -1,12 +1,24 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { cardCustomFields, setCardCustomFieldValue } from "../api/card_custom_field";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import {
+  cardCustomFields,
+  setCardCustomFieldValue,
+} from "../api/card_custom_field";
+import { queryKeys } from "../constants/query-keys";
 import { ApiResponse } from "../types/type";
 import { CardCustomField } from "@myTypes/card";
-import { EnumCustomFieldSource, EnumCustomFieldType } from "@myTypes/custom-field";
+import {
+  EnumCustomFieldSource,
+  EnumCustomFieldType,
+} from "@myTypes/custom-field";
+import { useMemo, useCallback } from "react";
 
 export const useCardCustomField = (cardId: string, workspaceId: string) => {
   const queryClient = useQueryClient();
- 
+
   // Main query for card custom fields
   const cardCustomFieldQuery = useQuery({
     queryKey: ["cardCustomField", cardId, workspaceId],
@@ -17,44 +29,45 @@ export const useCardCustomField = (cardId: string, workspaceId: string) => {
 
   // Set card custom field value mutation with optimistic update
   const setValueMutation = useMutation({
-    mutationFn: ({ 
-      customFieldId, 
-      updatedData 
-    }: { 
-      customFieldId: string; 
-      updatedData: Partial<CardCustomField> 
-    }) => setCardCustomFieldValue(workspaceId, cardId, customFieldId, updatedData),
-    onMutate: async ({ customFieldId, updatedData }) => {      
+    mutationFn: ({
+      customFieldId,
+      updatedData,
+    }: {
+      customFieldId: string;
+      updatedData: Partial<CardCustomField>;
+    }) =>
+      setCardCustomFieldValue(workspaceId, cardId, customFieldId, updatedData),
+    onMutate: async ({ customFieldId, updatedData }) => {
       // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ 
-        queryKey: ["cardCustomField", cardId, workspaceId] 
+      await queryClient.cancelQueries({
+        queryKey: ["cardCustomField", cardId, workspaceId],
       });
 
       // Snapshot the previous value
-      const previousCardCustomFields = queryClient.getQueryData<ApiResponse<CardCustomField[]>>(
-        ["cardCustomField", cardId, workspaceId]
-      );
+      const previousCardCustomFields = queryClient.getQueryData<
+        ApiResponse<CardCustomField[]>
+      >(["cardCustomField", cardId, workspaceId]);
 
       // Optimistically update to the new value
       if (previousCardCustomFields?.data) {
-        const updatedFields = previousCardCustomFields.data.map(field => {
+        const updatedFields = previousCardCustomFields.data.map((field) => {
           const isMatch = field.id === customFieldId;
-          
+
           return isMatch ? { ...field, ...updatedData } : field;
         });
 
         // If the field doesn't exist yet, create it
         const fieldExists = previousCardCustomFields.data.some(
-          field => field.id === customFieldId
+          (field) => field.id === customFieldId
         );
 
         if (!fieldExists) {
           const newField: CardCustomField = {
             id: customFieldId,
             cardId,
-            ...updatedData
+            ...updatedData,
           };
-          
+
           updatedFields.push(newField);
         }
 
@@ -62,7 +75,7 @@ export const useCardCustomField = (cardId: string, workspaceId: string) => {
           ["cardCustomField", cardId, workspaceId],
           {
             ...previousCardCustomFields,
-            data: updatedFields
+            data: updatedFields,
           }
         );
       }
@@ -87,11 +100,14 @@ export const useCardCustomField = (cardId: string, workspaceId: string) => {
           data
         );
       }
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.cards.detail(cardId),
+      });
     },
     // Remove onSettled to prevent unnecessary refetches that override our data
     // onSettled: () => {
-    //   queryClient.invalidateQueries({ 
-    //     queryKey: ["cardCustomField", cardId, workspaceId] 
+    //   queryClient.invalidateQueries({
+    //     queryKey: ["cardCustomField", cardId, workspaceId]
     //   });
     // },
   });
@@ -100,11 +116,11 @@ export const useCardCustomField = (cardId: string, workspaceId: string) => {
   const setStringValue = (customFieldId: string, value: string) => {
     setValueMutation.mutate({
       customFieldId,
-      updatedData: { 
+      updatedData: {
         valueString: value,
         // Don't clear other fields - let the backend handle this
         // The backend should return the complete updated record
-      }
+      },
     });
   };
 
@@ -112,9 +128,9 @@ export const useCardCustomField = (cardId: string, workspaceId: string) => {
   const setNumberValue = (customFieldId: string, value: number) => {
     setValueMutation.mutate({
       customFieldId,
-      updatedData: { 
+      updatedData: {
         valueNumber: value,
-      }
+      },
     });
   };
 
@@ -122,9 +138,19 @@ export const useCardCustomField = (cardId: string, workspaceId: string) => {
   const setOptionValue = (customFieldId: string, value: string) => {
     setValueMutation.mutate({
       customFieldId,
-      updatedData: { 
+      updatedData: {
         valueOption: value,
-      }
+      },
+    });
+  };
+
+  // Helper function to clear option value (set to null)
+  const clearOptionValue = (customFieldId: string) => {
+    setValueMutation.mutate({
+      customFieldId,
+      updatedData: {
+        valueOption: null,
+      },
     });
   };
 
@@ -132,9 +158,9 @@ export const useCardCustomField = (cardId: string, workspaceId: string) => {
   const setCheckboxValue = (customFieldId: string, value: boolean) => {
     setValueMutation.mutate({
       customFieldId,
-      updatedData: { 
+      updatedData: {
         valueCheckbox: value,
-      }
+      },
     });
   };
 
@@ -142,9 +168,9 @@ export const useCardCustomField = (cardId: string, workspaceId: string) => {
   const setDateValue = (customFieldId: string, value: Date) => {
     setValueMutation.mutate({
       customFieldId,
-      updatedData: { 
+      updatedData: {
         valueDate: value,
-      }
+      },
     });
   };
 
@@ -152,14 +178,19 @@ export const useCardCustomField = (cardId: string, workspaceId: string) => {
   const setUserValue = (customFieldId: string, value: string) => {
     setValueMutation.mutate({
       customFieldId,
-      updatedData: { 
+      updatedData: {
         valueUserId: value,
-      }
+      },
     });
   };
 
   // Generic helper to set value based on type
-  const setValue = (customFieldId: string, value: any, source: EnumCustomFieldSource, type: EnumCustomFieldType) => {
+  const setValue = (
+    customFieldId: string,
+    value: any,
+    source: EnumCustomFieldSource,
+    type: EnumCustomFieldType
+  ) => {
     switch (type) {
       case EnumCustomFieldType.Text:
         setStringValue(customFieldId, value);
@@ -168,13 +199,21 @@ export const useCardCustomField = (cardId: string, workspaceId: string) => {
         setNumberValue(customFieldId, Number(value));
         break;
       case EnumCustomFieldType.Dropdown:
-        setOptionValue(customFieldId, value);
+        // Support clearing dropdown value via special sentinel or null
+        if (value === "__CLEAR__" || value === null) {
+          clearOptionValue(customFieldId);
+        } else {
+          setOptionValue(customFieldId, value);
+        }
         break;
       case EnumCustomFieldType.Checkbox:
         setCheckboxValue(customFieldId, Boolean(value));
         break;
       case EnumCustomFieldType.Date:
-        setDateValue(customFieldId, value instanceof Date ? value : new Date(value));
+        setDateValue(
+          customFieldId,
+          value instanceof Date ? value : new Date(value)
+        );
         break;
       default:
         if (source === EnumCustomFieldSource.User) {
@@ -185,30 +224,71 @@ export const useCardCustomField = (cardId: string, workspaceId: string) => {
     }
   };
 
+  const dedupedCustomFields = useMemo(() => {
+    const data = cardCustomFieldQuery.data?.data ?? [];
+    const map = new Map<string, CardCustomField>();
+
+    const getKey = (field: CardCustomField) => {
+      const customFieldId =
+        (field as any).customFieldId ||
+        (field as any).custom_field_id ||
+        field.id;
+
+      if (customFieldId) return customFieldId;
+      if (field.name) return `name:${field.name.toLowerCase()}`;
+      return `${Math.random()}`;
+    };
+
+    data.forEach((field) => {
+      const key = getKey(field);
+      if (!map.has(key)) {
+        map.set(key, field);
+      }
+    });
+
+    return Array.from(map.values());
+  }, [cardCustomFieldQuery.data?.data]);
+
   // Helper function to get the actual value regardless of type
   const getValue = (customFieldId: string): any => {
-    const field = cardCustomFieldQuery.data?.data?.find(
-      field => field.id === customFieldId
-    );
-    
+    const field = dedupedCustomFields.find((field) => field.id === customFieldId);
+
     if (!field) return null;
 
     // Return the appropriate value based on what's set
-    if (field.valueString !== undefined && field.valueString !== null && field.valueString !== '') return field.valueString;
-    if (field.valueNumber !== undefined && field.valueNumber !== null) return field.valueNumber;
-    if (field.valueOption !== undefined && field.valueOption !== null && field.valueOption !== '') return field.valueOption;
-    if (field.valueCheckbox !== undefined && field.valueCheckbox !== null) return field.valueCheckbox;
-    if (field.valueDate !== undefined && field.valueDate !== null) return field.valueDate;
-    if (field.valueUserId !== undefined && field.valueUserId !== null && field.valueUserId !== '') return field.valueUserId;
+    if (
+      field.valueString !== undefined &&
+      field.valueString !== null &&
+      field.valueString !== ""
+    )
+      return field.valueString;
+    if (field.valueNumber !== undefined && field.valueNumber !== null)
+      return field.valueNumber;
+    if (
+      field.valueOption !== undefined &&
+      field.valueOption !== null &&
+      field.valueOption !== ""
+    )
+      return field.valueOption;
+    if (field.valueCheckbox !== undefined && field.valueCheckbox !== null)
+      return field.valueCheckbox;
+    if (field.valueDate !== undefined && field.valueDate !== null)
+      return field.valueDate;
+    if (
+      field.valueUserId !== undefined &&
+      field.valueUserId !== null &&
+      field.valueUserId !== ""
+    )
+      return field.valueUserId;
 
     return null;
   };
 
   // Helper function to get a specific custom field
-  const getCustomField = (customFieldId: string): CardCustomField | undefined => {
-    const field = cardCustomFieldQuery.data?.data?.find(
-      field => field.id === customFieldId
-    );
+  const getCustomField = (
+    customFieldId: string
+  ): CardCustomField | undefined => {
+    const field = dedupedCustomFields.find((field) => field.id === customFieldId);
     return field;
   };
 
@@ -221,7 +301,7 @@ export const useCardCustomField = (cardId: string, workspaceId: string) => {
 
   const getNumberValue = (customFieldId: string): number | null => {
     const field = getCustomField(customFieldId);
-    return field?.valueNumber || null;
+    return field?.valueNumber !== undefined && field?.valueNumber !== null ? field.valueNumber : null;
   };
 
   const getOptionValue = (customFieldId: string): string | null => {
@@ -231,7 +311,7 @@ export const useCardCustomField = (cardId: string, workspaceId: string) => {
 
   const getCheckboxValue = (customFieldId: string): boolean | null => {
     const field = getCustomField(customFieldId);
-    return field?.valueCheckbox || null;
+    return field?.valueCheckbox !== undefined && field?.valueCheckbox !== null ? field.valueCheckbox : null;
   };
 
   const getDateValue = (customFieldId: string): Date | null => {
@@ -245,44 +325,51 @@ export const useCardCustomField = (cardId: string, workspaceId: string) => {
   };
 
   // Helper function to update multiple properties of a custom field
-  const updateCustomField = (customFieldId: string, updates: Partial<CardCustomField>) => {
+  const updateCustomField = (
+    customFieldId: string,
+    updates: Partial<CardCustomField>
+  ) => {
     setValueMutation.mutate({
       customFieldId,
-      updatedData: updates
+      updatedData: updates,
     });
   };
 
   // Helper function to check if a custom field has any value
-  const hasValue = (customFieldId: string): boolean => {
-    const field = getCustomField(customFieldId);
-    if (!field) return false;
+  const hasValue = useCallback(
+    (customFieldId: string): boolean => {
+      const field = getCustomField(customFieldId);
+      if (!field) return false;
 
-    return !!(
-      (field.valueString && field.valueString !== '') ||
-      field.valueNumber !== undefined ||
-      (field.valueOption && field.valueOption !== '') ||
-      field.valueCheckbox !== undefined ||
-      field.valueDate ||
-      (field.valueUserId && field.valueUserId !== '')
-    );
-  };
+      return !!(
+        (field.valueString && field.valueString !== "") ||
+        field.valueNumber !== undefined ||
+        (field.valueOption && field.valueOption !== "") ||
+        field.valueCheckbox !== undefined ||
+        field.valueDate ||
+        (field.valueUserId && field.valueUserId !== "")
+      );
+    },
+    [dedupedCustomFields]
+  );
 
   return {
     // Query data and state
-    cardCustomFields: cardCustomFieldQuery.data?.data || [],
+    cardCustomFields: dedupedCustomFields,
     isLoading: cardCustomFieldQuery.isLoading,
     isError: cardCustomFieldQuery.isError,
     error: cardCustomFieldQuery.error,
-    
+
     // Type-specific value setters
     setStringValue,
     setNumberValue,
     setOptionValue,
+    clearOptionValue,
     setCheckboxValue,
     setDateValue,
     setUserValue,
     setValue, // Generic setter based on type
-    
+
     // Value getters
     getValue, // Generic getter
     getStringValue,
@@ -291,24 +378,24 @@ export const useCardCustomField = (cardId: string, workspaceId: string) => {
     getCheckboxValue,
     getDateValue,
     getUserValue,
-    
+
     // General mutations
     updateCustomField,
-    
+
     // Mutation states
     isUpdating: setValueMutation.isPending,
     updateError: setValueMutation.error,
-    
+
     // Helper functions
     getCustomField,
     hasValue,
-    
+
     // Async versions for when you need promises
     setValueAsync: setValueMutation.mutateAsync,
-    
+
     // Raw mutation for advanced usage
     setValueMutation: setValueMutation.mutate,
-    
+
     // For debugging
     refetch: cardCustomFieldQuery.refetch,
   };

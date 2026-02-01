@@ -1,4 +1,5 @@
 import { Action } from "@reduxjs/toolkit";
+import { ReactNode } from "react";
 
 export interface ApiResponse<T = any> {
   data?: T;
@@ -20,13 +21,6 @@ export interface Color {
   percent: number;
 }
 
-export interface Label {
-  id: string;
-  title: string;
-  color: string;
-}
-
-
 export interface AcitivitySource {
   actionType: string;
   fromId: string;
@@ -39,6 +33,7 @@ export interface AcitivitySource {
 
 // Automation Rule interface to accomodate selection state of automation rule setting
 export interface AutomationRule {
+  id?: string;
   triggerType: string;
   triggerItem?: SelectedTriggerItem;
   actions?: SelectedAction[];
@@ -48,32 +43,44 @@ export interface SelectedTriggerItem {
   type?: string;
   label?: string;
   filter?: SelectedCardFilter;
-  [key: string]: GeneralOptions | string | undefined;
-}
-
-export interface SelectedCardFilter {
-  type?: string;
-  selectedItem?: SelectedCardFilterItem;
+  [key: string]:
+    | GeneralOptions
+    | string
+    | undefined
+    | null
+    | ReactNode
+    | number;
+  filter?: SelectedCardFilterItem[];
+  [key: string]:
+    | GeneralOptions
+    | string
+    | undefined
+    | null
+    | ReactNode
+    | number;
 }
 
 export interface SelectedCardFilterItem {
+  groupType?: string;
   type: string;
   label: string;
-  [key: string]: GeneralOptions  | string | undefined;
+  [key: string]: GeneralOptions | string | undefined | null | ReactNode;
 }
 
 export interface SelectedAction {
+  id?: string; // Add ID field for direct action updates
+  groupType?: string;
   type?: string;
   selectedActionItem?: SelectedActionItem;
 }
 export interface SelectedActionItem {
   type: string;
   label?: string;
-  [key: string]: GeneralOptions  | string | undefined;
+  [key: string]: GeneralOptions | string | any[] | undefined;
 }
 
 // Trigger interface to accomodate the static trigger data use to construct trigger UI
-export interface TriggerType {
+export interface AutomationRuleTrigger {
   type: string;
   icon: any;
   label: any;
@@ -83,16 +90,20 @@ export interface TriggerType {
 export interface TriggerItems {
   type: string;
   label: string;
-  [key: string]: TriggerItemSelection | string | undefined;
+  [key: string]: TriggerItemSelection | string | undefined | null;
+  filters?: CardTriggerFilterItem[] | null;
 }
 
 export interface TriggerItemSelection {
-  options?: GeneralOptions[] // to store the options
-  value?: GeneralOptions | null | undefined // to store selected option
+  options?: GeneralOptions[]; // to store the options
+  value?: GeneralOptions | string | null | undefined; // to store selected option or text input value
+  data?: any[];
+  placeholder?: string; // for text input placeholder
+  [key: string]: any;
 }
 
 // Action interface to accomodate the static action data to construct acttionUI
-export interface ActionType {
+export interface AutomationRuleAction {
   type: string;
   icon: any;
   label: any;
@@ -102,12 +113,13 @@ export interface ActionType {
 export interface ActionItems {
   type: string;
   label: string;
-  [key: string]: TriggerItemSelection  | string | undefined;
+  [key: string]: TriggerItemSelection | string | undefined;
 }
 
 export interface GeneralOptions {
   value: string;
   label: React.ReactNode;
+  data?: any[];
 }
 
 export interface TriggerAction {
@@ -121,13 +133,13 @@ export interface CardTriggerFilterType {
   type: string;
   icon: any;
   label: any;
-  items: CardTriggerFilterItem[]
+  items: CardTriggerFilterItem[];
 }
 
 export interface CardTriggerFilterItem {
   type: string;
   label: string;
-  [key: string]: TriggerItemSelection  | string | undefined;
+  [key: string]: TriggerItemSelection | string | undefined | null;
 }
 
 // Checklist item
@@ -147,19 +159,21 @@ export interface Checklist {
   progress: number; // Percentage 0-100
 }
 
-export interface PostAutomationRule {
+export interface AutomationRuleApiData {
+  id?: string;
   groupType: string;
   type: string;
-  condition: PostAutomationRuleCondition;
-  filter?: any;
+  condition: AutomationRuleConditionApiData;
+  filter?: AutomationRuleActionApiData[];
   workspaceId: string;
-  action: PostAutomationRuleAction[];
+  action: AutomationRuleActionApiData[];
 }
-export interface PostAutomationRuleCondition{
+export interface AutomationRuleConditionApiData {
   [key: string]: any | undefined;
 }
-export interface PostAutomationRuleAction {
+export interface AutomationRuleActionApiData {
+  id?: string; // Add ID field for direct action updates
   groupType: string;
   type: string;
-  condition: PostAutomationRuleCondition;
+  condition: AutomationRuleConditionApiData;
 }

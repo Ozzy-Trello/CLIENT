@@ -1,41 +1,68 @@
+import MembersList from "@components/members-list";
+import { useCardDetailContext } from "@providers/card-detail-context";
 import {
   Button,
   Checkbox,
-  CheckboxProps,
+  CheckboxChangeEvent,
   Col,
-  Dropdown,
   Flex,
   Modal,
   Row,
   Tag,
-  Typography,
-  Divider,
+  Tooltip,
+  Typography
 } from "antd";
-import { useEffect, useRef, useState } from "react";
-import Cover from "./cover";
-import { useCardDetailContext } from "@providers/card-detail-context";
-import { Clock, Eye, TimerIcon } from "lucide-react";
-import MembersList from "@components/members-list";
-import Description from "./description";
-import Attachments from "./attachments";
+import {
+  CheckSquare,
+  Clock,
+  Info,
+  ListRestart,
+  MessageSquare,
+  Paperclip,
+  ShirtIcon,
+  TextCursorInput
+} from "lucide-react";
+import dynamic from "next/dynamic";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Activity from "./activity";
-import { useSelector } from "react-redux";
-import { selectUser } from "@store/app_slice";
-import Actions from "./actions";
-import { useCustomFields } from "@hooks/custom_field";
-import { useParams } from "next/navigation";
-import CustomFields from "./custom-field";
-import { ListSelection, SelectionRef } from "@components/selection";
-import { useCards } from "@hooks/card";
-import { useLists } from "@hooks/list";
-import { useCardActivity } from "@hooks/card_activity";
-import LocationDisplay from "./location";
-import AdditionalFields from "./additional-field";
-import RequestFields from "./request-field";
-import CardTimeInList from "./time-in-lists";
-import ChecklistFields from "./checklist-field";
+import Cover from "./cover";
+import Description from "./description";
+
+const Attachments = dynamic(() => import("./attachments"), {
+  ssr: false,
+  loading: () => <div>Loading attachments...</div>,
+});
+
 import { CardDateDisplay } from "@components/card-dates";
+import CollapsibleSection from "@components/collapsible-section";
+import ModalDashcardDetail from "@components/modal-dashcard-detail";
+import PopoverLabel from "@components/popover-label.tsx";
+import { ListSelection, SelectionRef } from "@components/selection";
+import { useBoardDetails } from "@hooks/board";
+import { useCardMutationsOnly } from "@hooks/card";
+import { useCardDetails } from "@hooks/card-details";
+import { useCardActivity } from "@hooks/card_activity";
 import { useCardMembers } from "@hooks/card_member";
+import { useLabels } from "@hooks/label";
+import { Card } from "@myTypes/card";
+import { CardLabel } from "@myTypes/label";
+import { useBoardPermissionsContext } from "@providers/board-permissions-context";
+import { selectUser } from "@store/app_slice";
+import { LookupCache } from "@utils/lookup-cache";
+import { useParams } from "next/navigation";
+import { useSelector } from "react-redux";
+import Actions from "./actions";
+import BahanFields from "./bahan-fields";
+import ChecklistFields from "./checklist-field";
+import CustomFields from "./custom-field";
+import Dashcard from "./dashcard";
+import LocationDisplay from "./location";
+import POAmount from "./po-amount";
+import POSizeAssignment from "./po-size-assignment";
+import ProdukFields from "./produk-fields";
+import RequestFields from "./request-field";
+import SplitJobFields from "./split-job-field";
+import CardTimeInList from "./time-in-lists";
 
 const CardDetails: React.FC = (props) => {
   const params = useParams();
@@ -45,51 +72,151 @@ const CardDetails: React.FC = (props) => {
   const boardId = Array.isArray(params.boardId)
     ? params.boardId[0]
     : params.boardId;
+  // Boards where the Produk section should be visible (name-based, case-insensitive)
+  const ALLOWED_BOARD_NAMES = [
+    "Request Desain | Outlet",
+    "List PO | Outlet",
+    "Dateline",
+    "Delivery",
+    "List Purchase | Produksi",
+    "TEST BOARD"
+  ];
+  // Optional: if you know the exact board IDs, add them here for stronger matching
+  const ALLOWED_BOARD_IDS = new Set<string>([
+    // e.g. "uuid-1234-...",
+  ]);
+  // Try to resolve current board name via cache first, then fall back to API
+  const cachedBoardName = LookupCache.label("board", boardId as string);
+  const { board: currentBoard } = useBoardDetails(
+    boardId as string,
+    workspaceId as string,
+    {
+      enabled: !!boardId,
+      refetchOnWindowFocus: false,
+    }
+  );
+  const effectiveBoardName = (
+    cachedBoardName ||
+    currentBoard?.name ||
+    ""
+  ).trim();
+  const allowedNamesSet = new Set(
+    ALLOWED_BOARD_NAMES.map((n) => n.toLowerCase().trim())
+  );
+  const shouldShowProduk =
+    (effectiveBoardName &&
+      allowedNamesSet.has(effectiveBoardName.toLowerCase())) ||
+    (typeof boardId === "string" && ALLOWED_BOARD_IDS.has(boardId));
   const {
     selectedCard,
     setSelectedCard,
     isCardDetailOpen,
     openCardDetail,
     closeCardDetail,
+    isLoadingCardDetails,
   } = useCardDetailContext();
   const currentUser = useSelector(selectUser);
+  const userRole = (currentUser?.role?.name || "").trim().toLowerCase();
+  const isSuperAdmin =
+    userRole === "super admin" ||
+    userRole === "super_admin" ||
+    userRole === "superadmin";
+  const isDatelineBoard =
+    effectiveBoardName.toLowerCase() === "dateline" || boardId === "Dateline";
+  const roleIn = (roles: string[]) =>
+    roles.some((r) => r.toLowerCase() === userRole);
+  const canMaterialRequirement =
+    isSuperAdmin ||
+    (isDatelineBoard && roleIn(["Admin Produksi", "Kepala Produksi"]));
+  const canPOSection =
+    isSuperAdmin ||
+    (isDatelineBoard && roleIn(["Admin Produksi", "Kepala Produksi"]));
   const [isComplete, setIsComplete] = useState<boolean>(false);
-  const { customFields } = useCustomFields(workspaceId || "");
   const listSelectionRef = useRef<SelectionRef>(null);
   const [isEditingTitle, setIsEditingTitle] = useState<boolean>(false);
   const [newTitle, setNewTitle] = useState<string>("");
-  const { updateCard } = useCards(selectedCard?.listId || "", boardId);
-  const { cardMembers, addMember, isAddingMember, refetch: refetchMember } = useCardMembers(selectedCard?.id || "");
-  const { cardActivities } = useCardActivity(selectedCard?.id || "");
-  const { lists } = useLists(boardId || "");
+  // Only need mutations; avoid fetching full list data just to update a card
+  const { updateCard } = useCardMutationsOnly();
+  const {
+    cardMembers,
+    addMember,
+    isAddingMember,
+    refetch: refetchMember,
+    removeMember,
+  } = useCardMembers(selectedCard?.id || "", {
+    enabled:
+      isCardDetailOpen &&
+      !!selectedCard?.id &&
+      !(selectedCard?.members && selectedCard.members.length > 0),
+  });
+  const { cardLabels, allLabels } = useLabels(
+    workspaceId as string,
+    selectedCard?.id,
+    undefined,
+    {
+      enabled:
+        isCardDetailOpen &&
+        !!selectedCard?.id &&
+        !(selectedCard?.labels && selectedCard.labels.length > 0),
+    }
+  );
+  const { cardActivities } = useCardActivity(selectedCard?.id || "", {
+    enabled: isCardDetailOpen && !!selectedCard?.id,
+  });
+  const effectiveMembers = useMemo(
+    () =>
+      selectedCard?.members && selectedCard.members.length > 0
+        ? selectedCard.members
+        : cardMembers || [],
+    [selectedCard?.members, cardMembers]
+  );
+  const effectiveLabels = useMemo(
+    () =>
+      selectedCard?.labels && selectedCard.labels.length > 0
+        ? (selectedCard.labels as CardLabel[])
+        : (cardLabels as CardLabel[]) || [],
+    [selectedCard?.labels, cardLabels]
+  );
   const [openAddMember, setOpenAddMember] = useState<boolean>(false);
+  const [openLabel, setOpenLabel] = useState<boolean>(false);
+  const {
+    completeCard,
+    incompleteCard,
+    updateCard: updateCardDetails,
+  } = useCardDetails(
+    selectedCard?.id || "",
+    selectedCard?.listId || "",
+    boardId as string,
+    {
+      enabled: isCardDetailOpen && !!selectedCard?.id,
+    }
+  );
 
-  const onCardComplete: CheckboxProps["onChange"] = (e) => {
+  // Get board permissions
+  const { canUpdateCard } = useBoardPermissionsContext();
+  const [dashcardModalCard, setDashcardModalCard] = useState<Card | null>(null);
+  const [isDashcardModalOpen, setIsDashcardModalOpen] = useState(false);
+  const handleOpenDashcardDetail = useCallback((card: Card) => {
+    setDashcardModalCard(card);
+    setIsDashcardModalOpen(true);
+  }, []);
+
+  const onCompletionChange = (e: CheckboxChangeEvent) => {
     e.stopPropagation();
-    const isChecked = e.target.checked;
-    setIsComplete(isChecked);
-
-    // If checked, move the card to next list
-    if (isChecked && selectedCard) {
-      // Find the current list index
-      const currentListIndex = lists.findIndex(
-        (list) => list.id === selectedCard.listId
-      );
-
-      // Get the next list if it exists
-      if (currentListIndex !== -1 && currentListIndex < lists.length - 1) {
-        const nextListId = lists[currentListIndex + 1].id;
-
-        // Move card to next list
-        updateCard({
-          cardId: selectedCard.id,
-          updates: {
-            listId: nextListId,
-          },
-          listId: selectedCard.listId,
-          destinationListId: nextListId,
-        });
-      }
+    if (!canUpdateCard()) {
+      return;
+    }
+    const isComplete = e.target.checked;
+    if (isComplete) {
+      completeCard({
+        listId: selectedCard?.listId || "",
+        cardId: selectedCard?.id || "",
+      });
+    } else {
+      incompleteCard({
+        listId: selectedCard?.listId || "",
+        cardId: selectedCard?.id || "",
+      });
     }
   };
 
@@ -104,9 +231,8 @@ const CardDetails: React.FC = (props) => {
       },
       {
         onSuccess: (data) => {
-          console.log("Title update successful:", data);
           if (setSelectedCard) {
-            setSelectedCard(prevCard => {
+            setSelectedCard((prevCard) => {
               if (!prevCard) return prevCard;
               return {
                 ...prevCard,
@@ -117,14 +243,16 @@ const CardDetails: React.FC = (props) => {
           setIsEditingTitle(false);
         },
         onError: (error) => {
-          console.error("Title update failed:", error);
+          // Title update failed
         },
       }
     );
   };
 
   const onListChange = (value: string, option: object) => {
-    console.log("List changed to: ", value, option);
+    if (!canUpdateCard()) {
+      return;
+    }
     if (selectedCard) {
       const result = updateCard({
         cardId: selectedCard?.id,
@@ -138,15 +266,37 @@ const CardDetails: React.FC = (props) => {
   };
 
   const onUserSelectionChange = (value: string, option: object) => {
-    console.log(`member: value: ${value}`);
+    if (!canUpdateCard()) {
+      return;
+    }
     addMember(value);
-  }
+  };
+
+  const handleRemoveMember = (memberId: string) => {
+    if (!canUpdateCard()) {
+      return;
+    }
+    removeMember(memberId);
+  };
 
   useEffect(() => {
     if (isAddingMember) {
       refetchMember();
     }
-  }, [isAddingMember])
+  }, [isAddingMember]);
+
+  // Populate LookupCache with labels data
+  useEffect(() => {
+    if (allLabels && allLabels.length > 0) {
+      LookupCache.rememberMany(
+        "label",
+        allLabels.map((label: any) => ({
+          id: label.id,
+          name: label.name,
+        }))
+      );
+    }
+  }, [allLabels]);
 
   return (
     <Modal
@@ -155,22 +305,51 @@ const CardDetails: React.FC = (props) => {
       onCancel={closeCardDetail}
       footer={null}
       className="modal-card-form full-height-modal"
-      width={750}
+      width={1050}
       destroyOnClose
     >
       <div className="overflow-x-hidden max-w-full">
         {/* Cover Image Section */}
         {selectedCard && <Cover card={selectedCard} />}
 
+        {selectedCard && selectedCard?.mirrorId && (
+          <div className="flex items-center justify-between bg-gray-100 px-4 py-2 rounded-md border border-gray-200 mb-4">
+            <div className="flex items-center gap-2 text-sm text-gray-700">
+              <Info size={20} className="text-yellow-600" />
+              <span>
+                You are viewing this card outside of its original location
+              </span>
+            </div>
+            <Button
+              size="small"
+              className="bg-gray-200 text-blue-800 font-medium hover:bg-gray-300 border-none rounded-sm px-3 py-1"
+            >
+              Remove from this board
+            </Button>
+          </div>
+        )}
+
+        {/* Archived badge */}
+        {selectedCard?.archive && (
+          <div className="w-full bg-red-100 text-red-800 px-4 py-3 rounded-md text-center font-bold text-base mb-4 border border-red-200 shadow">
+            This card is archived
+          </div>
+        )}
+
         <div className="p-5">
           <Row>
-            <Col flex="0 1 75%">
+            <Col flex="0 0 75%" style={{ maxWidth: "75%", minWidth: 0 }}>
               <div className="flex items-center gap-2 mb-4">
                 <Checkbox
-                  className="custom-circular-checkbox"
-                  onChange={onCardComplete}
+                  className={`custom-circular-checkbox absolute left-0 -ml-6 transition-all duration-300 
+                    ${selectedCard?.isComplete ? "completed" : ""} ${!canUpdateCard() ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
+                  checked={selectedCard?.isComplete}
+                  disabled={!canUpdateCard()}
+                  onChange={(e) => {
+                    onCompletionChange(e);
+                  }}
                   onClick={(e) => e.stopPropagation()}
-                  checked={isComplete}
                 />
                 {isEditingTitle ? (
                   <input
@@ -190,10 +369,15 @@ const CardDetails: React.FC = (props) => {
                   />
                 ) : (
                   <h1
-                    className="text-5xl font-bold mb-0 ml-2 cursor-pointer hover:bg-gray-50 px-2 py-1 rounded-md"
+                    className={`text-5xl font-bold mb-0 ml-2 px-2 py-1 rounded-md ${canUpdateCard()
+                        ? "cursor-pointer hover:bg-gray-50"
+                        : "cursor-not-allowed opacity-60"
+                      }`}
                     onClick={() => {
-                      setNewTitle(selectedCard?.name || "");
-                      setIsEditingTitle(true);
+                      if (canUpdateCard()) {
+                        setNewTitle(selectedCard?.name || "");
+                        setIsEditingTitle(true);
+                      }
                     }}
                   >
                     {selectedCard?.name}
@@ -212,71 +396,67 @@ const CardDetails: React.FC = (props) => {
                       width={"fit-content"}
                       value={selectedCard?.listId}
                       onChange={onListChange}
+                      disabled={!canUpdateCard()}
                     />
                   </div>
 
-                  <Button
+                  {/* <Button
                     icon={<Eye size={14} />}
                     size="small"
                     className="rounded-md hover:bg-gray-50"
-                  />
+                  /> */}
                 </div>
 
-                {/* Members & Labels Section */}
-                <div className="flex flex-wrap gap-y-4">
-                  <div className="w-full md:w-1/2 pr-2">
-                    <div className="space-y-2 text-xs">
-                      <span className="text-gray-300 font-semibold text-xs block">
-                        Members
-                      </span>
-                      <div>
-                        <MembersList
-                          members={cardMembers || []}
-                          membersLength={cardMembers?.length || 0}
-                          membersLoopLimit={3}
-                          openAddMember={openAddMember}
-                          setOpenAddMember={setOpenAddMember}
-                          onUserSelectionChange={onUserSelectionChange}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="w-full md:w-1/2">
-                    <div className="space-y-2 text-xs">
-                      <span className="text-gray-300 font-semibold text-xs block">
-                        Labels
-                      </span>
-                      <Flex gap="small" wrap="wrap">
-                        {selectedCard?.labels?.map((label, index) => (
-                          <Tag
-                            key={index}
-                            color={label.color}
-                            className="rounded-md py-1"
-                          >
-                            {label.title}
-                          </Tag>
-                        ))}
-                        <Tag
-                          className="cursor-pointer rounded-md border-dashed hover:bg-gray-50"
-                          // onClick={() => setLabelModalVisible(true)}
-                        >
-                          +
-                        </Tag>
-                        {/* <LabelsSelection
-                          visible={labelModalVisible}
-                          onClose={() => setLabelModalVisible(false)}
-                          onSave={addLabel}
-                          initialSelectedLabels={[]}
-                        /> */}
-                      </Flex>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Notifications & Time Tracking */}
-                <div className="flex flex-wrap gap-4 pt-2">
+                <Flex wrap gap="middle">
+                  {/* Members */}
                   <div className="space-y-2 text-xs">
+                    <span className="text-gray-300 font-semibold text-xs block">
+                      Members
+                    </span>
+                    <div>
+                      <MembersList
+                        members={effectiveMembers}
+                        membersLength={effectiveMembers?.length || 0}
+                        membersLoopLimit={3}
+                        openAddMember={openAddMember && canUpdateCard()}
+                        setOpenAddMember={setOpenAddMember}
+                        onUserSelectionChange={onUserSelectionChange}
+                        onRemoveMember={handleRemoveMember}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Labels */}
+                  <div className="space-y-2 text-xs">
+                    <span className="text-gray-300 font-semibold text-xs block">
+                      Labels
+                    </span>
+                    <div className="flex gap-1">
+                      {effectiveLabels?.map((label: CardLabel, index: number) => (
+                        <Tooltip
+                          title={`color: ${label.value}, title: ${label.name}`}
+                          key={index}
+                        >
+                          <Tag color={label.value} className="rounded-md">
+                            {label?.name}
+                          </Tag>
+                        </Tooltip>
+                      ))}
+
+                      <PopoverLabel
+                        open={openLabel}
+                        setOpen={setOpenLabel}
+                        triggerEl={
+                          <Tag className="cursor-pointer rounded-md border-dashed hover:bg-gray-50">
+                            +
+                          </Tag>
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  {/* Notifications & Watch */}
+                  {/* <div className="space-y-2 text-xs">
                     <span className="text-gray-300 font-semibold text-xs block">
                       Notifications
                     </span>
@@ -287,8 +467,9 @@ const CardDetails: React.FC = (props) => {
                     >
                       Watch
                     </Button>
-                  </div>
+                  </div> */}
 
+                  {/* Time in List */}
                   <div className="space-y-2 text-xs">
                     <span className="text-gray-300 font-semibold text-xs block">
                       Time in List
@@ -303,6 +484,7 @@ const CardDetails: React.FC = (props) => {
                     </Button>
                   </div>
 
+                  {/* Time on Board */}
                   <div className="space-y-2 text-xs">
                     <span className="text-gray-300 font-semibold text-xs block">
                       Time on Board
@@ -314,11 +496,9 @@ const CardDetails: React.FC = (props) => {
                       {selectedCard?.formattedTimeInBoard || "0m"}
                     </Button>
                   </div>
-                </div>
 
-                {/* Start and Due Dates */}
-                {selectedCard && (
-                  <div className="flex flex-wrap gap-4 pt-2">
+                  {/* Start and Due Dates */}
+                  {selectedCard && (
                     <div className="space-y-2 text-xs">
                       <span className="text-gray-300 font-semibold text-xs block">
                         Dates
@@ -331,10 +511,50 @@ const CardDetails: React.FC = (props) => {
                         <CardDateDisplay card={selectedCard} />
                       </Button>
                     </div>
-                  </div>
-                )}
+                  )}
+
+                  {selectedCard && canMaterialRequirement && (
+                    <div className="space-y-2 text-xs">
+                      <span className="text-gray-300 font-semibold text-xs block">
+                        Material Requirements
+                      </span>
+                      <Checkbox
+                        checked={selectedCard.bahan || false}
+                        onChange={(e: CheckboxChangeEvent) => {
+                          if (!canUpdateCard()) return;
+
+                          const newBahanValue = e.target.checked;
+
+                          // Update local state immediately for better UX
+                          const updatedCard = {
+                            ...selectedCard,
+                            bahan: newBahanValue,
+                          };
+                          setSelectedCard(updatedCard);
+                          updateCardDetails({ bahan: newBahanValue });
+                        }}
+                        className="text-sm"
+                      >
+                        Butuh Bahan
+                      </Checkbox>
+                    </div>
+                  )}
+
+                  {selectedCard && canPOSection && (
+                    <POAmount
+                      card={selectedCard}
+                      setSelectedCard={setSelectedCard}
+                    />
+                  )}
+
+                  {selectedCard && canPOSection && (
+                    <POSizeAssignment
+                      card={selectedCard}
+                      setSelectedCard={setSelectedCard}
+                    />
+                  )}
+                </Flex>
               </div>
-              
 
               {selectedCard && (
                 <Description
@@ -343,34 +563,137 @@ const CardDetails: React.FC = (props) => {
                 />
               )}
 
+              {selectedCard && shouldShowProduk && selectedCard?.type !== "dashcard" && (
+                <CollapsibleSection
+                  title="Produk"
+                  defaultExpanded={true}
+                  icon={
+                    <svg
+                      width="18"
+                      height="18"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      viewBox="0 0 24 24"
+                    >
+                      <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M9 1v6m6-6v6" />
+                    </svg>
+                  }
+                >
+                  <ProdukFields card={selectedCard} setCard={setSelectedCard} />
+                </CollapsibleSection>
+              )}
+
               {selectedCard &&
                 selectedCard?.location &&
-                selectedCard?.location != "" && (
+                selectedCard?.location != "" && selectedCard?.type !== "dashcard" && (
                   <LocationDisplay coordinate={selectedCard?.location} />
                 )}
 
-              {selectedCard && (
-                <CustomFields card={selectedCard} setCard={setSelectedCard} />
+              {selectedCard && selectedCard?.type !== "dashcard" && (
+                <CollapsibleSection
+                  title="Custom Fields"
+                  defaultExpanded={true}
+                  icon={<TextCursorInput size={18} />}
+                >
+                  <CustomFields card={selectedCard} setCard={setSelectedCard} />
+                </CollapsibleSection>
               )}
 
-              <AdditionalFields />
+              {selectedCard?.type == "dashcard" && (
+                <Dashcard
+                  card={selectedCard}
+                  onOpenDetail={handleOpenDashcardDetail}
+                />
+              )}
+              {/* 
+              {selectedCard?.id && (
+                <AdditionalFields cardId={selectedCard.id} />
+              )} */}
 
-              <RequestFields />
-              
+              {selectedCard?.bahan && (
+                <CollapsibleSection
+                  title="Bahan Fields"
+                  defaultExpanded={false}
+                  icon={<ShirtIcon size={18} />}
+                >
+                  <BahanFields
+                    cardId={selectedCard?.id || ""}
+                    workspaceId={workspaceId}
+                  />
+                </CollapsibleSection>
+              )}
+
+              {selectedCard && selectedCard?.type !== "dashcard" && <CollapsibleSection
+                title="Request Fields"
+                defaultExpanded={false}
+                icon={
+                  <svg
+                    width="18"
+                    height="18"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M12 4L4 20h16L12 4z" />
+                  </svg>
+                }
+              >
+                <RequestFields />
+              </CollapsibleSection>}
+
               {selectedCard && (
-                <CardTimeInList card={selectedCard} setCard={setSelectedCard} />
+                <CollapsibleSection
+                  title="Time in Lists"
+                  defaultExpanded={false}
+                  icon={<ListRestart size={18} />}
+                >
+                  <CardTimeInList
+                    card={selectedCard}
+                    setCard={setSelectedCard}
+                  />
+                </CollapsibleSection>
+              )}
+
+              {/* Split Job Section */}
+              {selectedCard && selectedCard?.type !== "dashcard" && (
+                <CollapsibleSection
+                  title="Split Job Fields"
+                  defaultExpanded={false}
+                  icon={<CheckSquare size={18} />}
+                >
+                  <SplitJobFields
+                    card={selectedCard}
+                    setCard={setSelectedCard}
+                  />
+                </CollapsibleSection>
               )}
 
               {/* Checklist Section */}
-              {selectedCard && <ChecklistFields />}
+              {selectedCard && selectedCard?.type !== "dashcard" && (
+                <CollapsibleSection
+                  title="Checklist"
+                  defaultExpanded={true}
+                  icon={<CheckSquare size={18} />}
+                >
+                  <ChecklistFields />
+                </CollapsibleSection>
+              )}
 
               {/* Attachments Section */}
               {selectedCard && (
-                <Attachments
-                  card={selectedCard}
-                  setCard={setSelectedCard}
-                  currentUser={currentUser}
-                />
+                <CollapsibleSection
+                  title="Attachments"
+                  defaultExpanded={true}
+                  icon={<Paperclip size={18} />}
+                >
+                  <Attachments
+                    card={selectedCard}
+                    setCard={setSelectedCard}
+                    currentUser={currentUser}
+                  />
+                </CollapsibleSection>
               )}
               {/* {selectedCard?.attachments && (
                 <div className="pt-2 border-t border-gray-200">
@@ -388,24 +711,38 @@ const CardDetails: React.FC = (props) => {
 
               {/* Activity Section */}
               {selectedCard && (
-                <Activity
-                  activities={cardActivities || []}
-                  currentUser={currentUser}
-                  card={selectedCard}
-                  setCard={setSelectedCard}
-                />
+                <CollapsibleSection
+                  title="Activity"
+                  defaultExpanded={true}
+                  icon={<MessageSquare size={18} />}
+                >
+                  <Activity
+                    currentUser={currentUser}
+                    card={selectedCard}
+                    setCard={setSelectedCard}
+                  />
+                </CollapsibleSection>
               )}
             </Col>
-            <Col flex="0 1 25%">
+            <Col flex="0 0 25%" style={{ maxWidth: "25%", minWidth: 0 }}>
               <div className="pl-4">
                 <Typography.Title level={5} className="m-0 mb-2 text-gray-700">
                   Actions
                 </Typography.Title>
-                <Actions />
+                <Actions
+                  boardName={effectiveBoardName}
+                  userRole={userRole}
+                  isSuperAdmin={isSuperAdmin}
+                />
               </div>
             </Col>
           </Row>
         </div>
+        <ModalDashcardDetail
+          open={isDashcardModalOpen}
+          setOpen={setIsDashcardModalOpen}
+          card={dashcardModalCard}
+        />
       </div>
     </Modal>
   );

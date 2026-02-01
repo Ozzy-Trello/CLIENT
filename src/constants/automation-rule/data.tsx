@@ -1,389 +1,2646 @@
-import { AlignJustify, ArrowDownNarrowWide, Check, Clock, MessageSquare, Minus, MoveRight, Plus, User } from "lucide-react";
-import { CustomSelectionAction, CustomSelectionBoard, CustomSelectionBy, CustomSelectionList, CustomSelectionQtyCompOperator, CustomSelectionQtyCompOperatorOptions, TriggerTypeCardChanges, TriggerTypeCardContent, TriggerTypeCardMove, TriggerTypeChecklists, TriggerTypeDates, TriggerTypeFields } from "./automation-rule";
-import { ActionType, TriggerType } from "@myTypes/type";
+import {
+  AlignJustify,
+  ArrowDownNarrowWide,
+  Bell,
+  Check,
+  Clock,
+  MessageSquare,
+  Minus,
+  MoveRight,
+  Plus,
+  User,
+  Hash,
+  Link,
+} from "lucide-react";
+import {
+  AutomationRuleAction,
+  AutomationRuleTrigger,
+  TriggerItemSelection,
+} from "@myTypes/type";
+import { EnumActions, EnumUserActionEvent } from "@myTypes/event";
+import {
+  TriggerGroupType,
+  ActionGroupType,
+  EnumSelectionType,
+  EnumTriggerCardFilterGroupType,
+  TriggerType,
+  ActionType,
+  EnumTextType,
+  EnumInputType,
+  EnumTiggerCarFilterType,
+} from "@myTypes/automation-rule";
+import {
+  EnumOptionArticleType,
+  EnumOptionCompletion,
+  EnumOptionPosition,
+  EnumOptionsNumberComparisonOperators,
+  EnumOptionsSet,
+  EnumOptionBySubject,
+  EnumOptionCheckboxState,
+  EnumOptionTextComparisonOperator,
+  EnumOptionSubject,
+  EnumCreateType,
+  EnumAddRemove,
+  EnumRemoveFromCard,
+  EnumDateStatus,
+  EnumSetTask,
+  EnumCardContentType,
+  EnumCardContentText,
+  EnumCascadeAction,
+  EnumCardOrder,
+} from "@myTypes/options";
 
-export const triggers: TriggerType[] = [
+// The constants used to contruct the UI
+export const triggers: AutomationRuleTrigger[] = [
   {
-    type: TriggerTypeCardMove,
+    type: TriggerGroupType.CardMove,
     label: "Card Move",
     icon: <MoveRight />,
     items: [
       {
-        type: "when_a_card_<filter>is<action>to_the<board>by<by>",
-        label: "when a card <filter> is <action> to the board by <by>",
-        [CustomSelectionAction]: {
+        type: TriggerType.WhenACardActionOverBoard,
+        label: TriggerType.WhenACardActionOverBoard.replaceAll("-", " "),
+        filters: null,
+        [EnumSelectionType.Action]: {
           options: [
             {
-              value: "added_to",
-              label: "Added to"
+              value: EnumUserActionEvent.CardAddedTo,
+              label: "Added to",
             },
             {
-              value: "created_in",
-              label: "Created in"
+              value: EnumUserActionEvent.CreatedIn,
+              label: "Created in",
             },
             {
-              value: "emailed_to",
-              label: "Emailed to"
+              value: EnumUserActionEvent.CardMovedInto,
+              label: "Moved into",
             },
             {
-              value: "moved_into",
-              label: "Moved into"
+              value: EnumUserActionEvent.CardMovedOutOf,
+              label: "Moved out of",
             },
-            {
-              value: "moved_out_of",
-              label: "Moved out of"
-            }
           ],
           value: {
-            value: "added_to",
-            label: "Added to"
+            value: EnumUserActionEvent.CardAddedTo,
+            label: "Added to",
           },
         },
-        [CustomSelectionBy]: {
+        [EnumSelectionType.OptionalBySubject]: {
           options: [
             {
-              value: "me",
-              label: "by me"
+              value: EnumOptionBySubject.ByMe,
+              label: "by me",
             },
             {
-              value: "anyone",
-              label: "by anyone"
+              value: EnumOptionBySubject.ByAnyone,
+              label: "by anyone",
             },
             {
-              value: "anyone_except_me",
-              label: "by anyone except me"
-            }
+              value: EnumOptionBySubject.BySpecificUser,
+              label: "by specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptMe,
+              label: "by anyone except me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
+              label: "by anyone except specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByRole,
+              label: "by role",
+            },
           ],
           value: {
-            value: "me",
-            label: "by me"
-          }
+            value: EnumOptionBySubject.ByAnyone,
+            label: "by anyone",
+          },
+          data: [],
         },
-        [CustomSelectionBoard]: {
+        [EnumSelectionType.Role]: {
           options: [],
           value: null,
-        }
-      },
-      {
-        type: "when_a_card_<filter>_is_<action>_list_<list>_<by>",
-        label: "when a card <filter> is <action> list <list> <by>",
-        [CustomSelectionAction]: {
-          options: [
-            {
-              value: "added_to",
-              label: "Added to"
-            },
-            {
-              value: "created_in",
-              label: "Created in"
-            },
-            {
-              value: "emailed_to",
-              label: "Emailed to"
-            },
-            {
-              value: "moved_into",
-              label: "Moved into"
-            },
-            {
-              value: "moved_out_of",
-              label: "Moved out of"
-            }
-          ],
-          value: {
-            value: "added_to",
-            label: "Added to"
-          }
         },
-        [CustomSelectionBy]: {
-          options: [
-            {
-              value: "me",
-              label: "by me"
-            },
-            {
-              value: "anyone",
-              label: "by anyone"
-            },
-            {
-              value: "anyone_except_me",
-              label: "by anyone except me"
-            }
-          ],
-          value: {
-            value: "me",
-            label: "by me"
-          }
-        },
-        [CustomSelectionList]: {
-          options: [],
-          value: null
-        }
-      },
-      {
-        type: "when_a_card_<filter>_is_<action>_list_<list>_<by>",
-        label: "when a card <filter> is <action> list <list> <by>",
-        [CustomSelectionAction]: {
-          options: [
-            {
-              value: "archived",
-              label: "Archived"
-            },
-            {
-              value: "unrachived",
-              label: "Unarchived"
-            }
-          ],
-          value: {
-            value: "archived",
-            label: "Archived"
-          }
-        },
-        [CustomSelectionBy]: {
-          options: [
-            {
-              value: "me",
-              label: "by me"
-            },
-            {
-              value: "anyone",
-              label: "by anyone"
-            },
-            {
-              value: "anyone_except_me",
-              label: "by anyone except me"
-            }
-          ],
-          value: {
-            value: "me",
-            label: "by me"
-          }
-        },
-        [CustomSelectionList]: {
+        [EnumSelectionType.OptionalBoard]: {
           options: [],
           value: null,
-        }
+        },
       },
       {
-        type: "when_a_list_is_<action>_<by>",
-        label: "when a list is <action> <by>",
-        [CustomSelectionAction]: {
+        type: TriggerType.WhenACardActionOverList,
+        label: TriggerType.WhenACardActionOverList.replaceAll("-", " "),
+        filters: null,
+        [EnumSelectionType.Action]: {
           options: [
             {
-              value: "created",
-              label: "Created"
+              value: EnumUserActionEvent.CardAddedTo,
+              label: "Added to",
             },
             {
-              value: "renamed",
-              label: "Renamed"
+              value: EnumUserActionEvent.CreatedIn,
+              label: "Created in",
             },
             {
-              value: "archived",
-              label: "Archived"
+              value: EnumUserActionEvent.CardMovedInto,
+              label: "Moved into",
             },
             {
-              value: "unarchived",
-              label: "Unarchived"
-            }
+              value: EnumUserActionEvent.CardMovedOutOf,
+              label: "Moved out of",
+            },
           ],
           value: {
-            value: "created",
-            label: "Created"
-          }
+            value: EnumUserActionEvent.CardAddedTo,
+            label: "Added to",
+          },
         },
-        [CustomSelectionBy]: {
+        [EnumSelectionType.OptionalBySubject]: {
           options: [
             {
-              value: "me",
-              label: "by me"
+              value: EnumOptionBySubject.ByMe,
+              label: "by me",
             },
             {
-              value: "anyone",
-              label: "by anyone"
+              value: EnumOptionBySubject.ByAnyone,
+              label: "by anyone",
             },
             {
-              value: "anyone_except_me",
-              label: "by anyone except me"
-            }
+              value: EnumOptionBySubject.BySpecificUser,
+              label: "by specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptMe,
+              label: "by anyone except me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
+              label: "by anyone except specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByRole,
+              label: "by role",
+            },
           ],
           value: {
-            value: "me",
-            label: "by me"
-          }
-        }
-      },
-      {
-        type: "when_list_<list>_has_<quantitative_comparison_operator>_[quantity]_(add)",
-        label: "when list <list> has <quantitative_comparison_operator> [quantity] (add)",
-        [CustomSelectionQtyCompOperator]: {
-          options: CustomSelectionQtyCompOperatorOptions,
-          value: CustomSelectionQtyCompOperatorOptions[0]
+            value: EnumOptionBySubject.ByAnyone,
+            label: "by anyone",
+          },
+          data: [],
         },
-        [CustomSelectionList]: {
+        [EnumSelectionType.Role]: {
           options: [],
-          value: null
-        }
-      }
-    ]
+          value: null,
+        },
+        [EnumSelectionType.List]: {
+          options: [],
+          value: null,
+        },
+      },
+      {
+        type: TriggerType.WhenACardActionOverMultipleLists,
+        label: TriggerType.WhenACardActionOverMultipleLists.replaceAll(
+          "-",
+          " "
+        ),
+        filters: null,
+        [EnumSelectionType.Action]: {
+          options: [
+            {
+              value: EnumUserActionEvent.CardAddedTo,
+              label: "Added to",
+            },
+            {
+              value: EnumUserActionEvent.CreatedIn,
+              label: "Created in",
+            },
+            {
+              value: EnumUserActionEvent.CardMovedInto,
+              label: "Moved into",
+            },
+            {
+              value: EnumUserActionEvent.CardMovedOutOf,
+              label: "Moved out of",
+            },
+          ],
+          value: {
+            value: EnumUserActionEvent.CardAddedTo,
+            label: "Added to",
+          },
+        },
+        [EnumSelectionType.OptionalBySubject]: {
+          options: [
+            {
+              value: EnumOptionBySubject.ByMe,
+              label: "by me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyone,
+              label: "by anyone",
+            },
+            {
+              value: EnumOptionBySubject.BySpecificUser,
+              label: "by specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptMe,
+              label: "by anyone except me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
+              label: "by anyone except specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByRole,
+              label: "by role",
+            },
+          ],
+          value: {
+            value: EnumOptionBySubject.ByAnyone,
+            label: "by anyone",
+          },
+          data: [],
+        },
+        [EnumSelectionType.Role]: {
+          options: [],
+          value: null,
+        },
+        [EnumSelectionType.MultiLists]: {
+          options: [],
+          value: null,
+          isMultiSelect: true,
+        },
+      },
+      {
+        type: TriggerType.WhenACardHasArchivalAction,
+        label: TriggerType.WhenACardHasArchivalAction.replaceAll("-", " "),
+        [EnumSelectionType.Action]: {
+          options: [
+            {
+              value: EnumUserActionEvent.CardArchived,
+              label: "Archived",
+            },
+            {
+              value: EnumUserActionEvent.CardUnarchived,
+              label: "Unarchived",
+            },
+          ],
+          value: {
+            value: EnumUserActionEvent.CardArchived,
+            label: "Archived",
+          },
+        },
+        [EnumSelectionType.OptionalBySubject]: {
+          options: [
+            {
+              value: EnumOptionBySubject.ByMe,
+              label: "by me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyone,
+              label: "by anyone",
+            },
+            {
+              value: EnumOptionBySubject.BySpecificUser,
+              label: "by specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptMe,
+              label: "by anyone except me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
+              label: "by anyone except specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByRole,
+              label: "by role",
+            },
+          ],
+          value: {
+            value: EnumOptionBySubject.ByAnyone,
+            label: "by anyone",
+          },
+          data: [],
+        },
+        [EnumSelectionType.Role]: {
+          options: [],
+          value: null,
+        },
+        [EnumSelectionType.List]: {
+          options: [],
+          value: null,
+        },
+      },
+      {
+        type: TriggerType.WhenListHasCards,
+        label: TriggerType.WhenListHasCards.replaceAll("-", " "),
+        filters: null,
+        [EnumSelectionType.NumberComparison]: {
+          options: [
+            {
+              value: EnumOptionsNumberComparisonOperators.Exactly,
+              label: "exactly",
+            },
+            {
+              value: EnumOptionsNumberComparisonOperators.FewerThan,
+              label: "fewer than",
+            },
+            {
+              value: EnumOptionsNumberComparisonOperators.MoreThan,
+              label: "more than",
+            },
+          ],
+          value: {
+            value: EnumOptionsNumberComparisonOperators.Exactly,
+            label: "exactly",
+          },
+        },
+        [EnumSelectionType.List]: {
+          options: [],
+          value: null,
+        },
+        [EnumInputType.Number]: null,
+      },
+    ],
   },
   {
-    type: TriggerTypeCardChanges,
+    type: TriggerGroupType.CardChanges,
     label: "Card Changes",
-    icon: <div className="flex gap-1"> <Plus/> <Minus/> </div>
+    icon: (
+      <div className="flex gap-1">
+        {" "}
+        <Plus /> <Minus />{" "}
+      </div>
+    ),
+    items: [
+      {
+        type: TriggerType.WhenCardCompletionChanges,
+        label: TriggerType.WhenCardCompletionChanges.replaceAll("-", " "),
+        filters: null,
+        [EnumSelectionType.Completion]: {
+          options: [
+            {
+              value: EnumOptionCompletion.Complete,
+              label: "Complete",
+            },
+            {
+              value: EnumOptionCompletion.Incomplete,
+              label: "Incomplete",
+            },
+          ],
+          value: {
+            value: EnumOptionCompletion.Complete,
+            label: "Complete",
+          },
+        },
+        [EnumSelectionType.OptionalBySubject]: {
+          options: [
+            {
+              value: EnumOptionBySubject.ByMe,
+              label: "by me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyone,
+              label: "by anyone",
+            },
+            {
+              value: EnumOptionBySubject.BySpecificUser,
+              label: "by specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptMe,
+              label: "by anyone except me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
+              label: "by anyone except specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByRole,
+              label: "by role",
+            },
+          ],
+          value: {
+            value: EnumOptionBySubject.ByAnyone,
+            label: "by anyone",
+          },
+          data: [],
+        },
+        [EnumSelectionType.Role]: {
+          options: [],
+          value: null,
+        },
+      },
+      {
+        type: TriggerType.WhenCardLabelChanges,
+        label: TriggerType.WhenCardLabelChanges.replaceAll("-", " "),
+        filters: null,
+        [EnumSelectionType.ArticleType]: {
+          options: [
+            {
+              value: EnumOptionArticleType.The,
+              label: "The",
+            },
+            {
+              value: EnumOptionArticleType.Any,
+              label: "Any",
+            },
+          ],
+          value: {
+            value: EnumOptionArticleType.The,
+            label: "The",
+          },
+        },
+        [EnumSelectionType.Action]: {
+          options: [
+            {
+              value: EnumUserActionEvent.CardLabelAdded,
+              label: "added to",
+            },
+            {
+              value: EnumUserActionEvent.CardLabelRemove,
+              label: "removed from",
+            },
+          ],
+          value: {
+            value: EnumUserActionEvent.CardLabelAdded,
+            label: "added to",
+          },
+        },
+        [EnumSelectionType.OptionalBySubject]: {
+          options: [
+            {
+              value: EnumOptionBySubject.ByMe,
+              label: "by me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyone,
+              label: "by anyone",
+            },
+            {
+              value: EnumOptionBySubject.BySpecificUser,
+              label: "by specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptMe,
+              label: "by anyone except me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
+              label: "by anyone except specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByRole,
+              label: "by role",
+            },
+          ],
+          value: {
+            value: EnumOptionBySubject.ByAnyone,
+            label: "by anyone",
+          },
+          data: [],
+        },
+        [EnumSelectionType.Role]: {
+          options: [],
+          value: null,
+        },
+        [EnumSelectionType.CardLabel]: {
+          options: [],
+          value: null,
+          placeholder: "Select Label",
+        },
+      },
+      {
+        type: TriggerType.WhenCardAttachmentChanges,
+        label: TriggerType.WhenCardAttachmentChanges.replaceAll("-", " "),
+        filters: null,
+        [EnumSelectionType.TextComparison]: {
+          options: [
+            {
+              value: EnumOptionTextComparisonOperator.StartingWith,
+              label: "starting with",
+            },
+            {
+              value: EnumOptionTextComparisonOperator.EndingWith,
+              label: "ending with",
+            },
+            {
+              value: EnumOptionTextComparisonOperator.NotContaining,
+              label: "not containing",
+            },
+            {
+              value: EnumOptionTextComparisonOperator.NotStartingWith,
+              label: "not starting with",
+            },
+            {
+              value: EnumOptionTextComparisonOperator.NotEndingWith,
+              label: "not ending with",
+            },
+            {
+              value: EnumOptionTextComparisonOperator.Containing,
+              label: "containing",
+            },
+          ],
+          value: {
+            value: EnumOptionTextComparisonOperator.StartingWith,
+            label: "starting with",
+          },
+        },
+        [EnumSelectionType.Action]: {
+          options: [
+            {
+              value: EnumUserActionEvent.CardAttachmentAdded,
+              label: "added to",
+            },
+            {
+              value: EnumUserActionEvent.CardAttachmentRemoved,
+              label: "removed from",
+            },
+          ],
+          value: {
+            value: EnumUserActionEvent.CardAttachmentAdded,
+            label: "added to",
+          },
+        },
+        [EnumSelectionType.OptionalBySubject]: {
+          options: [
+            {
+              value: EnumOptionBySubject.ByMe,
+              label: "by me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyone,
+              label: "by anyone",
+            },
+            {
+              value: EnumOptionBySubject.BySpecificUser,
+              label: "by specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptMe,
+              label: "by anyone except me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
+              label: "by anyone except specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByRole,
+              label: "by role",
+            },
+          ],
+          value: {
+            value: EnumOptionBySubject.ByAnyone,
+            label: "by anyone",
+          },
+          data: [],
+        },
+        [EnumSelectionType.Role]: {
+          options: [],
+          value: null,
+        },
+      },
+      {
+        type: TriggerType.WhenCardMemberChanges,
+        label: TriggerType.WhenCardMemberChanges.replaceAll("-", " "),
+        filters: null,
+        [EnumSelectionType.Subject]: {
+          options: [
+            {
+              value: EnumOptionSubject.Iam,
+              label: "I am",
+            },
+            {
+              value: EnumOptionSubject.SomeoneIs,
+              label: "Someone is",
+            },
+          ],
+          value: {
+            value: EnumOptionSubject.Iam,
+            label: "I am",
+          },
+        },
+        [EnumSelectionType.Action]: {
+          options: [
+            {
+              value: EnumUserActionEvent.CardMemberAdded,
+              label: "added to",
+            },
+            {
+              value: EnumUserActionEvent.CardMemberRemoved,
+              label: "removed from",
+            },
+          ],
+          value: {
+            value: EnumUserActionEvent.CardMemberAdded,
+            label: "added to",
+          },
+        },
+        [EnumSelectionType.OptionalBySubject]: {
+          options: [
+            {
+              value: EnumOptionBySubject.ByMe,
+              label: "by me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyone,
+              label: "by anyone",
+            },
+            {
+              value: EnumOptionBySubject.BySpecificUser,
+              label: "by specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptMe,
+              label: "by anyone except me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
+              label: "by anyone except specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByRole,
+              label: "by role",
+            },
+          ],
+          value: {
+            value: EnumOptionBySubject.ByAnyone,
+            label: "by anyone",
+          },
+          data: [],
+        },
+        [EnumSelectionType.Role]: {
+          options: [],
+          value: null,
+        },
+      },
+      {
+        type: TriggerType.WhenProductIsSet,
+        label: TriggerType.WhenProductIsSet.replaceAll("-", " "),
+        filters: null,
+        [EnumSelectionType.Product]: {
+          options: [],
+          value: null,
+          placeholder: "Select Product",
+        },
+      },
+      {
+        type: TriggerType.WhenButuhBahanIsChecked,
+        label: TriggerType.WhenButuhBahanIsChecked.replaceAll("-", " "),
+        [EnumSelectionType.Action]: {
+          options: [
+            {
+              value: EnumUserActionEvent.ButuhBahanChecked,
+              label: "Checked",
+            },
+            {
+              value: EnumUserActionEvent.ButuhBahanUnchecked,
+              label: "Unchecked",
+            },
+          ],
+          value: {
+            value: EnumUserActionEvent.ButuhBahanChecked,
+            label: "Checked",
+          },
+        },
+        [EnumSelectionType.OptionalBySubject]: {
+          options: [
+            {
+              value: EnumOptionBySubject.ByMe,
+              label: "by me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyone,
+              label: "by anyone",
+            },
+            {
+              value: EnumOptionBySubject.BySpecificUser,
+              label: "by specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptMe,
+              label: "by anyone except me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
+              label: "by anyone except specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByRole,
+              label: "by role",
+            },
+          ],
+          value: {
+            value: EnumOptionBySubject.ByAnyone,
+            label: "by anyone",
+          },
+          data: [],
+        },
+        [EnumSelectionType.Role]: {
+          options: [],
+          value: null,
+        },
+      },
+    ],
   },
   {
-    type: TriggerTypeDates,
+    type: TriggerGroupType.CardDates,
     label: "Dates",
-    icon: <Clock />
+    icon: <Clock />,
+    items: [
+      {
+        type: TriggerType.WhenTaskDateIsSet,
+        label: TriggerType.WhenTaskDateIsSet.replaceAll("-", " "),
+        [EnumSelectionType.TaskType]: {
+          options: [
+            {
+              value: EnumDateStatus.Due,
+              label: "Due",
+            },
+            {
+              value: EnumDateStatus.Start,
+              label: "Start",
+            },
+          ],
+          value: {
+            value: EnumDateStatus.Due,
+            label: "Due",
+          },
+        },
+        [EnumSelectionType.OptionalBySubject]: {
+          options: [
+            {
+              value: EnumOptionBySubject.ByMe,
+              label: "by me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyone,
+              label: "by anyone",
+            },
+            {
+              value: EnumOptionBySubject.BySpecificUser,
+              label: "by specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptMe,
+              label: "by anyone except me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
+              label: "by anyone except specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByRole,
+              label: "by role",
+            },
+          ],
+          value: {
+            value: EnumOptionBySubject.ByAnyone,
+            label: "by anyone",
+          },
+          data: [],
+        },
+        [EnumSelectionType.Role]: {
+          options: [],
+          value: null,
+        },
+        [EnumSelectionType.DateExpression]: {
+          options: [],
+          value: null,
+        },
+        [EnumSelectionType.SetTask]: {
+          options: [
+            {
+              value: EnumSetTask.SetOn,
+              label: "set on",
+            },
+            {
+              value: EnumSetTask.MovedIn,
+              label: "moved in",
+            },
+            {
+              value: EnumSetTask.RemoveFrom,
+              label: "removed from",
+            },
+          ],
+          value: {
+            value: EnumSetTask.SetOn,
+            label: "set on",
+          },
+        },
+      },
+    ],
   },
   {
-    type: TriggerTypeChecklists,
+    type: TriggerGroupType.CardChecklist,
     label: "Checklists",
-    icon: <Check />
+    icon: <Check />,
+    items: [
+      {
+        type: TriggerType.WhenChecklistIsAction,
+        label: TriggerType.WhenChecklistIsAction.replaceAll("-", " "),
+        [EnumSelectionType.Action]: {
+          options: [
+            {
+              value: "checklist.added", // temporary string action
+              label: "added to",
+            },
+            {
+              value: "checklist.removed",
+              label: "removed from",
+            },
+          ],
+          value: {
+            value: "checklist.added",
+            label: "added to",
+          },
+        },
+        [EnumInputType.Text]: "", // checklist name input
+        [EnumSelectionType.OptionalBySubject]: {
+          options: [
+            { value: EnumOptionBySubject.ByMe, label: "by me" },
+            { value: EnumOptionBySubject.ByAnyone, label: "by anyone" },
+            {
+              value: EnumOptionBySubject.BySpecificUser,
+              label: "by specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptMe,
+              label: "by anyone except me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
+              label: "by anyone except specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByRole,
+              label: "by role",
+            },
+          ],
+          value: { value: EnumOptionBySubject.ByAnyone, label: "by anyone" },
+          data: [],
+        },
+        [EnumSelectionType.Role]: {
+          options: [],
+          value: null,
+        },
+      },
+      {
+        type: TriggerType.WhenChecklistCompletionChanges,
+        label: TriggerType.WhenChecklistCompletionChanges.replaceAll("-", " "),
+        [EnumSelectionType.ChecklistScope]: {
+          options: [
+            { value: "checklist", label: "checklist" },
+            { value: "a-checklist", label: "a checklist" },
+            { value: "all-checklists", label: "all checklists" },
+          ],
+          value: { value: "checklist", label: "checklist" },
+        },
+        [EnumInputType.Text]: "", // checklist name (used only when checklist scope is 'checklist')
+        [EnumSelectionType.Action]: {
+          options: [
+            {
+              value: EnumUserActionEvent.ChecklistCompleted,
+              label: "completed",
+            },
+            {
+              value: EnumUserActionEvent.ChecklistIncompleted,
+              label: "made incomplete",
+            },
+          ],
+          value: {
+            value: EnumUserActionEvent.ChecklistCompleted,
+            label: "completed",
+          },
+        },
+        [EnumSelectionType.OptionalBySubject]: {
+          options: [
+            { value: EnumOptionBySubject.ByMe, label: "by me" },
+            { value: EnumOptionBySubject.ByAnyone, label: "by anyone" },
+            {
+              value: EnumOptionBySubject.BySpecificUser,
+              label: "by specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptMe,
+              label: "by anyone except me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
+              label: "by anyone except specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByRole,
+              label: "by role",
+            },
+          ],
+          value: { value: EnumOptionBySubject.ByAnyone, label: "by anyone" },
+          data: [],
+        },
+        [EnumSelectionType.Role]: {
+          options: [],
+          value: null,
+        },
+      },
+      {
+        type: TriggerType.WhenChecklistItemStateChanges,
+        label: TriggerType.WhenChecklistItemStateChanges.replaceAll("-", " "),
+        [EnumSelectionType.ItemScope]: {
+          options: [
+            { value: "the", label: "the" },
+            { value: "an", label: "an" },
+          ],
+          value: { value: "the", label: "the" },
+        },
+        [EnumInputType.Text]: "", // item name
+        [EnumSelectionType.Action]: {
+          options: [
+            {
+              value: EnumUserActionEvent.ChecklistItemChecked,
+              label: "checked",
+            },
+            {
+              value: EnumUserActionEvent.ChecklistItemUnchecked,
+              label: "unchecked",
+            },
+          ],
+          value: {
+            value: EnumUserActionEvent.ChecklistItemChecked,
+            label: "checked",
+          },
+        },
+        [EnumSelectionType.OptionalBySubject]: {
+          options: [
+            { value: EnumOptionBySubject.ByMe, label: "by me" },
+            { value: EnumOptionBySubject.ByAnyone, label: "by anyone" },
+            {
+              value: EnumOptionBySubject.BySpecificUser,
+              label: "by specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptMe,
+              label: "by anyone except me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
+              label: "by anyone except specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByRole,
+              label: "by role",
+            },
+          ],
+          value: { value: EnumOptionBySubject.ByAnyone, label: "by anyone" },
+          data: [],
+        },
+        [EnumSelectionType.Role]: {
+          options: [],
+          value: null,
+        },
+      },
+      {
+        type: TriggerType.WhenChecklistItemDueDateChanges,
+        label: TriggerType.WhenChecklistItemDueDateChanges.replaceAll("-", " "),
+        [EnumSelectionType.Action]: {
+          options: [
+            {
+              value: EnumUserActionEvent.ChecklistItemDueDateSet,
+              label: "set on",
+            },
+            {
+              value: EnumUserActionEvent.ChecklistItemDueDateRemoved,
+              label: "removed from",
+            },
+          ],
+          value: {
+            value: EnumUserActionEvent.ChecklistItemDueDateSet,
+            label: "set on",
+          },
+        },
+        [EnumSelectionType.DateExpression]: {
+          options: [],
+          value: null,
+        },
+      },
+      {
+        type: TriggerType.WhenChecklistItemIsAddedTo,
+        label: TriggerType.WhenChecklistItemIsAddedTo.replaceAll("-", " "),
+        [EnumSelectionType.Action]: {
+          options: [
+            {
+              value: EnumUserActionEvent.ChecklistItemAdded,
+              label: "added to",
+            },
+            {
+              value: EnumUserActionEvent.ChecklistItemRemoved,
+              label: "removed from",
+            },
+          ],
+          value: {
+            value: EnumUserActionEvent.ChecklistItemAdded,
+            label: "added to",
+          },
+        },
+        [EnumSelectionType.ChecklistScope]: {
+          options: [
+            { value: "checklist", label: "checklist" },
+            { value: "a-checklist", label: "a checklist" },
+          ],
+          value: { value: "a-checklist", label: "a checklist" },
+        },
+        [EnumInputType.Text]: "", // checklist name (used only when checklist scope is 'checklist')
+        [EnumSelectionType.OptionalBySubject]: {
+          options: [
+            { value: EnumOptionBySubject.ByMe, label: "by me" },
+            { value: EnumOptionBySubject.ByAnyone, label: "by anyone" },
+            {
+              value: EnumOptionBySubject.BySpecificUser,
+              label: "by specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptMe,
+              label: "by anyone except me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
+              label: "by anyone except specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByRole,
+              label: "by role",
+            },
+          ],
+          value: { value: EnumOptionBySubject.ByAnyone, label: "by anyone" },
+          data: [],
+        },
+        [EnumSelectionType.Role]: {
+          options: [],
+          value: null,
+        },
+        [EnumSelectionType.TextComparison]: {
+          options: [
+            {
+              value: EnumOptionTextComparisonOperator.StartingWith,
+              label: "starting with",
+            },
+            {
+              value: EnumOptionTextComparisonOperator.EndingWith,
+              label: "ending with",
+            },
+            {
+              value: EnumOptionTextComparisonOperator.Containing,
+              label: "containing",
+            },
+            {
+              value: EnumOptionTextComparisonOperator.NotStartingWith,
+              label: "not starting with",
+            },
+            {
+              value: EnumOptionTextComparisonOperator.NotEndingWith,
+              label: "not ending with",
+            },
+            {
+              value: EnumOptionTextComparisonOperator.NotContaining,
+              label: "not containing",
+            },
+          ],
+          value: {
+            value: EnumOptionTextComparisonOperator.StartingWith,
+            label: "starting with",
+          },
+        },
+      },
+    ],
   },
   {
-    type: TriggerTypeCardContent,
+    type: TriggerGroupType.CardContent,
     label: "Card Content",
-    icon: <MessageSquare />
+    icon: <MessageSquare />,
+    items: [
+      {
+        type: TriggerType.WhenCardContentTextIsSet,
+        label: TriggerType.WhenCardContentTextIsSet.replaceAll("-", " "),
+        [EnumSelectionType.CardContentType]: {
+          options: [
+            {
+              value: EnumCardContentType.Name,
+              label: "name",
+            },
+            {
+              value: EnumCardContentType.Description,
+              label: "description",
+            },
+            {
+              value: EnumCardContentType.NameOrDescription,
+              label: "name or description",
+            },
+          ],
+          value: {
+            value: EnumCardContentType.Name,
+            label: "name",
+          },
+        },
+        [EnumSelectionType.CardContentText]: {
+          options: [
+            {
+              value: EnumCardContentText.StartsWith,
+              label: "starts with",
+            },
+            {
+              value: EnumCardContentText.EndsWith,
+              label: "ends with",
+            },
+            {
+              value: EnumCardContentText.Contains,
+              label: "contains",
+            },
+            {
+              value: EnumCardContentText.DoesNotStartWith,
+              label: "does not start with",
+            },
+            {
+              value: EnumCardContentText.DoesNotEndWith,
+              label: "does not end with",
+            },
+            {
+              value: EnumCardContentText.DoesNotContain,
+              label: "does not contain",
+            },
+          ],
+          value: {
+            value: EnumCardContentText.StartsWith,
+            label: "starts with",
+          },
+        },
+        [EnumInputType.Text]: "",
+      },
+    ],
   },
   {
-    type: TriggerTypeFields,
+    type: TriggerGroupType.CardFields,
     label: "Fields",
-    icon: <AlignJustify />
-  }
+    icon: <AlignJustify />,
+    items: [
+      {
+        type: TriggerType.WhenAllCustomFieldsAreCompleted,
+        label: TriggerType.WhenAllCustomFieldsAreCompleted.replaceAll("-", " "),
+        filters: null,
+        [EnumSelectionType.OptionalBySubject]: {
+          options: [
+            { value: EnumOptionBySubject.ByMe, label: "by me" },
+            { value: EnumOptionBySubject.ByAnyone, label: "by anyone" },
+            {
+              value: EnumOptionBySubject.BySpecificUser,
+              label: "by specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptMe,
+              label: "by anyone except me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
+              label: "by anyone except specific user",
+            },
+            { value: EnumOptionBySubject.ByRole, label: "by role" },
+          ],
+          value: { value: EnumOptionBySubject.ByAnyone, label: "by anyone" },
+          data: [],
+        },
+        [EnumSelectionType.Role]: { options: [], value: null },
+      },
+      {
+        type: TriggerType.WhenCustomFieldsAreCompleted,
+        label: TriggerType.WhenCustomFieldsAreCompleted.replaceAll("-", " "),
+        [EnumSelectionType.Fields]: { options: [], value: null },
+        filters: null,
+        [EnumSelectionType.OptionalBySubject]: {
+          options: [
+            { value: EnumOptionBySubject.ByMe, label: "by me" },
+            { value: EnumOptionBySubject.ByAnyone, label: "by anyone" },
+            {
+              value: EnumOptionBySubject.BySpecificUser,
+              label: "by specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptMe,
+              label: "by anyone except me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
+              label: "by anyone except specific user",
+            },
+            { value: EnumOptionBySubject.ByRole, label: "by role" },
+          ],
+          value: { value: EnumOptionBySubject.ByAnyone, label: "by anyone" },
+          data: [],
+        },
+        [EnumSelectionType.Role]: { options: [], value: null },
+      },
+      {
+        type: TriggerType.WhenCustomFieldsIsSetToFieldValue,
+        label: TriggerType.WhenCustomFieldsIsSetToFieldValue.replaceAll(
+          "-",
+          " "
+        ),
+        filters: null,
+        [EnumSelectionType.Action]: {
+          options: [],
+          value: {
+            value: EnumUserActionEvent.CardCustomFieldChange,
+            label: EnumUserActionEvent.CardCustomFieldChange,
+          },
+        },
+        [EnumSelectionType.Fields]: {
+          options: [],
+          value: null,
+        },
+        [EnumInputType.FieldValue]: {
+          options: [],
+          value: null,
+        },
+        [EnumSelectionType.OptionalBySubject]: {
+          options: [
+            {
+              value: EnumOptionBySubject.ByMe,
+              label: "by me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyone,
+              label: "by anyone",
+            },
+            {
+              value: EnumOptionBySubject.BySpecificUser,
+              label: "by specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptMe,
+              label: "by anyone except me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
+              label: "by anyone except specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByRole,
+              label: "by role",
+            },
+          ],
+          value: {
+            value: EnumOptionBySubject.ByAnyone,
+            label: "by anyone",
+          },
+          data: [],
+        },
+        [EnumSelectionType.Role]: {
+          options: [],
+          value: null,
+        },
+      },
+      {
+        type: TriggerType.WhenCustomFieldsIncludesAnyValue,
+        label: TriggerType.WhenCustomFieldsIncludesAnyValue.replaceAll(
+          "-",
+          " "
+        ),
+        [EnumSelectionType.Action]: {
+          options: [],
+          value: {
+            value: EnumUserActionEvent.CardCustomFieldChange,
+            label: EnumUserActionEvent.CardCustomFieldChange,
+          },
+        },
+        [EnumSelectionType.Fields]: {
+          options: [],
+          value: null,
+        },
+        [EnumSelectionType.FieldValueOperator]: {
+          options: [
+            {
+              value: "includes_any",
+              label: "includes any of",
+            },
+            {
+              value: "includes_all",
+              label: "includes all of",
+            },
+            {
+              value: "excludes_any",
+              label: "excludes any of",
+            },
+            {
+              value: "excludes_all",
+              label: "excludes all of",
+            },
+          ],
+          value: {
+            value: "includes_any",
+            label: "includes any of",
+          },
+        },
+        [EnumInputType.MultiFieldValue]: {
+          options: [],
+          value: [],
+          isMultiSelect: true,
+        },
+        [EnumSelectionType.OptionalBySubject]: {
+          options: [
+            {
+              value: EnumOptionBySubject.ByMe,
+              label: "by me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyone,
+              label: "by anyone",
+            },
+            {
+              value: EnumOptionBySubject.BySpecificUser,
+              label: "by specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptMe,
+              label: "by anyone except me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
+              label: "by anyone except specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByRole,
+              label: "by role",
+            },
+          ],
+          value: {
+            value: EnumOptionBySubject.ByAnyone,
+            label: "by anyone",
+          },
+          data: [],
+        },
+        [EnumSelectionType.Role]: {
+          options: [],
+          value: null,
+        },
+      },
+      {
+        type: TriggerType.WhenCustomFieldsIsSet,
+        label: TriggerType.WhenCustomFieldsIsSet.replaceAll("-", " "),
+        [EnumSelectionType.Fields]: {
+          options: [],
+          value: null,
+        },
+        [EnumSelectionType.Action]: {
+          options: [
+            {
+              value: EnumUserActionEvent.CardCustomFieldChange,
+              label: "set",
+            },
+            {
+              value: EnumOptionsSet.Cleared,
+              label: "cleared",
+            },
+          ],
+          value: {
+            value: EnumUserActionEvent.CardCustomFieldChange,
+            label: "set",
+          },
+        },
+        [EnumSelectionType.OptionalBySubject]: {
+          options: [
+            {
+              value: EnumOptionBySubject.ByMe,
+              label: "by me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyone,
+              label: "by anyone",
+            },
+            {
+              value: EnumOptionBySubject.BySpecificUser,
+              label: "by specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptMe,
+              label: "by anyone except me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
+              label: "by anyone except specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByRole,
+              label: "by role",
+            },
+          ],
+          value: {
+            value: EnumOptionBySubject.ByAnyone,
+            label: "by anyone",
+          },
+          data: [],
+        },
+        [EnumSelectionType.Role]: {
+          options: [],
+          value: null,
+        },
+      },
+      {
+        type: TriggerType.WhenCustomFieldIsChecked,
+        label: TriggerType.WhenCustomFieldIsChecked.replaceAll("-", " "),
+        [EnumSelectionType.Fields]: {
+          options: [],
+          value: null,
+          fieldTypeFilter: ["checkbox"],
+        },
+        [EnumSelectionType.Action]: {
+          options: [],
+          value: {
+            value: EnumUserActionEvent.CardCustomFieldChange,
+            label: EnumUserActionEvent.CardCustomFieldChange,
+          },
+        },
+        [EnumSelectionType.CheckboxState]: {
+          options: [
+            {
+              value: EnumOptionCheckboxState.Checked,
+              label: "checked",
+            },
+            {
+              value: EnumOptionCheckboxState.Unchecked,
+              label: "unchecked",
+            },
+          ],
+          value: {
+            value: EnumOptionCheckboxState.Checked,
+            label: "checked",
+          },
+        },
+        [EnumSelectionType.OptionalBySubject]: {
+          options: [
+            {
+              value: EnumOptionBySubject.ByMe,
+              label: "by me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyone,
+              label: "by anyone",
+            },
+            {
+              value: EnumOptionBySubject.BySpecificUser,
+              label: "by specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptMe,
+              label: "by anyone except me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
+              label: "by anyone except specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByRole,
+              label: "by role",
+            },
+          ],
+          value: {
+            value: EnumOptionBySubject.ByAnyone,
+            label: "by anyone",
+          },
+          data: [],
+        },
+        [EnumSelectionType.Role]: {
+          options: [],
+          value: null,
+        },
+      },
+      {
+        type: TriggerType.WhenCustomFieldNumberComparison,
+        label: TriggerType.WhenCustomFieldNumberComparison.replaceAll("-", " "),
+        [EnumSelectionType.Action]: {
+          options: [],
+          value: {
+            value: EnumUserActionEvent.CardCustomFieldChange,
+            label: EnumUserActionEvent.CardCustomFieldChange,
+          },
+        },
+        [EnumSelectionType.Fields]: {
+          options: [],
+          value: null,
+          fieldTypeFilter: ["number"],
+        },
+        [EnumSelectionType.NumberComparison]: {
+          options: [
+            {
+              value: EnumOptionsNumberComparisonOperators.MoreThan,
+              label: "greater than",
+            },
+            {
+              value: EnumOptionsNumberComparisonOperators.MoreOrEqual,
+              label: "greater or equal to",
+            },
+            {
+              value: EnumOptionsNumberComparisonOperators.FewerThan,
+              label: "lower than",
+            },
+            {
+              value: EnumOptionsNumberComparisonOperators.FewerOrEqual,
+              label: "lower or equal to",
+            },
+          ],
+          value: {
+            value: EnumOptionsNumberComparisonOperators.MoreThan,
+            label: "greater than",
+          },
+        },
+        [EnumInputType.Number]: null,
+        [EnumSelectionType.OptionalBySubject]: {
+          options: [
+            {
+              value: EnumOptionBySubject.ByMe,
+              label: "by me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyone,
+              label: "by anyone",
+            },
+            {
+              value: EnumOptionBySubject.BySpecificUser,
+              label: "by specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptMe,
+              label: "by anyone except me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
+              label: "by anyone except specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByRole,
+              label: "by role",
+            },
+          ],
+          value: {
+            value: EnumOptionBySubject.ByAnyone,
+            label: "by anyone",
+          },
+          data: [],
+        },
+        [EnumSelectionType.Role]: {
+          options: [],
+          value: null,
+        },
+      },
+      {
+        type: TriggerType.WhenCustomFieldDateCondition,
+        label: TriggerType.WhenCustomFieldDateCondition.replaceAll("-", " "),
+        [EnumSelectionType.Action]: {
+          options: [],
+          value: {
+            value: EnumUserActionEvent.CardCustomFieldChange,
+            label: EnumUserActionEvent.CardCustomFieldChange,
+          },
+        },
+        [EnumSelectionType.Fields]: {
+          options: [],
+          value: null,
+          fieldTypeFilter: ["date"],
+        },
+        [EnumSelectionType.DateExpression]: {
+          options: [],
+          value: null,
+        },
+        [EnumSelectionType.OptionalBySubject]: {
+          options: [
+            { value: EnumOptionBySubject.ByMe, label: "by me" },
+            { value: EnumOptionBySubject.ByAnyone, label: "by anyone" },
+            {
+              value: EnumOptionBySubject.BySpecificUser,
+              label: "by specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptMe,
+              label: "by anyone except me",
+            },
+            {
+              value: EnumOptionBySubject.ByAnyoneExceptSpecificUser,
+              label: "by anyone except specific user",
+            },
+            {
+              value: EnumOptionBySubject.ByRole,
+              label: "by role",
+            },
+          ],
+          value: { value: EnumOptionBySubject.ByAnyone, label: "by anyone" },
+          data: [],
+        },
+        [EnumSelectionType.Role]: {
+          options: [],
+          value: null,
+        },
+      },
+    ],
+  } as AutomationRuleTrigger,
 ];
 
-export const actions: ActionType[] = [
+export const actions: AutomationRuleAction[] = [
   {
-    type: "card_move",
+    type: ActionGroupType.CardMove,
     label: "Move",
     icon: <MoveRight />,
     items: [
       {
-        type: "<action>_the_<card>_to_<position>_<optional_board>",
-        label: "<action> the card to a specific <position> <optional-board>",
-        action: {
+        type: ActionType.ActionTheCardToPositionInSpecificList,
+        label: ActionType.ActionTheCardToPositionInSpecificList.replaceAll(
+          "-",
+          " "
+        ),
+        [EnumSelectionType.Position]: {
           options: [
             {
-              value: "move",
-              label: "Move"
+              value: EnumOptionPosition.TopOfList,
+              label: "The top of the list",
             },
             {
-              value: "copy",
-              label: "Copy"
-            }
+              value: EnumOptionPosition.BottomOfList,
+              label: "The bottom of the list",
+            },
+            {
+              value: EnumOptionPosition.NextList,
+              label: "next list on the board",
+            },
+            {
+              value: EnumOptionPosition.PreviousList,
+              label: "previous_list_on_the_board",
+            },
           ],
           value: {
-            value: "move",
-            label: "Move"
-          }
+            value: EnumOptionPosition.TopOfList,
+            label: "The top of the list",
+          },
         },
-        position: {
+        [EnumSelectionType.Action]: {
           options: [
             {
-              value: "top_of_list",
-              label: "The top of the list"
+              value: EnumActions.MoveCard,
+              label: "Move",
             },
             {
-              value: "bottom_of_list",
-              label: "The bottom of the list"
-            }
+              value: EnumActions.CopyCard,
+              label: "Copy",
+            },
           ],
           value: {
-            value: "top_of_list",
-            label: "The top of the list"
-          }
+            value: EnumActions.MoveCard,
+            label: "Move",
+          },
+        },
+        [EnumSelectionType.List]: {
+          options: [],
+          value: null,
         },
       },
       {
-        type: "move_the_card_to_<position>",
-        label: "move the card to the <position>",
-        position: {
+        type: ActionType.ActionTheCardToPosition,
+        label: ActionType.ActionTheCardToPosition.replaceAll("-", " "),
+        [EnumSelectionType.Action]: {
           options: [
             {
-              value: "top_of_list",
-              label: "top of the list"
+              value: EnumActions.MoveCard,
+              label: "Move",
             },
-            {
-              value: "bottom_of_list",
-              label: "bottom of the list"
-            },
-            {
-              value: "next_list_on_board",
-              label: "next list on the board"
-            },
-            {
-              value: "previous_list_on_board",
-              label: "previous_list_on_the_board"
-            }
           ],
           value: {
-            value: "top_of_list",
-            label: "top of the list"
-          }
-        }
+            value: EnumActions.MoveCard,
+            label: "Move",
+          },
+        },
+        [EnumSelectionType.Position]: {
+          options: [
+            {
+              value: EnumOptionPosition.TopOfList,
+              label: "The top of the list",
+            },
+            {
+              value: EnumOptionPosition.BottomOfList,
+              label: "The bottom of the list",
+            },
+          ],
+          value: {
+            value: EnumOptionPosition.TopOfList,
+            label: "The top of the list",
+          },
+        },
       },
       {
-        type: "<action>_the_card",
-        label: "<action> the card",
-        action: {
+        type: ActionType.ArchivalActionTheCard,
+        label: ActionType.ArchivalActionTheCard.replaceAll("-", " "),
+        [EnumSelectionType.Action]: {
           options: [
             {
-              value: "archived",
-              label: "archived"
+              value: EnumActions.ArchiveCard,
+              label: "archived",
             },
             {
-              value: "unarchived",
-              label: "unarchived"
-            }
+              value: EnumActions.UnarchiveCard,
+              label: "unarchived",
+            },
           ],
           value: {
-            value: "archived",
-            label: "archived"
-          }
-        }
-      }
-    ]
+            value: EnumActions.ArchiveCard,
+            label: "archived",
+          },
+        },
+      },
+      {
+        type: ActionType.ActionTheCardToBoardList,
+        label: ActionType.ActionTheCardToBoardList.replaceAll("-", " "),
+        [EnumSelectionType.Action]: {
+          options: [
+            {
+              value: EnumActions.MoveCardToBoard,
+              label: "Move",
+            },
+            {
+              value: EnumActions.CopyCard,
+              label: "Copy",
+            },
+          ],
+          value: {
+            value: EnumActions.MoveCardToBoard,
+            label: "Move",
+          },
+        },
+        [EnumSelectionType.Position]: {
+          options: [
+            {
+              value: EnumOptionPosition.TopOfList,
+              label: "The top of the list",
+            },
+            {
+              value: EnumOptionPosition.BottomOfList,
+              label: "The bottom of the list",
+            },
+          ],
+          value: {
+            value: EnumOptionPosition.TopOfList,
+            label: "The top of the list",
+          },
+        },
+        [EnumSelectionType.Board]: {
+          options: [],
+          value: null,
+          placeholder: "Select Board",
+        },
+        [EnumSelectionType.List]: {
+          options: [],
+          value: null,
+          placeholder: "Select List",
+        },
+      },
+    ],
   },
   {
     type: "card_add_remove",
     label: "Add/Remove",
-    icon: <div className="flex gap-1"> <Plus/> <Minus/> </div>
+    icon: (
+      <div className="flex gap-1">
+        {" "}
+        <Plus /> <Minus />{" "}
+      </div>
+    ),
+    items: [
+      {
+        type: ActionType.CreateItem,
+        label: ActionType.CreateItem.replaceAll("-", " "),
+        [EnumSelectionType.CreateType]: {
+          options: [
+            {
+              value: EnumCreateType.New,
+              label: "New",
+            },
+            {
+              value: EnumCreateType.Unique,
+              label: "Unique",
+            },
+          ],
+          value: {
+            value: EnumCreateType.New,
+            label: "New",
+          },
+        },
+        [EnumInputType.TextTitle]: {
+          placeholder: "Card Title",
+          value: null,
+        },
+        [EnumInputType.TextDescription]: {
+          placeholder: "Card Description",
+          value: null,
+        },
+        [EnumSelectionType.Position]: {
+          options: [
+            {
+              value: EnumOptionPosition.InList,
+              label: "In list",
+            },
+            {
+              value: EnumOptionPosition.TopOfList,
+              label: "The top of the list",
+            },
+            {
+              value: EnumOptionPosition.BottomOfList,
+              label: "The bottom of the list",
+            },
+          ],
+          value: {
+            value: EnumOptionPosition.InList,
+            label: "In list",
+          },
+        },
+        [EnumSelectionType.Board]: {
+          options: [],
+          value: null,
+          placeholder: "Select Board",
+        },
+        [EnumSelectionType.List]: {
+          options: [],
+          value: null,
+          placeholder: "Select List",
+        },
+        [EnumSelectionType.MultiLabels]: {
+          options: [],
+          value: null,
+        },
+        [EnumSelectionType.MultiChecklists]: {
+          options: [],
+          value: null,
+          placeholder: "Select List",
+        },
+        [EnumSelectionType.MultiUsers]: {
+          options: [],
+          value: null,
+          placeholder: "Select Users",
+        },
+        [EnumSelectionType.MultiDates]: {
+          options: [],
+          value: null,
+          placeholder: "Select Dates",
+        },
+      },
+      {
+        type: ActionType.AddRemoveLabel,
+        label: ActionType.AddRemoveLabel.replaceAll("-", " "),
+        [EnumSelectionType.AddRemove]: {
+          options: [
+            {
+              value: EnumAddRemove.Add,
+              label: "Add",
+            },
+            {
+              value: EnumAddRemove.Remove,
+              label: "Remove",
+            },
+          ],
+          value: {
+            value: EnumAddRemove.Add,
+            label: "Add",
+          },
+        },
+        [EnumSelectionType.CardLabel]: {
+          options: [],
+          value: null,
+          placeholder: "Select Label",
+        },
+      },
+      {
+        type: ActionType.RemoveFromCard,
+        label: ActionType.RemoveFromCard.replaceAll("-", " "),
+        [EnumSelectionType.RemoveFromCard]: {
+          options: [
+            {
+              value: EnumRemoveFromCard.DueDate,
+              label: "The Due Date",
+            },
+            {
+              value: EnumRemoveFromCard.StartDate,
+              label: "The Start Date",
+            },
+            {
+              value: EnumRemoveFromCard.CoverImage,
+              label: "The Cover Image",
+            },
+            {
+              value: EnumRemoveFromCard.AllLabels,
+              label: "All the labels",
+            },
+            {
+              value: EnumRemoveFromCard.AllStickers,
+              label: "All the stickers",
+            },
+            {
+              value: EnumRemoveFromCard.AllChecklist,
+              label: "All the checklists",
+            },
+            {
+              value: EnumRemoveFromCard.AllMembers,
+              label: "All the members",
+            },
+          ],
+          value: {
+            value: EnumRemoveFromCard.DueDate,
+            label: "The Due Date",
+          },
+        },
+      },
+    ],
   },
   {
     type: "card_dates",
     label: "Dates",
-    icon: <Clock />
+    icon: <Clock />,
+    items: [
+      {
+        type: ActionType.MarkCardCompletion,
+        label: ActionType.MarkCardCompletion.replaceAll("-", " "),
+        [EnumSelectionType.Completion]: {
+          options: [
+            {
+              value: EnumOptionCompletion.Complete,
+              label: "complete",
+            },
+            {
+              value: EnumOptionCompletion.Incomplete,
+              label: "incomplete",
+            },
+          ],
+          value: {
+            value: EnumOptionCompletion.Complete,
+            label: "complete",
+          },
+        },
+        [EnumSelectionType.Action]: {
+          options: [
+            {
+              value: EnumActions.MarkCardCompletion,
+              label: "Mark",
+            },
+          ],
+          value: {
+            value: EnumActions.MarkCardCompletion,
+            label: "Mark",
+          },
+        },
+      },
+      {
+        type: ActionType.SetCardDateStartOrDue,
+        label: ActionType.SetCardDateStartOrDue.replaceAll("-", " "),
+        [EnumSelectionType.DateStatus]: {
+          options: [
+            {
+              value: EnumDateStatus.Due,
+              label: "due",
+            },
+            {
+              value: EnumDateStatus.Start,
+              label: "start",
+            },
+          ],
+          value: {
+            value: EnumDateStatus.Due,
+            label: "due",
+          },
+        },
+        [EnumSelectionType.Action]: {
+          options: [
+            {
+              value: EnumActions.SetCardDateStatus,
+              label: "Set",
+            },
+          ],
+          value: {
+            value: EnumActions.SetCardDateStatus,
+            label: "Set",
+          },
+        },
+        [EnumInputType.DateValue]: undefined,
+      },
+      {
+        type: ActionType.MoveCardDateStartOrDue,
+        label: ActionType.MoveCardDateStartOrDue.replaceAll("-", " "),
+        [EnumSelectionType.DateStatus]: {
+          options: [
+            {
+              value: EnumDateStatus.Due,
+              label: "due",
+            },
+            {
+              value: EnumDateStatus.Start,
+              label: "start",
+            },
+          ],
+          [EnumSelectionType.Action]: {
+            options: [
+              {
+                value: EnumActions.MoveCardDateStatus,
+                label: "Move",
+              },
+            ],
+            value: {
+              value: EnumActions.MoveCardDateStatus,
+              label: "Move",
+            },
+          },
+          value: {
+            value: EnumDateStatus.Due,
+            label: "due",
+          },
+        },
+        [EnumInputType.DateValue]: undefined,
+      },
+    ],
   },
   {
     type: "checklists",
     label: "Checklists",
-    icon: <Check />
+    icon: <Check />,
+    items: [
+      {
+        type: ActionType.AddChecklistToCard,
+        label: "Add an empty checklist named <text_input> to the card",
+        [EnumSelectionType.Action]: {
+          options: [
+            {
+              value: EnumActions.AddChecklist,
+              label: "Add",
+            },
+          ],
+          value: {
+            value: EnumActions.AddChecklist,
+            label: "Add",
+          },
+        },
+        [EnumSelectionType.TextInput]: {
+          placeholder: "Enter checklist name...",
+          value: "",
+        },
+      },
+      {
+        type: ActionType.ManageChecklistItem,
+        label: "<action> item <text_input> to checklist <checklist_name>",
+        [EnumSelectionType.Action]: {
+          options: [
+            {
+              value: EnumActions.AddChecklistItem,
+              label: "Add",
+            },
+            {
+              value: EnumActions.RemoveChecklistItem,
+              label: "Remove",
+            },
+          ],
+          value: {
+            value: EnumActions.AddChecklistItem,
+            label: "Add",
+          },
+        },
+        [EnumSelectionType.TextInput]: {
+          placeholder: "Enter item name...",
+          value: "",
+        },
+        [EnumSelectionType.ChecklistName]: {
+          placeholder: "Enter checklist name...",
+          value: "",
+        },
+      },
+      {
+        type: ActionType.ToggleChecklistItem,
+        label: "<action> item <text_input> in checklist <checklist_name>",
+        [EnumSelectionType.Action]: {
+          options: [
+            { value: EnumActions.CheckChecklistItem, label: "Check" },
+            { value: EnumActions.UncheckChecklistItem, label: "Uncheck" },
+          ],
+          value: { value: EnumActions.CheckChecklistItem, label: "Check" },
+        },
+        [EnumSelectionType.TextInput]: {
+          placeholder: "Item name",
+          value: "",
+        },
+        [EnumSelectionType.ChecklistName]: {
+          placeholder: "Checklist name (optional)",
+          value: "",
+        },
+      },
+      {
+        type: ActionType.SetChecklistItemDueDate,
+        label: "set the item due <date_value>",
+        [EnumSelectionType.Action]: {
+          options: [
+            {
+              value: EnumActions.SetChecklistItemDueDate,
+              label: "Set",
+            },
+          ],
+          value: {
+            value: EnumActions.SetChecklistItemDueDate,
+            label: "Set",
+          },
+        },
+        [EnumInputType.DateValue]: {
+          options: [],
+          value: null,
+        },
+      },
+      {
+        type: ActionType.MoveChecklistItemDueDate,
+        label: "move the item due date to <date_value>",
+        [EnumSelectionType.Action]: {
+          options: [
+            {
+              value: EnumActions.MoveChecklistItemDueDate,
+              label: "Move",
+            },
+          ],
+          value: {
+            value: EnumActions.MoveChecklistItemDueDate,
+            label: "Move",
+          },
+        },
+        [EnumInputType.DateValue]: {
+          options: [],
+          value: null,
+        },
+      },
+    ],
   },
   {
-    type: "members",
+    type: ActionGroupType.CardMembers,
     label: "Members",
-    icon: <User />
+    icon: <User />,
+    items: [
+      {
+        type: ActionType.AddCardMember,
+        label: "<action> member <user> on the card",
+        [EnumSelectionType.Action]: {
+          options: [
+            { value: EnumActions.AddCardMember, label: "add" },
+            { value: EnumActions.RemoveCardMember, label: "remove" },
+          ],
+          value: { value: EnumActions.AddCardMember, label: "add" },
+        },
+        [EnumSelectionType.User]: {
+          options: [],
+          value: null,
+        },
+      },
+      {
+        type: ActionType.RemoveAllCardMembers,
+        label: ActionType.RemoveAllCardMembers.replaceAll("-", " "),
+        [EnumSelectionType.Action]: {
+          options: [{ value: EnumActions.RemoveCardMember, label: "remove" }],
+          value: { value: EnumActions.RemoveCardMember, label: "remove" },
+        },
+      },
+    ],
   },
   {
     type: "card_content",
     label: "Card Content",
-    icon: <MessageSquare />
+    icon: <MessageSquare />,
+    items: [
+      {
+        type: ActionType.RenameCard,
+        label: "rename the card to <text_input>",
+        [EnumSelectionType.Action]: {
+          options: [{ value: EnumActions.RenameCard, label: "rename" }],
+          value: { value: EnumActions.RenameCard, label: "rename" },
+        },
+        [EnumSelectionType.TextInput]: {
+          placeholder: "New card title",
+          value: "",
+        },
+      },
+      {
+        type: ActionType.SetCardDescription,
+        label: "set the card's description to <text_input>",
+        [EnumSelectionType.Action]: {
+          options: [
+            { value: EnumActions.SetCardDescription, label: "set description" },
+          ],
+          value: {
+            value: EnumActions.SetCardDescription,
+            label: "set description",
+          },
+        },
+        [EnumSelectionType.TextInput]: {
+          placeholder: "Card description",
+          value: "",
+          isRichText: true, // Special flag to indicate this should use rich text editor
+        },
+      },
+    ],
   },
   {
     type: "fields",
     label: "Fields",
-    icon: <AlignJustify />
+    icon: <AlignJustify />,
+    items: [
+      {
+        type: ActionType.ClearCustomField,
+        label: "Clear custom field <fields>",
+        [EnumSelectionType.Action]: {
+          options: [
+            {
+              value: EnumActions.ClearCustomField,
+              label: "Clear",
+            },
+          ],
+          value: {
+            value: EnumActions.ClearCustomField,
+            label: "Clear",
+          },
+        },
+        [EnumSelectionType.Fields]: {
+          options: [],
+          value: null,
+        },
+      },
+      {
+        type: ActionType.SetCustomField,
+        label: "Set custom field <fields> to <field_value>",
+        [EnumSelectionType.Action]: {
+          options: [
+            {
+              value: EnumActions.SetCustomField,
+              label: "Set",
+            },
+          ],
+          value: {
+            value: EnumActions.SetCustomField,
+            label: "Set",
+          },
+        },
+        [EnumSelectionType.Fields]: {
+          options: [],
+          value: null,
+        },
+        [EnumInputType.FieldValue]: {
+          options: [],
+          value: null,
+        },
+      },
+      {
+        type: ActionType.CheckCustomField,
+        label: "<action> custom field <fields>",
+        [EnumSelectionType.Action]: {
+          options: [
+            { value: EnumActions.CheckCustomField, label: "check" },
+            { value: EnumActions.UncheckCustomField, label: "uncheck" },
+          ],
+          value: { value: EnumActions.CheckCustomField, label: "check" },
+        },
+        [EnumSelectionType.Fields]: {
+          options: [],
+          value: null,
+          fieldTypeFilter: "checkbox",
+        },
+      },
+      {
+        type: ActionType.IncrementCustomField,
+        label: "<action> the number in custom field <fields> by [number]",
+        [EnumSelectionType.Action]: {
+          options: [
+            { value: EnumActions.IncreaseNumberCustomField, label: "increase" },
+            { value: EnumActions.DecreaseNumberCustomField, label: "decrease" },
+          ],
+          value: {
+            value: EnumActions.IncreaseNumberCustomField,
+            label: "increase",
+          },
+        },
+        [EnumSelectionType.Fields]: {
+          options: [],
+          value: null,
+          fieldTypeFilter: "number",
+        },
+        [EnumInputType.Number]: "1",
+      },
+      {
+        type: ActionType.SetDateCustomField,
+        label: "set date custom field <fields> to <date_value>",
+        [EnumSelectionType.Fields]: {
+          options: [],
+          value: null,
+          fieldTypeFilter: "date",
+        },
+        [EnumInputType.DateValue]: {
+          options: [
+            { value: "now", label: "now" },
+            { value: "today", label: "today" },
+            { value: "tomorrow", label: "tomorrow" },
+            { value: "yesterday", label: "yesterday" },
+            { value: "next_working_day", label: "the next working day" },
+            {
+              value: "the_previous_working_day",
+              label: "the previous working day",
+            },
+            {
+              value: "the_same_day_next_week",
+              label: "the same day next week",
+            },
+            {
+              value: "the_same_day_next_month",
+              label: "the same day next month",
+            },
+            {
+              value: "the_same_day_next_year",
+              label: "the same day next year",
+            },
+          ],
+          value: null,
+        },
+        [EnumSelectionType.Action]: {
+          options: [{ value: EnumActions.SetDateCustomField, label: "set" }],
+          value: { value: EnumActions.SetDateCustomField, label: "set" },
+        },
+      },
+      {
+        type: ActionType.MoveDateCustomField,
+        label: "move the date in custom field <fields> to <date_value>",
+        [EnumSelectionType.Fields]: {
+          options: [],
+          value: null,
+          fieldTypeFilter: "date",
+        },
+        [EnumInputType.DateValue]: {
+          options: [
+            { value: "same_day_next_week", label: "the same day next week" },
+            { value: "plus_1_day", label: "by 1 day" },
+            { value: "plus_2_days", label: "by 2 days" },
+            { value: "next_monday", label: "the next monday" },
+            { value: "first_day_month", label: "the 1st of the month" },
+            {
+              value: "first_monday_month",
+              label: "the first monday of the month",
+            },
+            { value: "january_1st", label: "january 1st" },
+          ],
+          value: null,
+        },
+        [EnumSelectionType.Action]: {
+          options: [{ value: "cardfields.date.move", label: "move" }],
+          value: { value: "cardfields.date.move", label: "move" },
+        },
+      },
+      {
+        type: ActionType.CalculateCustomField,
+        label: "calculate <target> using <expression>",
+        [EnumSelectionType.Target]: {
+          options: [],
+          value: null,
+          fieldTypeFilter: "number", // Target field (number only)
+        },
+        [EnumSelectionType.Expression]: {
+          steps: [], // Will be populated by the expression builder
+          value: null,
+        },
+      },
+    ],
   },
   {
     type: "sort",
     label: "Sort",
-    icon: <ArrowDownNarrowWide />
+    icon: <ArrowDownNarrowWide />,
   },
   {
     type: "cascade",
     label: "Cascade",
-    icon: <ArrowDownNarrowWide />
+    icon: <Link />,
+    items: [
+      {
+        type: ActionType.FindCardLinkedInAttachments,
+        label: ActionType.FindCardLinkedInAttachments.replaceAll("-", " "),
+        [EnumSelectionType.CascadeAction]: {
+          options: [
+            {
+              value: EnumCascadeAction.Find,
+              label: "Find",
+            },
+            {
+              value: EnumCascadeAction.Lookup,
+              label: "Lookup",
+            },
+          ],
+          value: {
+            value: EnumCascadeAction.Find,
+            label: "Find",
+          },
+        },
+        [EnumSelectionType.CardOrder]: {
+          options: [
+            {
+              value: EnumCardOrder.First,
+              label: "First",
+            },
+            {
+              value: EnumCardOrder.Last,
+              label: "Last",
+            },
+          ],
+          value: {
+            value: EnumCardOrder.First,
+            label: "First",
+          },
+        },
+      },
+      {
+        type: ActionType.FindCardByTitle,
+        label: ActionType.FindCardByTitle.replaceAll("-", " "),
+        [EnumSelectionType.CascadeAction]: {
+          options: [
+            {
+              value: EnumCascadeAction.Find,
+              label: "Find",
+            },
+            {
+              value: EnumCascadeAction.Lookup,
+              label: "Lookup",
+            },
+          ],
+          value: {
+            value: EnumCascadeAction.Find,
+            label: "Find",
+          },
+        },
+        [EnumInputType.TextTitle]: {
+          placeholder: "Enter card title",
+          value: "",
+        },
+        [EnumSelectionType.OptionalBoard]: {
+          options: [],
+          value: null,
+          placeholder: "Select Board (optional)",
+        },
+        [EnumSelectionType.OptionalList]: {
+          options: [],
+          value: null,
+          placeholder: "Select List (optional)",
+        },
+      },
+      {
+        type: ActionType.LinkUnlinkCards,
+        label: "<action>",
+        [EnumSelectionType.Action]: {
+          options: [
+            {
+              value: EnumActions.LinkCards,
+              label: "Link the cards together",
+            },
+            {
+              value: EnumActions.UnlinkCards,
+              label: "Unlink the cards together",
+            },
+          ],
+          value: {
+            value: EnumActions.LinkCards,
+            label: "Link",
+          },
+        },
+      },
+    ],
   },
-  
+  {
+    type: "notify",
+    label: "Notify",
+    icon: <Bell />,
+    items: [
+      {
+        type: ActionType.NotifyTheCard,
+        label:
+          "Send notification via <channel> to <user> with message <text_input>",
+        [EnumSelectionType.Action]: {
+          options: [
+            {
+              value: EnumActions.Notify,
+              label: "Notify",
+            },
+          ],
+          value: {
+            value: EnumActions.Notify,
+            label: "Notify",
+          },
+        },
+        [EnumSelectionType.Channel]: {
+          options: [
+            {
+              value: "whatsapp",
+              label: "WhatsApp",
+            },
+            {
+              value: "telegram",
+              label: "Telegram",
+            },
+          ],
+          value: {
+            value: "whatsapp",
+            label: "WhatsApp",
+          },
+        },
+        [EnumSelectionType.User]: {
+          options: [],
+          value: null,
+        },
+        [EnumSelectionType.TextInput]: {
+          placeholder: "Enter your message here...",
+          value: "",
+        },
+      },
+      {
+        type: ActionType.NotifySelectedUser,
+        label:
+          "Send notification via <channel> to <selected_user> with message <text_input> and custom fields <multi_fields>",
+        [EnumSelectionType.Action]: {
+          options: [
+            {
+              value: EnumActions.Notify,
+              label: "Notify",
+            },
+          ],
+          value: {
+            value: EnumActions.Notify,
+            label: "Notify",
+          },
+        },
+        [EnumTextType.SelectedUser]: {},
+        [EnumSelectionType.Channel]: {
+          options: [
+            {
+              value: "whatsapp",
+              label: "WhatsApp",
+            },
+            {
+              value: "telegram",
+              label: "Telegram",
+            },
+          ],
+          value: {
+            value: "whatsapp",
+            label: "WhatsApp",
+          },
+        },
+        [EnumSelectionType.TextInput]: {
+          placeholder: "Enter your message here...",
+          value: "",
+        },
+        [EnumSelectionType.MultiFields]: {
+          options: [],
+          value: null,
+        },
+      },
+      {
+        type: ActionType.NotifyUserFromCustomFields,
+        label:
+          "Send notification via <channel> to <selected_user> from custom fields <fields> with message <text_input> and custom fields <multi_fields>",
+        [EnumSelectionType.Action]: {
+          options: [
+            {
+              value: EnumActions.Notify,
+              label: "Notify",
+            },
+          ],
+          value: {
+            value: EnumActions.Notify,
+            label: "Notify",
+          },
+        },
+        [EnumSelectionType.Channel]: {
+          options: [
+            {
+              value: "whatsapp",
+              label: "WhatsApp",
+            },
+            {
+              value: "telegram",
+              label: "Telegram",
+            },
+          ],
+          value: {
+            value: "whatsapp",
+            label: "WhatsApp",
+          },
+        },
+        [EnumTextType.SelectedUser]: {},
+        [EnumSelectionType.Fields]: {
+          options: [],
+          value: null,
+        },
+        [EnumSelectionType.TextInput]: {
+          placeholder: "Enter your message here...",
+          value: "",
+        },
+        [EnumSelectionType.MultiFields]: {
+          options: [],
+          value: null,
+        },
+      },
+    ],
+  },
 ];

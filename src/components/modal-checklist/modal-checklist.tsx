@@ -44,7 +44,7 @@ const ChecklistModal: React.FC<ChecklistModalProps> = ({
       width={400}
       centered
     >
-      <div className="py-4">
+      <div className="p-4">
         <div className="mb-4">
           <Typography.Text strong className="block mb-2">Title</Typography.Text>
           <Input
