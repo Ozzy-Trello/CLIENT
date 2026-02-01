@@ -16,7 +16,9 @@ import {
   Package,
   Palette,
   Shirt,
+  Barcode,
 } from "lucide-react";
+
 import {
   DashcardConfig,
   EnumCardAttributeType,
@@ -53,6 +55,7 @@ const attributeIcons: Record<EnumCardAttributeType, React.ReactNode> = {
   [EnumCardAttributeType.PRODUCT]: <Package size={16} />,
   [EnumCardAttributeType.BAHAN]: <Shirt size={16} />,
   [EnumCardAttributeType.WARNA]: <Palette size={16} />,
+  [EnumCardAttributeType.PRODUCE_CODE]: <Barcode size={16} />,
 };
 
 const Dashcard: React.FC<DashcardProps> = ({
@@ -124,9 +127,8 @@ const Dashcard: React.FC<DashcardProps> = ({
       if (value.type && value.number && value.unit && value.reference) {
         const displayReference =
           value.reference === "from_now" ? "from now" : value.reference;
-        return `${value.number} ${value.unit}${
-          value.number > 1 ? "s" : ""
-        } ${displayReference}`;
+        return `${value.number} ${value.unit}${value.number > 1 ? "s" : ""
+          } ${displayReference}`;
       }
     }
 
@@ -140,9 +142,8 @@ const Dashcard: React.FC<DashcardProps> = ({
       });
 
       return friendlyNames.length > 3
-        ? `${friendlyNames.slice(0, 3).join(", ")} +${
-            friendlyNames.length - 3
-          } more`
+        ? `${friendlyNames.slice(0, 3).join(", ")} +${friendlyNames.length - 3
+        } more`
         : friendlyNames.join(", ");
     }
 

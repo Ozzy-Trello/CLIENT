@@ -36,6 +36,9 @@ import { lists } from "@api/list";
 import { Board } from "@myTypes/board";
 import { boards } from "@api/board";
 import { useProducts } from "@hooks/useProducts";
+import { useBahans } from "@hooks/useBahans";
+import { useWarnas } from "@hooks/useWarnas";
+import { useProductCodes } from "@hooks/useProductCodes";
 
 // Global SELECTION props
 
@@ -927,6 +930,291 @@ export const ProductSelection = forwardRef<SelectionRef, SelectionProps>(
         loading={isLoading}
         notFoundContent={
           isLoading ? "Loading products..." : "No products available"
+        }
+      />
+    );
+  }
+);
+
+export const BahanSelection = forwardRef<SelectionRef, SelectionProps>(
+  (
+    {
+      placeholder = "Select a Bahan",
+      width = "100%",
+      size = "middle",
+      style = {},
+      className = "",
+      value,
+      onChange,
+      mode,
+    },
+    ref
+  ) => {
+    const [selectedValue, setSelectedValue] = useState<string | undefined>(
+      value
+    );
+    const [selectedObject, setSelectedObject] = useState<{
+      label: string;
+      value: string;
+    }>();
+
+    const { data: bahans = [], isLoading } = useBahans();
+
+    const options = useMemo(
+      () =>
+        (bahans || []).map((bahan) => ({
+          label: bahan.name ?? bahan.id ?? "Unnamed bahan",
+          value: bahan.id,
+        })),
+      [bahans]
+    );
+
+    useImperativeHandle(ref, () => ({
+      getValue: () => selectedValue,
+      getObject: () => selectedObject,
+      setValue: (val: string | string[]) => {
+        const normalizedVal = Array.isArray(val) ? val[0] : val;
+        setSelectedValue(normalizedVal);
+        const foundOption = options.find((opt) => opt.value === normalizedVal);
+        if (foundOption) {
+          setSelectedObject(foundOption);
+        }
+      },
+    }));
+
+    useEffect(() => {
+      if (value !== undefined && value !== selectedValue) {
+        setSelectedValue(value);
+      }
+    }, [value]);
+
+    useEffect(() => {
+      if (selectedValue) {
+        const foundOption = options.find((opt) => opt.value === selectedValue);
+        if (foundOption) {
+          setSelectedObject(foundOption);
+        }
+      }
+    }, [options, selectedValue]);
+
+    const handleChange = (val: string, option: any) => {
+      setSelectedValue(val);
+      const normalized = {
+        label: option?.label ?? val,
+        value: val,
+      };
+      setSelectedObject(normalized);
+
+      if (onChange) {
+        onChange(val, normalized);
+      }
+    };
+
+    return (
+      <Select
+        style={{ width, ...style }}
+        showSearch
+        placeholder={placeholder}
+        optionFilterProp="label"
+        onChange={handleChange}
+        value={selectedValue}
+        options={options}
+        size={size}
+        className={`${className} min-w-[200px]`}
+        mode={mode}
+        loading={isLoading}
+        notFoundContent={
+          isLoading ? "Loading bahans..." : "No bahans available"
+        }
+      />
+    );
+  }
+);
+
+export const WarnaSelection = forwardRef<SelectionRef, SelectionProps>(
+  (
+    {
+      placeholder = "Select a Warna",
+      width = "100%",
+      size = "middle",
+      style = {},
+      className = "",
+      value,
+      onChange,
+      mode,
+    },
+    ref
+  ) => {
+    const [selectedValue, setSelectedValue] = useState<string | undefined>(
+      value
+    );
+    const [selectedObject, setSelectedObject] = useState<{
+      label: string;
+      value: string;
+    }>();
+
+    const { data: warnas = [], isLoading } = useWarnas();
+
+    const options = useMemo(
+      () =>
+        (warnas || []).map((warna) => ({
+          label: warna.name ?? warna.id ?? "Unnamed warna",
+          value: warna.id,
+        })),
+      [warnas]
+    );
+
+    useImperativeHandle(ref, () => ({
+      getValue: () => selectedValue,
+      getObject: () => selectedObject,
+      setValue: (val: string | string[]) => {
+        const normalizedVal = Array.isArray(val) ? val[0] : val;
+        setSelectedValue(normalizedVal);
+        const foundOption = options.find((opt) => opt.value === normalizedVal);
+        if (foundOption) {
+          setSelectedObject(foundOption);
+        }
+      },
+    }));
+
+    useEffect(() => {
+      if (value !== undefined && value !== selectedValue) {
+        setSelectedValue(value);
+      }
+    }, [value]);
+
+    useEffect(() => {
+      if (selectedValue) {
+        const foundOption = options.find((opt) => opt.value === selectedValue);
+        if (foundOption) {
+          setSelectedObject(foundOption);
+        }
+      }
+    }, [options, selectedValue]);
+
+    const handleChange = (val: string, option: any) => {
+      setSelectedValue(val);
+      const normalized = {
+        label: option?.label ?? val,
+        value: val,
+      };
+      setSelectedObject(normalized);
+
+      if (onChange) {
+        onChange(val, normalized);
+      }
+    };
+
+    return (
+      <Select
+        style={{ width, ...style }}
+        showSearch
+        placeholder={placeholder}
+        optionFilterProp="label"
+        onChange={handleChange}
+        value={selectedValue}
+        options={options}
+        size={size}
+        className={`${className} min-w-[200px]`}
+        mode={mode}
+        loading={isLoading}
+        notFoundContent={
+          isLoading ? "Loading warnas..." : "No warnas available"
+        }
+      />
+    );
+  }
+);
+
+export const ProductCodeSelection = forwardRef<SelectionRef, SelectionProps>(
+  (
+    {
+      placeholder = "Select a Product Code",
+      width = "100%",
+      size = "middle",
+      style = {},
+      className = "",
+      value,
+      onChange,
+      mode,
+    },
+    ref
+  ) => {
+    const [selectedValue, setSelectedValue] = useState<string | undefined>(
+      value
+    );
+    const [selectedObject, setSelectedObject] = useState<{
+      label: string;
+      value: string;
+    }>();
+
+    const { data: productCodes = [], isLoading } = useProductCodes();
+
+    const options = useMemo(
+      () =>
+        (productCodes || []).map((pc) => ({
+          label: pc.code ?? pc.id ?? "Unnamed code",
+          value: pc.id,
+        })),
+      [productCodes]
+    );
+
+    useImperativeHandle(ref, () => ({
+      getValue: () => selectedValue,
+      getObject: () => selectedObject,
+      setValue: (val: string | string[]) => {
+        const normalizedVal = Array.isArray(val) ? val[0] : val;
+        setSelectedValue(normalizedVal);
+        const foundOption = options.find((opt) => opt.value === normalizedVal);
+        if (foundOption) {
+          setSelectedObject(foundOption);
+        }
+      },
+    }));
+
+    useEffect(() => {
+      if (value !== undefined && value !== selectedValue) {
+        setSelectedValue(value);
+      }
+    }, [value]);
+
+    useEffect(() => {
+      if (selectedValue) {
+        const foundOption = options.find((opt) => opt.value === selectedValue);
+        if (foundOption) {
+          setSelectedObject(foundOption);
+        }
+      }
+    }, [options, selectedValue]);
+
+    const handleChange = (val: string, option: any) => {
+      setSelectedValue(val);
+      const normalized = {
+        label: option?.label ?? val,
+        value: val,
+      };
+      setSelectedObject(normalized);
+
+      if (onChange) {
+        onChange(val, normalized);
+      }
+    };
+
+    return (
+      <Select
+        style={{ width, ...style }}
+        showSearch
+        placeholder={placeholder}
+        optionFilterProp="label"
+        onChange={handleChange}
+        value={selectedValue}
+        options={options}
+        size={size}
+        className={`${className} min-w-[200px]`}
+        mode={mode}
+        loading={isLoading}
+        notFoundContent={
+          isLoading ? "Loading product codes..." : "No product codes available"
         }
       />
     );

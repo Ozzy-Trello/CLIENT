@@ -36,7 +36,7 @@ import {
 import { useCustomFields } from "@hooks/custom_field";
 import { useParams } from "next/navigation";
 import { CustomField } from "@myTypes/custom-field";
-import { UserSelection, LabelSelection } from "@components/selection";
+import { UserSelection, LabelSelection, ProductSelection, BahanSelection, WarnaSelection, ProductCodeSelection } from "@components/selection";
 import { useBoards } from "@hooks/board";
 import { useLists } from "@hooks/list";
 import { FilterOperator as DashcardFilterOperator } from "../../types/dashcard";
@@ -1071,7 +1071,9 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
                               );
                             })()
                           ) : filter.type === EnumCardAttributeType.PRODUCT ||
-                            filter.type === EnumCardAttributeType.WARNA ? (
+                            filter.type === EnumCardAttributeType.BAHAN ||
+                            filter.type === EnumCardAttributeType.WARNA ||
+                            filter.type === EnumCardAttributeType.PRODUCE_CODE ? (
                             (() => {
                               const operator = String(filter.operator);
                               const isNoValueInput =
@@ -1081,77 +1083,68 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
                               const isMultiSelect =
                                 operator === "is_one_of" ||
                                 operator === "is_not_one_of";
-                              const isTextInput =
-                                operator === "starts_with" ||
-                                operator === "matches_with";
 
                               // No input needed for these operators
                               if (isNoValueInput) return null;
 
-                              // Text input for name-based operators
-                              if (isTextInput) {
+                              // Use selection components for all value inputs
+                              if (filter.type === EnumCardAttributeType.PRODUCT) {
                                 return (
-                                  <Input
+                                  <ProductSelection
                                     size="small"
-                                    placeholder={`Enter ${
-                                      filter.type ===
-                                      EnumCardAttributeType.PRODUCT
-                                        ? "product"
-                                        : "warna"
-                                    } name`}
+                                    placeholder="Select product"
                                     value={(filter.value as string) || ""}
-                                    onChange={(e) =>
-                                      handleFilterValueChange(
-                                        filter.id,
-                                        e.target.value
-                                      )
+                                    onChange={(selectedValue: string) =>
+                                      handleFilterValueChange(filter.id, selectedValue)
                                     }
+                                    mode={isMultiSelect ? "multiple" : undefined}
                                   />
                                 );
                               }
 
-                              // For multi-select operators, use a simple text input for now
-                              // In a real implementation, you might want to create specific selection components
-                              if (isMultiSelect) {
+                              if (filter.type === EnumCardAttributeType.BAHAN) {
                                 return (
-                                  <Input
+                                  <BahanSelection
                                     size="small"
-                                    placeholder={`Enter ${
-                                      filter.type ===
-                                      EnumCardAttributeType.PRODUCT
-                                        ? "product"
-                                        : "warna"
-                                    } names (comma-separated)`}
+                                    placeholder="Select bahan"
                                     value={(filter.value as string) || ""}
-                                    onChange={(e) =>
-                                      handleFilterValueChange(
-                                        filter.id,
-                                        e.target.value
-                                      )
+                                    onChange={(selectedValue: string) =>
+                                      handleFilterValueChange(filter.id, selectedValue)
                                     }
+                                    mode={isMultiSelect ? "multiple" : undefined}
                                   />
                                 );
                               }
 
-                              // Default text input
-                              return (
-                                <Input
-                                  size="small"
-                                  placeholder={`Enter ${
-                                    filter.type ===
-                                    EnumCardAttributeType.PRODUCT
-                                      ? "product"
-                                      : "warna"
-                                  } name`}
-                                  value={(filter.value as string) || ""}
-                                  onChange={(e) =>
-                                    handleFilterValueChange(
-                                      filter.id,
-                                      e.target.value
-                                    )
-                                  }
-                                />
-                              );
+                              if (filter.type === EnumCardAttributeType.WARNA) {
+                                return (
+                                  <WarnaSelection
+                                    size="small"
+                                    placeholder="Select warna"
+                                    value={(filter.value as string) || ""}
+                                    onChange={(selectedValue: string) =>
+                                      handleFilterValueChange(filter.id, selectedValue)
+                                    }
+                                    mode={isMultiSelect ? "multiple" : undefined}
+                                  />
+                                );
+                              }
+
+                              if (filter.type === EnumCardAttributeType.PRODUCE_CODE) {
+                                return (
+                                  <ProductCodeSelection
+                                    size="small"
+                                    placeholder="Select kode produk"
+                                    value={(filter.value as string) || ""}
+                                    onChange={(selectedValue: string) =>
+                                      handleFilterValueChange(filter.id, selectedValue)
+                                    }
+                                    mode={isMultiSelect ? "multiple" : undefined}
+                                  />
+                                );
+                              }
+
+                              return null;
                             })()
                           ) : (
                             <Input

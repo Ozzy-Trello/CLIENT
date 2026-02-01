@@ -15,6 +15,7 @@ export enum EnumCardAttributeType {
   PRODUCT = "product",
   BAHAN = "bahan",
   WARNA = "warna",
+  PRODUCE_CODE = "product_code",
 }
 
 // Filter operator types
@@ -44,11 +45,11 @@ export type FilterValue =
   | null
   | { from?: string; to?: string }
   | {
-      type: string;
-      number: number;
-      unit: string;
-      reference: string;
-    };
+    type: string;
+    number: number;
+    unit: string;
+    reference: string;
+  };
 
 // Base filter interface
 export interface FilterOption {
@@ -64,6 +65,7 @@ export interface DashcardFilter {
   type: EnumCardAttributeType;
   operator?: FilterOperator;
   value?: FilterValue;
+  displayValue?: string; // Resolved name(s) from backend
   options?: FilterOption[];
   icon?: ReactNode;
 }
@@ -188,8 +190,6 @@ export const dashcardsFilter: DashcardFilter[] = [
       { label: "is not one of", value: FilterOperator.IS_NOT_ONE_OF },
       { label: "has a value", value: FilterOperator.ANY_VALUE },
       { label: "has no value", value: FilterOperator.NO_VALUE },
-      { label: "name starts with", value: FilterOperator.STARTS_WITH },
-      { label: "name matches", value: FilterOperator.MATCHES_WITH },
     ],
   },
   {
@@ -203,8 +203,6 @@ export const dashcardsFilter: DashcardFilter[] = [
       { label: "is not one of", value: FilterOperator.IS_NOT_ONE_OF },
       { label: "has a value", value: FilterOperator.ANY_VALUE },
       { label: "has no value", value: FilterOperator.NO_VALUE },
-      { label: "name starts with", value: FilterOperator.STARTS_WITH },
-      { label: "name matches", value: FilterOperator.MATCHES_WITH },
     ],
   },
   {
@@ -218,8 +216,19 @@ export const dashcardsFilter: DashcardFilter[] = [
       { label: "is not one of", value: FilterOperator.IS_NOT_ONE_OF },
       { label: "has a value", value: FilterOperator.ANY_VALUE },
       { label: "has no value", value: FilterOperator.NO_VALUE },
-      { label: "name starts with", value: FilterOperator.STARTS_WITH },
-      { label: "name matches", value: FilterOperator.MATCHES_WITH },
+    ],
+  },
+  {
+    id: "product_code",
+    label: "Kode Produk",
+    groupType: "primary",
+    type: EnumCardAttributeType.PRODUCE_CODE,
+    options: [
+      { label: "any", value: FilterOperator.ANY },
+      { label: "is one of", value: FilterOperator.IS_ONE_OF },
+      { label: "is not one of", value: FilterOperator.IS_NOT_ONE_OF },
+      { label: "has a value", value: FilterOperator.ANY_VALUE },
+      { label: "has no value", value: FilterOperator.NO_VALUE },
     ],
   },
 ];
