@@ -383,7 +383,7 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
                             hour: "2-digit",
                             minute: "2-digit",
                             hour12: false,
-                            timeZone: "Asia/Jakarta",
+                            timeZone: "UTC",
                           })}
                         </span>
                       </>
