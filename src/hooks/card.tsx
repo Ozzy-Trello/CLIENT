@@ -295,9 +295,19 @@ export function useCards(listId: string, boardId: string) {
         return;
       }
 
-      // Always invalidate PO-related queries for any card updates
-      queryClient.invalidateQueries({ queryKey: ["pos", variables.cardId] });
-      queryClient.invalidateQueries({ queryKey: ["po-items", variables.cardId] });
+      const wasPoAmountUpdated =
+        !!variables?.updates && "poAmount" in variables.updates;
+
+      if (wasPoAmountUpdated && variables?.cardId) {
+        const cardId = variables.cardId;
+        setTimeout(() => {
+          queryClient.invalidateQueries({ queryKey: ["pos", cardId] });
+          queryClient.invalidateQueries({ queryKey: ["po-items", cardId] });
+          queryClient.invalidateQueries({
+            queryKey: ["pos-size-assignment", cardId],
+          });
+        }, 500);
+      }
 
       if (!variables.listId && !variables.destinationListId) {
         queryClient.invalidateQueries({
