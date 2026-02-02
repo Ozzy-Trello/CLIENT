@@ -26,7 +26,7 @@ import {
   Tooltip,
 } from "antd";
 import { Package, Ruler } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 interface POSizeAssignmentProps {
   card: Card;
@@ -87,6 +87,7 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
   );
   const { canUpdateCard } = useBoardPermissionsContext();
   const queryClient = useQueryClient();
+  const autoCreateAttemptedRef = useRef(false);
 
   const {
     data: posData,
@@ -136,19 +137,22 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
 
   // Backward compatibility: Create default PO if none exists
   useEffect(() => {
-    if (isModalOpen && posData && !isLoadingPOs && !posError) {
-      if (!posData || posData.length === 0) {
-        autoCreatePOMutation.mutate(card.id);
-      }
+    if (
+      isModalOpen &&
+      !isLoadingPOs &&
+      !posError &&
+      (!posData || posData.length === 0) &&
+      !autoCreateAttemptedRef.current &&
+      !autoCreatePOMutation.isPending
+    ) {
+      autoCreateAttemptedRef.current = true;
+      autoCreatePOMutation.mutate(card.id);
     }
-  }, [
-    isModalOpen,
-    posData,
-    isLoadingPOs,
-    posError,
-    card.id,
-    autoCreatePOMutation,
-  ]);
+
+    if (!isModalOpen) {
+      autoCreateAttemptedRef.current = false;
+    }
+  }, [isModalOpen, posData, isLoadingPOs, posError, card.id]);
 
   // Initialize PO subcategory data when POs and subcategories are loaded
   useEffect(() => {
