@@ -106,6 +106,20 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
       enabled: isModalOpen,
     });
 
+  useEffect(() => {
+    console.log("🟡 [Manage POs] Query State:", {
+      isModalOpen,
+      isLoadingPOs,
+      isLoadingSubcategories,
+      hasData: !!posData,
+      dataLength: posData?.length || 0,
+      hasError: !!posError,
+      errorMessage: posError?.message || posError,
+      cardPoAmount: card.poAmount,
+      timestamp: new Date().toISOString(),
+    });
+  }, [isModalOpen, isLoadingPOs, isLoadingSubcategories, posData, posError, card.poAmount]);
+
   const updatePOMutation = useMutation({
     mutationFn: ({
       poId,
@@ -126,17 +140,60 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
   });
 
   const autoCreatePOMutation = useMutation({
-    mutationFn: (cardId: string) => autoCreatePOs(cardId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["pos", card.id] });
+    mutationFn: (cardId: string) => {
+      console.log("🔴 [Manage POs] Mutation: calling autoCreatePOs API", { cardId });
+      return autoCreatePOs(cardId);
     },
-    onError: (error) => {
+    onSuccess: (data) => {
+      console.log("🟢 [Manage POs] Mutation SUCCESS:", {
+        cardId: card.id,
+        responseData: data,
+        posCreated: data?.data?.length || 0,
+        timestamp: new Date().toISOString(),
+      });
+      console.log("🔵 [Manage POs] Invalidating queries:", {
+        queryKeys: [
+          ["pos", card.id],
+          ["pos-size-assignment", card.id],
+        ],
+      });
+      queryClient.invalidateQueries({ queryKey: ["pos", card.id] });
+      queryClient.invalidateQueries({ queryKey: ["pos-size-assignment", card.id] });
+      console.log("🔵 [Manage POs] Queries invalidated, refetch should trigger automatically");
+    },
+    onError: (error: any) => {
+      console.error("❌ [Manage POs] Mutation ERROR:", {
+        cardId: card.id,
+        error,
+        errorMessage: error?.message || String(error),
+        errorResponse: error?.response?.data,
+        timestamp: new Date().toISOString(),
+      });
       message.error("Failed to create default PO");
     },
   });
 
   // Backward compatibility: Create default PO if none exists
   useEffect(() => {
+    console.log("🟠 [Manage POs] Auto-create effect check:", {
+      isModalOpen,
+      isLoadingPOs,
+      hasError: !!posError,
+      hasPOsData: !!posData,
+      posDataLength: posData?.length || 0,
+      autoCreateAttempted: autoCreateAttemptedRef.current,
+      mutationPending: autoCreatePOMutation.isPending,
+      cardPoAmount: card.poAmount,
+      shouldTrigger:
+        isModalOpen &&
+        !isLoadingPOs &&
+        !posError &&
+        (!posData || posData.length === 0) &&
+        !autoCreateAttemptedRef.current &&
+        !autoCreatePOMutation.isPending,
+      timestamp: new Date().toISOString(),
+    });
+
     if (
       isModalOpen &&
       !isLoadingPOs &&
@@ -145,14 +202,28 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
       !autoCreateAttemptedRef.current &&
       !autoCreatePOMutation.isPending
     ) {
+      console.log("🔴 [Manage POs] 🚀 TRIGGERING AUTO-CREATE POs", {
+        cardId: card.id,
+        cardPoAmount: card.poAmount || 1,
+        timestamp: new Date().toISOString(),
+      });
       autoCreateAttemptedRef.current = true;
       autoCreatePOMutation.mutate(card.id);
     }
 
     if (!isModalOpen) {
+      console.log("🟢 [Manage POs] Modal closed, resetting auto-create flag");
       autoCreateAttemptedRef.current = false;
     }
-  }, [isModalOpen, posData, isLoadingPOs, posError, card.id]);
+  }, [
+    isModalOpen,
+    posData,
+    isLoadingPOs,
+    posError,
+    card.id,
+    card.poAmount,
+    autoCreatePOMutation.isPending,
+  ]);
 
   // Initialize PO subcategory data when POs and subcategories are loaded
   useEffect(() => {
@@ -203,11 +274,20 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
   }, [posData, subcategoriesResponse]);
 
   const handleOpenModal = () => {
+    console.log("🔵 [Manage POs] Modal opening", {
+      cardId: card.id,
+      cardName: card.name,
+      poAmount: card.poAmount,
+      canUpdate: canUpdateCard(),
+      timestamp: new Date().toISOString(),
+    });
+
     if (!canUpdateCard()) {
       message.warning("You don't have permission to update this card");
       return;
     }
     setIsModalOpen(true);
+    console.log("🔵 [Manage POs] isModalOpen set to TRUE");
   };
 
   const handleCloseModal = () => {

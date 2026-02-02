@@ -99,14 +99,69 @@ export interface ScanPOItemResponse {
 }
 
 // Get POs by card ID
-export const getPOsByCardId = async (cardId: string): Promise<ApiResponse<PO[]>> => {
-  const { data } = await api.get(`/po`, {
-    params: { 
-      card_id: cardId,
-      limit: 1000 // Set high limit to get all POs for the card
-    }
+export const getPOsByCardId = async (
+  cardId: string
+): Promise<ApiResponse<PO[]>> => {
+  console.log("🔴 [API] 🚀 getPOsByCardId START:", {
+    cardId,
+    endpoint: "/po",
+    params: { card_id: cardId, limit: 1000 },
+    timestamp: new Date().toISOString(),
   });
-  return data;
+
+  const startTime = Date.now();
+  try {
+    const { data, status } = await api.get(`/po`, {
+      params: {
+        card_id: cardId,
+        limit: 1000,
+      },
+    });
+    const duration = Date.now() - startTime;
+
+    console.log("🟢 [API] ✅ getPOsByCardId SUCCESS:", {
+      cardId,
+      duration: `${duration}ms`,
+      statusCode: data?.status_code,
+      hasData: !!data?.data,
+      dataLength: data?.data?.length || 0,
+      rawResponse: data,
+      timestamp: new Date().toISOString(),
+    });
+
+    if (status === 204 || !data) {
+      console.log("⚠️ [API] 204 No Content, returning empty structure");
+      return {
+        status_code: 200,
+        message: "No POs found",
+        data: [],
+      } as ApiResponse<PO[]>;
+    }
+
+    return data;
+  } catch (error: any) {
+    const duration = Date.now() - startTime;
+    if (error?.response?.status === 204) {
+      console.log("⚠️ [API] 204 caught in error handler, returning empty");
+      return {
+        status_code: 200,
+        message: "No POs found",
+        data: [],
+      } as ApiResponse<PO[]>;
+    }
+
+    console.error("❌ [API] getPOsByCardId FAILED:", {
+      cardId,
+      duration: `${duration}ms`,
+      error,
+      errorMessage: error?.message,
+      status: error?.response?.status,
+      statusText: error?.response?.statusText,
+      responseData: error?.response?.data,
+      timestamp: new Date().toISOString(),
+    });
+    throw error;
+  }
 };
 
 // Get a single PO by ID

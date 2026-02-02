@@ -1,52 +1,102 @@
 import { useQuery } from "@tanstack/react-query";
 import { getPOsByCardId, PO } from "@api/po";
 
-/**
- * Normalize API response to handle both response formats:
- * 1. Direct array: [po1, po2, ...]
- * 2. Wrapped object: { statusCode: 200, message: "...", data: [po1, po2, ...] }
- */
 const normalizeAPIResponse = (response: any): PO[] => {
-  // If response has a 'data' property, it's the wrapped format
-  if (response && typeof response === 'object' && 'data' in response) {
-    return response.data || [];
+  console.log("🔵 [Query Hook] Normalizing response:", {
+    hasResponse: !!response,
+    responseType: typeof response,
+    isArray: Array.isArray(response),
+    hasData: response && "data" in response,
+    statusCode: response?.status_code || response?.statusCode,
+    dataLength:
+      response?.data?.length ||
+      (Array.isArray(response) ? response.length : 0),
+  });
+
+  if (response && typeof response === "object" && "data" in response) {
+    const normalized = response.data || [];
+    console.log("🔵 [Query Hook] Using wrapped format:", {
+      length: normalized.length,
+    });
+    return normalized;
   }
-  
-  // If response is an array, it's the direct format
+
   if (Array.isArray(response)) {
+    console.log("🔵 [Query Hook] Using array format:", {
+      length: response.length,
+    });
     return response;
   }
-  
-  // If response.data is an array, use that
+
   if (response && response.data && Array.isArray(response.data)) {
+    console.log("🔵 [Query Hook] Using response.data:", {
+      length: response.data.length,
+    });
     return response.data;
   }
-  
-  // Fallback to empty array
+
+  console.log("⚠️ [Query Hook] No valid format, returning empty array");
   return [];
 };
 
-/**
- * Custom hook to fetch POs for size assignment
- * This hook is specifically designed for the po-size-assignment component
- * and returns raw PO objects with items, not transformed POItem objects
- */
-export const usePOsForSizeAssignment = (cardId: string, enabled: boolean = true) => {
+export const usePOsForSizeAssignment = (
+  cardId: string,
+  enabled: boolean = true
+) => {
+  console.log("🔵 [Query Hook] Hook initialized:", { cardId, enabled });
+
   return useQuery({
     queryKey: ["pos-size-assignment", cardId],
     queryFn: async () => {
-      const response = await getPOsByCardId(cardId);
-      
-      // Normalize the response to handle both formats
-      const normalizedData = normalizeAPIResponse(response);
-      
-      return normalizedData;
+      console.log("🔴 [Query Hook] 🚀 QueryFn EXECUTING:", {
+        cardId,
+        timestamp: new Date().toISOString(),
+      });
+
+      const startTime = Date.now();
+      try {
+        const response = await getPOsByCardId(cardId);
+        const duration = Date.now() - startTime;
+
+        console.log("🟢 [Query Hook] ✅ API call SUCCESS:", {
+          cardId,
+          duration: `${duration}ms`,
+          response,
+          timestamp: new Date().toISOString(),
+        });
+
+        const normalizedData = normalizeAPIResponse(response);
+
+        console.log("🟢 [Query Hook] Returning data:", {
+          count: normalizedData.length,
+          poIds: normalizedData.map((po) => po.id),
+          timestamp: new Date().toISOString(),
+        });
+
+        return normalizedData;
+      } catch (error) {
+        const duration = Date.now() - startTime;
+        console.error("❌ [Query Hook] API call FAILED:", {
+          cardId,
+          duration: `${duration}ms`,
+          error,
+          errorMessage: error instanceof Error ? error.message : String(error),
+          timestamp: new Date().toISOString(),
+        });
+        throw error;
+      }
     },
     enabled: enabled && !!cardId,
-    staleTime: 0, // Always refetch to get latest data
-    refetchOnMount: "always", // Refetch every time modal opens
+    staleTime: 5000,
+    refetchOnMount: false,
     retry: 3,
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    retryDelay: (attemptIndex) => {
+      const delay = Math.min(1000 * 2 ** attemptIndex, 30000);
+      console.log(
+        `🔄 [Query Hook] Retry attempt ${attemptIndex + 1}, delay: ${delay}ms`
+      );
+      return delay;
+    },
   });
 };
 

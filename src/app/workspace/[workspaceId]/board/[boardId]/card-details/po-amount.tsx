@@ -38,29 +38,33 @@ const POAmount: React.FC<POAmountProps> = ({ card, setSelectedCard }) => {
       return;
     }
 
+    const valueToSave = Math.max(1, localValue);
+    console.log("💾 [PO Amount] Saving:", { cardId: card.id, value: valueToSave });
+
     updateCard(
       {
         cardId: card.id,
         updates: {
-          poAmount: localValue, // Send as camelCase, will be converted to snake_case by interceptor
+          poAmount: valueToSave,
         },
       },
       {
         onSuccess: () => {
-          // Update local state first
+          console.log("✅ [PO Amount] Save SUCCESS");
           if (setSelectedCard) {
             setSelectedCard((prevCard) => {
               if (!prevCard) return prevCard;
               return {
                 ...prevCard,
-                poAmount: localValue,
+                poAmount: valueToSave,
               };
             });
           }
+          setLocalValue(valueToSave);
           setHasChanged(false);
         },
         onError: () => {
-          // Reset to original value on error
+          console.error("❌ [PO Amount] Save FAILED");
           setLocalValue(card.poAmount || 1);
           setHasChanged(false);
         },
