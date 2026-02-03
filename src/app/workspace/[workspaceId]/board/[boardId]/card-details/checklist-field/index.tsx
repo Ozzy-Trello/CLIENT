@@ -12,7 +12,7 @@ import {
   message,
 } from "antd";
 import { Draggable, Droppable, DropResult } from "@hello-pangea/dnd";
-import { CheckSquare, Trash2, Clock, User, X, GripVertical } from "lucide-react";
+import { CheckSquare, Trash2, Clock, User, X, GripVertical, Edit } from "lucide-react";
 import { useCardDetailContext } from "@providers/card-detail-context";
 import { useCardChecklists, useDeleteChecklist } from "@hooks/checklist";
 import { updateChecklist } from "@api/checklist";
@@ -42,6 +42,11 @@ const ChecklistFields: React.FC = () => {
   const [userSearchText, setUserSearchText] = useState<string>("");
   const [localChecklists, setLocalChecklists] = useState<ChecklistDTO[]>([]);
   const [localInitialized, setLocalInitialized] = useState(false);
+  const [editingItemInfo, setEditingItemInfo] = useState<{
+    checklistId: string;
+    itemIndex: number;
+    text: string;
+  } | null>(null);
 
   // Get user list for assignment
   const { data: accountsData } = useAccountList({
@@ -143,6 +148,35 @@ const ChecklistFields: React.FC = () => {
     setLocalChecklists((prev) =>
       prev.map((cl) => (cl.id === checklist.id ? updatedChecklist : cl))
     );
+
+    setEditingItemInfo(null);
+    await persistChecklistUpdate(updatedChecklist);
+  };
+
+  const handleUpdateItem = async (
+    checklist: ChecklistDTO,
+    itemIndex: number,
+    updatedText: string
+  ) => {
+    const trimmed = updatedText.trim();
+    if (!trimmed) {
+      message.error("Item text cannot be empty");
+      return;
+    }
+
+    const updatedData = [...checklist.data];
+    if (!updatedData[itemIndex]) return;
+
+    updatedData[itemIndex] = {
+      ...updatedData[itemIndex],
+      label: trimmed,
+    };
+
+    const updatedChecklist: ChecklistDTO = { ...checklist, data: updatedData };
+    setLocalChecklists((prev) =>
+      prev.map((cl) => (cl.id === checklist.id ? updatedChecklist : cl))
+    );
+    setEditingItemInfo(null);
 
     await persistChecklistUpdate(updatedChecklist);
   };
@@ -470,16 +504,30 @@ const ChecklistFields: React.FC = () => {
                                     ref={provided.innerRef}
                                     {...provided.droppableProps}
                                   >
-                                    {itemsToRender.map(
-                                      ({ item, originalIndex }, index) => {
-                                        const assigneeName =
-                                          item.assigneeName ||
-                                          item.assignee_name;
-                                        const dueDate =
-                                          item.dueDate || item.due_date;
-                                        const draggableId = `${checklist.id}::${
-                                          item.id || `${index}`
-                                        }`;
+                                {itemsToRender.map(
+                                  ({ item, originalIndex }, index) => {
+                                    const assigneeName =
+                                      item.assigneeName ||
+                                      item.assignee_name;
+                                    const dueDate =
+                                      item.dueDate || item.due_date;
+                                    const draggableId = `${checklist.id}::${
+                                      item.id || `${index}`
+                                    }`;
+                                    const isEditingItem =
+                                      editingItemInfo?.checklistId ===
+                                        checklist.id &&
+                                      editingItemInfo?.itemIndex ===
+                                        originalIndex;
+                                    const submitEdit = () => {
+                                      if (!editingItemInfo) return;
+                                      const text = editingItemInfo.text;
+                                      handleUpdateItem(
+                                        checklist,
+                                        originalIndex,
+                                        text
+                                      );
+                                    };
 
                                         return (
                                           <Draggable
@@ -516,7 +564,29 @@ const ChecklistFields: React.FC = () => {
                                                   }
                                                 />
 
-                                                <div className="ml-2 flex-1 min-w-0 max-w-[70%]">
+                                              <div className="ml-2 flex-1 min-w-0 max-w-[70%]">
+                                                {isEditingItem ? (
+                                                  <Input
+                                                    value={
+                                                      editingItemInfo?.text ?? ""
+                                                    }
+                                                    onChange={(e) =>
+                                                      setEditingItemInfo(
+                                                        (prev) =>
+                                                          prev
+                                                            ? {
+                                                                ...prev,
+                                                                text: e.target.value,
+                                                              }
+                                                            : prev
+                                                      )
+                                                    }
+                                                    onPressEnter={submitEdit}
+                                                    onBlur={submitEdit}
+                                                    autoFocus
+                                                    className="w-full"
+                                                  />
+                                                ) : (
                                                   <span
                                                     style={{
                                                       textDecoration: item.checked
@@ -527,7 +597,8 @@ const ChecklistFields: React.FC = () => {
                                                   >
                                                     {item.label}
                                                   </span>
-                                                </div>
+                                                )}
+                                              </div>
 
                                                 {/* Item actions (space reserved to prevent blinking) */}
                                                 <div className="ml-auto flex items-center gap-2 flex-shrink-0">
@@ -662,6 +733,22 @@ const ChecklistFields: React.FC = () => {
                                                       />
                                                     </Popover>
                                                   )}
+
+                                                  <Button
+                                                    type="text"
+                                                    size="small"
+                                                    icon={<Edit size={14} />}
+                                                    onClick={() =>
+                                                      setEditingItemInfo({
+                                                        checklistId: checklist.id,
+                                                        itemIndex: originalIndex,
+                                                        text: item.label,
+                                                      })
+                                                    }
+                                                    className="opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity"
+                                                    disabled={isEditingItem}
+                                                    aria-label="Edit item label"
+                                                  />
 
                                                   {/* Due date */}
                                                   {dueDate ? (
