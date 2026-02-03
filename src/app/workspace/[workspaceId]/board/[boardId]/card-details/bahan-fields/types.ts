@@ -1,5 +1,5 @@
 import React from "react";
-import { MainCategoryWithSubcategories } from "../../../../../../../types/category";
+import { MainCategoryWithSubcategories } from "@myTypes/category";
 
 export interface BahanFieldsProps {
   cardId: string;
@@ -63,7 +63,6 @@ export interface BahanTab {
   terloading: number;
   bahanTerpakai: number | null;
   sisaBahan: number;
-  jmlCutting: number;
   estBahan: number;
   efisiensi: number;
 }
@@ -120,6 +119,7 @@ export interface POSectionProps {
     handleLoadingClick: () => void;
     isLoadingAction?: boolean;
   }) => void;
+  jmlCuttingValue?: number | null;
 }
 
 export interface ProductTabsProps {
@@ -167,6 +167,7 @@ export interface ProductTabsProps {
   getCategoryError?: (poProductCategoryId: string) => string | null;
   clearCategoryError?: (poProductCategoryId: string) => void;
   isCabangFilled?: boolean;
+  jmlCuttingValue?: number | null;
   onRemoveProduct: (productId: string) => void;
 }
 
@@ -217,6 +218,7 @@ export interface BahanTabProps {
     handleLoadingClick: () => void;
     isLoadingAction?: boolean;
   }) => void;
+  jmlCuttingValue?: number | null;
 }
 
 export interface CategorySectionProps {
@@ -271,4 +273,5 @@ export interface BahanControlsProps {
     isCurrent?: boolean;
   }[];
   isConfirmingZeroLoading: boolean;
+  jmlCuttingValue?: number | null;
 }

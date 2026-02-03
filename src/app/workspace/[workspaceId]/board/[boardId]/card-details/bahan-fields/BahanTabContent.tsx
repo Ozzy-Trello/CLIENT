@@ -197,6 +197,7 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
   clearCategoryError,
   isCabangFilled = false,
   onLoadingStateChange,
+  jmlCuttingValue,
 }) => {
   const params = useParams();
   const workspaceId = (params as any)?.workspaceId?.toString?.() || "";
@@ -852,6 +853,7 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
         colors={colors}
         product={product}
         bahanTab={bahanTab}
+        jmlCuttingValue={jmlCuttingValue}
         showSyncSuccess={showSyncSuccess}
         isTerloadingEditing={isTerloadingEditing}
         terloadingInputValue={terloadingInputValue}

@@ -1,6 +1,29 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Tabs } from "antd";
 import { CategorySectionProps, CategoryData, SubcategoryValue } from "./types";
+import {
+  MainCategoryWithSubcategories,
+  SubcategoryWithJunctionData,
+} from "@myTypes/category";
+
+export const calculateCategoryTotal = (
+  category: MainCategoryWithSubcategories | undefined,
+  resolveValue: (
+    categoryId: string,
+    subcategory: SubcategoryWithJunctionData
+  ) => number
+): number => {
+  if (!category?.subcategories) return 0;
+
+  return category.subcategories.reduce((sum, subcategory) => {
+    if (subcategory?.junction?.isTotalField) {
+      return sum;
+    }
+
+    const value = resolveValue(category.id, subcategory);
+    return sum + value;
+  }, 0);
+};
 
 const CategorySection: React.FC<CategorySectionProps> = ({
   product,
@@ -100,23 +123,17 @@ const CategorySection: React.FC<CategorySectionProps> = ({
     return getSubcategoryValue(categoryId, subcategory.id);
   };
 
-  // Helper function to calculate total for a category
-  const calculateCategoryTotal = (categoryId: string): number => {
-    const category = categories.find((cat) => cat.id === categoryId);
-    if (!category?.subcategories) return 0;
-
-    return category.subcategories.reduce((sum, subcategory: any) => {
-      if (subcategory?.junction?.isTotalField) {
-        return sum;
-      }
-      const value = resolveValueForTotal(categoryId, subcategory);
-      return sum + value;
-    }, 0);
-  };
+  const calculateCategoryTotalForUI = useCallback(
+    (categoryId: string): number => {
+      const category = categories.find((cat) => cat.id === categoryId);
+      return calculateCategoryTotal(category, resolveValueForTotal);
+    },
+    [categories, resolveValueForTotal]
+  );
 
   // Render hardcoded Total field
   const renderTotalField = (category: any) => {
-    const totalValue = calculateCategoryTotal(category.id);
+    const totalValue = calculateCategoryTotalForUI(category.id);
 
     return (
       <div className="flex flex-col flex-1 min-w-0">

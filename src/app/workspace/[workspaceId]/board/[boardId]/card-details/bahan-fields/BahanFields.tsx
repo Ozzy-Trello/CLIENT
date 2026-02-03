@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo,
+} from "react";
 import { message, Modal, Input, Button } from "antd";
 import { useSelector } from "react-redux";
 import { selectTheme } from "@store/app_slice";
@@ -33,12 +39,14 @@ import {
 } from "./productHelpers";
 import { buildRequestItemMeta } from "./requestPayload";
 import { useCardCustomField } from "@hooks/card_custom_field";
+import { useManualOverrideContext } from "../manual-override-context";
 
 const CABANG_CUSTOM_FIELD_ID = "8fce8a0b-5a47-4bc5-a2de-c9a0d3e47e47";
 
-const getRequestedSkuForBahanFields = (
-  item?: any
-): string | undefined => {
+const normalizeCustomFieldId = (field: any) =>
+  field?.id ?? field?.customFieldId ?? field?.custom_field_id ?? null;
+
+const getRequestedSkuForBahanFields = (item?: any): string | undefined => {
   if (!item) return undefined;
 
   const composite = buildProductSelectionKey(item);
@@ -72,6 +80,8 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
   const [selectedProductIds, setSelectedProductIds] = useState<{
     [poId: string]: string;
   }>({});
+
+  const { clearManualOverrideFlags } = useManualOverrideContext();
 
   // Fetch PO data from API using cardId
   const {
@@ -147,31 +157,22 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
     },
   });
   const updatePOProductMutation = useUpdatePOProduct();
-  const {
-    cardCustomFields,
-    setNumberValue: setCustomFieldNumberValue,
-    getNumberValue: getCustomFieldNumberValue,
-  } = useCardCustomField(cardId, workspaceId);
+  const { cardCustomFields, getNumberValue: getCustomFieldNumberValue } =
+    useCardCustomField(cardId, workspaceId);
   // Synchronization to custom fields is now handled by the backend
   // to prevent race conditions and ensure data integrity.
 
   const cabangField = useMemo(() => {
     if (!cardCustomFields) return null;
 
-    const normalizeId = (field: any) =>
-      field?.id ??
-      (field as any)?.customFieldId ??
-      (field as any)?.custom_field_id ??
-      null;
-
     const byId = cardCustomFields.find(
-      (field: any) => normalizeId(field) === CABANG_CUSTOM_FIELD_ID
+      (field: any) => normalizeCustomFieldId(field) === CABANG_CUSTOM_FIELD_ID,
     );
     if (byId) return byId;
 
     return (
       cardCustomFields.find((field: any) =>
-        (field?.name || "").toString().toLowerCase().includes("cabang")
+        (field?.name || "").toString().toLowerCase().includes("cabang"),
       ) || null
     );
   }, [cardCustomFields]);
@@ -189,7 +190,19 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
     return Boolean(optionValue);
   }, [cabangField]);
 
+  const jmlCuttingFieldId = useMemo(() => {
+    if (!cardCustomFields) return null;
+    const normalizedNeedle = "jml cutting";
+    const match = cardCustomFields.find((field: any) =>
+      (field?.name || "").toString().toLowerCase().includes(normalizedNeedle),
+    );
+    return match ? normalizeCustomFieldId(match) : null;
+  }, [cardCustomFields]);
 
+  const jmlCuttingValue =
+    jmlCuttingFieldId !== null
+      ? getCustomFieldNumberValue(jmlCuttingFieldId)
+      : null;
 
   const poSignatureRef = useRef<string>("");
   const buildPOSignature = (data: POItem[]) =>
@@ -197,6 +210,9 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
       .map((po) => `${po.id}:${po.products?.length ?? 0}`)
       .sort()
       .join("|");
+  const categorySyncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
 
   // Note: Removed complex mapping logic - now using direct POProduct access
 
@@ -231,13 +247,13 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
         // Add PO Products to existing POs or create new PO entries
         updatedPOData.forEach((po) => {
           const relatedPOProducts = (poProductsResponse.data || []).filter(
-            (poProduct) => poProduct.poId === po.id
+            (poProduct) => poProduct.poId === po.id,
           );
 
           const relatedProducts = relatedPOProducts.map((poProduct) => {
             // First, check if this product already exists in our local state
             const existingProduct = po.products.find(
-              (p) => p.poProductId === poProduct.id
+              (p) => p.poProductId === poProduct.id,
             );
 
             if (existingProduct) {
@@ -247,7 +263,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
               // New product, transform normally
               const transformed = transformPOProductToProductItem(
                 poProduct,
-                categories
+                categories,
               );
               return transformed;
             }
@@ -258,15 +274,15 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
           if (relatedProducts.length > 0) {
             // Merge with existing products, avoiding duplicates and preserving calculated values
             const existingProductPoIds = new Set(
-              po.products.map((p) => p.poProductId)
+              po.products.map((p) => p.poProductId),
             );
 
             // Separate new products from existing ones that need updates
             const newProducts = relatedProducts.filter(
-              (p) => !existingProductPoIds.has(p.poProductId)
+              (p) => !existingProductPoIds.has(p.poProductId),
             );
             const updatedProducts = relatedProducts.filter((p) =>
-              existingProductPoIds.has(p.poProductId)
+              existingProductPoIds.has(p.poProductId),
             );
 
             // Process new and updated products
@@ -274,7 +290,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
             // Update existing products in place to preserve calculated values
             updatedProducts.forEach((updatedProduct) => {
               const existingIndex = po.products.findIndex(
-                (p) => p.poProductId === updatedProduct.poProductId
+                (p) => p.poProductId === updatedProduct.poProductId,
               );
               if (existingIndex !== -1) {
                 const existingProduct = po.products[existingIndex];
@@ -294,7 +310,6 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
                   updatedBahanTab.bahanTerpakai =
                     existingBahanTab.bahanTerpakai;
                   updatedBahanTab.sisaBahan = existingBahanTab.sisaBahan;
-                  updatedBahanTab.jmlCutting = existingBahanTab.jmlCutting;
                   updatedBahanTab.estBahan = existingBahanTab.estBahan;
                   updatedBahanTab.efisiensi = existingBahanTab.efisiensi;
                 }
@@ -319,7 +334,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
               ) {
                 const calculatedEstBahan = calculateEstBahanFromCategories(
                   product,
-                  categories
+                  categories,
                 );
                 if (calculatedEstBahan > 0) {
                   product.bahanTabs[0].estBahan = calculatedEstBahan;
@@ -331,19 +346,23 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
 
             // Remove any stale products that no longer exist in the backend response
             const allowedIds = new Set(
-              relatedProducts
-                .map((p) => p.poProductId)
-                .filter(Boolean) as (string | number)[]
+              relatedProducts.map((p) => p.poProductId).filter(Boolean) as (
+                | string
+                | number
+              )[],
             );
             po.products = po.products.filter((p) =>
-              p.poProductId ? allowedIds.has(p.poProductId) : true
+              p.poProductId ? allowedIds.has(p.poProductId) : true,
             );
           } else {
             // No related products returned; clear products for this PO
             po.products = [];
           }
         });
-      } else if (poProductsResponse?.data && poProductsResponse.data.length === 0) {
+      } else if (
+        poProductsResponse?.data &&
+        poProductsResponse.data.length === 0
+      ) {
         // Explicitly clear products when API returns an empty list
         updatedPOData.forEach((po) => {
           po.products = [];
@@ -368,14 +387,14 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
   // Calculate derived values
   const calculateSisaBahan = (
     terloading: number,
-    bahanTerpakai: number
+    bahanTerpakai: number,
   ): number => {
     return terloading - bahanTerpakai;
   };
 
   const calculateEfisiensi = (
     estBahan: number,
-    bahanTerpakai: number
+    bahanTerpakai: number,
   ): number => {
     return estBahan - bahanTerpakai;
   };
@@ -415,7 +434,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
 
           categoryValues[category.id][subcategory.id] = Math.max(
             0,
-            calculatedValue
+            calculatedValue,
           ); // Ensure non-negative
         }
       });
@@ -427,7 +446,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
   // Calculate Est Bahan from category values (reverse calculation)
   const calculateEstBahanFromCategories = (
     productData: ProductItem,
-    categories: any[]
+    categories: any[],
   ) => {
     if (!productData.categoryData || productData.categoryData.length === 0) {
       return 0;
@@ -438,7 +457,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
 
     categories.forEach((category) => {
       const categoryData = productData.categoryData?.find(
-        (cat) => cat.categoryId === category.id
+        (cat) => cat.categoryId === category.id,
       );
       if (!categoryData) {
         return;
@@ -447,7 +466,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
       category.subcategories?.forEach((subcategory: any) => {
         if (subcategory.junction && !subcategory.junction.isTotalField) {
           const subcategoryValue = categoryData.subcategoryValues.find(
-            (sub) => sub.subcategoryId === subcategory.id
+            (sub) => sub.subcategoryId === subcategory.id,
           );
 
           if (subcategoryValue) {
@@ -513,7 +532,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
     } else if (candidates.length > 1) {
       // Prefer exact name match when DB id is unknown
       const byName = candidates.find(
-        (item: any) => item.name && product.name && item.name === product.name
+        (item: any) => item.name && product.name && item.name === product.name,
       );
       match = byName ?? candidates[0];
     }
@@ -536,13 +555,13 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
   const findProductPosition = (
     data: POItem[],
     poId: string,
-    productId: string
+    productId: string,
   ) => {
     const poIndex = data.findIndex((po) => po.id === poId);
     if (poIndex === -1) return null;
 
     const productIndex = data[poIndex].products.findIndex(
-      (p) => p.id === productId || p.poProductId === productId
+      (p) => p.id === productId || p.poProductId === productId,
     );
     if (productIndex === -1) return null;
 
@@ -559,7 +578,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
     productId: string,
     bahanTabIndex: number,
     value: number,
-    resolvedProduct?: any
+    resolvedProduct?: any,
   ) => {
     let requestId: number | undefined;
     let snapshotProduct: any | null = null;
@@ -571,7 +590,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
       const target = findProductPosition(newData, poId, productId);
       if (!target) {
         console.warn(
-          `❌ Unable to find PO/Product for terloading change (poId=${poId}, productId=${productId})`
+          `❌ Unable to find PO/Product for terloading change (poId=${poId}, productId=${productId})`,
         );
         return prevData;
       }
@@ -580,16 +599,19 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
       const bahanTab = product.bahanTabs?.[bahanTabIndex];
       if (!bahanTab) {
         console.warn(
-          `❌ Bahan tab index ${bahanTabIndex} not found for product ${productId}`
+          `❌ Bahan tab index ${bahanTabIndex} not found for product ${productId}`,
         );
         return prevData;
       }
 
       bahanTab.terloading = value;
-      bahanTab.sisaBahan = calculateSisaBahan(value, bahanTab.bahanTerpakai ?? 0);
+      bahanTab.sisaBahan = calculateSisaBahan(
+        value,
+        bahanTab.bahanTerpakai ?? 0,
+      );
       bahanTab.efisiensi = calculateEfisiensi(
         bahanTab.estBahan,
-        bahanTab.bahanTerpakai ?? 0
+        bahanTab.bahanTerpakai ?? 0,
       );
 
       // Call API to persist the change
@@ -606,7 +628,6 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
 
     // Sync to custom field is handled by backend
 
-
     if (requestId) {
       try {
         const productForPayload = payloadProduct || snapshotProduct;
@@ -616,8 +637,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
 
         const latestBahanTab =
           snapshotProduct?.bahanTabs?.[bahanTabIndex] ?? null;
-        const estBahanValue =
-          latestBahanTab?.estBahan ?? value ?? null;
+        const estBahanValue = latestBahanTab?.estBahan ?? value ?? null;
         const efisiensiValue =
           (latestBahanTab?.estBahan ?? value ?? 0) -
           (latestBahanTab?.bahanTerpakai ?? 0);
@@ -675,7 +695,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
   const scheduleTerpakaiRequest = (
     requestId: string,
     payload: Record<string, any>,
-    commitNow?: boolean
+    commitNow?: boolean,
   ) => {
     terpakaiRequestPending.current[requestId] = { payload };
     if (commitNow) {
@@ -696,7 +716,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
     bahanTabIndex: number,
     value: number | null,
     resolvedProduct?: any,
-    options?: { commit?: boolean }
+    options?: { commit?: boolean },
   ) => {
     let requestId: number | undefined;
     let sentValue = 0;
@@ -713,7 +733,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
       const target = findProductPosition(newData, poId, productId);
       if (!target) {
         console.warn(
-          `❌ Unable to find PO/Product for terpakai change (poId=${poId}, productId=${productId})`
+          `❌ Unable to find PO/Product for terpakai change (poId=${poId}, productId=${productId})`,
         );
         return prevData;
       }
@@ -722,7 +742,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
       const bahanTab = product.bahanTabs?.[bahanTabIndex];
       if (!bahanTab) {
         console.warn(
-          `❌ Bahan tab index ${bahanTabIndex} not found for product ${productId}`
+          `❌ Bahan tab index ${bahanTabIndex} not found for product ${productId}`,
         );
         return prevData;
       }
@@ -730,11 +750,11 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
       bahanTab.bahanTerpakai = numericForCalc;
       bahanTab.sisaBahan = calculateSisaBahan(
         bahanTab.terloading,
-        numericForCalc
+        numericForCalc,
       );
       bahanTab.efisiensi = calculateEfisiensi(
         bahanTab.estBahan,
-        numericForCalc
+        numericForCalc,
       );
 
       requestId = product.requestId;
@@ -753,25 +773,24 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
 
     // Sync to custom field is handled by backend
 
-
     if (requestId !== undefined) {
       const productForPayload = payloadProduct || snapshotProduct;
       if (!productForPayload) return;
 
       const leftValue =
-        normalizedValue === null ? null : Math.max(sentValue - normalizedValue, 0);
+        normalizedValue === null
+          ? null
+          : Math.max(sentValue - normalizedValue, 0);
       const meta = buildRequestItemMeta(productForPayload);
 
       const latestBahanTab =
         snapshotProduct?.bahanTabs?.[bahanTabIndex] ?? null;
-      const estBahanValue =
-        latestBahanTab?.estBahan ?? sentValue ?? null;
+      const estBahanValue = latestBahanTab?.estBahan ?? sentValue ?? null;
       const efisiensiValue =
         normalizedValue === null
           ? null
           : (latestBahanTab?.estBahan ?? sentValue ?? 0) - normalizedValue;
-      const requestSource =
-        resolveProductSource(productForPayload) ?? "Hikmat";
+      const requestSource = resolveProductSource(productForPayload) ?? "Hikmat";
 
       const payload: Record<string, any> = {
         requestReceived: normalizedValue,
@@ -799,7 +818,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
     poId: string,
     productId: string,
     bahanTabIndex: number,
-    value: number
+    value: number,
   ) => {
     let requestId: number | undefined;
     let efisiensiValue: number | null = null;
@@ -809,7 +828,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
       const target = findProductPosition(newData, poId, productId);
       if (!target) {
         console.warn(
-          `❌ Unable to find PO/Product for est_bahan change (poId=${poId}, productId=${productId})`
+          `❌ Unable to find PO/Product for est_bahan change (poId=${poId}, productId=${productId})`,
         );
         return prevData;
       }
@@ -818,7 +837,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
       const bahanTab = product.bahanTabs?.[bahanTabIndex];
       if (!bahanTab) {
         console.warn(
-          `❌ Bahan tab index ${bahanTabIndex} not found for product ${productId}`
+          `❌ Bahan tab index ${bahanTabIndex} not found for product ${productId}`,
         );
         return prevData;
       }
@@ -842,7 +861,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
 
           // Find existing category data or create new one
           let categoryData = product.categoryData!.find(
-            (cat) => cat.categoryId === categoryId
+            (cat) => cat.categoryId === categoryId,
           );
           if (!categoryData) {
             categoryData = {
@@ -856,13 +875,13 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
           // Update subcategory values
           Object.keys(calculatedValues[categoryId]).forEach((subcategoryId) => {
             const subcategory = category?.subcategories?.find(
-              (sub) => sub.id === subcategoryId
+              (sub) => sub.id === subcategoryId,
             );
             if (!subcategory) return;
 
             // Find existing subcategory value or create new one
             let subcategoryValue = categoryData!.subcategoryValues.find(
-              (sub) => sub.subcategoryId === subcategoryId
+              (sub) => sub.subcategoryId === subcategoryId,
             );
             if (!subcategoryValue) {
               subcategoryValue = {
@@ -883,8 +902,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
       }
 
       // Calculate efisiensi from updated Est Bahan and current pemakaian
-      efisiensiValue =
-        (bahanTab.estBahan ?? 0) - (bahanTab.bahanTerpakai ?? 0);
+      efisiensiValue = (bahanTab.estBahan ?? 0) - (bahanTab.bahanTerpakai ?? 0);
       bahanTab.efisiensi = efisiensiValue;
 
       requestId = product.requestId;
@@ -910,14 +928,15 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
     productId: string,
     categoryId: string,
     subcategoryId: string,
-    value: number
+    value: number,
   ) => {
     setPOData((prev) => {
+      clearManualOverrideFlags();
       const newItems = [...prev];
       const target = findProductPosition(newItems, poId, productId);
       if (!target) {
         console.warn(
-          `❌ Unable to find PO/Product for category change (poId=${poId}, productId=${productId})`
+          `❌ Unable to find PO/Product for category change (poId=${poId}, productId=${productId})`,
         );
         return prev;
       }
@@ -930,7 +949,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
 
       // Find or create category data
       let categoryData = product.categoryData.find(
-        (cat) => cat.categoryId === categoryId
+        (cat) => cat.categoryId === categoryId,
       );
       if (!categoryData) {
         categoryData = {
@@ -943,7 +962,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
 
       // Find or create subcategory value
       let subcategoryValue = categoryData.subcategoryValues.find(
-        (sub) => sub.subcategoryId === subcategoryId
+        (sub) => sub.subcategoryId === subcategoryId,
       );
 
       if (!subcategoryValue) {
@@ -962,7 +981,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
       if (categories && categories.length > 0) {
         const newEstBahan = calculateEstBahanFromCategories(
           product,
-          categories
+          categories,
         );
         if (product.bahanTabs && product.bahanTabs.length > 0) {
           product.bahanTabs[0].estBahan = newEstBahan;
@@ -971,7 +990,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
           const bahanTerpakai = product.bahanTabs[0].bahanTerpakai || 0;
           product.bahanTabs[0].efisiensi = calculateEfisiensi(
             newEstBahan,
-            bahanTerpakai
+            bahanTerpakai,
           );
         }
       }
@@ -982,7 +1001,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
       if (productPoProductId && poProductsResponse?.data) {
         // Find the POProduct using the product's poProductId
         const targetPOProduct = poProductsResponse.data.find(
-          (poProduct: any) => poProduct.id === productPoProductId
+          (poProduct: any) => poProduct.id === productPoProductId,
         );
 
         if (targetPOProduct) {
@@ -992,7 +1011,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
             const category = categories.find((cat) => cat.id === categoryId);
             if (category) {
               const subcategory = category.subcategories?.find(
-                (sub) => sub.id === subcategoryId
+                (sub) => sub.id === subcategoryId,
               );
               if (subcategory?.junction) {
                 junctionId = subcategory.junction.id;
@@ -1002,10 +1021,10 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
 
           if (!junctionId) {
             console.error(
-              `❌ Could not find junction_id for categoryId: ${categoryId}, subcategoryId: ${subcategoryId}`
+              `❌ Could not find junction_id for categoryId: ${categoryId}, subcategoryId: ${subcategoryId}`,
             );
             message.error(
-              "Failed to save category value: Missing junction data"
+              "Failed to save category value: Missing junction data",
             );
             return newItems;
           }
@@ -1015,7 +1034,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
             (cat: any) =>
               cat.junction_id === junctionId ||
               (cat.categoryId === categoryId &&
-                cat.subcategoryId === subcategoryId)
+                cat.subcategoryId === subcategoryId),
           );
 
           if (existingCategory) {
@@ -1035,21 +1054,21 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
                 onError: (error) => {
                   console.error(
                     `❌ Failed to create POProductCategory:`,
-                    error
+                    error,
                   );
                   message.error("Failed to save category value");
                 },
-              }
+              },
             );
           }
         } else {
           console.warn(
-            `❌ Could not find POProduct with ID: ${productPoProductId}`
+            `❌ Could not find POProduct with ID: ${productPoProductId}`,
           );
         }
       } else {
         console.warn(
-          `❌ Product missing poProductId or no POProducts data available`
+          `❌ Product missing poProductId or no POProducts data available`,
         );
       }
 
@@ -1058,6 +1077,10 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
 
       return newItems;
     });
+
+    if (categorySyncTimeoutRef.current) {
+      clearTimeout(categorySyncTimeoutRef.current);
+    }
   };
 
   // Handle order status change
@@ -1065,14 +1088,14 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
     poId: string,
     productId: string,
     orderCreated: boolean,
-    requestId?: number | null
+    requestId?: number | null,
   ) => {
     setPOData((prevData) => {
       const newData = [...prevData];
       const target = findProductPosition(newData, poId, productId);
       if (!target) {
         console.warn(
-          `❌ Unable to find PO/Product for order status change (poId=${poId}, productId=${productId})`
+          `❌ Unable to find PO/Product for order status change (poId=${poId}, productId=${productId})`,
         );
         return prevData;
       }
@@ -1247,7 +1270,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
         const items = warehouseProducts || [];
         if (!items || items.length === 0) {
           message.warning(
-            "Products are still loading or not available. Please try again shortly."
+            "Products are still loading or not available. Please try again shortly.",
           );
           return;
         }
@@ -1269,15 +1292,14 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
 
         if (!matchedItem) {
           message.error(
-            `Scanned product (accurateId=${accurateId}) not found in product list.`
+            `Scanned product (accurateId=${accurateId}) not found in product list.`,
           );
           return;
         }
 
         // Check if product already exists in this PO
         const currentPOIndex = poData.findIndex((po) => po.id === poId);
-        const currentPO =
-          currentPOIndex !== -1 ? poData[currentPOIndex] : null;
+        const currentPO = currentPOIndex !== -1 ? poData[currentPOIndex] : null;
         const matchedSelectionKey =
           buildProductSelectionKey(matchedItem) ||
           resolveProductKey(matchedItem);
@@ -1305,7 +1327,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
             existingProduct.id,
             0,
             newTerloading,
-            existingProduct
+            existingProduct,
           );
         } else {
           // Product not yet in this PO: prefill dropdown and add it, then set initial Terloading from scanned quantity
@@ -1318,22 +1340,17 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
             poId,
             matchedSelectionKey,
             scannedQty,
-            matchedItem
+            matchedItem,
           );
         }
       } catch (error) {
         console.error("Failed to fetch product by scanned barcode:", error);
         message.error(
-          "Failed to resolve the scanned barcode. Please try again."
+          "Failed to resolve the scanned barcode. Please try again.",
         );
       }
     },
-    [
-      handleTerloadingChange,
-      poData,
-      warehouseProducts,
-      parseLocaleNumber,
-    ]
+    [handleTerloadingChange, poData, warehouseProducts, parseLocaleNumber],
   );
 
   const processScanQueue = useCallback(async () => {
@@ -1370,7 +1387,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
 
         if (inventoryGlAccountId) {
           const matchingGlAccount = glaccounts.data.d.find(
-            (acc: any) => acc.id === inventoryGlAccountId
+            (acc: any) => acc.id === inventoryGlAccountId,
           );
 
           if (matchingGlAccount) {
@@ -1387,7 +1404,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
 
         if (cogsGlAccountId) {
           const matchingGlAccount = glaccounts.data.d.find(
-            (acc: any) => acc.id === cogsGlAccountId
+            (acc: any) => acc.id === cogsGlAccountId,
           );
 
           if (matchingGlAccount) {
@@ -1405,9 +1422,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
         const itemCategoryName = rawCategoryName
           ? rawCategoryName.toLowerCase()
           : "";
-        const normalizedSource = itemSource
-          ? itemSource.toLowerCase()
-          : null;
+        const normalizedSource = itemSource ? itemSource.toLowerCase() : null;
 
         let suitableAccount = null;
 
@@ -1434,7 +1449,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
             ];
 
             const matchingKeyword = hikmatCategoryKeywords.find((keyword) =>
-              itemCategoryName.includes(keyword)
+              itemCategoryName.includes(keyword),
             );
 
             if (matchingKeyword) {
@@ -1496,7 +1511,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
     poId: string,
     productSelectionValue: string,
     initialTerloading?: number,
-    preselectedProduct?: any
+    preselectedProduct?: any,
   ) => {
     // Starting product selection
 
@@ -1515,7 +1530,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
     // Find the selected product from warehouse items
     const selectedProduct =
       preselectedProduct ??
-      ((warehouseProducts || []).find((item: any) => {
+      (warehouseProducts || []).find((item: any) => {
         const keyMatches = resolveProductKey(item) === targetProductId;
         if (!keyMatches) return false;
 
@@ -1532,7 +1547,8 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
         }
 
         return true;
-      }) ?? null);
+      }) ??
+      null;
 
     // Selected product found
 
@@ -1547,12 +1563,12 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
       // Check if product already exists in this PO
       const currentPO = poData.find((po) => po.id === poId);
       const productExistsInCurrentPO = currentPO?.products.some(
-        (p) => p.id === productKey
+        (p) => p.id === productKey,
       );
 
       if (productExistsInCurrentPO) {
         message.warning(
-          `Product "${selectedProduct.name}" is already added to this PO!`
+          `Product "${selectedProduct.name}" is already added to this PO!`,
         );
         setSelectedProductIds((prev) => ({ ...prev, [poId]: "" }));
         return;
@@ -1589,9 +1605,8 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
             bahanTerpakai: null, // Initialize as null - only sync when user sets a value
             sisaBahan: calculateSisaBahan(
               hasInitialTerloading ? initialTerloading || 0 : 0,
-              0 // sisaBahan calc uses 0 for null bahanTerpakai
+              0, // sisaBahan calc uses 0 for null bahanTerpakai
             ),
-            jmlCutting: 0,
             estBahan: 0,
             efisiensi: 0,
           },
@@ -1610,7 +1625,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
             ...poItem,
             products: [...poItem.products],
           };
-        })
+        }),
       );
 
       try {
@@ -1626,10 +1641,10 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
         // Additional validation
         if (!glAccountInfo.adjustment_no || !glAccountInfo.adjustment_name) {
           console.warn(
-            "⚠️ [PO PROD DEBUG] GL account selection failed! Missing adjustment_no or adjustment_name"
+            "⚠️ [PO PROD DEBUG] GL account selection failed! Missing adjustment_no or adjustment_name",
           );
           console.warn(
-            "⚠️ [PO PROD DEBUG] This will result in incomplete data being sent to backend"
+            "⚠️ [PO PROD DEBUG] This will result in incomplete data being sent to backend",
           );
         }
 
@@ -1678,28 +1693,28 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
                 products: poItem.products.map((p) =>
                   p.id === optimisticId
                     ? {
-                      ...p,
-                      id: productKey,
-                      poProductId: createdPOProductId,
-                      adjustment_no: glAccountInfo.adjustment_no,
-                      adjustment_name: glAccountInfo.adjustment_name,
-                      bahanTabs: [
-                        {
-                          ...p.bahanTabs[0],
-                          id: createdPOProductId,
-                          terloading: initialTerloading ?? 0,
-                          sisaBahan: calculateSisaBahan(
-                            initialTerloading ?? 0,
-                            0
-                          ),
-                          efisiensi: calculateEfisiensi(0, 0),
-                        },
-                      ],
-                    }
-                    : p
+                        ...p,
+                        id: productKey,
+                        poProductId: createdPOProductId,
+                        adjustment_no: glAccountInfo.adjustment_no,
+                        adjustment_name: glAccountInfo.adjustment_name,
+                        bahanTabs: [
+                          {
+                            ...p.bahanTabs[0],
+                            id: createdPOProductId,
+                            terloading: initialTerloading ?? 0,
+                            sisaBahan: calculateSisaBahan(
+                              initialTerloading ?? 0,
+                              0,
+                            ),
+                            efisiensi: calculateEfisiensi(0, 0),
+                          },
+                        ],
+                      }
+                    : p,
                 ),
               };
-            })
+            }),
           );
         } else {
           // For non-scan add, replace optimistic with backend ID
@@ -1712,16 +1727,18 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
                 products: poItem.products.map((p) =>
                   p.id === optimisticId
                     ? {
-                      ...p,
-                      id: realId,
-                      poProductId: createdPOProductId ?? p.poProductId,
-                      adjustment_no: glAccountInfo.adjustment_no ?? p.adjustment_no,
-                      adjustment_name: glAccountInfo.adjustment_name ?? p.adjustment_name,
-                    }
-                    : p
+                        ...p,
+                        id: realId,
+                        poProductId: createdPOProductId ?? p.poProductId,
+                        adjustment_no:
+                          glAccountInfo.adjustment_no ?? p.adjustment_no,
+                        adjustment_name:
+                          glAccountInfo.adjustment_name ?? p.adjustment_name,
+                      }
+                    : p,
                 ),
               };
-            })
+            }),
           );
         }
 
@@ -1729,20 +1746,20 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
       } catch (error) {
         console.error("🚀 [PO PROD DEBUG] Failed to create PO Product:", error);
         message.error(
-          `Failed to add product "${selectedProduct.name}". Please try again.`
+          `Failed to add product "${selectedProduct.name}". Please try again.`,
         );
         // rollback optimistic product
         setPOData((prevData) =>
           prevData.map((poItem) =>
             poItem.id === poId
               ? {
-                ...poItem,
-                products: poItem.products.filter(
-                  (p) => p.id !== optimisticId
-                ),
-              }
-              : poItem
-          )
+                  ...poItem,
+                  products: poItem.products.filter(
+                    (p) => p.id !== optimisticId,
+                  ),
+                }
+              : poItem,
+          ),
         );
       }
     } else {
@@ -1849,6 +1866,7 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
             getCategoryError={getCategoryError}
             clearCategoryError={clearCategoryError}
             isCabangFilled={isCabangFilled}
+            jmlCuttingValue={jmlCuttingValue}
           />
         ))}
       </div>

@@ -32,6 +32,7 @@ const POSection: React.FC<POSectionProps> = ({
   getCategoryError,
   clearCategoryError,
   isCabangFilled,
+  jmlCuttingValue,
 }) => {
   const [activeProductTab, setActiveProductTab] = useState<string>(
     po.products.length > 0 ? po.products[0].id : ""
@@ -184,6 +185,7 @@ const POSection: React.FC<POSectionProps> = ({
             colors={colors}
             categories={categories}
             isLoadingCategories={isLoadingCategories}
+            jmlCuttingValue={jmlCuttingValue}
             deletingProductIds={Array.from(deletingProductIds)}
             onTerloadingChange={onTerloadingChange}
             onBahanTerpakaiChange={onBahanTerpakaiChange}

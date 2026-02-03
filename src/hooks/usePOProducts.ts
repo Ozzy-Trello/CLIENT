@@ -207,18 +207,17 @@ export const transformPOProductToProductItem = (
     satuan: poProduct.satuan, // Include unit field
     adjustment_no: poProduct.adjustmentNo, // Include adjustment account number
     adjustment_name: poProduct.adjustmentName, // Include adjustment account name
-    bahanTabs: [
-      {
-        id: poProduct.id, // Use the PO product ID as bahan tab ID
-        name: poProduct.productName,
-        description,
-        terloading: toNumber(poProduct.terloading), // Ensure numeric type for calculations
-        bahanTerpakai: toNullableNumber(poProduct.bahanTerpakai),
-        sisaBahan: 0,
-        jmlCutting: 0,
-        estBahan: 0,
-        efisiensi: 0,
-      },
+        bahanTabs: [
+          {
+            id: poProduct.id, // Use the PO product ID as bahan tab ID
+            name: poProduct.productName,
+            description,
+            terloading: toNumber(poProduct.terloading), // Ensure numeric type for calculations
+            bahanTerpakai: toNullableNumber(poProduct.bahanTerpakai),
+            sisaBahan: 0,
+            estBahan: 0,
+            efisiensi: 0,
+          },
     ],
     categoryData: (() => {
       if (!poProduct.categories) return [];

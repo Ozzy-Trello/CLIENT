@@ -10,6 +10,7 @@ const ProductTabs: React.FC<ProductTabsProps> = ({
   categories,
   isLoadingCategories,
   isCabangFilled = false,
+  jmlCuttingValue,
   onTerloadingChange,
   onBahanTerpakaiChange,
   onEstBahanChange,
@@ -161,6 +162,7 @@ const ProductTabs: React.FC<ProductTabsProps> = ({
                   categories={categories}
                   isLoadingCategories={isLoadingCategories}
                   bahanTabIndex={0}
+                  jmlCuttingValue={jmlCuttingValue}
                   onTerloadingChange={onTerloadingChange}
                   onBahanTerpakaiChange={onBahanTerpakaiChange}
                   onEstBahanChange={onEstBahanChange}

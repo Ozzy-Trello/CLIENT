@@ -92,6 +92,7 @@ import { uploadFile } from "@api/file";
 import { createCardAttachment } from "@api/card_attachment";
 import { useCardAttachment } from "@hooks/card_attachment";
 import { useCardCustomField } from "@hooks/card_custom_field";
+import { ManualOverrideProvider } from "./manual-override-context";
 
 const CardDetails: React.FC = (props) => {
   const params = useParams();
@@ -1582,7 +1583,8 @@ const CardDetails: React.FC = (props) => {
   ) : null;
 
   return (
-    <Modal
+    <ManualOverrideProvider>
+      <Modal
       title={null}
       open={isCardDetailOpen}
       onCancel={closeCardDetail}
@@ -1735,6 +1737,7 @@ const CardDetails: React.FC = (props) => {
         />
       </div>
     </Modal>
+  </ManualOverrideProvider>
   );
 };
 

@@ -7,6 +7,7 @@ const BahanControls: React.FC<BahanControlsProps> = ({
   colors,
   product,
   bahanTab,
+  jmlCuttingValue,
   showSyncSuccess,
   isTerloadingEditing,
   terloadingInputValue,
@@ -137,7 +138,7 @@ const BahanControls: React.FC<BahanControlsProps> = ({
               backgroundColor: `rgb(${colors.muted})`,
               color: `rgb(${colors["text-muted"]})`,
             }}
-            value={bahanTab.jmlCutting}
+            value={formatDisplayValue(jmlCuttingValue ?? null, "0")}
             readOnly
           />
         </div>

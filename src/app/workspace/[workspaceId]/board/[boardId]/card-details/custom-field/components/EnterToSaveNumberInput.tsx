@@ -18,6 +18,7 @@ interface EnterToSaveNumberInputProps {
   disabled?: boolean;
   onSplitJobsSaved?: () => void;
   isSuperAdmin?: boolean;
+  onManualChange?: (fieldName: string) => void;
 }
 
 export const EnterToSaveNumberInput: React.FC<EnterToSaveNumberInputProps> = ({
@@ -30,24 +31,31 @@ export const EnterToSaveNumberInput: React.FC<EnterToSaveNumberInputProps> = ({
   disabled = false,
   onSplitJobsSaved,
   isSuperAdmin,
+  onManualChange,
 }) => {
   const params = useParams();
   const { selectedCard } = useCardDetailContext();
   const cardId = selectedCard?.id || "";
-  const { value, hasChanges, onChange, onKeyPress, onBlur } = useEnterToSave(
-    formatCustomFieldNumberValue(initialValue),
-    (stringValue) => {
-      const numValue = sanitizeCustomFieldNumber(stringValue);
-      onSave(numValue);
-    },
-    { saveOnBlur: true },
-  );
-
   const normalizedFieldName = fieldName
     ?.normalize("NFKD")
     .replace(/\s+/g, " ")
     .trim()
     .toLowerCase();
+  const { value, hasChanges, onChange, onKeyPress, onBlur } = useEnterToSave(
+    formatCustomFieldNumberValue(initialValue),
+    (stringValue) => {
+      if (
+        normalizedFieldName === "jml cutting" ||
+        normalizedFieldName === "jml sewing"
+      ) {
+        onManualChange?.(normalizedFieldName);
+      }
+      const numValue = sanitizeCustomFieldNumber(stringValue);
+      onSave(numValue);
+    },
+    { saveOnBlur: true }
+  );
+
   const numericValue = sanitizeCustomFieldNumber(value) ?? 0;
   const showSplitJob =
     normalizedFieldName === "jml cutting" &&

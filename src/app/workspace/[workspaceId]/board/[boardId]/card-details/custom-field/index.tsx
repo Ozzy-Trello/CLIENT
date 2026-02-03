@@ -3,7 +3,7 @@ import { useCardCustomField } from "@hooks/card_custom_field";
 import { useBoardPermissionsContext } from "@providers/board-permissions-context";
 import { DatePicker, Input, Tooltip, message } from "antd";
 import { List, StretchHorizontal, CheckSquare, Search, Loader2, Copy } from "lucide-react";
-import { useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { EnumCustomFieldSource, EnumCustomFieldType } from "@myTypes/custom-field";
 import { Card, CardCustomField } from "@myTypes/card";
@@ -14,6 +14,7 @@ import { EnterToSaveInput } from "./components/EnterToSaveInput";
 import { EnterToSaveNumberInput } from "./components/EnterToSaveNumberInput";
 import { OptionAutoComplete } from "./components/OptionAutoComplete";
 import { normalizeCheckboxValue, parseRoleSource } from "./utils";
+import { useManualOverrideContext } from "../manual-override-context";
 
 interface CustomFieldsProps {
   card: Card | null;
@@ -45,6 +46,7 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
   } = useCardCustomField(card?.id || "", workspaceId);
 
   const { canManageCardCustomFields, canUpdateCard } = useBoardPermissionsContext();
+  const { setManualOverrideFlag } = useManualOverrideContext();
 
   const [searchTerm, setSearchTerm] = useState<string>("");
   const userSelectionRefs = useRef<Map<string, SelectionRef>>(new Map());
@@ -115,6 +117,7 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
             disabled={!canEdit}
             onSplitJobsSaved={handleSplitJobsSaved}
             isSuperAdmin={isSuperAdmin}
+            onManualChange={setManualOverrideFlag}
           />
         );
 
