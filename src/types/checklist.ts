@@ -2,6 +2,7 @@
  * Interface for a single checklist item
  */
 export interface ChecklistItem {
+  id?: string;
   label: string;
   checked: boolean;
   dueDate?: string; // ISO date string format
@@ -9,6 +10,7 @@ export interface ChecklistItem {
   assigneeName?: string; // Optional name of the assignee for display purposes
   due_date?: string;
   assignee_name?: string;
+  assignee_id?: string;
   assigfnee_id?: string;
   created_at?: string;
   updated_at?: string;
@@ -21,6 +23,7 @@ export interface CreateChecklistDTO {
   card_id: string;
   title: string;
   data: ChecklistItem[];
+  order_index?: number;
 }
 
 /**
@@ -29,6 +32,7 @@ export interface CreateChecklistDTO {
 export interface UpdateChecklistDTO {
   title?: string;
   data: ChecklistItem[];
+  order_index?: number;
 }
 
 /**
@@ -39,6 +43,7 @@ export interface ChecklistDTO {
   card_id: string;
   title: string;
   data: ChecklistItem[];
+  order_index?: number;
   created_at?: Date;
   updated_at?: Date;
 }
