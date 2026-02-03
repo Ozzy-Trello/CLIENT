@@ -73,6 +73,7 @@ import { useBoardPermissionsContext } from "@providers/board-permissions-context
 import { selectUser } from "@store/app_slice";
 import { selectCurrentBoard } from "@store/workspace_slice";
 import { LookupCache } from "@utils/lookup-cache";
+import { isValidUrl } from "@utils/url-parser";
 import { useParams, useSearchParams } from "next/navigation";
 import { useSelector } from "react-redux";
 import Actions from "./actions";
@@ -705,7 +706,7 @@ const CardDetails: React.FC = (props) => {
       }
     };
 
-    // Handle paste for file attachments
+    // Handle paste for file attachments and URL links
     const handlePaste = (e: ClipboardEvent) => {
       // Ignore paste if user is typing in an input field
       const target = e.target as HTMLElement;
@@ -718,20 +719,39 @@ const CardDetails: React.FC = (props) => {
       }
 
       const clipboardData = e.clipboardData;
-      if (!clipboardData?.files?.length) {
+
+      // File paste handling (existing behavior)
+      if (clipboardData?.files?.length) {
+        e.preventDefault();
+        const fileCount = clipboardData.files.length;
+        message.loading({
+          content: `Uploading ${fileCount} file${fileCount > 1 ? "s" : ""}...`,
+          key: "paste-upload",
+          duration: 0,
+        });
+        void handleFilesUpload(clipboardData.files).finally(() => {
+          message.destroy("paste-upload");
+        });
         return;
       }
 
-      e.preventDefault();
-      const fileCount = clipboardData.files.length;
-      message.loading({
-        content: `Uploading ${fileCount} file${fileCount > 1 ? "s" : ""}...`,
-        key: "paste-upload",
-        duration: 0,
-      });
-      void handleFilesUpload(clipboardData.files).finally(() => {
-        message.destroy("paste-upload");
-      });
+      // URL paste handling – create link attachment
+      const text = clipboardData?.getData("text/plain")?.trim();
+      if (text && isValidUrl(text) && selectedCard?.id) {
+        e.preventDefault();
+        addAttachment({
+          cardId: selectedCard.id,
+          attachableType: EnumAttachmentType.Link,
+          type: EnumCardAttachmentType.Link,
+          isCover: false,
+          metadata: {
+            url: text,
+            displayText: text,
+          },
+        });
+        message.success("Link attachment added");
+        return;
+      }
     };
 
     window.addEventListener("dragover", handleDragOver);
@@ -744,7 +764,7 @@ const CardDetails: React.FC = (props) => {
       window.removeEventListener("drop", handleDrop);
       window.removeEventListener("paste", handlePaste);
     };
-  }, [handleFilesUpload, isCardDetailOpen]);
+  }, [addAttachment, handleFilesUpload, isCardDetailOpen, selectedCard?.id]);
 
   const handleSaveTitleClick = () => {
     if (!selectedCard) return;

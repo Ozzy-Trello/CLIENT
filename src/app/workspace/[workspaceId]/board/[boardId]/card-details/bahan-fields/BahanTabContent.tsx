@@ -298,7 +298,6 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
     product.description ?? ""
   );
   const [isSavingDescription, setIsSavingDescription] = useState(false);
-  const lastSavedDescriptionRef = useRef<string | null>(null);
   const [isLoadingAction, setIsLoadingAction] = useState(false);
 
   const { cardAttachments } = useCardAttachment(po.cardId);
@@ -362,22 +361,6 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
   useEffect(() => {
     setDescription(product.description ?? "");
   }, [product.description]);
-  useEffect(() => {
-    const trimmed = (description ?? "").trim();
-    const categoryKey =
-      product.poProductCategoryIds?.join(",") ||
-      product.poProductCategoryId ||
-      "";
-    const requestKey = product.requestId ? String(product.requestId) : "";
-    const saveKey = `${trimmed}|${categoryKey}|${requestKey}`;
-
-    if (!trimmed) return;
-    if (!categoryKey && !requestKey) return;
-    if (saveKey === lastSavedDescriptionRef.current) return;
-
-    lastSavedDescriptionRef.current = saveKey;
-    void persistDescription();
-  }, [product.poProductCategoryIds, product.poProductCategoryId, product.requestId, description]);
 
   const shouldDisableInputs = Boolean(product.orderCreated);
   const shouldDisableTerloadingInput = !isTerloadingEditing || isSyncingRequest;
@@ -649,6 +632,10 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
     }
 
     setIsConfirmingZeroLoading(true);
+
+    // Save description before creating order
+    await persistDescription();
+
     const success = await handleCreateNewOrder(po, product);
     setIsConfirmingZeroLoading(false);
 
@@ -709,6 +696,9 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
       return;
     }
 
+    // Save description before creating order
+    await persistDescription();
+
     if (hasTerloadingValue) {
       try {
         await handleCreateNewOrder(po, product);
@@ -728,10 +718,11 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
     handleCreateNewOrder,
     po,
     product,
+    persistDescription,
   ]);
 
-  const handleDescriptionBlur = async () => {
-    await persistDescription();
+  const handleDescriptionBlur = () => {
+    // No-op: description saves on Loading button click only
   };
 
   const handleTerloadingFocus = () => {
