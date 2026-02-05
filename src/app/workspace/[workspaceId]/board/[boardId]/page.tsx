@@ -2,7 +2,6 @@
 
 import dynamic from "next/dynamic";
 import React, { useCallback, useEffect, useState, useRef } from "react";
-import { flushSync } from "react-dom";
 import BoardTopbar from "./topbar";
 import { useSelector } from "react-redux";
 import { selectTheme } from "@store/app_slice";
@@ -20,6 +19,7 @@ import CardDetails from "./card-details";
 import ListSkeleton from "./list-skeleton.tsx";
 import BoardScopeMenu from "@components/board-scope-menu";
 import { useCardMove, useCards } from "@hooks/card";
+import { cards } from "@api/card";
 import ModalDashcard from "@components/dashcard/modal-dashcard";
 import { DashcardConfig } from "@myTypes/dashcard";
 import { Card, EnumCardType } from "@myTypes/card";
@@ -36,7 +36,7 @@ import { useBoardPermissionsContext } from "@providers/board-permissions-context
 import { useDispatch } from "react-redux";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@constants/query-keys";
-import { ApiResponse } from "@myTypes/api";
+import { ApiResponse } from "@myTypes/type";
 import { useRealtimeUpdates } from "@hooks/websocket";
 import HorizontalSlider from "@components/horizontal-slider";
 import { BoardPermissionsProvider } from "@providers/board-permissions-context";
@@ -80,7 +80,21 @@ const BoardContentWithPermissions: React.FC<{
   onTouchEnd: () => void;
   collapsedLists: Record<string, boolean>;
   onToggleCollapse: (listId: string) => void;
-  selectedLabelIds: string[];
+  localCards: Record<string, Card[]>;
+  cardsPagination: Record<
+    string,
+    {
+      currentPage: number;
+      hasMore: boolean;
+      totalCards: number;
+    }
+  >;
+  loadingMoreByListId: Record<string, boolean>;
+  loadMoreErrors: Record<string, string | null>;
+  addingCardByListId: Record<string, boolean>;
+  onLoadMoreCards: (listId: string) => void;
+  onRetryLoadMoreCards: (listId: string) => void;
+  onAddCard: ({ card, listId }: { card: Partial<Card>; listId: string }) => void;
 }> = ({
   lists,
   isLoading,
@@ -107,7 +121,14 @@ const BoardContentWithPermissions: React.FC<{
   onTouchEnd,
   collapsedLists,
   onToggleCollapse,
-  selectedLabelIds,
+  localCards,
+  cardsPagination,
+  loadingMoreByListId,
+  loadMoreErrors,
+  addingCardByListId,
+  onLoadMoreCards,
+  onRetryLoadMoreCards,
+  onAddCard,
 }) => {
     // Now we can safely use the context hook inside the provider
     const { canCreateList } = useBoardPermissionsContext();
@@ -151,6 +172,13 @@ const BoardContentWithPermissions: React.FC<{
                     }}
                   >
                     {lists?.map((list: AnyList, index: number) => {
+                      const listCards = localCards[list.id] || [];
+                      const pagination = cardsPagination[list.id] || {
+                        currentPage: 1,
+                        hasMore: false,
+                        totalCards: 0,
+                      };
+
                       return (
                         <List
                           key={list.id}
@@ -161,7 +189,15 @@ const BoardContentWithPermissions: React.FC<{
                           deleteList={deleteList}
                           collapsed={!!collapsedLists[list.id]}
                           onToggleCollapse={onToggleCollapse}
-                          selectedLabelIds={selectedLabelIds}
+                          cards={listCards}
+                          hasMoreCards={pagination.hasMore}
+                          isLoadingMore={!!loadingMoreByListId[list.id]}
+                          onLoadMore={() => onLoadMoreCards(list.id)}
+                          totalCards={pagination.totalCards}
+                          addCard={onAddCard}
+                          isAddingCard={!!addingCardByListId[list.id]}
+                          loadMoreError={loadMoreErrors[list.id] || null}
+                          onRetryLoadMore={() => onRetryLoadMoreCards(list.id)}
                         />
                       );
                     })}
@@ -402,7 +438,7 @@ const Board: React.FC = () => {
   const [isAddingList, setIsAddingList] = useState<boolean>(false);
   const [newListName, setNewListName] = useState<string>("");
   const [boardScopeMenu, setBoardScopeMenu] = useState<boolean>(false);
-  const { addCard } = useCards("", "");
+  const { addCard } = useCards("", resolvedBoardId || "");
   const { moveCard } = useCardMove(resolvedBoardId);
   const { moveList } = useListMove();
   const queryClient = useQueryClient();
@@ -478,11 +514,200 @@ const Board: React.FC = () => {
     originalPosition: number;
     currentPosition?: number;
   } | null>(null);
+  // Local state for instant drag-and-drop (like checklist)
+  // This is the source of truth for card positions in the UI
+  const [localCards, setLocalCards] = useState<Record<string, Card[]>>({});
+  const [localCardsInitialized, setLocalCardsInitialized] = useState(false);
+  const [cardsPagination, setCardsPagination] = useState<Record<string, {
+    currentPage: number;
+    hasMore: boolean;
+    totalCards: number;
+  }>>({});
   const lastViewedBoardIdRef = useRef<string | null>(null);
+  const [loadingMoreByListId, setLoadingMoreByListId] = useState<Record<string, boolean>>({});
+  const [loadMoreErrors, setLoadMoreErrors] = useState<Record<string, string | null>>({});
+  const [addingCardByListId, setAddingCardByListId] = useState<Record<string, boolean>>({});
 
-  // Show lists directly from React Query cache - no local state needed
+  // Initialize local cards from React Query cache on mount
+  useEffect(() => {
+    if (!lists || lists.length === 0 || !resolvedBoardId) return;
+
+    let cancelled = false;
+
+    const initializeLocalCards = async () => {
+      setLocalCardsInitialized(false);
+      const initialCards: Record<string, Card[]> = {};
+      const initialPagination: Record<string, any> = {};
+      const labelIds = selectedLabelIds.length > 0 ? selectedLabelIds : undefined;
+      const limit = 10;
+
+      await Promise.all(
+        lists.map(async (list) => {
+          const cachedCards = queryClient.getQueryData<ApiResponse<Card[]>>(
+            queryKeys.cards.list(list.id)
+          );
+
+          if (cachedCards?.data) {
+            initialCards[list.id] = cachedCards.data;
+            initialPagination[list.id] = {
+              currentPage: 1,
+              hasMore: cachedCards.data.length >= limit,
+              totalCards:
+                cachedCards.paginate?.totalData || cachedCards.data.length,
+            };
+            return;
+          }
+
+          try {
+            const response = await cards(
+              list.id,
+              resolvedBoardId,
+              1,
+              limit,
+              labelIds,
+              undefined,
+              undefined
+            );
+
+            if (response?.data) {
+              initialCards[list.id] = response.data;
+              initialPagination[list.id] = {
+                currentPage: 1,
+                hasMore: response.data.length >= limit,
+                totalCards: response.paginate?.totalData || response.data.length,
+              };
+
+              queryClient.setQueryData<ApiResponse<Card[]>>(
+                queryKeys.cards.list(list.id),
+                response
+              );
+            } else {
+              initialCards[list.id] = [];
+              initialPagination[list.id] = {
+                currentPage: 1,
+                hasMore: false,
+                totalCards: 0,
+              };
+            }
+          } catch (error) {
+            console.error("[INIT CARDS] Error:", error);
+            initialCards[list.id] = [];
+            initialPagination[list.id] = {
+              currentPage: 1,
+              hasMore: false,
+              totalCards: 0,
+            };
+          }
+        })
+      );
+
+      if (cancelled) return;
+
+      setLocalCards(initialCards);
+      setCardsPagination(initialPagination);
+      setLocalCardsInitialized(true);
+    };
+
+    initializeLocalCards();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [lists, queryClient, resolvedBoardId, selectedLabelIds]);
+
+  // Sync local cards when list cache updates (e.g., automation-driven changes)
+  useEffect(() => {
+    if (!localCardsInitialized) return;
+
+    const cache = queryClient.getQueryCache();
+    const unsubscribe = cache.subscribe((event) => {
+      if (event?.type !== "updated" || !event.query) return;
+      const key = event.query.queryKey;
+      if (!Array.isArray(key) || key[0] !== "cards" || key[1] !== "list") {
+        return;
+      }
+
+      const listId = key[2] as string | undefined;
+      if (!listId) return;
+      if (lists && !lists.some((list) => list.id === listId)) return;
+      if ((window as any).__DRAG_IN_PROGRESS__) return;
+
+      const data = queryClient.getQueryData<ApiResponse<Card[]>>(key);
+      if (!data?.data) return;
+
+      const cards = data.data; // Extract to ensure type safety
+
+      setLocalCards((prev): Record<string, Card[]> => {
+        const current = prev[listId] || [];
+        const next = cards;
+
+        // Deep comparison: check if card data actually changed (not just IDs)
+        // This is important for automation: labels/CFs can change even if IDs are the same
+        const isSame =
+          current.length === next.length &&
+          current.every((card, idx) => {
+            const nextCard = next[idx];
+            if (!nextCard || card.id !== nextCard.id) return false;
+
+            // Compare labels (automation might add/remove labels)
+            const currentLabels = JSON.stringify(card.labels?.map(l => l.id).sort() || []);
+            const nextLabels = JSON.stringify(nextCard.labels?.map(l => l.id).sort() || []);
+            if (currentLabels !== nextLabels) return false;
+
+            // Compare custom fields (automation might update CFs)
+            const currentCFs = JSON.stringify(card.customFields || []);
+            const nextCFs = JSON.stringify(nextCard.customFields || []);
+            if (currentCFs !== nextCFs) return false;
+
+            // Compare other important fields
+            if (card.name !== nextCard.name) return false;
+            if (card.description !== nextCard.description) return false;
+            if (card.dueDate !== nextCard.dueDate) return false;
+
+            return true;
+          });
+
+        if (isSame) {
+          console.log(`✅ [SYNC] No changes detected for list ${listId}`);
+          return prev;
+        }
+
+        console.log(`🔄 [SYNC] Updating local state for list ${listId} - card data changed!`);
+        return { ...prev, [listId]: next };
+      });
+
+      setCardsPagination((prev) => {
+        const totalCards = data.paginate?.totalData || cards.length;
+        const hasMore = data.paginate?.totalData
+          ? cards.length < totalCards
+          : cards.length >= 10;
+
+        return {
+          ...prev,
+          [listId]: {
+            ...(prev[listId] || {
+              currentPage: 1,
+              hasMore: false,
+              totalCards: 0,
+            }),
+            totalCards,
+            hasMore,
+          },
+        };
+      });
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [queryClient, localCardsInitialized, lists]);
+
+  // Render lists once local cards are initialized
   const shouldRenderLists =
-    !isLoading && Array.isArray(lists) && lists.length >= 0;
+    !isLoading &&
+    Array.isArray(lists) &&
+    lists.length >= 0 &&
+    (localCardsInitialized || lists.length === 0);
 
   // Update Redux state when board details are fetched (same pattern as sidebar)
   useEffect(() => {
@@ -507,8 +732,7 @@ const Board: React.FC = () => {
     currentWorkspace?.name,
   ]);
 
-  const onListDragEnd = useCallback(
-    (result: DropResult) => {
+  const onListDragEnd = (result: DropResult) => {
       const { destination, source, type, draggableId } = result;
 
       // Drop outside any droppable area
@@ -559,9 +783,7 @@ const Board: React.FC = () => {
       }
 
       // Note: Cleanup is now handled in the mutation's onSettled callback
-    },
-    [moveCard]
-  );
+    };
 
   const onDragStart = (start: any): void => {
     // Simple drag start - just add dragging class for CSS transitions
@@ -576,12 +798,16 @@ const Board: React.FC = () => {
         "droppable-card-area-",
         ""
       );
-      const sourceCards = queryClient.getQueryData<ApiResponse<Card[]>>(
-        queryKeys.cards.list(sourceListId)
-      );
-      const originalCard = sourceCards?.data?.find(
-        (c) => c.id === start.draggableId
-      );
+      const sourceCards = sourceListId ? localCards[sourceListId] || [] : [];
+      let originalCard = sourceCards.find((c) => c.id === start.draggableId);
+      if (!originalCard && sourceListId) {
+        const cachedCards = queryClient.getQueryData<ApiResponse<Card[]>>(
+          queryKeys.cards.list(sourceListId)
+        );
+        originalCard = cachedCards?.data?.find(
+          (c) => c.id === start.draggableId
+        );
+      }
 
       const newDragState = {
         cardId: start.draggableId,
@@ -684,6 +910,42 @@ const Board: React.FC = () => {
     });
   };
 
+  // Helper to move card between lists (like checklist reorder)
+  const moveCardBetweenLists = useCallback((
+    sourceListId: string,
+    destListId: string,
+    sourceIndex: number,
+    destIndex: number,
+    cardId: string
+  ): Record<string, Card[]> => {
+    const newLocalCards = { ...localCards };
+
+    // Find card to move
+    const sourceCards = [...(newLocalCards[sourceListId] || [])];
+    const [movedCard] = sourceCards.splice(sourceIndex, 1);
+
+    if (!movedCard) return newLocalCards;
+
+    // Update card's listId
+    const updatedCard = { ...movedCard, listId: destListId };
+
+    if (sourceListId === destListId) {
+      sourceCards.splice(destIndex, 0, updatedCard);
+      newLocalCards[sourceListId] = sourceCards;
+      return newLocalCards;
+    }
+
+    // Add to destination
+    const destCards = [...(newLocalCards[destListId] || [])];
+    destCards.splice(destIndex, 0, updatedCard);
+
+    // Update state
+    newLocalCards[sourceListId] = sourceCards;
+    newLocalCards[destListId] = destCards;
+
+    return newLocalCards;
+  }, [localCards]);
+
   const handleCardDragEnd = (
     sourceList: string,
     sourceIndex: number,
@@ -694,12 +956,10 @@ const Board: React.FC = () => {
     const sourceListId = sourceList?.replaceAll("droppable-card-area-", "");
     const destListId = destList?.replaceAll("droppable-card-area-", "");
 
-    // Store the original position and list BEFORE clearing state
     const originalPosition = currentDragState.current?.originalPosition;
     const originalListId = currentDragState.current?.originalListId;
     const originalCard = currentDragState.current?.originalCard;
 
-    // Determine if there was an actual move by comparing final position with original position
     const actualMove =
       currentDragState.current &&
       originalPosition !== undefined &&
@@ -712,76 +972,53 @@ const Board: React.FC = () => {
       from: originalListId,
       to: destListId,
       actualMove,
-      hasCard: !!originalCard,
     });
 
-    // Set flag to prevent WebSocket interference during API call
     (window as any).__DRAG_IN_PROGRESS__ = true;
-
-    // Clean up drag state
     currentDragState.current = null;
 
-    // If actual move happened, update cache SYNCHRONOUSLY then fire mutation
-    if (actualMove && originalCard && originalListId) {
-      console.log('🚀 [DRAG END] Updating cache SYNCHRONOUSLY');
+    if (actualMove && originalCard && originalListId && destListId) {
+      console.log('🚀 [DRAG END] Updating LOCAL STATE synchronously');
 
-      // CRITICAL: Update cache SYNCHRONOUSLY in onDragEnd (per hello-pangea/dnd docs)
-      // This ensures the reorder happens BEFORE onDragEnd returns
-      flushSync(() => {
-        // Snapshot current cache for rollback
-        const previousSourceCards = queryClient.getQueryData<ApiResponse<Card[]>>(
-          queryKeys.cards.list(originalListId)
-        );
-        const previousTargetCards = queryClient.getQueryData<ApiResponse<Card[]>>(
-          queryKeys.cards.list(destListId)
-        );
+      // Store previous state for rollback
+      const previousLocalCards = { ...localCards };
+      const previousPagination = { ...cardsPagination };
 
-        const cardToMove = previousSourceCards?.data?.find(c => c.id === cardId);
+      // Update local state SYNCHRONOUSLY (instant!)
+      const newLocalCards = moveCardBetweenLists(
+        originalListId,
+        destListId,
+        originalPosition,
+        destIndex,
+        cardId
+      );
+      setLocalCards(newLocalCards);
 
-        if (cardToMove) {
-          // Remove from source list
-          queryClient.setQueriesData<ApiResponse<Card[]>>(
-            { queryKey: queryKeys.cards.list(originalListId) },
-            (old) => {
-              if (!old?.data) return old;
-              return {
-                ...old,
-                data: old.data.filter(c => c.id !== cardId),
-              };
-            }
-          );
+      if (originalListId !== destListId) {
+        setCardsPagination((prev) => ({
+          ...prev,
+          [originalListId]: {
+            ...(prev[originalListId] || {
+              currentPage: 1,
+              hasMore: false,
+              totalCards: 0,
+            }),
+            totalCards: Math.max(0, (prev[originalListId]?.totalCards || 0) - 1),
+          },
+          [destListId]: {
+            ...(prev[destListId] || {
+              currentPage: 1,
+              hasMore: false,
+              totalCards: 0,
+            }),
+            totalCards: (prev[destListId]?.totalCards || 0) + 1,
+          },
+        }));
+      }
 
-          // Add to target list at correct position
-          queryClient.setQueriesData<ApiResponse<Card[]>>(
-            { queryKey: queryKeys.cards.list(destListId) },
-            (old) => {
-              if (!old?.data) return {
-                status_code: 200,
-                message: "Success",
-                data: [{ ...cardToMove, listId: destListId }]
-              };
+      console.log('✅ [DRAG END] Local state updated - INSTANT!');
 
-              const newCards = [...old.data];
-              const updatedCard = { ...cardToMove, listId: destListId };
-              newCards.splice(destIndex, 0, updatedCard);
-
-              return { ...old, data: newCards };
-            }
-          );
-
-          console.log('✅ [DRAG END] Cache updated synchronously with flushSync');
-        }
-
-        // Store rollback data for mutation error handling
-        (window as any).__CARD_MOVE_ROLLBACK__ = {
-          previousSourceCards,
-          previousTargetCards,
-          originalListId,
-          destListId,
-        };
-      });
-
-      // NOW fire mutation in background for persistence (don't await)
+      // Fire mutation in background
       console.log('🔄 [DRAG END] Firing mutation for persistence');
       moveCard(
         {
@@ -792,39 +1029,168 @@ const Board: React.FC = () => {
           targetPosition: destIndex,
         },
         {
-          onError: () => {
-            // Rollback on error
-            const rollback = (window as any).__CARD_MOVE_ROLLBACK__;
-            if (rollback) {
-              if (rollback.previousSourceCards) {
-                queryClient.setQueryData(
-                  queryKeys.cards.list(rollback.originalListId),
-                  rollback.previousSourceCards
-                );
-              }
-              if (rollback.previousTargetCards) {
-                queryClient.setQueryData(
-                  queryKeys.cards.list(rollback.destListId),
-                  rollback.previousTargetCards
-                );
-              }
-            }
-          },
-          onSettled: () => {
-            console.log('✅ [DRAG END] Mutation settled, clearing flag');
+          onSuccess: () => {
+            console.log('✅ [DRAG END] Mutation success - clearing drag flag for sync');
+            // Clear drag flag BEFORE onSettled invalidates queries
+            // This allows the sync effect to pick up the refetched data with updated labels/CFs
             (window as any).__DRAG_IN_PROGRESS__ = false;
-            (window as any).__CARD_MOVE_ROLLBACK__ = null;
+            document.body.classList.remove("dragging");
+          },
+          onError: () => {
+            console.error('❌ [DRAG END] Mutation failed - rolling back');
+            setLocalCards(previousLocalCards);
+            setCardsPagination(previousPagination);
+            (window as any).__DRAG_IN_PROGRESS__ = false;
             document.body.classList.remove("dragging");
           },
         }
       );
     } else {
-      console.log('⚠️ [DRAG END] No actual move detected, cleaning up');
-      // No actual move, just cleanup
       (window as any).__DRAG_IN_PROGRESS__ = false;
       document.body.classList.remove("dragging");
     }
   };
+
+  const loadMoreCards = useCallback(async (listId: string) => {
+    if (!resolvedBoardId) return;
+    const pagination = cardsPagination[listId];
+    if (!pagination || !pagination.hasMore) return;
+    if (loadingMoreByListId[listId]) return;
+
+    const nextPage = pagination.currentPage + 1;
+
+    setLoadingMoreByListId((prev) => ({ ...prev, [listId]: true }));
+    setLoadMoreErrors((prev) => ({ ...prev, [listId]: null }));
+
+    try {
+      const response = await cards(
+        listId,
+        resolvedBoardId,
+        nextPage,
+        10,
+        selectedLabelIds.length > 0 ? selectedLabelIds : undefined,
+        undefined,
+        undefined
+      );
+
+      if (response.data && response.data.length > 0) {
+        const newCards = response.data; // Extract for type safety
+
+        setLocalCards((prev) => {
+          const updatedCards = [...(prev[listId] || []), ...newCards];
+          queryClient.setQueryData<ApiResponse<Card[]>>(
+            queryKeys.cards.list(listId),
+            {
+              ...response,
+              data: updatedCards,
+            }
+          );
+          return {
+            ...prev,
+            [listId]: updatedCards,
+          };
+        });
+
+        setCardsPagination((prev) => ({
+          ...prev,
+          [listId]: {
+            currentPage: nextPage,
+            hasMore: newCards.length >= 10,
+            totalCards: response.paginate?.totalData || prev[listId]?.totalCards || 0,
+          },
+        }));
+      } else {
+        setCardsPagination((prev) => ({
+          ...prev,
+          [listId]: {
+            ...(prev[listId] || {
+              currentPage: 1,
+              hasMore: false,
+              totalCards: 0,
+            }),
+            hasMore: false,
+          },
+        }));
+      }
+    } catch (error) {
+      console.error("[LOAD MORE] Error:", error);
+      setLoadMoreErrors((prev) => ({
+        ...prev,
+        [listId]: "Failed to load more cards. Please try again.",
+      }));
+    } finally {
+      setLoadingMoreByListId((prev) => ({ ...prev, [listId]: false }));
+    }
+  }, [cardsPagination, loadingMoreByListId, queryClient, resolvedBoardId, selectedLabelIds]);
+
+  const retryLoadMoreCards = useCallback((listId: string) => {
+    setLoadMoreErrors((prev) => ({ ...prev, [listId]: null }));
+    loadMoreCards(listId);
+  }, [loadMoreCards]);
+
+  const handleAddCard = useCallback(
+    ({ card, listId }: { card: Partial<Card>; listId: string }) => {
+      if (!listId) return;
+
+      const tempId = `temp-card-${Date.now()}`;
+      const tempCard: Card = {
+        ...card,
+        id: tempId,
+        createdAt: new Date().toISOString(),
+        listId,
+      } as Card;
+
+      setAddingCardByListId((prev) => ({ ...prev, [listId]: true }));
+      setLocalCards((prev) => ({
+        ...prev,
+        [listId]: [tempCard, ...(prev[listId] || [])],
+      }));
+      setCardsPagination((prev) => ({
+        ...prev,
+        [listId]: {
+          currentPage: prev[listId]?.currentPage || 1,
+          hasMore: prev[listId]?.hasMore || false,
+          totalCards: (prev[listId]?.totalCards || 0) + 1,
+        },
+      }));
+
+      addCard(
+        { card, listId },
+        {
+          onSuccess: (response) => {
+            const realCard = response.data;
+            setLocalCards((prev) => ({
+              ...prev,
+              [listId]: (prev[listId] || []).map((c) =>
+                c.id === tempId ? realCard : c
+              ),
+            }));
+          },
+          onError: () => {
+            setLocalCards((prev) => ({
+              ...prev,
+              [listId]: (prev[listId] || []).filter((c) => c.id !== tempId),
+            }));
+            setCardsPagination((prev) => ({
+              ...prev,
+              [listId]: {
+                ...(prev[listId] || {
+                  currentPage: 1,
+                  hasMore: false,
+                  totalCards: 0,
+                }),
+                totalCards: Math.max(0, (prev[listId]?.totalCards || 0) - 1),
+              },
+            }));
+          },
+          onSettled: () => {
+            setAddingCardByListId((prev) => ({ ...prev, [listId]: false }));
+          },
+        }
+      );
+    },
+    [addCard]
+  );
 
   const handleAddList = (): void => {
     if (!newListName || !resolvedBoardId) return;
@@ -850,7 +1216,7 @@ const Board: React.FC = () => {
         dashConfig: dashcardConfig,
       };
 
-      addCard({ card, listId });
+      handleAddCard({ card, listId });
     }
   };
 
@@ -904,7 +1270,14 @@ const Board: React.FC = () => {
                 onTouchEnd={handleTouchEnd}
                 collapsedLists={collapsedLists}
                 onToggleCollapse={handleToggleCollapse}
-                selectedLabelIds={selectedLabelIds}
+                localCards={localCards}
+                cardsPagination={cardsPagination}
+                loadingMoreByListId={loadingMoreByListId}
+                loadMoreErrors={loadMoreErrors}
+                addingCardByListId={addingCardByListId}
+                onLoadMoreCards={loadMoreCards}
+                onRetryLoadMoreCards={retryLoadMoreCards}
+                onAddCard={handleAddCard}
               />
               <HorizontalSlider
                 containerRef={boardScrollContainerRef}

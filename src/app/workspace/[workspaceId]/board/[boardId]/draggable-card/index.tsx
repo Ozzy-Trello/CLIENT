@@ -88,7 +88,7 @@ const DraggableCard: React.FC<DraggableCardProps> = ({ card, index, list }) => {
       {(provided, snapshot) => (
         <CardContextMenu card={card} list={list}>
           <div
-            className={`bg-white rounded-lg border border-gray-200 
+            className={`bg-white rounded-lg border border-gray-200
               w-full draggable-card-container relative group
             hover:border-blue-500 overflow-hidden transition-all duration-200
             ${snapshot.isDragging ? "" : ""}

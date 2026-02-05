@@ -1,5 +1,4 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { flushSync } from "react-dom";
 import { registerMutation } from "./websocket";
 import {
   addCardLabel,
@@ -763,10 +762,9 @@ export function useCardMove(boardId?: string) {
         targetPosition
       );
     },
-    onMutate: ({ cardId, previousListId, targetListId }) => {
-      console.log('🔄 [CARD MOVE] onMutate - cache already updated by onDragEnd', { cardId, previousListId, targetListId });
+    onMutate: ({ previousListId, targetListId }) => {
+      console.log('🔄 [CARD MOVE] onMutate - state updated by parent');
 
-      // Cancel any outgoing refetches (non-blocking for speed)
       queryClient.cancelQueries({
         queryKey: queryKeys.cards.list(previousListId),
       });
@@ -774,23 +772,76 @@ export function useCardMove(boardId?: string) {
         queryKey: queryKeys.cards.list(targetListId),
       });
 
-      // Cache was already updated synchronously in onDragEnd per hello-pangea/dnd requirements
-      // This onMutate just cancels refetches and registers the mutation for WebSocket filtering
       return {};
     },
     onError: () => {
       // Rollback is handled in the onDragEnd callback where we have the rollback data
       console.error('❌ [CARD MOVE] Mutation failed - rollback handled by onDragEnd');
     },
-    onSuccess: (data, variables) => {
-      console.log('✅ [CARD MOVE] Mutation succeeded', { cardId: variables.cardId });
-      // Cache was already updated synchronously in onDragEnd
-      // No need to update again, just log success
+    onSuccess: () => {
+      console.log('✅ [CARD MOVE] Success - local state stays');
     },
-    onSettled: () => {
+    onSettled: (_data, _error, variables) => {
       // NOTE: Flag cleanup is handled in the page.tsx drag handler
-      // NO INVALIDATION AT ALL - rely purely on optimistic update + WebSocket for collaboration
-      // This makes it instant like checklist!
+      // Invalidate list/card caches to pick up automation-driven changes.
+      if (variables?.previousListId) {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.cards.list(variables.previousListId),
+          refetchType: "all",
+        });
+      }
+      if (
+        variables?.targetListId &&
+        variables.targetListId !== variables.previousListId
+      ) {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.cards.list(variables.targetListId),
+          refetchType: "all",
+        });
+      }
+      if (variables?.cardId) {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.cards.detail(variables.cardId),
+          refetchType: "all",
+        });
+        // IMPORTANT: Invalidate card labels to pick up automation-applied label changes
+        // Using partial match because useLabels uses ["cardLabels", workspaceId, cardId]
+        queryClient.invalidateQueries({
+          predicate: (query) => {
+            const key = query.queryKey;
+            return (
+              Array.isArray(key) &&
+              key[0] === "cardLabels" &&
+              key[2] === variables.cardId
+            );
+          },
+          refetchType: "all",
+        });
+        // IMPORTANT: Invalidate card custom fields to pick up automation-applied CF changes
+        // Using partial match because useCardCustomField uses ["cardCustomField", cardId, workspaceId]
+        queryClient.invalidateQueries({
+          predicate: (query) => {
+            const key = query.queryKey;
+            return (
+              Array.isArray(key) &&
+              key[0] === "cardCustomField" &&
+              key[1] === variables.cardId
+            );
+          },
+          refetchType: "all",
+        });
+      }
+      if (boardId) {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.lists.board(boardId),
+        });
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.boards.detail(boardId),
+        });
+      }
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.planner.all,
+      });
     },
   });
 

@@ -1,14 +1,13 @@
-import { Draggable, Droppable, DroppableProvided } from "@hello-pangea/dnd";
+import { Draggable, Droppable } from "@hello-pangea/dnd";
 import ListName from "./list-name";
-import { useCardsPaginated } from "@hooks/card";
 import DraggableCard from "../draggable-card";
 import AddCard from "./add-card";
-import { LIST_SORT_OPTIONS, ListSortKey } from "./sort-options";
+import { ListSortKey } from "./sort-options";
 import { UseMutateFunction } from "@tanstack/react-query";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "antd";
 import { AnyList } from "@myTypes/list";
-import { usePermissions } from "@hooks/account";
+import { Card } from "@myTypes/card";
 import { useBoardPermissionsContext } from "@providers/board-permissions-context";
 import { useSelector } from "react-redux";
 import { selectUser } from "@store/app_slice";
@@ -31,7 +30,15 @@ interface DraggableListProps {
   deleteList: UseMutateFunction<any, Error, { listId: string }, unknown>;
   collapsed?: boolean;
   onToggleCollapse?: (listId: string) => void;
-  selectedLabelIds?: string[];
+  cards: Card[];
+  hasMoreCards: boolean;
+  isLoadingMore: boolean;
+  onLoadMore: () => void;
+  totalCards: number;
+  addCard: ({ card, listId }: { card: Partial<Card>; listId: string }) => void;
+  isAddingCard?: boolean;
+  loadMoreError?: string | null;
+  onRetryLoadMore?: () => void;
 }
 
 const DraggableList: React.FC<DraggableListProps> = ({
@@ -42,7 +49,15 @@ const DraggableList: React.FC<DraggableListProps> = ({
   deleteList,
   collapsed = false,
   onToggleCollapse,
-  selectedLabelIds = [],
+  cards,
+  hasMoreCards,
+  isLoadingMore,
+  onLoadMore,
+  totalCards,
+  addCard,
+  isAddingCard = false,
+  loadMoreError,
+  onRetryLoadMore,
 }) => {
   const listRef = useRef<HTMLDivElement | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
@@ -59,28 +74,7 @@ const DraggableList: React.FC<DraggableListProps> = ({
   );
 
   const [activeSortKey, setActiveSortKey] = useState<ListSortKey>("manual");
-  const activeSortOption =
-    LIST_SORT_OPTIONS.find((option) => option.key === activeSortKey) ??
-    LIST_SORT_OPTIONS[0];
 
-  const {
-    cards,
-    addCard,
-    isLoading,
-    isError,
-    hasMoreCards,
-    isLoadingMore,
-    loadMoreCards,
-    loadMoreError,
-    retryLoadMore,
-    totalCards,
-    isAddingCard,
-  } = useCardsPaginated(list.id, boardId, {
-    labelIds: selectedLabelIds.length > 0 ? selectedLabelIds : undefined,
-    sortBy: activeSortOption.sortBy,
-    sortOrder: activeSortOption.sortOrder,
-  });
-  const { canMove, canCreate } = usePermissions();
   const { canMoveList, canCreateCard } = useBoardPermissionsContext();
   const currentUser = useSelector(selectUser);
   const currentBoard = useSelector(selectCurrentBoard);
@@ -93,7 +87,7 @@ const DraggableList: React.FC<DraggableListProps> = ({
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting) {
-          loadMoreCards();
+          onLoadMore();
         }
       },
       {
@@ -105,7 +99,7 @@ const DraggableList: React.FC<DraggableListProps> = ({
 
     observer.observe(el);
     return () => observer.disconnect();
-  }, [isLoadingMore, hasMoreCards, loadMoreError, loadMoreCards]);
+  }, [isLoadingMore, hasMoreCards, loadMoreError, onLoadMore]);
 
   useEffect(() => {
     setActiveSortKey("manual");
@@ -140,6 +134,39 @@ const DraggableList: React.FC<DraggableListProps> = ({
   // Check if card limit is exceeded
   const isLimitExceeded = list.cardLimit && cards.length > list.cardLimit;
   const listColor = isLimitExceeded ? "#fbbf24" : list.background || "#f9fafb"; // Yellow if limit exceeded, fallback to light gray
+
+  const displayCards = useMemo(() => {
+    if (activeSortKey === "manual") return cards;
+
+    const sorted = [...cards];
+
+    switch (activeSortKey) {
+      case "created_desc":
+        sorted.sort(
+          (a, b) =>
+            new Date(b.createdAt || 0).getTime() -
+            new Date(a.createdAt || 0).getTime()
+        );
+        break;
+      case "created_asc":
+        sorted.sort(
+          (a, b) =>
+            new Date(a.createdAt || 0).getTime() -
+            new Date(b.createdAt || 0).getTime()
+        );
+        break;
+      case "name_asc":
+        sorted.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+        break;
+      case "name_desc":
+        sorted.sort((a, b) => (b.name || "").localeCompare(a.name || ""));
+        break;
+      default:
+        break;
+    }
+
+    return sorted;
+  }, [cards, activeSortKey]);
 
   return (
     <Draggable
@@ -261,7 +288,7 @@ const DraggableList: React.FC<DraggableListProps> = ({
                         </div>
                       )}
                       <div className="space-y-3">
-                        {cards?.map((card, index) => (
+                        {displayCards?.map((card, index) => (
                           <DraggableCard
                             key={card.id}
                             card={card}
@@ -273,7 +300,7 @@ const DraggableList: React.FC<DraggableListProps> = ({
 
                         {/* Load More Button */}
                         {/* Infinite Scroll Sentinel & Loading Indicator */}
-                        {!isLoading && cards.length > 0 && (hasMoreCards || isLoadingMore) && !loadMoreError && (
+                        {cards.length > 0 && (hasMoreCards || isLoadingMore) && !loadMoreError && (
                           <div
                             ref={loadMoreRef}
                             className="flex justify-center p-2 min-h-[40px]"
@@ -288,13 +315,13 @@ const DraggableList: React.FC<DraggableListProps> = ({
                         )}
 
                         {/* Retry Button (Only when error) */}
-                        {loadMoreError && (
+                        {loadMoreError && onRetryLoadMore && (
                           <div className="flex flex-col items-center py-2 space-y-2">
                             <div className="text-xs text-red-500 text-center px-2">
                               {loadMoreError}
                             </div>
                             <button
-                              onClick={retryLoadMore}
+                              onClick={onRetryLoadMore}
                               className="px-4 py-2 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg"
                             >
                               Retry

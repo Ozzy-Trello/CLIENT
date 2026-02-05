@@ -189,9 +189,16 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
         let message = JSON.parse(event.data);
         message = camelcaseKeys(message, { deep: true });
 
-        // Don't process WebSocket updates during drag operations to prevent re-renders
+        // Don't process most WebSocket updates during drag operations to prevent re-renders
+        // Allow label automation events so labels stay in sync without refresh.
         if ((window as any).__DRAG_IN_PROGRESS__) {
-          return;
+          const allowDuringDrag = new Set([
+            "automation:label_added",
+            "automation:label_removed",
+          ]);
+          if (!allowDuringDrag.has(message.event)) {
+            return;
+          }
         }
 
         let refreshDashcard = false;
