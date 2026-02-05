@@ -76,32 +76,32 @@ type CardDetailContextType = {
 const CardDetailContext = createContext<CardDetailContextType>({
   selectedCard: null,
   activeList: null,
-  setSelectedCard: () => {},
+  setSelectedCard: () => { },
   isCardDetailOpen: false,
-  openCardDetail: async () => {},
-  closeCardDetail: () => {},
-  handleItemDashcard: () => {},
+  openCardDetail: async () => { },
+  closeCardDetail: () => { },
+  handleItemDashcard: () => { },
   dashcardConfig: undefined,
-  setDashcardConfig: () => {},
+  setDashcardConfig: () => { },
   itemDashcard: [],
-  setItemDashcard: () => {},
+  setItemDashcard: () => { },
   processedItemDashcard: [],
-  setProcessedItemDashcard: () => {},
+  setProcessedItemDashcard: () => { },
 
   openEditFilter: false,
-  setOpenEditFilter: () => {},
+  setOpenEditFilter: () => { },
 
   currentFilter: [],
-  setCurrentFilter: () => {},
-  handleChangeFilter: () => {},
-  handleDeleteFilter: () => {},
-  saveFilters: () => {},
-  updateDisplayConfig: () => {},
-  updateBackgroundColor: () => {},
-  updateVisibleColumns: () => {},
-  updateColumnOrder: () => {},
-  saveColumnsConfig: async () => {},
-  refetchCardDetails: () => {},
+  setCurrentFilter: () => { },
+  handleChangeFilter: () => { },
+  handleDeleteFilter: () => { },
+  saveFilters: () => { },
+  updateDisplayConfig: () => { },
+  updateBackgroundColor: () => { },
+  updateVisibleColumns: () => { },
+  updateColumnOrder: () => { },
+  saveColumnsConfig: async () => { },
+  refetchCardDetails: () => { },
 
   isUpdatingCard: false,
   isLoadingCardDetails: false,
@@ -220,8 +220,8 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
       const fields = Array.isArray(c?.customFields)
         ? c.customFields
         : Array.isArray(c?.custom_fields)
-        ? c.custom_fields
-        : [];
+          ? c.custom_fields
+          : [];
 
       return (fields as any[])
         .map((f) => {
@@ -269,8 +269,8 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
       customFieldsLen: Array.isArray((card as any).customFields)
         ? (card as any).customFields.length
         : Array.isArray((card as any).custom_fields)
-        ? (card as any).custom_fields.length
-        : 0,
+          ? (card as any).custom_fields.length
+          : 0,
       customFieldsValueSig: customFieldValueSignature(card),
       requestsLen: Array.isArray((card as any).requests)
         ? (card as any).requests.length
@@ -308,8 +308,7 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
       atts
         .map(
           (a) =>
-            `${a.id}-${a.is_cover ?? a.isCover ?? a.isCover}-${a.is_printed ?? a.isPrinted ?? a.isPrinted}-${
-              a.file?.url || ""
+            `${a.id}-${a.is_cover ?? a.isCover ?? a.isCover}-${a.is_printed ?? a.isPrinted ?? a.isPrinted}-${a.file?.url || ""
             }-${a.type || ""}`
         )
         .join("|");
@@ -318,13 +317,13 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
     const prevCustomFields = Array.isArray((prev as any).customFields)
       ? (prev as any).customFields
       : Array.isArray((prev as any).custom_fields)
-      ? (prev as any).custom_fields
-      : [];
+        ? (prev as any).custom_fields
+        : [];
     const nextCustomFields = Array.isArray((next as any).customFields)
       ? (next as any).customFields
       : Array.isArray((next as any).custom_fields)
-      ? (next as any).custom_fields
-      : [];
+        ? (next as any).custom_fields
+        : [];
     if (prevCustomFields.length !== nextCustomFields.length) return false;
 
     const customFieldValueSignature = (fields: any[]) =>
@@ -379,7 +378,9 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
   useEffect(() => {
     if (!isCardDetailOpen) return;
     if (cardDetailsQuery.card) {
-      const incomingSnap = snapshotCard(cardDetailsQuery.card);
+      const fetchedCard = cardDetailsQuery.card;
+      const incomingSnap = snapshotCard(fetchedCard);
+
       if (lastCardSnapshotRef.current && lastCardSnapshotRef.current === incomingSnap) {
         return;
       }
@@ -387,10 +388,22 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
       if (isPending) {
         return;
       }
-      
+
+      // Check if the card's listId has changed (e.g., from automation move)
+      // If so, update the activeList to match
+      const fetchedListId = fetchedCard.listId || (fetchedCard as any).list_id;
+      if (fetchedListId && activeList?.id && fetchedListId !== activeList.id) {
+        console.log("[LABEL LOG] 🔄 CardDetailContext: Card listId changed via WebSocket:", {
+          from: activeList.id,
+          to: fetchedListId,
+          cardId: fetchedCard.id
+        });
+        // Update activeList to reflect the new list
+        setActiveList({ id: fetchedListId } as AnyList);
+      }
+
       // Always update with the complete card data from React Query
       setSelectedCard((prevCard) => {
-        const fetchedCard = cardDetailsQuery.card!;
         const nextSnap = snapshotCard(fetchedCard);
         if (lastCardSnapshotRef.current && lastCardSnapshotRef.current === nextSnap) {
           return prevCard;
@@ -398,12 +411,18 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
         if (isSameCard(prevCard, fetchedCard)) {
           return prevCard;
         }
+
+        // IMPORTANT: Use fetchedCard.listId directly - don't fall back to activeList
+        // This ensures the card shows the correct list after automation moves
+        const newListId = fetchedCard.listId || (fetchedCard as any).list_id || activeList?.id;
+
         const merged = {
           ...(prevCard || {}),
           ...fetchedCard,
-          listId: fetchedCard.listId || activeList?.id,
+          listId: newListId,
         } as Card;
         lastCardSnapshotRef.current = snapshotCard(merged);
+        console.log("[LABEL LOG] 📝 CardDetailContext: Updated selectedCard with listId:", newListId);
         return merged;
       });
     }
@@ -412,7 +431,7 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
   const closeCardDetail = useCallback(() => {
     // Set flag to prevent URL effect from running during this programmatic change
     handleUrlChange.current = true;
-    
+
     setSelectedCard(null);
     setActiveList(null);
     setIsCardDetailOpen(false);
@@ -426,9 +445,9 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
     const newUrl = params.toString()
       ? `${window.location.pathname}?${params.toString()}`
       : window.location.pathname;
-    
+
     router.replace(newUrl, { scroll: false });
-    
+
     // Reset the flag after a short delay to allow URL change to complete
     setTimeout(() => {
       handleUrlChange.current = undefined;
@@ -504,9 +523,9 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
     setDashcardConfig((prev) =>
       prev
         ? {
-            ...prev,
-            filters: currentFilter,
-          }
+          ...prev,
+          filters: currentFilter,
+        }
         : prev
     );
 
@@ -583,9 +602,9 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
     setDashcardConfig((prev) =>
       prev
         ? {
-            ...prev,
-            visibleColumns: columns,
-          }
+          ...prev,
+          visibleColumns: columns,
+        }
         : prev
     );
     handleVisibleColumnsUpdate(columns);
@@ -614,9 +633,9 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
     setDashcardConfig((prev) =>
       prev
         ? {
-            ...prev,
-            columnOrder: columns,
-          }
+          ...prev,
+          columnOrder: columns,
+        }
         : prev
     );
     handleColumnOrderUpdate(columns);
@@ -689,7 +708,7 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
           // Only set the basic state needed for the query to work
           const list: AnyList = { id: listId } as AnyList;
           setActiveList(list);
-          
+
           // Set minimal card object just for the query key, but React Query will provide complete data
           setSelectedCard({ id: cardId, listId: listId } as Card);
         }

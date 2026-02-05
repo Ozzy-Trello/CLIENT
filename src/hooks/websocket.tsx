@@ -1,25 +1,56 @@
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import camelcaseKeys from "camelcase-keys";
-import { EnumUserActionEvent } from "@myTypes/event";
+import {
+  BatchUpdateEvent,
+  EnumBackendWebSocketEvent,
+  EnumUserActionEvent,
+  WebSocketEventPayload,
+} from "@myTypes/event";
 import { queryKeys } from "@constants/query-keys";
+import { useAutomationNotifications } from "@hooks/use-automation-notifications";
+import {
+  handleBatchUpdate,
+  handleBoardUpdated,
+  handleCardAttachmentEvent,
+  handleCardCompletionChanged,
+  handleCardCopied,
+  handleCardDateUpdated,
+  handleCardMemberEvent,
+  handleCardMoved,
+  handleCardUnarchived,
+  handleChecklistItemEvent,
+  handleCustomFieldCleared,
+  handleCustomFieldUpdated,
+  handleListArchived,
+} from "@utils/websocket-event-handlers";
 
-// Mutation tracking utility to prevent double invalidation
-// When a frontend mutation fires, it registers the mutation key.
-// WebSocket handler skips invalidation if the same mutation was just performed locally.
+/**
+ * Tracks recent frontend mutations to avoid processing websocket echoes
+ * that would lead to duplicate invalidations.
+ */
 const recentMutationsSet = new Set<string>();
 const MUTATION_EXPIRY_MS = 3000; // 3 seconds
 
+/**
+ * Register a mutation so that websocket handlers can skip redundant invalidations.
+ */
 export function registerMutation(eventType: string, entityId: string) {
   const key = `${eventType}:${entityId}`;
   recentMutationsSet.add(key);
   setTimeout(() => recentMutationsSet.delete(key), MUTATION_EXPIRY_MS);
 }
 
+/**
+ * Check if an entity was mutated recently from this client.
+ */
 export function wasRecentlyMutated(eventType: string, entityId: string): boolean {
   return recentMutationsSet.has(`${eventType}:${entityId}`);
 }
 
+/**
+ * Normalize the backend URL to the corresponding websocket protocol.
+ */
 function toWebSocketUrl(baseUrl: string) {
   if (baseUrl.startsWith("https://")) {
     return baseUrl.replace("https://", "wss://");
@@ -30,6 +61,10 @@ function toWebSocketUrl(baseUrl: string) {
   return baseUrl;
 }
 
+/**
+ * Create and track the shared websocket connection to the backend.
+ * @returns connection state required by realtime hooks/components.
+ */
 export function useWebSocket() {
   const socketRef = useRef<WebSocket | null>(null);
 
@@ -102,6 +137,10 @@ export function useWebSocket() {
   };
 }
 
+/**
+ * Subscribe to websocket updates and keep React Query caches in sync.
+ * @param socket active websocket connection or null while disconnected.
+ */
 export function useWebSocketCardUpdates(socket: WebSocket | null) {
   const queryClient = useQueryClient();
   // Dashcard invalidation disabled for performance; refs kept for cleanup compatibility.
@@ -659,11 +698,43 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
           }
 
           case "automation:label_added": {
-            const { cardId, labelId, automationRuleId, triggeredBy, addedBy, workspaceId } =
+            const { cardId, labelId, automationRuleId, triggeredBy, addedBy, workspaceId, listId, boardId } =
               message.data;
 
+            console.log("[LABEL LOG] 📨 automation:label_added received", {
+              cardId,
+              labelId,
+              listId,
+              boardId,
+              willInvalidateDetail: !!cardId,
+              willInvalidateList: !!listId,
+              willInvalidateBoard: !!boardId
+            });
+
+            // Invalidate card detail so label appears on card
+            if (cardId) {
+              console.log("[LABEL LOG] Invalidating card detail:", queryKeys.cards.detail(cardId));
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.cards.detail(cardId),
+              });
+            }
+
+            // Invalidate list cards so label appears in list view
+            if (listId) {
+              console.log("[LABEL LOG] Invalidating list cards:", queryKeys.cards.list(listId));
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.cards.list(listId),
+              });
+            }
+
+            // Invalidate board lists
+            if (boardId) {
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.lists.board(boardId),
+              });
+            }
+
             // Only invalidate specific queries for this card
-            // FIXED: Use specific keys instead of exact: false
             if (workspaceId && cardId) {
               queryClient.invalidateQueries({
                 queryKey: ["cardLabels", workspaceId, cardId],
@@ -683,16 +754,48 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
               });
             }
 
-            // Skip dashcard refresh for automation label changes
+            refreshDashcard = true;
             break;
           }
 
           case "automation:label_removed": {
-            const { cardId, labelId, automationRuleId, triggeredBy, workspaceId } =
+            const { cardId, labelId, automationRuleId, triggeredBy, workspaceId, listId, boardId } =
               message.data;
 
+            console.log("[LABEL LOG] 📨 automation:label_removed received", {
+              cardId,
+              labelId,
+              listId,
+              boardId,
+              willInvalidateDetail: !!cardId,
+              willInvalidateList: !!listId,
+              willInvalidateBoard: !!boardId
+            });
+
+            // Invalidate card detail so label removal appears on card
+            if (cardId) {
+              console.log("[LABEL LOG] Invalidating card detail:", queryKeys.cards.detail(cardId));
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.cards.detail(cardId),
+              });
+            }
+
+            // Invalidate list cards so label removal appears in list view
+            if (listId) {
+              console.log("[LABEL LOG] Invalidating list cards:", queryKeys.cards.list(listId));
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.cards.list(listId),
+              });
+            }
+
+            // Invalidate board lists
+            if (boardId) {
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.lists.board(boardId),
+              });
+            }
+
             // Only invalidate specific queries for this card
-            // FIXED: Use specific keys instead of exact: false
             if (workspaceId && cardId) {
               queryClient.invalidateQueries({
                 queryKey: ["cardLabels", workspaceId, cardId],
@@ -712,7 +815,7 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
               });
             }
 
-            // Skip dashcard refresh for automation label changes
+            refreshDashcard = true;
             break;
           }
 
@@ -899,8 +1002,262 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             break;
           }
 
+          // Handle automation-triggered events (board.card.* format)
+          case EnumBackendWebSocketEvent.CARD_CREATED: {
+            const { cardId, listId, boardId, workspaceId } = message.data;
+            console.log("[WS] 🤖 board.card.created event:", { cardId, listId, boardId, triggeredBy: message.data?.triggeredBy });
+
+            // Invalidate list cards to show the new card
+            if (listId) {
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.cards.list(listId),
+                refetchType: "all",
+              });
+            }
+            // Invalidate board lists
+            if (boardId) {
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.lists.board(boardId),
+              });
+            }
+            refreshDashcard = true;
+            break;
+          }
+
+          case EnumBackendWebSocketEvent.CARD_ARCHIVED: {
+            const { cardId, listId, boardId } = message.data;
+            console.log("[WS] 🤖 board.card.archived event:", { cardId, listId, boardId, triggeredBy: message.data?.triggeredBy });
+
+            // Invalidate list cards to remove the archived card
+            if (listId) {
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.cards.list(listId),
+              });
+            }
+            // Invalidate card detail
+            if (cardId) {
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.cards.detail(cardId),
+              });
+            }
+            // Invalidate archived cards query
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.cards.archived(),
+            });
+            // Invalidate board lists
+            if (boardId) {
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.lists.board(boardId),
+              });
+            }
+            refreshDashcard = true;
+            break;
+          }
+
+          case EnumBackendWebSocketEvent.CARD_UPDATED: {
+            const { cardId, listId, boardId } = message.data;
+            console.log("[WS] 🤖 board.card.updated event:", { cardId, listId, boardId, triggeredBy: message.data?.triggeredBy });
+
+            // Invalidate card detail
+            if (cardId) {
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.cards.detail(cardId),
+              });
+            }
+            // Invalidate list cards
+            if (listId) {
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.cards.list(listId),
+              });
+            }
+            // Invalidate board lists
+            if (boardId) {
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.lists.board(boardId),
+              });
+            }
+            refreshDashcard = true;
+            break;
+          }
+
+          case EnumBackendWebSocketEvent.CARD_CHECKLIST_ADDED: {
+            const { cardId, listId, boardId } = message.data;
+            console.log("[WS] 🤖 board.card.checklist.added event:", { cardId, triggeredBy: message.data?.triggeredBy });
+
+            // Invalidate checklist queries for this card
+            if (cardId) {
+              queryClient.invalidateQueries({
+                queryKey: ["checklists", cardId],
+              });
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.cards.detail(cardId),
+              });
+            }
+            // Invalidate list cards
+            if (listId) {
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.cards.list(listId),
+              });
+            }
+            refreshDashcard = true;
+            break;
+          }
+
+          case EnumBackendWebSocketEvent.CARD_MOVED:
+            handleCardMoved(
+              queryClient,
+              message.data as WebSocketEventPayload
+            );
+            refreshDashcard = true;
+            break;
+
+          case EnumBackendWebSocketEvent.CARD_UNARCHIVED:
+            handleCardUnarchived(
+              queryClient,
+              message.data as WebSocketEventPayload
+            );
+            refreshDashcard = true;
+            break;
+
+          case EnumBackendWebSocketEvent.CARD_COPIED:
+            handleCardCopied(
+              queryClient,
+              message.data as WebSocketEventPayload
+            );
+            refreshDashcard = true;
+            break;
+
+          case EnumBackendWebSocketEvent.CARD_CUSTOM_FIELD_UPDATED:
+            handleCustomFieldUpdated(
+              queryClient,
+              message.data as WebSocketEventPayload
+            );
+            refreshDashcard = true;
+            break;
+
+          case EnumBackendWebSocketEvent.CARD_CUSTOM_FIELD_CLEARED:
+            handleCustomFieldCleared(
+              queryClient,
+              message.data as WebSocketEventPayload
+            );
+            refreshDashcard = true;
+            break;
+
+          case EnumBackendWebSocketEvent.CARD_CHECKLIST_ITEM_CHECKED:
+          case EnumBackendWebSocketEvent.CARD_CHECKLIST_ITEM_UNCHECKED:
+          case EnumBackendWebSocketEvent.CARD_CHECKLIST_ITEM_ADDED:
+          case EnumBackendWebSocketEvent.CARD_CHECKLIST_ITEM_REMOVED:
+            handleChecklistItemEvent(
+              queryClient,
+              message.data as WebSocketEventPayload
+            );
+            refreshDashcard = true;
+            break;
+
+          case EnumBackendWebSocketEvent.CARD_MEMBER_ADDED:
+          case EnumBackendWebSocketEvent.CARD_MEMBER_REMOVED:
+            handleCardMemberEvent(
+              queryClient,
+              message.data as WebSocketEventPayload
+            );
+            refreshDashcard = true;
+            break;
+
+          case EnumBackendWebSocketEvent.CARD_ATTACHMENT_ADDED:
+          case EnumBackendWebSocketEvent.CARD_ATTACHMENT_REMOVED:
+            handleCardAttachmentEvent(
+              queryClient,
+              message.data as WebSocketEventPayload
+            );
+            refreshDashcard = true;
+            break;
+
+          case EnumBackendWebSocketEvent.LIST_ARCHIVED:
+            handleListArchived(
+              queryClient,
+              message.data as WebSocketEventPayload
+            );
+            refreshDashcard = true;
+            break;
+
+          case EnumBackendWebSocketEvent.BOARD_UPDATED:
+            handleBoardUpdated(
+              queryClient,
+              message.data as WebSocketEventPayload
+            );
+            refreshDashcard = true;
+            break;
+
+          case EnumBackendWebSocketEvent.CARD_DATE_UPDATED:
+            handleCardDateUpdated(
+              queryClient,
+              message.data as WebSocketEventPayload
+            );
+            refreshDashcard = true;
+            break;
+
+          case EnumBackendWebSocketEvent.CARD_COMPLETION_CHANGED:
+            handleCardCompletionChanged(
+              queryClient,
+              message.data as WebSocketEventPayload
+            );
+            refreshDashcard = true;
+            break;
+
+          case EnumBackendWebSocketEvent.BATCH_UPDATE:
+            handleBatchUpdate(
+              queryClient,
+              message.data as BatchUpdateEvent
+            );
+            refreshDashcard = true;
+            break;
+
           default:
             break;
+        }
+
+        // triggeredBy tells us whether the server sent this as automation vs user action.
+        // For automation events, we perform comprehensive invalidation to ensure UI stays in sync
+        if (message.data?.triggeredBy === "automation") {
+          console.log(
+            "[WS] 🤖 Automation event received:",
+            {
+              event: message.event,
+              cardId: message.data?.cardId,
+              boardId: message.data?.boardId,
+              listId: message.data?.listId,
+              ruleId: message.data?.metadata?.ruleId,
+              actionType: message.data?.metadata?.actionType,
+            }
+          );
+
+          // Always invalidate affected card, list, and board queries for automation events
+          // This ensures UI stays in sync without requiring manual refresh
+          const { cardId, listId, boardId, workspaceId } = message.data;
+
+          if (cardId) {
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.cards.detail(cardId),
+            });
+          }
+
+          if (listId) {
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.cards.list(listId),
+            });
+          }
+
+          if (boardId) {
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.lists.board(boardId),
+            });
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.boards.detail(boardId),
+            });
+          }
+
+          // Force dashcard refresh for automation events
+          refreshDashcard = true;
         }
 
         if (refreshDashcard) {
@@ -923,9 +1280,13 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
   }, [socket, queryClient]);
 }
 
+/**
+ * Bundle websocket connection state, cache updates, and automation notifications.
+ */
 export function useRealtimeUpdates() {
   const { socket, isConnected } = useWebSocket();
   useWebSocketCardUpdates(socket);
+  useAutomationNotifications(socket);
 
   return { socket, isConnected };
 }
