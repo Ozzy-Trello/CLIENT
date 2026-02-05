@@ -798,26 +798,24 @@ export function useCardMove(boardId?: string) {
       document.body.classList.remove("dragging");
       (window as any).__DRAG_IN_PROGRESS__ = false;
 
-      // Always invalidate queries after the mutation completes to ensure consistency
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.cards.list(variables.previousListId),
-      });
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.cards.list(variables.targetListId),
-      });
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.planner.all,
-      });
+      // FIXED: Removed immediate invalidation to prevent race condition with optimistic updates
+      // The WebSocket event will handle the real-time update
+      // Keep delayed invalidation as safety net in case WebSocket event is missed
 
-      // Small delay to catch any missed WebSocket updates during drag
-      setTimeout(() => {
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.cards.list(variables.previousListId),
-        });
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.cards.list(variables.targetListId),
-        });
-      }, 100);
+      // Delayed invalidation as safety net (only if mutation succeeded)
+      if (!error && data) {
+        setTimeout(() => {
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.cards.list(variables.previousListId),
+          });
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.cards.list(variables.targetListId),
+          });
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.planner.all,
+          });
+        }, 500); // Increased delay to allow backend/WebSocket to propagate changes
+      }
     },
   });
 
