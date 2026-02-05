@@ -14,6 +14,10 @@ import { Label, CardLabel } from "@myTypes/label";
 import { ApiResponse } from "@myTypes/type";
 import { useState, useEffect } from "react";
 import { registerMutation } from "./websocket";
+import {
+  invalidateCardContext,
+  resolveCardContextForInvalidation,
+} from "@utils/query-invalidation";
 
 export function useLabels(
   workspaceId: string,
@@ -56,6 +60,32 @@ export function useLabels(
     enabled:
       isGloballyEnabled && !!workspaceId && !!cardId && !isTempCard,
   });
+
+  const invalidateCardLabelContext = () => {
+    if (!cardId) return;
+
+    const cardContext = resolveCardContextForInvalidation(
+      queryClient,
+      cardId
+    );
+
+    if (cardContext) {
+      invalidateCardContext(queryClient, cardContext);
+      return;
+    }
+
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.cards.detail(cardId),
+    });
+
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.cards.all,
+    });
+
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.planner.all,
+    });
+  };
 
   // ---------- Mutations ----------
   const createLabelMutation = useMutation({
@@ -212,6 +242,7 @@ export function useLabels(
     onSuccess: (_, { labelId }) => {
       // Register this mutation so WebSocket handler skips duplicate invalidation
       if (cardId) registerMutation("label:added", `${cardId}:${labelId}`);
+      invalidateCardLabelContext();
     },
     onSettled: () => {
       // Only invalidate label queries - optimistic update handles UI
@@ -223,6 +254,7 @@ export function useLabels(
         queryClient.invalidateQueries({
           queryKey: ["cardLabels", workspaceId, cardId],
         });
+      invalidateCardLabelContext();
     },
   });
 
@@ -265,6 +297,7 @@ export function useLabels(
     onSuccess: (_, { labelId }) => {
       // Register this mutation so WebSocket handler skips duplicate invalidation
       if (cardId) registerMutation("label:removed", `${cardId}:${labelId}`);
+      invalidateCardLabelContext();
     },
     onSettled: () => {
       // Only invalidate label queries - optimistic update handles UI
@@ -274,6 +307,7 @@ export function useLabels(
         queryClient.invalidateQueries({
           queryKey: ["cardLabels", workspaceId, cardId],
         });
+      invalidateCardLabelContext();
     },
   });
 
@@ -328,6 +362,31 @@ export function usePaginatedLabels(
   const [hasMore, setHasMore] = useState(true);
   const limit = 10;
   const queryClient = useQueryClient();
+  const invalidateCardLabelContextPaginated = () => {
+    if (!cardId) return;
+
+    const cardContext = resolveCardContextForInvalidation(
+      queryClient,
+      cardId
+    );
+
+    if (cardContext) {
+      invalidateCardContext(queryClient, cardContext);
+      return;
+    }
+
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.cards.detail(cardId),
+    });
+
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.cards.all,
+    });
+
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.planner.all,
+    });
+  };
 
   const { isFetching } = useQuery({
     queryKey: ["labels", workspaceId, labelQueryParams, page],
@@ -386,6 +445,7 @@ export function usePaginatedLabels(
       queryClient.invalidateQueries({
         queryKey: ["cardLabels", workspaceId, cardId],
       });
+      invalidateCardLabelContextPaginated();
     },
   });
 
@@ -435,6 +495,7 @@ export function usePaginatedLabels(
       queryClient.invalidateQueries({
         queryKey: ["cardLabels", workspaceId, cardId],
       });
+      invalidateCardLabelContextPaginated();
     },
   });
 

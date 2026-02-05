@@ -831,18 +831,16 @@ const TablePivot: FC = () => {
         onHeaderDragStart={handleHeaderDragStart}
         onHeaderDrop={handleHeaderDrop}
       />
-      {grouping.length === 0 && (
-        <PivotPagination
-          table={table}
-          onPrev={() => setPageIndex(table.getState().pagination.pageIndex - 1)}
-          onNext={() => setPageIndex(table.getState().pagination.pageIndex + 1)}
-          pageSizeChoice={pageSizeChoice}
-          pageSizeOptions={pageSizeOptions}
-          onPageSizeChange={(val) => {
-            setPageSizeChoice(val as any);
-          }}
-        />
-      )}
+      <PivotPagination
+        table={table}
+        onPrev={() => setPageIndex(table.getState().pagination.pageIndex - 1)}
+        onNext={() => setPageIndex(table.getState().pagination.pageIndex + 1)}
+        pageSizeChoice={pageSizeChoice}
+        pageSizeOptions={pageSizeOptions}
+        onPageSizeChange={(val) => {
+          setPageSizeChoice(val as any);
+        }}
+      />
     </div>
   );
 };

@@ -41,3 +41,53 @@ export const deleteChecklist = async (id: string): Promise<ApiResponse<null>> =>
   const { data } = await api.delete(`/checklist/${id}`);
   return data;
 };
+
+/**
+ * Move a checklist item between checklists
+ */
+export async function moveChecklistItemBetween(params: {
+  sourceChecklistId: string;
+  destinationChecklistId: string;
+  sourceIndex: number;
+  destinationIndex: number;
+  item: ChecklistItem;
+}) {
+  const {
+    sourceChecklistId,
+    destinationChecklistId,
+    sourceIndex,
+    destinationIndex,
+    item,
+  } = params;
+
+  const [sourceChecklist, destinationChecklist] = await Promise.all([
+    getChecklistById(sourceChecklistId),
+    getChecklistById(destinationChecklistId),
+  ]);
+
+  if (!sourceChecklist.data || !destinationChecklist.data) {
+    throw new Error("Checklist not found");
+  }
+
+  const sourceData = [...sourceChecklist.data.data];
+  sourceData.splice(sourceIndex, 1);
+
+  const destinationData = [...destinationChecklist.data.data];
+  destinationData.splice(destinationIndex, 0, item);
+
+  await Promise.all([
+    updateChecklist(sourceChecklistId, {
+      title: sourceChecklist.data.title,
+      data: sourceData,
+    }),
+    updateChecklist(destinationChecklistId, {
+      title: destinationChecklist.data.title,
+      data: destinationData,
+    }),
+  ]);
+
+  return {
+    sourceChecklist: sourceData,
+    destinationChecklist: destinationData,
+  };
+}

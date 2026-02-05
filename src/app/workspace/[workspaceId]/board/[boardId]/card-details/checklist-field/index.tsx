@@ -15,7 +15,7 @@ import { Draggable, Droppable, DropResult } from "@hello-pangea/dnd";
 import { CheckSquare, Trash2, Clock, User, X, GripVertical, Edit } from "lucide-react";
 import { useCardDetailContext } from "@providers/card-detail-context";
 import { useCardChecklists, useDeleteChecklist } from "@hooks/checklist";
-import { updateChecklist } from "@api/checklist";
+import { updateChecklist, moveChecklistItemBetween } from "@api/checklist";
 import { ChecklistDTO, ChecklistItem } from "@myTypes/checklist";
 import { useAccountList } from "@hooks/account";
 import dayjs from "dayjs";
@@ -136,6 +136,13 @@ const ChecklistFields: React.FC = () => {
       await refetch();
     }
   };
+
+  const getVisibleChecklistItems = (checklist: ChecklistDTO) =>
+    checklist.data
+      .map((item, originalIndex) => ({ item, originalIndex }))
+      .filter(
+        ({ item }) => !hideCheckedItems[checklist.id] || !item.checked
+      );
 
   const renameChecklist = async (checklist: ChecklistDTO, nextTitle: string) => {
     const title = nextTitle.trim();
@@ -316,7 +323,11 @@ const ChecklistFields: React.FC = () => {
   const handleDragEnd = async (result: DropResult) => {
     const { destination, source, type } = result;
     if (!destination) return;
-    if (destination.index === source.index) return;
+    if (
+      destination.droppableId === source.droppableId &&
+      destination.index === source.index
+    )
+      return;
 
     if (type === "CHECKLIST") {
       if (destination.droppableId !== source.droppableId) return;
@@ -350,29 +361,89 @@ const ChecklistFields: React.FC = () => {
 
     // Checklist item reorder (within the same checklist)
     if (type === "CHECKLIST_ITEM") {
-      if (destination.droppableId !== source.droppableId) return;
+      const sourceChecklistId = source.droppableId;
+      const destinationChecklistId = destination.droppableId;
+      const checklist = displayedChecklists.find(
+        (cl) => cl.id === sourceChecklistId
+      );
 
-      const checklistId = source.droppableId;
-      const checklist = displayedChecklists.find((cl) => cl.id === checklistId);
       if (!checklist) return;
 
-      // If items are filtered (hide checked items), dragging is disabled
-      if (hideCheckedItems[checklistId]) {
-        message.info("Show checked items to reorder");
+      if (sourceChecklistId === destinationChecklistId) {
+        if (hideCheckedItems[sourceChecklistId]) {
+          message.info("Show checked items to reorder");
+          return;
+        }
+
+        const updatedData = reorder(
+          checklist.data,
+          source.index,
+          destination.index
+        );
+        const updatedChecklist: ChecklistDTO = {
+          ...checklist,
+          data: updatedData,
+        };
+        setLocalChecklists((prev) =>
+          prev.map((cl) => (cl.id === sourceChecklistId ? updatedChecklist : cl))
+        );
+
+        await persistChecklistUpdate(updatedChecklist);
         return;
       }
 
-      const updatedData = reorder(
-        checklist.data,
-        source.index,
-        destination.index
-      );
-      const updatedChecklist: ChecklistDTO = { ...checklist, data: updatedData };
-      setLocalChecklists((prev) =>
-        prev.map((cl) => (cl.id === checklistId ? updatedChecklist : cl))
+      const destinationChecklist = displayedChecklists.find(
+        (cl) => cl.id === destinationChecklistId
       );
 
-      await persistChecklistUpdate(updatedChecklist);
+      if (!destinationChecklist) return;
+
+      const sourceVisibleItems = getVisibleChecklistItems(checklist);
+      const movingItemEntry = sourceVisibleItems[source.index];
+      if (!movingItemEntry) return;
+
+      const destinationVisibleItems = getVisibleChecklistItems(
+        destinationChecklist
+      );
+
+      const destinationIndex =
+        destination.index >= destinationVisibleItems.length
+          ? destinationChecklist.data.length
+          : destinationVisibleItems[destination.index].originalIndex;
+
+      const sourceIndex = movingItemEntry.originalIndex;
+      const movingItem = movingItemEntry.item;
+
+      setLocalInitialized(true);
+      setLocalChecklists((prev) =>
+        prev.map((cl) => {
+          if (cl.id === sourceChecklistId) {
+            const nextData = [...cl.data];
+            nextData.splice(sourceIndex, 1);
+            return { ...cl, data: nextData };
+          }
+          if (cl.id === destinationChecklistId) {
+            const nextData = [...cl.data];
+            nextData.splice(destinationIndex, 0, movingItem);
+            return { ...cl, data: nextData };
+          }
+          return cl;
+        })
+      );
+
+      try {
+        await moveChecklistItemBetween({
+          sourceChecklistId,
+          destinationChecklistId,
+          sourceIndex,
+          destinationIndex,
+          item: movingItem,
+        });
+        await refetch();
+      } catch (error) {
+        message.error("Failed to move checklist item");
+        await refetch();
+      }
     }
   };
 
@@ -408,13 +479,8 @@ const ChecklistFields: React.FC = () => {
                 >
                   {displayedChecklists.map(
                     (checklist: ChecklistDTO, checklistIndex: number) => {
-                      const isReorderDisabled = !!hideCheckedItems[checklist.id];
-                      const itemsToRender = checklist.data
-                        .map((item, originalIndex) => ({ item, originalIndex }))
-                        .filter(
-                          ({ item }) =>
-                            !hideCheckedItems[checklist.id] || !item.checked
-                        );
+                    const isReorderDisabled = !!hideCheckedItems[checklist.id];
+                    const itemsToRender = getVisibleChecklistItems(checklist);
 
                       const checklistDraggableId = `checklist:${checklist.id}`;
 

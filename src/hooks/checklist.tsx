@@ -1,12 +1,38 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, QueryClient } from "@tanstack/react-query";
 import { 
   createChecklist, 
   deleteChecklist, 
   getChecklistById, 
   getChecklistsByCardId, 
-  updateChecklist 
+  updateChecklist,
+  moveChecklistItemBetween
 } from "../api/checklist";
 import { ChecklistDTO, ChecklistItem, CreateChecklistDTO, UpdateChecklistDTO } from "@myTypes/checklist";
+import { queryKeys } from "../constants/query-keys";
+import {
+  invalidateCardContext,
+  resolveCardContextForInvalidation,
+} from "@utils/query-invalidation";
+
+const invalidateChecklistCardContext = (queryClient: QueryClient, cardId: string) => {
+  if (!cardId) return;
+  const cardContext = resolveCardContextForInvalidation(queryClient, cardId);
+
+  if (cardContext) {
+    invalidateCardContext(queryClient, cardContext);
+    return;
+  }
+
+  queryClient.invalidateQueries({
+    queryKey: queryKeys.cards.detail(cardId),
+  });
+  queryClient.invalidateQueries({
+    queryKey: queryKeys.cards.all,
+  });
+  queryClient.invalidateQueries({
+    queryKey: queryKeys.planner.all,
+  });
+};
 
 /**
  * Hook to fetch all checklists for a card
@@ -44,6 +70,9 @@ export function useCreateChecklist() {
       // Invalidate all checklists queries and specifically the card's checklists
       queryClient.invalidateQueries({ queryKey: ['checklists'] });
       queryClient.invalidateQueries({ queryKey: ['checklists', variables.card_id] });
+      if (variables.card_id) {
+        invalidateChecklistCardContext(queryClient, variables.card_id);
+      }
     },
   });
 }
@@ -60,6 +89,7 @@ export function useUpdateChecklist(checklistId: string, cardId: string) {
       // Invalidate the specific checklist and all checklists for this card
       queryClient.invalidateQueries({ queryKey: ['checklist', checklistId] });
       queryClient.invalidateQueries({ queryKey: ['checklists', cardId] });
+      invalidateChecklistCardContext(queryClient, cardId);
     },
   });
 }
@@ -75,6 +105,7 @@ export function useDeleteChecklist(cardId: string) {
     onSuccess: () => {
       // Invalidate all checklists for this card
       queryClient.invalidateQueries({ queryKey: ['checklists', cardId] });
+      invalidateChecklistCardContext(queryClient, cardId);
     },
   });
 }
@@ -107,6 +138,7 @@ export function useAddChecklistItem(cardId: string) {
       // Invalidate the specific checklist and all checklists for this card
       queryClient.invalidateQueries({ queryKey: ['checklist', variables.checklistId] });
       queryClient.invalidateQueries({ queryKey: ['checklists', cardId] });
+      invalidateChecklistCardContext(queryClient, cardId);
     },
   });
 }
@@ -147,6 +179,7 @@ export function useToggleChecklistItem(cardId: string) {
       // Invalidate the specific checklist and all checklists for this card
       queryClient.invalidateQueries({ queryKey: ['checklist', variables.checklistId] });
       queryClient.invalidateQueries({ queryKey: ['checklists', cardId] });
+      invalidateChecklistCardContext(queryClient, cardId);
     },
   });
 }
@@ -179,6 +212,7 @@ export function useRemoveChecklistItem(cardId: string) {
       // Invalidate the specific checklist and all checklists for this card
       queryClient.invalidateQueries({ queryKey: ['checklist', variables.checklistId] });
       queryClient.invalidateQueries({ queryKey: ['checklists', cardId] });
+      invalidateChecklistCardContext(queryClient, cardId);
     },
   });
 }
@@ -216,6 +250,74 @@ export function useUpdateChecklistItem(cardId: string) {
       // Invalidate the specific checklist and all checklists for this card
       queryClient.invalidateQueries({ queryKey: ['checklist', variables.checklistId] });
       queryClient.invalidateQueries({ queryKey: ['checklists', cardId] });
+      invalidateChecklistCardContext(queryClient, cardId);
+    },
+  });
+}
+
+/**
+ * Hook to move a checklist item between checklists
+ */
+export function useMoveChecklistItemBetween(cardId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: {
+      sourceChecklistId: string;
+      destinationChecklistId: string;
+      sourceIndex: number;
+      destinationIndex: number;
+      item: ChecklistItem;
+    }) => moveChecklistItemBetween(params),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['checklist', variables.sourceChecklistId] });
+      queryClient.invalidateQueries({ queryKey: ['checklist', variables.destinationChecklistId] });
+      queryClient.invalidateQueries({ queryKey: ['checklists', cardId] });
+      invalidateChecklistCardContext(queryClient, cardId);
+    },
+  });
+}
+
+/**
+ * Hook to reorder items within the same checklist
+ */
+export function useReorderChecklistItem(cardId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      checklistId,
+      startIndex,
+      endIndex,
+    }: {
+      checklistId: string;
+      startIndex: number;
+      endIndex: number;
+    }) => {
+      const currentChecklist = await getChecklistById(checklistId);
+
+      if (!currentChecklist.data) {
+        throw new Error("Checklist not found");
+      }
+
+      const updatedData = [...currentChecklist.data.data];
+      const [movedItem] = updatedData.splice(startIndex, 1);
+
+      if (!movedItem) {
+        throw new Error("Checklist item not found");
+      }
+
+      updatedData.splice(endIndex, 0, movedItem);
+
+      return updateChecklist(checklistId, {
+        title: currentChecklist.data.title,
+        data: updatedData,
+      });
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['checklist', variables.checklistId] });
+      queryClient.invalidateQueries({ queryKey: ['checklists', cardId] });
+      invalidateChecklistCardContext(queryClient, cardId);
     },
   });
 }

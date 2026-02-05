@@ -14,6 +14,10 @@ import {
 } from "../types/card";
 import { useEffect, useMemo } from "react";
 import { queryKeys } from "../constants/query-keys";
+import {
+  invalidateCardContext,
+  resolveCardContextForInvalidation,
+} from "@utils/query-invalidation";
 
 /**
  * Hook to manage card attachments
@@ -68,6 +72,28 @@ export function useCardAttachment(
     };
   }, [cardId, queryClient, shouldFetch]);
 
+  const invalidateCardAndRelated = (targetCardId: string) => {
+    const cardContext = resolveCardContextForInvalidation(
+      queryClient,
+      targetCardId
+    );
+
+    if (cardContext) {
+      invalidateCardContext(queryClient, cardContext);
+      return;
+    }
+
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.cards.all,
+    });
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.cards.detail(targetCardId),
+    });
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.planner.all,
+    });
+  };
+
   // Create attachment mutation with simple refetch approach
   const addAttachmentMutation = useMutation({
     mutationFn: ({
@@ -98,17 +124,12 @@ export function useCardAttachment(
         metadata,
       });
     },
-    onSuccess: (data, variables) => {
+    onSuccess: (_, variables) => {
       // Refetch attachments to get the latest data
       queryClient.invalidateQueries({
         queryKey: ["cardAttachment", variables.cardId],
       });
-      queryClient.invalidateQueries({
-        queryKey: ["cards"],
-      });
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.cards.detail(variables.cardId),
-      });
+      invalidateCardAndRelated(variables.cardId);
     },
   });
 
@@ -123,17 +144,12 @@ export function useCardAttachment(
     }) => {
       return deleteCardAttachment(attachmentId);
     },
-    onSuccess: (data, variables) => {
+    onSuccess: (_, variables) => {
       // Refetch attachments to get the latest data
       queryClient.invalidateQueries({
         queryKey: ["cardAttachment", variables.cardId],
       });
-      queryClient.invalidateQueries({
-        queryKey: ["cards"],
-      });
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.cards.detail(variables.cardId),
-      });
+      invalidateCardAndRelated(variables.cardId);
     },
   });
 
@@ -141,9 +157,7 @@ export function useCardAttachment(
     mutationFn: (id: string) => updateCardAttachment(id, { is_printed: true }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cardAttachment", cardId] });
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.cards.detail(cardId),
-      });
+      invalidateCardAndRelated(cardId);
     },
   });
 
@@ -159,12 +173,7 @@ export function useCardAttachment(
       queryClient.invalidateQueries({
         queryKey: ["cardAttachment", variables.cardId],
       });
-      queryClient.invalidateQueries({
-        queryKey: ["cards"],
-      });
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.cards.detail(variables.cardId),
-      });
+      invalidateCardAndRelated(variables.cardId);
     },
   });
 
@@ -187,9 +196,7 @@ export function useCardAttachment(
       queryClient.invalidateQueries({
         queryKey: ["cardAttachment", variables.cardId],
       });
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.cards.detail(variables.cardId),
-      });
+      invalidateCardAndRelated(variables.cardId);
     },
   });
 

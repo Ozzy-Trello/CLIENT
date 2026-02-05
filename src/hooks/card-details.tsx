@@ -3,6 +3,10 @@ import api from "@api/index";
 import { queryKeys } from "@constants/query-keys";
 import { Card } from "@myTypes/card";
 import { ApiResponse } from "@myTypes/type";
+import {
+  invalidateCardContext,
+  resolveCardContextForInvalidation,
+} from "@utils/query-invalidation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 export function useCardDetails(
@@ -29,9 +33,42 @@ export function useCardDetails(
       if (!cardsData) return undefined;
 
       const foundCard = cardsData.data?.find((card) => card.id === cardId);
-      return foundCard ? { data: foundCard } : undefined;
-    },
-  });
+    return foundCard ? { data: foundCard } : undefined;
+  },
+});
+
+  const invalidateCardContextOrFallback = (
+    targetCardId: string,
+    fallbackListId?: string
+  ) => {
+    const cardContext = resolveCardContextForInvalidation(
+      queryClient,
+      targetCardId
+    );
+
+    if (cardContext) {
+      invalidateCardContext(queryClient, cardContext);
+      return;
+    }
+
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.cards.detail(targetCardId),
+    });
+
+    if (fallbackListId) {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.cards.list(fallbackListId),
+      });
+    }
+
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.lists.all,
+    });
+
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.planner.all,
+    });
+  };
 
   // Mutation for updating the card
   const updateCardMutation = useMutation({
@@ -82,10 +119,7 @@ export function useCardDetails(
         return;
       }
       
-      queryClient.invalidateQueries({ queryKey: queryKeys.cards.detail(cardId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.cards.list(listId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.lists.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.planner.all });
+      invalidateCardContextOrFallback(cardId, listId);
     },
   });
 
@@ -125,9 +159,7 @@ export function useCardDetails(
         return;
       }
       
-      queryClient.invalidateQueries({ queryKey: queryKeys.cards.list(listId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.lists.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.planner.all });
+      invalidateCardContextOrFallback(cardId, listId);
     },
   });
 
@@ -246,16 +278,20 @@ export function useCardDetails(
         );
       }
     },
-    onSettled: () => {
+    onSettled: (_data, _error, variables) => {
       // Don't invalidate queries during drag operations to prevent state conflicts
       if ((window as any).__DRAG_IN_PROGRESS__) {
         return;
       }
-      
-      queryClient.invalidateQueries({ queryKey: queryKeys.cards.detail(cardId) });
+
+      if (variables?.destinationListId) {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.cards.list(variables.destinationListId),
+        });
+      }
+
+      invalidateCardContextOrFallback(cardId, variables?.destinationListId);
       queryClient.invalidateQueries({ queryKey: queryKeys.cards.list(listId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.lists.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.planner.all });
     },
   });
 
@@ -326,10 +362,7 @@ export function useCardDetails(
         return;
       }
       
-      queryClient.invalidateQueries({ queryKey: queryKeys.cards.detail(cardId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.cards.list(listId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.lists.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.planner.all });
+      invalidateCardContextOrFallback(cardId, listId);
     },
   });
 
@@ -400,10 +433,7 @@ export function useCardDetails(
         return;
       }
       
-      queryClient.invalidateQueries({ queryKey: queryKeys.cards.detail(cardId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.cards.list(listId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.lists.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.planner.all });
+      invalidateCardContextOrFallback(cardId, listId);
     },
   });
 
@@ -444,10 +474,7 @@ export function useCardDetails(
       }
       
       if (variables) {
-        const { cardId, listId } = variables;
-        queryClient.invalidateQueries({ queryKey: queryKeys.cards.detail(cardId) });
-        queryClient.invalidateQueries({ queryKey: queryKeys.cards.list(listId) });
-        queryClient.invalidateQueries({ queryKey: queryKeys.planner.all });
+        invalidateCardContextOrFallback(variables.cardId, variables.listId);
       }
     },
   });
@@ -489,10 +516,7 @@ export function useCardDetails(
       }
       
       if (variables) {
-        const { cardId, listId } = variables;
-        queryClient.invalidateQueries({ queryKey: queryKeys.cards.detail(cardId) });
-        queryClient.invalidateQueries({ queryKey: queryKeys.cards.list(listId) });
-        queryClient.invalidateQueries({ queryKey: queryKeys.planner.all });
+        invalidateCardContextOrFallback(variables.cardId, variables.listId);
       }
     },
   });

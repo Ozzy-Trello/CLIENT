@@ -740,17 +740,28 @@ const CardDetails: React.FC = (props) => {
       const text = clipboardData?.getData("text/plain")?.trim();
       if (text && isValidUrl(text) && selectedCard?.id) {
         e.preventDefault();
-        addAttachment({
-          cardId: selectedCard.id,
-          attachableType: EnumAttachmentType.Link,
-          type: EnumCardAttachmentType.Link,
-          isCover: false,
-          metadata: {
-            url: text,
-            displayText: text,
+        addAttachment(
+          {
+            cardId: selectedCard.id,
+            attachableType: EnumAttachmentType.Link,
+            type: EnumCardAttachmentType.Attachment,
+            isCover: false,
+            metadata: {
+              url: text,
+              displayText: text,
+            },
           },
-        });
-        message.success("Link attachment added");
+          {
+            onSuccess: () => {
+              message.success("Link attachment added");
+              refetchCardDetails?.();
+            },
+            onError: (error) => {
+              console.error("Failed to add link attachment:", error);
+              message.error("Failed to add link attachment");
+            },
+          }
+        );
         return;
       }
     };

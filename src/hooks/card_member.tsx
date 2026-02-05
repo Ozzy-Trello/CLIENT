@@ -7,6 +7,11 @@ import {
 import { ApiResponse } from "@myTypes/type";
 import { User } from "@dto/types";
 import { useEffect } from "react";
+import { queryKeys } from "../constants/query-keys";
+import {
+  invalidateCardContext,
+  resolveCardContextForInvalidation,
+} from "@utils/query-invalidation";
 
 export const useCardMembers = (
   cardId: string,
@@ -23,6 +28,30 @@ export const useCardMembers = (
     enabled: isEnabled,
     staleTime: 30000, // 30 seconds
   });
+
+  const invalidateCardMemberContext = () => {
+    if (!cardId) return;
+
+    const cardContext = resolveCardContextForInvalidation(
+      queryClient,
+      cardId
+    );
+
+    if (cardContext) {
+      invalidateCardContext(queryClient, cardContext);
+      return;
+    }
+
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.cards.detail(cardId),
+    });
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.cards.all,
+    });
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.planner.all,
+    });
+  };
 
   // Add member mutation with optimistic update
   const addMemberMutation = useMutation({
@@ -93,6 +122,7 @@ export const useCardMembers = (
       queryClient.invalidateQueries({
         queryKey: ["cardMembers", cardId],
       });
+      invalidateCardMemberContext();
     },
   });
 
@@ -150,6 +180,7 @@ export const useCardMembers = (
       queryClient.invalidateQueries({
         queryKey: ["cardMembers", cardId],
       });
+      invalidateCardMemberContext();
     },
   });
 

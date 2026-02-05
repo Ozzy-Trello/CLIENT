@@ -8,6 +8,10 @@ import {
   setCardCustomFieldValue,
 } from "../api/card_custom_field";
 import { queryKeys } from "../constants/query-keys";
+import {
+  invalidateCardContext,
+  resolveCardContextForInvalidation,
+} from "@utils/query-invalidation";
 import { ApiResponse } from "../types/type";
 import { CardCustomField } from "@myTypes/card";
 import {
@@ -150,12 +154,22 @@ export const useCardCustomField = (
           data
         );
       }
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.cards.detail(cardId),
-      });
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.planner.all,
-      });
+
+      const cardContext = resolveCardContextForInvalidation(
+        queryClient,
+        cardId
+      );
+
+      if (cardContext) {
+        invalidateCardContext(queryClient, cardContext);
+      } else {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.cards.detail(cardId),
+        });
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.planner.all,
+        });
+      }
     },
     // Remove onSettled to prevent unnecessary refetches that override our data
     // onSettled: () => {

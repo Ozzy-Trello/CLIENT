@@ -5,11 +5,12 @@ import { Card } from "@myTypes/card";
 import { Button, Typography } from "antd";
 import { AlignLeft, Edit, Loader2 } from "lucide-react";
 import { useParams } from "next/navigation";
-import { useCallback } from "react";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { selectTheme, selectIsDarkMode } from "@store/app_slice";
 import { useBoardPermissionsContext } from "@providers/board-permissions-context";
+import { useQueryClient } from "@tanstack/react-query";
+import { invalidateCardContext } from "@utils/query-invalidation";
 
 const Description: React.FC<{
   card: Card;
@@ -41,6 +42,7 @@ const Description: React.FC<{
     card.listId,
     boardId || ""
   );
+  const queryClient = useQueryClient();
 
   // Get board permissions
   const { canUpdateCard } = useBoardPermissionsContext();
@@ -72,6 +74,14 @@ const Description: React.FC<{
       }
       // Refetch card details to get the newest state
       refetch();
+      const targetBoardId = card.boardId || boardId || "";
+      if (card.listId && targetBoardId) {
+        invalidateCardContext(queryClient, {
+          cardId: card.id,
+          listId: card.listId,
+          boardId: targetBoardId,
+        });
+      }
       setIsEditingDescription(false);
     } catch (error) {
       console.error("Failed to save description:", error);
