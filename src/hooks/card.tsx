@@ -1,4 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { flushSync } from "react-dom";
+import { registerMutation } from "./websocket";
 import {
   addCardLabel,
   cardArchive,
@@ -750,6 +752,9 @@ export function useCardMove(boardId?: string) {
       previousPosition: number;
       targetPosition: number;
     }) => {
+      // Register this mutation to prevent WebSocket from processing our own move
+      registerMutation("card:moved", cardId);
+
       return moveCard(
         cardId,
         previousListId,
@@ -758,64 +763,34 @@ export function useCardMove(boardId?: string) {
         targetPosition
       );
     },
-    onMutate: async ({ cardId, previousListId, targetListId }) => {
-      // Cancel any outgoing refetches to prevent conflicts
-      await queryClient.cancelQueries({
+    onMutate: ({ cardId, previousListId, targetListId }) => {
+      console.log('🔄 [CARD MOVE] onMutate - cache already updated by onDragEnd', { cardId, previousListId, targetListId });
+
+      // Cancel any outgoing refetches (non-blocking for speed)
+      queryClient.cancelQueries({
         queryKey: queryKeys.cards.list(previousListId),
       });
-      await queryClient.cancelQueries({
+      queryClient.cancelQueries({
         queryKey: queryKeys.cards.list(targetListId),
       });
 
-      // Just snapshot the previous values for potential rollback
-      // The optimistic updates are now handled synchronously in the drag handler
-      const previousSourceCards = queryClient.getQueryData<ApiResponse<Card[]>>(
-        queryKeys.cards.list(previousListId)
-      );
-      const previousTargetCards = queryClient.getQueryData<ApiResponse<Card[]>>(
-        queryKeys.cards.list(targetListId)
-      );
-
-      return { previousSourceCards, previousTargetCards };
+      // Cache was already updated synchronously in onDragEnd per hello-pangea/dnd requirements
+      // This onMutate just cancels refetches and registers the mutation for WebSocket filtering
+      return {};
     },
-    onError: (err, variables, context) => {
-      // Rollback optimistic updates on error
-      if (context?.previousSourceCards) {
-        queryClient.setQueryData(
-          queryKeys.cards.list(variables.previousListId),
-          context.previousSourceCards
-        );
-      }
-      if (context?.previousTargetCards) {
-        queryClient.setQueryData(
-          queryKeys.cards.list(variables.targetListId),
-          context.previousTargetCards
-        );
-      }
+    onError: () => {
+      // Rollback is handled in the onDragEnd callback where we have the rollback data
+      console.error('❌ [CARD MOVE] Mutation failed - rollback handled by onDragEnd');
     },
-    onSettled: (data, error, variables) => {
-      // Clean up drag state and re-enable cache operations
-      document.body.classList.remove("dragging");
-      (window as any).__DRAG_IN_PROGRESS__ = false;
-
-      // FIXED: Removed immediate invalidation to prevent race condition with optimistic updates
-      // The WebSocket event will handle the real-time update
-      // Keep delayed invalidation as safety net in case WebSocket event is missed
-
-      // Delayed invalidation as safety net (only if mutation succeeded)
-      if (!error && data) {
-        setTimeout(() => {
-          queryClient.invalidateQueries({
-            queryKey: queryKeys.cards.list(variables.previousListId),
-          });
-          queryClient.invalidateQueries({
-            queryKey: queryKeys.cards.list(variables.targetListId),
-          });
-          queryClient.invalidateQueries({
-            queryKey: queryKeys.planner.all,
-          });
-        }, 500); // Increased delay to allow backend/WebSocket to propagate changes
-      }
+    onSuccess: (data, variables) => {
+      console.log('✅ [CARD MOVE] Mutation succeeded', { cardId: variables.cardId });
+      // Cache was already updated synchronously in onDragEnd
+      // No need to update again, just log success
+    },
+    onSettled: () => {
+      // NOTE: Flag cleanup is handled in the page.tsx drag handler
+      // NO INVALIDATION AT ALL - rely purely on optimistic update + WebSocket for collaboration
+      // This makes it instant like checklist!
     },
   });
 

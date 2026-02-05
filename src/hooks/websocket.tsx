@@ -202,6 +202,12 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
           case EnumUserActionEvent.CardMoved:
             const { card, fromListId, toListId, boardId } = message.data;
 
+            // Skip if this was our own move (prevent processing our own mutation)
+            if (wasRecentlyMutated("card:moved", card.id)) {
+              console.log("[WS] Skipping own card move", card.id);
+              break;
+            }
+
             // CRITICAL FIX: Explicitly remove card from source list cache
             // This prevents ghost cards when automation moves cards
             queryClient.setQueryData(

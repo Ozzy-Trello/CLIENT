@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import React, { useCallback, useEffect, useState, useRef } from "react";
+import { flushSync } from "react-dom";
 import BoardTopbar from "./topbar";
 import { useSelector } from "react-redux";
 import { selectTheme } from "@store/app_slice";
@@ -706,82 +707,122 @@ const Board: React.FC = () => {
       (destListId !== originalListId ||
         (destListId === originalListId && destIndex !== originalPosition));
 
-    // Clean up drag state first
+    console.log('🎯 [DRAG END] Drag ended', {
+      cardId,
+      from: originalListId,
+      to: destListId,
+      actualMove,
+      hasCard: !!originalCard,
+    });
+
+    // Set flag to prevent WebSocket interference during API call
+    (window as any).__DRAG_IN_PROGRESS__ = true;
+
+    // Clean up drag state
     currentDragState.current = null;
 
-    // Use setTimeout to ensure the cleanup happens after any pending transitions
-    setTimeout(() => {
-      document.body.classList.remove("dragging");
-      (window as any).__DRAG_IN_PROGRESS__ = false;
-    }, 50);
-
-    // Perform cache updates now that drag is complete (prevents re-renders during drag)
+    // If actual move happened, update cache SYNCHRONOUSLY then fire mutation
     if (actualMove && originalCard && originalListId) {
-      // Handle cross-list moves
-      if (destListId !== originalListId) {
-        // Remove card from original list
-        queryClient.setQueryData<ApiResponse<Card[]>>(
-          queryKeys.cards.list(originalListId),
-          (old) => {
-            if (!old?.data)
-              return { status_code: 200, message: "Success", data: [] };
-            const newData = old.data.filter((c) => c.id !== cardId);
-            return { ...old, data: newData };
-          }
+      console.log('🚀 [DRAG END] Updating cache SYNCHRONOUSLY');
+
+      // CRITICAL: Update cache SYNCHRONOUSLY in onDragEnd (per hello-pangea/dnd docs)
+      // This ensures the reorder happens BEFORE onDragEnd returns
+      flushSync(() => {
+        // Snapshot current cache for rollback
+        const previousSourceCards = queryClient.getQueryData<ApiResponse<Card[]>>(
+          queryKeys.cards.list(originalListId)
+        );
+        const previousTargetCards = queryClient.getQueryData<ApiResponse<Card[]>>(
+          queryKeys.cards.list(destListId)
         );
 
-        // Add card to destination list
-        queryClient.setQueryData<ApiResponse<Card[]>>(
-          queryKeys.cards.list(destListId),
-          (old) => {
-            if (!old?.data) {
-              const updatedCard = { ...originalCard, listId: destListId };
+        const cardToMove = previousSourceCards?.data?.find(c => c.id === cardId);
+
+        if (cardToMove) {
+          // Remove from source list
+          queryClient.setQueriesData<ApiResponse<Card[]>>(
+            { queryKey: queryKeys.cards.list(originalListId) },
+            (old) => {
+              if (!old?.data) return old;
               return {
-                status_code: 200,
-                message: "Success",
-                data: [updatedCard],
+                ...old,
+                data: old.data.filter(c => c.id !== cardId),
               };
             }
+          );
 
-            const newCards = [...old.data];
-            const insertPosition = Math.min(destIndex, newCards.length);
-            const updatedCard = { ...originalCard, listId: destListId };
-            newCards.splice(insertPosition, 0, updatedCard);
+          // Add to target list at correct position
+          queryClient.setQueriesData<ApiResponse<Card[]>>(
+            { queryKey: queryKeys.cards.list(destListId) },
+            (old) => {
+              if (!old?.data) return {
+                status_code: 200,
+                message: "Success",
+                data: [{ ...cardToMove, listId: destListId }]
+              };
 
-            return { ...old, data: newCards };
-          }
-        );
-      } else {
-        // Handle same-list reordering
-        queryClient.setQueryData<ApiResponse<Card[]>>(
-          queryKeys.cards.list(destListId),
-          (old) => {
-            if (!old?.data)
-              return { status_code: 200, message: "Success", data: [] };
+              const newCards = [...old.data];
+              const updatedCard = { ...cardToMove, listId: destListId };
+              newCards.splice(destIndex, 0, updatedCard);
 
-            const newCards = [...old.data];
-            // Remove the card from its current position
-            const cardIndex = newCards.findIndex((c) => c.id === cardId);
-            if (cardIndex === -1) return old;
+              return { ...old, data: newCards };
+            }
+          );
 
-            const [movedCard] = newCards.splice(cardIndex, 1);
-            // Insert at new position
-            const insertPosition = Math.min(destIndex, newCards.length);
-            newCards.splice(insertPosition, 0, movedCard);
+          console.log('✅ [DRAG END] Cache updated synchronously with flushSync');
+        }
 
-            return { ...old, data: newCards };
-          }
-        );
-      }
-
-      // Call the mutation for server sync
-      moveCard({
-        cardId: cardId,
-        previousListId: originalListId,
-        targetListId: destListId,
-        previousPosition: originalPosition,
-        targetPosition: destIndex,
+        // Store rollback data for mutation error handling
+        (window as any).__CARD_MOVE_ROLLBACK__ = {
+          previousSourceCards,
+          previousTargetCards,
+          originalListId,
+          destListId,
+        };
       });
+
+      // NOW fire mutation in background for persistence (don't await)
+      console.log('🔄 [DRAG END] Firing mutation for persistence');
+      moveCard(
+        {
+          cardId: cardId,
+          previousListId: originalListId,
+          targetListId: destListId,
+          previousPosition: originalPosition,
+          targetPosition: destIndex,
+        },
+        {
+          onError: () => {
+            // Rollback on error
+            const rollback = (window as any).__CARD_MOVE_ROLLBACK__;
+            if (rollback) {
+              if (rollback.previousSourceCards) {
+                queryClient.setQueryData(
+                  queryKeys.cards.list(rollback.originalListId),
+                  rollback.previousSourceCards
+                );
+              }
+              if (rollback.previousTargetCards) {
+                queryClient.setQueryData(
+                  queryKeys.cards.list(rollback.destListId),
+                  rollback.previousTargetCards
+                );
+              }
+            }
+          },
+          onSettled: () => {
+            console.log('✅ [DRAG END] Mutation settled, clearing flag');
+            (window as any).__DRAG_IN_PROGRESS__ = false;
+            (window as any).__CARD_MOVE_ROLLBACK__ = null;
+            document.body.classList.remove("dragging");
+          },
+        }
+      );
+    } else {
+      console.log('⚠️ [DRAG END] No actual move detected, cleaning up');
+      // No actual move, just cleanup
+      (window as any).__DRAG_IN_PROGRESS__ = false;
+      document.body.classList.remove("dragging");
     }
   };
 
