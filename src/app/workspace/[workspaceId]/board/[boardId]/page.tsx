@@ -539,23 +539,28 @@ const Board: React.FC = () => {
       const initialCards: Record<string, Card[]> = {};
       const initialPagination: Record<string, any> = {};
       const labelIds = selectedLabelIds.length > 0 ? selectedLabelIds : undefined;
+      const hasLabelFilter = !!labelIds;
       const limit = 10;
 
       await Promise.all(
         lists.map(async (list) => {
-          const cachedCards = queryClient.getQueryData<ApiResponse<Card[]>>(
-            queryKeys.cards.list(list.id)
-          );
+          // Only use cache when there's NO label filter active
+          // When filtering, we must always fetch fresh filtered data from the API
+          if (!hasLabelFilter) {
+            const cachedCards = queryClient.getQueryData<ApiResponse<Card[]>>(
+              queryKeys.cards.list(list.id)
+            );
 
-          if (cachedCards?.data) {
-            initialCards[list.id] = cachedCards.data;
-            initialPagination[list.id] = {
-              currentPage: 1,
-              hasMore: cachedCards.data.length >= limit,
-              totalCards:
-                cachedCards.paginate?.totalData || cachedCards.data.length,
-            };
-            return;
+            if (cachedCards?.data) {
+              initialCards[list.id] = cachedCards.data;
+              initialPagination[list.id] = {
+                currentPage: 1,
+                hasMore: cachedCards.data.length >= limit,
+                totalCards:
+                  cachedCards.paginate?.totalData || cachedCards.data.length,
+              };
+              return;
+            }
           }
 
           try {
