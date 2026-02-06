@@ -29,8 +29,6 @@ const BahanControls: React.FC<BahanControlsProps> = ({
   onSentByChange,
   description,
   onDescriptionChange,
-  onDescriptionBlur,
-  isSavingDescription,
   zeroLoadingModalOpen,
   closeZeroModal,
   handleConfirmZeroLoading,
@@ -259,7 +257,6 @@ const BahanControls: React.FC<BahanControlsProps> = ({
           <Input
             value={description}
             onChange={(e) => onDescriptionChange(e.target.value)}
-            onBlur={onDescriptionBlur}
             required
             placeholder="Tambahkan catatan untuk request"
           />

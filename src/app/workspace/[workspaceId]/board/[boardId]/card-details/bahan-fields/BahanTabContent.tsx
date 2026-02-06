@@ -645,6 +645,11 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
     }
   };
 
+  /**
+   * Persists description to backend.
+   * ONLY called when Loading button is clicked or zero loading modal is confirmed.
+   * NEVER call this on blur, change, or any other automatic trigger.
+   */
   const persistDescription = async () => {
     const trimmed = (description ?? "").trim();
     const work: Array<Promise<unknown>> = [];
@@ -721,10 +726,6 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
     product,
     persistDescription,
   ]);
-
-  const handleDescriptionBlur = () => {
-    // No-op: description saves on Loading button click only
-  };
 
   const handleTerloadingFocus = () => {
     if (bahanTab.terloading === 0) {
@@ -875,8 +876,6 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
         onSentByChange={setSelectedSentBy}
         description={description}
         onDescriptionChange={setDescription}
-        onDescriptionBlur={handleDescriptionBlur}
-        isSavingDescription={isSavingDescription}
         zeroLoadingModalOpen={zeroLoadingModalOpen}
         closeZeroModal={closeZeroModal}
         handleConfirmZeroLoading={handleConfirmZeroLoading}

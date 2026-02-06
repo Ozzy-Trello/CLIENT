@@ -259,8 +259,6 @@ export interface BahanControlsProps {
   onSentByChange: (value: string | undefined) => void;
   description: string;
   onDescriptionChange: (value: string) => void;
-  onDescriptionBlur: () => void;
-  isSavingDescription: boolean;
   zeroLoadingModalOpen: boolean;
   closeZeroModal: () => void;
   handleConfirmZeroLoading: () => void;
