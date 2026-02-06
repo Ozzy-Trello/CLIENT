@@ -84,8 +84,8 @@ const BahanControls: React.FC<BahanControlsProps> = ({
             type="number"
             value={
               isTerloadingEditing
-                ? terloadingInputValue ??
-                  formatNumericValue(bahanTab.terloading)
+                ? (terloadingInputValue ??
+                  formatNumericValue(bahanTab.terloading))
                 : formatNumericValue(bahanTab.terloading)
             }
             onFocus={onTerloadingFocus}
@@ -187,11 +187,8 @@ const BahanControls: React.FC<BahanControlsProps> = ({
             onFocus={onTerpakaiFocus}
             onBlur={onTerpakaiBlur}
             onChange={onTerpakaiChange}
-            className={`w-full px-3 py-2 rounded-md text-sm ${
-              shouldDisableInputs
-                ? "cursor-not-allowed opacity-80"
-                : "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            }`}
+            className={"cursor-not-allowed opacity-80"}
+            disabled
             style={getEditableInputStyle(false)}
           />
         </div>
@@ -214,7 +211,7 @@ const BahanControls: React.FC<BahanControlsProps> = ({
               color: `rgb(${colors["text-muted"]})`,
             }}
             value={`${formatDisplayValue(
-              (bahanTab.estBahan ?? 0) - (bahanTab.bahanTerpakai || 0)
+              (bahanTab.estBahan ?? 0) - (bahanTab.bahanTerpakai || 0),
             )} ${product.satuan || "unit"}`}
             readOnly
           />
@@ -222,53 +219,52 @@ const BahanControls: React.FC<BahanControlsProps> = ({
       </div>
 
       <div className="flex flex-row w-full gap-2 space-2">
+        <div className="mb-4 w-1/2">
+          <label
+            className="block text-xs font-medium mb-1"
+            style={{
+              color: `rgb(${colors["text-muted"]})`,
+            }}
+          >
+            Dikirim Oleh
+          </label>
+          <Select
+            placeholder="Pilih Pengirim"
+            value={selectedSentBy}
+            options={requestByOptions}
+            style={{ width: "100%" }}
+            optionFilterProp="label"
+            showSearch
+            filterOption={(input, option) =>
+              (option?.label ?? "")
+                .toString()
+                .toLowerCase()
+                .includes(input.toLowerCase())
+            }
+            onChange={(value) =>
+              onSentByChange(value ? value.toString() : undefined)
+            }
+          />
+        </div>
 
-
-      <div className="mb-4 w-1/2">
-        <label
-          className="block text-xs font-medium mb-1"
-          style={{
-            color: `rgb(${colors["text-muted"]})`,
-          }}
-        >
-          Dikirim Oleh
-        </label>
-        <Select
-          placeholder="Pilih Pengirim"
-          value={selectedSentBy}
-          options={requestByOptions}
-          style={{ width: "100%" }}
-          optionFilterProp="label"
-          showSearch
-          filterOption={(input, option) =>
-            (option?.label ?? "")
-              .toString()
-              .toLowerCase()
-              .includes(input.toLowerCase())
-          }
-          onChange={(value) => onSentByChange(value ? value.toString() : undefined)}
-        />
+        <div className="mb-6 w-1/2">
+          <label
+            className="block text-xs font-medium mb-1"
+            style={{
+              color: `rgb(${colors["text-muted"]})`,
+            }}
+          >
+            Description
+          </label>
+          <Input
+            value={description}
+            onChange={(e) => onDescriptionChange(e.target.value)}
+            onBlur={onDescriptionBlur}
+            required
+            placeholder="Tambahkan catatan untuk request"
+          />
+        </div>
       </div>
-
-      <div className="mb-6 w-1/2">
-        <label
-          className="block text-xs font-medium mb-1"
-          style={{
-            color: `rgb(${colors["text-muted"]})`,
-          }}
-        >
-          Description
-        </label>
-        <Input
-          value={description}
-          onChange={(e) => onDescriptionChange(e.target.value)}
-          onBlur={onDescriptionBlur}
-          required
-          placeholder="Tambahkan catatan untuk request"
-        />
-      </div>
-      </div>
-
 
       <Modal
         open={zeroLoadingModalOpen}
