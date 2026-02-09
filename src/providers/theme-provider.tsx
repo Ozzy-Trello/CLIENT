@@ -58,7 +58,7 @@ export function ThemeProvider({
     document.body.style.backgroundRepeat = "repeat";
     document.body.style.backgroundAttachment = "scroll";
     // Check if we're on a specific board page by looking for /board/{id} pattern
-    const isSpecificBoardPage = /\/workspace\/[\w-]+\/board\/[\w-]+$/.test(
+    const isSpecificBoardPage = /\/workspace\/[\w-]+\/board\/[\w-]+(?:\/.*)?$/.test(
       currentPathname || ""
     );
 
