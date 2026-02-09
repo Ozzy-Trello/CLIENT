@@ -327,17 +327,27 @@ const Board: React.FC = () => {
   }, []);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    // Stop drag-to-scroll if a card/list drag starts
+    const container = boardScrollContainerRef.current;
+    if (!container) return;
+
+    // Edge auto-scroll while dragging card/list near horizontal viewport edges
     if ((window as any).__DRAG_IN_PROGRESS__) {
       dragScrollState.current.isDown = false;
       setIsDraggingToScroll(false);
+
+      const rect = container.getBoundingClientRect();
+      const edgeThreshold = 80;
+      const scrollStep = 24;
+
+      if (e.clientX <= rect.left + edgeThreshold) {
+        container.scrollLeft -= scrollStep;
+      } else if (e.clientX >= rect.right - edgeThreshold) {
+        container.scrollLeft += scrollStep;
+      }
       return;
     }
 
     if (!dragScrollState.current.isDown) return;
-
-    const container = boardScrollContainerRef.current;
-    if (!container) return;
 
     e.preventDefault();
     const x = e.pageX - container.offsetLeft;
@@ -391,17 +401,29 @@ const Board: React.FC = () => {
   }, []);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    // Stop drag-to-scroll if a card/list drag starts
+    const container = boardScrollContainerRef.current;
+    if (!container) return;
+
+    // Edge auto-scroll while dragging card/list near horizontal viewport edges
     if ((window as any).__DRAG_IN_PROGRESS__) {
       dragScrollState.current.isDown = false;
       setIsDraggingToScroll(false);
+
+      if (e.touches.length !== 1) return;
+      const touch = e.touches[0];
+      const rect = container.getBoundingClientRect();
+      const edgeThreshold = 80;
+      const scrollStep = 24;
+
+      if (touch.clientX <= rect.left + edgeThreshold) {
+        container.scrollLeft -= scrollStep;
+      } else if (touch.clientX >= rect.right - edgeThreshold) {
+        container.scrollLeft += scrollStep;
+      }
       return;
     }
 
     if (!dragScrollState.current.isDown || e.touches.length !== 1) return;
-
-    const container = boardScrollContainerRef.current;
-    if (!container) return;
 
     const touch = e.touches[0];
     const x = touch.pageX - container.offsetLeft;
@@ -669,6 +691,11 @@ const Board: React.FC = () => {
             if (card.description !== nextCard.description) return false;
             if (card.dueDate !== nextCard.dueDate) return false;
 
+            // Completion fields (critical for draggable checkbox instant update)
+            if ((card as any).isComplete !== (nextCard as any).isComplete) return false;
+            if ((card as any).is_complete !== (nextCard as any).is_complete) return false;
+            if ((card as any).completed_at !== (nextCard as any).completed_at) return false;
+
             return true;
           });
 
@@ -737,6 +764,39 @@ const Board: React.FC = () => {
     currentWorkspace?.name,
   ]);
 
+  const clearDragInteractionState = useCallback(() => {
+    currentDragState.current = null;
+    (window as any).__DRAG_IN_PROGRESS__ = false;
+    document.body.classList.remove("dragging");
+    dragScrollState.current.isDown = false;
+    setIsDraggingToScroll(false);
+  }, []);
+
+  useEffect(() => {
+    const release = () => {
+      // Failsafe cleanup if drag state gets stuck after complex actions
+      if ((window as any).__DRAG_IN_PROGRESS__ || document.body.classList.contains("dragging")) {
+        clearDragInteractionState();
+      }
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") release();
+    };
+
+    window.addEventListener("mouseup", release);
+    window.addEventListener("touchend", release);
+    window.addEventListener("dragend", release);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      window.removeEventListener("mouseup", release);
+      window.removeEventListener("touchend", release);
+      window.removeEventListener("dragend", release);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [clearDragInteractionState]);
+
   const onListDragEnd = (result: DropResult) => {
       const { destination, source, type, draggableId } = result;
 
@@ -747,9 +807,7 @@ const Board: React.FC = () => {
           if (type === "card") {
             currentDragState.current = null;
           }
-          // Clean up immediately without delay
-          document.body.classList.remove("dragging");
-          (window as any).__DRAG_IN_PROGRESS__ = false;
+          clearDragInteractionState();
         }
         return;
       }
@@ -764,9 +822,7 @@ const Board: React.FC = () => {
           if (type === "card") {
             currentDragState.current = null;
           }
-          // Clean up immediately without delay
-          document.body.classList.remove("dragging");
-          (window as any).__DRAG_IN_PROGRESS__ = false;
+          clearDragInteractionState();
         }
         return;
       }
@@ -902,8 +958,7 @@ const Board: React.FC = () => {
 
     // Clean up drag state for lists
     setTimeout(() => {
-      document.body.classList.remove("dragging");
-      (window as any).__DRAG_IN_PROGRESS__ = false;
+      clearDragInteractionState();
     }, 50);
 
     // Only call the API - let optimistic updates handle the UI
@@ -982,6 +1037,10 @@ const Board: React.FC = () => {
     (window as any).__DRAG_IN_PROGRESS__ = true;
     currentDragState.current = null;
 
+    const dragFailsafeTimeout = setTimeout(() => {
+      clearDragInteractionState();
+    }, 6000);
+
     if (actualMove && originalCard && originalListId && destListId) {
       console.log('🚀 [DRAG END] Updating LOCAL STATE synchronously');
 
@@ -1036,23 +1095,26 @@ const Board: React.FC = () => {
         {
           onSuccess: () => {
             console.log('✅ [DRAG END] Mutation success - clearing drag flag for sync');
+            clearTimeout(dragFailsafeTimeout);
             // Clear drag flag BEFORE onSettled invalidates queries
             // This allows the sync effect to pick up the refetched data with updated labels/CFs
-            (window as any).__DRAG_IN_PROGRESS__ = false;
-            document.body.classList.remove("dragging");
+            clearDragInteractionState();
           },
           onError: () => {
             console.error('❌ [DRAG END] Mutation failed - rolling back');
+            clearTimeout(dragFailsafeTimeout);
             setLocalCards(previousLocalCards);
             setCardsPagination(previousPagination);
-            (window as any).__DRAG_IN_PROGRESS__ = false;
-            document.body.classList.remove("dragging");
+            clearDragInteractionState();
+          },
+          onSettled: () => {
+            clearTimeout(dragFailsafeTimeout);
           },
         }
       );
     } else {
-      (window as any).__DRAG_IN_PROGRESS__ = false;
-      document.body.classList.remove("dragging");
+      clearTimeout(dragFailsafeTimeout);
+      clearDragInteractionState();
     }
   };
 
