@@ -65,6 +65,24 @@ interface FormValues {
   background: string;
 }
 
+const extractUploadedImageUrl = (response: any): string | null => {
+  const candidate =
+    response?.data?.url ||
+    response?.data?.data?.url ||
+    response?.url ||
+    response?.data?.file_url ||
+    response?.data?.data?.file_url ||
+    response?.data?.location ||
+    response?.data?.data?.location ||
+    response?.data?.path ||
+    response?.data?.data?.path;
+
+  if (!candidate || typeof candidate !== "string") return null;
+  if (/^https?:\/\//i.test(candidate)) return candidate;
+  if (candidate.startsWith("/")) return `${window.location.origin}${candidate}`;
+  return candidate;
+};
+
 const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
   open,
   onClose,
@@ -252,10 +270,7 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
 
     try {
       const response = await uploadFile(file);
-      const uploadedUrl =
-        (response as any)?.data?.url ||
-        (response as any)?.data?.data?.url ||
-        (response as any)?.url;
+      const uploadedUrl = extractUploadedImageUrl(response as any);
 
       if (!uploadedUrl) {
         throw new Error("Upload response missing file URL");
@@ -289,7 +304,10 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
         return;
       }
 
-      const finalBackground = boardBackground.value || values.background;
+      const finalBackground =
+        boardBackground.type === "image" && boardBackground.value.startsWith("blob:")
+          ? values.background
+          : boardBackground.value || values.background;
       const updateData = {
         boardId: currentBoard.id,
         board: {
@@ -449,13 +467,19 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
                 fileList={fileList}
                 onChange={({ file, fileList }) => {
                   setFileList(fileList);
+
                   const response: any = (file as any)?.response;
-                  const url =
-                    response?.data?.url || response?.data?.data?.url || response?.url;
-                  if (url) {
-                    const cacheBustedUrl = `${url}${url.includes("?") ? "&" : "?"}v=${Date.now()}`;
+                  const uploadedUrl = extractUploadedImageUrl(response);
+                  if (uploadedUrl) {
+                    const cacheBustedUrl = `${uploadedUrl}${uploadedUrl.includes("?") ? "&" : "?"}v=${Date.now()}`;
                     setBoardBackground({ type: "image", value: cacheBustedUrl });
                     form.setFieldsValue({ background: cacheBustedUrl });
+                    return;
+                  }
+
+                  if ((file as any)?.originFileObj) {
+                    const localPreview = URL.createObjectURL((file as any).originFileObj);
+                    setBoardBackground({ type: "image", value: localPreview });
                   }
                 }}
                 ref={uploadRef}
