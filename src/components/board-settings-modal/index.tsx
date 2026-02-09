@@ -151,7 +151,12 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
 
     if (currentBoard && !isInitialized) {
       const background = currentBoard.background || DEFAULT_COLOR;
-      const isImage = background && !background.startsWith("#");
+      const isColorValue =
+        /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(background) ||
+        /^rgba?\(/i.test(background) ||
+        /^hsla?\(/i.test(background) ||
+        /^linear-gradient\(/i.test(background);
+      const isImage = !!background && !isColorValue;
 
       const formValues = {
         title: currentBoard.name || "",
