@@ -19,6 +19,18 @@ interface DraggableCardProps {
   list: AnyList;
 }
 
+const BLOCKED_CARD_DRAG_LIST_NAMES = new Set([
+  "list po | outlet",
+  "dateline",
+  "delivery",
+  "list purchase | umum",
+  "list purchase produksi",
+  "komplain",
+  "general affair",
+]);
+
+const normalizeListName = (name?: string) => (name || "").trim().toLowerCase();
+
 const DraggableCard: React.FC<DraggableCardProps> = ({ card, index, list }) => {
   const { openCardDetail } = useCardDetailContext();
   const { focusedCardId, setFocusedCardId, isCardFocused } = useCardFocus();
@@ -41,8 +53,11 @@ const DraggableCard: React.FC<DraggableCardProps> = ({ card, index, list }) => {
     }
   };
 
-  // Check if user can move cards (no super admin restriction for cards)
-  const canMoveCard = canMove("card");
+  // Check if user can move cards + hardcoded disabled lists
+  const isBlockedList = BLOCKED_CARD_DRAG_LIST_NAMES.has(
+    normalizeListName(list?.name)
+  );
+  const canMoveCard = canMove("card") && !isBlockedList;
 
   // Determine if this card should be blurred
   const shouldBlur = focusedCardId !== null && !isCardFocused(card.id);
@@ -106,11 +121,7 @@ const DraggableCard: React.FC<DraggableCardProps> = ({ card, index, list }) => {
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
             data-card-id={card.id}
-            title={
-              !canMoveCard
-                ? "You don't have permission to move cards"
-                : undefined
-            }
+            title={undefined}
           >
             {card.type == EnumCardType.Dashcard ? (
               <Dashcard
