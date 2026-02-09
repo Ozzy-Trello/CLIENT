@@ -8,6 +8,7 @@ import { useDispatch } from "react-redux";
 import Button from "antd/es/button";
 import Form from "antd/es/form";
 import Input from "antd/es/input";
+import Checkbox from "antd/es/checkbox";
 import message from "antd/es/message";
 
 // Local imports
@@ -193,11 +194,9 @@ export default function LoginPage() {
                   name="remember"
                   valuePropName="checked"
                   className="mb-0"
+                  initialValue={true}
                 >
-                  <input type="checkbox" id="remember" className="mr-2" />
-                  <label htmlFor="remember" className="text-sm text-gray-600">
-                    Remember me
-                  </label>
+                  <Checkbox>Remember me</Checkbox>
                 </Form.Item>
                 <Link
                   href="/forgot-password"
@@ -290,14 +289,9 @@ export default function LoginPage() {
                         name="remember"
                         valuePropName="checked"
                         className="mb-0"
+                        initialValue={true}
                       >
-                        <input type="checkbox" id="remember" className="mr-2" />
-                        <label
-                          htmlFor="remember"
-                          className="text-sm text-gray-600"
-                        >
-                          Remember me
-                        </label>
+                        <Checkbox>Remember me</Checkbox>
                       </Form.Item>
                       <Link
                         href="/forgot-password"
