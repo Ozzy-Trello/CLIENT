@@ -7,6 +7,7 @@ import {
   SettingOutlined,
   FormOutlined,
   TagOutlined,
+  PictureOutlined,
 } from "@ant-design/icons";
 import { Bot, Download } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
@@ -508,11 +509,17 @@ const BoardScopeMenu: React.FC<BoardMenuSidebarProps> = ({
             }
           />
 
-          {/* Change background section hidden for now */}
-          {/* <MenuItem
+          <MenuItem
             icon={<PictureOutlined size={16} />}
             text="Change background"
-          /> */}
+            onClick={handleSettingsClick}
+            disabled={!canManageBoardSettings()}
+            tooltipTitle={
+              !canManageBoardSettings()
+                ? "You don't have permission to change board background"
+                : undefined
+            }
+          />
 
           <MenuItem
             icon={<FormOutlined size={16} />}
