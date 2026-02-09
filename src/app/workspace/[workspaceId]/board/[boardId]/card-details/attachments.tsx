@@ -289,7 +289,7 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
             <div className="flex-grow min-w-0">
               <div className="flex items-center justify-between">
                 <div className="min-w-0">
-                  <div className="text-sm font-medium text-gray-900 truncate flex items-center gap-1">
+                  <div className="text-sm font-medium text-gray-900 flex items-center gap-1 min-w-0">
                     {renamingFileId === attachment.file?.id ? (
                       <div className="flex items-center gap-1">
                         <Input
@@ -317,34 +317,36 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
                       </div>
                     ) : (
                       <>
-                        {attachment.file?.url ? (
-                          isImageFile(attachment.file.name || "", attachment.file.mimeType) ? (
-                            <span
-                              className="hover:underline cursor-pointer text-blue-600"
-                              onClick={() => {
-                                setImagePreviewUrl(attachment.file?.url || "");
-                                setImagePreviewOpen(true);
-                              }}
-                            >
-                              {attachment.file?.name || "Unnamed file"}
-                            </span>
+                        <span className="min-w-0 flex-1 truncate">
+                          {attachment.file?.url ? (
+                            isImageFile(attachment.file.name || "", attachment.file.mimeType) ? (
+                              <span
+                                className="hover:underline cursor-pointer text-blue-600"
+                                onClick={() => {
+                                  setImagePreviewUrl(attachment.file?.url || "");
+                                  setImagePreviewOpen(true);
+                                }}
+                              >
+                                {attachment.file?.name || "Unnamed file"}
+                              </span>
+                            ) : (
+                              <a
+                                href={attachment.file.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="hover:underline"
+                              >
+                                {attachment.file?.name || "Unnamed file"}
+                              </a>
+                            )
                           ) : (
-                            <a
-                              href={attachment.file.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="hover:underline"
-                            >
-                              {attachment.file?.name || "Unnamed file"}
-                            </a>
-                          )
-                        ) : (
-                          attachment.file?.name || "Unnamed file"
-                        )}
+                            attachment.file?.name || "Unnamed file"
+                          )}
+                        </span>
                         {attachment.file?.id && (
                           <Pencil
                             size={12}
-                            className="text-gray-400 hover:text-blue-600 cursor-pointer ml-1"
+                            className="text-gray-400 hover:text-blue-600 cursor-pointer ml-1 flex-shrink-0"
                             onClick={() =>
                               handleStartRename(
                                 attachment.file!.id,
