@@ -513,19 +513,35 @@ const CardDetails: React.FC = (props) => {
 
   const onCompletionChange = (e: CheckboxChangeEvent) => {
     e.stopPropagation();
-    if (!canUpdateCard()) {
+    if (!canUpdateCard() || !selectedCard?.id) {
       return;
     }
+
     const isComplete = e.target.checked;
+    const resolvedListId = selectedCard?.listId || (selectedCard as any)?.list_id || "";
+
+    // Local optimistic update for card detail checkbox state
+    setSelectedCard((prev) => {
+      if (!prev) return prev;
+      const completedAt = isComplete ? new Date().toISOString() : undefined;
+      return {
+        ...prev,
+        isComplete,
+        is_complete: isComplete,
+        completedAt,
+        completed_at: completedAt,
+      } as any;
+    });
+
     if (isComplete) {
       completeCard({
-        listId: selectedCard?.listId || "",
-        cardId: selectedCard?.id || "",
+        listId: resolvedListId,
+        cardId: selectedCard.id,
       });
     } else {
       incompleteCard({
-        listId: selectedCard?.listId || "",
-        cardId: selectedCard?.id || "",
+        listId: resolvedListId,
+        cardId: selectedCard.id,
       });
     }
   };

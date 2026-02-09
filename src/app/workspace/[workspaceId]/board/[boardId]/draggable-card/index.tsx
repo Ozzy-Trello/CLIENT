@@ -46,10 +46,12 @@ const DraggableCard: React.FC<DraggableCardProps> = ({ card, index, list }) => {
   const onChange = (e: CheckboxChangeEvent, card: Card) => {
     e.stopPropagation();
     const isComplete = e.target.checked;
+    const resolvedListId = card?.listId || (card as any)?.list_id || list?.id;
+
     if (isComplete) {
-      completeCard({ listId: card?.listId, cardId: card.id });
+      completeCard({ listId: resolvedListId, cardId: card.id });
     } else {
-      incompleteCard({ listId: card?.listId, cardId: card.id });
+      incompleteCard({ listId: resolvedListId, cardId: card.id });
     }
   };
 
