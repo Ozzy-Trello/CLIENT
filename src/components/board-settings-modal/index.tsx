@@ -89,6 +89,7 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
   const uploadRef = useRef<any>(null);
+  const skipNextColorChangeRef = useRef(false);
   const router = useRouter();
   const dispatch = useDispatch();
 
@@ -219,6 +220,12 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
 
   const handleColorChange = (_color: any, hex: string) => {
     setBg(hex);
+
+    if (skipNextColorChangeRef.current) {
+      skipNextColorChangeRef.current = false;
+      return;
+    }
+
     setBackgroundImage("");
     form.setFieldsValue({ background: hex });
   };
@@ -256,6 +263,7 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
       const cacheBustedUrl = `${uploadedUrl}${uploadedUrl.includes("?") ? "&" : "?"}v=${Date.now()}`;
 
       setBackgroundImage(cacheBustedUrl);
+      skipNextColorChangeRef.current = true;
       setBg(DEFAULT_COLOR);
       form.setFieldsValue({ background: cacheBustedUrl });
       onSuccess?.(response, file);
