@@ -22,28 +22,21 @@ export const useWorkspaces = () => {
 };
 
 export const useDefaultWorkspace = () => {
-  const queryClient = useQueryClient();
   const isClient = typeof window !== "undefined";
   const accessToken = isClient ? TokenStorage.getAccessToken() : null;
 
-  // Hardcoded default workspace
-  const defaultWorkspace = {
-    id: "eb65c15c-12cc-49e4-9827-16ef1c838c4d",
-    name: "Ozzy Production",
-    description: "Default workspace for Ozzy Clothing",
-    slug: "ozzy-production",
-  };
-
-  console.log("useDefaultWorkspace debug:", {
-    isClient,
-    hasAccessToken: !!accessToken,
-    defaultWorkspace: defaultWorkspace.id,
+  const defaultWorkspaceQuery = useQuery({
+    queryKey: ["defaultWorkspace"],
+    queryFn: workspaceDefault,
+    enabled: isClient && !!accessToken,
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
   });
 
   return {
-    defaultWorkspace: accessToken ? defaultWorkspace : null,
-    isLoading: false,
-    isError: false,
-    error: null,
+    defaultWorkspace: defaultWorkspaceQuery.data?.data || null,
+    isLoading: defaultWorkspaceQuery.isLoading,
+    isError: defaultWorkspaceQuery.isError,
+    error: defaultWorkspaceQuery.error,
   };
 };
