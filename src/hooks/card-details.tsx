@@ -446,6 +446,9 @@ export function useCardDetails(
 
       const previousCard = queryClient.getQueryData<ApiResponse<any>>(queryKeys.cards.detail(cardId));
       const previousList = queryClient.getQueryData<ApiResponse<any>>(queryKeys.cards.list(listId));
+      const previousBoardLists = boardId
+        ? queryClient.getQueryData<any>(queryKeys.lists.board(boardId))
+        : undefined;
       const completedAt = new Date().toISOString();
 
       queryClient.setQueryData<ApiResponse<any>>(queryKeys.cards.detail(cardId), (old) => {
@@ -480,7 +483,34 @@ export function useCardDetails(
         };
       });
 
-      return { previousCard, previousList, listId, cardId };
+      if (boardId) {
+        queryClient.setQueryData<any>(queryKeys.lists.board(boardId), (old) => {
+          if (!old) return old;
+          const lists = Array.isArray(old?.data) ? old.data : Array.isArray(old) ? old : null;
+          if (!lists) return old;
+
+          const updatedLists = lists.map((l: any) => ({
+            ...l,
+            cards: Array.isArray(l?.cards)
+              ? l.cards.map((c: any) =>
+                  c.id === cardId
+                    ? {
+                        ...c,
+                        isComplete: true,
+                        is_complete: true,
+                        completedAt,
+                        completed_at: completedAt,
+                      }
+                    : c
+                )
+              : l?.cards,
+          }));
+
+          return Array.isArray(old?.data) ? { ...old, data: updatedLists } : updatedLists;
+        });
+      }
+
+      return { previousCard, previousList, previousBoardLists, listId, cardId };
     },
 
     onError: (_err, _variables, context) => {
@@ -489,6 +519,9 @@ export function useCardDetails(
       }
       if (context?.previousList && context?.listId) {
         queryClient.setQueryData(queryKeys.cards.list(context.listId), context.previousList);
+      }
+      if (context?.previousBoardLists && boardId) {
+        queryClient.setQueryData(queryKeys.lists.board(boardId), context.previousBoardLists);
       }
     },
 
@@ -513,6 +546,9 @@ export function useCardDetails(
 
       const previousCard = queryClient.getQueryData<ApiResponse<any>>(queryKeys.cards.detail(cardId));
       const previousList = queryClient.getQueryData<ApiResponse<any>>(queryKeys.cards.list(listId));
+      const previousBoardLists = boardId
+        ? queryClient.getQueryData<any>(queryKeys.lists.board(boardId))
+        : undefined;
 
       queryClient.setQueryData<ApiResponse<any>>(queryKeys.cards.detail(cardId), (old) => {
         if (!old) return old;
@@ -546,7 +582,34 @@ export function useCardDetails(
         };
       });
 
-      return { previousCard, previousList, listId, cardId };
+      if (boardId) {
+        queryClient.setQueryData<any>(queryKeys.lists.board(boardId), (old) => {
+          if (!old) return old;
+          const lists = Array.isArray(old?.data) ? old.data : Array.isArray(old) ? old : null;
+          if (!lists) return old;
+
+          const updatedLists = lists.map((l: any) => ({
+            ...l,
+            cards: Array.isArray(l?.cards)
+              ? l.cards.map((c: any) =>
+                  c.id === cardId
+                    ? {
+                        ...c,
+                        isComplete: false,
+                        is_complete: false,
+                        completedAt: undefined,
+                        completed_at: undefined,
+                      }
+                    : c
+                )
+              : l?.cards,
+          }));
+
+          return Array.isArray(old?.data) ? { ...old, data: updatedLists } : updatedLists;
+        });
+      }
+
+      return { previousCard, previousList, previousBoardLists, listId, cardId };
     },
 
     onError: (_err, _variables, context) => {
@@ -555,6 +618,9 @@ export function useCardDetails(
       }
       if (context?.previousList && context?.listId) {
         queryClient.setQueryData(queryKeys.cards.list(context.listId), context.previousList);
+      }
+      if (context?.previousBoardLists && boardId) {
+        queryClient.setQueryData(queryKeys.lists.board(boardId), context.previousBoardLists);
       }
     },
 
