@@ -326,6 +326,60 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             });
             break;
 
+          // Legacy events still emitted by some backend paths/automations.
+          // Handle them so UI updates immediately without requiring manual refresh.
+          case EnumUserActionEvent.CardAttachmentAdded:
+          case EnumUserActionEvent.CardAttachmentRemoved: {
+            const { cardId, listId } = message.data;
+
+            if (cardId) {
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.cards.detail(cardId),
+              });
+              queryClient.invalidateQueries({
+                queryKey: ["cardAttachment", cardId],
+              });
+            }
+
+            if (listId) {
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.cards.list(listId),
+              });
+            }
+
+            refreshDashcard = true;
+            break;
+          }
+
+          case EnumUserActionEvent.ChecklistCompleted:
+          case EnumUserActionEvent.ChecklistIncompleted: {
+            const { cardId, listId, boardId } = message.data;
+
+            if (cardId) {
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.cards.detail(cardId),
+              });
+              queryClient.invalidateQueries({
+                queryKey: ["checklists", cardId],
+              });
+            }
+
+            if (listId) {
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.cards.list(listId),
+              });
+            }
+
+            if (boardId) {
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.lists.board(boardId),
+              });
+            }
+
+            refreshDashcard = true;
+            break;
+          }
+
           case EnumUserActionEvent.CardCustomFieldChange: {
             const { cardId, listId, boardId, workspaceId } = message.data;
 
@@ -347,6 +401,46 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             if (listId) {
               queryClient.invalidateQueries({
                 queryKey: queryKeys.cards.list(listId),
+              });
+            }
+
+            if (boardId) {
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.lists.board(boardId),
+              });
+            }
+
+            refreshDashcard = true;
+            break;
+          }
+
+          case EnumUserActionEvent.CardAddedTo:
+          case EnumUserActionEvent.CardMovedInto:
+          case EnumUserActionEvent.CardMovedOutOf: {
+            const { card, cardId, listId, boardId, fromListId, toListId } = message.data;
+            const resolvedCardId = card?.id || cardId;
+
+            if (fromListId) {
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.cards.list(fromListId),
+              });
+            }
+
+            if (toListId && toListId !== fromListId) {
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.cards.list(toListId),
+              });
+            }
+
+            if (listId) {
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.cards.list(listId),
+              });
+            }
+
+            if (resolvedCardId) {
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.cards.detail(resolvedCardId),
               });
             }
 
