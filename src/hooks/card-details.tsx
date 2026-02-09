@@ -445,6 +445,8 @@ export function useCardDetails(
       await queryClient.cancelQueries({ queryKey: queryKeys.cards.detail(cardId) });
 
       const previousCard = queryClient.getQueryData<ApiResponse<any>>(queryKeys.cards.detail(cardId));
+      const previousList = queryClient.getQueryData<ApiResponse<any>>(queryKeys.cards.list(listId));
+      const completedAt = new Date().toISOString();
 
       queryClient.setQueryData<ApiResponse<any>>(queryKeys.cards.detail(cardId), (old) => {
         if (!old) return old;
@@ -452,18 +454,41 @@ export function useCardDetails(
           ...old,
           data: {
             ...old.data,
-            completed: true,
-            completedAt: new Date().toISOString(),
+            isComplete: true,
+            is_complete: true,
+            completedAt,
+            completed_at: completedAt,
           },
         };
       });
 
-      return { previousCard, listId, cardId };
+      queryClient.setQueryData<ApiResponse<any>>(queryKeys.cards.list(listId), (old) => {
+        if (!old?.data || !Array.isArray(old.data)) return old;
+        return {
+          ...old,
+          data: old.data.map((card: any) =>
+            card.id === cardId
+              ? {
+                  ...card,
+                  isComplete: true,
+                  is_complete: true,
+                  completedAt,
+                  completed_at: completedAt,
+                }
+              : card
+          ),
+        };
+      });
+
+      return { previousCard, previousList, listId, cardId };
     },
 
     onError: (_err, _variables, context) => {
       if (context?.previousCard && context?.cardId) {
         queryClient.setQueryData(queryKeys.cards.detail(context.cardId), context.previousCard);
+      }
+      if (context?.previousList && context?.listId) {
+        queryClient.setQueryData(queryKeys.cards.list(context.listId), context.previousList);
       }
     },
 
@@ -487,6 +512,7 @@ export function useCardDetails(
       await queryClient.cancelQueries({ queryKey: queryKeys.cards.detail(cardId) });
 
       const previousCard = queryClient.getQueryData<ApiResponse<any>>(queryKeys.cards.detail(cardId));
+      const previousList = queryClient.getQueryData<ApiResponse<any>>(queryKeys.cards.list(listId));
 
       queryClient.setQueryData<ApiResponse<any>>(queryKeys.cards.detail(cardId), (old) => {
         if (!old) return old;
@@ -494,18 +520,41 @@ export function useCardDetails(
           ...old,
           data: {
             ...old.data,
-            completed: false,
-            completedAt: new Date().toISOString(),
+            isComplete: false,
+            is_complete: false,
+            completedAt: undefined,
+            completed_at: undefined,
           },
         };
       });
 
-      return { previousCard, listId, cardId };
+      queryClient.setQueryData<ApiResponse<any>>(queryKeys.cards.list(listId), (old) => {
+        if (!old?.data || !Array.isArray(old.data)) return old;
+        return {
+          ...old,
+          data: old.data.map((card: any) =>
+            card.id === cardId
+              ? {
+                  ...card,
+                  isComplete: false,
+                  is_complete: false,
+                  completedAt: undefined,
+                  completed_at: undefined,
+                }
+              : card
+          ),
+        };
+      });
+
+      return { previousCard, previousList, listId, cardId };
     },
 
     onError: (_err, _variables, context) => {
       if (context?.previousCard && context?.cardId) {
         queryClient.setQueryData(queryKeys.cards.detail(context.cardId), context.previousCard);
+      }
+      if (context?.previousList && context?.listId) {
+        queryClient.setQueryData(queryKeys.cards.list(context.listId), context.previousList);
       }
     },
 
