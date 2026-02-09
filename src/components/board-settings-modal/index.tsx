@@ -224,31 +224,43 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
   };
 
   const beforeUpload = (file: RcFile) => {
-    const isJpgOrPng = file.type === "image/jpeg" || file.type === "image/png";
-    if (!isJpgOrPng) {
-      message.error("You can only upload JPG/PNG file!");
+    const isSupportedImage =
+      file.type === "image/jpeg" ||
+      file.type === "image/png" ||
+      file.type === "image/webp";
+    if (!isSupportedImage) {
+      message.error("You can only upload JPG/PNG/WEBP file!");
     }
     const isLt2M = file.size / 1024 / 1024 < 2;
     if (!isLt2M) {
       message.error("Image must smaller than 2MB!");
     }
-    return isJpgOrPng && isLt2M;
+    return isSupportedImage && isLt2M;
   };
 
   const handleUpload = async (options: any) => {
-    const { file } = options;
+    const { file, onSuccess, onError } = options;
     setIsUploading(true);
 
     try {
       const response = await uploadFile(file);
-      if (response.data) {
-        setBackgroundImage(response.data.url);
-        setBg(DEFAULT_COLOR);
-        form.setFieldsValue({ background: response.data.url });
+      const uploadedUrl =
+        (response as any)?.data?.url ||
+        (response as any)?.data?.data?.url ||
+        (response as any)?.url;
+
+      if (!uploadedUrl) {
+        throw new Error("Upload response missing file URL");
       }
+
+      setBackgroundImage(uploadedUrl);
+      setBg(DEFAULT_COLOR);
+      form.setFieldsValue({ background: uploadedUrl });
+      onSuccess?.(response, file);
     } catch (error) {
       console.error("Upload failed:", error);
       message.error("Failed to upload image");
+      onError?.(error);
     } finally {
       setIsUploading(false);
     }
