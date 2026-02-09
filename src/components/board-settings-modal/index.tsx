@@ -103,6 +103,7 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
   });
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [fileList, setFileList] = useState<UploadFile[]>([]);
+  const [pendingBackgroundFile, setPendingBackgroundFile] = useState<RcFile | null>(null);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [rolePermissionLevels, setRolePermissionLevels] = useState<
     Record<string, string>
@@ -162,6 +163,7 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
       setIsInitialized(false);
       setSelectedRoles([]);
       setRolePermissionLevels({});
+      setPendingBackgroundFile(null);
     }
   }, [open]);
 
@@ -189,9 +191,11 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
       if (isImage) {
         setBoardBackground({ type: "image", value: background });
         setBg(DEFAULT_COLOR);
+        setPendingBackgroundFile(null);
       } else {
         setBoardBackground({ type: "color", value: background || DEFAULT_COLOR });
         setBg(background || DEFAULT_COLOR);
+        setPendingBackgroundFile(null);
       }
 
       // Set selected roles from board data - only during initialization
@@ -266,31 +270,18 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
 
   const handleUpload = async (options: any) => {
     const { file, onSuccess, onError } = options;
-    setIsUploading(true);
 
     try {
-      const response = await uploadFile(file);
-      const uploadedUrl = extractUploadedImageUrl(response as any);
-
-      if (!uploadedUrl) {
-        throw new Error("Upload response missing file URL");
-      }
-
-      const cacheBustedUrl = `${uploadedUrl}${uploadedUrl.includes("?") ? "&" : "?"}v=${Date.now()}`;
-
-      setBoardBackground({ type: "image", value: cacheBustedUrl });
-      form.setFieldsValue({ background: cacheBustedUrl });
-      onSuccess?.(response, file);
+      setPendingBackgroundFile(file as RcFile);
+      onSuccess?.({ queued: true }, file);
     } catch (error) {
-      console.error("Upload failed:", error);
-      message.error("Failed to upload image");
       onError?.(error);
-    } finally {
-      setIsUploading(false);
     }
   };
 
   const handleRemoveImage = () => {
+    setPendingBackgroundFile(null);
+    setFileList([]);
     setBoardBackground({ type: "color", value: bg || DEFAULT_COLOR });
     form.setFieldsValue({ background: bg || DEFAULT_COLOR });
   };
@@ -304,10 +295,18 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
         return;
       }
 
-      const finalBackground =
-        boardBackground.type === "image" && boardBackground.value.startsWith("blob:")
-          ? values.background
-          : boardBackground.value || values.background;
+      let finalBackground = boardBackground.value || values.background;
+
+      if (boardBackground.type === "image" && pendingBackgroundFile) {
+        setIsUploading(true);
+        const uploadResponse = await uploadFile(pendingBackgroundFile);
+        const uploadedUrl = extractUploadedImageUrl(uploadResponse as any);
+        if (!uploadedUrl) {
+          throw new Error("Upload response missing file URL");
+        }
+        finalBackground = `${uploadedUrl}${uploadedUrl.includes("?") ? "&" : "?"}v=${Date.now()}`;
+      }
+
       const updateData = {
         boardId: currentBoard.id,
         board: {
@@ -320,6 +319,17 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
       };
 
       await updateBoard(updateData);
+      setPendingBackgroundFile(null);
+      const isSavedColor =
+        /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(finalBackground) ||
+        /^rgba?\(/i.test(finalBackground) ||
+        /^hsla?\(/i.test(finalBackground) ||
+        /^linear-gradient\(/i.test(finalBackground);
+      setBoardBackground(
+        isSavedColor
+          ? { type: "color", value: finalBackground }
+          : { type: "image", value: finalBackground }
+      );
       message.success("Board updated successfully!");
       onClose();
       if (onSuccess) {
@@ -335,6 +345,7 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
       console.error("Failed to update board:", error);
       message.error("Failed to update board");
     } finally {
+      setIsUploading(false);
       setIsLoading(false);
     }
   };
@@ -468,17 +479,9 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
                 onChange={({ file, fileList }) => {
                   setFileList(fileList);
 
-                  const response: any = (file as any)?.response;
-                  const uploadedUrl = extractUploadedImageUrl(response);
-                  if (uploadedUrl) {
-                    const cacheBustedUrl = `${uploadedUrl}${uploadedUrl.includes("?") ? "&" : "?"}v=${Date.now()}`;
-                    setBoardBackground({ type: "image", value: cacheBustedUrl });
-                    form.setFieldsValue({ background: cacheBustedUrl });
-                    return;
-                  }
-
                   if ((file as any)?.originFileObj) {
                     const localPreview = URL.createObjectURL((file as any).originFileObj);
+                    setPendingBackgroundFile((file as any).originFileObj as RcFile);
                     setBoardBackground({ type: "image", value: localPreview });
                   }
                 }}
