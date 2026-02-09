@@ -569,6 +569,7 @@ const ChecklistFields: React.FC = () => {
                                   <div
                                     ref={provided.innerRef}
                                     {...provided.droppableProps}
+                                    className="min-h-[40px]"
                                   >
                                 {itemsToRender.map(
                                   ({ item, originalIndex }, index) => {
