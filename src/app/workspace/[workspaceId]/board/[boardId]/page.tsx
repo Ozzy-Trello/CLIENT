@@ -669,6 +669,11 @@ const Board: React.FC = () => {
             if (card.description !== nextCard.description) return false;
             if (card.dueDate !== nextCard.dueDate) return false;
 
+            // Completion fields (critical for draggable checkbox instant update)
+            if ((card as any).isComplete !== (nextCard as any).isComplete) return false;
+            if ((card as any).is_complete !== (nextCard as any).is_complete) return false;
+            if ((card as any).completed_at !== (nextCard as any).completed_at) return false;
+
             return true;
           });
 
