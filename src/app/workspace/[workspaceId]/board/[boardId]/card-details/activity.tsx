@@ -309,6 +309,19 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
     }
   };
 
+  const displayedActivities = (cardActivities || []).filter((item: CardActivity) => {
+    if (filter === "all") return true;
+
+    const itemAny = item as any;
+    const itemType = itemAny?.activityType || itemAny?.activity_type;
+    const isAction = !!item?.action || itemType === EnumCardActivityType.Action || itemType === "action";
+    const isComment = !!item?.comment || itemType === EnumCardActivityType.Comment || itemType === "comment";
+
+    if (filter === "comment") return isComment && !isAction;
+    if (filter === "action") return isAction;
+    return true;
+  });
+
   return (
     <div className="mt-4">
       <div className="flex items-center justify-between pb-3 border-b border-gray-100">
@@ -402,10 +415,10 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
         </div>
       </div>
 
-      {cardActivities && cardActivities.length > 0 && (
+      {displayedActivities && displayedActivities.length > 0 && (
         <div className="space-y-4 mt-2">
           <Divider className="my-2" />
-          {cardActivities.map((item: CardActivity, index: number) => {
+          {displayedActivities.map((item: CardActivity, index: number) => {
             return (
               <div key={index} className="flex pt-2">
                 <div className="mr-3">
