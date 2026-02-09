@@ -4,6 +4,7 @@ import { LoadingOutlined } from "@ant-design/icons";
 import { useCardDetailContext } from "@providers/card-detail-context";
 import ItemFilter from "../item";
 import { useCustomFields } from "@hooks/custom_field";
+import { usePermissions } from "@hooks/account";
 import { useParams } from "next/navigation";
 import {
   DashcardFilter,
@@ -18,6 +19,11 @@ const EditFilter: FC = () => {
   const params = useParams();
   const { currentFilter, setOpenEditFilter, setCurrentFilter, isUpdatingCard } =
     useCardDetailContext();
+  const { isSuperAdmin } = usePermissions();
+
+  if (!isSuperAdmin()) {
+    return null;
+  }
 
   const { customFields } = useCustomFields(
     Array.isArray(params.workspaceId)
