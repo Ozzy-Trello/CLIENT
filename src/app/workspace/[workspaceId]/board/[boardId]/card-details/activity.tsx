@@ -105,6 +105,42 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
     disableEditComment();
   };
 
+  const normalizeCommentHtml = (htmlContent?: string): string => {
+    if (!htmlContent) return "";
+    if (typeof window === "undefined") return htmlContent;
+
+    try {
+      const doc = new DOMParser().parseFromString(htmlContent, "text/html");
+
+      // Normalize Quill bullet list format so read/edit look the same
+      const ols = Array.from(doc.querySelectorAll("ol"));
+      for (const ol of ols) {
+        const lis = Array.from(ol.querySelectorAll(":scope > li"));
+        if (!lis.length) continue;
+
+        const hasBullet = lis.some((li) => li.getAttribute("data-list") === "bullet");
+        const hasOrdered = lis.some((li) => li.getAttribute("data-list") === "ordered");
+
+        if (hasBullet && !hasOrdered) {
+          const ul = doc.createElement("ul");
+          for (const attr of Array.from(ol.attributes)) {
+            ul.setAttribute(attr.name, attr.value);
+          }
+          while (ol.firstChild) ul.appendChild(ol.firstChild);
+          ol.replaceWith(ul);
+        }
+      }
+
+      for (const li of Array.from(doc.querySelectorAll("li[data-list]"))) {
+        li.removeAttribute("data-list");
+      }
+
+      return doc.body.innerHTML;
+    } catch {
+      return htmlContent;
+    }
+  };
+
   // Function to extract the first image
   const extractFirstImageFromRichText = (
     htmlContent: string
@@ -451,7 +487,7 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
                     <div
                       className="prose prose-sm max-w-none text-sm"
                       dangerouslySetInnerHTML={{
-                        __html: item?.comment?.text || "",
+                        __html: normalizeCommentHtml(item?.comment?.text || ""),
                       }}
                     />
                   )}
@@ -478,7 +514,7 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
                           onClick={() => {
                             if (!item.id) return;
                             setEditingCommentId(item.id);
-                            setEditingContent(item?.comment?.text || "");
+                            setEditingContent(normalizeCommentHtml(item?.comment?.text || ""));
                           }}
                         >
                           Edit
