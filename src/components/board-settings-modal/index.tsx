@@ -253,9 +253,11 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
         throw new Error("Upload response missing file URL");
       }
 
-      setBackgroundImage(uploadedUrl);
+      const cacheBustedUrl = `${uploadedUrl}${uploadedUrl.includes("?") ? "&" : "?"}v=${Date.now()}`;
+
+      setBackgroundImage(cacheBustedUrl);
       setBg(DEFAULT_COLOR);
-      form.setFieldsValue({ background: uploadedUrl });
+      form.setFieldsValue({ background: cacheBustedUrl });
       onSuccess?.(response, file);
     } catch (error) {
       console.error("Upload failed:", error);

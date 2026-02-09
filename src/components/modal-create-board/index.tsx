@@ -104,8 +104,10 @@ const CreateBoard: React.FC<ModalCreateBoardForm> = (
       const result = await uploadFile(file);
 
       if (result && result.data) {
-        setBackgroundImage(result.data.url);
+        const cacheBustedUrl = `${result.data.url}${result.data.url.includes("?") ? "&" : "?"}v=${Date.now()}`;
+        setBackgroundImage(cacheBustedUrl);
         setBg("transparent"); // Make the background transparent to show the image
+        form.setFieldsValue({ background: cacheBustedUrl });
         message.success("Background image uploaded successfully!");
         onSuccess(result, file);
       } else {
