@@ -387,9 +387,9 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
         <div
           className="selected-background"
           style={{
-            background: bg,
+            backgroundColor: backgroundImage ? "transparent" : bg,
             backgroundImage: backgroundImage
-              ? `url(${backgroundImage})`
+              ? `url("${backgroundImage}")`
               : "none",
             backgroundSize: "cover",
             backgroundPosition: "center",
@@ -509,7 +509,7 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
                       {
                         "--selected-color": bg,
                         background: backgroundImage
-                          ? `url(${backgroundImage}) center/cover`
+                          ? `url("${backgroundImage}") center/cover`
                           : bg,
                       } as React.CSSProperties
                     }
