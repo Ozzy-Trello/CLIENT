@@ -11,7 +11,7 @@ import { useParams } from "next/navigation";
 import { generateId } from "@utils/general";
 // import { Droppable, DropResult, DragUpdate } from "@hello-pangea/dnd";
 import List from "./draggable-list";
-import { Button, Input, message } from "antd";
+import { Button, Input } from "antd";
 import { Plus, X } from "lucide-react";
 import { CardDetailProvider } from "@providers/card-detail-context";
 import { CardFocusProvider } from "@providers/card-focus-context";
@@ -52,18 +52,6 @@ const Droppable = dynamic(
   () => import("@hello-pangea/dnd").then((mod) => mod.Droppable),
   { ssr: false }
 );
-
-const BLOCKED_MOVE_DESTINATION_LIST_NAMES = new Set([
-  "list po | outlet",
-  "dateline",
-  "delivery",
-  "list purchase | umum",
-  "list purchase produksi",
-  "komplain",
-  "general affair",
-]);
-
-const normalizeListName = (name?: string) => (name || "").trim().toLowerCase();
 
 // Component that uses BoardPermissionsContext - must be inside the provider
 const BoardContentWithPermissions: React.FC<{
@@ -781,25 +769,6 @@ const Board: React.FC = () => {
           (window as any).__DRAG_IN_PROGRESS__ = false;
         }
         return;
-      }
-
-      if (type === "card") {
-        const destinationListId = destination.droppableId?.replaceAll(
-          "droppable-card-area-",
-          ""
-        );
-        const destinationList = lists?.find((l) => l.id === destinationListId);
-        const destinationListName = normalizeListName(destinationList?.name);
-
-        if (BLOCKED_MOVE_DESTINATION_LIST_NAMES.has(destinationListName)) {
-          message.warning(
-            `Card move is disabled for list: ${destinationList?.name || "this list"}`
-          );
-          document.body.classList.remove("dragging");
-          (window as any).__DRAG_IN_PROGRESS__ = false;
-          currentDragState.current = null;
-          return;
-        }
       }
 
       // Handle the drag end based on type
