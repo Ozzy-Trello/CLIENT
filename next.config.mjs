@@ -3,12 +3,24 @@ import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const manualBuildVersion =
+  process.env.APP_BUILD_VERSION ||
+  process.env.NEXT_PUBLIC_APP_BUILD_VERSION ||
+  process.env.npm_package_version ||
+  '0.1.0';
+const normalizedBuildVersion = manualBuildVersion
+  .trim()
+  .toLowerCase()
+  .replace(/[^a-z0-9-_]/g, '-');
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Generate unique build ID to prevent cache issues
+  env: {
+    NEXT_PUBLIC_APP_BUILD_VERSION: manualBuildVersion,
+  },
+  // Keep build ID deterministic so cache busting is controlled manually.
   generateBuildId: async () => {
-    return `build-${Date.now()}`;
+    return `build-${normalizedBuildVersion}`;
   },
   output: 'standalone',
   swcMinify: true,

@@ -20,6 +20,16 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Manual Cache Busting (Before Push/Deploy)
+
+1. Open `.env.production`.
+2. Update `APP_BUILD_VERSION` (for example `0.1.0` -> `0.1.1`).
+3. Build/deploy as usual.
+
+`APP_BUILD_VERSION` is used for:
+- Next.js `buildId` (`build-<version>`), so static bundle URLs change per version.
+- Cache-busting query params on manifest/icon links (e.g. `manifest.json?v=<version>`).
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
