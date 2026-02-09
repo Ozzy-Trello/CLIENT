@@ -764,6 +764,39 @@ const Board: React.FC = () => {
     currentWorkspace?.name,
   ]);
 
+  const clearDragInteractionState = useCallback(() => {
+    currentDragState.current = null;
+    (window as any).__DRAG_IN_PROGRESS__ = false;
+    document.body.classList.remove("dragging");
+    dragScrollState.current.isDown = false;
+    setIsDraggingToScroll(false);
+  }, []);
+
+  useEffect(() => {
+    const release = () => {
+      // Failsafe cleanup if drag state gets stuck after complex actions
+      if ((window as any).__DRAG_IN_PROGRESS__ || document.body.classList.contains("dragging")) {
+        clearDragInteractionState();
+      }
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") release();
+    };
+
+    window.addEventListener("mouseup", release);
+    window.addEventListener("touchend", release);
+    window.addEventListener("dragend", release);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      window.removeEventListener("mouseup", release);
+      window.removeEventListener("touchend", release);
+      window.removeEventListener("dragend", release);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [clearDragInteractionState]);
+
   const onListDragEnd = (result: DropResult) => {
       const { destination, source, type, draggableId } = result;
 
@@ -774,9 +807,7 @@ const Board: React.FC = () => {
           if (type === "card") {
             currentDragState.current = null;
           }
-          // Clean up immediately without delay
-          document.body.classList.remove("dragging");
-          (window as any).__DRAG_IN_PROGRESS__ = false;
+          clearDragInteractionState();
         }
         return;
       }
@@ -791,9 +822,7 @@ const Board: React.FC = () => {
           if (type === "card") {
             currentDragState.current = null;
           }
-          // Clean up immediately without delay
-          document.body.classList.remove("dragging");
-          (window as any).__DRAG_IN_PROGRESS__ = false;
+          clearDragInteractionState();
         }
         return;
       }
@@ -929,8 +958,7 @@ const Board: React.FC = () => {
 
     // Clean up drag state for lists
     setTimeout(() => {
-      document.body.classList.remove("dragging");
-      (window as any).__DRAG_IN_PROGRESS__ = false;
+      clearDragInteractionState();
     }, 50);
 
     // Only call the API - let optimistic updates handle the UI
@@ -1009,6 +1037,10 @@ const Board: React.FC = () => {
     (window as any).__DRAG_IN_PROGRESS__ = true;
     currentDragState.current = null;
 
+    const dragFailsafeTimeout = setTimeout(() => {
+      clearDragInteractionState();
+    }, 6000);
+
     if (actualMove && originalCard && originalListId && destListId) {
       console.log('🚀 [DRAG END] Updating LOCAL STATE synchronously');
 
@@ -1063,23 +1095,26 @@ const Board: React.FC = () => {
         {
           onSuccess: () => {
             console.log('✅ [DRAG END] Mutation success - clearing drag flag for sync');
+            clearTimeout(dragFailsafeTimeout);
             // Clear drag flag BEFORE onSettled invalidates queries
             // This allows the sync effect to pick up the refetched data with updated labels/CFs
-            (window as any).__DRAG_IN_PROGRESS__ = false;
-            document.body.classList.remove("dragging");
+            clearDragInteractionState();
           },
           onError: () => {
             console.error('❌ [DRAG END] Mutation failed - rolling back');
+            clearTimeout(dragFailsafeTimeout);
             setLocalCards(previousLocalCards);
             setCardsPagination(previousPagination);
-            (window as any).__DRAG_IN_PROGRESS__ = false;
-            document.body.classList.remove("dragging");
+            clearDragInteractionState();
+          },
+          onSettled: () => {
+            clearTimeout(dragFailsafeTimeout);
           },
         }
       );
     } else {
-      (window as any).__DRAG_IN_PROGRESS__ = false;
-      document.body.classList.remove("dragging");
+      clearTimeout(dragFailsafeTimeout);
+      clearDragInteractionState();
     }
   };
 
