@@ -326,6 +326,40 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             });
             break;
 
+          case EnumUserActionEvent.CardCustomFieldChange: {
+            const { cardId, listId, boardId, workspaceId } = message.data;
+
+            if (cardId) {
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.cards.detail(cardId),
+              });
+              queryClient.invalidateQueries({
+                queryKey: ["cardCustomFields", cardId],
+              });
+            }
+
+            if (workspaceId && cardId) {
+              queryClient.invalidateQueries({
+                queryKey: ["cardCustomField", cardId, workspaceId],
+              });
+            }
+
+            if (listId) {
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.cards.list(listId),
+              });
+            }
+
+            if (boardId) {
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.lists.board(boardId),
+              });
+            }
+
+            refreshDashcard = true;
+            break;
+          }
+
           case "additional_field:updated": {
             const {
               cardId,
