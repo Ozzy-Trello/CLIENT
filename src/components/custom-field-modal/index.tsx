@@ -80,18 +80,35 @@ const CustomFieldModal: React.FC<CustomFieldModalProps> = ({
   const userRole = currentUser?.role?.name || "";
   const isSuperAdmin = userRole === "Super Admin";
 
+  const parseRoleIdsFromSource = (sourceValue?: string): string[] => {
+    if (!sourceValue?.startsWith("user-role:")) return [];
+    return sourceValue
+      .slice(10)
+      .split(",")
+      .map((id) => id.trim())
+      .filter(Boolean);
+  };
+
+  const normalizeSourceForForm = (sourceValue?: string): string => {
+    if (sourceValue?.startsWith("user-role:")) return "user-role";
+    return sourceValue || EnumCustomFieldSource.Custom;
+  };
+
   // Initialize form when field changes
   useEffect(() => {
     if (field) {
       const isFieldPrivate = !!(field.canView && field.canView.length > 0);
+      const normalizedSource = normalizeSourceForForm(field.source);
+      const parsedRoleFilterIds = parseRoleIdsFromSource(field.source);
+
       setIsPublic(!isFieldPrivate);
       setSelectedViewRoles(field.canView || []);
       setSelectedEditRoles(field.canEdit || []);
       setSelectedViewBoards(field.canViewBoards || []);
       setSelectedEditBoards(field.canEditBoards || []);
-      setSource(field.source);
+      setSource(normalizedSource);
       setOptions(field.options || []);
-      setRoleFilterIds([]); // Reset role filters
+      setRoleFilterIds(parsedRoleFilterIds);
       setEditingOptionValue(null); // Reset editing state
       setEditingOptionText("");
 
@@ -100,7 +117,7 @@ const CustomFieldModal: React.FC<CustomFieldModalProps> = ({
         description: field.description,
         type: field.type,
         isPublic: !isFieldPrivate,
-        source: field.source,
+        source: normalizedSource,
         isShowAtFront: field.isShowAtFront,
       });
     } else {
@@ -185,12 +202,26 @@ const CustomFieldModal: React.FC<CustomFieldModalProps> = ({
     try {
       // Handle source encoding for user-role
       let finalSource = values.source;
-      if (
-        values.type === EnumCustomFieldType.Dropdown &&
-        values.source === "user-role"
-      ) {
-        const roleEncoded = roleFilterIds.join(",");
-        finalSource = `user-role:${roleEncoded}`;
+      if (values.type === EnumCustomFieldType.Dropdown) {
+        if (values.source === "user-role") {
+          const finalRoleIds = roleFilterIds
+            .map((id) => id.trim())
+            .filter(Boolean);
+
+          if (finalRoleIds.length === 0) {
+            message.error("Please select at least one role for User (by role)");
+            setIsLoading(false);
+            return;
+          }
+
+          finalSource = `user-role:${finalRoleIds.join(",")}`;
+        } else if (
+          typeof values.source === "string" &&
+          values.source.startsWith("user-role:")
+        ) {
+          const parsedIds = parseRoleIdsFromSource(values.source);
+          finalSource = `user-role:${parsedIds.join(",")}`;
+        }
       }
 
       // Ensure Super Admins can always edit by including their role in canEdit
