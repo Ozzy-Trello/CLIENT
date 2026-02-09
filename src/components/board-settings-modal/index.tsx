@@ -79,7 +79,10 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
   const currentWorkspace = useSelector(selectCurrentWorkspace);
   const DEFAULT_COLOR = "#FFFFFF";
   const [bg, setBg] = useState<string>(DEFAULT_COLOR);
-  const [backgroundImage, setBackgroundImage] = useState<string>("");
+  const [boardBackground, setBoardBackground] = useState<BoardBackground>({
+    type: "color",
+    value: DEFAULT_COLOR,
+  });
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
@@ -89,7 +92,6 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
   const uploadRef = useRef<any>(null);
-  const skipNextColorChangeRef = useRef(false);
   const router = useRouter();
   const dispatch = useDispatch();
 
@@ -167,10 +169,10 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
       form.setFieldsValue(formValues);
 
       if (isImage) {
-        setBackgroundImage(background);
+        setBoardBackground({ type: "image", value: background });
         setBg(DEFAULT_COLOR);
       } else {
-        setBackgroundImage("");
+        setBoardBackground({ type: "color", value: background || DEFAULT_COLOR });
         setBg(background || DEFAULT_COLOR);
       }
 
@@ -225,13 +227,7 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
 
   const handleColorChange = (_color: any, hex: string) => {
     setBg(hex);
-
-    if (skipNextColorChangeRef.current) {
-      skipNextColorChangeRef.current = false;
-      return;
-    }
-
-    setBackgroundImage("");
+    setBoardBackground({ type: "color", value: hex });
     form.setFieldsValue({ background: hex });
   };
 
@@ -267,9 +263,7 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
 
       const cacheBustedUrl = `${uploadedUrl}${uploadedUrl.includes("?") ? "&" : "?"}v=${Date.now()}`;
 
-      setBackgroundImage(cacheBustedUrl);
-      skipNextColorChangeRef.current = true;
-      setBg(DEFAULT_COLOR);
+      setBoardBackground({ type: "image", value: cacheBustedUrl });
       form.setFieldsValue({ background: cacheBustedUrl });
       onSuccess?.(response, file);
     } catch (error) {
@@ -282,9 +276,8 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
   };
 
   const handleRemoveImage = () => {
-    setBackgroundImage("");
-    setBg(DEFAULT_COLOR);
-    form.setFieldsValue({ background: DEFAULT_COLOR });
+    setBoardBackground({ type: "color", value: bg || DEFAULT_COLOR });
+    form.setFieldsValue({ background: bg || DEFAULT_COLOR });
   };
 
   const onFinish = async (values: FormValues) => {
@@ -296,7 +289,7 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
         return;
       }
 
-      const finalBackground = backgroundImage || values.background;
+      const finalBackground = boardBackground.value || values.background;
       const updateData = {
         boardId: currentBoard.id,
         board: {
@@ -414,10 +407,11 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
         <div
           className="selected-background"
           style={{
-            backgroundColor: backgroundImage ? "transparent" : bg,
-            backgroundImage: backgroundImage
-              ? `url("${backgroundImage}")`
-              : "none",
+            backgroundColor: boardBackground.type === "image" ? "transparent" : bg,
+            backgroundImage:
+              boardBackground.type === "image"
+                ? `url("${boardBackground.value}")`
+                : "none",
             backgroundSize: "cover",
             backgroundPosition: "center",
             position: "relative",
@@ -433,7 +427,7 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
           )}
 
           <div className="image-container">
-            {!backgroundImage && (
+            {boardBackground.type !== "image" && (
               <Image
                 alt={"boards-image"}
                 src={boardsImage}
@@ -453,7 +447,17 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
                 beforeUpload={beforeUpload}
                 customRequest={handleUpload}
                 fileList={fileList}
-                onChange={({ fileList }) => setFileList(fileList)}
+                onChange={({ file, fileList }) => {
+                  setFileList(fileList);
+                  const response: any = (file as any)?.response;
+                  const url =
+                    response?.data?.url || response?.data?.data?.url || response?.url;
+                  if (url) {
+                    const cacheBustedUrl = `${url}${url.includes("?") ? "&" : "?"}v=${Date.now()}`;
+                    setBoardBackground({ type: "image", value: cacheBustedUrl });
+                    form.setFieldsValue({ background: cacheBustedUrl });
+                  }
+                }}
                 ref={uploadRef}
                 disabled={!canUpdateBoard()}
               >
@@ -475,7 +479,7 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
               </Upload>
             </PermissionFormItem>
 
-            {backgroundImage && (
+            {boardBackground.type === "image" && (
               <PermissionFormItem
                 hasPermission={canUpdateBoard()}
                 tooltipTitle="You don't have permission to change board background"
@@ -535,9 +539,10 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
                     style={
                       {
                         "--selected-color": bg,
-                        background: backgroundImage
-                          ? `url("${backgroundImage}") center/cover`
-                          : bg,
+                        background:
+                          boardBackground.type === "image"
+                            ? `url("${boardBackground.value}") center/cover`
+                            : bg,
                       } as React.CSSProperties
                     }
                   />
@@ -551,7 +556,7 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
                     disabled={isUploading || !canUpdateBoard()}
                   />
                 </div>
-                {backgroundImage && (
+                {boardBackground.type === "image" && (
                   <span className="background-image-text">Image selected</span>
                 )}
               </div>
