@@ -262,6 +262,8 @@ const CardDetails: React.FC = (props) => {
   const {
     completeCard,
     incompleteCard,
+    isCompletingCard,
+    isIncompletingCard,
     updateCard: updateCardDetails,
   } = useCardDetails(
     selectedCard?.id || "",
@@ -511,22 +513,29 @@ const CardDetails: React.FC = (props) => {
     }
   }, [isDesktop]);
 
+  const isCompletionUpdating = isCompletingCard || isIncompletingCard;
+
   const onCompletionChange = (e: CheckboxChangeEvent) => {
     e.stopPropagation();
-    if (!canUpdateCard()) {
+    if (!canUpdateCard() || isCompletionUpdating) {
       return;
     }
-    const isComplete = e.target.checked;
-    if (isComplete) {
-      completeCard({
-        listId: selectedCard?.listId || "",
-        cardId: selectedCard?.id || "",
-      });
+
+    const payload = {
+      listId: selectedCard?.listId || "",
+      cardId: selectedCard?.id || "",
+    };
+
+    const mutateOptions = {
+      onError: () => {
+        message.error("Failed to update completion status");
+      },
+    };
+
+    if (e.target.checked) {
+      completeCard(payload, mutateOptions);
     } else {
-      incompleteCard({
-        listId: selectedCard?.listId || "",
-        cardId: selectedCard?.id || "",
-      });
+      incompleteCard(payload, mutateOptions);
     }
   };
 
@@ -935,10 +944,10 @@ const CardDetails: React.FC = (props) => {
       <div className="relative flex items-center gap-2 min-w-0">
         <Checkbox
           className={`custom-circular-checkbox absolute left-0 -ml-6 transition-all duration-300 
-                    ${selectedCard?.isComplete ? "completed" : ""} ${!canUpdateCard() ? "opacity-50 cursor-not-allowed" : ""
+                    ${selectedCard?.isComplete ? "completed" : ""} ${!canUpdateCard() || isCompletionUpdating ? "opacity-50 cursor-not-allowed" : ""
             }`}
           checked={selectedCard?.isComplete}
-          disabled={!canUpdateCard()}
+          disabled={!canUpdateCard() || isCompletionUpdating}
           onChange={(e) => {
             onCompletionChange(e);
           }}

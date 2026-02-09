@@ -265,6 +265,21 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
         }
       }
 
+      const completionValue =
+        parsedValue?.completion ||
+        parsedValue?.Completion ||
+        parsedValue?.card_completion;
+
+      if (completionValue) {
+        const completionText = String(completionValue).toLowerCase();
+        if (completionText.includes("incomplete") || completionText.includes("incompleted")) {
+          return "marked the card as incomplete";
+        }
+        if (completionText.includes("complete") || completionText.includes("completed")) {
+          return "marked the card as complete";
+        }
+      }
+
       // Fallback to original message
       return parsedValue.message || parsedValue.action || "";
     } catch (error) {

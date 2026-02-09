@@ -416,14 +416,18 @@ export const cardUnarchive = async (
 export const cardComplete = async (
   cardId: string
 ): Promise<ApiResponse<any>> => {
-  const { data } = await api.post(`/card/${cardId}/complete`);
+  const { data } = await api.post(`/card/${cardId}/complete`, undefined, {
+    timeout: 15000,
+  });
   return data;
 };
 
 export const cardIncomplete = async (
   cardId: string
 ): Promise<ApiResponse<any>> => {
-  const { data } = await api.post(`/card/${cardId}/incomplete`);
+  const { data } = await api.post(`/card/${cardId}/incomplete`, undefined, {
+    timeout: 15000,
+  });
   return data;
 };
 
