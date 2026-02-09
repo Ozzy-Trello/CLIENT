@@ -192,15 +192,19 @@ const ModalDelivery: React.FC<ModalDeliveryProps> = ({ open, onClose }) => {
     // If no search value, return all sales orders
     if (!soSearchValue) return salesOrders;
 
-    return salesOrders.filter(
-      (so) =>
-        so?.purchaseOrder?.soNumber
-          ?.toLowerCase()
-          .includes(soSearchValue.toLowerCase()) ||
-        so?.purchaseOrder?.supplierName
-          ?.toLowerCase()
-          .includes(soSearchValue.toLowerCase())
-    );
+    const keyword = soSearchValue.toLowerCase();
+
+    return salesOrders.filter((so) => {
+      const soNumber = so?.purchaseOrder?.soNumber?.toLowerCase() || "";
+      const poNumber = so?.purchaseOrder?.poNumber?.toLowerCase() || "";
+      const supplierName = so?.purchaseOrder?.supplierName?.toLowerCase() || "";
+
+      return (
+        soNumber.includes(keyword) ||
+        poNumber.includes(keyword) ||
+        supplierName.includes(keyword)
+      );
+    });
   }, [salesOrders, soSearchValue]);
 
   const handleSubmit = async (values: any) => {
@@ -488,9 +492,9 @@ const ModalDelivery: React.FC<ModalDeliveryProps> = ({ open, onClose }) => {
 
   const soOptions = filteredSalesOrders.map((so) => ({
     value: so?.purchaseOrder?.soNumber || "",
-    label: `${so?.purchaseOrder?.soNumber || ""} - ${
-      so?.purchaseOrder?.supplierName || ""
-    }`,
+    label: `${so?.purchaseOrder?.soNumber || ""} | PO ${
+      so?.purchaseOrder?.poNumber || "-"
+    } - ${so?.purchaseOrder?.supplierName || ""}`,
   }));
 
   return (
@@ -523,7 +527,7 @@ const ModalDelivery: React.FC<ModalDeliveryProps> = ({ open, onClose }) => {
                   value={soSearchValue}
                   onChange={setSOSearchValue}
                   onSelect={handleSOSelect}
-                  placeholder="Ketik nomor SO atau nama customer..."
+                  placeholder="Ketik nomor SO / nomor PO / nama customer..."
                   options={soOptions}
                   filterOption={false}
                   notFoundContent={
