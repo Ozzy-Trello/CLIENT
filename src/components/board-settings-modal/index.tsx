@@ -217,9 +217,10 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
 
   // Debug log removed
 
-  const handleColorChange = (color: any, hex: any) => {
+  const handleColorChange = (_color: any, hex: string) => {
     setBg(hex);
     setBackgroundImage("");
+    form.setFieldsValue({ background: hex });
   };
 
   const beforeUpload = (file: RcFile) => {
