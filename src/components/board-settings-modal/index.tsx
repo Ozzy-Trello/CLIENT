@@ -162,7 +162,7 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
 
       if (isImage) {
         setBackgroundImage(background);
-        setBg("transparent");
+        setBg(DEFAULT_COLOR);
       } else {
         setBackgroundImage("");
         setBg(background || DEFAULT_COLOR);
@@ -243,7 +243,7 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
       const response = await uploadFile(file);
       if (response.data) {
         setBackgroundImage(response.data.url);
-        setBg("transparent");
+        setBg(DEFAULT_COLOR);
         form.setFieldsValue({ background: response.data.url });
       }
     } catch (error) {
@@ -518,7 +518,7 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
                     defaultFormat="hex"
                     format="hex"
                     disabledAlpha={false}
-                    value={backgroundImage ? "transparent" : bg}
+                    value={bg}
                     onChange={handleColorChange}
                     showText={false}
                     disabled={isUploading || !canUpdateBoard()}
