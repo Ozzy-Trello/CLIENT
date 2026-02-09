@@ -327,17 +327,27 @@ const Board: React.FC = () => {
   }, []);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    // Stop drag-to-scroll if a card/list drag starts
+    const container = boardScrollContainerRef.current;
+    if (!container) return;
+
+    // Edge auto-scroll while dragging card/list near horizontal viewport edges
     if ((window as any).__DRAG_IN_PROGRESS__) {
       dragScrollState.current.isDown = false;
       setIsDraggingToScroll(false);
+
+      const rect = container.getBoundingClientRect();
+      const edgeThreshold = 80;
+      const scrollStep = 24;
+
+      if (e.clientX <= rect.left + edgeThreshold) {
+        container.scrollLeft -= scrollStep;
+      } else if (e.clientX >= rect.right - edgeThreshold) {
+        container.scrollLeft += scrollStep;
+      }
       return;
     }
 
     if (!dragScrollState.current.isDown) return;
-
-    const container = boardScrollContainerRef.current;
-    if (!container) return;
 
     e.preventDefault();
     const x = e.pageX - container.offsetLeft;
@@ -391,17 +401,29 @@ const Board: React.FC = () => {
   }, []);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    // Stop drag-to-scroll if a card/list drag starts
+    const container = boardScrollContainerRef.current;
+    if (!container) return;
+
+    // Edge auto-scroll while dragging card/list near horizontal viewport edges
     if ((window as any).__DRAG_IN_PROGRESS__) {
       dragScrollState.current.isDown = false;
       setIsDraggingToScroll(false);
+
+      if (e.touches.length !== 1) return;
+      const touch = e.touches[0];
+      const rect = container.getBoundingClientRect();
+      const edgeThreshold = 80;
+      const scrollStep = 24;
+
+      if (touch.clientX <= rect.left + edgeThreshold) {
+        container.scrollLeft -= scrollStep;
+      } else if (touch.clientX >= rect.right - edgeThreshold) {
+        container.scrollLeft += scrollStep;
+      }
       return;
     }
 
     if (!dragScrollState.current.isDown || e.touches.length !== 1) return;
-
-    const container = boardScrollContainerRef.current;
-    if (!container) return;
 
     const touch = e.touches[0];
     const x = touch.pageX - container.offsetLeft;
