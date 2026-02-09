@@ -451,7 +451,7 @@ export function useCardDetails(
         : undefined;
       const completedAt = new Date().toISOString();
 
-      queryClient.setQueryData<ApiResponse<any>>(queryKeys.cards.detail(cardId), (old) => {
+      queryClient.setQueryData<ApiResponse<any>>(queryKeys.cards.detail(cardId), (old: any) => {
         if (!old) return old;
         return {
           ...old,
@@ -465,7 +465,7 @@ export function useCardDetails(
         };
       });
 
-      queryClient.setQueryData<ApiResponse<any>>(queryKeys.cards.list(listId), (old) => {
+      queryClient.setQueryData<ApiResponse<any>>(queryKeys.cards.list(listId), (old: any) => {
         if (!old?.data || !Array.isArray(old.data)) return old;
         return {
           ...old,
@@ -484,7 +484,7 @@ export function useCardDetails(
       });
 
       if (boardId) {
-        queryClient.setQueryData<any>(queryKeys.lists.board(boardId), (old) => {
+        queryClient.setQueryData<any>(queryKeys.lists.board(boardId), (old: any) => {
           if (!old) return old;
           const lists = Array.isArray(old?.data) ? old.data : Array.isArray(old) ? old : null;
           if (!lists) return old;
@@ -550,7 +550,7 @@ export function useCardDetails(
         ? queryClient.getQueryData<any>(queryKeys.lists.board(boardId))
         : undefined;
 
-      queryClient.setQueryData<ApiResponse<any>>(queryKeys.cards.detail(cardId), (old) => {
+      queryClient.setQueryData<ApiResponse<any>>(queryKeys.cards.detail(cardId), (old: any) => {
         if (!old) return old;
         return {
           ...old,
@@ -564,7 +564,7 @@ export function useCardDetails(
         };
       });
 
-      queryClient.setQueryData<ApiResponse<any>>(queryKeys.cards.list(listId), (old) => {
+      queryClient.setQueryData<ApiResponse<any>>(queryKeys.cards.list(listId), (old: any) => {
         if (!old?.data || !Array.isArray(old.data)) return old;
         return {
           ...old,
@@ -583,7 +583,7 @@ export function useCardDetails(
       });
 
       if (boardId) {
-        queryClient.setQueryData<any>(queryKeys.lists.board(boardId), (old) => {
+        queryClient.setQueryData<any>(queryKeys.lists.board(boardId), (old: any) => {
           if (!old) return old;
           const lists = Array.isArray(old?.data) ? old.data : Array.isArray(old) ? old : null;
           if (!lists) return old;
