@@ -1,16 +1,17 @@
 import { FC } from "react";
+import { useSelector } from "react-redux";
 import { Button } from "antd";
 import { EditOutlined } from "@ant-design/icons";
 import { useCardDetailContext } from "@providers/card-detail-context";
-import { useCurrentAccount } from "@hooks/account";
+import { selectUser } from "@store/app_slice";
 import ItemFilter from "../item";
 
 const ShowFilter: FC = () => {
   const { dashcardConfig, setOpenEditFilter, setCurrentFilter } =
     useCardDetailContext();
-  const { data: account } = useCurrentAccount();
-  const isSuperAdmin =
-    account?.data?.role?.id === "f97c942c-5d0c-49c3-b74d-5b149c08634f";
+  const currentUser = useSelector(selectUser);
+  const SUPER_ADMIN_ROLE_ID = "f97c942c-5d0c-49c3-b74d-5b149c08634f";
+  const isSuperAdmin = currentUser?.role?.id === SUPER_ADMIN_ROLE_ID;
   return (
     <div className="flex flex-col gap-3 w-full">
       {dashcardConfig?.filters?.map((filter) => (
