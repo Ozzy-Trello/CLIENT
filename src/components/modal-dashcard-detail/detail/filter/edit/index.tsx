@@ -4,7 +4,7 @@ import { LoadingOutlined } from "@ant-design/icons";
 import { useCardDetailContext } from "@providers/card-detail-context";
 import ItemFilter from "../item";
 import { useCustomFields } from "@hooks/custom_field";
-import { usePermissions } from "@hooks/account";
+import { useCurrentAccount } from "@hooks/account";
 import { useParams } from "next/navigation";
 import {
   DashcardFilter,
@@ -19,9 +19,11 @@ const EditFilter: FC = () => {
   const params = useParams();
   const { currentFilter, setOpenEditFilter, setCurrentFilter, isUpdatingCard } =
     useCardDetailContext();
-  const { isSuperAdmin } = usePermissions();
+  const { data: account } = useCurrentAccount();
+  const isSuperAdmin =
+    account?.data?.role?.id === "f97c942c-5d0c-49c3-b74d-5b149c08634f";
 
-  if (!isSuperAdmin()) {
+  if (!isSuperAdmin) {
     return null;
   }
 
