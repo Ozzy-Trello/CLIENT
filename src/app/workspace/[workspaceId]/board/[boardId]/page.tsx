@@ -199,6 +199,7 @@ const BoardContentWithPermissions: React.FC<{
                           isAddingCard={!!addingCardByListId[list.id]}
                           loadMoreError={loadMoreErrors[list.id] || null}
                           onRetryLoadMore={() => onRetryLoadMoreCards(list.id)}
+                          isStubsLoaded={!!cardsPagination[list.id]}
                         />
                       );
                     })}

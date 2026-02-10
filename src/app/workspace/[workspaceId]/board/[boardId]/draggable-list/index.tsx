@@ -40,6 +40,7 @@ interface DraggableListProps {
   isAddingCard?: boolean;
   loadMoreError?: string | null;
   onRetryLoadMore?: () => void;
+  isStubsLoaded?: boolean;
 }
 
 const DraggableList: React.FC<DraggableListProps> = ({
@@ -59,6 +60,7 @@ const DraggableList: React.FC<DraggableListProps> = ({
   isAddingCard = false,
   loadMoreError,
   onRetryLoadMore,
+  isStubsLoaded = true,
 }) => {
   const listRef = useRef<HTMLDivElement | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
@@ -339,56 +341,67 @@ const DraggableList: React.FC<DraggableListProps> = ({
                       )}
                       <div className="space-y-3">
                         {hasBeenVisible ? (
-                          <div className="animate-[fadeIn_0.3s_ease-in] space-y-3">
-                            {displayCards?.map((card, index) => (
-                              <DraggableCard
-                                key={card.id}
-                                card={card}
-                                list={list}
-                                index={index}
-                                detailsEnabled={isCardDetailEnabled(
-                                  list.id,
-                                  card.id
-                                )}
-                                onDetailsLoaded={(cardId) =>
-                                  reportCardDetailsLoaded(list.id, cardId)
-                                }
-                              />
-                            ))}
-
-                            {/* Load More Button */}
-                            {/* Infinite Scroll Sentinel & Loading Indicator */}
-                            {cards.length > 0 &&
-                              (hasMoreCards || isLoadingMore) &&
-                              !loadMoreError && (
+                          cards.length === 0 && !isStubsLoaded ? (
+                            /* Stubs still loading — show skeleton cards */
+                            <div className="space-y-2 px-1 animate-pulse">
+                              {Array.from({ length: 3 }).map((_, i) => (
                                 <div
-                                  ref={loadMoreRef}
-                                  className="flex justify-center p-2 min-h-[40px]"
-                                >
-                                  {isLoadingMore && (
-                                    <div className="flex items-center gap-2 text-gray-500 text-sm">
-                                      <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                                      Loading...
-                                    </div>
+                                  key={`stub-loading-${i}`}
+                                  className="h-[100px] bg-gray-100 rounded-lg"
+                                />
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="animate-[fadeIn_0.3s_ease-in] space-y-3">
+                              {displayCards?.map((card, index) => (
+                                <DraggableCard
+                                  key={card.id}
+                                  card={card}
+                                  list={list}
+                                  index={index}
+                                  detailsEnabled={isCardDetailEnabled(
+                                    list.id,
+                                    card.id
                                   )}
+                                  onDetailsLoaded={(cardId) =>
+                                    reportCardDetailsLoaded(list.id, cardId)
+                                  }
+                                />
+                              ))}
+
+                              {/* Infinite Scroll Sentinel & Loading Indicator */}
+                              {cards.length > 0 &&
+                                (hasMoreCards || isLoadingMore) &&
+                                !loadMoreError && (
+                                  <div
+                                    ref={loadMoreRef}
+                                    className="flex justify-center p-2 min-h-[40px]"
+                                  >
+                                    {isLoadingMore && (
+                                      <div className="flex items-center gap-2 text-gray-500 text-sm">
+                                        <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                                        Loading...
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+
+                              {/* Retry Button (Only when error) */}
+                              {loadMoreError && onRetryLoadMore && (
+                                <div className="flex flex-col items-center py-2 space-y-2">
+                                  <div className="text-xs text-red-500 text-center px-2">
+                                    {loadMoreError}
+                                  </div>
+                                  <button
+                                    onClick={onRetryLoadMore}
+                                    className="px-4 py-2 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg"
+                                  >
+                                    Retry
+                                  </button>
                                 </div>
                               )}
-
-                            {/* Retry Button (Only when error) */}
-                            {loadMoreError && onRetryLoadMore && (
-                              <div className="flex flex-col items-center py-2 space-y-2">
-                                <div className="text-xs text-red-500 text-center px-2">
-                                  {loadMoreError}
-                                </div>
-                                <button
-                                  onClick={onRetryLoadMore}
-                                  className="px-4 py-2 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg"
-                                >
-                                  Retry
-                                </button>
-                              </div>
-                            )}
-                          </div>
+                            </div>
+                          )
                         ) : (
                           <div className="space-y-2 px-1">
                             {Array.from({
