@@ -697,16 +697,19 @@ const Board: React.FC = () => {
   ]);
 
   // ── Effect C: Batch-prefetch dashcard data ──
-  // After card stubs load, collect all dashcard IDs and fetch their data in one
-  // batch request. Seed the React Query cache so individual useDashcardList hooks
-  // get immediate cache hits instead of firing 1 request per dashcard.
+  // Fire as soon as ANY stubs are loaded (don't wait for all lists).
+  // If dashcards are in list 1, we know their IDs after batch 1 —
+  // no reason to wait for batches 2, 3, etc.
   const dashcardPrefetchedRef = useRef(false);
 
   useEffect(() => {
     if (dashcardPrefetchedRef.current) return;
-    if (!localCardsInitialized) return;
 
-    // Collect all dashcard IDs from all loaded cards across all lists
+    // Fire as soon as we have any loaded cards, not after all stubs
+    const loadedListCount = Object.keys(localCards).length;
+    if (loadedListCount === 0) return;
+
+    // Collect all dashcard IDs from stubs loaded so far
     const allDashcardIds: string[] = [];
     for (const listId of Object.keys(localCards)) {
       const cardsInList = localCards[listId] || [];
@@ -744,7 +747,7 @@ const Board: React.FC = () => {
         console.error("Failed to batch prefetch dashcard data:", err);
         dashcardPrefetchedRef.current = false; // Allow retry
       });
-  }, [localCardsInitialized, localCards, workspaceId, queryClient]);
+  }, [localCards, workspaceId, queryClient]);
 
   // Reset dashcard prefetch ref when board/filters change
   useEffect(() => {
