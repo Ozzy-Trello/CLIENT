@@ -94,6 +94,7 @@ const BoardContentWithPermissions: React.FC<{
   addingCardByListId: Record<string, boolean>;
   onLoadMoreCards: (listId: string) => void;
   onRetryLoadMoreCards: (listId: string) => void;
+  onListVisible: (listId: string) => void;
   onAddCard: ({ card, listId }: { card: Partial<Card>; listId: string }) => void;
 }> = ({
   lists,
@@ -128,6 +129,7 @@ const BoardContentWithPermissions: React.FC<{
   addingCardByListId,
   onLoadMoreCards,
   onRetryLoadMoreCards,
+  onListVisible,
   onAddCard,
 }) => {
     // Now we can safely use the context hook inside the provider
@@ -198,6 +200,7 @@ const BoardContentWithPermissions: React.FC<{
                           isAddingCard={!!addingCardByListId[list.id]}
                           loadMoreError={loadMoreErrors[list.id] || null}
                           onRetryLoadMore={() => onRetryLoadMoreCards(list.id)}
+                          onListVisible={onListVisible}
                         />
                       );
                     })}
@@ -550,97 +553,108 @@ const Board: React.FC = () => {
   const [loadMoreErrors, setLoadMoreErrors] = useState<Record<string, string | null>>({});
   const [addingCardByListId, setAddingCardByListId] = useState<Record<string, boolean>>({});
 
-  // Initialize local cards from React Query cache on mount
+  const [loadedListIds, setLoadedListIds] = useState<Record<string, boolean>>({});
+  const [initialLoadingByListId, setInitialLoadingByListId] = useState<Record<string, boolean>>({});
+
+  // Initialize list containers only (cards will lazy-load when list enters viewport)
   useEffect(() => {
-    if (!lists || lists.length === 0 || !resolvedBoardId) return;
+    if (!lists || !resolvedBoardId) return;
 
-    let cancelled = false;
+    const initialCards: Record<string, Card[]> = {};
+    const initialPagination: Record<string, {
+      currentPage: number;
+      hasMore: boolean;
+      totalCards: number;
+    }> = {};
 
-    const initializeLocalCards = async () => {
-      setLocalCardsInitialized(false);
-      const initialCards: Record<string, Card[]> = {};
-      const initialPagination: Record<string, any> = {};
-      const labelIds = selectedLabelIds.length > 0 ? selectedLabelIds : undefined;
-      const hasLabelFilter = !!labelIds;
-      const limit = 10;
+    lists.forEach((list) => {
+      initialCards[list.id] = [];
+      initialPagination[list.id] = {
+        currentPage: 1,
+        hasMore: false,
+        totalCards: 0,
+      };
+    });
 
-      await Promise.all(
-        lists.map(async (list) => {
-          // Only use cache when there's NO label filter active
-          // When filtering, we must always fetch fresh filtered data from the API
-          if (!hasLabelFilter) {
-            const cachedCards = queryClient.getQueryData<ApiResponse<Card[]>>(
-              queryKeys.cards.list(list.id)
-            );
+    setLocalCards(initialCards);
+    setCardsPagination(initialPagination);
+    setLoadedListIds({});
+    setInitialLoadingByListId({});
+    setLocalCardsInitialized(true);
+  }, [lists, resolvedBoardId, selectedLabelIds]);
 
-            if (cachedCards?.data) {
-              initialCards[list.id] = cachedCards.data;
-              initialPagination[list.id] = {
-                currentPage: 1,
-                hasMore: cachedCards.data.length >= limit,
-                totalCards:
-                  cachedCards.paginate?.totalData || cachedCards.data.length,
-              };
-              return;
-            }
-          }
+  const loadInitialCardsForList = useCallback(async (listId: string) => {
+    if (!resolvedBoardId || loadedListIds[listId] || initialLoadingByListId[listId]) return;
 
-          try {
-            const response = await cards(
-              list.id,
-              resolvedBoardId,
-              1,
-              limit,
-              labelIds,
-              undefined,
-              undefined
-            );
+    const labelIds = selectedLabelIds.length > 0 ? selectedLabelIds : undefined;
+    const hasLabelFilter = !!labelIds;
+    const limit = 10;
 
-            if (response?.data) {
-              initialCards[list.id] = response.data;
-              initialPagination[list.id] = {
-                currentPage: 1,
-                hasMore: response.data.length >= limit,
-                totalCards: response.paginate?.totalData || response.data.length,
-              };
+    setInitialLoadingByListId((prev) => ({ ...prev, [listId]: true }));
 
-              queryClient.setQueryData<ApiResponse<Card[]>>(
-                queryKeys.cards.list(list.id),
-                response
-              );
-            } else {
-              initialCards[list.id] = [];
-              initialPagination[list.id] = {
-                currentPage: 1,
-                hasMore: false,
-                totalCards: 0,
-              };
-            }
-          } catch (error) {
-            console.error("[INIT CARDS] Error:", error);
-            initialCards[list.id] = [];
-            initialPagination[list.id] = {
+    try {
+      if (!hasLabelFilter) {
+        const cachedCards = queryClient.getQueryData<ApiResponse<Card[]>>(
+          queryKeys.cards.list(listId)
+        );
+
+        if (cachedCards?.data) {
+          setLocalCards((prev) => ({ ...prev, [listId]: cachedCards.data }));
+          setCardsPagination((prev) => ({
+            ...prev,
+            [listId]: {
               currentPage: 1,
-              hasMore: false,
-              totalCards: 0,
-            };
-          }
-        })
+              hasMore: cachedCards.data.length >= limit,
+              totalCards: cachedCards.paginate?.totalData || cachedCards.data.length,
+            },
+          }));
+          setLoadedListIds((prev) => ({ ...prev, [listId]: true }));
+          return;
+        }
+      }
+
+      const response = await cards(
+        listId,
+        resolvedBoardId,
+        1,
+        limit,
+        labelIds,
+        undefined,
+        undefined
       );
 
-      if (cancelled) return;
+      const data = response?.data || [];
+      setLocalCards((prev) => ({ ...prev, [listId]: data }));
+      setCardsPagination((prev) => ({
+        ...prev,
+        [listId]: {
+          currentPage: 1,
+          hasMore: data.length >= limit,
+          totalCards: response?.paginate?.totalData || data.length,
+        },
+      }));
 
-      setLocalCards(initialCards);
-      setCardsPagination(initialPagination);
-      setLocalCardsInitialized(true);
-    };
-
-    initializeLocalCards();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [lists, queryClient, resolvedBoardId, selectedLabelIds]);
+      queryClient.setQueryData<ApiResponse<Card[]>>(
+        queryKeys.cards.list(listId),
+        response
+      );
+      setLoadedListIds((prev) => ({ ...prev, [listId]: true }));
+    } catch (error) {
+      console.error("[INIT CARDS LAZY] Error:", error);
+      setLocalCards((prev) => ({ ...prev, [listId]: [] }));
+      setCardsPagination((prev) => ({
+        ...prev,
+        [listId]: {
+          currentPage: 1,
+          hasMore: false,
+          totalCards: 0,
+        },
+      }));
+      setLoadedListIds((prev) => ({ ...prev, [listId]: true }));
+    } finally {
+      setInitialLoadingByListId((prev) => ({ ...prev, [listId]: false }));
+    }
+  }, [resolvedBoardId, loadedListIds, initialLoadingByListId, selectedLabelIds, queryClient]);
 
   // Sync local cards when list cache updates (e.g., automation-driven changes)
   useEffect(() => {
@@ -1120,6 +1134,12 @@ const Board: React.FC = () => {
 
   const loadMoreCards = useCallback(async (listId: string) => {
     if (!resolvedBoardId) return;
+
+    if (!loadedListIds[listId]) {
+      await loadInitialCardsForList(listId);
+      return;
+    }
+
     const pagination = cardsPagination[listId];
     if (!pagination || !pagination.hasMore) return;
     if (loadingMoreByListId[listId]) return;
@@ -1188,7 +1208,7 @@ const Board: React.FC = () => {
     } finally {
       setLoadingMoreByListId((prev) => ({ ...prev, [listId]: false }));
     }
-  }, [cardsPagination, loadingMoreByListId, queryClient, resolvedBoardId, selectedLabelIds]);
+  }, [cardsPagination, loadingMoreByListId, queryClient, resolvedBoardId, selectedLabelIds, loadedListIds, loadInitialCardsForList]);
 
   const retryLoadMoreCards = useCallback((listId: string) => {
     setLoadMoreErrors((prev) => ({ ...prev, [listId]: null }));
@@ -1344,6 +1364,7 @@ const Board: React.FC = () => {
                 addingCardByListId={addingCardByListId}
                 onLoadMoreCards={loadMoreCards}
                 onRetryLoadMoreCards={retryLoadMoreCards}
+                onListVisible={loadInitialCardsForList}
                 onAddCard={handleAddCard}
               />
               <HorizontalSlider
