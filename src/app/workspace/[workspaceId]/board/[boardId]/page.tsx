@@ -599,13 +599,14 @@ const Board: React.FC = () => {
         );
 
         if (cachedCards?.data) {
-          setLocalCards((prev) => ({ ...prev, [listId]: cachedCards.data }));
+          const cachedData = (cachedCards.data || []) as Card[];
+          setLocalCards((prev) => ({ ...prev, [listId]: cachedData }));
           setCardsPagination((prev) => ({
             ...prev,
             [listId]: {
               currentPage: 1,
-              hasMore: cachedCards.data.length >= limit,
-              totalCards: cachedCards.paginate?.totalData || cachedCards.data.length,
+              hasMore: cachedData.length >= limit,
+              totalCards: cachedCards.paginate?.totalData || cachedData.length,
             },
           }));
           setLoadedListIds((prev) => ({ ...prev, [listId]: true }));
