@@ -12,6 +12,8 @@ import { useCardDetails } from "@hooks/card-details";
 import { useParams } from "next/navigation";
 import CardContextMenu from "@components/card-context-menu";
 import { MoreHorizontal } from "lucide-react";
+import { useSelector } from "react-redux";
+import { selectCurrentBoard } from "@store/workspace_slice";
 
 interface DraggableCardProps {
   card: Card;
@@ -19,24 +21,30 @@ interface DraggableCardProps {
   list: AnyList;
 }
 
-const BLOCKED_CARD_DRAG_LIST_NAMES = new Set([
-  "list po | outlet",
+const BLOCKED_CARD_DRAG_BOARD_NAMES = new Set([
   "dateline",
   "delivery",
+  "list po | outlet",
+  "request desain | outlet",
   "list purchase | umum",
+  "list purchase | produksi",
+  // keep alias without pipe for existing legacy board names
   "list purchase produksi",
   "komplain",
+  "krah manset | produksi",
+  "konfirm desain | bordir",
   "general affair",
 ]);
 
-const normalizeListName = (name?: string) => (name || "").trim().toLowerCase();
+const normalizeName = (name?: string) => (name || "").trim().toLowerCase();
 
 const DraggableCard: React.FC<DraggableCardProps> = ({ card, index, list }) => {
   const { openCardDetail } = useCardDetailContext();
   const { focusedCardId, setFocusedCardId, isCardFocused } = useCardFocus();
   const { boardId } = useParams();
   const [isHovered, setIsHovered] = useState<boolean>(false);
-  const { canMove } = usePermissions();
+  const { canMove, isSuperAdmin } = usePermissions();
+  const currentBoard = useSelector(selectCurrentBoard);
   const { completeCard, incompleteCard } = useCardDetails(
     "",
     "",
@@ -53,11 +61,13 @@ const DraggableCard: React.FC<DraggableCardProps> = ({ card, index, list }) => {
     }
   };
 
-  // Check if user can move cards + hardcoded disabled lists
-  const isBlockedList = BLOCKED_CARD_DRAG_LIST_NAMES.has(
-    normalizeListName(list?.name)
+  // Check if user can move cards + hardcoded disabled boards
+  const boardName =
+    currentBoard?.name || card.boardName || (list as any)?.boardName || "";
+  const isBlockedBoard = BLOCKED_CARD_DRAG_BOARD_NAMES.has(
+    normalizeName(boardName)
   );
-  const canMoveCard = canMove("card") && !isBlockedList;
+  const canMoveCard = canMove("card") && (isSuperAdmin() || !isBlockedBoard);
 
   // Determine if this card should be blurred
   const shouldBlur = focusedCardId !== null && !isCardFocused(card.id);
