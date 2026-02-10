@@ -13,6 +13,7 @@ import { useSelector } from "react-redux";
 import { selectUser } from "@store/app_slice";
 import { selectCurrentBoard } from "@store/workspace_slice";
 import { ChevronsLeft } from "lucide-react";
+import { useBoardLoadingQueue } from "@providers/board-loading-queue-context";
 
 // ⚠️ TEMPORARY FEATURE FLAG - SET TO false TO ALLOW ALL USERS TO CREATE CARDS
 const RESTRICT_CARD_CREATION = false;
@@ -77,6 +78,12 @@ const DraggableList: React.FC<DraggableListProps> = ({
   const [hasBeenVisible, setHasBeenVisible] = useState(false);
 
   const { canMoveList, canCreateCard } = useBoardPermissionsContext();
+  const {
+    isListInActiveBatch,
+    updateListCards,
+    isCardDetailEnabled,
+    reportCardDetailsLoaded,
+  } = useBoardLoadingQueue();
   const currentUser = useSelector(selectUser);
   const currentBoard = useSelector(selectCurrentBoard);
 
@@ -126,6 +133,21 @@ const DraggableList: React.FC<DraggableListProps> = ({
     observer.observe(el);
     return () => observer.disconnect();
   }, [hasBeenVisible]);
+
+  // Force list to be visible when it enters the active loading batch
+  const inActiveBatch = isListInActiveBatch(list.id);
+  useEffect(() => {
+    if (inActiveBatch && !hasBeenVisible && !collapsed) {
+      setHasBeenVisible(true);
+    }
+  }, [inActiveBatch, hasBeenVisible, collapsed]);
+
+  const cardIds = useMemo(() => cards.map((card) => card.id), [cards]);
+
+  useEffect(() => {
+    if (!hasBeenVisible) return;
+    updateListCards(list.id, cardIds);
+  }, [cardIds, hasBeenVisible, list.id, updateListCards]);
 
   useEffect(() => {
     if (isAddingCard && !hasBeenVisible) {
@@ -324,6 +346,13 @@ const DraggableList: React.FC<DraggableListProps> = ({
                                 card={card}
                                 list={list}
                                 index={index}
+                                detailsEnabled={isCardDetailEnabled(
+                                  list.id,
+                                  card.id
+                                )}
+                                onDetailsLoaded={(cardId) =>
+                                  reportCardDetailsLoaded(list.id, cardId)
+                                }
                               />
                             ))}
 
@@ -362,20 +391,22 @@ const DraggableList: React.FC<DraggableListProps> = ({
                           </div>
                         ) : (
                           <div className="space-y-2 px-1">
-                            {Array.from({ length: Math.min(cards.length, 3) }).map(
-                              (_, i) => (
-                                <div
-                                  key={`placeholder-${i}`}
-                                  className="h-[100px] bg-gray-100 rounded-lg animate-pulse"
-                                />
-                              )
-                            )}
+                            {Array.from({
+                              length:
+                                cards.length === 0
+                                  ? 3
+                                  : Math.min(cards.length, 3),
+                            }).map((_, i) => (
+                              <div
+                                key={`placeholder-${i}`}
+                                className="h-[100px] bg-gray-100 rounded-lg animate-pulse"
+                              />
+                            ))}
                             {cards.length > 3 && (
                               <div className="text-center text-xs text-gray-400 py-1">
                                 +{cards.length - 3} more cards
                               </div>
                             )}
-                            {cards.length === 0 && <div className="h-[50px]" />}
                           </div>
                         )}
                         {provided.placeholder}

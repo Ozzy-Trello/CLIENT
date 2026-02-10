@@ -7,14 +7,16 @@ import { selectIsDarkMode } from "@store/app_slice";
 import { DashcardDisplayType } from "@myTypes/dashcard";
 import { useCustomFields } from "@hooks/custom_field";
 import { useParams } from "next/navigation";
-import { EnumCustomFieldType } from "@myTypes/custom-field";
 import "./styles.css";
+import { useEffect, useRef } from "react";
 
 interface DashcardProps {
   card: Card;
   isHovered: boolean;
   onCompletionChange: (e: CheckboxChangeEvent, card: Card) => void;
   isDragging?: boolean;
+  detailsEnabled?: boolean;
+  onDetailsLoaded?: (cardId: string) => void;
 }
 
 // util to lighten color toward white (light mode)
@@ -47,7 +49,14 @@ const getFadeColor = (hex: string, isDarkMode: boolean, amount = 0.8) => {
 };
 
 const Dashcard: React.FC<DashcardProps> = (props) => {
-  const { card, isHovered, onCompletionChange, isDragging = false } = props;
+  const {
+    card,
+    isHovered,
+    onCompletionChange,
+    isDragging = false,
+    detailsEnabled = true,
+    onDetailsLoaded,
+  } = props;
   const isDarkMode = useSelector(selectIsDarkMode);
   const { workspaceId } = useParams();
   const { customFields } = useCustomFields(
@@ -55,11 +64,31 @@ const Dashcard: React.FC<DashcardProps> = (props) => {
   );
 
   // Use our custom hook to fetch and manage dashcard count
-  const { count } = useDashcardCount(card.id);
+  const { count, isLoading: isCountLoading } = useDashcardCount(card.id, {
+    enabled: detailsEnabled,
+  });
 
   // Use dashcard list hook to get items with custom field data
-  const { resultData } = useDashcardList(card);
+  const { resultData, isLoading: isListLoading } = useDashcardList(card, {
+    enabled: detailsEnabled,
+  });
   const items = resultData?.items || [];
+
+  const hasReportedRef = useRef(false);
+
+  useEffect(() => {
+    if (!detailsEnabled || hasReportedRef.current) return;
+    if (!isCountLoading && !isListLoading) {
+      hasReportedRef.current = true;
+      onDetailsLoaded?.(card.id);
+    }
+  }, [
+    detailsEnabled,
+    isCountLoading,
+    isListLoading,
+    card.id,
+    onDetailsLoaded,
+  ]);
 
   // Calculate display value based on configuration
   const getDisplayValue = (): string => {

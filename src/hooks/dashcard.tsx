@@ -7,7 +7,12 @@ import { useParams } from "next/navigation";
  * This hook integrates with React Query and the WebSocket system
  * to provide real-time updates when custom fields change
  */
-export const useDashcardCount = (dashcardId: string) => {
+export const useDashcardCount = (
+  dashcardId: string,
+  options?: {
+    enabled?: boolean;
+  }
+) => {
   const queryClient = useQueryClient();
   const params = useParams();
   const workspaceId = Array.isArray(params.workspaceId)
@@ -32,7 +37,7 @@ export const useDashcardCount = (dashcardId: string) => {
     refetchInterval: 2 * 60 * 1000, // background refresh every 2 minutes
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
-    enabled: !!dashcardId && !!workspaceId,
+    enabled: !!dashcardId && !!workspaceId && (options?.enabled ?? true),
   });
 
   /**

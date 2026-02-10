@@ -40,6 +40,7 @@ import { ApiResponse } from "@myTypes/type";
 import { useRealtimeUpdates } from "@hooks/websocket";
 import HorizontalSlider from "@components/horizontal-slider";
 import { BoardPermissionsProvider } from "@providers/board-permissions-context";
+import { BoardLoadingQueueProvider, useBoardLoadingQueue } from "@providers/board-loading-queue-context";
 import { useRecentlyViewed } from "@hooks/recently-viewed";
 import type { DropResult, DragUpdate } from "@hello-pangea/dnd";
 
@@ -528,44 +529,88 @@ const Board: React.FC = () => {
   const [loadMoreErrors, setLoadMoreErrors] = useState<Record<string, string | null>>({});
   const [addingCardByListId, setAddingCardByListId] = useState<Record<string, boolean>>({});
 
-  // Initialize local cards from React Query cache on mount
+  // ── Batched loading queue ──────────────────────────────────────
+  const {
+    setAllListIds,
+    activeBatchListIds,
+    reportListStubsLoaded,
+  } = useBoardLoadingQueue();
+  const fetchedStubsRef = useRef(new Set<string>());
+
+  // ── Effect A: Reset queue when lists, board, or filters change ──
   useEffect(() => {
     if (!lists || lists.length === 0 || !resolvedBoardId) return;
+    const listIds = lists.map((l) => l.id);
+    setAllListIds(listIds);
+    fetchedStubsRef.current = new Set();
+    setLocalCardsInitialized(false);
+    setLocalCards({});
+    setCardsPagination({});
+  }, [lists, resolvedBoardId, selectedLabelIds, setAllListIds]);
+
+  // ── Effect B: Fetch card stubs for the current active batch ──
+  useEffect(() => {
+    if (!resolvedBoardId || !lists || lists.length === 0) return;
+    if (activeBatchListIds.length === 0) return;
 
     let cancelled = false;
 
-    const initializeLocalCards = async () => {
-      setLocalCardsInitialized(false);
-      const initialCards: Record<string, Card[]> = {};
-      const initialPagination: Record<string, any> = {};
-      const labelIds = selectedLabelIds.length > 0 ? selectedLabelIds : undefined;
+    const fetchBatchStubs = async () => {
+      const toFetch = activeBatchListIds.filter(
+        (id) => !fetchedStubsRef.current.has(id)
+      );
+
+      if (toFetch.length === 0) {
+        // All lists in batch already fetched — ensure board is rendered
+        setLocalCardsInitialized(true);
+        return;
+      }
+
+      console.log(
+        `📦 [BATCH STUBS] Fetching stubs for ${toFetch.length} lists:`,
+        toFetch
+      );
+
+      const labelIds =
+        selectedLabelIds.length > 0 ? selectedLabelIds : undefined;
       const hasLabelFilter = !!labelIds;
       const limit = 10;
 
       await Promise.all(
-        lists.map(async (list) => {
-          // Only use cache when there's NO label filter active
-          // When filtering, we must always fetch fresh filtered data from the API
+        toFetch.map(async (listId) => {
+          if (cancelled) return;
+
+          // Try cache first (only when no label filter)
           if (!hasLabelFilter) {
             const cachedCards = queryClient.getQueryData<ApiResponse<Card[]>>(
-              queryKeys.cards.list(list.id)
+              queryKeys.cards.list(listId)
             );
-
-            if (cachedCards?.data) {
-              initialCards[list.id] = cachedCards.data;
-              initialPagination[list.id] = {
-                currentPage: 1,
-                hasMore: cachedCards.data.length >= limit,
-                totalCards:
-                  cachedCards.paginate?.totalData || cachedCards.data.length,
-              };
+            const cached = cachedCards?.data;
+            if (cached) {
+              if (!cancelled) {
+                setLocalCards((prev) => ({
+                  ...prev,
+                  [listId]: cached,
+                }));
+                setCardsPagination((prev) => ({
+                  ...prev,
+                  [listId]: {
+                    currentPage: 1,
+                    hasMore: cached.length >= limit,
+                    totalCards:
+                      cachedCards.paginate?.totalData || cached.length,
+                  },
+                }));
+                fetchedStubsRef.current.add(listId);
+                reportListStubsLoaded(listId);
+              }
               return;
             }
           }
 
           try {
             const response = await cards(
-              list.id,
+              listId,
               resolvedBoardId,
               1,
               limit,
@@ -574,51 +619,81 @@ const Board: React.FC = () => {
               undefined
             );
 
-            if (response?.data) {
-              initialCards[list.id] = response.data;
-              initialPagination[list.id] = {
-                currentPage: 1,
-                hasMore: response.data.length >= limit,
-                totalCards: response.paginate?.totalData || response.data.length,
-              };
+            if (cancelled) return;
 
+            const responseData = response?.data;
+            if (responseData) {
+              setLocalCards((prev) => ({
+                ...prev,
+                [listId]: responseData,
+              }));
+              setCardsPagination((prev) => ({
+                ...prev,
+                [listId]: {
+                  currentPage: 1,
+                  hasMore: responseData.length >= limit,
+                  totalCards:
+                    response.paginate?.totalData || responseData.length,
+                },
+              }));
               queryClient.setQueryData<ApiResponse<Card[]>>(
-                queryKeys.cards.list(list.id),
+                queryKeys.cards.list(listId),
                 response
               );
             } else {
-              initialCards[list.id] = [];
-              initialPagination[list.id] = {
-                currentPage: 1,
-                hasMore: false,
-                totalCards: 0,
-              };
+              setLocalCards((prev) => ({ ...prev, [listId]: [] }));
+              setCardsPagination((prev) => ({
+                ...prev,
+                [listId]: {
+                  currentPage: 1,
+                  hasMore: false,
+                  totalCards: 0,
+                },
+              }));
             }
+
+            fetchedStubsRef.current.add(listId);
+            reportListStubsLoaded(listId);
           } catch (error) {
-            console.error("[INIT CARDS] Error:", error);
-            initialCards[list.id] = [];
-            initialPagination[list.id] = {
-              currentPage: 1,
-              hasMore: false,
-              totalCards: 0,
-            };
+            console.error(
+              `[BATCH STUBS] Error fetching cards for list ${listId}:`,
+              error
+            );
+            if (!cancelled) {
+              setLocalCards((prev) => ({ ...prev, [listId]: [] }));
+              setCardsPagination((prev) => ({
+                ...prev,
+                [listId]: {
+                  currentPage: 1,
+                  hasMore: false,
+                  totalCards: 0,
+                },
+              }));
+              fetchedStubsRef.current.add(listId);
+              reportListStubsLoaded(listId);
+            }
           }
         })
       );
 
-      if (cancelled) return;
-
-      setLocalCards(initialCards);
-      setCardsPagination(initialPagination);
-      setLocalCardsInitialized(true);
+      if (!cancelled) {
+        setLocalCardsInitialized(true);
+      }
     };
 
-    initializeLocalCards();
+    fetchBatchStubs();
 
     return () => {
       cancelled = true;
     };
-  }, [lists, queryClient, resolvedBoardId, selectedLabelIds]);
+  }, [
+    activeBatchListIds,
+    resolvedBoardId,
+    lists,
+    selectedLabelIds,
+    queryClient,
+    reportListStubsLoaded,
+  ]);
 
   // Sync local cards when list cache updates (e.g., automation-driven changes)
   useEffect(() => {
@@ -1250,41 +1325,41 @@ const Board: React.FC = () => {
           <CardDetailProvider>
             <div className="relative pb-10">
               {/* Horizontal Slider for manual navigation - positioned inside board area */}
-              <BoardContentWithPermissions
-                lists={lists}
-                isLoading={isLoading}
-                shouldRenderLists={shouldRenderLists}
-                onListDragEnd={onListDragEnd}
-                onDragStart={onDragStart}
-                onDragUpdate={onDragUpdate}
-                boardScrollContainerRef={boardScrollContainerRef}
-                resolvedBoardId={resolvedBoardId}
-                updateList={updateList}
-                deleteList={deleteList}
-                isAddingList={isAddingList}
-                setIsAddingList={setIsAddingList}
-                newListName={newListName}
-                setNewListName={setNewListName}
-                handleAddList={handleAddList}
-                isDraggingToScroll={isDraggingToScroll}
-                onMouseDown={handleMouseDown}
-                onMouseMove={handleMouseMove}
-                onMouseUp={handleMouseUp}
-                onMouseLeave={handleMouseLeave}
-                onTouchStart={handleTouchStart}
-                onTouchMove={handleTouchMove}
-                onTouchEnd={handleTouchEnd}
-                collapsedLists={collapsedLists}
-                onToggleCollapse={handleToggleCollapse}
-                localCards={localCards}
-                cardsPagination={cardsPagination}
-                loadingMoreByListId={loadingMoreByListId}
-                loadMoreErrors={loadMoreErrors}
-                addingCardByListId={addingCardByListId}
-                onLoadMoreCards={loadMoreCards}
-                onRetryLoadMoreCards={retryLoadMoreCards}
-                onAddCard={handleAddCard}
-              />
+                <BoardContentWithPermissions
+                  lists={lists}
+                  isLoading={isLoading}
+                  shouldRenderLists={shouldRenderLists}
+                  onListDragEnd={onListDragEnd}
+                  onDragStart={onDragStart}
+                  onDragUpdate={onDragUpdate}
+                  boardScrollContainerRef={boardScrollContainerRef}
+                  resolvedBoardId={resolvedBoardId}
+                  updateList={updateList}
+                  deleteList={deleteList}
+                  isAddingList={isAddingList}
+                  setIsAddingList={setIsAddingList}
+                  newListName={newListName}
+                  setNewListName={setNewListName}
+                  handleAddList={handleAddList}
+                  isDraggingToScroll={isDraggingToScroll}
+                  onMouseDown={handleMouseDown}
+                  onMouseMove={handleMouseMove}
+                  onMouseUp={handleMouseUp}
+                  onMouseLeave={handleMouseLeave}
+                  onTouchStart={handleTouchStart}
+                  onTouchMove={handleTouchMove}
+                  onTouchEnd={handleTouchEnd}
+                  collapsedLists={collapsedLists}
+                  onToggleCollapse={handleToggleCollapse}
+                  localCards={localCards}
+                  cardsPagination={cardsPagination}
+                  loadingMoreByListId={loadingMoreByListId}
+                  loadMoreErrors={loadMoreErrors}
+                  addingCardByListId={addingCardByListId}
+                  onLoadMoreCards={loadMoreCards}
+                  onRetryLoadMoreCards={retryLoadMoreCards}
+                  onAddCard={handleAddCard}
+                />
               <HorizontalSlider
                 containerRef={boardScrollContainerRef}
                 widthPercent={20}
@@ -1311,4 +1386,13 @@ const Board: React.FC = () => {
   );
 };
 
-export default Board;
+// Wrap Board with BoardLoadingQueueProvider so Board can use useBoardLoadingQueue
+const BoardPage: React.FC = () => {
+  return (
+    <BoardLoadingQueueProvider>
+      <Board />
+    </BoardLoadingQueueProvider>
+  );
+};
+
+export default BoardPage;

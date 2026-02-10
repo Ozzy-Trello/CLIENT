@@ -18,7 +18,7 @@ import {
   Text,
 } from "lucide-react";
 import { useParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import dayjs from "dayjs";
 import { LookupCache } from "@utils/lookup-cache";
 import { useLabels } from "@hooks/label";
@@ -44,6 +44,8 @@ interface RegularCardProps {
   isHovered: boolean;
   onCompletionChange: (e: CheckboxChangeEvent, card: Card) => void;
   isDragging?: boolean;
+  detailsEnabled?: boolean;
+  onDetailsLoaded?: (cardId: string) => void;
 }
 
 // Utility: decide black/white text based on background color
@@ -61,16 +63,30 @@ function getContrastTextColor(hex: string): string {
 }
 
 const RegularCard: React.FC<RegularCardProps> = (props) => {
-  const { card, isHovered, onCompletionChange, isDragging = false } = props;
+  const {
+    card,
+    isHovered,
+    onCompletionChange,
+    isDragging = false,
+    detailsEnabled = true,
+    onDetailsLoaded,
+  } = props;
   const { workspaceId } = useParams();
   const isTempCard = card?.id?.startsWith("temp-card");
 
-  const { cardMembers } = useCardMembers(card?.id, {
-    enabled: !isTempCard,
-  });
-  const { cardCustomFields } = useCardCustomField(card.id, workspaceId as string, {
-    enabled: !isTempCard,
-  });
+  const hasPreloadedMembers = Array.isArray(card?.members) && card.members.length > 0;
+  const hasPreloadedCustomFields =
+    Array.isArray(card?.customFields) && card.customFields.length > 0;
+  const hasPreloadedLabels = Array.isArray(card?.labels) && card.labels.length > 0;
+
+  const { cardMembers: fetchedCardMembers, isLoading: isMembersLoading } =
+    useCardMembers(card?.id, {
+      enabled: !isTempCard && detailsEnabled && !hasPreloadedMembers,
+    });
+  const { cardCustomFields: fetchedCardCustomFields, isLoading: isCustomFieldsLoading } =
+    useCardCustomField(card.id, workspaceId as string, {
+      enabled: !isTempCard && detailsEnabled && !hasPreloadedCustomFields,
+    });
   const [frontCustomFields, setfrontCustomFields] = useState<CardCustomField[]>(
     []
   );
@@ -78,14 +94,31 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
   const [lookupVersion, setLookupVersion] = useState(0);
 
   // Fetch labels assigned to this card
-  const { cardLabels } = useLabels(
+  const { cardLabels: fetchedCardLabels, isLoadingCardLabels } = useLabels(
     Array.isArray(workspaceId)
       ? (workspaceId[0] as string)
       : (workspaceId as string),
     card.id,
     { cardId: card.id },
-    { enabled: !isTempCard }
+    { enabled: !isTempCard && detailsEnabled && !hasPreloadedLabels }
   );
+
+  const cardMembers = hasPreloadedMembers
+    ? card.members || []
+    : fetchedCardMembers || [];
+  const cardCustomFields = hasPreloadedCustomFields
+    ? card.customFields || []
+    : fetchedCardCustomFields || [];
+  const cardLabels = hasPreloadedLabels
+    ? card.labels || []
+    : fetchedCardLabels || [];
+
+  const membersResolved = hasPreloadedMembers || !isMembersLoading;
+  const customFieldsResolved =
+    hasPreloadedCustomFields || !isCustomFieldsLoading;
+  const labelsResolved = hasPreloadedLabels || !isLoadingCardLabels;
+
+  const hasReportedRef = useRef(false);
 
   // useEffect(() => {
   //   if (cardCustomFields) {
@@ -116,6 +149,27 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
       })();
     }
   }, [cardCustomFields, cardMembers]);
+
+  useEffect(() => {
+    if (!detailsEnabled || hasReportedRef.current) return;
+    if (isTempCard) {
+      hasReportedRef.current = true;
+      onDetailsLoaded?.(card.id);
+      return;
+    }
+    if (membersResolved && customFieldsResolved && labelsResolved) {
+      hasReportedRef.current = true;
+      onDetailsLoaded?.(card.id);
+    }
+  }, [
+    detailsEnabled,
+    isTempCard,
+    membersResolved,
+    customFieldsResolved,
+    labelsResolved,
+    card.id,
+    onDetailsLoaded,
+  ]);
 
   return (
     <div className="w-full">

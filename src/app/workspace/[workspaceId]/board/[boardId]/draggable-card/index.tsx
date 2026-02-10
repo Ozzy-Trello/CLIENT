@@ -17,6 +17,8 @@ interface DraggableCardProps {
   card: Card;
   index: number;
   list: AnyList;
+  detailsEnabled?: boolean;
+  onDetailsLoaded?: (cardId: string) => void;
 }
 
 const BLOCKED_CARD_DRAG_LIST_NAMES = new Set([
@@ -31,7 +33,13 @@ const BLOCKED_CARD_DRAG_LIST_NAMES = new Set([
 
 const normalizeListName = (name?: string) => (name || "").trim().toLowerCase();
 
-const DraggableCard: React.FC<DraggableCardProps> = ({ card, index, list }) => {
+const DraggableCard: React.FC<DraggableCardProps> = ({
+  card,
+  index,
+  list,
+  detailsEnabled = true,
+  onDetailsLoaded,
+}) => {
   const { openCardDetail } = useCardDetailContext();
   const { focusedCardId, setFocusedCardId, isCardFocused } = useCardFocus();
   const { boardId } = useParams();
@@ -129,6 +137,8 @@ const DraggableCard: React.FC<DraggableCardProps> = ({ card, index, list }) => {
                 isHovered={isHovered}
                 onCompletionChange={onChange}
                 isDragging={snapshot.isDragging}
+                detailsEnabled={detailsEnabled}
+                onDetailsLoaded={onDetailsLoaded}
               />
             ) : (
               <RegularCard
@@ -136,6 +146,8 @@ const DraggableCard: React.FC<DraggableCardProps> = ({ card, index, list }) => {
                 isHovered={isHovered}
                 onCompletionChange={onChange}
                 isDragging={snapshot.isDragging}
+                detailsEnabled={detailsEnabled}
+                onDetailsLoaded={onDetailsLoaded}
               />
             )}
 
