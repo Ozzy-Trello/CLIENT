@@ -516,6 +516,12 @@ const Board: React.FC = () => {
     originalPosition: number;
     currentPosition?: number;
   } | null>(null);
+
+  // Edge auto-scroll state while dragging cards near horizontal edges
+  const dragTypeRef = useRef<"card" | "list" | null>(null);
+  const edgeScrollRafRef = useRef<number | null>(null);
+  const edgeScrollVelocityRef = useRef(0);
+
   // Local state for instant drag-and-drop (like checklist)
   // This is the source of truth for card positions in the UI
   const [localCards, setLocalCards] = useState<Record<string, Card[]>>({});
@@ -872,6 +878,84 @@ const Board: React.FC = () => {
     currentWorkspace?.name,
   ]);
 
+  const stopEdgeAutoScroll = useCallback(() => {
+    edgeScrollVelocityRef.current = 0;
+    if (edgeScrollRafRef.current !== null) {
+      cancelAnimationFrame(edgeScrollRafRef.current);
+      edgeScrollRafRef.current = null;
+    }
+  }, []);
+
+  const updateEdgeScrollVelocity = useCallback((clientX: number) => {
+    if (dragTypeRef.current !== "card") {
+      edgeScrollVelocityRef.current = 0;
+      return;
+    }
+
+    const container = boardScrollContainerRef.current;
+    if (!container) {
+      edgeScrollVelocityRef.current = 0;
+      return;
+    }
+
+    const rect = container.getBoundingClientRect();
+    const EDGE_THRESHOLD = 140;
+    const MAX_SPEED = 28;
+    let velocity = 0;
+
+    if (clientX < rect.left + EDGE_THRESHOLD) {
+      const ratio = (rect.left + EDGE_THRESHOLD - clientX) / EDGE_THRESHOLD;
+      velocity = -Math.min(MAX_SPEED, Math.max(0, ratio * MAX_SPEED));
+    } else if (clientX > rect.right - EDGE_THRESHOLD) {
+      const ratio = (clientX - (rect.right - EDGE_THRESHOLD)) / EDGE_THRESHOLD;
+      velocity = Math.min(MAX_SPEED, Math.max(0, ratio * MAX_SPEED));
+    }
+
+    edgeScrollVelocityRef.current = velocity;
+  }, []);
+
+  useEffect(() => {
+    const onMouseMove = (event: MouseEvent) => updateEdgeScrollVelocity(event.clientX);
+    const onTouchMove = (event: TouchEvent) => {
+      if (!event.touches || event.touches.length === 0) return;
+      updateEdgeScrollVelocity(event.touches[0].clientX);
+    };
+
+    window.addEventListener("mousemove", onMouseMove, { passive: true });
+    window.addEventListener("touchmove", onTouchMove, { passive: true });
+
+    return () => {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("touchmove", onTouchMove);
+    };
+  }, [updateEdgeScrollVelocity]);
+
+  useEffect(() => {
+    const tick = () => {
+      const container = boardScrollContainerRef.current;
+      const velocity = edgeScrollVelocityRef.current;
+
+      if (
+        container &&
+        dragTypeRef.current === "card" &&
+        (window as any).__DRAG_IN_PROGRESS__ &&
+        velocity !== 0
+      ) {
+        container.scrollLeft += velocity;
+      }
+
+      edgeScrollRafRef.current = requestAnimationFrame(tick);
+    };
+
+    edgeScrollRafRef.current = requestAnimationFrame(tick);
+
+    return () => {
+      if (edgeScrollRafRef.current !== null) {
+        cancelAnimationFrame(edgeScrollRafRef.current);
+      }
+    };
+  }, []);
+
   const onListDragEnd = (result: DropResult) => {
       const { destination, source, type, draggableId } = result;
 
@@ -882,6 +966,8 @@ const Board: React.FC = () => {
           if (type === "card") {
             currentDragState.current = null;
           }
+          dragTypeRef.current = null;
+          stopEdgeAutoScroll();
           // Clean up immediately without delay
           document.body.classList.remove("dragging");
           (window as any).__DRAG_IN_PROGRESS__ = false;
@@ -899,12 +985,17 @@ const Board: React.FC = () => {
           if (type === "card") {
             currentDragState.current = null;
           }
+          dragTypeRef.current = null;
+          stopEdgeAutoScroll();
           // Clean up immediately without delay
           document.body.classList.remove("dragging");
           (window as any).__DRAG_IN_PROGRESS__ = false;
         }
         return;
       }
+
+      dragTypeRef.current = null;
+      stopEdgeAutoScroll();
 
       // Handle the drag end based on type
       switch (type) {
@@ -928,6 +1019,7 @@ const Board: React.FC = () => {
   const onDragStart = (start: any): void => {
     // Simple drag start - just add dragging class for CSS transitions
     if (start.type === "card" || start.type === "list") {
+      dragTypeRef.current = start.type;
       document.body.classList.add("dragging");
       (window as any).__DRAG_IN_PROGRESS__ = true;
     }
@@ -1036,6 +1128,8 @@ const Board: React.FC = () => {
     const listId = draggabelId?.replaceAll("draggable-list-", "");
 
     // Clean up drag state for lists
+    dragTypeRef.current = null;
+    stopEdgeAutoScroll();
     setTimeout(() => {
       document.body.classList.remove("dragging");
       (window as any).__DRAG_IN_PROGRESS__ = false;
@@ -1115,6 +1209,8 @@ const Board: React.FC = () => {
     });
 
     (window as any).__DRAG_IN_PROGRESS__ = true;
+    dragTypeRef.current = null;
+    stopEdgeAutoScroll();
     currentDragState.current = null;
 
     if (actualMove && originalCard && originalListId && destListId) {
