@@ -442,9 +442,18 @@ export function useCardDetails(
     mutationFn: ({ listId, cardId }: { listId: string; cardId: string }) => cardComplete(cardId),
 
     onMutate: async ({ listId, cardId }) => {
-      await queryClient.cancelQueries({ queryKey: queryKeys.cards.detail(cardId) });
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: queryKeys.cards.detail(cardId) }),
+        queryClient.cancelQueries({ queryKey: queryKeys.cards.list(listId) }),
+      ]);
 
-      const previousCard = queryClient.getQueryData<ApiResponse<any>>(queryKeys.cards.detail(cardId));
+      const previousCard = queryClient.getQueryData<ApiResponse<any>>(
+        queryKeys.cards.detail(cardId)
+      );
+      const previousCards = queryClient.getQueryData<ApiResponse<any>>(
+        queryKeys.cards.list(listId)
+      );
+      const completedAt = new Date().toISOString();
 
       queryClient.setQueryData<ApiResponse<any>>(queryKeys.cards.detail(cardId), (old) => {
         if (!old) return old;
@@ -452,18 +461,31 @@ export function useCardDetails(
           ...old,
           data: {
             ...old.data,
-            completed: true,
-            completedAt: new Date().toISOString(),
+            isComplete: true,
+            completedAt,
           },
         };
       });
 
-      return { previousCard, listId, cardId };
+      queryClient.setQueryData<ApiResponse<any>>(queryKeys.cards.list(listId), (old) => {
+        if (!old?.data) return old;
+        return {
+          ...old,
+          data: old.data.map((card: any) =>
+            card.id === cardId ? { ...card, isComplete: true, completedAt } : card
+          ),
+        };
+      });
+
+      return { previousCard, previousCards, listId, cardId };
     },
 
     onError: (_err, _variables, context) => {
       if (context?.previousCard && context?.cardId) {
         queryClient.setQueryData(queryKeys.cards.detail(context.cardId), context.previousCard);
+      }
+      if (context?.previousCards && context?.listId) {
+        queryClient.setQueryData(queryKeys.cards.list(context.listId), context.previousCards);
       }
     },
 
@@ -484,9 +506,17 @@ export function useCardDetails(
     mutationFn: ({ listId, cardId }: { listId: string; cardId: string }) => cardIncomplete(cardId),
 
     onMutate: async ({ listId, cardId }) => {
-      await queryClient.cancelQueries({ queryKey: queryKeys.cards.detail(cardId) });
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: queryKeys.cards.detail(cardId) }),
+        queryClient.cancelQueries({ queryKey: queryKeys.cards.list(listId) }),
+      ]);
 
-      const previousCard = queryClient.getQueryData<ApiResponse<any>>(queryKeys.cards.detail(cardId));
+      const previousCard = queryClient.getQueryData<ApiResponse<any>>(
+        queryKeys.cards.detail(cardId)
+      );
+      const previousCards = queryClient.getQueryData<ApiResponse<any>>(
+        queryKeys.cards.list(listId)
+      );
 
       queryClient.setQueryData<ApiResponse<any>>(queryKeys.cards.detail(cardId), (old) => {
         if (!old) return old;
@@ -494,18 +524,31 @@ export function useCardDetails(
           ...old,
           data: {
             ...old.data,
-            completed: false,
-            completedAt: new Date().toISOString(),
+            isComplete: false,
+            completedAt: null,
           },
         };
       });
 
-      return { previousCard, listId, cardId };
+      queryClient.setQueryData<ApiResponse<any>>(queryKeys.cards.list(listId), (old) => {
+        if (!old?.data) return old;
+        return {
+          ...old,
+          data: old.data.map((card: any) =>
+            card.id === cardId ? { ...card, isComplete: false, completedAt: null } : card
+          ),
+        };
+      });
+
+      return { previousCard, previousCards, listId, cardId };
     },
 
     onError: (_err, _variables, context) => {
       if (context?.previousCard && context?.cardId) {
         queryClient.setQueryData(queryKeys.cards.detail(context.cardId), context.previousCard);
+      }
+      if (context?.previousCards && context?.listId) {
+        queryClient.setQueryData(queryKeys.cards.list(context.listId), context.previousCards);
       }
     },
 

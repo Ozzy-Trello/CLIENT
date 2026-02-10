@@ -668,6 +668,7 @@ const Board: React.FC = () => {
             if (card.name !== nextCard.name) return false;
             if (card.description !== nextCard.description) return false;
             if (card.dueDate !== nextCard.dueDate) return false;
+            if (card.isComplete !== nextCard.isComplete) return false;
 
             return true;
           });
