@@ -28,8 +28,9 @@ export const useDashcardCount = (dashcardId: string) => {
       const result = await cardCount(dashcardId, workspaceId);
       return result.data || 0;
     },
-    staleTime: 2 * 60 * 1000, // 2 minutes
-    refetchInterval: 2 * 60 * 1000, // background refresh every 2 minutes
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    // Disable periodic polling to avoid burst /dashcard/count traffic.
+    // Counts are refreshed by websocket invalidation and manual refresh when needed.
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
     enabled: !!dashcardId && !!workspaceId,
