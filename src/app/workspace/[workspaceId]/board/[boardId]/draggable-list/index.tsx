@@ -39,6 +39,7 @@ interface DraggableListProps {
   isAddingCard?: boolean;
   loadMoreError?: string | null;
   onRetryLoadMore?: () => void;
+  onListVisible?: (listId: string) => void;
 }
 
 const DraggableList: React.FC<DraggableListProps> = ({
@@ -58,9 +59,11 @@ const DraggableList: React.FC<DraggableListProps> = ({
   isAddingCard = false,
   loadMoreError,
   onRetryLoadMore,
+  onListVisible,
 }) => {
   const listRef = useRef<HTMLDivElement | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const hasTriggeredListVisibleRef = useRef(false);
 
   // Combine drag ref and visibility ref
   const setRefs = useCallback(
@@ -100,6 +103,30 @@ const DraggableList: React.FC<DraggableListProps> = ({
     observer.observe(el);
     return () => observer.disconnect();
   }, [isLoadingMore, hasMoreCards, loadMoreError, onLoadMore]);
+
+  // Lazy load list cards when list enters viewport
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el || !onListVisible || hasTriggeredListVisibleRef.current) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          hasTriggeredListVisibleRef.current = true;
+          onListVisible(list.id);
+          observer.disconnect();
+        }
+      },
+      {
+        root: null,
+        rootMargin: "200px",
+        threshold: 0.05,
+      }
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [list.id, onListVisible]);
 
   useEffect(() => {
     setActiveSortKey("manual");
