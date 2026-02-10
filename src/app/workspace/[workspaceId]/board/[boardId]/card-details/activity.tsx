@@ -12,6 +12,7 @@ import { User } from "@myTypes/user";
 import { useCardActivity } from "@hooks/card_activity";
 import CardAttachmentImageListModal from "@components/modal-list-card-attachment-images";
 import { useBoardPermissionsContext } from "@providers/board-permissions-context";
+import { normalizeQuillHtml, linkifyHtml } from "@utils/normalize-quill-html";
 
 interface ActivitySectionProps {
   card: Card;
@@ -449,9 +450,22 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
                     </div>
                   ) : (
                     <div
-                      className="prose prose-sm max-w-none text-sm"
+                      className="prose prose-sm max-w-none text-sm prose-ul:list-disc prose-ol:list-decimal prose-ul:pl-5 prose-ol:pl-5 prose-a:text-blue-600 prose-a:underline prose-a:cursor-pointer"
                       dangerouslySetInnerHTML={{
-                        __html: item?.comment?.text || "",
+                        __html: linkifyHtml(
+                          normalizeQuillHtml(item?.comment?.text || "")
+                        ),
+                      }}
+                      onClick={(e) => {
+                        const target = e.target as HTMLElement;
+                        if (target.tagName === "A") {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          const href = target.getAttribute("href");
+                          if (href) {
+                            window.open(href, "_blank", "noopener,noreferrer");
+                          }
+                        }
                       }}
                     />
                   )}
