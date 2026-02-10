@@ -19,7 +19,7 @@ import CardDetails from "./card-details";
 import ListSkeleton from "./list-skeleton.tsx";
 import BoardScopeMenu from "@components/board-scope-menu";
 import { useCardMove, useCards } from "@hooks/card";
-import { cards } from "@api/card";
+import { cards, batchGetDashcardData } from "@api/card";
 import ModalDashcard from "@components/dashcard/modal-dashcard";
 import { DashcardConfig } from "@myTypes/dashcard";
 import { Card, EnumCardType } from "@myTypes/card";
@@ -694,6 +694,61 @@ const Board: React.FC = () => {
     queryClient,
     reportListStubsLoaded,
   ]);
+
+  // ── Effect C: Batch-prefetch dashcard data ──
+  // After card stubs load, collect all dashcard IDs and fetch their data in one
+  // batch request. Seed the React Query cache so individual useDashcardList hooks
+  // get immediate cache hits instead of firing 1 request per dashcard.
+  const dashcardPrefetchedRef = useRef(false);
+
+  useEffect(() => {
+    if (dashcardPrefetchedRef.current) return;
+    if (!localCardsInitialized) return;
+
+    // Collect all dashcard IDs from all loaded cards across all lists
+    const allDashcardIds: string[] = [];
+    for (const listId of Object.keys(localCards)) {
+      const cardsInList = localCards[listId] || [];
+      for (const card of cardsInList) {
+        if (card.type === EnumCardType.Dashcard) {
+          allDashcardIds.push(card.id);
+        }
+      }
+    }
+
+    if (allDashcardIds.length === 0) return;
+
+    dashcardPrefetchedRef.current = true;
+
+    const wsId = Array.isArray(workspaceId) ? workspaceId[0] : (workspaceId as string);
+
+    batchGetDashcardData(wsId, allDashcardIds)
+      .then((response) => {
+        if (!response.data) return;
+
+        // Seed React Query cache for each dashcard so useDashcardList gets cache hits
+        for (const [dashcardId, dashcardData] of Object.entries(response.data)) {
+          queryClient.setQueryData(
+            ["list-dashcard", dashcardId, wsId],
+            { data: dashcardData, message: "Prefetched" }
+          );
+        }
+
+        console.log(
+          `📦 [DASHCARD BATCH] Prefetched ${Object.keys(response.data).length} dashcards`
+        );
+      })
+      .catch((err) => {
+        // Non-fatal: individual useDashcardList hooks will still fetch on their own
+        console.error("Failed to batch prefetch dashcard data:", err);
+        dashcardPrefetchedRef.current = false; // Allow retry
+      });
+  }, [localCardsInitialized, localCards, workspaceId, queryClient]);
+
+  // Reset dashcard prefetch ref when board/filters change
+  useEffect(() => {
+    dashcardPrefetchedRef.current = false;
+  }, [resolvedBoardId, selectedLabelIds]);
 
   // Sync local cards when list cache updates (e.g., automation-driven changes)
   useEffect(() => {

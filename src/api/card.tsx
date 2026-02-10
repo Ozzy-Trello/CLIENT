@@ -481,6 +481,16 @@ export const getListDashcard = async (workspaceId: string, id: string) => {
   return data as ApiResponse<ListDashcardDataResponse>;
 };
 
+export const batchGetDashcardData = async (
+  workspaceId: string,
+  dashcardIds: string[]
+): Promise<ApiResponse<Record<string, ListDashcardDataResponse>>> => {
+  const { data } = await api.post(`/card/batch-dashcard/${workspaceId}`, {
+    dashcardIds,
+  });
+  return data as ApiResponse<Record<string, ListDashcardDataResponse>>;
+};
+
 // Fetch archived cards within a board (requires board-id header)
 export const archivedCards = async (
   boardId: string,

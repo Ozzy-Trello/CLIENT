@@ -1,6 +1,5 @@
 import { Card } from "@myTypes/card";
 import { Checkbox, CheckboxChangeEvent, Typography } from "antd";
-import { useDashcardCount } from "@hooks/dashcard";
 import { useDashcardList } from "@hooks/dashcard-list";
 import { useSelector } from "react-redux";
 import { selectIsDarkMode } from "@store/app_slice";
@@ -63,45 +62,26 @@ const Dashcard: React.FC<DashcardProps> = (props) => {
     Array.isArray(workspaceId) ? workspaceId[0] : workspaceId
   );
 
-  // Use our custom hook to fetch and manage dashcard count
-  const { count, isLoading: isCountLoading } = useDashcardCount(card.id, {
-    enabled: detailsEnabled,
-  });
-
   // Use dashcard list hook to get items with custom field data
-  const { resultData, isLoading: isListLoading } = useDashcardList(card, {
+  // Count is derived from items.length — no need for separate useDashcardCount call
+  const { resultData } = useDashcardList(card, {
     enabled: detailsEnabled,
   });
   const items = resultData?.items || [];
 
+  // Report onDetailsLoaded immediately — dashcard data loads in background.
+  // This prevents dashcards from blocking the batch loading queue.
   const hasReportedRef = useRef(false);
 
   useEffect(() => {
     if (!detailsEnabled || hasReportedRef.current) return;
-    if (!isCountLoading && !isListLoading) {
-      hasReportedRef.current = true;
-      onDetailsLoaded?.(card.id);
-    }
-  }, [
-    detailsEnabled,
-    isCountLoading,
-    isListLoading,
-    card.id,
-    onDetailsLoaded,
-  ]);
+    hasReportedRef.current = true;
+    onDetailsLoaded?.(card.id);
+  }, [detailsEnabled, card.id, onDetailsLoaded]);
 
   // Calculate display value based on configuration
+  // Count is derived from items.length (from useDashcardList) — no separate API call needed
   const getDisplayValue = (): string => {
-    const formatCount = () => {
-      const numericCount =
-        typeof count === "number"
-          ? count
-          : typeof count === "string"
-          ? parseInt(count, 10)
-          : 0;
-      return numericCount.toLocaleString();
-    };
-
     const displayConfig = card?.dashConfig?.displayConfig;
 
     if (
@@ -112,7 +92,7 @@ const Dashcard: React.FC<DashcardProps> = (props) => {
       const customField = customFields?.find(
         (field) => field.id === displayConfig.customFieldId
       );
-      if (!customField) return formatCount();
+      if (!customField) return items.length.toLocaleString();
 
       // Calculate sum of the custom field using the field name
       const sum = items.reduce((total, item) => {
@@ -135,8 +115,8 @@ const Dashcard: React.FC<DashcardProps> = (props) => {
       return Math.round(sum).toLocaleString();
     }
 
-    // Default to card count (also format with separators)
-    return formatCount();
+    // Default to card count derived from items
+    return items.length.toLocaleString();
   };
 
   // Get display label based on configuration
