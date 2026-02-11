@@ -43,7 +43,7 @@ const DraggableCard: React.FC<DraggableCardProps> = ({ card, index, list }) => {
   const { focusedCardId, setFocusedCardId, isCardFocused } = useCardFocus();
   const { boardId } = useParams();
   const [isHovered, setIsHovered] = useState<boolean>(false);
-  const { canMove, isSuperAdmin } = usePermissions();
+  const { isSuperAdmin } = usePermissions();
   const currentBoard = useSelector(selectCurrentBoard);
   const { completeCard, incompleteCard } = useCardDetails(
     "",
@@ -67,7 +67,7 @@ const DraggableCard: React.FC<DraggableCardProps> = ({ card, index, list }) => {
   const isBlockedBoard = BLOCKED_CARD_DRAG_BOARD_NAMES.has(
     normalizeName(boardName)
   );
-  const canMoveCard = canMove("card") && (isSuperAdmin() || !isBlockedBoard);
+  const canMoveCard = isSuperAdmin() || !isBlockedBoard;
 
   // Determine if this card should be blurred
   const shouldBlur = focusedCardId !== null && !isCardFocused(card.id);
