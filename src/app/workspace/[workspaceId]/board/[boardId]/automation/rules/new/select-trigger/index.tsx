@@ -1055,6 +1055,12 @@ const LabelRenderer = ({
               const field = (
                 props.triggersData[groupIndex]?.items?.[index] as any
               )?.[EnumSelectionType.Fields]?.value as any;
+              const rawValues = (
+                props.triggersData[groupIndex]?.items?.[index] as any
+              )?.[placeholder];
+              const currentValues = Array.isArray(rawValues)
+                ? rawValues
+                : rawValues?.value || [];
 
               return (
                 <MultiFieldValueInput
@@ -1062,16 +1068,46 @@ const LabelRenderer = ({
                   width={"fit-content"}
                   ref={useRef<SelectionRef>(null)}
                   field={field}
-                  value={
-                    (props.triggersData[groupIndex]?.items?.[index] as any)?.[
-                      placeholder
-                    ] || []
-                  }
+                  value={currentValues}
                   onChange={(values: string[]) => {
                     let copyArr = [...props.triggersData];
-                    (copyArr[groupIndex]?.items?.[index] as any)[placeholder] =
-                      values;
+                    const triggerItem =
+                      copyArr[groupIndex]?.items?.[index] as any;
+                    if (!triggerItem) {
+                      props.setTriggersData(copyArr);
+                      return;
+                    }
+
+                    const target = triggerItem[placeholder];
+                    const nextValues = [...values];
+
+                    if (Array.isArray(target)) {
+                      target.splice(0, target.length, ...nextValues);
+                    } else if (
+                      target &&
+                      typeof target === "object" &&
+                      Array.isArray(target.value)
+                    ) {
+                      target.value.splice(0, target.value.length, ...nextValues);
+                    } else if (target && typeof target === "object") {
+                      target.value = nextValues;
+                    } else {
+                      triggerItem[placeholder] = nextValues;
+                    }
                     props.setTriggersData(copyArr);
+
+                    // Ensure the persisted trigger also receives the updated values
+                    props.setSelectedRule((prev) => {
+                      if (!prev?.triggerItem) return prev;
+                      const nextTriggerItem = {
+                        ...prev.triggerItem,
+                        [placeholder]: nextValues,
+                      } as any;
+                      return {
+                        ...prev,
+                        triggerItem: nextTriggerItem,
+                      };
+                    });
                   }}
                   className="mx-2"
                 />
