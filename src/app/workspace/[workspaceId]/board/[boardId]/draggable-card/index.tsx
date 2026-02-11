@@ -14,6 +14,7 @@ import CardContextMenu from "@components/card-context-menu";
 import { MoreHorizontal } from "lucide-react";
 import { useSelector } from "react-redux";
 import { selectCurrentBoard } from "@store/workspace_slice";
+import { selectUser } from "@store/app_slice";
 
 interface DraggableCardProps {
   card: Card;
@@ -45,6 +46,7 @@ const DraggableCard: React.FC<DraggableCardProps> = ({ card, index, list }) => {
   const [isHovered, setIsHovered] = useState<boolean>(false);
   const { isSuperAdmin } = usePermissions();
   const currentBoard = useSelector(selectCurrentBoard);
+  const currentUser = useSelector(selectUser);
   const { completeCard, incompleteCard } = useCardDetails(
     "",
     "",
@@ -67,7 +69,9 @@ const DraggableCard: React.FC<DraggableCardProps> = ({ card, index, list }) => {
   const isBlockedBoard = BLOCKED_CARD_DRAG_BOARD_NAMES.has(
     normalizeName(boardName)
   );
-  const canMoveCard = isSuperAdmin() || !isBlockedBoard;
+  const roleName = (currentUser?.role?.name || "").trim().toLowerCase();
+  const isObserver = roleName === "observer";
+  const canMoveCard = !isObserver && (isSuperAdmin() || !isBlockedBoard);
 
   // Determine if this card should be blurred
   const shouldBlur = focusedCardId !== null && !isCardFocused(card.id);
