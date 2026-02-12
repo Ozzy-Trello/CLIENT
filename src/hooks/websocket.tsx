@@ -147,6 +147,7 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
   const dashcardTimeoutRef = useRef<any>(null);
   const dashcardLastInvalidatedRef = useRef<number>(0);
   const DASHCARD_INTERVAL_MS = 180000; // 3 minutes throttle
+  const ENABLE_DASHCARD_WS_INVALIDATION = false;
 
   const scheduleDashcardInvalidation = () => {
     const now = Date.now();
@@ -1273,7 +1274,7 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
           refreshDashcard = true;
         }
 
-        if (refreshDashcard) {
+        if (refreshDashcard && ENABLE_DASHCARD_WS_INVALIDATION) {
           scheduleDashcardInvalidation();
         }
       } catch (e) {
