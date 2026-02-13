@@ -481,6 +481,25 @@ export const getListDashcard = async (workspaceId: string, id: string) => {
   return data as ApiResponse<ListDashcardDataResponse>;
 };
 
+export const batchCardCount = async (
+  dashcardIds: string[],
+  workspaceId: string
+): Promise<Record<string, number>> => {
+  const { data } = await api.post(
+    `/card/batch-dashcard-count/${workspaceId}`,
+    { dashcardIds }
+  );
+  // Response is array of { id, count } — convert to map for O(1) lookup
+  // (array format avoids UUID keys being mangled by camelcaseKeys interceptor)
+  const countMap: Record<string, number> = {};
+  if (Array.isArray(data.data)) {
+    data.data.forEach((item: { id: string; count: number }) => {
+      countMap[item.id] = item.count;
+    });
+  }
+  return countMap;
+};
+
 // Fetch archived cards within a board (requires board-id header)
 export const archivedCards = async (
   boardId: string,

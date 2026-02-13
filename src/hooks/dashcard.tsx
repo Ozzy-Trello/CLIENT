@@ -1,11 +1,76 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { cardCount } from "@api/card";
+import { batchCardCount } from "@api/card";
 import { useParams } from "next/navigation";
 
 /**
- * Custom hook for fetching and managing dashcard counts
- * This hook integrates with React Query and the WebSocket system
- * to provide real-time updates when custom fields change
+ * DataLoader-style batcher: collects dashcard IDs over a short window
+ * then fires a single batch request for all of them.
+ *
+ * This prevents N dashcards on a board from making N individual HTTP requests.
+ */
+const BATCH_DELAY_MS = 50;
+
+type PendingEntry = {
+  resolve: (count: number) => void;
+  reject: (err: unknown) => void;
+};
+
+const pendingBatches = new Map<
+  string, // workspaceId
+  { timer: ReturnType<typeof setTimeout>; entries: Map<string, PendingEntry[]> }
+>();
+
+function scheduleBatchFetch(
+  dashcardId: string,
+  workspaceId: string
+): Promise<number> {
+  return new Promise<number>((resolve, reject) => {
+    let batch = pendingBatches.get(workspaceId);
+
+    if (!batch) {
+      batch = { timer: null as any, entries: new Map() };
+      pendingBatches.set(workspaceId, batch);
+    }
+
+    // Add this ID to the pending entries
+    const existing = batch.entries.get(dashcardId) || [];
+    existing.push({ resolve, reject });
+    batch.entries.set(dashcardId, existing);
+
+    // Reset the timer — we flush after BATCH_DELAY_MS of silence
+    clearTimeout(batch.timer);
+    batch.timer = setTimeout(async () => {
+      const currentBatch = pendingBatches.get(workspaceId);
+      if (!currentBatch) return;
+
+      // Take ownership of entries and clear
+      const entries = currentBatch.entries;
+      pendingBatches.delete(workspaceId);
+
+      const ids = Array.from(entries.keys());
+
+      try {
+        const countMap = await batchCardCount(ids, workspaceId);
+
+        entries.forEach((callbacks: PendingEntry[], id: string) => {
+          const count = countMap[id] ?? 0;
+          callbacks.forEach((cb: PendingEntry) => cb.resolve(count));
+        });
+      } catch (err) {
+        entries.forEach((callbacks: PendingEntry[]) => {
+          callbacks.forEach((cb: PendingEntry) => cb.reject(err));
+        });
+      }
+    }, BATCH_DELAY_MS);
+  });
+}
+
+/**
+ * Custom hook for fetching and managing dashcard counts.
+ *
+ * Uses a DataLoader-style batcher: when multiple dashcards mount on the same
+ * board, their individual count requests are automatically collected into a
+ * single batch API call within a 50ms window.
  */
 export const useDashcardCount = (dashcardId: string) => {
   const queryClient = useQueryClient();
@@ -22,12 +87,7 @@ export const useDashcardCount = (dashcardId: string) => {
     refetch,
   } = useQuery({
     queryKey: ["dashcardCount", dashcardId],
-    queryFn: async () => {
-      if (!dashcardId) return 0;
-
-      const result = await cardCount(dashcardId, workspaceId);
-      return result.data || 0;
-    },
+    queryFn: () => scheduleBatchFetch(dashcardId, workspaceId),
     staleTime: 2 * 60 * 1000, // 2 minutes
     refetchInterval: 2 * 60 * 1000, // background refresh every 2 minutes
     refetchOnWindowFocus: false,
