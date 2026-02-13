@@ -228,6 +228,30 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
               }
             );
 
+            // Add moved card to destination cache immediately so board state updates in real time.
+            if (toListId && card) {
+              queryClient.setQueryData(
+                queryKeys.cards.list(toListId),
+                (old: any) => {
+                  const movedCard = {
+                    ...card,
+                    listId: toListId,
+                    list_id: toListId,
+                  };
+                  if (!old?.data) {
+                    return { ...old, data: [movedCard] };
+                  }
+                  const withoutExisting = old.data.filter(
+                    (c: any) => c.id !== card.id
+                  );
+                  return {
+                    ...old,
+                    data: [movedCard, ...withoutExisting],
+                  };
+                }
+              );
+            }
+
             // Invalidate only the affected lists, not all lists
             queryClient.invalidateQueries({
               queryKey: queryKeys.cards.list(fromListId),

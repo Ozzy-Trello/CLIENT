@@ -23,6 +23,17 @@ export function handleCardMoved(
 
   console.log("[WS] 🔄 handleCardMoved:", { cardId, fromListId, toListId, boardId });
 
+  const sourceListCache: any = queryClient.getQueryData(
+    queryKeys.cards.list(fromListId)
+  );
+  const sourceCard =
+    sourceListCache?.data?.find((card: any) => card.id === cardId) || null;
+  const detailCache: any = queryClient.getQueryData(
+    queryKeys.cards.detail(cardId)
+  );
+  const detailCard = detailCache?.data || null;
+  const movedCard = sourceCard || detailCard;
+
   // Remove card from source list cache
   queryClient.setQueryData(
     queryKeys.cards.list(fromListId),
@@ -34,6 +45,30 @@ export function handleCardMoved(
       };
     }
   );
+
+  // Add card to destination list cache immediately to avoid "missing until refresh".
+  if (movedCard) {
+    queryClient.setQueryData(
+      queryKeys.cards.list(toListId),
+      (old: any) => {
+        const nextCard = {
+          ...movedCard,
+          listId: toListId,
+          list_id: toListId,
+        };
+
+        if (!old?.data) {
+          return { ...old, data: [nextCard] };
+        }
+
+        const withoutExisting = old.data.filter((c: any) => c.id !== cardId);
+        return {
+          ...old,
+          data: [nextCard, ...withoutExisting],
+        };
+      }
+    );
+  }
 
   // IMPORTANT: Directly update the card detail cache with the new listId
   // This ensures the "in list" dropdown updates immediately without refresh

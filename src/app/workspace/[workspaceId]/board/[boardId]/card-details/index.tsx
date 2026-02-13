@@ -89,7 +89,6 @@ import RequestFields from "./request-field";
 import SplitJobFields from "./split-job-field";
 import CardTimeInList from "./time-in-lists";
 import { uploadFile } from "@api/file";
-import { createCardAttachment } from "@api/card_attachment";
 import { useCardAttachment } from "@hooks/card_attachment";
 import { useCardCustomField } from "@hooks/card_custom_field";
 import { ManualOverrideProvider } from "./manual-override-context";
@@ -539,16 +538,25 @@ const CardDetails: React.FC = (props) => {
           const res = await uploadFile(file, { cardId: selectedCard.id });
           const uploaded = res?.data;
           if (uploaded?.id) {
-            await createCardAttachment({
-              cardId: selectedCard.id,
-              attachableType: EnumAttachmentType.File,
-              attachableId: uploaded.id,
-              isCover: false,
-              type: EnumCardAttachmentType.Attachment,
+            await new Promise<void>((resolve, reject) => {
+              addAttachment(
+                {
+                  cardId: selectedCard.id,
+                  attachableType: EnumAttachmentType.File,
+                  attachableId: uploaded.id,
+                  isCover: false,
+                  type: EnumCardAttachmentType.Attachment,
+                },
+                {
+                  onSuccess: () => resolve(),
+                  onError: (error) => reject(error),
+                }
+              );
             });
           }
         }
         message.success("File(s) uploaded");
+        refetchCardDetails?.();
       } catch (err: any) {
         console.error("Drag/drop upload failed", err);
         message.error(err?.message || "Upload failed");
@@ -556,7 +564,7 @@ const CardDetails: React.FC = (props) => {
         setIsUploadingDrop(false);
       }
     },
-    [selectedCard?.id]
+    [addAttachment, refetchCardDetails, selectedCard?.id]
   );
 
   const handleQuickUpload = useCallback(
@@ -573,12 +581,20 @@ const CardDetails: React.FC = (props) => {
         const res = await uploadFile(file, { cardId: selectedCard.id });
         const uploaded = res?.data;
         if (uploaded?.id) {
-          await createCardAttachment({
-            cardId: selectedCard.id,
-            attachableType: EnumAttachmentType.File,
-            attachableId: uploaded.id,
-            isCover: false,
-            type: EnumCardAttachmentType.Attachment,
+          await new Promise<void>((resolve, reject) => {
+            addAttachment(
+              {
+                cardId: selectedCard.id,
+                attachableType: EnumAttachmentType.File,
+                attachableId: uploaded.id,
+                isCover: false,
+                type: EnumCardAttachmentType.Attachment,
+              },
+              {
+                onSuccess: () => resolve(),
+                onError: (error) => reject(error),
+              }
+            );
           });
         }
         message.success({ key: toastKey, content: "Uploaded" });
@@ -592,7 +608,7 @@ const CardDetails: React.FC = (props) => {
         setQuickUploadLoading(null);
       }
     },
-    [refetchCardDetails, selectedCard?.id]
+    [addAttachment, refetchCardDetails, selectedCard?.id]
   );
 
   const stopCameraStream = useCallback(() => {
