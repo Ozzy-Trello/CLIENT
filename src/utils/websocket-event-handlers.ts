@@ -14,7 +14,29 @@ export function handleCardMoved(
   data: WebSocketEventPayload
 ) {
   const { cardId, listId: toListId, boardId, changes } = data;
-  const fromListId = changes?.oldListId;
+  let fromListId = changes?.oldListId;
+
+  if (!fromListId && cardId) {
+    const listQueries = queryClient
+      .getQueryCache()
+      .findAll({
+        predicate: (query) =>
+          Array.isArray(query.queryKey) &&
+          query.queryKey[0] === "cards" &&
+          query.queryKey[1] === "list",
+      });
+
+    for (const query of listQueries) {
+      const key = query.queryKey as any[];
+      const candidateListId = key[2] as string | undefined;
+      const cached: any = query.state.data;
+      const exists = cached?.data?.some?.((card: any) => card.id === cardId);
+      if (candidateListId && exists) {
+        fromListId = candidateListId;
+        break;
+      }
+    }
+  }
 
   if (!cardId || !toListId || !fromListId) {
     console.warn("[WS] Card moved event missing required fields", data);

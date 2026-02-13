@@ -210,7 +210,32 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             break;
 
           case EnumUserActionEvent.CardMoved:
-            const { card, fromListId, toListId, boardId } = message.data;
+            const { card, toListId, boardId } = message.data;
+            let fromListId = message.data?.fromListId;
+
+            if (!fromListId && card?.id) {
+              const listQueries = queryClient
+                .getQueryCache()
+                .findAll({
+                  predicate: (query) =>
+                    Array.isArray(query.queryKey) &&
+                    query.queryKey[0] === "cards" &&
+                    query.queryKey[1] === "list",
+                });
+
+              for (const query of listQueries) {
+                const key = query.queryKey as any[];
+                const candidateListId = key[2] as string | undefined;
+                const cached: any = query.state.data;
+                const exists = cached?.data?.some?.(
+                  (c: any) => c.id === card.id
+                );
+                if (candidateListId && exists) {
+                  fromListId = candidateListId;
+                  break;
+                }
+              }
+            }
 
             // Skip if this was our own move (prevent processing our own mutation)
             if (wasRecentlyMutated("card:moved", card.id)) {
@@ -218,18 +243,20 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
               break;
             }
 
-            // CRITICAL FIX: Explicitly remove card from source list cache
-            // This prevents ghost cards when automation moves cards
-            queryClient.setQueryData(
-              queryKeys.cards.list(fromListId),
-              (old: any) => {
-                if (!old?.data) return old;
-                return {
-                  ...old,
-                  data: old.data.filter((c: any) => c.id !== card.id),
-                };
-              }
-            );
+            if (fromListId) {
+              // CRITICAL FIX: Explicitly remove card from source list cache
+              // This prevents ghost cards when automation moves cards
+              queryClient.setQueryData(
+                queryKeys.cards.list(fromListId),
+                (old: any) => {
+                  if (!old?.data) return old;
+                  return {
+                    ...old,
+                    data: old.data.filter((c: any) => c.id !== card.id),
+                  };
+                }
+              );
+            }
 
             // Add moved card to destination cache immediately so board state updates in real time.
             if (toListId && card) {
@@ -256,10 +283,16 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             }
 
             // Invalidate only the affected lists, not all lists
-            queryClient.invalidateQueries({
-              queryKey: queryKeys.cards.list(fromListId),
-            });
-            if (fromListId !== toListId) {
+            if (fromListId) {
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.cards.list(fromListId),
+              });
+            }
+            if (fromListId && fromListId !== toListId) {
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.cards.list(toListId),
+              });
+            } else if (!fromListId && toListId) {
               queryClient.invalidateQueries({
                 queryKey: queryKeys.cards.list(toListId),
               });
