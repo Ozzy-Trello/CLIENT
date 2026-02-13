@@ -41,6 +41,7 @@ import { useRealtimeUpdates } from "@hooks/websocket";
 import HorizontalSlider from "@components/horizontal-slider";
 import { BoardPermissionsProvider } from "@providers/board-permissions-context";
 import { useRecentlyViewed } from "@hooks/recently-viewed";
+import { usePrefetchDashcardCounts } from "@hooks/prefetch-dashcard-counts";
 import type { DropResult, DragUpdate } from "@hello-pangea/dnd";
 
 const DragDropContext = dynamic(
@@ -713,6 +714,11 @@ const Board: React.FC = () => {
       unsubscribe();
     };
   }, [queryClient, localCardsInitialized, lists]);
+
+  // Prefetch ALL dashcard counts in a single batch request at the board level.
+  // This ensures all dashcard counts arrive together and are cached before
+  // individual Dashcard components mount (which happens lazily per list).
+  usePrefetchDashcardCounts(localCards, resolvedWorkspaceId, localCardsInitialized);
 
   // Render lists once local cards are initialized
   const shouldRenderLists =
