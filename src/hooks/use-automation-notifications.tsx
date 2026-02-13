@@ -1,5 +1,8 @@
 import { useEffect } from "react";
-import { showAutomationToast, showBatchAutomationToast } from "@components/notifications/automation-toast";
+import {
+  showAutomationToast,
+  showBatchAutomationToast,
+} from "@components/notifications/automation-toast";
 import {
   BatchUpdateEvent,
   EnumBackendWebSocketEvent,
@@ -22,11 +25,11 @@ export function useAutomationNotifications(socket: WebSocket | null) {
           return;
         }
 
-        if (message.event === EnumBackendWebSocketEvent.BATCH_UPDATE) {
-          const batchData = message.data as BatchUpdateEvent;
-          showBatchAutomationToast(batchData.count);
-          return;
-        }
+        // if (message.event === EnumBackendWebSocketEvent.BATCH_UPDATE) {
+        //   const batchData = message.data as BatchUpdateEvent;
+        //   showBatchAutomationToast(batchData.count);
+        //   return;
+        // }
 
         const importantEvents = [
           EnumBackendWebSocketEvent.CARD_MOVED,

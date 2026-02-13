@@ -22,9 +22,13 @@ const POAmount: React.FC<POAmountProps> = ({ card, setSelectedCard }) => {
   const { canUpdateCard } = useBoardPermissionsContext();
 
   // Update local value when card.poAmount changes
+  // Only sync when a defined value arrives — ignore undefined during cache transitions
+  // to prevent flickering between the real value and the fallback of 1
   useEffect(() => {
-    setLocalValue(card.poAmount || 1);
-    setHasChanged(false);
+    if (card.poAmount !== undefined && card.poAmount !== null) {
+      setLocalValue(card.poAmount);
+      setHasChanged(false);
+    }
   }, [card.poAmount]);
 
   const handleValueChange = (value: number | null) => {
