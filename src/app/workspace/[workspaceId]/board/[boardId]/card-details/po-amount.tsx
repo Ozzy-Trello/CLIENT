@@ -13,8 +13,9 @@ interface POAmountProps {
 }
 
 const POAmount: React.FC<POAmountProps> = ({ card, setSelectedCard }) => {
-  const [localValue, setLocalValue] = useState<number>(card.poAmount || 1);
+  const [localValue, setLocalValue] = useState<number>(card.poAmount ?? 0);
   const [hasChanged, setHasChanged] = useState(false);
+  const previousCardIdRef = React.useRef<string | undefined>(card.id);
   const { updateCard, isUpdatingCard } = useCards(
     card.listId || "",
     card.boardId || ""
@@ -25,16 +26,26 @@ const POAmount: React.FC<POAmountProps> = ({ card, setSelectedCard }) => {
   // Only sync when a defined value arrives — ignore undefined during cache transitions
   // to prevent flickering between the real value and the fallback of 1
   useEffect(() => {
+    const cardChanged = previousCardIdRef.current !== card.id;
+    previousCardIdRef.current = card.id;
+
     if (card.poAmount !== undefined && card.poAmount !== null) {
       setLocalValue(card.poAmount);
       setHasChanged(false);
+      return;
     }
-  }, [card.poAmount]);
+
+    // For a newly selected/opened card with missing poAmount, reset deterministically.
+    if (cardChanged) {
+      setLocalValue(0);
+      setHasChanged(false);
+    }
+  }, [card.id, card.poAmount]);
 
   const handleValueChange = (value: number | null) => {
-    const newValue = value || 1;
+    const newValue = value ?? 0;
     setLocalValue(newValue);
-    setHasChanged(newValue !== (card.poAmount || 1));
+    setHasChanged(newValue !== (card.poAmount ?? 0));
   };
 
   const handleSave = () => {
@@ -42,7 +53,7 @@ const POAmount: React.FC<POAmountProps> = ({ card, setSelectedCard }) => {
       return;
     }
 
-    const valueToSave = Math.max(1, localValue);
+    const valueToSave = Math.max(0, localValue);
     console.log("💾 [PO Amount] Saving:", { cardId: card.id, value: valueToSave });
 
     updateCard(
@@ -69,7 +80,7 @@ const POAmount: React.FC<POAmountProps> = ({ card, setSelectedCard }) => {
         },
         onError: () => {
           console.error("❌ [PO Amount] Save FAILED");
-          setLocalValue(card.poAmount || 1);
+          setLocalValue(card.poAmount ?? 0);
           setHasChanged(false);
         },
       }
@@ -77,7 +88,7 @@ const POAmount: React.FC<POAmountProps> = ({ card, setSelectedCard }) => {
   };
 
   const handleCancel = () => {
-    setLocalValue(card.poAmount || 1);
+    setLocalValue(card.poAmount ?? 0);
     setHasChanged(false);
   };
 
@@ -96,7 +107,7 @@ const POAmount: React.FC<POAmountProps> = ({ card, setSelectedCard }) => {
       </span>
       <div className="flex items-center gap-2">
         <InputNumber
-          min={1}
+          min={0}
           value={localValue}
           onChange={handleValueChange}
           onKeyDown={handleKeyDown}

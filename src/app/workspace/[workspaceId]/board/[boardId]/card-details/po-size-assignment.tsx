@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  autoCreatePOs,
   getPOById,
   PO,
   SizeQuantity,
@@ -26,7 +25,7 @@ import {
   Tooltip,
 } from "antd";
 import { Package, Ruler } from "lucide-react";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 
 interface POSizeAssignmentProps {
   card: Card;
@@ -87,7 +86,6 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
   );
   const { canUpdateCard } = useBoardPermissionsContext();
   const queryClient = useQueryClient();
-  const autoCreateAttemptedRef = useRef(false);
 
   const {
     data: posData,
@@ -138,92 +136,6 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
     retry: false, // Disable retries to prevent duplicate submissions
     gcTime: 0, // Don't cache mutation results
   });
-
-  const autoCreatePOMutation = useMutation({
-    mutationFn: (cardId: string) => {
-      console.log("🔴 [Manage POs] Mutation: calling autoCreatePOs API", { cardId });
-      return autoCreatePOs(cardId);
-    },
-    onSuccess: (data) => {
-      console.log("🟢 [Manage POs] Mutation SUCCESS:", {
-        cardId: card.id,
-        responseData: data,
-        posCreated: data?.data?.length || 0,
-        timestamp: new Date().toISOString(),
-      });
-      console.log("🔵 [Manage POs] Invalidating queries:", {
-        queryKeys: [
-          ["pos", card.id],
-          ["pos-size-assignment", card.id],
-        ],
-      });
-      queryClient.invalidateQueries({ queryKey: ["pos", card.id] });
-      queryClient.invalidateQueries({ queryKey: ["pos-size-assignment", card.id] });
-      console.log("🔵 [Manage POs] Queries invalidated, refetch should trigger automatically");
-    },
-    onError: (error: any) => {
-      console.error("❌ [Manage POs] Mutation ERROR:", {
-        cardId: card.id,
-        error,
-        errorMessage: error?.message || String(error),
-        errorResponse: error?.response?.data,
-        timestamp: new Date().toISOString(),
-      });
-      message.error("Failed to create default PO");
-    },
-  });
-
-  // Backward compatibility: Create default PO if none exists
-  useEffect(() => {
-    console.log("🟠 [Manage POs] Auto-create effect check:", {
-      isModalOpen,
-      isLoadingPOs,
-      hasError: !!posError,
-      hasPOsData: !!posData,
-      posDataLength: posData?.length || 0,
-      autoCreateAttempted: autoCreateAttemptedRef.current,
-      mutationPending: autoCreatePOMutation.isPending,
-      cardPoAmount: card.poAmount,
-      shouldTrigger:
-        isModalOpen &&
-        !isLoadingPOs &&
-        !posError &&
-        (!posData || posData.length === 0) &&
-        !autoCreateAttemptedRef.current &&
-        !autoCreatePOMutation.isPending,
-      timestamp: new Date().toISOString(),
-    });
-
-    if (
-      isModalOpen &&
-      !isLoadingPOs &&
-      !posError &&
-      (!posData || posData.length === 0) &&
-      !autoCreateAttemptedRef.current &&
-      !autoCreatePOMutation.isPending
-    ) {
-      console.log("🔴 [Manage POs] 🚀 TRIGGERING AUTO-CREATE POs", {
-        cardId: card.id,
-        cardPoAmount: card.poAmount || 1,
-        timestamp: new Date().toISOString(),
-      });
-      autoCreateAttemptedRef.current = true;
-      autoCreatePOMutation.mutate(card.id);
-    }
-
-    if (!isModalOpen) {
-      console.log("🟢 [Manage POs] Modal closed, resetting auto-create flag");
-      autoCreateAttemptedRef.current = false;
-    }
-  }, [
-    isModalOpen,
-    posData,
-    isLoadingPOs,
-    posError,
-    card.id,
-    card.poAmount,
-    autoCreatePOMutation.isPending,
-  ]);
 
   // Initialize PO subcategory data when POs and subcategories are loaded
   useEffect(() => {

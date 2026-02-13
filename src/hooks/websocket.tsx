@@ -978,6 +978,14 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
               queryClient.invalidateQueries({
                 queryKey: queryKeys.cards.list(listId),
               });
+            } else {
+              // Fallback for legacy payloads missing listId.
+              queryClient.invalidateQueries({
+                predicate: (query) =>
+                  Array.isArray(query.queryKey) &&
+                  query.queryKey[0] === "cards" &&
+                  query.queryKey[1] === "list",
+              });
             }
 
             // Use board-specific invalidation instead of lists.all
