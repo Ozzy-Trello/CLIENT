@@ -18,7 +18,7 @@ import {
   Text,
 } from "lucide-react";
 import { useParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import dayjs from "dayjs";
 import { LookupCache } from "@utils/lookup-cache";
 import { useLabels } from "@hooks/label";
@@ -117,18 +117,37 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
     }
   }, [cardCustomFields, cardMembers]);
 
+  const [coverLoaded, setCoverLoaded] = useState(false);
+  const [coverError, setCoverError] = useState(false);
+
+  // Reset cover state when card cover URL changes
+  useEffect(() => {
+    setCoverLoaded(false);
+    setCoverError(false);
+  }, [card?.cover]);
+
   return (
     <div className="w-full">
       {/* Cover image */}
-      {card?.cover && (
+      {card?.cover && !coverError && (
         <div className="w-full bg-white">
-          <div
-            className="relative bg-gray-100 bg-center bg-no-repeat h-36 flex justify-end items-end rounded-t-lg"
-            style={{
-              backgroundImage: card?.cover ? `url("${card?.cover}")` : "none",
-              backgroundSize: "contain",
-            }}
-          ></div>
+          <div className="relative bg-gray-100 rounded-t-lg overflow-hidden h-36">
+            {!coverLoaded && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+              </div>
+            )}
+            <img
+              src={card.cover}
+              alt=""
+              loading="lazy"
+              onLoad={() => setCoverLoaded(true)}
+              onError={() => setCoverError(true)}
+              className={`w-full h-full object-contain transition-opacity duration-200 ${
+                coverLoaded ? "opacity-100" : "opacity-0"
+              }`}
+            />
+          </div>
         </div>
       )}
 

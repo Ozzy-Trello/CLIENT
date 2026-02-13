@@ -61,6 +61,7 @@ const DraggableList: React.FC<DraggableListProps> = ({
 }) => {
   const listRef = useRef<HTMLDivElement | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 
   // Combine drag ref and visibility ref
   const setRefs = useCallback(
@@ -80,10 +81,15 @@ const DraggableList: React.FC<DraggableListProps> = ({
   const currentUser = useSelector(selectUser);
   const currentBoard = useSelector(selectCurrentBoard);
 
-  // Infinite scroll observer
+  // Infinite scroll observer.
+  // IMPORTANT: root must be the scrollable container (overflow-y: auto),
+  // NOT null (viewport). With root: null, the observer only watches viewport
+  // scroll, not the list's internal scroll — so it never fires when the user
+  // scrolls inside the list.
   useEffect(() => {
     const el = loadMoreRef.current;
-    if (!el || isLoadingMore || !hasMoreCards || loadMoreError) return;
+    const root = scrollContainerRef.current;
+    if (!el || !root || isLoadingMore || !hasMoreCards || loadMoreError) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -92,7 +98,7 @@ const DraggableList: React.FC<DraggableListProps> = ({
         }
       },
       {
-        root: null,
+        root,
         rootMargin: "100px",
         threshold: 0.1,
       }
@@ -295,7 +301,10 @@ const DraggableList: React.FC<DraggableListProps> = ({
                   {(provided) => (
                     <div
                       {...provided.droppableProps}
-                      ref={provided.innerRef}
+                      ref={(el) => {
+                        provided.innerRef(el);
+                        scrollContainerRef.current = el;
+                      }}
                       className={`
                        flex-grow
                        custom-scrollbar

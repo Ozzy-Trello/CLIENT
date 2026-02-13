@@ -483,21 +483,32 @@ export const getListDashcard = async (workspaceId: string, id: string) => {
 
 export const batchCardCount = async (
   dashcardIds: string[],
-  workspaceId: string
+  workspaceId: string,
+  _retryCount = 0
 ): Promise<Record<string, number>> => {
-  const { data } = await api.post(
-    `/card/batch-dashcard-count/${workspaceId}`,
-    { dashcardIds }
-  );
-  // Response is array of { id, count } — convert to map for O(1) lookup
-  // (array format avoids UUID keys being mangled by camelcaseKeys interceptor)
-  const countMap: Record<string, number> = {};
-  if (Array.isArray(data.data)) {
-    data.data.forEach((item: { id: string; count: number }) => {
-      countMap[item.id] = item.count;
-    });
+  try {
+    const { data } = await api.post(
+      `/card/batch-dashcard-count/${workspaceId}`,
+      { dashcardIds }
+    );
+    // Response is array of { id, count } — convert to map for O(1) lookup
+    // (array format avoids UUID keys being mangled by camelcaseKeys interceptor)
+    const countMap: Record<string, number> = {};
+    if (Array.isArray(data.data)) {
+      data.data.forEach((item: { id: string; count: number }) => {
+        countMap[item.id] = item.count;
+      });
+    }
+    return countMap;
+  } catch (err: any) {
+    // Retry once on 429 (server is busy) after a short delay
+    if (err?.response?.status === 429 && _retryCount < 2) {
+      const retryAfter = Number(err.response.headers?.["retry-after"]) || 2;
+      await new Promise((r) => setTimeout(r, retryAfter * 1000));
+      return batchCardCount(dashcardIds, workspaceId, _retryCount + 1);
+    }
+    throw err;
   }
-  return countMap;
 };
 
 // Fetch archived cards within a board (requires board-id header)
