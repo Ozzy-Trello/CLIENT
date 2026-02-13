@@ -33,6 +33,14 @@ const ContentMirrorCard: React.FC = () => {
 
   const positionOptions = [{ value: 1, label: '1' }];
 
+  const handleBoardChange = (boardId: string) => {
+    setSelectedBoard(boardId);
+    setSelectedList('');
+    if (listSelectionRef.current) {
+      listSelectionRef.current.setValue('');
+    }
+  };
+
   const handleMirror = () => {
     if (selectedCard && selectedList) {
       mirrorCard({
@@ -58,7 +66,7 @@ const ContentMirrorCard: React.FC = () => {
             width="100%"
             ref={boardSelectionRef}
             value={selectedBoard}
-            onChange={setSelectedBoard}
+            onChange={handleBoardChange}
             size="small"
             placeholder="Select board"
           />
@@ -74,7 +82,7 @@ const ContentMirrorCard: React.FC = () => {
               width="100%"
               value={selectedList}
               onChange={setSelectedList}
-              selectedBoardId={selectedBoard}
+              boardIdProp={selectedBoard}
             />
           </div>
           <div>

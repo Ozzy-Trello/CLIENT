@@ -274,6 +274,8 @@ const ListName: React.FC<ListNameProps> = ({
   const headerColor = list.background;
   const isLimitExceeded =
     list.cardLimit != null && list.cardLimit > 0 && cardsCount > list.cardLimit;
+  const safeTotalCards = Math.max(totalCards || 0, cardsCount || 0);
+  const safeLoadedCards = Math.min(cardsCount || 0, safeTotalCards);
 
   useEffect(() => {
     setTargetBoardId(boardId);
@@ -765,7 +767,7 @@ const ListName: React.FC<ListNameProps> = ({
           >
             {list.name}
             <span className="ml-2 font-semibold text-black" style={{ fontSize: '12px' }}>
-              {cardsCount} of {totalCards}
+              {safeLoadedCards} of {safeTotalCards}
             </span>
           </div>
         )}

@@ -589,10 +589,14 @@ const Board: React.FC = () => {
                 totalCards: response.paginate?.totalData || response.data.length,
               };
 
-              queryClient.setQueryData<ApiResponse<Card[]>>(
-                queryKeys.cards.list(list.id),
-                response
-              );
+              // Keep cards.list cache reserved for the default (unfiltered) list view.
+              // Filtered results are local-only to avoid total/count cache collisions.
+              if (!hasLabelFilter) {
+                queryClient.setQueryData<ApiResponse<Card[]>>(
+                  queryKeys.cards.list(list.id),
+                  response
+                );
+              }
             } else {
               initialCards[list.id] = [];
               initialPagination[list.id] = {
@@ -690,15 +694,21 @@ const Board: React.FC = () => {
       });
 
       setCardsPagination((prev) => {
-        const totalCards = data.paginate?.totalData || cards.length;
-        const hasMore = data.paginate?.totalData
-          ? cards.length < totalCards
-          : cards.length >= 10;
+        const previous = prev[listId];
+        const incomingTotal = data.paginate?.totalData;
+        const totalCards =
+          incomingTotal ??
+          previous?.totalCards ??
+          cards.length;
+        const hasMore =
+          incomingTotal != null
+            ? cards.length < incomingTotal
+            : (previous?.hasMore ?? cards.length >= 10);
 
         return {
           ...prev,
           [listId]: {
-            ...(prev[listId] || {
+            ...(previous || {
               currentPage: 1,
               hasMore: false,
               totalCards: 0,
@@ -1183,30 +1193,46 @@ const Board: React.FC = () => {
 
       if (response.data && response.data.length > 0) {
         const newCards = response.data; // Extract for type safety
+        const hasLabelFilter = selectedLabelIds.length > 0;
 
         setLocalCards((prev) => {
-          const updatedCards = [...(prev[listId] || []), ...newCards];
-          queryClient.setQueryData<ApiResponse<Card[]>>(
-            queryKeys.cards.list(listId),
-            {
-              ...response,
-              data: updatedCards,
-            }
-          );
+          const existing = prev[listId] || [];
+          const byId = new Map<string, Card>();
+          existing.forEach((card) => byId.set(card.id, card));
+          newCards.forEach((card) => byId.set(card.id, card));
+          const updatedCards = Array.from(byId.values());
+
+          if (!hasLabelFilter) {
+            queryClient.setQueryData<ApiResponse<Card[]>>(
+              queryKeys.cards.list(listId),
+              {
+                ...response,
+                data: updatedCards,
+              }
+            );
+          }
+
+          const totalCards = response.paginate?.totalData || 0;
+          const hasMoreByTotal =
+            totalCards > 0 ? updatedCards.length < totalCards : newCards.length >= 10;
+
+          setCardsPagination((prevPagination) => ({
+            ...prevPagination,
+            [listId]: {
+              currentPage: nextPage,
+              hasMore: hasMoreByTotal,
+              totalCards:
+                totalCards ||
+                prevPagination[listId]?.totalCards ||
+                updatedCards.length,
+            },
+          }));
+
           return {
             ...prev,
             [listId]: updatedCards,
           };
         });
-
-        setCardsPagination((prev) => ({
-          ...prev,
-          [listId]: {
-            currentPage: nextPage,
-            hasMore: newCards.length >= 10,
-            totalCards: response.paginate?.totalData || prev[listId]?.totalCards || 0,
-          },
-        }));
       } else {
         setCardsPagination((prev) => ({
           ...prev,

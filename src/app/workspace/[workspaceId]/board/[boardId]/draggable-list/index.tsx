@@ -87,6 +87,8 @@ const DraggableList: React.FC<DraggableListProps> = ({
   // scroll, not the list's internal scroll — so it never fires when the user
   // scrolls inside the list.
   useEffect(() => {
+    if (!hasBeenVisible) return;
+
     const el = loadMoreRef.current;
     const root = scrollContainerRef.current;
     if (!el || !root || isLoadingMore || !hasMoreCards || loadMoreError) return;
@@ -106,7 +108,15 @@ const DraggableList: React.FC<DraggableListProps> = ({
 
     observer.observe(el);
     return () => observer.disconnect();
-  }, [isLoadingMore, hasMoreCards, loadMoreError, onLoadMore]);
+  }, [
+    hasBeenVisible,
+    cards.length,
+    isLoadingMore,
+    hasMoreCards,
+    loadMoreError,
+    onLoadMore,
+    list.id,
+  ]);
 
   useEffect(() => {
     setActiveSortKey("manual");

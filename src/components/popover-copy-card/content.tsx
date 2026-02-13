@@ -62,6 +62,14 @@ const ContentCopyCard: React.FC<ContentCopyCardProps> = ({ card: propCard, list:
     }
   );
 
+  const handleBoardChange = (boardId: string) => {
+    setSelectedBoard(boardId);
+    setSelectedList("");
+    if (listSelectionRef.current) {
+      listSelectionRef.current.setValue("");
+    }
+  };
+
   const handleCopy = () => {
     if (currentCard && selectedList) {
       const cardToCopy: CopycardPost = {
@@ -154,7 +162,7 @@ const ContentCopyCard: React.FC<ContentCopyCardProps> = ({ card: propCard, list:
                 width="100%"
                 ref={boardSelectionRef}
                 value={selectedBoard}
-                onChange={(val:any) => setSelectedBoard(val)}
+                onChange={(val:any) => handleBoardChange(val)}
                 size="small"
                 placeholder="Select board"
               />
@@ -169,7 +177,7 @@ const ContentCopyCard: React.FC<ContentCopyCardProps> = ({ card: propCard, list:
                 width="100%"
                 value={selectedList}
                 onChange={(val:any) => setSelectedList(val)}
-                selectedBoardId={selectedBoard}
+                boardIdProp={selectedBoard}
               />
             </div>
           </div>

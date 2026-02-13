@@ -257,6 +257,15 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
       listId: card.listId,
       name: card.name,
       description: card.description,
+      isComplete: (card as any).isComplete ?? false,
+      completedAt:
+        (card as any).completedAt ??
+        (card as any).completed_at ??
+        null,
+      archived:
+        (card as any).archived ??
+        (card as any).archive ??
+        false,
       labelsLen: Array.isArray((card as any).labels)
         ? (card as any).labels.length
         : 0,
@@ -360,13 +369,15 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
       return false;
     }
 
-    const keys: Array<keyof Card> = [
+    const keys = [
       "name",
       "description",
       "listId",
       "order",
       "archive",
+      "archived",
       "isComplete",
+      "completedAt",
       "completed_at",
       "bahan",
       "poAmount",
