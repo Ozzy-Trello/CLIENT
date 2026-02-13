@@ -70,6 +70,33 @@ export function useCardDetails(
     });
   };
 
+  const invalidateBoardCardLists = () => {
+    if (!boardId) return;
+    const boardLists = queryClient.getQueryData<ApiResponse<any[]>>(
+      queryKeys.lists.board(boardId)
+    );
+    const listIds = (boardLists?.data || [])
+      .map((list: any) => list?.id)
+      .filter(Boolean);
+
+    if (listIds.length > 0) {
+      listIds.forEach((id: string) => {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.cards.list(id),
+        });
+      });
+      return;
+    }
+
+    // Fallback when list cache is not ready yet.
+    queryClient.invalidateQueries({
+      predicate: (query) =>
+        Array.isArray(query.queryKey) &&
+        query.queryKey[0] === "cards" &&
+        query.queryKey[1] === "list",
+    });
+  };
+
   // Mutation for updating the card
   const updateCardMutation = useMutation({
     mutationFn: (updates: Partial<Card>) => updateCard(cardId, updates),
@@ -497,6 +524,7 @@ export function useCardDetails(
       
       if (variables) {
         invalidateCardContextOrFallback(variables.cardId, variables.listId);
+        invalidateBoardCardLists();
       }
     },
   });
@@ -560,6 +588,7 @@ export function useCardDetails(
       
       if (variables) {
         invalidateCardContextOrFallback(variables.cardId, variables.listId);
+        invalidateBoardCardLists();
       }
     },
   });

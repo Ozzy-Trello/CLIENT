@@ -195,6 +195,9 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
           const allowDuringDrag = new Set([
             "automation:label_added",
             "automation:label_removed",
+            EnumUserActionEvent.CardMoved,
+            EnumBackendWebSocketEvent.CARD_MOVED,
+            EnumBackendWebSocketEvent.CARD_UPDATED,
           ]);
           if (!allowDuringDrag.has(message.event)) {
             return;
