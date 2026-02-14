@@ -240,6 +240,10 @@ const mapFrontendCardToBackend = (frontendCard: Partial<Card>): any => {
     backendData.warna_info = frontendCard.warnaInfo;
     delete backendData.warnaInfo;
   }
+  if (frontendCard.poAmount !== undefined) {
+    backendData.po_amount = frontendCard.poAmount;
+    delete backendData.poAmount;
+  }
   // Ensure productCodeInfo is never sent back to backend on update
   if (frontendCard.productCodeInfo !== undefined) {
     delete backendData.productCodeInfo;

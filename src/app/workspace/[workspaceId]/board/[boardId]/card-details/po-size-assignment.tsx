@@ -382,7 +382,7 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
           icon={<Package size={14} />}
           size="small"
           onClick={handleOpenModal}
-          disabled={!canUpdateCard()}
+          disabled={!canUpdateCard() || !card.poAmount || card.poAmount <= 0}
           className="rounded-md hover:bg-gray-50"
         >
           Manage POs
