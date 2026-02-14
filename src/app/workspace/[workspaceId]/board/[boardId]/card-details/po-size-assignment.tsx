@@ -198,6 +198,8 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
       message.warning("You don't have permission to update this card");
       return;
     }
+    // Invalidate PO queries to ensure fresh data when modal opens
+    queryClient.invalidateQueries({ queryKey: ["pos-size-assignment", card.id] });
     setIsModalOpen(true);
     console.log("🔵 [Manage POs] isModalOpen set to TRUE");
   };

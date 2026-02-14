@@ -64,6 +64,7 @@ import { generateQRCodesPDF } from "@api/qr";
 import { useBoardDetails } from "@hooks/board";
 import { useCardMutationsOnly } from "@hooks/card";
 import { useCardDetails } from "@hooks/card-details";
+import { useQueryClient } from "@tanstack/react-query";
 import { useCardActivity } from "@hooks/card_activity";
 import { useCardMembers } from "@hooks/card_member";
 import { useLabels } from "@hooks/label";
@@ -215,6 +216,7 @@ const CardDetails: React.FC = (props) => {
   const skipNextTitleBlurSaveRef = useRef(false);
   // Only need mutations; avoid fetching full list data just to update a card
   const { updateCard } = useCardMutationsOnly();
+  const queryClient = useQueryClient();
   const {
     cardMembers,
     addMember,
@@ -1258,12 +1260,26 @@ const CardDetails: React.FC = (props) => {
                 const newBahanValue = e.target.checked;
 
                 // Update local state immediately for better UX
+                // When checking bahan and no POs exist yet, optimistically set poAmount to 1
+                // (the backend will also create the PO, but this makes the UI update instantly)
                 const updatedCard = {
                   ...selectedCard,
                   bahan: newBahanValue,
+                  ...(newBahanValue && (!selectedCard.poAmount || selectedCard.poAmount <= 0)
+                    ? { poAmount: 1 }
+                    : {}),
                 };
                 setSelectedCard(updatedCard);
                 updateCardDetails({ bahan: newBahanValue });
+
+                // When checking bahan, invalidate PO queries after a short delay
+                // to give the backend time to auto-create the PO
+                if (newBahanValue) {
+                  setTimeout(() => {
+                    queryClient.invalidateQueries({ queryKey: ["pos", selectedCard.id] });
+                    queryClient.invalidateQueries({ queryKey: ["pos-size-assignment", selectedCard.id] });
+                  }, 1500);
+                }
               }}
               className="text-sm"
             >

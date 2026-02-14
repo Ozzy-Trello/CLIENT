@@ -87,8 +87,8 @@ export const usePOsForSizeAssignment = (
       }
     },
     enabled: enabled && !!cardId,
-    staleTime: 5000,
-    refetchOnMount: false,
+    staleTime: 0,
+    refetchOnMount: "always",
     retry: 3,
     retryDelay: (attemptIndex) => {
       const delay = Math.min(1000 * 2 ** attemptIndex, 30000);
