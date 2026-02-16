@@ -11,7 +11,14 @@ import {
   Tag,
   Modal,
 } from "antd";
-import { Dispatch, SetStateAction, useEffect, useState, useRef, useCallback } from "react";
+import {
+  Dispatch,
+  SetStateAction,
+  useEffect,
+  useState,
+  useRef,
+  useCallback,
+} from "react";
 import { useWorkspaceSidebar } from "@providers/workspace-sidebar-context";
 import MembersList from "@components/members-list";
 import {
@@ -56,7 +63,7 @@ import { Checkbox } from "antd";
 
 // Helper function to derive permission level from fine-grained permissions
 const getPermissionLevelFromFineGrained = (
-  permissions: FineGrainedPermissions | null
+  permissions: FineGrainedPermissions | null,
 ): string => {
   if (!permissions) return "OBSERVER";
 
@@ -135,7 +142,7 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
   // Standalone Scan Progress modal state
   const [scanProgressOpen, setScanProgressOpen] = useState<boolean>(false);
   const [scanProgressCardId, setScanProgressCardId] = useState<string | null>(
-    null
+    null,
   );
   // Label filter state
   const [labelFilterOpen, setLabelFilterOpen] = useState<boolean>(false);
@@ -182,9 +189,8 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
     useUserBoardOrder(params.workspaceId as string);
 
   // Fetch workspace labels for filtering
-  const { allLabels: workspaceLabels, isLoadingAllLabels: isLoadingLabels } = useLabels(
-    params.workspaceId as string
-  );
+  const { allLabels: workspaceLabels, isLoadingAllLabels: isLoadingLabels } =
+    useLabels(params.workspaceId as string);
 
   // Move old cards hook
   const moveOldCardsMutation = useMoveOldCards();
@@ -201,8 +207,15 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
   console.log("[TOPBAR LOGS] Current User Role:", userRole);
 
   const canShowDelivery =
-    isSuperAdmin || (isDateline && roleInList(["Kurir", "Kepala Produksi", "Admin Produksi", "Warehouse Bahan",
-      "Kepala Gudang"]));
+    isSuperAdmin ||
+    (isDateline &&
+      roleInList([
+        "Kurir",
+        "Kepala Produksi",
+        "Admin Produksi",
+        "Warehouse Bahan",
+        "Kepala Gudang",
+      ]));
   const canShowCetakQR =
     isSuperAdmin ||
     (isDateline &&
@@ -211,7 +224,7 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
         "Kepala Produksi",
         "Warehouse Produk",
         "Warehouse Bahan",
-        "Kepala Gudang"
+        "Kepala Gudang",
       ]));
   const canShowPacking =
     isSuperAdmin ||
@@ -220,13 +233,13 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
   // Determine if current board is favorited
   const isFavorited =
     userBoardOrder?.some(
-      (order) => order.boardId === currentBoard?.id && order.isFavorite
+      (order) => order.boardId === currentBoard?.id && order.isFavorite,
     ) || false;
 
   const handleStarClick = () => {
     console.log(
       "[FAVORITE LOGS] Topbar star clicked for board:",
-      currentBoard?.id
+      currentBoard?.id,
     );
     if (isTogglingFavorite) {
       console.log("[FAVORITE LOGS] Toggle already in progress, ignoring click");
@@ -237,92 +250,99 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
       toggleFavorite(currentBoard.id);
     } else {
       console.log(
-        "[FAVORITE LOGS] No current board, not calling toggleFavorite"
+        "[FAVORITE LOGS] No current board, not calling toggleFavorite",
       );
     }
   };
 
   // External scanner - extract card ID from scanned data
-  const extractCardIdFromScan = useCallback(async (
-    scannedData: string
-  ): Promise<string | null> => {
-    const trimmedData = scannedData.trim();
-    if (trimmedData.length === 0) return null;
+  const extractCardIdFromScan = useCallback(
+    async (scannedData: string): Promise<string | null> => {
+      const trimmedData = scannedData.trim();
+      if (trimmedData.length === 0) return null;
 
-    // Check if it's a shortId URL format (e.g., https://domain.com/qr/123)
-    try {
-      const url = new URL(
-        trimmedData.startsWith("http")
-          ? trimmedData
-          : `https://example.com${trimmedData}`
-      );
-      const pathParts = url.pathname.split("/");
+      // Check if it's a shortId URL format (e.g., https://domain.com/qr/123)
+      try {
+        const url = new URL(
+          trimmedData.startsWith("http")
+            ? trimmedData
+            : `https://example.com${trimmedData}`,
+        );
+        const pathParts = url.pathname.split("/");
 
-      // Check for /qr/[shortId] pattern
-      if (pathParts.length >= 3 && pathParts[1] === "qr") {
-        const shortId = parseInt(pathParts[2]);
-        if (!isNaN(shortId)) {
-          try {
-            const response = await api.get(`/card/short/${shortId}`);
-            if (response.data?.data?.id) {
-              return response.data.data.id;
+        // Check for /qr/[shortId] pattern
+        if (pathParts.length >= 3 && pathParts[1] === "qr") {
+          const shortId = parseInt(pathParts[2]);
+          if (!isNaN(shortId)) {
+            try {
+              const response = await api.get(`/card/short/${shortId}`);
+              if (response.data?.data?.id) {
+                return response.data.data.id;
+              }
+            } catch (error) {
+              console.warn("Failed to resolve shortId:", error);
             }
-          } catch (error) {
-            console.warn("Failed to resolve shortId:", error);
           }
         }
-      }
 
-      // Check if it's a full card URL with cardId param
-      const cardIdParam = url.searchParams.get("cardId");
-      if (cardIdParam) {
-        return cardIdParam;
-      }
-    } catch (error) {
-      // Not a valid URL
-    }
-
-    // If URL parsing fails, treat as direct card ID (UUID format)
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (uuidRegex.test(trimmedData)) {
-      return trimmedData;
-    }
-
-    return null;
-  }, []);
-
-  // Handle external scanner result
-  const handleExternalScan = useCallback(async (scannedData: string) => {
-    console.log('[SCANNER] Scanned data:', scannedData);
-    const cardId = await extractCardIdFromScan(scannedData);
-    console.log('[SCANNER] Extracted card ID:', cardId);
-
-    if (cardId) {
-      message.success("Card found! Opening...");
-      // Get the card details to find its list and board
-      try {
-        const response = await api.get(`/card/${cardId}`);
-        const card = response.data?.data;
-
-        if (card) {
-          const listId = card.list_id;
-          const boardId = card.list?.board_id || params.boardId;
-          const workspaceId = params.workspaceId;
-
-          // Navigate to the card
-          router.push(`/workspace/${workspaceId}/board/${boardId}?cardId=${cardId}&listId=${listId}`);
-          setExternalScannerActive(false);
-        } else {
-          message.error("Card not found");
+        // Check if it's a full card URL with cardId param
+        const cardIdParam = url.searchParams.get("cardId");
+        if (cardIdParam) {
+          return cardIdParam;
         }
       } catch (error) {
-        console.error('[SCANNER] Error fetching card:', error);
-        message.error("Could not find card from scanned data");
+        // Not a valid URL
       }
-    } else {
-      message.error("Could not extract card ID from scanned data");
-    }
-  }, [extractCardIdFromScan, params, router]);
+
+      // If URL parsing fails, treat as direct card ID (UUID format)
+      const uuidRegex =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (uuidRegex.test(trimmedData)) {
+        return trimmedData;
+      }
+
+      return null;
+    },
+    [],
+  );
+
+  // Handle external scanner result
+  const handleExternalScan = useCallback(
+    async (scannedData: string) => {
+      console.log("[SCANNER] Scanned data:", scannedData);
+      const cardId = await extractCardIdFromScan(scannedData);
+      console.log("[SCANNER] Extracted card ID:", cardId);
+
+      if (cardId) {
+        message.success("Card found! Opening...");
+        // Get the card details to find its list and board
+        try {
+          const response = await api.get(`/card/${cardId}`);
+          const card = response.data?.data;
+
+          if (card) {
+            const listId = card.list_id;
+            const boardId = card.list?.board_id || params.boardId;
+            const workspaceId = params.workspaceId;
+
+            // Navigate to the card
+            router.push(
+              `/workspace/${workspaceId}/board/${boardId}?cardId=${cardId}&listId=${listId}`,
+            );
+            setExternalScannerActive(false);
+          } else {
+            message.error("Card not found");
+          }
+        } catch (error) {
+          console.error("[SCANNER] Error fetching card:", error);
+          message.error("Could not find card from scanned data");
+        }
+      } else {
+        message.error("Could not extract card ID from scanned data");
+      }
+    },
+    [extractCardIdFromScan, params, router],
+  );
 
   // Auto-enable scanner when no modals are open
   useEffect(() => {
@@ -349,7 +369,9 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
       }
 
       // Skip scanner capture when card detail modal is open (allow shortcuts like "L")
-      const isCardDetailOpen = document.querySelector('.ant-modal-wrap:not(.ant-modal-wrap-hidden)');
+      const isCardDetailOpen = document.querySelector(
+        ".ant-modal-wrap:not(.ant-modal-wrap-hidden)",
+      );
       if (isCardDetailOpen) {
         return;
       }
@@ -367,7 +389,12 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
       }
 
       // Accumulate characters for scanner input (single printable chars)
-      if (event.key.length === 1 && !event.metaKey && !event.ctrlKey && !event.altKey) {
+      if (
+        event.key.length === 1 &&
+        !event.metaKey &&
+        !event.ctrlKey &&
+        !event.altKey
+      ) {
         // Stop the event from reaching other handlers (like label shortcut)
         event.preventDefault();
         event.stopPropagation();
@@ -530,9 +557,7 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
   const labelFilterContent = (
     <div className="p-2 min-w-[280px] max-h-[450px] flex flex-col">
       <div className="flex items-center justify-between mb-2">
-        <Typography.Text strong>
-          Filter by Labels
-        </Typography.Text>
+        <Typography.Text strong>Filter by Labels</Typography.Text>
         {selectedLabelIds.length > 0 && (
           <Button
             size="small"
@@ -555,9 +580,7 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
       />
 
       {isLoadingLabels ? (
-        <div className="text-center py-4 text-gray-500">
-          Loading labels...
-        </div>
+        <div className="text-center py-4 text-gray-500">Loading labels...</div>
       ) : workspaceLabels && workspaceLabels.length > 0 ? (
         <div className="overflow-y-auto flex-1">
           <Space direction="vertical" size="small" style={{ width: "100%" }}>
@@ -565,7 +588,7 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
               .filter((label) =>
                 label.name
                   .toLowerCase()
-                  .includes(labelSearchQuery.toLowerCase())
+                  .includes(labelSearchQuery.toLowerCase()),
               )
               .sort((a, b) => {
                 const aSelected = selectedLabelIds.includes(a.id);
@@ -582,7 +605,7 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
                     const isSelected = selectedLabelIds.includes(label.id);
                     if (isSelected) {
                       onLabelFilterChange?.(
-                        selectedLabelIds.filter((id) => id !== label.id)
+                        selectedLabelIds.filter((id) => id !== label.id),
                       );
                     } else {
                       onLabelFilterChange?.([...selectedLabelIds, label.id]);
@@ -598,7 +621,7 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
                         onLabelFilterChange?.([...selectedLabelIds, label.id]);
                       } else {
                         onLabelFilterChange?.(
-                          selectedLabelIds.filter((id) => id !== label.id)
+                          selectedLabelIds.filter((id) => id !== label.id),
                         );
                       }
                     }}
@@ -623,9 +646,7 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
   const invoiceContent = (
     <div className="p-2">
       <Space direction="vertical" size="small" style={{ width: "100%" }}>
-        <Typography.Text strong>
-          Enter Invoice Number
-        </Typography.Text>
+        <Typography.Text strong>Enter Invoice Number</Typography.Text>
         <Input
           placeholder="Invoice Number"
           value={invoiceNumber}
@@ -667,13 +688,13 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
     });
   }
 
-  if (isDateline) {
-    mobileMenuItems.push({
-      key: "invoice",
-      label: "Invoice",
-      onClick: () => setInvoiceModalOpen(true),
-    });
-  }
+  // if (isDateline) {
+  //   mobileMenuItems.push({
+  //     key: "invoice",
+  //     label: "Invoice",
+  //     onClick: () => setInvoiceModalOpen(true),
+  //   });
+  // }
 
   if (canShowCetakQR) {
     mobileMenuItems.push({
@@ -743,8 +764,14 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
 
                           // Check if the URL is from a valid domain
                           const urlString = url.toLowerCase();
-                          const validDomains = ['ozzyclothing.co.id', 'localhost', '127.0.0.1'];
-                          const isValidDomain = validDomains.some(domain => urlString.includes(domain));
+                          const validDomains = [
+                            "ozzyclothing.co.id",
+                            "localhost",
+                            "127.0.0.1",
+                          ];
+                          const isValidDomain = validDomains.some((domain) =>
+                            urlString.includes(domain),
+                          );
                           if (!isValidDomain) {
                             message.error("URL invalid.");
                             return;
@@ -756,7 +783,9 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
                           router.push(url);
                         } catch (error) {
                           console.error("Invalid URL scanned:", error);
-                          message.error("Invalid QR code. Please scan a valid URL.");
+                          message.error(
+                            "Invalid QR code. Please scan a valid URL.",
+                          );
                         }
                       }
                     }}
@@ -787,7 +816,10 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
       <div className="flex items-center gap-2 ml-2 sm:ml-5 min-w-0 flex-shrink-0">
         <title>{currentBoard?.name}</title>
 
-        <Typography.Title level={4} className="m-0 text-sm sm:text-base truncate">
+        <Typography.Title
+          level={4}
+          className="m-0 text-sm sm:text-base truncate"
+        >
           {currentBoard?.name}
         </Typography.Title>
         <Tooltip
@@ -795,10 +827,11 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
         >
           <Star
             size={16}
-            className={`transition-colors cursor-pointer flex-shrink-0 ${isFavorited
-              ? "fill-yellow-400 text-yellow-400"
-              : "text-gray-400 hover:text-yellow-400"
-              }`}
+            className={`transition-colors cursor-pointer flex-shrink-0 ${
+              isFavorited
+                ? "fill-yellow-400 text-yellow-400"
+                : "text-gray-400 hover:text-yellow-400"
+            }`}
             onClick={handleStarClick}
             style={{
               opacity: isTogglingFavorite ? 0.6 : 1,
@@ -812,124 +845,124 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
         {showRightColMenu ? (
           <>
             <div className="hidden sm:flex items-center justify-end gap-1 sm:gap-2 flex-wrap">
-            {isSuperAdmin && (
-              <Tooltip title={"track"}>
-                <Button
-                  size="small"
-                  shape="default"
-                  variant="text"
-                  onClick={() => {
-                    setOpenDashcardModal(true);
-                  }}
-                >
-                  <div className="border rounded px-1 text-[7px]">10</div>
-                  <span>Track</span>
-                </Button>
-              </Tooltip>
-            )}
-            {onLabelFilterChange && (
-              <Tooltip title="Filter by labels">
-                <Popover
-                  open={labelFilterOpen}
-                  onOpenChange={(open) => {
-                    setLabelFilterOpen(open);
-                    if (!open) setLabelSearchQuery("");
-                  }}
-                  content={labelFilterContent}
-                  trigger="click"
-                  placement="bottomRight"
-                >
+              {isSuperAdmin && (
+                <Tooltip title={"track"}>
                   <Button
                     size="small"
                     shape="default"
-                    icon={<ListFilter size={16} />}
-                    type={selectedLabelIds.length > 0 ? "primary" : "default"}
+                    variant="text"
+                    onClick={() => {
+                      setOpenDashcardModal(true);
+                    }}
                   >
-                    <span>Filter</span>
-                    {selectedLabelIds.length > 0 && (
-                      <Tag color="blue" className="ml-1">
-                        {selectedLabelIds.length}
-                      </Tag>
-                    )}
+                    <div className="border rounded px-1 text-[7px]">10</div>
+                    <span>Track</span>
                   </Button>
+                </Tooltip>
+              )}
+              {onLabelFilterChange && (
+                <Tooltip title="Filter by labels">
+                  <Popover
+                    open={labelFilterOpen}
+                    onOpenChange={(open) => {
+                      setLabelFilterOpen(open);
+                      if (!open) setLabelSearchQuery("");
+                    }}
+                    content={labelFilterContent}
+                    trigger="click"
+                    placement="bottomRight"
+                  >
+                    <Button
+                      size="small"
+                      shape="default"
+                      icon={<ListFilter size={16} />}
+                      type={selectedLabelIds.length > 0 ? "primary" : "default"}
+                    >
+                      <span>Filter</span>
+                      {selectedLabelIds.length > 0 && (
+                        <Tag color="blue" className="ml-1">
+                          {selectedLabelIds.length}
+                        </Tag>
+                      )}
+                    </Button>
+                  </Popover>
+                </Tooltip>
+              )}
+              {isListPOOutlet && (
+                <Popover
+                  content={invoiceContent}
+                  trigger="click"
+                  open={showInvoiceInput}
+                  onOpenChange={setShowInvoiceInput}
+                  placement="bottomRight"
+                >
+                  <Tooltip title="Add Invoice">
+                    <Button
+                      size="small"
+                      icon={<FileText size={16} />}
+                      onClick={() => setShowInvoiceInput(true)}
+                    >
+                      <span>Invoice</span>
+                    </Button>
+                  </Tooltip>
                 </Popover>
-              </Tooltip>
-            )}
-            {isListPOOutlet && (
-              <Popover
-                content={invoiceContent}
-                trigger="click"
-                open={showInvoiceInput}
-                onOpenChange={setShowInvoiceInput}
-                placement="bottomRight"
-              >
-                <Tooltip title="Add Invoice">
-                  <Button
-                    size="small"
-                    icon={<FileText size={16} />}
-                    onClick={() => setShowInvoiceInput(true)}
-                  >
-                    <span>Invoice</span>
-                  </Button>
-                </Tooltip>
-              </Popover>
-            )}
+              )}
 
-            {canShowCetakQR && (
-              <Dropdown
-                menu={{ items: generateQRMenuItems }}
-                trigger={["click"]}
-                placement="bottomRight"
-              >
-                <Tooltip title="Cetak QR">
-                  <Button
-                    size="small"
-                    icon={<QrCode size={16} />}
-                    className="flex items-center gap-1"
-                  >
-                    <span>Cetak QR</span>
-                  </Button>
-                </Tooltip>
-              </Dropdown>
-            )}
+              {canShowCetakQR && (
+                <Dropdown
+                  menu={{ items: generateQRMenuItems }}
+                  trigger={["click"]}
+                  placement="bottomRight"
+                >
+                  <Tooltip title="Cetak QR">
+                    <Button
+                      size="small"
+                      icon={<QrCode size={16} />}
+                      className="flex items-center gap-1"
+                    >
+                      <span>Cetak QR</span>
+                    </Button>
+                  </Tooltip>
+                </Dropdown>
+              )}
 
-            {canShowPacking && (
-              <Dropdown
-                menu={{ items: packingMenuItems }}
-                trigger={["click"]}
-                placement="bottomRight"
-              >
-                <Tooltip title="Packing Options">
-                  <Button
-                    size="small"
-                    className="flex items-center gap-1"
-                    icon={<Package size={16} />}
-                  >
-                    <span>Packing</span>
-                  </Button>
-                </Tooltip>
-              </Dropdown>
-            )}
+              {canShowPacking && (
+                <Dropdown
+                  menu={{ items: packingMenuItems }}
+                  trigger={["click"]}
+                  placement="bottomRight"
+                >
+                  <Tooltip title="Packing Options">
+                    <Button
+                      size="small"
+                      className="flex items-center gap-1"
+                      icon={<Package size={16} />}
+                    >
+                      <span>Packing</span>
+                    </Button>
+                  </Tooltip>
+                </Dropdown>
+              )}
 
-            {canShowDelivery && (
-              <Dropdown
-                menu={{ items: deliveryMenuItems }}
-                trigger={["click"]}
-                placement="bottomRight"
-              >
-                <Tooltip title="Delivery Options">
-                  <Button
-                    size="small"
-                    className="flex items-center gap-1"
-                    icon={<Truck size={16} />}
-                  >
-                    <span>Delivery</span>
-                  </Button>
-                </Tooltip>
-              </Dropdown>
-            )}
+              {canShowDelivery && (
+                <Dropdown
+                  menu={{ items: deliveryMenuItems }}
+                  trigger={["click"]}
+                  placement="bottomRight"
+                >
+                  <Tooltip title="Delivery Options">
+                    <Button
+                      size="small"
+                      className="flex items-center gap-1"
+                      icon={<Truck size={16} />}
+                    >
+                      <span>Delivery</span>
+                    </Button>
+                  </Tooltip>
+                </Dropdown>
+              )}
 
-            {/* <div>
+              {/* <div>
               <MembersList
                 members={members}
                 membersLength={members.length}
@@ -943,15 +976,15 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
                 <span>Share</span>
               </Button>
             </Tooltip> */}
-            <Tooltip title="Scan QR Code (Camera)">
-              <Button
-                size="small"
-                icon={<QrCode size={16} />}
-                onClick={() => setShowScanner(true)}
-              />
-            </Tooltip>
-            {/* Scanner is always active in background - button hidden */}
-            {/* <Tooltip title={externalScannerActive ? "Scanner Active - Scan Now!" : "Open Card via Scanner"}>
+              <Tooltip title="Scan QR Code (Camera)">
+                <Button
+                  size="small"
+                  icon={<QrCode size={16} />}
+                  onClick={() => setShowScanner(true)}
+                />
+              </Tooltip>
+              {/* Scanner is always active in background - button hidden */}
+              {/* <Tooltip title={externalScannerActive ? "Scanner Active - Scan Now!" : "Open Card via Scanner"}>
               <Button
                 size="small"
                 icon={<ScanLine size={16} />}
@@ -960,30 +993,30 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
                 className={externalScannerActive ? "animate-pulse" : ""}
               />
             </Tooltip> */}
-            {showMoveCardsButton && (
-              <Tooltip title="Closing Terpending">
+              {showMoveCardsButton && (
+                <Tooltip title="Closing Terpending">
+                  <Button
+                    size="small"
+                    icon={<ArrowRight size={16} />}
+                    onClick={handleMoveCards}
+                    loading={isMoveCardsPending}
+                  >
+                    <span>
+                      {isMoveCardsPending ? "Moving..." : "Closing Terpending"}
+                    </span>
+                  </Button>
+                </Tooltip>
+              )}
+              <Tooltip title="more">
                 <Button
+                  type="text"
                   size="small"
-                  icon={<ArrowRight size={16} />}
-                  onClick={handleMoveCards}
-                  loading={isMoveCardsPending}
-                >
-                  <span>
-                    {isMoveCardsPending ? "Moving..." : "Closing Terpending"}
-                  </span>
-                </Button>
+                  icon={<Ellipsis size={16} />}
+                  onClick={() => {
+                    setBoardScopeMenuOpen(true);
+                  }}
+                ></Button>
               </Tooltip>
-            )}
-            <Tooltip title="more">
-              <Button
-                type="text"
-                size="small"
-                icon={<Ellipsis size={16} />}
-                onClick={() => {
-                  setBoardScopeMenuOpen(true);
-                }}
-              ></Button>
-            </Tooltip>
             </div>
 
             <div className="sm:hidden flex items-center gap-1">
