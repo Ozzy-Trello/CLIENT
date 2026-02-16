@@ -15,8 +15,8 @@ export const useUnifiedSearch = (
       const result = await unifiedSearch(query, workspaceId);
       return result;
     },
-    enabled: options?.enabled ?? (!!query && query.trim().length > 0),
-    staleTime: options?.staleTime ?? 30000, // 30 seconds
+    enabled: options?.enabled ?? (!!query && query.trim().length >= 2),
+    staleTime: options?.staleTime ?? 5000, // 5 seconds — keep search results fresh
     select: (data) => {
       const searchData = data?.data || { cards: [], boards: [] };
       return searchData;

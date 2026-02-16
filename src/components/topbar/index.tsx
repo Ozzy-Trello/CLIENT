@@ -284,9 +284,15 @@ const TopBar: React.FC = React.memo(() => {
 
   // Debounce search so we don't hit the API on every keystroke
   useEffect(() => {
+    const trimmed = searchQuery.trim();
+    // Only debounce if query meets minimum length (2 chars)
+    if (trimmed.length < 2) {
+      setDebouncedSearchQuery("");
+      return;
+    }
     const handle = setTimeout(() => {
-      setDebouncedSearchQuery(searchQuery.trim());
-    }, 300);
+      setDebouncedSearchQuery(trimmed);
+    }, 500);
     return () => clearTimeout(handle);
   }, [searchQuery]);
 
@@ -295,10 +301,10 @@ const TopBar: React.FC = React.memo(() => {
     data: searchResults = { cards: [], boards: [] },
     isLoading: isSearching,
   } = useUnifiedSearch(debouncedSearchQuery, workspaceId, {
-    enabled: debouncedSearchQuery.length > 0,
+    enabled: debouncedSearchQuery.length >= 2,
   });
   const isDebouncing =
-    searchQuery.trim().length > 0 && searchQuery.trim() !== debouncedSearchQuery;
+    searchQuery.trim().length >= 2 && searchQuery.trim() !== debouncedSearchQuery;
   const showSearchingState = isSearching || isDebouncing;
 
   // Recently viewed hook
@@ -593,7 +599,11 @@ const TopBar: React.FC = React.memo(() => {
               className="absolute z-[999] top-full left-0 mt-1 w-full bg-white rounded-md shadow-lg border border-gray-200"
             >
               <div className="max-h-80 overflow-auto p-2">
-                {showSearchingState ? (
+                {searchQuery.trim().length > 0 && searchQuery.trim().length < 2 ? (
+                  <div className="text-center py-4 text-gray-400 text-sm">
+                    Type at least 2 characters to search
+                  </div>
+                ) : showSearchingState ? (
                   <div className="flex justify-center py-4">
                     <span>Searching...</span>
                   </div>
