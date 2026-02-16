@@ -688,13 +688,13 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
     });
   }
 
-  // if (isDateline) {
-  //   mobileMenuItems.push({
-  //     key: "invoice",
-  //     label: "Invoice",
-  //     onClick: () => setInvoiceModalOpen(true),
-  //   });
-  // }
+  if (isDateline) {
+    mobileMenuItems.push({
+      key: "invoice",
+      label: "Invoice",
+      onClick: () => setInvoiceModalOpen(true),
+    });
+  }
 
   if (canShowCetakQR) {
     mobileMenuItems.push({
