@@ -417,7 +417,7 @@ const CardDetails: React.FC = (props) => {
   };
 
   const handleBuktiUpload = (file: File, result: any) => {
-    // Result comes from UploadModal's internal upload
+    // Called per-file by UploadModal — don't close modal here, it closes itself after all files
     if (result && selectedCard) {
       addAttachment({
         cardId: selectedCard.id,
@@ -426,13 +426,11 @@ const CardDetails: React.FC = (props) => {
         isCover: false,
         type: EnumCardAttachmentType.Bukti,
       });
-
-      message.success("Bukti uploaded successfully!");
-      setOpenBuktiModal(false);
     }
   };
 
   const handlePOUpload = (file: File, result: any) => {
+    // Called per-file by UploadModal — don't close modal here, it closes itself after all files
     if (result && selectedCard) {
       addAttachment({
         cardId: selectedCard.id,
@@ -441,9 +439,6 @@ const CardDetails: React.FC = (props) => {
         isCover: false,
         type: EnumCardAttachmentType.PO,
       });
-
-      message.success("PO uploaded successfully!");
-      setOpenPOModal(false);
     }
   };
 
@@ -1658,6 +1653,7 @@ const CardDetails: React.FC = (props) => {
           title="Upload Bukti"
           acceptableExtensions=".pdf,.jpg,.jpeg,.png"
           maxSize={10 * 1024 * 1024}
+          multiple
           cardId={selectedCard?.id}
           onBeforeUpload={(file) => {
             const parts = file.name.split('.');
@@ -1675,6 +1671,7 @@ const CardDetails: React.FC = (props) => {
           title="Upload File PO"
           acceptableExtensions=".pdf,.jpg,.jpeg,.png"
           maxSize={10 * 1024 * 1024}
+          multiple
           cardId={selectedCard?.id}
           attachmentType={EnumCardAttachmentType.PO}
           onBeforeUpload={(file: File) => {

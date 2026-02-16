@@ -69,10 +69,10 @@ const ContentAttach: React.FC<ContentAttachProps> = ({
     setUploadModalVisible(true);
   };
 
-  // Handle file upload completion
+  // Handle file upload completion (called per-file by UploadModal)
   const handleUploadComplete = (file: File, result: FileUpload) => {
     onAttachFile(file, result);
-    setUploadModalVisible(false);
+    // Don't close here — UploadModal calls onClose() after ALL files are uploaded
   };
 
   // Handle attaching a card
@@ -233,10 +233,14 @@ const ContentAttach: React.FC<ContentAttachProps> = ({
 
       <UploadModal
         isVisible={uploadModalVisible}
-        onClose={() => setUploadModalVisible(false)}
+        onClose={() => {
+          setUploadModalVisible(false);
+          onClose(); // close the attachment popover after all uploads finish
+        }}
         onUploadComplete={handleUploadComplete}
         uploadType="all"
         title="Upload File"
+        multiple
       />
     </div>
   );

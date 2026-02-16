@@ -35,9 +35,9 @@ const PopoverAttach: React.FC<PopoverAttachProps> = ({
         isCover: false,
         type: EnumCardAttachmentType.Attachment,
       });
-      message.success(`File "${file.name}" attached successfully!`);
     }
-    setOpen(false);
+    // Don't close popover here — called per-file during multi-upload.
+    // Popover closes via ContentAttach's onClose when UploadModal finishes all files.
   };
 
   const handleAttachCard = (linkedCardId: string) => {
