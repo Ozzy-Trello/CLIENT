@@ -23,7 +23,7 @@ import { useMasterPlanners, useMasterPlannerV2 } from "@hooks/master-planner";
 import { useQueryClient } from "@tanstack/react-query";
 import { useProducts } from "@hooks/useProducts";
 import { useParams } from "next/navigation";
-import { Filter, RotateCcw } from "lucide-react";
+import { Download, Filter, RotateCcw } from "lucide-react";
 import {
     V2FilterGrid,
     V2FilterConfig,
@@ -870,6 +870,59 @@ const GenericPlannerInputView: React.FC<GenericPlannerInputViewProps> = ({
         return { full, half };
     }, [plannerConfig?.lines]);
 
+    const exportPlannerTable = () => {
+        try {
+            const visibleColumns = tableColumns.filter((c: any) => c?.title && c?.key !== "actions");
+            const headers = visibleColumns.map((c: any) => String(c.title));
+
+            const rows = filteredData.map((record: any) => {
+                return visibleColumns.map((col: any) => {
+                    const key = String(col.dataIndex || col.key || "");
+                    let value: any = "";
+
+                    if (key === "name") value = record?.name;
+                    else if (key === "createdAt") value = formatDate(record?.createdAt ?? record?.created_at);
+                    else if (key === "dueDate") value = formatDate(record?.dueDate ?? record?.due_date);
+                    else if (key === "listName") value = record?.listName ?? record?.list_name;
+                    else if (key === "statusProduksi") value = record?.statusProduksi ?? record?.status_produksi ?? "";
+                    else if (key === "overdueDays") value = record?.overdueDays ?? "";
+                    else if (key === "sisaKapasitas") value = record?.sisaKapasitas ?? record?.sisa_kapasitas ?? "";
+                    else if (dateField && key === dateField) {
+                        value =
+                            getDynamicValue(record, dateField) ??
+                            record?.targetDate ??
+                            record?.target_date ??
+                            "";
+                        value = value ? formatDate(value) : "";
+                    } else {
+                        const dynamicVal = getDynamicValue(record, String(col.title));
+                        value = dynamicVal ?? record?.[key] ?? "";
+                    }
+
+                    return String(value ?? "");
+                });
+            });
+
+            const escapeCsv = (v: string) => `"${String(v).replace(/"/g, '""')}"`;
+            const csv = [headers, ...rows]
+                .map((line) => line.map(escapeCsv).join(","))
+                .join("\n");
+
+            const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `capacity-planner-${plannerName.toLowerCase().replace(/\s+/g, "-")}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+            message.success("Export table berhasil");
+        } catch {
+            message.error("Gagal export table");
+        }
+    };
+
     return (
         <div>
             <Card
@@ -915,7 +968,10 @@ const GenericPlannerInputView: React.FC<GenericPlannerInputViewProps> = ({
             >
                 {filterGrid}
             </Card>
-            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
+            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8, gap: 8 }}>
+                <Button size="small" icon={<Download size={14} />} onClick={exportPlannerTable}>
+                    Export CSV
+                </Button>
                 <Button size="small" onClick={handleRefresh}>Refresh</Button>
             </div>
             {selectedRowKeys.length > 0 && (

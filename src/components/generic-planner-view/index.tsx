@@ -13,13 +13,14 @@ import {
   Tag,
   Typography,
   Spin,
+  message,
 } from "antd";
 import dayjs from "dayjs";
 import { usePlanSummary } from "@hooks/usePlan";
 import { PlanFilterParam, PlanItem } from "@api/plans";
 import { useMasterPlanners, useMasterPlannerV2 } from "@hooks/master-planner";
 import { useProducts } from "@hooks/useProducts";
-import { Filter, RotateCcw } from "lucide-react";
+import { Download, Filter, RotateCcw } from "lucide-react";
 import {
   V2FilterGrid,
   V2FilterConfig,
@@ -750,6 +751,39 @@ const GenericPlannerView: React.FC<GenericPlannerViewProps> = ({
     return { full, half };
   }, [plannerConfig?.lines]);
 
+  const exportPlannerSummary = () => {
+    try {
+      const visibleColumns = tableColumns.filter((c: any) => c?.title);
+      const headers = visibleColumns.map((c: any) => String(c.title));
+      const rows = filteredDisplayItems.map((record: any) =>
+        visibleColumns.map((col: any) => {
+          const key = String(col.dataIndex || col.key || "");
+          let value = record?.[key];
+          if (key === "date") value = formatDate(record?.date);
+          if (key === "status_produksi" || key === "statusProduksi") {
+            value = record?.status_produksi ?? record?.statusProduksi ?? "";
+          }
+          return String(value ?? "");
+        })
+      );
+
+      const escapeCsv = (v: string) => `"${String(v).replace(/"/g, '""')}"`;
+      const csv = [headers, ...rows].map((line) => line.map(escapeCsv).join(",")).join("\n");
+      const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `capacity-planner-summary-${plannerName.toLowerCase().replace(/\s+/g, "-")}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      message.success("Export table berhasil");
+    } catch {
+      message.error("Gagal export table");
+    }
+  };
+
   return (
     <div>
       <Card
@@ -779,6 +813,20 @@ const GenericPlannerView: React.FC<GenericPlannerViewProps> = ({
         }
         extra={
           <Space>
+            <Button
+              type="text"
+              size="small"
+              icon={<Download size={14} />}
+              onClick={exportPlannerSummary}
+              style={{
+                color: "#666",
+                fontSize: "12px",
+                height: "24px",
+                padding: "0 8px",
+              }}
+            >
+              Export CSV
+            </Button>
             <Button
               type="text"
               size="small"
