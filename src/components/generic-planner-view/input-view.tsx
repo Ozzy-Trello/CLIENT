@@ -884,9 +884,20 @@ const GenericPlannerInputView: React.FC<GenericPlannerInputViewProps> = ({
                     else if (key === "createdAt") value = formatDate(record?.createdAt ?? record?.created_at);
                     else if (key === "dueDate") value = formatDate(record?.dueDate ?? record?.due_date);
                     else if (key === "listName") value = record?.listName ?? record?.list_name;
-                    else if (key === "statusProduksi") value = record?.statusProduksi ?? record?.status_produksi ?? "";
-                    else if (key === "overdueDays") value = record?.overdueDays ?? "";
-                    else if (key === "sisaKapasitas") value = record?.sisaKapasitas ?? record?.sisa_kapasitas ?? "";
+                    else if (key === "statusProduksi") {
+                        value = record?.statusProduksi ?? record?.status_produksi ?? "-";
+                        value = ["Aman", "Overload"].includes(String(value)) ? value : "-";
+                    }
+                    else if (key === "overdueDays") {
+                        const overdue = parseNumeric(record?.overdueDays);
+                        if (overdue === null) value = "-";
+                        else if (overdue > 0) value = `Late ${overdue} days`;
+                        else value = "On Time";
+                    }
+                    else if (key === "sisaKapasitas") {
+                        const num = parseNumeric(record?.sisaKapasitas ?? record?.sisa_kapasitas);
+                        value = num === null ? "-" : formatNumber(num);
+                    }
                     else if (dateField && key === dateField) {
                         value =
                             getDynamicValue(record, dateField) ??
@@ -897,6 +908,11 @@ const GenericPlannerInputView: React.FC<GenericPlannerInputViewProps> = ({
                     } else {
                         const dynamicVal = getDynamicValue(record, String(col.title));
                         value = dynamicVal ?? record?.[key] ?? "";
+                    }
+
+                    const numeric = parseNumeric(value);
+                    if (numeric !== null && key !== "name") {
+                        value = formatNumber(numeric);
                     }
 
                     return String(value ?? "");

@@ -761,8 +761,21 @@ const GenericPlannerView: React.FC<GenericPlannerViewProps> = ({
           let value = record?.[key];
           if (key === "date") value = formatDate(record?.date);
           if (key === "status_produksi" || key === "statusProduksi") {
-            value = record?.status_produksi ?? record?.statusProduksi ?? "";
+            const st = record?.status_produksi ?? record?.statusProduksi ?? "-";
+            value = ["Aman", "Overload"].includes(String(st)) ? st : "-";
           }
+          if (key === "overdue_days" || key === "overdueDays") {
+            const overdue = parseNumeric(record?.overdue_days ?? record?.overdueDays);
+            if (overdue === null) value = "-";
+            else if (overdue > 0) value = `Late ${overdue} days`;
+            else value = "On Time";
+          }
+
+          const numeric = parseNumeric(value);
+          if (numeric !== null && key !== "date") {
+            value = formatNumber(numeric);
+          }
+
           return String(value ?? "");
         })
       );
