@@ -175,11 +175,11 @@ const ModalJmlStitch: React.FC<ModalJmlStitchProps> = ({
     () =>
       designerRoleIds.length === 0
         ? []
-        :
-      (accountListData?.data || []).map((account: any) => ({
-        value: account.id as string,
-        label: account.name || account.username || account.email || account.id,
-      })),
+        : (accountListData?.data || []).map((account: any) => ({
+            value: account.id as string,
+            label:
+              account.name || account.username || account.email || account.id,
+          })),
     [accountListData?.data, designerRoleIds.length],
   );
 

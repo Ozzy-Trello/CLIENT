@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight, X, Download, ZoomIn, ZoomOut, Printer } from "lucide-react";
 import { CardAttachment } from "@myTypes/card";
 import PreviewPdfViewer from "./pdf-viewer";
@@ -170,11 +171,11 @@ const AttachmentPreviewModal: React.FC<AttachmentPreviewModalProps> = ({
   const iconButtonClass =
     "p-2 rounded-full hover:bg-white/20 transition-colors text-white disabled:opacity-40 disabled:cursor-not-allowed";
 
-  return (
+  const modalContent = (
     <div
       ref={overlayRef}
       tabIndex={-1}
-      className="fixed inset-0 z-[9999] flex flex-col bg-black/80 outline-none"
+      className="fixed inset-0 z-[12000] flex flex-col bg-black/80 outline-none"
       onClick={onClose}
     >
       {/* Header toolbar */}
@@ -322,6 +323,10 @@ const AttachmentPreviewModal: React.FC<AttachmentPreviewModalProps> = ({
       </div>
     </div>
   );
+
+  if (typeof document === "undefined") return null;
+
+  return createPortal(modalContent, document.body);
 };
 
 export default AttachmentPreviewModal;
