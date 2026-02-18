@@ -72,7 +72,11 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useCardActivity } from "@hooks/card_activity";
 import { useCardMembers } from "@hooks/card_member";
 import { useLabels } from "@hooks/label";
-import { Card, EnumAttachmentType, EnumCardAttachmentType } from "@myTypes/card";
+import {
+  Card,
+  EnumAttachmentType,
+  EnumCardAttachmentType,
+} from "@myTypes/card";
 import { CardLabel } from "@myTypes/label";
 import { useBoardPermissionsContext } from "@providers/board-permissions-context";
 import { selectUser } from "@store/app_slice";
@@ -128,18 +132,15 @@ const CardDetails: React.FC = (props) => {
     {
       enabled: !!boardId,
       refetchOnWindowFocus: false,
-    }
+    },
   );
   const reduxBoard = useSelector(selectCurrentBoard);
-  const effectiveBoardName = (
-    reduxBoard?.name ||
-    ""
-  ).trim();
+  const effectiveBoardName = (reduxBoard?.name || "").trim();
   const viewOnlyBoardNamesSet = new Set(
-    CAN_VIEW_BOARD.map((n) => n.toLowerCase().trim())
+    CAN_VIEW_BOARD.map((n) => n.toLowerCase().trim()),
   );
   const allowedNamesSet = new Set(
-    ALLOWED_BOARD_NAMES.map((n) => n.toLowerCase().trim())
+    ALLOWED_BOARD_NAMES.map((n) => n.toLowerCase().trim()),
   );
   const isViewOnlyProdukBoard =
     !!effectiveBoardName &&
@@ -187,7 +188,13 @@ const CardDetails: React.FC = (props) => {
       window.clearTimeout(t0);
       window.clearTimeout(t1);
     };
-  }, [isCardDetailOpen, selectedCard?.name, boardName, cardIdQuery, listIdQuery]);
+  }, [
+    isCardDetailOpen,
+    selectedCard?.name,
+    boardName,
+    cardIdQuery,
+    listIdQuery,
+  ]);
 
   useEffect(() => {
     if (!isCardDetailOpen) {
@@ -214,6 +221,9 @@ const CardDetails: React.FC = (props) => {
   const canPOSection =
     isSuperAdmin ||
     (isDatelineBoard && roleIn(["Admin Produksi", "Kepala Produksi"]));
+  const canOpenJmlStitch =
+    isSuperAdmin ||
+    (isDatelineBoard && roleIn(["Kepala Produksi", "SPV Desainer Bordir"]));
   const [isComplete, setIsComplete] = useState<boolean>(false);
   const listSelectionRef = useRef<SelectionRef>(null);
   const [isEditingTitle, setIsEditingTitle] = useState<boolean>(false);
@@ -243,7 +253,7 @@ const CardDetails: React.FC = (props) => {
         isCardDetailOpen &&
         !!selectedCard?.id &&
         !(selectedCard?.labels && selectedCard.labels.length > 0),
-    }
+    },
   );
   const { cardActivities } = useCardActivity(selectedCard?.id || "", {
     enabled: isCardDetailOpen && !!selectedCard?.id,
@@ -253,14 +263,14 @@ const CardDetails: React.FC = (props) => {
       selectedCard?.members && selectedCard.members.length > 0
         ? selectedCard.members
         : cardMembers || [],
-    [selectedCard?.members, cardMembers]
+    [selectedCard?.members, cardMembers],
   );
   const effectiveLabels = useMemo(
     () =>
       selectedCard?.labels && selectedCard.labels.length > 0
         ? (selectedCard.labels as CardLabel[])
         : (cardLabels as CardLabel[]) || [],
-    [selectedCard?.labels, cardLabels]
+    [selectedCard?.labels, cardLabels],
   );
   const [openAddMember, setOpenAddMember] = useState<boolean>(false);
   const [openLabel, setOpenLabel] = useState<boolean>(false);
@@ -275,20 +285,21 @@ const CardDetails: React.FC = (props) => {
     boardId as string,
     {
       enabled: isCardDetailOpen && !!selectedCard?.id,
-    }
+    },
   );
 
   // Get board permissions
-  const { canUpdateCard, canManageCardAttachments, canGenerateQR } = useBoardPermissionsContext();
+  const { canUpdateCard, canManageCardAttachments, canGenerateQR } =
+    useBoardPermissionsContext();
   const roleLower = userRole; // Alias for consistency with toolbar logic
   const [dashcardModalCard, setDashcardModalCard] = useState<Card | null>(null);
   const [isDashcardModalOpen, setIsDashcardModalOpen] = useState(false);
   const [isDraggingFiles, setIsDraggingFiles] = useState(false);
   const [isUploadingDrop, setIsUploadingDrop] = useState(false);
   const [isActionsPopoverOpen, setIsActionsPopoverOpen] = useState(false);
-  const [quickUploadLoading, setQuickUploadLoading] = useState<
-    "camera" | null
-  >(null);
+  const [quickUploadLoading, setQuickUploadLoading] = useState<"camera" | null>(
+    null,
+  );
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -367,14 +378,25 @@ const CardDetails: React.FC = (props) => {
   // Role Checks & Permissions for Toolbar
   // const roleLower = (userRole || currentUser?.role?.name || "").trim().toLowerCase(); // Already defined above
   // const isDateline = effectiveBoardName?.toLowerCase() === "dateline"; // Already defined above or partially available
-  const canPOActions = isSuperAdmin || (isDatelineBoard && roleIn(["admin produksi", "kepala produksi"]));
-  const isListPOOutlet = effectiveBoardName?.toLowerCase() === "list po | outlet";
+  const canPOActions =
+    isSuperAdmin ||
+    (isDatelineBoard && roleIn(["admin produksi", "kepala produksi"]));
+  const isListPOOutlet =
+    effectiveBoardName?.toLowerCase() === "list po | outlet";
   const isDelivery = effectiveBoardName?.toLowerCase() === "delivery";
-  const canBukti = isSuperAdmin || (isListPOOutlet && roleIn(["deal maker", "spv deal maker"]));
-  const canGenerateQRPermission = isSuperAdmin || (canGenerateQR && canGenerateQR()) || ((isListPOOutlet || isDatelineBoard || isDelivery) && roleLower !== "kurir");
+  const canBukti =
+    isSuperAdmin ||
+    (isListPOOutlet && roleIn(["deal maker", "spv deal maker"]));
+  const canGenerateQRPermission =
+    isSuperAdmin ||
+    (canGenerateQR && canGenerateQR()) ||
+    ((isListPOOutlet || isDatelineBoard || isDelivery) &&
+      roleLower !== "kurir");
 
   // Attachment Logic for Toolbar
-  const { cardAttachments, addAttachment } = useCardAttachment(selectedCard?.id || "");
+  const { cardAttachments, addAttachment } = useCardAttachment(
+    selectedCard?.id || "",
+  );
 
   const hasBuktiAttachment = () => {
     return cardAttachments?.some(
@@ -458,10 +480,14 @@ const CardDetails: React.FC = (props) => {
       const url = URL.createObjectURL(blob);
       const newWindow = window.open(url, "_blank");
       if (newWindow) {
-        setTimeout(() => { URL.revokeObjectURL(url); }, 1000);
+        setTimeout(() => {
+          URL.revokeObjectURL(url);
+        }, 1000);
         message.success("QR code PDF generated successfully!");
       } else {
-        message.error("Failed to open PDF. Please check your popup blocker settings.");
+        message.error(
+          "Failed to open PDF. Please check your popup blocker settings.",
+        );
       }
     } catch (error) {
       console.error("Error generating QR PDF:", error);
@@ -553,7 +579,7 @@ const CardDetails: React.FC = (props) => {
                 {
                   onSuccess: () => resolve(),
                   onError: (error) => reject(error),
-                }
+                },
               );
             });
           }
@@ -567,7 +593,7 @@ const CardDetails: React.FC = (props) => {
         setIsUploadingDrop(false);
       }
     },
-    [addAttachment, refetchCardDetails, selectedCard?.id]
+    [addAttachment, refetchCardDetails, selectedCard?.id],
   );
 
   const handleQuickUpload = useCallback(
@@ -596,7 +622,7 @@ const CardDetails: React.FC = (props) => {
               {
                 onSuccess: () => resolve(),
                 onError: (error) => reject(error),
-              }
+              },
             );
           });
         }
@@ -611,7 +637,7 @@ const CardDetails: React.FC = (props) => {
         setQuickUploadLoading(null);
       }
     },
-    [addAttachment, refetchCardDetails, selectedCard?.id]
+    [addAttachment, refetchCardDetails, selectedCard?.id],
   );
 
   const stopCameraStream = useCallback(() => {
@@ -675,7 +701,7 @@ const CardDetails: React.FC = (props) => {
 
     ctx.drawImage(video, 0, 0, width, height);
     const blob: Blob | null = await new Promise((resolve) =>
-      canvas.toBlob(resolve, "image/jpeg", 0.92)
+      canvas.toBlob(resolve, "image/jpeg", 0.92),
     );
     if (!blob) {
       message.error("Failed to capture image");
@@ -779,7 +805,7 @@ const CardDetails: React.FC = (props) => {
               console.error("Failed to add link attachment:", error);
               message.error("Failed to add link attachment");
             },
-          }
+          },
         );
         return;
       }
@@ -832,7 +858,7 @@ const CardDetails: React.FC = (props) => {
         onError: (error) => {
           // Title update failed
         },
-      }
+      },
     );
   };
 
@@ -903,7 +929,7 @@ const CardDetails: React.FC = (props) => {
         allLabels.map((label: any) => ({
           id: label.id,
           name: label.name,
-        }))
+        })),
       );
     }
   }, [allLabels]);
@@ -913,7 +939,12 @@ const CardDetails: React.FC = (props) => {
     if (!isCardDetailOpen) return;
 
     const handler = (e: KeyboardEvent) => {
-      if ((e.key === "l" || e.key === "L") && !e.metaKey && !e.ctrlKey && !e.altKey) {
+      if (
+        (e.key === "l" || e.key === "L") &&
+        !e.metaKey &&
+        !e.ctrlKey &&
+        !e.altKey
+      ) {
         const active = document.activeElement as HTMLElement | null;
         const tag = active?.tagName?.toLowerCase();
         const isTyping =
@@ -954,8 +985,9 @@ const CardDetails: React.FC = (props) => {
       <div className="relative flex items-center gap-2 min-w-0">
         <Checkbox
           className={`custom-circular-checkbox absolute left-0 -ml-6 transition-all duration-300 
-                    ${selectedCard?.isComplete ? "completed" : ""} ${!canUpdateCard() ? "opacity-50 cursor-not-allowed" : ""
-            }`}
+                    ${selectedCard?.isComplete ? "completed" : ""} ${
+                      !canUpdateCard() ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
           checked={selectedCard?.isComplete}
           disabled={!canUpdateCard()}
           onChange={(e) => {
@@ -1003,10 +1035,11 @@ const CardDetails: React.FC = (props) => {
           ) : (
             <div className="flex items-start gap-1 min-w-0">
               <h1
-                className={`text-5xl font-bold mb-0 ml-2 px-2 py-1 rounded-md break-words min-w-0 ${canUpdateCard()
-                  ? "cursor-pointer hover:bg-gray-50"
-                  : "cursor-not-allowed opacity-60"
-                  }`}
+                className={`text-5xl font-bold mb-0 ml-2 px-2 py-1 rounded-md break-words min-w-0 ${
+                  canUpdateCard()
+                    ? "cursor-pointer hover:bg-gray-50"
+                    : "cursor-not-allowed opacity-60"
+                }`}
                 onClick={() => {
                   if (canUpdateCard()) {
                     setNewTitle(selectedCard?.name || "");
@@ -1034,119 +1067,117 @@ const CardDetails: React.FC = (props) => {
           )}
         </div>
       </div>
-      {!isDesktop &&
-        (
-          <div className="flex items-center gap-2">
-            <input
-              ref={cameraInputRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                e.target.value = "";
-                if (!file) return;
-                void handleQuickUpload(file);
-              }}
-            />
+      {!isDesktop && (
+        <div className="flex items-center gap-2">
+          <input
+            ref={cameraInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              e.target.value = "";
+              if (!file) return;
+              void handleQuickUpload(file);
+            }}
+          />
 
-            <Tooltip
-              title={
-                canManageCardAttachments()
-                  ? "Open camera"
-                  : "You don't have permission"
-              }
-            >
-              <Button
-                size="small"
-                type="default"
-                loading={quickUploadLoading === "camera"}
-                icon={<Camera size={20} />}
-                title="Camera"
-                onClick={() => {
-                  if (!canManageCardAttachments()) return;
-                  void openCamera();
-                }}
-              >
-                Camera
-              </Button>
-
-            </Tooltip>
-
-            <Popover
-              open={isActionsPopoverOpen}
-              onOpenChange={setIsActionsPopoverOpen}
-              trigger="click"
-              placement="bottomRight"
-              overlayStyle={{ width: 360 }}
-              content={
-                <div className="w-[300px] h-96 overflow-y-scroll">
-                  <Actions
-                    boardName={effectiveBoardName}
-                    userRole={userRole}
-                    isSuperAdmin={isSuperAdmin}
-                    exclude={[]}
-                    card={selectedCard}
-                    onOpenBuktiModal={() => setOpenBuktiModal(true)}
-                    onOpenPOModal={() => setOpenPOModal(true)}
-                    onOpenBuatSOModal={() => setOpenBuatSOModal(true)}
-                  />
-                </div>
-              }
-            >
-              <Button
-                size="small"
-                className="flex items-center gap-2 px-3 py-1 rounded-md"
-                type="default"
-              >
-                <RectangleEllipsis size={16} />
-                <span className="text-sm font-semibold">Actions</span>
-              </Button>
-            </Popover>
-
-            <Modal
-              open={isCameraModalOpen}
-              onCancel={() => {
-                setIsCameraModalOpen(false);
-                stopCameraStream();
-              }}
-              footer={[
-                <Button
-                  key="cancel"
-                  onClick={() => {
-                    setIsCameraModalOpen(false);
-                    stopCameraStream();
-                  }}
-                >
-                  Cancel
-                </Button>,
-                <Button
-                  key="capture"
-                  type="primary"
-                  onClick={() => void captureAndUpload()}
-                >
-                  Capture
-                </Button>,
-              ]}
+          <Tooltip
+            title={
+              canManageCardAttachments()
+                ? "Open camera"
+                : "You don't have permission"
+            }
+          >
+            <Button
+              size="small"
+              type="default"
+              loading={quickUploadLoading === "camera"}
+              icon={<Camera size={20} />}
               title="Camera"
-              width={420}
-              centered
-              styles={{ body: { padding: 0 } }}
-              destroyOnClose
+              onClick={() => {
+                if (!canManageCardAttachments()) return;
+                void openCamera();
+              }}
             >
-              <div className="w-full bg-black overflow-hidden">
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className="w-full h-auto max-h-[45vh] object-contain"
+              Camera
+            </Button>
+          </Tooltip>
+
+          <Popover
+            open={isActionsPopoverOpen}
+            onOpenChange={setIsActionsPopoverOpen}
+            trigger="click"
+            placement="bottomRight"
+            overlayStyle={{ width: 360 }}
+            content={
+              <div className="w-[300px] h-96 overflow-y-scroll">
+                <Actions
+                  boardName={effectiveBoardName}
+                  userRole={userRole}
+                  isSuperAdmin={isSuperAdmin}
+                  exclude={[]}
+                  card={selectedCard}
+                  onOpenBuktiModal={() => setOpenBuktiModal(true)}
+                  onOpenPOModal={() => setOpenPOModal(true)}
+                  onOpenBuatSOModal={() => setOpenBuatSOModal(true)}
                 />
               </div>
-            </Modal>
-          </div>
-        )}
+            }
+          >
+            <Button
+              size="small"
+              className="flex items-center gap-2 px-3 py-1 rounded-md"
+              type="default"
+            >
+              <RectangleEllipsis size={16} />
+              <span className="text-sm font-semibold">Actions</span>
+            </Button>
+          </Popover>
+
+          <Modal
+            open={isCameraModalOpen}
+            onCancel={() => {
+              setIsCameraModalOpen(false);
+              stopCameraStream();
+            }}
+            footer={[
+              <Button
+                key="cancel"
+                onClick={() => {
+                  setIsCameraModalOpen(false);
+                  stopCameraStream();
+                }}
+              >
+                Cancel
+              </Button>,
+              <Button
+                key="capture"
+                type="primary"
+                onClick={() => void captureAndUpload()}
+              >
+                Capture
+              </Button>,
+            ]}
+            title="Camera"
+            width={420}
+            centered
+            styles={{ body: { padding: 0 } }}
+            destroyOnClose
+          >
+            <div className="w-full bg-black overflow-hidden">
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className="w-full h-auto max-h-[45vh] object-contain"
+              />
+            </div>
+          </Modal>
+        </div>
+      )}
     </div>
   );
 
@@ -1169,24 +1200,26 @@ const CardDetails: React.FC = (props) => {
 
       <Flex wrap gap="middle">
         {/* Members */}
-        {selectedCard && selectedCard.members && selectedCard.members.length > 0 && (
-          <div className="space-y-2 text-xs">
-            <span className="text-gray-300 font-semibold text-xs block">
-              Members
-            </span>
-            <div>
-              <MembersList
-                members={effectiveMembers}
-                membersLength={effectiveMembers?.length || 0}
-                membersLoopLimit={3}
-                openAddMember={openAddMember && canUpdateCard()}
-                setOpenAddMember={setOpenAddMember}
-                onUserSelectionChange={onUserSelectionChange}
-                onRemoveMember={handleRemoveMember}
-              />
+        {selectedCard &&
+          selectedCard.members &&
+          selectedCard.members.length > 0 && (
+            <div className="space-y-2 text-xs">
+              <span className="text-gray-300 font-semibold text-xs block">
+                Members
+              </span>
+              <div>
+                <MembersList
+                  members={effectiveMembers}
+                  membersLength={effectiveMembers?.length || 0}
+                  membersLoopLimit={3}
+                  openAddMember={openAddMember && canUpdateCard()}
+                  setOpenAddMember={setOpenAddMember}
+                  onUserSelectionChange={onUserSelectionChange}
+                  onRemoveMember={handleRemoveMember}
+                />
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
         {/* Labels */}
         {effectiveLabels && effectiveLabels.length > 0 && (
@@ -1216,7 +1249,7 @@ const CardDetails: React.FC = (props) => {
           </span>
           <Button size="small" className="rounded-md hover:bg-gray-50">
             {selectedCard?.timeInLists?.find(
-              (item) => item.listId == selectedCard.listId
+              (item) => item.listId == selectedCard.listId,
             )?.formattedTimeInList || "0m"}
           </Button>
         </div>
@@ -1266,7 +1299,8 @@ const CardDetails: React.FC = (props) => {
                 const updatedCard = {
                   ...selectedCard,
                   bahan: newBahanValue,
-                  ...(newBahanValue && (!selectedCard.poAmount || selectedCard.poAmount <= 0)
+                  ...(newBahanValue &&
+                  (!selectedCard.poAmount || selectedCard.poAmount <= 0)
                     ? { poAmount: 1 }
                     : {}),
                 };
@@ -1277,8 +1311,12 @@ const CardDetails: React.FC = (props) => {
                 // to give the backend time to auto-create the PO
                 if (newBahanValue) {
                   setTimeout(() => {
-                    queryClient.invalidateQueries({ queryKey: ["pos", selectedCard.id] });
-                    queryClient.invalidateQueries({ queryKey: ["pos-size-assignment", selectedCard.id] });
+                    queryClient.invalidateQueries({
+                      queryKey: ["pos", selectedCard.id],
+                    });
+                    queryClient.invalidateQueries({
+                      queryKey: ["pos-size-assignment", selectedCard.id],
+                    });
                   }, 1500);
                 }
               }}
@@ -1293,47 +1331,47 @@ const CardDetails: React.FC = (props) => {
           <POAmount card={selectedCard} setSelectedCard={setSelectedCard} />
         )}
 
-        {selectedCard && canPOSection && (
+        {selectedCard && (canPOSection || canOpenJmlStitch) && (
           <POSizeAssignment
             card={selectedCard}
             setSelectedCard={setSelectedCard}
-            isSuperAdmin={isSuperAdmin}
+            showManagePOButton={canPOSection}
+            canOpenJmlStitch={canOpenJmlStitch}
             onOpenJmlStitchModal={() => setOpenJmlStitchModal(true)}
           />
         )}
       </Flex>
 
       {selectedCard && (
-        <Description
-          card={selectedCard}
-          setSelectedCard={setSelectedCard}
-        />
+        <Description card={selectedCard} setSelectedCard={setSelectedCard} />
       )}
 
-      {selectedCard && shouldShowProduk && selectedCard?.type !== "dashcard" && (
-        <CollapsibleSection
-          title="Produk"
-          defaultExpanded={true}
-          icon={
-            <svg
-              width="18"
-              height="18"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              viewBox="0 0 24 24"
-            >
-              <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M9 1v6m6-6v6" />
-            </svg>
-          }
-        >
-          <ProdukFields
-            card={selectedCard}
-            setCard={setSelectedCard}
-            viewOnly={isViewOnlyProdukBoard}
-          />
-        </CollapsibleSection>
-      )}
+      {selectedCard &&
+        shouldShowProduk &&
+        selectedCard?.type !== "dashcard" && (
+          <CollapsibleSection
+            title="Produk"
+            defaultExpanded={true}
+            icon={
+              <svg
+                width="18"
+                height="18"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+              >
+                <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M9 1v6m6-6v6" />
+              </svg>
+            }
+          >
+            <ProdukFields
+              card={selectedCard}
+              setCard={setSelectedCard}
+              viewOnly={isViewOnlyProdukBoard}
+            />
+          </CollapsibleSection>
+        )}
 
       {selectedCard &&
         selectedCard?.location &&
@@ -1357,10 +1395,7 @@ const CardDetails: React.FC = (props) => {
       )}
 
       {selectedCard?.type == "dashcard" && (
-        <Dashcard
-          card={selectedCard}
-          onOpenDetail={handleOpenDashcardDetail}
-        />
+        <Dashcard card={selectedCard} onOpenDetail={handleOpenDashcardDetail} />
       )}
       {/* 
       {selectedCard?.id && (
@@ -1403,7 +1438,7 @@ const CardDetails: React.FC = (props) => {
 
       {selectedCard && (
         <CollapsibleSection
-          title="Stitch"
+          title="File Bordir"
           defaultExpanded={false}
           icon={<Scissors size={18} />}
         >
@@ -1470,7 +1505,11 @@ const CardDetails: React.FC = (props) => {
       open={openLabel}
       setOpen={setOpenLabel}
       triggerEl={
-        <Button size="small" type="default" className="bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-200">
+        <Button
+          size="small"
+          type="default"
+          className="bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-200"
+        >
           <Tag className="mr-1" /> Labels
         </Button>
       }
@@ -1478,42 +1517,55 @@ const CardDetails: React.FC = (props) => {
   );
 
   // 2. Attachments
-  const toolbarAttachButton = canManageCardAttachments && canManageCardAttachments() ? (
-    <PopoverAttach
-      open={openAttach}
-      setOpen={setOpenAttach}
-      triggerEl={
-        <Button size="small" type="default" className="bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-200">
-          <Paperclip className="mr-1" size={14} /> Attachment
-        </Button>
-      }
-    />
-  ) : null;
+  const toolbarAttachButton =
+    canManageCardAttachments && canManageCardAttachments() ? (
+      <PopoverAttach
+        open={openAttach}
+        setOpen={setOpenAttach}
+        triggerEl={
+          <Button
+            size="small"
+            type="default"
+            className="bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-200"
+          >
+            <Paperclip className="mr-1" size={14} /> Attachment
+          </Button>
+        }
+      />
+    ) : null;
 
   // 3. Upload Bukti
-  const toolbarBuktiButton = (canBukti && canManageCardAttachments && canManageCardAttachments()) ? (
-    <Tooltip title={hasBuktiAttachment() ? "Bukti already exists" : "Upload bukti file"}>
-      <Button
-        size="small" type="default"
-        className="bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-200"
-        onClick={() => setOpenBuktiModal(true)}
-        disabled={hasBuktiAttachment()}
+  const toolbarBuktiButton =
+    canBukti && canManageCardAttachments && canManageCardAttachments() ? (
+      <Tooltip
+        title={
+          hasBuktiAttachment() ? "Bukti already exists" : "Upload bukti file"
+        }
       >
-        <FileCheck className="mr-1" size={14} /> Upload Bukti
-      </Button>
-    </Tooltip>
-  ) : null;
+        <Button
+          size="small"
+          type="default"
+          className="bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-200"
+          onClick={() => setOpenBuktiModal(true)}
+          disabled={hasBuktiAttachment()}
+        >
+          <FileCheck className="mr-1" size={14} /> Upload Bukti
+        </Button>
+      </Tooltip>
+    ) : null;
 
   // 4. Upload File PO
-  const toolbarPOButton = (canPOActions && canManageCardAttachments && canManageCardAttachments()) ? (
-    <Button
-      size="small" type="default"
-      className="bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-200"
-      onClick={() => setOpenPOModal(true)}
-    >
-      <FileText className="mr-1" size={14} /> Upload File PO
-    </Button>
-  ) : null;
+  const toolbarPOButton =
+    canPOActions && canManageCardAttachments && canManageCardAttachments() ? (
+      <Button
+        size="small"
+        type="default"
+        className="bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-200"
+        onClick={() => setOpenPOModal(true)}
+      >
+        <FileText className="mr-1" size={14} /> Upload File PO
+      </Button>
+    ) : null;
 
   // 5. Dates
   const toolbarDatesButton = (
@@ -1521,7 +1573,11 @@ const CardDetails: React.FC = (props) => {
       open={openDates}
       setOpen={setOpenDates}
       triggerEl={
-        <Button size="small" type="default" className="bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-200">
+        <Button
+          size="small"
+          type="default"
+          className="bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-200"
+        >
           <Clock size={14} className="mr-1" /> Dates
         </Button>
       }
@@ -1531,7 +1587,8 @@ const CardDetails: React.FC = (props) => {
   // 6. Generate QR
   const toolbarQRButton = canGenerateQRPermission ? (
     <Button
-      size="small" type="default"
+      size="small"
+      type="default"
       className="bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-200"
       onClick={handleGenerateQR}
     >
@@ -1555,7 +1612,11 @@ const CardDetails: React.FC = (props) => {
       open={openChecklist}
       setOpen={setOpenChecklist}
       triggerEl={
-        <Button size="small" type="default" className="bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-200">
+        <Button
+          size="small"
+          type="default"
+          className="bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-200"
+        >
           <CheckSquare size={14} className="mr-1" /> Checklist
         </Button>
       }
@@ -1569,7 +1630,11 @@ const CardDetails: React.FC = (props) => {
       open={openMembersToolbar}
       setOpen={setOpenMembersToolbar}
       triggerEl={
-        <Button size="small" type="default" className="bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-200">
+        <Button
+          size="small"
+          type="default"
+          className="bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-200"
+        >
           <Users size={14} className="mr-1" /> Members
         </Button>
       }
@@ -1577,24 +1642,26 @@ const CardDetails: React.FC = (props) => {
   );
 
   // 10. Buat SO
-  const toolbarBuatSOButton = (canPOActions && canManageCardAttachments && canManageCardAttachments()) ? (
-    <Tooltip title={isBuatSODisabled ? "SO Sudah ada" : "Create Sales Order"}>
-      <Button
-        size="small" type="default"
-        className="bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-200"
-        onClick={() => {
-          if (isBuatSODisabled) {
-            message.error("SO Sudah ada");
-            return;
-          }
-          setOpenBuatSOModal(true);
-        }}
-        disabled={isBuatSODisabled}
-      >
-        <FileText className="mr-1" size={14} /> Buat SO
-      </Button>
-    </Tooltip>
-  ) : null;
+  const toolbarBuatSOButton =
+    canPOActions && canManageCardAttachments && canManageCardAttachments() ? (
+      <Tooltip title={isBuatSODisabled ? "SO Sudah ada" : "Create Sales Order"}>
+        <Button
+          size="small"
+          type="default"
+          className="bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-200"
+          onClick={() => {
+            if (isBuatSODisabled) {
+              message.error("SO Sudah ada");
+              return;
+            }
+            setOpenBuatSOModal(true);
+          }}
+          disabled={isBuatSODisabled}
+        >
+          <FileText className="mr-1" size={14} /> Buat SO
+        </Button>
+      </Tooltip>
+    ) : null;
 
   // 11. + Actions (Dropdown)
   const toolbarAddButton = (
@@ -1608,9 +1675,16 @@ const CardDetails: React.FC = (props) => {
             userRole={userRole}
             isSuperAdmin={isSuperAdmin}
             exclude={[
-              "Labels", "Dates", "Checklist", "Members",
-              "Attachment", "Upload Bukti", "Upload File PO",
-              "Generate QR", "Automation", "Buat SO"
+              "Labels",
+              "Dates",
+              "Checklist",
+              "Members",
+              "Attachment",
+              "Upload Bukti",
+              "Upload File PO",
+              "Generate QR",
+              "Automation",
+              "Buat SO",
             ]}
             card={selectedCard}
             onOpenBuktiModal={() => setOpenBuktiModal(true)}
@@ -1620,7 +1694,11 @@ const CardDetails: React.FC = (props) => {
         </div>
       }
     >
-      <Button size="small" type="default" className="bg-gray-200 hover:bg-gray-300 border-none font-medium">
+      <Button
+        size="small"
+        type="default"
+        className="bg-gray-200 hover:bg-gray-300 border-none font-medium"
+      >
         <Plus size={14} className="mr-1" /> Actions
       </Button>
     </Popover>
@@ -1645,171 +1723,174 @@ const CardDetails: React.FC = (props) => {
   return (
     <ManualOverrideProvider>
       <Modal
-      title={null}
-      open={isCardDetailOpen}
-      onCancel={closeCardDetail}
-      footer={null}
-      className="modal-card-form full-height-modal"
-      width="min(1280px, 95vw)"
-      destroyOnClose
-      closeIcon={
-        <span className="inline-flex items-center justify-center rounded-md bg-red-50 hover:bg-red-100 text-red-600 p-1 transition-colors">
-          <X size={16} />
-        </span>
-      }
-    >
-      <div className="overflow-x-hidden max-w-full relative">
-        {isDraggingFiles && (
-          <div className="absolute inset-0 z-50 bg-blue-500/10 border-2 border-dashed border-blue-500 flex items-center justify-center pointer-events-none">
-            <div className="bg-white px-4 py-2 rounded shadow text-blue-700 font-semibold">
-              {isUploadingDrop ? "Uploading..." : "Drop files to attach"}
-            </div>
-          </div>
-        )}
-
-        {/* Modals for Toolbar Actions */}
-        <UploadModal
-          isVisible={openBuktiModal}
-          onClose={() => setOpenBuktiModal(false)}
-          onUploadComplete={handleBuktiUpload}
-          title="Upload Bukti"
-          acceptableExtensions=".pdf,.jpg,.jpeg,.png"
-          maxSize={10 * 1024 * 1024}
-          multiple
-          cardId={selectedCard?.id}
-          onBeforeUpload={(file) => {
-            const parts = file.name.split('.');
-            const ext = parts.length > 1 ? parts.pop() : '';
-            const safeCardName = (selectedCard?.name || "card").replace(/[^a-z0-9\- ]/gi, '_');
-            const newName = `Bukti - ${safeCardName}${ext ? '.' + ext : ''}`;
-            return new File([file], newName, { type: file.type });
-          }}
-        />
-
-        <UploadModal
-          isVisible={openPOModal}
-          onClose={() => setOpenPOModal(false)}
-          onUploadComplete={handlePOUpload}
-          title="Upload File PO"
-          acceptableExtensions=".pdf,.jpg,.jpeg,.png"
-          maxSize={10 * 1024 * 1024}
-          multiple
-          cardId={selectedCard?.id}
-          attachmentType={EnumCardAttachmentType.PO}
-          onBeforeUpload={(file: File) => {
-            const poFileName = buildPOFileName(file.name);
-            return new File([file], poFileName, { type: file.type });
-          }}
-          extraContent={
-            <div className="mb-4">
-              <Checkbox
-                checked={isPOPelengkap}
-                onChange={(e) => setIsPOPelengkap(e.target.checked)}
-              >
-                Mark as PO Pelengkap
-              </Checkbox>
-            </div>
-          }
-        />
-
-        {/* Buat SO Modal */}
-        <ModalBuatSO
-          open={openBuatSOModal}
-          onClose={() => setOpenBuatSOModal(false)}
-          cardId={selectedCard?.id}
-          noFaktur={noFakturValue || null}
-        />
-
-        {selectedCard && (
-          <ModalJmlStitch
-            open={openJmlStitchModal}
-            onClose={() => setOpenJmlStitchModal(false)}
-            card={selectedCard}
-            workspaceId={workspaceId as string}
-            boardId={boardId as string}
-          />
-        )}
-
-        {/* Cover Image Section */}
-        {selectedCard && <Cover card={selectedCard} />}
-
-        {selectedCard && selectedCard?.mirrorId && (
-          <div className="flex items-center justify-between bg-gray-100 px-4 py-2 rounded-md border border-gray-200 mb-4">
-            <div className="flex items-center gap-2 text-sm text-gray-700">
-              <Info size={20} className="text-yellow-600" />
-              <span>
-                You are viewing this card outside of its original location
-              </span>
-            </div>
-            <Button
-              size="small"
-              className="bg-gray-200 text-blue-800 font-medium hover:bg-gray-300 border-none rounded-sm px-3 py-1"
-            >
-              Remove from this board
-            </Button>
-          </div>
-        )}
-
-        {/* Archived badge */}
-        {selectedCard?.archive && (
-          <div className="w-full bg-red-100 text-red-800 px-4 py-3 rounded-md text-center font-bold text-base mb-4 border border-red-200 shadow">
-            This card is archived
-          </div>
-        )}
-
-        <div className="p-5 h-full">
-          {isDesktop ? (
-            <Row gutter={[32, 32]} className="h-full">
-              <Col xs={24} lg={14} className="h-full">
-                <div className="space-y-4 h-[calc(85vh-100px)] overflow-y-auto pr-2 custom-scrollbar">
-                  {headerBlock}
-                  {actionsToolbar}
-                  {mainBody}
-                </div>
-              </Col>
-              <Col xs={24} lg={10} className="h-full">
-                <div className="pl-4 lg:pl-0 h-[calc(85vh-100px)] overflow-y-auto pr-2 custom-scrollbar">
-                  <div className="bg-gray-50/50 rounded-lg p-2 min-h-[400px]">
-                    {selectedCard && (
-                      <Activity
-                        currentUser={currentUser}
-                        card={selectedCard}
-                        setCard={setSelectedCard}
-                      />
-                    )}
-                  </div>
-                </div>
-              </Col>
-            </Row>
-          ) : (
-            <div className="space-y-4">
-              {headerBlock}
-              {actionsToolbar}
-              {mainBody}
-              <div className="mt-8 pt-8 border-t border-gray-100">
-                <div className="mb-4 flex items-center gap-2 font-semibold">
-                  <MessageSquare size={18} />
-                  <span>Activity</span>
-                </div>
-                {selectedCard && (
-                  <Activity
-                    currentUser={currentUser}
-                    card={selectedCard}
-                    setCard={setSelectedCard}
-                  />
-                )}
+        title={null}
+        open={isCardDetailOpen}
+        onCancel={closeCardDetail}
+        footer={null}
+        className="modal-card-form full-height-modal"
+        width="min(1280px, 95vw)"
+        destroyOnClose
+        closeIcon={
+          <span className="inline-flex items-center justify-center rounded-md bg-red-50 hover:bg-red-100 text-red-600 p-1 transition-colors">
+            <X size={16} />
+          </span>
+        }
+      >
+        <div className="overflow-x-hidden max-w-full relative">
+          {isDraggingFiles && (
+            <div className="absolute inset-0 z-50 bg-blue-500/10 border-2 border-dashed border-blue-500 flex items-center justify-center pointer-events-none">
+              <div className="bg-white px-4 py-2 rounded shadow text-blue-700 font-semibold">
+                {isUploadingDrop ? "Uploading..." : "Drop files to attach"}
               </div>
             </div>
           )}
+
+          {/* Modals for Toolbar Actions */}
+          <UploadModal
+            isVisible={openBuktiModal}
+            onClose={() => setOpenBuktiModal(false)}
+            onUploadComplete={handleBuktiUpload}
+            title="Upload Bukti"
+            acceptableExtensions=".pdf,.jpg,.jpeg,.png"
+            maxSize={10 * 1024 * 1024}
+            multiple
+            cardId={selectedCard?.id}
+            onBeforeUpload={(file) => {
+              const parts = file.name.split(".");
+              const ext = parts.length > 1 ? parts.pop() : "";
+              const safeCardName = (selectedCard?.name || "card").replace(
+                /[^a-z0-9\- ]/gi,
+                "_",
+              );
+              const newName = `Bukti - ${safeCardName}${ext ? "." + ext : ""}`;
+              return new File([file], newName, { type: file.type });
+            }}
+          />
+
+          <UploadModal
+            isVisible={openPOModal}
+            onClose={() => setOpenPOModal(false)}
+            onUploadComplete={handlePOUpload}
+            title="Upload File PO"
+            acceptableExtensions=".pdf,.jpg,.jpeg,.png"
+            maxSize={10 * 1024 * 1024}
+            multiple
+            cardId={selectedCard?.id}
+            attachmentType={EnumCardAttachmentType.PO}
+            onBeforeUpload={(file: File) => {
+              const poFileName = buildPOFileName(file.name);
+              return new File([file], poFileName, { type: file.type });
+            }}
+            extraContent={
+              <div className="mb-4">
+                <Checkbox
+                  checked={isPOPelengkap}
+                  onChange={(e) => setIsPOPelengkap(e.target.checked)}
+                >
+                  Mark as PO Pelengkap
+                </Checkbox>
+              </div>
+            }
+          />
+
+          {/* Buat SO Modal */}
+          <ModalBuatSO
+            open={openBuatSOModal}
+            onClose={() => setOpenBuatSOModal(false)}
+            cardId={selectedCard?.id}
+            noFaktur={noFakturValue || null}
+          />
+
+          {selectedCard && (
+            <ModalJmlStitch
+              open={openJmlStitchModal}
+              onClose={() => setOpenJmlStitchModal(false)}
+              card={selectedCard}
+              workspaceId={workspaceId as string}
+              boardId={boardId as string}
+            />
+          )}
+
+          {/* Cover Image Section */}
+          {selectedCard && <Cover card={selectedCard} />}
+
+          {selectedCard && selectedCard?.mirrorId && (
+            <div className="flex items-center justify-between bg-gray-100 px-4 py-2 rounded-md border border-gray-200 mb-4">
+              <div className="flex items-center gap-2 text-sm text-gray-700">
+                <Info size={20} className="text-yellow-600" />
+                <span>
+                  You are viewing this card outside of its original location
+                </span>
+              </div>
+              <Button
+                size="small"
+                className="bg-gray-200 text-blue-800 font-medium hover:bg-gray-300 border-none rounded-sm px-3 py-1"
+              >
+                Remove from this board
+              </Button>
+            </div>
+          )}
+
+          {/* Archived badge */}
+          {selectedCard?.archive && (
+            <div className="w-full bg-red-100 text-red-800 px-4 py-3 rounded-md text-center font-bold text-base mb-4 border border-red-200 shadow">
+              This card is archived
+            </div>
+          )}
+
+          <div className="p-5 h-full">
+            {isDesktop ? (
+              <Row gutter={[32, 32]} className="h-full">
+                <Col xs={24} lg={14} className="h-full">
+                  <div className="space-y-4 h-[calc(85vh-100px)] overflow-y-auto pr-2 custom-scrollbar">
+                    {headerBlock}
+                    {actionsToolbar}
+                    {mainBody}
+                  </div>
+                </Col>
+                <Col xs={24} lg={10} className="h-full">
+                  <div className="pl-4 lg:pl-0 h-[calc(85vh-100px)] overflow-y-auto pr-2 custom-scrollbar">
+                    <div className="bg-gray-50/50 rounded-lg p-2 min-h-[400px]">
+                      {selectedCard && (
+                        <Activity
+                          currentUser={currentUser}
+                          card={selectedCard}
+                          setCard={setSelectedCard}
+                        />
+                      )}
+                    </div>
+                  </div>
+                </Col>
+              </Row>
+            ) : (
+              <div className="space-y-4">
+                {headerBlock}
+                {actionsToolbar}
+                {mainBody}
+                <div className="mt-8 pt-8 border-t border-gray-100">
+                  <div className="mb-4 flex items-center gap-2 font-semibold">
+                    <MessageSquare size={18} />
+                    <span>Activity</span>
+                  </div>
+                  {selectedCard && (
+                    <Activity
+                      currentUser={currentUser}
+                      card={selectedCard}
+                      setCard={setSelectedCard}
+                    />
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+          <ModalDashcardDetail
+            open={isDashcardModalOpen}
+            setOpen={setIsDashcardModalOpen}
+            card={dashcardModalCard}
+          />
         </div>
-        <ModalDashcardDetail
-          open={isDashcardModalOpen}
-          setOpen={setIsDashcardModalOpen}
-          card={dashcardModalCard}
-        />
-      </div>
-    </Modal>
-  </ManualOverrideProvider>
+      </Modal>
+    </ManualOverrideProvider>
   );
 };
 

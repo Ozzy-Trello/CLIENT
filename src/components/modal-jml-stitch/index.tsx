@@ -5,17 +5,19 @@ import {
   bulkUpsertStitchAttachments,
   getStitchAttachments,
 } from "@api/stitch_attachment";
+import AttachmentPreviewModal from "@components/attachment-preview-modal";
 import { setCardCustomFieldValue } from "@api/card_custom_field";
 import { uploadFile } from "@api/file";
 import { useAccountList } from "@hooks/account";
 import { useCardAttachment } from "@hooks/card_attachment";
 import { useCardCustomField } from "@hooks/card_custom_field";
+import { useRoles } from "@hooks/useRoles";
 import {
   Card,
   EnumAttachmentType,
   EnumCardAttachmentType,
 } from "@myTypes/card";
-import { isImageFile } from "@utils/file";
+import { isImageFile, isPDFFile } from "@utils/file";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Button,
@@ -110,14 +112,26 @@ const ModalJmlStitch: React.FC<ModalJmlStitchProps> = ({
   const [allDesignerUserId, setAllDesignerUserId] = useState<string | null>(
     null,
   );
+  const [previewModalOpen, setPreviewModalOpen] = useState(false);
+  const [previewInitialIndex, setPreviewInitialIndex] = useState(0);
 
   const { addAttachment, cardAttachments, refetch } = useCardAttachment(
     card.id,
     { fetch: true },
   );
 
-  const { data: accountListData, isLoading: isLoadingAccounts } =
-    useAccountList({ workspaceId, boardId });
+  const { roles, loading: isLoadingRoles } = useRoles(workspaceId);
+  const designerRoleIds = useMemo(() => {
+    const allowedRoles = new Set(["desainer bordir", "spv desainer bordir"]);
+    return (roles || [])
+      .filter((role) =>
+        allowedRoles.has(String(role?.name || "").trim().toLowerCase()),
+      )
+      .map((role) => role.id);
+  }, [roles]);
+  const { data: accountListData, isLoading: isLoadingAccountsQuery } =
+    useAccountList({ workspaceId, boardId, roleIds: designerRoleIds });
+  const isLoadingAccounts = isLoadingRoles || isLoadingAccountsQuery;
 
   const { cardCustomFields } = useCardCustomField(card.id, workspaceId, {
     enabled: open,
@@ -159,11 +173,14 @@ const ModalJmlStitch: React.FC<ModalJmlStitchProps> = ({
 
   const designerOptions = useMemo(
     () =>
+      designerRoleIds.length === 0
+        ? []
+        :
       (accountListData?.data || []).map((account: any) => ({
         value: account.id as string,
         label: account.name || account.username || account.email || account.id,
       })),
-    [accountListData?.data],
+    [accountListData?.data, designerRoleIds.length],
   );
 
   const zipStitchAttachments = useMemo(
@@ -238,6 +255,18 @@ const ModalJmlStitch: React.FC<ModalJmlStitchProps> = ({
       return next;
     });
   }, [allDesignerUserId, imageStitchAttachments]);
+
+  const handleOpenPreview = useCallback(
+    (attachmentId: string) => {
+      const index = imageStitchAttachments.findIndex(
+        (att) => att.id === attachmentId,
+      );
+      if (index < 0) return;
+      setPreviewInitialIndex(index);
+      setPreviewModalOpen(true);
+    },
+    [imageStitchAttachments],
+  );
 
   const grandTotal = useMemo(
     () =>
@@ -453,7 +482,15 @@ const ModalJmlStitch: React.FC<ModalJmlStitchProps> = ({
         dataIndex: "fileName",
         key: "fileName",
         ellipsis: true,
-        render: (value: string) => <Text>{value}</Text>,
+        render: (_value: string, record) => (
+          <Button
+            type="link"
+            className="!px-0"
+            onClick={() => handleOpenPreview(record.attachmentId)}
+          >
+            {record.fileName}
+          </Button>
+        ),
       },
       {
         title: "Stitch",
@@ -524,6 +561,8 @@ const ModalJmlStitch: React.FC<ModalJmlStitchProps> = ({
               loading={isLoadingAccounts}
               options={designerOptions}
               value={row.userId ?? undefined}
+              showSearch
+              optionFilterProp="label"
               onChange={(value) =>
                 handleRowStateChange(attachmentId, {
                   userId: (value as string | undefined) ?? null,
@@ -535,23 +574,30 @@ const ModalJmlStitch: React.FC<ModalJmlStitchProps> = ({
         },
       },
     ],
-    [designerOptions, getRowState, handleRowStateChange, isLoadingAccounts],
+    [
+      designerOptions,
+      getRowState,
+      handleOpenPreview,
+      handleRowStateChange,
+      isLoadingAccounts,
+    ],
   );
 
   return (
-    <Modal
-      title="Input Jml Stitch"
-      open={open}
-      onCancel={onClose}
-      width={1000}
-      destroyOnClose
-      onOk={handleSave}
-      confirmLoading={isSaving}
-      okText="Save"
-      cancelText="Cancel"
-      okButtonProps={{ disabled: isLoadingRows || isUploading }}
-    >
-      <Space direction="vertical" size={12} className="w-full">
+    <>
+      <Modal
+        title="Input Jml Stitch"
+        open={open}
+        onCancel={onClose}
+        width={1000}
+        destroyOnClose
+        onOk={handleSave}
+        confirmLoading={isSaving}
+        okText="Save"
+        cancelText="Cancel"
+        okButtonProps={{ disabled: isLoadingRows || isUploading }}
+      >
+        <Space direction="vertical" size={12} className="w-full">
         {/* Upload + designer controls */}
         <div className="flex items-center gap-2 flex-wrap">
           <input
@@ -582,6 +628,8 @@ const ModalJmlStitch: React.FC<ModalJmlStitchProps> = ({
             loading={isLoadingAccounts}
             options={designerOptions}
             value={allDesignerUserId ?? undefined}
+            showSearch
+            optionFilterProp="label"
             onChange={(value) =>
               setAllDesignerUserId((value as string | undefined) ?? null)
             }
@@ -635,8 +683,18 @@ const ModalJmlStitch: React.FC<ModalJmlStitchProps> = ({
         <div className="flex justify-end pt-1">
           <Text strong>Grand Total Stitch: {formatNumber(grandTotal)}</Text>
         </div>
-      </Space>
-    </Modal>
+        </Space>
+      </Modal>
+
+      <AttachmentPreviewModal
+        open={previewModalOpen}
+        onClose={() => setPreviewModalOpen(false)}
+        attachments={imageStitchAttachments}
+        initialIndex={previewInitialIndex}
+        isImageFile={isImageFile}
+        isPDFFile={isPDFFile}
+      />
+    </>
   );
 };
 

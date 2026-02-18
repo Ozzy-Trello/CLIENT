@@ -30,7 +30,8 @@ import React, { useEffect, useState } from "react";
 interface POSizeAssignmentProps {
   card: Card;
   setSelectedCard?: React.Dispatch<React.SetStateAction<Card | null>>;
-  isSuperAdmin?: boolean;
+  showManagePOButton?: boolean;
+  canOpenJmlStitch?: boolean;
   onOpenJmlStitchModal?: () => void;
 }
 
@@ -68,7 +69,8 @@ const STANDARD_SIZES = [
 const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
   card,
   setSelectedCard,
-  isSuperAdmin = false,
+  showManagePOButton = true,
+  canOpenJmlStitch = false,
   onOpenJmlStitchModal,
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -385,16 +387,18 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
           PO Details
         </span>
         <div className="flex items-center gap-2">
-          <Button
-            icon={<Package size={14} />}
-            size="small"
-            onClick={handleOpenModal}
-            disabled={!canUpdateCard() || !card.poAmount || card.poAmount <= 0}
-            className="rounded-md hover:bg-gray-50"
-          >
-            Manage POs
-          </Button>
-          {isSuperAdmin && (
+          {showManagePOButton && (
+            <Button
+              icon={<Package size={14} />}
+              size="small"
+              onClick={handleOpenModal}
+              disabled={!canUpdateCard() || !card.poAmount || card.poAmount <= 0}
+              className="rounded-md hover:bg-gray-50"
+            >
+              Manage POs
+            </Button>
+          )}
+          {canOpenJmlStitch && (
             <Button
               icon={<Scissors size={14} />}
               size="small"
