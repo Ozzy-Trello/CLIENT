@@ -79,11 +79,13 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
     [attachments]
   );
 
-  // Default everything that is not an explicit card link or URL link to file attachments to keep old data working
+  // Default everything that is not an explicit card link or URL link to file attachments.
   const fileAttachments = useMemo(
     () =>
       attachments.filter(
-        (att) => att.attachableType !== EnumAttachmentType.Card && att.attachableType !== EnumAttachmentType.Link
+        (att) =>
+          att.attachableType !== EnumAttachmentType.Card &&
+          att.attachableType !== EnumAttachmentType.Link
       ),
     [attachments]
   );
@@ -124,6 +126,15 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
       fileAttachments.filter(
         (att) =>
           att.type === EnumCardAttachmentType.PO
+      ),
+    [fileAttachments]
+  );
+
+  const stitchAttachments = useMemo(
+    () =>
+      fileAttachments.filter(
+        (att) =>
+          att.type === EnumCardAttachmentType.Stitch
       ),
     [fileAttachments]
   );
@@ -710,6 +721,7 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
       {renderLinkSection()}
       {renderSection("PO", poAttachments)}
       {renderSection("Bukti", buktiAttachments)}
+      {renderSection("STITCH", stitchAttachments)}
       {renderSection("Other", otherAttachments)}
 
       <AttachmentPreviewModal

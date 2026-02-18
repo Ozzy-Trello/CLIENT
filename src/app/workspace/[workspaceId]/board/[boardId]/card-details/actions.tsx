@@ -56,7 +56,6 @@ import { useSelector } from "react-redux";
 import AutomateButtons from "./automate-buttons";
 import { LookupCache } from "@utils/lookup-cache";
 import { useBoardDetails } from "@hooks/board";
-import { resolve } from "path";
 
 // Helper component for permission-controlled buttons - moved outside to prevent re-creation
 const PermissionButton: React.FC<{

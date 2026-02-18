@@ -100,6 +100,7 @@ export enum EnumCardAttachmentType {
   Bukti = "bukti",
   PO = "PO",
   Link = "link",
+  Stitch = "stitch",
 }
 
 export type TAttachableType = EnumAttachmentType.File | EnumAttachmentType.Card | EnumAttachmentType.Link;
@@ -107,7 +108,8 @@ export type TCardAttachmentType =
   | EnumCardAttachmentType.Attachment
   | EnumCardAttachmentType.Bukti
   | EnumCardAttachmentType.PO
-  | EnumCardAttachmentType.Link;
+  | EnumCardAttachmentType.Link
+  | EnumCardAttachmentType.Stitch;
 
 export interface CardAttachment {
   id: string;

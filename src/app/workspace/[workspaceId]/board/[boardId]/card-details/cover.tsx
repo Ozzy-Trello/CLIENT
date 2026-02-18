@@ -8,6 +8,7 @@ import { Button, Image, Upload } from "antd";
 import { useMemo, useState } from "react";
 import { useBoardPermissionsContext } from "@providers/board-permissions-context";
 import { isPDFFile } from "./attachment-helpers";
+import { toDirectFileUrl } from "@utils/file-url";
 
 interface CoverProps {
   card: Card;
@@ -44,7 +45,7 @@ const Cover: React.FC<CoverProps> = (props) => {
     let url = "";
 
     if (card.cover) {
-      url = card.cover;
+      url = toDirectFileUrl(card.cover);
       return url;
     }
 
@@ -53,7 +54,7 @@ const Cover: React.FC<CoverProps> = (props) => {
         const isImage = isImageFile(item.file.name, item.file.mimeType);
 
         if (isImage) {
-          url = item.file.url;
+          url = toDirectFileUrl(item.file.url);
           return url;
         }
       }
@@ -74,7 +75,7 @@ const Cover: React.FC<CoverProps> = (props) => {
   const handleOpenCoverPreview = () => {
     if (!imageCover || previewableAttachments.length === 0) return;
     const index = previewableAttachments.findIndex(
-      (attachment) => attachment.file?.url === imageCover
+      (attachment) => toDirectFileUrl(attachment.file?.url || "") === imageCover
     );
     setPreviewInitialIndex(index >= 0 ? index : 0);
     setPreviewModalOpen(true);

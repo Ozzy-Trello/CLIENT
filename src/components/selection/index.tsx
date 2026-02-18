@@ -140,6 +140,10 @@ export const UserSelection = forwardRef<SelectionRef, SelectionProps>(
         .filter((u) => !excludeIds.includes(u.id))
         .map((item) => ({
           value: item.id,
+          searchText: [item.username, item.name, item.email]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase(),
           label: (
             <div className="flex justify-start items-center gap-3">
               <Avatar
@@ -213,7 +217,10 @@ export const UserSelection = forwardRef<SelectionRef, SelectionProps>(
         mode={mode}
         showSearch
         placeholder={placeholder}
-        optionFilterProp="label"
+        optionFilterProp="searchText"
+        filterOption={(input, option) =>
+          ((option as any)?.searchText || "").includes(input.toLowerCase())
+        }
         onChange={handleChange}
         value={selectedValue}
         options={options}

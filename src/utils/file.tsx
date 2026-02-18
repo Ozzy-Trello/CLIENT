@@ -43,3 +43,13 @@ export const isImageFile = (fileName: string, mimeType?: string): boolean => {
 
   return imageExtensions.includes(extension);
 };
+
+export const isPDFFile = (fileName: string, mimeType?: string): boolean => {
+  const extension = fileName.split(".").pop()?.toLowerCase() || "";
+
+  if (mimeType && mimeType === "application/pdf") {
+    return true;
+  }
+
+  return extension === "pdf";
+};

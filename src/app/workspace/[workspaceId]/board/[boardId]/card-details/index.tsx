@@ -33,6 +33,7 @@ import {
   FileCheck,
   FileText,
   QrCode,
+  Scissors,
   Zap,
 } from "lucide-react";
 import dynamic from "next/dynamic";
@@ -44,6 +45,9 @@ import Description from "./description";
 const Attachments = dynamic(() => import("./attachments"), {
   ssr: false,
   loading: () => <div>Loading attachments...</div>,
+});
+const ModalJmlStitch = dynamic(() => import("@components/modal-jml-stitch"), {
+  ssr: false,
 });
 
 import { CardDateDisplay } from "@components/card-dates";
@@ -88,6 +92,7 @@ import POSizeAssignment from "./po-size-assignment";
 import ProdukFields from "./produk-fields";
 import RequestFields from "./request-field";
 import SplitJobFields from "./split-job-field";
+import StitchSection from "./stitch";
 import CardTimeInList from "./time-in-lists";
 import { uploadFile } from "@api/file";
 import { useCardAttachment } from "@hooks/card_attachment";
@@ -297,6 +302,7 @@ const CardDetails: React.FC = (props) => {
   const [openBuktiModal, setOpenBuktiModal] = useState(false);
   const [openPOModal, setOpenPOModal] = useState(false);
   const [openBuatSOModal, setOpenBuatSOModal] = useState(false);
+  const [openJmlStitchModal, setOpenJmlStitchModal] = useState(false);
   const [isPOPelengkap, setIsPOPelengkap] = useState(false);
 
   // Refs for PO logic
@@ -1291,6 +1297,8 @@ const CardDetails: React.FC = (props) => {
           <POSizeAssignment
             card={selectedCard}
             setSelectedCard={setSelectedCard}
+            isSuperAdmin={isSuperAdmin}
+            onOpenJmlStitchModal={() => setOpenJmlStitchModal(true)}
           />
         )}
       </Flex>
@@ -1390,6 +1398,20 @@ const CardDetails: React.FC = (props) => {
           }
         >
           <RequestFields />
+        </CollapsibleSection>
+      )}
+
+      {selectedCard && (
+        <CollapsibleSection
+          title="Stitch"
+          defaultExpanded={false}
+          icon={<Scissors size={18} />}
+        >
+          <StitchSection
+            card={selectedCard}
+            workspaceId={workspaceId as string}
+            boardId={boardId as string}
+          />
         </CollapsibleSection>
       )}
 
@@ -1697,6 +1719,16 @@ const CardDetails: React.FC = (props) => {
           cardId={selectedCard?.id}
           noFaktur={noFakturValue || null}
         />
+
+        {selectedCard && (
+          <ModalJmlStitch
+            open={openJmlStitchModal}
+            onClose={() => setOpenJmlStitchModal(false)}
+            card={selectedCard}
+            workspaceId={workspaceId as string}
+            boardId={boardId as string}
+          />
+        )}
 
         {/* Cover Image Section */}
         {selectedCard && <Cover card={selectedCard} />}

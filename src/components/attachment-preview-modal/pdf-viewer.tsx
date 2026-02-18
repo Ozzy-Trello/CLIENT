@@ -9,6 +9,7 @@ import "@utils/pdf-worker-setup";
 
 interface PreviewPdfViewerProps {
   url: string;
+  zoom?: number;
 }
 
 interface FetchCandidate {
@@ -16,7 +17,7 @@ interface FetchCandidate {
   headers?: Record<string, string>;
 }
 
-const PreviewPdfViewer: React.FC<PreviewPdfViewerProps> = ({ url }) => {
+const PreviewPdfViewer: React.FC<PreviewPdfViewerProps> = ({ url, zoom = 1 }) => {
   const [numPages, setNumPages] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -154,7 +155,7 @@ const PreviewPdfViewer: React.FC<PreviewPdfViewerProps> = ({ url }) => {
                 <Page
                   key={`page_${index + 1}`}
                   pageNumber={index + 1}
-                  width={600}
+                  width={Math.round(600 * zoom)}
                   renderTextLayer={false}
                   renderAnnotationLayer={false}
                   loading=""

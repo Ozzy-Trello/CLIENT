@@ -24,12 +24,14 @@ import {
   Tag,
   Tooltip,
 } from "antd";
-import { Package, Ruler } from "lucide-react";
+import { Package, Ruler, Scissors } from "lucide-react";
 import React, { useEffect, useState } from "react";
 
 interface POSizeAssignmentProps {
   card: Card;
   setSelectedCard?: React.Dispatch<React.SetStateAction<Card | null>>;
+  isSuperAdmin?: boolean;
+  onOpenJmlStitchModal?: () => void;
 }
 
 interface SubcategoryData {
@@ -66,6 +68,8 @@ const STANDARD_SIZES = [
 const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
   card,
   setSelectedCard,
+  isSuperAdmin = false,
+  onOpenJmlStitchModal,
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSizeModalOpen, setIsSizeModalOpen] = useState(false);
@@ -380,15 +384,27 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
         <span className="text-gray-300 font-semibold text-xs block">
           PO Details
         </span>
-        <Button
-          icon={<Package size={14} />}
-          size="small"
-          onClick={handleOpenModal}
-          disabled={!canUpdateCard() || !card.poAmount || card.poAmount <= 0}
-          className="rounded-md hover:bg-gray-50"
-        >
-          Manage POs
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            icon={<Package size={14} />}
+            size="small"
+            onClick={handleOpenModal}
+            disabled={!canUpdateCard() || !card.poAmount || card.poAmount <= 0}
+            className="rounded-md hover:bg-gray-50"
+          >
+            Manage POs
+          </Button>
+          {isSuperAdmin && (
+            <Button
+              icon={<Scissors size={14} />}
+              size="small"
+              onClick={() => onOpenJmlStitchModal?.()}
+              className="rounded-md hover:bg-gray-50"
+            >
+              Input Jml Stitch
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Main PO Modal */}
