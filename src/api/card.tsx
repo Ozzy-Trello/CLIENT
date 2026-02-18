@@ -44,8 +44,13 @@ const mapMemberToFrontend = (member: any) => ({
   name: member.name ?? member.username,
 });
 
+const toProxyUrl = (url: string): string => {
+  return url;
+};
+
 const mapBackendFileToFrontend = (file: any): FileUpload => ({
   ...file,
+  url: toProxyUrl(file.url),
   sizeUnit: file.sizeUnit ?? file.size_unit,
   mimeType: file.mimeType ?? file.mime_type,
   createdBy: file.createdBy ?? file.created_by,

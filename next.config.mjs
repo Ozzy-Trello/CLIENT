@@ -151,7 +151,7 @@ const nextConfig = {
         ],
       },
       {
-        source: '/pdf.worker.min.js',
+        source: '/pdf.worker.min.mjs',
         headers: [
           {
             key: 'Content-Type',

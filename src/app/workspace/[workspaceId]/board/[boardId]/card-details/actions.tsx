@@ -972,9 +972,10 @@ const Actions: React.FC<{
           <span className="text-xs">Share</span>
         </PermissionButton>
 
-        {/* Generate QR Code */}
-        {!exclude.includes("Generate QR") && (
+        {/* Generate QR Code - only show on Dateline board */}
+        {!exclude.includes("Generate QR") && isDateline && (
           <PermissionButton
+            // Only allow generation when on Dateline; keep existing final-permission check
             canPerform={canGenerateQRFinal && canGenerateQRPermission()}
             onClick={canGenerateQRFinal ? handleGenerateQR : undefined}
             tooltip="Generate this card QR code PDF"

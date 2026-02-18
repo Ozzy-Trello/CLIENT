@@ -7,6 +7,10 @@ import {
 import { mapBackendCardToFrontend } from "./card";
 import { ApiResponse } from "../types/type";
 
+const toProxyUrl = (url: string): string => {
+  return url;
+};
+
 const transformFile = (f: any) => {
   if (!f) return undefined;
   const sizeUnit = f.sizeUnit || f.size_unit;
@@ -17,7 +21,7 @@ const transformFile = (f: any) => {
   return {
     id: f.id,
     name: f.name,
-    url: f.url,
+    url: toProxyUrl(f.url),
     size: f.size,
     sizeUnit,
     mimeType,

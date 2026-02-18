@@ -1,0 +1,173 @@
+"use client";
+
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { Document, Page } from "react-pdf";
+import { Spin } from "antd";
+import TokenStorage from "@utils/token-storage";
+import { buildFileProxyUrl, isFileProxyUrl, toDirectFileUrl } from "@utils/file-url";
+import "@utils/pdf-worker-setup";
+
+interface PreviewPdfViewerProps {
+  url: string;
+}
+
+interface FetchCandidate {
+  fetchUrl: string;
+  headers?: Record<string, string>;
+}
+
+const PreviewPdfViewer: React.FC<PreviewPdfViewerProps> = ({ url }) => {
+  const [numPages, setNumPages] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [objectUrl, setObjectUrl] = useState<string>("");
+
+  const fetchCandidates = useMemo<FetchCandidate[]>(() => {
+    const candidates: FetchCandidate[] = [];
+    const seen = new Set<string>();
+    const accessToken = TokenStorage.getAccessToken();
+    const authHeaders = accessToken
+      ? { Authorization: `Bearer ${accessToken}` }
+      : undefined;
+    const normalizedUrl = toDirectFileUrl(url);
+    const backendBaseUrl = process.env.NEXT_PUBLIC_BE_BASE_URL || "";
+
+    const pushCandidate = (fetchUrl: string, headers?: Record<string, string>) => {
+      if (!fetchUrl) return;
+      const key = `${fetchUrl}::${headers?.Authorization ? "auth" : "noauth"}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      candidates.push({ fetchUrl, headers });
+    };
+
+    if (backendBaseUrl && normalizedUrl.includes(backendBaseUrl)) {
+      pushCandidate(normalizedUrl, authHeaders);
+      return candidates;
+    }
+
+    if (/^https?:\/\//i.test(normalizedUrl)) {
+      // Direct URL first, fallback to same-origin proxy for CORS-blocked hosts.
+      pushCandidate(normalizedUrl);
+      pushCandidate(buildFileProxyUrl(normalizedUrl), authHeaders);
+      return candidates;
+    }
+
+    if (isFileProxyUrl(url)) {
+      pushCandidate(buildFileProxyUrl(url), authHeaders);
+      return candidates;
+    }
+
+    pushCandidate(normalizedUrl, authHeaders);
+    return candidates;
+  }, [url]);
+
+  useEffect(() => {
+    let revokedUrl = "";
+    let cancelled = false;
+
+    const fetchPdfAsBlob = async () => {
+      setLoading(true);
+      setError(false);
+      setNumPages(null);
+      setObjectUrl("");
+
+      for (const candidate of fetchCandidates) {
+        try {
+          const response = await fetch(candidate.fetchUrl, {
+            headers: candidate.headers || {},
+          });
+          if (!response.ok) {
+            continue;
+          }
+
+          const blob = await response.blob();
+          const normalizedBlob = blob.type.includes("pdf")
+            ? blob
+            : new Blob([blob], { type: "application/pdf" });
+
+          revokedUrl = URL.createObjectURL(normalizedBlob);
+          if (!cancelled) {
+            setObjectUrl(revokedUrl);
+            return;
+          }
+          if (revokedUrl) {
+            URL.revokeObjectURL(revokedUrl);
+          }
+          return;
+        } catch {
+          continue;
+        }
+      }
+
+      if (!cancelled) {
+        setError(true);
+        setLoading(false);
+      }
+    };
+
+    fetchPdfAsBlob();
+
+    return () => {
+      cancelled = true;
+      if (revokedUrl) {
+        URL.revokeObjectURL(revokedUrl);
+      }
+    };
+  }, [fetchCandidates]);
+
+  const onDocumentLoadSuccess = useCallback(({ numPages }: { numPages: number }) => {
+    setNumPages(numPages);
+    setLoading(false);
+    setError(false);
+  }, []);
+
+  const onDocumentLoadError = useCallback(() => {
+    setError(true);
+    setLoading(false);
+  }, []);
+
+  return (
+    <div className="w-full">
+      {loading && (
+        <div className="flex items-center justify-center py-8">
+          <Spin size="large" />
+        </div>
+      )}
+
+      {error && (
+        <div className="text-center text-white py-8">Failed to load PDF</div>
+      )}
+
+      {!error && objectUrl && (
+        <Document
+          key={objectUrl}
+          file={objectUrl}
+          onLoadSuccess={onDocumentLoadSuccess}
+          onLoadError={onDocumentLoadError}
+          loading=""
+          error=""
+          noData=""
+        >
+          {numPages && (
+            <div className="flex flex-col items-center gap-4 overflow-y-auto max-h-[80vh] p-4">
+              {Array.from({ length: numPages }, (_, index) => (
+                <Page
+                  key={`page_${index + 1}`}
+                  pageNumber={index + 1}
+                  width={600}
+                  renderTextLayer={false}
+                  renderAnnotationLayer={false}
+                  loading=""
+                  error=""
+                  noData=""
+                />
+              ))}
+            </div>
+          )}
+        </Document>
+      )}
+    </div>
+  );
+};
+
+export default PreviewPdfViewer;

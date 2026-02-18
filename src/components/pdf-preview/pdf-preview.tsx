@@ -3,6 +3,7 @@ import { Document, Page } from "react-pdf";
 import { Spin, message } from "antd";
 import { FilePdfOutlined } from "@ant-design/icons";
 import TokenStorage from "@utils/token-storage";
+import { buildFileProxyUrl, isFileProxyUrl, toDirectFileUrl } from "@utils/file-url";
 import "@utils/pdf-worker-setup"; // Initialize PDF.js worker
 
 interface PDFPreviewProps {
@@ -26,35 +27,31 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({
 
   // Determine the correct URL and options for PDF loading
   const { pdfUrl, options } = useMemo(() => {
-    let pdfUrl = url;
-    let options: any = {};
+    const normalizedUrl = toDirectFileUrl(url);
+    let resolvedPdfUrl = normalizedUrl;
+    const resolvedOptions: any = {};
+    const accessToken = TokenStorage.getAccessToken();
+    const backendBaseUrl = process.env.NEXT_PUBLIC_BE_BASE_URL || "";
 
     // Check if this is a file from our backend that needs authentication
-    if (url.includes(process.env.NEXT_PUBLIC_BE_BASE_URL || "")) {
+    if (backendBaseUrl && normalizedUrl.includes(backendBaseUrl)) {
       // For backend files, add auth headers
-      const accessToken = TokenStorage.getAccessToken();
       if (accessToken) {
-        options.httpHeaders = {
+        resolvedOptions.httpHeaders = {
           Authorization: `Bearer ${accessToken}`,
         };
       }
-    } else if (url.startsWith("/api/file-proxy/")) {
-      // Already a proxy URL, use as is with auth
-      const accessToken = TokenStorage.getAccessToken();
+    } else if (/^https?:\/\//i.test(normalizedUrl) || isFileProxyUrl(url)) {
+      // External files in thumbnails should always go through same-origin proxy.
+      resolvedPdfUrl = buildFileProxyUrl(normalizedUrl || url);
       if (accessToken) {
-        options.httpHeaders = {
+        resolvedOptions.httpHeaders = {
           Authorization: `Bearer ${accessToken}`,
         };
       }
-    } else if (
-      url.startsWith("http") &&
-      !url.includes(window.location.origin)
-    ) {
-      // External URL, use proxy
-      pdfUrl = `/api/proxy-image?url=${encodeURIComponent(url)}`;
     }
 
-    return { pdfUrl, options };
+    return { pdfUrl: resolvedPdfUrl, options: resolvedOptions };
   }, [url]);
 
   const onDocumentLoadSuccess = useCallback(

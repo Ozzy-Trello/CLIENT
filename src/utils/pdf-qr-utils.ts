@@ -6,6 +6,7 @@
 
 import { PDFDocument, rgb, PDFPage } from "pdf-lib";
 import QRCode from "qrcode";
+import { buildFileProxyUrl, toDirectFileUrl } from "@utils/file-url";
 
 export interface PDFQROptions {
   qrText: string;
@@ -34,42 +35,28 @@ export async function fetchPDFBytes(
   url: string,
   providedHeaders?: HeadersInit
 ): Promise<Uint8Array> {
-  // Normalize: if a file-proxy URL is passed (with or without origin), extract the target and use pdf-proxy instead
-  const stripFileProxy = (u: string) => {
-    const prefixes = [
-      "/api/file-proxy/",
-      typeof window !== "undefined" ? `${window.location.origin}/api/file-proxy/` : "",
-    ].filter(Boolean);
-    for (const prefix of prefixes) {
-      if (u.startsWith(prefix)) {
-        return u.replace(prefix, "");
-      }
-    }
-    return u;
-  };
-
-  const normalizedUrl = stripFileProxy(url);
+  const normalizedUrl = toDirectFileUrl(url);
   const headers: HeadersInit = { ...providedHeaders };
 
   const isSignedUrl =
     normalizedUrl.includes("X-Amz-Algorithm") ||
     normalizedUrl.includes("X-Amz-Signature");
 
-  // Use proxy for external URLs to avoid CORS, but never proxy signed URLs (would break signature)
+  // Use same-origin proxy for external URLs to avoid CORS in browser fetch.
+  // Keep signed URLs direct to preserve exact query signatures.
   let fetchUrl = normalizedUrl;
   if (
     normalizedUrl.startsWith("http") &&
     typeof window !== "undefined" &&
-    !normalizedUrl.startsWith("/api/pdf-proxy") &&
     !isSignedUrl
   ) {
-    fetchUrl = `/api/pdf-proxy?url=${encodeURIComponent(normalizedUrl)}`;
+    fetchUrl = buildFileProxyUrl(normalizedUrl);
   } else if (normalizedUrl.startsWith("http")) {
     // Direct fetch with encoding preserved
     fetchUrl = encodeURI(normalizedUrl);
   }
 
-  // Fetch via chosen URL (pdf-proxy when external)
+  // Fetch via chosen URL (file-proxy when external)
   let response = await fetch(fetchUrl, { headers });
 
   if (!response.ok) {

@@ -8,6 +8,7 @@ import URLShortener from "@utils/url-shortener";
 import TokenStorage from "@utils/token-storage";
 import { downloadPDFWithQR } from "@utils/pdf-qr-utils";
 import apiClient from "@api/index";
+import { buildFileProxyUrl, isFileProxyUrl, toDirectFileUrl } from "@utils/file-url";
 
 interface UseAttachmentPrintingArgs {
   card: Card | null;
@@ -64,28 +65,22 @@ export const useAttachmentPrinting = ({
 
   const getBase64FromUrl = useCallback(async (url: string): Promise<string> => {
     try {
-      let fetchUrl = url;
+      const normalizedUrl = toDirectFileUrl(url);
+      let fetchUrl = normalizedUrl;
       const headers: HeadersInit = {};
+      const backendBaseUrl = process.env.NEXT_PUBLIC_BE_BASE_URL || "";
 
-      if (url.includes(process.env.NEXT_PUBLIC_BE_BASE_URL || "")) {
+      if (backendBaseUrl && normalizedUrl.includes(backendBaseUrl)) {
         const accessToken = TokenStorage.getAccessToken();
         if (accessToken) {
           headers.Authorization = `Bearer ${accessToken}`;
         }
-        fetchUrl = url;
-      } else if (url.startsWith("/api/file-proxy/")) {
+      } else if (/^https?:\/\//i.test(normalizedUrl) || isFileProxyUrl(url)) {
+        fetchUrl = buildFileProxyUrl(normalizedUrl || url);
         const accessToken = TokenStorage.getAccessToken();
         if (accessToken) {
           headers.Authorization = `Bearer ${accessToken}`;
         }
-        fetchUrl = url;
-      } else if (
-        url.startsWith("http") &&
-        !url.includes(window.location.hostname)
-      ) {
-        fetchUrl = `/api/proxy-image?url=${encodeURIComponent(url)}`;
-      } else {
-        fetchUrl = url;
       }
 
       const response = await fetch(

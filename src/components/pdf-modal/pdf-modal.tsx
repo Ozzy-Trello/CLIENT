@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { Modal, Spin } from "antd";
 import TokenStorage from "@utils/token-storage";
+import { buildFileProxyUrl, isFileProxyUrl, toDirectFileUrl } from "@utils/file-url";
 
 interface PDFModalProps {
   isOpen: boolean;
@@ -37,38 +38,49 @@ const PDFModal: React.FC<PDFModalProps> = ({
       setError(null);
 
       try {
-        let fetchUrl = url;
-        const headers: HeadersInit = {};
+        const normalizedUrl = toDirectFileUrl(url);
+        const accessToken = TokenStorage.getAccessToken();
+        const authHeaders: HeadersInit = accessToken
+          ? { Authorization: `Bearer ${accessToken}` }
+          : {};
+        const backendBaseUrl = process.env.NEXT_PUBLIC_BE_BASE_URL || "";
 
-        // Determine the correct URL and headers
-        if (url.includes(process.env.NEXT_PUBLIC_BE_BASE_URL || "")) {
-          // Backend file that needs authentication
-          const accessToken = TokenStorage.getAccessToken();
-          if (accessToken) {
-            headers.Authorization = `Bearer ${accessToken}`;
-          }
-        } else if (url.startsWith("/api/file-proxy/")) {
-          // Already a proxy URL, add auth
-          const accessToken = TokenStorage.getAccessToken();
-          if (accessToken) {
-            headers.Authorization = `Bearer ${accessToken}`;
-          }
-        } else if (
-          url.startsWith("http") &&
-          !url.includes(window.location.origin)
-        ) {
-          // External URL, use proxy
-          fetchUrl = `/api/proxy-image?url=${encodeURIComponent(
-            url
-          )}&inline=true`;
+        const fetchCandidates: Array<{ fetchUrl: string; headers?: HeadersInit }> = [];
+
+        if (backendBaseUrl && normalizedUrl.includes(backendBaseUrl)) {
+          fetchCandidates.push({ fetchUrl: normalizedUrl, headers: authHeaders });
+        } else if (/^https?:\/\//i.test(normalizedUrl)) {
+          fetchCandidates.push({ fetchUrl: normalizedUrl });
+          fetchCandidates.push({
+            fetchUrl: buildFileProxyUrl(normalizedUrl),
+            headers: authHeaders,
+          });
+        } else if (isFileProxyUrl(url)) {
+          fetchCandidates.push({
+            fetchUrl: buildFileProxyUrl(url),
+            headers: authHeaders,
+          });
+        } else {
+          fetchCandidates.push({ fetchUrl: normalizedUrl, headers: authHeaders });
         }
 
-        const response = await fetch(fetchUrl, { headers });
+        let response: Response | null = null;
+        for (const candidate of fetchCandidates) {
+          try {
+            const candidateResponse = await fetch(candidate.fetchUrl, {
+              headers: candidate.headers,
+            });
+            if (candidateResponse.ok) {
+              response = candidateResponse;
+              break;
+            }
+          } catch {
+            continue;
+          }
+        }
 
-        if (!response.ok) {
-          throw new Error(
-            `Failed to fetch PDF: ${response.status} ${response.statusText}`
-          );
+        if (!response) {
+          throw new Error("Failed to fetch PDF");
         }
 
         const blob = await response.blob();

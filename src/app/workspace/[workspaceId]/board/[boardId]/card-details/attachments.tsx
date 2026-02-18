@@ -16,6 +16,8 @@ import { useParams } from "next/navigation";
 import { uploadFile, renameFile } from "@api/file";
 import { message, Input } from "antd";
 import AttachedCard from "./attached-card";
+import AttachmentPreviewModal from "@components/attachment-preview-modal";
+import { buildFileProxyUrl, toDirectFileUrl } from "@utils/file-url";
 
 interface AttachmentsProps {
   card: Card;
@@ -136,19 +138,20 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
     [fileAttachments]
   );
 
+  const previewableAttachments = useMemo<CardAttachment[]>(() => {
+    return fileAttachments.filter(
+      (att) =>
+        att.file?.url &&
+        (isImageFile(att.file.name || "", att.file.mimeType) ||
+          isPDFFile(att.file.name || "", att.file.mimeType))
+    );
+  }, [fileAttachments]);
+
   const handleDownload = (url?: string, name?: string) => {
     if (!url) return;
     const link = document.createElement("a");
-    // The `download` attribute is ignored for cross-origin URLs in most browsers.
-    // Proxy via same-origin API route so clicks download instead of opening inline (PDF/images).
-    const isFileProxyUrl =
-      url.startsWith("/api/file-proxy/") ||
-      (typeof window !== "undefined" &&
-        url.startsWith(`${window.location.origin}/api/file-proxy/`));
-
-    link.href = url.startsWith("http") && !isFileProxyUrl
-      ? `/api/file-proxy/${encodeURIComponent(url)}`
-      : url;
+    // Keep downloads same-origin to force browser download behavior.
+    link.href = buildFileProxyUrl(url);
     link.download = name || "download";
     document.body.appendChild(link);
     link.click();
@@ -168,6 +171,14 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
     });
   };
 
+  const handleOpenPreview = (attachment: CardAttachment) => {
+    const index = previewableAttachments.findIndex((a) => a.id === attachment.id);
+    if (index >= 0) {
+      setPreviewInitialIndex(index);
+      setPreviewModalOpen(true);
+    }
+  };
+
   const handleMakeCover = (attachmentId: string) => {
     if (!card.id) return;
     markCover({ attachmentId, cardId: card.id });
@@ -178,8 +189,8 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
   const [renameValue, setRenameValue] = useState("");
   const [isRenaming, setIsRenaming] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
-  const [imagePreviewUrl, setImagePreviewUrl] = useState<string>("");
+  const [previewModalOpen, setPreviewModalOpen] = useState(false);
+  const [previewInitialIndex, setPreviewInitialIndex] = useState(0);
 
   // Link rename state
   const [renamingLinkId, setRenamingLinkId] = useState<string | null>(null);
@@ -262,23 +273,30 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
         className="mt-2"
         dataSource={data}
         locale={{ emptyText: "No attachments yet" }}
-        renderItem={(attachment) => (
-          <List.Item className="flex items-center p-2 hover:bg-gray-50 rounded">
+        renderItem={(attachment) => {
+          const directFileUrl = toDirectFileUrl(attachment.file?.url || "");
+          return (
+            <List.Item className="flex items-center p-2 hover:bg-gray-50 rounded">
             <div className="flex-shrink-0 mr-3 w-14 h-14 flex items-center justify-center bg-gray-100 rounded overflow-hidden">
               {attachment.file?.url &&
                 isImageFile(attachment.file.name || "", attachment.file.mimeType) ? (
-                <Image
-                  src={attachment.file.url}
-                  alt={attachment.file.name || "attachment"}
-                  width={56}
-                  height={56}
-                  style={{ objectFit: "cover" }}
-                  preview={false}
-                  fallback={attachment.file.url}
-                />
+                <div className="cursor-pointer" onClick={() => handleOpenPreview(attachment)}>
+                  <Image
+                    src={directFileUrl}
+                    alt={attachment.file.name || "attachment"}
+                    width={56}
+                    height={56}
+                    style={{ objectFit: "cover" }}
+                    preview={false}
+                    fallback={directFileUrl}
+                  />
+                </div>
               ) : attachment.file?.url &&
                 isPDFFile(attachment.file.name || "", attachment.file.mimeType) ? (
-                <div className="flex items-center justify-center w-full h-full text-red-500 font-semibold text-xs">
+                <div
+                  className="flex items-center justify-center w-full h-full text-red-500 font-semibold text-xs cursor-pointer"
+                  onClick={() => handleOpenPreview(attachment)}
+                >
                   PDF
                 </div>
               ) : (
@@ -322,16 +340,20 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
                             isImageFile(attachment.file.name || "", attachment.file.mimeType) ? (
                               <span
                                 className="hover:underline cursor-pointer text-blue-600"
-                                onClick={() => {
-                                  setImagePreviewUrl(attachment.file?.url || "");
-                                  setImagePreviewOpen(true);
-                                }}
+                                onClick={() => handleOpenPreview(attachment)}
+                              >
+                                {attachment.file?.name || "Unnamed file"}
+                              </span>
+                            ) : isPDFFile(attachment.file.name || "", attachment.file.mimeType) ? (
+                              <span
+                                className="hover:underline cursor-pointer text-blue-600"
+                                onClick={() => handleOpenPreview(attachment)}
                               >
                                 {attachment.file?.name || "Unnamed file"}
                               </span>
                             ) : (
                               <a
-                                href={attachment.file.url}
+                                href={directFileUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="hover:underline"
@@ -435,7 +457,7 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
                     <DownloadOutlined
                       className="text-gray-500 hover:text-blue-600 cursor-pointer"
                       onClick={() =>
-                        handleDownload(attachment.file?.url, attachment.file?.name)
+                        handleDownload(directFileUrl, attachment.file?.name)
                       }
                     />
                   )}
@@ -462,7 +484,8 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
               </div>
             </div>
           </List.Item>
-        )}
+          );
+        }}
       />
     </div>
   );
@@ -689,19 +712,15 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
       {renderSection("Bukti", buktiAttachments)}
       {renderSection("Other", otherAttachments)}
 
-      <div style={{ display: "none" }}>
-        <Image
-          src={imagePreviewUrl}
-          preview={{
-            visible: imagePreviewOpen,
-            onVisibleChange: (visible) => {
-              setImagePreviewOpen(visible);
-              if (!visible) setImagePreviewUrl("");
-            },
-            src: imagePreviewUrl,
-          }}
-        />
-      </div>
+      <AttachmentPreviewModal
+        open={previewModalOpen}
+        onClose={() => setPreviewModalOpen(false)}
+        attachments={previewableAttachments}
+        initialIndex={previewInitialIndex}
+        isImageFile={isImageFile}
+        isPDFFile={isPDFFile}
+        onDownload={handleDownload}
+      />
     </div>
   );
 };
