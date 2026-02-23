@@ -5,7 +5,8 @@ import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight, X, Download, ZoomIn, ZoomOut, Printer } from "lucide-react";
 import { CardAttachment } from "@myTypes/card";
 import PreviewPdfViewer from "./pdf-viewer";
-import { buildFileProxyUrl, toDirectFileUrl } from "@utils/file-url";
+import { buildFileProxyUrl, toDirectFileUrl, isFileProxyUrl } from "@utils/file-url";
+import TokenStorage from "@utils/token-storage";
 
 interface AttachmentPreviewModalProps {
   open: boolean;
@@ -32,7 +33,12 @@ const AttachmentPreviewModal: React.FC<AttachmentPreviewModalProps> = ({
 }) => {
   const [currentIndex, setCurrentIndex] = useState<number>(initialIndex);
   const [zoom, setZoom] = useState(1);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [isMoving, setIsMoving] = useState(false);
   const overlayRef = useRef<HTMLDivElement | null>(null);
+  const imgRef = useRef<HTMLImageElement | null>(null);
+  const dragStartRef = useRef({ diffX: 0, diffY: 0 });
+  const contentRef = useRef<HTMLDivElement | null>(null);
 
   const totalAttachments = attachments.length;
   const safeCurrentIndex = useMemo(() => {
@@ -44,13 +50,15 @@ const AttachmentPreviewModal: React.FC<AttachmentPreviewModalProps> = ({
     if (open) {
       setCurrentIndex(initialIndex);
       setZoom(1);
+      setOffset({ x: 0, y: 0 });
       overlayRef.current?.focus();
     }
   }, [initialIndex, open]);
 
-  // Reset zoom when navigating between attachments
+  // Reset zoom and offset when navigating between attachments
   useEffect(() => {
     setZoom(1);
+    setOffset({ x: 0, y: 0 });
   }, [safeCurrentIndex]);
 
   const goNext = useCallback(() => {
@@ -71,35 +79,158 @@ const AttachmentPreviewModal: React.FC<AttachmentPreviewModalProps> = ({
     setZoom((prev) => Math.max(parseFloat((prev - ZOOM_STEP).toFixed(2)), ZOOM_MIN));
   }, []);
 
-  const handlePrint = useCallback((url: string, asPdf: boolean) => {
+  // Reset offset when zoom returns to 1x or below
+  useEffect(() => {
+    if (zoom <= 1) setOffset({ x: 0, y: 0 });
+  }, [zoom]);
+
+  const handleImgMouseDown = useCallback(
+    (e: React.MouseEvent<HTMLImageElement>) => {
+      if (zoom <= 1 || e.button !== 0) return;
+      e.preventDefault();
+      e.stopPropagation();
+      dragStartRef.current = {
+        diffX: e.pageX - offset.x,
+        diffY: e.pageY - offset.y,
+      };
+      setIsMoving(true);
+    },
+    [zoom, offset],
+  );
+
+  useEffect(() => {
+    if (!isMoving) return;
+
+    const onMouseMove = (e: MouseEvent) => {
+      setOffset({
+        x: e.pageX - dragStartRef.current.diffX,
+        y: e.pageY - dragStartRef.current.diffY,
+      });
+    };
+
+    const onMouseUp = () => {
+      setIsMoving(false);
+    };
+
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+  }, [isMoving]);
+
+  // Mouse wheel zoom on content area
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!open || !el) return;
+
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
+      setZoom((prev) => {
+        const next = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, parseFloat((prev + delta).toFixed(2))));
+        if (next <= 1) setOffset({ x: 0, y: 0 });
+        return next;
+      });
+    };
+
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [open]);
+
+  const handlePrint = useCallback(async (url: string, asPdf: boolean) => {
     if (!url) return;
 
-    const printUrl = asPdf ? `${buildFileProxyUrl(url)}&inline=true` : url;
-    const iframe = document.createElement("iframe");
-    iframe.style.cssText =
-      "position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden";
-    document.body.appendChild(iframe);
+    if (!asPdf) {
+      // Image printing: write an HTML doc with just the image
+      const iframe = document.createElement("iframe");
+      iframe.style.cssText =
+        "position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden";
+      document.body.appendChild(iframe);
 
-    const doc = iframe.contentWindow?.document;
-    if (!doc) {
-      if (document.body.contains(iframe)) document.body.removeChild(iframe);
+      const doc = iframe.contentWindow?.document;
+      if (!doc) {
+        if (document.body.contains(iframe)) document.body.removeChild(iframe);
+        return;
+      }
+
+      const escapedUrl = url.replace(/"/g, "&quot;");
+      doc.open();
+      doc.write(
+        `<!doctype html><html><head><title>Print Image</title><style>html,body{margin:0;padding:0;}img{display:block;max-width:100%;height:auto;margin:0 auto;}</style></head><body><img id="print-image" src="${escapedUrl}" /><script>const i=document.getElementById("print-image");if(i){i.onload=()=>window.print();}setTimeout(()=>window.print(),2000);</script></body></html>`
+      );
+      doc.close();
+
+      setTimeout(() => {
+        if (document.body.contains(iframe)) document.body.removeChild(iframe);
+      }, 10000);
       return;
     }
 
-    const escapedUrl = printUrl.replace(/"/g, "&quot;");
-    const html = asPdf
-      ? `<!doctype html><html><head><title>Print PDF</title><style>html,body{margin:0;padding:0;height:100%;}iframe{border:0;width:100%;height:100%;}</style></head><body><iframe id="pdf-frame" src="${escapedUrl}"></iframe><script>const f=document.getElementById("pdf-frame");if(f){f.onload=()=>setTimeout(()=>window.print(),500);}setTimeout(()=>window.print(),2000);</script></body></html>`
-      : `<!doctype html><html><head><title>Print Image</title><style>html,body{margin:0;padding:0;}img{display:block;max-width:100%;height:auto;margin:0 auto;}</style></head><body><img id="print-image" src="${escapedUrl}" /><script>const i=document.getElementById("print-image");if(i){i.onload=()=>window.print();}setTimeout(()=>window.print(),2000);</script></body></html>`;
-
-    doc.open();
-    doc.write(html);
-    doc.close();
-
-    setTimeout(() => {
-      if (document.body.contains(iframe)) {
-        document.body.removeChild(iframe);
+    // PDF printing: fetch with auth, create blob URL, load in iframe, print natively
+    try {
+      const normalizedUrl = toDirectFileUrl(url);
+      const accessToken = TokenStorage.getAccessToken();
+      const headers: Record<string, string> = {};
+      if (accessToken) {
+        headers.Authorization = `Bearer ${accessToken}`;
       }
-    }, 5000);
+
+      const backendBaseUrl = process.env.NEXT_PUBLIC_BE_BASE_URL || "";
+      let fetchUrl = normalizedUrl;
+      if (backendBaseUrl && normalizedUrl.includes(backendBaseUrl)) {
+        fetchUrl = normalizedUrl;
+      } else if (/^https?:\/\//i.test(normalizedUrl) || isFileProxyUrl(url)) {
+        fetchUrl = buildFileProxyUrl(normalizedUrl || url);
+      }
+
+      const response = await fetch(fetchUrl, {
+        headers: Object.keys(headers).length > 0 ? headers : undefined,
+      });
+
+      if (!response.ok) {
+        console.error("PDF print fetch failed:", response.status, response.statusText);
+        return;
+      }
+
+      const blob = await response.blob();
+      const pdfBlob =
+        blob.type.includes("pdf") ? blob : new Blob([blob], { type: "application/pdf" });
+      const blobUrl = URL.createObjectURL(pdfBlob);
+
+      // Create a hidden iframe pointing directly at the PDF blob URL.
+      // The browser's native PDF viewer renders it, then we call print() on it.
+      const iframe = document.createElement("iframe");
+      iframe.style.cssText =
+        "position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden";
+      document.body.appendChild(iframe);
+      iframe.src = blobUrl;
+
+      iframe.onload = () => {
+        setTimeout(() => {
+          try {
+            iframe.contentWindow?.focus();
+            iframe.contentWindow?.print();
+          } catch {
+            // Cross-origin fallback: open in new tab for manual print
+            window.open(blobUrl);
+          }
+          setTimeout(() => {
+            if (document.body.contains(iframe)) document.body.removeChild(iframe);
+            URL.revokeObjectURL(blobUrl);
+          }, 5000);
+        }, 300);
+      };
+
+      iframe.onerror = () => {
+        if (document.body.contains(iframe)) document.body.removeChild(iframe);
+        URL.revokeObjectURL(blobUrl);
+        console.error("PDF iframe failed to load");
+      };
+    } catch (error) {
+      console.error("PDF print failed:", error);
+    }
   }, []);
 
   const handleDownloadClick = useCallback(
@@ -263,7 +394,8 @@ const AttachmentPreviewModal: React.FC<AttachmentPreviewModalProps> = ({
 
       {/* Content area */}
       <div
-        className="flex-1 flex items-center justify-center relative overflow-auto"
+        ref={contentRef}
+        className="flex-1 flex items-center justify-center relative overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {totalAttachments > 1 && (
@@ -278,22 +410,26 @@ const AttachmentPreviewModal: React.FC<AttachmentPreviewModalProps> = ({
         )}
 
         <div
-          className="flex items-center justify-center p-4"
+          className="inline-flex items-center justify-center p-4"
           style={{ minWidth: "100%", minHeight: "100%" }}
         >
           {image && activeUrl && (
             <img
+              ref={imgRef}
               src={activeUrl}
               alt={fileName}
               draggable={false}
+              onMouseDown={handleImgMouseDown}
               style={{
-                transform: `scale(${zoom})`,
+                transform: `translate3d(${offset.x}px, ${offset.y}px, 0) scale(${zoom})`,
                 transformOrigin: "center center",
-                transition: "transform 0.15s ease",
-                maxWidth: zoom <= 1 ? "90vw" : "none",
-                maxHeight: zoom <= 1 ? "85vh" : "none",
+                transition: isMoving ? "none" : "transform 0.15s ease",
+                maxWidth: "90vw",
+                maxHeight: "85vh",
                 objectFit: "contain",
                 borderRadius: 4,
+                cursor: zoom > 1 ? (isMoving ? "grabbing" : "grab") : "default",
+                userSelect: "none",
               }}
             />
           )}
