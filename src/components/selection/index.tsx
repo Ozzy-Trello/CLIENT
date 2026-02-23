@@ -140,21 +140,7 @@ export const UserSelection = forwardRef<SelectionRef, SelectionProps>(
         .filter((u) => !excludeIds.includes(u.id))
         .map((item) => ({
           value: item.id,
-          searchText: [item.username, item.name, item.email]
-            .filter(Boolean)
-            .join(" ")
-            .toLowerCase(),
-          label: (
-            <div className="flex justify-start items-center gap-3">
-              <Avatar
-                size={20}
-                className="bg-blue-50 text-blue-500 border border-blue-100"
-              >
-                {item.username?.substring(0, 2)?.toUpperCase()}
-              </Avatar>
-              <Typography.Text>{item.username}</Typography.Text>
-            </div>
-          ),
+          label: item.username || item.name || item.email || "Unnamed User",
         }));
     }, [accountListData, excludeIds]);
 
@@ -217,10 +203,7 @@ export const UserSelection = forwardRef<SelectionRef, SelectionProps>(
         mode={mode}
         showSearch
         placeholder={placeholder}
-        optionFilterProp="searchText"
-        filterOption={(input, option) =>
-          ((option as any)?.searchText || "").includes(input.toLowerCase())
-        }
+        optionFilterProp="label"
         onChange={handleChange}
         value={selectedValue}
         options={options}
@@ -232,6 +215,22 @@ export const UserSelection = forwardRef<SelectionRef, SelectionProps>(
           options.length === 0 ? "No user available" : "No match found"
         }
         disabled={disabled}
+        optionRender={(option) => {
+          const user = accountListData?.data?.find((u) => u.id === option.value);
+          const displayName = String(option.label || user?.username || "Unnamed User");
+
+          return (
+            <div className="flex justify-start items-center gap-3">
+              <Avatar
+                size={20}
+                className="bg-blue-50 text-blue-500 border border-blue-100"
+              >
+                {displayName.substring(0, 2).toUpperCase()}
+              </Avatar>
+              <Typography.Text>{displayName}</Typography.Text>
+            </div>
+          );
+        }}
         {...restProps}
       />
     );

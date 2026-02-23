@@ -169,7 +169,11 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
     document.body.removeChild(link);
   };
 
-  const handleDeleteWithConfirm = (attachmentId: string) => {
+  const handleDeleteWithConfirm = (
+    attachmentId: string,
+    attachableType?: CardAttachment["attachableType"],
+    attachableId?: string
+  ) => {
     Modal.confirm({
       title: "Delete Attachment",
       content: "Are you sure you want to delete this attachment?",
@@ -177,7 +181,7 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
       okType: "danger",
       cancelText: "No",
       onOk() {
-        deleteAttachment({ attachmentId, cardId: card.id });
+        deleteAttachment({ attachmentId, cardId: card.id, attachableType, attachableId });
       },
     });
   };
@@ -487,7 +491,13 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
                     type="link"
                     danger
                     className="p-0 text-xs"
-                    onClick={() => handleDeleteWithConfirm(attachment.id)}
+                    onClick={() =>
+                      handleDeleteWithConfirm(
+                        attachment.id,
+                        attachment.attachableType,
+                        attachment.attachableId
+                      )
+                    }
                   >
                     Delete
                   </Button>
@@ -617,7 +627,11 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
                     danger
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleDeleteWithConfirm(attachment.id);
+                      handleDeleteWithConfirm(
+                        attachment.id,
+                        attachment.attachableType,
+                        attachment.attachableId
+                      );
                     }}
                   >
                     Delete
@@ -659,7 +673,12 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
               <AttachedCard
                 card={linkedCard}
                 onDelete={() =>
-                  deleteAttachment({ attachmentId: attachment.id, cardId: card.id })
+                  deleteAttachment({
+                    attachmentId: attachment.id,
+                    cardId: card.id,
+                    attachableType: attachment.attachableType,
+                    attachableId: attachment.attachableId,
+                  })
                 }
               />
             </List.Item>
@@ -721,7 +740,7 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
       {renderLinkSection()}
       {renderSection("PO", poAttachments)}
       {renderSection("Bukti", buktiAttachments)}
-      {renderSection("STITCH", stitchAttachments)}
+      {renderSection("BORDIR", stitchAttachments)}
       {renderSection("Other", otherAttachments)}
 
       <AttachmentPreviewModal

@@ -11,6 +11,7 @@ import {
   TAttachableType,
   CardAttachment,
   TCardAttachmentType,
+  EnumAttachmentType,
 } from "../types/card";
 import { useEffect, useMemo } from "react";
 import { queryKeys } from "../constants/query-keys";
@@ -130,6 +131,16 @@ export function useCardAttachment(
         queryKey: ["cardAttachment", variables.cardId],
       });
       invalidateCardAndRelated(variables.cardId);
+
+      if (
+        variables.attachableType === EnumAttachmentType.Card &&
+        variables.attachableId
+      ) {
+        queryClient.invalidateQueries({
+          queryKey: ["cardAttachment", variables.attachableId],
+        });
+        invalidateCardAndRelated(variables.attachableId);
+      }
     },
   });
 
@@ -138,9 +149,13 @@ export function useCardAttachment(
     mutationFn: ({
       attachmentId,
       cardId,
+      attachableType,
+      attachableId,
     }: {
       attachmentId: string;
       cardId: string;
+      attachableType?: TAttachableType;
+      attachableId?: string;
     }) => {
       return deleteCardAttachment(attachmentId);
     },
@@ -150,6 +165,16 @@ export function useCardAttachment(
         queryKey: ["cardAttachment", variables.cardId],
       });
       invalidateCardAndRelated(variables.cardId);
+
+      if (
+        variables.attachableType === EnumAttachmentType.Card &&
+        variables.attachableId
+      ) {
+        queryClient.invalidateQueries({
+          queryKey: ["cardAttachment", variables.attachableId],
+        });
+        invalidateCardAndRelated(variables.attachableId);
+      }
     },
   });
 

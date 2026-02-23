@@ -1438,7 +1438,7 @@ const CardDetails: React.FC = (props) => {
 
       {selectedCard && (
         <CollapsibleSection
-          title="File Bordir"
+          title="Bordir"
           defaultExpanded={false}
           icon={<Scissors size={18} />}
         >

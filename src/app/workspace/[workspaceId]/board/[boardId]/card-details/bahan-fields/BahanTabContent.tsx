@@ -298,6 +298,7 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
   const [description, setDescription] = useState<string>(
     product.description ?? ""
   );
+  const descriptionDirtyRef = useRef(false);
   const [isSavingDescription, setIsSavingDescription] = useState(false);
   const [isLoadingAction, setIsLoadingAction] = useState(false);
 
@@ -360,8 +361,15 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
   }, [bahanTab.bahanTerpakai]);
 
   useEffect(() => {
-    setDescription(product.description ?? "");
+    if (!descriptionDirtyRef.current) {
+      setDescription(product.description ?? "");
+    }
   }, [product.description]);
+
+  useEffect(() => {
+    descriptionDirtyRef.current = false;
+    setDescription(product.description ?? "");
+  }, [product.poProductId]);
 
   const shouldDisableInputs = Boolean(product.orderCreated);
   const shouldDisableTerloadingInput = !isTerloadingEditing || isSyncingRequest;
@@ -682,6 +690,7 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
     setIsSavingDescription(true);
     try {
       await Promise.all(work);
+      descriptionDirtyRef.current = false;
     } catch (err) {
       console.error("Failed to persist description", err);
       message.error("Gagal menyimpan deskripsi");
@@ -875,7 +884,10 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
         requestByOptions={requestByOptions}
         onSentByChange={setSelectedSentBy}
         description={description}
-        onDescriptionChange={setDescription}
+        onDescriptionChange={(val: string) => {
+          descriptionDirtyRef.current = true;
+          setDescription(val);
+        }}
         zeroLoadingModalOpen={zeroLoadingModalOpen}
         closeZeroModal={closeZeroModal}
         handleConfirmZeroLoading={handleConfirmZeroLoading}

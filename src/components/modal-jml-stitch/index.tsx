@@ -109,6 +109,7 @@ const ModalJmlStitch: React.FC<ModalJmlStitchProps> = ({
   const [isLoadingRows, setIsLoadingRows] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const [allDesignerUserId, setAllDesignerUserId] = useState<string | null>(
     null,
   );
@@ -256,6 +257,17 @@ const ModalJmlStitch: React.FC<ModalJmlStitchProps> = ({
     });
   }, [allDesignerUserId, imageStitchAttachments]);
 
+  const handleClearAll = useCallback(() => {
+    setRowsState(() => {
+      const next: Record<string, RowState> = {};
+      imageStitchAttachments.forEach((att) => {
+        next[att.id] = { stitch: null, amount: null, userId: null };
+      });
+      return next;
+    });
+    setAllDesignerUserId(null);
+  }, [imageStitchAttachments]);
+
   const handleOpenPreview = useCallback(
     (attachmentId: string) => {
       const index = imageStitchAttachments.findIndex(
@@ -359,10 +371,8 @@ const ModalJmlStitch: React.FC<ModalJmlStitchProps> = ({
     [addAttachment, card.id],
   );
 
-  const handleFileChange = useCallback(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const files = Array.from(e.target.files || []);
-      if (fileInputRef.current) fileInputRef.current.value = "";
+  const processFiles = useCallback(
+    async (files: File[]) => {
       if (files.length === 0) return;
 
       setIsUploading(true);
@@ -377,10 +387,7 @@ const ModalJmlStitch: React.FC<ModalJmlStitchProps> = ({
             file.name.toLowerCase().endsWith(".zip");
 
           if (isZip) {
-            // 1. Upload the zip itself as a STITCH attachment
             await uploadSingleFile(file);
-
-            // 2. Extract JPG/JPEG entries and upload each one
             const zip = await JSZip.loadAsync(file);
             const imageEntries = Object.values(zip.files).filter(
               (entry) => !entry.dir && IMAGE_EXTENSIONS.test(entry.name),
@@ -395,7 +402,6 @@ const ModalJmlStitch: React.FC<ModalJmlStitchProps> = ({
               await uploadSingleFile(imageFile);
             }
           } else {
-            // Direct image upload
             await uploadSingleFile(file);
           }
         }
@@ -413,6 +419,79 @@ const ModalJmlStitch: React.FC<ModalJmlStitchProps> = ({
     },
     [uploadSingleFile, refetch],
   );
+
+  const handleFileChange = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = Array.from(e.target.files || []);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      await processFiles(files);
+    },
+    [processFiles],
+  );
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+      setIsDragging(false);
+    }
+  }, []);
+
+  const handleDrop = useCallback(
+    async (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragging(false);
+
+      const files = Array.from(e.dataTransfer.files).filter(
+        (file) =>
+          file.type === "application/zip" ||
+          file.type === "application/x-zip-compressed" ||
+          file.name.toLowerCase().endsWith(".zip") ||
+          /\.(jpe?g)$/i.test(file.name),
+      );
+      await processFiles(files);
+    },
+    [processFiles],
+  );
+
+  useEffect(() => {
+    if (!open) return;
+
+    const handlePaste = async (e: ClipboardEvent) => {
+      const items = Array.from(e.clipboardData?.items || []);
+      const files: File[] = [];
+
+      for (const item of items) {
+        if (item.kind !== "file") continue;
+        const file = item.getAsFile();
+        if (!file) continue;
+
+        const isZip =
+          file.type === "application/zip" ||
+          file.type === "application/x-zip-compressed" ||
+          file.name.toLowerCase().endsWith(".zip");
+        const isImage = file.type.startsWith("image/");
+        if (isZip || isImage || /\.(jpe?g)$/i.test(file.name)) {
+          files.push(file);
+        }
+      }
+
+      if (files.length > 0) {
+        e.preventDefault();
+        await processFiles(files);
+      }
+    };
+
+    window.addEventListener("paste", handlePaste);
+    return () => window.removeEventListener("paste", handlePaste);
+  }, [open, processFiles]);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -497,15 +576,19 @@ const ModalJmlStitch: React.FC<ModalJmlStitchProps> = ({
         dataIndex: "attachmentId",
         key: "stitch",
         width: 130,
-        render: (attachmentId: string) => {
-          const row = getRowState(attachmentId);
+        render: (_: string, record: TableRow) => {
+          const row = rowsState[record.attachmentId] || {
+            stitch: null,
+            amount: null,
+            userId: null,
+          };
           return (
             <InputNumber
               min={0}
               step={1}
               value={row.stitch}
               onChange={(value) =>
-                handleRowStateChange(attachmentId, {
+                handleRowStateChange(record.attachmentId, {
                   stitch: typeof value === "number" ? value : null,
                 })
               }
@@ -519,15 +602,19 @@ const ModalJmlStitch: React.FC<ModalJmlStitchProps> = ({
         dataIndex: "attachmentId",
         key: "amount",
         width: 120,
-        render: (attachmentId: string) => {
-          const row = getRowState(attachmentId);
+        render: (_: string, record: TableRow) => {
+          const row = rowsState[record.attachmentId] || {
+            stitch: null,
+            amount: null,
+            userId: null,
+          };
           return (
             <InputNumber
               min={0}
               step={1}
               value={row.amount}
               onChange={(value) =>
-                handleRowStateChange(attachmentId, {
+                handleRowStateChange(record.attachmentId, {
                   amount: typeof value === "number" ? value : null,
                 })
               }
@@ -541,8 +628,12 @@ const ModalJmlStitch: React.FC<ModalJmlStitchProps> = ({
         dataIndex: "attachmentId",
         key: "totalStitch",
         width: 140,
-        render: (attachmentId: string) => {
-          const row = getRowState(attachmentId);
+        render: (_: string, record: TableRow) => {
+          const row = rowsState[record.attachmentId] || {
+            stitch: null,
+            amount: null,
+            userId: null,
+          };
           const total = (row.stitch ?? 0) * (row.amount ?? 0);
           return <Text strong>{formatNumber(total)}</Text>;
         },
@@ -552,8 +643,12 @@ const ModalJmlStitch: React.FC<ModalJmlStitchProps> = ({
         dataIndex: "attachmentId",
         key: "userId",
         width: 200,
-        render: (attachmentId: string) => {
-          const row = getRowState(attachmentId);
+        render: (_: string, record: TableRow) => {
+          const row = rowsState[record.attachmentId] || {
+            stitch: null,
+            amount: null,
+            userId: null,
+          };
           return (
             <Select
               allowClear
@@ -564,7 +659,7 @@ const ModalJmlStitch: React.FC<ModalJmlStitchProps> = ({
               showSearch
               optionFilterProp="label"
               onChange={(value) =>
-                handleRowStateChange(attachmentId, {
+                handleRowStateChange(record.attachmentId, {
                   userId: (value as string | undefined) ?? null,
                 })
               }
@@ -576,10 +671,10 @@ const ModalJmlStitch: React.FC<ModalJmlStitchProps> = ({
     ],
     [
       designerOptions,
-      getRowState,
       handleOpenPreview,
       handleRowStateChange,
       isLoadingAccounts,
+      rowsState,
     ],
   );
 
@@ -598,91 +693,113 @@ const ModalJmlStitch: React.FC<ModalJmlStitchProps> = ({
         okButtonProps={{ disabled: isLoadingRows || isUploading }}
       >
         <Space direction="vertical" size={12} className="w-full">
-        {/* Upload + designer controls */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".zip,.jpg,.jpeg"
-            multiple
-            className="hidden"
-            onChange={handleFileChange}
-          />
-          <Button
-            icon={<Upload size={14} />}
-            loading={isUploading}
-            onClick={() => fileInputRef.current?.click()}
+          <div
+            className={`border-2 border-dashed rounded-lg p-4 transition-colors ${
+              isDragging
+                ? "border-blue-400 bg-blue-50"
+                : "border-gray-300 hover:border-gray-400"
+            }`}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
           >
-            Upload File
-          </Button>
-          <Text type="secondary" className="text-xs">
-            ZIP (akan di-extract JPG/JPEG) atau langsung JPG/JPEG
-          </Text>
-        </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".zip,.jpg,.jpeg"
+              multiple
+              className="hidden"
+              onChange={handleFileChange}
+            />
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm font-medium text-gray-700">
+                  Drag & drop file atau Ctrl+V untuk paste
+                </div>
+                <div className="text-xs text-gray-500">
+                  ZIP (akan di-extract JPG/JPEG) atau langsung JPG/JPEG
+                </div>
+              </div>
+              <Button
+                icon={<Upload size={14} />}
+                loading={isUploading}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                Upload File
+              </Button>
+            </div>
+          </div>
 
-        {/* Set designer to all */}
-        <Space align="center" wrap>
-          <Select
-            allowClear
-            placeholder="Set desainer ke semua"
-            loading={isLoadingAccounts}
-            options={designerOptions}
-            value={allDesignerUserId ?? undefined}
-            showSearch
-            optionFilterProp="label"
-            onChange={(value) =>
-              setAllDesignerUserId((value as string | undefined) ?? null)
-            }
-            style={{ minWidth: 220 }}
+          {/* Set designer to all */}
+          <Space align="center" wrap>
+            <Select
+              allowClear
+              placeholder="Set desainer ke semua"
+              loading={isLoadingAccounts}
+              options={designerOptions}
+              value={allDesignerUserId ?? undefined}
+              showSearch
+              optionFilterProp="label"
+              onChange={(value) =>
+                setAllDesignerUserId((value as string | undefined) ?? null)
+              }
+              style={{ minWidth: 220 }}
+            />
+            <Button
+              onClick={applyDesignerToAll}
+              disabled={imageStitchAttachments.length === 0}
+            >
+              Set Desainer ke semua
+            </Button>
+            <Button
+              danger
+              onClick={handleClearAll}
+              disabled={imageStitchAttachments.length === 0}
+            >
+              Clear All
+            </Button>
+          </Space>
+
+          <div>
+            <Text strong>ZIP Files</Text>
+          </div>
+          <Table<TableRow>
+            rowKey="key"
+            loading={isLoadingRows}
+            dataSource={zipTableRows}
+            columns={[
+              {
+                title: "Nama File",
+                dataIndex: "fileName",
+                key: "fileName",
+                ellipsis: true,
+                render: (value: string) => <Text>{value}</Text>,
+              },
+            ]}
+            pagination={false}
+            size="small"
+            scroll={{ x: 700, y: 180 }}
+            locale={{ emptyText: "Tidak ada file ZIP." }}
           />
-          <Button
-            onClick={applyDesignerToAll}
-            disabled={imageStitchAttachments.length === 0}
-          >
-            Set Desainer ke semua
-          </Button>
-        </Space>
 
-        <div>
-          <Text strong>ZIP Files</Text>
-        </div>
-        <Table<TableRow>
-          rowKey="key"
-          loading={isLoadingRows}
-          dataSource={zipTableRows}
-          columns={[
-            {
-              title: "Nama File",
-              dataIndex: "fileName",
-              key: "fileName",
-              ellipsis: true,
-              render: (value: string) => <Text>{value}</Text>,
-            },
-          ]}
-          pagination={false}
-          size="small"
-          scroll={{ x: 700, y: 180 }}
-          locale={{ emptyText: "Tidak ada file ZIP." }}
-        />
+          <div>
+            <Text strong>Image Files</Text>
+          </div>
+          <Table<TableRow>
+            rowKey="key"
+            loading={isLoadingRows}
+            dataSource={imageTableRows}
+            columns={tableColumns}
+            pagination={false}
+            scroll={{ x: 900, y: 380 }}
+            locale={{
+              emptyText: "Belum ada file image stitch. Upload file di atas.",
+            }}
+          />
 
-        <div>
-          <Text strong>Image Files</Text>
-        </div>
-        <Table<TableRow>
-          rowKey="key"
-          loading={isLoadingRows}
-          dataSource={imageTableRows}
-          columns={tableColumns}
-          pagination={false}
-          scroll={{ x: 900, y: 380 }}
-          locale={{
-            emptyText: "Belum ada file image stitch. Upload file di atas.",
-          }}
-        />
-
-        <div className="flex justify-end pt-1">
-          <Text strong>Grand Total Stitch: {formatNumber(grandTotal)}</Text>
-        </div>
+          <div className="flex justify-end pt-1">
+            <Text strong>Grand Total Stitch: {formatNumber(grandTotal)}</Text>
+          </div>
         </Space>
       </Modal>
 

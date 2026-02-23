@@ -224,14 +224,7 @@ const CustomFieldModal: React.FC<CustomFieldModalProps> = ({
         }
       }
 
-      // Ensure Super Admins can always edit by including their role in canEdit
-      let finalCanEdit = isPublic ? [] : selectedEditRoles;
-      if (isSuperAdmin && !isPublic && currentUser?.role?.id) {
-        // Add Super Admin role to canEdit if not already included
-        if (!finalCanEdit.includes(currentUser.role.id)) {
-          finalCanEdit = [...finalCanEdit, currentUser.role.id];
-        }
-      }
+      const finalCanEdit = isPublic ? [] : selectedEditRoles;
 
       const fieldData = {
         name: values.name,
