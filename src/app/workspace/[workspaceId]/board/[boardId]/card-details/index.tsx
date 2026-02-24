@@ -724,7 +724,7 @@ const CardDetails: React.FC = (props) => {
   }, [isCameraModalOpen, stopCameraStream]);
 
   useEffect(() => {
-    if (!isCardDetailOpen) {
+    if (!isCardDetailOpen || openJmlStitchModal) {
       setIsDraggingFiles(false);
       return;
     }
@@ -822,7 +822,13 @@ const CardDetails: React.FC = (props) => {
       window.removeEventListener("drop", handleDrop);
       window.removeEventListener("paste", handlePaste);
     };
-  }, [addAttachment, handleFilesUpload, isCardDetailOpen, selectedCard?.id]);
+  }, [
+    addAttachment,
+    handleFilesUpload,
+    isCardDetailOpen,
+    openJmlStitchModal,
+    selectedCard?.id,
+  ]);
 
   const handleSaveTitleClick = () => {
     if (!selectedCard) return;

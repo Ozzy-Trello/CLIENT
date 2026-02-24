@@ -60,6 +60,51 @@ const getFieldRawValue = (field: any): string => {
   ).trim();
 };
 
+const hasFieldValue = (field: any): boolean => {
+  const raw = getFieldRawValue(field);
+  if (raw) return true;
+
+  const checkboxValue =
+    field?.valueCheckbox ??
+    field?.value_checkbox ??
+    field?.value_checkbox_string;
+
+  if (checkboxValue !== undefined && checkboxValue !== null) return true;
+
+  return false;
+};
+
+const parseCheckboxFromField = (field: any): boolean => {
+  if (!field) return false;
+
+  const directCheckbox = field?.valueCheckbox ?? field?.value_checkbox;
+  if (directCheckbox !== undefined && directCheckbox !== null) {
+    return parseCheckbox(directCheckbox);
+  }
+
+  const raw = getFieldRawValue(field).toLowerCase();
+  if (!raw) return false;
+
+  if (
+    [
+      "true",
+      "1",
+      "yes",
+      "y",
+      "checked",
+      "done",
+      "selesai",
+      "sudah",
+      "on",
+      "aktif",
+    ].includes(raw)
+  ) {
+    return true;
+  }
+
+  return false;
+};
+
 const ModalPackingPOScan: React.FC<ModalPackingPOScanProps> = ({
   open,
   onClose,
@@ -203,7 +248,7 @@ const ModalPackingPOScan: React.FC<ModalPackingPOScanProps> = ({
 
       const pickBestField = (fields: any[]) => {
         if (!fields.length) return undefined;
-        return fields.find((field) => getFieldRawValue(field)) || fields[0];
+        return fields.find((field) => hasFieldValue(field)) || fields[0];
       };
 
       const jenisCetakField = pickBestField(
@@ -228,12 +273,8 @@ const ModalPackingPOScan: React.FC<ModalPackingPOScanProps> = ({
         String(rawJenisCetak || "");
       const jenisCetak = normalizeText(resolvedJenisCetak);
 
-      const isBordirChecked = parseCheckbox(
-        bordirField?.valueCheckbox ?? bordirField?.value_checkbox
-      );
-      const isSablonDtfChecked = parseCheckbox(
-        sablonDtfField?.valueCheckbox ?? sablonDtfField?.value_checkbox
-      );
+      const isBordirChecked = parseCheckboxFromField(bordirField);
+      const isSablonDtfChecked = parseCheckboxFromField(sablonDtfField);
       console.log("[PACKING_GATE] matched fields:", {
         jenisCetakField: jenisCetakField
           ? {

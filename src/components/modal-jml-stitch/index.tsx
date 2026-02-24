@@ -5,6 +5,7 @@ import {
   bulkUpsertStitchAttachments,
   getStitchAttachments,
 } from "@api/stitch_attachment";
+import { deleteCardAttachment } from "@api/card_attachment";
 import AttachmentPreviewModal from "@components/attachment-preview-modal";
 import { setCardCustomFieldValue } from "@api/card_custom_field";
 import { uploadFile } from "@api/file";
@@ -23,6 +24,7 @@ import {
   Button,
   InputNumber,
   Modal,
+  Progress,
   Select,
   Space,
   Table,
@@ -56,12 +58,24 @@ interface TableRow {
   fileName: string;
 }
 
+interface PreparedUploadTask {
+  displayName: string;
+  buildFile: () => Promise<File>;
+}
+
 const formatNumber = (value: number): string =>
   Number.isFinite(value) ? value.toLocaleString("en-US") : "0";
 
-const IMAGE_EXTENSIONS = /\.(jpe?g)$/i;
+const IMAGE_EXTENSIONS = /\.(jpe?g|png|webp)$/i;
 const IMAGE_NAME_EXTENSION = /\.(jpe?g|png|gif|bmp|svg|webp)$/i;
 const ZIP_EXTENSIONS = /\.zip$/i;
+
+const getMimeTypeFromName = (fileName: string): string => {
+  const lower = fileName.toLowerCase();
+  if (lower.endsWith(".png")) return "image/png";
+  if (lower.endsWith(".webp")) return "image/webp";
+  return "image/jpeg";
+};
 
 const isZipFile = (fileName: string, mimeType?: string): boolean => {
   if (!fileName && !mimeType) return false;
@@ -80,19 +94,13 @@ const formatAttachmentName = (fileName: string, mimeType?: string): string => {
   return withoutExtension || fileName;
 };
 
-const getDesignerValueFromField = (field: any): string | null => {
-  const raw =
-    field?.valueUserId ??
-    field?.value_user_id ??
-    field?.valueOption ??
-    field?.value_option ??
-    field?.valueString ??
-    field?.value_string ??
-    null;
-
-  if (typeof raw !== "string") return null;
-  const trimmed = raw.trim();
-  return trimmed ? trimmed : null;
+const isSupportedUploadFile = (file: { name: string; type?: string }): boolean => {
+  const mimeType = file.type || "";
+  return (
+    isZipFile(file.name, mimeType) ||
+    mimeType.startsWith("image/") ||
+    IMAGE_EXTENSIONS.test(file.name)
+  );
 };
 
 const ModalJmlStitch: React.FC<ModalJmlStitchProps> = ({
@@ -109,6 +117,10 @@ const ModalJmlStitch: React.FC<ModalJmlStitchProps> = ({
   const [isLoadingRows, setIsLoadingRows] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isClearingAll, setIsClearingAll] = useState(false);
+  const [uploadTotal, setUploadTotal] = useState(0);
+  const [uploadCompleted, setUploadCompleted] = useState(0);
+  const [uploadCurrentName, setUploadCurrentName] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const [allDesignerUserId, setAllDesignerUserId] = useState<string | null>(
     null,
@@ -137,24 +149,6 @@ const ModalJmlStitch: React.FC<ModalJmlStitchProps> = ({
   const { cardCustomFields } = useCardCustomField(card.id, workspaceId, {
     enabled: open,
   });
-
-  const defaultDesignerUserId = useMemo(() => {
-    const sources = [
-      Array.isArray(cardCustomFields) ? cardCustomFields : [],
-      Array.isArray(card.customFields) ? card.customFields : [],
-    ];
-
-    for (const fields of sources) {
-      const match = fields.find(
-        (field: any) =>
-          String(field?.name || "").trim().toLowerCase() === "desainer bordir",
-      );
-      const value = match ? getDesignerValueFromField(match) : null;
-      if (value) return value;
-    }
-
-    return null;
-  }, [cardCustomFields, card.customFields]);
 
   // Only show STITCH type attachments in this modal
   const stitchAttachments = useMemo(
@@ -258,15 +252,49 @@ const ModalJmlStitch: React.FC<ModalJmlStitchProps> = ({
   }, [allDesignerUserId, imageStitchAttachments]);
 
   const handleClearAll = useCallback(() => {
-    setRowsState(() => {
-      const next: Record<string, RowState> = {};
-      imageStitchAttachments.forEach((att) => {
-        next[att.id] = { stitch: null, amount: null, userId: null };
-      });
-      return next;
+    if (stitchAttachments.length === 0) return;
+
+    Modal.confirm({
+      title: "Delete stitch files?",
+      content: "Every files with category stitch will be deleted",
+      okText: "OK",
+      cancelText: "Cancel",
+      okType: "danger",
+      onOk: () => {
+        const toastKey = "stitch-clear-all";
+        void (async () => {
+          setIsClearingAll(true);
+          message.loading({
+            key: toastKey,
+            content: "Deleting stitch files...",
+            duration: 0,
+          });
+
+          try {
+            for (const attachment of stitchAttachments) {
+              await deleteCardAttachment(attachment.id);
+            }
+
+            setRowsState({});
+            setAllDesignerUserId(null);
+            setPreviewModalOpen(false);
+            message.success({
+              key: toastKey,
+              content: "All stitch files deleted",
+            });
+            refetch?.();
+          } catch (error: any) {
+            message.error({
+              key: toastKey,
+              content: error?.message || "Failed to delete stitch files",
+            });
+          } finally {
+            setIsClearingAll(false);
+          }
+        })();
+      },
     });
-    setAllDesignerUserId(null);
-  }, [imageStitchAttachments]);
+  }, [refetch, stitchAttachments]);
 
   const handleOpenPreview = useCallback(
     (attachmentId: string) => {
@@ -319,11 +347,7 @@ const ModalJmlStitch: React.FC<ModalJmlStitchProps> = ({
             next[att.id] = {
               stitch: existing?.stitch ?? prev[att.id]?.stitch ?? null,
               amount: existing?.amount ?? prev[att.id]?.amount ?? null,
-              userId:
-                existing?.userId ??
-                prev[att.id]?.userId ??
-                defaultDesignerUserId ??
-                null,
+              userId: existing?.userId ?? prev[att.id]?.userId ?? null,
             };
           });
           return next;
@@ -345,13 +369,15 @@ const ModalJmlStitch: React.FC<ModalJmlStitchProps> = ({
     card.id,
     attachmentIdsKey,
     imageStitchAttachments,
-    defaultDesignerUserId,
   ]);
 
   // Upload a single File as a STITCH attachment and link it to the card
   const uploadSingleFile = useCallback(
     async (file: File): Promise<void> => {
-      const res = await uploadFile(file, { cardId: card.id });
+      const res = await uploadFile(file, {
+        cardId: card.id,
+        type: EnumCardAttachmentType.Stitch,
+      });
       const uploaded = res?.data;
       if (!uploaded?.id) throw new Error(`Upload failed for ${file.name}`);
 
@@ -376,38 +402,76 @@ const ModalJmlStitch: React.FC<ModalJmlStitchProps> = ({
       if (files.length === 0) return;
 
       setIsUploading(true);
+      setUploadTotal(0);
+      setUploadCompleted(0);
+      setUploadCurrentName("");
       const toastKey = "stitch-upload";
       message.loading({ key: toastKey, content: "Uploading...", duration: 0 });
 
       try {
-        for (const file of files) {
-          const isZip =
-            file.type === "application/zip" ||
-            file.type === "application/x-zip-compressed" ||
-            file.name.toLowerCase().endsWith(".zip");
+        const tasks: PreparedUploadTask[] = [];
 
-          if (isZip) {
-            await uploadSingleFile(file);
+        for (const file of files) {
+          if (isZipFile(file.name, file.type)) {
             const zip = await JSZip.loadAsync(file);
             const imageEntries = Object.values(zip.files).filter(
               (entry) => !entry.dir && IMAGE_EXTENSIONS.test(entry.name),
             );
 
+            if (imageEntries.length === 0) {
+              message.warning(
+                `${file.name} tidak memiliki file gambar (JPG/JPEG/PNG/WEBP).`,
+              );
+              continue;
+            }
+
             for (const entry of imageEntries) {
-              const blob = await entry.async("blob");
               const baseName = entry.name.split("/").pop() || entry.name;
-              const imageFile = new File([blob], baseName, {
-                type: "image/jpeg",
+              tasks.push({
+                displayName: `${file.name} / ${baseName}`,
+                buildFile: async () => {
+                  const blob = await entry.async("blob");
+                  return new File([blob], baseName, {
+                    type: getMimeTypeFromName(baseName),
+                  });
+                },
               });
-              await uploadSingleFile(imageFile);
             }
           } else {
-            await uploadSingleFile(file);
+            tasks.push({
+              displayName: file.name,
+              buildFile: async () => file,
+            });
           }
+        }
+
+        if (tasks.length === 0) {
+          message.warning({
+            key: toastKey,
+            content: "Tidak ada file yang bisa di-upload.",
+          });
+          return;
+        }
+
+        setUploadTotal(tasks.length);
+
+        for (let index = 0; index < tasks.length; index += 1) {
+          const task = tasks[index];
+          setUploadCurrentName(task.displayName);
+          message.loading({
+            key: toastKey,
+            content: `Uploading ${index + 1}/${tasks.length}...`,
+            duration: 0,
+          });
+          const nextFile = await task.buildFile();
+          await uploadSingleFile(nextFile);
+          setUploadCompleted(index + 1);
         }
 
         message.success({ key: toastKey, content: "Upload complete" });
         refetch?.();
+        setUploadTotal(0);
+        setUploadCompleted(0);
       } catch (err: any) {
         message.error({
           key: toastKey,
@@ -415,6 +479,7 @@ const ModalJmlStitch: React.FC<ModalJmlStitchProps> = ({
         });
       } finally {
         setIsUploading(false);
+        setUploadCurrentName("");
       }
     },
     [uploadSingleFile, refetch],
@@ -450,11 +515,7 @@ const ModalJmlStitch: React.FC<ModalJmlStitchProps> = ({
       setIsDragging(false);
 
       const files = Array.from(e.dataTransfer.files).filter(
-        (file) =>
-          file.type === "application/zip" ||
-          file.type === "application/x-zip-compressed" ||
-          file.name.toLowerCase().endsWith(".zip") ||
-          /\.(jpe?g)$/i.test(file.name),
+        (file) => isSupportedUploadFile(file),
       );
       await processFiles(files);
     },
@@ -473,24 +534,20 @@ const ModalJmlStitch: React.FC<ModalJmlStitchProps> = ({
         const file = item.getAsFile();
         if (!file) continue;
 
-        const isZip =
-          file.type === "application/zip" ||
-          file.type === "application/x-zip-compressed" ||
-          file.name.toLowerCase().endsWith(".zip");
-        const isImage = file.type.startsWith("image/");
-        if (isZip || isImage || /\.(jpe?g)$/i.test(file.name)) {
+        if (isSupportedUploadFile(file)) {
           files.push(file);
         }
       }
 
       if (files.length > 0) {
         e.preventDefault();
+        e.stopPropagation();
         await processFiles(files);
       }
     };
 
-    window.addEventListener("paste", handlePaste);
-    return () => window.removeEventListener("paste", handlePaste);
+    window.addEventListener("paste", handlePaste, true);
+    return () => window.removeEventListener("paste", handlePaste, true);
   }, [open, processFiles]);
 
   const handleSave = async () => {
@@ -706,7 +763,7 @@ const ModalJmlStitch: React.FC<ModalJmlStitchProps> = ({
             <input
               ref={fileInputRef}
               type="file"
-              accept=".zip,.jpg,.jpeg"
+              accept=".zip,.jpg,.jpeg,.png,.webp,image/*"
               multiple
               className="hidden"
               onChange={handleFileChange}
@@ -729,6 +786,27 @@ const ModalJmlStitch: React.FC<ModalJmlStitchProps> = ({
               </Button>
             </div>
           </div>
+
+          {(isUploading || uploadTotal > 0) && (
+            <div className="rounded-lg border border-gray-200 p-3">
+              <div className="mb-2 text-sm text-gray-700">
+                Uploading {uploadCompleted}/{uploadTotal}
+              </div>
+              <Progress
+                percent={
+                  uploadTotal > 0
+                    ? Math.round((uploadCompleted / uploadTotal) * 100)
+                    : 0
+                }
+                status={isUploading ? "active" : "normal"}
+              />
+              {uploadCurrentName ? (
+                <div className="mt-1 text-xs text-gray-500 truncate">
+                  Current: {uploadCurrentName}
+                </div>
+              ) : null}
+            </div>
+          )}
 
           {/* Set designer to all */}
           <Space align="center" wrap>
@@ -754,7 +832,8 @@ const ModalJmlStitch: React.FC<ModalJmlStitchProps> = ({
             <Button
               danger
               onClick={handleClearAll}
-              disabled={imageStitchAttachments.length === 0}
+              disabled={stitchAttachments.length === 0 || isClearingAll}
+              loading={isClearingAll}
             >
               Clear All
             </Button>
