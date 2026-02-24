@@ -35,7 +35,6 @@ import { extractPlaceholders } from "@utils/general";
 import {
   getRuleById,
   updateRule,
-  updateTrigger,
   updateTriggerOnly,
   updateAction,
   addAction,
@@ -597,7 +596,8 @@ export default function EditRulePage() {
   };
 
   const saveTriggerWithData = async (
-    updatedTriggerItem: SelectedTriggerItem
+    updatedTriggerItem: SelectedTriggerItem,
+    overrideGroupType?: string
   ) => {
     if (!updatedTriggerItem) {
       message.error("No trigger configured");
@@ -615,7 +615,10 @@ export default function EditRulePage() {
 
       const { actions } = selectedRule;
       const triggerItem = updatedTriggerItem;
-      const triggerType = getGroupTypeFromTriggerType(triggerItem.type || "");
+      const triggerType =
+        overrideGroupType ||
+        selectedRule.triggerType ||
+        getGroupTypeFromTriggerType(triggerItem.type || "");
 
       // Extract placeholders from trigger type
       const triggerPlaceholders = extractPlaceholders(triggerItem.type || "");
@@ -787,101 +790,6 @@ export default function EditRulePage() {
       await updateTriggerOnly(workspaceId as string, ruleId as string, triggerData);
 
       message.success("Trigger updated successfully (actions preserved)");
-      // Refresh rule data to show updated trigger
-      await loadRule();
-    } catch (e: any) {
-      console.error("Failed to update trigger:", e);
-      message.error(e?.response?.data?.message || "Failed to update trigger");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const saveTrigger = async () => {
-    if (!selectedRule.triggerItem) {
-      message.error("No trigger configured");
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-
-      // Extract the proper condition format from triggerItem
-      const triggerItem = selectedRule.triggerItem as any;
-      let condition = {};
-
-      // If triggerItem has a nested condition structure, extract the inner condition
-      if (triggerItem.condition && typeof triggerItem.condition === "object") {
-        const innerCondition = triggerItem.condition as any;
-
-        // Build the proper condition format expected by the backend
-        condition = {
-          board: triggerItem.board || innerCondition.board,
-          action:
-            (innerCondition.action &&
-              typeof innerCondition.action === "object" &&
-              innerCondition.action.value) ||
-            innerCondition.action ||
-            "card.customfield.changed",
-          fields:
-            (innerCondition.fields &&
-              typeof innerCondition.fields === "object" &&
-              innerCondition.fields.value) ||
-            innerCondition.fields,
-          field_value: innerCondition.field_value,
-          optional_by: {
-            data:
-              (innerCondition.optional_by && innerCondition.optional_by.data) ||
-              [],
-            operator:
-              (innerCondition.optional_by &&
-                (innerCondition.optional_by.value ||
-                  innerCondition.optional_by.operator)) ||
-              "by-anyone",
-          },
-        };
-      } else {
-        // If it's already in the correct format, use it directly
-        condition = {
-          board: triggerItem.board,
-          action:
-            (triggerItem.action &&
-              typeof triggerItem.action === "object" &&
-              triggerItem.action.value) ||
-            triggerItem.action ||
-            "card.customfield.changed",
-          fields:
-            (triggerItem.fields &&
-              typeof triggerItem.fields === "object" &&
-              triggerItem.fields.value) ||
-            triggerItem.fields,
-          field_value: triggerItem.field_value,
-          optional_by: {
-            data:
-              (triggerItem.optional_by && triggerItem.optional_by.data) || [],
-            operator:
-              (triggerItem.optional_by &&
-                (triggerItem.optional_by.value ||
-                  triggerItem.optional_by.operator)) ||
-              "by-anyone",
-          },
-        };
-      }
-
-      // Get the trigger type and determine the group type
-      const triggerType = triggerItem.type;
-      const groupType = getGroupTypeFromTriggerType(triggerType);
-
-      // Send the complete trigger data including type and group_type
-      const triggerData = {
-        condition,
-        type: triggerType,
-        group_type: groupType,
-      };
-
-      await updateTrigger(workspaceId as string, ruleId as string, triggerData);
-
-      message.success("Trigger updated successfully");
       // Refresh rule data to show updated trigger
       await loadRule();
     } catch (e: any) {
@@ -1151,7 +1059,11 @@ export default function EditRulePage() {
                 isEditMode={true}
                 onSaveAndClose={async (updatedRule: AutomationRule) => {
                   if (updatedRule.triggerItem) {
-                    await saveTriggerWithData(updatedRule.triggerItem);
+                    setSelectedRule(updatedRule);
+                    await saveTriggerWithData(
+                      updatedRule.triggerItem,
+                      updatedRule.triggerType
+                    );
                   }
                   setIsEditingTrigger(false);
                 }}

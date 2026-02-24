@@ -244,7 +244,7 @@ const DraggableList: React.FC<DraggableListProps> = ({
             hover:shadow-md 
             ${collapsed ? "w-[72px] min-w-[72px] px-0" : "w-[270px]"} 
             h-fit
-            max-h-[calc(100vh-130px)]
+            max-h-[calc(100dvh-130px)]
             flex 
             ${collapsed ? "flex-col items-center" : "flex-col"}
             flex-shrink-0
@@ -403,7 +403,7 @@ const DraggableList: React.FC<DraggableListProps> = ({
                   )}
                 </Droppable>
                 {(
-                  <div className="px-2 py-2 border-t border-gray-200">
+                  <div className="px-2 py-2 border-t border-gray-200 flex-shrink-0">
                     <AddCard listId={list.id || ""} addCard={addCard} />
                   </div>
                 )}

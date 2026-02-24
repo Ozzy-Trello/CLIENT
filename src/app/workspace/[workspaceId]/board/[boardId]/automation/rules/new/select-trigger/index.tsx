@@ -1362,7 +1362,9 @@ const SelectTrigger: React.FC<SelectTriggerProps> = (props) => {
   const [configuringTriggerIndex, setConfiguringTriggerIndex] = useState<
     number | null
   >(null);
-  [[[]]];
+  const selectedRuleRef = useRef(selectedRule);
+  selectedRuleRef.current = selectedRule;
+
   // Callback for when a specific trigger item's '+' button is clicked
   const onSelectTrigger = useCallback(
     (selectedItem: TriggerItems, index: number) => {
@@ -1585,11 +1587,11 @@ const SelectTrigger: React.FC<SelectTriggerProps> = (props) => {
   const onSaveTrigger = useCallback(async () => {
     setConfiguringTriggerIndex(null);
     if (isEditMode && onSaveAndClose) {
-      await onSaveAndClose(selectedRule);
+      await onSaveAndClose(selectedRuleRef.current);
     } else {
       nextStep();
     }
-  }, [nextStep, isEditMode, onSaveAndClose, selectedRule]);
+  }, [nextStep, isEditMode, onSaveAndClose]);
 
   const onCancelTrigger = useCallback(() => {
     setConfiguringTriggerIndex(null);

@@ -137,7 +137,7 @@ const BoardContentWithPermissions: React.FC<{
     return (
       <div
         ref={boardScrollContainerRef}
-        className={`h-auto min-h-[770px] w-full overflow-x-auto overflow-y-hidden custom-horizontal-scrollbar board-scroll-container ${isDraggingToScroll ? "cursor-grabbing select-none" : "cursor-grab"
+        className={`h-auto min-h-[calc(100dvh-60px)] sm:min-h-[770px] w-full overflow-x-auto overflow-y-hidden custom-horizontal-scrollbar board-scroll-container ${isDraggingToScroll ? "cursor-grabbing select-none" : "cursor-grab"
           }`}
         onMouseDown={onMouseDown}
         onMouseMove={onMouseMove}
