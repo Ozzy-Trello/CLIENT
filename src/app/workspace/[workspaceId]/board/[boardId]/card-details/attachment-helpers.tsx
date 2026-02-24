@@ -10,7 +10,7 @@ import {
 import React from "react";
 
 export const isImageFile = (fileName: string, mimeType?: string): boolean => {
-  const imageExtensions = ["jpg", "jpeg", "png", "gif", "bmp", "svg", "webp"];
+  const imageExtensions = ["jpg", "jpeg", "png", "gif", "bmp", "svg", "webp", "heic", "heif"];
   const extension = fileName.split(".").pop()?.toLowerCase() || "";
 
   if (mimeType && mimeType.startsWith("image/")) {
@@ -28,6 +28,17 @@ export const isPDFFile = (fileName: string, mimeType?: string): boolean => {
   }
 
   return extension === "pdf";
+};
+
+export const isVideoFile = (fileName: string, mimeType?: string): boolean => {
+  const videoExtensions = ["mp4", "webm", "mov", "m4v", "ogg", "ogv", "avi", "mkv"];
+  const extension = fileName.split(".").pop()?.toLowerCase() || "";
+
+  if (mimeType && mimeType.startsWith("video/")) {
+    return true;
+  }
+
+  return videoExtensions.includes(extension);
 };
 
 export const getFileIcon = (fileName: string, mimeType?: string) => {

@@ -21,6 +21,24 @@ interface AttachmentPreviewModalProps {
 const ZOOM_STEP = 0.25;
 const ZOOM_MIN = 0.25;
 const ZOOM_MAX = 4;
+const HEIC_EXTENSIONS = new Set(["heic", "heif"]);
+const VIDEO_EXTENSIONS = new Set(["mp4", "webm", "mov", "m4v", "ogg", "ogv", "avi", "mkv"]);
+
+const isHeicFile = (fileName: string, mimeType?: string): boolean => {
+  const extension = fileName.split(".").pop()?.toLowerCase() || "";
+  if (mimeType && /image\/(heic|heif)/i.test(mimeType)) {
+    return true;
+  }
+  return HEIC_EXTENSIONS.has(extension);
+};
+
+const isVideoFileType = (fileName: string, mimeType?: string): boolean => {
+  const extension = fileName.split(".").pop()?.toLowerCase() || "";
+  if (mimeType && mimeType.startsWith("video/")) {
+    return true;
+  }
+  return VIDEO_EXTENSIONS.has(extension);
+};
 
 const AttachmentPreviewModal: React.FC<AttachmentPreviewModalProps> = ({
   open,
@@ -35,6 +53,9 @@ const AttachmentPreviewModal: React.FC<AttachmentPreviewModalProps> = ({
   const [zoom, setZoom] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [isMoving, setIsMoving] = useState(false);
+  const [convertedHeicUrl, setConvertedHeicUrl] = useState<string>("");
+  const [isConvertingHeic, setIsConvertingHeic] = useState(false);
+  const [heicConversionError, setHeicConversionError] = useState(false);
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
   const dragStartRef = useRef({ diffX: 0, diffY: 0 });
@@ -285,10 +306,6 @@ const AttachmentPreviewModal: React.FC<AttachmentPreviewModalProps> = ({
     }
   }, [currentIndex, safeCurrentIndex, totalAttachments]);
 
-  if (!open || totalAttachments === 0) {
-    return null;
-  }
-
   const currentAttachment = attachments[safeCurrentIndex];
   const fileName = currentAttachment?.file?.name || "Attachment";
   const fileUrl = currentAttachment?.file?.url || "";
@@ -298,9 +315,113 @@ const AttachmentPreviewModal: React.FC<AttachmentPreviewModalProps> = ({
 
   const image = isImageFile(fileName, fileMimeType);
   const pdf = isPDFFile(fileName, fileMimeType);
+  const video = isVideoFileType(fileName, fileMimeType);
+  const heic = isHeicFile(fileName, fileMimeType);
+  const activeImageUrl = heic ? convertedHeicUrl : activeUrl;
+  const canPrint = !!(pdf || (image && activeImageUrl && !video));
+  const canZoom = !!(pdf || (image && activeImageUrl && !video));
+
+  useEffect(() => {
+    let cancelled = false;
+    let createdObjectUrl = "";
+
+    if (!heic || !activeUrl) {
+      setConvertedHeicUrl("");
+      setIsConvertingHeic(false);
+      setHeicConversionError(false);
+      return;
+    }
+
+    const run = async () => {
+      setIsConvertingHeic(true);
+      setHeicConversionError(false);
+      setConvertedHeicUrl("");
+
+      const accessToken = TokenStorage.getAccessToken();
+      const authHeaders = accessToken
+        ? { Authorization: `Bearer ${accessToken}` }
+        : undefined;
+      const normalizedUrl = toDirectFileUrl(activeUrl);
+      const backendBaseUrl = process.env.NEXT_PUBLIC_BE_BASE_URL || "";
+
+      const candidates: Array<{ fetchUrl: string; headers?: Record<string, string> }> = [];
+      const seen = new Set<string>();
+      const pushCandidate = (fetchUrl: string, headers?: Record<string, string>) => {
+        if (!fetchUrl) return;
+        const key = `${fetchUrl}::${headers?.Authorization ? "auth" : "noauth"}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        candidates.push({ fetchUrl, headers });
+      };
+
+      if (backendBaseUrl && normalizedUrl.includes(backendBaseUrl)) {
+        pushCandidate(normalizedUrl, authHeaders);
+      } else if (/^https?:\/\//i.test(normalizedUrl)) {
+        pushCandidate(normalizedUrl);
+        pushCandidate(buildFileProxyUrl(normalizedUrl), authHeaders);
+      } else if (isFileProxyUrl(activeUrl)) {
+        pushCandidate(buildFileProxyUrl(activeUrl), authHeaders);
+      } else {
+        pushCandidate(normalizedUrl, authHeaders);
+      }
+
+      for (const candidate of candidates) {
+        try {
+          const response = await fetch(candidate.fetchUrl, {
+            headers: candidate.headers || {},
+          });
+          if (!response.ok) {
+            continue;
+          }
+
+          const sourceBlob = await response.blob();
+          const { default: heic2any } = await import("heic2any");
+          const converted = await heic2any({
+            blob: sourceBlob,
+            toType: "image/jpeg",
+            quality: 0.92,
+          });
+
+          const convertedBlob = Array.isArray(converted) ? converted[0] : converted;
+          if (!convertedBlob) {
+            continue;
+          }
+
+          createdObjectUrl = URL.createObjectURL(convertedBlob as Blob);
+
+          if (!cancelled) {
+            setConvertedHeicUrl(createdObjectUrl);
+            setIsConvertingHeic(false);
+            return;
+          }
+          break;
+        } catch {
+          continue;
+        }
+      }
+
+      if (!cancelled) {
+        setHeicConversionError(true);
+        setIsConvertingHeic(false);
+      }
+    };
+
+    void run();
+
+    return () => {
+      cancelled = true;
+      if (createdObjectUrl) {
+        URL.revokeObjectURL(createdObjectUrl);
+      }
+    };
+  }, [activeUrl, heic]);
 
   const iconButtonClass =
     "p-2 rounded-full hover:bg-white/20 transition-colors text-white disabled:opacity-40 disabled:cursor-not-allowed";
+
+  if (!open || totalAttachments === 0) {
+    return null;
+  }
 
   const modalContent = (
     <div
@@ -326,7 +447,7 @@ const AttachmentPreviewModal: React.FC<AttachmentPreviewModalProps> = ({
           <button
             type="button"
             className={iconButtonClass}
-            disabled={zoom <= ZOOM_MIN}
+            disabled={zoom <= ZOOM_MIN || !canZoom}
             onClick={(e) => { e.stopPropagation(); zoomOut(); }}
             aria-label="Zoom out"
             title="Zoom out (−)"
@@ -341,7 +462,7 @@ const AttachmentPreviewModal: React.FC<AttachmentPreviewModalProps> = ({
           <button
             type="button"
             className={iconButtonClass}
-            disabled={zoom >= ZOOM_MAX}
+            disabled={zoom >= ZOOM_MAX || !canZoom}
             onClick={(e) => { e.stopPropagation(); zoomIn(); }}
             aria-label="Zoom in"
             title="Zoom in (+)"
@@ -353,10 +474,10 @@ const AttachmentPreviewModal: React.FC<AttachmentPreviewModalProps> = ({
           <button
             type="button"
             className={iconButtonClass}
-            disabled={!activeUrl}
+            disabled={!canPrint}
             onClick={(e) => {
               e.stopPropagation();
-              handlePrint(activeUrl, pdf);
+              handlePrint(pdf ? activeUrl : activeImageUrl, pdf);
             }}
             aria-label="Print"
             title="Print"
@@ -413,7 +534,7 @@ const AttachmentPreviewModal: React.FC<AttachmentPreviewModalProps> = ({
           className="inline-flex items-center justify-center p-4"
           style={{ minWidth: "100%", minHeight: "100%" }}
         >
-          {image && activeUrl && (
+          {image && !heic && activeImageUrl && (
             <img
               ref={imgRef}
               src={activeUrl}
@@ -434,11 +555,60 @@ const AttachmentPreviewModal: React.FC<AttachmentPreviewModalProps> = ({
             />
           )}
 
+          {image && heic && isConvertingHeic && (
+            <div className="text-white text-center">
+              <p className="text-lg">Converting HEIC...</p>
+              <p className="text-sm text-gray-400">{fileName}</p>
+            </div>
+          )}
+
+          {image && heic && !isConvertingHeic && !!activeImageUrl && (
+            <img
+              ref={imgRef}
+              src={activeImageUrl}
+              alt={fileName}
+              draggable={false}
+              onMouseDown={handleImgMouseDown}
+              style={{
+                transform: `translate3d(${offset.x}px, ${offset.y}px, 0) scale(${zoom})`,
+                transformOrigin: "center center",
+                transition: isMoving ? "none" : "transform 0.15s ease",
+                maxWidth: "90vw",
+                maxHeight: "85vh",
+                objectFit: "contain",
+                borderRadius: 4,
+                cursor: zoom > 1 ? (isMoving ? "grabbing" : "grab") : "default",
+                userSelect: "none",
+              }}
+            />
+          )}
+
+          {image && heic && !isConvertingHeic && heicConversionError && (
+            <div className="text-white text-center">
+              <p className="text-lg">Failed to preview HEIC file</p>
+              <p className="text-sm text-gray-400">You can still download it.</p>
+            </div>
+          )}
+
           {pdf && activeUrl && (
             <PreviewPdfViewer url={activeUrl} zoom={zoom} />
           )}
 
-          {!image && !pdf && (
+          {video && activeUrl && (
+            <video
+              src={activeUrl}
+              controls
+              preload="metadata"
+              style={{
+                maxWidth: "90vw",
+                maxHeight: "85vh",
+                borderRadius: 4,
+                backgroundColor: "#000",
+              }}
+            />
+          )}
+
+          {!image && !pdf && !video && (
             <div className="text-white text-center">
               <p className="text-lg">Preview not available</p>
               <p className="text-sm text-gray-400">{fileName}</p>

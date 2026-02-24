@@ -9,7 +9,7 @@ import {
 } from "@myTypes/card";
 import { Button, List, Tag, Typography, Image, Modal } from "antd";
 import React, { useMemo, useRef, useState } from "react";
-import { formatFileSizeInMB, getFileIcon, isImageFile, isPDFFile } from "./attachment-helpers";
+import { formatFileSizeInMB, getFileIcon, isImageFile, isPDFFile, isVideoFile } from "./attachment-helpers";
 import { useCardAttachment } from "@hooks/card_attachment";
 import { useAttachmentPrinting } from "./hooks/useAttachmentPrinting";
 import { useParams } from "next/navigation";
@@ -154,7 +154,8 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
       (att) =>
         att.file?.url &&
         (isImageFile(att.file.name || "", att.file.mimeType) ||
-          isPDFFile(att.file.name || "", att.file.mimeType))
+          isPDFFile(att.file.name || "", att.file.mimeType) ||
+          isVideoFile(att.file.name || "", att.file.mimeType))
     );
   }, [fileAttachments]);
 
@@ -314,6 +315,14 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
                 >
                   PDF
                 </div>
+              ) : attachment.file?.url &&
+                isVideoFile(attachment.file.name || "", attachment.file.mimeType) ? (
+                <div
+                  className="flex items-center justify-center w-full h-full text-indigo-500 font-semibold text-xs cursor-pointer"
+                  onClick={() => handleOpenPreview(attachment)}
+                >
+                  VIDEO
+                </div>
               ) : (
                 getFileIcon(attachment.file?.name || "", attachment.file?.mimeType)
               )}
@@ -360,6 +369,13 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
                                 {attachment.file?.name || "Unnamed file"}
                               </span>
                             ) : isPDFFile(attachment.file.name || "", attachment.file.mimeType) ? (
+                              <span
+                                className="hover:underline cursor-pointer text-blue-600"
+                                onClick={() => handleOpenPreview(attachment)}
+                              >
+                                {attachment.file?.name || "Unnamed file"}
+                              </span>
+                            ) : isVideoFile(attachment.file.name || "", attachment.file.mimeType) ? (
                               <span
                                 className="hover:underline cursor-pointer text-blue-600"
                                 onClick={() => handleOpenPreview(attachment)}

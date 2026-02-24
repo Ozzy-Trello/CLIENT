@@ -7,7 +7,7 @@ import { isImageFile } from "@utils/file";
 import { Button, Image, Upload } from "antd";
 import { useMemo, useState } from "react";
 import { useBoardPermissionsContext } from "@providers/board-permissions-context";
-import { isPDFFile } from "./attachment-helpers";
+import { isPDFFile, isVideoFile } from "./attachment-helpers";
 import { toDirectFileUrl } from "@utils/file-url";
 
 interface CoverProps {
@@ -68,7 +68,8 @@ const Cover: React.FC<CoverProps> = (props) => {
       (att) =>
         att.file?.url &&
         (isImageFile(att.file.name || "", att.file.mimeType) ||
-          isPDFFile(att.file.name || "", att.file.mimeType))
+          isPDFFile(att.file.name || "", att.file.mimeType) ||
+          isVideoFile(att.file.name || "", att.file.mimeType))
     );
   }, [cardAttachments]);
 

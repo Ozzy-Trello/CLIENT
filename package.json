@@ -32,6 +32,7 @@
     "caniuse-lite": "^1.0.30001731",
     "critters": "^0.0.23",
     "dayjs": "^1.11.13",
+    "heic2any": "^0.0.4",
     "html2canvas": "^1.4.1",
     "jspdf": "^3.0.1",
     "jszip": "^3.10.1",
