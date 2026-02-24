@@ -273,6 +273,7 @@ export function useArchiveList(boardId: string) {
  */
 export function useMoveAllCardsInList() {
   const queryClient = useQueryClient();
+  const POST_MOVE_AUTOMATION_REFETCH_DELAY_MS = 1500;
 
   const moveAllCardsMutation = useMutation({
     mutationFn: ({ sourceListId, targetListId }: { sourceListId: string; targetListId: string }) =>
@@ -331,6 +332,23 @@ export function useMoveAllCardsInList() {
       queryClient.invalidateQueries({ queryKey: queryKeys.cards.list(variables.sourceListId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.cards.list(variables.targetListId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.lists.all });
+
+      // Automation side effects (e.g. labels) may arrive shortly after move-all completes.
+      // Trigger a delayed refetch so target list cards reflect latest server state.
+      setTimeout(() => {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.cards.list(variables.sourceListId),
+          refetchType: "active",
+        });
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.cards.list(variables.targetListId),
+          refetchType: "active",
+        });
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.lists.all,
+          refetchType: "active",
+        });
+      }, POST_MOVE_AUTOMATION_REFETCH_DELAY_MS);
     },
   });
 

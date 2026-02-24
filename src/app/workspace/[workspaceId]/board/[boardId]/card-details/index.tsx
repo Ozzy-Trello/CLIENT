@@ -115,6 +115,7 @@ const CardDetails: React.FC = (props) => {
   // Boards where the Produk section should be visible (name-based, case-insensitive)
   const ALLOWED_BOARD_NAMES = [
     "Request Desain | Outlet",
+    "List PO | Outlet",
     "TEST BOARD",
     "List Purchase | Produksi",
     "Dateline",
