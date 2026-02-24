@@ -545,6 +545,14 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             queryClient.invalidateQueries({
               queryKey: ["checklist", checklist.id],
             });
+            // Keep draggable cards in sync (checklist done/total counters)
+            handleChecklistItemEvent(
+              queryClient,
+              {
+                cardId: cardIdForChecklist,
+                checklistId: checklist.id,
+              } as WebSocketEventPayload
+            );
             refreshDashcard = true;
             break;
           }
@@ -1230,7 +1238,20 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
           case EnumBackendWebSocketEvent.CARD_CHECKLIST_ITEM_REMOVED:
             handleChecklistItemEvent(
               queryClient,
-              message.data as WebSocketEventPayload
+              message.data as WebSocketEventPayload,
+              message.event
+            );
+            refreshDashcard = true;
+            break;
+
+          case EnumUserActionEvent.ChecklistItemChecked:
+          case EnumUserActionEvent.ChecklistItemUnchecked:
+          case EnumUserActionEvent.ChecklistItemAdded:
+          case EnumUserActionEvent.ChecklistItemRemoved:
+            handleChecklistItemEvent(
+              queryClient,
+              message.data as WebSocketEventPayload,
+              message.event
             );
             refreshDashcard = true;
             break;

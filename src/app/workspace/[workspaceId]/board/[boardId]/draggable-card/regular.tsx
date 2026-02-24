@@ -10,6 +10,7 @@ import TouchAwareTooltip from "@components/touch-aware-tooltip";
 import {
   Calendar,
   CalendarDays,
+  CheckSquare,
   Clock,
   MessageSquare,
   MoreHorizontal,
@@ -290,6 +291,14 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
             <div className="flex items-center gap-1 text-[10px]">
               <Paperclip size={12} strokeWidth={2} />
               <span className="text-sm">{card?.attachmentCount || 0}</span>
+            </div>
+          </TouchAwareTooltip>
+          <TouchAwareTooltip title={"checklists"}>
+            <div className="flex items-center gap-1 text-[10px]">
+              <CheckSquare size={12} strokeWidth={2} />
+              <span className="text-sm">
+                {card?.checklistDone || 0} / {card?.checklistTotal || 0}
+              </span>
             </div>
           </TouchAwareTooltip>
           {/* <div className="text-green-600 text-[14px]">

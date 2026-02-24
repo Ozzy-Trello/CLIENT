@@ -2,6 +2,8 @@ import { QueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@constants/query-keys";
 import {
   BatchUpdateEvent,
+  EnumBackendWebSocketEvent,
+  EnumUserActionEvent,
   WebSocketEventPayload,
 } from "@myTypes/event";
 
@@ -189,10 +191,50 @@ export function handleCustomFieldCleared(
  */
 export function handleChecklistItemEvent(
   queryClient: QueryClient,
-  data: WebSocketEventPayload
+  data: WebSocketEventPayload,
+  eventType?: string
 ) {
   const { cardId, changes } = data;
-  const checklistId = changes?.checklistId;
+  const checklistId =
+    changes?.checklistId ||
+    (data as any)?.checklistId ||
+    (data as any)?.checklist?.id;
+  const explicitListId =
+    data.listId ||
+    (data as any)?.list_id ||
+    (data as any)?.card?.listId ||
+    (data as any)?.card?.list_id;
+
+  let checklistDoneDelta = 0;
+  let checklistTotalDelta = 0;
+
+  const itemChecked =
+    (data as any)?.item?.checked ??
+    (changes as any)?.item?.checked ??
+    (data as any)?.changes?.item?.checked;
+
+  switch (eventType) {
+    case EnumBackendWebSocketEvent.CARD_CHECKLIST_ITEM_CHECKED:
+    case EnumUserActionEvent.ChecklistItemChecked:
+      checklistDoneDelta = 1;
+      break;
+    case EnumBackendWebSocketEvent.CARD_CHECKLIST_ITEM_UNCHECKED:
+    case EnumUserActionEvent.ChecklistItemUnchecked:
+      checklistDoneDelta = -1;
+      break;
+    case EnumBackendWebSocketEvent.CARD_CHECKLIST_ITEM_ADDED:
+    case EnumUserActionEvent.ChecklistItemAdded:
+      checklistTotalDelta = 1;
+      if (itemChecked) checklistDoneDelta = 1;
+      break;
+    case EnumBackendWebSocketEvent.CARD_CHECKLIST_ITEM_REMOVED:
+    case EnumUserActionEvent.ChecklistItemRemoved:
+      checklistTotalDelta = -1;
+      if (itemChecked) checklistDoneDelta = -1;
+      break;
+    default:
+      break;
+  }
 
   if (cardId) {
     queryClient.invalidateQueries({
@@ -208,6 +250,67 @@ export function handleChecklistItemEvent(
       queryKey: ["checklist", checklistId],
     });
   }
+
+  const affectedListIds = new Set<string>();
+  if (explicitListId) {
+    affectedListIds.add(explicitListId);
+  }
+
+  if (cardId) {
+    const listQueries = queryClient.getQueryCache().findAll({
+      predicate: (query) =>
+        Array.isArray(query.queryKey) &&
+        query.queryKey[0] === "cards" &&
+        query.queryKey[1] === "list",
+    });
+
+    for (const query of listQueries) {
+      const key = query.queryKey as any[];
+      const candidateListId = key[2] as string | undefined;
+      const cached: any = query.state.data;
+      const exists = cached?.data?.some?.((card: any) => card.id === cardId);
+
+      if (!candidateListId || !exists) continue;
+      affectedListIds.add(candidateListId);
+
+      if (checklistDoneDelta !== 0 || checklistTotalDelta !== 0) {
+        queryClient.setQueryData(key, (old: any) => {
+          if (!old?.data || !Array.isArray(old.data)) return old;
+
+          return {
+            ...old,
+            data: old.data.map((card: any) => {
+              if (card.id !== cardId) return card;
+
+              const currentDone = Number(
+                card?.checklistDone ?? card?.checklist_done ?? 0
+              );
+              const currentTotal = Number(
+                card?.checklistTotal ?? card?.checklist_total ?? 0
+              );
+
+              const nextDone = Math.max(0, currentDone + checklistDoneDelta);
+              const nextTotal = Math.max(0, currentTotal + checklistTotalDelta);
+
+              return {
+                ...card,
+                checklistDone: nextDone,
+                checklistTotal: nextTotal,
+                checklist_done: nextDone,
+                checklist_total: nextTotal,
+              };
+            }),
+          };
+        });
+      }
+    }
+  }
+
+  affectedListIds.forEach((listId) => {
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.cards.list(listId),
+    });
+  });
 }
 
 /**

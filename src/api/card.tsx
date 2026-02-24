@@ -130,6 +130,16 @@ export const mapBackendCardToFrontend = (backendCard: any): Card => {
   if (backendCard.formatted_time_in_board !== undefined) {
     mapped.formattedTimeInBoard = backendCard.formatted_time_in_board;
   }
+  if (backendCard.checklist_total !== undefined) {
+    mapped.checklistTotal = backendCard.checklist_total;
+  } else if (backendCard.checklistTotal !== undefined) {
+    mapped.checklistTotal = backendCard.checklistTotal;
+  }
+  if (backendCard.checklist_done !== undefined) {
+    mapped.checklistDone = backendCard.checklist_done;
+  } else if (backendCard.checklistDone !== undefined) {
+    mapped.checklistDone = backendCard.checklistDone;
+  }
 
   if (backendCard.list_info) {
     mapped.listId = mapped.listId ?? backendCard.list_info.id;

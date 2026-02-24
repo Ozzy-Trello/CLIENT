@@ -87,6 +87,8 @@ export interface Card {
   workspace_name?: string;
   attachmentCount?: number;
   commentCount?: number;
+  checklistTotal?: number;
+  checklistDone?: number;
 }
 
 export enum EnumAttachmentType {
