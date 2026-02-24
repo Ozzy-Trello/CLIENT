@@ -18,11 +18,14 @@ import {
 import ScannerIcon from "@components/icons/ScannerIcon";
 import { Scanner } from "@yudiel/react-qr-scanner";
 import URLShortener from "@utils/url-shortener";
-import { getCardByShortId } from "@api/card";
+import { cardDetails, getCardByShortId } from "@api/card";
+import { cardCustomFields } from "@api/card_custom_field";
+import { LookupCache } from "@utils/lookup-cache";
 import QRGuideOverlay from "@components/qr-overlay";
 interface ModalPackingPOScanProps {
   open: boolean;
   onClose: () => void;
+  workspaceId: string;
   boardId: string;
   listId: string;
   onOpenScanProgress?: (cardId: string) => void;
@@ -30,9 +33,37 @@ interface ModalPackingPOScanProps {
 
 const { Title, Text } = Typography;
 
+const normalizeText = (value?: string | null) =>
+  String(value || "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+
+const parseCheckbox = (value: any): boolean => {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value === 1;
+  if (typeof value === "string") {
+    const v = value.toLowerCase().trim();
+    return ["true", "1", "yes", "y", "checked"].includes(v);
+  }
+  return false;
+};
+
+const getFieldRawValue = (field: any): string => {
+  return String(
+    field?.value ??
+    field?.valueString ??
+    field?.valueOption ??
+    field?.value_string ??
+    field?.value_option ??
+    ""
+  ).trim();
+};
+
 const ModalPackingPOScan: React.FC<ModalPackingPOScanProps> = ({
   open,
   onClose,
+  workspaceId,
   boardId,
   listId,
   onOpenScanProgress,
@@ -124,6 +155,155 @@ const ModalPackingPOScan: React.FC<ModalPackingPOScanProps> = ({
       console.log("🔍 [DEBUG] Processing card scan for:", targetCardId);
       console.log("🔍 [DEBUG] Using listId:", listId);
       console.log("🔍 [DEBUG] Using boardId:", boardId);
+
+      // Gate packing scan by custom field hierarchy:
+      // base: Jenis Cetak, then dependent checkbox fields.
+      let customFields: any[] = [];
+      try {
+        const customFieldRes = await cardCustomFields(
+          targetCardId.trim(),
+          workspaceId
+        );
+        customFields = Array.isArray(customFieldRes?.data)
+          ? customFieldRes.data
+          : [];
+      } catch (error) {
+        console.warn(
+          "[PACKING_GATE] Failed to fetch card custom fields, fallback to cardDetails:",
+          error
+        );
+        const cardRes = await cardDetails(targetCardId.trim(), boardId);
+        const targetCard = cardRes?.data;
+        customFields = Array.isArray(targetCard?.customFields)
+          ? targetCard.customFields
+          : [];
+      }
+      console.log("[PACKING_GATE] card id:", targetCardId);
+      console.log("[PACKING_GATE] total custom fields:", customFields.length);
+      console.log(
+        "[PACKING_GATE] custom fields snapshot:",
+        customFields.map((f: any) => ({
+          id: f?.id,
+          name: f?.name,
+          valueString: f?.valueString ?? f?.value_string,
+          valueOption: f?.valueOption ?? f?.value_option,
+          valueCheckbox: f?.valueCheckbox ?? f?.value_checkbox,
+          options: Array.isArray(f?.options)
+            ? f.options.map((o: any) => ({
+                id: o?.id ?? o?.value,
+                label: o?.label,
+                value: o?.value,
+              }))
+            : [],
+        }))
+      );
+
+      const findFields = (matcher: (name: string) => boolean) =>
+        customFields.filter((field: any) => matcher(normalizeText(field?.name)));
+
+      const pickBestField = (fields: any[]) => {
+        if (!fields.length) return undefined;
+        return fields.find((field) => getFieldRawValue(field)) || fields[0];
+      };
+
+      const jenisCetakField = pickBestField(
+        findFields((name) => name.includes("jenis cetak"))
+      );
+      const bordirField = pickBestField(findFields((name) => name === "bordir"));
+      const sablonDtfField = pickBestField(
+        findFields((name) => name.includes("sablon") && name.includes("dtf"))
+      );
+
+      const rawJenisCetak = getFieldRawValue(jenisCetakField);
+      const resolvedByOptions = Array.isArray(jenisCetakField?.options)
+        ? jenisCetakField.options.find(
+            (opt: any) =>
+              String(opt?.id ?? opt?.value ?? "").trim() === rawJenisCetak
+          )?.label
+        : undefined;
+
+      const resolvedJenisCetak =
+        resolvedByOptions ||
+        LookupCache.any(String(rawJenisCetak || "")) ||
+        String(rawJenisCetak || "");
+      const jenisCetak = normalizeText(resolvedJenisCetak);
+
+      const isBordirChecked = parseCheckbox(
+        bordirField?.valueCheckbox ?? bordirField?.value_checkbox
+      );
+      const isSablonDtfChecked = parseCheckbox(
+        sablonDtfField?.valueCheckbox ?? sablonDtfField?.value_checkbox
+      );
+      console.log("[PACKING_GATE] matched fields:", {
+        jenisCetakField: jenisCetakField
+          ? {
+              id: jenisCetakField?.id,
+              name: jenisCetakField?.name,
+              rawJenisCetak,
+              resolvedByOptions,
+              resolvedJenisCetak,
+              normalizedJenisCetak: jenisCetak,
+            }
+          : null,
+        bordirField: bordirField
+          ? {
+              id: bordirField?.id,
+              name: bordirField?.name,
+              checked:
+                bordirField?.valueCheckbox ?? bordirField?.value_checkbox,
+              parsedChecked: isBordirChecked,
+            }
+          : null,
+        sablonDtfField: sablonDtfField
+          ? {
+              id: sablonDtfField?.id,
+              name: sablonDtfField?.name,
+              checked:
+                sablonDtfField?.valueCheckbox ??
+                sablonDtfField?.value_checkbox,
+              parsedChecked: isSablonDtfChecked,
+            }
+          : null,
+      });
+
+      const missingFields: string[] = [];
+
+      // Base dependency first
+      if (!jenisCetak) {
+        missingFields.push("Jenis Cetak");
+      } else {
+        const isPolosan = jenisCetak.includes("polosan");
+        const needsBordir = !isPolosan && jenisCetak.includes("bordir");
+        const needsSablonDtf =
+          !isPolosan &&
+          (jenisCetak.includes("dtf") ||
+            jenisCetak.includes("plastisol") ||
+            jenisCetak.includes("rubber") ||
+            jenisCetak.includes("sablon"));
+
+        if (needsBordir && !isBordirChecked) {
+          missingFields.push("Bordir");
+        }
+        if (needsSablonDtf && !isSablonDtfChecked) {
+          missingFields.push("Sablon / DTF");
+        }
+        console.log("[PACKING_GATE] rule decision:", {
+          jenisCetak,
+          isPolosan,
+          needsBordir,
+          needsSablonDtf,
+          isBordirChecked,
+          isSablonDtfChecked,
+        });
+      }
+
+      console.log("[PACKING_GATE] missing fields:", missingFields);
+      if (missingFields.length > 0) {
+        message.error(
+          `Tidak bisa scan packing. Lengkapi field: ${missingFields.join(", ")}.`
+        );
+        return;
+      }
 
       if (onOpenScanProgress) {
         onOpenScanProgress(targetCardId);

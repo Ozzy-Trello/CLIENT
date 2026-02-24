@@ -1128,6 +1128,7 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
       <ModalPackingPOScan
         open={modalPackingPOScanOpen}
         onClose={() => setModalPackingPOScanOpen(false)}
+        workspaceId={params.workspaceId as string}
         boardId={params.boardId as string}
         listId={currentBoard?.lists?.[0]?.id} // Use first list as default, can be improved
         onOpenScanProgress={(cardId: string) => {

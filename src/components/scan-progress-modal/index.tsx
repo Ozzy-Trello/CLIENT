@@ -184,7 +184,7 @@ const ScanProgressModal: React.FC<ScanProgressModalProps> = ({
    * Handle scanner Enter
    */
   const handleScannerKeyPress = async (
-    e: React.KeyboardEvent<HTMLInputElement>
+    e: React.KeyboardEvent<HTMLInputElement>,
   ) => {
     if (e.key !== "Enter") return;
 
@@ -219,7 +219,9 @@ const ScanProgressModal: React.FC<ScanProgressModalProps> = ({
         <div>
           <div>Scan Progress</div>
           {card && (
-            <div style={{ fontSize: "14px", fontWeight: "normal", color: "#666" }}>
+            <div
+              style={{ fontSize: "14px", fontWeight: "normal", color: "#666" }}
+            >
               Card: {card.name}
             </div>
           )}
@@ -283,7 +285,9 @@ const ScanProgressModal: React.FC<ScanProgressModalProps> = ({
           {/* Loading State */}
           {scanProgressQueries.some((q) => q.isLoading) && (
             <div className="text-center py-4">
-              <div className="text-sm text-gray-600">Loading scan progress...</div>
+              <div className="text-sm text-gray-600">
+                Loading scan progress...
+              </div>
             </div>
           )}
 
@@ -326,7 +330,8 @@ const ScanProgressModal: React.FC<ScanProgressModalProps> = ({
 
                 const scanned = progressData?.scanned ?? 0;
                 const total = progressData?.total ?? 0;
-                const percentage = total > 0 ? Math.round((scanned / total) * 100) : 0;
+                const percentage =
+                  total > 0 ? Math.round((scanned / total) * 100) : 0;
 
                 return (
                   <div key={po.id} className="p-4 rounded-lg border bg-gray-50">
@@ -338,7 +343,11 @@ const ScanProgressModal: React.FC<ScanProgressModalProps> = ({
                     </div>
 
                     <div className="mt-2">
-                      <Progress percent={percentage} size="small" showInfo={false} />
+                      <Progress
+                        percent={percentage}
+                        size="small"
+                        showInfo={false}
+                      />
                     </div>
 
                     {/* Individual Items */}
@@ -346,23 +355,26 @@ const ScanProgressModal: React.FC<ScanProgressModalProps> = ({
                       {(progressData?.items || [])
                         .slice()
                         .sort((a: any, b: any) => {
-                          const sizeCmp = String(a.size).localeCompare(String(b.size));
+                          const sizeCmp = String(a.size).localeCompare(
+                            String(b.size),
+                          );
                           if (sizeCmp !== 0) return sizeCmp;
 
                           const aNum =
                             typeof a.itemNumber === "number"
                               ? a.itemNumber
-                              : a.item_number ?? 0;
+                              : (a.item_number ?? 0);
                           const bNum =
                             typeof b.itemNumber === "number"
                               ? b.itemNumber
-                              : b.item_number ?? 0;
+                              : (b.item_number ?? 0);
 
                           return aNum - bNum;
                         })
                         .map((item: any) => {
                           const scannedAt = item.scannedAt || item.scanned_at;
-                          const scannedByUserId = item.scannedBy || item.scanned_by;
+                          const scannedByUserId =
+                            item.scannedBy || item.scanned_by;
 
                           const scannedByName =
                             item.scannedByName ||
@@ -390,14 +402,17 @@ const ScanProgressModal: React.FC<ScanProgressModalProps> = ({
                           const itemKey = `${po.id}:${item.id ?? `${item.size}-${itemNumber}`}`;
                           const itemQr = getItemQrCode(item);
 
-                          const isItemScanning = scanningKey === `item:${itemKey}`;
+                          const isItemScanning =
+                            scanningKey === `item:${itemKey}`;
                           const isAnyScanning = !!scanningKey;
 
                           return (
                             <div
                               key={item.id ?? itemKey}
                               className={`rounded-md bg-white border px-3 py-2 ${
-                                item.scanned ? "border-green-200" : "border-gray-200"
+                                item.scanned
+                                  ? "border-green-200"
+                                  : "border-gray-200"
                               }`}
                             >
                               <div className="flex items-center justify-between">
@@ -434,11 +449,14 @@ const ScanProgressModal: React.FC<ScanProgressModalProps> = ({
                                         onClick={async () => {
                                           if (!itemQr) {
                                             message.error(
-                                              "This item has no QR code value to scan. (Check item.qrCode / item.qr_code)"
+                                              "This item has no QR code value to scan. (Check item.qrCode / item.qr_code)",
                                             );
                                             return;
                                           }
-                                          await submitScan(String(itemQr), `item:${itemKey}`);
+                                          await submitScan(
+                                            String(itemQr),
+                                            `item:${itemKey}`,
+                                          );
                                         }}
                                       >
                                         ✓ Check
@@ -458,22 +476,23 @@ const ScanProgressModal: React.FC<ScanProgressModalProps> = ({
                                 </div>
                               </div>
 
-                              {item.scanned && (scannedByName || formattedTime) && (
-                                <div className="mt-1 flex items-center gap-3 text-xs text-gray-500">
-                                  {scannedByName && (
-                                    <span className="flex items-center gap-1">
-                                      <span className="font-medium">By:</span>
-                                      <span>{scannedByName}</span>
-                                    </span>
-                                  )}
-                                  {formattedTime && (
-                                    <span className="flex items-center gap-1">
-                                      <span className="font-medium">At:</span>
-                                      <span>{formattedTime}</span>
-                                    </span>
-                                  )}
-                                </div>
-                              )}
+                              {item.scanned &&
+                                (scannedByName || formattedTime) && (
+                                  <div className="mt-1 flex items-center gap-3 text-xs text-gray-500">
+                                    {scannedByName && (
+                                      <span className="flex items-center gap-1">
+                                        <span className="font-medium">By:</span>
+                                        <span>{scannedByName}</span>
+                                      </span>
+                                    )}
+                                    {formattedTime && (
+                                      <span className="flex items-center gap-1">
+                                        <span className="font-medium">At:</span>
+                                        <span>{formattedTime}</span>
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
                             </div>
                           );
                         })}
