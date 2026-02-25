@@ -131,6 +131,9 @@ const ModalBuatSO: React.FC<ModalBuatSOProps> = ({
   });
 
   const handleSubmit = () => {
+    // Prevent double submission
+    if (createSalesOrderMutation.isPending) return;
+
     // Validation
     if (noFaktur && noFaktur.toString().trim()) {
       message.error("No Faktur sudah terisi, tidak bisa buat SO");
@@ -260,6 +263,7 @@ const ModalBuatSO: React.FC<ModalBuatSOProps> = ({
           type="primary" 
           onClick={handleSubmit}
           loading={createSalesOrderMutation.isPending}
+          disabled={createSalesOrderMutation.isPending}
         >
           Simpan
         </Button>,
