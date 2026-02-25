@@ -9,12 +9,7 @@ import {
   message,
   Progress,
 } from "antd";
-import {
-  Search,
-  Package,
-  ShoppingCart,
-  CheckCircle,
-} from "lucide-react";
+import { Search, Package, ShoppingCart, CheckCircle } from "lucide-react";
 import ScannerIcon from "@components/icons/ScannerIcon";
 import { Scanner } from "@yudiel/react-qr-scanner";
 import URLShortener from "@utils/url-shortener";
@@ -52,11 +47,11 @@ const parseCheckbox = (value: any): boolean => {
 const getFieldRawValue = (field: any): string => {
   return String(
     field?.value ??
-    field?.valueString ??
-    field?.valueOption ??
-    field?.value_string ??
-    field?.value_option ??
-    ""
+      field?.valueString ??
+      field?.valueOption ??
+      field?.value_string ??
+      field?.value_option ??
+      "",
   ).trim();
 };
 
@@ -207,7 +202,7 @@ const ModalPackingPOScan: React.FC<ModalPackingPOScanProps> = ({
       try {
         const customFieldRes = await cardCustomFields(
           targetCardId.trim(),
-          workspaceId
+          workspaceId,
         );
         customFields = Array.isArray(customFieldRes?.data)
           ? customFieldRes.data
@@ -215,7 +210,7 @@ const ModalPackingPOScan: React.FC<ModalPackingPOScanProps> = ({
       } catch (error) {
         console.warn(
           "[PACKING_GATE] Failed to fetch card custom fields, fallback to cardDetails:",
-          error
+          error,
         );
         const cardRes = await cardDetails(targetCardId.trim(), boardId);
         const targetCard = cardRes?.data;
@@ -240,11 +235,13 @@ const ModalPackingPOScan: React.FC<ModalPackingPOScanProps> = ({
                 value: o?.value,
               }))
             : [],
-        }))
+        })),
       );
 
       const findFields = (matcher: (name: string) => boolean) =>
-        customFields.filter((field: any) => matcher(normalizeText(field?.name)));
+        customFields.filter((field: any) =>
+          matcher(normalizeText(field?.name)),
+        );
 
       const pickBestField = (fields: any[]) => {
         if (!fields.length) return undefined;
@@ -252,18 +249,20 @@ const ModalPackingPOScan: React.FC<ModalPackingPOScanProps> = ({
       };
 
       const jenisCetakField = pickBestField(
-        findFields((name) => name.includes("jenis cetak"))
+        findFields((name) => name.includes("jenis cetak")),
       );
-      const bordirField = pickBestField(findFields((name) => name === "bordir"));
+      const bordirField = pickBestField(
+        findFields((name) => name === "bordir"),
+      );
       const sablonDtfField = pickBestField(
-        findFields((name) => name.includes("sablon") && name.includes("dtf"))
+        findFields((name) => name.includes("sablon") && name.includes("dtf")),
       );
 
       const rawJenisCetak = getFieldRawValue(jenisCetakField);
       const resolvedByOptions = Array.isArray(jenisCetakField?.options)
         ? jenisCetakField.options.find(
             (opt: any) =>
-              String(opt?.id ?? opt?.value ?? "").trim() === rawJenisCetak
+              String(opt?.id ?? opt?.value ?? "").trim() === rawJenisCetak,
           )?.label
         : undefined;
 
@@ -300,8 +299,7 @@ const ModalPackingPOScan: React.FC<ModalPackingPOScanProps> = ({
               id: sablonDtfField?.id,
               name: sablonDtfField?.name,
               checked:
-                sablonDtfField?.valueCheckbox ??
-                sablonDtfField?.value_checkbox,
+                sablonDtfField?.valueCheckbox ?? sablonDtfField?.value_checkbox,
               parsedChecked: isSablonDtfChecked,
             }
           : null,
@@ -313,7 +311,8 @@ const ModalPackingPOScan: React.FC<ModalPackingPOScanProps> = ({
       if (!jenisCetak) {
         missingFields.push("Jenis Cetak");
       } else {
-        const isPolosan = jenisCetak.includes("polosan");
+        const isPolosan =
+          jenisCetak.includes("polosan") || jenisCetak.includes("printing");
         const needsBordir = !isPolosan && jenisCetak.includes("bordir");
         const needsSablonDtf =
           !isPolosan &&
@@ -341,7 +340,7 @@ const ModalPackingPOScan: React.FC<ModalPackingPOScanProps> = ({
       console.log("[PACKING_GATE] missing fields:", missingFields);
       if (missingFields.length > 0) {
         message.error(
-          `Tidak bisa scan packing. Lengkapi field: ${missingFields.join(", ")}.`
+          `Tidak bisa scan packing. Lengkapi field: ${missingFields.join(", ")}.`,
         );
         return;
       }
@@ -365,7 +364,7 @@ const ModalPackingPOScan: React.FC<ModalPackingPOScanProps> = ({
 
   // Extract card ID from scanned data
   const extractCardIdFromScan = async (
-    scannedData: string
+    scannedData: string,
   ): Promise<string | null> => {
     const trimmedData = scannedData.trim();
 
@@ -376,7 +375,7 @@ const ModalPackingPOScan: React.FC<ModalPackingPOScanProps> = ({
       const url = new URL(
         trimmedData.startsWith("http")
           ? trimmedData
-          : `https://example.com${trimmedData}`
+          : `https://example.com${trimmedData}`,
       );
       const pathParts = url.pathname.split("/");
 
@@ -593,9 +592,9 @@ const ModalPackingPOScan: React.FC<ModalPackingPOScanProps> = ({
           mask: { zIndex: 1999 },
         }}
       >
-            <div className="flex flex-col items-center">
-              <div className="w-full max-w-sm">
-                <div className="relative w-full h-[260px]">
+        <div className="flex flex-col items-center">
+          <div className="w-full max-w-sm">
+            <div className="relative w-full h-[260px]">
               <Scanner
                 onScan={(result) => {
                   if (result && result.length > 0) {
