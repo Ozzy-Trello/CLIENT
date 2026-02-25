@@ -413,6 +413,11 @@ const ModalJmlStitch: React.FC<ModalJmlStitchProps> = ({
 
         for (const file of files) {
           if (isZipFile(file.name, file.type)) {
+            tasks.push({
+              displayName: file.name,
+              buildFile: async () => file,
+            });
+
             const zip = await JSZip.loadAsync(file);
             const imageEntries = Object.values(zip.files).filter(
               (entry) => !entry.dir && IMAGE_EXTENSIONS.test(entry.name),
