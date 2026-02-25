@@ -8,7 +8,8 @@ import { useParams } from "next/navigation";
  *
  * This prevents N dashcards on a board from making N individual HTTP requests.
  */
-const BATCH_DELAY_MS = 50;
+const BATCH_DELAY_MS = 200;
+const MAX_BATCH_SIZE = 50;
 
 type PendingEntry = {
   resolve: (count: number) => void;
@@ -37,9 +38,7 @@ function scheduleBatchFetch(
     existing.push({ resolve, reject });
     batch.entries.set(dashcardId, existing);
 
-    // Reset the timer — we flush after BATCH_DELAY_MS of silence
-    clearTimeout(batch.timer);
-    batch.timer = setTimeout(async () => {
+    const flushBatch = async () => {
       const currentBatch = pendingBatches.get(workspaceId);
       if (!currentBatch) return;
 
@@ -61,7 +60,17 @@ function scheduleBatchFetch(
           callbacks.forEach((cb: PendingEntry) => cb.reject(err));
         });
       }
-    }, BATCH_DELAY_MS);
+    };
+
+    // Reset the timer — we flush after BATCH_DELAY_MS of silence
+    clearTimeout(batch.timer);
+    batch.timer = setTimeout(flushBatch, BATCH_DELAY_MS);
+
+    // Flush immediately once the batch reaches max API payload size.
+    if (batch.entries.size >= MAX_BATCH_SIZE) {
+      clearTimeout(batch.timer);
+      batch.timer = setTimeout(flushBatch, 0);
+    }
   });
 }
 
@@ -88,8 +97,9 @@ export const useDashcardCount = (dashcardId: string) => {
   } = useQuery({
     queryKey: ["dashcardCount", dashcardId],
     queryFn: () => scheduleBatchFetch(dashcardId, workspaceId),
-    staleTime: 2 * 60 * 1000, // 2 minutes
-    refetchInterval: 2 * 60 * 1000, // background refresh every 2 minutes
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchInterval: 5 * 60 * 1000, // refresh every 5 minutes
+    refetchIntervalInBackground: false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
     enabled: !!dashcardId && !!workspaceId,

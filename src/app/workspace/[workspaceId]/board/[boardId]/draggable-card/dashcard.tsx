@@ -8,6 +8,7 @@ import { DashcardDisplayType } from "@myTypes/dashcard";
 import { useCustomFields } from "@hooks/custom_field";
 import { useParams } from "next/navigation";
 import { EnumCustomFieldType } from "@myTypes/custom-field";
+import { memo } from "react";
 import "./styles.css";
 
 interface DashcardProps {
@@ -190,4 +191,24 @@ const Dashcard: React.FC<DashcardProps> = (props) => {
   );
 };
 
-export default Dashcard;
+const areDashcardPropsEqual = (
+  prev: Readonly<DashcardProps>,
+  next: Readonly<DashcardProps>
+) => {
+  return (
+    prev.isHovered === next.isHovered &&
+    prev.isDragging === next.isDragging &&
+    prev.onCompletionChange === next.onCompletionChange &&
+    prev.card.id === next.card.id &&
+    prev.card.name === next.card.name &&
+    prev.card.isComplete === next.card.isComplete &&
+    prev.card.dashConfig?.backgroundColor ===
+      next.card.dashConfig?.backgroundColor &&
+    prev.card.dashConfig?.displayConfig?.type ===
+      next.card.dashConfig?.displayConfig?.type &&
+    prev.card.dashConfig?.displayConfig?.customFieldId ===
+      next.card.dashConfig?.displayConfig?.customFieldId
+  );
+};
+
+export default memo(Dashcard, areDashcardPropsEqual);
