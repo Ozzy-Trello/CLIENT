@@ -688,13 +688,14 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
     });
   }
 
-  if (isDateline) {
-    mobileMenuItems.push({
-      key: "invoice",
-      label: "Invoice",
-      onClick: () => setInvoiceModalOpen(true),
-    });
-  }
+  // Temporarily hide Invoice action from mobile topbar menu
+  // if (isDateline) {
+  //   mobileMenuItems.push({
+  //     key: "invoice",
+  //     label: "Invoice",
+  //     onClick: () => setInvoiceModalOpen(true),
+  //   });
+  // }
 
   if (canShowCetakQR) {
     mobileMenuItems.push({
@@ -888,7 +889,8 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
                   </Popover>
                 </Tooltip>
               )}
-              {isListPOOutlet && (
+              {/* Temporarily hide Invoice button from desktop topbar */}
+              {/* {isListPOOutlet && (
                 <Popover
                   content={invoiceContent}
                   trigger="click"
@@ -906,7 +908,7 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
                     </Button>
                   </Tooltip>
                 </Popover>
-              )}
+              )} */}
 
               {canShowCetakQR && (
                 <Dropdown
