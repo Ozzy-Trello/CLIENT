@@ -52,6 +52,7 @@ export interface Card {
   sourceCard?: any;
   poAmount?: number;
   bahan?: boolean; // Whether the card requires material/fabric
+  accessories?: boolean; // Whether the card requires accessories
   shortId?: number; // Auto-increment short ID for QR codes
   // Allow null to explicitly clear relations via UpdateCard
   productId?: string | null; // Foreign key to Product

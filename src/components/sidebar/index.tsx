@@ -305,6 +305,19 @@ const Sidebar = () => {
         ),
         icon: <Package size={16} />,
       });
+
+      menus.push({
+        key: `/workspace/${resolvedWorkspaceId}/aksesoris`,
+        label: (
+          <Link
+            className="block w-full"
+            href={`/workspace/${resolvedWorkspaceId}/aksesoris`}
+          >
+            Aksesoris
+          </Link>
+        ),
+        icon: <Star size={16} />,
+      });
     }
 
     return menus;

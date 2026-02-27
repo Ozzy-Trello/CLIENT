@@ -35,6 +35,7 @@ import {
   QrCode,
   Scissors,
   Zap,
+  Puzzle,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -87,6 +88,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { useSelector } from "react-redux";
 import Actions from "./actions";
 import BahanFields from "./bahan-fields";
+import AccessoryFields from "./accessory-fields/AccessoryFields";
 import ChecklistFields from "./checklist-field";
 import CustomFields from "./custom-field";
 import Dashcard from "./dashcard";
@@ -1334,6 +1336,30 @@ const CardDetails: React.FC = (props) => {
           </div>
         )}
 
+        {selectedCard && canMaterialRequirement && (
+          <div className="space-y-2 text-xs">
+            <span className="text-gray-300 font-semibold text-xs block">
+              Aksesoris
+            </span>
+            <Checkbox
+              checked={selectedCard.accessories || false}
+              onChange={(e: CheckboxChangeEvent) => {
+                if (!canUpdateCard()) return;
+                const newValue = e.target.checked;
+                const updatedCard = {
+                  ...selectedCard,
+                  accessories: newValue,
+                };
+                setSelectedCard(updatedCard);
+                updateCardDetails({ accessories: newValue });
+              }}
+              className="text-sm"
+            >
+              Butuh Aksesoris
+            </Checkbox>
+          </div>
+        )}
+
         {selectedCard && canPOSection && (
           <POAmount card={selectedCard} setSelectedCard={setSelectedCard} />
         )}
@@ -1418,6 +1444,20 @@ const CardDetails: React.FC = (props) => {
           <BahanFields
             cardId={selectedCard?.id || ""}
             workspaceId={workspaceId}
+          />
+        </CollapsibleSection>
+      )}
+
+      {selectedCard?.accessories && (
+        <CollapsibleSection
+          title="Aksesoris"
+          defaultExpanded={false}
+          icon={<Puzzle size={18} />}
+        >
+          <AccessoryFields
+            cardId={selectedCard?.id || ""}
+            workspaceId={workspaceId}
+            productId={selectedCard?.productId}
           />
         </CollapsibleSection>
       )}

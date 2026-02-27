@@ -37,9 +37,9 @@ import {
   useDeleteJunction,
   useReorderSubcategories,
 } from "../../../../hooks/category";
-import { 
-  MainCategoryWithSubcategories, 
-  CreateMainCategoryRequest, 
+import {
+  MainCategoryWithSubcategories,
+  CreateMainCategoryRequest,
   CreateSubcategoryRequest,
   MainCategory,
   Subcategory,
@@ -48,6 +48,14 @@ import {
   CreateJunctionRequest,
   SubcategoryWithJunctionData
 } from "../../../../types/category";
+import {
+  useAccessories,
+  useCreateAccessory,
+  useUpdateAccessory,
+  useDeleteAccessory,
+} from "../../../../hooks/useAccessories";
+import { useProducts } from "../../../../hooks/useProducts";
+import { Accessory } from "../../../../api/accessory";
 
 const { Title } = Typography;
 
@@ -124,6 +132,59 @@ export default function MaterialsPage({ params }: { params: { workspaceId: strin
   const updateJunctionMutation = useUpdateJunction(workspaceId);
   const deleteJunctionMutation = useDeleteJunction(workspaceId);
   const reorderSubcategoriesMutation = useReorderSubcategories(workspaceId);
+
+  // Accessory state
+  const [isAccessoryModalOpen, setIsAccessoryModalOpen] = useState(false);
+  const [isEditAccessoryModalOpen, setIsEditAccessoryModalOpen] = useState(false);
+  const [editingAccessory, setEditingAccessory] = useState<Accessory | null>(null);
+  const [accessoryProductFilter, setAccessoryProductFilter] = useState<string | undefined>(undefined);
+  const [accessoryForm] = Form.useForm();
+  const [editAccessoryForm] = Form.useForm();
+
+  const { data: products, isLoading: isLoadingProducts } = useProducts();
+  const { accessories, isLoading: isLoadingAccessories } = useAccessories(accessoryProductFilter);
+  const createAccessoryMutation = useCreateAccessory();
+  const updateAccessoryMutation = useUpdateAccessory();
+  const deleteAccessoryMutation = useDeleteAccessory();
+
+  const handleCreateAccessory = async (values: { name: string; productId: string }) => {
+    try {
+      await createAccessoryMutation.mutateAsync(values);
+      message.success("Aksesoris berhasil ditambahkan");
+      setIsAccessoryModalOpen(false);
+      accessoryForm.resetFields();
+    } catch {
+      message.error("Gagal menambahkan aksesoris");
+    }
+  };
+
+  const handleUpdateAccessory = async (values: { name: string; productId: string }) => {
+    if (!editingAccessory) return;
+    try {
+      await updateAccessoryMutation.mutateAsync({ id: editingAccessory.id, data: values });
+      message.success("Aksesoris berhasil diperbarui");
+      setIsEditAccessoryModalOpen(false);
+      editAccessoryForm.resetFields();
+      setEditingAccessory(null);
+    } catch {
+      message.error("Gagal memperbarui aksesoris");
+    }
+  };
+
+  const handleDeleteAccessory = async (id: string) => {
+    try {
+      await deleteAccessoryMutation.mutateAsync(id);
+      message.success("Aksesoris berhasil dihapus");
+    } catch {
+      message.error("Gagal menghapus aksesoris");
+    }
+  };
+
+  const handleEditAccessory = (record: Accessory) => {
+    setEditingAccessory(record);
+    editAccessoryForm.setFieldsValue({ name: record.name, productId: record.productId });
+    setIsEditAccessoryModalOpen(true);
+  };
 
   const formatDate = (date?: string | Date) => {
     if (!date) return "-";
@@ -786,6 +847,89 @@ export default function MaterialsPage({ params }: { params: { workspaceId: strin
         </Card>
       ),
     },
+    {
+      key: "aksesoris",
+      label: "Aksesoris",
+      children: (
+        <Card>
+          <div style={{ marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <Title level={4} style={{ margin: 0 }}>Master Data Aksesoris</Title>
+            </div>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <Select
+                allowClear
+                placeholder="Filter by produk"
+                style={{ width: 200 }}
+                loading={isLoadingProducts}
+                value={accessoryProductFilter}
+                onChange={setAccessoryProductFilter}
+                options={(products ?? []).map((p) => ({ value: p.id, label: p.name }))}
+                showSearch
+                optionFilterProp="label"
+              />
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={() => setIsAccessoryModalOpen(true)}
+              >
+                Tambah Aksesoris
+              </Button>
+            </div>
+          </div>
+          <Table
+            columns={[
+              {
+                title: "Nama",
+                dataIndex: "name",
+                key: "name",
+                sorter: (a: Accessory, b: Accessory) => a.name.localeCompare(b.name),
+              },
+              {
+                title: "Produk",
+                dataIndex: "productName",
+                key: "productName",
+                render: (v: string) => v || "-",
+              },
+              {
+                title: "Actions",
+                key: "actions",
+                width: 120,
+                render: (_: any, record: Accessory) => (
+                  <Space>
+                    <Button
+                      type="text"
+                      icon={<EditOutlined />}
+                      onClick={() => handleEditAccessory(record)}
+                      size="small"
+                    />
+                    <Popconfirm
+                      title="Hapus Aksesoris"
+                      description="Yakin ingin menghapus aksesoris ini?"
+                      onConfirm={() => handleDeleteAccessory(record.id)}
+                      okText="Ya"
+                      cancelText="Batal"
+                    >
+                      <Button
+                        type="text"
+                        icon={<DeleteOutlined />}
+                        danger
+                        size="small"
+                        loading={deleteAccessoryMutation.isPending}
+                      />
+                    </Popconfirm>
+                  </Space>
+                ),
+              },
+            ]}
+            dataSource={accessories}
+            rowKey="id"
+            loading={isLoadingAccessories}
+            pagination={{ pageSize: 20, showSizeChanger: true }}
+          />
+        </Card>
+      ),
+    },
   ];
 
   return (
@@ -1206,6 +1350,88 @@ export default function MaterialsPage({ params }: { params: { workspaceId: strin
                 loading={updateSubcategoryMutation.isPending}
               >
                 Update Subcategory
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Add Accessory Modal */}
+      <Modal
+        title="Tambah Aksesoris"
+        open={isAccessoryModalOpen}
+        onCancel={() => { setIsAccessoryModalOpen(false); accessoryForm.resetFields(); }}
+        footer={null}
+      >
+        <Form form={accessoryForm} layout="vertical" onFinish={handleCreateAccessory}>
+          <Form.Item
+            name="name"
+            label="Nama Aksesoris"
+            rules={[{ required: true, message: "Nama aksesoris wajib diisi" }]}
+          >
+            <Input placeholder="Masukkan nama aksesoris" />
+          </Form.Item>
+          <Form.Item
+            name="productId"
+            label="Produk"
+            rules={[{ required: true, message: "Produk wajib dipilih" }]}
+          >
+            <Select
+              placeholder="Pilih produk"
+              loading={isLoadingProducts}
+              showSearch
+              optionFilterProp="label"
+              options={(products ?? []).map((p) => ({ value: p.id, label: p.name }))}
+            />
+          </Form.Item>
+          <Form.Item style={{ marginBottom: 0, textAlign: "right" }}>
+            <Space>
+              <Button onClick={() => { setIsAccessoryModalOpen(false); accessoryForm.resetFields(); }}>
+                Batal
+              </Button>
+              <Button type="primary" htmlType="submit" loading={createAccessoryMutation.isPending}>
+                Tambah
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Edit Accessory Modal */}
+      <Modal
+        title="Edit Aksesoris"
+        open={isEditAccessoryModalOpen}
+        onCancel={() => { setIsEditAccessoryModalOpen(false); editAccessoryForm.resetFields(); setEditingAccessory(null); }}
+        footer={null}
+      >
+        <Form form={editAccessoryForm} layout="vertical" onFinish={handleUpdateAccessory}>
+          <Form.Item
+            name="name"
+            label="Nama Aksesoris"
+            rules={[{ required: true, message: "Nama aksesoris wajib diisi" }]}
+          >
+            <Input placeholder="Masukkan nama aksesoris" />
+          </Form.Item>
+          <Form.Item
+            name="productId"
+            label="Produk"
+            rules={[{ required: true, message: "Produk wajib dipilih" }]}
+          >
+            <Select
+              placeholder="Pilih produk"
+              loading={isLoadingProducts}
+              showSearch
+              optionFilterProp="label"
+              options={(products ?? []).map((p) => ({ value: p.id, label: p.name }))}
+            />
+          </Form.Item>
+          <Form.Item style={{ marginBottom: 0, textAlign: "right" }}>
+            <Space>
+              <Button onClick={() => { setIsEditAccessoryModalOpen(false); editAccessoryForm.resetFields(); setEditingAccessory(null); }}>
+                Batal
+              </Button>
+              <Button type="primary" htmlType="submit" loading={updateAccessoryMutation.isPending}>
+                Simpan
               </Button>
             </Space>
           </Form.Item>
