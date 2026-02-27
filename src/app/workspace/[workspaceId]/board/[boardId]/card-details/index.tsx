@@ -1448,7 +1448,7 @@ const CardDetails: React.FC = (props) => {
         </CollapsibleSection>
       )}
 
-      {selectedCard?.accessories && (
+      {selectedCard?.accessories && canMaterialRequirement && (
         <CollapsibleSection
           title="Aksesoris"
           defaultExpanded={false}
