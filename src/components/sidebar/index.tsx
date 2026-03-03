@@ -322,17 +322,6 @@ const Sidebar = () => {
               </Link>
             ),
           },
-          {
-            key: `/workspace/${resolvedWorkspaceId}/aksesoris/status-aksesoris`,
-            label: (
-              <Link
-                className="block w-full"
-                href={`/workspace/${resolvedWorkspaceId}/aksesoris/status-aksesoris`}
-              >
-                Status Aksesoris
-              </Link>
-            ),
-          },
         ],
       });
     }

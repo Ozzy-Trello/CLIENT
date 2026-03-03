@@ -246,6 +246,11 @@ const TopBar: React.FC = React.memo(() => {
     return roleInList(capacityEditRoles);
   };
 
+  // Status Aksesoris visibility: only on Dateline board
+  const canSeeAccessoryStatus = (): boolean => {
+    return Boolean(isDateline && workspaceId);
+  };
+
   // Fetch request/warehouse counts
   useEffect(() => {
     const fetchCounts = async () => {
@@ -413,6 +418,15 @@ const TopBar: React.FC = React.memo(() => {
     });
   }
 
+  if (canSeeAccessoryStatus()) {
+    mobileActionMenuItems.push({
+      key: "status-aksesoris",
+      label: "Status Aksesoris",
+      onClick: () =>
+        router.push(`/workspace/${workspaceId}/aksesoris/status-aksesoris`),
+    });
+  }
+
   if (process.env.NODE_ENV === "development") {
     if (mobileActionMenuItems.length > 0) {
       mobileActionMenuItems.push({ type: "divider" });
@@ -550,7 +564,7 @@ const TopBar: React.FC = React.memo(() => {
           )}
 
           {canSeeCapacity() && (
-            <div className="hidden lg:block">
+            <div className="hidden lg:flex items-center gap-2">
               <Dropdown
                 menu={{
                   items: [
@@ -581,6 +595,19 @@ const TopBar: React.FC = React.memo(() => {
               >
                 <Button>Capacity Planner</Button>
               </Dropdown>
+
+            </div>
+          )}
+
+          {canSeeAccessoryStatus() && (
+            <div className="hidden lg:block">
+              <Button
+                onClick={() =>
+                  router.push(`/workspace/${workspaceId}/aksesoris/status-aksesoris`)
+                }
+              >
+                Status Aksesoris
+              </Button>
             </div>
           )}
 
