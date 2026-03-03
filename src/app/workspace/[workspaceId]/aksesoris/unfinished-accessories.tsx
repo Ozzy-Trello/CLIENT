@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { ColumnsType } from "antd/es/table";
-import { Button, Empty, Progress, Spin, Table, Typography } from "antd";
+import { Empty, Spin, Table, Typography } from "antd";
 import Link from "next/link";
 import { UnfinishedAccessoryCard } from "@api/unfinished-accessory";
 import { useUnfinishedAccessories } from "@hooks/useUnfinishedAccessories";
@@ -31,24 +31,22 @@ const UnfinishedAccessories: React.FC<UnfinishedAccessoriesProps> = ({
         render: (_: string, record) => (
           <Link
             href={`/workspace/${workspaceId}/board/${record.boardId}?cardId=${record.cardId}`}
+            prefetch={false}
           >
-            <Typography.Text strong>{record.cardName}</Typography.Text>
+            <Typography.Link strong>{record.cardName}</Typography.Link>
           </Link>
         ),
-      },
-      {
-        title: "Board Name",
-        dataIndex: "boardName",
-        key: "boardName",
       },
       {
         title: "List",
         dataIndex: "listName",
         key: "listName",
+        width: 180,
       },
       {
         title: "Progress",
         key: "progress",
+        width: 120,
         render: (_: unknown, record) => {
           const percent =
             record.totalAccessories > 0
@@ -58,27 +56,31 @@ const UnfinishedAccessories: React.FC<UnfinishedAccessoriesProps> = ({
               : 0;
 
           return (
-            <div style={{ minWidth: 180 }}>
-              <Progress percent={percent} size="small" />
-              <Typography.Text type="secondary">
-                {record.doneAccessories}/{record.totalAccessories}
-              </Typography.Text>
-            </div>
+            <Typography.Text type="secondary">
+              {record.doneAccessories}/{record.totalAccessories} ({percent}%)
+            </Typography.Text>
           );
         },
       },
       {
-        title: "Actions",
-        key: "actions",
-        render: (_: unknown, record) => (
-          <Link
-            href={`/workspace/${workspaceId}/board/${record.boardId}?cardId=${record.cardId}`}
-          >
-            <Button type="link" style={{ padding: 0 }}>
-              Open Card
-            </Button>
-          </Link>
-        ),
+        title: "Aksesoris",
+        key: "accessories",
+        ellipsis: true,
+        render: (_: unknown, record) => {
+          const names = (record.accessories || [])
+            .map((item) => item.accessoryName)
+            .filter(Boolean)
+            .join(", ");
+
+          return (
+            <Typography.Text
+              title={names}
+              style={{ display: "block", maxWidth: 560 }}
+            >
+              {names || "-"}
+            </Typography.Text>
+          );
+        },
       },
     ],
     [workspaceId]
