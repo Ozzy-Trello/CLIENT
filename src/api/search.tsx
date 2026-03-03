@@ -17,6 +17,7 @@ export interface SearchResult {
   noFaktur?: string | null; // Converted from backend no_faktur
   createdAt?: Date; // Converted from backend created_at
   updatedAt?: Date; // Converted from backend updated_at
+  hasAccess?: boolean;
 }
 
 export interface GroupedSearchResults {

@@ -13,6 +13,12 @@ import { Card } from "@myTypes/card";
 import { LookupCache } from "@utils/lookup-cache";
 import { usePermissions } from "@hooks/account";
 
+const STANDARD_SIZES = ["XS", "S", "M", "L", "XL", "XXL", "XXXL", "XXXXL", "XXXXXL"];
+const sizeOrder = (size: string): number => {
+  const idx = STANDARD_SIZES.indexOf(size?.toUpperCase?.() ?? size);
+  return idx === -1 ? 10 : idx + 1;
+};
+
 interface ScanProgressModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -355,9 +361,11 @@ const ScanProgressModal: React.FC<ScanProgressModalProps> = ({
                       {(progressData?.items || [])
                         .slice()
                         .sort((a: any, b: any) => {
-                          const sizeCmp = String(a.size).localeCompare(
-                            String(b.size),
-                          );
+                          const orderA = sizeOrder(a.size);
+                          const orderB = sizeOrder(b.size);
+                          if (orderA !== orderB) return orderA - orderB;
+                          // Custom sizes (same order=10): sort alphabetically
+                          const sizeCmp = String(a.size).localeCompare(String(b.size));
                           if (sizeCmp !== 0) return sizeCmp;
 
                           const aNum =

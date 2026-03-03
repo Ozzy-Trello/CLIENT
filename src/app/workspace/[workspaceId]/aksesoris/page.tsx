@@ -333,8 +333,8 @@ export default function AksesorisPage() {
   };
 
   // ─── Render ─────────────────────────────────────────────────────────────────
-  return (
-    <div style={{ padding: 24 }}>
+  const managementContent = (
+    <>
       {/* Header */}
       <div
         style={{
@@ -615,6 +615,8 @@ export default function AksesorisPage() {
           </Button>
         </div>
       </Modal>
-    </div>
+    </>
   );
+
+  return <div style={{ padding: 24 }}>{managementContent}</div>;
 }

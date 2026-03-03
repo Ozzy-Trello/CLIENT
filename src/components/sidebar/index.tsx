@@ -307,16 +307,33 @@ const Sidebar = () => {
       });
 
       menus.push({
-        key: `/workspace/${resolvedWorkspaceId}/aksesoris`,
-        label: (
-          <Link
-            className="block w-full"
-            href={`/workspace/${resolvedWorkspaceId}/aksesoris`}
-          >
-            Aksesoris
-          </Link>
-        ),
+        key: `aksesoris-${resolvedWorkspaceId}`,
+        label: "Aksesoris",
         icon: <Star size={16} />,
+        children: [
+          {
+            key: `/workspace/${resolvedWorkspaceId}/aksesoris`,
+            label: (
+              <Link
+                className="block w-full"
+                href={`/workspace/${resolvedWorkspaceId}/aksesoris`}
+              >
+                Master Aksesoris
+              </Link>
+            ),
+          },
+          {
+            key: `/workspace/${resolvedWorkspaceId}/aksesoris/status-aksesoris`,
+            label: (
+              <Link
+                className="block w-full"
+                href={`/workspace/${resolvedWorkspaceId}/aksesoris/status-aksesoris`}
+              >
+                Status Aksesoris
+              </Link>
+            ),
+          },
+        ],
       });
     }
 

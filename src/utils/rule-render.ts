@@ -42,6 +42,7 @@ const TELEGRAM_CHANNEL_NAMES: Record<string, string> = {
   "-1003870903405": "Konfirm Desain | Bordir",
   "-1003573140533": "Developer Ozzy Group",
   "-1003898407815": "Ozzy x Voxell",
+  "-1003726262363": "Sales Executive Ozzy Clothing",
 };
 
 // Utility function to prefetch and cache data for rule rendering

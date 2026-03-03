@@ -1,7 +1,18 @@
 "use client";
 import { FileOutlined, UserOutlined } from "@ant-design/icons";
 import type { MenuProps } from "antd";
-import { Avatar, Badge, Button, Dropdown, Input, List, Modal, Tabs, Typography } from "antd";
+import {
+  Avatar,
+  Badge,
+  Button,
+  Dropdown,
+  Input,
+  List,
+  Modal,
+  Tabs,
+  Typography,
+  message,
+} from "antd";
 import Link from "next/link";
 import React, { useEffect, useRef, useState } from "react";
 import logo from "@assets/images/Logo_Ozzy_Clothing_png.png";
@@ -451,6 +462,10 @@ const TopBar: React.FC = React.memo(() => {
   const handleSearchResultClick = (result: SearchResult) => {
     setShowSearchDropdown(false);
     setSearchQuery("");
+    if (result.hasAccess === false) {
+      message.warning("Anda tidak memiliki akses ke board ini");
+      return;
+    }
 
     if (result.type === "card") {
       // Get workspace ID with fallback priority:
@@ -622,7 +637,11 @@ const TopBar: React.FC = React.memo(() => {
                           renderItem={(item) => (
                             <List.Item
                               key={item.id}
-                              className="w-full cursor-pointer hover:bg-gray-50 px-2 rounded py-1"
+                              className={`w-full ${
+                                item.hasAccess === false
+                                  ? "opacity-50 cursor-not-allowed"
+                                  : "cursor-pointer hover:bg-gray-50"
+                              } px-2 rounded py-1`}
                               onClick={() => handleSearchResultClick(item)}
                             >
                               <List.Item.Meta
@@ -640,7 +659,14 @@ const TopBar: React.FC = React.memo(() => {
                                   )
                                 }
                                 title={
-                                  <span className="text-sm">{item.name}</span>
+                                  <span className="text-sm">
+                                    {item.name}
+                                    {item.hasAccess === false && (
+                                      <span className="text-xs text-red-400 ml-1">
+                                        (No Access)
+                                      </span>
+                                    )}
+                                  </span>
                                 }
                                 description={
                                   <div className="text-[10px] text-gray-500">
@@ -701,7 +727,11 @@ const TopBar: React.FC = React.memo(() => {
                           renderItem={(item) => (
                             <List.Item
                               key={item.id}
-                              className="w-full cursor-pointer hover:bg-gray-50 px-2 rounded py-1"
+                              className={`w-full ${
+                                item.hasAccess === false
+                                  ? "opacity-50 cursor-not-allowed"
+                                  : "cursor-pointer hover:bg-gray-50"
+                              } px-2 rounded py-1`}
                               onClick={() => handleSearchResultClick(item)}
                             >
                               <List.Item.Meta
@@ -713,6 +743,11 @@ const TopBar: React.FC = React.memo(() => {
                                 title={
                                   <span className="text-sm font-medium">
                                     {item.name}
+                                    {item.hasAccess === false && (
+                                      <span className="text-xs text-red-400 ml-1">
+                                        (No Access)
+                                      </span>
+                                    )}
                                   </span>
                                 }
                                 description={
