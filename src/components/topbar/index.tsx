@@ -147,7 +147,13 @@ const TopBar: React.FC = React.memo(() => {
   const isSuperAdmin =
     userRole.toLowerCase() === "super admin" || userRole === "Super Admin";
   const boardName = (currentBoard?.name || "").trim().toLowerCase();
-  const isDateline = boardName === "dateline";
+  const urlBoardId = Array.isArray(params?.boardId)
+    ? params.boardId[0]
+    : (params?.boardId as string | undefined);
+  const DATELINE_BOARD_ID = "7c81b8c7-9d57-4a65-9e93-9c5d44218071";
+  const isDateline =
+    boardName === "dateline" ||
+    (typeof urlBoardId === "string" && urlBoardId === DATELINE_BOARD_ID);
 
   const ROLES = {
     ADMIN_PRODUKSI: "Admin Produksi",
