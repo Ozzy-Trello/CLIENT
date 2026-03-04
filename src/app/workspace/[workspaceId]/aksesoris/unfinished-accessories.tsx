@@ -28,14 +28,18 @@ const UnfinishedAccessories: React.FC<UnfinishedAccessoriesProps> = ({
         title: "Card Name",
         dataIndex: "cardName",
         key: "cardName",
-        render: (_: string, record) => (
-          <Link
-            href={`/workspace/${workspaceId}/board/${record.boardId}?cardId=${record.cardId}`}
-            prefetch={false}
-          >
-            <Typography.Link strong>{record.cardName}</Typography.Link>
-          </Link>
-        ),
+        render: (_: string, record) => {
+          const listId = (record as any)?.listId;
+          const href = listId
+            ? `/workspace/${workspaceId}/board/${record.boardId}?listId=${listId}&cardId=${record.cardId}`
+            : `/workspace/${workspaceId}/board/${record.boardId}?cardId=${record.cardId}`;
+
+          return (
+            <Link href={href} prefetch={false}>
+              <Typography.Link strong>{record.cardName}</Typography.Link>
+            </Link>
+          );
+        },
       },
       {
         title: "List",
