@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Button,
   Form,
@@ -39,6 +39,8 @@ import { CustomField } from "@myTypes/custom-field";
 import { UserSelection, LabelSelection, ProductSelection, BahanSelection, WarnaSelection, ProductCodeSelection } from "@components/selection";
 import { useBoards } from "@hooks/board";
 import { useLists } from "@hooks/list";
+import { useQueries } from "@tanstack/react-query";
+import { lists as fetchLists } from "@api/list";
 import { FilterOperator as DashcardFilterOperator } from "../../types/dashcard";
 
 const { Text } = Typography;
@@ -124,12 +126,73 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
   // Get current board ID for list fetching
   const currentBoardId = Array.isArray(boardId) ? boardId[0] : boardId;
 
-  // Fetch lists from the current board only
-  const { lists: currentBoardLists } = useLists(currentBoardId || "");
-  const listOptions = (currentBoardLists || []).map((l: any) => ({
-    label: l.name || "",
-    value: l.id,
-  }));
+  // Extract selected board IDs from board filters
+  const selectedBoardIds = useMemo(() => {
+    const ids = new Set<string>();
+    // Always include current board
+    if (currentBoardId) ids.add(currentBoardId);
+    // Add boards selected in board filters
+    selectedFilters
+      .filter((f) => f.type === EnumCardAttributeType.BOARD)
+      .forEach((f) => {
+        const op = normalizeOperator(f.operator as string);
+        if (op === "is_one_of" || op === "is_not_one_of") {
+          const vals = Array.isArray(f.value)
+            ? f.value
+            : typeof f.value === "string"
+            ? f.value.split(",").map((v) => v.trim()).filter(Boolean)
+            : f.value
+            ? [String(f.value)]
+            : [];
+          vals.forEach((v) => ids.add(v as string));
+        }
+      });
+    return Array.from(ids);
+  }, [selectedFilters, currentBoardId]);
+
+  // Fetch lists from all selected boards (plus current board)
+  const boardListQueries = useQueries({
+    queries: selectedBoardIds.map((bId) => ({
+      queryKey: ["lists", bId],
+      queryFn: () => fetchLists(bId),
+      enabled: !!bId,
+      staleTime: 5000,
+    })),
+  });
+
+  // Build a map of boardId -> boardName for labeling
+  const boardNameMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    (boardsArr || []).forEach((b: any) => {
+      map[b.id] = b.name || b.id;
+    });
+    return map;
+  }, [boardsArr]);
+
+  // Merge lists from all boards into listOptions, with board name labels when multiple boards
+  const listOptions = useMemo(() => {
+    const showBoardLabel = selectedBoardIds.length > 1;
+    const seen = new Set<string>();
+    const options: { label: string; value: string }[] = [];
+
+    boardListQueries.forEach((query, idx) => {
+      const bId = selectedBoardIds[idx];
+      const boardLists = query.data?.data || [];
+      boardLists.forEach((l: any) => {
+        if (!seen.has(l.id)) {
+          seen.add(l.id);
+          options.push({
+            label: showBoardLabel
+              ? `${l.name || ""} (${boardNameMap[bId] || bId})`
+              : l.name || "",
+            value: l.id,
+          });
+        }
+      });
+    });
+
+    return options;
+  }, [boardListQueries, selectedBoardIds, boardNameMap]);
 
   // Initialize available filters - keep all base filters available for multiple instances
   useEffect(() => {
