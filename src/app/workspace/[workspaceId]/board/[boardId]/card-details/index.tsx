@@ -36,6 +36,7 @@ import {
   Scissors,
   Zap,
   Puzzle,
+  SwitchCamera,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -304,6 +305,7 @@ const CardDetails: React.FC = (props) => {
     null,
   );
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
+  const [cameraFacingMode, setCameraFacingMode] = useState<"environment" | "user">("environment");
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const cameraInputRef = useRef<HTMLInputElement | null>(null); // fallback for older browsers
@@ -654,6 +656,27 @@ const CardDetails: React.FC = (props) => {
     }
   }, []);
 
+  const startCameraStream = useCallback(async (facingMode: "environment" | "user") => {
+    const media = (navigator as any).mediaDevices;
+    if (!media?.getUserMedia) return;
+
+    // Stop existing stream before starting new one
+    const existingStream = streamRef.current;
+    if (existingStream) {
+      existingStream.getTracks().forEach((t) => t.stop());
+    }
+
+    const stream: MediaStream = await media.getUserMedia({
+      video: { facingMode: { ideal: facingMode } },
+      audio: false,
+    });
+    streamRef.current = stream;
+    if (videoRef.current) {
+      (videoRef.current as any).srcObject = stream;
+      await videoRef.current.play?.();
+    }
+  }, []);
+
   const openCamera = useCallback(async () => {
     if (quickUploadLoading) return;
     if (typeof navigator === "undefined") return;
@@ -667,20 +690,22 @@ const CardDetails: React.FC = (props) => {
 
     try {
       setIsCameraModalOpen(true);
-      const stream: MediaStream = await media.getUserMedia({
-        video: { facingMode: { ideal: "environment" } },
-        audio: false,
-      });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        (videoRef.current as any).srcObject = stream;
-        await videoRef.current.play?.();
-      }
+      await startCameraStream(cameraFacingMode);
     } catch (err: any) {
       setIsCameraModalOpen(false);
       message.error(err?.message || "Failed to open camera");
     }
-  }, [quickUploadLoading]);
+  }, [quickUploadLoading, cameraFacingMode, startCameraStream]);
+
+  const swapCamera = useCallback(async () => {
+    const newMode = cameraFacingMode === "environment" ? "user" : "environment";
+    setCameraFacingMode(newMode);
+    try {
+      await startCameraStream(newMode);
+    } catch (err: any) {
+      message.error("Failed to switch camera");
+    }
+  }, [cameraFacingMode, startCameraStream]);
 
   const captureAndUpload = useCallback(async () => {
     if (!videoRef.current) return;
@@ -703,6 +728,29 @@ const CardDetails: React.FC = (props) => {
     }
 
     ctx.drawImage(video, 0, 0, width, height);
+
+    // Draw GMT+7 timestamp on bottom-right
+    const now = new Date();
+    const gmt7 = new Date(now.getTime() + 7 * 60 * 60 * 1000);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const timestamp = `${gmt7.getUTCFullYear()}-${pad(gmt7.getUTCMonth() + 1)}-${pad(gmt7.getUTCDate())} ${pad(gmt7.getUTCHours())}:${pad(gmt7.getUTCMinutes())}:${pad(gmt7.getUTCSeconds())} WIB`;
+    const fontSize = Math.max(16, Math.round(height * 0.028));
+    ctx.font = `bold ${fontSize}px sans-serif`;
+    ctx.textAlign = "right";
+    ctx.textBaseline = "bottom";
+    const padding = Math.round(fontSize * 0.6);
+    const textMetrics = ctx.measureText(timestamp);
+    const bgX = width - padding - textMetrics.width - 8;
+    const bgY = height - padding - fontSize - 4;
+    const bgW = textMetrics.width + 16;
+    const bgH = fontSize + 8;
+    ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+    ctx.beginPath();
+    ctx.roundRect(bgX, bgY, bgW, bgH, 4);
+    ctx.fill();
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText(timestamp, width - padding, height - padding);
+
     const blob: Blob | null = await new Promise((resolve) =>
       canvas.toBlob(resolve, "image/jpeg", 0.92),
     );
@@ -1160,6 +1208,13 @@ const CardDetails: React.FC = (props) => {
                 }}
               >
                 Cancel
+              </Button>,
+              <Button
+                key="swap"
+                icon={<SwitchCamera size={16} />}
+                onClick={() => void swapCamera()}
+              >
+                Swap
               </Button>,
               <Button
                 key="capture"
