@@ -9,6 +9,7 @@ export interface UnfinishedAccessoryCard {
   boardName: string;
   listId?: string;
   listName: string;
+  dueDate?: string | null;
   totalAccessories: number;
   doneAccessories: number;
   undoneAccessories: number;

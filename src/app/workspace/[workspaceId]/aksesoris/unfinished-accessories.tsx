@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import type { ColumnsType } from "antd/es/table";
 import { Empty, Spin, Table, Typography } from "antd";
+import dayjs from "dayjs";
 import Link from "next/link";
 import { UnfinishedAccessoryCard } from "@api/unfinished-accessory";
 import { useUnfinishedAccessories } from "@hooks/useUnfinishedAccessories";
@@ -46,6 +47,14 @@ const UnfinishedAccessories: React.FC<UnfinishedAccessoriesProps> = ({
         dataIndex: "listName",
         key: "listName",
         width: 180,
+      },
+      {
+        title: "Due Date",
+        dataIndex: "dueDate",
+        key: "dueDate",
+        width: 140,
+        render: (value?: string | null) =>
+          value ? dayjs(value).format("DD MMM YYYY") : "-",
       },
       {
         title: "Progress",
