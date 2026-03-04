@@ -221,6 +221,9 @@ const CardDetails: React.FC = (props) => {
     roles.some((r) => r.toLowerCase() === userRole);
   const canMaterialRequirement =
     isSuperAdmin ||
+    (isDatelineBoard && roleIn(["Admin Produksi", "Kepala Produksi"]));
+  const canAccessorySection =
+    isSuperAdmin ||
     (isDatelineBoard &&
       roleIn(["Admin Produksi", "Kepala Produksi", "Warehouse Bahan"]));
   const canPOSection =
@@ -1504,7 +1507,7 @@ const CardDetails: React.FC = (props) => {
         </CollapsibleSection>
       )}
 
-      {selectedCard?.accessories && canMaterialRequirement && (
+      {selectedCard?.accessories && canAccessorySection && (
         <CollapsibleSection
           title="Aksesoris"
           defaultExpanded={false}
