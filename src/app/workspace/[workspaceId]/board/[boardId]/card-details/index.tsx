@@ -221,7 +221,8 @@ const CardDetails: React.FC = (props) => {
     roles.some((r) => r.toLowerCase() === userRole);
   const canMaterialRequirement =
     isSuperAdmin ||
-    (isDatelineBoard && roleIn(["Admin Produksi", "Kepala Produksi"]));
+    (isDatelineBoard &&
+      roleIn(["Admin Produksi", "Kepala Produksi", "Warehouse Bahan"]));
   const canPOSection =
     isSuperAdmin ||
     (isDatelineBoard && roleIn(["Admin Produksi", "Kepala Produksi"]));
