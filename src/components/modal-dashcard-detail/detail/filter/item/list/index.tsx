@@ -27,7 +27,7 @@ const ListItemFilter: FC<DashcardFilter & { id: string; label?: string }> = ({ i
     ? params.workspaceId[0]
     : (params.workspaceId as string | undefined);
 
-  const { boards: boardsArr } = useBoards(resolvedWorkspaceId);
+  const { boards: boardsArr } = useBoards(resolvedWorkspaceId || "");
 
   const isNoValueInput = String(operator) === "on_this_list";
   const isMultiSelect = operator === FilterOperator.IS_ONE_OF || operator === FilterOperator.IS_NOT_ONE_OF;
