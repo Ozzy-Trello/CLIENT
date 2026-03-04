@@ -29,7 +29,7 @@ const UnfinishedAccessories: React.FC<UnfinishedAccessoriesProps> = ({
         dataIndex: "cardName",
         key: "cardName",
         render: (_: string, record) => {
-          const listId = (record as any)?.listId;
+          const listId = record.listId;
           const href = listId
             ? `/workspace/${workspaceId}/board/${record.boardId}?listId=${listId}&cardId=${record.cardId}`
             : `/workspace/${workspaceId}/board/${record.boardId}?cardId=${record.cardId}`;
