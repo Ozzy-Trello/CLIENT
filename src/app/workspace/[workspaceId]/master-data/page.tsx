@@ -1668,12 +1668,27 @@ const MasterData: React.FC = () => {
             label="Bahan"
             rules={[{ required: true, message: "Please select a bahan" }]}
           >
-            <Select placeholder="Select a bahan">
-              {bahans.map((bahan) => (
-                <Select.Option key={bahan.id} value={bahan.id}>
-                  {bahan.name} ({bahan.productInfo?.name})
-                </Select.Option>
-              ))}
+            <Select
+              placeholder="Select a bahan"
+              showSearch
+              optionFilterProp="label"
+            >
+              {bahans.map((bahan) => {
+                const productName =
+                  bahan.productInfo?.name || bahan.productName || "Unknown Product";
+                const productCode = bahan.productInfo?.productCodes?.[0]?.code;
+                const optionLabel = `${bahan.name} — Product: ${productName}${productCode ? ` (${productCode})` : ""}`;
+
+                return (
+                  <Select.Option
+                    key={bahan.id}
+                    value={bahan.id}
+                    label={optionLabel}
+                  >
+                    {optionLabel}
+                  </Select.Option>
+                );
+              })}
             </Select>
           </Form.Item>
           <Form.Item
