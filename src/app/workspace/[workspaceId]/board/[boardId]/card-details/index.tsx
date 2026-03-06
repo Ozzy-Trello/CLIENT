@@ -392,14 +392,14 @@ const CardDetails: React.FC = (props) => {
     (isDatelineBoard && roleIn(["admin produksi", "kepala produksi"]));
   const isListPOOutlet =
     effectiveBoardName?.toLowerCase() === "list po | outlet";
-  const isDelivery = effectiveBoardName?.toLowerCase() === "delivery";
+  // Delivery board does not expose toolbar Generate QR (Dateline-only).
   const canBukti =
     isSuperAdmin ||
     (isListPOOutlet && roleIn(["deal maker", "spv deal maker"]));
   const canGenerateQRPermission =
-    isSuperAdmin ||
-    (canGenerateQR && canGenerateQR()) ||
-    ((isListPOOutlet || isDatelineBoard || isDelivery) &&
+    isDatelineBoard &&
+    (isSuperAdmin ||
+      (canGenerateQR && canGenerateQR()) ||
       roleLower !== "kurir");
 
   // Attachment Logic for Toolbar
@@ -1128,7 +1128,7 @@ const CardDetails: React.FC = (props) => {
           )}
         </div>
       </div>
-      {!isDesktop && (
+      {!screens.lg && (
         <div className="flex items-center gap-2">
           <input
             ref={cameraInputRef}
