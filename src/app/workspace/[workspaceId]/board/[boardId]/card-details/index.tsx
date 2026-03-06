@@ -401,6 +401,9 @@ const CardDetails: React.FC = (props) => {
     (isSuperAdmin ||
       (canGenerateQR && canGenerateQR()) ||
       roleLower !== "kurir");
+  const canAccessDatelineCamera =
+    isDatelineBoard ||
+    (canManageCardAttachments && canManageCardAttachments());
 
   // Attachment Logic for Toolbar
   const { cardAttachments, addAttachment } = useCardAttachment(
@@ -1145,11 +1148,7 @@ const CardDetails: React.FC = (props) => {
           />
 
           <Tooltip
-            title={
-              canManageCardAttachments()
-                ? "Open camera"
-                : "You don't have permission"
-            }
+            title={canAccessDatelineCamera ? "Open camera" : "You don't have permission"}
           >
             <Button
               size="small"
@@ -1158,7 +1157,7 @@ const CardDetails: React.FC = (props) => {
               icon={<Camera size={20} />}
               title="Camera"
               onClick={() => {
-                if (!canManageCardAttachments()) return;
+                if (!canAccessDatelineCamera) return;
                 void openCamera();
               }}
             >
