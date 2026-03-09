@@ -185,7 +185,7 @@ export interface CardCustomField {
   options?: CustomOption[];
   isShowAtFront?: boolean;
   valueString?: string;
-  valueNumber?: number;
+  valueNumber?: number | null;
   valueOption?: string | null;
   valueCheckbox?: boolean;
   valueDate?: Date;
