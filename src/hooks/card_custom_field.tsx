@@ -197,7 +197,7 @@ export const useCardCustomField = (
       customFieldId,
       updatedData: {
         // Send null explicitly so backend clears the stored number
-        valueNumber: value === null ? undefined : value,
+        valueNumber: value,
       },
     });
   };
