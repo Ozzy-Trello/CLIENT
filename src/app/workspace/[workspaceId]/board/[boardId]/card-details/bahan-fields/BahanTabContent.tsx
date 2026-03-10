@@ -295,10 +295,10 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
   const [terpakaiInputValue, setTerpakaiInputValue] = useState<string | null>(
     null
   );
-  const [description, setDescription] = useState<string>(
-    product.description ?? ""
-  );
-  const descriptionDirtyRef = useRef(false);
+  const initialDescription = product.description ?? "";
+  const descriptionRef = useRef<string>(initialDescription);
+  const isDescriptionDirtyRef = useRef(false);
+  const [description, setDescription] = useState<string>(initialDescription);
   const [isSavingDescription, setIsSavingDescription] = useState(false);
   const [isLoadingAction, setIsLoadingAction] = useState(false);
 
@@ -361,14 +361,24 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
   }, [bahanTab.bahanTerpakai]);
 
   useEffect(() => {
-    if (!descriptionDirtyRef.current) {
-      setDescription(product.description ?? "");
-    }
+    const nextDescription = product.description ?? "";
+    descriptionRef.current = nextDescription;
+    isDescriptionDirtyRef.current = false;
+    setDescription(nextDescription);
+  }, [product.id]);
+
+  useEffect(() => {
+    if (isDescriptionDirtyRef.current) return;
+    const nextDescription = product.description ?? "";
+    descriptionRef.current = nextDescription;
+    setDescription(nextDescription);
   }, [product.description]);
 
   useEffect(() => {
-    descriptionDirtyRef.current = false;
-    setDescription(product.description ?? "");
+    const nextDescription = product.description ?? "";
+    descriptionRef.current = nextDescription;
+    isDescriptionDirtyRef.current = false;
+    setDescription(nextDescription);
   }, [product.poProductId]);
 
   const shouldDisableInputs = Boolean(product.orderCreated);
@@ -659,7 +669,8 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
    * NEVER call this on blur, change, or any other automatic trigger.
    */
   const persistDescription = async () => {
-    const trimmed = (description ?? "").trim();
+    const latestDescription = descriptionRef.current ?? "";
+    const trimmed = latestDescription.trim();
     const work: Array<Promise<unknown>> = [];
 
     const targetCategoryIds: string[] =
@@ -690,7 +701,9 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
     setIsSavingDescription(true);
     try {
       await Promise.all(work);
-      descriptionDirtyRef.current = false;
+      isDescriptionDirtyRef.current = false;
+      descriptionRef.current = trimmed;
+      setDescription(trimmed);
     } catch (err) {
       console.error("Failed to persist description", err);
       message.error("Gagal menyimpan deskripsi");
@@ -701,10 +714,14 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
 
   const handleLoadingClick = React.useCallback(async () => {
     setIsLoadingAction(true);
-    if (disableLoadingButton) {
+
+    const latestDescription = descriptionRef.current ?? "";
+    const hasLatestDescription = latestDescription.trim().length > 0;
+
+    if (disableLoadingButton || !hasLatestDescription) {
       if (!hasSender) {
         message.warning("Pilih 'Dikirim Oleh' sebelum loading.");
-      } else if (!hasDescription) {
+      } else if (!hasLatestDescription) {
         message.warning("Isi deskripsi terlebih dahulu sebelum loading.");
       }
       setIsLoadingAction(false);
@@ -728,7 +745,6 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
   }, [
     disableLoadingButton,
     hasSender,
-    hasDescription,
     hasTerloadingValue,
     handleCreateNewOrder,
     po,
@@ -781,6 +797,12 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
     const value = e.target.value;
     setTerpakaiInputValue(value);
   };
+
+  const handleDescriptionChange = React.useCallback((value: string) => {
+    descriptionRef.current = value;
+    isDescriptionDirtyRef.current = true;
+    setDescription(value);
+  }, []);
 
   const lastLoadingStateRef = React.useRef<{
     disableLoadingButton: boolean;
@@ -884,10 +906,7 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
         requestByOptions={requestByOptions}
         onSentByChange={setSelectedSentBy}
         description={description}
-        onDescriptionChange={(val: string) => {
-          descriptionDirtyRef.current = true;
-          setDescription(val);
-        }}
+        onDescriptionChange={handleDescriptionChange}
         zeroLoadingModalOpen={zeroLoadingModalOpen}
         closeZeroModal={closeZeroModal}
         handleConfirmZeroLoading={handleConfirmZeroLoading}
