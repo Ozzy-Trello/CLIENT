@@ -27,6 +27,7 @@ import ModalRequestSent from "../modal-request-sent";
 import ModalRequestProduksi from "../modal-request-produksi";
 import WebSocketDebugModal from "../websocket-debug-modal";
 import { getRequestNotificationCounts } from "@api/accurate";
+import { getUnfinishedCardAccessories } from "@api/unfinished-accessory";
 import TokenStorage from "@utils/token-storage";
 import { SearchResult, useUnifiedSearch } from "@hooks/search";
 import { selectCurrentBoard, selectCurrentWorkspace } from "@store/workspace_slice";
@@ -114,6 +115,7 @@ const TopBar: React.FC = React.memo(() => {
     pendingVerification: number;
     pendingWarehouseSend: number;
   }>({ pendingVerification: 0, pendingWarehouseSend: 0 });
+  const [pendingAccessoryCount, setPendingAccessoryCount] = useState(0);
   const searchRef = useRef<HTMLDivElement>(null);
   const theme = useSelector(selectTheme);
   const { colors } = theme;
@@ -304,6 +306,26 @@ const TopBar: React.FC = React.memo(() => {
 
   const workspaceId = getWorkspaceId();
 
+  useEffect(() => {
+    const fetchPendingAccessoryCount = async () => {
+      if (!workspaceId) {
+        setPendingAccessoryCount(0);
+        return;
+      }
+      try {
+        const res = await getUnfinishedCardAccessories(workspaceId, 1, 1);
+        setPendingAccessoryCount(res?.paginate?.totalData ?? 0);
+      } catch (error) {
+        console.error("Failed to load pending accessory count", error);
+      }
+    };
+
+    fetchPendingAccessoryCount();
+
+    const interval = setInterval(fetchPendingAccessoryCount, 60_000);
+    return () => clearInterval(interval);
+  }, [workspaceId]);
+
   // Debounce search so we don't hit the API on every keystroke
   useEffect(() => {
     const trimmed = searchQuery.trim();
@@ -427,7 +449,12 @@ const TopBar: React.FC = React.memo(() => {
   if (canSeeAccessoryStatus()) {
     mobileActionMenuItems.push({
       key: "status-aksesoris",
-      label: "Status Aksesoris",
+      label: (
+        <div className="flex items-center justify-between gap-3">
+          <span>Status Aksesoris</span>
+          <Badge count={pendingAccessoryCount} overflowCount={99} />
+        </div>
+      ),
       onClick: () =>
         router.push(`/workspace/${workspaceId}/aksesoris/status-aksesoris`),
     });
@@ -607,13 +634,15 @@ const TopBar: React.FC = React.memo(() => {
 
           {canSeeAccessoryStatus() && (
             <div className="hidden lg:block">
-              <Button
-                onClick={() =>
-                  router.push(`/workspace/${workspaceId}/aksesoris/status-aksesoris`)
-                }
-              >
-                Status Aksesoris
-              </Button>
+              <Badge count={pendingAccessoryCount} overflowCount={99} offset={[-6, 8]}>
+                <Button
+                  onClick={() =>
+                    router.push(`/workspace/${workspaceId}/aksesoris/status-aksesoris`)
+                  }
+                >
+                  Status Aksesoris
+                </Button>
+              </Badge>
             </div>
           )}
 
