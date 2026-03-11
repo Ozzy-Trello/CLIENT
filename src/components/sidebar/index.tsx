@@ -31,6 +31,7 @@ import {
   Package,
   Layers,
   Database,
+  Activity,
 } from "lucide-react";
 import { Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import dynamic from "next/dynamic";
@@ -323,6 +324,19 @@ const Sidebar = () => {
             ),
           },
         ],
+      });
+
+      menus.push({
+        key: `/workspace/${resolvedWorkspaceId}/automation-dashboard`,
+        label: (
+          <Link
+            className="block w-full"
+            href={`/workspace/${resolvedWorkspaceId}/automation-dashboard`}
+          >
+            Automation Log
+          </Link>
+        ),
+        icon: <Activity size={16} />,
       });
     }
 
