@@ -122,7 +122,8 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
         );
 
       case EnumCustomFieldType.Date:
-        const dateValue = field.valueDate ? dayjs(field.valueDate) : null;
+        const rawDateValue = field.valueDate ?? (field as any)?.value_date;
+        const dateValue = rawDateValue ? dayjs(rawDateValue) : null;
         return (
           <DatePicker
             className={`w-full ${!canEdit ? "bg-gray-100 cursor-not-allowed" : ""}`}
@@ -130,7 +131,7 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
             value={dateValue}
             onChange={(date: Dayjs | null) => {
               if (canEdit) {
-                setDateValue(field.id!, date ? date.toDate() : null as any);
+                setDateValue(field.id!, date ? date.toDate() : null);
               }
             }}
             format="YYYY-MM-DD HH:mm"
@@ -232,8 +233,9 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
         return "";
       }
       case EnumCustomFieldType.Date: {
-        if (field.valueDate) {
-          const d = dayjs(field.valueDate);
+        const rawDateValue = field.valueDate ?? (field as any)?.value_date;
+        if (rawDateValue) {
+          const d = dayjs(rawDateValue);
           if (d.isValid()) return d.format("YYYY-MM-DD HH:mm");
         }
         return "";
