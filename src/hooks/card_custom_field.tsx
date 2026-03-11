@@ -243,7 +243,7 @@ export const useCardCustomField = (
     setValueMutation.mutate({
       customFieldId,
       updatedData: {
-        valueDate: value,
+        valueDate: value as any,
       },
     });
   };
