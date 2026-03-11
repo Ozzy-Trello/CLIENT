@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { ColumnsType } from "antd/es/table";
-import { Empty, Spin, Table, Typography } from "antd";
+import { Empty, Popover, Spin, Table, Tag, Typography } from "antd";
 import dayjs from "dayjs";
 import Link from "next/link";
 import { UnfinishedAccessoryCard } from "@api/unfinished-accessory";
@@ -59,7 +59,7 @@ const UnfinishedAccessories: React.FC<UnfinishedAccessoriesProps> = ({
       {
         title: "Progress",
         key: "progress",
-        width: 120,
+        width: 180,
         render: (_: unknown, record) => {
           const percent =
             record.totalAccessories > 0
@@ -68,10 +68,34 @@ const UnfinishedAccessories: React.FC<UnfinishedAccessoriesProps> = ({
                 )
               : 0;
 
+          const popoverContent = (
+            <div className="min-w-[220px] space-y-2">
+              <div className="flex gap-2">
+                <Tag color="green">Done: {record.doneAccessories}</Tag>
+                <Tag color="red">Undone: {record.undoneAccessories}</Tag>
+                <Tag>Total: {record.totalAccessories}</Tag>
+              </div>
+              <div className="max-h-48 overflow-y-auto space-y-1 pr-1">
+                {(record.accessories || []).map((item) => (
+                  <div key={item.id} className="text-xs leading-5">
+                    <Tag color={item.isDone ? "green" : "red"}>
+                      {item.isDone ? "Done" : "Undone"}
+                    </Tag>
+                    <span>{item.accessoryName}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+
           return (
-            <Typography.Text type="secondary">
-              {record.doneAccessories}/{record.totalAccessories} ({percent}%)
-            </Typography.Text>
+            <Popover content={popoverContent} trigger="click" placement="topLeft">
+              <button type="button" className="text-left">
+                <Typography.Text type="secondary">
+                  {record.doneAccessories}/{record.totalAccessories} ({percent}%)
+                </Typography.Text>
+              </button>
+            </Popover>
           );
         },
       },
