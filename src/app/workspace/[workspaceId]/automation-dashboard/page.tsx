@@ -3,15 +3,13 @@
 import {
   Table,
   Typography,
-  Tag,
   Card,
   Space,
   Button,
-  Select,
   message,
   Popconfirm,
+  Empty,
 } from "antd";
-import { useParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../../../api";
 import { usePermissions } from "@hooks/account";
@@ -26,12 +24,22 @@ interface ExecutionLog {
   ruleId: string | null;
   cardId: string | null;
   cardName: string | null;
+  cardShortId: number | null;
   boardId: string | null;
+  boardName: string | null;
   listId: string | null;
+  listName: string | null;
   actionType: string | null;
+  actionLabel: string | null;
   status: string;
   errorMessage: string | null;
+  failureMessage: string | null;
   eventType: string | null;
+  eventLabel: string | null;
+  triggerLabel: string | null;
+  filterLabel: string | null;
+  ruleSummary: string | null;
+  stage: string | null;
   createdAt: string;
 }
 
@@ -44,24 +52,20 @@ interface LogResponse {
 }
 
 const AutomationDashboard = () => {
-  const { workspaceId } = useParams();
   const { isSuperAdmin } = usePermissions();
   const queryClient = useQueryClient();
 
-  const [statusFilter, setStatusFilter] = useState<string | undefined>(
-    undefined
-  );
   const [page, setPage] = useState(1);
   const pageSize = 30;
 
   const { data, isLoading, isFetching } = useQuery<LogResponse>({
-    queryKey: ["automation-execution-log", statusFilter, page],
+    queryKey: ["automation-execution-log", "failed", page],
     queryFn: async () => {
       const params: Record<string, any> = {
         limit: pageSize,
         offset: (page - 1) * pageSize,
+        status: "failed",
       };
-      if (statusFilter) params.status = statusFilter;
       const res = await api.get("/automation-rule/execution-log", { params });
       return res.data;
     },
@@ -118,83 +122,89 @@ const AutomationDashboard = () => {
       },
     },
     {
-      title: "Status",
-      dataIndex: "status",
-      key: "status",
-      width: 90,
-      render: (status: string) => (
-        <Tag color={status === "failed" ? "red" : "orange"}>
-          {status?.toUpperCase()}
-        </Tag>
-      ),
-    },
-    {
-      title: "Action",
-      dataIndex: "actionType",
-      key: "actionType",
-      width: 160,
-      render: (val: string) => (
-        <Text code style={{ fontSize: 12 }}>
-          {val || "-"}
-        </Text>
-      ),
-    },
-    {
       title: "Card",
       dataIndex: "cardName",
       key: "cardName",
-      ellipsis: true,
-      render: (name: string, record: ExecutionLog) => (
+      width: 260,
+      render: (_: string, record: ExecutionLog) => (
         <div>
-          <div>{name || "-"}</div>
-          {record.cardId && (
-            <Text type="secondary" style={{ fontSize: 11 }}>
-              {record.cardId.substring(0, 8)}...
-            </Text>
-          )}
+          <div>{record.cardName || "Card unavailable"}</div>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {[
+              record.boardName,
+              record.listName,
+              record.cardShortId ? `#${record.cardShortId}` : null,
+            ]
+              .filter(Boolean)
+              .join(" / ") || "No card context captured"}
+          </Text>
         </div>
       ),
     },
     {
-      title: "Error",
-      dataIndex: "errorMessage",
-      key: "errorMessage",
-      ellipsis: true,
-      render: (val: string) => (
+      title: "Failed Step",
+      dataIndex: "actionLabel",
+      key: "actionLabel",
+      width: 280,
+      render: (_: string, record: ExecutionLog) => (
+        <div>
+          <div>{record.actionLabel || record.actionType || "Unknown step"}</div>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {record.stage || "Failure"}
+          </Text>
+        </div>
+      ),
+    },
+    {
+      title: "Why It Failed",
+      dataIndex: "failureMessage",
+      key: "failureMessage",
+      render: (_: string, record: ExecutionLog) => (
         <Text
           type="danger"
-          style={{ fontSize: 12 }}
-          ellipsis={{ tooltip: val }}
+          style={{ fontSize: 12, whiteSpace: "pre-wrap" }}
         >
-          {val || "-"}
+          {record.failureMessage || record.errorMessage || "No error details"}
         </Text>
       ),
     },
     {
       title: "Trigger",
-      dataIndex: "eventType",
-      key: "eventType",
-      width: 160,
-      render: (val: string) =>
-        val ? (
-          <Text style={{ fontSize: 12 }}>{val}</Text>
-        ) : (
-          "-"
-        ),
+      dataIndex: "triggerLabel",
+      key: "triggerLabel",
+      width: 280,
+      render: (_: string, record: ExecutionLog) => (
+        <div>
+          <div>{record.triggerLabel || record.eventLabel || "Unknown trigger"}</div>
+          {record.eventLabel &&
+            record.triggerLabel &&
+            record.eventLabel !== record.triggerLabel && (
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                Event: {record.eventLabel}
+              </Text>
+            )}
+        </div>
+      ),
     },
     {
-      title: "Rule ID",
-      dataIndex: "ruleId",
-      key: "ruleId",
-      width: 120,
-      render: (val: string) =>
-        val ? (
-          <Text copyable style={{ fontSize: 11 }}>
-            {val.substring(0, 8)}...
-          </Text>
-        ) : (
-          "-"
-        ),
+      title: "Rule",
+      dataIndex: "ruleSummary",
+      key: "ruleSummary",
+      width: 260,
+      render: (_: string, record: ExecutionLog) => (
+        <div>
+          <div>{record.ruleSummary || "Rule context unavailable"}</div>
+          {record.ruleId ? (
+            <Text copyable style={{ fontSize: 11 }}>
+              {record.ruleId.substring(0, 8)}...
+            </Text>
+          ) : (
+            <Text type="secondary" style={{ fontSize: 11 }}>
+              No rule ID
+            </Text>
+          )}
+        </div>
+      ),
     },
   ];
 
@@ -206,20 +216,6 @@ const AutomationDashboard = () => {
             Automation Failures
           </Title>
           <Space>
-            <Select
-              placeholder="Filter status"
-              allowClear
-              style={{ width: 140 }}
-              value={statusFilter}
-              onChange={(val) => {
-                setStatusFilter(val);
-                setPage(1);
-              }}
-              options={[
-                { label: "Failed", value: "failed" },
-                { label: "Skipped", value: "skipped" },
-              ]}
-            />
             <Button
               icon={<RefreshCw size={14} />}
               onClick={() =>
@@ -256,6 +252,14 @@ const AutomationDashboard = () => {
             rowKey="id"
             loading={isLoading}
             size="small"
+            locale={{
+              emptyText: (
+                <Empty
+                  image={Empty.PRESENTED_IMAGE_SIMPLE}
+                  description="No failed automation runs"
+                />
+              ),
+            }}
             pagination={{
               current: page,
               pageSize,
