@@ -233,7 +233,10 @@ export const useCardCustomField = (
   };
 
   // Helper function to set date value
-  const setDateValue = (customFieldId: string, value: Date) => {
+  const setDateValue = (
+    customFieldId: string,
+    value: Date | null
+  ) => {
     setValueMutation.mutate({
       customFieldId,
       updatedData: {
