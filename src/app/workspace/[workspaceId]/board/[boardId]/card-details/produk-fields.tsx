@@ -38,15 +38,6 @@ interface ProdukFieldsProps {
 }
 
 const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard, viewOnly = false }) => {
-  const renderDropdownWithScrollLock = (menu: React.ReactElement) => (
-    <div
-      onWheel={(e) => {
-        e.stopPropagation();
-      }}
-    >
-      {menu}
-    </div>
-  );
   const [products, setProducts] = useState<Product[]>([]);
   const [productCodes, setProductCodes] = useState<ProductCode[]>([]);
   const [bahans, setBahans] = useState<Bahan[]>([]);
@@ -68,6 +59,17 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard, viewOnly = f
   const [warnasPage, setWarnasPage] = useState(1);
   const [hasMoreWarnas, setHasMoreWarnas] = useState(true);
 
+  const [productSearch, setProductSearch] = useState("");
+  const [productCodeSearch, setProductCodeSearch] = useState("");
+  const [bahanSearch, setBahanSearch] = useState("");
+  const [warnaSearch, setWarnaSearch] = useState("");
+
+  const [debouncedProductSearch, setDebouncedProductSearch] = useState("");
+  const [debouncedProductCodeSearch, setDebouncedProductCodeSearch] =
+    useState("");
+  const [debouncedBahanSearch, setDebouncedBahanSearch] = useState("");
+  const [debouncedWarnaSearch, setDebouncedWarnaSearch] = useState("");
+
   const { updateCard } = useCardDetails(
     card?.id || "",
     card?.listId || "",
@@ -76,6 +78,19 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard, viewOnly = f
   const { canUpdateCard } = useBoardPermissionsContext();
   const canEdit = canUpdateCard();
   const isViewOnly = viewOnly || !canEdit;
+
+  const renderDropdownWithScrollLock = (menu: React.ReactElement) => (
+    <div
+      onWheel={(e) => {
+        e.stopPropagation();
+      }}
+    >
+      {menu}
+    </div>
+  );
+
+  const notFoundWithLoading = (loading: boolean) =>
+    loading ? <Spin size="small" /> : null;
 
   const hasNextPage = (
     paginate: any,
@@ -103,12 +118,35 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard, viewOnly = f
     return Array.from(map.values());
   };
 
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedProductSearch(productSearch), 300);
+    return () => clearTimeout(timer);
+  }, [productSearch]);
+
+  useEffect(() => {
+    const timer = setTimeout(
+      () => setDebouncedProductCodeSearch(productCodeSearch),
+      300
+    );
+    return () => clearTimeout(timer);
+  }, [productCodeSearch]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedBahanSearch(bahanSearch), 300);
+    return () => clearTimeout(timer);
+  }, [bahanSearch]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedWarnaSearch(warnaSearch), 300);
+    return () => clearTimeout(timer);
+  }, [warnaSearch]);
+
   // Load products on component mount
   const loadProducts = useCallback(
-    async (page: number, append: boolean) => {
+    async (page: number, append: boolean, searchTerm: string) => {
       setLoadingProducts(true);
       try {
-        const response = await getProducts(page, PAGE_LIMIT);
+        const response = await getProducts(page, PAGE_LIMIT, searchTerm);
         const incoming = response.data || [];
 
         setProducts((prev) =>
@@ -130,16 +168,22 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard, viewOnly = f
     setProducts([]);
     setProductsPage(1);
     setHasMoreProducts(true);
-    loadProducts(1, false);
-  }, [loadProducts]);
+    loadProducts(1, false, debouncedProductSearch);
+  }, [loadProducts, debouncedProductSearch]);
 
   const loadMoreProducts = useCallback(() => {
     if (loadingProducts || !hasMoreProducts) return;
-    loadProducts(productsPage + 1, true);
-  }, [loadingProducts, hasMoreProducts, productsPage, loadProducts]);
+    loadProducts(productsPage + 1, true, debouncedProductSearch);
+  }, [
+    loadingProducts,
+    hasMoreProducts,
+    productsPage,
+    loadProducts,
+    debouncedProductSearch,
+  ]);
 
   const loadProductCodes = useCallback(
-    async (page: number, append: boolean) => {
+    async (page: number, append: boolean, searchTerm: string) => {
       if (!card.productId) {
         setProductCodes([]);
         setProductCodesPage(1);
@@ -149,7 +193,12 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard, viewOnly = f
 
       setLoadingProductCodes(true);
       try {
-        const response = await getProductCodes(page, PAGE_LIMIT, card.productId);
+        const response = await getProductCodes(
+          page,
+          PAGE_LIMIT,
+          card.productId,
+          searchTerm
+        );
         const incoming = response.data || [];
 
         setProductCodes((prev) =>
@@ -176,22 +225,23 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard, viewOnly = f
     setHasMoreProductCodes(true);
 
     if (!card.productId) return;
-    loadProductCodes(1, false);
-  }, [card.productId, loadProductCodes]);
+    loadProductCodes(1, false, debouncedProductCodeSearch);
+  }, [card.productId, loadProductCodes, debouncedProductCodeSearch]);
 
   const loadMoreProductCodes = useCallback(() => {
     if (loadingProductCodes || !hasMoreProductCodes || !card.productId) return;
-    loadProductCodes(productCodesPage + 1, true);
+    loadProductCodes(productCodesPage + 1, true, debouncedProductCodeSearch);
   }, [
     loadingProductCodes,
     hasMoreProductCodes,
     card.productId,
     productCodesPage,
     loadProductCodes,
+    debouncedProductCodeSearch,
   ]);
 
   const loadBahans = useCallback(
-    async (page: number, append: boolean) => {
+    async (page: number, append: boolean, searchTerm: string) => {
       if (!card.productId) {
         setBahans([]);
         setBahansPage(1);
@@ -201,7 +251,12 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard, viewOnly = f
 
       setLoadingBahans(true);
       try {
-        const response = await getBahans(page, PAGE_LIMIT, card.productId);
+        const response = await getBahans(
+          page,
+          PAGE_LIMIT,
+          card.productId,
+          searchTerm
+        );
         const incoming = response.data || [];
 
         setBahans((prev) =>
@@ -226,16 +281,23 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard, viewOnly = f
     setHasMoreBahans(true);
 
     if (!card.productId) return;
-    loadBahans(1, false);
-  }, [card.productId, loadBahans]);
+    loadBahans(1, false, debouncedBahanSearch);
+  }, [card.productId, loadBahans, debouncedBahanSearch]);
 
   const loadMoreBahans = useCallback(() => {
     if (loadingBahans || !hasMoreBahans || !card.productId) return;
-    loadBahans(bahansPage + 1, true);
-  }, [loadingBahans, hasMoreBahans, card.productId, bahansPage, loadBahans]);
+    loadBahans(bahansPage + 1, true, debouncedBahanSearch);
+  }, [
+    loadingBahans,
+    hasMoreBahans,
+    card.productId,
+    bahansPage,
+    loadBahans,
+    debouncedBahanSearch,
+  ]);
 
   const loadWarnas = useCallback(
-    async (page: number, append: boolean) => {
+    async (page: number, append: boolean, searchTerm: string) => {
       if (!card.bahanId) {
         setWarnas([]);
         setWarnasPage(1);
@@ -245,7 +307,12 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard, viewOnly = f
 
       setLoadingWarnas(true);
       try {
-        const response = await getWarnas(page, PAGE_LIMIT, card.bahanId);
+        const response = await getWarnas(
+          page,
+          PAGE_LIMIT,
+          card.bahanId,
+          searchTerm
+        );
         const incoming = response.data || [];
 
         setWarnas((prev) => {
@@ -273,13 +340,20 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard, viewOnly = f
     setHasMoreWarnas(true);
 
     if (!card.bahanId) return;
-    loadWarnas(1, false);
-  }, [card.bahanId, loadWarnas]);
+    loadWarnas(1, false, debouncedWarnaSearch);
+  }, [card.bahanId, loadWarnas, debouncedWarnaSearch]);
 
   const loadMoreWarnas = useCallback(() => {
     if (loadingWarnas || !hasMoreWarnas || !card.bahanId) return;
-    loadWarnas(warnasPage + 1, true);
-  }, [loadingWarnas, hasMoreWarnas, card.bahanId, warnasPage, loadWarnas]);
+    loadWarnas(warnasPage + 1, true, debouncedWarnaSearch);
+  }, [
+    loadingWarnas,
+    hasMoreWarnas,
+    card.bahanId,
+    warnasPage,
+    loadWarnas,
+    debouncedWarnaSearch,
+  ]);
 
   const handleProductChange = (productId: string) => {
     if (isViewOnly) return;
@@ -289,6 +363,10 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard, viewOnly = f
     // Send null (not undefined) to explicitly clear on backend
     const normalizedProductId = isClear ? null : productId;
     const selectedProduct = products.find((p) => p.id === productId);
+
+    setProductCodeSearch("");
+    setBahanSearch("");
+    setWarnaSearch("");
 
     // Update local state first for immediate UI feedback
     const updatedCard = {
@@ -346,6 +424,8 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard, viewOnly = f
     // Send null to explicitly clear
     const normalizedBahanId = isClear ? null : bahanId;
     const selectedBahan = bahans.find((b) => b.id === bahanId);
+
+    setWarnaSearch("");
 
     // Update local state first for immediate UI feedback
     const updatedCard = {
@@ -412,12 +492,9 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard, viewOnly = f
           disabled={isViewOnly || loadingProducts}
           showSearch
           dropdownRender={renderDropdownWithScrollLock}
-          filterOption={(input, option) =>
-            option?.children
-              ?.toString()
-              .toLowerCase()
-              .includes(input.toLowerCase()) ?? false
-          }
+          filterOption={false}
+          onSearch={setProductSearch}
+          notFoundContent={notFoundWithLoading(loadingProducts)}
           onPopupScroll={(e) => {
             const target = e.target as HTMLElement;
             if (
@@ -455,12 +532,9 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard, viewOnly = f
           disabled={isViewOnly || !card.productId || loadingProductCodes}
           showSearch
           dropdownRender={renderDropdownWithScrollLock}
-          filterOption={(input, option) =>
-            option?.children
-              ?.toString()
-              .toLowerCase()
-              .includes(input.toLowerCase()) ?? false
-          }
+          filterOption={false}
+          onSearch={setProductCodeSearch}
+          notFoundContent={notFoundWithLoading(loadingProductCodes)}
           onPopupScroll={(e) => {
             const target = e.target as HTMLElement;
             if (
@@ -498,12 +572,9 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard, viewOnly = f
           disabled={isViewOnly || !card.productId || loadingBahans}
           showSearch
           dropdownRender={renderDropdownWithScrollLock}
-          filterOption={(input, option) =>
-            option?.children
-              ?.toString()
-              .toLowerCase()
-              .includes(input.toLowerCase()) ?? false
-          }
+          filterOption={false}
+          onSearch={setBahanSearch}
+          notFoundContent={notFoundWithLoading(loadingBahans)}
           onPopupScroll={(e) => {
             const target = e.target as HTMLElement;
             if (
@@ -539,13 +610,9 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard, viewOnly = f
           disabled={isViewOnly || !card.bahanId || loadingWarnas}
           showSearch
           dropdownRender={renderDropdownWithScrollLock}
-          filterOption={(input, option) => {
-            const labelText =
-              (option?.label as string) ??
-              option?.children?.toString() ??
-              "";
-            return labelText.toLowerCase().includes(input.toLowerCase());
-          }}
+          filterOption={false}
+          onSearch={setWarnaSearch}
+          notFoundContent={notFoundWithLoading(loadingWarnas)}
           onPopupScroll={(e) => {
             const target = e.target as HTMLElement;
             if (

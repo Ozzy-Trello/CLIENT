@@ -49,10 +49,16 @@ export interface ProductCodeBulkInsertResult {
 export const getProductCodes = async (
   page: number = 1,
   limit: number = 100,
-  productId?: string
+  productId?: string,
+  search?: string
 ): Promise<ApiResponse<ProductCode[]>> => {
+  const params: any = { page, limit, product_id: productId };
+  if (search?.trim()) {
+    params.code = search.trim();
+  }
+
   const { data } = await api.get("/product-code", {
-    params: { page, limit, product_id: productId },
+    params,
   });
   return data;
 };

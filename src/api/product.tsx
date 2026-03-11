@@ -52,10 +52,16 @@ export interface ProductBulkInsertResult {
 // Get all products
 export const getProducts = async (
   page: number = 1,
-  limit: number = 100
+  limit: number = 100,
+  search?: string
 ): Promise<ApiResponse<Product[]>> => {
+  const params: any = { page, limit };
+  if (search?.trim()) {
+    params.name = search.trim();
+  }
+
   const { data } = await api.get("/product", {
-    params: { page, limit },
+    params,
   });
   return data;
 };
