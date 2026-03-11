@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Select, Spin, message } from "antd";
 import { useCardDetails } from "@hooks/card-details";
 import { getProducts, Product } from "@api/product";
@@ -12,6 +12,7 @@ const { Option } = Select;
 
 // Special value used to represent clearing a selection via '-' option
 const CLEAR_VALUE = "__CLEAR__";
+const PAGE_LIMIT = 100;
 
 // Utility function to determine text color based on background color
 const getContrastColor = (hexColor: string): string => {
@@ -46,6 +47,18 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard, viewOnly = f
   const [loadingBahans, setLoadingBahans] = useState(false);
   const [loadingWarnas, setLoadingWarnas] = useState(false);
 
+  const [productsPage, setProductsPage] = useState(1);
+  const [hasMoreProducts, setHasMoreProducts] = useState(true);
+
+  const [productCodesPage, setProductCodesPage] = useState(1);
+  const [hasMoreProductCodes, setHasMoreProductCodes] = useState(true);
+
+  const [bahansPage, setBahansPage] = useState(1);
+  const [hasMoreBahans, setHasMoreBahans] = useState(true);
+
+  const [warnasPage, setWarnasPage] = useState(1);
+  const [hasMoreWarnas, setHasMoreWarnas] = useState(true);
+
   const { updateCard } = useCardDetails(
     card?.id || "",
     card?.listId || "",
@@ -55,104 +68,209 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard, viewOnly = f
   const canEdit = canUpdateCard();
   const isViewOnly = viewOnly || !canEdit;
 
+  const hasNextPage = (
+    paginate: any,
+    currentPage: number,
+    fetchedCount: number
+  ): boolean => {
+    if (paginate) {
+      if (typeof paginate.nextPage === "number") {
+        return paginate.nextPage > 0;
+      }
+      if (typeof paginate.totalPage === "number") {
+        return currentPage < paginate.totalPage;
+      }
+    }
+    return fetchedCount >= PAGE_LIMIT;
+  };
+
+  const mergeUniqueById = <T extends { id: string }>(
+    prev: T[],
+    next: T[]
+  ): T[] => {
+    const map = new Map<string, T>();
+    prev.forEach((item) => map.set(item.id, item));
+    next.forEach((item) => map.set(item.id, item));
+    return Array.from(map.values());
+  };
+
   // Load products on component mount
-  useEffect(() => {
-    const loadProducts = async () => {
+  const loadProducts = useCallback(
+    async (page: number, append: boolean) => {
       setLoadingProducts(true);
       try {
-        const response = await getProducts();
-        if (response.data) {
-          setProducts(response.data);
-        }
+        const response = await getProducts(page, PAGE_LIMIT);
+        const incoming = response.data || [];
+
+        setProducts((prev) =>
+          append ? mergeUniqueById(prev, incoming) : incoming
+        );
+        setProductsPage(page);
+        setHasMoreProducts(hasNextPage(response.paginate, page, incoming.length));
       } catch (error) {
         message.error("Failed to load products");
         console.error("Error loading products:", error);
       } finally {
         setLoadingProducts(false);
       }
-    };
+    },
+    []
+  );
 
-    loadProducts();
-  }, []);
-
-  // Load product codes when product is selected
   useEffect(() => {
-    const loadProductCodes = async () => {
+    setProducts([]);
+    setProductsPage(1);
+    setHasMoreProducts(true);
+    loadProducts(1, false);
+  }, [loadProducts]);
+
+  const loadMoreProducts = useCallback(() => {
+    if (loadingProducts || !hasMoreProducts) return;
+    loadProducts(productsPage + 1, true);
+  }, [loadingProducts, hasMoreProducts, productsPage, loadProducts]);
+
+  const loadProductCodes = useCallback(
+    async (page: number, append: boolean) => {
       if (!card.productId) {
         setProductCodes([]);
+        setProductCodesPage(1);
+        setHasMoreProductCodes(false);
         return;
       }
 
       setLoadingProductCodes(true);
       try {
-        const response = await getProductCodes(1, 100, card.productId);
-        if (response.data) {
-          setProductCodes(response.data);
-        }
+        const response = await getProductCodes(page, PAGE_LIMIT, card.productId);
+        const incoming = response.data || [];
+
+        setProductCodes((prev) =>
+          append ? mergeUniqueById(prev, incoming) : incoming
+        );
+        setProductCodesPage(page);
+        setHasMoreProductCodes(
+          hasNextPage(response.paginate, page, incoming.length)
+        );
       } catch (error) {
         message.error("Failed to load product codes");
         console.error("Error loading product codes:", error);
       } finally {
         setLoadingProductCodes(false);
       }
-    };
+    },
+    [card.productId]
+  );
 
-    loadProductCodes();
-  }, [card.productId]);
-
-  // Load bahans when product is selected
+  // Load product codes when product is selected
   useEffect(() => {
-    const loadBahans = async () => {
+    setProductCodes([]);
+    setProductCodesPage(1);
+    setHasMoreProductCodes(true);
+
+    if (!card.productId) return;
+    loadProductCodes(1, false);
+  }, [card.productId, loadProductCodes]);
+
+  const loadMoreProductCodes = useCallback(() => {
+    if (loadingProductCodes || !hasMoreProductCodes || !card.productId) return;
+    loadProductCodes(productCodesPage + 1, true);
+  }, [
+    loadingProductCodes,
+    hasMoreProductCodes,
+    card.productId,
+    productCodesPage,
+    loadProductCodes,
+  ]);
+
+  const loadBahans = useCallback(
+    async (page: number, append: boolean) => {
       if (!card.productId) {
         setBahans([]);
+        setBahansPage(1);
+        setHasMoreBahans(false);
         return;
       }
 
       setLoadingBahans(true);
       try {
-        const response = await getBahans(1, 100, card.productId);
-        if (response.data) {
-          setBahans(response.data);
-        }
+        const response = await getBahans(page, PAGE_LIMIT, card.productId);
+        const incoming = response.data || [];
+
+        setBahans((prev) =>
+          append ? mergeUniqueById(prev, incoming) : incoming
+        );
+        setBahansPage(page);
+        setHasMoreBahans(hasNextPage(response.paginate, page, incoming.length));
       } catch (error) {
         message.error("Failed to load bahans");
         console.error("Error loading bahans:", error);
       } finally {
         setLoadingBahans(false);
       }
-    };
+    },
+    [card.productId]
+  );
 
-    loadBahans();
-  }, [card.productId]);
-
-  // Load warnas when bahan is selected
+  // Load bahans when product is selected
   useEffect(() => {
-    const loadWarnas = async () => {
+    setBahans([]);
+    setBahansPage(1);
+    setHasMoreBahans(true);
+
+    if (!card.productId) return;
+    loadBahans(1, false);
+  }, [card.productId, loadBahans]);
+
+  const loadMoreBahans = useCallback(() => {
+    if (loadingBahans || !hasMoreBahans || !card.productId) return;
+    loadBahans(bahansPage + 1, true);
+  }, [loadingBahans, hasMoreBahans, card.productId, bahansPage, loadBahans]);
+
+  const loadWarnas = useCallback(
+    async (page: number, append: boolean) => {
       if (!card.bahanId) {
         setWarnas([]);
+        setWarnasPage(1);
+        setHasMoreWarnas(false);
         return;
       }
 
       setLoadingWarnas(true);
       try {
-        const response = await getWarnas(1, 100, card.bahanId);
-        if (response.data) {
-          // Sort warnas alphabetically by name (A-Z)
-          const sortedWarnas = response.data.sort((a, b) => 
-            a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+        const response = await getWarnas(page, PAGE_LIMIT, card.bahanId);
+        const incoming = response.data || [];
+
+        setWarnas((prev) => {
+          const merged = append ? mergeUniqueById(prev, incoming) : incoming;
+          return merged.sort((a, b) =>
+            a.name.localeCompare(b.name, undefined, { sensitivity: "base" })
           );
-          setWarnas(sortedWarnas);
-        }
+        });
+        setWarnasPage(page);
+        setHasMoreWarnas(hasNextPage(response.paginate, page, incoming.length));
       } catch (error) {
         message.error("Failed to load warnas");
         console.error("Error loading warnas:", error);
       } finally {
         setLoadingWarnas(false);
       }
-    };
+    },
+    [card.bahanId]
+  );
 
-    loadWarnas();
-  }, [card.bahanId]);
+  // Load warnas when bahan is selected
+  useEffect(() => {
+    setWarnas([]);
+    setWarnasPage(1);
+    setHasMoreWarnas(true);
+
+    if (!card.bahanId) return;
+    loadWarnas(1, false);
+  }, [card.bahanId, loadWarnas]);
+
+  const loadMoreWarnas = useCallback(() => {
+    if (loadingWarnas || !hasMoreWarnas || !card.bahanId) return;
+    loadWarnas(warnasPage + 1, true);
+  }, [loadingWarnas, hasMoreWarnas, card.bahanId, warnasPage, loadWarnas]);
 
   const handleProductChange = (productId: string) => {
     if (isViewOnly) return;
@@ -290,6 +408,15 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard, viewOnly = f
               .toLowerCase()
               .includes(input.toLowerCase()) ?? false
           }
+          onPopupScroll={(e) => {
+            const target = e.target as HTMLElement;
+            if (
+              target.scrollTop + target.clientHeight >=
+              target.scrollHeight - 16
+            ) {
+              loadMoreProducts();
+            }
+          }}
         >
           <Option key={CLEAR_VALUE} value={CLEAR_VALUE}>
             -
@@ -323,6 +450,15 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard, viewOnly = f
               .toLowerCase()
               .includes(input.toLowerCase()) ?? false
           }
+          onPopupScroll={(e) => {
+            const target = e.target as HTMLElement;
+            if (
+              target.scrollTop + target.clientHeight >=
+              target.scrollHeight - 16
+            ) {
+              loadMoreProductCodes();
+            }
+          }}
         >
           <Option key={CLEAR_VALUE} value={CLEAR_VALUE}>
             -
@@ -356,6 +492,15 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard, viewOnly = f
               .toLowerCase()
               .includes(input.toLowerCase()) ?? false
           }
+          onPopupScroll={(e) => {
+            const target = e.target as HTMLElement;
+            if (
+              target.scrollTop + target.clientHeight >=
+              target.scrollHeight - 16
+            ) {
+              loadMoreBahans();
+            }
+          }}
         >
           <Option key={CLEAR_VALUE} value={CLEAR_VALUE}>
             -
@@ -381,14 +526,23 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard, viewOnly = f
           loading={loadingWarnas}
           disabled={isViewOnly || !card.bahanId || loadingWarnas}
           showSearch
-        filterOption={(input, option) => {
-          const labelText =
-            (option?.label as string) ??
-            option?.children?.toString() ??
-            "";
-          return labelText.toLowerCase().includes(input.toLowerCase());
-        }}
-      >
+          filterOption={(input, option) => {
+            const labelText =
+              (option?.label as string) ??
+              option?.children?.toString() ??
+              "";
+            return labelText.toLowerCase().includes(input.toLowerCase());
+          }}
+          onPopupScroll={(e) => {
+            const target = e.target as HTMLElement;
+            if (
+              target.scrollTop + target.clientHeight >=
+              target.scrollHeight - 16
+            ) {
+              loadMoreWarnas();
+            }
+          }}
+        >
         <Option key={CLEAR_VALUE} value={CLEAR_VALUE}>
           -
         </Option>
