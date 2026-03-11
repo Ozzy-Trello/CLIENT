@@ -38,6 +38,15 @@ interface ProdukFieldsProps {
 }
 
 const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard, viewOnly = false }) => {
+  const renderDropdownWithScrollLock = (menu: React.ReactElement) => (
+    <div
+      onWheel={(e) => {
+        e.stopPropagation();
+      }}
+    >
+      {menu}
+    </div>
+  );
   const [products, setProducts] = useState<Product[]>([]);
   const [productCodes, setProductCodes] = useState<ProductCode[]>([]);
   const [bahans, setBahans] = useState<Bahan[]>([]);
@@ -402,6 +411,7 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard, viewOnly = f
           loading={loadingProducts}
           disabled={isViewOnly || loadingProducts}
           showSearch
+          dropdownRender={renderDropdownWithScrollLock}
           filterOption={(input, option) =>
             option?.children
               ?.toString()
@@ -444,6 +454,7 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard, viewOnly = f
           loading={loadingProductCodes}
           disabled={isViewOnly || !card.productId || loadingProductCodes}
           showSearch
+          dropdownRender={renderDropdownWithScrollLock}
           filterOption={(input, option) =>
             option?.children
               ?.toString()
@@ -486,6 +497,7 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard, viewOnly = f
           loading={loadingBahans}
           disabled={isViewOnly || !card.productId || loadingBahans}
           showSearch
+          dropdownRender={renderDropdownWithScrollLock}
           filterOption={(input, option) =>
             option?.children
               ?.toString()
@@ -526,6 +538,7 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard, viewOnly = f
           loading={loadingWarnas}
           disabled={isViewOnly || !card.bahanId || loadingWarnas}
           showSearch
+          dropdownRender={renderDropdownWithScrollLock}
           filterOption={(input, option) => {
             const labelText =
               (option?.label as string) ??
