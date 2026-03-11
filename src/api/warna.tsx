@@ -39,11 +39,15 @@ export interface WarnaUpdateRequest {
 export const getWarnas = async (
   page: number = 1,
   limit: number = 100,
-  bahanId?: string
+  bahanId?: string,
+  search?: string
 ): Promise<ApiResponse<Warna[]>> => {
   const params: any = { page, limit };
   if (bahanId) {
     params.bahanId = bahanId;
+  }
+  if (search?.trim()) {
+    params.name = search.trim();
   }
   const { data } = await api.get("/warna", { params });
   return data;

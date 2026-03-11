@@ -54,11 +54,15 @@ export interface BahanBulkInsertResult {
 export const getBahans = async (
   page: number = 1,
   limit: number = 100,
-  productId?: string
+  productId?: string,
+  search?: string
 ): Promise<ApiResponse<Bahan[]>> => {
   const params: any = { page, limit };
   if (productId) {
     params.productId = productId;
+  }
+  if (search?.trim()) {
+    params.name = search.trim();
   }
   const { data } = await api.get("/bahan", { params });
   return data;
