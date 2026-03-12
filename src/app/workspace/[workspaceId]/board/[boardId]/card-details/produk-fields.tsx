@@ -489,7 +489,7 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard, viewOnly = f
           placeholder="Search product..."
           className="w-full"
           loading={loadingProducts}
-          disabled={isViewOnly || loadingProducts}
+          disabled={isViewOnly}
           showSearch
           dropdownRender={renderDropdownWithScrollLock}
           filterOption={false}
@@ -529,7 +529,7 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard, viewOnly = f
           }
           className="w-full"
           loading={loadingProductCodes}
-          disabled={isViewOnly || !card.productId || loadingProductCodes}
+          disabled={isViewOnly || !card.productId}
           showSearch
           dropdownRender={renderDropdownWithScrollLock}
           filterOption={false}
@@ -569,7 +569,7 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard, viewOnly = f
           }
           className="w-full"
           loading={loadingBahans}
-          disabled={isViewOnly || !card.productId || loadingBahans}
+          disabled={isViewOnly || !card.productId}
           showSearch
           dropdownRender={renderDropdownWithScrollLock}
           filterOption={false}
@@ -607,7 +607,7 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard, viewOnly = f
           placeholder={!card.bahanId ? "Select bahan first" : "Search warna..."}
           className="w-full"
           loading={loadingWarnas}
-          disabled={isViewOnly || !card.bahanId || loadingWarnas}
+          disabled={isViewOnly || !card.bahanId}
           showSearch
           dropdownRender={renderDropdownWithScrollLock}
           filterOption={false}
