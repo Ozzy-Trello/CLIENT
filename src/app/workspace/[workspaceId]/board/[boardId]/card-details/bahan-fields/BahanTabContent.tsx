@@ -18,7 +18,7 @@ import {
   resolveProductKey,
 } from "./productHelpers";
 import { buildRequestItemMeta } from "./requestPayload";
-import { updatePOProductCategory } from "@api/po-product";
+import { updatePOProduct } from "@api/po-product";
 import { useParams } from "next/navigation";
 import { useAccountList } from "@hooks/account";
 import BahanControls from "./BahanControls";
@@ -192,6 +192,8 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
   onEstBahanChange,
   onCategoryValueChange,
   onOrderStatusChange,
+  onDescriptionDraftChange,
+  onDescriptionPersisted,
   isCategoryLoading,
   getCategoryError,
   clearCategoryError,
@@ -297,9 +299,7 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
   );
   const initialDescription = product.description ?? "";
   const descriptionRef = useRef<string>(initialDescription);
-  const isDescriptionDirtyRef = useRef(false);
   const [description, setDescription] = useState<string>(initialDescription);
-  const [isSavingDescription, setIsSavingDescription] = useState(false);
   const [isLoadingAction, setIsLoadingAction] = useState(false);
 
   const { cardAttachments } = useCardAttachment(po.cardId);
@@ -363,23 +363,8 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
   useEffect(() => {
     const nextDescription = product.description ?? "";
     descriptionRef.current = nextDescription;
-    isDescriptionDirtyRef.current = false;
     setDescription(nextDescription);
-  }, [product.id]);
-
-  useEffect(() => {
-    if (isDescriptionDirtyRef.current) return;
-    const nextDescription = product.description ?? "";
-    descriptionRef.current = nextDescription;
-    setDescription(nextDescription);
-  }, [product.description]);
-
-  useEffect(() => {
-    const nextDescription = product.description ?? "";
-    descriptionRef.current = nextDescription;
-    isDescriptionDirtyRef.current = false;
-    setDescription(nextDescription);
-  }, [product.poProductId]);
+  }, [product.id, product.poProductId, product.description]);
 
   const shouldDisableInputs = Boolean(product.orderCreated);
   const shouldDisableTerloadingInput = !isTerloadingEditing || isSyncingRequest;
@@ -538,7 +523,7 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
         resolveProductSource(payloadProduct) ??
         resolveProductSource(product) ??
         "Hikmat";
-      const trimmedDescription = (description ?? "").trim();
+      const trimmedDescription = (descriptionRef.current ?? "").trim();
 
       const safeRequestAmount =
         bahanTab.terloading === 0 ? "0" : bahanTab.terloading;
@@ -673,20 +658,13 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
     const trimmed = latestDescription.trim();
     const work: Array<Promise<unknown>> = [];
 
-    const targetCategoryIds: string[] =
-      product.poProductCategoryIds && product.poProductCategoryIds.length > 0
-        ? product.poProductCategoryIds.filter(Boolean)
-        : product.poProductCategoryId
-          ? [product.poProductCategoryId]
-          : [];
-
-    targetCategoryIds.forEach((catId) => {
+    if (product.poProductId) {
       work.push(
-        updatePOProductCategory(catId, {
+        updatePOProduct(product.poProductId, {
           description: trimmed || null,
         })
       );
-    });
+    }
 
     if (product.requestId) {
       work.push(
@@ -696,19 +674,21 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
       );
     }
 
-    if (work.length === 0) return;
+    if (work.length === 0) {
+      onDescriptionPersisted?.(po.id, product.id, trimmed);
+      descriptionRef.current = trimmed;
+      setDescription(trimmed);
+      return;
+    }
 
-    setIsSavingDescription(true);
     try {
       await Promise.all(work);
-      isDescriptionDirtyRef.current = false;
+      onDescriptionPersisted?.(po.id, product.id, trimmed);
       descriptionRef.current = trimmed;
       setDescription(trimmed);
     } catch (err) {
       console.error("Failed to persist description", err);
       message.error("Gagal menyimpan deskripsi");
-    } finally {
-      setIsSavingDescription(false);
     }
   };
 
@@ -717,8 +697,15 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
 
     const latestDescription = descriptionRef.current ?? "";
     const hasLatestDescription = latestDescription.trim().length > 0;
+    const shouldBlockLoading =
+      isOrderAlreadyCreated ||
+      isSyncingRequest ||
+      isLoadingAction ||
+      !hasLatestDescription ||
+      !hasSender ||
+      !isCabangFilled;
 
-    if (disableLoadingButton || !hasLatestDescription) {
+    if (shouldBlockLoading) {
       if (!hasSender) {
         message.warning("Pilih 'Dikirim Oleh' sebelum loading.");
       } else if (!hasLatestDescription) {
@@ -743,10 +730,13 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
     setZeroLoadingModalOpen(true);
     setIsLoadingAction(false);
   }, [
-    disableLoadingButton,
     hasSender,
     hasTerloadingValue,
     handleCreateNewOrder,
+    isCabangFilled,
+    isLoadingAction,
+    isOrderAlreadyCreated,
+    isSyncingRequest,
     po,
     product,
     persistDescription,
@@ -800,9 +790,9 @@ const BahanTabContent: React.FC<BahanTabProps> = ({
 
   const handleDescriptionChange = React.useCallback((value: string) => {
     descriptionRef.current = value;
-    isDescriptionDirtyRef.current = true;
     setDescription(value);
-  }, []);
+    onDescriptionDraftChange?.(po.id, product.id, value);
+  }, [onDescriptionDraftChange, po.id, product.id]);
 
   const lastLoadingStateRef = React.useRef<{
     disableLoadingButton: boolean;

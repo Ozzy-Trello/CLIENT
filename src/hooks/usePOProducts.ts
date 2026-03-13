@@ -200,7 +200,7 @@ export const transformPOProductToProductItem = (
     poProductId: poProduct.id, // Include PO product ID for API updates
     poProductCategoryId: primaryCategoryId,
     poProductCategoryIds: categoryIds,
-    description: description ?? poProduct.description ?? null,
+    description: poProduct.description ?? description ?? null,
     orderCreated: poProduct.orderCreated || false, // Include order created status
     requestId: poProduct.request_id,
     sentBy: poProduct.sentBy ?? null,

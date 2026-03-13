@@ -213,6 +213,51 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
   const categorySyncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
+  const descriptionDraftsRef = useRef<Record<string, string>>({});
+
+  const getDescriptionDraftKey = useCallback(
+    (poId: string, productId: string, poProductId?: string | null) =>
+      poProductId || `${poId}:${productId}`,
+    [],
+  );
+
+  const getDraftDescription = useCallback(
+    (poId: string, product: any): string | null => {
+      const keys = [
+        getDescriptionDraftKey(
+          poId,
+          String(product?.id || ""),
+          product?.poProductId,
+        ),
+        getDescriptionDraftKey(poId, String(product?.id || "")),
+      ];
+
+      for (const key of keys) {
+        const value = descriptionDraftsRef.current[key];
+        if (value !== undefined) {
+          return value;
+        }
+      }
+
+      return null;
+    },
+    [getDescriptionDraftKey],
+  );
+
+  const applyDescriptionToProduct = useCallback(
+    (
+      product: ProductItem,
+      description: string | null | undefined,
+    ): void => {
+      const normalizedDescription =
+        description === undefined ? null : description;
+      product.description = normalizedDescription;
+      if (product.bahanTabs?.[0]) {
+        product.bahanTabs[0].description = normalizedDescription;
+      }
+    },
+    [],
+  );
 
   // Note: Removed complex mapping logic - now using direct POProduct access
 
@@ -221,10 +266,23 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
   // Update local state when API data changes
   useEffect(() => {
     const signature = [
-      apiPOData?.length ?? 0,
-      poProductsResponse?.data?.length ?? 0,
+      (apiPOData || [])
+        .map(
+          (po) =>
+            `${po.id}:${String((po as any).updatedAt ?? (po as any).updated_at ?? "")}`,
+        )
+        .sort()
+        .join("|"),
+      (poProductsResponse?.data || [])
+        .map(
+          (poProduct) =>
+            `${poProduct.id}:${String((poProduct as any).updatedAt ?? (poProduct as any).updated_at ?? "")}:${poProduct.request_id ?? ""}:${poProduct.orderCreated ? 1 : 0}`,
+        )
+        .sort()
+        .join("|"),
       warehouseProducts?.length ?? 0,
-    ].join("|");
+      categories?.length ?? 0,
+    ].join("||");
 
     if (signature === lastDataSignatureRef.current) {
       return;
@@ -258,13 +316,25 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
 
             if (existingProduct) {
               // Product exists, transform normally (no Total field precanervation needed)
-              return transformPOProductToProductItem(poProduct, categories);
+              const transformed = transformPOProductToProductItem(
+                poProduct,
+                categories,
+              );
+              const draftDescription = getDraftDescription(po.id, transformed);
+              if (draftDescription !== null) {
+                applyDescriptionToProduct(transformed, draftDescription);
+              }
+              return transformed;
             } else {
               // New product, transform normally
               const transformed = transformPOProductToProductItem(
                 poProduct,
                 categories,
               );
+              const draftDescription = getDraftDescription(po.id, transformed);
+              if (draftDescription !== null) {
+                applyDescriptionToProduct(transformed, draftDescription);
+              }
               return transformed;
             }
           });
@@ -317,6 +387,26 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
                 // Preserve orderCreated status and request linkage to prevent UI state loss after API refetch
                 updatedProduct.orderCreated = existingProduct.orderCreated;
                 updatedProduct.requestId = existingProduct.requestId;
+
+                const draftDescription = getDraftDescription(po.id, updatedProduct);
+                const fallbackDescription =
+                  typeof existingProduct.description === "string"
+                    ? existingProduct.description
+                    : null;
+                const resolvedDescription =
+                  draftDescription ??
+                  updatedProduct.description ??
+                  fallbackDescription;
+
+                if (
+                  resolvedDescription !== null &&
+                  resolvedDescription !== undefined
+                ) {
+                  applyDescriptionToProduct(
+                    updatedProduct,
+                    resolvedDescription,
+                  );
+                }
 
                 po.products[existingIndex] = updatedProduct;
               }
@@ -382,7 +472,15 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
       // NOTE: Do NOT sync custom fields on initial load - only sync on user interaction
       // to prevent overwriting saved custom field values
     }
-  }, [apiPOData, poProductsResponse, warehouseProducts]);
+  }, [
+    apiPOData,
+    applyDescriptionToProduct,
+    categories,
+    getDraftDescription,
+    poData,
+    poProductsResponse,
+    warehouseProducts,
+  ]);
 
   // Calculate derived values
   const calculateSisaBahan = (
@@ -552,26 +650,80 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
     return product;
   };
 
-  const findProductPosition = (
-    data: POItem[],
-    poId: string,
-    productId: string,
-  ) => {
-    const poIndex = data.findIndex((po) => po.id === poId);
-    if (poIndex === -1) return null;
+  const findProductPosition = useCallback(
+    (data: POItem[], poId: string, productId: string) => {
+      const poIndex = data.findIndex((po) => po.id === poId);
+      if (poIndex === -1) return null;
 
-    const productIndex = data[poIndex].products.findIndex(
-      (p) => p.id === productId || p.poProductId === productId,
-    );
-    if (productIndex === -1) return null;
+      const productIndex = data[poIndex].products.findIndex(
+        (p) => p.id === productId || p.poProductId === productId,
+      );
+      if (productIndex === -1) return null;
 
-    return {
-      poIndex,
-      productIndex,
-      po: data[poIndex],
-      product: data[poIndex].products[productIndex],
-    };
-  };
+      return {
+        poIndex,
+        productIndex,
+        po: data[poIndex],
+        product: data[poIndex].products[productIndex],
+      };
+    },
+    [],
+  );
+
+  const handleDescriptionDraftChange = useCallback(
+    (poId: string, productId: string, description: string) => {
+      descriptionDraftsRef.current[getDescriptionDraftKey(poId, productId)] =
+        description;
+
+      setPOData((prevData) => {
+        const newData = [...prevData];
+        const target = findProductPosition(newData, poId, productId);
+        if (!target) {
+          return prevData;
+        }
+
+        const { product } = target;
+        if (product.poProductId) {
+          descriptionDraftsRef.current[
+            getDescriptionDraftKey(poId, productId, product.poProductId)
+          ] = description;
+        }
+
+        applyDescriptionToProduct(product, description);
+        return newData;
+      });
+    },
+    [applyDescriptionToProduct, findProductPosition, getDescriptionDraftKey],
+  );
+
+  const handleDescriptionPersisted = useCallback(
+    (poId: string, productId: string, description: string) => {
+      const draftKeys = [getDescriptionDraftKey(poId, productId)];
+
+      setPOData((prevData) => {
+        const newData = [...prevData];
+        const target = findProductPosition(newData, poId, productId);
+        if (!target) {
+          return prevData;
+        }
+
+        const { product } = target;
+        if (product.poProductId) {
+          draftKeys.push(
+            getDescriptionDraftKey(poId, productId, product.poProductId),
+          );
+        }
+
+        applyDescriptionToProduct(product, description);
+        return newData;
+      });
+
+      draftKeys.forEach((key) => {
+        delete descriptionDraftsRef.current[key];
+      });
+    },
+    [applyDescriptionToProduct, findProductPosition, getDescriptionDraftKey],
+  );
 
   const handleTerloadingChange = async (
     poId: string,
@@ -1860,6 +2012,8 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
             onEstBahanChange={handleEstBahanChange}
             onCategoryValueChange={handleCategoryValueChange}
             onOrderStatusChange={handleOrderStatusChange}
+            onDescriptionDraftChange={handleDescriptionDraftChange}
+            onDescriptionPersisted={handleDescriptionPersisted}
             setPOData={setPOData}
             setSelectedProductIds={setSelectedProductIds}
             isCategoryLoading={isCategoryLoading}

@@ -26,6 +26,8 @@ const POSection: React.FC<POSectionProps> = ({
   onEstBahanChange,
   onCategoryValueChange,
   onOrderStatusChange,
+  onDescriptionDraftChange,
+  onDescriptionPersisted,
   setPOData,
   setSelectedProductIds,
   isCategoryLoading,
@@ -192,6 +194,8 @@ const POSection: React.FC<POSectionProps> = ({
             onEstBahanChange={onEstBahanChange}
             onCategoryValueChange={onCategoryValueChange}
             onOrderStatusChange={onOrderStatusChange}
+            onDescriptionDraftChange={onDescriptionDraftChange}
+            onDescriptionPersisted={onDescriptionPersisted}
             isCategoryLoading={isCategoryLoading}
             getCategoryError={getCategoryError}
             clearCategoryError={clearCategoryError}

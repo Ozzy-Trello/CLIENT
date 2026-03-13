@@ -104,6 +104,16 @@ export interface POSectionProps {
     orderCreated: boolean,
     requestId?: number | null
   ) => void;
+  onDescriptionDraftChange: (
+    poId: string,
+    productId: string,
+    description: string
+  ) => void;
+  onDescriptionPersisted: (
+    poId: string,
+    productId: string,
+    description: string
+  ) => void;
   setPOData: React.Dispatch<React.SetStateAction<POItem[]>>;
   setSelectedProductIds: React.Dispatch<React.SetStateAction<{ [poId: string]: string }>>;
   // Category update state functions
@@ -162,6 +172,16 @@ export interface ProductTabsProps {
     orderCreated: boolean,
     requestId?: number | null
   ) => void;
+  onDescriptionDraftChange: (
+    poId: string,
+    productId: string,
+    description: string
+  ) => void;
+  onDescriptionPersisted: (
+    poId: string,
+    productId: string,
+    description: string
+  ) => void;
   deletingProductIds?: string[];
   isCategoryLoading?: (poProductCategoryId: string) => boolean;
   getCategoryError?: (poProductCategoryId: string) => string | null;
@@ -204,6 +224,16 @@ export interface BahanTabProps {
     productId: string,
     orderCreated: boolean,
     requestId?: number | null
+  ) => void;
+  onDescriptionDraftChange?: (
+    poId: string,
+    productId: string,
+    description: string
+  ) => void;
+  onDescriptionPersisted?: (
+    poId: string,
+    productId: string,
+    description: string
   ) => void;
   // Category update state functions
   isCategoryLoading?: (poProductCategoryId: string) => boolean;

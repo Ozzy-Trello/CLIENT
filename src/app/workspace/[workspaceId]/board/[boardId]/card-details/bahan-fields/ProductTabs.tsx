@@ -16,6 +16,8 @@ const ProductTabs: React.FC<ProductTabsProps> = ({
   onEstBahanChange,
   onCategoryValueChange,
   onOrderStatusChange,
+  onDescriptionDraftChange,
+  onDescriptionPersisted,
   deletingProductIds = [],
   isCategoryLoading,
   getCategoryError,
@@ -168,6 +170,8 @@ const ProductTabs: React.FC<ProductTabsProps> = ({
                   onEstBahanChange={onEstBahanChange}
                   onCategoryValueChange={onCategoryValueChange}
                   onOrderStatusChange={onOrderStatusChange}
+                  onDescriptionDraftChange={onDescriptionDraftChange}
+                  onDescriptionPersisted={onDescriptionPersisted}
                   isCategoryLoading={isCategoryLoading}
                   getCategoryError={getCategoryError}
                   clearCategoryError={clearCategoryError}
