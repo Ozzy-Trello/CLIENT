@@ -310,6 +310,27 @@ export const useCardCustomField = (
     const data = cardCustomFieldQuery.data?.data ?? [];
     const map = new Map<string, CardCustomField>();
 
+    const normalizeField = (field: CardCustomField): CardCustomField => {
+      if (field.type !== EnumCustomFieldType.Date) {
+        return field;
+      }
+
+      const rawDateValue =
+        field.valueDate ??
+        (field as any).value_date ??
+        field.valueString ??
+        (field as any).value_string;
+
+      if (!rawDateValue) {
+        return field;
+      }
+
+      return {
+        ...field,
+        valueDate: (field.valueDate ?? rawDateValue) as any,
+      };
+    };
+
     const getKey = (field: CardCustomField) => {
       const customFieldId =
         (field as any).customFieldId ||
@@ -322,9 +343,10 @@ export const useCardCustomField = (
     };
 
     data.forEach((field) => {
-      const key = getKey(field);
+      const normalizedField = normalizeField(field);
+      const key = getKey(normalizedField);
       if (!map.has(key)) {
-        map.set(key, field);
+        map.set(key, normalizedField);
       }
     });
 
@@ -398,7 +420,13 @@ export const useCardCustomField = (
 
   const getDateValue = (customFieldId: string): Date | null => {
     const field = getCustomField(customFieldId);
-    return field?.valueDate || null;
+    return (
+      field?.valueDate ||
+      (field as any)?.value_date ||
+      field?.valueString ||
+      (field as any)?.value_string ||
+      null
+    ) as any;
   };
 
   const getUserValue = (customFieldId: string): string | null => {

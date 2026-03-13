@@ -30,7 +30,9 @@ const mapCustomFieldToFrontend = (field: any): CardCustomField => ({
   valueNumber: field.value_number,
   valueOption: field.value_option,
   valueCheckbox: field.value_checkbox,
-  valueDate: field.value_date,
+  valueDate:
+    field.value_date ??
+    (field.type === "date" ? field.value_string : undefined),
   valueUserId: field.value_user_id,
   canView: field.canView,
   canEdit: field.canEdit,
