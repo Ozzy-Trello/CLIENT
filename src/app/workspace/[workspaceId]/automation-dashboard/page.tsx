@@ -9,6 +9,7 @@ import {
   message,
   Popconfirm,
   Empty,
+  Tag,
 } from "antd";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../../../api";
@@ -57,14 +58,15 @@ const AutomationDashboard = () => {
 
   const [page, setPage] = useState(1);
   const pageSize = 30;
+  const statuses = ["failed", "recovered"];
 
   const { data, isLoading, isFetching } = useQuery<LogResponse>({
-    queryKey: ["automation-execution-log", "failed", page],
+    queryKey: ["automation-execution-log", statuses.join(","), page],
     queryFn: async () => {
       const params: Record<string, any> = {
         limit: pageSize,
         offset: (page - 1) * pageSize,
-        status: "failed",
+        statuses: statuses.join(","),
       };
       const res = await api.get("/automation-rule/execution-log", { params });
       return res.data;
@@ -122,13 +124,35 @@ const AutomationDashboard = () => {
       },
     },
     {
+      title: "Status",
+      dataIndex: "status",
+      key: "status",
+      width: 120,
+      render: (value: string) => {
+        const normalized = (value || "").toLowerCase();
+        const color =
+          normalized === "recovered"
+            ? "green"
+            : normalized === "failed"
+              ? "red"
+              : "default";
+        const label =
+          normalized === "recovered"
+            ? "RECOVERED"
+            : normalized === "failed"
+              ? "FAILED"
+              : (value || "UNKNOWN").toUpperCase();
+        return <Tag color={color}>{label}</Tag>;
+      },
+    },
+    {
       title: "Card",
       dataIndex: "cardName",
       key: "cardName",
       width: 260,
       render: (_: string, record: ExecutionLog) => (
         <div>
-          <div>{record.cardName || "Card unavailable"}</div>
+          <div>{record.cardName || "System event"}</div>
           <Text type="secondary" style={{ fontSize: 12 }}>
             {[
               record.boardName,
@@ -136,7 +160,8 @@ const AutomationDashboard = () => {
               record.cardShortId ? `#${record.cardShortId}` : null,
             ]
               .filter(Boolean)
-              .join(" / ") || "No card context captured"}
+              .join(" / ") ||
+              (record.cardId ? "Card context unavailable" : "Infrastructure / queue / subscriber event")}
           </Text>
         </div>
       ),
@@ -156,12 +181,12 @@ const AutomationDashboard = () => {
       ),
     },
     {
-      title: "Why It Failed",
+      title: "Details",
       dataIndex: "failureMessage",
       key: "failureMessage",
       render: (_: string, record: ExecutionLog) => (
         <Text
-          type="danger"
+          type={record.status === "failed" ? "danger" : undefined}
           style={{ fontSize: 12, whiteSpace: "pre-wrap" }}
         >
           {record.failureMessage || record.errorMessage || "No error details"}
@@ -213,7 +238,7 @@ const AutomationDashboard = () => {
       <div className="p-6">
         <div className="flex items-center justify-between mb-4">
           <Title level={4} style={{ margin: 0 }}>
-            Automation Failures
+            Automation Failures & Recovery
           </Title>
           <Space>
             <Button
@@ -256,7 +281,7 @@ const AutomationDashboard = () => {
               emptyText: (
                 <Empty
                   image={Empty.PRESENTED_IMAGE_SIMPLE}
-                  description="No failed automation runs"
+                  description="No automation failures or recovery events"
                 />
               ),
             }}
