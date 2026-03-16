@@ -123,6 +123,8 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
     () => normalizeCardCustomFields(card.customFields),
     [card.customFields]
   );
+  const shouldFetchCustomFields =
+    !isTempCard && (loadRelatedData || embeddedCardCustomFields.length === 0);
 
   const { cardMembers: fetchedCardMembers } = useCardMembers(card?.id, {
     enabled: loadRelatedData && !isTempCard,
@@ -131,7 +133,7 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
     card.id,
     workspaceId as string,
     {
-      enabled: loadRelatedData && !isTempCard,
+      enabled: shouldFetchCustomFields,
     }
   );
   // local version state to force re-render after lookups populate
@@ -158,7 +160,9 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
       ? fetchedCardLabels
       : embeddedCardLabels;
   const cardCustomFields = !loadRelatedData
-    ? embeddedCardCustomFields
+    ? fetchedCardCustomFields?.length
+      ? fetchedCardCustomFields
+      : embeddedCardCustomFields
     : fetchedCardCustomFields?.length
       ? fetchedCardCustomFields
       : embeddedCardCustomFields;
