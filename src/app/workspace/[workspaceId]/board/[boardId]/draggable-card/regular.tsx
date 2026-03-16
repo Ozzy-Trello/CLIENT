@@ -70,26 +70,45 @@ function normalizeCardCustomFields(
   const dedupedFields = new Map<string, CardCustomField>();
 
   fields.forEach((field, index) => {
+    const normalizedFieldBase: CardCustomField = {
+      ...field,
+      id: field.id ?? (field as any).custom_field_id,
+      cardId: field.cardId ?? (field as any).card_id,
+      name: field.name ?? (field as any).name,
+      description: field.description ?? (field as any).description,
+      source: field.source ?? (field as any).source,
+      type: field.type ?? (field as any).type,
+      options: field.options ?? (field as any).options,
+      isShowAtFront:
+        field.isShowAtFront ?? (field as any).is_show_at_front,
+      valueString: field.valueString ?? (field as any).value_string,
+      valueNumber: field.valueNumber ?? (field as any).value_number,
+      valueOption: field.valueOption ?? (field as any).value_option,
+      valueCheckbox: field.valueCheckbox ?? (field as any).value_checkbox,
+      valueDate: field.valueDate ?? (field as any).value_date,
+      valueUserId: field.valueUserId ?? (field as any).value_user_id,
+    };
+
     const rawDateValue =
-      field.type === "date"
-        ? field.valueDate ??
-          (field as any).value_date ??
-          field.valueString ??
-          (field as any).value_string
+      normalizedFieldBase.type === "date"
+        ? normalizedFieldBase.valueDate ??
+          normalizedFieldBase.valueString
         : undefined;
 
     const normalizedField = rawDateValue
       ? {
-          ...field,
-          valueDate: (field.valueDate ?? rawDateValue) as any,
+          ...normalizedFieldBase,
+          valueDate: (normalizedFieldBase.valueDate ?? rawDateValue) as any,
         }
-      : field;
+      : normalizedFieldBase;
 
     const key =
       (field as any).customFieldId ||
       (field as any).custom_field_id ||
-      field.id ||
-      (field.name ? `name:${field.name.toLowerCase()}` : `index:${index}`);
+      normalizedField.id ||
+      (normalizedField.name
+        ? `name:${normalizedField.name.toLowerCase()}`
+        : `index:${index}`);
 
     if (!dedupedFields.has(key)) {
       dedupedFields.set(key, normalizedField);
@@ -120,8 +139,13 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
     [card.labels]
   );
   const embeddedCardCustomFields = useMemo(
-    () => normalizeCardCustomFields(card.customFields),
-    [card.customFields]
+    () =>
+      normalizeCardCustomFields(
+        (card.customFields ?? (card as any).custom_fields) as
+          | CardCustomField[]
+          | undefined
+      ),
+    [card.customFields, (card as any).custom_fields]
   );
   const shouldFetchCustomFields =
     !isTempCard && (loadRelatedData || embeddedCardCustomFields.length === 0);
