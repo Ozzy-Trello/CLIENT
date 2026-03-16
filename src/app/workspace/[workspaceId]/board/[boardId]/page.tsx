@@ -54,6 +54,59 @@ const Droppable = dynamic(
   { ssr: false }
 );
 
+const CARD_PAGE_SIZE = 10;
+
+function areListCardsEqual(current: Card[] = [], next: Card[] = []) {
+  return (
+    current.length === next.length &&
+    current.every((card, idx) => {
+      const nextCard = next[idx];
+      if (!nextCard || card.id !== nextCard.id) return false;
+
+      const currentLabels = JSON.stringify(
+        card.labels?.map((label) => label.id).sort() || []
+      );
+      const nextLabels = JSON.stringify(
+        nextCard.labels?.map((label) => label.id).sort() || []
+      );
+      if (currentLabels !== nextLabels) return false;
+
+      const currentCFs = JSON.stringify(card.customFields || []);
+      const nextCFs = JSON.stringify(nextCard.customFields || []);
+      if (currentCFs !== nextCFs) return false;
+
+      if (card.name !== nextCard.name) return false;
+      if (card.description !== nextCard.description) return false;
+      if (card.dueDate !== nextCard.dueDate) return false;
+      if (card.isComplete !== nextCard.isComplete) return false;
+
+      return true;
+    })
+  );
+}
+
+function buildCardsPagination(
+  cardsCount: number,
+  totalCards?: number,
+  currentPage: number = 1,
+  previous?: {
+    currentPage: number;
+    hasMore: boolean;
+    totalCards: number;
+  }
+) {
+  const resolvedTotal = totalCards ?? previous?.totalCards ?? cardsCount;
+
+  return {
+    currentPage,
+    hasMore:
+      totalCards != null
+        ? cardsCount < totalCards
+        : previous?.hasMore ?? cardsCount >= CARD_PAGE_SIZE,
+    totalCards: resolvedTotal,
+  };
+}
+
 // Component that uses BoardPermissionsContext - must be inside the provider
 const BoardContentWithPermissions: React.FC<{
   lists: AnyList[] | undefined;
@@ -548,9 +601,10 @@ const Board: React.FC = () => {
       setLocalCardsInitialized(false);
       const initialCards: Record<string, Card[]> = {};
       const initialPagination: Record<string, any> = {};
+      const cachedListIdsToRefresh: string[] = [];
       const labelIds = selectedLabelIds.length > 0 ? selectedLabelIds : undefined;
       const hasLabelFilter = !!labelIds;
-      const limit = 10;
+      const limit = CARD_PAGE_SIZE;
 
       await Promise.all(
         lists.map(async (list) => {
@@ -563,12 +617,12 @@ const Board: React.FC = () => {
 
             if (cachedCards?.data) {
               initialCards[list.id] = cachedCards.data;
-              initialPagination[list.id] = {
-                currentPage: 1,
-                hasMore: cachedCards.data.length >= limit,
-                totalCards:
-                  cachedCards.paginate?.totalData || cachedCards.data.length,
-              };
+              initialPagination[list.id] = buildCardsPagination(
+                cachedCards.data.length,
+                cachedCards.paginate?.totalData,
+                1
+              );
+              cachedListIdsToRefresh.push(list.id);
               return;
             }
           }
@@ -586,11 +640,11 @@ const Board: React.FC = () => {
 
             if (response?.data) {
               initialCards[list.id] = response.data;
-              initialPagination[list.id] = {
-                currentPage: 1,
-                hasMore: response.data.length >= limit,
-                totalCards: response.paginate?.totalData || response.data.length,
-              };
+              initialPagination[list.id] = buildCardsPagination(
+                response.data.length,
+                response.paginate?.totalData,
+                1
+              );
 
               // Keep cards.list cache reserved for the default (unfiltered) list view.
               // Filtered results are local-only to avoid total/count cache collisions.
@@ -602,20 +656,12 @@ const Board: React.FC = () => {
               }
             } else {
               initialCards[list.id] = [];
-              initialPagination[list.id] = {
-                currentPage: 1,
-                hasMore: false,
-                totalCards: 0,
-              };
+              initialPagination[list.id] = buildCardsPagination(0, 0, 1);
             }
           } catch (error) {
             console.error("[INIT CARDS] Error:", error);
             initialCards[list.id] = [];
-            initialPagination[list.id] = {
-              currentPage: 1,
-              hasMore: false,
-              totalCards: 0,
-            };
+            initialPagination[list.id] = buildCardsPagination(0, 0, 1);
           }
         })
       );
@@ -625,6 +671,52 @@ const Board: React.FC = () => {
       setLocalCards(initialCards);
       setCardsPagination(initialPagination);
       setLocalCardsInitialized(true);
+
+      if (!hasLabelFilter && cachedListIdsToRefresh.length > 0) {
+        void Promise.allSettled(
+          cachedListIdsToRefresh.map(async (listId) => {
+            const response = await cards(
+              listId,
+              resolvedBoardId,
+              1,
+              limit,
+              undefined,
+              undefined,
+              undefined
+            );
+
+            if (cancelled || !response?.data) return;
+            const freshCards = response.data;
+
+            queryClient.setQueryData<ApiResponse<Card[]>>(
+              queryKeys.cards.list(listId),
+              response
+            );
+
+            setLocalCards((prev) => {
+              const currentCards = prev[listId] || [];
+              if (areListCardsEqual(currentCards, freshCards)) {
+                return prev;
+              }
+
+              return {
+                ...prev,
+                [listId]: freshCards,
+              };
+            });
+
+            setCardsPagination((prev) => ({
+              ...prev,
+              [listId]: buildCardsPagination(
+                freshCards.length,
+                response.paginate?.totalData,
+                1,
+                prev[listId]
+              ),
+            }));
+          })
+        );
+      }
     };
 
     initializeLocalCards();
@@ -659,33 +751,7 @@ const Board: React.FC = () => {
       setLocalCards((prev): Record<string, Card[]> => {
         const current = prev[listId] || [];
         const next = cards;
-
-        // Deep comparison: check if card data actually changed (not just IDs)
-        // This is important for automation: labels/CFs can change even if IDs are the same
-        const isSame =
-          current.length === next.length &&
-          current.every((card, idx) => {
-            const nextCard = next[idx];
-            if (!nextCard || card.id !== nextCard.id) return false;
-
-            // Compare labels (automation might add/remove labels)
-            const currentLabels = JSON.stringify(card.labels?.map(l => l.id).sort() || []);
-            const nextLabels = JSON.stringify(nextCard.labels?.map(l => l.id).sort() || []);
-            if (currentLabels !== nextLabels) return false;
-
-            // Compare custom fields (automation might update CFs)
-            const currentCFs = JSON.stringify(card.customFields || []);
-            const nextCFs = JSON.stringify(nextCard.customFields || []);
-            if (currentCFs !== nextCFs) return false;
-
-            // Compare other important fields
-            if (card.name !== nextCard.name) return false;
-            if (card.description !== nextCard.description) return false;
-            if (card.dueDate !== nextCard.dueDate) return false;
-            if (card.isComplete !== nextCard.isComplete) return false;
-
-            return true;
-          });
+        const isSame = areListCardsEqual(current, next);
 
         if (isSame) {
           console.log(`✅ [SYNC] No changes detected for list ${listId}`);
@@ -698,26 +764,17 @@ const Board: React.FC = () => {
 
       setCardsPagination((prev) => {
         const previous = prev[listId];
-        const incomingTotal = data.paginate?.totalData;
-        const totalCards =
-          incomingTotal ??
-          previous?.totalCards ??
-          cards.length;
-        const hasMore =
-          incomingTotal != null
-            ? cards.length < incomingTotal
-            : (previous?.hasMore ?? cards.length >= 10);
 
         return {
           ...prev,
           [listId]: {
-            ...(previous || {
-              currentPage: 1,
-              hasMore: false,
-              totalCards: 0,
-            }),
-            totalCards,
-            hasMore,
+            ...buildCardsPagination(
+              cards.length,
+              data.paginate?.totalData,
+              previous?.currentPage || 1,
+              previous
+            ),
+            currentPage: previous?.currentPage || 1,
           },
         };
       });
@@ -1291,7 +1348,7 @@ const Board: React.FC = () => {
         listId,
         resolvedBoardId,
         nextPage,
-        10,
+        CARD_PAGE_SIZE,
         selectedLabelIds.length > 0 ? selectedLabelIds : undefined,
         undefined,
         undefined
@@ -1320,7 +1377,9 @@ const Board: React.FC = () => {
 
           const totalCards = response.paginate?.totalData || 0;
           const hasMoreByTotal =
-            totalCards > 0 ? updatedCards.length < totalCards : newCards.length >= 10;
+            totalCards > 0
+              ? updatedCards.length < totalCards
+              : newCards.length >= CARD_PAGE_SIZE;
 
           setCardsPagination((prevPagination) => ({
             ...prevPagination,
