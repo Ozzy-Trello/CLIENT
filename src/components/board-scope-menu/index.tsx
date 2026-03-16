@@ -622,6 +622,7 @@ const BoardScopeMenu: React.FC<BoardMenuSidebarProps> = ({
                   card={card as any}
                   isHovered={false}
                   onCompletionChange={() => {}}
+                  loadRelatedData={false}
                 />
               </div>
             ))}

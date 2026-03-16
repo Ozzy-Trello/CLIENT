@@ -150,6 +150,7 @@ const DraggableCard: React.FC<DraggableCardProps> = ({ card, index, list }) => {
                 isHovered={isHovered}
                 onCompletionChange={onChange}
                 isDragging={snapshot.isDragging}
+                loadRelatedData={false}
               />
             )}
 

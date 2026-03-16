@@ -19,7 +19,7 @@ import {
   Text,
 } from "lucide-react";
 import { useParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import dayjs from "dayjs";
 import { LookupCache } from "@utils/lookup-cache";
 import { useLabels } from "@hooks/label";
@@ -45,6 +45,7 @@ interface RegularCardProps {
   isHovered: boolean;
   onCompletionChange: (e: CheckboxChangeEvent, card: Card) => void;
   isDragging?: boolean;
+  loadRelatedData?: boolean;
 }
 
 // Utility: decide black/white text based on background color
@@ -61,39 +62,106 @@ function getContrastTextColor(hex: string): string {
   return luminance > 0.5 ? "#000" : "#fff";
 }
 
+function normalizeCardCustomFields(
+  fields: CardCustomField[] | undefined
+): CardCustomField[] {
+  if (!fields?.length) return [];
+
+  const dedupedFields = new Map<string, CardCustomField>();
+
+  fields.forEach((field, index) => {
+    const rawDateValue =
+      field.type === "date"
+        ? field.valueDate ??
+          (field as any).value_date ??
+          field.valueString ??
+          (field as any).value_string
+        : undefined;
+
+    const normalizedField = rawDateValue
+      ? {
+          ...field,
+          valueDate: (field.valueDate ?? rawDateValue) as any,
+        }
+      : field;
+
+    const key =
+      (field as any).customFieldId ||
+      (field as any).custom_field_id ||
+      field.id ||
+      (field.name ? `name:${field.name.toLowerCase()}` : `index:${index}`);
+
+    if (!dedupedFields.has(key)) {
+      dedupedFields.set(key, normalizedField);
+    }
+  });
+
+  return Array.from(dedupedFields.values());
+}
+
 const RegularCard: React.FC<RegularCardProps> = (props) => {
-  const { card, isHovered, onCompletionChange, isDragging = false } = props;
+  const {
+    card,
+    isHovered,
+    onCompletionChange,
+    isDragging = false,
+    loadRelatedData = true,
+  } = props;
   const { workspaceId } = useParams();
   const isTempCard = card?.id?.startsWith("temp-card");
 
-  const { cardMembers } = useCardMembers(card?.id, {
-    enabled: !isTempCard,
+  const embeddedCardMembers = useMemo(() => card.members ?? [], [card.members]);
+  const embeddedCardLabels = useMemo<CardLabel[]>(
+    () =>
+      (card.labels ?? []).map((label: any) => ({
+        ...label,
+        labelId: label.labelId ?? label.id,
+      })),
+    [card.labels]
+  );
+  const embeddedCardCustomFields = useMemo(
+    () => normalizeCardCustomFields(card.customFields),
+    [card.customFields]
+  );
+
+  const { cardMembers: fetchedCardMembers } = useCardMembers(card?.id, {
+    enabled: loadRelatedData && !isTempCard,
   });
-  const { cardCustomFields } = useCardCustomField(card.id, workspaceId as string, {
-    enabled: !isTempCard,
-  });
-  const [frontCustomFields, setfrontCustomFields] = useState<CardCustomField[]>(
-    []
+  const { cardCustomFields: fetchedCardCustomFields } = useCardCustomField(
+    card.id,
+    workspaceId as string,
+    {
+      enabled: loadRelatedData && !isTempCard,
+    }
   );
   // local version state to force re-render after lookups populate
   const [lookupVersion, setLookupVersion] = useState(0);
 
   // Fetch labels assigned to this card
-  const { cardLabels } = useLabels(
+  const { cardLabels: fetchedCardLabels } = useLabels(
     Array.isArray(workspaceId)
       ? (workspaceId[0] as string)
       : (workspaceId as string),
     card.id,
     { cardId: card.id },
-    { enabled: !isTempCard }
+    { enabled: loadRelatedData && !isTempCard }
   );
 
-  // useEffect(() => {
-  //   if (cardCustomFields) {
-  //     const filtered = cardCustomFields.filter((item) => item.isShowAtFront);
-  //     setfrontCustomFields(filtered);
-  //   }
-  // }, cardCustomFields);
+  const cardMembers = !loadRelatedData
+    ? embeddedCardMembers
+    : fetchedCardMembers?.length
+      ? fetchedCardMembers
+      : embeddedCardMembers;
+  const cardLabels = !loadRelatedData
+    ? embeddedCardLabels
+    : fetchedCardLabels?.length
+      ? fetchedCardLabels
+      : embeddedCardLabels;
+  const cardCustomFields = !loadRelatedData
+    ? embeddedCardCustomFields
+    : fetchedCardCustomFields?.length
+      ? fetchedCardCustomFields
+      : embeddedCardCustomFields;
 
   // Ensure any referenced userIds are cached for quick label lookup
   useEffect(() => {
