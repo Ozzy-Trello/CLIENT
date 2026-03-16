@@ -53,6 +53,18 @@ interface LogResponse {
   offset: number;
 }
 
+const humanizeIdentifier = (value?: string | null) => {
+  if (!value) return null;
+  const normalized = value
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/[_\-.]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!normalized) return null;
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+};
+
 const AutomationDashboard = () => {
   const { isSuperAdmin } = usePermissions();
   const queryClient = useQueryClient();
@@ -190,9 +202,13 @@ const AutomationDashboard = () => {
       width: 280,
       render: (_: string, record: ExecutionLog) => (
         <div>
-          <div>{record.actionLabel || record.actionType || "Unknown step"}</div>
+          <div>
+            {record.actionLabel ||
+              humanizeIdentifier(record.actionType) ||
+              "Unknown step"}
+          </div>
           <Text type="secondary" style={{ fontSize: 12 }}>
-            {record.stage || "Failure"}
+            {humanizeIdentifier(record.stage) || "Failure"}
           </Text>
         </div>
       ),
@@ -217,7 +233,12 @@ const AutomationDashboard = () => {
       width: 280,
       render: (_: string, record: ExecutionLog) => (
         <div>
-          <div>{record.triggerLabel || record.eventLabel || "Unknown trigger"}</div>
+          <div>
+            {record.triggerLabel ||
+              record.eventLabel ||
+              humanizeIdentifier(record.eventType) ||
+              "Unknown trigger"}
+          </div>
           {record.eventLabel &&
             record.triggerLabel &&
             record.eventLabel !== record.triggerLabel && (
