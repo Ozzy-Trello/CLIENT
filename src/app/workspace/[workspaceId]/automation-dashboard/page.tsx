@@ -6,6 +6,7 @@ import {
   Card,
   Space,
   Button,
+  Input,
   message,
   Popconfirm,
   Empty,
@@ -57,22 +58,38 @@ const AutomationDashboard = () => {
   const queryClient = useQueryClient();
 
   const [page, setPage] = useState(1);
+  const [searchDraft, setSearchDraft] = useState("");
+  const [cardNameSearch, setCardNameSearch] = useState("");
   const pageSize = 30;
   const statuses = ["failed", "recovered"];
 
   const { data, isLoading, isFetching } = useQuery<LogResponse>({
-    queryKey: ["automation-execution-log", statuses.join(","), page],
+    queryKey: [
+      "automation-execution-log",
+      statuses.join(","),
+      page,
+      cardNameSearch,
+    ],
     queryFn: async () => {
       const params: Record<string, any> = {
         limit: pageSize,
         offset: (page - 1) * pageSize,
         statuses: statuses.join(","),
       };
+      if (cardNameSearch) {
+        params.card_name = cardNameSearch;
+      }
       const res = await api.get("/automation-rule/execution-log", { params });
       return res.data;
     },
     refetchInterval: 30000,
   });
+
+  const submitCardSearch = (value: string) => {
+    const nextValue = value.trim();
+    setPage(1);
+    setCardNameSearch(nextValue);
+  };
 
   const cleanupMutation = useMutation({
     mutationFn: async (days: number) => {
@@ -241,6 +258,23 @@ const AutomationDashboard = () => {
             Automation Failures & Recovery
           </Title>
           <Space>
+            <Input.Search
+              placeholder="Search card name"
+              allowClear
+              value={searchDraft}
+              onChange={(event) => {
+                const nextValue = event.target.value;
+                setSearchDraft(nextValue);
+                if (!nextValue.trim()) {
+                  submitCardSearch("");
+                }
+              }}
+              onSearch={(value) => {
+                setSearchDraft(value);
+                submitCardSearch(value);
+              }}
+              style={{ width: 280 }}
+            />
             <Button
               icon={<RefreshCw size={14} />}
               onClick={() =>
