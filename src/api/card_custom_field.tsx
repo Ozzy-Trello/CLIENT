@@ -1,6 +1,7 @@
 import { CardCustomField } from "@myTypes/card";
 import { api } from ".";
 import { ApiResponse } from "../types/type";
+import { mapCustomFieldToFrontend } from "./card";
 
 export const cardCustomFields = async (
   cardId: string,
@@ -9,6 +10,11 @@ export const cardCustomFields = async (
   const { data } = await api.get(`/card/${cardId}/custom-field`, {
     headers: { "workspace-id": workspaceId },
   });
+
+  if (Array.isArray(data.data)) {
+    data.data = data.data.map(mapCustomFieldToFrontend);
+  }
+
   return data;
 };
 
@@ -46,5 +52,10 @@ export const setCardCustomFieldValue = async (
     payload,
     { headers: { "workspace-id": workspaceId } }
   );
+
+  if (Array.isArray(data.data)) {
+    data.data = data.data.map(mapCustomFieldToFrontend);
+  }
+
   return data;
 };

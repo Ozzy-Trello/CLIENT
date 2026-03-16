@@ -17,7 +17,7 @@ const mapLabelToFrontend = (label: any) => ({
   workspaceId: label.workspace_id ?? label.workspaceId,
 });
 
-const mapCustomFieldToFrontend = (field: any): CardCustomField => ({
+export const mapCustomFieldToFrontend = (field: any): CardCustomField => ({
   id: field.id ?? field.custom_field_id,
   cardId: field.card_id,
   name: field.name,
