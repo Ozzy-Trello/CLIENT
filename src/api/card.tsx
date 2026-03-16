@@ -18,25 +18,25 @@ const mapLabelToFrontend = (label: any) => ({
 });
 
 export const mapCustomFieldToFrontend = (field: any): CardCustomField => ({
-  id: field.id ?? field.custom_field_id,
-  cardId: field.card_id,
+  id: field.id ?? field.custom_field_id ?? field.customFieldId,
+  cardId: field.card_id ?? field.cardId,
   name: field.name,
   description: field.description,
   source: field.source,
   type: field.type,
   options: field.options,
   isShowAtFront: field.is_show_at_front ?? field.isShowAtFront,
-  valueString: field.value_string,
-  valueNumber: field.value_number,
-  valueOption: field.value_option,
-  valueCheckbox: field.value_checkbox,
+  valueString: field.value_string ?? field.valueString,
+  valueNumber: field.value_number ?? field.valueNumber,
+  valueOption: field.value_option ?? field.valueOption,
+  valueCheckbox: field.value_checkbox ?? field.valueCheckbox,
   valueDate:
-    field.value_date ??
-    (field.type === "date" ? field.value_string : undefined),
-  valueUserId: field.value_user_id,
-  canView: field.canView,
-  canEdit: field.canEdit,
-  isPublic: field.isPublic,
+    field.value_date ?? field.valueDate ??
+    (field.type === "date" ? (field.value_string ?? field.valueString) : undefined),
+  valueUserId: field.value_user_id ?? field.valueUserId,
+  canView: field.canView ?? field.can_view,
+  canEdit: field.canEdit ?? field.can_edit,
+  isPublic: field.isPublic ?? field.is_public,
 });
 
 const mapMemberToFrontend = (member: any) => ({
