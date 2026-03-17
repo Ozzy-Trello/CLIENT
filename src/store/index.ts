@@ -5,6 +5,7 @@ import { combineReducers } from "redux";
 import { encryptTransform } from "redux-persist-transform-encrypt";
 import appSlice from "./app_slice";
 import workspaceSlice from './workspace_slice';
+import notificationReducer from "./notification_slice";
 
 // noop storage for server-side
 const createNoopStorage = () => {
@@ -35,7 +36,8 @@ const encryptor = encryptTransform({
 // Combine Reducers
 const rootReducer = combineReducers({
   appState: appSlice,
-  workspaceState: workspaceSlice
+  workspaceState: workspaceSlice,
+  notificationState: notificationReducer,
 });
 
 // persist config
@@ -43,6 +45,7 @@ const persistConfig: PersistConfig<ReturnType<typeof rootReducer>> = {
   key: "root",
   storage,
   transforms: [encryptor],
+  blacklist: ["notificationState"],
 };
 
 // Apply Persisted Reducer

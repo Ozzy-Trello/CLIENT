@@ -1,0 +1,58 @@
+// client/src/store/notification_slice.ts
+import { createSlice, PayloadAction } from "@reduxjs/toolkit";
+import { NotificationItem } from "@myTypes/notification";
+
+interface NotificationState {
+  notifications: NotificationItem[];
+  unreadCount: number;
+  isOpen: boolean;
+}
+
+const initialState: NotificationState = {
+  notifications: [],
+  unreadCount: 0,
+  isOpen: false,
+};
+
+const notificationSlice = createSlice({
+  name: "notificationState",
+  initialState,
+  reducers: {
+    setNotifications(state, action: PayloadAction<NotificationItem[]>) {
+      state.notifications = action.payload;
+    },
+    addNotification(state, action: PayloadAction<NotificationItem>) {
+      // Prepend new notification, keep list bounded to 50
+      state.notifications = [action.payload, ...state.notifications].slice(0, 50);
+      state.unreadCount += 1;
+    },
+    setUnreadCount(state, action: PayloadAction<number>) {
+      state.unreadCount = action.payload;
+    },
+    markAllReadLocally(state) {
+      state.unreadCount = 0;
+      state.notifications = state.notifications.map((n) => ({ ...n, isRead: true }));
+    },
+    setOpen(state, action: PayloadAction<boolean>) {
+      state.isOpen = action.payload;
+    },
+  },
+});
+
+export const {
+  setNotifications,
+  addNotification,
+  setUnreadCount,
+  markAllReadLocally,
+  setOpen,
+} = notificationSlice.actions;
+
+export default notificationSlice.reducer;
+
+// Selectors
+export const selectNotifications = (state: { notificationState: NotificationState }) =>
+  state.notificationState.notifications;
+export const selectUnreadCount = (state: { notificationState: NotificationState }) =>
+  state.notificationState.unreadCount;
+export const selectNotificationOpen = (state: { notificationState: NotificationState }) =>
+  state.notificationState.isOpen;
