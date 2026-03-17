@@ -49,10 +49,11 @@ export const {
 
 export default notificationSlice.reducer;
 
-// Selectors
-export const selectNotifications = (state: { notificationState: NotificationState }) =>
-  state.notificationState.notifications;
-export const selectUnreadCount = (state: { notificationState: NotificationState }) =>
-  state.notificationState.unreadCount;
-export const selectNotificationOpen = (state: { notificationState: NotificationState }) =>
-  state.notificationState.isOpen;
+// Selectors — use optional chaining because notificationState is blacklisted from
+// redux-persist and may be undefined during the initial rehydration phase.
+export const selectNotifications = (state: { notificationState?: NotificationState }) =>
+  state.notificationState?.notifications ?? [];
+export const selectUnreadCount = (state: { notificationState?: NotificationState }) =>
+  state.notificationState?.unreadCount ?? 0;
+export const selectNotificationOpen = (state: { notificationState?: NotificationState }) =>
+  state.notificationState?.isOpen ?? false;
