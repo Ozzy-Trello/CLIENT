@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useDispatch } from "react-redux";
 import { useQueryClient } from "@tanstack/react-query";
 import camelcaseKeys from "camelcase-keys";
 import {
@@ -24,6 +25,8 @@ import {
   handleCustomFieldUpdated,
   handleListArchived,
 } from "@utils/websocket-event-handlers";
+import { addNotification } from "@store/notification_slice";
+import TokenStorage from "@utils/token-storage";
 
 /**
  * Tracks recent frontend mutations to avoid processing websocket echoes
@@ -101,6 +104,11 @@ export function useWebSocket() {
       clearTimeout(timeout);
       setIsConnected(true);
       setLastError(null);
+      // Authenticate socket for targeted push delivery
+      const token = TokenStorage.getAccessToken();
+      if (token) {
+        ws.send(JSON.stringify({ type: "auth", token }));
+      }
     };
 
     ws.onclose = (event) => {
@@ -143,6 +151,7 @@ export function useWebSocket() {
  */
 export function useWebSocketCardUpdates(socket: WebSocket | null) {
   const queryClient = useQueryClient();
+  const dispatch = useDispatch();
   // Dashcard invalidation disabled for performance; refs kept for cleanup compatibility.
   const dashcardTimeoutRef = useRef<any>(null);
   const dashcardLastInvalidatedRef = useRef<number>(0);
@@ -1313,6 +1322,12 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             );
             refreshDashcard = true;
             break;
+
+          case "notification:new":
+            if (message.data) {
+              dispatch(addNotification(message.data));
+            }
+            return;
 
           default:
             break;
