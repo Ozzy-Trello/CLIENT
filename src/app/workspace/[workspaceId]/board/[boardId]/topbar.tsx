@@ -60,6 +60,8 @@ import ScanProgressModal from "@components/scan-progress-modal";
 import QRGuideOverlay from "@components/qr-overlay";
 import { useLabels } from "@hooks/label";
 import { Checkbox } from "antd";
+import { NotificationBell } from "@components/notifications/notification-bell";
+import { usePushNotifications } from "@hooks/use-push-notifications";
 
 // Helper function to derive permission level from fine-grained permissions
 const getPermissionLevelFromFineGrained = (
@@ -187,6 +189,9 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
   // User board order hook for favorites
   const { userBoardOrder, toggleFavorite, isTogglingFavorite } =
     useUserBoardOrder(params.workspaceId as string);
+
+  // Initialize push notifications for this board view
+  usePushNotifications();
 
   // Fetch workspace labels for filtering
   const { allLabels: workspaceLabels, isLoadingAllLabels: isLoadingLabels } =
@@ -1009,6 +1014,7 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
                   </Button>
                 </Tooltip>
               )}
+              <NotificationBell />
               <Tooltip title="more">
                 <Button
                   type="text"
