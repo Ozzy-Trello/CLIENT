@@ -50,9 +50,20 @@ export function NotificationBell() {
     <Dropdown
       open={isOpen}
       onOpenChange={handleOpenChange}
-      dropdownRender={() => <NotificationList />}
+      dropdownRender={() => (
+        <div
+          style={{
+            background: "#ffffff",
+            borderRadius: 8,
+            boxShadow: "0 6px 16px rgba(0,0,0,0.12)",
+          }}
+        >
+          <NotificationList />
+        </div>
+      )}
       trigger={["click"]}
       placement="bottomRight"
+      overlayStyle={{ zIndex: 9999 }}
     >
       <Badge count={unreadCount} size="small" offset={[-2, 2]}>
         <BellOutlined

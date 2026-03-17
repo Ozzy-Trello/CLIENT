@@ -34,6 +34,8 @@ import { selectCurrentBoard, selectCurrentWorkspace } from "@store/workspace_sli
 import { useRecentlyViewed } from "@hooks/recently-viewed";
 import GenericPlannerView from "@components/generic-planner-view";
 import GenericPlannerInputView from "@components/generic-planner-view/input-view";
+import { NotificationBell } from "@components/notifications/notification-bell";
+import { usePushNotifications } from "@hooks/use-push-notifications";
 
 const { Text } = Typography;
 
@@ -97,6 +99,9 @@ const PlannerModal: React.FC<PlannerModalProps> = ({
 };
 
 const TopBar: React.FC = React.memo(() => {
+  // Register service worker and push subscription for logged-in users
+  usePushNotifications();
+
   const [notificationVisible, setNotificationVisible] = useState(false);
   const [avatarMenuVisible, setAvatarMenuVisible] = useState(false);
   const [modalRequestOpen, setModalRequestOpen] = useState(false);
@@ -911,16 +916,7 @@ const TopBar: React.FC = React.memo(() => {
           </div>
         )}
 
-        {/* <Dropdown
-          menu={{ items: notificationItems }}
-          trigger={["click"]}
-          open={notificationVisible}
-          onOpenChange={setNotificationVisible}
-        >
-          <Badge count={4}>
-            <BellOutlined className="text-xl cursor-pointer" />
-          </Badge>
-        </Dropdown> */}
+        <NotificationBell />
 
         <Dropdown
           menu={{ items: avatarMenuItems }}
