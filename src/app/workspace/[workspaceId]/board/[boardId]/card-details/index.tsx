@@ -163,6 +163,29 @@ const CardDetails: React.FC = (props) => {
     refetchCardDetails,
     isLoadingCardDetails,
   } = useCardDetailContext();
+
+  // Must be declared before any useEffect that references effectiveCard.
+  const {
+    card: queryCard,
+    completeCard,
+    incompleteCard,
+    updateCard: updateCardDetails,
+  } = useCardDetails(
+    selectedCard?.id || "",
+    selectedCard?.listId || "",
+    boardId as string,
+    {
+      enabled: isCardDetailOpen && !!selectedCard?.id,
+    },
+  );
+
+  // Merge: use React Query data as primary source, fallback to context state.
+  // Fixes blank name/description when opening card via notification URL
+  // (selectedCard is initially minimal { id, listId } until context syncs).
+  const effectiveCard = queryCard
+    ? { ...(selectedCard || {}), ...queryCard } as Card
+    : selectedCard;
+
   const boardName =
     currentBoard?.name ||
     reduxBoard?.name ||
@@ -285,26 +308,6 @@ const CardDetails: React.FC = (props) => {
   const [openAddMember, setOpenAddMember] = useState<boolean>(false);
   const [openLabel, setOpenLabel] = useState<boolean>(false);
   const [openDates, setOpenDates] = useState<boolean>(false);
-  const {
-    card: queryCard,
-    completeCard,
-    incompleteCard,
-    updateCard: updateCardDetails,
-  } = useCardDetails(
-    selectedCard?.id || "",
-    selectedCard?.listId || "",
-    boardId as string,
-    {
-      enabled: isCardDetailOpen && !!selectedCard?.id,
-    },
-  );
-
-  // Merge: use React Query data as primary source, fallback to context state.
-  // Fixes blank name/description when opening card via notification URL
-  // (selectedCard is initially minimal { id, listId } until context syncs).
-  const effectiveCard = queryCard
-    ? { ...(selectedCard || {}), ...queryCard } as Card
-    : selectedCard;
 
   // Get board permissions
   const { canUpdateCard, canManageCardAttachments, canGenerateQR } =
