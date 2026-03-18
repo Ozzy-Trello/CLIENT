@@ -174,9 +174,10 @@ const CardDetails: React.FC = (props) => {
 
   useEffect(() => {
     if (typeof document === "undefined") return;
+    const cardName = effectiveCard?.name || selectedCard?.name;
     const desiredTitle =
-      isCardDetailOpen && selectedCard?.name
-        ? `${selectedCard.name} | ${boardName}`
+      isCardDetailOpen && cardName
+        ? `${cardName} | ${boardName}`
         : boardName;
 
     // Next.js can update <title> after navigation; re-apply on next ticks to win.
@@ -194,6 +195,7 @@ const CardDetails: React.FC = (props) => {
     };
   }, [
     isCardDetailOpen,
+    effectiveCard?.name,
     selectedCard?.name,
     boardName,
     cardIdQuery,
@@ -284,6 +286,7 @@ const CardDetails: React.FC = (props) => {
   const [openLabel, setOpenLabel] = useState<boolean>(false);
   const [openDates, setOpenDates] = useState<boolean>(false);
   const {
+    card: queryCard,
     completeCard,
     incompleteCard,
     updateCard: updateCardDetails,
@@ -295,6 +298,13 @@ const CardDetails: React.FC = (props) => {
       enabled: isCardDetailOpen && !!selectedCard?.id,
     },
   );
+
+  // Merge: use React Query data as primary source, fallback to context state.
+  // Fixes blank name/description when opening card via notification URL
+  // (selectedCard is initially minimal { id, listId } until context syncs).
+  const effectiveCard = queryCard
+    ? { ...(selectedCard || {}), ...queryCard } as Card
+    : selectedCard;
 
   // Get board permissions
   const { canUpdateCard, canManageCardAttachments, canGenerateQR } =
@@ -1106,12 +1116,12 @@ const CardDetails: React.FC = (props) => {
                 }`}
                 onClick={() => {
                   if (canUpdateCard()) {
-                    setNewTitle(selectedCard?.name || "");
+                    setNewTitle(effectiveCard?.name || "");
                     setIsEditingTitle(true);
                   }
                 }}
               >
-                {selectedCard?.name}
+                {effectiveCard?.name}
               </h1>
               <Tooltip title="Copy name">
                 <button
@@ -1434,7 +1444,7 @@ const CardDetails: React.FC = (props) => {
       </Flex>
 
       {selectedCard && (
-        <Description card={selectedCard} setSelectedCard={setSelectedCard} />
+        <Description card={effectiveCard || selectedCard} setSelectedCard={setSelectedCard} />
       )}
 
       {selectedCard &&
