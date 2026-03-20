@@ -73,6 +73,13 @@ const formats = [
   "mention",
 ];
 
+const WORKSPACE_ALL_MENTION_ID = "__workspace_all__";
+const WORKSPACE_ALL_MENTION_VALUE = "all";
+const workspaceAllMentionOption = {
+  id: WORKSPACE_ALL_MENTION_ID,
+  value: WORKSPACE_ALL_MENTION_VALUE,
+};
+
 interface RichTextEditorProps {
   initialValue?: string;
   onChange?: (content: string) => void;
@@ -168,21 +175,34 @@ const RichTextEditorClient = forwardRef<any, RichTextEditorProps>(
           accountList
         );
 
+        const normalizedSearch = (searchTerm || "").toLowerCase();
+
         const values = accountList.map((account: Account) => {
           return { id: account.id, value: account.name || account.username };
         });
 
-        if (searchTerm.length === 0) {
-          renderList(values, searchTerm);
-        } else {
-          const matches = values.filter(
-            (item) =>
-              item.value.toLowerCase().indexOf(searchTerm.toLowerCase()) !== -1
-          );
-          renderList(matches, searchTerm);
+        const matches =
+          normalizedSearch.length === 0
+            ? values
+            : values.filter((item) => {
+                const valueText = (item.value || "").toLowerCase();
+                return valueText.includes(normalizedSearch);
+              });
+
+        const shouldShowWorkspaceAll =
+          Boolean(workspaceId) &&
+          (normalizedSearch.length === 0 ||
+            WORKSPACE_ALL_MENTION_VALUE.includes(normalizedSearch));
+
+        const suggestions = [];
+        if (shouldShowWorkspaceAll) {
+          suggestions.push(workspaceAllMentionOption);
         }
+        suggestions.push(...matches);
+
+        renderList(suggestions, searchTerm);
       },
-      [accountList]
+      [accountList, workspaceId]
     );
 
     // Update mention source when accountList changes
