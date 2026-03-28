@@ -11,6 +11,14 @@ const toProxyUrl = (url: string): string => {
   return url;
 };
 
+const sanitizeCardId = (cardId: string): string => {
+  const trimmed = String(cardId || "").trim();
+  if (!trimmed) {
+    return "";
+  }
+  return trimmed.split("?")[0]?.split("&")[0]?.trim() || "";
+};
+
 const transformFile = (f: any) => {
   if (!f) return undefined;
   const sizeUnit = f.sizeUnit || f.size_unit;
@@ -66,7 +74,19 @@ const transformAttachment = (a: any): CardAttachment => {
  * @returns Promise with the attachments data
  */
 export const getCardAttachments = async (cardId: string): Promise<ApiResponse<CardAttachment[]>> => {
-  const { data } = await api.get(`/card-attachment?card_id=${cardId}&page=1&limit=100`);
+  const normalizedCardId = sanitizeCardId(cardId);
+  if (!normalizedCardId) {
+    return {
+      data: [],
+      message: "Invalid card id",
+    };
+  }
+  const params = new URLSearchParams({
+    card_id: normalizedCardId,
+    page: "1",
+    limit: "100",
+  });
+  const { data } = await api.get(`/card-attachment?${params.toString()}`);
   if (Array.isArray(data.data)) {
     data.data = data.data.map(transformAttachment);
   }

@@ -107,6 +107,18 @@ const CardDetailContext = createContext<CardDetailContextType>({
   isLoadingCardDetails: false,
 });
 
+const sanitizeQueryId = (value: string | null): string | null => {
+  if (!value) {
+    return null;
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+  const baseValue = trimmed.split("?")[0]?.split("&")[0]?.trim();
+  return baseValue || null;
+};
+
 export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
@@ -704,8 +716,8 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
 
   // Handle URL changes
   useEffect(() => {
-    const cardId = searchParams.get("cardId");
-    const listId = searchParams.get("listId");
+    const cardId = sanitizeQueryId(searchParams.get("cardId"));
+    const listId = sanitizeQueryId(searchParams.get("listId"));
 
     // Only handle URL changes if we're not in the middle of a programmatic change
     if (handleUrlChange.current === undefined) {

@@ -959,8 +959,19 @@ const Actions: React.FC<{
         <PermissionButton
           canPerform={canShareCard()}
           onClick={() => {
-            const url = `${window.location.href}?listId=${selectedCard?.listId}&cardId=${selectedCard?.id}`;
-            navigator.clipboard.writeText(url);
+            if (!selectedCard?.id) {
+              message.error("Card is not selected");
+              return;
+            }
+
+            const shareUrl = new URL(window.location.href);
+            shareUrl.search = "";
+            if (selectedCard?.listId) {
+              shareUrl.searchParams.set("listId", selectedCard.listId);
+            }
+            shareUrl.searchParams.set("cardId", selectedCard.id);
+
+            navigator.clipboard.writeText(shareUrl.toString());
             message.info("Copied to clipboard");
           }}
           tooltip="Share this card with others by copying the link"
