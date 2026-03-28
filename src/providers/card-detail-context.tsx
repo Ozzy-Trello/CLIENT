@@ -24,6 +24,7 @@ import { useCardDetails } from "@hooks/card-details";
 import { useRecentlyViewed } from "@hooks/recently-viewed";
 import { useSelector } from "react-redux";
 import { selectCurrentBoard, selectCurrentWorkspace } from "@store/workspace_slice";
+import { queryKeys } from "@constants/query-keys";
 
 type CardDetailContextType = {
   selectedCard: Card | null;
@@ -718,12 +719,24 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
   useEffect(() => {
     const cardId = sanitizeQueryId(searchParams.get("cardId"));
     const listId = sanitizeQueryId(searchParams.get("listId"));
+    const normalizedBoardId = Array.isArray(boardId) ? boardId[0] : boardId;
 
     // Only handle URL changes if we're not in the middle of a programmatic change
     if (handleUrlChange.current === undefined) {
       if (cardId && listId) {
         // Only open if not already open with the same card
         if (!isCardDetailOpen || selectedCard?.id !== cardId) {
+          const cachedCardDetail = (queryClient.getQueryData(
+            queryKeys.cards.detail(cardId)
+          ) as any)?.data;
+          const cachedCardsInList = (queryClient.getQueryData(
+            queryKeys.cards.list(listId)
+          ) as any)?.data;
+          const cachedCardFromList = Array.isArray(cachedCardsInList)
+            ? cachedCardsInList.find((card: any) => card?.id === cardId)
+            : null;
+          const cachedCard = cachedCardDetail || cachedCardFromList;
+
           setIsCardDetailOpen(true);
           setIsOpenViaUrl(true);
 
@@ -733,7 +746,41 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
           setActiveList(list);
 
           // Set minimal card object just for the query key, but React Query will provide complete data
-          setSelectedCard({ id: cardId, listId: listId } as Card);
+          setSelectedCard({
+            ...(cachedCard || {}),
+            id: cardId,
+            listId: listId,
+          } as Card);
+
+          // Extra hardening for deep-link opens: if cache has no name yet, fetch once immediately.
+          if (!cachedCard?.name) {
+            void cardDetails(cardId, normalizedBoardId as string)
+              .then((response) => {
+                const fetchedCard = response?.data;
+                if (!fetchedCard?.id) {
+                  return;
+                }
+
+                const fetchedListId =
+                  fetchedCard.listId ||
+                  (fetchedCard as any).list_id ||
+                  listId;
+                setActiveList({ id: fetchedListId } as AnyList);
+                setSelectedCard((prev) => {
+                  if (prev && prev.id !== cardId) {
+                    return prev;
+                  }
+                  return {
+                    ...(prev || {}),
+                    ...fetchedCard,
+                    listId: fetchedListId,
+                  } as Card;
+                });
+              })
+              .catch(() => {
+                // no-op: standard query flow will still attempt to fetch
+              });
+          }
         }
       } else if (isCardDetailOpen && !isOpenViaUrl) {
         // Only close if we're currently open and it wasn't opened via URL initially
@@ -742,7 +789,7 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
         setIsCardDetailOpen(false);
       }
     }
-  }, [searchParams.toString(), isCardDetailOpen, isOpenViaUrl]);
+  }, [searchParams.toString(), isCardDetailOpen, isOpenViaUrl, boardId, queryClient, selectedCard?.id]);
 
   return (
     <CardDetailContext.Provider

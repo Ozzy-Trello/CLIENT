@@ -104,6 +104,7 @@ import CardTimeInList from "./time-in-lists";
 import { uploadFile } from "@api/file";
 import { useCardAttachment } from "@hooks/card_attachment";
 import { useCardCustomField } from "@hooks/card_custom_field";
+import { useDevMode } from "@hooks/use-dev-mode";
 import { ManualOverrideProvider } from "./manual-override-context";
 
 const CardDetails: React.FC = (props) => {
@@ -318,6 +319,7 @@ const CardDetails: React.FC = (props) => {
   const [isDraggingFiles, setIsDraggingFiles] = useState(false);
   const [isUploadingDrop, setIsUploadingDrop] = useState(false);
   const [isActionsPopoverOpen, setIsActionsPopoverOpen] = useState(false);
+  const isDevMode = useDevMode();
   const [quickUploadLoading, setQuickUploadLoading] = useState<"camera" | null>(
     null,
   );
@@ -1273,7 +1275,7 @@ const CardDetails: React.FC = (props) => {
             width={"fit-content"}
             value={selectedCard?.listId}
             onChange={onListChange}
-            disabled={true}
+            disabled={!isDevMode}
           />
         </div>
       </div>
