@@ -66,6 +66,7 @@ import AutomateButtons from "./automate-buttons";
 import { ListSelection, SelectionRef } from "@components/selection";
 import { useCurrentAccount } from "@hooks/account";
 import { generateQRCodesPDF } from "@api/qr";
+import { cardDetails } from "@api/card";
 
 import { useBoardDetails } from "@hooks/board";
 import { useCardMutationsOnly } from "@hooks/card";
@@ -186,6 +187,11 @@ const CardDetails: React.FC = (props) => {
   const effectiveCard = queryCard
     ? { ...(selectedCard || {}), ...queryCard } as Card
     : selectedCard;
+  const resolvedCardName = (
+    effectiveCard?.name ||
+    selectedCard?.name ||
+    ""
+  ).toString().trim();
 
   const boardName =
     currentBoard?.name ||
@@ -198,7 +204,7 @@ const CardDetails: React.FC = (props) => {
 
   useEffect(() => {
     if (typeof document === "undefined") return;
-    const cardName = effectiveCard?.name || selectedCard?.name;
+    const cardName = resolvedCardName;
     const desiredTitle =
       isCardDetailOpen && cardName
         ? `${cardName} | ${boardName}`
@@ -219,12 +225,54 @@ const CardDetails: React.FC = (props) => {
     };
   }, [
     isCardDetailOpen,
-    effectiveCard?.name,
-    selectedCard?.name,
+    resolvedCardName,
     boardName,
     cardIdQuery,
     listIdQuery,
   ]);
+
+  useEffect(() => {
+    if (!isCardDetailOpen || !selectedCard?.id || resolvedCardName) {
+      return;
+    }
+
+    let cancelled = false;
+    void cardDetails(selectedCard.id, boardId as string)
+      .then((response) => {
+        if (cancelled || !response?.data?.id) {
+          return;
+        }
+
+        const fetchedCard = response.data;
+        const fetchedName = String(fetchedCard.name || "").trim();
+        if (!fetchedName) {
+          return;
+        }
+
+        const fetchedListId =
+          fetchedCard.listId ||
+          (fetchedCard as any).list_id ||
+          selectedCard.listId;
+
+        setSelectedCard((prev) => {
+          if (prev && prev.id !== selectedCard.id) {
+            return prev;
+          }
+          return {
+            ...(prev || {}),
+            ...fetchedCard,
+            listId: fetchedListId,
+          } as Card;
+        });
+      })
+      .catch(() => {
+        // keep existing behavior if fallback fetch fails
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [boardId, isCardDetailOpen, resolvedCardName, selectedCard?.id, selectedCard?.listId, setSelectedCard]);
 
   useEffect(() => {
     if (!isCardDetailOpen) {
@@ -942,7 +990,7 @@ const CardDetails: React.FC = (props) => {
   };
 
   const copyCardName = async () => {
-    const text = (selectedCard?.name || "").toString();
+    const text = resolvedCardName;
     if (!text.trim()) return;
 
     try {
@@ -1091,7 +1139,7 @@ const CardDetails: React.FC = (props) => {
                     e.preventDefault();
                     e.currentTarget.blur();
                   } else if (e.key === "Escape") {
-                    setNewTitle(selectedCard?.name || "");
+                    setNewTitle(resolvedCardName);
                     setIsEditingTitle(false);
                   }
                 }}
@@ -1121,12 +1169,12 @@ const CardDetails: React.FC = (props) => {
                 }`}
                 onClick={() => {
                   if (canUpdateCard()) {
-                    setNewTitle(effectiveCard?.name || "");
+                    setNewTitle(resolvedCardName);
                     setIsEditingTitle(true);
                   }
                 }}
               >
-                {effectiveCard?.name}
+                {resolvedCardName || "Untitled Card"}
               </h1>
               <Tooltip title="Copy name">
                 <button
