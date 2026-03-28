@@ -120,6 +120,15 @@ const sanitizeQueryId = (value: string | null): string | null => {
   return baseValue || null;
 };
 
+const resolveCardName = (card: any): string | undefined => {
+  const rawName = card?.name ?? card?.card_name ?? card?.cardName ?? card?.title;
+  if (rawName === undefined || rawName === null) {
+    return undefined;
+  }
+  const normalized = String(rawName).trim();
+  return normalized || undefined;
+};
+
 export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
@@ -167,13 +176,18 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
     setIsOpenViaUrl(false);
 
     if (!selectedCard || selectedCard.id !== card.id) {
-      setSelectedCard({ ...card, listId: list.id } as Card);
+      const cardName = resolveCardName(card);
+      setSelectedCard({
+        ...card,
+        listId: list.id,
+        ...(cardName ? { name: cardName } : {}),
+      } as Card);
     }
 
     // Add to recently viewed cards
     addRecentlyViewedCard({
       id: card.id,
-      name: card.name,
+      name: resolveCardName(card) || card.name,
       boardId: boardId as string,
       boardName: currentBoard?.name || 'Untitled Board',
       listId: list.id,
@@ -440,10 +454,14 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
         // This ensures the card shows the correct list after automation moves
         const newListId = fetchedCard.listId || (fetchedCard as any).list_id || activeList?.id;
 
+        const previousName = resolveCardName(prevCard);
+        const fetchedName = resolveCardName(fetchedCard);
+        const mergedName = fetchedName || previousName;
         const merged = {
           ...(prevCard || {}),
           ...fetchedCard,
           listId: newListId,
+          ...(mergedName ? { name: mergedName } : {}),
         } as Card;
         lastCardSnapshotRef.current = snapshotCard(merged);
         console.log("[LABEL LOG] 📝 CardDetailContext: Updated selectedCard with listId:", newListId);
@@ -736,6 +754,7 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
             ? cachedCardsInList.find((card: any) => card?.id === cardId)
             : null;
           const cachedCard = cachedCardDetail || cachedCardFromList;
+          const cachedName = resolveCardName(cachedCard);
 
           setIsCardDetailOpen(true);
           setIsOpenViaUrl(true);
@@ -750,6 +769,7 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
             ...(cachedCard || {}),
             id: cardId,
             listId: listId,
+            ...(cachedName ? { name: cachedName } : {}),
           } as Card);
 
           // Extra hardening for deep-link opens: if cache has no name yet, fetch once immediately.
@@ -770,10 +790,14 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
                   if (prev && prev.id !== cardId) {
                     return prev;
                   }
+                  const previousName = resolveCardName(prev);
+                  const fetchedName = resolveCardName(fetchedCard);
+                  const mergedName = fetchedName || previousName;
                   return {
                     ...(prev || {}),
                     ...fetchedCard,
                     listId: fetchedListId,
+                    ...(mergedName ? { name: mergedName } : {}),
                   } as Card;
                 });
               })

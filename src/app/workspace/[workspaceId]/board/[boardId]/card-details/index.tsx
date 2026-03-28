@@ -109,6 +109,16 @@ import { useDevMode } from "@hooks/use-dev-mode";
 import { ManualOverrideProvider } from "./manual-override-context";
 
 const CardDetails: React.FC = (props) => {
+  const resolveCardName = (card: any): string => {
+    const rawName =
+      card?.name ??
+      card?.card_name ??
+      card?.cardName ??
+      card?.title ??
+      "";
+    return String(rawName).trim();
+  };
+
   const params = useParams();
   const searchParams = useSearchParams();
   const workspaceId = Array.isArray(params.workspaceId)
@@ -187,11 +197,8 @@ const CardDetails: React.FC = (props) => {
   const effectiveCard = queryCard
     ? { ...(selectedCard || {}), ...queryCard } as Card
     : selectedCard;
-  const resolvedCardName = (
-    effectiveCard?.name ||
-    selectedCard?.name ||
-    ""
-  ).toString().trim();
+  const resolvedCardName =
+    resolveCardName(effectiveCard) || resolveCardName(selectedCard);
 
   const boardName =
     currentBoard?.name ||

@@ -81,6 +81,15 @@ export const mapBackendAttachmentToFrontend = (attachment: any): CardAttachment 
 // Helper function to map backend response to frontend Card format
 export const mapBackendCardToFrontend = (backendCard: any): Card => {
   const mapped: any = { ...backendCard };
+  const resolvedName =
+    backendCard?.name ??
+    backendCard?.card_name ??
+    backendCard?.cardName ??
+    backendCard?.title;
+
+  if (resolvedName !== undefined && resolvedName !== null) {
+    mapped.name = String(resolvedName);
+  }
 
   // Map backend snake_case to frontend camelCase
   if (backendCard.product_id !== undefined) {
