@@ -11,6 +11,7 @@ import {
   Popconfirm,
   Empty,
   Tag,
+  Select,
 } from "antd";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../../../api";
@@ -20,6 +21,7 @@ import { Trash2, RefreshCw } from "lucide-react";
 import type { ColumnsType } from "antd/es/table";
 
 const { Title, Text } = Typography;
+const { Option } = Select;
 
 interface ExecutionLog {
   id: string;
@@ -72,13 +74,19 @@ const AutomationDashboard = () => {
   const [page, setPage] = useState(1);
   const [searchDraft, setSearchDraft] = useState("");
   const [cardNameSearch, setCardNameSearch] = useState("");
+  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([
+    "started",
+    "success",
+    "failed",
+    "skipped",
+    "recovered",
+  ]);
   const pageSize = 30;
-  const statuses = ["failed", "recovered"];
 
   const { data, isLoading, isFetching } = useQuery<LogResponse>({
     queryKey: [
       "automation-execution-log",
-      statuses.join(","),
+      selectedStatuses.join(","),
       page,
       cardNameSearch,
     ],
@@ -86,8 +94,10 @@ const AutomationDashboard = () => {
       const params: Record<string, any> = {
         limit: pageSize,
         offset: (page - 1) * pageSize,
-        statuses: statuses.join(","),
       };
+      if (selectedStatuses.length > 0) {
+        params.statuses = selectedStatuses.join(",");
+      }
       if (cardNameSearch) {
         params.card_name = cardNameSearch;
       }
@@ -160,17 +170,37 @@ const AutomationDashboard = () => {
       render: (value: string) => {
         const normalized = (value || "").toLowerCase();
         const color =
-          normalized === "recovered"
+          normalized === "success"
             ? "green"
-            : normalized === "failed"
-              ? "red"
-              : "default";
+            : normalized === "started"
+              ? "blue"
+              : normalized === "skipped"
+                ? "orange"
+                : normalized === "warning"
+                  ? "gold"
+                  : normalized === "info"
+                    ? "cyan"
+                    : normalized === "recovered"
+                      ? "green"
+                      : normalized === "failed"
+                        ? "red"
+                        : "default";
         const label =
           normalized === "recovered"
             ? "RECOVERED"
             : normalized === "failed"
               ? "FAILED"
-              : (value || "UNKNOWN").toUpperCase();
+              : normalized === "success"
+                ? "SUCCESS"
+                : normalized === "started"
+                  ? "STARTED"
+                  : normalized === "skipped"
+                    ? "SKIPPED"
+                    : normalized === "warning"
+                      ? "WARNING"
+                      : normalized === "info"
+                        ? "INFO"
+                        : (value || "UNKNOWN").toUpperCase();
         return <Tag color={color}>{label}</Tag>;
       },
     },
@@ -196,7 +226,7 @@ const AutomationDashboard = () => {
       ),
     },
     {
-      title: "Failed Step",
+      title: "Step",
       dataIndex: "actionLabel",
       key: "actionLabel",
       width: 280,
@@ -276,9 +306,28 @@ const AutomationDashboard = () => {
       <div className="p-6">
         <div className="flex items-center justify-between mb-4">
           <Title level={4} style={{ margin: 0 }}>
-            Automation Failures & Recovery
+            Automation Execution History
           </Title>
           <Space>
+            <Select
+              mode="multiple"
+              allowClear
+              placeholder="Filter status"
+              value={selectedStatuses}
+              onChange={(values) => {
+                setSelectedStatuses(values);
+                setPage(1);
+              }}
+              style={{ minWidth: 280 }}
+            >
+              <Option value="started">Started</Option>
+              <Option value="success">Success</Option>
+              <Option value="failed">Failed</Option>
+              <Option value="skipped">Skipped</Option>
+              <Option value="recovered">Recovered</Option>
+              <Option value="warning">Warning</Option>
+              <Option value="info">Info</Option>
+            </Select>
             <Input.Search
               placeholder="Search card name"
               allowClear
@@ -336,7 +385,7 @@ const AutomationDashboard = () => {
               emptyText: (
                 <Empty
                   image={Empty.PRESENTED_IMAGE_SIMPLE}
-                  description="No automation failures or recovery events"
+                  description="No automation history"
                 />
               ),
             }}
