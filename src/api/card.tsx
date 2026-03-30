@@ -46,6 +46,12 @@ const mapMemberToFrontend = (member: any) => ({
   name: member.name ?? member.username,
 });
 
+const sanitizeQueryParamId = (value: string | null | undefined): string => {
+  const trimmed = String(value ?? "").trim();
+  if (!trimmed) return "";
+  return trimmed.split("?")[0]?.split("&")[0]?.trim() || "";
+};
+
 const toProxyUrl = (url: string): string => {
   return url;
 };
@@ -84,8 +90,7 @@ export const mapBackendCardToFrontend = (backendCard: any): Card => {
   const resolvedName =
     backendCard?.name ??
     backendCard?.card_name ??
-    backendCard?.cardName ??
-    backendCard?.title;
+    backendCard?.cardName;
 
   if (resolvedName !== undefined && resolvedName !== null) {
     mapped.name = String(resolvedName);
@@ -339,16 +344,36 @@ export const cardDetails = async (
   cardId: string,
   boardId: string
 ): Promise<ApiResponse<Card>> => {
-  const { data } = await api.get(`/card/${cardId}`, {
-    headers: { "board-id": boardId },
-  });
+  const normalizedCardId = sanitizeQueryParamId(cardId);
+  const normalizedBoardId = sanitizeQueryParamId(boardId);
+  const requestWithBoard = () =>
+    api.get(`/card/${normalizedCardId}`, {
+      headers: normalizedBoardId ? { "board-id": normalizedBoardId } : undefined,
+    });
+  const mapResponse = (payload: ApiResponse<Card>) => {
+    if (payload.data) {
+      payload.data = mapBackendCardToFrontend(payload.data);
+    }
+    return payload;
+  };
 
-  // Map backend response to frontend format
-  if (data.data) {
-    data.data = mapBackendCardToFrontend(data.data);
+  try {
+    const { data } = await requestWithBoard();
+    return mapResponse(data);
+  } catch (err: any) {
+    const statusCode = err?.response?.status;
+    const message = String(err?.response?.data?.message || "").toLowerCase();
+    const shouldRetryWithoutBoard =
+      !!normalizedBoardId &&
+      (statusCode === 404 || message.includes("card is not found"));
+
+    if (!shouldRetryWithoutBoard) {
+      throw err;
+    }
+
+    const { data } = await api.get(`/card/${normalizedCardId}`);
+    return mapResponse(data);
   }
-
-  return data;
 };
 
 export const getCardByShortId = async (

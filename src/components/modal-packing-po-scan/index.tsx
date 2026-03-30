@@ -17,6 +17,13 @@ import { cardDetails, getCardByShortId } from "@api/card";
 import { cardCustomFields } from "@api/card_custom_field";
 import { LookupCache } from "@utils/lookup-cache";
 import QRGuideOverlay from "@components/qr-overlay";
+
+const sanitizeQueryParamId = (value: string | null | undefined): string => {
+  const trimmed = String(value ?? "").trim();
+  if (!trimmed) return "";
+  return trimmed.split("?")[0]?.split("&")[0]?.trim() || "";
+};
+
 interface ModalPackingPOScanProps {
   open: boolean;
   onClose: () => void;
@@ -395,7 +402,7 @@ const ModalPackingPOScan: React.FC<ModalPackingPOScanProps> = ({
       }
 
       // Check for cardId parameter in URL
-      const cardId = url.searchParams.get("cardId");
+      const cardId = sanitizeQueryParamId(url.searchParams.get("cardId"));
       if (cardId) {
         return cardId;
       }

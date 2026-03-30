@@ -57,6 +57,12 @@ import AutomateButtons from "./automate-buttons";
 import { LookupCache } from "@utils/lookup-cache";
 import { useBoardDetails } from "@hooks/board";
 
+const sanitizeQueryParamId = (value: string | null | undefined): string => {
+  const trimmed = String(value ?? "").trim();
+  if (!trimmed) return "";
+  return trimmed.split("?")[0]?.split("&")[0]?.trim() || "";
+};
+
 // Helper component for permission-controlled buttons - moved outside to prevent re-creation
 const PermissionButton: React.FC<{
   canPerform: boolean;
@@ -133,7 +139,7 @@ const Actions: React.FC<{
   const { selectedCard } = useCardDetailContext();
 
   // Use card prop if provided, fallback to context/URL
-  const cardIdFromUrl = searchParams.get("cardId");
+  const cardIdFromUrl = sanitizeQueryParamId(searchParams.get("cardId"));
   const currentCardId = card?.id || selectedCard?.id || cardIdFromUrl || "";
 
 

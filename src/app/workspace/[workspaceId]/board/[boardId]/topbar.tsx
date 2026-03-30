@@ -61,6 +61,12 @@ import QRGuideOverlay from "@components/qr-overlay";
 import { useLabels } from "@hooks/label";
 import { Checkbox } from "antd";
 
+const sanitizeQueryParamId = (value: string | null | undefined): string => {
+  const trimmed = String(value ?? "").trim();
+  if (!trimmed) return "";
+  return trimmed.split("?")[0]?.split("&")[0]?.trim() || "";
+};
+
 // Helper function to derive permission level from fine-grained permissions
 const getPermissionLevelFromFineGrained = (
   permissions: FineGrainedPermissions | null,
@@ -286,7 +292,7 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
         }
 
         // Check if it's a full card URL with cardId param
-        const cardIdParam = url.searchParams.get("cardId");
+        const cardIdParam = sanitizeQueryParamId(url.searchParams.get("cardId"));
         if (cardIdParam) {
           return cardIdParam;
         }

@@ -121,7 +121,7 @@ const sanitizeQueryId = (value: string | null): string | null => {
 };
 
 const resolveCardName = (card: any): string | undefined => {
-  const rawName = card?.name ?? card?.card_name ?? card?.cardName ?? card?.title;
+  const rawName = card?.name ?? card?.card_name ?? card?.cardName;
   if (rawName === undefined || rawName === null) {
     return undefined;
   }
@@ -735,9 +735,23 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
 
   // Handle URL changes
   useEffect(() => {
-    const cardId = sanitizeQueryId(searchParams.get("cardId"));
-    const listId = sanitizeQueryId(searchParams.get("listId"));
+    const rawCardId = searchParams.get("cardId");
+    const rawListId = searchParams.get("listId");
+    const cardId = sanitizeQueryId(rawCardId);
+    const listId = sanitizeQueryId(rawListId);
     const normalizedBoardId = Array.isArray(boardId) ? boardId[0] : boardId;
+
+    if (cardId && listId) {
+      const shouldNormalizeUrl = rawCardId !== cardId || rawListId !== listId;
+      if (shouldNormalizeUrl) {
+        const params = new URLSearchParams(searchParams.toString());
+        params.set("cardId", cardId);
+        params.set("listId", listId);
+        router.replace(`${window.location.pathname}?${params.toString()}`, {
+          scroll: false,
+        });
+      }
+    }
 
     // Only handle URL changes if we're not in the middle of a programmatic change
     if (handleUrlChange.current === undefined) {
@@ -813,7 +827,7 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
         setIsCardDetailOpen(false);
       }
     }
-  }, [searchParams.toString(), isCardDetailOpen, isOpenViaUrl, boardId, queryClient, selectedCard?.id]);
+  }, [searchParams.toString(), isCardDetailOpen, isOpenViaUrl, boardId, queryClient, selectedCard?.id, router]);
 
   return (
     <CardDetailContext.Provider

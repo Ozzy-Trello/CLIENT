@@ -114,9 +114,13 @@ const CardDetails: React.FC = (props) => {
       card?.name ??
       card?.card_name ??
       card?.cardName ??
-      card?.title ??
       "";
     return String(rawName).trim();
+  };
+  const sanitizeQueryParamId = (value: string | null | undefined): string => {
+    const trimmed = String(value ?? "").trim();
+    if (!trimmed) return "";
+    return trimmed.split("?")[0]?.split("&")[0]?.trim() || "";
   };
 
   const params = useParams();
@@ -206,8 +210,8 @@ const CardDetails: React.FC = (props) => {
     cachedBoardName ||
     process.env.NEXT_PUBLIC_APP_TITLE ||
     "Ozzy Clothing Production";
-  const cardIdQuery = searchParams.get("cardId");
-  const listIdQuery = searchParams.get("listId");
+  const cardIdQuery = sanitizeQueryParamId(searchParams.get("cardId"));
+  const listIdQuery = sanitizeQueryParamId(searchParams.get("listId"));
 
   useEffect(() => {
     if (typeof document === "undefined") return;
