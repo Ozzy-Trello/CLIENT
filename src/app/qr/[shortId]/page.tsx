@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import URLShortener from '@utils/url-shortener';
-import { getCardByShortId } from '@api/card';
+import { cardDetails, getCardByShortId } from '@api/card';
 import { Spin, message } from 'antd';
 
 /**
@@ -38,7 +38,7 @@ export default function QRRedirectPage() {
             console.log('[SHORTURL LOG] Backend API response:', response);
             
             if (response.data) {
-              const card = response.data;
+              const card: any = response.data;
               
               // Debug: Log the complete card object structure
               console.log('[SHORTURL LOG] Complete card object:', card);
@@ -57,9 +57,47 @@ export default function QRRedirectPage() {
               });
               
               // Try both camelCase and snake_case versions (backend returns snake_case)
-              const workspaceId = card.workspace_id || card.workspaceId;
-              const boardId = card.board_id || card.boardId;
-              const listId = card.list_id || card.listId;
+              let workspaceId =
+                card.workspace_id ||
+                card.workspaceId ||
+                card.workspaceInfo?.id ||
+                card.boardInfo?.workspaceId ||
+                card.boardInfo?.workspace_id;
+              let boardId =
+                card.board_id ||
+                card.boardId ||
+                card.boardInfo?.id ||
+                card.listInfo?.boardId ||
+                card.listInfo?.board_id;
+              let listId = card.list_id || card.listId || card.listInfo?.id;
+
+              if ((!workspaceId || !boardId) && card.id) {
+                try {
+                  const detail = await cardDetails(card.id, boardId || '');
+                  const detailedCard = detail?.data as any;
+                  workspaceId =
+                    workspaceId ||
+                    detailedCard?.workspace_id ||
+                    detailedCard?.workspaceId ||
+                    detailedCard?.workspaceInfo?.id ||
+                    detailedCard?.boardInfo?.workspace_id ||
+                    detailedCard?.boardInfo?.workspaceId;
+                  boardId =
+                    boardId ||
+                    detailedCard?.board_id ||
+                    detailedCard?.boardId ||
+                    detailedCard?.boardInfo?.id ||
+                    detailedCard?.listInfo?.board_id ||
+                    detailedCard?.listInfo?.boardId;
+                  listId =
+                    listId ||
+                    detailedCard?.list_id ||
+                    detailedCard?.listId ||
+                    detailedCard?.listInfo?.id;
+                } catch (detailError) {
+                  console.warn('[SHORTURL LOG] Fallback card detail lookup failed:', detailError);
+                }
+              }
               
               console.log('[SHORTURL LOG] Resolved IDs:', {
                 workspaceId,
