@@ -107,7 +107,13 @@ export default function QRRedirectPage() {
               
               // Use the resolved IDs
               if (workspaceId && boardId && listId) {
-                const fullUrl = `/workspace/${workspaceId}/board/${boardId}?listId=${listId}&cardId=${card.id}`;
+                const params = new URLSearchParams();
+                params.set('listId', String(listId));
+                params.set('cardId', String(card.id));
+                if (card?.name && String(card.name).trim()) {
+                  params.set('cardName', String(card.name).trim());
+                }
+                const fullUrl = `/workspace/${workspaceId}/board/${boardId}?${params.toString()}`;
                 console.log('[SHORTURL LOG] Redirecting to:', fullUrl);
                 router.push(fullUrl);
                 return;

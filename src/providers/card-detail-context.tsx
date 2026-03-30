@@ -120,6 +120,14 @@ const sanitizeQueryId = (value: string | null): string | null => {
   return baseValue || null;
 };
 
+const sanitizeQueryText = (value: string | null): string | null => {
+  if (!value) {
+    return null;
+  }
+  const normalized = value.trim();
+  return normalized || null;
+};
+
 const resolveCardName = (card: any): string | undefined => {
   const rawName = card?.name ?? card?.card_name ?? card?.cardName;
   if (rawName === undefined || rawName === null) {
@@ -737,8 +745,10 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
   useEffect(() => {
     const rawCardId = searchParams.get("cardId");
     const rawListId = searchParams.get("listId");
+    const rawCardName = searchParams.get("cardName");
     const cardId = sanitizeQueryId(rawCardId);
     const listId = sanitizeQueryId(rawListId);
+    const cardNameFromQuery = sanitizeQueryText(rawCardName);
     const normalizedBoardId = Array.isArray(boardId) ? boardId[0] : boardId;
 
     if (cardId && listId) {
@@ -769,6 +779,7 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
             : null;
           const cachedCard = cachedCardDetail || cachedCardFromList;
           const cachedName = resolveCardName(cachedCard);
+          const resolvedName = cachedName || cardNameFromQuery || undefined;
 
           setIsCardDetailOpen(true);
           setIsOpenViaUrl(true);
@@ -783,7 +794,7 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
             ...(cachedCard || {}),
             id: cardId,
             listId: listId,
-            ...(cachedName ? { name: cachedName } : {}),
+            ...(resolvedName ? { name: resolvedName } : {}),
           } as Card);
 
           // Extra hardening for deep-link opens: if cache has no name yet, fetch once immediately.
