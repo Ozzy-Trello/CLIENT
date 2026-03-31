@@ -1,6 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap');
 @import "tailwindcss";
-@import 'react-quill/dist/quill.snow.css';
+@import 'react-quill-new/dist/quill.snow.css';
 
 :root{
   /* Ensure that these colors are the same as the one in the initial appState store */

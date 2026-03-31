@@ -9,9 +9,9 @@ import React, {
   useImperativeHandle,
   forwardRef,
 } from "react";
-import ReactQuill from "react-quill";
+import ReactQuill from "react-quill-new";
 import { message } from "antd";
-import "react-quill/dist/quill.snow.css";
+import "react-quill-new/dist/quill.snow.css";
 import "./mention.css";
 import Quill from "quill";
 import Mention from "quill-mention";

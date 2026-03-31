@@ -5,8 +5,6 @@ import { useParams, usePathname, useRouter } from "next/navigation";
 import type { MenuProps } from "antd";
 import { Button, Layout, Menu, Typography } from "antd";
 import { Bot, SlidersHorizontal, X } from "lucide-react";
-import styled from "styled-components";
-
 const { Header, Content, Footer, Sider } = Layout;
 type MenuItem = Required<MenuProps>["items"][number];
 
