@@ -20,7 +20,25 @@ import { Account } from "../../dto/account";
 
 const Embed = Quill.import("blots/embed");
 
+type MentionOption = {
+  id: string;
+  value: string;
+};
+
+type MentionModule = {
+  options?: {
+    source?: (
+      searchTerm: string,
+      renderList: (matches: MentionOption[], searchTerm: string) => void
+    ) => void;
+  };
+};
+
 class MentionBlot extends Embed {
+  static blotName = "mention";
+  static tagName = "span";
+  static className = "mention";
+
   static create(data: any) {
     const node = super.create();
     node.setAttribute("data-id", data.id);
@@ -36,10 +54,6 @@ class MentionBlot extends Embed {
     };
   }
 }
-
-MentionBlot.blotName = "mention";
-MentionBlot.tagName = "span";
-MentionBlot.className = "mention";
 
 // Register Quill modules once at module level
 if (typeof window !== "undefined") {
@@ -194,7 +208,7 @@ const RichTextEditorClient = forwardRef<any, RichTextEditorProps>(
           (normalizedSearch.length === 0 ||
             WORKSPACE_ALL_MENTION_VALUE.includes(normalizedSearch));
 
-        const suggestions = [];
+        const suggestions: MentionOption[] = [];
         if (shouldShowWorkspaceAll) {
           suggestions.push(workspaceAllMentionOption);
         }
@@ -213,7 +227,9 @@ const RichTextEditorClient = forwardRef<any, RichTextEditorProps>(
         // Also update the mention module in the editor if it exists
         const editor = quillRef.current?.getEditor();
         if (editor) {
-          const mentionModule = editor.getModule("mention");
+          const mentionModule = editor.getModule("mention") as
+            | MentionModule
+            | undefined;
           if (mentionModule && mentionModule.options) {
             mentionModule.options.source = mentionSource;
             console.log("Updated mention module source");
@@ -286,7 +302,9 @@ const RichTextEditorClient = forwardRef<any, RichTextEditorProps>(
     const handleMentionModule = useCallback(() => {
       const editor = quillRef.current?.getEditor();
       if (editor) {
-        const mentionModule = editor.getModule("mention");
+        const mentionModule = editor.getModule("mention") as
+          | MentionModule
+          | undefined;
         console.log("Mention module:", mentionModule);
 
         // Ensure the mention module has the latest source function

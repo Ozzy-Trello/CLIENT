@@ -152,7 +152,7 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
   const [isCardDetailOpen, setIsCardDetailOpen] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const handleUrlChange = useRef<boolean>(); // Track if URL change is handled
+  const handleUrlChange = useRef<boolean | undefined>(undefined); // Track if URL change is handled
 
   // Use React Query for card details when card is selected
   const cardDetailsQuery = useCardDetails(
