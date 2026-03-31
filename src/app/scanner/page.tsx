@@ -21,7 +21,7 @@ export default function ScannerPage() {
     }>
   >([]);
   const [buffer, setBuffer] = useState("");
-  const bufferTimeoutRef = useRef<NodeJS.Timeout>();
+  const bufferTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { use, useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Card, Input, message, Spin } from "antd";
 import { Typography } from "antd";
@@ -12,14 +12,15 @@ import { getCardButtonById, updateCardButton } from "@api/automation_rule";
 import CardButtonSelectAction from "../../new/card-button-select-action";
 
 interface EditCardButtonPageProps {
-  params: {
+  params: Promise<{
     workspaceId: string;
     boardId: string;
     buttonId: string;
-  };
+  }>;
 }
 
 export default function EditCardButtonPage({ params }: EditCardButtonPageProps) {
+  const { workspaceId, boardId, buttonId } = use(params);
   const router = useRouter();
   const [buttonLabel, setButtonLabel] = useState("");
   const [selectedActions, setSelectedActions] = useState<SelectedAction[]>([]);
@@ -47,8 +48,8 @@ export default function EditCardButtonPage({ params }: EditCardButtonPageProps) 
       try {
         setIsLoading(true);
         const response = await getCardButtonById(
-          params.workspaceId,
-          params.buttonId
+          workspaceId,
+          buttonId
         );
         
         const buttonData = response.data;
@@ -82,12 +83,12 @@ export default function EditCardButtonPage({ params }: EditCardButtonPageProps) 
     };
 
     fetchButtonData();
-  }, [params.workspaceId, params.boardId, params.buttonId]);
+  }, [workspaceId, boardId, buttonId]);
 
   // Handle navigation back to custom buttons list
   const handleNavigateBack = () => {
     router.push(
-      `/workspace/${params.workspaceId}/board/${params.boardId}/automation/custom-buttons`
+      `/workspace/${workspaceId}/board/${boardId}/automation/custom-buttons`
     );
   };
 
@@ -109,9 +110,9 @@ export default function EditCardButtonPage({ params }: EditCardButtonPageProps) 
       );
 
       await updateCardButton(
-        params.workspaceId,
-        params.boardId,
-        params.buttonId,
+        workspaceId,
+        boardId,
+        buttonId,
         {
           label: buttonLabel,
           actions: actionsData,

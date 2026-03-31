@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { use, useEffect, useMemo, useState } from "react";
 import { 
   Table, 
   Card, 
@@ -70,8 +70,8 @@ const getOperatorSymbol = (operator: string): string => {
   return symbolMap[operator] || '+';
 };
 
-export default function MaterialsPage({ params }: { params: { workspaceId: string } }) {
-  const { workspaceId } = params;
+export default function MaterialsPage({ params }: { params: Promise<{ workspaceId: string }> }) {
+  const { workspaceId } = use(params);
   const [activeTab, setActiveTab] = useState("materials");
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isSubcategoryModalOpen, setIsSubcategoryModalOpen] = useState(false);

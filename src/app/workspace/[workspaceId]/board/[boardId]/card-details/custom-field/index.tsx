@@ -27,10 +27,10 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
   const params = useParams();
   const workspaceId = Array.isArray(params.workspaceId)
     ? params.workspaceId[0]
-    : params.workspaceId;
+    : params.workspaceId ?? "";
   const boardId = Array.isArray(params.boardId)
     ? params.boardId[0]
-    : params.boardId;
+    : params.boardId ?? "";
 
   const {
     cardCustomFields,

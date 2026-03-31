@@ -35,6 +35,9 @@ const { Title, Text } = Typography;
 
 const CustomFieldsPage = () => {
   const { workspaceId } = useParams();
+  const normalizedWorkspaceId = Array.isArray(workspaceId)
+    ? workspaceId[0]
+    : workspaceId ?? "";
   const currentWorkspace = useSelector(selectCurrentWorkspace);
   const { data: currentAccountData } = useCurrentAccount();
   const currentUser = currentAccountData?.data;
@@ -49,17 +52,11 @@ const CustomFieldsPage = () => {
   const [isImporting, setIsImporting] = useState(false);
 
   const { customFields, isLoading, deleteCustomField, isDeleting } =
-    useCustomFields(
-      Array.isArray(workspaceId) ? workspaceId[0] : workspaceId || ""
-    );
+    useCustomFields(normalizedWorkspaceId);
 
-  const { roles } = useRoles(
-    Array.isArray(workspaceId) ? workspaceId[0] : workspaceId || ""
-  );
+  const { roles } = useRoles(normalizedWorkspaceId);
 
-  const { boards } = useBoards(
-    Array.isArray(workspaceId) ? workspaceId[0] : workspaceId || ""
-  );
+  const { boards } = useBoards(normalizedWorkspaceId);
 
   const getFieldTypeLabel = (type: string) => {
     switch (type) {
@@ -473,9 +470,7 @@ const CustomFieldsPage = () => {
           open={isModalOpen}
           onClose={handleModalClose}
           field={selectedField}
-          workspaceId={
-            Array.isArray(workspaceId) ? workspaceId[0] : workspaceId
-          }
+          workspaceId={normalizedWorkspaceId}
         />
       )}
     </div>

@@ -115,7 +115,7 @@ const BoardContentWithPermissions: React.FC<{
   onListDragEnd: (result: DropResult) => void;
   onDragStart: (start: any) => void;
   onDragUpdate: (update: DragUpdate) => void;
-  boardScrollContainerRef: React.RefObject<HTMLDivElement>;
+  boardScrollContainerRef: React.RefObject<HTMLDivElement | null>;
   resolvedBoardId: string;
   updateList: any;
   deleteList: any;
@@ -306,6 +306,10 @@ const BoardContentWithPermissions: React.FC<{
 
 const Board: React.FC = () => {
   const { boardId, workspaceId } = useParams();
+  const resolvedBoardId = Array.isArray(boardId) ? boardId[0] : boardId ?? "";
+  const resolvedWorkspaceId = Array.isArray(workspaceId)
+    ? workspaceId[0]
+    : workspaceId ?? "";
   const theme = useSelector(selectTheme);
   const { collapsed, siderSmall, siderWide } = useWorkspaceSidebar();
 
@@ -472,18 +476,13 @@ const Board: React.FC = () => {
     setIsDraggingToScroll(false);
   }, []);
 
-  const resolvedBoardId = Array.isArray(boardId) ? boardId[0] : boardId;
-  const resolvedWorkspaceId = Array.isArray(workspaceId)
-    ? workspaceId[0]
-    : workspaceId;
-
-  const { boards } = useBoards(resolvedWorkspaceId || "");
+  const { boards } = useBoards(resolvedWorkspaceId);
   const { lists, addList, isLoading, updateList, deleteList } =
     useLists(resolvedBoardId);
 
   // Fetch board details and update Redux state when boardId changes
   const { board: boardDetails } = useBoardDetails(
-    resolvedBoardId || "",
+    resolvedBoardId,
     resolvedWorkspaceId,
     {
       enabled: !!resolvedBoardId,
@@ -1579,7 +1578,7 @@ const Board: React.FC = () => {
                 onAddCard={handleAddCard}
               />
               <HorizontalSlider
-                containerRef={boardScrollContainerRef}
+                containerRef={boardScrollContainerRef as React.RefObject<HTMLDivElement>}
                 widthPercent={20}
               />
             </div>

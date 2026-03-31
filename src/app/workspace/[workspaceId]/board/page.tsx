@@ -5,7 +5,6 @@ import {
   Card,
   Col,
   Dropdown,
-  Menu,
   message,
   Row,
   Skeleton,
@@ -29,7 +28,6 @@ const DragDropContext = dynamic(
   { ssr: false }
 );
 
-const { Item: MenuItem } = Menu;
 const { Title, Text } = Typography;
 
 const BoardFilters = dynamic(() => import("./_filter_form"), {
@@ -222,22 +220,25 @@ const BoardsPage: React.FC = () => {
                                 >
                                   {canUpdate("board") && (
                                     <Dropdown
-                                      overlay={
-                                        <Menu>
-                                          <Menu.Item
-                                            key="settings"
-                                            onClick={(e) => {
-                                              e.domEvent.stopPropagation();
-                                              handleSettingsClick(board);
-                                            }}
-                                          >
-                                            <Space>
-                                              <Settings size={14} />
-                                              Settings
-                                            </Space>
-                                          </Menu.Item>
-                                        </Menu>
-                                      }
+                                      menu={{
+                                        items: [
+                                          {
+                                            key: "settings",
+                                            label: (
+                                              <Space>
+                                                <Settings size={14} />
+                                                Settings
+                                              </Space>
+                                            ),
+                                          },
+                                        ],
+                                        onClick: (info) => {
+                                          info.domEvent.stopPropagation();
+                                          if (info.key === "settings") {
+                                            handleSettingsClick(board);
+                                          }
+                                        },
+                                      }}
                                       trigger={["click"]}
                                       placement="bottomRight"
                                     >

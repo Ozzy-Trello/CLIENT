@@ -86,7 +86,7 @@ export const useDashcardCount = (dashcardId: string) => {
   const params = useParams();
   const workspaceId = Array.isArray(params.workspaceId)
     ? params.workspaceId[0]
-    : params.workspaceId;
+    : params.workspaceId ?? "";
 
   const {
     data: count = 0,

@@ -1,5 +1,6 @@
 import React, { useCallback, useRef, useState } from "react";
-import ReactDOM from "react-dom";
+import { flushSync } from "react-dom";
+import { createRoot } from "react-dom/client";
 import { message } from "antd";
 import QRCode from "react-qr-code";
 import { Card } from "@myTypes/card";
@@ -179,20 +180,23 @@ export const useAttachmentPrinting = ({
           document.body.appendChild(qrElement);
 
           const shortUrl = await generateShortUrl();
-          ReactDOM.render(
-            <QRCode
-              value={shortUrl}
-              size={qrSize}
-              level="M"
-              fgColor="#000000"
-              bgColor="#FFFFFF"
-            />,
-            qrElement
-          );
+          const qrRoot = createRoot(qrElement);
+          flushSync(() => {
+            qrRoot.render(
+              <QRCode
+                value={shortUrl}
+                size={qrSize}
+                level="M"
+                fgColor="#000000"
+                bgColor="#FFFFFF"
+              />
+            );
+          });
 
           const svgElement = qrElement.querySelector("svg");
           if (!svgElement) {
             message.error("Failed to generate QR code");
+            qrRoot.unmount();
             document.body.removeChild(qrSvg);
             document.body.removeChild(qrElement);
             loadingMsg();
@@ -224,6 +228,7 @@ export const useAttachmentPrinting = ({
             const printDocument = printFrame.contentWindow?.document;
             if (!printDocument) {
               message.error("Failed to create print document");
+              qrRoot.unmount();
               document.body.removeChild(printFrame);
               document.body.removeChild(qrSvg);
               document.body.removeChild(qrElement);
@@ -271,6 +276,7 @@ export const useAttachmentPrinting = ({
                     printFrame.contentWindow?.focus();
                     printFrame.contentWindow?.print();
                     setTimeout(() => {
+                      qrRoot.unmount();
                       document.body.removeChild(printFrame);
                       document.body.removeChild(qrSvg);
                       document.body.removeChild(qrElement);
@@ -286,10 +292,11 @@ export const useAttachmentPrinting = ({
                     loadingMsg();
                     message.error("Failed to open print dialog");
                   }
-                }, 500);
+                  }, 500);
               };
 
               printedImg.onerror = () => {
+                qrRoot.unmount();
                 document.body.removeChild(printFrame);
                 document.body.removeChild(qrSvg);
                 document.body.removeChild(qrElement);
@@ -297,6 +304,7 @@ export const useAttachmentPrinting = ({
                 message.error("Failed to load image for printing");
               };
             } else {
+              qrRoot.unmount();
               document.body.removeChild(printFrame);
               document.body.removeChild(qrSvg);
               document.body.removeChild(qrElement);
@@ -307,6 +315,7 @@ export const useAttachmentPrinting = ({
 
           qrImg.onerror = () => {
             message.error("Failed to generate QR code");
+            qrRoot.unmount();
             document.body.removeChild(qrSvg);
             document.body.removeChild(qrElement);
             loadingMsg();

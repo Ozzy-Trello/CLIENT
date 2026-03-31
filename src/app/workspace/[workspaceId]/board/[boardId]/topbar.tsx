@@ -170,16 +170,16 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
 
   const [externalScannerActive, setExternalScannerActive] = useState(false);
   const scannerBufferRef = useRef<string>("");
-  const scannerTimeoutRef = useRef<NodeJS.Timeout>();
+  const scannerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const router = useRouter();
   const { socket } = useWebSocket();
   const params = useParams();
   const normalizedWorkspaceId = Array.isArray(params.workspaceId)
     ? params.workspaceId[0]
-    : params.workspaceId;
+    : params.workspaceId ?? "";
   const normalizedBoardId = Array.isArray(params.boardId)
     ? params.boardId[0]
-    : params.boardId;
+    : params.boardId ?? "";
   const currentUser = useSelector(selectUser);
   const userRole = (currentUser?.role?.name || "").trim().toLowerCase();
   const isSuperAdmin =
@@ -192,11 +192,11 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
 
   // User board order hook for favorites
   const { userBoardOrder, toggleFavorite, isTogglingFavorite } =
-    useUserBoardOrder(params.workspaceId as string);
+    useUserBoardOrder(normalizedWorkspaceId);
 
   // Fetch workspace labels for filtering
   const { allLabels: workspaceLabels, isLoadingAllLabels: isLoadingLabels } =
-    useLabels(params.workspaceId as string);
+    useLabels(normalizedWorkspaceId);
 
   // Move old cards hook
   const moveOldCardsMutation = useMoveOldCards();

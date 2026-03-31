@@ -51,8 +51,11 @@ const Dashcard: React.FC<DashcardProps> = (props) => {
   const { card, isHovered, onCompletionChange, isDragging = false } = props;
   const isDarkMode = useSelector(selectIsDarkMode);
   const { workspaceId } = useParams();
+  const normalizedWorkspaceId = Array.isArray(workspaceId)
+    ? workspaceId[0]
+    : workspaceId ?? "";
   const { customFields } = useCustomFields(
-    Array.isArray(workspaceId) ? workspaceId[0] : workspaceId
+    normalizedWorkspaceId
   );
 
   // Use our custom hook to fetch and manage dashcard count

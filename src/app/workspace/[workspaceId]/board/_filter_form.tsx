@@ -25,8 +25,11 @@ const FilterForm: React.FC = () => {
   const [form] = Form.useForm();
   const [formLayout, setFormLayout] = useState<LayoutType>("vertical");
 
-  const onFormLayoutChange = ({ layout }: { layout: LayoutType }) => {
-    setFormLayout(layout);
+  const onFormLayoutChange = (
+    _: unknown,
+    values: { layout: LayoutType }
+  ) => {
+    setFormLayout(values.layout);
   };
 
   const handleChange = (value: string) => {

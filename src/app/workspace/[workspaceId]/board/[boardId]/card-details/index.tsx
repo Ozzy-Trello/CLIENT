@@ -127,10 +127,10 @@ const CardDetails: React.FC = (props) => {
   const searchParams = useSearchParams();
   const workspaceId = Array.isArray(params.workspaceId)
     ? params.workspaceId[0]
-    : params.workspaceId;
+    : params.workspaceId ?? "";
   const boardId = Array.isArray(params.boardId)
     ? params.boardId[0]
-    : params.boardId;
+    : params.boardId ?? "";
   // Boards where the Produk section should be visible (name-based, case-insensitive)
   const ALLOWED_BOARD_NAMES = [
     "Request Desain | Outlet",
@@ -145,10 +145,10 @@ const CardDetails: React.FC = (props) => {
     // e.g. "uuid-1234-...",
   ]);
   // Try to resolve current board name via cache first, then fall back to API
-  const cachedBoardName = LookupCache.label("board", boardId as string);
+  const cachedBoardName = LookupCache.label("board", boardId);
   const { board: currentBoard } = useBoardDetails(
-    boardId as string,
-    workspaceId as string,
+    boardId,
+    workspaceId,
     {
       enabled: !!boardId,
       refetchOnWindowFocus: false,
@@ -169,7 +169,7 @@ const CardDetails: React.FC = (props) => {
     isViewOnlyProdukBoard ||
     (effectiveBoardName &&
       allowedNamesSet.has(effectiveBoardName.toLowerCase())) ||
-    (typeof boardId === "string" && ALLOWED_BOARD_IDS.has(boardId));
+    ALLOWED_BOARD_IDS.has(boardId);
   const {
     selectedCard,
     setSelectedCard,

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { use, useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { Button, Input, Typography, Card, message } from "antd";
 import { SelectedAction } from "@myTypes/type";
 import { createCardButton } from "@api/automation_rule";
@@ -12,13 +12,14 @@ import { useRuleLookups } from "@hooks/useRuleLookups";
 const { Title } = Typography;
 
 interface NewCardButtonPageProps {
-  params: {
+  params: Promise<{
     workspaceId: string;
     boardId: string;
-  };
+  }>;
 }
 
 export default function NewCardButtonPage({ params }: NewCardButtonPageProps) {
+  const { workspaceId, boardId } = use(params);
   const router = useRouter();
   const [buttonLabel, setButtonLabel] = useState("");
   const [selectedActions, setSelectedActions] = useState<SelectedAction[]>([]);
@@ -37,7 +38,7 @@ export default function NewCardButtonPage({ params }: NewCardButtonPageProps) {
   // Handle navigation back to custom buttons list
   const handleNavigateBack = () => {
     router.push(
-      `/workspace/${params.workspaceId}/board/${params.boardId}/automation/custom-buttons`
+      `/workspace/${workspaceId}/board/${boardId}/automation/custom-buttons`
     );
   };
 
@@ -58,7 +59,7 @@ export default function NewCardButtonPage({ params }: NewCardButtonPageProps) {
         })
       );
 
-      await createCardButton(params.workspaceId, params.boardId, {
+      await createCardButton(workspaceId, boardId, {
         label: buttonLabel,
         actions: actionsData,
       });
