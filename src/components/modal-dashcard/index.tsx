@@ -52,6 +52,9 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
 }) => {
   const { workspaceId, boardId } = useParams();
   const [form] = Form.useForm();
+  const resolvedWorkspaceId = Array.isArray(workspaceId)
+    ? workspaceId[0] || ""
+    : workspaceId || "";
   const [bgColor, setBgColor] = useState<string>(
     initialData?.backgroundColor || "#4e95ff"
   );
@@ -72,12 +75,8 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
   );
 
   // Add hooks for boards and lists
-  const { customFields } = useCustomFields(
-    Array.isArray(workspaceId) ? workspaceId[0] : workspaceId
-  );
-  const { boards: boardsArr } = useBoards(
-    Array.isArray(workspaceId) ? workspaceId[0] : workspaceId
-  );
+  const { customFields } = useCustomFields(resolvedWorkspaceId);
+  const { boards: boardsArr } = useBoards(resolvedWorkspaceId);
   const boardOptions = (boardsArr || []).map((b: any) => ({
     label: b.name || "",
     value: b.id,
@@ -95,16 +94,12 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
 
   // Fetch users for the current workspace and board
   const { data: users } = useAccountList({
-    workspaceId: Array.isArray(workspaceId)
-      ? workspaceId[0]
-      : workspaceId || "",
+    workspaceId: resolvedWorkspaceId,
     boardId: currentBoardId || "",
   });
 
   // Fetch labels for the current workspace
-  const { allLabels } = useLabels(
-    Array.isArray(workspaceId) ? workspaceId[0] : workspaceId || ""
-  );
+  const { allLabels } = useLabels(resolvedWorkspaceId);
 
   // Populate LookupCache with data for friendly name display
   useEffect(() => {

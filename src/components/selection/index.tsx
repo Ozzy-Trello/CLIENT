@@ -55,8 +55,8 @@ interface FieldValueInputProps extends SelectionProps {
 export interface SelectionRef {
   getValue: () => string | string[] | undefined;
   getObject: () =>
-    | { label: string | JSX.Element | undefined; value: string }
-    | Array<{ label: string | JSX.Element | undefined; value: string }>
+    | { label: React.ReactNode; value: string }
+    | Array<{ label: React.ReactNode; value: string }>
     | undefined;
   setValue: (value: string | string[]) => void;
 }
@@ -111,7 +111,7 @@ export const UserSelection = forwardRef<SelectionRef, SelectionProps>(
       value
     );
     const [selectedObject, setSelectedObject] = useState<{
-      label: JSX.Element | string | undefined;
+      label: React.ReactNode;
       value: string;
     }>();
 
@@ -239,7 +239,7 @@ export const UserSelection = forwardRef<SelectionRef, SelectionProps>(
 
 export const WorkspaceSelection: React.FC = () => {
   const [options, setOptions] = useState<
-    { label: string | JSX.Element; value: string }[]
+    { label: React.ReactNode; value: string }[]
   >([]);
   const { workspaces } = useWorkspaces();
   const dispatch = useDispatch();

@@ -67,8 +67,11 @@ const Dashcard: React.FC<DashcardProps> = ({
 }) => {
   const { workspaceId } = useParams();
   const [showActions, setShowActions] = useState(false);
+  const resolvedWorkspaceId = Array.isArray(workspaceId)
+    ? workspaceId[0] || ""
+    : workspaceId || "";
   const { customFields } = useCustomFields(
-    Array.isArray(workspaceId) ? workspaceId[0] : workspaceId
+    resolvedWorkspaceId
   );
 
   // Get display label based on display type

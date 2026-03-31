@@ -15,7 +15,7 @@ import {
   Table,
   Typography,
 } from "antd";
-import type { BaseSelectRef } from "rc-select";
+import type { BaseSelectRef } from "@rc-component/select";
 import { CalendarOutlined, DeleteOutlined } from "@ant-design/icons";
 import { ShoppingCart, Camera } from "lucide-react";
 import { Scanner } from "@yudiel/react-qr-scanner";
@@ -65,7 +65,7 @@ const { TextArea } = Input;
 
 const ModalPengiriman: React.FC<ModalPengirimanProps> = ({ open, onClose }) => {
   const [form] = Form.useForm();
-  const soInputRef = useRef<BaseSelectRef>(null);
+  const soInputRef = useRef<BaseSelectRef | null>(null);
 
   // UI and data states
   const [loading, setLoading] = useState(false);

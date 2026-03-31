@@ -28,7 +28,7 @@ const ModalPOQR: React.FC<ModalPOQRProps> = ({
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [showCameraScanner, setShowCameraScanner] = useState<boolean>(false);
   const scannerBufferRef = useRef<string>("");
-  const scannerTimeoutRef = useRef<NodeJS.Timeout>();
+  const scannerTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Reset form when modal opens/closes
   useEffect(() => {

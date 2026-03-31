@@ -43,7 +43,7 @@ const ModalPOScan: React.FC<ModalPOScanProps> = ({
   const [showCameraScanner, setShowCameraScanner] = useState(false);
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const scannerBufferRef = useRef<string>("");
-  const scannerTimeoutRef = useRef<NodeJS.Timeout>();
+  const scannerTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Reset form when modal opens/closes
   useEffect(() => {

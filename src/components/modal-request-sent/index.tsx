@@ -121,7 +121,7 @@ const getEstBahanValue = (record: RequestItem) =>
 const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
   open,
   onClose,
-}): JSX.Element => {
+}) => {
   const { isSuperAdmin } = usePermissions();
   const [requestSentValues, setRequestSentValues] = useState<
     Record<string, string>

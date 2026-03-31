@@ -18,12 +18,11 @@ const EditFilter: FC = () => {
   const params = useParams();
   const { currentFilter, setOpenEditFilter, setCurrentFilter, isUpdatingCard, saveFilters } =
     useCardDetailContext();
+  const resolvedWorkspaceId = Array.isArray(params.workspaceId)
+    ? params.workspaceId[0] || ""
+    : params.workspaceId || "";
 
-  const { customFields } = useCustomFields(
-    Array.isArray(params.workspaceId)
-      ? params.workspaceId[0]
-      : params.workspaceId
-  );
+  const { customFields } = useCustomFields(resolvedWorkspaceId);
 
   const availableFilters = useMemo(() => {
     const customFieldFilters: DashcardFilter[] = customFields.map(

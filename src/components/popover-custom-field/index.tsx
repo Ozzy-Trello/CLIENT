@@ -21,8 +21,8 @@ const PopoverCustomField: React.FC<PopoverCustomFieldProps> = ({
 }) => {
   const { workspaceId } = useParams();
   const currentWorkspaceId = Array.isArray(workspaceId)
-    ? workspaceId[0]
-    : workspaceId;
+    ? workspaceId[0] || ""
+    : workspaceId || "";
 
   const [popoverPage, setPopoverPage] = useState<
     "home" | "add" | "update" | "trigger" | "custom-option"

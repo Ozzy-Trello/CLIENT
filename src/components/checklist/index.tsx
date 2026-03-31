@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
-import { Button, Checkbox, Input, Progress, Typography, Dropdown, Menu, Tooltip, message } from "antd";
+import { Button, Checkbox, Input, Progress, Typography, Dropdown, Tooltip, message } from "antd";
 import { 
   CheckSquare, 
   MoreHorizontal, 
@@ -269,18 +269,21 @@ export const ChecklistComponent: React.FC<ChecklistComponentProps> = ({ cardId }
             <div className="flex justify-between items-center mb-2">
               <Title level={5} className="m-0">{checklist.title}</Title>
               <Dropdown
-                overlay={
-                  <Menu>
-                    <Menu.Item 
-                      key="delete" 
-                      icon={<Trash2 size={16} />}
-                      onClick={() => handleDeleteChecklist(checklist.id)}
-                    >
-                      Delete
-                    </Menu.Item>
-                  </Menu>
-                }
-                trigger={['click']}
+                menu={{
+                  items: [
+                    {
+                      key: "delete",
+                      icon: <Trash2 size={16} />,
+                      label: "Delete",
+                    },
+                  ],
+                  onClick: ({ key }) => {
+                    if (key === "delete") {
+                      handleDeleteChecklist(checklist.id);
+                    }
+                  },
+                }}
+                trigger={["click"]}
               >
                 <Button 
                   type="text" 

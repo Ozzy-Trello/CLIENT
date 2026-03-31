@@ -33,7 +33,11 @@ const ConditionalCollapsibleSection: React.FC<ConditionalCollapsibleSectionProps
   }
 
   // If children is a React element that renders null, don't show the section
-  if (React.isValidElement(children) && children.type === React.Fragment && !children.props.children) {
+  if (
+    React.isValidElement(children) &&
+    children.type === React.Fragment &&
+    !(children.props as { children?: ReactNode }).children
+  ) {
     return null;
   }
 

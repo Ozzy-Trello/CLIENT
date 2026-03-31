@@ -73,7 +73,7 @@ type BasicStatusFilter = "SUDAH" | "BELUM";
 const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
   open,
   onClose,
-}): JSX.Element => {
+}) => {
   const { isSuperAdmin } = usePermissions();
   const { workspaceId } = useParams();
   const resolvedWorkspaceId = Array.isArray(workspaceId)

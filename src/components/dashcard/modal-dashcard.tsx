@@ -99,6 +99,9 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
 }) => {
   const { workspaceId, boardId } = useParams();
   const [form] = Form.useForm();
+  const resolvedWorkspaceId = Array.isArray(workspaceId)
+    ? workspaceId[0] || ""
+    : workspaceId || "";
   const [bgColor, setBgColor] = useState<string>(
     initialData?.backgroundColor || "#4e95ff"
   );
@@ -112,12 +115,8 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
   const [availableFilters, setAvailableFilters] = useState<DashcardFilter[]>(
     []
   );
-  const { customFields } = useCustomFields(
-    Array.isArray(workspaceId) ? workspaceId[0] : workspaceId
-  );
-  const { boards: boardsArr } = useBoards(
-    Array.isArray(workspaceId) ? workspaceId[0] : workspaceId
-  );
+  const { customFields } = useCustomFields(resolvedWorkspaceId);
+  const { boards: boardsArr } = useBoards(resolvedWorkspaceId);
   const boardOptions = (boardsArr || []).map((b: any) => ({
     label: b.name || "",
     value: b.id,

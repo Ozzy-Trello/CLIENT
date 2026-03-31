@@ -124,7 +124,7 @@ const ModalPackingPOScan: React.FC<ModalPackingPOScanProps> = ({
   const [showCameraScanner, setShowCameraScanner] = useState(false);
   const scannerInputRef = useRef<string>("");
   const scannerBufferRef = useRef<string>("");
-  const scannerTimeoutRef = useRef<NodeJS.Timeout>();
+  const scannerTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Reset form when modal opens/closes
   useEffect(() => {

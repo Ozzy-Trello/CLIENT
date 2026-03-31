@@ -22,9 +22,10 @@ const Detail: FC = () => {
   } = useCardDetailContext();
 
   const { workspaceId } = useParams();
-  const { customFields } = useCustomFields(
-    Array.isArray(workspaceId) ? workspaceId[0] : workspaceId
-  );
+  const resolvedWorkspaceId = Array.isArray(workspaceId)
+    ? workspaceId[0] || ""
+    : workspaceId || "";
+  const { customFields } = useCustomFields(resolvedWorkspaceId);
 
   const [isEditingDisplay, setIsEditingDisplay] = useState(false);
   const [displayConfig, setDisplayConfig] = useState<DashcardDisplayConfig>(
