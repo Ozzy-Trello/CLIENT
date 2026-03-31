@@ -23,7 +23,6 @@ const nextConfig = {
     return `build-${normalizedBuildVersion}`;
   },
   output: 'standalone',
-  swcMinify: true,
   compress: true,
   poweredByHeader: false,
   images: {
@@ -43,7 +42,6 @@ const nextConfig = {
       'tailwind-merge'
     ],
     webpackBuildWorker: false,
-    gzipSize: true,
   },
   webpack: (config, { dev, isServer }) => {
     // Docker-specific optimizations
