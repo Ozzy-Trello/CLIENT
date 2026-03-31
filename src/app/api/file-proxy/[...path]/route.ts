@@ -5,8 +5,9 @@ export const dynamic = "force-dynamic";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { path?: string[] } }
+  context: { params: Promise<{ path?: string[] }> }
 ) {
+  const params = await context.params;
   const rawPath = params.path?.join("/") || "";
   const forceInline = new URL(request.url).searchParams.get("inline") === "true";
 

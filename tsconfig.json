@@ -30,7 +30,7 @@
       "@myTypes/*": ["./src/types/*"],
       "@utils/*": ["./src/utils/*"]
     },
-    "target": "ES2017"
+    "target": "esnext"
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", "**/*.d.ts", ".next/types/**/*.ts"],
   "exclude": ["node_modules"]

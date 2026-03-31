@@ -81,7 +81,7 @@ const PopoverChecklist: React.FC<PopoverChecklistProps> = ({
       onOpenChange={setOpen}
       placement="bottom"
       arrow={true}
-      styles={{ content: { padding: 0 } }}
+      styles={{ body: { padding: 0 } }}
     >
       {triggerEl}
     </Popover>

@@ -1,6 +1,5 @@
 "use client";
 
-import "@ant-design/v5-patch-for-react-19";
 import { Provider } from "react-redux";
 import { PersistGate } from "redux-persist/integration/react";
 import { WorkspaceSidebarProvider } from "@providers/workspace-sidebar-context";

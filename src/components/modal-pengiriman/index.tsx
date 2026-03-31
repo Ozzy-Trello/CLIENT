@@ -15,7 +15,7 @@ import {
   Table,
   Typography,
 } from "antd";
-import type { BaseSelectRef } from "@rc-component/select";
+import type { BaseSelectRef } from "rc-select";
 import { CalendarOutlined, DeleteOutlined } from "@ant-design/icons";
 import { ShoppingCart, Camera } from "lucide-react";
 import { Scanner } from "@yudiel/react-qr-scanner";
