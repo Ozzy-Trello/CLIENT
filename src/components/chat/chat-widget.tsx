@@ -26,6 +26,7 @@ import {
 import type { InputRef } from "antd";
 import {
   CloseOutlined,
+  DownOutlined,
   LinkOutlined,
   TeamOutlined,
   MessageOutlined,
@@ -125,12 +126,19 @@ type ScrollRestore = {
   scrollHeight: number;
 };
 
+type LoadMessagesResult = {
+  nextPage: number;
+  hasMore: boolean;
+};
+
 const CHAT_MESSAGE_PAGE_SIZE = 20;
 const CHAT_TYPING_IDLE_MS = 2400;
 const CHAT_TYPING_THROTTLE_MS = 1200;
 const CHAT_PRESENCE_TIMEOUT_MS = 2500;
 const CHAT_GENERAL_POLL_CONNECTED_MS = 20_000;
 const CHAT_GENERAL_POLL_DISCONNECTED_MS = 8_000;
+const CHAT_REPLY_JUMP_MAX_PAGE_LOADS = 20;
+const CHAT_SCROLL_TO_LATEST_THRESHOLD = 120;
 const GENERAL_ROOM_ID = "general";
 const GENERAL_ROOM_NAME = "General";
 const GENERAL_ROOM_ROLE = "Group chat";
@@ -310,6 +318,19 @@ const parseMessagePayload = (value = ""): ParsedChatMessage => {
           ? reply
           : undefined;
       const text = typeof parsed.text === "string" ? parsed.text : "";
+      const legacyReplyInText =
+        !normalizedReply && text ? parseReplyContent(text) : null;
+
+      if (legacyReplyInText) {
+        return {
+          text: legacyReplyInText.body,
+          attachments,
+          reply: {
+            author: legacyReplyInText.author,
+            text: legacyReplyInText.quotedText,
+          },
+        };
+      }
 
       if (text || attachments.length > 0 || normalizedReply) {
         return { text, attachments, reply: normalizedReply };
@@ -710,6 +731,8 @@ const messageMentionsCurrentUser = (
 };
 
 const getMessageIdentitySeed = (message: ChatMessage) => {
+  const isGeneralMessage =
+    message?.roomId === GENERAL_ROOM_ID || message?.peerUserId === GENERAL_ROOM_ID;
   const parsed = parseMessagePayload(message.content || "");
   const text = parsed.text || "";
   const attachmentFingerprint = parsed.attachments
@@ -718,11 +741,63 @@ const getMessageIdentitySeed = (message: ChatMessage) => {
 
   return [
     message.senderId || "",
-    message.recipientId || "",
+    isGeneralMessage ? "" : message.recipientId || "",
     message.createdAt || "",
     text,
     attachmentFingerprint,
   ].join("|");
+};
+
+const isGeneralSemanticDuplicate = (left: ChatMessage, right: ChatMessage) => {
+  const leftIsGeneral =
+    left?.roomId === GENERAL_ROOM_ID || left?.peerUserId === GENERAL_ROOM_ID;
+  const rightIsGeneral =
+    right?.roomId === GENERAL_ROOM_ID || right?.peerUserId === GENERAL_ROOM_ID;
+
+  if (!leftIsGeneral || !rightIsGeneral) {
+    return false;
+  }
+
+  if (!left.senderId || !right.senderId || left.senderId !== right.senderId) {
+    return false;
+  }
+
+  if (!left.createdAt || !right.createdAt || left.createdAt !== right.createdAt) {
+    return false;
+  }
+
+  const leftParsed = parseMessagePayload(left.content || "");
+  const rightParsed = parseMessagePayload(right.content || "");
+  const leftAttachmentFingerprint = leftParsed.attachments
+    .map((attachment) => attachment.url || attachment.name || "")
+    .join(",");
+  const rightAttachmentFingerprint = rightParsed.attachments
+    .map((attachment) => attachment.url || attachment.name || "")
+    .join(",");
+  const leftReplyFingerprint = leftParsed.reply
+    ? [
+        leftParsed.reply.messageId || "",
+        leftParsed.reply.senderId || "",
+        leftParsed.reply.recipientId || "",
+        leftParsed.reply.author || "",
+        leftParsed.reply.text || "",
+      ].join("|")
+    : "";
+  const rightReplyFingerprint = rightParsed.reply
+    ? [
+        rightParsed.reply.messageId || "",
+        rightParsed.reply.senderId || "",
+        rightParsed.reply.recipientId || "",
+        rightParsed.reply.author || "",
+        rightParsed.reply.text || "",
+      ].join("|")
+    : "";
+
+  return (
+    (leftParsed.text || "") === (rightParsed.text || "") &&
+    leftAttachmentFingerprint === rightAttachmentFingerprint &&
+    leftReplyFingerprint === rightReplyFingerprint
+  );
 };
 
 const getIncomingMessageKey = (peerUserId: string, message: ChatMessage) => {
@@ -854,27 +929,13 @@ const pickRicherContent = (incoming?: string, existing?: string) => {
 };
 
 const getMessageMergeKey = (message: ChatMessage) => {
-  const roomId = message?.roomId || "";
-  const peerUserId = message?.peerUserId || "";
-  const isGeneralMessage =
-    roomId === GENERAL_ROOM_ID || peerUserId === GENERAL_ROOM_ID;
-  const identitySeed = getMessageIdentitySeed(message);
-
-  if (isGeneralMessage) {
-    return [
-      "general",
-      GENERAL_ROOM_ID,
-      identitySeed,
-    ].join("|");
-  }
-
   if (message?.id) {
     return `id:${message.id}`;
   }
 
   return [
     "fallback",
-    identitySeed,
+    getMessageIdentitySeed(message),
   ].join("|");
 };
 
@@ -883,6 +944,22 @@ const mergeMessages = (current: ChatMessage[] = [], next: ChatMessage) => {
 
   for (const item of current) {
     map.set(getMessageMergeKey(item), item);
+  }
+
+  const semanticDuplicateEntry = Array.from(map.entries()).find(([, existing]) =>
+    isGeneralSemanticDuplicate(existing, next),
+  );
+
+  if (semanticDuplicateEntry) {
+    const [semanticDuplicateKey, existing] = semanticDuplicateEntry;
+    map.set(semanticDuplicateKey, {
+      ...existing,
+      ...next,
+      content: pickRicherContent(next.content, existing.content),
+    });
+    return Array.from(map.values()).sort((left, right) =>
+      left.createdAt.localeCompare(right.createdAt),
+    );
   }
 
   const nextKey = getMessageMergeKey(next);
@@ -1150,6 +1227,9 @@ const ChatWidget = () => {
   const [incomingAnimatedByMessageId, setIncomingAnimatedByMessageId] = useState<
     Record<string, boolean>
   >({});
+  const [jumpHighlightedByMessageId, setJumpHighlightedByMessageId] = useState<
+    Record<string, boolean>
+  >({});
   const [roomUnreadById, setRoomUnreadById] = useState<Record<string, number>>({});
   const [roomMentionById, setRoomMentionById] = useState<Record<string, boolean>>({});
   const [generalLastSeenAt, setGeneralLastSeenAt] = useState<string>("");
@@ -1157,6 +1237,9 @@ const ChatWidget = () => {
     Record<string, boolean>
   >({});
   const [loadingOlderByPeerId, setLoadingOlderByPeerId] = useState<
+    Record<string, boolean>
+  >({});
+  const [showScrollToLatestByPeerId, setShowScrollToLatestByPeerId] = useState<
     Record<string, boolean>
   >({});
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
@@ -1170,11 +1253,19 @@ const ChatWidget = () => {
   const markReadInFlightRef = useRef(new Set<string>());
   const chatWindowsRef = useRef<ChatWindowState[]>([]);
   const messagesByPeerIdRef = useRef<Record<string, ChatMessage[]>>({});
+  const messagesPaginationByPeerIdRef = useRef<
+    Record<string, Pagination | undefined>
+  >({});
+  const hasMoreMessagesByPeerIdRef = useRef<Record<string, boolean>>({});
+  const replyJumpLoadingByPeerRef = useRef<Record<string, boolean>>({});
   const processedIncomingMessageKeysRef = useRef<Set<string>>(new Set());
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const composerInputRefs = useRef<Record<string, InputRef | null>>({});
   const messageBodyRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const messageEndRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const messageNodeByPeerIdRef = useRef<
+    Record<string, Record<string, HTMLDivElement | null>>
+  >({});
   const scrollRestoreByPeerIdRef = useRef<Record<string, ScrollRestore | null>>(
     {},
   );
@@ -1186,6 +1277,12 @@ const ChatWidget = () => {
     Record<string, ReturnType<typeof setTimeout> | null>
   >({});
   const incomingAnimationTimersRef = useRef<
+    Record<string, ReturnType<typeof setTimeout> | null>
+  >({});
+  const jumpHighlightTimersRef = useRef<
+    Record<string, ReturnType<typeof setTimeout> | null>
+  >({});
+  const jumpVisibilityTimersRef = useRef<
     Record<string, ReturnType<typeof setTimeout> | null>
   >({});
   const outgoingTypingSentAtRef = useRef<Record<string, number>>({});
@@ -1203,6 +1300,14 @@ const ChatWidget = () => {
   useEffect(() => {
     messagesByPeerIdRef.current = messagesByPeerId;
   }, [messagesByPeerId]);
+
+  useEffect(() => {
+    messagesPaginationByPeerIdRef.current = messagesPaginationByPeerId;
+  }, [messagesPaginationByPeerId]);
+
+  useEffect(() => {
+    hasMoreMessagesByPeerIdRef.current = hasMoreMessagesByPeerId;
+  }, [hasMoreMessagesByPeerId]);
 
   useEffect(() => {
     if (!currentUserId) {
@@ -1790,6 +1895,269 @@ const ChatWidget = () => {
     }, 700);
   };
 
+  const markJumpHighlighted = (messageId?: string) => {
+    if (!messageId) {
+      return;
+    }
+
+    setJumpHighlightedByMessageId((current) => ({
+      ...current,
+      [messageId]: true,
+    }));
+
+    const existingTimer = jumpHighlightTimersRef.current[messageId];
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+    }
+
+    jumpHighlightTimersRef.current[messageId] = setTimeout(() => {
+      setJumpHighlightedByMessageId((current) => {
+        if (!current[messageId]) {
+          return current;
+        }
+
+        const next = { ...current };
+        delete next[messageId];
+        return next;
+      });
+      jumpHighlightTimersRef.current[messageId] = null;
+    }, 1200);
+  };
+
+  const markJumpHighlightedWhenVisible = (
+    peerUserId: string,
+    messageId: string,
+    attempt = 0,
+  ) => {
+    const timerKey = `${peerUserId}:${messageId}`;
+    const messageNode = messageNodeByPeerIdRef.current[peerUserId]?.[messageId];
+    const messageBody = messageBodyRefs.current[peerUserId];
+
+    if (!messageNode || !messageBody) {
+      markJumpHighlighted(messageId);
+      return;
+    }
+
+    const messageRect = messageNode.getBoundingClientRect();
+    const bodyRect = messageBody.getBoundingClientRect();
+    const isVisible =
+      messageRect.bottom >= bodyRect.top + 6 &&
+      messageRect.top <= bodyRect.bottom - 6;
+
+    if (isVisible || attempt >= 18) {
+      markJumpHighlighted(messageId);
+      if (jumpVisibilityTimersRef.current[timerKey]) {
+        clearTimeout(jumpVisibilityTimersRef.current[timerKey]!);
+        jumpVisibilityTimersRef.current[timerKey] = null;
+      }
+      return;
+    }
+
+    if (jumpVisibilityTimersRef.current[timerKey]) {
+      clearTimeout(jumpVisibilityTimersRef.current[timerKey]!);
+    }
+
+    jumpVisibilityTimersRef.current[timerKey] = setTimeout(() => {
+      markJumpHighlightedWhenVisible(peerUserId, messageId, attempt + 1);
+    }, 120);
+  };
+
+  const normalizeReplyMatchValue = (value?: string) =>
+    (value || "").trim().toLowerCase();
+
+  const isMessageNodeVisibleInBody = (
+    peerUserId: string,
+    messageId: string,
+  ) => {
+    const targetNode = messageNodeByPeerIdRef.current[peerUserId]?.[messageId];
+    const messageBody = messageBodyRefs.current[peerUserId];
+    if (!targetNode || !messageBody) {
+      return false;
+    }
+
+    const messageRect = targetNode.getBoundingClientRect();
+    const bodyRect = messageBody.getBoundingClientRect();
+    return (
+      messageRect.bottom >= bodyRect.top + 6 &&
+      messageRect.top <= bodyRect.bottom - 6
+    );
+  };
+
+  const resolveReplyTargetMessageId = (
+    peerUserId: string,
+    rawReplyMessageId?: string,
+    replyAuthor?: string,
+    replyText?: string,
+  ) => {
+    const loadedMessages = messagesByPeerIdRef.current[peerUserId] || [];
+    if (loadedMessages.length === 0) {
+      return null;
+    }
+
+    const normalizedReplyId = (rawReplyMessageId || "").trim();
+    if (normalizedReplyId) {
+      const exactMessage = loadedMessages.find(
+        (chatMessage) => chatMessage.id === normalizedReplyId,
+      );
+      if (exactMessage?.id) {
+        return exactMessage.id;
+      }
+
+      const looseMessage = loadedMessages.find(
+        (chatMessage) =>
+          chatMessage.id &&
+          chatMessage.id.trim().toLowerCase() === normalizedReplyId.toLowerCase(),
+      );
+      if (looseMessage?.id) {
+        return looseMessage.id;
+      }
+    }
+
+    const normalizedReplyText = normalizeReplyMatchValue(
+      toReplySnippet(replyText || ""),
+    );
+    if (!normalizedReplyText) {
+      return null;
+    }
+
+    const normalizedReplyAuthor = normalizeReplyMatchValue(replyAuthor);
+    const peerUser = getPeerUser(peerUserId);
+
+    const fallbackMatches = loadedMessages.filter((chatMessage) => {
+      const candidateSummary = normalizeReplyMatchValue(
+        toReplySnippet(summarizeMessageContent(chatMessage.content || "")),
+      );
+      if (!candidateSummary || candidateSummary !== normalizedReplyText) {
+        return false;
+      }
+
+      if (!normalizedReplyAuthor) {
+        return true;
+      }
+
+      const authorCandidates = new Set<string>();
+      authorCandidates.add(
+        normalizeReplyMatchValue(chatMessage.sender?.name || ""),
+      );
+      authorCandidates.add(
+        normalizeReplyMatchValue(chatMessage.sender?.username || ""),
+      );
+
+      if (chatMessage.senderId && userById.get(chatMessage.senderId)) {
+        const senderUser = userById.get(chatMessage.senderId);
+        authorCandidates.add(normalizeReplyMatchValue(senderUser?.name || ""));
+        authorCandidates.add(normalizeReplyMatchValue(senderUser?.username || ""));
+      }
+
+      if (chatMessage.senderId && currentUserId && chatMessage.senderId === currentUserId) {
+        authorCandidates.add(normalizeReplyMatchValue(currentUser?.username || ""));
+        authorCandidates.add(normalizeReplyMatchValue(currentUser?.name || ""));
+      }
+
+      if (chatMessage.senderId && peerUser.id && chatMessage.senderId === peerUser.id) {
+        authorCandidates.add(normalizeReplyMatchValue(peerUser.name || ""));
+        authorCandidates.add(normalizeReplyMatchValue(peerUser.username || ""));
+      }
+
+      return authorCandidates.has(normalizedReplyAuthor);
+    });
+
+    return fallbackMatches.length > 0 ? fallbackMatches[fallbackMatches.length - 1].id : null;
+  };
+
+  const jumpToRepliedMessage = async (
+    peerUserId: string,
+    messageId?: string,
+    replyAuthor?: string,
+    replyText?: string,
+  ) => {
+    const findAndScrollTarget = () => {
+      const targetMessageId = resolveReplyTargetMessageId(
+        peerUserId,
+        messageId,
+        replyAuthor,
+        replyText,
+      );
+      if (!targetMessageId) {
+        return false;
+      }
+
+      if (isMessageNodeVisibleInBody(peerUserId, targetMessageId)) {
+        markJumpHighlighted(targetMessageId);
+        return true;
+      }
+
+      const targetNode =
+        messageNodeByPeerIdRef.current[peerUserId]?.[targetMessageId];
+      if (!targetNode) {
+        return false;
+      }
+
+      targetNode.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+        inline: "nearest",
+      });
+      markJumpHighlightedWhenVisible(peerUserId, targetMessageId);
+      return true;
+    };
+
+    if (findAndScrollTarget()) {
+      return;
+    }
+
+    if (replyJumpLoadingByPeerRef.current[peerUserId]) {
+      return;
+    }
+
+    replyJumpLoadingByPeerRef.current[peerUserId] = true;
+
+    try {
+      let loadedPages = 0;
+      let pagination = messagesPaginationByPeerIdRef.current[peerUserId];
+      let nextPage =
+        pagination?.nextPage ||
+        (pagination?.page ? pagination.page + 1 : 2);
+      let hasMore =
+        hasMoreMessagesByPeerIdRef.current[peerUserId] ??
+        Boolean(nextPage);
+
+      while (
+        hasMore &&
+        nextPage &&
+        loadedPages < CHAT_REPLY_JUMP_MAX_PAGE_LOADS
+      ) {
+        const loadResult = await loadMessages(peerUserId, {
+          page: nextPage,
+          silent: true,
+          preserveScroll: true,
+        });
+
+        await new Promise<void>((resolve) => {
+          requestAnimationFrame(() => resolve());
+        });
+
+        if (findAndScrollTarget()) {
+          return;
+        }
+
+        if (!loadResult) {
+          break;
+        }
+
+        nextPage = loadResult.nextPage;
+        hasMore = loadResult.hasMore;
+        loadedPages += 1;
+      }
+
+      if (!findAndScrollTarget()) {
+        message.info("Original message is not available in loaded history");
+      }
+    } finally {
+      replyJumpLoadingByPeerRef.current[peerUserId] = false;
+    }
+  };
+
   const scheduleScrollToBottom = (peerUserId: string) => {
     pendingBottomScrollByPeerIdRef.current[peerUserId] = true;
     const body = messageBodyRefs.current[peerUserId];
@@ -1803,6 +2171,38 @@ const ChatWidget = () => {
         end.scrollIntoView({ block: "end" });
       }
       body.scrollTop = body.scrollHeight;
+      setShowScrollToLatestByPeerId((current) => {
+        if (!current[peerUserId]) {
+          return current;
+        }
+
+        return {
+          ...current,
+          [peerUserId]: false,
+        };
+      });
+    });
+  };
+
+  const updateScrollToLatestVisibility = (peerUserId: string) => {
+    const body = messageBodyRefs.current[peerUserId];
+    if (!body) {
+      return;
+    }
+
+    const distanceFromBottom =
+      body.scrollHeight - body.scrollTop - body.clientHeight;
+    const shouldShow = distanceFromBottom > CHAT_SCROLL_TO_LATEST_THRESHOLD;
+
+    setShowScrollToLatestByPeerId((current) => {
+      if (Boolean(current[peerUserId]) === shouldShow) {
+        return current;
+      }
+
+      return {
+        ...current,
+        [peerUserId]: shouldShow,
+      };
     });
   };
 
@@ -2057,9 +2457,9 @@ const ChatWidget = () => {
   const loadMessages = async (
     peerUserId: string,
     options: { page?: number; silent?: boolean; preserveScroll?: boolean } = {},
-  ) => {
+  ): Promise<LoadMessagesResult | null> => {
     if (!peerUserId) {
-      return;
+      return null;
     }
 
     const page = options.page || 1;
@@ -2067,7 +2467,7 @@ const ChatWidget = () => {
     const loadingRef = isOlderPage ? loadingOlderPeersRef : loadingPeersRef;
 
     if (loadingRef.current.has(peerUserId)) {
-      return;
+      return null;
     }
 
     loadingRef.current.add(peerUserId);
@@ -2128,6 +2528,10 @@ const ChatWidget = () => {
         ...current,
         [peerUserId]: paginate,
       }));
+      messagesPaginationByPeerIdRef.current = {
+        ...messagesPaginationByPeerIdRef.current,
+        [peerUserId]: paginate,
+      };
 
       const hasMore =
         Boolean(paginate.nextPage) ||
@@ -2137,17 +2541,27 @@ const ChatWidget = () => {
         ...current,
         [peerUserId]: hasMore,
       }));
+      hasMoreMessagesByPeerIdRef.current = {
+        ...hasMoreMessagesByPeerIdRef.current,
+        [peerUserId]: hasMore,
+      };
 
       if (page === 1 && !options.preserveScroll) {
         scheduleScrollToBottom(peerUserId);
       } else if (options.preserveScroll) {
         restoreScrollPosition(peerUserId);
       }
+
+      return {
+        nextPage,
+        hasMore,
+      };
     } catch (error) {
       console.error("[CHAT] Failed to load messages", error);
       if (!options.silent) {
         message.error("Failed to load messages");
       }
+      return null;
     } finally {
       loadingRef.current.delete(peerUserId);
       if (isOlderPage) {
@@ -2646,6 +3060,16 @@ const ChatWidget = () => {
           clearTimeout(timer);
         }
       }
+      for (const timer of Object.values(jumpHighlightTimersRef.current)) {
+        if (timer) {
+          clearTimeout(timer);
+        }
+      }
+      for (const timer of Object.values(jumpVisibilityTimersRef.current)) {
+        if (timer) {
+          clearTimeout(timer);
+        }
+      }
     },
     [],
   );
@@ -2659,6 +3083,7 @@ const ChatWidget = () => {
           scrollRestoreByPeerIdRef.current[peerUserId] = null;
           body.scrollTop = body.scrollHeight;
           pendingBottomScrollByPeerIdRef.current[peerUserId] = false;
+          updateScrollToLatestVisibility(peerUserId);
         }
         continue;
       }
@@ -2666,6 +3091,8 @@ const ChatWidget = () => {
       if (scrollRestoreByPeerIdRef.current[peerUserId]) {
         restoreScrollPosition(peerUserId);
       }
+
+      updateScrollToLatestVisibility(peerUserId);
     }
   }, [messagesByPeerId, visibleWindows]);
 
@@ -3288,6 +3715,8 @@ const ChatWidget = () => {
                 }}
                 className={styles.chatWindowBody}
                 onScroll={(event) => {
+                  updateScrollToLatestVisibility(window.peerUserId);
+
                   if (!hasMoreMessages || isLoadingOlder) {
                     return;
                   }
@@ -3355,6 +3784,14 @@ const ChatWidget = () => {
                     return (
                       <div
                         key={chatMessage.id}
+                        ref={(element) => {
+                          const peerNodes =
+                            messageNodeByPeerIdRef.current[window.peerUserId] || {};
+                          if (chatMessage.id) {
+                            peerNodes[chatMessage.id] = element;
+                          }
+                          messageNodeByPeerIdRef.current[window.peerUserId] = peerNodes;
+                        }}
                         className={`${styles.messageRow} ${
                           isOwnMessage ? styles.messageRowOwn : ""
                         }`}
@@ -3366,6 +3803,12 @@ const ChatWidget = () => {
                             !isOwnMessage && incomingAnimatedByMessageId[chatMessage.id]
                               ? styles.messageBubbleIncomingAnimated
                               : ""
+                          } ${
+                            jumpHighlightedByMessageId[chatMessage.id]
+                              ? isOwnMessage
+                                ? styles.messageBubbleOwnJumpHighlighted
+                                : styles.messageBubbleJumpHighlighted
+                              : ""
                           }`}
                         >
                           {shouldShowGroupSenderName ? (
@@ -3374,18 +3817,42 @@ const ChatWidget = () => {
                           <div className={styles.messageText}>
                             {parsedReply ? (
                               <>
-                                <div
-                                  className={`${styles.quotedReply} ${
-                                    isOwnMessage ? styles.quotedReplyOwn : ""
-                                  }`}
-                                >
-                                  <div className={styles.quotedReplyAuthor}>
-                                    {parsedReply.author}
+                                {parsedReply.messageId ? (
+                                  <button
+                                    type="button"
+                                    className={`${styles.quotedReply} ${
+                                      isOwnMessage ? styles.quotedReplyOwn : ""
+                                    } ${styles.quotedReplyClickable}`}
+                                    onClick={() =>
+                                      jumpToRepliedMessage(
+                                        window.peerUserId,
+                                        parsedReply.messageId,
+                                        parsedReply.author,
+                                        parsedReply.text,
+                                      )
+                                    }
+                                  >
+                                    <div className={styles.quotedReplyAuthor}>
+                                      {parsedReply.author}
+                                    </div>
+                                    <div className={styles.quotedReplyText}>
+                                      {renderMessageContent(parsedReply.text)}
+                                    </div>
+                                  </button>
+                                ) : (
+                                  <div
+                                    className={`${styles.quotedReply} ${
+                                      isOwnMessage ? styles.quotedReplyOwn : ""
+                                    }`}
+                                  >
+                                    <div className={styles.quotedReplyAuthor}>
+                                      {parsedReply.author}
+                                    </div>
+                                    <div className={styles.quotedReplyText}>
+                                      {renderMessageContent(parsedReply.text)}
+                                    </div>
                                   </div>
-                                  <div className={styles.quotedReplyText}>
-                                    {renderMessageContent(parsedReply.text)}
-                                  </div>
-                                </div>
+                                )}
                                 {parsedMessage.text ? (
                                   <div>{renderMessageContent(parsedMessage.text)}</div>
                                 ) : null}
@@ -3537,6 +4004,18 @@ const ChatWidget = () => {
                   }}
                 />
               </div>
+
+              {showScrollToLatestByPeerId[window.peerUserId] ? (
+                <Button
+                  type="primary"
+                  shape="circle"
+                  size="small"
+                  icon={<DownOutlined />}
+                  className={styles.scrollToLatestButton}
+                  onClick={() => scheduleScrollToBottom(window.peerUserId)}
+                  aria-label="Scroll to latest messages"
+                />
+              ) : null}
 
               <div
                 className={`${styles.chatWindowComposer} ${

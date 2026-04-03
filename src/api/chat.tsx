@@ -242,35 +242,92 @@ const normalizeStructuredMessageContent = (value: any): string => {
           author:
             typeof value.reply.author === "string"
               ? value.reply.author
+              : typeof value.reply.username === "string"
+                ? value.reply.username
+                : typeof value.reply.name === "string"
+                  ? value.reply.name
               : undefined,
           text:
             typeof value.reply.text === "string"
               ? value.reply.text
               : typeof value.reply.message === "string"
                 ? value.reply.message
+                : typeof value.reply.content === "string"
+                  ? value.reply.content
                 : undefined,
         }
+      : value?.replyTo && typeof value.replyTo === "object"
+        ? {
+            messageId:
+              typeof value.replyTo.messageId === "string"
+                ? value.replyTo.messageId
+                : typeof value.replyTo.message_id === "string"
+                  ? value.replyTo.message_id
+                  : undefined,
+            senderId:
+              typeof value.replyTo.senderId === "string"
+                ? value.replyTo.senderId
+                : typeof value.replyTo.sender_id === "string"
+                  ? value.replyTo.sender_id
+                  : undefined,
+            recipientId:
+              typeof value.replyTo.recipientId === "string"
+                ? value.replyTo.recipientId
+                : typeof value.replyTo.recipient_id === "string"
+                  ? value.replyTo.recipient_id
+                  : undefined,
+            author:
+              typeof value.replyTo.author === "string"
+                ? value.replyTo.author
+                : typeof value.replyTo.username === "string"
+                  ? value.replyTo.username
+                  : typeof value.replyTo.name === "string"
+                    ? value.replyTo.name
+                    : undefined,
+            text:
+              typeof value.replyTo.text === "string"
+                ? value.replyTo.text
+                : typeof value.replyTo.message === "string"
+                  ? value.replyTo.message
+                  : typeof value.replyTo.content === "string"
+                    ? value.replyTo.content
+                    : undefined,
+          }
       : value?.reply_to && typeof value.reply_to === "object"
         ? {
             messageId:
               typeof value.reply_to.message_id === "string"
                 ? value.reply_to.message_id
+                : typeof value.reply_to.messageId === "string"
+                  ? value.reply_to.messageId
                 : undefined,
             senderId:
               typeof value.reply_to.sender_id === "string"
                 ? value.reply_to.sender_id
+                : typeof value.reply_to.senderId === "string"
+                  ? value.reply_to.senderId
                 : undefined,
             recipientId:
               typeof value.reply_to.recipient_id === "string"
                 ? value.reply_to.recipient_id
+                : typeof value.reply_to.recipientId === "string"
+                  ? value.reply_to.recipientId
                 : undefined,
             author:
               typeof value.reply_to.author === "string"
                 ? value.reply_to.author
+                : typeof value.reply_to.username === "string"
+                  ? value.reply_to.username
+                  : typeof value.reply_to.name === "string"
+                    ? value.reply_to.name
                 : undefined,
             text:
               typeof value.reply_to.message === "string"
                 ? value.reply_to.message
+                : typeof value.reply_to.text === "string"
+                  ? value.reply_to.text
+                  : typeof value.reply_to.content === "string"
+                    ? value.reply_to.content
                 : undefined,
           }
         : undefined;
