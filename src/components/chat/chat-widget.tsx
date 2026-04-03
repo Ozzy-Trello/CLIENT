@@ -459,7 +459,7 @@ const extractPresenceUpdates = (value: any): PresenceUpdate[] => {
         },
       ];
     })
-    .filter((entry): entry is PresenceUpdate => Boolean(entry.userId));
+    .filter((entry: PresenceUpdate) => Boolean(entry.userId));
 };
 
 const URL_TOKEN_REGEX = /(https?:\/\/[^\s<>"']+)/g;
