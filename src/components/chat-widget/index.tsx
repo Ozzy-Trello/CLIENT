@@ -398,11 +398,15 @@ const ChatWidget: React.FC = () => {
         return;
       }
 
-      const eventData = payload.data || payload;
-      const incomingMessage =
+      const rawPayloadData = payload.data || payload;
+      const eventData =
+        rawPayloadData?.event === "chat:new-message" && rawPayloadData?.data
+          ? rawPayloadData.data
+          : rawPayloadData?.payload || rawPayloadData;
+      const incomingMessageRaw =
         eventData?.id || eventData?.senderId || eventData?.sender_id
           ? eventData
-          : eventData?.message;
+          : eventData?.message || eventData?.data?.message || eventData?.data;
       const senderUser =
         eventData?.sender ||
         eventData?.senderUser ||
@@ -418,20 +422,43 @@ const ChatWidget: React.FC = () => {
           return eventData?.peerUser || eventData?.peer_user;
         }
 
-        if (incomingMessage?.senderId === currentUser.id) {
+        if (incomingMessageRaw?.senderId === currentUser.id) {
           return recipientUser;
         }
 
-        if (incomingMessage?.recipientId === currentUser.id) {
+        if (incomingMessageRaw?.recipientId === currentUser.id) {
           return senderUser;
+        }
+
+        if (selectedPeer?.id) {
+          return selectedPeer;
         }
 
         return senderUser || recipientUser || null;
       })();
 
-      if (!incomingMessage || !peerUser?.id) {
+      if (!incomingMessageRaw || !peerUser?.id) {
         return;
       }
+
+      const incomingMessage: ChatMessage = {
+        ...incomingMessageRaw,
+        id:
+          incomingMessageRaw.id ||
+          `ws-${peerUser.id}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        senderId:
+          incomingMessageRaw.senderId ||
+          senderUser?.id ||
+          eventData?.senderId ||
+          eventData?.sender_id ||
+          "",
+        recipientId:
+          incomingMessageRaw.recipientId ||
+          recipientUser?.id ||
+          eventData?.recipientId ||
+          eventData?.recipient_id ||
+          "",
+      };
 
       const isIncomingForCurrentUser =
         incomingMessage.senderId === peerUser.id &&
