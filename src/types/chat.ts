@@ -1,4 +1,4 @@
-import { ApiResponse } from "./type";
+import { ApiResponse, Pagination } from "./type";
 
 export type ChatPresenceStatus = "online" | "idle" | "offline";
 
@@ -24,6 +24,11 @@ export interface ChatMessage {
   updatedAt?: string;
   sender?: ChatUser;
   recipient?: ChatUser;
+}
+
+export interface ChatMessagesQuery {
+  page?: number;
+  limit?: number;
 }
 
 export interface ChatAttachmentMetadata {
@@ -63,10 +68,16 @@ export interface ReadChatMessagesPayload {
   peerUserId: string;
 }
 
+export interface SendChatTypingPayload {
+  peerUserId: string;
+  isTyping?: boolean;
+}
+
 export interface ChatMessagesResponse {
   peerUser?: ChatUser;
   peerUserId?: string;
   messages: ChatMessage[];
+  paginate?: Pagination;
 }
 
 export type ChatUsersApiResponse = ApiResponse<ChatUser[]>;

@@ -116,6 +116,13 @@
   background: #f8fafc;
 }
 
+.peerHeaderText {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
 .messageRow {
   display: flex;
   margin-bottom: 8px;
@@ -188,7 +195,6 @@
 }
 
 .messageTime {
-  margin-top: 2px;
   color: rgba(15, 23, 42, 0.56);
   font-size: 11px;
 }
@@ -201,7 +207,24 @@
   gap: 6px;
 }
 
+.messageMetaInfo {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.messageStatus {
+  color: rgba(15, 23, 42, 0.56);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
 .messageBubbleOwn .messageTime {
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.messageBubbleOwn .messageStatus {
   color: rgba(255, 255, 255, 0.82);
 }
 
@@ -228,6 +251,12 @@
 .chatWindowComposerDragOver {
   background: #e8f1ff;
   box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.22);
+}
+
+.peerTypingText {
+  color: #2563eb !important;
+  font-size: 11px;
+  line-height: 1.1;
 }
 
 .composerRow {
@@ -416,6 +445,18 @@
   font-size: 11px;
 }
 
+.loadOlderRow {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+.loadOlderButton {
+  height: 24px !important;
+  padding: 0 8px !important;
+  font-size: 11px !important;
+}
+
 .imagePreviewContent {
   display: flex;
   flex-direction: column;
@@ -549,6 +590,12 @@
 
 .peopleMeta {
   color: rgba(15, 23, 42, 0.56) !important;
+}
+
+.peopleTyping {
+  color: #2563eb !important;
+  font-size: 12px;
+  font-style: italic;
 }
 
 .overflowPanel {

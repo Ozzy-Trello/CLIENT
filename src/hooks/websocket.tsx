@@ -70,7 +70,15 @@ function toWebSocketUrl(baseUrl: string) {
  */
 export function useWebSocket() {
   const socketRef = useRef<WebSocket | null>(null);
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const shouldReconnectRef = useRef(true);
+  const reconnectCountRef = useRef(0);
+  const connectionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
+  const socketCleanupRef = useRef<(() => void) | null>(null);
 
+  const [socket, setSocket] = useState<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [connectionAttempts, setConnectionAttempts] = useState(0);
   const [lastError, setLastError] = useState<string | null>(null);
@@ -85,60 +93,119 @@ export function useWebSocket() {
     }
 
     const wsUrl = `${toWebSocketUrl(baseUrl)}/ws`;
-    console.log("[WS] Connecting to:", wsUrl);
 
-    const ws = new WebSocket(wsUrl);
-    socketRef.current = ws;
-    setConnectionAttempts((prev) => prev + 1);
-
-    const timeout = setTimeout(() => {
-      if (ws.readyState === WebSocket.CONNECTING) {
-        console.error("[WS] Connection timeout");
-        ws.close();
-        setLastError("WebSocket connection timeout");
-      }
-    }, 10000);
-
-    ws.onopen = () => {
-      console.log("[WS] Connected");
-      clearTimeout(timeout);
-      setIsConnected(true);
-      setLastError(null);
-      // Authenticate socket for targeted push delivery
-      const token = TokenStorage.getAccessToken();
-      if (token) {
-        ws.send(JSON.stringify({ type: "auth", token }));
+    const clearConnectionTimeout = () => {
+      if (connectionTimeoutRef.current) {
+        clearTimeout(connectionTimeoutRef.current);
+        connectionTimeoutRef.current = null;
       }
     };
 
-    ws.onclose = (event) => {
-      console.warn("[WS] Closed", {
-        code: event.code,
-        reason: event.reason,
-      });
-      setIsConnected(false);
-      socketRef.current = null;
+    const clearReconnectTimer = () => {
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
     };
 
-    ws.onerror = (event) => {
-      console.error("[WS] Error", event);
-      setIsConnected(false);
-      setLastError("WebSocket error");
+    const scheduleReconnect = () => {
+      if (!shouldReconnectRef.current || reconnectTimerRef.current) {
+        return;
+      }
+
+      const attempt = reconnectCountRef.current + 1;
+      const delay = Math.min(15000, 1000 * 2 ** Math.min(attempt - 1, 4));
+      reconnectTimerRef.current = setTimeout(() => {
+        reconnectTimerRef.current = null;
+        connect();
+      }, delay);
     };
+
+    const connect = () => {
+      if (!shouldReconnectRef.current) {
+        return;
+      }
+
+      clearReconnectTimer();
+      clearConnectionTimeout();
+
+      console.log("[WS] Connecting to:", wsUrl);
+
+      const ws = new WebSocket(wsUrl);
+      socketRef.current = ws;
+      setSocket(ws);
+      setConnectionAttempts((prev) => prev + 1);
+
+      connectionTimeoutRef.current = setTimeout(() => {
+        if (ws.readyState === WebSocket.CONNECTING) {
+          console.error("[WS] Connection timeout");
+          setLastError("WebSocket connection timeout");
+          ws.close();
+        }
+      }, 10000);
+
+      ws.onopen = () => {
+        console.log("[WS] Connected");
+        clearConnectionTimeout();
+        reconnectCountRef.current = 0;
+        setIsConnected(true);
+        setLastError(null);
+
+        const token = TokenStorage.getAccessToken();
+        if (token) {
+          ws.send(JSON.stringify({ type: "auth", token }));
+        }
+      };
+
+      ws.onclose = (event) => {
+        console.warn("[WS] Closed", {
+          code: event.code,
+          reason: event.reason,
+        });
+        clearConnectionTimeout();
+        setIsConnected(false);
+        if (socketRef.current === ws) {
+          socketRef.current = null;
+          setSocket(null);
+        }
+
+        if (shouldReconnectRef.current && socketRef.current === ws) {
+          reconnectCountRef.current += 1;
+          scheduleReconnect();
+        }
+      };
+
+      ws.onerror = (event) => {
+        console.error("[WS] Error", event);
+        setIsConnected(false);
+        setLastError("WebSocket error");
+      };
+
+      socketCleanupRef.current = () => {
+        ws.onopen = null;
+        ws.onclose = null;
+        ws.onerror = null;
+      };
+    };
+
+    connect();
 
     return () => {
-      clearTimeout(timeout);
-      if (
-        ws.readyState === WebSocket.OPEN ||
-        ws.readyState === WebSocket.CONNECTING
-      ) {
+      shouldReconnectRef.current = false;
+      clearReconnectTimer();
+      clearConnectionTimeout();
+      socketCleanupRef.current?.();
+      const ws = socketRef.current;
+      socketRef.current = null;
+      setSocket(null);
+      if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
         ws.close();
       }
     };
   }, []);
 
   return {
-    socket: socketRef.current,
+    socket,
     isConnected,
     connectionAttempts,
     lastError,

@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type DragEvent,
+} from "react";
 import camelcaseKeys from "camelcase-keys";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSelector } from "react-redux";
@@ -36,6 +43,7 @@ import {
   markChatMessagesRead,
   normalizeChatMessage,
   normalizeChatUser,
+  sendChatTyping,
   sendChatMessage,
 } from "@api/chat";
 import { uploadFile } from "@api/file";
@@ -47,6 +55,7 @@ import type {
   ChatReplyPayload,
   ChatUser,
 } from "@myTypes/chat";
+import type { Pagination } from "@myTypes/type";
 import AttachmentPreviewModal from "@components/attachment-preview-modal";
 import {
   CardAttachment,
@@ -99,6 +108,21 @@ type PresenceUpdate = {
   userId: string;
   status: ChatPresenceStatus;
 };
+
+type ChatMessagePage = {
+  messages: ChatMessage[];
+  paginate?: Pagination;
+};
+
+type ScrollRestore = {
+  scrollTop: number;
+  scrollHeight: number;
+};
+
+const CHAT_MESSAGE_PAGE_SIZE = 20;
+const CHAT_TYPING_IDLE_MS = 2400;
+const CHAT_TYPING_THROTTLE_MS = 1200;
+const CHAT_PRESENCE_TIMEOUT_MS = 2500;
 
 const formatTime = (value?: string) => {
   if (!value) {
@@ -352,11 +376,16 @@ const resolvePresenceUserId = (value: any): string => {
     value?.userId,
     value?.user_id,
     value?.id,
+    value?.readerUserId,
+    value?.reader_user_id,
     value?.peerUserId,
     value?.peer_user_id,
     value?.user?.id,
     value?.user?.userId,
     value?.user?.user_id,
+    value?.reader?.id,
+    value?.reader?.userId,
+    value?.reader?.user_id,
     value?.peerUser?.id,
     value?.peer_user?.id,
   ];
@@ -368,6 +397,45 @@ const resolvePresenceUserId = (value: any): string => {
   }
 
   return "";
+};
+
+const resolveChatPeerUserId = (value: any, currentUserId?: string) => {
+  const directPeerId = resolvePresenceUserId(value);
+  if (directPeerId && directPeerId !== currentUserId) {
+    return directPeerId;
+  }
+
+  if (currentUserId && value?.senderId === currentUserId) {
+    return (
+      value?.recipientId ||
+      value?.recipient_id ||
+      value?.peerUserId ||
+      value?.peer_user_id ||
+      ""
+    );
+  }
+
+  if (currentUserId && value?.recipientId === currentUserId) {
+    return (
+      value?.senderId ||
+      value?.sender_id ||
+      value?.peerUserId ||
+      value?.peer_user_id ||
+      ""
+    );
+  }
+
+  return (
+    value?.peerUserId ||
+    value?.peer_user_id ||
+    value?.conversationPeerId ||
+    value?.conversation_peer_id ||
+    value?.recipientId ||
+    value?.recipient_id ||
+    value?.senderId ||
+    value?.sender_id ||
+    ""
+  );
 };
 
 const extractPresenceUpdates = (value: any): PresenceUpdate[] => {
@@ -513,6 +581,11 @@ const mergeMessages = (current: ChatMessage[] = [], next: ChatMessage) => {
     left.createdAt.localeCompare(right.createdAt),
   );
 };
+
+const mergeMessageLists = (
+  current: ChatMessage[] = [],
+  next: ChatMessage[] = [],
+) => next.reduce((list, message) => mergeMessages(list, message), current);
 
 const resolvePeerUserId = (
   messageData: ChatMessage,
@@ -717,7 +790,7 @@ const ChatWidget = () => {
   const currentUser = useSelector(selectUser);
   const currentUserId = currentUser?.id;
   const queryClient = useQueryClient();
-  const { socket } = useWebSocket();
+  const { socket, isConnected, connectionAttempts } = useWebSocket();
 
   const [isComposerOpen, setIsComposerOpen] = useState(false);
   const [isOverflowOpen, setIsOverflowOpen] = useState(false);
@@ -742,10 +815,22 @@ const ChatWidget = () => {
   const [messagesByPeerId, setMessagesByPeerId] = useState<
     Record<string, ChatMessage[]>
   >({});
+  const [messagesPaginationByPeerId, setMessagesPaginationByPeerId] = useState<
+    Record<string, Pagination | undefined>
+  >({});
+  const [hasMoreMessagesByPeerId, setHasMoreMessagesByPeerId] = useState<
+    Record<string, boolean>
+  >({});
   const [presenceByUserId, setPresenceByUserId] = useState<
     Record<string, ChatPresenceStatus>
   >({});
+  const [typingByUserId, setTypingByUserId] = useState<Record<string, boolean>>(
+    {},
+  );
   const [loadingByPeerId, setLoadingByPeerId] = useState<
+    Record<string, boolean>
+  >({});
+  const [loadingOlderByPeerId, setLoadingOlderByPeerId] = useState<
     Record<string, boolean>
   >({});
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
@@ -755,10 +840,24 @@ const ChatWidget = () => {
   const [previewInitialIndex, setPreviewInitialIndex] = useState(0);
 
   const loadingPeersRef = useRef(new Set<string>());
+  const loadingOlderPeersRef = useRef(new Set<string>());
   const markReadInFlightRef = useRef(new Set<string>());
   const chatWindowsRef = useRef<ChatWindowState[]>([]);
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const messageBodyRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const messageEndRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const scrollRestoreByPeerIdRef = useRef<Record<string, ScrollRestore | null>>(
+    {},
+  );
+  const pendingBottomScrollByPeerIdRef = useRef<Record<string, boolean>>({});
+  const typingStopTimersRef = useRef<Record<string, ReturnType<typeof setTimeout> | null>>(
+    {},
+  );
+  const typingReceiveTimersRef = useRef<
+    Record<string, ReturnType<typeof setTimeout> | null>
+  >({});
+  const outgoingTypingSentAtRef = useRef<Record<string, number>>({});
+  const lastBackfillAttemptRef = useRef(0);
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioUnlockedRef = useRef(false);
   const lastIncomingSoundAtRef = useRef(0);
@@ -1130,6 +1229,211 @@ const ChatWidget = () => {
     </span>
   );
 
+  const clearTypingStopTimer = (peerUserId: string) => {
+    const timer = typingStopTimersRef.current[peerUserId];
+    if (timer) {
+      clearTimeout(timer);
+      typingStopTimersRef.current[peerUserId] = null;
+    }
+  };
+
+  const clearTypingReceiveTimer = (peerUserId: string) => {
+    const timer = typingReceiveTimersRef.current[peerUserId];
+    if (timer) {
+      clearTimeout(timer);
+      typingReceiveTimersRef.current[peerUserId] = null;
+    }
+  };
+
+  const setTypingState = (peerUserId: string, isTyping: boolean) => {
+    setTypingByUserId((current) => {
+      if (current[peerUserId] === isTyping) {
+        return current;
+      }
+
+      return {
+        ...current,
+        [peerUserId]: isTyping,
+      };
+    });
+  };
+
+  const scheduleScrollToBottom = (peerUserId: string) => {
+    pendingBottomScrollByPeerIdRef.current[peerUserId] = true;
+    const body = messageBodyRefs.current[peerUserId];
+    if (!body) {
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      body.scrollTop = body.scrollHeight;
+      pendingBottomScrollByPeerIdRef.current[peerUserId] = false;
+    });
+  };
+
+  const restoreScrollPosition = (peerUserId: string) => {
+    const body = messageBodyRefs.current[peerUserId];
+    const restore = scrollRestoreByPeerIdRef.current[peerUserId];
+    if (!body || !restore) {
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      const nextScrollTop =
+        body.scrollHeight - restore.scrollHeight + restore.scrollTop;
+      body.scrollTop = Math.max(nextScrollTop, 0);
+      scrollRestoreByPeerIdRef.current[peerUserId] = null;
+    });
+  };
+
+  const mergePeerMessages = (
+    peerUserId: string,
+    nextMessages: ChatMessage[],
+    replace = false,
+  ) => {
+    setMessagesByPeerId((current) => {
+      const existing = replace ? [] : current[peerUserId] || [];
+      return {
+        ...current,
+        [peerUserId]: mergeMessageLists(existing, nextMessages),
+      };
+    });
+  };
+
+  const updateMessagesForPeer = (
+    peerUserId: string,
+    updater: (messages: ChatMessage[]) => ChatMessage[],
+  ) => {
+    setMessagesByPeerId((current) => {
+      const existing = current[peerUserId];
+      if (!existing) {
+        return current;
+      }
+
+      const nextMessages = updater(existing);
+      return {
+        ...current,
+        [peerUserId]: nextMessages,
+      };
+    });
+  };
+
+  const updateQueryMessagesForPeer = (
+    peerUserId: string,
+    updater: (messages: ChatMessage[]) => ChatMessage[],
+  ) => {
+    queryClient.setQueryData<ChatMessage[]>(
+      queryKeys.chat.messages(peerUserId),
+      (current) => updater(current || []),
+    );
+  };
+
+  const isPeerOnlineForDelivery = (peerUserId: string) => {
+    const presenceStatus = getPeerPresenceStatus(peerUserId);
+    return presenceStatus === "online" || presenceStatus === "idle";
+  };
+
+  const getMessageDeliveryLabel = (
+    chatMessage: ChatMessage,
+    peerUserId: string,
+  ) => {
+    if (!chatMessage.isRead) {
+      return isPeerOnlineForDelivery(peerUserId) ? "Delivered" : "Sent";
+    }
+
+    return "Seen";
+  };
+
+  const updateReadReceiptState = (
+    peerUserId: string,
+    messageIds?: string[],
+  ) => {
+    const hasSpecificMessages = Array.isArray(messageIds) && messageIds.length > 0;
+    const idSet = hasSpecificMessages ? new Set(messageIds) : null;
+
+    const patchMessages = (messages: ChatMessage[]) =>
+      messages.map((message) => {
+        const isOwnMessage =
+          Boolean(currentUserId) && message.senderId === currentUserId;
+        if (!isOwnMessage || message.peerUserId !== peerUserId) {
+          return message;
+        }
+
+        if (idSet && !idSet.has(message.id)) {
+          return message;
+        }
+
+        if (message.isRead) {
+          return message;
+        }
+
+        return {
+          ...message,
+          isRead: true,
+        };
+      });
+
+    updateMessagesForPeer(peerUserId, patchMessages);
+    updateQueryMessagesForPeer(peerUserId, patchMessages);
+
+    queryClient.setQueryData<ChatConversation[]>(
+      queryKeys.chat.conversations(),
+      (current) =>
+        (current || []).map((conversation) => {
+          if (conversation.peerUserId !== peerUserId) {
+            return conversation;
+          }
+
+          if (
+            conversation.lastMessage &&
+            currentUserId &&
+            conversation.lastMessage.senderId === currentUserId
+          ) {
+            return {
+              ...conversation,
+              lastMessage: {
+                ...conversation.lastMessage,
+                isRead: true,
+              },
+            };
+          }
+
+          return conversation;
+        }),
+    );
+  };
+
+  const sendTypingState = async (peerUserId: string, isTyping: boolean) => {
+    try {
+      await sendChatTyping({
+        peerUserId,
+        isTyping,
+      });
+    } catch (error) {
+      console.error("[CHAT] Failed to send typing state", error);
+    }
+  };
+
+  const announceTypingIfNeeded = (peerUserId: string) => {
+    const now = Date.now();
+    const lastSentAt = outgoingTypingSentAtRef.current[peerUserId] || 0;
+    if (now - lastSentAt < CHAT_TYPING_THROTTLE_MS) {
+      return;
+    }
+
+    outgoingTypingSentAtRef.current[peerUserId] = now;
+    void sendTypingState(peerUserId, true);
+  };
+
+  const stopTyping = (peerUserId: string) => {
+    clearTypingStopTimer(peerUserId);
+    const lastSentAt = outgoingTypingSentAtRef.current[peerUserId];
+    if (lastSentAt) {
+      outgoingTypingSentAtRef.current[peerUserId] = 0;
+      void sendTypingState(peerUserId, false);
+    }
+  };
+
   const setPeerUnreadZero = (peerUserId: string) => {
     queryClient.setQueryData<ChatConversation[]>(
       queryKeys.chat.conversations(),
@@ -1172,26 +1476,154 @@ const ChatWidget = () => {
     oscillator.stop(now + 0.17);
   };
 
-  const loadMessages = async (peerUserId: string) => {
-    if (!peerUserId || loadingPeersRef.current.has(peerUserId)) {
+  const loadMessages = async (
+    peerUserId: string,
+    options: { page?: number; silent?: boolean; preserveScroll?: boolean } = {},
+  ) => {
+    if (!peerUserId) {
       return;
     }
 
-    loadingPeersRef.current.add(peerUserId);
-    setLoadingByPeerId((current) => ({ ...current, [peerUserId]: true }));
+    const page = options.page || 1;
+    const isOlderPage = page > 1;
+    const loadingRef = isOlderPage ? loadingOlderPeersRef : loadingPeersRef;
+
+    if (loadingRef.current.has(peerUserId)) {
+      return;
+    }
+
+    loadingRef.current.add(peerUserId);
+    if (isOlderPage) {
+      setLoadingOlderByPeerId((current) => ({ ...current, [peerUserId]: true }));
+    } else if (!options.silent) {
+      setLoadingByPeerId((current) => ({ ...current, [peerUserId]: true }));
+    }
+
+    if (options.preserveScroll) {
+      const body = messageBodyRefs.current[peerUserId];
+      if (body) {
+        scrollRestoreByPeerIdRef.current[peerUserId] = {
+          scrollTop: body.scrollTop,
+          scrollHeight: body.scrollHeight,
+        };
+      }
+    }
 
     try {
-      const messages = await getChatMessages(peerUserId);
-      setMessagesByPeerId((current) => ({ ...current, [peerUserId]: messages }));
-      queryClient.setQueryData(queryKeys.chat.messages(peerUserId), messages);
+      const response = await getChatMessages(peerUserId, {
+        page,
+        limit: CHAT_MESSAGE_PAGE_SIZE,
+      });
+
+      const fetchedMessages = response.messages.map((chatMessage) => ({
+        ...chatMessage,
+        peerUserId: chatMessage.peerUserId || peerUserId,
+      }));
+
+      mergePeerMessages(peerUserId, fetchedMessages);
+      queryClient.setQueryData<ChatMessage[]>(
+        queryKeys.chat.messages(peerUserId),
+        (current) => mergeMessageLists(current || [], fetchedMessages),
+      );
+
+      const nextPage =
+        response.paginate?.nextPage ||
+        (fetchedMessages.length >= CHAT_MESSAGE_PAGE_SIZE ? page + 1 : 0);
+      const paginate: Pagination = response.paginate || {
+        limit: CHAT_MESSAGE_PAGE_SIZE,
+        page,
+        totalData: fetchedMessages.length,
+        totalPage: nextPage ? page + 1 : page,
+        nextPage,
+        prevPage: page > 1 ? page - 1 : 0,
+      };
+
+      setMessagesPaginationByPeerId((current) => ({
+        ...current,
+        [peerUserId]: paginate,
+      }));
+
+      const hasMore =
+        Boolean(paginate.nextPage) ||
+        Boolean(paginate.totalPage > paginate.page) ||
+        fetchedMessages.length >= CHAT_MESSAGE_PAGE_SIZE;
+      setHasMoreMessagesByPeerId((current) => ({
+        ...current,
+        [peerUserId]: hasMore,
+      }));
+
+      if (page === 1 && !options.preserveScroll) {
+        scheduleScrollToBottom(peerUserId);
+      } else if (options.preserveScroll) {
+        restoreScrollPosition(peerUserId);
+      }
     } catch (error) {
       console.error("[CHAT] Failed to load messages", error);
-      message.error("Failed to load messages");
+      if (!options.silent) {
+        message.error("Failed to load messages");
+      }
     } finally {
-      loadingPeersRef.current.delete(peerUserId);
-      setLoadingByPeerId((current) => ({ ...current, [peerUserId]: false }));
+      loadingRef.current.delete(peerUserId);
+      if (isOlderPage) {
+        setLoadingOlderByPeerId((current) => ({ ...current, [peerUserId]: false }));
+      } else if (!options.silent) {
+        setLoadingByPeerId((current) => ({ ...current, [peerUserId]: false }));
+      }
     }
   };
+
+  const loadOlderMessages = async (peerUserId: string) => {
+    const body = messageBodyRefs.current[peerUserId];
+    const paginate = messagesPaginationByPeerId[peerUserId];
+    const nextPage = paginate?.nextPage || (paginate?.page ? paginate.page + 1 : 2);
+
+    if (!body || !nextPage || loadingOlderPeersRef.current.has(peerUserId)) {
+      return;
+    }
+
+    scrollRestoreByPeerIdRef.current[peerUserId] = {
+      scrollTop: body.scrollTop,
+      scrollHeight: body.scrollHeight,
+    };
+
+    await loadMessages(peerUserId, {
+      page: nextPage,
+      silent: true,
+      preserveScroll: true,
+    });
+  };
+
+  useEffect(() => {
+    if (!didRestoreWindows || !isConnected || connectionAttempts <= 1) {
+      return;
+    }
+
+    if (lastBackfillAttemptRef.current === connectionAttempts) {
+      return;
+    }
+
+    lastBackfillAttemptRef.current = connectionAttempts;
+
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.chat.conversations(),
+      exact: false,
+    });
+
+    for (const window of visibleWindows) {
+      void loadMessages(window.peerUserId, {
+        page: 1,
+        silent: true,
+        preserveScroll: true,
+      });
+    }
+  }, [
+    connectionAttempts,
+    didRestoreWindows,
+    isConnected,
+    loadMessages,
+    queryClient,
+    visibleWindows,
+  ]);
 
   const openWindow = (peerUserId: string) => {
     if (!peerUserId) {
@@ -1232,6 +1664,10 @@ const ChatWidget = () => {
   };
 
   const closeWindow = (peerUserId: string) => {
+    stopTyping(peerUserId);
+    clearTypingReceiveTimer(peerUserId);
+    scrollRestoreByPeerIdRef.current[peerUserId] = null;
+    pendingBottomScrollByPeerIdRef.current[peerUserId] = false;
     setChatWindows((current) =>
       current.filter((window) => window.peerUserId !== peerUserId),
     );
@@ -1368,6 +1804,7 @@ const ChatWidget = () => {
     }
 
     setSendingByPeerId((current) => ({ ...current, [peerUserId]: true }));
+    stopTyping(peerUserId);
 
     try {
       const attachments = await Promise.all(
@@ -1430,6 +1867,7 @@ const ChatWidget = () => {
       setDraftByPeerId((current) => ({ ...current, [peerUserId]: "" }));
       setReplyByPeerId((current) => ({ ...current, [peerUserId]: undefined }));
       setPendingFilesByPeerId((current) => ({ ...current, [peerUserId]: [] }));
+      scheduleScrollToBottom(peerUserId);
     } catch {
       message.error("Failed to send message");
     } finally {
@@ -1438,10 +1876,59 @@ const ChatWidget = () => {
   };
 
   useEffect(() => {
+    for (const [peerUserId, draft] of Object.entries(draftByPeerId)) {
+      const trimmed = draft.trim();
+      if (!trimmed) {
+        stopTyping(peerUserId);
+        continue;
+      }
+
+      announceTypingIfNeeded(peerUserId);
+      clearTypingStopTimer(peerUserId);
+      typingStopTimersRef.current[peerUserId] = setTimeout(() => {
+        outgoingTypingSentAtRef.current[peerUserId] = 0;
+        void sendTypingState(peerUserId, false);
+      }, CHAT_TYPING_IDLE_MS);
+    }
+
+    return () => {
+      for (const peerUserId of Object.keys(typingStopTimersRef.current)) {
+        if (!(peerUserId in draftByPeerId)) {
+          clearTypingStopTimer(peerUserId);
+        }
+      }
+    };
+  }, [draftByPeerId]);
+
+  useEffect(
+    () => () => {
+      for (const timer of Object.values(typingStopTimersRef.current)) {
+        if (timer) {
+          clearTimeout(timer);
+        }
+      }
+      for (const timer of Object.values(typingReceiveTimersRef.current)) {
+        if (timer) {
+          clearTimeout(timer);
+        }
+      }
+    },
+    [],
+  );
+
+  useEffect(() => {
     for (const window of visibleWindows) {
-      const ref = messageEndRefs.current[window.peerUserId];
-      if (ref) {
-        ref.scrollIntoView({ behavior: "smooth" });
+      const peerUserId = window.peerUserId;
+      if (pendingBottomScrollByPeerIdRef.current[peerUserId]) {
+        const body = messageBodyRefs.current[peerUserId];
+        if (body) {
+          body.scrollTop = body.scrollHeight;
+          pendingBottomScrollByPeerIdRef.current[peerUserId] = false;
+        }
+      }
+
+      if (scrollRestoreByPeerIdRef.current[peerUserId]) {
+        restoreScrollPosition(peerUserId);
       }
     }
   }, [messagesByPeerId, visibleWindows]);
@@ -1512,6 +1999,52 @@ const ChatWidget = () => {
             rawEventData;
           const updates = extractPresenceUpdates(presenceSource);
           mergePresenceUpdates(updates, eventName === "chat:presence-sync");
+          return;
+        }
+
+        if (eventName === "chat:messages-read") {
+          const readerUserId = resolvePresenceUserId(rawEventData);
+          const peerUserId = resolveChatPeerUserId(rawEventData, currentUserId);
+          const messageIds = Array.isArray(rawEventData?.messageIds)
+            ? rawEventData.messageIds
+            : Array.isArray(rawEventData?.message_ids)
+              ? rawEventData.message_ids
+              : Array.isArray(rawEventData?.ids)
+                ? rawEventData.ids
+                : [];
+
+          if (!peerUserId || readerUserId === currentUserId) {
+            return;
+          }
+
+          updateReadReceiptState(peerUserId, messageIds);
+          return;
+        }
+
+        if (eventName === "chat:typing") {
+          const peerUserId = resolveChatPeerUserId(rawEventData, currentUserId);
+          const isTyping = Boolean(
+            rawEventData?.isTyping ??
+              rawEventData?.is_typing ??
+              rawEventData?.typing ??
+              false,
+          );
+
+          if (!peerUserId || peerUserId === currentUserId) {
+            return;
+          }
+
+          clearTypingReceiveTimer(peerUserId);
+          if (!isTyping) {
+            setTypingState(peerUserId, false);
+            return;
+          }
+
+          setTypingState(peerUserId, true);
+          typingReceiveTimersRef.current[peerUserId] = setTimeout(() => {
+            setTypingState(peerUserId, false);
+            typingReceiveTimersRef.current[peerUserId] = null;
+          }, CHAT_PRESENCE_TIMEOUT_MS);
           return;
         }
 
@@ -1636,6 +2169,10 @@ const ChatWidget = () => {
         if (!isOwnMessage) {
           playIncomingMessageSound();
         }
+
+        if (isOwnMessage || isOpenAndActive) {
+          scheduleScrollToBottom(peerUserId);
+        }
       } catch (error) {
         console.error("[CHAT] Failed to process websocket message", error);
       }
@@ -1652,6 +2189,12 @@ const ChatWidget = () => {
           const peerUser = getPeerUser(window.peerUserId);
           const messages = messagesByPeerId[window.peerUserId] || [];
           const isLoading = Boolean(loadingByPeerId[window.peerUserId]);
+          const isLoadingOlder = Boolean(
+            loadingOlderByPeerId[window.peerUserId],
+          );
+          const hasMoreMessages = Boolean(
+            hasMoreMessagesByPeerId[window.peerUserId],
+          );
           const unreadCount =
             conversationByPeerId.get(window.peerUserId)?.unreadCount || 0;
           const draft = draftByPeerId[window.peerUserId] || "";
@@ -1660,6 +2203,7 @@ const ChatWidget = () => {
           const sendingThisPeer = Boolean(sendingByPeerId[window.peerUserId]);
           const isDragOver = Boolean(isDragOverByPeerId[window.peerUserId]);
           const canSend = Boolean(draft.trim() || pendingFiles.length > 0);
+          const peerTyping = Boolean(typingByUserId[window.peerUserId]);
 
           return (
             <div
@@ -1698,7 +2242,12 @@ const ChatWidget = () => {
                     28,
                     styles.peerAvatar,
                   )}
-                  <Text className={styles.peerName}>{peerUser.name}</Text>
+                  <div className={styles.peerHeaderText}>
+                    <Text className={styles.peerName}>{peerUser.name}</Text>
+                    {peerTyping ? (
+                      <Text className={styles.peerTypingText}>typing...</Text>
+                    ) : null}
+                  </div>
                   {unreadCount > 0 ? (
                     <Badge
                       count={unreadCount}
@@ -1725,7 +2274,38 @@ const ChatWidget = () => {
                 </div>
               </div>
 
-              <div className={styles.chatWindowBody}>
+              <div
+                ref={(element) => {
+                  messageBodyRefs.current[window.peerUserId] = element;
+                }}
+                className={styles.chatWindowBody}
+                onScroll={(event) => {
+                  if (!hasMoreMessages || isLoadingOlder) {
+                    return;
+                  }
+
+                  const target = event.currentTarget;
+                  if (target.scrollTop <= 48) {
+                    void loadOlderMessages(window.peerUserId);
+                  }
+                }}
+              >
+                {messages.length > 0 && hasMoreMessages ? (
+                  <div className={styles.loadOlderRow}>
+                    {isLoadingOlder ? (
+                      <Spin size="small" />
+                    ) : (
+                      <Button
+                        type="link"
+                        size="small"
+                        className={styles.loadOlderButton}
+                        onClick={() => void loadOlderMessages(window.peerUserId)}
+                      >
+                        Load older messages
+                      </Button>
+                    )}
+                  </div>
+                ) : null}
                 {isLoading ? (
                   <div className={styles.windowEmpty}>
                     <Spin size="small" />
@@ -1745,6 +2325,9 @@ const ChatWidget = () => {
                     const parsedMessage = parseMessagePayload(chatMessage.content || "");
                     const attachments = parsedMessage.attachments;
                     const parsedReply = parsedMessage.reply;
+                    const deliveryLabel = isOwnMessage
+                      ? getMessageDeliveryLabel(chatMessage, window.peerUserId)
+                      : "";
 
                     return (
                       <div
@@ -1857,8 +2440,15 @@ const ChatWidget = () => {
                             ) : null}
                           </div>
                           <div className={styles.messageMetaRow}>
-                            <div className={styles.messageTime}>
-                              {formatTime(chatMessage.createdAt)}
+                            <div className={styles.messageMetaInfo}>
+                              <div className={styles.messageTime}>
+                                {formatTime(chatMessage.createdAt)}
+                              </div>
+                              {isOwnMessage ? (
+                                <div className={styles.messageStatus}>
+                                  {deliveryLabel}
+                                </div>
+                              ) : null}
                             </div>
                             <Button
                               type="text"
@@ -2141,22 +2731,28 @@ const ChatWidget = () => {
                       onClick={() => openWindow(entry.peerUserId)}
                     >
                       <List.Item.Meta
-                      avatar={
-                        <Badge
-                          count={entry.unreadCount}
-                          overflowCount={99}
-                          size="small"
-                          offset={[-2, 24]}
-                        >
-                          {renderPresenceAvatar(
-                            entry.peerUser,
-                            getPeerPresenceStatus(entry.peerUserId),
-                          )}
-                        </Badge>
-                      }
-                        title={<Text className={styles.peopleName}>{entry.peerUser.name}</Text>}
+                        avatar={
+                          <Badge
+                            count={entry.unreadCount}
+                            overflowCount={99}
+                            size="small"
+                            offset={[-2, 24]}
+                          >
+                            {renderPresenceAvatar(
+                              entry.peerUser,
+                              getPeerPresenceStatus(entry.peerUserId),
+                            )}
+                          </Badge>
+                        }
+                        title={
+                          <Text className={styles.peopleName}>
+                            {entry.peerUser.name}
+                          </Text>
+                        }
                         description={
-                          entry.lastMessage ? (
+                          typingByUserId[entry.peerUserId] ? (
+                            <Text className={styles.peopleTyping}>typing...</Text>
+                          ) : entry.lastMessage ? (
                             <Text className={styles.peopleMeta}>
                               {entry.lastMessage}
                             </Text>

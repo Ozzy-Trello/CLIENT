@@ -4,11 +4,14 @@ import {
   ChatMessage,
   ChatMessageApiResponse,
   ChatMessagesApiResponse,
+  ChatMessagesQuery,
+  ChatMessagesResponse,
   ChatPresenceStatus,
   ChatUser,
   ChatConversationsApiResponse,
   ChatUsersApiResponse,
   ReadChatMessagesPayload,
+  SendChatTypingPayload,
   SendChatMessagePayload,
 } from "@myTypes/chat";
 
@@ -316,13 +319,31 @@ export const getChatConversations = async (): Promise<ChatConversation[]> => {
 };
 
 export const getChatMessages = async (
-  peerUserId: string
-): Promise<ChatMessage[]> => {
+  peerUserId: string,
+  query: ChatMessagesQuery = {}
+): Promise<ChatMessagesResponse> => {
+  const params = new URLSearchParams();
+  if (typeof query.page === "number") {
+    params.set("page", String(query.page));
+  }
+  if (typeof query.limit === "number") {
+    params.set("limit", String(query.limit));
+  }
+
   const { data } = await api.get<ChatMessagesApiResponse>(
-    `/chat/messages/${peerUserId}`
+    `/chat/messages/${peerUserId}${params.toString() ? `?${params}` : ""}`
   );
   const payload = extractObject(data);
-  return extractArray(payload?.messages ?? payload).map(normalizeChatMessage);
+  const messages = extractArray(payload?.messages ?? payload).map(
+    normalizeChatMessage
+  );
+
+  return {
+    peerUser: payload?.peerUser ? normalizeChatUser(payload.peerUser) : undefined,
+    peerUserId: resolveId(payload?.peerUserId, peerUserId),
+    messages,
+    paginate: payload?.paginate ?? data?.paginate,
+  };
 };
 
 export const sendChatMessage = async (
@@ -359,6 +380,26 @@ export const markChatMessagesRead = async (
   await api.patch(
     "/chat/messages/read",
     payload,
+    {
+      transformRequest: [(requestBody) => JSON.stringify(requestBody)],
+      headers: {
+        "Content-Type": "application/json",
+      },
+    }
+  );
+};
+
+export const sendChatTyping = async (
+  payload: SendChatTypingPayload
+): Promise<void> => {
+  await api.post(
+    "/chat/typing",
+    {
+      peerUserId: payload.peerUserId,
+      peer_user_id: payload.peerUserId,
+      isTyping: payload.isTyping ?? true,
+      typing: payload.isTyping ?? true,
+    },
     {
       transformRequest: [(requestBody) => JSON.stringify(requestBody)],
       headers: {
