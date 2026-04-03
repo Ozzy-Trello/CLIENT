@@ -137,6 +137,13 @@ const RichTextEditorClient = forwardRef<any, RichTextEditorProps>(
         allowedChars: /^[A-Za-z0-9_.\-\sÅÄÖåäö]*$/,
         mentionDenotationChars: ["@"],
         blotName: "mention",
+        onSelect: (item: any, insertItem: (data: any) => void) => {
+          insertItem({
+            id: item?.id || "",
+            value: item?.value || "",
+            denotationChar: item?.denotationChar || "@",
+          });
+        },
         source: (searchTerm: string, renderList: any) => {
           console.log("Default mention source called");
           renderList([], searchTerm); // Default empty function
