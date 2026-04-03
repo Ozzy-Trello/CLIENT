@@ -2002,13 +2002,8 @@ const CardDetails: React.FC = (props) => {
             multiple
             cardId={selectedCard?.id}
             onBeforeUpload={(file) => {
-              const parts = file.name.split(".");
-              const ext = parts.length > 1 ? parts.pop() : "";
-              const safeCardName = (selectedCard?.name || "card").replace(
-                /[^a-z0-9\- ]/gi,
-                "_",
-              );
-              const newName = `STAMP_${safeCardName}${ext ? "." + ext : ""}`;
+              const originalName = file.name.replace(/^STAMP_/i, "");
+              const newName = `STAMP_${originalName}`;
               return new File([file], newName, { type: file.type });
             }}
           />

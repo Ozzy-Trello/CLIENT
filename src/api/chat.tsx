@@ -127,7 +127,12 @@ const normalizeChatMessage = (message: any): ChatMessage => {
 
 const normalizeChatConversation = (conversation: any): ChatConversation => {
   const peerUser = normalizeChatUser(
-    conversation?.peerUser ?? conversation?.user ?? conversation?.otherUser ?? conversation?.contact ?? {}
+    conversation?.peerUser ??
+      conversation?.peer ??
+      conversation?.user ??
+      conversation?.otherUser ??
+      conversation?.contact ??
+      {}
   );
   const lastMessageRaw =
     conversation?.lastMessage ??
@@ -145,6 +150,7 @@ const normalizeChatConversation = (conversation: any): ChatConversation => {
     peerUserId: resolveId(
       conversation?.peerUserId,
       conversation?.peer_user_id,
+      conversation?.peer?.id,
       peerUser?.id,
       conversation?.userId,
       conversation?.user_id
@@ -163,7 +169,9 @@ const normalizeChatConversation = (conversation: any): ChatConversation => {
 };
 
 export const getChatUsers = async (): Promise<ChatUser[]> => {
-  const { data } = await api.get<ChatUsersApiResponse>("/chat/users");
+  const { data } = await api.get<ChatUsersApiResponse>("/chat/users", {
+    params: { limit: 500 },
+  });
   return extractArray(data).map(normalizeChatUser);
 };
 
@@ -201,7 +209,10 @@ export const sendChatMessage = async (
     }
   );
   const responsePayload = extractObject(data);
-  const messagePayload = responsePayload?.message ?? responsePayload;
+  const messagePayload =
+    responsePayload?.id || responsePayload?.sender_id
+      ? responsePayload
+      : responsePayload?.message ?? responsePayload;
   const normalized = normalizeChatMessage(messagePayload);
   if (!normalized.peerUserId && payload.peerUserId) {
     normalized.peerUserId = payload.peerUserId;
