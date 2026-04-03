@@ -23,6 +23,7 @@ import {
   Typography,
   message,
 } from "antd";
+import type { InputRef } from "antd";
 import {
   CloseOutlined,
   LinkOutlined,
@@ -73,6 +74,7 @@ const { Text } = Typography;
 const MAX_OPEN_WINDOWS = 3;
 const MAX_VISIBLE_MINIMIZED = 3;
 const CHAT_WINDOWS_STORAGE_PREFIX = "chat_widget_windows_v1";
+const GENERAL_SEEN_STORAGE_PREFIX = "chat_widget_general_seen_v1";
 
 type ChatWindowState = {
   peerUserId: string;
@@ -125,9 +127,18 @@ const CHAT_MESSAGE_PAGE_SIZE = 20;
 const CHAT_TYPING_IDLE_MS = 2400;
 const CHAT_TYPING_THROTTLE_MS = 1200;
 const CHAT_PRESENCE_TIMEOUT_MS = 2500;
+const CHAT_GENERAL_POLL_CONNECTED_MS = 20_000;
+const CHAT_GENERAL_POLL_DISCONNECTED_MS = 8_000;
 const GENERAL_ROOM_ID = "general";
 const GENERAL_ROOM_NAME = "General";
 const GENERAL_ROOM_ROLE = "Group chat";
+const GENERAL_MENTION_ALL_ID = "__mention_all__";
+const GENERAL_MENTION_ALL_LABEL = "All";
+const GENERAL_MENTION_ALL_ROLE = "Mention everyone";
+const GENERAL_ROOM_POLLING_QUERY_KEY = [
+  ...queryKeys.chat.roomMessages(GENERAL_ROOM_ID),
+  "polling",
+] as const;
 
 const isGeneralRoom = (peerUserId: string) => peerUserId === GENERAL_ROOM_ID;
 
@@ -381,7 +392,11 @@ const normalizePresenceStatus = (value: any): ChatPresenceStatus => {
 const resolvePresenceUserId = (value: any): string => {
   const candidates = [
     value?.userId,
+    value?.senderUserId,
+    value?.recipientUserId,
     value?.user_id,
+    value?.sender_user_id,
+    value?.recipient_user_id,
     value?.id,
     value?.readerUserId,
     value?.reader_user_id,
@@ -412,20 +427,26 @@ const resolveChatPeerUserId = (value: any, currentUserId?: string) => {
     return directPeerId;
   }
 
-  if (currentUserId && value?.senderId === currentUserId) {
+  const senderId =
+    value?.senderId || value?.sender_id || value?.senderUserId || value?.sender_user_id;
+  const recipientId =
+    value?.recipientId ||
+    value?.recipient_id ||
+    value?.recipientUserId ||
+    value?.recipient_user_id;
+
+  if (currentUserId && senderId === currentUserId) {
     return (
-      value?.recipientId ||
-      value?.recipient_id ||
+      recipientId ||
       value?.peerUserId ||
       value?.peer_user_id ||
       ""
     );
   }
 
-  if (currentUserId && value?.recipientId === currentUserId) {
+  if (currentUserId && recipientId === currentUserId) {
     return (
-      value?.senderId ||
-      value?.sender_id ||
+      senderId ||
       value?.peerUserId ||
       value?.peer_user_id ||
       ""
@@ -437,12 +458,31 @@ const resolveChatPeerUserId = (value: any, currentUserId?: string) => {
     value?.peer_user_id ||
     value?.conversationPeerId ||
     value?.conversation_peer_id ||
-    value?.recipientId ||
-    value?.recipient_id ||
-    value?.senderId ||
-    value?.sender_id ||
+    recipientId ||
+    senderId ||
     ""
   );
+};
+
+const resolveTypingPayloadData = (value: any) => {
+  if (!value || typeof value !== "object") {
+    return value;
+  }
+
+  const nestedDataCandidates = [
+    value.data,
+    value.payload,
+    value.eventData,
+    value.event_data,
+  ];
+
+  for (const candidate of nestedDataCandidates) {
+    if (candidate && typeof candidate === "object") {
+      return candidate;
+    }
+  }
+
+  return value;
 };
 
 const extractPresenceUpdates = (value: any): PresenceUpdate[] => {
@@ -542,6 +582,7 @@ const URL_STRICT_REGEX = /^https?:\/\/[^\s<>"']+$/i;
 const MENTION_QUERY_REGEX = /(?:^|\s)@([a-zA-Z0-9._-]{0,64})$/;
 const MENTION_TOKEN_REGEX = /(^|\s)(@[a-zA-Z0-9._-]+)/g;
 const MENTION_CAPTURE_REGEX = /(?:^|\s)@([a-zA-Z0-9._-]{1,64})/g;
+const MENTION_ALL_TOKEN = "all";
 
 const normalizeMentionHandle = (value = "") =>
   value.trim().replace(/\s+/g, "");
@@ -579,12 +620,17 @@ const messageMentionsCurrentUser = (
   message: ChatMessage,
   currentUser?: { username?: string; name?: string } | null,
 ) => {
+  const parsed = parseMessagePayload(message.content || "");
+  const tokens = extractMentionTokens(parsed.text || "");
+  if (tokens.includes(MENTION_ALL_TOKEN)) {
+    return true;
+  }
+
   const aliases = getCurrentMentionAliases(currentUser);
   if (aliases.size === 0) {
     return false;
   }
-  const parsed = parseMessagePayload(message.content || "");
-  const tokens = extractMentionTokens(parsed.text || "");
+
   return tokens.some((token) => aliases.has(token));
 };
 
@@ -692,18 +738,58 @@ const sortByLatest = (left: ChatConversation, right: ChatConversation) => {
 const getRoleLabel = (user?: ChatUser | null) =>
   user?.roleName || "";
 
+const TypingIndicator = ({ label = "Someone is typing..." }: { label?: string | null }) => (
+  <span className={styles.typingIndicator} aria-label="typing">
+    {label ? (
+      <span className={styles.typingLabel}>{label}</span>
+    ) : null}
+    <span className={styles.typingDotsWrap}>
+      <span className={styles.typingDot} />
+      <span className={styles.typingDot} />
+      <span className={styles.typingDot} />
+    </span>
+  </span>
+);
+
+const getMessageMergeKey = (message: ChatMessage) => {
+  const roomId = message?.roomId || "";
+  const peerUserId = message?.peerUserId || "";
+  const isGeneralMessage =
+    roomId === GENERAL_ROOM_ID || peerUserId === GENERAL_ROOM_ID;
+
+  if (isGeneralMessage) {
+    return [
+      "general",
+      GENERAL_ROOM_ID,
+      message?.senderId || "",
+      message?.createdAt || "",
+      message?.content || "",
+    ].join("|");
+  }
+
+  if (message?.id) {
+    return `id:${message.id}`;
+  }
+
+  return [
+    "fallback",
+    message?.peerUserId || "",
+    message?.roomId || "",
+    message?.senderId || "",
+    message?.recipientId || "",
+    message?.createdAt || "",
+    message?.content || "",
+  ].join("|");
+};
+
 const mergeMessages = (current: ChatMessage[] = [], next: ChatMessage) => {
   const map = new Map<string, ChatMessage>();
 
   for (const item of current) {
-    if (item?.id) {
-      map.set(item.id, item);
-    }
+    map.set(getMessageMergeKey(item), item);
   }
 
-  if (next?.id) {
-    map.set(next.id, next);
-  }
+  map.set(getMessageMergeKey(next), next);
 
   return Array.from(map.values()).sort((left, right) =>
     left.createdAt.localeCompare(right.createdAt),
@@ -955,8 +1041,12 @@ const ChatWidget = () => {
   const [typingByUserId, setTypingByUserId] = useState<Record<string, boolean>>(
     {},
   );
+  const [incomingAnimatedByMessageId, setIncomingAnimatedByMessageId] = useState<
+    Record<string, boolean>
+  >({});
   const [roomUnreadById, setRoomUnreadById] = useState<Record<string, number>>({});
   const [roomMentionById, setRoomMentionById] = useState<Record<string, boolean>>({});
+  const [generalLastSeenAt, setGeneralLastSeenAt] = useState<string>("");
   const [loadingByPeerId, setLoadingByPeerId] = useState<
     Record<string, boolean>
   >({});
@@ -976,6 +1066,7 @@ const ChatWidget = () => {
   const messagesByPeerIdRef = useRef<Record<string, ChatMessage[]>>({});
   const processedIncomingMessageKeysRef = useRef<Set<string>>(new Set());
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const composerInputRefs = useRef<Record<string, InputRef | null>>({});
   const messageBodyRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const messageEndRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const scrollRestoreByPeerIdRef = useRef<Record<string, ScrollRestore | null>>(
@@ -988,12 +1079,16 @@ const ChatWidget = () => {
   const typingReceiveTimersRef = useRef<
     Record<string, ReturnType<typeof setTimeout> | null>
   >({});
+  const incomingAnimationTimersRef = useRef<
+    Record<string, ReturnType<typeof setTimeout> | null>
+  >({});
   const outgoingTypingSentAtRef = useRef<Record<string, number>>({});
   const lastBackfillAttemptRef = useRef(0);
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioUnlockedRef = useRef(false);
   const lastIncomingSoundAtRef = useRef(0);
   const storageKey = `${CHAT_WINDOWS_STORAGE_PREFIX}_${currentUserId || "anon"}`;
+  const generalSeenStorageKey = `${GENERAL_SEEN_STORAGE_PREFIX}_${currentUserId || "anon"}`;
 
   useEffect(() => {
     chatWindowsRef.current = chatWindows;
@@ -1063,6 +1158,27 @@ const ChatWidget = () => {
   }, [chatWindows, currentUserId, didRestoreWindows, storageKey]);
 
   useEffect(() => {
+    if (!currentUserId || typeof window === "undefined") {
+      return;
+    }
+
+    const savedSeenAt = window.localStorage.getItem(generalSeenStorageKey);
+    setGeneralLastSeenAt(savedSeenAt || "");
+  }, [currentUserId, generalSeenStorageKey]);
+
+  useEffect(() => {
+    if (!currentUserId || typeof window === "undefined") {
+      return;
+    }
+
+    if (!generalLastSeenAt) {
+      return;
+    }
+
+    window.localStorage.setItem(generalSeenStorageKey, generalLastSeenAt);
+  }, [currentUserId, generalLastSeenAt, generalSeenStorageKey]);
+
+  useEffect(() => {
     if (typeof window === "undefined") {
       return;
     }
@@ -1110,6 +1226,21 @@ const ChatWidget = () => {
     queryFn: getChatUsers,
     enabled: Boolean(currentUserId),
     staleTime: 60_000,
+  });
+
+  const generalMessagesPollingQuery = useQuery({
+    queryKey: GENERAL_ROOM_POLLING_QUERY_KEY,
+    queryFn: () =>
+      getGeneralRoomMessages({
+        page: 1,
+        limit: 100,
+      }),
+    enabled: Boolean(currentUserId),
+    staleTime: 5_000,
+    refetchInterval: isConnected
+      ? CHAT_GENERAL_POLL_CONNECTED_MS
+      : CHAT_GENERAL_POLL_DISCONNECTED_MS,
+    refetchIntervalInBackground: true,
   });
 
   const sendMessageMutation = useMutation({
@@ -1399,9 +1530,18 @@ const ChatWidget = () => {
       );
     }
 
-    return Array.from(map.values()).sort((left, right) =>
+    const sortedUsers = Array.from(map.values()).sort((left, right) =>
       (left.name || "").localeCompare(right.name || ""),
     );
+
+    const mentionAllOption = normalizeChatUser({
+      id: GENERAL_MENTION_ALL_ID,
+      name: GENERAL_MENTION_ALL_LABEL,
+      username: MENTION_ALL_TOKEN,
+      roleName: GENERAL_MENTION_ALL_ROLE,
+    });
+
+    return [mentionAllOption, ...sortedUsers];
   }, [currentUserId, messagesByPeerId, people]);
 
   const visibleWindows = useMemo(
@@ -1501,16 +1641,48 @@ const ChatWidget = () => {
     });
   };
 
+  const markIncomingMessageAnimated = (messageId?: string) => {
+    if (!messageId) {
+      return;
+    }
+
+    setIncomingAnimatedByMessageId((current) => ({
+      ...current,
+      [messageId]: true,
+    }));
+
+    const existingTimer = incomingAnimationTimersRef.current[messageId];
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+    }
+
+    incomingAnimationTimersRef.current[messageId] = setTimeout(() => {
+      setIncomingAnimatedByMessageId((current) => {
+        if (!current[messageId]) {
+          return current;
+        }
+
+        const next = { ...current };
+        delete next[messageId];
+        return next;
+      });
+      incomingAnimationTimersRef.current[messageId] = null;
+    }, 700);
+  };
+
   const scheduleScrollToBottom = (peerUserId: string) => {
     pendingBottomScrollByPeerIdRef.current[peerUserId] = true;
     const body = messageBodyRefs.current[peerUserId];
     if (!body) {
       return;
     }
+    const end = messageEndRefs.current[peerUserId];
 
     requestAnimationFrame(() => {
+      if (end) {
+        end.scrollIntoView({ block: "end" });
+      }
       body.scrollTop = body.scrollHeight;
-      pendingBottomScrollByPeerIdRef.current[peerUserId] = false;
     });
   };
 
@@ -1647,15 +1819,18 @@ const ChatWidget = () => {
   };
 
   const sendTypingState = async (peerUserId: string, isTyping: boolean) => {
-    if (isGeneralRoom(peerUserId)) {
-      return;
-    }
-
     try {
-      await sendChatTyping({
-        peerUserId,
-        isTyping,
-      });
+      if (isGeneralRoom(peerUserId)) {
+        await sendChatTyping({
+          roomId: GENERAL_ROOM_ID,
+          isTyping,
+        });
+      } else {
+        await sendChatTyping({
+          peerUserId,
+          isTyping,
+        });
+      }
     } catch (error) {
       console.error("[CHAT] Failed to send typing state", error);
     }
@@ -1694,6 +1869,34 @@ const ChatWidget = () => {
       queryKeys.chat.conversations(),
       (current) => upsertUnreadCount(current, peerUserId, 0),
     );
+  };
+
+  const markGeneralRoomSeen = (latestMessage?: ChatMessage) => {
+    const seenAt = latestMessage?.createdAt || new Date().toISOString();
+
+    setGeneralLastSeenAt((current) => (current === seenAt ? current : seenAt));
+
+    setRoomUnreadById((current) => {
+      if ((current[GENERAL_ROOM_ID] || 0) === 0) {
+        return current;
+      }
+
+      return {
+        ...current,
+        [GENERAL_ROOM_ID]: 0,
+      };
+    });
+
+    setRoomMentionById((current) => {
+      if (!current[GENERAL_ROOM_ID]) {
+        return current;
+      }
+
+      return {
+        ...current,
+        [GENERAL_ROOM_ID]: false,
+      };
+    });
   };
 
   const playIncomingMessageSound = () => {
@@ -1857,6 +2060,99 @@ const ChatWidget = () => {
   };
 
   useEffect(() => {
+    const polledMessages = generalMessagesPollingQuery.data?.messages || [];
+    if (!currentUserId || polledMessages.length === 0) {
+      return;
+    }
+
+    const normalizedMessages = polledMessages.map((chatMessage) => ({
+      ...chatMessage,
+      peerUserId: chatMessage.peerUserId || GENERAL_ROOM_ID,
+      roomId: chatMessage.roomId || GENERAL_ROOM_ID,
+      roomName: chatMessage.roomName || GENERAL_ROOM_NAME,
+    }));
+
+    setMessagesByPeerId((current) => ({
+      ...current,
+      [GENERAL_ROOM_ID]: mergeMessageLists(
+        current[GENERAL_ROOM_ID] || [],
+        normalizedMessages,
+      ),
+    }));
+
+    const latestMessage = normalizedMessages[normalizedMessages.length - 1];
+    const existingWindow = chatWindowsRef.current.find(
+      (window) => window.peerUserId === GENERAL_ROOM_ID,
+    );
+    const isOpenAndActive = Boolean(existingWindow && !existingWindow.minimized);
+
+    if (isOpenAndActive) {
+      scheduleScrollToBottom(GENERAL_ROOM_ID);
+      markGeneralRoomSeen(latestMessage);
+      return;
+    }
+
+    if (isConnected) {
+      return;
+    }
+
+    const lastSeenAtMs = generalLastSeenAt
+      ? new Date(generalLastSeenAt).getTime()
+      : 0;
+
+    if (!Number.isFinite(lastSeenAtMs) || lastSeenAtMs <= 0) {
+      if (latestMessage?.createdAt) {
+        setGeneralLastSeenAt(latestMessage.createdAt);
+      }
+      return;
+    }
+
+    const unseenMessages = normalizedMessages.filter((chatMessage) => {
+      const createdAtMs = chatMessage.createdAt
+        ? new Date(chatMessage.createdAt).getTime()
+        : 0;
+
+      if (!Number.isFinite(createdAtMs) || createdAtMs <= lastSeenAtMs) {
+        return false;
+      }
+
+      return Boolean(chatMessage.senderId && chatMessage.senderId !== currentUserId);
+    });
+
+    const unreadCount = unseenMessages.length;
+    setRoomUnreadById((current) => {
+      if ((current[GENERAL_ROOM_ID] || 0) === unreadCount) {
+        return current;
+      }
+
+      return {
+        ...current,
+        [GENERAL_ROOM_ID]: unreadCount,
+      };
+    });
+
+    const hasMention = unseenMessages.some((chatMessage) =>
+      messageMentionsCurrentUser(chatMessage, currentUser),
+    );
+    setRoomMentionById((current) => {
+      if (Boolean(current[GENERAL_ROOM_ID]) === hasMention) {
+        return current;
+      }
+
+      return {
+        ...current,
+        [GENERAL_ROOM_ID]: hasMention,
+      };
+    });
+  }, [
+    currentUser,
+    currentUserId,
+    generalLastSeenAt,
+    generalMessagesPollingQuery.data?.messages,
+    isConnected,
+  ]);
+
+  useEffect(() => {
     if (!didRestoreWindows || !isConnected || connectionAttempts <= 1) {
       return;
     }
@@ -1908,8 +2204,10 @@ const ChatWidget = () => {
     void loadMessages(peerUserId);
 
     if (isGeneralRoom(peerUserId)) {
-      setRoomMentionById((current) => ({ ...current, [GENERAL_ROOM_ID]: false }));
-      setPeerUnreadZero(GENERAL_ROOM_ID);
+      const latestGeneralMessage = (
+        messagesByPeerIdRef.current[GENERAL_ROOM_ID] || []
+      ).slice(-1)[0];
+      markGeneralRoomSeen(latestGeneralMessage);
       return;
     }
 
@@ -2063,6 +2361,24 @@ const ChatWidget = () => {
     setPreviewModalOpen(true);
   };
 
+  const focusComposerInput = (peerUserId: string, attempt = 0) => {
+    const inputRef = composerInputRefs.current[peerUserId];
+    const inputElement = inputRef?.input;
+
+    if (inputRef && (!inputElement || !inputElement.disabled)) {
+      inputRef.focus();
+      return;
+    }
+
+    if (attempt >= 10) {
+      return;
+    }
+
+    setTimeout(() => {
+      focusComposerInput(peerUserId, attempt + 1);
+    }, 40);
+  };
+
   const handleSend = async (peerUserId: string) => {
     const replyTarget = replyByPeerId[peerUserId];
     const content = (draftByPeerId[peerUserId] || "").trim();
@@ -2159,6 +2475,7 @@ const ChatWidget = () => {
       message.error("Failed to send message");
     } finally {
       setSendingByPeerId((current) => ({ ...current, [peerUserId]: false }));
+      focusComposerInput(peerUserId);
     }
   };
 
@@ -2199,6 +2516,11 @@ const ChatWidget = () => {
           clearTimeout(timer);
         }
       }
+      for (const timer of Object.values(incomingAnimationTimersRef.current)) {
+        if (timer) {
+          clearTimeout(timer);
+        }
+      }
     },
     [],
   );
@@ -2209,9 +2531,11 @@ const ChatWidget = () => {
       if (pendingBottomScrollByPeerIdRef.current[peerUserId]) {
         const body = messageBodyRefs.current[peerUserId];
         if (body) {
+          scrollRestoreByPeerIdRef.current[peerUserId] = null;
           body.scrollTop = body.scrollHeight;
           pendingBottomScrollByPeerIdRef.current[peerUserId] = false;
         }
+        continue;
       }
 
       if (scrollRestoreByPeerIdRef.current[peerUserId]) {
@@ -2312,15 +2636,79 @@ const ChatWidget = () => {
         }
 
         if (eventName === "chat:typing") {
-          const peerUserId = resolveChatPeerUserId(rawEventData, currentUserId);
+          const typingEventData = resolveTypingPayloadData(rawEventData);
+          const roomId =
+            typingEventData?.roomId ||
+            typingEventData?.room_id ||
+            rawPayloadData?.roomId ||
+            rawPayloadData?.room_id;
+
+          if (roomId === GENERAL_ROOM_ID) {
+            const senderUserId =
+              typingEventData?.senderUserId ||
+              typingEventData?.sender_user_id ||
+              typingEventData?.senderId ||
+              typingEventData?.sender_id;
+            const isTyping = Boolean(
+              typingEventData?.isTyping ??
+                typingEventData?.is_typing ??
+                typingEventData?.typing ??
+                false,
+            );
+
+            if (!senderUserId || senderUserId === currentUserId) {
+              return;
+            }
+
+            clearTypingReceiveTimer(GENERAL_ROOM_ID);
+            if (!isTyping) {
+              setTypingState(GENERAL_ROOM_ID, false);
+              return;
+            }
+
+            setTypingState(GENERAL_ROOM_ID, true);
+            scheduleScrollToBottom(GENERAL_ROOM_ID);
+            typingReceiveTimersRef.current[GENERAL_ROOM_ID] = setTimeout(() => {
+              setTypingState(GENERAL_ROOM_ID, false);
+              typingReceiveTimersRef.current[GENERAL_ROOM_ID] = null;
+            }, CHAT_PRESENCE_TIMEOUT_MS);
+            return;
+          }
+
+          const senderUserId =
+            typingEventData?.senderUserId ||
+            typingEventData?.sender_user_id ||
+            typingEventData?.senderId ||
+            typingEventData?.sender_id ||
+            typingEventData?.userId ||
+            typingEventData?.user_id ||
+            typingEventData?.fromUserId ||
+            typingEventData?.from_user_id;
+          const recipientUserId =
+            typingEventData?.recipientUserId ||
+            typingEventData?.recipient_user_id ||
+            typingEventData?.recipientId ||
+            typingEventData?.recipient_id ||
+            rawPayloadData?.recipientUserId ||
+            rawPayloadData?.recipient_user_id ||
+            rawPayloadData?.recipientId ||
+            rawPayloadData?.recipient_id;
+          const peerFromPayload =
+            resolveChatPeerUserId(typingEventData, currentUserId) ||
+            resolveChatPeerUserId(rawPayloadData, currentUserId);
           const isTyping = Boolean(
-            rawEventData?.isTyping ??
-              rawEventData?.is_typing ??
-              rawEventData?.typing ??
+            typingEventData?.isTyping ??
+              typingEventData?.is_typing ??
+              typingEventData?.typing ??
               false,
           );
+          const peerUserId = senderUserId || peerFromPayload;
 
           if (!peerUserId || peerUserId === currentUserId) {
+            return;
+          }
+
+          if (recipientUserId && currentUserId && recipientUserId !== currentUserId) {
             return;
           }
 
@@ -2331,6 +2719,7 @@ const ChatWidget = () => {
           }
 
           setTypingState(peerUserId, true);
+          scheduleScrollToBottom(peerUserId);
           typingReceiveTimersRef.current[peerUserId] = setTimeout(() => {
             setTypingState(peerUserId, false);
             typingReceiveTimersRef.current[peerUserId] = null;
@@ -2375,6 +2764,15 @@ const ChatWidget = () => {
             ...normalizedMessage,
             id:
               normalizedMessage.id ||
+              rawMessage?.id ||
+              rawMessage?.messageId ||
+              rawMessage?.message_id ||
+              rawEventData?.id ||
+              rawEventData?.messageId ||
+              rawEventData?.message_id ||
+              rawEventData?.message?.id ||
+              rawEventData?.message?.messageId ||
+              rawEventData?.message?.message_id ||
               `ws-general-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
             peerUserId,
             roomId: normalizedMessage.roomId || GENERAL_ROOM_ID,
@@ -2457,11 +2855,12 @@ const ChatWidget = () => {
 
           if (!isOwnMessage) {
             playIncomingMessageSound();
+            if (isOpenAndActive) {
+              markIncomingMessageAnimated(completedMessage.id);
+            }
           }
 
-          if (isOwnMessage || isOpenAndActive) {
-            scheduleScrollToBottom(peerUserId);
-          }
+          scheduleScrollToBottom(peerUserId);
 
           return;
         }
@@ -2496,6 +2895,15 @@ const ChatWidget = () => {
           ...normalizedMessage,
           id:
             normalizedMessage.id ||
+            rawMessage?.id ||
+            rawMessage?.messageId ||
+            rawMessage?.message_id ||
+            rawEventData?.id ||
+            rawEventData?.messageId ||
+            rawEventData?.message_id ||
+            rawEventData?.message?.id ||
+            rawEventData?.message?.messageId ||
+            rawEventData?.message?.message_id ||
             `ws-${peerUserId}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
           senderId:
             normalizedMessage.senderId ||
@@ -2603,6 +3011,9 @@ const ChatWidget = () => {
 
         if (!isOwnMessage) {
           playIncomingMessageSound();
+          if (isOpenAndActive) {
+            markIncomingMessageAnimated(finalMessage.id);
+          }
           if (
             isGeneralRoom(peerUserId) &&
             !isOpenAndActive &&
@@ -2615,9 +3026,7 @@ const ChatWidget = () => {
           }
         }
 
-        if (isOwnMessage || isOpenAndActive) {
-          scheduleScrollToBottom(peerUserId);
-        }
+        scheduleScrollToBottom(peerUserId);
       } catch (error) {
         console.error("[CHAT] Failed to process websocket message", error);
       }
@@ -2721,15 +3130,12 @@ const ChatWidget = () => {
                     {roleLabel ? (
                       <Text className={styles.peerRoleText}>{roleLabel}</Text>
                     ) : null}
-                    {peerTyping ? (
-                      <Text className={styles.peerTypingText}>typing...</Text>
-                    ) : null}
                   </div>
                   {headerBadgeCount ? (
                     <Badge
                       count={headerBadgeCount}
                       className={styles.headerBadge}
-                      overflowCount={99}
+                      overflowCount={9}
                     />
                   ) : null}
                 </div>
@@ -2805,6 +3211,12 @@ const ChatWidget = () => {
                     const deliveryLabel = isOwnMessage
                       ? getMessageDeliveryLabel(chatMessage, window.peerUserId)
                       : "";
+                    const showsDeliveryCheck =
+                      deliveryLabel === "Delivered" || deliveryLabel === "Seen";
+                    const deliveryStatusClass =
+                      deliveryLabel === "Seen"
+                        ? styles.messageStatusSeen
+                        : styles.messageStatusDelivered;
 
                     return (
                       <div
@@ -2816,6 +3228,10 @@ const ChatWidget = () => {
                         <div
                           className={`${styles.messageBubble} ${
                             isOwnMessage ? styles.messageBubbleOwn : ""
+                          } ${
+                            !isOwnMessage && incomingAnimatedByMessageId[chatMessage.id]
+                              ? styles.messageBubbleIncomingAnimated
+                              : ""
                           }`}
                         >
                           <div className={styles.messageText}>
@@ -2922,8 +3338,16 @@ const ChatWidget = () => {
                                 {formatTime(chatMessage.createdAt)}
                               </div>
                               {isOwnMessage ? (
-                                <div className={styles.messageStatus}>
-                                  {deliveryLabel}
+                                <div
+                                  className={`${styles.messageStatus} ${
+                                    showsDeliveryCheck ? deliveryStatusClass : ""
+                                  }`}
+                                >
+                                  {showsDeliveryCheck ? (
+                                    <span className={styles.messageStatusCheckIcon}>✓</span>
+                                  ) : (
+                                    deliveryLabel
+                                  )}
                                 </div>
                               ) : null}
                             </div>
@@ -2954,6 +3378,19 @@ const ChatWidget = () => {
                     );
                   })
                 )}
+                {peerTyping ? (
+                  <div className={styles.typingRow}>
+                    <div className={styles.typingBubble}>
+                      <TypingIndicator
+                        label={
+                          isGeneralRoom(window.peerUserId)
+                            ? "Someone is typing..."
+                            : `${peerUser.name} is typing...`
+                        }
+                      />
+                    </div>
+                  </div>
+                ) : null}
                 <div
                   ref={(element) => {
                     messageEndRefs.current[window.peerUserId] = element;
@@ -3068,12 +3505,7 @@ const ChatWidget = () => {
                         <span className={styles.mentionOptionName}>
                           {candidate.name}
                         </span>
-                        {getMentionHandle(candidate) ? (
-                          <span className={styles.mentionOptionMeta}>
-                            @{getMentionHandle(candidate)}
-                            {candidate.roleName ? ` · ${candidate.roleName}` : ""}
-                          </span>
-                        ) : candidate.roleName ? (
+                        {candidate.roleName ? (
                           <span className={styles.mentionOptionMeta}>
                             {candidate.roleName}
                           </span>
@@ -3100,6 +3532,9 @@ const ChatWidget = () => {
                     disabled={sendingThisPeer}
                   />
                   <Input
+                    ref={(element) => {
+                      composerInputRefs.current[window.peerUserId] = element;
+                    }}
                     value={draft}
                     placeholder="Aa"
                     onChange={(event) =>
@@ -3217,7 +3652,7 @@ const ChatWidget = () => {
             <Badge
               key={window.peerUserId}
               count={mentionBadge}
-              overflowCount={99}
+              overflowCount={9}
               offset={[-2, 8]}
             >
               <Button
@@ -3292,7 +3727,7 @@ const ChatWidget = () => {
                           avatar={
                             <Badge
                               count={mentionBadge}
-                              overflowCount={99}
+                              overflowCount={9}
                               size="small"
                               offset={[-2, 24]}
                             >
@@ -3313,14 +3748,12 @@ const ChatWidget = () => {
                                 <Text className={styles.peopleRole}>{roleLabel}</Text>
                               ) : null}
                               {typingByUserId[entry.peerUserId] ? (
-                                <Text className={styles.peopleTyping}>typing...</Text>
+                                <span className={styles.peopleTyping}>
+                                  <TypingIndicator label={null} />
+                                </span>
                               ) : entry.lastMessage ? (
                                 <Text className={styles.peopleMeta}>
                                   {entry.lastMessage}
-                                </Text>
-                              ) : entry.peerUser.username ? (
-                                <Text className={styles.peopleMeta}>
-                                  @{entry.peerUser.username}
                                 </Text>
                               ) : null}
                             </div>
@@ -3335,7 +3768,7 @@ const ChatWidget = () => {
           </div>
         ) : null}
 
-        <Badge count={hasRoomMention ? "@" : unreadTotal} overflowCount={99}>
+        <Badge count={hasRoomMention ? "@" : unreadTotal} overflowCount={9}>
           <Button
             type="primary"
             shape="circle"

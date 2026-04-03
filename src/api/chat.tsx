@@ -507,11 +507,26 @@ export const markChatMessagesRead = async (
 export const sendChatTyping = async (
   payload: SendChatTypingPayload
 ): Promise<void> => {
+  const resolvedPeerUserId = payload.peerUserId;
+  const resolvedRoomId = payload.roomId;
+
   await api.post(
     "/chat/typing",
     {
-      peerUserId: payload.peerUserId,
-      peer_user_id: payload.peerUserId,
+      ...(resolvedPeerUserId
+        ? {
+            recipientId: resolvedPeerUserId,
+            recipient_id: resolvedPeerUserId,
+            peerUserId: resolvedPeerUserId,
+            peer_user_id: resolvedPeerUserId,
+          }
+        : {}),
+      ...(resolvedRoomId
+        ? {
+            roomId: resolvedRoomId,
+            room_id: resolvedRoomId,
+          }
+        : {}),
       isTyping: payload.isTyping ?? true,
       typing: payload.isTyping ?? true,
     },

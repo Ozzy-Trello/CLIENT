@@ -77,7 +77,8 @@ export interface ReadChatMessagesPayload {
 }
 
 export interface SendChatTypingPayload {
-  peerUserId: string;
+  peerUserId?: string;
+  roomId?: string;
   isTyping?: boolean;
 }
 
