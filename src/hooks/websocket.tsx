@@ -219,11 +219,22 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             break;
 
           case "chat:new-message": {
+            const chatEventData = message.data?.message || message.data || {};
             const chatPeerUserId =
+              message.data?.peerUser?.id ||
+              message.data?.peer_user?.id ||
               message.data?.peerUserId ||
               message.data?.peer_user_id ||
               message.data?.conversationPeerId ||
               message.data?.conversation_peer_id ||
+              chatEventData?.peerUserId ||
+              chatEventData?.peer_user_id ||
+              chatEventData?.conversationPeerId ||
+              chatEventData?.conversation_peer_id ||
+              chatEventData?.senderId ||
+              chatEventData?.sender_id ||
+              chatEventData?.recipientId ||
+              chatEventData?.recipient_id ||
               message.data?.senderId ||
               message.data?.sender_id ||
               message.data?.recipientId ||

@@ -787,12 +787,13 @@ const ChatWidget = () => {
           return;
         }
 
-        const rawMessage = payload?.data || payload?.message || payload;
+        const rawEventData = payload?.data || payload?.message || payload;
+        const rawMessage = rawEventData?.message || rawEventData;
         const normalizedMessage = normalizeChatMessage(rawMessage);
         const peerUserId = resolvePeerUserId(
           normalizedMessage,
           currentUserId,
-          rawMessage,
+          rawEventData,
         );
 
         if (!peerUserId || !normalizedMessage.id) {
@@ -802,7 +803,7 @@ const ChatWidget = () => {
         const isOwnMessage =
           Boolean(currentUserId) && normalizedMessage.senderId === currentUserId;
         const peerUser =
-          resolvePeerUser(normalizedMessage, rawMessage, currentUserId) ||
+          resolvePeerUser(normalizedMessage, rawEventData, currentUserId) ||
           getPeerUser(peerUserId);
 
         const existingWindow = chatWindowsRef.current.find(
