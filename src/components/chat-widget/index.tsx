@@ -16,8 +16,8 @@ import { MessageCircle, Minus, Search, Send, Users } from "lucide-react";
 import camelcaseKeys from "camelcase-keys";
 import {
   useDeferredValue,
+  useCallback,
   useEffect,
-  useEffectEvent,
   useRef,
   useState,
 } from "react";
@@ -358,7 +358,7 @@ const ChatWidget: React.FC = () => {
     }
   };
 
-  const playIncomingMessageSound = useEffectEvent(() => {
+  const playIncomingMessageSound = useCallback(() => {
     if (!audioUnlockedRef.current || !audioContextRef.current) {
       return;
     }
@@ -391,9 +391,9 @@ const ChatWidget: React.FC = () => {
     gain.connect(ctx.destination);
     oscillator.start(now);
     oscillator.stop(now + 0.17);
-  });
+  }, []);
 
-  const handleSocketMessage = useEffectEvent(async (event: MessageEvent) => {
+  const handleSocketMessage = useCallback(async (event: MessageEvent) => {
     if (!currentUser?.id) {
       return;
     }
@@ -528,7 +528,14 @@ const ChatWidget: React.FC = () => {
     } catch {
       // Ignore malformed websocket payloads.
     }
-  });
+  }, [
+    activeView,
+    currentUser,
+    isOpen,
+    markReadMutation,
+    playIncomingMessageSound,
+    selectedPeer,
+  ]);
 
   useEffect(() => {
     if (!socket) {
