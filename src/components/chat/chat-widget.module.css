@@ -192,6 +192,14 @@
   word-break: break-word;
 }
 
+.groupSenderName {
+  color: #1d4ed8;
+  font-size: 11px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  line-height: 1.2;
+}
+
 .messageLink {
   color: inherit;
   text-decoration: underline;

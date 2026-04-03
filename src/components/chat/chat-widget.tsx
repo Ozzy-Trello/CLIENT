@@ -3220,6 +3220,15 @@ const ChatWidget = () => {
                     const isOwnMessage =
                       Boolean(currentUserId) &&
                       chatMessage.senderId === currentUserId;
+                    const shouldShowGroupSenderName =
+                      isGeneralRoom(window.peerUserId) && !isOwnMessage;
+                    const groupSenderName = shouldShowGroupSenderName
+                      ? chatMessage.sender?.name ||
+                        chatMessage.sender?.username ||
+                        userById.get(chatMessage.senderId || "")?.name ||
+                        userById.get(chatMessage.senderId || "")?.username ||
+                        "Unknown"
+                      : "";
                     const parsedMessage = parseMessagePayload(chatMessage.content || "");
                     const attachments = parsedMessage.attachments;
                     const parsedReply = parsedMessage.reply;
@@ -3249,6 +3258,9 @@ const ChatWidget = () => {
                               : ""
                           }`}
                         >
+                          {shouldShowGroupSenderName ? (
+                            <div className={styles.groupSenderName}>{groupSenderName}</div>
+                          ) : null}
                           <div className={styles.messageText}>
                             {parsedReply ? (
                               <>
