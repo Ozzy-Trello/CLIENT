@@ -200,6 +200,9 @@ const ChatWidget: React.FC = () => {
   >([]);
   const [messageItems, setMessageItems] = useState<ChatMessage[]>([]);
   const messageEndRef = useRef<HTMLDivElement | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const audioUnlockedRef = useRef(false);
+  const lastIncomingSoundAtRef = useRef(0);
 
   const conversationsQuery = useChatConversations(!!currentUser?.id);
   const usersQuery = useChatUsers(
@@ -237,6 +240,46 @@ const ChatWidget: React.FC = () => {
 
     setSelectedPeer(conversationItems[0].peerUser);
   }, [activeView, conversationItems, isOpen, selectedPeer]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const unlockAudio = () => {
+      const AudioContextClass =
+        window.AudioContext ||
+        (window as Window & { webkitAudioContext?: typeof AudioContext })
+          .webkitAudioContext;
+
+      if (!AudioContextClass) {
+        return;
+      }
+
+      if (!audioContextRef.current) {
+        audioContextRef.current = new AudioContextClass();
+      }
+
+      if (audioContextRef.current.state === "suspended") {
+        void audioContextRef.current.resume().catch(() => {});
+      }
+
+      audioUnlockedRef.current = true;
+    };
+
+    window.addEventListener("pointerdown", unlockAudio, { passive: true });
+    window.addEventListener("keydown", unlockAudio);
+
+    return () => {
+      window.removeEventListener("pointerdown", unlockAudio);
+      window.removeEventListener("keydown", unlockAudio);
+      if (audioContextRef.current) {
+        void audioContextRef.current.close().catch(() => {});
+        audioContextRef.current = null;
+      }
+      audioUnlockedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!isOpen || !selectedPeer) {
@@ -305,6 +348,41 @@ const ChatWidget: React.FC = () => {
     }
   };
 
+  const playIncomingMessageSound = useEffectEvent(() => {
+    if (!audioUnlockedRef.current || !audioContextRef.current) {
+      return;
+    }
+
+    const nowMs = Date.now();
+    if (nowMs - lastIncomingSoundAtRef.current < 300) {
+      return;
+    }
+    lastIncomingSoundAtRef.current = nowMs;
+
+    const ctx = audioContextRef.current;
+    if (ctx.state === "suspended") {
+      void ctx.resume().catch(() => {});
+      return;
+    }
+
+    const now = ctx.currentTime;
+    const oscillator = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    oscillator.type = "sine";
+    oscillator.frequency.setValueAtTime(880, now);
+    oscillator.frequency.exponentialRampToValueAtTime(660, now + 0.12);
+
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.06, now + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.16);
+
+    oscillator.connect(gain);
+    gain.connect(ctx.destination);
+    oscillator.start(now);
+    oscillator.stop(now + 0.17);
+  });
+
   const handleSocketMessage = useEffectEvent(async (event: MessageEvent) => {
     if (!currentUser?.id) {
       return;
@@ -358,6 +436,10 @@ const ChatWidget: React.FC = () => {
         } catch {
           // Keep UI responsive even if read sync fails.
         }
+      }
+
+      if (isIncomingForCurrentUser) {
+        playIncomingMessageSound();
       }
     } catch {
       // Ignore malformed websocket payloads.
