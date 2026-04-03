@@ -63,6 +63,12 @@ type ReplyDraft = {
   text: string;
 };
 
+type ParsedReply = {
+  author: string;
+  quotedText: string;
+  body: string;
+};
+
 const formatTime = (value?: string) => {
   if (!value) {
     return "";
@@ -81,6 +87,65 @@ const formatTime = (value?: string) => {
 
 const toReplySnippet = (value: string) =>
   value.replace(/\s+/g, " ").trim().slice(0, 80);
+
+const parseReplyContent = (value: string): ParsedReply | null => {
+  if (!value.startsWith("Reply to ")) {
+    return null;
+  }
+
+  const lineBreakIndex = value.indexOf("\n");
+  if (lineBreakIndex === -1) {
+    return null;
+  }
+
+  const header = value.slice("Reply to ".length, lineBreakIndex);
+  const separatorIndex = header.indexOf(": ");
+  if (separatorIndex === -1) {
+    return null;
+  }
+
+  const author = header.slice(0, separatorIndex).trim();
+  const quotedText = header.slice(separatorIndex + 2).trim();
+  const body = value.slice(lineBreakIndex + 1).trim();
+
+  if (!author || !quotedText || !body) {
+    return null;
+  }
+
+  return {
+    author,
+    quotedText,
+    body,
+  };
+};
+
+const URL_TOKEN_REGEX = /(https?:\/\/[^\s<>"']+)/g;
+const URL_STRICT_REGEX = /^https?:\/\/[^\s<>"']+$/i;
+
+const renderMessageContent = (value = "") => {
+  const lines = value.split("\n");
+
+  return lines.map((line, lineIndex) => (
+    <span key={`line-${lineIndex}`}>
+      {line.split(URL_TOKEN_REGEX).map((token, tokenIndex) =>
+        URL_STRICT_REGEX.test(token) ? (
+          <a
+            key={`token-${lineIndex}-${tokenIndex}`}
+            href={token}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={styles.messageLink}
+          >
+            {token}
+          </a>
+        ) : (
+          <span key={`token-${lineIndex}-${tokenIndex}`}>{token}</span>
+        ),
+      )}
+      {lineIndex < lines.length - 1 ? <br /> : null}
+    </span>
+  ));
+};
 
 const sortByLatest = (left: ChatConversation, right: ChatConversation) => {
   const leftTime = left.updatedAt || left.lastMessage?.createdAt || "";
@@ -732,7 +797,7 @@ const ChatWidget = () => {
     }
 
     const payloadContent = replyTarget
-      ? `↪ ${replyTarget.author}: ${replyTarget.text}\n${content}`
+      ? `Reply to ${replyTarget.author}: ${replyTarget.text}\n${content}`
       : content;
 
     sendMessageMutation.mutate(
@@ -1035,6 +1100,7 @@ const ChatWidget = () => {
                     const isOwnMessage =
                       Boolean(currentUserId) &&
                       chatMessage.senderId === currentUserId;
+                    const parsedReply = parseReplyContent(chatMessage.content || "");
 
                     return (
                       <div
@@ -1049,7 +1115,25 @@ const ChatWidget = () => {
                           }`}
                         >
                           <div className={styles.messageText}>
-                            {chatMessage.content}
+                            {parsedReply ? (
+                              <>
+                                <div
+                                  className={`${styles.quotedReply} ${
+                                    isOwnMessage ? styles.quotedReplyOwn : ""
+                                  }`}
+                                >
+                                  <div className={styles.quotedReplyAuthor}>
+                                    {parsedReply.author}
+                                  </div>
+                                  <div className={styles.quotedReplyText}>
+                                    {renderMessageContent(parsedReply.quotedText)}
+                                  </div>
+                                </div>
+                                <div>{renderMessageContent(parsedReply.body)}</div>
+                              </>
+                            ) : (
+                              renderMessageContent(chatMessage.content || "")
+                            )}
                           </div>
                           <div className={styles.messageMetaRow}>
                             <div className={styles.messageTime}>
@@ -1064,8 +1148,12 @@ const ChatWidget = () => {
                                   ...current,
                                   [window.peerUserId]: {
                                     messageId: chatMessage.id,
-                                    author: isOwnMessage ? "You" : peerUser.name,
-                                    text: toReplySnippet(chatMessage.content || ""),
+                                    author: isOwnMessage
+                                      ? currentUser?.username || currentUser?.id || "Unknown"
+                                      : peerUser.name,
+                                    text: toReplySnippet(
+                                      parsedReply?.body || chatMessage.content || "",
+                                    ),
                                   },
                                 }))
                               }
@@ -1088,9 +1176,15 @@ const ChatWidget = () => {
               <div className={styles.chatWindowComposer}>
                 {replyTarget ? (
                   <div className={styles.replyPreview}>
-                    <Text className={styles.replyPreviewText}>
-                      Replying to {replyTarget.author}: {replyTarget.text}
-                    </Text>
+                    <div className={styles.replyPreviewContent}>
+                      <Text className={styles.replyPreviewLabel}>Replying to</Text>
+                      <Text className={styles.replyPreviewAuthor}>
+                        {replyTarget.author}
+                      </Text>
+                      <Text className={styles.replyPreviewText}>
+                        {replyTarget.text}
+                      </Text>
+                    </div>
                     <Button
                       type="text"
                       size="small"
