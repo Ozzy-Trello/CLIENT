@@ -32,6 +32,14 @@ const extractArray = (value: any): any[] => {
     return value.conversations;
   }
 
+  if (Array.isArray(value?.data?.messages)) {
+    return value.data.messages;
+  }
+
+  if (Array.isArray(value?.messages?.data)) {
+    return value.messages.data;
+  }
+
   return [];
 };
 
@@ -172,7 +180,8 @@ export const getChatMessages = async (
   const { data } = await api.get<ChatMessagesApiResponse>(
     `/chat/messages/${peerUserId}`
   );
-  return extractArray(data).map(normalizeChatMessage);
+  const payload = extractObject(data);
+  return extractArray(payload?.messages ?? payload).map(normalizeChatMessage);
 };
 
 export const sendChatMessage = async (
@@ -180,15 +189,39 @@ export const sendChatMessage = async (
 ): Promise<ChatMessage> => {
   const { data } = await api.post<ChatMessageApiResponse>(
     "/chat/messages",
-    payload
+    {
+      recipientId: payload.peerUserId,
+      message: payload.content,
+    },
+    {
+      transformRequest: [(requestBody) => JSON.stringify(requestBody)],
+      headers: {
+        "Content-Type": "application/json",
+      },
+    }
   );
-  return normalizeChatMessage(extractObject(data));
+  const responsePayload = extractObject(data);
+  const messagePayload = responsePayload?.message ?? responsePayload;
+  const normalized = normalizeChatMessage(messagePayload);
+  if (!normalized.peerUserId && payload.peerUserId) {
+    normalized.peerUserId = payload.peerUserId;
+  }
+  return normalized;
 };
 
 export const markChatMessagesRead = async (
   payload: ReadChatMessagesPayload
 ): Promise<void> => {
-  await api.patch("/chat/messages/read", payload);
+  await api.patch(
+    "/chat/messages/read",
+    payload,
+    {
+      transformRequest: [(requestBody) => JSON.stringify(requestBody)],
+      headers: {
+        "Content-Type": "application/json",
+      },
+    }
+  );
 };
 
 export { normalizeChatConversation, normalizeChatMessage, normalizeChatUser };

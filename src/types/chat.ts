@@ -42,11 +42,14 @@ export interface ReadChatMessagesPayload {
 }
 
 export interface ChatMessagesResponse {
-  peerUserId: string;
+  peerUser?: ChatUser;
+  peerUserId?: string;
   messages: ChatMessage[];
 }
 
 export type ChatUsersApiResponse = ApiResponse<ChatUser[]>;
 export type ChatConversationsApiResponse = ApiResponse<ChatConversation[]>;
 export type ChatMessagesApiResponse = ApiResponse<ChatMessage[] | ChatMessagesResponse>;
-export type ChatMessageApiResponse = ApiResponse<ChatMessage>;
+export type ChatMessageApiResponse = ApiResponse<
+  ChatMessage | { message: ChatMessage; peerUser?: ChatUser; peerUserId?: string }
+>;
