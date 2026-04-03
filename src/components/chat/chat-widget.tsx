@@ -106,8 +106,28 @@ const resolvePeerUserId = (
     messageData.peerUserId ||
     rawData?.peerUserId ||
     rawData?.peer_user_id ||
+    rawData?.peerUser?.id ||
+    rawData?.peer_user?.id ||
     rawData?.conversationPeerId ||
-    rawData?.conversation_peer_id;
+    rawData?.conversation_peer_id ||
+    rawData?.sender?.id ||
+    rawData?.senderId ||
+    rawData?.sender_id ||
+    rawData?.fromUser?.id ||
+    rawData?.fromUserId ||
+    rawData?.from_user_id ||
+    rawData?.recipient?.id ||
+    rawData?.recipientId ||
+    rawData?.recipient_id ||
+    rawData?.toUser?.id ||
+    rawData?.toUserId ||
+    rawData?.to_user_id ||
+    rawData?.message?.peerUserId ||
+    rawData?.message?.peer_user_id ||
+    rawData?.message?.senderId ||
+    rawData?.message?.sender_id ||
+    rawData?.message?.recipientId ||
+    rawData?.message?.recipient_id;
 
   if (directPeerId) {
     return directPeerId;
@@ -787,23 +807,55 @@ const ChatWidget = () => {
           return;
         }
 
-        const rawEventData = payload?.data || payload?.message || payload;
-        const rawMessage = rawEventData?.message || rawEventData;
+        const rawPayloadData = payload?.data || payload;
+        const rawEventData =
+          rawPayloadData?.event === "chat:new-message" && rawPayloadData?.data
+            ? rawPayloadData.data
+            : rawPayloadData?.payload || rawPayloadData;
+        const rawMessage =
+          rawEventData?.message || rawEventData?.data?.message || rawEventData;
         const normalizedMessage = normalizeChatMessage(rawMessage);
-        const peerUserId = resolvePeerUserId(
+        let peerUserId = resolvePeerUserId(
           normalizedMessage,
           currentUserId,
           rawEventData,
         );
 
-        if (!peerUserId || !normalizedMessage.id) {
+        if (!peerUserId && chatWindowsRef.current.length === 1) {
+          peerUserId = chatWindowsRef.current[0].peerUserId;
+        }
+
+        if (!peerUserId) {
           return;
         }
 
+        const completedMessage: ChatMessage = {
+          ...normalizedMessage,
+          id:
+            normalizedMessage.id ||
+            `ws-${peerUserId}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          senderId:
+            normalizedMessage.senderId ||
+            rawEventData?.sender?.id ||
+            rawEventData?.senderId ||
+            rawEventData?.sender_id ||
+            rawEventData?.message?.senderId ||
+            rawEventData?.message?.sender_id ||
+            "",
+          recipientId:
+            normalizedMessage.recipientId ||
+            rawEventData?.recipient?.id ||
+            rawEventData?.recipientId ||
+            rawEventData?.recipient_id ||
+            rawEventData?.message?.recipientId ||
+            rawEventData?.message?.recipient_id ||
+            "",
+        };
+
         const isOwnMessage =
-          Boolean(currentUserId) && normalizedMessage.senderId === currentUserId;
+          Boolean(currentUserId) && completedMessage.senderId === currentUserId;
         const peerUser =
-          resolvePeerUser(normalizedMessage, rawEventData, currentUserId) ||
+          resolvePeerUser(completedMessage, rawEventData, currentUserId) ||
           getPeerUser(peerUserId);
 
         const existingWindow = chatWindowsRef.current.find(
@@ -812,7 +864,7 @@ const ChatWidget = () => {
         const isOpenAndActive = Boolean(existingWindow && !existingWindow.minimized);
 
         const finalMessage = {
-          ...normalizedMessage,
+          ...completedMessage,
           peerUserId,
         };
 
