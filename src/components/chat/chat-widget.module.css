@@ -62,6 +62,24 @@
   --presence-dot-size: 10px;
 }
 
+.presenceAvatarWrapGroup {
+  border-radius: 999px;
+  padding: 0;
+}
+
+.groupAvatarOutline {
+  box-shadow: 0 0 0 3px #3b82f6 !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  background: #dbeafe !important;
+  color: #1d4ed8 !important;
+}
+
+.groupAvatarIcon {
+  font-size: 0.74em;
+  color: inherit;
+}
+
 .presenceDot {
   position: absolute;
   right: -1px;
@@ -726,6 +744,23 @@
   border-radius: 12px;
   padding: 10px 8px !important;
   cursor: pointer;
+}
+
+.peopleItem :global(.ant-list-item-meta) {
+  align-items: center;
+}
+
+.peopleItem :global(.ant-list-item-meta-avatar) {
+  margin-inline-end: 12px;
+  margin-top: 0;
+}
+
+.peopleItem :global(.ant-list-item-meta-content) {
+  min-width: 0;
+}
+
+.peopleItem :global(.ant-list-item-meta-title) {
+  margin-bottom: 2px !important;
 }
 
 .peopleItem:hover {

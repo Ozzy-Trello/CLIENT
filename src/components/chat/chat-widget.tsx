@@ -27,6 +27,7 @@ import type { InputRef } from "antd";
 import {
   CloseOutlined,
   LinkOutlined,
+  TeamOutlined,
   MessageOutlined,
   MinusOutlined,
   PaperClipOutlined,
@@ -1589,14 +1590,27 @@ const ChatWidget = () => {
     presenceStatus: ChatPresenceStatus,
     size?: number,
     className?: string,
-  ) => (
+  ) => {
+    const isGroupRoomAvatar = peerUser.id === GENERAL_ROOM_ID;
+
+    return (
     <span
       className={`${styles.presenceAvatarWrap} ${
         size && size >= 40 ? styles.presenceAvatarWrapLarge : ""
-      }`}
+      } ${isGroupRoomAvatar ? styles.presenceAvatarWrapGroup : ""}`}
     >
-      <Avatar src={peerUser.avatar} size={size} className={className}>
-        {peerUser.name?.slice(0, 1)}
+      <Avatar
+        src={peerUser.avatar}
+        size={size}
+        className={`${className || ""} ${
+          isGroupRoomAvatar ? styles.groupAvatarOutline : ""
+        }`}
+      >
+        {isGroupRoomAvatar ? (
+          <TeamOutlined className={styles.groupAvatarIcon} />
+        ) : (
+          peerUser.name?.slice(0, 1)
+        )}
       </Avatar>
       {peerUser.id !== GENERAL_ROOM_ID ? (
         <span
@@ -1610,7 +1624,8 @@ const ChatWidget = () => {
         />
       ) : null}
     </span>
-  );
+    );
+  };
 
   const clearTypingStopTimer = (peerUserId: string) => {
     const timer = typingStopTimersRef.current[peerUserId];
