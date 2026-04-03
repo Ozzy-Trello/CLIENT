@@ -98,6 +98,32 @@
   word-break: break-word;
 }
 
+.quotedReply {
+  margin-bottom: 6px;
+  padding: 7px 9px;
+  border: 1px solid #cbd5e1;
+  border-left: 3px solid #94a3b8;
+  border-radius: 8px;
+  background: #e2e8f0;
+}
+
+.quotedReplyOwn {
+  border-color: rgba(255, 255, 255, 0.34);
+  border-left-color: rgba(255, 255, 255, 0.78);
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.quotedReplyAuthor {
+  font-weight: 600;
+  font-size: 11px;
+  margin-bottom: 2px;
+}
+
+.quotedReplyText {
+  font-size: 11px;
+  opacity: 0.85;
+}
+
 .messageLink {
   color: inherit;
   text-decoration: underline;
@@ -166,7 +192,7 @@
   width: 100%;
   border: 1px solid rgba(148, 163, 184, 0.24);
   border-radius: 10px;
-  padding: 4px 6px;
+  padding: 6px 8px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -174,9 +200,34 @@
   background: #eef5ff;
 }
 
+.replyPreviewContent {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.replyPreviewLabel {
+  color: rgba(51, 65, 85, 0.75) !important;
+  font-size: 10px;
+  line-height: 1.1;
+}
+
+.replyPreviewAuthor {
+  color: #0f172a !important;
+  font-weight: 600;
+  font-size: 11px;
+  line-height: 1.2;
+}
+
 .replyPreviewText {
   color: #334155 !important;
   font-size: 11px;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .replyPreviewClose {

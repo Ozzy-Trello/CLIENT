@@ -339,7 +339,11 @@ const RichTextEditorClient = forwardRef<any, RichTextEditorProps>(
           const quill = quillRef.current?.getEditor();
           if (quill) {
             const range = quill.getSelection(true) || { index: 0 };
-            quill.insertEmbed(range.index, "mention", { id, value });
+            quill.insertEmbed(range.index, "mention", {
+              id,
+              value,
+              denotationChar: "@",
+            });
             quill.insertText(range.index + 1, " "); // Add a space after mention
             quill.setSelection(range.index + 2, 0);
           }
