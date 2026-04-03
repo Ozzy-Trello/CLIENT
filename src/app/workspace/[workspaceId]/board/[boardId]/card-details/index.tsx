@@ -37,6 +37,7 @@ import {
   Zap,
   Puzzle,
   SwitchCamera,
+  Stamp as StampIcon,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -394,6 +395,7 @@ const CardDetails: React.FC = (props) => {
   // State for Toolbar Actions
   const [openAttach, setOpenAttach] = useState(false);
   const [openBuktiModal, setOpenBuktiModal] = useState(false);
+  const [openStampModal, setOpenStampModal] = useState(false);
   const [openPOModal, setOpenPOModal] = useState(false);
   const [openBuatSOModal, setOpenBuatSOModal] = useState(false);
   const [openJmlStitchModal, setOpenJmlStitchModal] = useState(false);
@@ -492,6 +494,14 @@ const CardDetails: React.FC = (props) => {
     );
   };
 
+  const hasStampAttachment = () => {
+    return cardAttachments?.some(
+      (attachment: any) =>
+        attachment.attachableType === EnumAttachmentType.File &&
+        attachment.file?.name?.startsWith("STAMP"),
+    );
+  };
+
   // PO Logic
   useEffect(() => {
     if (openPOModal) {
@@ -539,6 +549,18 @@ const CardDetails: React.FC = (props) => {
         attachableId: result.id,
         isCover: false,
         type: EnumCardAttachmentType.Bukti,
+      });
+    }
+  };
+
+  const handleStampUpload = (file: File, result: any) => {
+    if (result && selectedCard) {
+      addAttachment({
+        cardId: selectedCard.id,
+        attachableType: EnumAttachmentType.File,
+        attachableId: result.id,
+        isCover: false,
+        type: EnumCardAttachmentType.Attachment,
       });
     }
   };
@@ -1112,6 +1134,7 @@ const CardDetails: React.FC = (props) => {
         isSuperAdmin={isSuperAdmin}
         card={selectedCard}
         onOpenBuktiModal={() => setOpenBuktiModal(true)}
+        onOpenStampModal={() => setOpenStampModal(true)}
         onOpenPOModal={() => setOpenPOModal(true)}
         onOpenBuatSOModal={() => setOpenBuatSOModal(true)}
       />
@@ -1254,6 +1277,7 @@ const CardDetails: React.FC = (props) => {
                   exclude={[]}
                   card={selectedCard}
                   onOpenBuktiModal={() => setOpenBuktiModal(true)}
+                  onOpenStampModal={() => setOpenStampModal(true)}
                   onOpenPOModal={() => setOpenPOModal(true)}
                   onOpenBuatSOModal={() => setOpenBuatSOModal(true)}
                 />
@@ -1733,6 +1757,26 @@ const CardDetails: React.FC = (props) => {
       </Tooltip>
     ) : null;
 
+  // 3b. Upload Stamp
+  const toolbarStampButton =
+    canBukti && canManageCardAttachments && canManageCardAttachments() ? (
+      <Tooltip
+        title={
+          hasStampAttachment() ? "Stamp already exists" : "Upload stamp file"
+        }
+      >
+        <Button
+          size="small"
+          type="default"
+          className="bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-200"
+          onClick={() => setOpenStampModal(true)}
+          disabled={hasStampAttachment()}
+        >
+          <StampIcon className="mr-1" size={14} /> Upload Stamp
+        </Button>
+      </Tooltip>
+    ) : null;
+
   // 4. Upload File PO
   const toolbarPOButton =
     canPOActions && canManageCardAttachments && canManageCardAttachments() ? (
@@ -1867,6 +1911,7 @@ const CardDetails: React.FC = (props) => {
             ]}
             card={selectedCard}
             onOpenBuktiModal={() => setOpenBuktiModal(true)}
+            onOpenStampModal={() => setOpenStampModal(true)}
             onOpenPOModal={() => setOpenPOModal(true)}
             onOpenBuatSOModal={() => setOpenBuatSOModal(true)}
           />
@@ -1888,6 +1933,7 @@ const CardDetails: React.FC = (props) => {
       {toolbarLabelsButton}
       {toolbarAttachButton}
       {toolbarBuktiButton}
+      {toolbarStampButton}
       {toolbarPOButton}
       {toolbarDatesButton}
       {toolbarQRButton}
@@ -1942,6 +1988,27 @@ const CardDetails: React.FC = (props) => {
                 "_",
               );
               const newName = `Bukti - ${safeCardName}${ext ? "." + ext : ""}`;
+              return new File([file], newName, { type: file.type });
+            }}
+          />
+
+          <UploadModal
+            isVisible={openStampModal}
+            onClose={() => setOpenStampModal(false)}
+            onUploadComplete={handleStampUpload}
+            title="Upload Stamp"
+            acceptableExtensions=".pdf,.jpg,.jpeg,.png"
+            maxSize={10 * 1024 * 1024}
+            multiple
+            cardId={selectedCard?.id}
+            onBeforeUpload={(file) => {
+              const parts = file.name.split(".");
+              const ext = parts.length > 1 ? parts.pop() : "";
+              const safeCardName = (selectedCard?.name || "card").replace(
+                /[^a-z0-9\- ]/gi,
+                "_",
+              );
+              const newName = `STAMP_${safeCardName}${ext ? "." + ext : ""}`;
               return new File([file], newName, { type: file.type });
             }}
           />

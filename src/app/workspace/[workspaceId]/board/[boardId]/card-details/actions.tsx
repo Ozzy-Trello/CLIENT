@@ -35,6 +35,7 @@ import {
   Copy,
   FileCheck,
   FileText,
+  Stamp as StampIcon,
   FlipHorizontal,
   MapPin,
   MoveRight,
@@ -111,9 +112,10 @@ const Actions: React.FC<{
   exclude?: string[];
   card?: { id: string; listId?: string } | null;
   onOpenBuktiModal?: () => void;
+  onOpenStampModal?: () => void;
   onOpenPOModal?: () => void;
   onOpenBuatSOModal?: () => void;
-}> = ({ boardName, userRole, isSuperAdmin, exclude = [], card, onOpenBuktiModal, onOpenPOModal, onOpenBuatSOModal }) => {
+}> = ({ boardName, userRole, isSuperAdmin, exclude = [], card, onOpenBuktiModal, onOpenStampModal, onOpenPOModal, onOpenBuatSOModal }) => {
   const [openCustomField, setOpenCustomField] = useState(false);
   const [openMembers, setOpenMembers] = useState(false);
   const [openDates, setOpenDates] = useState(false);
@@ -341,6 +343,15 @@ const Actions: React.FC<{
       (attachment) =>
         attachment.attachableType === EnumAttachmentType.File &&
         attachment.file?.name?.startsWith("bukti"),
+    );
+  };
+
+  // Check if stamp attachment already exists
+  const hasStampAttachment = () => {
+    return cardAttachments?.some(
+      (attachment) =>
+        attachment.attachableType === EnumAttachmentType.File &&
+        attachment.file?.name?.startsWith("STAMP"),
     );
   };
 
@@ -620,6 +631,25 @@ const Actions: React.FC<{
             <FileCheck size={14} />
           </span>
           <span className="text-xs">Upload Bukti</span>
+        </PermissionButton>
+      )}
+
+      {/* Stamp Button */}
+      {!exclude.includes("Upload Stamp") && (
+        <PermissionButton
+          canPerform={canBukti && canManageCardAttachments()}
+          onClick={() => onOpenStampModal?.()}
+          tooltip={
+            hasStampAttachment() ? "Stamp already exists" : "Upload stamp file"
+          }
+          permissionLevel={permissionLevel}
+          buttonStyle={buttonStyle}
+          disabled={hasStampAttachment()}
+        >
+          <span className="text-xs" style={iconStyle}>
+            <StampIcon size={14} />
+          </span>
+          <span className="text-xs">Upload Stamp</span>
         </PermissionButton>
       )}
 
