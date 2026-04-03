@@ -541,6 +541,52 @@ const URL_TOKEN_REGEX = /(https?:\/\/[^\s<>"']+)/g;
 const URL_STRICT_REGEX = /^https?:\/\/[^\s<>"']+$/i;
 const MENTION_QUERY_REGEX = /(?:^|\s)@([a-zA-Z0-9._-]{0,64})$/;
 const MENTION_TOKEN_REGEX = /(^|\s)(@[a-zA-Z0-9._-]+)/g;
+const MENTION_CAPTURE_REGEX = /(?:^|\s)@([a-zA-Z0-9._-]{1,64})/g;
+
+const normalizeMentionHandle = (value = "") =>
+  value.trim().replace(/\s+/g, "");
+
+const getMentionHandle = (user?: ChatUser | null) =>
+  normalizeMentionHandle(user?.username || user?.name || "");
+
+const extractMentionTokens = (value = "") => {
+  const handles: string[] = [];
+  let match: RegExpExecArray | null = null;
+  MENTION_CAPTURE_REGEX.lastIndex = 0;
+  while ((match = MENTION_CAPTURE_REGEX.exec(value)) !== null) {
+    const token = normalizeMentionHandle(match[1] || "").toLowerCase();
+    if (token) {
+      handles.push(token);
+    }
+  }
+  return handles;
+};
+
+const getCurrentMentionAliases = (currentUser?: { username?: string; name?: string } | null) => {
+  const aliases = new Set<string>();
+  const username = normalizeMentionHandle(currentUser?.username || "").toLowerCase();
+  const name = normalizeMentionHandle(currentUser?.name || "").toLowerCase();
+  if (username) {
+    aliases.add(username);
+  }
+  if (name) {
+    aliases.add(name);
+  }
+  return aliases;
+};
+
+const messageMentionsCurrentUser = (
+  message: ChatMessage,
+  currentUser?: { username?: string; name?: string } | null,
+) => {
+  const aliases = getCurrentMentionAliases(currentUser);
+  if (aliases.size === 0) {
+    return false;
+  }
+  const parsed = parseMessagePayload(message.content || "");
+  const tokens = extractMentionTokens(parsed.text || "");
+  return tokens.some((token) => aliases.has(token));
+};
 
 const extractMentionQuery = (value: string): string | null => {
   const match = value.match(MENTION_QUERY_REGEX);
@@ -1297,10 +1343,32 @@ const ChatWidget = () => {
       }
     }
 
+    const roomMessages = messagesByPeerId[GENERAL_ROOM_ID] || [];
+    for (const message of roomMessages) {
+      const senderId = message.senderId || message.sender?.id || "";
+      if (!senderId || senderId === currentUserId || map.has(senderId)) {
+        continue;
+      }
+
+      map.set(
+        senderId,
+        normalizeChatUser({
+          id: senderId,
+          name: message.sender?.name || message.sender?.username || senderId,
+          username: message.sender?.username,
+          roleName: message.sender?.roleName,
+          email: message.sender?.email,
+          avatar: message.sender?.avatar,
+          isOnline: message.sender?.isOnline,
+          presenceStatus: message.sender?.presenceStatus,
+        }),
+      );
+    }
+
     return Array.from(map.values()).sort((left, right) =>
       (left.name || "").localeCompare(right.name || ""),
     );
-  }, [currentUserId, people]);
+  }, [currentUserId, messagesByPeerId, people]);
 
   const visibleWindows = useMemo(
     () =>
@@ -2322,6 +2390,12 @@ const ChatWidget = () => {
               ...current,
               [GENERAL_ROOM_ID]: (current[GENERAL_ROOM_ID] || 0) + 1,
             }));
+            if (messageMentionsCurrentUser(completedMessage, currentUser)) {
+              setRoomMentionById((current) => ({
+                ...current,
+                [GENERAL_ROOM_ID]: true,
+              }));
+            }
           }
 
           if (!isOwnMessage && !existingWindow) {
@@ -2464,6 +2538,16 @@ const ChatWidget = () => {
 
         if (!isOwnMessage) {
           playIncomingMessageSound();
+          if (
+            isGeneralRoom(peerUserId) &&
+            !isOpenAndActive &&
+            messageMentionsCurrentUser(finalMessage, currentUser)
+          ) {
+            setRoomMentionById((current) => ({
+              ...current,
+              [GENERAL_ROOM_ID]: true,
+            }));
+          }
         }
 
         if (isOwnMessage || isOpenAndActive) {
@@ -2476,7 +2560,7 @@ const ChatWidget = () => {
 
     socket.addEventListener("message", handleSocketMessage);
     return () => socket.removeEventListener("message", handleSocketMessage);
-  }, [currentUserId, markReadMutation, queryClient, socket]);
+  }, [currentUser, currentUserId, markReadMutation, queryClient, socket]);
 
   return (
     <>
@@ -2516,11 +2600,13 @@ const ChatWidget = () => {
                   .filter((user) => {
                     const username = user.username || "";
                     const name = user.name || "";
+                    const handle = getMentionHandle(user);
                     const query = mentionQuery.toLowerCase().trim();
                     if (!query) {
                       return true;
                     }
                     return (
+                      handle.toLowerCase().includes(query) ||
                       username.toLowerCase().includes(query) ||
                       name.toLowerCase().includes(query)
                     );
@@ -2927,15 +3013,15 @@ const ChatWidget = () => {
                         event.preventDefault();
                         event.stopPropagation();
                         const selected = mentionSuggestions[0];
-                        const username = selected.username || selected.name;
-                        if (!username) {
+                        const mentionHandle = getMentionHandle(selected);
+                        if (!mentionHandle) {
                           return;
                         }
                         setDraftByPeerId((current) => ({
                           ...current,
                           [window.peerUserId]: applyMentionSelection(
                             current[window.peerUserId] || "",
-                            username,
+                            mentionHandle,
                           ),
                         }));
                         return;
@@ -2963,15 +3049,15 @@ const ChatWidget = () => {
                         type="button"
                         className={styles.mentionOption}
                         onClick={() => {
-                          const username = candidate.username || candidate.name;
-                          if (!username) {
+                          const mentionHandle = getMentionHandle(candidate);
+                          if (!mentionHandle) {
                             return;
                           }
                           setDraftByPeerId((current) => ({
                             ...current,
                             [window.peerUserId]: applyMentionSelection(
                               current[window.peerUserId] || "",
-                              username,
+                              mentionHandle,
                             ),
                           }));
                         }}
@@ -2979,9 +3065,9 @@ const ChatWidget = () => {
                         <span className={styles.mentionOptionName}>
                           {candidate.name}
                         </span>
-                        {candidate.username ? (
+                        {getMentionHandle(candidate) ? (
                           <span className={styles.mentionOptionMeta}>
-                            @{candidate.username}
+                            @{getMentionHandle(candidate)}
                             {candidate.roleName ? ` · ${candidate.roleName}` : ""}
                           </span>
                         ) : candidate.roleName ? (
