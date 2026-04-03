@@ -97,6 +97,7 @@ const RichTextEditorClient = forwardRef<any, RichTextEditorProps>(
     const [value, setValue] = useState<string>(initialValue);
     const quillRef = useRef<ReactQuill>(null);
     const containerRef = useRef<HTMLDivElement>(null);
+    const mentionAnchorIndexRef = useRef<number | null>(null);
 
     // Initialize modules object immediately
     const modulesRef = useRef<any>({
@@ -118,14 +119,42 @@ const RichTextEditorClient = forwardRef<any, RichTextEditorProps>(
         allowedChars: /^[A-Za-z0-9_.\-\sÅÄÖåäö]*$/,
         mentionDenotationChars: ["@"],
         blotName: "mention",
-        onSelect: (item: any, insertItem: (data: any) => void) => {
-          insertItem({
+        onSelect: (
+          item: any,
+          insertItem: (data: any, programmaticInsert?: boolean) => void
+        ) => {
+          const mentionPayload = {
             id: item?.id || "",
             value: item?.value || "",
             denotationChar: item?.denotationChar || "@",
-          });
+          };
+
+          const editor = quillRef.current?.getEditor();
+          const anchorIndex = mentionAnchorIndexRef.current;
+
+          if (editor && typeof anchorIndex === "number" && anchorIndex >= 0) {
+            const selection = editor.getSelection(true);
+            const cursorIndex = selection?.index ?? anchorIndex + 1;
+            const replaceLength = Math.max(cursorIndex - anchorIndex, 1);
+
+            editor.deleteText(anchorIndex, replaceLength, "user");
+            editor.insertEmbed(anchorIndex, "mention", mentionPayload, "user");
+            editor.insertText(anchorIndex + 1, " ", "user");
+            editor.setSelection(anchorIndex + 2, 0, "user");
+            mentionAnchorIndexRef.current = null;
+            return;
+          }
+
+          insertItem(mentionPayload, true);
         },
         source: (searchTerm: string, renderList: any) => {
+          const editor = quillRef.current?.getEditor();
+          const selection = editor?.getSelection();
+          if (selection && selection.index >= searchTerm.length + 1) {
+            mentionAnchorIndexRef.current =
+              selection.index - searchTerm.length - 1;
+          }
+
           console.log("Default mention source called");
           renderList([], searchTerm); // Default empty function
         },
@@ -181,6 +210,12 @@ const RichTextEditorClient = forwardRef<any, RichTextEditorProps>(
           suggestions.push(workspaceAllMentionOption);
         }
         suggestions.push(...matches);
+
+        const editor = quillRef.current?.getEditor();
+        const selection = editor?.getSelection();
+        if (selection && selection.index >= searchTerm.length + 1) {
+          mentionAnchorIndexRef.current = selection.index - searchTerm.length - 1;
+        }
 
         renderList(suggestions, searchTerm);
       },
