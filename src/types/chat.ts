@@ -43,6 +43,8 @@ export interface ChatAttachmentMetadata {
 
 export interface ChatReplyPayload {
   messageId?: string;
+  senderId?: string;
+  recipientId?: string;
   author: string;
   text: string;
 }

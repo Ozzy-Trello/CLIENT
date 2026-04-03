@@ -227,6 +227,18 @@ const normalizeStructuredMessageContent = (value: any): string => {
               : typeof value.reply.message_id === "string"
                 ? value.reply.message_id
                 : undefined,
+          senderId:
+            typeof value.reply.senderId === "string"
+              ? value.reply.senderId
+              : typeof value.reply.sender_id === "string"
+                ? value.reply.sender_id
+                : undefined,
+          recipientId:
+            typeof value.reply.recipientId === "string"
+              ? value.reply.recipientId
+              : typeof value.reply.recipient_id === "string"
+                ? value.reply.recipient_id
+                : undefined,
           author:
             typeof value.reply.author === "string"
               ? value.reply.author
@@ -243,6 +255,18 @@ const normalizeStructuredMessageContent = (value: any): string => {
             messageId:
               typeof value.reply_to.message_id === "string"
                 ? value.reply_to.message_id
+                : undefined,
+            senderId:
+              typeof value.reply_to.sender_id === "string"
+                ? value.reply_to.sender_id
+                : undefined,
+            recipientId:
+              typeof value.reply_to.recipient_id === "string"
+                ? value.reply_to.recipient_id
+                : undefined,
+            author:
+              typeof value.reply_to.author === "string"
+                ? value.reply_to.author
                 : undefined,
             text:
               typeof value.reply_to.message === "string"
@@ -269,6 +293,41 @@ const normalizeChatMessage = (message: any): ChatMessage => {
     : undefined;
   const rawContentValue =
     message?.content ?? message?.message ?? message?.text ?? message?.body ?? "";
+  const hasStructuredSiblingFields =
+    Array.isArray(message?.attachments) ||
+    Boolean(
+      message?.reply ||
+        message?.reply_to ||
+        message?.replyTo ||
+        message?.room ||
+        message?.room_id ||
+        message?.roomId,
+    );
+  const structuredContentValue =
+    typeof rawContentValue === "string" && hasStructuredSiblingFields
+      ? {
+          text: rawContentValue,
+          attachments: message?.attachments,
+          reply:
+            message?.reply ||
+            message?.reply_to ||
+            message?.replyTo ||
+            undefined,
+          reply_to:
+            message?.reply_to ||
+            message?.reply ||
+            message?.replyTo ||
+            undefined,
+          room: message?.room
+            ? message.room
+            : message?.roomId || message?.room_id
+              ? {
+                  id: message?.roomId || message?.room_id,
+                  name: message?.roomName || message?.room_name || undefined,
+                }
+              : undefined,
+        }
+      : rawContentValue;
   const parsedMessage = parseJsonIfPossible(rawContentValue);
   const parsedRoom = parsedMessage?.room;
   const roomId =
@@ -306,7 +365,7 @@ const normalizeChatMessage = (message: any): ChatMessage => {
     ),
     roomId: roomId || undefined,
     roomName,
-    content: normalizeStructuredMessageContent(rawContentValue),
+    content: normalizeStructuredMessageContent(structuredContentValue),
     isRead: Boolean(message?.isRead ?? message?.is_read ?? false),
     createdAt:
       message?.createdAt ?? message?.created_at ?? new Date().toISOString(),

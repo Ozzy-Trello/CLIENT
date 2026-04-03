@@ -93,6 +93,7 @@ type PeerEntry = {
 
 type ReplyDraft = {
   messageId: string;
+  senderId?: string;
   author: string;
   text: string;
 };
@@ -243,30 +244,75 @@ const parseMessagePayload = (value = ""): ParsedChatMessage => {
   const trimmed = value.trim();
   if (trimmed.startsWith("{")) {
     try {
-      const parsed = JSON.parse(trimmed) as ChatMessagePayload;
+      const parsed = JSON.parse(trimmed) as any;
       const attachments = Array.isArray(parsed.attachments)
-        ? parsed.attachments
+        ? (parsed.attachments as unknown[])
             .map(normalizeChatAttachment)
             .filter((item): item is ChatAttachmentMetadata => Boolean(item))
         : [];
+      const rawReply =
+        parsed.reply ||
+        parsed.reply_to ||
+        parsed.replyTo ||
+        null;
       const reply =
-        parsed.reply &&
-        typeof parsed.reply === "object" &&
-        typeof parsed.reply.author === "string" &&
-        typeof parsed.reply.text === "string"
+        rawReply &&
+        typeof rawReply === "object"
           ? {
-              author: parsed.reply.author,
-              text: parsed.reply.text,
+              author:
+                typeof rawReply.author === "string" && rawReply.author.trim()
+                  ? rawReply.author
+                  : typeof rawReply.username === "string" && rawReply.username.trim()
+                    ? rawReply.username
+                    : typeof rawReply.name === "string" && rawReply.name.trim()
+                      ? rawReply.name
+                      : typeof rawReply.senderName === "string" &&
+                          rawReply.senderName.trim()
+                        ? rawReply.senderName
+                        : typeof rawReply.sender_name === "string" &&
+                            rawReply.sender_name.trim()
+                          ? rawReply.sender_name
+                  : "Reply",
+              text:
+                typeof rawReply.text === "string"
+                  ? rawReply.text
+                  : typeof rawReply.message === "string"
+                    ? rawReply.message
+                    : typeof rawReply.content === "string"
+                      ? rawReply.content
+                      : "",
               messageId:
-                typeof parsed.reply.messageId === "string"
-                  ? parsed.reply.messageId
+                typeof rawReply.messageId === "string"
+                  ? rawReply.messageId
+                  : typeof rawReply.message_id === "string"
+                    ? rawReply.message_id
+                    : undefined,
+              senderId:
+                typeof rawReply.senderId === "string"
+                  ? rawReply.senderId
+                  : typeof rawReply.sender_id === "string"
+                    ? rawReply.sender_id
+                    : undefined,
+              recipientId:
+                typeof rawReply.recipientId === "string"
+                  ? rawReply.recipientId
+                  : typeof rawReply.recipient_id === "string"
+                    ? rawReply.recipient_id
                   : undefined,
             }
           : undefined;
+      const normalizedReply =
+        reply &&
+        (reply.text ||
+          reply.messageId ||
+          reply.senderId ||
+          reply.recipientId)
+          ? reply
+          : undefined;
       const text = typeof parsed.text === "string" ? parsed.text : "";
 
-      if (text || attachments.length > 0 || reply) {
-        return { text, attachments, reply };
+      if (text || attachments.length > 0 || normalizedReply) {
+        return { text, attachments, reply: normalizedReply };
       }
     } catch {}
   }
@@ -289,8 +335,32 @@ const parseMessagePayload = (value = ""): ParsedChatMessage => {
   };
 };
 
-const buildMessagePayload = (payload: ChatMessagePayload) =>
-  JSON.stringify(payload);
+const buildMessagePayload = (payload: ChatMessagePayload) => {
+  if (!payload.reply) {
+    return JSON.stringify(payload);
+  }
+
+  const normalizedReply = {
+    ...(payload.reply.messageId ? { messageId: payload.reply.messageId } : {}),
+    ...(payload.reply.senderId ? { senderId: payload.reply.senderId } : {}),
+    ...(payload.reply.recipientId ? { recipientId: payload.reply.recipientId } : {}),
+    ...(payload.reply.author ? { author: payload.reply.author } : {}),
+    ...(payload.reply.text ? { text: payload.reply.text, message: payload.reply.text } : {}),
+  };
+
+  return JSON.stringify({
+    ...payload,
+    reply: normalizedReply,
+    replyTo: normalizedReply,
+    reply_to: {
+      ...(payload.reply.messageId ? { message_id: payload.reply.messageId } : {}),
+      ...(payload.reply.senderId ? { sender_id: payload.reply.senderId } : {}),
+      ...(payload.reply.recipientId ? { recipient_id: payload.reply.recipientId } : {}),
+      ...(payload.reply.author ? { author: payload.reply.author } : {}),
+      ...(payload.reply.text ? { text: payload.reply.text, message: payload.reply.text } : {}),
+    },
+  });
+};
 
 const IMAGE_EXTENSION_REGEX =
   /\.(avif|bmp|gif|heic|heif|ico|jpe?g|png|svg|tiff?|webp)$/i;
@@ -619,9 +689,13 @@ const getCurrentMentionAliases = (currentUser?: { username?: string; name?: stri
 
 const messageMentionsCurrentUser = (
   message: ChatMessage,
-  currentUser?: { username?: string; name?: string } | null,
+  currentUser?: { id?: string; username?: string; name?: string } | null,
 ) => {
   const parsed = parseMessagePayload(message.content || "");
+  if (parsed.reply?.senderId && currentUser?.id && parsed.reply.senderId === currentUser.id) {
+    return true;
+  }
+
   const tokens = extractMentionTokens(parsed.text || "");
   if (tokens.includes(MENTION_ALL_TOKEN)) {
     return true;
@@ -635,15 +709,24 @@ const messageMentionsCurrentUser = (
   return tokens.some((token) => aliases.has(token));
 };
 
+const getMessageIdentitySeed = (message: ChatMessage) => {
+  const parsed = parseMessagePayload(message.content || "");
+  const text = parsed.text || "";
+  const attachmentFingerprint = parsed.attachments
+    .map((attachment) => attachment.url || attachment.name || "")
+    .join(",");
+
+  return [
+    message.senderId || "",
+    message.recipientId || "",
+    message.createdAt || "",
+    text,
+    attachmentFingerprint,
+  ].join("|");
+};
+
 const getIncomingMessageKey = (peerUserId: string, message: ChatMessage) => {
-  const stableId =
-    message.id ||
-    [
-      message.senderId || "",
-      message.recipientId || "",
-      message.createdAt || "",
-      message.content || "",
-    ].join("|");
+  const stableId = message.id || getMessageIdentitySeed(message);
   return `${peerUserId}:${stableId}`;
 };
 
@@ -752,19 +835,36 @@ const TypingIndicator = ({ label = "Someone is typing..." }: { label?: string | 
   </span>
 );
 
+const hasReplyInContent = (content?: string) =>
+  Boolean(parseMessagePayload(content || "").reply);
+
+const pickRicherContent = (incoming?: string, existing?: string) => {
+  const incomingValue = incoming || "";
+  const existingValue = existing || "";
+
+  if (!incomingValue) {
+    return existingValue;
+  }
+
+  if (hasReplyInContent(existingValue) && !hasReplyInContent(incomingValue)) {
+    return existingValue;
+  }
+
+  return incomingValue;
+};
+
 const getMessageMergeKey = (message: ChatMessage) => {
   const roomId = message?.roomId || "";
   const peerUserId = message?.peerUserId || "";
   const isGeneralMessage =
     roomId === GENERAL_ROOM_ID || peerUserId === GENERAL_ROOM_ID;
+  const identitySeed = getMessageIdentitySeed(message);
 
   if (isGeneralMessage) {
     return [
       "general",
       GENERAL_ROOM_ID,
-      message?.senderId || "",
-      message?.createdAt || "",
-      message?.content || "",
+      identitySeed,
     ].join("|");
   }
 
@@ -774,12 +874,7 @@ const getMessageMergeKey = (message: ChatMessage) => {
 
   return [
     "fallback",
-    message?.peerUserId || "",
-    message?.roomId || "",
-    message?.senderId || "",
-    message?.recipientId || "",
-    message?.createdAt || "",
-    message?.content || "",
+    identitySeed,
   ].join("|");
 };
 
@@ -790,7 +885,17 @@ const mergeMessages = (current: ChatMessage[] = [], next: ChatMessage) => {
     map.set(getMessageMergeKey(item), item);
   }
 
-  map.set(getMessageMergeKey(next), next);
+  const nextKey = getMessageMergeKey(next);
+  const existing = map.get(nextKey);
+  if (existing) {
+    map.set(nextKey, {
+      ...existing,
+      ...next,
+      content: pickRicherContent(next.content, existing.content),
+    });
+  } else {
+    map.set(nextKey, next);
+  }
 
   return Array.from(map.values()).sort((left, right) =>
     left.createdAt.localeCompare(right.createdAt),
@@ -2427,6 +2532,7 @@ const ChatWidget = () => {
         reply: replyTarget
           ? {
               messageId: replyTarget.messageId,
+              senderId: replyTarget.senderId,
               author: replyTarget.author,
               text: replyTarget.text,
             }
@@ -2445,6 +2551,10 @@ const ChatWidget = () => {
       const normalizedMessage = normalizeChatMessage(sentMessage);
       const finalMessage = {
         ...normalizedMessage,
+        content:
+          replyTarget && !hasReplyInContent(normalizedMessage.content)
+            ? payloadContent
+            : normalizedMessage.content,
         peerUserId,
         roomId: isGeneralRoom(peerUserId)
           ? GENERAL_ROOM_ID
@@ -3387,9 +3497,12 @@ const ChatWidget = () => {
                                   ...current,
                                   [window.peerUserId]: {
                                     messageId: chatMessage.id,
+                                    senderId: chatMessage.senderId,
                                     author: isOwnMessage
                                       ? currentUser?.username || currentUser?.id || "Unknown"
-                                      : peerUser.name,
+                                      : isGeneralRoom(window.peerUserId)
+                                        ? groupSenderName
+                                        : peerUser.name,
                                     text: toReplySnippet(
                                       summarizeMessageContent(chatMessage.content || ""),
                                     ),
