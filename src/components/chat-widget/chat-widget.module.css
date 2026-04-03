@@ -98,6 +98,21 @@
   word-break: break-word;
 }
 
+.messageLink {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  word-break: break-all;
+}
+
+.messageLink:visited {
+  color: inherit;
+}
+
+.messageLink:hover {
+  opacity: 0.86;
+}
+
 .messageBubbleOwn .messageText {
   color: #ffffff;
 }

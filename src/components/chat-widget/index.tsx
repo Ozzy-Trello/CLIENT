@@ -82,6 +82,34 @@ const formatTime = (value?: string) => {
 const toReplySnippet = (value: string) =>
   value.replace(/\s+/g, " ").trim().slice(0, 80);
 
+const URL_TOKEN_REGEX = /(https?:\/\/[^\s<>"']+)/g;
+const URL_STRICT_REGEX = /^https?:\/\/[^\s<>"']+$/i;
+
+const renderMessageContent = (value = "") => {
+  const lines = value.split("\n");
+
+  return lines.map((line, lineIndex) => (
+    <span key={`line-${lineIndex}`}>
+      {line.split(URL_TOKEN_REGEX).map((token, tokenIndex) =>
+        URL_STRICT_REGEX.test(token) ? (
+          <a
+            key={`token-${lineIndex}-${tokenIndex}`}
+            href={token}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={styles.messageLink}
+          >
+            {token}
+          </a>
+        ) : (
+          <span key={`token-${lineIndex}-${tokenIndex}`}>{token}</span>
+        ),
+      )}
+      {lineIndex < lines.length - 1 ? <br /> : null}
+    </span>
+  ));
+};
+
 const sortByLatest = (left: ChatConversation, right: ChatConversation) => {
   const leftTime = left.updatedAt || left.lastMessage?.createdAt || "";
   const rightTime = right.updatedAt || right.lastMessage?.createdAt || "";
@@ -1049,7 +1077,7 @@ const ChatWidget = () => {
                           }`}
                         >
                           <div className={styles.messageText}>
-                            {chatMessage.content}
+                            {renderMessageContent(chatMessage.content || "")}
                           </div>
                           <div className={styles.messageMetaRow}>
                             <div className={styles.messageTime}>

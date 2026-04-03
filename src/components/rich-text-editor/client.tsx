@@ -13,12 +13,9 @@ import ReactQuill from "react-quill-new";
 import { message } from "antd";
 import "react-quill-new/dist/quill.snow.css";
 import "./mention.css";
-import Quill from "quill";
-import Mention from "quill-mention";
+import { Mention, MentionBlot } from "quill-mention";
 import { useAccountList } from "../../hooks/account";
 import { Account } from "../../dto/account";
-
-const Embed = Quill.import("blots/embed");
 
 type MentionOption = {
   id: string;
@@ -33,34 +30,17 @@ type MentionModule = {
     ) => void;
   };
 };
-
-class MentionBlot extends Embed {
-  static blotName = "mention";
-  static tagName = "span";
-  static className = "mention";
-
-  static create(data: any) {
-    const node = super.create();
-    node.setAttribute("data-id", data.id);
-    node.setAttribute("data-value", data.value);
-    node.innerText = `@${data.value}`;
-    return node;
-  }
-
-  static value(node: any) {
-    return {
-      id: node.getAttribute("data-id"),
-      value: node.getAttribute("data-value"),
-    };
-  }
-}
+const Quill = (ReactQuill as unknown as { Quill?: any }).Quill;
 
 // Register Quill modules once at module level
 if (typeof window !== "undefined") {
   try {
-    Quill.register("modules/mention", Mention, true);
-    Quill.register(MentionBlot);
-  
+    if (Quill) {
+      Quill.register(
+        { "blots/mention": MentionBlot, "modules/mention": Mention },
+        true
+      );
+    }
   } catch (error) {
     console.warn("Quill mention module registration error:", error);
   }
@@ -154,7 +134,7 @@ const RichTextEditorClient = forwardRef<any, RichTextEditorProps>(
         matchVisual: false,
       },
       mention: {
-        allowedChars: /^[A-Za-z\sÅÄÖåäö]*$/,
+        allowedChars: /^[A-Za-z0-9_.\-\sÅÄÖåäö]*$/,
         mentionDenotationChars: ["@"],
         blotName: "mention",
         source: (searchTerm: string, renderList: any) => {
