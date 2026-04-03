@@ -34,7 +34,6 @@ import {
 import {
   ChatConversationSummary,
   ChatMessage,
-  ChatNewMessageEventPayload,
   ChatUserSummary,
 } from "@myTypes/chat";
 import styles from "./chat-widget.module.css";
@@ -392,15 +391,29 @@ const ChatWidget: React.FC = () => {
       const rawPayload = JSON.parse(event.data);
       const payload = camelcaseKeys(rawPayload, { deep: true }) as {
         event?: string;
-        data?: ChatNewMessageEventPayload;
+        data?: any;
       };
 
-      if (payload.event !== "chat:new-message" || !payload.data?.message) {
+      if (payload.event !== "chat:new-message") {
         return;
       }
 
-      const incomingMessage = payload.data.message;
-      const peerUser = payload.data.peerUser;
+      const eventData = payload.data || payload;
+      const incomingMessage =
+        eventData?.id || eventData?.senderId || eventData?.sender_id
+          ? eventData
+          : eventData?.message;
+      const peerUser =
+        eventData?.peerUser ||
+        eventData?.peer_user ||
+        eventData?.senderUser ||
+        eventData?.sender_user ||
+        null;
+
+      if (!incomingMessage || !peerUser?.id) {
+        return;
+      }
+
       const isIncomingForCurrentUser =
         incomingMessage.senderId === peerUser.id &&
         incomingMessage.recipientId === currentUser.id;
