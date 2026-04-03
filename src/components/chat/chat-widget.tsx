@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent } from "react";
 import camelcaseKeys from "camelcase-keys";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSelector } from "react-redux";
@@ -9,16 +9,20 @@ import {
   Badge,
   Button,
   Empty,
+  Image,
   Input,
   List,
+  Modal,
   Spin,
   Typography,
   message,
 } from "antd";
 import {
   CloseOutlined,
+  LinkOutlined,
   MessageOutlined,
   MinusOutlined,
+  PaperClipOutlined,
   SearchOutlined,
   SendOutlined,
 } from "@ant-design/icons";
@@ -35,7 +39,15 @@ import {
   normalizeChatUser,
   sendChatMessage,
 } from "@api/chat";
-import type { ChatConversation, ChatMessage, ChatUser } from "@myTypes/chat";
+import { uploadFile } from "@api/file";
+import type {
+  ChatAttachmentMetadata,
+  ChatConversation,
+  ChatMessage,
+  ChatMessagePayload,
+  ChatReplyPayload,
+  ChatUser,
+} from "@myTypes/chat";
 
 const { Text } = Typography;
 
@@ -67,6 +79,12 @@ type ParsedReply = {
   author: string;
   quotedText: string;
   body: string;
+};
+
+type ParsedChatMessage = {
+  text: string;
+  attachments: ChatAttachmentMetadata[];
+  reply?: ChatReplyPayload;
 };
 
 const formatTime = (value?: string) => {
@@ -121,6 +139,144 @@ const parseReplyContent = (value: string): ParsedReply | null => {
     quotedText,
     body,
   };
+};
+
+const normalizeChatAttachment = (value: any): ChatAttachmentMetadata | null => {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const url =
+    typeof value.url === "string"
+      ? value.url
+      : typeof value.href === "string"
+        ? value.href
+        : "";
+  const name =
+    typeof value.name === "string"
+      ? value.name
+      : typeof value.fileName === "string"
+        ? value.fileName
+        : typeof value.filename === "string"
+          ? value.filename
+          : "";
+
+  if (!url || !name) {
+    return null;
+  }
+
+  return {
+    url,
+    name,
+    mimeType:
+      typeof value.mimeType === "string"
+        ? value.mimeType
+        : typeof value.type === "string"
+          ? value.type
+          : undefined,
+    size:
+      typeof value.size === "number"
+        ? value.size
+        : typeof value.fileSize === "number"
+          ? value.fileSize
+          : undefined,
+  };
+};
+
+const parseMessagePayload = (value = ""): ParsedChatMessage => {
+  const trimmed = value.trim();
+  if (trimmed.startsWith("{")) {
+    try {
+      const parsed = JSON.parse(trimmed) as ChatMessagePayload;
+      const attachments = Array.isArray(parsed.attachments)
+        ? parsed.attachments
+            .map(normalizeChatAttachment)
+            .filter((item): item is ChatAttachmentMetadata => Boolean(item))
+        : [];
+      const reply =
+        parsed.reply &&
+        typeof parsed.reply === "object" &&
+        typeof parsed.reply.author === "string" &&
+        typeof parsed.reply.text === "string"
+          ? {
+              author: parsed.reply.author,
+              text: parsed.reply.text,
+              messageId:
+                typeof parsed.reply.messageId === "string"
+                  ? parsed.reply.messageId
+                  : undefined,
+            }
+          : undefined;
+      const text = typeof parsed.text === "string" ? parsed.text : "";
+
+      if (text || attachments.length > 0 || reply) {
+        return { text, attachments, reply };
+      }
+    } catch {}
+  }
+
+  const parsedReply = parseReplyContent(value);
+  if (parsedReply) {
+    return {
+      text: parsedReply.body,
+      attachments: [],
+      reply: {
+        author: parsedReply.author,
+        text: parsedReply.quotedText,
+      },
+    };
+  }
+
+  return {
+    text: value,
+    attachments: [],
+  };
+};
+
+const buildMessagePayload = (payload: ChatMessagePayload) =>
+  JSON.stringify(payload);
+
+const IMAGE_EXTENSION_REGEX =
+  /\.(avif|bmp|gif|heic|heif|ico|jpe?g|png|svg|tiff?|webp)$/i;
+
+const isImageAttachment = (attachment: ChatAttachmentMetadata) =>
+  Boolean(
+    attachment.mimeType?.startsWith("image/") ||
+      IMAGE_EXTENSION_REGEX.test(attachment.name || attachment.url),
+  );
+
+const formatAttachmentSize = (size?: number) => {
+  if (!size || size <= 0) {
+    return "";
+  }
+
+  if (size < 1024) {
+    return `${size} B`;
+  }
+
+  if (size < 1024 * 1024) {
+    return `${(size / 1024).toFixed(1)} KB`;
+  }
+
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+const summarizeMessageContent = (value = "") => {
+  const parsed = parseMessagePayload(value);
+
+  if (parsed.text.trim()) {
+    return parsed.text.trim();
+  }
+
+  if (parsed.attachments.length === 1) {
+    return `Attachment: ${parsed.attachments[0].name}`;
+  }
+
+  if (parsed.attachments.length > 1) {
+    return `${parsed.attachments.length} attachments`;
+  }
+
+  return "";
 };
 
 const URL_TOKEN_REGEX = /(https?:\/\/[^\s<>"']+)/g;
@@ -391,16 +547,29 @@ const ChatWidget = () => {
   const [replyByPeerId, setReplyByPeerId] = useState<
     Record<string, ReplyDraft | undefined>
   >({});
+  const [pendingFilesByPeerId, setPendingFilesByPeerId] = useState<
+    Record<string, File[]>
+  >({});
+  const [sendingByPeerId, setSendingByPeerId] = useState<Record<string, boolean>>(
+    {},
+  );
+  const [isDragOverByPeerId, setIsDragOverByPeerId] = useState<
+    Record<string, boolean>
+  >({});
   const [messagesByPeerId, setMessagesByPeerId] = useState<
     Record<string, ChatMessage[]>
   >({});
   const [loadingByPeerId, setLoadingByPeerId] = useState<
     Record<string, boolean>
   >({});
+  const [previewImage, setPreviewImage] = useState<ChatAttachmentMetadata | null>(
+    null,
+  );
 
   const loadingPeersRef = useRef(new Set<string>());
   const markReadInFlightRef = useRef(new Set<string>());
   const chatWindowsRef = useRef<ChatWindowState[]>([]);
+  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const messageEndRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioUnlockedRef = useRef(false);
@@ -522,9 +691,6 @@ const ChatWidget = () => {
 
   const sendMessageMutation = useMutation({
     mutationFn: sendChatMessage,
-    onError: () => {
-      message.error("Failed to send message");
-    },
   });
 
   const markReadMutation = useMutation({
@@ -574,7 +740,7 @@ const ChatWidget = () => {
         peerUserId: conversation.peerUserId,
         peerUser: conversation.peerUser,
         unreadCount: conversation.unreadCount || 0,
-        lastMessage: conversation.lastMessage?.content || "",
+        lastMessage: summarizeMessageContent(conversation.lastMessage?.content || ""),
         updatedAt:
           conversation.updatedAt ||
           conversation.lastMessage?.createdAt ||
@@ -791,55 +957,165 @@ const ChatWidget = () => {
       delete next[peerUserId];
       return next;
     });
+    setPendingFilesByPeerId((current) => {
+      if (!(peerUserId in current)) {
+        return current;
+      }
+
+      const next = { ...current };
+      delete next[peerUserId];
+      return next;
+    });
+    setIsDragOverByPeerId((current) => {
+      if (!(peerUserId in current)) {
+        return current;
+      }
+
+      const next = { ...current };
+      delete next[peerUserId];
+      return next;
+    });
+  };
+
+  const queueFilesForPeer = (peerUserId: string, incomingFiles: File[]) => {
+    if (!peerUserId || incomingFiles.length === 0) {
+      return;
+    }
+
+    setPendingFilesByPeerId((current) => {
+      const existing = current[peerUserId] || [];
+      const knownFiles = new Set(
+        existing.map((file) => `${file.name}-${file.size}-${file.lastModified}`),
+      );
+      const nextFiles = [...existing];
+
+      for (const file of incomingFiles) {
+        const fileKey = `${file.name}-${file.size}-${file.lastModified}`;
+        if (knownFiles.has(fileKey)) {
+          continue;
+        }
+        knownFiles.add(fileKey);
+        nextFiles.push(file);
+      }
+
+      return {
+        ...current,
+        [peerUserId]: nextFiles,
+      };
+    });
+  };
+
+  const removePendingFile = (peerUserId: string, index: number) => {
+    setPendingFilesByPeerId((current) => {
+      const files = current[peerUserId] || [];
+      if (!files[index]) {
+        return current;
+      }
+
+      const nextFiles = files.filter((_, fileIndex) => fileIndex !== index);
+      return {
+        ...current,
+        [peerUserId]: nextFiles,
+      };
+    });
+  };
+
+  const handleFileSelection = (
+    peerUserId: string,
+    event: ChangeEvent<HTMLInputElement>,
+  ) => {
+    const files = Array.from(event.target.files || []);
+    queueFilesForPeer(peerUserId, files);
+    event.target.value = "";
+  };
+
+  const handleComposerDrop = (
+    peerUserId: string,
+    event: DragEvent<HTMLDivElement>,
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsDragOverByPeerId((current) => ({ ...current, [peerUserId]: false }));
+    queueFilesForPeer(peerUserId, Array.from(event.dataTransfer.files || []));
   };
 
   const handleSend = async (peerUserId: string) => {
     const replyTarget = replyByPeerId[peerUserId];
     const content = (draftByPeerId[peerUserId] || "").trim();
-    if (!content || sendMessageMutation.isPending) {
+    const pendingFiles = pendingFilesByPeerId[peerUserId] || [];
+
+    if ((!content && pendingFiles.length === 0) || sendingByPeerId[peerUserId]) {
       return;
     }
 
-    const payloadContent = replyTarget
-      ? `Reply to ${replyTarget.author}: ${replyTarget.text}\n${content}`
-      : content;
+    setSendingByPeerId((current) => ({ ...current, [peerUserId]: true }));
 
-    sendMessageMutation.mutate(
-      { peerUserId, content: payloadContent },
-      {
-        onSuccess: (sentMessage) => {
-          const normalizedMessage = normalizeChatMessage(sentMessage);
-          const finalMessage = { ...normalizedMessage, peerUserId };
-          const peerUser = getPeerUser(peerUserId);
+    try {
+      const attachments = await Promise.all(
+        pendingFiles.map(async (file) => {
+          const uploadResponse = await uploadFile(file);
+          const uploadedFile = uploadResponse.data;
 
-          setMessagesByPeerId((current) => ({
-            ...current,
-            [peerUserId]: mergeMessages(current[peerUserId], finalMessage),
-          }));
+          return {
+            url: uploadedFile?.url || "",
+            name: uploadedFile?.name || file.name,
+            mimeType: uploadedFile?.mimeType || file.type || undefined,
+            size: uploadedFile?.size || file.size || undefined,
+          } satisfies ChatAttachmentMetadata;
+        }),
+      );
 
-          queryClient.setQueryData<ChatMessage[]>(
-            queryKeys.chat.messages(peerUserId),
-            (current) => mergeMessages(current, finalMessage),
-          );
+      const payloadContent = buildMessagePayload({
+        text: content,
+        attachments: attachments.filter((item) => item.url && item.name),
+        reply: replyTarget
+          ? {
+              messageId: replyTarget.messageId,
+              author: replyTarget.author,
+              text: replyTarget.text,
+            }
+          : undefined,
+      });
 
-          queryClient.setQueryData<ChatConversation[]>(
-            queryKeys.chat.conversations(),
-            (current) =>
-              updateConversationForMessage(
-                current,
-                peerUserId,
-                peerUser,
-                finalMessage,
-                true,
-                true,
-              ),
-          );
+      const sentMessage = await sendMessageMutation.mutateAsync({
+        peerUserId,
+        content: payloadContent,
+      });
+      const normalizedMessage = normalizeChatMessage(sentMessage);
+      const finalMessage = { ...normalizedMessage, peerUserId };
+      const peerUser = getPeerUser(peerUserId);
 
-          setDraftByPeerId((current) => ({ ...current, [peerUserId]: "" }));
-          setReplyByPeerId((current) => ({ ...current, [peerUserId]: undefined }));
-        },
-      },
-    );
+      setMessagesByPeerId((current) => ({
+        ...current,
+        [peerUserId]: mergeMessages(current[peerUserId], finalMessage),
+      }));
+
+      queryClient.setQueryData<ChatMessage[]>(
+        queryKeys.chat.messages(peerUserId),
+        (current) => mergeMessages(current, finalMessage),
+      );
+
+      queryClient.setQueryData<ChatConversation[]>(
+        queryKeys.chat.conversations(),
+        (current) =>
+          updateConversationForMessage(
+            current,
+            peerUserId,
+            peerUser,
+            finalMessage,
+            true,
+            true,
+          ),
+      );
+
+      setDraftByPeerId((current) => ({ ...current, [peerUserId]: "" }));
+      setReplyByPeerId((current) => ({ ...current, [peerUserId]: undefined }));
+      setPendingFilesByPeerId((current) => ({ ...current, [peerUserId]: [] }));
+    } catch {
+      message.error("Failed to send message");
+    } finally {
+      setSendingByPeerId((current) => ({ ...current, [peerUserId]: false }));
+    }
   };
 
   useEffect(() => {
@@ -1045,9 +1321,10 @@ const ChatWidget = () => {
             conversationByPeerId.get(window.peerUserId)?.unreadCount || 0;
           const draft = draftByPeerId[window.peerUserId] || "";
           const replyTarget = replyByPeerId[window.peerUserId];
-          const sendingThisPeer =
-            sendMessageMutation.isPending &&
-            sendMessageMutation.variables?.peerUserId === window.peerUserId;
+          const pendingFiles = pendingFilesByPeerId[window.peerUserId] || [];
+          const sendingThisPeer = Boolean(sendingByPeerId[window.peerUserId]);
+          const isDragOver = Boolean(isDragOverByPeerId[window.peerUserId]);
+          const canSend = Boolean(draft.trim() || pendingFiles.length > 0);
 
           return (
             <div key={window.peerUserId} className={styles.chatWindow}>
@@ -1104,7 +1381,9 @@ const ChatWidget = () => {
                     const isOwnMessage =
                       Boolean(currentUserId) &&
                       chatMessage.senderId === currentUserId;
-                    const parsedReply = parseReplyContent(chatMessage.content || "");
+                    const parsedMessage = parseMessagePayload(chatMessage.content || "");
+                    const attachments = parsedMessage.attachments;
+                    const parsedReply = parsedMessage.reply;
 
                     return (
                       <div
@@ -1130,14 +1409,58 @@ const ChatWidget = () => {
                                     {parsedReply.author}
                                   </div>
                                   <div className={styles.quotedReplyText}>
-                                    {renderMessageContent(parsedReply.quotedText)}
+                                    {renderMessageContent(parsedReply.text)}
                                   </div>
                                 </div>
-                                <div>{renderMessageContent(parsedReply.body)}</div>
+                                {parsedMessage.text ? (
+                                  <div>{renderMessageContent(parsedMessage.text)}</div>
+                                ) : null}
                               </>
-                            ) : (
-                              renderMessageContent(chatMessage.content || "")
-                            )}
+                            ) : parsedMessage.text ? (
+                              renderMessageContent(parsedMessage.text)
+                            ) : null}
+                            {attachments.length > 0 ? (
+                              <div className={styles.attachmentList}>
+                                {attachments.map((attachment) =>
+                                  isImageAttachment(attachment) ? (
+                                    <button
+                                      key={`${chatMessage.id}-${attachment.url}`}
+                                      type="button"
+                                      className={styles.imageAttachmentButton}
+                                      onClick={() => setPreviewImage(attachment)}
+                                    >
+                                      <Image
+                                        src={attachment.url}
+                                        alt={attachment.name}
+                                        preview={false}
+                                        className={styles.imageAttachment}
+                                      />
+                                      <span className={styles.imageAttachmentName}>
+                                        {attachment.name}
+                                      </span>
+                                    </button>
+                                  ) : (
+                                    <a
+                                      key={`${chatMessage.id}-${attachment.url}`}
+                                      href={attachment.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className={styles.fileAttachment}
+                                    >
+                                      <LinkOutlined />
+                                      <span className={styles.fileAttachmentName}>
+                                        {attachment.name}
+                                      </span>
+                                      {attachment.size ? (
+                                        <span className={styles.fileAttachmentMeta}>
+                                          {formatAttachmentSize(attachment.size)}
+                                        </span>
+                                      ) : null}
+                                    </a>
+                                  ),
+                                )}
+                              </div>
+                            ) : null}
                           </div>
                           <div className={styles.messageMetaRow}>
                             <div className={styles.messageTime}>
@@ -1156,7 +1479,7 @@ const ChatWidget = () => {
                                       ? currentUser?.username || currentUser?.id || "Unknown"
                                       : peerUser.name,
                                     text: toReplySnippet(
-                                      parsedReply?.body || chatMessage.content || "",
+                                      summarizeMessageContent(chatMessage.content || ""),
                                     ),
                                   },
                                 }))
@@ -1177,7 +1500,28 @@ const ChatWidget = () => {
                 />
               </div>
 
-              <div className={styles.chatWindowComposer}>
+              <div
+                className={`${styles.chatWindowComposer} ${
+                  isDragOver ? styles.chatWindowComposerDragOver : ""
+                }`}
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = "copy";
+                  setIsDragOverByPeerId((current) => ({
+                    ...current,
+                    [window.peerUserId]: true,
+                  }));
+                }}
+                onDragLeave={(event) => {
+                  if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                    setIsDragOverByPeerId((current) => ({
+                      ...current,
+                      [window.peerUserId]: false,
+                    }));
+                  }
+                }}
+                onDrop={(event) => handleComposerDrop(window.peerUserId, event)}
+              >
                 {replyTarget ? (
                   <div className={styles.replyPreview}>
                     <div className={styles.replyPreviewContent}>
@@ -1203,7 +1547,56 @@ const ChatWidget = () => {
                     />
                   </div>
                 ) : null}
+                {pendingFiles.length > 0 ? (
+                  <div className={styles.pendingAttachmentList}>
+                    {pendingFiles.map((file, index) => (
+                      <div
+                        key={`${file.name}-${file.size}-${file.lastModified}-${index}`}
+                        className={styles.pendingAttachment}
+                      >
+                        <div className={styles.pendingAttachmentContent}>
+                          <Text className={styles.pendingAttachmentName}>
+                            {file.name}
+                          </Text>
+                          <Text className={styles.pendingAttachmentMeta}>
+                            {formatAttachmentSize(file.size)}
+                          </Text>
+                        </div>
+                        <Button
+                          type="text"
+                          size="small"
+                          icon={<CloseOutlined />}
+                          className={styles.pendingAttachmentRemove}
+                          onClick={() => removePendingFile(window.peerUserId, index)}
+                          disabled={sendingThisPeer}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+                {sendingThisPeer && pendingFiles.length > 0 ? (
+                  <Text className={styles.uploadingText}>
+                    Uploading {pendingFiles.length} file
+                    {pendingFiles.length > 1 ? "s" : ""}...
+                  </Text>
+                ) : null}
                 <div className={styles.composerRow}>
+                  <input
+                    ref={(element) => {
+                      fileInputRefs.current[window.peerUserId] = element;
+                    }}
+                    type="file"
+                    multiple
+                    hidden
+                    onChange={(event) => handleFileSelection(window.peerUserId, event)}
+                  />
+                  <Button
+                    type="text"
+                    icon={<PaperClipOutlined />}
+                    className={styles.attachButton}
+                    onClick={() => fileInputRefs.current[window.peerUserId]?.click()}
+                    disabled={sendingThisPeer}
+                  />
                   <Input
                     value={draft}
                     placeholder="Aa"
@@ -1215,6 +1608,7 @@ const ChatWidget = () => {
                     }
                     onPressEnter={() => void handleSend(window.peerUserId)}
                     className={styles.composerInput}
+                    disabled={sendingThisPeer}
                   />
                   <Button
                     type="text"
@@ -1222,7 +1616,7 @@ const ChatWidget = () => {
                     onClick={() => void handleSend(window.peerUserId)}
                     className={styles.sendButton}
                     loading={sendingThisPeer}
-                    disabled={!draft.trim()}
+                    disabled={!canSend}
                   />
                 </div>
               </div>
@@ -1392,6 +1786,34 @@ const ChatWidget = () => {
           />
         </Badge>
       </div>
+
+      <Modal
+        open={Boolean(previewImage)}
+        footer={null}
+        onCancel={() => setPreviewImage(null)}
+        centered
+        width={880}
+        className={styles.imagePreviewModal}
+      >
+        {previewImage ? (
+          <div className={styles.imagePreviewContent}>
+            <Image
+              src={previewImage.url}
+              alt={previewImage.name}
+              preview={false}
+              className={styles.imagePreviewImage}
+            />
+            <a
+              href={previewImage.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={styles.imagePreviewLink}
+            >
+              {previewImage.name}
+            </a>
+          </div>
+        ) : null}
+      </Modal>
     </>
   );
 };

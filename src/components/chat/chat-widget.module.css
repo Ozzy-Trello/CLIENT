@@ -181,6 +181,11 @@
   background: #f8fbff;
 }
 
+.chatWindowComposerDragOver {
+  background: #e8f1ff;
+  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.22);
+}
+
 .composerRow {
   width: 100%;
   display: flex;
@@ -240,8 +245,145 @@
   border-radius: 20px !important;
 }
 
+.attachButton {
+  color: #475569 !important;
+}
+
 .sendButton {
   color: #2563eb !important;
+}
+
+.attachmentList {
+  margin-top: 8px;
+  display: grid;
+  gap: 8px;
+}
+
+.imageAttachmentButton {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.imageAttachment {
+  width: 100%;
+  max-width: 180px;
+  height: 120px !important;
+  object-fit: cover;
+  border-radius: 10px;
+  display: block;
+  overflow: hidden;
+}
+
+.imageAttachment :global(.ant-image-img) {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 10px;
+}
+
+.imageAttachmentName {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: inherit;
+  word-break: break-word;
+}
+
+.fileAttachment {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.28);
+  color: inherit;
+  text-decoration: none;
+}
+
+.messageBubble:not(.messageBubbleOwn) .fileAttachment {
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.fileAttachmentName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fileAttachmentMeta {
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+.pendingAttachmentList {
+  display: grid;
+  gap: 6px;
+}
+
+.pendingAttachment {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.pendingAttachmentContent {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.pendingAttachmentName {
+  color: #0f172a !important;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.pendingAttachmentMeta {
+  color: rgba(15, 23, 42, 0.56) !important;
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.pendingAttachmentRemove {
+  min-width: 22px !important;
+  height: 22px !important;
+  color: rgba(15, 23, 42, 0.56) !important;
+}
+
+.uploadingText {
+  color: #2563eb !important;
+  font-size: 11px;
+}
+
+.imagePreviewContent {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.imagePreviewImage {
+  width: 100%;
+}
+
+.imagePreviewImage :global(.ant-image-img) {
+  max-height: 70vh;
+  object-fit: contain;
+}
+
+.imagePreviewLink {
+  color: #2563eb;
+  text-decoration: underline;
+  word-break: break-all;
 }
 
 .windowEmpty {

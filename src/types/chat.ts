@@ -23,6 +23,25 @@ export interface ChatMessage {
   recipient?: ChatUser;
 }
 
+export interface ChatAttachmentMetadata {
+  url: string;
+  name: string;
+  mimeType?: string;
+  size?: number;
+}
+
+export interface ChatReplyPayload {
+  messageId?: string;
+  author: string;
+  text: string;
+}
+
+export interface ChatMessagePayload {
+  text?: string;
+  attachments?: ChatAttachmentMetadata[];
+  reply?: ChatReplyPayload;
+}
+
 export interface ChatConversation {
   id: string;
   peerUserId: string;
