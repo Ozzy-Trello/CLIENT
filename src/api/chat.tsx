@@ -85,6 +85,111 @@ const normalizeChatUser = (user: any): ChatUser => ({
   unreadCount: user?.unreadCount ?? user?.unread_count ?? 0,
 });
 
+const normalizeStructuredMessageContent = (value: any): string => {
+  if (value == null) {
+    return "";
+  }
+
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (typeof value !== "object") {
+    return String(value);
+  }
+
+  const text =
+    typeof value?.text === "string"
+      ? value.text
+      : typeof value?.message === "string"
+        ? value.message
+        : "";
+
+  const attachments = Array.isArray(value?.attachments)
+    ? value.attachments
+        .map((attachment: any) => {
+          if (!attachment || typeof attachment !== "object") {
+            return null;
+          }
+          const url =
+            typeof attachment?.url === "string"
+              ? attachment.url
+              : typeof attachment?.href === "string"
+                ? attachment.href
+                : "";
+          if (!url) {
+            return null;
+          }
+
+          return {
+            url,
+            name:
+              typeof attachment?.name === "string"
+                ? attachment.name
+                : typeof attachment?.filename === "string"
+                  ? attachment.filename
+                  : undefined,
+            mimeType:
+              typeof attachment?.mimeType === "string"
+                ? attachment.mimeType
+                : typeof attachment?.mime_type === "string"
+                  ? attachment.mime_type
+                  : typeof attachment?.type === "string"
+                    ? attachment.type
+                    : undefined,
+            size:
+              typeof attachment?.size === "number"
+                ? attachment.size
+                : undefined,
+          };
+        })
+        .filter(Boolean)
+    : [];
+
+  const reply =
+    value?.reply && typeof value.reply === "object"
+      ? {
+          messageId:
+            typeof value.reply.messageId === "string"
+              ? value.reply.messageId
+              : typeof value.reply.message_id === "string"
+                ? value.reply.message_id
+                : undefined,
+          author:
+            typeof value.reply.author === "string"
+              ? value.reply.author
+              : undefined,
+          text:
+            typeof value.reply.text === "string"
+              ? value.reply.text
+              : typeof value.reply.message === "string"
+                ? value.reply.message
+                : undefined,
+        }
+      : value?.reply_to && typeof value.reply_to === "object"
+        ? {
+            messageId:
+              typeof value.reply_to.message_id === "string"
+                ? value.reply_to.message_id
+                : undefined,
+            text:
+              typeof value.reply_to.message === "string"
+                ? value.reply_to.message
+                : undefined,
+          }
+        : undefined;
+
+  if (!text && attachments.length === 0 && !reply) {
+    return "";
+  }
+
+  return JSON.stringify({
+    text,
+    attachments,
+    ...(reply ? { reply } : {}),
+  });
+};
+
 const normalizeChatMessage = (message: any): ChatMessage => {
   const sender = message?.sender ? normalizeChatUser(message.sender) : undefined;
   const recipient = message?.recipient
@@ -113,7 +218,7 @@ const normalizeChatMessage = (message: any): ChatMessage => {
       message?.toUserId,
       message?.to_user_id
     ),
-    content: String(
+    content: normalizeStructuredMessageContent(
       message?.content ?? message?.message ?? message?.text ?? message?.body ?? ""
     ),
     isRead: Boolean(message?.isRead ?? message?.is_read ?? false),
