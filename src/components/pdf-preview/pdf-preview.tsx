@@ -1,10 +1,9 @@
 import React, { useState, useCallback, useMemo } from "react";
-import { Document, Page } from "react-pdf";
 import { Spin, message } from "antd";
 import { FilePdfOutlined } from "@ant-design/icons";
 import TokenStorage from "@utils/token-storage";
 import { buildFileProxyUrl, isFileProxyUrl, toDirectFileUrl } from "@utils/file-url";
-import "@utils/pdf-worker-setup"; // Initialize PDF.js worker
+import { setupPDFWorker } from "@utils/pdf-worker-setup";
 
 interface PDFPreviewProps {
   url: string;
@@ -21,9 +20,38 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({
   height = 60,
   className = "",
 }) => {
+  const [pdfModule, setPdfModule] = useState<{
+    Document: any;
+    Page: any;
+  } | null>(null);
   const [numPages, setNumPages] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    const loadPdfModule = async () => {
+      try {
+        const mod = await import("react-pdf");
+        setupPDFWorker(mod.pdfjs as any);
+        if (!cancelled) {
+          setPdfModule({ Document: mod.Document, Page: mod.Page });
+        }
+      } catch (moduleError) {
+        if (!cancelled) {
+          console.error("Failed to load react-pdf module:", moduleError);
+          setError(true);
+          setLoading(false);
+        }
+      }
+    };
+
+    void loadPdfModule();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Determine the correct URL and options for PDF loading
   const { pdfUrl, options } = useMemo(() => {
@@ -105,7 +133,8 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({
         </div>
       )}
 
-      <Document
+      {pdfModule ? (
+      <pdfModule.Document
         key={pdfUrl}
         file={pdfUrl}
         options={options}
@@ -116,7 +145,7 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({
         noData=""
         className="react-pdf__Document"
       >
-        <Page
+        <pdfModule.Page
           pageNumber={1}
           width={width}
           height={height}
@@ -128,7 +157,8 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({
           renderTextLayer={false}
           renderAnnotationLayer={false}
         />
-      </Document>
+      </pdfModule.Document>
+      ) : null}
 
       {/* Page count indicator */}
       {numPages && numPages > 1 && !loading && (

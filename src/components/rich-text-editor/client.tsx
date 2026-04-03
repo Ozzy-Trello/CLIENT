@@ -74,6 +74,11 @@ const workspaceAllMentionOption = {
   value: WORKSPACE_ALL_MENTION_VALUE,
 };
 
+const logMentionDebug = (...args: any[]) => {
+  // eslint-disable-next-line no-console
+  console.log("[MENTION DEBUG]", ...args);
+};
+
 interface RichTextEditorProps {
   initialValue?: string;
   onChange?: (content: string) => void;
@@ -150,6 +155,11 @@ const RichTextEditorClient = forwardRef<any, RichTextEditorProps>(
 
           const editor = quillRef.current?.getEditor();
           const anchorIndex = mentionAnchorIndexRef.current;
+          logMentionDebug("onSelect", {
+            item,
+            mentionPayload,
+            anchorIndex,
+          });
 
           if (editor && typeof anchorIndex === "number" && anchorIndex >= 0) {
             const selection = editor.getSelection(true);
@@ -160,11 +170,17 @@ const RichTextEditorClient = forwardRef<any, RichTextEditorProps>(
             editor.insertEmbed(anchorIndex, "mention", mentionPayload, "user");
             editor.insertText(anchorIndex + 1, " ", "user");
             editor.setSelection(anchorIndex + 2, 0, "user");
+            logMentionDebug("inserted at anchor", {
+              cursorIndex,
+              replaceLength,
+              html: editor.root?.innerHTML,
+            });
             mentionAnchorIndexRef.current = null;
             return;
           }
 
           insertItem(mentionPayload, true);
+          logMentionDebug("inserted via insertItem fallback");
         },
         source: (searchTerm: string, renderList: any) => {
           const editor = quillRef.current?.getEditor();
@@ -174,7 +190,11 @@ const RichTextEditorClient = forwardRef<any, RichTextEditorProps>(
               selection.index - searchTerm.length - 1;
           }
 
-          console.log("Default mention source called");
+          logMentionDebug("default source called", {
+            searchTerm,
+            selectionIndex: selection?.index,
+            anchorIndex: mentionAnchorIndexRef.current,
+          });
           renderList([], searchTerm); // Default empty function
         },
       },
@@ -315,6 +335,11 @@ const RichTextEditorClient = forwardRef<any, RichTextEditorProps>(
     }, [readOnly, onChange]);
 
     const handleChange = (content: string) => {
+      const mentionMatchCount = (content.match(/class=\"mention\"/g) || []).length;
+      logMentionDebug("onChange", {
+        mentionMatchCount,
+        contentPreview: content.slice(0, 180),
+      });
       setValue(content);
       if (onChange) {
         onChange(content);

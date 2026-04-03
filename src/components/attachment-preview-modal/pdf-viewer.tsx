@@ -1,11 +1,10 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Document, Page } from "react-pdf";
 import { Spin } from "antd";
 import TokenStorage from "@utils/token-storage";
 import { buildFileProxyUrl, isFileProxyUrl, toDirectFileUrl } from "@utils/file-url";
-import "@utils/pdf-worker-setup";
+import { setupPDFWorker } from "@utils/pdf-worker-setup";
 
 interface PreviewPdfViewerProps {
   url: string;
@@ -18,10 +17,40 @@ interface FetchCandidate {
 }
 
 const PreviewPdfViewer: React.FC<PreviewPdfViewerProps> = ({ url, zoom = 1 }) => {
+  const [pdfModule, setPdfModule] = useState<{
+    Document: any;
+    Page: any;
+  } | null>(null);
   const [numPages, setNumPages] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [objectUrl, setObjectUrl] = useState<string>("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadPdfModule = async () => {
+      try {
+        const mod = await import("react-pdf");
+        setupPDFWorker(mod.pdfjs as any);
+        if (!cancelled) {
+          setPdfModule({ Document: mod.Document, Page: mod.Page });
+        }
+      } catch (moduleError) {
+        if (!cancelled) {
+          console.error("Failed to load react-pdf module:", moduleError);
+          setError(true);
+          setLoading(false);
+        }
+      }
+    };
+
+    void loadPdfModule();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const fetchCandidates = useMemo<FetchCandidate[]>(() => {
     const candidates: FetchCandidate[] = [];
@@ -139,8 +168,8 @@ const PreviewPdfViewer: React.FC<PreviewPdfViewerProps> = ({ url, zoom = 1 }) =>
         <div className="text-center text-white py-8">Failed to load PDF</div>
       )}
 
-      {!error && objectUrl && (
-        <Document
+      {!error && objectUrl && pdfModule && (
+        <pdfModule.Document
           key={objectUrl}
           file={objectUrl}
           onLoadSuccess={onDocumentLoadSuccess}
@@ -152,7 +181,7 @@ const PreviewPdfViewer: React.FC<PreviewPdfViewerProps> = ({ url, zoom = 1 }) =>
           {numPages && (
             <div className="flex flex-col items-center gap-4 overflow-y-auto max-h-[80vh] p-4">
               {Array.from({ length: numPages }, (_, index) => (
-                <Page
+                <pdfModule.Page
                   key={`page_${index + 1}`}
                   pageNumber={index + 1}
                   width={Math.round(600 * zoom)}
@@ -165,7 +194,7 @@ const PreviewPdfViewer: React.FC<PreviewPdfViewerProps> = ({ url, zoom = 1 }) =>
               ))}
             </div>
           )}
-        </Document>
+        </pdfModule.Document>
       )}
     </div>
   );

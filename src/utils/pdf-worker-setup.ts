@@ -3,11 +3,16 @@
  * Handles proper worker configuration for different environments
  */
 
-import { pdfjs } from "react-pdf";
-
 let workerInitialized = false;
 
-export function setupPDFWorker() {
+type PdfJsLike = {
+  version: string;
+  GlobalWorkerOptions: {
+    workerSrc: string;
+  };
+};
+
+export function setupPDFWorker(pdfjs: PdfJsLike) {
   if (workerInitialized) return;
 
   try {
@@ -27,6 +32,3 @@ export function setupPDFWorker() {
     workerInitialized = true;
   }
 }
-
-// Auto-setup when module is imported
-setupPDFWorker();
