@@ -6,6 +6,7 @@ import Sidebar from "@components/sidebar";
 import "./style.css";
 import { useWorkspaceSidebar } from "@providers/workspace-sidebar-context";
 import { usePathname } from "next/navigation";
+import ChatWidget from "@components/chat-widget";
 
 const { Header, Content } = Layout;
 
@@ -66,6 +67,7 @@ const WorkspaceLayout: React.FC<BaseLayoutProps> = ({ children }) => {
           </div>
         </Content>
       </Layout>
+      <ChatWidget />
     </Layout>
   );
 };
