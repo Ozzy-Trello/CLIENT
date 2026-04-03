@@ -261,6 +261,9 @@ const formatAttachmentSize = (size?: number) => {
   return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 };
 
+const isFileDragEvent = (event: DragEvent<HTMLElement>) =>
+  Array.from(event.dataTransfer?.types || []).includes("Files");
+
 const summarizeMessageContent = (value = "") => {
   const parsed = parseMessagePayload(value);
 
@@ -1031,8 +1034,11 @@ const ChatWidget = () => {
 
   const handleComposerDrop = (
     peerUserId: string,
-    event: DragEvent<HTMLDivElement>,
+    event: DragEvent<HTMLElement>,
   ) => {
+    if (!isFileDragEvent(event)) {
+      return;
+    }
     event.preventDefault();
     event.stopPropagation();
     setIsDragOverByPeerId((current) => ({ ...current, [peerUserId]: false }));
@@ -1327,7 +1333,34 @@ const ChatWidget = () => {
           const canSend = Boolean(draft.trim() || pendingFiles.length > 0);
 
           return (
-            <div key={window.peerUserId} className={styles.chatWindow}>
+            <div
+              key={window.peerUserId}
+              className={`${styles.chatWindow} ${
+                isDragOver ? styles.chatWindowDragOver : ""
+              }`}
+              onDragOver={(event) => {
+                if (!isFileDragEvent(event)) {
+                  return;
+                }
+                event.preventDefault();
+                event.dataTransfer.dropEffect = "copy";
+                setIsDragOverByPeerId((current) => ({
+                  ...current,
+                  [window.peerUserId]: true,
+                }));
+              }}
+              onDragLeave={(event) => {
+                if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                  setIsDragOverByPeerId((current) => ({
+                    ...current,
+                    [window.peerUserId]: false,
+                  }));
+                }
+              }}
+              onDrop={(event) =>
+                handleComposerDrop(window.peerUserId, event)
+              }
+            >
               <div className={styles.chatWindowHeader}>
                 <div className={styles.chatWindowPeer}>
                   <Avatar
@@ -1505,6 +1538,9 @@ const ChatWidget = () => {
                   isDragOver ? styles.chatWindowComposerDragOver : ""
                 }`}
                 onDragOver={(event) => {
+                  if (!isFileDragEvent(event)) {
+                    return;
+                  }
                   event.preventDefault();
                   event.dataTransfer.dropEffect = "copy";
                   setIsDragOverByPeerId((current) => ({

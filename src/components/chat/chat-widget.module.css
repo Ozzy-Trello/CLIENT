@@ -20,6 +20,13 @@
   box-shadow: 0 16px 36px rgba(15, 23, 42, 0.16);
 }
 
+.chatWindowDragOver {
+  border-color: rgba(37, 99, 235, 0.45);
+  box-shadow:
+    0 16px 36px rgba(15, 23, 42, 0.16),
+    inset 0 0 0 2px rgba(37, 99, 235, 0.2);
+}
+
 .chatWindowHeader {
   display: flex;
   align-items: center;
