@@ -11,6 +11,46 @@ import {
   SendChatMessagePayload,
 } from "@myTypes/chat";
 
+const normalizeUser = (raw: any): ChatUserSummary => ({
+  id: raw?.id || "",
+  username: raw?.username || raw?.name || raw?.email || raw?.id || "Unknown",
+  profilePicture: raw?.profilePicture ?? raw?.profile_picture ?? null,
+});
+
+const normalizeConversation = (raw: any): ChatConversationSummary => {
+  const peerUser = normalizeUser(raw?.peerUser ?? raw?.peer ?? raw?.user ?? {});
+  const rawLastMessage = raw?.lastMessage ?? raw?.last_message ?? null;
+  const lastMessage = rawLastMessage
+    ? {
+        ...rawLastMessage,
+        id: rawLastMessage?.id || "",
+        senderId: rawLastMessage?.senderId ?? rawLastMessage?.sender_id ?? "",
+        recipientId:
+          rawLastMessage?.recipientId ?? rawLastMessage?.recipient_id ?? "",
+        message: rawLastMessage?.message ?? rawLastMessage?.content ?? "",
+        isRead: Boolean(
+          rawLastMessage?.isRead ?? rawLastMessage?.is_read ?? false,
+        ),
+        createdAt:
+          rawLastMessage?.createdAt ??
+          rawLastMessage?.created_at ??
+          new Date().toISOString(),
+        updatedAt:
+          rawLastMessage?.updatedAt ??
+          rawLastMessage?.updated_at ??
+          rawLastMessage?.createdAt ??
+          rawLastMessage?.created_at ??
+          new Date().toISOString(),
+      }
+    : null;
+
+  return {
+    peerUser,
+    lastMessage,
+    unreadCount: Number(raw?.unreadCount ?? raw?.unread_count ?? 0),
+  };
+};
+
 const toMessageData = (payload: any): ChatMessagesData => {
   const data = payload?.data ?? payload ?? {};
   const peerUser = data?.peerUser ?? payload?.peer ?? {
@@ -48,7 +88,16 @@ export const getChatConversations = async (
     params: { page, limit },
   });
 
-  return response.data;
+  const list = Array.isArray(response.data?.data)
+    ? response.data.data
+    : Array.isArray(response.data)
+      ? response.data
+      : [];
+
+  return {
+    ...response.data,
+    data: list.map(normalizeConversation),
+  };
 };
 
 export const getChatMessages = async (

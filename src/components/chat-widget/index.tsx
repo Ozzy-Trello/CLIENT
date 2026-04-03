@@ -120,7 +120,9 @@ const sortConversations = (conversations: ChatConversationSummary[]) =>
       return rightTime - leftTime;
     }
 
-    return left.peerUser.username.localeCompare(right.peerUser.username);
+    const leftUsername = left.peerUser?.username || "";
+    const rightUsername = right.peerUser?.username || "";
+    return leftUsername.localeCompare(rightUsername);
   });
 
 const ensureConversation = (
@@ -306,11 +308,10 @@ const ChatWidget: React.FC = () => {
     0,
   );
 
-  const filteredConversations = conversationItems.filter((conversation) =>
-    conversation.peerUser.username
-      .toLowerCase()
-      .includes(searchQuery.trim().toLowerCase()),
-  );
+  const filteredConversations = conversationItems.filter((conversation) => {
+    const username = conversation.peerUser?.username || "";
+    return username.toLowerCase().includes(searchQuery.trim().toLowerCase());
+  });
 
   const selectConversation = async (peerUser: ChatUserSummary) => {
     setIsOpen(true);
