@@ -2979,6 +2979,44 @@ const ChatWidget = () => {
                     {pendingFiles.length > 1 ? "s" : ""}...
                   </Text>
                 ) : null}
+                {isGeneralRoom(window.peerUserId) && mentionSuggestions.length > 0 ? (
+                  <div className={styles.mentionDropdown}>
+                    {mentionSuggestions.map((candidate) => (
+                      <button
+                        key={candidate.id}
+                        type="button"
+                        className={styles.mentionOption}
+                        onClick={() => {
+                          const mentionHandle = getMentionHandle(candidate);
+                          if (!mentionHandle) {
+                            return;
+                          }
+                          setDraftByPeerId((current) => ({
+                            ...current,
+                            [window.peerUserId]: applyMentionSelection(
+                              current[window.peerUserId] || "",
+                              mentionHandle,
+                            ),
+                          }));
+                        }}
+                      >
+                        <span className={styles.mentionOptionName}>
+                          {candidate.name}
+                        </span>
+                        {getMentionHandle(candidate) ? (
+                          <span className={styles.mentionOptionMeta}>
+                            @{getMentionHandle(candidate)}
+                            {candidate.roleName ? ` · ${candidate.roleName}` : ""}
+                          </span>
+                        ) : candidate.roleName ? (
+                          <span className={styles.mentionOptionMeta}>
+                            {candidate.roleName}
+                          </span>
+                        ) : null}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
                 <div className={styles.composerRow}>
                   <input
                     ref={(element) => {
@@ -3041,44 +3079,6 @@ const ChatWidget = () => {
                     disabled={!canSend}
                   />
                 </div>
-                {isGeneralRoom(window.peerUserId) && mentionSuggestions.length > 0 ? (
-                  <div className={styles.mentionDropdown}>
-                    {mentionSuggestions.map((candidate) => (
-                      <button
-                        key={candidate.id}
-                        type="button"
-                        className={styles.mentionOption}
-                        onClick={() => {
-                          const mentionHandle = getMentionHandle(candidate);
-                          if (!mentionHandle) {
-                            return;
-                          }
-                          setDraftByPeerId((current) => ({
-                            ...current,
-                            [window.peerUserId]: applyMentionSelection(
-                              current[window.peerUserId] || "",
-                              mentionHandle,
-                            ),
-                          }));
-                        }}
-                      >
-                        <span className={styles.mentionOptionName}>
-                          {candidate.name}
-                        </span>
-                        {getMentionHandle(candidate) ? (
-                          <span className={styles.mentionOptionMeta}>
-                            @{getMentionHandle(candidate)}
-                            {candidate.roleName ? ` · ${candidate.roleName}` : ""}
-                          </span>
-                        ) : candidate.roleName ? (
-                          <span className={styles.mentionOptionMeta}>
-                            {candidate.roleName}
-                          </span>
-                        ) : null}
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
               </div>
             </div>
           );
