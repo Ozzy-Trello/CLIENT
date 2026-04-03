@@ -1,0 +1,27 @@
+module.exports = {
+  preset: "ts-jest",
+  testEnvironment: "jsdom",
+  roots: ["<rootDir>/src"],
+  testMatch: ["**/*.test.ts", "**/*.test.tsx"],
+  moduleFileExtensions: ["ts", "tsx", "js", "jsx", "json"],
+  transform: {
+    "^.+\\.(ts|tsx)$": ["ts-jest", { tsconfig: "tsconfig.jest.json" }],
+  },
+  moduleNameMapper: {
+    "^@api/(.*)$": "<rootDir>/src/api/$1",
+    "^@app/(.*)$": "<rootDir>/src/app/$1",
+    "^@assets/(.*)$": "<rootDir>/src/assets/$1",
+    "^@components/(.*)$": "<rootDir>/src/components/$1",
+    "^@constants/(.*)$": "<rootDir>/src/constants/$1",
+    "^@dto/(.*)$": "<rootDir>/src/dto/$1",
+    "^@hooks/(.*)$": "<rootDir>/src/hooks/$1",
+    "^@providers/(.*)$": "<rootDir>/src/providers/$1",
+    "^@store/(.*)$": "<rootDir>/src/store/$1",
+    "^@myTypes/(.*)$": "<rootDir>/src/types/$1",
+    "^@utils/(.*)$": "<rootDir>/src/utils/$1",
+    "\\.(css|less|scss|sass)$": "<rootDir>/jest.styleMock.js",
+    "\\.(gif|ttf|eot|svg|png|jpg|jpeg|webp)$": "<rootDir>/jest.fileMock.js",
+  },
+  testPathIgnorePatterns: ["<rootDir>/.next/", "<rootDir>/.worktrees/"],
+  modulePathIgnorePatterns: ["<rootDir>/.worktrees/"],
+};
