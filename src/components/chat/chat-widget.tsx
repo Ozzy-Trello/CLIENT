@@ -539,6 +539,64 @@ const extractPresenceUpdates = (value: any): PresenceUpdate[] => {
 
 const URL_TOKEN_REGEX = /(https?:\/\/[^\s<>"']+)/g;
 const URL_STRICT_REGEX = /^https?:\/\/[^\s<>"']+$/i;
+const MENTION_QUERY_REGEX = /(?:^|\s)@([a-zA-Z0-9._-]{0,64})$/;
+const MENTION_TOKEN_REGEX = /(^|\s)(@[a-zA-Z0-9._-]+)/g;
+
+const extractMentionQuery = (value: string): string | null => {
+  const match = value.match(MENTION_QUERY_REGEX);
+  return match ? match[1] || "" : null;
+};
+
+const applyMentionSelection = (value: string, username: string) =>
+  value.replace(MENTION_QUERY_REGEX, (fullMatch, mentionPart) => {
+    const hasLeadingSpace = fullMatch.startsWith(" ");
+    const prefix = hasLeadingSpace ? " " : "";
+    const existing = typeof mentionPart === "string" ? mentionPart : "";
+    const suffix =
+      fullMatch.endsWith(" ") && existing === "" ? "" : " ";
+    return `${prefix}@${username}${suffix}`;
+  });
+
+const renderTextWithMentions = (value: string, keyPrefix: string) => {
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let matchIndex = 0;
+  let match: RegExpExecArray | null = null;
+  MENTION_TOKEN_REGEX.lastIndex = 0;
+
+  while ((match = MENTION_TOKEN_REGEX.exec(value)) !== null) {
+    const start = match.index;
+    const fullMatch = match[0];
+    const leading = match[1] || "";
+    const mentionToken = match[2] || "";
+
+    if (start > lastIndex) {
+      parts.push(
+        <span key={`${keyPrefix}-txt-${matchIndex}`}>
+          {value.slice(lastIndex, start)}
+        </span>,
+      );
+    }
+
+    parts.push(
+      <span key={`${keyPrefix}-lead-${matchIndex}`}>{leading}</span>,
+      <span key={`${keyPrefix}-mention-${matchIndex}`} className={styles.mentionToken}>
+        {mentionToken}
+      </span>,
+    );
+
+    lastIndex = start + fullMatch.length;
+    matchIndex += 1;
+  }
+
+  if (lastIndex < value.length) {
+    parts.push(
+      <span key={`${keyPrefix}-tail`}>{value.slice(lastIndex)}</span>,
+    );
+  }
+
+  return parts.length > 0 ? parts : value;
+};
 
 const renderMessageContent = (value = "") => {
   const lines = value.split("\n");
@@ -557,7 +615,9 @@ const renderMessageContent = (value = "") => {
             {token}
           </a>
         ) : (
-          <span key={`token-${lineIndex}-${tokenIndex}`}>{token}</span>
+          <span key={`token-${lineIndex}-${tokenIndex}`}>
+            {renderTextWithMentions(token, `token-${lineIndex}-${tokenIndex}`)}
+          </span>
         ),
       )}
       {lineIndex < lines.length - 1 ? <br /> : null}
@@ -1219,6 +1279,28 @@ const ChatWidget = () => {
       );
     });
   }, [people, searchTerm]);
+
+  const generalMentionUsers = useMemo(() => {
+    const map = new Map<string, ChatUser>();
+
+    for (const entry of people) {
+      if (
+        !entry.peerUserId ||
+        entry.peerUserId === GENERAL_ROOM_ID ||
+        entry.peerUserId === currentUserId
+      ) {
+        continue;
+      }
+
+      if (!map.has(entry.peerUserId)) {
+        map.set(entry.peerUserId, entry.peerUser);
+      }
+    }
+
+    return Array.from(map.values()).sort((left, right) =>
+      (left.name || "").localeCompare(right.name || ""),
+    );
+  }, [currentUserId, people]);
 
   const visibleWindows = useMemo(
     () =>
@@ -2425,6 +2507,26 @@ const ChatWidget = () => {
           const isDragOver = Boolean(isDragOverByPeerId[window.peerUserId]);
           const canSend = Boolean(draft.trim() || pendingFiles.length > 0);
           const peerTyping = Boolean(typingByUserId[window.peerUserId]);
+          const mentionQuery = isGeneralRoom(window.peerUserId)
+            ? extractMentionQuery(draft)
+            : null;
+          const mentionSuggestions =
+            isGeneralRoom(window.peerUserId) && mentionQuery !== null
+              ? generalMentionUsers
+                  .filter((user) => {
+                    const username = user.username || "";
+                    const name = user.name || "";
+                    const query = mentionQuery.toLowerCase().trim();
+                    if (!query) {
+                      return true;
+                    }
+                    return (
+                      username.toLowerCase().includes(query) ||
+                      name.toLowerCase().includes(query)
+                    );
+                  })
+                  .slice(0, 6)
+              : [];
 
           return (
             <div
@@ -2817,7 +2919,30 @@ const ChatWidget = () => {
                         [window.peerUserId]: event.target.value,
                       }))
                     }
-                    onPressEnter={() => void handleSend(window.peerUserId)}
+                    onPressEnter={(event) => {
+                      if (
+                        isGeneralRoom(window.peerUserId) &&
+                        mentionSuggestions.length > 0
+                      ) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        const selected = mentionSuggestions[0];
+                        const username = selected.username || selected.name;
+                        if (!username) {
+                          return;
+                        }
+                        setDraftByPeerId((current) => ({
+                          ...current,
+                          [window.peerUserId]: applyMentionSelection(
+                            current[window.peerUserId] || "",
+                            username,
+                          ),
+                        }));
+                        return;
+                      }
+
+                      void handleSend(window.peerUserId);
+                    }}
                     className={styles.composerInput}
                     disabled={sendingThisPeer}
                   />
@@ -2830,6 +2955,44 @@ const ChatWidget = () => {
                     disabled={!canSend}
                   />
                 </div>
+                {isGeneralRoom(window.peerUserId) && mentionSuggestions.length > 0 ? (
+                  <div className={styles.mentionDropdown}>
+                    {mentionSuggestions.map((candidate) => (
+                      <button
+                        key={candidate.id}
+                        type="button"
+                        className={styles.mentionOption}
+                        onClick={() => {
+                          const username = candidate.username || candidate.name;
+                          if (!username) {
+                            return;
+                          }
+                          setDraftByPeerId((current) => ({
+                            ...current,
+                            [window.peerUserId]: applyMentionSelection(
+                              current[window.peerUserId] || "",
+                              username,
+                            ),
+                          }));
+                        }}
+                      >
+                        <span className={styles.mentionOptionName}>
+                          {candidate.name}
+                        </span>
+                        {candidate.username ? (
+                          <span className={styles.mentionOptionMeta}>
+                            @{candidate.username}
+                            {candidate.roleName ? ` · ${candidate.roleName}` : ""}
+                          </span>
+                        ) : candidate.roleName ? (
+                          <span className={styles.mentionOptionMeta}>
+                            {candidate.roleName}
+                          </span>
+                        ) : null}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
               </div>
             </div>
           );
