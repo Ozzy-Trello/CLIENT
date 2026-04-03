@@ -18,35 +18,10 @@ import Mention from "quill-mention";
 import { useAccountList } from "../../hooks/account";
 import { Account } from "../../dto/account";
 
-const Embed = Quill.import("blots/embed");
-
-class MentionBlot extends Embed {
-  static create(data: any) {
-    const node = super.create();
-    node.setAttribute("data-id", data.id);
-    node.setAttribute("data-value", data.value);
-    node.innerText = `@${data.value}`;
-    return node;
-  }
-
-  static value(node: any) {
-    return {
-      id: node.getAttribute("data-id"),
-      value: node.getAttribute("data-value"),
-    };
-  }
-}
-
-MentionBlot.blotName = "mention";
-MentionBlot.tagName = "span";
-MentionBlot.className = "mention";
-
 // Register Quill modules once at module level
 if (typeof window !== "undefined") {
   try {
     Quill.register("modules/mention", Mention, true);
-    Quill.register(MentionBlot);
-  
   } catch (error) {
     console.warn("Quill mention module registration error:", error);
   }
@@ -140,9 +115,16 @@ const RichTextEditorClient = forwardRef<any, RichTextEditorProps>(
         matchVisual: false,
       },
       mention: {
-        allowedChars: /^[A-Za-z\sÅÄÖåäö]*$/,
+        allowedChars: /^[A-Za-z0-9_.\-\sÅÄÖåäö]*$/,
         mentionDenotationChars: ["@"],
         blotName: "mention",
+        onSelect: (item: any, insertItem: (data: any) => void) => {
+          insertItem({
+            id: item?.id || "",
+            value: item?.value || "",
+            denotationChar: item?.denotationChar || "@",
+          });
+        },
         source: (searchTerm: string, renderList: any) => {
           console.log("Default mention source called");
           renderList([], searchTerm); // Default empty function
