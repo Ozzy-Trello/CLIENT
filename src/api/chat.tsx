@@ -11,6 +11,25 @@ import {
   SendChatMessagePayload,
 } from "@myTypes/chat";
 
+const toMessageData = (payload: any): ChatMessagesData => {
+  const data = payload?.data ?? payload ?? {};
+  const peerUser = data?.peerUser ?? payload?.peer ?? {
+    id: "",
+    username: "",
+    profilePicture: null,
+  };
+  const list = Array.isArray(data?.data)
+    ? data.data
+    : Array.isArray(data?.messages)
+      ? data.messages
+      : [];
+
+  return {
+    peerUser,
+    data: list,
+  };
+};
+
 export const getChatUsers = async (
   query?: string,
 ): Promise<ChatResponse<ChatUserSummary[]>> => {
@@ -41,7 +60,11 @@ export const getChatMessages = async (
     params: { page, limit },
   });
 
-  return response.data;
+  const normalized = toMessageData(response.data);
+  return {
+    ...response.data,
+    data: normalized,
+  };
 };
 
 export const sendChatMessage = async (
