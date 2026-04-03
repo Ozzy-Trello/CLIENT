@@ -50,7 +50,7 @@ type ReplyTarget = {
 };
 
 const getUserInitials = (username: string) =>
-  username
+  (username || "")
     .trim()
     .split(/\s+/)
     .slice(0, 2)
@@ -129,7 +129,11 @@ const ensureConversation = (
   conversations: ChatConversationSummary[],
   peerUser: ChatUserSummary,
 ): ChatConversationSummary[] => {
-  if (conversations.some((conversation) => conversation.peerUser.id === peerUser.id)) {
+  if (
+    conversations.some(
+      (conversation) => conversation.peerUser?.id === peerUser?.id,
+    )
+  ) {
     return conversations;
   }
 
@@ -153,10 +157,10 @@ const updateConversationState = (
   } = {},
 ) => {
   const nextConversations = conversations.filter(
-    (conversation) => conversation.peerUser.id !== peerUser.id,
+    (conversation) => conversation.peerUser?.id !== peerUser?.id,
   );
   const existingConversation = conversations.find(
-    (conversation) => conversation.peerUser.id === peerUser.id,
+    (conversation) => conversation.peerUser?.id === peerUser?.id,
   );
 
   let unreadCount = existingConversation?.unreadCount || 0;
@@ -249,7 +253,10 @@ const ChatWidget: React.FC = () => {
       return;
     }
 
-    setSelectedPeer(conversationItems[0].peerUser);
+    const firstPeer = conversationItems.find((conversation) => conversation.peerUser?.id)?.peerUser;
+    if (firstPeer?.id) {
+      setSelectedPeer(firstPeer);
+    }
   }, [activeView, conversationItems, isOpen, selectedPeer]);
 
   useEffect(() => {
@@ -304,7 +311,7 @@ const ChatWidget: React.FC = () => {
   }, [isOpen, selectedPeer, messageItems]);
 
   const unreadTotal = conversationItems.reduce(
-    (total, conversation) => total + conversation.unreadCount,
+    (total, conversation) => total + (conversation.unreadCount || 0),
     0,
   );
 
@@ -327,7 +334,7 @@ const ChatWidget: React.FC = () => {
     }
 
     const unreadConversation = conversationItems.find(
-      (conversation) => conversation.peerUser.id === peerUser.id,
+      (conversation) => conversation.peerUser?.id === peerUser.id,
     );
 
     if (!unreadConversation?.unreadCount) {
@@ -336,7 +343,7 @@ const ChatWidget: React.FC = () => {
 
     setConversationItems((currentConversations) =>
       currentConversations.map((conversation) =>
-        conversation.peerUser.id === peerUser.id
+        conversation.peerUser?.id === peerUser.id
           ? {
               ...conversation,
               unreadCount: 0,
@@ -612,7 +619,7 @@ const ChatWidget: React.FC = () => {
         <section className={styles.panel}>
           <div className={styles.header}>
             <div className={styles.headerTitle}>
-              <Title level={5} style={{ color: "#fff", margin: 0 }}>
+              <Title level={5} style={{ color: "#0f172a", margin: 0 }}>
                 Direct messages
               </Title>
               <span className={styles.headerBadge}>
@@ -678,13 +685,21 @@ const ChatWidget: React.FC = () => {
                     </div>
                   ) : filteredConversations.length > 0 ? (
                     filteredConversations.map((conversation) => (
+                      (() => {
+                        const peerId = conversation.peerUser?.id || "";
+                        const peerUsername = conversation.peerUser?.username || "Unknown";
+                        const peerAvatar = conversation.peerUser?.profilePicture || undefined;
+                        if (!peerId) {
+                          return null;
+                        }
+                        return (
                       <button
                         className={`${styles.sidebarItem} ${
-                          selectedPeer?.id === conversation.peerUser.id
+                          selectedPeer?.id === peerId
                             ? styles.sidebarItemActive
                             : ""
                         }`}
-                        key={conversation.peerUser.id}
+                        key={peerId}
                         onClick={() => void selectConversation(conversation.peerUser)}
                         type="button"
                       >
@@ -692,14 +707,14 @@ const ChatWidget: React.FC = () => {
                           <Badge count={conversation.unreadCount} size="small">
                             <Avatar
                               size={34}
-                              src={conversation.peerUser.profilePicture || undefined}
+                              src={peerAvatar}
                             >
-                              {getUserInitials(conversation.peerUser.username)}
+                              {getUserInitials(peerUsername)}
                             </Avatar>
                           </Badge>
                           <div className={styles.sidebarMeta}>
                             <span className={styles.sidebarUsername}>
-                              {conversation.peerUser.username}
+                              {peerUsername}
                             </span>
                             <span className={styles.sidebarPreview}>
                               {conversation.lastMessage?.message || "No messages yet"}
@@ -707,6 +722,8 @@ const ChatWidget: React.FC = () => {
                           </div>
                         </div>
                       </button>
+                        );
+                      })()
                     ))
                   ) : (
                     <div className={styles.emptyState}>
@@ -732,11 +749,11 @@ const ChatWidget: React.FC = () => {
                     >
                       <div className={styles.sidebarItemRow}>
                         <Avatar size={34} src={user.profilePicture || undefined}>
-                          {getUserInitials(user.username)}
+                          {getUserInitials(user.username || "")}
                         </Avatar>
                         <div className={styles.sidebarMeta}>
                           <span className={styles.sidebarUsername}>
-                            {user.username}
+                            {user.username || "Unknown"}
                           </span>
                           <span className={styles.sidebarPreview}>
                             Start a conversation
@@ -761,19 +778,19 @@ const ChatWidget: React.FC = () => {
                 <>
                   <div className={styles.threadHeader}>
                     <Avatar size={40} src={selectedPeer.profilePicture || undefined}>
-                      {getUserInitials(selectedPeer.username)}
+                      {getUserInitials(selectedPeer.username || "")}
                     </Avatar>
                     <div style={{ minWidth: 0 }}>
                       <Text
                         strong
                         style={{
-                          color: "#fff",
+                          color: "#0f172a",
                           display: "block",
                         }}
                       >
-                        {selectedPeer.username}
+                        {selectedPeer.username || "Unknown"}
                       </Text>
-                      <Text style={{ color: "rgba(255,255,255,0.55)" }}>
+                      <Text style={{ color: "rgba(51, 65, 85, 0.64)" }}>
                         One-on-one conversation
                       </Text>
                     </div>
@@ -862,7 +879,7 @@ const ChatWidget: React.FC = () => {
                               void handleSendMessage();
                             }
                           }}
-                          placeholder={`Message ${selectedPeer.username}`}
+                          placeholder={`Message ${selectedPeer.username || "user"}`}
                           value={draftMessage}
                         />
                       </div>

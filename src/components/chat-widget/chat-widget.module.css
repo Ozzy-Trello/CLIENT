@@ -27,12 +27,11 @@
   z-index: 1300;
   width: min(380px, calc(100vw - 24px));
   height: min(620px, calc(100vh - 110px));
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(148, 163, 184, 0.22);
   border-radius: 22px;
   overflow: hidden;
-  background:
-    linear-gradient(180deg, rgba(19, 25, 33, 0.96), rgba(27, 34, 44, 0.98));
-  box-shadow: 0 28px 64px rgba(0, 0, 0, 0.34);
+  background: #ffffff;
+  box-shadow: 0 20px 42px rgba(15, 23, 42, 0.16);
   backdrop-filter: blur(18px);
   display: flex;
   flex-direction: column;
@@ -43,8 +42,8 @@
   align-items: center;
   justify-content: space-between;
   padding: 14px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+  background: #f8fbff;
 }
 
 .headerTitle {
@@ -54,7 +53,7 @@
 }
 
 .headerBadge {
-  color: rgba(255, 255, 255, 0.62);
+  color: rgba(51, 65, 85, 0.72);
   font-size: 12px;
 }
 
@@ -70,8 +69,8 @@
   min-width: 146px;
   display: flex;
   flex-direction: column;
-  border-right: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.03);
+  border-right: 1px solid rgba(148, 163, 184, 0.16);
+  background: #f8fafc;
 }
 
 .sidebarControls {
@@ -95,19 +94,19 @@
   padding: 10px;
   margin-bottom: 8px;
   background: transparent;
-  color: rgba(255, 255, 255, 0.88);
+  color: #0f172a;
   text-align: left;
   transition: background 0.2s ease, transform 0.2s ease;
 }
 
 .sidebarItem:hover {
-  background: rgba(255, 255, 255, 0.07);
+  background: rgba(37, 99, 235, 0.08);
   transform: translateY(-1px);
 }
 
 .sidebarItemActive {
-  background: rgba(22, 119, 255, 0.16);
-  box-shadow: inset 0 0 0 1px rgba(22, 119, 255, 0.25);
+  background: rgba(37, 99, 235, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.2);
 }
 
 .sidebarItemRow {
@@ -123,7 +122,7 @@
 
 .sidebarUsername {
   display: block;
-  color: #fff;
+  color: #0f172a;
   font-size: 12px;
   font-weight: 600;
   white-space: nowrap;
@@ -133,7 +132,7 @@
 
 .sidebarPreview {
   display: block;
-  color: rgba(255, 255, 255, 0.56);
+  color: rgba(51, 65, 85, 0.66);
   font-size: 11px;
   white-space: nowrap;
   overflow: hidden;
@@ -149,7 +148,7 @@
 
 .threadHeader {
   padding: 14px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.16);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -177,13 +176,13 @@
   max-width: 82%;
   padding: 10px 12px;
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.9);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+  background: #e2e8f0;
+  color: #0f172a;
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.16);
 }
 
 .messageBubbleOutgoing {
-  background: linear-gradient(135deg, rgba(22, 119, 255, 0.95), rgba(9, 85, 214, 0.95));
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
   color: #fff;
 }
 
@@ -212,19 +211,19 @@
 .replyInlineButton {
   border: none;
   background: transparent;
-  color: rgba(255, 255, 255, 0.72);
+  color: rgba(51, 65, 85, 0.72);
   font-size: 11px;
   cursor: pointer;
   padding: 0;
 }
 
 .replyInlineButton:hover {
-  color: #fff;
+  color: #0f172a;
 }
 
 .composer {
   padding: 12px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid rgba(148, 163, 184, 0.16);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -238,35 +237,35 @@
 }
 
 .composerInput :global(.ant-input) {
-  background: rgba(255, 255, 255, 0.05);
-  color: #fff;
+  background: #ffffff;
+  color: #0f172a;
 }
 
 .composerInput :global(.ant-input::placeholder) {
-  color: rgba(255, 255, 255, 0.42);
+  color: rgba(51, 65, 85, 0.5);
 }
 
 .replyPreview {
   width: 100%;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(148, 163, 184, 0.24);
   border-radius: 10px;
   padding: 6px 8px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  background: rgba(255, 255, 255, 0.06);
+  background: #eef5ff;
 }
 
 .replyPreviewText {
-  color: rgba(255, 255, 255, 0.85);
+  color: rgba(51, 65, 85, 0.9);
   font-size: 11px;
 }
 
 .replyPreviewClose {
   border: none;
   background: transparent;
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(51, 65, 85, 0.7);
   cursor: pointer;
   padding: 0;
   line-height: 1;
@@ -287,6 +286,11 @@
   border-radius: 999px;
   background: #34d399;
   box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.14);
+}
+
+.header :global(.ant-btn),
+.threadHeader :global(.ant-typography) {
+  color: #0f172a !important;
 }
 
 @media (max-width: 768px) {
