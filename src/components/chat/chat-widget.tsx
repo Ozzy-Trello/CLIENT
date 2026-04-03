@@ -89,16 +89,20 @@ const toReplySnippet = (value: string) =>
   value.replace(/\s+/g, " ").trim().slice(0, 80);
 
 const parseReplyContent = (value: string): ParsedReply | null => {
-  if (!value.startsWith("Reply to ")) {
+  const normalized = value.startsWith("↪ ")
+    ? `Reply to ${value.slice(2).trimStart()}`
+    : value;
+
+  if (!normalized.startsWith("Reply to ")) {
     return null;
   }
 
-  const lineBreakIndex = value.indexOf("\n");
+  const lineBreakIndex = normalized.indexOf("\n");
   if (lineBreakIndex === -1) {
     return null;
   }
 
-  const header = value.slice("Reply to ".length, lineBreakIndex);
+  const header = normalized.slice("Reply to ".length, lineBreakIndex);
   const separatorIndex = header.indexOf(": ");
   if (separatorIndex === -1) {
     return null;
@@ -106,7 +110,7 @@ const parseReplyContent = (value: string): ParsedReply | null => {
 
   const author = header.slice(0, separatorIndex).trim();
   const quotedText = header.slice(separatorIndex + 2).trim();
-  const body = value.slice(lineBreakIndex + 1).trim();
+  const body = normalized.slice(lineBreakIndex + 1).trim();
 
   if (!author || !quotedText || !body) {
     return null;
