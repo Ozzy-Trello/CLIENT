@@ -403,12 +403,31 @@ const ChatWidget: React.FC = () => {
         eventData?.id || eventData?.senderId || eventData?.sender_id
           ? eventData
           : eventData?.message;
-      const peerUser =
-        eventData?.peerUser ||
-        eventData?.peer_user ||
+      const senderUser =
+        eventData?.sender ||
         eventData?.senderUser ||
         eventData?.sender_user ||
         null;
+      const recipientUser =
+        eventData?.recipient ||
+        eventData?.recipientUser ||
+        eventData?.recipient_user ||
+        null;
+      const peerUser = (() => {
+        if (eventData?.peerUser || eventData?.peer_user) {
+          return eventData?.peerUser || eventData?.peer_user;
+        }
+
+        if (incomingMessage?.senderId === currentUser.id) {
+          return recipientUser;
+        }
+
+        if (incomingMessage?.recipientId === currentUser.id) {
+          return senderUser;
+        }
+
+        return senderUser || recipientUser || null;
+      })();
 
       if (!incomingMessage || !peerUser?.id) {
         return;
