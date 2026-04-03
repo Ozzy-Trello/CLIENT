@@ -600,39 +600,6 @@ const getIncomingMessageKey = (peerUserId: string, message: ChatMessage) => {
   return `${peerUserId}:${stableId}`;
 };
 
-const mentionEventTargetsCurrentUser = (
-  eventData: any,
-  currentUser?: { id?: string; username?: string; name?: string } | null,
-) => {
-  const mentionedUserId =
-    eventData?.mentionedUserId ||
-    eventData?.mentioned_user_id ||
-    eventData?.userId ||
-    eventData?.user_id;
-  if (currentUser?.id && mentionedUserId && mentionedUserId === currentUser.id) {
-    return true;
-  }
-
-  const aliases = getCurrentMentionAliases(currentUser);
-  if (aliases.size === 0) {
-    return !mentionedUserId;
-  }
-
-  const mentionedUsername = normalizeMentionHandle(
-    eventData?.mentionedUsername ||
-      eventData?.mentioned_username ||
-      eventData?.username ||
-      eventData?.name ||
-      "",
-  ).toLowerCase();
-
-  if (mentionedUsername) {
-    return aliases.has(mentionedUsername);
-  }
-
-  return !mentionedUserId;
-};
-
 const extractMentionQuery = (value: string): string | null => {
   const match = value.match(MENTION_QUERY_REGEX);
   return match ? match[1] || "" : null;
@@ -2377,10 +2344,7 @@ const ChatWidget = () => {
             rawEventData?.room_id ||
             GENERAL_ROOM_ID;
 
-          if (
-            roomId === GENERAL_ROOM_ID &&
-            mentionEventTargetsCurrentUser(rawEventData, currentUser)
-          ) {
+          if (roomId === GENERAL_ROOM_ID) {
             const existingWindow = chatWindowsRef.current.find(
               (window) => window.peerUserId === GENERAL_ROOM_ID,
             );
