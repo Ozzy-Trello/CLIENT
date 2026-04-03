@@ -76,7 +76,6 @@ export function useWebSocket() {
   const connectionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null
   );
-  const socketCleanupRef = useRef<(() => void) | null>(null);
 
   const [socket, setSocket] = useState<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
@@ -84,6 +83,9 @@ export function useWebSocket() {
   const [lastError, setLastError] = useState<string | null>(null);
 
   useEffect(() => {
+    shouldReconnectRef.current = true;
+    let isEffectActive = true;
+
     const baseUrl = process.env.NEXT_PUBLIC_BE_BASE_URL;
 
     if (!baseUrl) {
@@ -145,6 +147,11 @@ export function useWebSocket() {
       }, 10000);
 
       ws.onopen = () => {
+        if (!isEffectActive) {
+          ws.close();
+          return;
+        }
+
         console.log("[WS] Connected");
         clearConnectionTimeout();
         reconnectCountRef.current = 0;
@@ -158,48 +165,54 @@ export function useWebSocket() {
       };
 
       ws.onclose = (event) => {
+        if (!isEffectActive) {
+          return;
+        }
+
         console.warn("[WS] Closed", {
           code: event.code,
           reason: event.reason,
         });
         clearConnectionTimeout();
         setIsConnected(false);
+        const isCurrentSocket = socketRef.current === ws;
         if (socketRef.current === ws) {
           socketRef.current = null;
           setSocket(null);
         }
 
-        if (shouldReconnectRef.current && socketRef.current === ws) {
+        if (shouldReconnectRef.current && isCurrentSocket) {
           reconnectCountRef.current += 1;
           scheduleReconnect();
         }
       };
 
       ws.onerror = (event) => {
+        if (!isEffectActive) {
+          return;
+        }
+
         console.error("[WS] Error", event);
         setIsConnected(false);
         setLastError("WebSocket error");
-      };
-
-      socketCleanupRef.current = () => {
-        ws.onopen = null;
-        ws.onclose = null;
-        ws.onerror = null;
       };
     };
 
     connect();
 
     return () => {
+      isEffectActive = false;
       shouldReconnectRef.current = false;
       clearReconnectTimer();
       clearConnectionTimeout();
-      socketCleanupRef.current?.();
       const ws = socketRef.current;
       socketRef.current = null;
       setSocket(null);
-      if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+
+      if (ws?.readyState === WebSocket.OPEN) {
         ws.close();
+      } else if (ws?.readyState === WebSocket.CONNECTING) {
+        ws.onopen = () => ws.close();
       }
     };
   }, []);
