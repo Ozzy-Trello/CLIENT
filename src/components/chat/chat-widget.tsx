@@ -12,7 +12,6 @@ import {
   Image,
   Input,
   List,
-  Modal,
   Spin,
   Typography,
   message,
@@ -48,6 +47,14 @@ import type {
   ChatReplyPayload,
   ChatUser,
 } from "@myTypes/chat";
+import AttachmentPreviewModal from "@components/attachment-preview-modal";
+import {
+  CardAttachment,
+  EnumAttachmentType,
+  EnumCardAttachmentType,
+} from "@myTypes/card";
+import { isImageFile, isPDFFile, isVideoFile } from "@utils/file";
+import { buildFileProxyUrl } from "@utils/file-url";
 
 const { Text } = Typography;
 
@@ -263,6 +270,35 @@ const formatAttachmentSize = (size?: number) => {
 
 const isFileDragEvent = (event: DragEvent<HTMLElement>) =>
   Array.from(event.dataTransfer?.types || []).includes("Files");
+
+const isPreviewableAttachment = (attachment: ChatAttachmentMetadata) =>
+  isImageFile(attachment.name || "", attachment.mimeType) ||
+  isPDFFile(attachment.name || "", attachment.mimeType) ||
+  isVideoFile(attachment.name || "", attachment.mimeType);
+
+const toPreviewAttachment = (
+  attachment: ChatAttachmentMetadata,
+  messageId: string,
+  index: number,
+  currentUserId?: string,
+): CardAttachment => ({
+  id: `chat-attachment-${messageId}-${index}`,
+  isCover: false,
+  cardId: `chat-${messageId}`,
+  attachableType: EnumAttachmentType.File,
+  attachableId: `chat-file-${messageId}-${index}`,
+  type: EnumCardAttachmentType.Attachment,
+  file: {
+    id: `chat-file-${messageId}-${index}`,
+    name: attachment.name || `Attachment ${index + 1}`,
+    url: attachment.url,
+    size: attachment.size ?? 0,
+    sizeUnit: "B",
+    mimeType: attachment.mimeType || "",
+    createdBy: currentUserId || "",
+    createdAt: new Date().toISOString(),
+  },
+});
 
 const summarizeMessageContent = (value = "") => {
   const parsed = parseMessagePayload(value);
@@ -565,9 +601,11 @@ const ChatWidget = () => {
   const [loadingByPeerId, setLoadingByPeerId] = useState<
     Record<string, boolean>
   >({});
-  const [previewImage, setPreviewImage] = useState<ChatAttachmentMetadata | null>(
-    null,
+  const [previewModalOpen, setPreviewModalOpen] = useState(false);
+  const [previewAttachments, setPreviewAttachments] = useState<CardAttachment[]>(
+    [],
   );
+  const [previewInitialIndex, setPreviewInitialIndex] = useState(0);
 
   const loadingPeersRef = useRef(new Set<string>());
   const markReadInFlightRef = useRef(new Set<string>());
@@ -1045,6 +1083,26 @@ const ChatWidget = () => {
     queueFilesForPeer(peerUserId, Array.from(event.dataTransfer.files || []));
   };
 
+  const openAttachmentPreview = (
+    chatMessage: ChatMessage,
+    attachments: ChatAttachmentMetadata[],
+    clickedIndex: number,
+  ) => {
+    const previewData = attachments.map((attachment, index) =>
+      toPreviewAttachment(attachment, chatMessage.id, index, currentUserId),
+    );
+
+    if (previewData.length === 0) {
+      return;
+    }
+
+    const safeIndex =
+      clickedIndex >= 0 && clickedIndex < previewData.length ? clickedIndex : 0;
+    setPreviewAttachments(previewData);
+    setPreviewInitialIndex(safeIndex);
+    setPreviewModalOpen(true);
+  };
+
   const handleSend = async (peerUserId: string) => {
     const replyTarget = replyByPeerId[peerUserId];
     const content = (draftByPeerId[peerUserId] || "").trim();
@@ -1460,7 +1518,15 @@ const ChatWidget = () => {
                                       key={`${chatMessage.id}-${attachment.url}`}
                                       type="button"
                                       className={styles.imageAttachmentButton}
-                                      onClick={() => setPreviewImage(attachment)}
+                                      onClick={() =>
+                                        openAttachmentPreview(
+                                          chatMessage,
+                                          attachments,
+                                          attachments.findIndex(
+                                            (item) => item.url === attachment.url,
+                                          ),
+                                        )
+                                      }
                                     >
                                       <Image
                                         src={attachment.url}
@@ -1471,6 +1537,31 @@ const ChatWidget = () => {
                                       <span className={styles.imageAttachmentName}>
                                         {attachment.name}
                                       </span>
+                                    </button>
+                                  ) : isPreviewableAttachment(attachment) ? (
+                                    <button
+                                      key={`${chatMessage.id}-${attachment.url}`}
+                                      type="button"
+                                      className={styles.fileAttachment}
+                                      onClick={() =>
+                                        openAttachmentPreview(
+                                          chatMessage,
+                                          attachments,
+                                          attachments.findIndex(
+                                            (item) => item.url === attachment.url,
+                                          ),
+                                        )
+                                      }
+                                    >
+                                      <LinkOutlined />
+                                      <span className={styles.fileAttachmentName}>
+                                        {attachment.name}
+                                      </span>
+                                      {attachment.size ? (
+                                        <span className={styles.fileAttachmentMeta}>
+                                          {formatAttachmentSize(attachment.size)}
+                                        </span>
+                                      ) : null}
                                     </button>
                                   ) : (
                                     <a
@@ -1823,33 +1914,23 @@ const ChatWidget = () => {
         </Badge>
       </div>
 
-      <Modal
-        open={Boolean(previewImage)}
-        footer={null}
-        onCancel={() => setPreviewImage(null)}
-        centered
-        width={880}
-        className={styles.imagePreviewModal}
-      >
-        {previewImage ? (
-          <div className={styles.imagePreviewContent}>
-            <Image
-              src={previewImage.url}
-              alt={previewImage.name}
-              preview={false}
-              className={styles.imagePreviewImage}
-            />
-            <a
-              href={previewImage.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={styles.imagePreviewLink}
-            >
-              {previewImage.name}
-            </a>
-          </div>
-        ) : null}
-      </Modal>
+      <AttachmentPreviewModal
+        open={previewModalOpen}
+        onClose={() => setPreviewModalOpen(false)}
+        attachments={previewAttachments}
+        initialIndex={previewInitialIndex}
+        isImageFile={isImageFile}
+        isPDFFile={isPDFFile}
+        onDownload={(url, name) => {
+          if (!url) return;
+          const link = document.createElement("a");
+          link.href = buildFileProxyUrl(url);
+          link.download = name || "download";
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }}
+      />
     </>
   );
 };

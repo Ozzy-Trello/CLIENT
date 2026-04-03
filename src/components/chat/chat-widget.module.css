@@ -310,6 +310,13 @@
   text-decoration: none;
 }
 
+.fileAttachment[type="button"] {
+  width: 100%;
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
 .messageBubble:not(.messageBubbleOwn) .fileAttachment {
   background: rgba(255, 255, 255, 0.72);
 }
