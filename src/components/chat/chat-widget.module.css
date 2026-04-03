@@ -108,17 +108,66 @@
   font-size: 11px;
 }
 
+.messageMetaRow {
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
 .messageBubbleOwn .messageTime {
   color: rgba(255, 255, 255, 0.82);
 }
 
+.replyButton {
+  min-width: 24px !important;
+  height: 20px !important;
+  padding: 0 !important;
+  color: rgba(15, 23, 42, 0.6) !important;
+}
+
+.messageBubbleOwn .replyButton {
+  color: rgba(255, 255, 255, 0.86) !important;
+}
+
 .chatWindowComposer {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  gap: 6px;
   padding: 8px 10px;
   border-top: 1px solid rgba(148, 163, 184, 0.16);
   background: #f8fbff;
+}
+
+.composerRow {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.replyPreview {
+  width: 100%;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 10px;
+  padding: 4px 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  background: #eef5ff;
+}
+
+.replyPreviewText {
+  color: #334155 !important;
+  font-size: 11px;
+}
+
+.replyPreviewClose {
+  min-width: 22px !important;
+  height: 22px !important;
+  color: rgba(15, 23, 42, 0.56) !important;
 }
 
 .composerInput {

@@ -57,6 +57,12 @@ type PeerEntry = {
   updatedAt?: string;
 };
 
+type ReplyDraft = {
+  messageId: string;
+  author: string;
+  text: string;
+};
+
 const formatTime = (value?: string) => {
   if (!value) {
     return "";
@@ -72,6 +78,9 @@ const formatTime = (value?: string) => {
     minute: "2-digit",
   });
 };
+
+const toReplySnippet = (value: string) =>
+  value.replace(/\s+/g, " ").trim().slice(0, 80);
 
 const sortByLatest = (left: ChatConversation, right: ChatConversation) => {
   const leftTime = left.updatedAt || left.lastMessage?.createdAt || "";
@@ -310,6 +319,9 @@ const ChatWidget = () => {
   const [draftByPeerId, setDraftByPeerId] = useState<Record<string, string>>(
     {},
   );
+  const [replyByPeerId, setReplyByPeerId] = useState<
+    Record<string, ReplyDraft | undefined>
+  >({});
   const [messagesByPeerId, setMessagesByPeerId] = useState<
     Record<string, ChatMessage[]>
   >({});
@@ -701,16 +713,30 @@ const ChatWidget = () => {
       delete next[peerUserId];
       return next;
     });
+    setReplyByPeerId((current) => {
+      if (!(peerUserId in current)) {
+        return current;
+      }
+
+      const next = { ...current };
+      delete next[peerUserId];
+      return next;
+    });
   };
 
   const handleSend = async (peerUserId: string) => {
+    const replyTarget = replyByPeerId[peerUserId];
     const content = (draftByPeerId[peerUserId] || "").trim();
     if (!content || sendMessageMutation.isPending) {
       return;
     }
 
+    const payloadContent = replyTarget
+      ? `↪ ${replyTarget.author}: ${replyTarget.text}\n${content}`
+      : content;
+
     sendMessageMutation.mutate(
-      { peerUserId, content },
+      { peerUserId, content: payloadContent },
       {
         onSuccess: (sentMessage) => {
           const normalizedMessage = normalizeChatMessage(sentMessage);
@@ -741,6 +767,7 @@ const ChatWidget = () => {
           );
 
           setDraftByPeerId((current) => ({ ...current, [peerUserId]: "" }));
+          setReplyByPeerId((current) => ({ ...current, [peerUserId]: undefined }));
         },
       },
     );
@@ -948,6 +975,7 @@ const ChatWidget = () => {
           const unreadCount =
             conversationByPeerId.get(window.peerUserId)?.unreadCount || 0;
           const draft = draftByPeerId[window.peerUserId] || "";
+          const replyTarget = replyByPeerId[window.peerUserId];
           const sendingThisPeer =
             sendMessageMutation.isPending &&
             sendMessageMutation.variables?.peerUserId === window.peerUserId;
@@ -1023,8 +1051,27 @@ const ChatWidget = () => {
                           <div className={styles.messageText}>
                             {chatMessage.content}
                           </div>
-                          <div className={styles.messageTime}>
-                            {formatTime(chatMessage.createdAt)}
+                          <div className={styles.messageMetaRow}>
+                            <div className={styles.messageTime}>
+                              {formatTime(chatMessage.createdAt)}
+                            </div>
+                            <Button
+                              type="text"
+                              size="small"
+                              className={styles.replyButton}
+                              onClick={() =>
+                                setReplyByPeerId((current) => ({
+                                  ...current,
+                                  [window.peerUserId]: {
+                                    messageId: chatMessage.id,
+                                    author: isOwnMessage ? "You" : peerUser.name,
+                                    text: toReplySnippet(chatMessage.content || ""),
+                                  },
+                                }))
+                              }
+                            >
+                              Reply
+                            </Button>
                           </div>
                         </div>
                       </div>
@@ -1039,26 +1086,47 @@ const ChatWidget = () => {
               </div>
 
               <div className={styles.chatWindowComposer}>
-                <Input
-                  value={draft}
-                  placeholder="Aa"
-                  onChange={(event) =>
-                    setDraftByPeerId((current) => ({
-                      ...current,
-                      [window.peerUserId]: event.target.value,
-                    }))
-                  }
-                  onPressEnter={() => void handleSend(window.peerUserId)}
-                  className={styles.composerInput}
-                />
-                <Button
-                  type="text"
-                  icon={<SendOutlined />}
-                  onClick={() => void handleSend(window.peerUserId)}
-                  className={styles.sendButton}
-                  loading={sendingThisPeer}
-                  disabled={!draft.trim()}
-                />
+                {replyTarget ? (
+                  <div className={styles.replyPreview}>
+                    <Text className={styles.replyPreviewText}>
+                      Replying to {replyTarget.author}: {replyTarget.text}
+                    </Text>
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={<CloseOutlined />}
+                      className={styles.replyPreviewClose}
+                      onClick={() =>
+                        setReplyByPeerId((current) => ({
+                          ...current,
+                          [window.peerUserId]: undefined,
+                        }))
+                      }
+                    />
+                  </div>
+                ) : null}
+                <div className={styles.composerRow}>
+                  <Input
+                    value={draft}
+                    placeholder="Aa"
+                    onChange={(event) =>
+                      setDraftByPeerId((current) => ({
+                        ...current,
+                        [window.peerUserId]: event.target.value,
+                      }))
+                    }
+                    onPressEnter={() => void handleSend(window.peerUserId)}
+                    className={styles.composerInput}
+                  />
+                  <Button
+                    type="text"
+                    icon={<SendOutlined />}
+                    onClick={() => void handleSend(window.peerUserId)}
+                    className={styles.sendButton}
+                    loading={sendingThisPeer}
+                    disabled={!draft.trim()}
+                  />
+                </div>
               </div>
             </div>
           );
