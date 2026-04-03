@@ -48,6 +48,43 @@
   flex-shrink: 0;
 }
 
+.presenceAvatarWrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  line-height: 0;
+  --presence-dot-size: 8px;
+}
+
+.presenceAvatarWrapLarge {
+  --presence-dot-size: 10px;
+}
+
+.presenceDot {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: var(--presence-dot-size);
+  height: var(--presence-dot-size);
+  border: 2px solid #ffffff;
+  border-radius: 999px;
+  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.08);
+}
+
+.presenceDotOnline {
+  background: #22c55e;
+}
+
+.presenceDotIdle {
+  background: #f59e0b;
+}
+
+.presenceDotOffline {
+  background: #94a3b8;
+}
+
 .peerName {
   color: #0f172a !important;
   max-width: 170px;

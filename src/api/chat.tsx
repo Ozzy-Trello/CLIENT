@@ -4,6 +4,7 @@ import {
   ChatMessage,
   ChatMessageApiResponse,
   ChatMessagesApiResponse,
+  ChatPresenceStatus,
   ChatUser,
   ChatConversationsApiResponse,
   ChatUsersApiResponse,
@@ -75,6 +76,25 @@ const resolveName = (user: any): string => {
   );
 };
 
+const normalizePresenceStatus = (value: any): ChatPresenceStatus => {
+  if (value === "online" || value === "idle" || value === "offline") {
+    return value;
+  }
+
+  if (typeof value === "boolean") {
+    return value ? "online" : "offline";
+  }
+
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "online" || normalized === "idle" || normalized === "offline") {
+      return normalized;
+    }
+  }
+
+  return "offline";
+};
+
 const normalizeChatUser = (user: any): ChatUser => ({
   id: resolveId(user?.id, user?.userId, user?.user_id, user?.peerUserId),
   name: resolveName(user),
@@ -82,6 +102,14 @@ const normalizeChatUser = (user: any): ChatUser => ({
   email: user?.email,
   avatar: user?.avatar ?? user?.avatarUrl ?? user?.avatar_url,
   isOnline: user?.isOnline ?? user?.is_online,
+  presenceStatus: normalizePresenceStatus(
+    user?.presenceStatus ??
+      user?.presence_status ??
+      user?.status ??
+      user?.presence ??
+      user?.isOnline ??
+      user?.is_online,
+  ),
   unreadCount: user?.unreadCount ?? user?.unread_count ?? 0,
 });
 

@@ -53,6 +53,7 @@ import {
   EnumAttachmentType,
   EnumCardAttachmentType,
 } from "@myTypes/card";
+import type { ChatPresenceStatus } from "@myTypes/chat";
 import { isImageFile, isPDFFile, isVideoFile } from "@utils/file";
 import { buildFileProxyUrl } from "@utils/file-url";
 
@@ -92,6 +93,11 @@ type ParsedChatMessage = {
   text: string;
   attachments: ChatAttachmentMetadata[];
   reply?: ChatReplyPayload;
+};
+
+type PresenceUpdate = {
+  userId: string;
+  status: ChatPresenceStatus;
 };
 
 const formatTime = (value?: string) => {
@@ -316,6 +322,144 @@ const summarizeMessageContent = (value = "") => {
   }
 
   return "";
+};
+
+const normalizePresenceStatus = (value: any): ChatPresenceStatus => {
+  if (value === "online" || value === "idle" || value === "offline") {
+    return value;
+  }
+
+  if (typeof value === "boolean") {
+    return value ? "online" : "offline";
+  }
+
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (
+      normalized === "online" ||
+      normalized === "idle" ||
+      normalized === "offline"
+    ) {
+      return normalized;
+    }
+  }
+
+  return "offline";
+};
+
+const resolvePresenceUserId = (value: any): string => {
+  const candidates = [
+    value?.userId,
+    value?.user_id,
+    value?.id,
+    value?.peerUserId,
+    value?.peer_user_id,
+    value?.user?.id,
+    value?.user?.userId,
+    value?.user?.user_id,
+    value?.peerUser?.id,
+    value?.peer_user?.id,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && candidate.trim()) {
+      return candidate.trim();
+    }
+  }
+
+  return "";
+};
+
+const extractPresenceUpdates = (value: any): PresenceUpdate[] => {
+  const entries = Array.isArray(value)
+    ? value
+    : Array.isArray(value?.users)
+      ? value.users
+      : Array.isArray(value?.presences)
+        ? value.presences
+        : Array.isArray(value?.data)
+          ? value.data
+          : Array.isArray(value?.payload)
+            ? value.payload
+            : value && typeof value === "object" &&
+                (value.userId ||
+                  value.user_id ||
+                  value.id ||
+                  value.peerUserId ||
+                  value.peer_user_id ||
+                  value.users ||
+                  value.presences)
+              ? [value]
+              : [];
+
+  return entries
+    .flatMap((entry: any) => {
+      if (entry && typeof entry === "object" && !Array.isArray(entry)) {
+        if (entry.users && typeof entry.users === "object" && !Array.isArray(entry.users)) {
+          return Object.entries(entry.users).map(([userId, userValue]) => ({
+            userId,
+            status: normalizePresenceStatus(
+              (userValue as any)?.status ??
+                (userValue as any)?.presenceStatus ??
+                (userValue as any)?.presence_status ??
+                (userValue as any)?.user?.status ??
+                (userValue as any)?.user?.presenceStatus ??
+                (userValue as any)?.user?.presence_status ??
+                (userValue as any)?.isOnline ??
+                (userValue as any)?.is_online ??
+                (userValue as any)?.user?.isOnline ??
+                (userValue as any)?.user?.is_online,
+            ),
+          }));
+        }
+
+        if (
+          entry.presences &&
+          typeof entry.presences === "object" &&
+          !Array.isArray(entry.presences)
+        ) {
+          return Object.entries(entry.presences).map(([userId, userValue]) => ({
+            userId,
+            status: normalizePresenceStatus(
+              (userValue as any)?.status ??
+                (userValue as any)?.presenceStatus ??
+                (userValue as any)?.presence_status ??
+                (userValue as any)?.user?.status ??
+                (userValue as any)?.user?.presenceStatus ??
+                (userValue as any)?.user?.presence_status ??
+                (userValue as any)?.isOnline ??
+                (userValue as any)?.is_online ??
+                (userValue as any)?.user?.isOnline ??
+                (userValue as any)?.user?.is_online,
+            ),
+          }));
+        }
+      }
+
+      const userId = resolvePresenceUserId(entry);
+      if (!userId) {
+        return [];
+      }
+
+      return [
+        {
+          userId,
+          status: normalizePresenceStatus(
+            entry?.status ??
+              entry?.presenceStatus ??
+              entry?.presence_status ??
+              entry?.user?.status ??
+              entry?.user?.presenceStatus ??
+              entry?.user?.presence_status ??
+              entry?.isOnline ??
+              entry?.is_online ??
+              entry?.user?.isOnline ??
+              entry?.user?.is_online,
+          ),
+        },
+      ];
+    })
+    .filter((entry): entry is PresenceUpdate => Boolean(entry.userId));
 };
 
 const URL_TOKEN_REGEX = /(https?:\/\/[^\s<>"']+)/g;
@@ -598,6 +742,9 @@ const ChatWidget = () => {
   const [messagesByPeerId, setMessagesByPeerId] = useState<
     Record<string, ChatMessage[]>
   >({});
+  const [presenceByUserId, setPresenceByUserId] = useState<
+    Record<string, ChatPresenceStatus>
+  >({});
   const [loadingByPeerId, setLoadingByPeerId] = useState<
     Record<string, boolean>
   >({});
@@ -764,10 +911,89 @@ const ChatWidget = () => {
     return map;
   }, [users]);
 
+  useEffect(() => {
+    const seeds: PresenceUpdate[] = [];
+
+    for (const conversation of conversations) {
+      if (!conversation.peerUserId || conversation.peerUserId === currentUserId) {
+        continue;
+      }
+
+      const status = getSeedPresenceStatus(conversation.peerUser);
+      if (status !== "offline") {
+        seeds.push({
+          userId: conversation.peerUserId,
+          status,
+        });
+      }
+    }
+
+    for (const user of users) {
+      if (!user.id || user.id === currentUserId) {
+        continue;
+      }
+
+      const status = getSeedPresenceStatus(user);
+      if (status !== "offline") {
+        seeds.push({
+          userId: user.id,
+          status,
+        });
+      }
+    }
+
+    if (seeds.length > 0) {
+      mergePresenceUpdates(seeds);
+    }
+  }, [conversations, currentUserId, users]);
+
   const unreadTotal = conversations.reduce(
     (sum, conversation) => sum + (conversation.unreadCount || 0),
     0,
   );
+
+  const getSeedPresenceStatus = (peerUser?: ChatUser | null) =>
+    normalizePresenceStatus(peerUser?.presenceStatus ?? peerUser?.isOnline);
+
+  const mergePresenceUpdates = (
+    updates: PresenceUpdate[],
+    replace = false,
+  ) => {
+    if (replace) {
+      const next: Record<string, ChatPresenceStatus> = {};
+      for (const update of updates) {
+        if (update.userId) {
+          next[update.userId] = update.status;
+        }
+      }
+      setPresenceByUserId(next);
+      return;
+    }
+
+    setPresenceByUserId((current) => {
+      let next = current;
+      let changed = false;
+
+      for (const update of updates) {
+        if (!update.userId) {
+          continue;
+        }
+
+        if (next[update.userId] === update.status) {
+          continue;
+        }
+
+        if (!changed) {
+          next = { ...current };
+          changed = true;
+        }
+
+        next[update.userId] = update.status;
+      }
+
+      return changed ? next : current;
+    });
+  };
 
   const people = useMemo(() => {
     const map = new Map<string, PeerEntry>();
@@ -874,6 +1100,35 @@ const ChatWidget = () => {
       normalizeChatUser({ id: peerUserId, name: "Unknown user", username: "" })
     );
   };
+
+  const getPeerPresenceStatus = (peerUserId: string): ChatPresenceStatus =>
+    presenceByUserId[peerUserId] ?? getSeedPresenceStatus(getPeerUser(peerUserId));
+
+  const renderPresenceAvatar = (
+    peerUser: ChatUser,
+    presenceStatus: ChatPresenceStatus,
+    size?: number,
+    className?: string,
+  ) => (
+    <span
+      className={`${styles.presenceAvatarWrap} ${
+        size && size >= 40 ? styles.presenceAvatarWrapLarge : ""
+      }`}
+    >
+      <Avatar src={peerUser.avatar} size={size} className={className}>
+        {peerUser.name?.slice(0, 1)}
+      </Avatar>
+      <span
+        className={`${styles.presenceDot} ${
+          presenceStatus === "online"
+            ? styles.presenceDotOnline
+            : presenceStatus === "idle"
+              ? styles.presenceDotIdle
+              : styles.presenceDotOffline
+        }`}
+      />
+    </span>
+  );
 
   const setPeerUnreadZero = (peerUserId: string) => {
     queryClient.setQueryData<ChatConversation[]>(
@@ -1238,16 +1493,32 @@ const ChatWidget = () => {
         const parsed = JSON.parse(event.data);
         const payload = camelcaseKeys(parsed, { deep: true }) as any;
         const eventName = payload?.event || payload?.type;
-
-        if (eventName !== "chat:new-message") {
-          return;
-        }
-
         const rawPayloadData = payload?.data || payload;
         const rawEventData =
           rawPayloadData?.event === "chat:new-message" && rawPayloadData?.data
             ? rawPayloadData.data
             : rawPayloadData?.payload || rawPayloadData;
+
+        if (
+          eventName === "chat:presence-sync" ||
+          eventName === "chat:presence-update"
+        ) {
+          const presenceSource =
+            rawPayloadData?.data ||
+            rawEventData?.data ||
+            rawEventData?.presence ||
+            rawEventData?.users ||
+            rawEventData?.presences ||
+            rawEventData;
+          const updates = extractPresenceUpdates(presenceSource);
+          mergePresenceUpdates(updates, eventName === "chat:presence-sync");
+          return;
+        }
+
+        if (eventName !== "chat:new-message") {
+          return;
+        }
+
         const rawMessage =
           rawEventData?.message && typeof rawEventData.message === "object"
             ? rawEventData.message
@@ -1421,13 +1692,12 @@ const ChatWidget = () => {
             >
               <div className={styles.chatWindowHeader}>
                 <div className={styles.chatWindowPeer}>
-                  <Avatar
-                    src={peerUser.avatar}
-                    size={28}
-                    className={styles.peerAvatar}
-                  >
-                    {peerUser.name?.slice(0, 1)}
-                  </Avatar>
+                  {renderPresenceAvatar(
+                    peerUser,
+                    getPeerPresenceStatus(window.peerUserId),
+                    28,
+                    styles.peerAvatar,
+                  )}
                   <Text className={styles.peerName}>{peerUser.name}</Text>
                   {unreadCount > 0 ? (
                     <Badge
@@ -1770,12 +2040,16 @@ const ChatWidget = () => {
                     <List.Item.Meta
                       avatar={
                         <Badge count={unreadCount} size="small" offset={[-2, 24]}>
-                          <Avatar src={peerUser.avatar}>
-                            {peerUser.name?.slice(0, 1)}
-                          </Avatar>
+                          {renderPresenceAvatar(
+                            peerUser,
+                            getPeerPresenceStatus(window.peerUserId),
+                            32,
+                          )}
                         </Badge>
                       }
-                      title={<Text className={styles.overflowName}>{peerUser.name}</Text>}
+                      title={
+                        <Text className={styles.overflowName}>{peerUser.name}</Text>
+                      }
                     />
                   </List.Item>
                 );
@@ -1811,13 +2085,12 @@ const ChatWidget = () => {
                 className={styles.minimizedButton}
                 onClick={() => openWindow(window.peerUserId)}
               >
-                <Avatar
-                  src={peerUser.avatar}
-                  size={46}
-                  className={styles.minimizedAvatar}
-                >
-                  {peerUser.name?.slice(0, 1)}
-                </Avatar>
+                {renderPresenceAvatar(
+                  peerUser,
+                  getPeerPresenceStatus(window.peerUserId),
+                  46,
+                  styles.minimizedAvatar,
+                )}
               </Button>
             </Badge>
           );
@@ -1868,20 +2141,19 @@ const ChatWidget = () => {
                       onClick={() => openWindow(entry.peerUserId)}
                     >
                       <List.Item.Meta
-                        avatar={
-                          <Badge
-                            count={entry.unreadCount}
-                            overflowCount={99}
-                            size="small"
-                            offset={[-2, 24]}
-                          >
-                            <Avatar
-                              src={entry.peerUser.avatar}
-                            >
-                              {entry.peerUser.name?.slice(0, 1)}
-                            </Avatar>
-                          </Badge>
-                        }
+                      avatar={
+                        <Badge
+                          count={entry.unreadCount}
+                          overflowCount={99}
+                          size="small"
+                          offset={[-2, 24]}
+                        >
+                          {renderPresenceAvatar(
+                            entry.peerUser,
+                            getPeerPresenceStatus(entry.peerUserId),
+                          )}
+                        </Badge>
+                      }
                         title={<Text className={styles.peopleName}>{entry.peerUser.name}</Text>}
                         description={
                           entry.lastMessage ? (

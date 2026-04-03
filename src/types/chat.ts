@@ -1,5 +1,7 @@
 import { ApiResponse } from "./type";
 
+export type ChatPresenceStatus = "online" | "idle" | "offline";
+
 export interface ChatUser {
   id: string;
   name: string;
@@ -7,6 +9,7 @@ export interface ChatUser {
   email?: string;
   avatar?: string;
   isOnline?: boolean;
+  presenceStatus?: ChatPresenceStatus;
   unreadCount?: number;
 }
 
