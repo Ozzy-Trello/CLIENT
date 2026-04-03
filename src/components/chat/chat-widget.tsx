@@ -813,7 +813,12 @@ const ChatWidget = () => {
             ? rawPayloadData.data
             : rawPayloadData?.payload || rawPayloadData;
         const rawMessage =
-          rawEventData?.message || rawEventData?.data?.message || rawEventData;
+          rawEventData?.message && typeof rawEventData.message === "object"
+            ? rawEventData.message
+            : rawEventData?.data?.message &&
+                typeof rawEventData.data.message === "object"
+              ? rawEventData.data.message
+              : rawEventData;
         const normalizedMessage = normalizeChatMessage(rawMessage);
         let peerUserId = resolvePeerUserId(
           normalizedMessage,
@@ -850,6 +855,18 @@ const ChatWidget = () => {
             rawEventData?.message?.recipientId ||
             rawEventData?.message?.recipient_id ||
             "",
+          content:
+            normalizedMessage.content ||
+            (typeof rawEventData?.message === "string"
+              ? rawEventData.message
+              : typeof rawEventData?.content === "string"
+                ? rawEventData.content
+                : ""),
+          createdAt:
+            normalizedMessage.createdAt ||
+            rawEventData?.createdAt ||
+            rawEventData?.created_at ||
+            new Date().toISOString(),
         };
 
         const isOwnMessage =
