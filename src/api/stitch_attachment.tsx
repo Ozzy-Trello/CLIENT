@@ -12,6 +12,45 @@ export interface StitchAttachmentRow {
   updatedAt?: string;
 }
 
+export interface OperatorBordirRow {
+  uuid: string;
+  cardId: string;
+  namaFile: string;
+  stitch: number;
+  jumlahBordirPcs: number;
+  totalStitch: number;
+  desainer: string;
+  nama: string;
+  namaCustomer: string;
+  jenisOrder: string;
+  statusPekerjaan: string;
+  namaPo: string;
+  uploadPoUrl: string;
+  harga: string;
+  totalHarga: string;
+  keterangan: string;
+  noInvoice: string;
+  bulan: string;
+  mesin: string;
+}
+
+export interface OperatorBordirResponse {
+  status: string;
+  message: string;
+  data: OperatorBordirRow[];
+  summary: {
+    totalData: number;
+    totalStitch: number;
+  };
+}
+
+export const getOperatorBordir = async (
+  cardId: string
+): Promise<OperatorBordirResponse> => {
+  const { data } = await api.get(`/pos/operator-bordir/${cardId}`);
+  return data;
+};
+
 const normalizeRow = (row: any): StitchAttachmentRow => ({
   id: row.id,
   cardId: row.cardId || row.card_id || "",
