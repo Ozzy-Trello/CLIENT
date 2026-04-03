@@ -406,7 +406,11 @@ const ChatWidget: React.FC = () => {
       const incomingMessageRaw =
         eventData?.id || eventData?.senderId || eventData?.sender_id
           ? eventData
-          : eventData?.message || eventData?.data?.message || eventData?.data;
+          : eventData?.message && typeof eventData.message === "object"
+            ? eventData.message
+            : eventData?.data?.message && typeof eventData.data.message === "object"
+              ? eventData.data.message
+              : eventData?.data;
       const senderUser =
         eventData?.sender ||
         eventData?.senderUser ||
@@ -458,6 +462,15 @@ const ChatWidget: React.FC = () => {
           eventData?.recipientId ||
           eventData?.recipient_id ||
           "",
+        message:
+          incomingMessageRaw.message ||
+          (typeof eventData?.message === "string" ? eventData.message : ""),
+        createdAt:
+          incomingMessageRaw.createdAt ||
+          incomingMessageRaw.created_at ||
+          eventData?.createdAt ||
+          eventData?.created_at ||
+          new Date().toISOString(),
       };
 
       const isIncomingForCurrentUser =
