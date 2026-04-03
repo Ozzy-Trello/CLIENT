@@ -1,11 +1,19 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Document, Page } from "react-pdf";
+import dynamic from "next/dynamic";
 import { Spin } from "antd";
 import TokenStorage from "@utils/token-storage";
 import { buildFileProxyUrl, isFileProxyUrl, toDirectFileUrl } from "@utils/file-url";
-import "@utils/pdf-worker-setup";
+import { setupPDFWorker } from "@utils/pdf-worker-setup";
+
+const Document = dynamic(() => import("react-pdf").then((mod) => mod.Document), {
+  ssr: false,
+});
+
+const Page = dynamic(() => import("react-pdf").then((mod) => mod.Page), {
+  ssr: false,
+});
 
 interface PreviewPdfViewerProps {
   url: string;
@@ -61,6 +69,10 @@ const PreviewPdfViewer: React.FC<PreviewPdfViewerProps> = ({ url, zoom = 1 }) =>
     pushCandidate(normalizedUrl, authHeaders);
     return candidates;
   }, [url]);
+
+  useEffect(() => {
+    void setupPDFWorker();
+  }, []);
 
   useEffect(() => {
     let revokedUrl = "";

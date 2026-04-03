@@ -1,10 +1,20 @@
+"use client";
+
 import React, { useState, useCallback, useMemo } from "react";
-import { Document, Page } from "react-pdf";
+import dynamic from "next/dynamic";
 import { Spin, message } from "antd";
 import { FilePdfOutlined } from "@ant-design/icons";
 import TokenStorage from "@utils/token-storage";
 import { buildFileProxyUrl, isFileProxyUrl, toDirectFileUrl } from "@utils/file-url";
-import "@utils/pdf-worker-setup"; // Initialize PDF.js worker
+import { setupPDFWorker } from "@utils/pdf-worker-setup";
+
+const Document = dynamic(() => import("react-pdf").then((mod) => mod.Document), {
+  ssr: false,
+});
+
+const Page = dynamic(() => import("react-pdf").then((mod) => mod.Page), {
+  ssr: false,
+});
 
 interface PDFPreviewProps {
   url: string;
@@ -24,6 +34,10 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({
   const [numPages, setNumPages] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+
+  React.useEffect(() => {
+    void setupPDFWorker();
+  }, []);
 
   // Determine the correct URL and options for PDF loading
   const { pdfUrl, options } = useMemo(() => {
