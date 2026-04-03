@@ -1,63 +1,69 @@
 "use client";
 
+import { useEffect, useMemo, useRef, useState } from "react";
+import camelcaseKeys from "camelcase-keys";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSelector } from "react-redux";
 import {
   Avatar,
   Badge,
   Button,
   Empty,
   Input,
-  Segmented,
+  List,
   Spin,
-  Tooltip,
   Typography,
   message,
 } from "antd";
-import { MessageCircle, Minus, Search, Send, Users } from "lucide-react";
-import camelcaseKeys from "camelcase-keys";
 import {
-  useDeferredValue,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
-import { useSelector } from "react-redux";
-import { selectUser } from "@store/app_slice";
-import { useWebSocket } from "@hooks/websocket";
-import {
-  useChatConversations,
-  useChatMessages,
-  useChatUsers,
-  useMarkChatMessagesRead,
-  useSendChatMessage,
-} from "@hooks/chat";
-import {
-  ChatConversationSummary,
-  ChatMessage,
-  ChatUserSummary,
-} from "@myTypes/chat";
+  CloseOutlined,
+  MessageOutlined,
+  MinusOutlined,
+  SearchOutlined,
+  SendOutlined,
+} from "@ant-design/icons";
 import styles from "./chat-widget.module.css";
+import { useWebSocket } from "@hooks/websocket";
+import { selectUser } from "@store/app_slice";
+import { queryKeys } from "@constants/query-keys";
+import {
+  getChatConversations,
+  getChatMessages,
+  getChatUsers,
+  markChatMessagesRead,
+  normalizeChatMessage,
+  normalizeChatUser,
+  sendChatMessage,
+} from "@api/chat";
+import type { ChatConversation, ChatMessage, ChatUser } from "@myTypes/chat";
 
-const { Text, Title } = Typography;
-const { TextArea } = Input;
+const { Text } = Typography;
 
-type ChatView = "conversations" | "directory";
+const MAX_OPEN_WINDOWS = 3;
+const MAX_VISIBLE_MINIMIZED = 3;
+const CHAT_WINDOWS_STORAGE_PREFIX = "chat_widget_windows_v1";
 
-type ReplyTarget = {
-  id: string;
-  senderId: string;
-  message: string;
+type ChatWindowState = {
+  peerUserId: string;
+  minimized: boolean;
+  openedAt: number;
 };
 
-const getUserInitials = (username: string) =>
-  (username || "")
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() || "")
-    .join("") || "?";
+type PeerEntry = {
+  peerUserId: string;
+  peerUser: ChatUser;
+  unreadCount: number;
+  lastMessage?: string;
+  updatedAt?: string;
+};
 
-const formatMessageTime = (value?: string) => {
+type ReplyDraft = {
+  messageId: string;
+  author: string;
+  text: string;
+};
+
+const formatTime = (value?: string) => {
   if (!value) {
     return "";
   }
@@ -67,197 +73,333 @@ const formatMessageTime = (value?: string) => {
     return "";
   }
 
-  const now = new Date();
-  const sameDay = date.toDateString() === now.toDateString();
-
-  return new Intl.DateTimeFormat("id-ID", {
+  return date.toLocaleTimeString([], {
     hour: "2-digit",
     minute: "2-digit",
-    ...(sameDay
-      ? {}
-      : {
-          day: "2-digit",
-          month: "short",
-        }),
-  }).format(date);
-};
-
-const sortMessages = (messages: ChatMessage[]) =>
-  [...messages].sort((left, right) => {
-    const leftTime = new Date(left.createdAt).getTime();
-    const rightTime = new Date(right.createdAt).getTime();
-
-    if (leftTime !== rightTime) {
-      return leftTime - rightTime;
-    }
-
-    return left.id.localeCompare(right.id);
   });
-
-const mergeMessages = (messages: ChatMessage[], incoming: ChatMessage) => {
-  if (messages.some((messageItem) => messageItem.id === incoming.id)) {
-    return messages.map((messageItem) =>
-      messageItem.id === incoming.id ? incoming : messageItem,
-    );
-  }
-
-  return sortMessages([...messages, incoming]);
 };
 
 const toReplySnippet = (value: string) =>
   value.replace(/\s+/g, " ").trim().slice(0, 80);
 
-const sortConversations = (conversations: ChatConversationSummary[]) =>
-  [...conversations].sort((left, right) => {
-    const leftTime = left.lastMessage?.createdAt
-      ? new Date(left.lastMessage.createdAt).getTime()
-      : 0;
-    const rightTime = right.lastMessage?.createdAt
-      ? new Date(right.lastMessage.createdAt).getTime()
-      : 0;
-
-    if (leftTime !== rightTime) {
-      return rightTime - leftTime;
-    }
-
-    const leftUsername = left.peerUser?.username || "";
-    const rightUsername = right.peerUser?.username || "";
-    return leftUsername.localeCompare(rightUsername);
-  });
-
-const ensureConversation = (
-  conversations: ChatConversationSummary[],
-  peerUser: ChatUserSummary,
-): ChatConversationSummary[] => {
-  if (
-    conversations.some(
-      (conversation) => conversation.peerUser?.id === peerUser?.id,
-    )
-  ) {
-    return conversations;
-  }
-
-  return sortConversations([
-    {
-      peerUser,
-      lastMessage: null,
-      unreadCount: 0,
-    },
-    ...conversations,
-  ]);
+const sortByLatest = (left: ChatConversation, right: ChatConversation) => {
+  const leftTime = left.updatedAt || left.lastMessage?.createdAt || "";
+  const rightTime = right.updatedAt || right.lastMessage?.createdAt || "";
+  return rightTime.localeCompare(leftTime);
 };
 
-const updateConversationState = (
-  conversations: ChatConversationSummary[],
-  peerUser: ChatUserSummary,
-  messageItem: ChatMessage,
-  options: {
-    incrementUnread?: boolean;
-    resetUnread?: boolean;
-  } = {},
+const mergeMessages = (current: ChatMessage[] = [], next: ChatMessage) => {
+  const map = new Map<string, ChatMessage>();
+
+  for (const item of current) {
+    if (item?.id) {
+      map.set(item.id, item);
+    }
+  }
+
+  if (next?.id) {
+    map.set(next.id, next);
+  }
+
+  return Array.from(map.values()).sort((left, right) =>
+    left.createdAt.localeCompare(right.createdAt),
+  );
+};
+
+const resolvePeerUserId = (
+  messageData: ChatMessage,
+  currentUserId?: string,
+  rawData?: any,
 ) => {
-  const nextConversations = conversations.filter(
-    (conversation) => conversation.peerUser?.id !== peerUser?.id,
-  );
-  const existingConversation = conversations.find(
-    (conversation) => conversation.peerUser?.id === peerUser?.id,
-  );
+  const directPeerId =
+    messageData.peerUserId ||
+    rawData?.peerUserId ||
+    rawData?.peer_user_id ||
+    rawData?.peerUser?.id ||
+    rawData?.peer_user?.id ||
+    rawData?.conversationPeerId ||
+    rawData?.conversation_peer_id ||
+    rawData?.sender?.id ||
+    rawData?.senderId ||
+    rawData?.sender_id ||
+    rawData?.fromUser?.id ||
+    rawData?.fromUserId ||
+    rawData?.from_user_id ||
+    rawData?.recipient?.id ||
+    rawData?.recipientId ||
+    rawData?.recipient_id ||
+    rawData?.toUser?.id ||
+    rawData?.toUserId ||
+    rawData?.to_user_id ||
+    rawData?.message?.peerUserId ||
+    rawData?.message?.peer_user_id ||
+    rawData?.message?.senderId ||
+    rawData?.message?.sender_id ||
+    rawData?.message?.recipientId ||
+    rawData?.message?.recipient_id;
 
-  let unreadCount = existingConversation?.unreadCount || 0;
-
-  if (options.resetUnread) {
-    unreadCount = 0;
-  } else if (options.incrementUnread) {
-    unreadCount += 1;
+  if (directPeerId) {
+    return directPeerId;
   }
 
-  nextConversations.unshift({
-    peerUser,
-    lastMessage: messageItem,
-    unreadCount,
-  });
+  if (currentUserId && messageData.senderId === currentUserId) {
+    return (
+      messageData.recipientId ||
+      rawData?.recipientId ||
+      rawData?.recipient_id ||
+      rawData?.toUserId ||
+      rawData?.to_user_id ||
+      ""
+    );
+  }
 
-  return sortConversations(nextConversations);
+  if (currentUserId && messageData.recipientId === currentUserId) {
+    return (
+      messageData.senderId ||
+      rawData?.senderId ||
+      rawData?.sender_id ||
+      rawData?.fromUserId ||
+      rawData?.from_user_id ||
+      ""
+    );
+  }
+
+  return (
+    messageData.senderId ||
+    messageData.recipientId ||
+    rawData?.senderId ||
+    rawData?.recipientId ||
+    ""
+  );
 };
 
-const markMessagesReadLocally = (
-  messages: ChatMessage[],
+const resolvePeerUser = (
+  messageData: ChatMessage,
+  rawData: any,
+  currentUserId?: string,
+) => {
+  if (currentUserId && messageData.senderId === currentUserId) {
+    return normalizeChatUser(
+      rawData?.recipient ?? rawData?.toUser ?? rawData?.peerUser ?? {},
+    );
+  }
+
+  if (currentUserId && messageData.recipientId === currentUserId) {
+    return normalizeChatUser(
+      rawData?.sender ?? rawData?.fromUser ?? rawData?.peerUser ?? {},
+    );
+  }
+
+  return normalizeChatUser(
+    rawData?.peerUser ??
+      rawData?.sender ??
+      rawData?.recipient ??
+      rawData?.user ??
+      {},
+  );
+};
+
+const upsertConversation = (
+  current: ChatConversation[] | undefined,
+  next: ChatConversation,
+) => {
+  const list = current ? [...current] : [];
+  const index = list.findIndex((item) => item.peerUserId === next.peerUserId);
+
+  if (index >= 0) {
+    list[index] = next;
+  } else {
+    list.unshift(next);
+  }
+
+  return list.sort(sortByLatest);
+};
+
+const upsertUnreadCount = (
+  current: ChatConversation[] | undefined,
   peerUserId: string,
-  currentUserId: string,
-) =>
-  messages.map((messageItem) => {
-    if (
-      messageItem.senderId !== peerUserId ||
-      messageItem.recipientId !== currentUserId
-    ) {
-      return messageItem;
-    }
+  unreadCount: number,
+) => {
+  const list = current ? [...current] : [];
+  const index = list.findIndex((item) => item.peerUserId === peerUserId);
 
-    return {
-      ...messageItem,
-      isRead: true,
+  if (index >= 0) {
+    list[index] = {
+      ...list[index],
+      unreadCount,
     };
-  });
+  }
 
-const ChatWidget: React.FC = () => {
+  return list;
+};
+
+const updateConversationForMessage = (
+  current: ChatConversation[] | undefined,
+  peerUserId: string,
+  peerUser: ChatUser,
+  messageData: ChatMessage,
+  isOwnMessage: boolean,
+  isOpenAndActive: boolean,
+) => {
+  const list = current ? [...current] : [];
+  const index = list.findIndex((item) => item.peerUserId === peerUserId);
+  const existing = index >= 0 ? list[index] : undefined;
+
+  const nextConversation: ChatConversation = {
+    id: existing?.id || peerUserId,
+    peerUserId,
+    peerUser: existing?.peerUser?.id ? existing.peerUser : peerUser,
+    lastMessage: messageData,
+    unreadCount: isOwnMessage
+      ? existing?.unreadCount || 0
+      : isOpenAndActive
+        ? 0
+        : (existing?.unreadCount || 0) + 1,
+    updatedAt: messageData.createdAt,
+  };
+
+  return upsertConversation(list, nextConversation);
+};
+
+const upsertWindow = (
+  windows: ChatWindowState[],
+  peerUserId: string,
+  nextState: Partial<ChatWindowState>,
+) => {
+  const now = Date.now();
+  const next = [...windows];
+  const index = next.findIndex((item) => item.peerUserId === peerUserId);
+
+  if (index >= 0) {
+    next[index] = {
+      ...next[index],
+      ...nextState,
+      openedAt: nextState.openedAt ?? now,
+    };
+    return next;
+  }
+
+  next.push({
+    peerUserId,
+    minimized: Boolean(nextState.minimized),
+    openedAt: nextState.openedAt ?? now,
+  });
+  return next;
+};
+
+const enforceWindowLimit = (windows: ChatWindowState[]) => {
+  const expanded = windows.filter((window) => !window.minimized);
+  if (expanded.length <= MAX_OPEN_WINDOWS) {
+    return windows;
+  }
+
+  const needMinimized = expanded.length - MAX_OPEN_WINDOWS;
+  const oldestExpanded = [...expanded]
+    .sort((left, right) => left.openedAt - right.openedAt)
+    .slice(0, needMinimized)
+    .map((window) => window.peerUserId);
+  const ids = new Set(oldestExpanded);
+
+  return windows.map((window) =>
+    ids.has(window.peerUserId) ? { ...window, minimized: true } : window,
+  );
+};
+
+const ChatWidget = () => {
   const currentUser = useSelector(selectUser);
-  const { socket, isConnected } = useWebSocket();
-  const [messageApi, contextHolder] = message.useMessage();
-  const [isOpen, setIsOpen] = useState(false);
-  const [activeView, setActiveView] = useState<ChatView>("conversations");
-  const [selectedPeer, setSelectedPeer] = useState<ChatUserSummary | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const deferredSearchQuery = useDeferredValue(searchQuery);
-  const [draftMessage, setDraftMessage] = useState("");
-  const [replyTarget, setReplyTarget] = useState<ReplyTarget | null>(null);
-  const [conversationItems, setConversationItems] = useState<
-    ChatConversationSummary[]
-  >([]);
-  const [messageItems, setMessageItems] = useState<ChatMessage[]>([]);
-  const messageEndRef = useRef<HTMLDivElement | null>(null);
+  const currentUserId = currentUser?.id;
+  const queryClient = useQueryClient();
+  const { socket } = useWebSocket();
+
+  const [isComposerOpen, setIsComposerOpen] = useState(false);
+  const [isOverflowOpen, setIsOverflowOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [chatWindows, setChatWindows] = useState<ChatWindowState[]>([]);
+  const [didRestoreWindows, setDidRestoreWindows] = useState(false);
+  const [draftByPeerId, setDraftByPeerId] = useState<Record<string, string>>(
+    {},
+  );
+  const [replyByPeerId, setReplyByPeerId] = useState<
+    Record<string, ReplyDraft | undefined>
+  >({});
+  const [messagesByPeerId, setMessagesByPeerId] = useState<
+    Record<string, ChatMessage[]>
+  >({});
+  const [loadingByPeerId, setLoadingByPeerId] = useState<
+    Record<string, boolean>
+  >({});
+
+  const loadingPeersRef = useRef(new Set<string>());
+  const markReadInFlightRef = useRef(new Set<string>());
+  const chatWindowsRef = useRef<ChatWindowState[]>([]);
+  const messageEndRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioUnlockedRef = useRef(false);
   const lastIncomingSoundAtRef = useRef(0);
-
-  const conversationsQuery = useChatConversations(!!currentUser?.id);
-  const usersQuery = useChatUsers(
-    activeView === "directory" ? deferredSearchQuery.trim() : "",
-    !!currentUser?.id && isOpen && activeView === "directory",
-  );
-  const messagesQuery = useChatMessages(
-    selectedPeer?.id || "",
-    !!currentUser?.id && isOpen && !!selectedPeer,
-  );
-  const sendMessageMutation = useSendChatMessage();
-  const markReadMutation = useMarkChatMessagesRead();
+  const storageKey = `${CHAT_WINDOWS_STORAGE_PREFIX}_${currentUserId || "anon"}`;
 
   useEffect(() => {
-    if (!conversationsQuery.data?.data) {
+    chatWindowsRef.current = chatWindows;
+  }, [chatWindows]);
+
+  useEffect(() => {
+    if (!currentUserId) {
+      setDidRestoreWindows(true);
       return;
     }
 
-    setConversationItems(sortConversations(conversationsQuery.data.data));
-  }, [conversationsQuery.data]);
+    try {
+      const saved = window.localStorage.getItem(storageKey);
+      if (!saved) {
+        setDidRestoreWindows(true);
+        return;
+      }
+
+      const parsed = JSON.parse(saved) as unknown;
+      if (!Array.isArray(parsed)) {
+        setDidRestoreWindows(true);
+        return;
+      }
+
+      const restored = parsed
+        .map((item) => {
+          if (!item || typeof item !== "object") {
+            return null;
+          }
+
+          const value = item as Partial<ChatWindowState>;
+          if (!value.peerUserId || typeof value.peerUserId !== "string") {
+            return null;
+          }
+
+          return {
+            peerUserId: value.peerUserId,
+            minimized: Boolean(value.minimized),
+            openedAt: Number(value.openedAt) || Date.now(),
+          } as ChatWindowState;
+        })
+        .filter((item): item is ChatWindowState => Boolean(item));
+
+      setChatWindows(enforceWindowLimit(restored));
+    } catch (error) {
+      console.error("[CHAT] Failed to restore windows", error);
+    } finally {
+      setDidRestoreWindows(true);
+    }
+  }, [currentUserId, storageKey]);
 
   useEffect(() => {
-    if (!messagesQuery.data?.data) {
+    if (!didRestoreWindows || !currentUserId) {
       return;
     }
 
-    setMessageItems(sortMessages(messagesQuery.data.data.data));
-    setSelectedPeer(messagesQuery.data.data.peerUser);
-  }, [messagesQuery.data]);
-
-  useEffect(() => {
-    if (!isOpen || activeView !== "conversations" || selectedPeer || conversationItems.length === 0) {
-      return;
-    }
-
-    const firstPeer = conversationItems.find((conversation) => conversation.peerUser?.id)?.peerUser;
-    if (firstPeer?.id) {
-      setSelectedPeer(firstPeer);
-    }
-  }, [activeView, conversationItems, isOpen, selectedPeer]);
+    const payload = chatWindows.map((window) => ({
+      peerUserId: window.peerUserId,
+      minimized: window.minimized,
+      openedAt: window.openedAt,
+    }));
+    window.localStorage.setItem(storageKey, JSON.stringify(payload));
+  }, [chatWindows, currentUserId, didRestoreWindows, storageKey]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -266,10 +408,7 @@ const ChatWidget: React.FC = () => {
 
     const unlockAudio = () => {
       const AudioContextClass =
-        window.AudioContext ||
-        (window as Window & { webkitAudioContext?: typeof AudioContext })
-          .webkitAudioContext;
-
+        window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioContextClass) {
         return;
       }
@@ -299,74 +438,175 @@ const ChatWidget: React.FC = () => {
     };
   }, []);
 
-  useEffect(() => {
-    if (!isOpen || !selectedPeer) {
-      return;
+  const conversationsQuery = useQuery({
+    queryKey: queryKeys.chat.conversations(),
+    queryFn: getChatConversations,
+    staleTime: 15_000,
+  });
+
+  const usersQuery = useQuery({
+    queryKey: queryKeys.chat.users(),
+    queryFn: getChatUsers,
+    enabled: Boolean(currentUserId),
+    staleTime: 60_000,
+  });
+
+  const sendMessageMutation = useMutation({
+    mutationFn: sendChatMessage,
+    onError: () => {
+      message.error("Failed to send message");
+    },
+  });
+
+  const markReadMutation = useMutation({
+    mutationFn: markChatMessagesRead,
+  });
+
+  const conversations = useMemo(
+    () => [...(conversationsQuery.data || [])].sort(sortByLatest),
+    [conversationsQuery.data],
+  );
+  const users = usersQuery.data || [];
+
+  const conversationByPeerId = useMemo(() => {
+    const map = new Map<string, ChatConversation>();
+    for (const conversation of conversations) {
+      if (conversation.peerUserId) {
+        map.set(conversation.peerUserId, conversation);
+      }
     }
+    return map;
+  }, [conversations]);
 
-    messageEndRef.current?.scrollIntoView({
-      behavior: "smooth",
-      block: "end",
-    });
-  }, [isOpen, selectedPeer, messageItems]);
+  const userById = useMemo(() => {
+    const map = new Map<string, ChatUser>();
+    for (const user of users) {
+      if (user.id) {
+        map.set(user.id, user);
+      }
+    }
+    return map;
+  }, [users]);
 
-  const unreadTotal = conversationItems.reduce(
-    (total, conversation) => total + (conversation.unreadCount || 0),
+  const unreadTotal = conversations.reduce(
+    (sum, conversation) => sum + (conversation.unreadCount || 0),
     0,
   );
 
-  const filteredConversations = conversationItems.filter((conversation) => {
-    const username = conversation.peerUser?.username || "";
-    return username.toLowerCase().includes(searchQuery.trim().toLowerCase());
-  });
+  const people = useMemo(() => {
+    const map = new Map<string, PeerEntry>();
 
-  const selectConversation = async (peerUser: ChatUserSummary) => {
-    setIsOpen(true);
-    setActiveView("conversations");
-    setSelectedPeer(peerUser);
-    setReplyTarget(null);
-    setConversationItems((currentConversations) =>
-      ensureConversation(currentConversations, peerUser),
-    );
+    for (const conversation of conversations) {
+      if (!conversation.peerUserId || conversation.peerUserId === currentUserId) {
+        continue;
+      }
 
-    if (!currentUser?.id) {
-      return;
-    }
-
-    const unreadConversation = conversationItems.find(
-      (conversation) => conversation.peerUser?.id === peerUser.id,
-    );
-
-    if (!unreadConversation?.unreadCount) {
-      return;
-    }
-
-    setConversationItems((currentConversations) =>
-      currentConversations.map((conversation) =>
-        conversation.peerUser?.id === peerUser.id
-          ? {
-              ...conversation,
-              unreadCount: 0,
-            }
-          : conversation,
-      ),
-    );
-    setMessageItems((currentMessages) =>
-      markMessagesReadLocally(currentMessages, peerUser.id, currentUser.id),
-    );
-
-    try {
-      await markReadMutation.mutateAsync({
-        peerUserId: peerUser.id,
+      map.set(conversation.peerUserId, {
+        peerUserId: conversation.peerUserId,
+        peerUser: conversation.peerUser,
+        unreadCount: conversation.unreadCount || 0,
+        lastMessage: conversation.lastMessage?.content || "",
+        updatedAt:
+          conversation.updatedAt ||
+          conversation.lastMessage?.createdAt ||
+          undefined,
       });
-    } catch (error: any) {
-      messageApi.error(
-        error?.response?.data?.message || "Failed to mark messages as read",
-      );
     }
+
+    for (const user of users) {
+      if (!user.id || user.id === currentUserId) {
+        continue;
+      }
+
+      const current = map.get(user.id);
+      map.set(user.id, {
+        peerUserId: user.id,
+        peerUser: {
+          ...user,
+          name: user.name || current?.peerUser?.name || user.id,
+          avatar: user.avatar || current?.peerUser?.avatar,
+          username: user.username || current?.peerUser?.username,
+          email: user.email || current?.peerUser?.email,
+        },
+        unreadCount: current?.unreadCount || 0,
+        lastMessage: current?.lastMessage || "",
+        updatedAt: current?.updatedAt,
+      });
+    }
+
+    return Array.from(map.values()).sort((left, right) => {
+      if ((right.unreadCount || 0) !== (left.unreadCount || 0)) {
+        return (right.unreadCount || 0) - (left.unreadCount || 0);
+      }
+
+      const leftTime = left.updatedAt || "";
+      const rightTime = right.updatedAt || "";
+      if (leftTime !== rightTime) {
+        return rightTime.localeCompare(leftTime);
+      }
+
+      return (left.peerUser.name || "").localeCompare(right.peerUser.name || "");
+    });
+  }, [conversations, currentUserId, users]);
+
+  const filteredPeople = useMemo(() => {
+    const needle = searchTerm.trim().toLowerCase();
+    if (!needle) {
+      return people;
+    }
+
+    return people.filter((entry) => {
+      const name = entry.peerUser.name || "";
+      const username = entry.peerUser.username || "";
+      const email = entry.peerUser.email || "";
+      const lastMessage = entry.lastMessage || "";
+
+      return (
+        name.toLowerCase().includes(needle) ||
+        username.toLowerCase().includes(needle) ||
+        email.toLowerCase().includes(needle) ||
+        lastMessage.toLowerCase().includes(needle)
+      );
+    });
+  }, [people, searchTerm]);
+
+  const visibleWindows = useMemo(
+    () =>
+      chatWindows
+        .filter((window) => !window.minimized)
+        .sort((left, right) => left.openedAt - right.openedAt),
+    [chatWindows],
+  );
+
+  const minimizedWindows = useMemo(
+    () =>
+      chatWindows
+        .filter((window) => window.minimized)
+        .sort((left, right) => right.openedAt - left.openedAt),
+    [chatWindows],
+  );
+
+  const visibleMinimizedWindows = minimizedWindows.slice(0, MAX_VISIBLE_MINIMIZED);
+  const overflowMinimizedWindows = minimizedWindows.slice(MAX_VISIBLE_MINIMIZED);
+
+  const getPeerUser = (peerUserId: string) => {
+    const conversationPeer = conversationByPeerId.get(peerUserId)?.peerUser;
+    const userPeer = userById.get(peerUserId);
+    return (
+      conversationPeer ||
+      userPeer ||
+      normalizeChatUser({ id: peerUserId, name: "Unknown user", username: "" })
+    );
   };
 
-  const playIncomingMessageSound = useCallback(() => {
+  const setPeerUnreadZero = (peerUserId: string) => {
+    queryClient.setQueryData<ChatConversation[]>(
+      queryKeys.chat.conversations(),
+      (current) => upsertUnreadCount(current, peerUserId, 0),
+    );
+  };
+
+  const playIncomingMessageSound = () => {
     if (!audioUnlockedRef.current || !audioContextRef.current) {
       return;
     }
@@ -399,512 +639,661 @@ const ChatWidget: React.FC = () => {
     gain.connect(ctx.destination);
     oscillator.start(now);
     oscillator.stop(now + 0.17);
-  }, []);
+  };
 
-  const handleSocketMessage = useCallback(async (event: MessageEvent) => {
-    if (!currentUser?.id) {
+  const loadMessages = async (peerUserId: string) => {
+    if (!peerUserId || loadingPeersRef.current.has(peerUserId)) {
       return;
     }
 
+    loadingPeersRef.current.add(peerUserId);
+    setLoadingByPeerId((current) => ({ ...current, [peerUserId]: true }));
+
     try {
-      const rawPayload = JSON.parse(event.data);
-      const payload = camelcaseKeys(rawPayload, { deep: true }) as {
-        event?: string;
-        data?: any;
-      };
-
-      if (payload.event !== "chat:new-message") {
-        return;
-      }
-
-      const rawPayloadData = payload.data || payload;
-      const eventData =
-        rawPayloadData?.event === "chat:new-message" && rawPayloadData?.data
-          ? rawPayloadData.data
-          : rawPayloadData?.payload || rawPayloadData;
-      const incomingMessageRaw =
-        eventData?.id || eventData?.senderId || eventData?.sender_id
-          ? eventData
-          : eventData?.message && typeof eventData.message === "object"
-            ? eventData.message
-            : eventData?.data?.message && typeof eventData.data.message === "object"
-              ? eventData.data.message
-              : eventData?.data;
-      const senderUser =
-        eventData?.sender ||
-        eventData?.senderUser ||
-        eventData?.sender_user ||
-        null;
-      const recipientUser =
-        eventData?.recipient ||
-        eventData?.recipientUser ||
-        eventData?.recipient_user ||
-        null;
-      const peerUser = (() => {
-        if (eventData?.peerUser || eventData?.peer_user) {
-          return eventData?.peerUser || eventData?.peer_user;
-        }
-
-        if (incomingMessageRaw?.senderId === currentUser.id) {
-          return recipientUser;
-        }
-
-        if (incomingMessageRaw?.recipientId === currentUser.id) {
-          return senderUser;
-        }
-
-        if (selectedPeer?.id) {
-          return selectedPeer;
-        }
-
-        return senderUser || recipientUser || null;
-      })();
-
-      if (!incomingMessageRaw || !peerUser?.id) {
-        return;
-      }
-
-      const incomingMessage: ChatMessage = {
-        ...incomingMessageRaw,
-        id:
-          incomingMessageRaw.id ||
-          `ws-${peerUser.id}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-        senderId:
-          incomingMessageRaw.senderId ||
-          senderUser?.id ||
-          eventData?.senderId ||
-          eventData?.sender_id ||
-          "",
-        recipientId:
-          incomingMessageRaw.recipientId ||
-          recipientUser?.id ||
-          eventData?.recipientId ||
-          eventData?.recipient_id ||
-          "",
-        message:
-          incomingMessageRaw.message ||
-          incomingMessageRaw.content ||
-          (typeof eventData?.message === "string" ? eventData.message : ""),
-        createdAt:
-          incomingMessageRaw.createdAt ||
-          incomingMessageRaw.created_at ||
-          eventData?.createdAt ||
-          eventData?.created_at ||
-          new Date().toISOString(),
-      };
-
-      const isIncomingForCurrentUser =
-        incomingMessage.senderId === peerUser.id &&
-        incomingMessage.recipientId === currentUser.id;
-      const isActiveConversation =
-        isOpen && selectedPeer?.id === peerUser.id && activeView === "conversations";
-
-      setConversationItems((currentConversations) =>
-        updateConversationState(currentConversations, peerUser, incomingMessage, {
-          incrementUnread: isIncomingForCurrentUser && !isActiveConversation,
-          resetUnread: isIncomingForCurrentUser && isActiveConversation,
-        }),
-      );
-
-      if (selectedPeer?.id === peerUser.id) {
-        setMessageItems((currentMessages) =>
-          mergeMessages(
-            currentMessages,
-            isIncomingForCurrentUser && isActiveConversation
-              ? {
-                  ...incomingMessage,
-                  isRead: true,
-                }
-              : incomingMessage,
-          ),
-        );
-      }
-
-      if (isIncomingForCurrentUser && isActiveConversation) {
-        try {
-          await markReadMutation.mutateAsync({
-            peerUserId: peerUser.id,
-          });
-        } catch {
-          // Keep UI responsive even if read sync fails.
-        }
-      }
-
-      if (isIncomingForCurrentUser) {
-        playIncomingMessageSound();
-      }
-    } catch {
-      // Ignore malformed websocket payloads.
+      const messages = await getChatMessages(peerUserId);
+      setMessagesByPeerId((current) => ({ ...current, [peerUserId]: messages }));
+      queryClient.setQueryData(queryKeys.chat.messages(peerUserId), messages);
+    } catch (error) {
+      console.error("[CHAT] Failed to load messages", error);
+      message.error("Failed to load messages");
+    } finally {
+      loadingPeersRef.current.delete(peerUserId);
+      setLoadingByPeerId((current) => ({ ...current, [peerUserId]: false }));
     }
-  }, [
-    activeView,
-    currentUser,
-    isOpen,
-    markReadMutation,
-    playIncomingMessageSound,
-    selectedPeer,
-  ]);
+  };
+
+  const openWindow = (peerUserId: string) => {
+    if (!peerUserId) {
+      return;
+    }
+
+    setIsComposerOpen(false);
+    setIsOverflowOpen(false);
+
+    setChatWindows((current) =>
+      enforceWindowLimit(
+        upsertWindow(current, peerUserId, {
+          minimized: false,
+          openedAt: Date.now(),
+        }),
+      ),
+    );
+
+    void loadMessages(peerUserId);
+
+    if ((conversationByPeerId.get(peerUserId)?.unreadCount || 0) > 0) {
+      markReadMutation.mutate(
+        { peerUserId },
+        {
+          onSuccess: () => setPeerUnreadZero(peerUserId),
+        },
+      );
+    }
+  };
+
+  const minimizeWindow = (peerUserId: string) => {
+    setChatWindows((current) =>
+      upsertWindow(current, peerUserId, {
+        minimized: true,
+        openedAt: Date.now(),
+      }),
+    );
+  };
+
+  const closeWindow = (peerUserId: string) => {
+    setChatWindows((current) =>
+      current.filter((window) => window.peerUserId !== peerUserId),
+    );
+    setDraftByPeerId((current) => {
+      if (!(peerUserId in current)) {
+        return current;
+      }
+
+      const next = { ...current };
+      delete next[peerUserId];
+      return next;
+    });
+    setReplyByPeerId((current) => {
+      if (!(peerUserId in current)) {
+        return current;
+      }
+
+      const next = { ...current };
+      delete next[peerUserId];
+      return next;
+    });
+  };
+
+  const handleSend = async (peerUserId: string) => {
+    const replyTarget = replyByPeerId[peerUserId];
+    const content = (draftByPeerId[peerUserId] || "").trim();
+    if (!content || sendMessageMutation.isPending) {
+      return;
+    }
+
+    const payloadContent = replyTarget
+      ? `↪ ${replyTarget.author}: ${replyTarget.text}\n${content}`
+      : content;
+
+    sendMessageMutation.mutate(
+      { peerUserId, content: payloadContent },
+      {
+        onSuccess: (sentMessage) => {
+          const normalizedMessage = normalizeChatMessage(sentMessage);
+          const finalMessage = { ...normalizedMessage, peerUserId };
+          const peerUser = getPeerUser(peerUserId);
+
+          setMessagesByPeerId((current) => ({
+            ...current,
+            [peerUserId]: mergeMessages(current[peerUserId], finalMessage),
+          }));
+
+          queryClient.setQueryData<ChatMessage[]>(
+            queryKeys.chat.messages(peerUserId),
+            (current) => mergeMessages(current, finalMessage),
+          );
+
+          queryClient.setQueryData<ChatConversation[]>(
+            queryKeys.chat.conversations(),
+            (current) =>
+              updateConversationForMessage(
+                current,
+                peerUserId,
+                peerUser,
+                finalMessage,
+                true,
+                true,
+              ),
+          );
+
+          setDraftByPeerId((current) => ({ ...current, [peerUserId]: "" }));
+          setReplyByPeerId((current) => ({ ...current, [peerUserId]: undefined }));
+        },
+      },
+    );
+  };
+
+  useEffect(() => {
+    for (const window of visibleWindows) {
+      const ref = messageEndRefs.current[window.peerUserId];
+      if (ref) {
+        ref.scrollIntoView({ behavior: "smooth" });
+      }
+    }
+  }, [messagesByPeerId, visibleWindows]);
+
+  useEffect(() => {
+    if (!didRestoreWindows) {
+      return;
+    }
+
+    for (const window of visibleWindows) {
+      const peerUserId = window.peerUserId;
+      const hasMessages = Array.isArray(messagesByPeerId[peerUserId]);
+      const isLoading = Boolean(loadingByPeerId[peerUserId]);
+      if (!hasMessages && !isLoading) {
+        void loadMessages(peerUserId);
+      }
+    }
+  }, [didRestoreWindows, loadingByPeerId, messagesByPeerId, visibleWindows]);
+
+  useEffect(() => {
+    for (const window of visibleWindows) {
+      const peerUserId = window.peerUserId;
+      const unreadCount =
+        conversationByPeerId.get(peerUserId)?.unreadCount || 0;
+      if (unreadCount <= 0 || markReadInFlightRef.current.has(peerUserId)) {
+        continue;
+      }
+
+      markReadInFlightRef.current.add(peerUserId);
+      markReadMutation.mutate(
+        { peerUserId },
+        {
+          onSuccess: () => setPeerUnreadZero(peerUserId),
+          onSettled: () => {
+            markReadInFlightRef.current.delete(peerUserId);
+          },
+        },
+      );
+    }
+  }, [conversationByPeerId, markReadMutation, visibleWindows]);
 
   useEffect(() => {
     if (!socket) {
       return;
     }
 
-    const listener = (event: MessageEvent) => {
-      void handleSocketMessage(event);
+    const handleSocketMessage = (event: MessageEvent) => {
+      try {
+        const parsed = JSON.parse(event.data);
+        const payload = camelcaseKeys(parsed, { deep: true }) as any;
+        const eventName = payload?.event || payload?.type;
+
+        if (eventName !== "chat:new-message") {
+          return;
+        }
+
+        const rawPayloadData = payload?.data || payload;
+        const rawEventData =
+          rawPayloadData?.event === "chat:new-message" && rawPayloadData?.data
+            ? rawPayloadData.data
+            : rawPayloadData?.payload || rawPayloadData;
+        const rawMessage =
+          rawEventData?.message && typeof rawEventData.message === "object"
+            ? rawEventData.message
+            : rawEventData?.data?.message &&
+                typeof rawEventData.data.message === "object"
+              ? rawEventData.data.message
+              : rawEventData;
+        const normalizedMessage = normalizeChatMessage(rawMessage);
+        let peerUserId = resolvePeerUserId(
+          normalizedMessage,
+          currentUserId,
+          rawEventData,
+        );
+
+        if (!peerUserId && chatWindowsRef.current.length === 1) {
+          peerUserId = chatWindowsRef.current[0].peerUserId;
+        }
+
+        if (!peerUserId) {
+          return;
+        }
+
+        const completedMessage: ChatMessage = {
+          ...normalizedMessage,
+          id:
+            normalizedMessage.id ||
+            `ws-${peerUserId}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          senderId:
+            normalizedMessage.senderId ||
+            rawEventData?.sender?.id ||
+            rawEventData?.senderId ||
+            rawEventData?.sender_id ||
+            rawEventData?.message?.senderId ||
+            rawEventData?.message?.sender_id ||
+            "",
+          recipientId:
+            normalizedMessage.recipientId ||
+            rawEventData?.recipient?.id ||
+            rawEventData?.recipientId ||
+            rawEventData?.recipient_id ||
+            rawEventData?.message?.recipientId ||
+            rawEventData?.message?.recipient_id ||
+            "",
+          content:
+            normalizedMessage.content ||
+            (typeof rawEventData?.message === "string"
+              ? rawEventData.message
+              : typeof rawEventData?.content === "string"
+                ? rawEventData.content
+                : ""),
+          createdAt:
+            normalizedMessage.createdAt ||
+            rawEventData?.createdAt ||
+            rawEventData?.created_at ||
+            new Date().toISOString(),
+        };
+
+        const isOwnMessage =
+          Boolean(currentUserId) && completedMessage.senderId === currentUserId;
+        const peerUser =
+          resolvePeerUser(completedMessage, rawEventData, currentUserId) ||
+          getPeerUser(peerUserId);
+
+        const existingWindow = chatWindowsRef.current.find(
+          (window) => window.peerUserId === peerUserId,
+        );
+        const isOpenAndActive = Boolean(existingWindow && !existingWindow.minimized);
+
+        const finalMessage = {
+          ...completedMessage,
+          peerUserId,
+        };
+
+        setMessagesByPeerId((current) => ({
+          ...current,
+          [peerUserId]: mergeMessages(current[peerUserId], finalMessage),
+        }));
+
+        queryClient.setQueryData<ChatMessage[]>(
+          queryKeys.chat.messages(peerUserId),
+          (current) => mergeMessages(current, finalMessage),
+        );
+
+        queryClient.setQueryData<ChatConversation[]>(
+          queryKeys.chat.conversations(),
+          (current) =>
+            updateConversationForMessage(
+              current,
+              peerUserId,
+              peerUser,
+              finalMessage,
+              isOwnMessage,
+              isOpenAndActive,
+            ),
+        );
+
+        if (!isOwnMessage && !existingWindow) {
+          setChatWindows((current) =>
+            upsertWindow(current, peerUserId, {
+              minimized: true,
+              openedAt: Date.now(),
+            }),
+          );
+        }
+
+        if (!isOwnMessage && isOpenAndActive) {
+          markReadMutation.mutate(
+            { peerUserId },
+            {
+              onSuccess: () => setPeerUnreadZero(peerUserId),
+            },
+          );
+        }
+
+        if (!isOwnMessage) {
+          playIncomingMessageSound();
+        }
+      } catch (error) {
+        console.error("[CHAT] Failed to process websocket message", error);
+      }
     };
 
-    socket.addEventListener("message", listener);
-
-    return () => {
-      socket.removeEventListener("message", listener);
-    };
-  }, [handleSocketMessage, socket]);
-
-  const handleSendMessage = async () => {
-    const trimmedMessage = draftMessage.trim();
-    if (!trimmedMessage || !selectedPeer) {
-      return;
-    }
-
-    const finalContent = replyTarget
-      ? `↪ ${replyTarget.senderId === currentUser?.id ? "You" : selectedPeer.username}: ${toReplySnippet(replyTarget.message)}\n${trimmedMessage}`
-      : trimmedMessage;
-
-    try {
-      const response = await sendMessageMutation.mutateAsync({
-        recipientId: selectedPeer.id,
-        message: finalContent,
-      });
-
-      setDraftMessage("");
-      setReplyTarget(null);
-      setConversationItems((currentConversations) =>
-        updateConversationState(
-          currentConversations,
-          response.data.peerUser,
-          response.data.message,
-        ),
-      );
-      setMessageItems((currentMessages) =>
-        mergeMessages(currentMessages, response.data.message),
-      );
-    } catch (error: any) {
-      messageApi.error(error?.response?.data?.message || "Failed to send message");
-    }
-  };
-
-  if (!currentUser?.id) {
-    return null;
-  }
+    socket.addEventListener("message", handleSocketMessage);
+    return () => socket.removeEventListener("message", handleSocketMessage);
+  }, [currentUserId, markReadMutation, queryClient, socket]);
 
   return (
     <>
-      {contextHolder}
-      <div className={styles.launcher}>
-        <Badge count={unreadTotal} size="small">
-          <Tooltip title={isOpen ? "Hide messages" : "Open messages"}>
-            <button
-              className={styles.launcherButton}
-              onClick={() => setIsOpen((currentState) => !currentState)}
-              type="button"
-            >
-              {isOpen ? <Minus size={20} /> : <MessageCircle size={20} />}
-            </button>
-          </Tooltip>
-        </Badge>
-      </div>
+      <div className={styles.windowRail}>
+        {visibleWindows.map((window) => {
+          const peerUser = getPeerUser(window.peerUserId);
+          const messages = messagesByPeerId[window.peerUserId] || [];
+          const isLoading = Boolean(loadingByPeerId[window.peerUserId]);
+          const unreadCount =
+            conversationByPeerId.get(window.peerUserId)?.unreadCount || 0;
+          const draft = draftByPeerId[window.peerUserId] || "";
+          const replyTarget = replyByPeerId[window.peerUserId];
+          const sendingThisPeer =
+            sendMessageMutation.isPending &&
+            sendMessageMutation.variables?.peerUserId === window.peerUserId;
 
-      {isOpen ? (
-        <section className={styles.panel}>
-          <div className={styles.header}>
-            <div className={styles.headerTitle}>
-              <Title level={5} style={{ color: "#0f172a", margin: 0 }}>
-                Direct messages
-              </Title>
-              <span className={styles.headerBadge}>
-                {isConnected ? "Realtime connected" : "Realtime reconnecting"}
-              </span>
-            </div>
-
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span className={styles.statusDot} />
-              <Button
-                aria-label="Hide chat"
-                onClick={() => setIsOpen(false)}
-                size="small"
-                type="text"
-              >
-                <Minus size={16} />
-              </Button>
-            </div>
-          </div>
-
-          <div className={styles.body}>
-            <aside className={styles.sidebar}>
-              <div className={styles.sidebarControls}>
-                <Segmented<ChatView>
-                  block
-                  onChange={(value) => setActiveView(value)}
-                  options={[
-                    {
-                      label: "Chats",
-                      value: "conversations",
-                    },
-                    {
-                      label: "People",
-                      value: "directory",
-                    },
-                  ]}
-                  value={activeView}
-                />
-                <Input
-                  allowClear
-                  onChange={(event) => setSearchQuery(event.target.value)}
-                  placeholder={
-                    activeView === "directory"
-                      ? "Find people"
-                      : "Search chats"
-                  }
-                  prefix={
-                    activeView === "directory" ? (
-                      <Users size={14} />
-                    ) : (
-                      <Search size={14} />
-                    )
-                  }
-                  value={searchQuery}
-                />
-              </div>
-
-              <div className={styles.sidebarList}>
-                {activeView === "conversations" ? (
-                  conversationsQuery.isLoading ? (
-                    <div style={{ padding: 12, display: "flex", justifyContent: "center" }}>
-                      <Spin size="small" />
-                    </div>
-                  ) : filteredConversations.length > 0 ? (
-                    filteredConversations.map((conversation) => (
-                      (() => {
-                        const peerId = conversation.peerUser?.id || "";
-                        const peerUsername = conversation.peerUser?.username || "Unknown";
-                        const peerAvatar = conversation.peerUser?.profilePicture || undefined;
-                        if (!peerId) {
-                          return null;
-                        }
-                        return (
-                      <button
-                        className={`${styles.sidebarItem} ${
-                          selectedPeer?.id === peerId
-                            ? styles.sidebarItemActive
-                            : ""
-                        }`}
-                        key={peerId}
-                        onClick={() => void selectConversation(conversation.peerUser)}
-                        type="button"
-                      >
-                        <div className={styles.sidebarItemRow}>
-                          <Badge count={conversation.unreadCount} size="small">
-                            <Avatar
-                              size={34}
-                              src={peerAvatar}
-                            >
-                              {getUserInitials(peerUsername)}
-                            </Avatar>
-                          </Badge>
-                          <div className={styles.sidebarMeta}>
-                            <span className={styles.sidebarUsername}>
-                              {peerUsername}
-                            </span>
-                            <span className={styles.sidebarPreview}>
-                              {conversation.lastMessage?.message || "No messages yet"}
-                            </span>
-                          </div>
-                        </div>
-                      </button>
-                        );
-                      })()
-                    ))
-                  ) : (
-                    <div className={styles.emptyState}>
-                      <Empty
-                        description="No conversations"
-                        image={Empty.PRESENTED_IMAGE_SIMPLE}
-                      />
-                    </div>
-                  )
-                ) : usersQuery.isLoading ? (
-                  <div style={{ padding: 12, display: "flex", justifyContent: "center" }}>
-                    <Spin size="small" />
-                  </div>
-                ) : usersQuery.data?.data?.length ? (
-                  usersQuery.data.data.map((user) => (
-                    <button
-                      className={`${styles.sidebarItem} ${
-                        selectedPeer?.id === user.id ? styles.sidebarItemActive : ""
-                      }`}
-                      key={user.id}
-                      onClick={() => void selectConversation(user)}
-                      type="button"
-                    >
-                      <div className={styles.sidebarItemRow}>
-                        <Avatar size={34} src={user.profilePicture || undefined}>
-                          {getUserInitials(user.username || "")}
-                        </Avatar>
-                        <div className={styles.sidebarMeta}>
-                          <span className={styles.sidebarUsername}>
-                            {user.username || "Unknown"}
-                          </span>
-                          <span className={styles.sidebarPreview}>
-                            Start a conversation
-                          </span>
-                        </div>
-                      </div>
-                    </button>
-                  ))
-                ) : (
-                  <div className={styles.emptyState}>
-                    <Empty
-                      description="No users found"
-                      image={Empty.PRESENTED_IMAGE_SIMPLE}
+          return (
+            <div key={window.peerUserId} className={styles.chatWindow}>
+              <div className={styles.chatWindowHeader}>
+                <div className={styles.chatWindowPeer}>
+                  <Avatar
+                    src={peerUser.avatar}
+                    size={28}
+                    className={styles.peerAvatar}
+                  >
+                    {peerUser.name?.slice(0, 1)}
+                  </Avatar>
+                  <Text className={styles.peerName}>{peerUser.name}</Text>
+                  {unreadCount > 0 ? (
+                    <Badge
+                      count={unreadCount}
+                      className={styles.headerBadge}
+                      overflowCount={99}
                     />
-                  </div>
-                )}
-              </div>
-            </aside>
-
-            <main className={styles.thread}>
-              {selectedPeer ? (
-                <>
-                  <div className={styles.threadHeader}>
-                    <Avatar size={40} src={selectedPeer.profilePicture || undefined}>
-                      {getUserInitials(selectedPeer.username || "")}
-                    </Avatar>
-                    <div style={{ minWidth: 0 }}>
-                      <Text
-                        strong
-                        style={{
-                          color: "#0f172a",
-                          display: "block",
-                        }}
-                      >
-                        {selectedPeer.username || "Unknown"}
-                      </Text>
-                      <Text style={{ color: "rgba(51, 65, 85, 0.64)" }}>
-                        One-on-one conversation
-                      </Text>
-                    </div>
-                  </div>
-
-                  <div className={styles.threadMessages}>
-                    {messagesQuery.isLoading ? (
-                      <div className={styles.emptyState}>
-                        <Spin />
-                      </div>
-                    ) : messageItems.length > 0 ? (
-                      messageItems.map((messageItem) => {
-                        const isOutgoing = messageItem.senderId === currentUser.id;
-
-                        return (
-                          <div
-                            className={`${styles.messageRow} ${
-                              isOutgoing ? styles.messageRowOutgoing : ""
-                            }`}
-                            key={messageItem.id}
-                          >
-                            <div
-                              className={`${styles.messageBubble} ${
-                                isOutgoing ? styles.messageBubbleOutgoing : ""
-                              }`}
-                            >
-                              <span className={styles.messageText}>
-                                {messageItem.message}
-                              </span>
-                              <div className={styles.messageMetaRow}>
-                                <span className={styles.messageTime}>
-                                  {formatMessageTime(messageItem.createdAt)}
-                                </span>
-                                <button
-                                  type="button"
-                                  className={styles.replyInlineButton}
-                                  onClick={() =>
-                                    setReplyTarget({
-                                      id: messageItem.id,
-                                      senderId: messageItem.senderId,
-                                      message: messageItem.message || "",
-                                    })
-                                  }
-                                >
-                                  Reply
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })
-                    ) : (
-                      <div className={styles.emptyState}>
-                        <Empty
-                          description="Say hello to get started"
-                          image={Empty.PRESENTED_IMAGE_SIMPLE}
-                        />
-                      </div>
-                    )}
-                    <div ref={messageEndRef} />
-                  </div>
-
-                  <div className={styles.composer}>
-                    {replyTarget ? (
-                      <div className={styles.replyPreview}>
-                        <span className={styles.replyPreviewText}>
-                          Replying: {toReplySnippet(replyTarget.message)}
-                        </span>
-                        <button
-                          type="button"
-                          className={styles.replyPreviewClose}
-                          onClick={() => setReplyTarget(null)}
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ) : null}
-                    <div className={styles.composerRow}>
-                      <div className={styles.composerInput} style={{ flex: 1 }}>
-                        <TextArea
-                          autoSize={{ minRows: 1, maxRows: 4 }}
-                          onChange={(event) => setDraftMessage(event.target.value)}
-                          onPressEnter={(event) => {
-                            if (!event.shiftKey) {
-                              event.preventDefault();
-                              void handleSendMessage();
-                            }
-                          }}
-                          placeholder={`Message ${selectedPeer.username || "user"}`}
-                          value={draftMessage}
-                        />
-                      </div>
-                      <Button
-                        disabled={!draftMessage.trim()}
-                        icon={<Send size={14} />}
-                        loading={sendMessageMutation.isPending}
-                        onClick={() => void handleSendMessage()}
-                        type="primary"
-                      />
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <div className={styles.emptyState}>
-                  <Empty
-                    description="Pick a teammate to start chatting"
-                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                  ) : null}
+                </div>
+                <div className={styles.chatWindowActions}>
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<MinusOutlined />}
+                    onClick={() => minimizeWindow(window.peerUserId)}
+                    className={styles.headerButton}
+                  />
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<CloseOutlined />}
+                    onClick={() => closeWindow(window.peerUserId)}
+                    className={styles.headerButton}
                   />
                 </div>
-              )}
-            </main>
+              </div>
+
+              <div className={styles.chatWindowBody}>
+                {isLoading ? (
+                  <div className={styles.windowEmpty}>
+                    <Spin size="small" />
+                  </div>
+                ) : messages.length === 0 ? (
+                  <div className={styles.windowEmpty}>
+                    <Empty
+                      image={Empty.PRESENTED_IMAGE_SIMPLE}
+                      description="No messages"
+                    />
+                  </div>
+                ) : (
+                  messages.map((chatMessage) => {
+                    const isOwnMessage =
+                      Boolean(currentUserId) &&
+                      chatMessage.senderId === currentUserId;
+
+                    return (
+                      <div
+                        key={chatMessage.id}
+                        className={`${styles.messageRow} ${
+                          isOwnMessage ? styles.messageRowOwn : ""
+                        }`}
+                      >
+                        <div
+                          className={`${styles.messageBubble} ${
+                            isOwnMessage ? styles.messageBubbleOwn : ""
+                          }`}
+                        >
+                          <div className={styles.messageText}>
+                            {chatMessage.content}
+                          </div>
+                          <div className={styles.messageMetaRow}>
+                            <div className={styles.messageTime}>
+                              {formatTime(chatMessage.createdAt)}
+                            </div>
+                            <Button
+                              type="text"
+                              size="small"
+                              className={styles.replyButton}
+                              onClick={() =>
+                                setReplyByPeerId((current) => ({
+                                  ...current,
+                                  [window.peerUserId]: {
+                                    messageId: chatMessage.id,
+                                    author: isOwnMessage ? "You" : peerUser.name,
+                                    text: toReplySnippet(chatMessage.content || ""),
+                                  },
+                                }))
+                              }
+                            >
+                              Reply
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+                <div
+                  ref={(element) => {
+                    messageEndRefs.current[window.peerUserId] = element;
+                  }}
+                />
+              </div>
+
+              <div className={styles.chatWindowComposer}>
+                {replyTarget ? (
+                  <div className={styles.replyPreview}>
+                    <Text className={styles.replyPreviewText}>
+                      Replying to {replyTarget.author}: {replyTarget.text}
+                    </Text>
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={<CloseOutlined />}
+                      className={styles.replyPreviewClose}
+                      onClick={() =>
+                        setReplyByPeerId((current) => ({
+                          ...current,
+                          [window.peerUserId]: undefined,
+                        }))
+                      }
+                    />
+                  </div>
+                ) : null}
+                <div className={styles.composerRow}>
+                  <Input
+                    value={draft}
+                    placeholder="Aa"
+                    onChange={(event) =>
+                      setDraftByPeerId((current) => ({
+                        ...current,
+                        [window.peerUserId]: event.target.value,
+                      }))
+                    }
+                    onPressEnter={() => void handleSend(window.peerUserId)}
+                    className={styles.composerInput}
+                  />
+                  <Button
+                    type="text"
+                    icon={<SendOutlined />}
+                    onClick={() => void handleSend(window.peerUserId)}
+                    className={styles.sendButton}
+                    loading={sendingThisPeer}
+                    disabled={!draft.trim()}
+                  />
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className={styles.minimizedDock}>
+        {isOverflowOpen && overflowMinimizedWindows.length > 0 ? (
+          <div className={styles.overflowPanel}>
+            <List
+              dataSource={overflowMinimizedWindows}
+              renderItem={(window) => {
+                const peerUser = getPeerUser(window.peerUserId);
+                const unreadCount =
+                  conversationByPeerId.get(window.peerUserId)?.unreadCount || 0;
+
+                return (
+                  <List.Item
+                    className={styles.overflowItem}
+                    onClick={() => openWindow(window.peerUserId)}
+                  >
+                    <List.Item.Meta
+                      avatar={
+                        <Badge count={unreadCount} size="small" offset={[-2, 24]}>
+                          <Avatar src={peerUser.avatar}>
+                            {peerUser.name?.slice(0, 1)}
+                          </Avatar>
+                        </Badge>
+                      }
+                      title={<Text className={styles.overflowName}>{peerUser.name}</Text>}
+                    />
+                  </List.Item>
+                );
+              }}
+            />
           </div>
-        </section>
-      ) : null}
+        ) : null}
+
+        {overflowMinimizedWindows.length > 0 ? (
+          <Button
+            shape="circle"
+            className={styles.minimizedButton}
+            onClick={() => setIsOverflowOpen((current) => !current)}
+          >
+            +{overflowMinimizedWindows.length}
+          </Button>
+        ) : null}
+
+        {visibleMinimizedWindows.map((window) => {
+          const peerUser = getPeerUser(window.peerUserId);
+          const unreadCount =
+            conversationByPeerId.get(window.peerUserId)?.unreadCount || 0;
+
+          return (
+            <Badge
+              key={window.peerUserId}
+              count={unreadCount}
+              overflowCount={99}
+              offset={[-2, 8]}
+            >
+              <Button
+                shape="circle"
+                className={styles.minimizedButton}
+                onClick={() => openWindow(window.peerUserId)}
+              >
+                <Avatar
+                  src={peerUser.avatar}
+                  size={46}
+                  className={styles.minimizedAvatar}
+                >
+                  {peerUser.name?.slice(0, 1)}
+                </Avatar>
+              </Button>
+            </Badge>
+          );
+        })}
+
+        {isComposerOpen ? (
+          <div className={styles.composerPanel}>
+            <div className={styles.composerHeader}>
+              <Text className={styles.composerTitle}>New message</Text>
+              <Button
+                type="text"
+                size="small"
+                icon={<CloseOutlined />}
+                onClick={() => setIsComposerOpen(false)}
+                className={styles.composerClose}
+              />
+            </div>
+
+            <div className={styles.composerSearchRow}>
+              <Input
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder="Search people"
+                allowClear
+                prefix={<SearchOutlined />}
+                className={styles.composerSearch}
+              />
+            </div>
+
+            <div className={styles.peopleList}>
+              {usersQuery.isLoading || conversationsQuery.isLoading ? (
+                <div className={styles.windowEmpty}>
+                  <Spin />
+                </div>
+              ) : filteredPeople.length === 0 ? (
+                <div className={styles.windowEmpty}>
+                  <Empty
+                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                    description="No people found"
+                  />
+                </div>
+              ) : (
+                <List
+                  dataSource={filteredPeople}
+                  renderItem={(entry) => (
+                    <List.Item
+                      className={styles.peopleItem}
+                      onClick={() => openWindow(entry.peerUserId)}
+                    >
+                      <List.Item.Meta
+                        avatar={
+                          <Badge
+                            count={entry.unreadCount}
+                            overflowCount={99}
+                            size="small"
+                            offset={[-2, 24]}
+                          >
+                            <Avatar
+                              src={entry.peerUser.avatar}
+                            >
+                              {entry.peerUser.name?.slice(0, 1)}
+                            </Avatar>
+                          </Badge>
+                        }
+                        title={<Text className={styles.peopleName}>{entry.peerUser.name}</Text>}
+                        description={
+                          entry.lastMessage ? (
+                            <Text className={styles.peopleMeta}>
+                              {entry.lastMessage}
+                            </Text>
+                          ) : entry.peerUser.username ? (
+                            <Text className={styles.peopleMeta}>
+                              @{entry.peerUser.username}
+                            </Text>
+                          ) : null
+                        }
+                      />
+                    </List.Item>
+                  )}
+                />
+              )}
+            </div>
+          </div>
+        ) : null}
+
+        <Badge count={unreadTotal} overflowCount={99}>
+          <Button
+            type="primary"
+            shape="circle"
+            className={styles.launcherButton}
+            icon={<MessageOutlined />}
+            onClick={() => setIsComposerOpen((current) => !current)}
+          />
+        </Badge>
+      </div>
     </>
   );
 };

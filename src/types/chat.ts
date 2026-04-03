@@ -1,32 +1,107 @@
+import { ApiResponse } from "./type";
+
+export interface ChatUser {
+  id: string;
+  name: string;
+  username?: string;
+  email?: string;
+  avatar?: string;
+  isOnline?: boolean;
+  unreadCount?: number;
+}
+
+export interface ChatMessage {
+  id: string;
+  peerUserId: string;
+  senderId: string;
+  recipientId?: string;
+  content: string;
+  isRead: boolean;
+  createdAt: string;
+  updatedAt?: string;
+  sender?: ChatUser;
+  recipient?: ChatUser;
+}
+
+export interface ChatConversation {
+  id: string;
+  peerUserId: string;
+  peerUser: ChatUser;
+  lastMessage?: ChatMessage | null;
+  unreadCount: number;
+  updatedAt?: string;
+}
+
+export interface SendChatMessagePayload {
+  peerUserId?: string;
+  content?: string;
+  recipientId?: string;
+  message?: string;
+}
+
+export interface ReadChatMessagesPayload {
+  peerUserId: string;
+}
+
+export interface ChatMessagesResponse {
+  peerUser?: ChatUser;
+  peerUserId?: string;
+  messages: ChatMessage[];
+}
+
+export type ChatUsersApiResponse = ApiResponse<ChatUser[]>;
+export type ChatConversationsApiResponse = ApiResponse<ChatConversation[]>;
+export type ChatMessagesApiResponse = ApiResponse<
+  ChatMessage[] | ChatMessagesResponse
+>;
+export type ChatMessageApiResponse = ApiResponse<
+  ChatMessage | { message: ChatMessage; peerUser?: ChatUser; peerUserId?: string }
+>;
+
+// Legacy aliases for compatibility with existing hooks/components in this branch.
 export interface ChatUserSummary {
   id: string;
   username: string;
   profilePicture: string | null;
 }
 
-export interface ChatMessage {
-  id: string;
-  senderId: string;
-  recipientId: string;
-  message: string;
-  isRead: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
 export interface ChatConversationSummary {
   peerUser: ChatUserSummary;
-  lastMessage: ChatMessage | null;
+  lastMessage: {
+    id: string;
+    senderId: string;
+    recipientId: string;
+    message: string;
+    isRead: boolean;
+    createdAt: string;
+    updatedAt: string;
+  } | null;
   unreadCount: number;
 }
 
 export interface ChatMessagesData {
   peerUser: ChatUserSummary;
-  data: ChatMessage[];
+  data: Array<{
+    id: string;
+    senderId: string;
+    recipientId: string;
+    message: string;
+    isRead: boolean;
+    createdAt: string;
+    updatedAt: string;
+  }>;
 }
 
 export interface ChatSendMessageData {
-  message: ChatMessage;
+  message: {
+    id: string;
+    senderId: string;
+    recipientId: string;
+    message: string;
+    isRead: boolean;
+    createdAt: string;
+    updatedAt: string;
+  };
   peerUser: ChatUserSummary;
 }
 
@@ -42,7 +117,7 @@ export interface ChatPaginate {
 }
 
 export interface ChatResponse<T> {
-  message: string;
+  message?: string;
   data: T;
 }
 
@@ -50,17 +125,20 @@ export interface ChatListResponse<T> extends ChatResponse<T> {
   paginate?: ChatPaginate;
 }
 
-export interface SendChatMessagePayload {
-  recipientId: string;
-  message: string;
-}
-
 export interface MarkChatMessagesReadPayload {
   peerUserId: string;
 }
 
 export interface ChatNewMessageEventPayload {
-  message: ChatMessage;
+  message: {
+    id: string;
+    senderId: string;
+    recipientId: string;
+    message: string;
+    isRead: boolean;
+    createdAt: string;
+    updatedAt: string;
+  };
   peerUser: ChatUserSummary;
   senderUser: ChatUserSummary;
   recipientUser: ChatUserSummary;

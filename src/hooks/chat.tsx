@@ -22,7 +22,7 @@ export const chatQueryKeys = {
 export function useChatUsers(query: string, enabled = true) {
   return useQuery({
     queryKey: chatQueryKeys.users(query),
-    queryFn: () => getChatUsers(query || undefined),
+    queryFn: () => getChatUsers(),
     enabled,
     staleTime: 60 * 1000,
   });
@@ -52,11 +52,12 @@ export function useSendChatMessage() {
   return useMutation({
     mutationFn: (payload: SendChatMessagePayload) => sendChatMessage(payload),
     onSuccess: (_response, variables) => {
+      const peerUserId = variables.recipientId || variables.peerUserId || "";
       queryClient.invalidateQueries({
         queryKey: chatQueryKeys.conversations(),
       });
       queryClient.invalidateQueries({
-        queryKey: chatQueryKeys.messages(variables.recipientId),
+        queryKey: chatQueryKeys.messages(peerUserId),
       });
     },
   });
