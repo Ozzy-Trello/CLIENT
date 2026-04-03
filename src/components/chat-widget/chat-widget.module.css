@@ -201,9 +201,37 @@
   opacity: 0.72;
 }
 
+.messageMetaRow {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.replyInlineButton {
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.replyInlineButton:hover {
+  color: #fff;
+}
+
 .composer {
   padding: 12px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.composerRow {
   display: flex;
   gap: 8px;
   align-items: flex-end;
@@ -216,6 +244,33 @@
 
 .composerInput :global(.ant-input::placeholder) {
   color: rgba(255, 255, 255, 0.42);
+}
+
+.replyPreview {
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+  padding: 6px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.replyPreviewText {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 11px;
+}
+
+.replyPreviewClose {
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  font-size: 16px;
 }
 
 .emptyState {

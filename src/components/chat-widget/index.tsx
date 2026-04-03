@@ -43,6 +43,12 @@ const { TextArea } = Input;
 
 type ChatView = "conversations" | "directory";
 
+type ReplyTarget = {
+  id: string;
+  senderId: string;
+  message: string;
+};
+
 const getUserInitials = (username: string) =>
   username
     .trim()
@@ -97,6 +103,9 @@ const mergeMessages = (messages: ChatMessage[], incoming: ChatMessage) => {
 
   return sortMessages([...messages, incoming]);
 };
+
+const toReplySnippet = (value: string) =>
+  value.replace(/\s+/g, " ").trim().slice(0, 80);
 
 const sortConversations = (conversations: ChatConversationSummary[]) =>
   [...conversations].sort((left, right) => {
@@ -194,6 +203,7 @@ const ChatWidget: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const [draftMessage, setDraftMessage] = useState("");
+  const [replyTarget, setReplyTarget] = useState<ReplyTarget | null>(null);
   const [conversationItems, setConversationItems] = useState<
     ChatConversationSummary[]
   >([]);
@@ -306,6 +316,7 @@ const ChatWidget: React.FC = () => {
     setIsOpen(true);
     setActiveView("conversations");
     setSelectedPeer(peerUser);
+    setReplyTarget(null);
     setConversationItems((currentConversations) =>
       ensureConversation(currentConversations, peerUser),
     );
@@ -464,6 +475,7 @@ const ChatWidget: React.FC = () => {
           "",
         message:
           incomingMessageRaw.message ||
+          incomingMessageRaw.content ||
           (typeof eventData?.message === "string" ? eventData.message : ""),
         createdAt:
           incomingMessageRaw.createdAt ||
@@ -540,13 +552,18 @@ const ChatWidget: React.FC = () => {
       return;
     }
 
+    const finalContent = replyTarget
+      ? `↪ ${replyTarget.senderId === currentUser?.id ? "You" : selectedPeer.username}: ${toReplySnippet(replyTarget.message)}\n${trimmedMessage}`
+      : trimmedMessage;
+
     try {
       const response = await sendMessageMutation.mutateAsync({
         recipientId: selectedPeer.id,
-        message: trimmedMessage,
+        message: finalContent,
       });
 
       setDraftMessage("");
+      setReplyTarget(null);
       setConversationItems((currentConversations) =>
         updateConversationState(
           currentConversations,
@@ -778,9 +795,24 @@ const ChatWidget: React.FC = () => {
                               <span className={styles.messageText}>
                                 {messageItem.message}
                               </span>
-                              <span className={styles.messageTime}>
-                                {formatMessageTime(messageItem.createdAt)}
-                              </span>
+                              <div className={styles.messageMetaRow}>
+                                <span className={styles.messageTime}>
+                                  {formatMessageTime(messageItem.createdAt)}
+                                </span>
+                                <button
+                                  type="button"
+                                  className={styles.replyInlineButton}
+                                  onClick={() =>
+                                    setReplyTarget({
+                                      id: messageItem.id,
+                                      senderId: messageItem.senderId,
+                                      message: messageItem.message || "",
+                                    })
+                                  }
+                                >
+                                  Reply
+                                </button>
+                              </div>
                             </div>
                           </div>
                         );
@@ -797,27 +829,43 @@ const ChatWidget: React.FC = () => {
                   </div>
 
                   <div className={styles.composer}>
-                    <div className={styles.composerInput} style={{ flex: 1 }}>
-                      <TextArea
-                        autoSize={{ minRows: 1, maxRows: 4 }}
-                        onChange={(event) => setDraftMessage(event.target.value)}
-                        onPressEnter={(event) => {
-                          if (!event.shiftKey) {
-                            event.preventDefault();
-                            void handleSendMessage();
-                          }
-                        }}
-                        placeholder={`Message ${selectedPeer.username}`}
-                        value={draftMessage}
+                    {replyTarget ? (
+                      <div className={styles.replyPreview}>
+                        <span className={styles.replyPreviewText}>
+                          Replying: {toReplySnippet(replyTarget.message)}
+                        </span>
+                        <button
+                          type="button"
+                          className={styles.replyPreviewClose}
+                          onClick={() => setReplyTarget(null)}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ) : null}
+                    <div className={styles.composerRow}>
+                      <div className={styles.composerInput} style={{ flex: 1 }}>
+                        <TextArea
+                          autoSize={{ minRows: 1, maxRows: 4 }}
+                          onChange={(event) => setDraftMessage(event.target.value)}
+                          onPressEnter={(event) => {
+                            if (!event.shiftKey) {
+                              event.preventDefault();
+                              void handleSendMessage();
+                            }
+                          }}
+                          placeholder={`Message ${selectedPeer.username}`}
+                          value={draftMessage}
+                        />
+                      </div>
+                      <Button
+                        disabled={!draftMessage.trim()}
+                        icon={<Send size={14} />}
+                        loading={sendMessageMutation.isPending}
+                        onClick={() => void handleSendMessage()}
+                        type="primary"
                       />
                     </div>
-                    <Button
-                      disabled={!draftMessage.trim()}
-                      icon={<Send size={14} />}
-                      loading={sendMessageMutation.isPending}
-                      onClick={() => void handleSendMessage()}
-                      type="primary"
-                    />
                   </div>
                 </>
               ) : (
