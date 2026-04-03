@@ -29,6 +29,14 @@ export const queryKeys = {
     archived: () => [...queryKeys.cards.all, 'archived'] as const,
   },
 
+  chat: {
+    all: ['chat'] as const,
+    users: () => [...queryKeys.chat.all, 'users'] as const,
+    conversations: () => [...queryKeys.chat.all, 'conversations'] as const,
+    messages: (peerUserId: string) =>
+      [...queryKeys.chat.all, 'messages', peerUserId] as const,
+  },
+
   planner: {
     all: ['master-planner-v2'] as const,
     v2: (type?: string) => [...queryKeys.planner.all, type].filter(Boolean),
