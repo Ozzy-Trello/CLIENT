@@ -4,6 +4,8 @@ import {
   ChatMessage,
   ChatMessageApiResponse,
   ChatMessagesApiResponse,
+  ChatRoomMessageApiResponse,
+  ChatRoomMessagesApiResponse,
   ChatMessagesQuery,
   ChatMessagesResponse,
   ChatPresenceStatus,
@@ -13,6 +15,7 @@ import {
   ReadChatMessagesPayload,
   SendChatTypingPayload,
   SendChatMessagePayload,
+  SendChatRoomMessagePayload,
 } from "@myTypes/chat";
 
 const extractArray = (value: any): any[] => {
@@ -79,6 +82,43 @@ const resolveName = (user: any): string => {
   );
 };
 
+const resolveRoleName = (user: any): string | undefined => {
+  const candidates = [
+    user?.roleName,
+    user?.role_name,
+    user?.role?.name,
+    user?.role,
+  ];
+
+  for (const value of candidates) {
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+
+  return undefined;
+};
+
+const parseJsonIfPossible = (value: unknown): Record<string, any> | null => {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed.startsWith("{")) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return parsed as Record<string, any>;
+    }
+  } catch {}
+
+  return null;
+};
+
 const normalizePresenceStatus = (value: any): ChatPresenceStatus => {
   if (value === "online" || value === "idle" || value === "offline") {
     return value;
@@ -102,6 +142,7 @@ const normalizeChatUser = (user: any): ChatUser => ({
   id: resolveId(user?.id, user?.userId, user?.user_id, user?.peerUserId),
   name: resolveName(user),
   username: user?.username ?? user?.userName,
+  roleName: resolveRoleName(user),
   email: user?.email,
   avatar: user?.avatar ?? user?.avatarUrl ?? user?.avatar_url,
   isOnline: user?.isOnline ?? user?.is_online,
@@ -226,6 +267,20 @@ const normalizeChatMessage = (message: any): ChatMessage => {
   const recipient = message?.recipient
     ? normalizeChatUser(message.recipient)
     : undefined;
+  const rawContentValue =
+    message?.content ?? message?.message ?? message?.text ?? message?.body ?? "";
+  const parsedMessage = parseJsonIfPossible(rawContentValue);
+  const parsedRoom = parsedMessage?.room;
+  const roomId =
+    (typeof parsedRoom?.id === "string" && parsedRoom.id) ||
+    (typeof message?.roomId === "string" && message.roomId) ||
+    (typeof message?.room_id === "string" && message.room_id) ||
+    "";
+  const roomName =
+    (typeof parsedRoom?.name === "string" && parsedRoom.name) ||
+    (typeof message?.roomName === "string" && message.roomName) ||
+    (typeof message?.room_name === "string" && message.room_name) ||
+    undefined;
 
   return {
     id: resolveId(message?.id, message?.messageId, message?.message_id),
@@ -249,9 +304,9 @@ const normalizeChatMessage = (message: any): ChatMessage => {
       message?.toUserId,
       message?.to_user_id
     ),
-    content: normalizeStructuredMessageContent(
-      message?.content ?? message?.message ?? message?.text ?? message?.body ?? ""
-    ),
+    roomId: roomId || undefined,
+    roomName,
+    content: normalizeStructuredMessageContent(rawContentValue),
     isRead: Boolean(message?.isRead ?? message?.is_read ?? false),
     createdAt:
       message?.createdAt ?? message?.created_at ?? new Date().toISOString(),
@@ -346,6 +401,36 @@ export const getChatMessages = async (
   };
 };
 
+export const getGeneralRoomMessages = async (
+  query: ChatMessagesQuery = {},
+): Promise<ChatMessagesResponse> => {
+  const params = new URLSearchParams();
+  if (typeof query.page === "number") {
+    params.set("page", String(query.page));
+  }
+  if (typeof query.limit === "number") {
+    params.set("limit", String(query.limit));
+  }
+
+  const { data } = await api.get<ChatRoomMessagesApiResponse>(
+    `/chat/rooms/general/messages${params.toString() ? `?${params}` : ""}`,
+  );
+  const payload = extractObject(data);
+  const messages = extractArray(payload?.messages ?? payload).map(
+    normalizeChatMessage,
+  );
+
+  return {
+    messages: messages.map((item) => ({
+      ...item,
+      peerUserId: item.peerUserId || "general",
+      roomId: item.roomId || "general",
+      roomName: item.roomName || "General",
+    })),
+    paginate: payload?.paginate ?? data?.paginate,
+  };
+};
+
 export const sendChatMessage = async (
   payload: SendChatMessagePayload
 ): Promise<ChatMessage> => {
@@ -372,6 +457,36 @@ export const sendChatMessage = async (
     normalized.peerUserId = payload.peerUserId;
   }
   return normalized;
+};
+
+export const sendGeneralRoomMessage = async (
+  payload: SendChatRoomMessagePayload,
+): Promise<ChatMessage> => {
+  const { data } = await api.post<ChatRoomMessageApiResponse>(
+    "/chat/rooms/general/messages",
+    {
+      message: payload.content,
+    },
+    {
+      transformRequest: [(requestBody) => JSON.stringify(requestBody)],
+      headers: {
+        "Content-Type": "application/json",
+      },
+    },
+  );
+
+  const responsePayload = extractObject(data);
+  const messagePayload =
+    responsePayload?.id || responsePayload?.sender_id
+      ? responsePayload
+      : responsePayload?.message ?? responsePayload;
+  const normalized = normalizeChatMessage(messagePayload);
+  return {
+    ...normalized,
+    peerUserId: payload.roomId || "general",
+    roomId: normalized.roomId || payload.roomId || "general",
+    roomName: normalized.roomName || "General",
+  };
 };
 
 export const markChatMessagesRead = async (

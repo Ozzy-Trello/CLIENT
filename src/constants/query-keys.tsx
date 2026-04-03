@@ -35,6 +35,8 @@ export const queryKeys = {
     conversations: () => [...queryKeys.chat.all, 'conversations'] as const,
     messages: (peerUserId: string) =>
       [...queryKeys.chat.all, 'messages', peerUserId] as const,
+    roomMessages: (roomId: string) =>
+      [...queryKeys.chat.all, 'rooms', roomId, 'messages'] as const,
   },
 
   planner: {

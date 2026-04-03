@@ -6,6 +6,7 @@ export interface ChatUser {
   id: string;
   name: string;
   username?: string;
+  roleName?: string;
   email?: string;
   avatar?: string;
   isOnline?: boolean;
@@ -16,6 +17,8 @@ export interface ChatUser {
 export interface ChatMessage {
   id: string;
   peerUserId: string;
+  roomId?: string;
+  roomName?: string;
   senderId: string;
   recipientId?: string;
   content: string;
@@ -64,6 +67,11 @@ export interface SendChatMessagePayload {
   content: string;
 }
 
+export interface SendChatRoomMessagePayload {
+  roomId: string;
+  content: string;
+}
+
 export interface ReadChatMessagesPayload {
   peerUserId: string;
 }
@@ -86,3 +94,7 @@ export type ChatMessagesApiResponse = ApiResponse<ChatMessage[] | ChatMessagesRe
 export type ChatMessageApiResponse = ApiResponse<
   ChatMessage | { message: ChatMessage; peerUser?: ChatUser; peerUserId?: string }
 >;
+export type ChatRoomMessagesApiResponse = ApiResponse<
+  ChatMessage[] | ChatMessagesResponse
+>;
+export type ChatRoomMessageApiResponse = ApiResponse<ChatMessage | { message: ChatMessage }>;

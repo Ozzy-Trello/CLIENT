@@ -94,6 +94,12 @@
   font-weight: 600;
 }
 
+.peerRoleText {
+  color: rgba(15, 23, 42, 0.55) !important;
+  font-size: 11px;
+  line-height: 1.1;
+}
+
 .headerBadge :global(.ant-badge-count) {
   background: #2563eb;
 }
@@ -586,6 +592,19 @@
 .peopleName {
   color: #0f172a !important;
   font-size: 18px;
+}
+
+.peopleDescription {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.peopleRole {
+  color: rgba(15, 23, 42, 0.5) !important;
+  font-size: 11px;
+  line-height: 1.15;
+  text-transform: capitalize;
 }
 
 .peopleMeta {

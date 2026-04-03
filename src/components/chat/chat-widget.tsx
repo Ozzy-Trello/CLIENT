@@ -39,12 +39,14 @@ import { queryKeys } from "@constants/query-keys";
 import {
   getChatConversations,
   getChatMessages,
+  getGeneralRoomMessages,
   getChatUsers,
   markChatMessagesRead,
   normalizeChatMessage,
   normalizeChatUser,
   sendChatTyping,
   sendChatMessage,
+  sendGeneralRoomMessage,
 } from "@api/chat";
 import { uploadFile } from "@api/file";
 import type {
@@ -123,6 +125,11 @@ const CHAT_MESSAGE_PAGE_SIZE = 20;
 const CHAT_TYPING_IDLE_MS = 2400;
 const CHAT_TYPING_THROTTLE_MS = 1200;
 const CHAT_PRESENCE_TIMEOUT_MS = 2500;
+const GENERAL_ROOM_ID = "general";
+const GENERAL_ROOM_NAME = "General";
+const GENERAL_ROOM_ROLE = "Group chat";
+
+const isGeneralRoom = (peerUserId: string) => peerUserId === GENERAL_ROOM_ID;
 
 const formatTime = (value?: string) => {
   if (!value) {
@@ -564,6 +571,9 @@ const sortByLatest = (left: ChatConversation, right: ChatConversation) => {
   return rightTime.localeCompare(leftTime);
 };
 
+const getRoleLabel = (user?: ChatUser | null) =>
+  user?.roleName || "";
+
 const mergeMessages = (current: ChatMessage[] = [], next: ChatMessage) => {
   const map = new Map<string, ChatMessage>();
 
@@ -827,6 +837,8 @@ const ChatWidget = () => {
   const [typingByUserId, setTypingByUserId] = useState<Record<string, boolean>>(
     {},
   );
+  const [roomUnreadById, setRoomUnreadById] = useState<Record<string, number>>({});
+  const [roomMentionById, setRoomMentionById] = useState<Record<string, boolean>>({});
   const [loadingByPeerId, setLoadingByPeerId] = useState<
     Record<string, boolean>
   >({});
@@ -1046,10 +1058,16 @@ const ChatWidget = () => {
     }
   }, [conversations, currentUserId, users]);
 
-  const unreadTotal = conversations.reduce(
+  const dmUnreadTotal = conversations.reduce(
     (sum, conversation) => sum + (conversation.unreadCount || 0),
     0,
   );
+  const roomUnreadTotal = Object.values(roomUnreadById).reduce(
+    (sum, count) => sum + (count || 0),
+    0,
+  );
+  const hasRoomMention = Object.values(roomMentionById).some(Boolean);
+  const unreadTotal = dmUnreadTotal + roomUnreadTotal;
 
   const getSeedPresenceStatus = (peerUser?: ChatUser | null) =>
     normalizePresenceStatus(peerUser?.presenceStatus ?? peerUser?.isOnline);
@@ -1096,6 +1114,28 @@ const ChatWidget = () => {
 
   const people = useMemo(() => {
     const map = new Map<string, PeerEntry>();
+    const generalMessages = messagesByPeerId[GENERAL_ROOM_ID] || [];
+    const latestGeneralMessage =
+      generalMessages.length > 0
+        ? summarizeMessageContent(
+            generalMessages[generalMessages.length - 1]?.content || "",
+          )
+        : "";
+
+    map.set(GENERAL_ROOM_ID, {
+      peerUserId: GENERAL_ROOM_ID,
+      peerUser: normalizeChatUser({
+        id: GENERAL_ROOM_ID,
+        name: GENERAL_ROOM_NAME,
+        roleName: GENERAL_ROOM_ROLE,
+      }),
+      unreadCount: roomUnreadById[GENERAL_ROOM_ID] || 0,
+      lastMessage: latestGeneralMessage,
+      updatedAt:
+        generalMessages.length > 0
+          ? generalMessages[generalMessages.length - 1]?.createdAt
+          : undefined,
+    });
 
     for (const conversation of conversations) {
       if (!conversation.peerUserId || conversation.peerUserId === currentUserId) {
@@ -1136,6 +1176,13 @@ const ChatWidget = () => {
     }
 
     return Array.from(map.values()).sort((left, right) => {
+      if (left.peerUserId === GENERAL_ROOM_ID && right.peerUserId !== GENERAL_ROOM_ID) {
+        return -1;
+      }
+      if (right.peerUserId === GENERAL_ROOM_ID && left.peerUserId !== GENERAL_ROOM_ID) {
+        return 1;
+      }
+
       if ((right.unreadCount || 0) !== (left.unreadCount || 0)) {
         return (right.unreadCount || 0) - (left.unreadCount || 0);
       }
@@ -1148,7 +1195,7 @@ const ChatWidget = () => {
 
       return (left.peerUser.name || "").localeCompare(right.peerUser.name || "");
     });
-  }, [conversations, currentUserId, users]);
+  }, [conversations, currentUserId, messagesByPeerId, roomUnreadById, users]);
 
   const filteredPeople = useMemo(() => {
     const needle = searchTerm.trim().toLowerCase();
@@ -1159,12 +1206,14 @@ const ChatWidget = () => {
     return people.filter((entry) => {
       const name = entry.peerUser.name || "";
       const username = entry.peerUser.username || "";
+      const roleName = entry.peerUser.roleName || "";
       const email = entry.peerUser.email || "";
       const lastMessage = entry.lastMessage || "";
 
       return (
         name.toLowerCase().includes(needle) ||
         username.toLowerCase().includes(needle) ||
+        roleName.toLowerCase().includes(needle) ||
         email.toLowerCase().includes(needle) ||
         lastMessage.toLowerCase().includes(needle)
       );
@@ -1191,6 +1240,14 @@ const ChatWidget = () => {
   const overflowMinimizedWindows = minimizedWindows.slice(MAX_VISIBLE_MINIMIZED);
 
   const getPeerUser = (peerUserId: string) => {
+    if (isGeneralRoom(peerUserId)) {
+      return normalizeChatUser({
+        id: GENERAL_ROOM_ID,
+        name: GENERAL_ROOM_NAME,
+        roleName: GENERAL_ROOM_ROLE,
+      });
+    }
+
     const conversationPeer = conversationByPeerId.get(peerUserId)?.peerUser;
     const userPeer = userById.get(peerUserId);
     return (
@@ -1404,6 +1461,10 @@ const ChatWidget = () => {
   };
 
   const sendTypingState = async (peerUserId: string, isTyping: boolean) => {
+    if (isGeneralRoom(peerUserId)) {
+      return;
+    }
+
     try {
       await sendChatTyping({
         peerUserId,
@@ -1435,6 +1496,14 @@ const ChatWidget = () => {
   };
 
   const setPeerUnreadZero = (peerUserId: string) => {
+    if (isGeneralRoom(peerUserId)) {
+      setRoomUnreadById((current) => ({
+        ...current,
+        [GENERAL_ROOM_ID]: 0,
+      }));
+      return;
+    }
+
     queryClient.setQueryData<ChatConversation[]>(
       queryKeys.chat.conversations(),
       (current) => upsertUnreadCount(current, peerUserId, 0),
@@ -1510,19 +1579,27 @@ const ChatWidget = () => {
     }
 
     try {
-      const response = await getChatMessages(peerUserId, {
-        page,
-        limit: CHAT_MESSAGE_PAGE_SIZE,
-      });
+      const response = isGeneralRoom(peerUserId)
+        ? await getGeneralRoomMessages({
+            page,
+            limit: CHAT_MESSAGE_PAGE_SIZE,
+          })
+        : await getChatMessages(peerUserId, {
+            page,
+            limit: CHAT_MESSAGE_PAGE_SIZE,
+          });
 
       const fetchedMessages = response.messages.map((chatMessage) => ({
         ...chatMessage,
-        peerUserId: chatMessage.peerUserId || peerUserId,
+        peerUserId:
+          chatMessage.peerUserId || (isGeneralRoom(peerUserId) ? GENERAL_ROOM_ID : peerUserId),
       }));
 
       mergePeerMessages(peerUserId, fetchedMessages);
       queryClient.setQueryData<ChatMessage[]>(
-        queryKeys.chat.messages(peerUserId),
+        isGeneralRoom(peerUserId)
+          ? queryKeys.chat.roomMessages(GENERAL_ROOM_ID)
+          : queryKeys.chat.messages(peerUserId),
         (current) => mergeMessageLists(current || [], fetchedMessages),
       );
 
@@ -1643,6 +1720,12 @@ const ChatWidget = () => {
     );
 
     void loadMessages(peerUserId);
+
+    if (isGeneralRoom(peerUserId)) {
+      setRoomMentionById((current) => ({ ...current, [GENERAL_ROOM_ID]: false }));
+      setPeerUnreadZero(GENERAL_ROOM_ID);
+      return;
+    }
 
     if ((conversationByPeerId.get(peerUserId)?.unreadCount || 0) > 0) {
       markReadMutation.mutate(
@@ -1833,12 +1916,26 @@ const ChatWidget = () => {
           : undefined,
       });
 
-      const sentMessage = await sendMessageMutation.mutateAsync({
-        peerUserId,
-        content: payloadContent,
-      });
+      const sentMessage = isGeneralRoom(peerUserId)
+        ? await sendGeneralRoomMessage({
+            roomId: GENERAL_ROOM_ID,
+            content: payloadContent,
+          })
+        : await sendMessageMutation.mutateAsync({
+            peerUserId,
+            content: payloadContent,
+          });
       const normalizedMessage = normalizeChatMessage(sentMessage);
-      const finalMessage = { ...normalizedMessage, peerUserId };
+      const finalMessage = {
+        ...normalizedMessage,
+        peerUserId,
+        roomId: isGeneralRoom(peerUserId)
+          ? GENERAL_ROOM_ID
+          : normalizedMessage.roomId,
+        roomName: isGeneralRoom(peerUserId)
+          ? GENERAL_ROOM_NAME
+          : normalizedMessage.roomName,
+      };
       const peerUser = getPeerUser(peerUserId);
 
       setMessagesByPeerId((current) => ({
@@ -1847,22 +1944,26 @@ const ChatWidget = () => {
       }));
 
       queryClient.setQueryData<ChatMessage[]>(
-        queryKeys.chat.messages(peerUserId),
+        isGeneralRoom(peerUserId)
+          ? queryKeys.chat.roomMessages(GENERAL_ROOM_ID)
+          : queryKeys.chat.messages(peerUserId),
         (current) => mergeMessages(current, finalMessage),
       );
 
-      queryClient.setQueryData<ChatConversation[]>(
-        queryKeys.chat.conversations(),
-        (current) =>
-          updateConversationForMessage(
-            current,
-            peerUserId,
-            peerUser,
-            finalMessage,
-            true,
-            true,
-          ),
-      );
+      if (!isGeneralRoom(peerUserId)) {
+        queryClient.setQueryData<ChatConversation[]>(
+          queryKeys.chat.conversations(),
+          (current) =>
+            updateConversationForMessage(
+              current,
+              peerUserId,
+              peerUser,
+              finalMessage,
+              true,
+              true,
+            ),
+        );
+      }
 
       setDraftByPeerId((current) => ({ ...current, [peerUserId]: "" }));
       setReplyByPeerId((current) => ({ ...current, [peerUserId]: undefined }));
@@ -1951,6 +2052,9 @@ const ChatWidget = () => {
   useEffect(() => {
     for (const window of visibleWindows) {
       const peerUserId = window.peerUserId;
+      if (isGeneralRoom(peerUserId)) {
+        continue;
+      }
       const unreadCount =
         conversationByPeerId.get(peerUserId)?.unreadCount || 0;
       if (unreadCount <= 0 || markReadInFlightRef.current.has(peerUserId)) {
@@ -2045,6 +2149,116 @@ const ChatWidget = () => {
             setTypingState(peerUserId, false);
             typingReceiveTimersRef.current[peerUserId] = null;
           }, CHAT_PRESENCE_TIMEOUT_MS);
+          return;
+        }
+
+        if (eventName === "chat:group-mention") {
+          const roomId =
+            rawEventData?.roomId ||
+            rawEventData?.room_id ||
+            GENERAL_ROOM_ID;
+          const mentionedUserId =
+            rawEventData?.mentionedUserId || rawEventData?.mentioned_user_id;
+
+          if (
+            roomId === GENERAL_ROOM_ID &&
+            (!mentionedUserId || mentionedUserId === currentUserId)
+          ) {
+            const existingWindow = chatWindowsRef.current.find(
+              (window) => window.peerUserId === GENERAL_ROOM_ID,
+            );
+            const isOpenAndActive = Boolean(
+              existingWindow && !existingWindow.minimized,
+            );
+            if (!isOpenAndActive) {
+              setRoomMentionById((current) => ({
+                ...current,
+                [GENERAL_ROOM_ID]: true,
+              }));
+            }
+          }
+          return;
+        }
+
+        if (eventName === "chat:room-message") {
+          const rawMessage =
+            rawEventData?.message && typeof rawEventData.message === "object"
+              ? rawEventData.message
+              : rawEventData?.data?.message &&
+                  typeof rawEventData.data.message === "object"
+                ? rawEventData.data.message
+                : rawEventData;
+          const normalizedMessage = normalizeChatMessage(rawMessage);
+          const peerUserId = GENERAL_ROOM_ID;
+          const completedMessage: ChatMessage = {
+            ...normalizedMessage,
+            id:
+              normalizedMessage.id ||
+              `ws-general-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+            peerUserId,
+            roomId: normalizedMessage.roomId || GENERAL_ROOM_ID,
+            roomName: normalizedMessage.roomName || GENERAL_ROOM_NAME,
+            senderId:
+              normalizedMessage.senderId ||
+              rawEventData?.sender?.id ||
+              rawEventData?.senderId ||
+              rawEventData?.sender_id ||
+              "",
+            content:
+              normalizedMessage.content ||
+              (typeof rawEventData?.message === "string"
+                ? rawEventData.message
+                : typeof rawEventData?.content === "string"
+                  ? rawEventData.content
+                  : ""),
+            createdAt:
+              normalizedMessage.createdAt ||
+              rawEventData?.createdAt ||
+              rawEventData?.created_at ||
+              new Date().toISOString(),
+          };
+
+          const isOwnMessage =
+            Boolean(currentUserId) && completedMessage.senderId === currentUserId;
+          const existingWindow = chatWindowsRef.current.find(
+            (window) => window.peerUserId === peerUserId,
+          );
+          const isOpenAndActive = Boolean(existingWindow && !existingWindow.minimized);
+
+          setMessagesByPeerId((current) => ({
+            ...current,
+            [peerUserId]: mergeMessages(current[peerUserId], completedMessage),
+          }));
+
+          queryClient.setQueryData<ChatMessage[]>(
+            queryKeys.chat.roomMessages(GENERAL_ROOM_ID),
+            (current) => mergeMessages(current, completedMessage),
+          );
+
+          if (!isOwnMessage && !isOpenAndActive) {
+            setRoomUnreadById((current) => ({
+              ...current,
+              [GENERAL_ROOM_ID]: (current[GENERAL_ROOM_ID] || 0) + 1,
+            }));
+          }
+
+          if (!isOwnMessage && !existingWindow) {
+            setChatWindows((current) =>
+              upsertWindow(current, peerUserId, {
+                minimized: true,
+                openedAt: Date.now(),
+              }),
+            );
+          }
+
+          if (!isOwnMessage) {
+            playIncomingMessageSound();
+          }
+
+          if (isOwnMessage || isOpenAndActive) {
+            scheduleScrollToBottom(peerUserId);
+          }
+
           return;
         }
 
@@ -2157,7 +2371,7 @@ const ChatWidget = () => {
           );
         }
 
-        if (!isOwnMessage && isOpenAndActive) {
+        if (!isOwnMessage && isOpenAndActive && !isGeneralRoom(peerUserId)) {
           markReadMutation.mutate(
             { peerUserId },
             {
@@ -2196,7 +2410,14 @@ const ChatWidget = () => {
             hasMoreMessagesByPeerId[window.peerUserId],
           );
           const unreadCount =
-            conversationByPeerId.get(window.peerUserId)?.unreadCount || 0;
+            isGeneralRoom(window.peerUserId)
+              ? roomUnreadById[GENERAL_ROOM_ID] || 0
+              : conversationByPeerId.get(window.peerUserId)?.unreadCount || 0;
+          const headerBadgeCount =
+            isGeneralRoom(window.peerUserId) && roomMentionById[GENERAL_ROOM_ID]
+              ? "@"
+              : unreadCount;
+          const roleLabel = getRoleLabel(peerUser);
           const draft = draftByPeerId[window.peerUserId] || "";
           const replyTarget = replyByPeerId[window.peerUserId];
           const pendingFiles = pendingFilesByPeerId[window.peerUserId] || [];
@@ -2244,13 +2465,16 @@ const ChatWidget = () => {
                   )}
                   <div className={styles.peerHeaderText}>
                     <Text className={styles.peerName}>{peerUser.name}</Text>
+                    {roleLabel ? (
+                      <Text className={styles.peerRoleText}>{roleLabel}</Text>
+                    ) : null}
                     {peerTyping ? (
                       <Text className={styles.peerTypingText}>typing...</Text>
                     ) : null}
                   </div>
-                  {unreadCount > 0 ? (
+                  {headerBadgeCount ? (
                     <Badge
-                      count={unreadCount}
+                      count={headerBadgeCount}
                       className={styles.headerBadge}
                       overflowCount={99}
                     />
@@ -2620,7 +2844,13 @@ const ChatWidget = () => {
               renderItem={(window) => {
                 const peerUser = getPeerUser(window.peerUserId);
                 const unreadCount =
-                  conversationByPeerId.get(window.peerUserId)?.unreadCount || 0;
+                  isGeneralRoom(window.peerUserId)
+                    ? roomUnreadById[GENERAL_ROOM_ID] || 0
+                    : conversationByPeerId.get(window.peerUserId)?.unreadCount || 0;
+                const mentionBadge =
+                  isGeneralRoom(window.peerUserId) && roomMentionById[GENERAL_ROOM_ID]
+                    ? "@"
+                    : unreadCount;
 
                 return (
                   <List.Item
@@ -2629,7 +2859,7 @@ const ChatWidget = () => {
                   >
                     <List.Item.Meta
                       avatar={
-                        <Badge count={unreadCount} size="small" offset={[-2, 24]}>
+                        <Badge count={mentionBadge} size="small" offset={[-2, 24]}>
                           {renderPresenceAvatar(
                             peerUser,
                             getPeerPresenceStatus(window.peerUserId),
@@ -2661,12 +2891,18 @@ const ChatWidget = () => {
         {visibleMinimizedWindows.map((window) => {
           const peerUser = getPeerUser(window.peerUserId);
           const unreadCount =
-            conversationByPeerId.get(window.peerUserId)?.unreadCount || 0;
+            isGeneralRoom(window.peerUserId)
+              ? roomUnreadById[GENERAL_ROOM_ID] || 0
+              : conversationByPeerId.get(window.peerUserId)?.unreadCount || 0;
+          const mentionBadge =
+            isGeneralRoom(window.peerUserId) && roomMentionById[GENERAL_ROOM_ID]
+              ? "@"
+              : unreadCount;
 
           return (
             <Badge
               key={window.peerUserId}
-              count={unreadCount}
+              count={mentionBadge}
               overflowCount={99}
               offset={[-2, 8]}
             >
@@ -2725,53 +2961,67 @@ const ChatWidget = () => {
               ) : (
                 <List
                   dataSource={filteredPeople}
-                  renderItem={(entry) => (
-                    <List.Item
-                      className={styles.peopleItem}
-                      onClick={() => openWindow(entry.peerUserId)}
-                    >
-                      <List.Item.Meta
-                        avatar={
-                          <Badge
-                            count={entry.unreadCount}
-                            overflowCount={99}
-                            size="small"
-                            offset={[-2, 24]}
-                          >
-                            {renderPresenceAvatar(
-                              entry.peerUser,
-                              getPeerPresenceStatus(entry.peerUserId),
-                            )}
-                          </Badge>
-                        }
-                        title={
-                          <Text className={styles.peopleName}>
-                            {entry.peerUser.name}
-                          </Text>
-                        }
-                        description={
-                          typingByUserId[entry.peerUserId] ? (
-                            <Text className={styles.peopleTyping}>typing...</Text>
-                          ) : entry.lastMessage ? (
-                            <Text className={styles.peopleMeta}>
-                              {entry.lastMessage}
+                  renderItem={(entry) => {
+                    const roleLabel = getRoleLabel(entry.peerUser);
+                    const mentionBadge =
+                      isGeneralRoom(entry.peerUserId) &&
+                      roomMentionById[GENERAL_ROOM_ID]
+                        ? "@"
+                        : entry.unreadCount;
+
+                    return (
+                      <List.Item
+                        className={styles.peopleItem}
+                        onClick={() => openWindow(entry.peerUserId)}
+                      >
+                        <List.Item.Meta
+                          avatar={
+                            <Badge
+                              count={mentionBadge}
+                              overflowCount={99}
+                              size="small"
+                              offset={[-2, 24]}
+                            >
+                              {renderPresenceAvatar(
+                                entry.peerUser,
+                                getPeerPresenceStatus(entry.peerUserId),
+                              )}
+                            </Badge>
+                          }
+                          title={
+                            <Text className={styles.peopleName}>
+                              {entry.peerUser.name}
                             </Text>
-                          ) : entry.peerUser.username ? (
-                            <Text className={styles.peopleMeta}>
-                              @{entry.peerUser.username}
-                            </Text>
-                          ) : null
-                        }
-                      />
-                    </List.Item>
-                  )}
+                          }
+                          description={
+                            <div className={styles.peopleDescription}>
+                              {roleLabel ? (
+                                <Text className={styles.peopleRole}>{roleLabel}</Text>
+                              ) : null}
+                              {typingByUserId[entry.peerUserId] ? (
+                                <Text className={styles.peopleTyping}>typing...</Text>
+                              ) : entry.lastMessage ? (
+                                <Text className={styles.peopleMeta}>
+                                  {entry.lastMessage}
+                                </Text>
+                              ) : entry.peerUser.username ? (
+                                <Text className={styles.peopleMeta}>
+                                  @{entry.peerUser.username}
+                                </Text>
+                              ) : null}
+                            </div>
+                          }
+                        />
+                      </List.Item>
+                    );
+                  }}
                 />
               )}
             </div>
           </div>
         ) : null}
 
-        <Badge count={unreadTotal} overflowCount={99}>
+        <Badge count={hasRoomMention ? "@" : unreadTotal} overflowCount={99}>
           <Button
             type="primary"
             shape="circle"
