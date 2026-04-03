@@ -588,6 +588,18 @@ const messageMentionsCurrentUser = (
   return tokens.some((token) => aliases.has(token));
 };
 
+const getIncomingMessageKey = (peerUserId: string, message: ChatMessage) => {
+  const stableId =
+    message.id ||
+    [
+      message.senderId || "",
+      message.recipientId || "",
+      message.createdAt || "",
+      message.content || "",
+    ].join("|");
+  return `${peerUserId}:${stableId}`;
+};
+
 const mentionEventTargetsCurrentUser = (
   eventData: any,
   currentUser?: { id?: string; username?: string; name?: string } | null,
@@ -994,6 +1006,8 @@ const ChatWidget = () => {
   const loadingOlderPeersRef = useRef(new Set<string>());
   const markReadInFlightRef = useRef(new Set<string>());
   const chatWindowsRef = useRef<ChatWindowState[]>([]);
+  const messagesByPeerIdRef = useRef<Record<string, ChatMessage[]>>({});
+  const processedIncomingMessageKeysRef = useRef<Set<string>>(new Set());
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const messageBodyRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const messageEndRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -1017,6 +1031,10 @@ const ChatWidget = () => {
   useEffect(() => {
     chatWindowsRef.current = chatWindows;
   }, [chatWindows]);
+
+  useEffect(() => {
+    messagesByPeerIdRef.current = messagesByPeerId;
+  }, [messagesByPeerId]);
 
   useEffect(() => {
     if (!currentUserId) {
@@ -1205,7 +1223,32 @@ const ChatWidget = () => {
     (sum, count) => sum + (count || 0),
     0,
   );
-  const hasRoomMention = Object.values(roomMentionById).some(Boolean);
+  const hasUnreadGeneralMention = useMemo(() => {
+    const unreadCount = roomUnreadById[GENERAL_ROOM_ID] || 0;
+    if (unreadCount <= 0) {
+      return false;
+    }
+
+    const messages = messagesByPeerId[GENERAL_ROOM_ID] || [];
+    if (messages.length === 0) {
+      return false;
+    }
+
+    const unreadMessages = messages.slice(-unreadCount);
+    return unreadMessages.some(
+      (chatMessage) =>
+        chatMessage.senderId !== currentUserId &&
+        messageMentionsCurrentUser(chatMessage, currentUser),
+    );
+  }, [currentUser, currentUserId, messagesByPeerId, roomUnreadById]);
+
+  const isGeneralMentionActive =
+    Boolean(roomMentionById[GENERAL_ROOM_ID]) || hasUnreadGeneralMention;
+  const hasRoomMention =
+    isGeneralMentionActive ||
+    Object.entries(roomMentionById).some(
+      ([roomId, hasMention]) => roomId !== GENERAL_ROOM_ID && Boolean(hasMention),
+    );
   const unreadTotal = dmUnreadTotal + roomUnreadTotal;
 
   const getSeedPresenceStatus = (peerUser?: ChatUser | null) =>
@@ -1253,13 +1296,6 @@ const ChatWidget = () => {
 
   const people = useMemo(() => {
     const map = new Map<string, PeerEntry>();
-    const generalMessages = messagesByPeerId[GENERAL_ROOM_ID] || [];
-    const latestGeneralMessage =
-      generalMessages.length > 0
-        ? summarizeMessageContent(
-            generalMessages[generalMessages.length - 1]?.content || "",
-          )
-        : "";
 
     map.set(GENERAL_ROOM_ID, {
       peerUserId: GENERAL_ROOM_ID,
@@ -1269,11 +1305,8 @@ const ChatWidget = () => {
         roleName: GENERAL_ROOM_ROLE,
       }),
       unreadCount: roomUnreadById[GENERAL_ROOM_ID] || 0,
-      lastMessage: latestGeneralMessage,
-      updatedAt:
-        generalMessages.length > 0
-          ? generalMessages[generalMessages.length - 1]?.createdAt
-          : undefined,
+      lastMessage: "",
+      updatedAt: undefined,
     });
 
     for (const conversation of conversations) {
@@ -1347,7 +1380,8 @@ const ChatWidget = () => {
       const username = entry.peerUser.username || "";
       const roleName = entry.peerUser.roleName || "";
       const email = entry.peerUser.email || "";
-      const lastMessage = entry.lastMessage || "";
+      const lastMessage =
+        entry.peerUserId === GENERAL_ROOM_ID ? "" : entry.lastMessage || "";
 
       return (
         name.toLowerCase().includes(needle) ||
@@ -2400,6 +2434,23 @@ const ChatWidget = () => {
               rawEventData?.created_at ||
               new Date().toISOString(),
           };
+          const incomingKey = getIncomingMessageKey(peerUserId, completedMessage);
+          if (processedIncomingMessageKeysRef.current.has(incomingKey)) {
+            return;
+          }
+          processedIncomingMessageKeysRef.current.add(incomingKey);
+          if (processedIncomingMessageKeysRef.current.size > 5000) {
+            processedIncomingMessageKeysRef.current.clear();
+          }
+
+          const existingMessages = messagesByPeerIdRef.current[peerUserId] || [];
+          const alreadyExists = Boolean(
+            completedMessage.id &&
+              existingMessages.some((item) => item.id === completedMessage.id),
+          );
+          if (alreadyExists) {
+            return;
+          }
 
           const isOwnMessage =
             Boolean(currentUserId) && completedMessage.senderId === currentUserId;
@@ -2511,6 +2562,23 @@ const ChatWidget = () => {
             rawEventData?.created_at ||
             new Date().toISOString(),
         };
+        const incomingKey = getIncomingMessageKey(peerUserId, completedMessage);
+        if (processedIncomingMessageKeysRef.current.has(incomingKey)) {
+          return;
+        }
+        processedIncomingMessageKeysRef.current.add(incomingKey);
+        if (processedIncomingMessageKeysRef.current.size > 5000) {
+          processedIncomingMessageKeysRef.current.clear();
+        }
+
+        const existingMessages = messagesByPeerIdRef.current[peerUserId] || [];
+        const alreadyExists = Boolean(
+          completedMessage.id &&
+            existingMessages.some((item) => item.id === completedMessage.id),
+        );
+        if (alreadyExists) {
+          return;
+        }
 
         const isOwnMessage =
           Boolean(currentUserId) && completedMessage.senderId === currentUserId;
@@ -2613,7 +2681,7 @@ const ChatWidget = () => {
               ? roomUnreadById[GENERAL_ROOM_ID] || 0
               : conversationByPeerId.get(window.peerUserId)?.unreadCount || 0;
           const headerBadgeCount =
-            isGeneralRoom(window.peerUserId) && roomMentionById[GENERAL_ROOM_ID]
+            isGeneralRoom(window.peerUserId) && isGeneralMentionActive
               ? "@"
               : unreadCount;
           const roleLabel = getRoleLabel(peerUser);
@@ -3130,7 +3198,7 @@ const ChatWidget = () => {
                     ? roomUnreadById[GENERAL_ROOM_ID] || 0
                     : conversationByPeerId.get(window.peerUserId)?.unreadCount || 0;
                 const mentionBadge =
-                  isGeneralRoom(window.peerUserId) && roomMentionById[GENERAL_ROOM_ID]
+                  isGeneralRoom(window.peerUserId) && isGeneralMentionActive
                     ? "@"
                     : unreadCount;
 
@@ -3177,7 +3245,7 @@ const ChatWidget = () => {
               ? roomUnreadById[GENERAL_ROOM_ID] || 0
               : conversationByPeerId.get(window.peerUserId)?.unreadCount || 0;
           const mentionBadge =
-            isGeneralRoom(window.peerUserId) && roomMentionById[GENERAL_ROOM_ID]
+            isGeneralRoom(window.peerUserId) && isGeneralMentionActive
               ? "@"
               : unreadCount;
 
@@ -3247,7 +3315,7 @@ const ChatWidget = () => {
                     const roleLabel = getRoleLabel(entry.peerUser);
                     const mentionBadge =
                       isGeneralRoom(entry.peerUserId) &&
-                      roomMentionById[GENERAL_ROOM_ID]
+                      isGeneralMentionActive
                         ? "@"
                         : entry.unreadCount;
 
