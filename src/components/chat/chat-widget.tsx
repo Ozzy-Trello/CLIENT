@@ -301,6 +301,9 @@ const ChatWidget = () => {
   const markReadInFlightRef = useRef(new Set<string>());
   const chatWindowsRef = useRef<ChatWindowState[]>([]);
   const messageEndRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const audioUnlockedRef = useRef(false);
+  const lastIncomingSoundAtRef = useRef(0);
   const storageKey = `${CHAT_WINDOWS_STORAGE_PREFIX}_${currentUserId || "anon"}`;
 
   useEffect(() => {
@@ -365,6 +368,43 @@ const ChatWidget = () => {
     }));
     window.localStorage.setItem(storageKey, JSON.stringify(payload));
   }, [chatWindows, currentUserId, didRestoreWindows, storageKey]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const unlockAudio = () => {
+      const AudioContextClass =
+        window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextClass) {
+        return;
+      }
+
+      if (!audioContextRef.current) {
+        audioContextRef.current = new AudioContextClass();
+      }
+
+      if (audioContextRef.current.state === "suspended") {
+        void audioContextRef.current.resume().catch(() => {});
+      }
+
+      audioUnlockedRef.current = true;
+    };
+
+    window.addEventListener("pointerdown", unlockAudio, { passive: true });
+    window.addEventListener("keydown", unlockAudio);
+
+    return () => {
+      window.removeEventListener("pointerdown", unlockAudio);
+      window.removeEventListener("keydown", unlockAudio);
+      if (audioContextRef.current) {
+        void audioContextRef.current.close().catch(() => {});
+        audioContextRef.current = null;
+      }
+      audioUnlockedRef.current = false;
+    };
+  }, []);
 
   const conversationsQuery = useQuery({
     queryKey: queryKeys.chat.conversations(),
@@ -532,6 +572,41 @@ const ChatWidget = () => {
       queryKeys.chat.conversations(),
       (current) => upsertUnreadCount(current, peerUserId, 0),
     );
+  };
+
+  const playIncomingMessageSound = () => {
+    if (!audioUnlockedRef.current || !audioContextRef.current) {
+      return;
+    }
+
+    const nowMs = Date.now();
+    if (nowMs - lastIncomingSoundAtRef.current < 300) {
+      return;
+    }
+    lastIncomingSoundAtRef.current = nowMs;
+
+    const ctx = audioContextRef.current;
+    if (ctx.state === "suspended") {
+      void ctx.resume().catch(() => {});
+      return;
+    }
+
+    const now = ctx.currentTime;
+    const oscillator = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    oscillator.type = "sine";
+    oscillator.frequency.setValueAtTime(880, now);
+    oscillator.frequency.exponentialRampToValueAtTime(660, now + 0.12);
+
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.06, now + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.16);
+
+    oscillator.connect(gain);
+    gain.connect(ctx.destination);
+    oscillator.start(now);
+    oscillator.stop(now + 0.17);
   };
 
   const loadMessages = async (peerUserId: string) => {
@@ -780,6 +855,10 @@ const ChatWidget = () => {
             },
           );
         }
+
+        if (!isOwnMessage) {
+          playIncomingMessageSound();
+        }
       } catch (error) {
         console.error("[CHAT] Failed to process websocket message", error);
       }
@@ -1001,7 +1080,6 @@ const ChatWidget = () => {
             </div>
 
             <div className={styles.composerSearchRow}>
-              <Text className={styles.composerToLabel}>To:</Text>
               <Input
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
