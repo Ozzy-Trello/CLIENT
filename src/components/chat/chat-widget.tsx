@@ -588,6 +588,39 @@ const messageMentionsCurrentUser = (
   return tokens.some((token) => aliases.has(token));
 };
 
+const mentionEventTargetsCurrentUser = (
+  eventData: any,
+  currentUser?: { id?: string; username?: string; name?: string } | null,
+) => {
+  const mentionedUserId =
+    eventData?.mentionedUserId ||
+    eventData?.mentioned_user_id ||
+    eventData?.userId ||
+    eventData?.user_id;
+  if (currentUser?.id && mentionedUserId && mentionedUserId === currentUser.id) {
+    return true;
+  }
+
+  const aliases = getCurrentMentionAliases(currentUser);
+  if (aliases.size === 0) {
+    return !mentionedUserId;
+  }
+
+  const mentionedUsername = normalizeMentionHandle(
+    eventData?.mentionedUsername ||
+      eventData?.mentioned_username ||
+      eventData?.username ||
+      eventData?.name ||
+      "",
+  ).toLowerCase();
+
+  if (mentionedUsername) {
+    return aliases.has(mentionedUsername);
+  }
+
+  return !mentionedUserId;
+};
+
 const extractMentionQuery = (value: string): string | null => {
   const match = value.match(MENTION_QUERY_REGEX);
   return match ? match[1] || "" : null;
@@ -1424,15 +1457,17 @@ const ChatWidget = () => {
       <Avatar src={peerUser.avatar} size={size} className={className}>
         {peerUser.name?.slice(0, 1)}
       </Avatar>
-      <span
-        className={`${styles.presenceDot} ${
-          presenceStatus === "online"
-            ? styles.presenceDotOnline
-            : presenceStatus === "idle"
-              ? styles.presenceDotIdle
-              : styles.presenceDotOffline
-        }`}
-      />
+      {peerUser.id !== GENERAL_ROOM_ID ? (
+        <span
+          className={`${styles.presenceDot} ${
+            presenceStatus === "online"
+              ? styles.presenceDotOnline
+              : presenceStatus === "idle"
+                ? styles.presenceDotIdle
+                : styles.presenceDotOffline
+          }`}
+        />
+      ) : null}
     </span>
   );
 
@@ -2307,12 +2342,10 @@ const ChatWidget = () => {
             rawEventData?.roomId ||
             rawEventData?.room_id ||
             GENERAL_ROOM_ID;
-          const mentionedUserId =
-            rawEventData?.mentionedUserId || rawEventData?.mentioned_user_id;
 
           if (
             roomId === GENERAL_ROOM_ID &&
-            (!mentionedUserId || mentionedUserId === currentUserId)
+            mentionEventTargetsCurrentUser(rawEventData, currentUser)
           ) {
             const existingWindow = chatWindowsRef.current.find(
               (window) => window.peerUserId === GENERAL_ROOM_ID,
