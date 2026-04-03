@@ -218,6 +218,31 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
           case "connection":
             break;
 
+          case "chat:new-message": {
+            const chatPeerUserId =
+              message.data?.peerUserId ||
+              message.data?.peer_user_id ||
+              message.data?.conversationPeerId ||
+              message.data?.conversation_peer_id ||
+              message.data?.senderId ||
+              message.data?.sender_id ||
+              message.data?.recipientId ||
+              message.data?.recipient_id;
+
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.chat.conversations(),
+              exact: false,
+            });
+
+            if (chatPeerUserId) {
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.chat.messages(chatPeerUserId),
+                exact: false,
+              });
+            }
+            break;
+          }
+
           case EnumUserActionEvent.CardMoved:
             const { card, toListId, boardId } = message.data;
             let fromListId = message.data?.fromListId;

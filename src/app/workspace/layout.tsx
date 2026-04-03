@@ -3,6 +3,7 @@ import { ReactNode, useEffect, useState } from "react";
 import { Layout, Menu } from "antd";
 import TopBar from "@components/topbar";
 import Sidebar from "@components/sidebar";
+import ChatWidget from "@components/chat/chat-widget";
 import "./style.css";
 import { useWorkspaceSidebar } from "@providers/workspace-sidebar-context";
 import { usePathname } from "next/navigation";
@@ -66,6 +67,7 @@ const WorkspaceLayout: React.FC<BaseLayoutProps> = ({ children }) => {
           </div>
         </Content>
       </Layout>
+      <ChatWidget />
     </Layout>
   );
 };
