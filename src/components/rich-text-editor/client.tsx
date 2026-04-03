@@ -21,15 +21,6 @@ type MentionOption = {
   id: string;
   value: string;
 };
-
-type MentionModule = {
-  options?: {
-    source?: (
-      searchTerm: string,
-      renderList: (matches: MentionOption[], searchTerm: string) => void
-    ) => void;
-  };
-};
 const Quill = (ReactQuill as unknown as { Quill?: any }).Quill;
 
 // Register Quill modules once at module level
@@ -265,18 +256,6 @@ const RichTextEditorClient = forwardRef<any, RichTextEditorProps>(
     useEffect(() => {
       if (modulesRef.current && modulesRef.current.mention) {
         modulesRef.current.mention.source = mentionSource;
-
-        // Also update the mention module in the editor if it exists
-        const editor = quillRef.current?.getEditor();
-        if (editor) {
-          const mentionModule = editor.getModule("mention") as
-            | MentionModule
-            | undefined;
-          if (mentionModule && mentionModule.options) {
-            mentionModule.options.source = mentionSource;
-            console.log("Updated mention module source");
-          }
-        }
       }
     }, [mentionSource]);
 
@@ -345,33 +324,6 @@ const RichTextEditorClient = forwardRef<any, RichTextEditorProps>(
         onChange(content);
       }
     };
-
-    const handleMentionModule = useCallback(() => {
-      const editor = quillRef.current?.getEditor();
-      if (editor) {
-        const mentionModule = editor.getModule("mention") as
-          | MentionModule
-          | undefined;
-        console.log("Mention module:", mentionModule);
-
-        // Ensure the mention module has the latest source function
-        if (mentionModule && mentionModule.options && accountList.length > 0) {
-          mentionModule.options.source = mentionSource;
-          console.log(
-            "Mention module source updated with",
-            accountList.length,
-            "accounts"
-          );
-        }
-      }
-    }, [mentionSource, accountList]);
-
-    useEffect(() => {
-      if (quillRef.current) {
-        // Delay to ensure editor is fully initialized
-        setTimeout(handleMentionModule, 100);
-      }
-    }, [handleMentionModule]);
 
     useEffect(() => {
       if (!selectedAttachmentImageUrl) return;
