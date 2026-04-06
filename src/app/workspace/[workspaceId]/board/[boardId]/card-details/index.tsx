@@ -472,6 +472,7 @@ const CardDetails: React.FC = (props) => {
   const canBukti =
     isSuperAdmin ||
     (isListPOOutlet && roleIn(["deal maker", "spv deal maker"]));
+  const canStamp = isSuperAdmin || roleIn(["spv desainer outlet", "desainer outlet"]);
   const canGenerateQRPermission =
     isDatelineBoard &&
     (isSuperAdmin ||
@@ -1759,7 +1760,7 @@ const CardDetails: React.FC = (props) => {
 
   // 3b. Upload Stamp
   const toolbarStampButton =
-    canBukti && canManageCardAttachments && canManageCardAttachments() ? (
+    canStamp && canManageCardAttachments && canManageCardAttachments() ? (
       <Tooltip
         title={
           hasStampAttachment() ? "Stamp already exists" : "Upload stamp file"
