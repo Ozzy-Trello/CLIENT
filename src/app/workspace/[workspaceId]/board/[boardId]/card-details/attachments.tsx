@@ -677,10 +677,6 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
             ({
               id: attachment.attachableId,
               name: attachment.name || "Linked card",
-              listId: card.listId,
-              listName: card.listName,
-              boardId: card.boardId,
-              boardName: card.boardName,
               type: EnumCardType.Regular,
             } as Card);
 
