@@ -4,7 +4,7 @@ import { AnyList } from "@myTypes/list";
 import { CheckboxChangeEvent } from "antd";
 import { useMemo, useState } from "react";
 import { useCardDetails } from "@hooks/card-details";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Button } from "antd";
 import { Unlink } from "lucide-react";
 import RegularCard from "@app/workspace/[workspaceId]/board/[boardId]/draggable-card/regular";
@@ -42,6 +42,11 @@ const AttachedCard: React.FC<AttachedCardProps> = ({ card, onDelete }) => {
   const routeBoardId = Array.isArray(boardIdParam)
     ? boardIdParam[0] || ""
     : boardIdParam || "";
+  const workspaceIdParam = params?.workspaceId;
+  const workspaceId = Array.isArray(workspaceIdParam)
+    ? workspaceIdParam[0] || ""
+    : workspaceIdParam || "";
+  const router = useRouter();
   const [isHovered, setIsHovered] = useState<boolean>(false);
   const initialListId =
     card.listId ?? (card as any)?.list_id ?? (card as any)?.listId ?? "";
@@ -147,11 +152,22 @@ const AttachedCard: React.FC<AttachedCardProps> = ({ card, onDelete }) => {
       }
     }
 
-    // Create a mock list object since we don't have the actual list data
+    const targetBoardId = augmentedCard.boardId || initialBoardId;
+    const targetListId = augmentedCard.listId || initialListId;
+
+    // Navigate to the linked card's board if it's on a different board
+    if (targetBoardId && targetBoardId !== routeBoardId) {
+      router.push(
+        `/workspace/${workspaceId}/board/${targetBoardId}?cardId=${augmentedCard.id}&listId=${targetListId}`
+      );
+      return;
+    }
+
+    // Same board — open card detail modal as before
     const mockList: AnyList = {
-      id: augmentedCard.listId,
+      id: targetListId,
       name: augmentedCard.listName || card.listName || "Unknown List",
-      boardId: augmentedCard.boardId || initialBoardId,
+      boardId: targetBoardId,
     };
 
     openCardDetail(augmentedCard, mockList);

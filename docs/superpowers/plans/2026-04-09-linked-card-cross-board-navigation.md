@@ -89,7 +89,7 @@ to initialize with wrong context for cross-board linked cards."
 - Create: `src/app/workspace/[workspaceId]/board/[boardId]/card-details/attached-card-navigation.test.tsx`
 - Modify: `src/app/workspace/[workspaceId]/board/[boardId]/card-details/attached-card.tsx`
 
-- [ ] **Step 1: Create the test file**
+- [x] **Step 1: Create the test file**
 
 Create `src/app/workspace/[workspaceId]/board/[boardId]/card-details/attached-card-navigation.test.tsx`:
 
@@ -194,7 +194,7 @@ describe("AttachedCard — cross-board navigation", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests — verify first test FAILS**
+- [x] **Step 2: Run tests — verify first test FAILS**
 
 ```bash
 cd /Users/fishy/Desktop/work/ozzy/client
@@ -203,7 +203,7 @@ npm test -- attached-card-navigation --no-coverage 2>&1 | tail -20
 
 Expected: First test FAILS (`mockPush` never called — `useRouter` not yet imported). Second test PASSES.
 
-- [ ] **Step 3: Update imports in `attached-card.tsx`**
+- [x] **Step 3: Update imports in `attached-card.tsx`**
 
 Find line 7 (current import from `next/navigation`):
 ```typescript
@@ -215,7 +215,7 @@ Replace with:
 import { useParams, useRouter } from "next/navigation";
 ```
 
-- [ ] **Step 4: Add `workspaceId` extraction and `router` call**
+- [x] **Step 4: Add `workspaceId` extraction and `router` call**
 
 Find this block (around line 40–52):
 ```typescript
@@ -242,7 +242,7 @@ Replace with:
   const [isHovered, setIsHovered] = useState<boolean>(false);
 ```
 
-- [ ] **Step 5: Replace `handleClick`**
+- [x] **Step 5: Replace `handleClick`**
 
 Find this block (around line 140–158):
 ```typescript
@@ -301,7 +301,7 @@ Replace with:
   };
 ```
 
-- [ ] **Step 6: TypeScript compile check**
+- [x] **Step 6: TypeScript compile check**
 
 ```bash
 cd /Users/fishy/Desktop/work/ozzy/client
@@ -310,7 +310,7 @@ npx tsc --noEmit 2>&1 | head -20
 
 Expected: No errors.
 
-- [ ] **Step 7: Run tests — verify both PASS**
+- [x] **Step 7: Run tests — verify both PASS**
 
 ```bash
 npm test -- attached-card-navigation --no-coverage 2>&1 | tail -20
@@ -318,7 +318,7 @@ npm test -- attached-card-navigation --no-coverage 2>&1 | tail -20
 
 Expected: 2 tests PASS.
 
-- [ ] **Step 8: Run full test suite — check for regressions**
+- [x] **Step 8: Run full test suite — check for regressions**
 
 ```bash
 npm test -- --no-coverage 2>&1 | tail -15

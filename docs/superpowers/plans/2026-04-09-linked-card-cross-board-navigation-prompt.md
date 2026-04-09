@@ -65,14 +65,14 @@ npm test -- --no-coverage
 - [ ] Step 3: Commit
 
 ### Task 2 — Test + implement cross-board navigation
-- [ ] Step 1: Create `attached-card-navigation.test.tsx` with 2 tests
-- [ ] Step 2: Run tests — confirm first test FAILS (second may PASS already)
-- [ ] Step 3: Add `useRouter` to imports in `attached-card.tsx`
-- [ ] Step 4: Add `workspaceId` extraction + `router` call after `routeBoardId`
-- [ ] Step 5: Replace `handleClick` with cross-board-aware version
-- [ ] Step 6: TypeScript compile check (`npx tsc --noEmit`)
-- [ ] Step 7: Run tests — confirm both PASS
-- [ ] Step 8: Run full test suite — confirm no new failures
+- [x] Step 1: Create `attached-card-navigation.test.tsx` with 2 tests
+- [x] Step 2: Run tests — confirm first test FAILS (second may PASS already)
+- [x] Step 3: Add `useRouter` to imports in `attached-card.tsx`
+- [x] Step 4: Add `workspaceId` extraction + `router` call after `routeBoardId`
+- [x] Step 5: Replace `handleClick` with cross-board-aware version
+- [x] Step 6: TypeScript compile check (`npx tsc --noEmit`)
+- [x] Step 7: Run tests — confirm both PASS
+- [x] Step 8: Run full test suite — confirm no new failures
 - [ ] Step 9: Commit
 
 ## After each step
