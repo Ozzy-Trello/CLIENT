@@ -253,11 +253,14 @@ const parseMessagePayload = (value = ""): ParsedChatMessage => {
   if (trimmed.startsWith("{")) {
     try {
       const parsed = JSON.parse(trimmed) as any;
-      const attachments = Array.isArray(parsed.attachments)
+      const attachmentsSource: unknown[] = Array.isArray(parsed.attachments)
         ? (parsed.attachments as unknown[])
-            .map(normalizeChatAttachment)
-            .filter((item): item is ChatAttachmentMetadata => Boolean(item))
-        : [];
+        : Array.isArray(parsed.attachment)
+          ? (parsed.attachment as unknown[])
+          : [];
+      const attachments = attachmentsSource
+        .map((item: unknown) => normalizeChatAttachment(item))
+        .filter((item): item is ChatAttachmentMetadata => Boolean(item));
       const rawReply =
         parsed.reply ||
         parsed.reply_to ||
@@ -453,6 +456,20 @@ const summarizeMessageContent = (value = "") => {
 
   if (parsed.attachments.length > 1) {
     return `${parsed.attachments.length} attachments`;
+  }
+
+  return "";
+};
+
+const summarizeChatToastContent = (value = "") => {
+  const parsed = parseMessagePayload(value);
+
+  if (parsed.text.trim()) {
+    return parsed.text.trim();
+  }
+
+  if (parsed.attachments.length > 0) {
+    return "(Attachment)";
   }
 
   return "";
@@ -3433,7 +3450,9 @@ const ChatWidget = () => {
                 rawEventData?.sender?.name ||
                 (completedMessage as any).sender?.name ||
                 "General";
-              const content = completedMessage.content || "(Attachment)";
+              const content =
+                summarizeChatToastContent(completedMessage.content || "") ||
+                "(Attachment)";
               window.dispatchEvent(
                 new CustomEvent("chat:toast", {
                   detail: { peerUserId: GENERAL_ROOM_ID, senderName, content },
@@ -3608,7 +3627,9 @@ const ChatWidget = () => {
           }
           if (!isOpenAndActive) {
             const senderName = peerUser?.name || "Someone";
-            const content = finalMessage.content || "(Attachment)";
+            const content =
+              summarizeChatToastContent(finalMessage.content || "") ||
+              "(Attachment)";
             window.dispatchEvent(
               new CustomEvent("chat:toast", {
                 detail: { peerUserId, senderName, content },
