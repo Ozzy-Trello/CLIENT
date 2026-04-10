@@ -158,10 +158,115 @@
 }
 
 .messageBubble {
-  max-width: 78%;
+  max-width: 100%;
+  width: fit-content;
   border-radius: 16px;
   background: #e2e8f0;
   padding: 8px 10px;
+  position: relative;
+}
+
+.messageBubbleWithReactions {
+  margin-bottom: 14px;
+}
+
+.messageBubbleWrapper {
+  position: relative;
+  display: inline-flex;
+  max-width: 78%;
+  overflow: visible;
+}
+
+.reactionTrigger {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.reactionPickerPopover {
+  position: absolute;
+  z-index: 1000;
+  top: -36px;
+  right: 0;
+}
+
+.reactionPickerRow {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 4px;
+  max-width: 220px;
+  overflow-x: auto;
+  padding: 4px;
+  border-radius: 999px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.12);
+}
+
+.reactionEmojiOption {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 999px;
+  min-width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.reactionEmojiOption:hover {
+  background: #f1f5f9;
+}
+
+.reactionBadges {
+  position: absolute;
+  bottom: -12px;
+  left: 8px;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 2px;
+  z-index: 2;
+  max-width: calc(100% - 16px);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.reactionBadges::-webkit-scrollbar {
+  display: none;
+}
+
+.reactionBadge {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 2px 5px;
+  font-size: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 2px;
+  line-height: 1;
+  white-space: nowrap;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.reactionBadgeActive {
+  background: #e8f4fd;
+  border-color: #91caff;
 }
 
 .messageBubbleIncomingAnimated {

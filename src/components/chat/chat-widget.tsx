@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -44,9 +45,11 @@ import {
   getChatMessages,
   getGeneralRoomMessages,
   getChatUsers,
+  addReaction as addReactionApi,
   markChatMessagesRead,
   normalizeChatMessage,
   normalizeChatUser,
+  removeReaction as removeReactionApi,
   sendChatTyping,
   sendChatMessage,
   sendGeneralRoomMessage,
@@ -139,6 +142,38 @@ const CHAT_GENERAL_POLL_CONNECTED_MS = 20_000;
 const CHAT_GENERAL_POLL_DISCONNECTED_MS = 8_000;
 const CHAT_REPLY_JUMP_MAX_PAGE_LOADS = 20;
 const CHAT_SCROLL_TO_LATEST_THRESHOLD = 120;
+const REACTION_EMOJIS = [
+  "👍",
+  "❤️",
+  "😂",
+  "😮",
+  "😢",
+  "🙏",
+  "🔥",
+  "✅",
+  "👏",
+  "💯",
+  "🎉",
+  "🙌",
+  "🤝",
+  "👌",
+  "🤔",
+  "😅",
+  "😭",
+  "😡",
+  "🤯",
+  "🥳",
+  "😍",
+  "🤩",
+  "😎",
+  "💪",
+  "🚀",
+  "⭐",
+  "📌",
+  "🫡",
+  "🤗",
+  "😴",
+] as const;
 const GENERAL_ROOM_ID = "general";
 const GENERAL_ROOM_NAME = "General";
 const GENERAL_ROOM_ROLE = "Group chat";
@@ -1249,6 +1284,10 @@ const ChatWidget = () => {
   >({});
   const [roomUnreadById, setRoomUnreadById] = useState<Record<string, number>>({});
   const [roomMentionById, setRoomMentionById] = useState<Record<string, boolean>>({});
+  const [hoveredMessageId, setHoveredMessageId] = useState<string | null>(null);
+  const [reactionPickerMessageId, setReactionPickerMessageId] = useState<
+    string | null
+  >(null);
   const [generalLastSeenAt, setGeneralLastSeenAt] = useState<string>("");
   const [loadingByPeerId, setLoadingByPeerId] = useState<
     Record<string, boolean>
@@ -2973,6 +3012,75 @@ const ChatWidget = () => {
     }, 40);
   };
 
+  const applyReactionsToCaches = useCallback(
+    (messageId: string, reactions: any[]) => {
+      setMessagesByPeerId((current) => {
+        const next: Record<string, ChatMessage[]> = {};
+        for (const [peerId, messages] of Object.entries(current)) {
+          next[peerId] = messages.map((msg) =>
+            msg.id === messageId ? { ...msg, reactions } : msg,
+          );
+        }
+        return next;
+      });
+
+      const patchMessages = (old: any) => {
+        if (!old) return old;
+
+        if (Array.isArray(old)) {
+          return old.map((msg: any) =>
+            msg?.id === messageId ? { ...msg, reactions } : msg,
+          );
+        }
+
+        if (Array.isArray(old?.messages)) {
+          return {
+            ...old,
+            messages: old.messages.map((msg: any) =>
+              msg?.id === messageId ? { ...msg, reactions } : msg,
+            ),
+          };
+        }
+
+        return old;
+      };
+
+      queryClient.setQueriesData(
+        { queryKey: queryKeys.chat.messages(""), exact: false },
+        patchMessages,
+      );
+      queryClient.setQueriesData(
+        { queryKey: queryKeys.chat.roomMessages("general"), exact: false },
+        patchMessages,
+      );
+    },
+    [queryClient],
+  );
+
+  const addReaction = useCallback(
+    async (messageId: string, emoji: string) => {
+      try {
+        const reactions = await addReactionApi(messageId, emoji);
+        applyReactionsToCaches(messageId, reactions);
+      } catch {
+        message.error("Failed to add reaction");
+      }
+    },
+    [applyReactionsToCaches],
+  );
+
+  const removeReaction = useCallback(
+    async (messageId: string, emoji: string) => {
+      try {
+        const reactions = await removeReactionApi(messageId, emoji);
+        applyReactionsToCaches(messageId, reactions);
+      } catch {
+        message.error("Failed to remove reaction");
+      }
+    },
+    [applyReactionsToCaches],
+  );
+
   const handleSend = async (peerUserId: string) => {
     const replyTarget = replyByPeerId[peerUserId];
     const content = (draftByPeerId[peerUserId] || "").trim();
@@ -3882,20 +3990,33 @@ const ChatWidget = () => {
                         }`}
                       >
                         <div
-                          className={`${styles.messageBubble} ${
-                            isOwnMessage ? styles.messageBubbleOwn : ""
-                          } ${
-                            !isOwnMessage && incomingAnimatedByMessageId[chatMessage.id]
-                              ? styles.messageBubbleIncomingAnimated
-                              : ""
-                          } ${
-                            jumpHighlightedByMessageId[chatMessage.id]
-                              ? isOwnMessage
-                                ? styles.messageBubbleOwnJumpHighlighted
-                                : styles.messageBubbleJumpHighlighted
-                              : ""
-                          }`}
+                          className={styles.messageBubbleWrapper}
+                          onMouseEnter={() => setHoveredMessageId(chatMessage.id)}
+                          onMouseLeave={() =>
+                            setHoveredMessageId((current) =>
+                              current === chatMessage.id ? null : current,
+                            )
+                          }
                         >
+                          <div
+                            className={`${styles.messageBubble} ${
+                              isOwnMessage ? styles.messageBubbleOwn : ""
+                            } ${
+                              chatMessage.reactions && chatMessage.reactions.length > 0
+                                ? styles.messageBubbleWithReactions
+                                : ""
+                            } ${
+                              !isOwnMessage && incomingAnimatedByMessageId[chatMessage.id]
+                                ? styles.messageBubbleIncomingAnimated
+                                : ""
+                            } ${
+                              jumpHighlightedByMessageId[chatMessage.id]
+                                ? isOwnMessage
+                                  ? styles.messageBubbleOwnJumpHighlighted
+                                  : styles.messageBubbleJumpHighlighted
+                                : ""
+                            }`}
+                          >
                           {shouldShowGroupSenderName ? (
                             <div className={styles.groupSenderName}>{groupSenderName}</div>
                           ) : null}
@@ -4021,6 +4142,32 @@ const ChatWidget = () => {
                               </div>
                             ) : null}
                           </div>
+                          {chatMessage.reactions && chatMessage.reactions.length > 0 ? (
+                            <div className={styles.reactionBadges}>
+                              {chatMessage.reactions.map((reaction) => {
+                                const hasReacted = reaction.userIds.includes(
+                                  currentUserId || "",
+                                );
+                                return (
+                                  <button
+                                    key={reaction.emoji}
+                                    className={`${styles.reactionBadge} ${
+                                      hasReacted ? styles.reactionBadgeActive : ""
+                                    }`}
+                                    onClick={() => {
+                                      if (hasReacted) {
+                                        void removeReaction(chatMessage.id, reaction.emoji);
+                                      } else {
+                                        void addReaction(chatMessage.id, reaction.emoji);
+                                      }
+                                    }}
+                                  >
+                                    {reaction.emoji}{reaction.count > 1 ? ` ${reaction.count}` : ""}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          ) : null}
                           <div className={styles.messageMetaRow}>
                             <div className={styles.messageMetaInfo}>
                               <div className={styles.messageTime}>
@@ -4064,6 +4211,45 @@ const ChatWidget = () => {
                             >
                               Reply
                             </Button>
+                          </div>
+                          {hoveredMessageId === chatMessage.id ? (
+                            <button
+                              className={styles.reactionTrigger}
+                              onClick={() =>
+                                setReactionPickerMessageId(
+                                  reactionPickerMessageId === chatMessage.id
+                                    ? null
+                                    : chatMessage.id,
+                                )
+                              }
+                            >
+                              😊
+                            </button>
+                          ) : null}
+                          {reactionPickerMessageId === chatMessage.id ? (
+                            <div
+                              className={styles.reactionPickerPopover}
+                              onMouseDown={(event) => event.stopPropagation()}
+                            >
+                              <div className={styles.reactionPickerRow}>
+                                {REACTION_EMOJIS.map((emoji) => (
+                                  <button
+                                    key={`${chatMessage.id}-${emoji}`}
+                                    type="button"
+                                    className={styles.reactionEmojiOption}
+                                    onMouseDown={(event) => {
+                                      event.preventDefault();
+                                      event.stopPropagation();
+                                      void addReaction(chatMessage.id, emoji);
+                                      setReactionPickerMessageId(null);
+                                    }}
+                                  >
+                                    {emoji}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null}
                           </div>
                         </div>
                       </div>

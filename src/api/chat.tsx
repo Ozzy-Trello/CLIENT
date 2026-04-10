@@ -16,6 +16,7 @@ import {
   SendChatTypingPayload,
   SendChatMessagePayload,
   SendChatRoomMessagePayload,
+  ReactionSummary,
 } from "@myTypes/chat";
 
 const extractArray = (value: any): any[] => {
@@ -397,6 +398,19 @@ const normalizeChatMessage = (message: any): ChatMessage => {
     (typeof message?.roomName === "string" && message.roomName) ||
     (typeof message?.room_name === "string" && message.room_name) ||
     undefined;
+  const reactions: ReactionSummary[] = Array.isArray(message?.reactions)
+    ? message.reactions
+        .map((reaction: any) => ({
+          emoji: String(reaction?.emoji || ""),
+          count: Number(reaction?.count || 0),
+          userIds: Array.isArray(reaction?.userIds || reaction?.user_ids)
+            ? (reaction.userIds || reaction.user_ids)
+                .filter(Boolean)
+                .map((userId: any) => String(userId))
+            : [],
+        }))
+        .filter((reaction: ReactionSummary) => !!reaction.emoji)
+    : [];
 
   return {
     id: resolveId(message?.id, message?.messageId, message?.message_id),
@@ -427,6 +441,7 @@ const normalizeChatMessage = (message: any): ChatMessage => {
     createdAt:
       message?.createdAt ?? message?.created_at ?? new Date().toISOString(),
     updatedAt: message?.updatedAt ?? message?.updated_at,
+    reactions,
     sender,
     recipient,
   };
@@ -653,6 +668,26 @@ export const sendChatTyping = async (
       },
     }
   );
+};
+
+export const addReaction = async (
+  messageId: string,
+  emoji: string,
+): Promise<ReactionSummary[]> => {
+  const { data } = await api.post(`/chat/messages/${messageId}/reactions`, {
+    emoji,
+  });
+  return data?.data || [];
+};
+
+export const removeReaction = async (
+  messageId: string,
+  emoji: string,
+): Promise<ReactionSummary[]> => {
+  const { data } = await api.delete(
+    `/chat/messages/${messageId}/reactions/${encodeURIComponent(emoji)}`,
+  );
+  return data?.data || [];
 };
 
 export { normalizeChatConversation, normalizeChatMessage, normalizeChatUser };

@@ -334,6 +334,85 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             break;
           }
 
+          case "chat:reaction-update": {
+            const messageId = message?.data?.messageId || message?.messageId;
+            const reactions = message?.data?.reactions || message?.reactions || [];
+
+            if (!messageId) {
+              break;
+            }
+
+            const patchMessages = (old: any) => {
+              if (!old) return old;
+
+              if (Array.isArray(old)) {
+                return old.map((msg: any) =>
+                  msg?.id === messageId ? { ...msg, reactions } : msg,
+                );
+              }
+
+              if (Array.isArray(old?.messages)) {
+                return {
+                  ...old,
+                  messages: old.messages.map((msg: any) =>
+                    msg?.id === messageId ? { ...msg, reactions } : msg,
+                  ),
+                };
+              }
+
+              if (Array.isArray(old?.pages)) {
+                return {
+                  ...old,
+                  pages: old.pages.map((page: any) => {
+                    if (Array.isArray(page)) {
+                      return page.map((msg: any) =>
+                        msg?.id === messageId ? { ...msg, reactions } : msg,
+                      );
+                    }
+                    if (Array.isArray(page?.messages)) {
+                      return {
+                        ...page,
+                        messages: page.messages.map((msg: any) =>
+                          msg?.id === messageId ? { ...msg, reactions } : msg,
+                        ),
+                      };
+                    }
+                    if (Array.isArray(page?.data)) {
+                      return {
+                        ...page,
+                        data: page.data.map((msg: any) =>
+                          msg?.id === messageId ? { ...msg, reactions } : msg,
+                        ),
+                      };
+                    }
+                    return page;
+                  }),
+                };
+              }
+
+              if (Array.isArray(old?.data)) {
+                return {
+                  ...old,
+                  data: old.data.map((msg: any) =>
+                    msg?.id === messageId ? { ...msg, reactions } : msg,
+                  ),
+                };
+              }
+
+              return old;
+            };
+
+            queryClient.setQueriesData(
+              { queryKey: queryKeys.chat.messages(""), exact: false },
+              patchMessages,
+            );
+            queryClient.setQueriesData(
+              { queryKey: queryKeys.chat.roomMessages("general"), exact: false },
+              patchMessages,
+            );
+            break;
+          }
+
           case EnumUserActionEvent.CardMoved:
             const { card, toListId, boardId } = message.data;
             let fromListId = message.data?.fromListId;

@@ -2,6 +2,12 @@ import { ApiResponse, Pagination } from "./type";
 
 export type ChatPresenceStatus = "online" | "idle" | "offline";
 
+export type ReactionSummary = {
+  emoji: string;
+  count: number;
+  userIds: string[];
+};
+
 export interface ChatUser {
   id: string;
   name: string;
@@ -25,6 +31,7 @@ export interface ChatMessage {
   isRead: boolean;
   createdAt: string;
   updatedAt?: string;
+  reactions?: ReactionSummary[];
   sender?: ChatUser;
   recipient?: ChatUser;
 }
