@@ -23,7 +23,7 @@ import {
   Typography,
   message,
 } from "antd";
-import type { InputRef } from "antd";
+import type { TextAreaRef } from "antd/es/input/TextArea";
 import {
   CloseOutlined,
   DownOutlined,
@@ -1278,7 +1278,7 @@ const ChatWidget = () => {
   const replyJumpLoadingByPeerRef = useRef<Record<string, boolean>>({});
   const processedIncomingMessageKeysRef = useRef<Set<string>>(new Set());
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
-  const composerInputRefs = useRef<Record<string, InputRef | null>>({});
+  const composerInputRefs = useRef<Record<string, TextAreaRef | null>>({});
   const messageBodyRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const messageEndRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const messageNodeByPeerIdRef = useRef<
@@ -2897,6 +2897,31 @@ const ChatWidget = () => {
     event.target.value = "";
   };
 
+  const handleComposerPaste = (
+    peerUserId: string,
+    event: React.ClipboardEvent<HTMLTextAreaElement>,
+  ) => {
+    const files: File[] = [];
+    const items = Array.from(event.clipboardData?.items || []);
+
+    for (const item of items) {
+      if (item.kind !== "file") {
+        continue;
+      }
+      const file = item.getAsFile();
+      if (file) {
+        files.push(file);
+      }
+    }
+
+    if (files.length === 0) {
+      return;
+    }
+
+    event.preventDefault();
+    queueFilesForPeer(peerUserId, files);
+  };
+
   const handleComposerDrop = (
     peerUserId: string,
     event: DragEvent<HTMLElement>,
@@ -2932,7 +2957,7 @@ const ChatWidget = () => {
 
   const focusComposerInput = (peerUserId: string, attempt = 0) => {
     const inputRef = composerInputRefs.current[peerUserId];
-    const inputElement = inputRef?.input;
+    const inputElement = inputRef?.resizableTextArea?.textArea;
 
     if (inputRef && (!inputElement || !inputElement.disabled)) {
       inputRef.focus();
@@ -4210,19 +4235,24 @@ const ChatWidget = () => {
                     onClick={() => fileInputRefs.current[window.peerUserId]?.click()}
                     disabled={sendingThisPeer}
                   />
-                  <Input
+                  <Input.TextArea
                     ref={(element) => {
                       composerInputRefs.current[window.peerUserId] = element;
                     }}
                     value={draft}
                     placeholder="Aa"
+                    autoSize={{ minRows: 1, maxRows: 5 }}
                     onChange={(event) =>
                       setDraftByPeerId((current) => ({
                         ...current,
                         [window.peerUserId]: event.target.value,
                       }))
                     }
+                    onPaste={(event) =>
+                      handleComposerPaste(window.peerUserId, event)
+                    }
                     onPressEnter={(event) => {
+                      if (event.shiftKey) return;
                       if (
                         isGeneralRoom(window.peerUserId) &&
                         mentionSuggestions.length > 0
