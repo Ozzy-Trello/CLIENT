@@ -4152,17 +4152,17 @@ const ChatWidget = () => {
                                 const hasReacted = reaction.userIds.includes(
                                   currentUserId || "",
                                 );
-                                const reactorNames = reaction.userIds
-                                  .map((uid) => {
-                                    if (uid === currentUserId) return "You";
-                                    const user = userById.get(uid);
-                                    return user?.name || user?.username || "Unknown";
-                                  })
-                                  .join(", ");
+                                const reactorNames = reaction.userIds.map((uid) => {
+                                  if (uid === currentUserId) return "You";
+                                  const user = userById.get(uid);
+                                  return user?.name || user?.username || "Unknown";
+                                });
                                 return (
                                   <Tooltip
                                     key={reaction.emoji}
-                                    title={reactorNames}
+                                    title={reactorNames.map((name, i) => (
+                                      <div key={i}>{name}</div>
+                                    ))}
                                     placement="top"
                                     mouseEnterDelay={0.3}
                                     zIndex={1500}
