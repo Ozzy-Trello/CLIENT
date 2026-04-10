@@ -104,6 +104,7 @@ import SplitJobFields from "./split-job-field";
 import StitchSection from "./stitch";
 import CardTimeInList from "./time-in-lists";
 import { uploadFile } from "@api/file";
+import { api } from "@api/index";
 import { useCardAttachment } from "@hooks/card_attachment";
 import { useCardCustomField } from "@hooks/card_custom_field";
 import { useDevMode } from "@hooks/use-dev-mode";
@@ -554,15 +555,25 @@ const CardDetails: React.FC = (props) => {
     }
   };
 
-  const handleStampUpload = (file: File, result: any) => {
+  const handleStampUpload = async (file: File, result: any) => {
     if (result && selectedCard) {
-      addAttachment({
-        cardId: selectedCard.id,
-        attachableType: EnumAttachmentType.File,
-        attachableId: result.id,
-        isCover: false,
-        type: EnumCardAttachmentType.Attachment,
+      await new Promise<void>((resolve, reject) => {
+        addAttachment(
+          {
+            cardId: selectedCard.id,
+            attachableType: EnumAttachmentType.File,
+            attachableId: result.id,
+            isCover: false,
+            type: EnumCardAttachmentType.Attachment,
+          },
+          {
+            onSuccess: () => resolve(),
+            onError: (error) => reject(error),
+          },
+        );
       });
+
+      await api.post("/pos/update-stamp", { cardId: selectedCard.id });
     }
   };
 
