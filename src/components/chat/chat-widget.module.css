@@ -671,6 +671,52 @@
   color: #475569 !important;
 }
 
+.composerEmojiWrap {
+  position: relative;
+}
+
+.composerEmojiButton {
+  min-width: 30px;
+  color: #475569 !important;
+  font-size: 16px;
+}
+
+.composerEmojiPopover {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 6px);
+  z-index: 20;
+}
+
+.composerEmojiRow {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 4px;
+  max-width: 240px;
+  overflow-x: auto;
+  padding: 4px;
+  border-radius: 999px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.12);
+}
+
+.composerEmojiOption {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 999px;
+  min-width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.composerEmojiOption:hover {
+  background: #f1f5f9;
+}
+
 .sendButton {
   color: #2563eb !important;
 }

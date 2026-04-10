@@ -1287,8 +1287,12 @@ const ChatWidget = () => {
   >({});
   const [roomUnreadById, setRoomUnreadById] = useState<Record<string, number>>({});
   const [roomMentionById, setRoomMentionById] = useState<Record<string, boolean>>({});
+  const [generalLastActivity, setGeneralLastActivity] = useState("");
   const [hoveredMessageId, setHoveredMessageId] = useState<string | null>(null);
   const [reactionPickerMessageId, setReactionPickerMessageId] = useState<
+    string | null
+  >(null);
+  const [composerEmojiPickerPeerId, setComposerEmojiPickerPeerId] = useState<
     string | null
   >(null);
   const [reactionPickerExpanded, setReactionPickerExpanded] = useState(false);
@@ -1675,7 +1679,7 @@ const ChatWidget = () => {
         roleName: GENERAL_ROOM_ROLE,
       }),
       unreadCount: roomUnreadById[GENERAL_ROOM_ID] || 0,
-      lastMessage: "",
+      lastMessage: generalLastActivity,
       updatedAt: undefined,
     });
 
@@ -1737,7 +1741,14 @@ const ChatWidget = () => {
 
       return (left.peerUser.name || "").localeCompare(right.peerUser.name || "");
     });
-  }, [conversations, currentUserId, messagesByPeerId, roomUnreadById, users]);
+  }, [
+    conversations,
+    currentUserId,
+    generalLastActivity,
+    messagesByPeerId,
+    roomUnreadById,
+    users,
+  ]);
 
   const filteredPeople = useMemo(() => {
     const needle = searchTerm.trim().toLowerCase();
@@ -3359,6 +3370,88 @@ const ChatWidget = () => {
           return;
         }
 
+        if (eventName === "chat:reaction-update") {
+          const messageId =
+            rawEventData?.messageId ||
+            rawEventData?.message_id ||
+            rawPayloadData?.messageId ||
+            rawPayloadData?.message_id;
+          const reactions =
+            rawEventData?.reactions || rawPayloadData?.reactions || [];
+
+          if (messageId) {
+            applyReactionsToCaches(String(messageId), reactions);
+          }
+          return;
+        }
+
+        if (eventName === "chat:reaction-activity" || eventName === "chat:reaction-notification") {
+          const reactorName =
+            rawEventData?.reactorName || rawEventData?.reactor_name || "Someone";
+          const emoji = rawEventData?.emoji || "";
+          const action = rawEventData?.action === "removed" ? "removed" : "reacted";
+          const roomId = rawEventData?.roomId || rawEventData?.room_id;
+          const peerUserId =
+            roomId === GENERAL_ROOM_ID
+              ? GENERAL_ROOM_ID
+              : rawEventData?.peerUserId ||
+                rawEventData?.peer_user_id ||
+                resolveChatPeerUserId(rawEventData, currentUserId);
+
+          const activityText = `${reactorName} ${action} ${emoji} to your message`;
+
+          if (peerUserId === GENERAL_ROOM_ID) {
+            setGeneralLastActivity(activityText);
+
+            const existingWindow = chatWindowsRef.current.find(
+              (window) => window.peerUserId === GENERAL_ROOM_ID,
+            );
+            const isOpenAndActive = Boolean(existingWindow && !existingWindow.minimized);
+            if (eventName === "chat:reaction-notification" && !isOpenAndActive) {
+              setRoomUnreadById((current) => ({
+                ...current,
+                [GENERAL_ROOM_ID]: (current[GENERAL_ROOM_ID] || 0) + 1,
+              }));
+            }
+            return;
+          }
+
+          if (!peerUserId) {
+            return;
+          }
+
+          const existingWindow = chatWindowsRef.current.find(
+            (window) => window.peerUserId === peerUserId,
+          );
+          const isOpenAndActive = Boolean(existingWindow && !existingWindow.minimized);
+          const peerUser = getPeerUser(peerUserId);
+          const isOwnActivity = eventName !== "chat:reaction-notification";
+
+          const syntheticMessage: ChatMessage = {
+            id: `reaction-activity-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            peerUserId,
+            senderId: peerUserId,
+            recipientId: currentUserId || "",
+            content: activityText,
+            isRead: isOpenAndActive,
+            createdAt: new Date().toISOString(),
+          };
+
+          queryClient.setQueryData<ChatConversation[]>(
+            queryKeys.chat.conversations(),
+            (current) =>
+              updateConversationForMessage(
+                current,
+                peerUserId,
+                peerUser,
+                syntheticMessage,
+                isOwnActivity,
+                isOpenAndActive,
+              ),
+          );
+          return;
+        }
+
         if (eventName === "chat:typing") {
           const typingEventData = resolveTypingPayloadData(rawEventData);
           const roomId =
@@ -4464,6 +4557,46 @@ const ChatWidget = () => {
                     onClick={() => fileInputRefs.current[window.peerUserId]?.click()}
                     disabled={sendingThisPeer}
                   />
+                  <div className={styles.composerEmojiWrap}>
+                    <Button
+                      type="text"
+                      className={styles.composerEmojiButton}
+                      onClick={() =>
+                        setComposerEmojiPickerPeerId((current) =>
+                          current === window.peerUserId ? null : window.peerUserId,
+                        )
+                      }
+                      disabled={sendingThisPeer}
+                    >
+                      😊
+                    </Button>
+                    {composerEmojiPickerPeerId === window.peerUserId ? (
+                      <div
+                        className={styles.composerEmojiPopover}
+                        onMouseDown={(event) => event.stopPropagation()}
+                      >
+                        <div className={styles.composerEmojiRow}>
+                          {REACTION_EMOJIS.map((emoji) => (
+                            <button
+                              key={`composer-${window.peerUserId}-${emoji}`}
+                              type="button"
+                              className={styles.composerEmojiOption}
+                              onMouseDown={(event) => {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                setDraftByPeerId((current) => ({
+                                  ...current,
+                                  [window.peerUserId]: `${current[window.peerUserId] || ""}${emoji}`,
+                                }));
+                              }}
+                            >
+                              {emoji}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
                   <Input.TextArea
                     ref={(element) => {
                       composerInputRefs.current[window.peerUserId] = element;
