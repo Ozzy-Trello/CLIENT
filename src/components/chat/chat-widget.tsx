@@ -25,6 +25,8 @@ import {
   message,
 } from "antd";
 import type { TextAreaRef } from "antd/es/input/TextArea";
+import Picker from "@emoji-mart/react";
+import emojiData from "@emoji-mart/data";
 import {
   CloseOutlined,
   DownOutlined,
@@ -4231,23 +4233,18 @@ const ChatWidget = () => {
                               className={styles.reactionPickerPopover}
                               onMouseDown={(event) => event.stopPropagation()}
                             >
-                              <div className={styles.reactionPickerRow}>
-                                {REACTION_EMOJIS.map((emoji) => (
-                                  <button
-                                    key={`${chatMessage.id}-${emoji}`}
-                                    type="button"
-                                    className={styles.reactionEmojiOption}
-                                    onMouseDown={(event) => {
-                                      event.preventDefault();
-                                      event.stopPropagation();
-                                      void addReaction(chatMessage.id, emoji);
-                                      setReactionPickerMessageId(null);
-                                    }}
-                                  >
-                                    {emoji}
-                                  </button>
-                                ))}
-                              </div>
+                              <Picker
+                                data={emojiData}
+                                onEmojiSelect={(emoji: { native: string }) => {
+                                  void addReaction(chatMessage.id, emoji.native);
+                                  setReactionPickerMessageId(null);
+                                }}
+                                theme="light"
+                                previewPosition="none"
+                                skinTonePosition="search"
+                                perLine={8}
+                                maxFrequentRows={2}
+                              />
                             </div>
                           ) : null}
                           </div>

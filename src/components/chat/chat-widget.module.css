@@ -198,8 +198,9 @@
 .reactionPickerPopover {
   position: absolute;
   z-index: 1000;
-  top: -36px;
+  bottom: 100%;
   right: 0;
+  margin-bottom: 4px;
 }
 
 .reactionPickerRow {
