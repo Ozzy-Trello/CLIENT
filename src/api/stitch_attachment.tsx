@@ -15,6 +15,7 @@ export interface StitchAttachmentRow {
 export interface OperatorBordirRow {
   uuid: string;
   cardId: string;
+  submittedAt: string;
   namaFile: string;
   stitch: number;
   jumlahBordirPcs: number;

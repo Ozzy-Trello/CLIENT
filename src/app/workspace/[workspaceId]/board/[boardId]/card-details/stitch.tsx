@@ -13,10 +13,13 @@ interface StitchSectionProps {
 
 interface StitchRowView {
   key: string;
+  submittedAt: string;
+  operatorName: string;
+  orderType: string;
   fileName: string;
-  stitch: number;
   amount: number;
-  total: number;
+  stitch: number;
+  totalStitch: number;
   designerName: string;
 }
 
@@ -41,52 +44,88 @@ const StitchSection: React.FC<StitchSectionProps> = ({
     () =>
       bordirRows.map((row: OperatorBordirRow) => ({
         key: row.uuid,
+        submittedAt: row.submittedAt || "-",
+        operatorName: row.nama || "-",
+        orderType: row.jenisOrder || "-",
         fileName: row.namaFile || "-",
-        stitch: Number(row.stitch || 0),
         amount: Number(row.jumlahBordirPcs || 0),
-        total: Number(row.totalStitch || 0),
+        stitch: Number(row.stitch || 0),
+        totalStitch: Number(row.totalStitch || 0),
         designerName: row.desainer || "-",
       })),
     [bordirRows],
   );
 
   const grandTotal = bordirResponse?.summary?.totalStitch
-    ?? tableRows.reduce((sum, row) => sum + row.total, 0);
+    ?? tableRows.reduce((sum, row) => sum + row.totalStitch, 0);
+
+  const formatTanggal = (value: string): string => {
+    if (!value || value === "-") return "-";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleString("id-ID", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
 
   const columns = useMemo<ColumnsType<StitchRowView>>(
     () => [
+      {
+        title: "Tanggal",
+        dataIndex: "submittedAt",
+        key: "submittedAt",
+        width: 170,
+        render: (value: string) => formatTanggal(value),
+      },
+      {
+        title: "Operator",
+        dataIndex: "operatorName",
+        key: "operatorName",
+        width: 180,
+      },
+      {
+        title: "Jenis Order",
+        dataIndex: "orderType",
+        key: "orderType",
+        width: 140,
+      },
       {
         title: "Nama File",
         dataIndex: "fileName",
         key: "fileName",
         ellipsis: true,
-      },
-      {
-        title: "Stitch",
-        dataIndex: "stitch",
-        key: "stitch",
-        width: 120,
-      },
-      {
-        title: "Jml",
-        dataIndex: "amount",
-        key: "amount",
-        width: 100,
-      },
-      {
-        title: "Total Stitch",
-        dataIndex: "total",
-        key: "total",
-        width: 140,
-        render: (value: number) => (
-          <Typography.Text strong>{value.toLocaleString("en-US")}</Typography.Text>
-        ),
+        width: 180,
       },
       {
         title: "Desainer",
         dataIndex: "designerName",
         key: "designerName",
-        width: 220,
+        width: 150,
+      },
+      {
+        title: "Jml Bordir",
+        dataIndex: "amount",
+        key: "amount",
+        width: 120,
+      },
+      {
+        title: "Jml Stitch",
+        dataIndex: "stitch",
+        key: "stitch",
+        width: 120,
+      },
+      {
+        title: "Total Stitch",
+        dataIndex: "totalStitch",
+        key: "totalStitch",
+        width: 140,
+        render: (value: number) => (
+          <Typography.Text strong>{value.toLocaleString("en-US")}</Typography.Text>
+        ),
       },
     ],
     [],
