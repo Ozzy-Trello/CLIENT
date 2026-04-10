@@ -4165,6 +4165,7 @@ const ChatWidget = () => {
                                     title={reactorNames}
                                     placement="top"
                                     mouseEnterDelay={0.3}
+                                    zIndex={1500}
                                   >
                                     <button
                                       className={`${styles.reactionBadge} ${
