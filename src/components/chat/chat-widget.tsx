@@ -21,6 +21,7 @@ import {
   Input,
   List,
   Spin,
+  Tooltip,
   Typography,
   message,
 } from "antd";
@@ -4151,22 +4152,35 @@ const ChatWidget = () => {
                                 const hasReacted = reaction.userIds.includes(
                                   currentUserId || "",
                                 );
+                                const reactorNames = reaction.userIds
+                                  .map((uid) => {
+                                    if (uid === currentUserId) return "You";
+                                    const user = userById.get(uid);
+                                    return user?.name || user?.username || "Unknown";
+                                  })
+                                  .join(", ");
                                 return (
-                                  <button
+                                  <Tooltip
                                     key={reaction.emoji}
-                                    className={`${styles.reactionBadge} ${
-                                      hasReacted ? styles.reactionBadgeActive : ""
-                                    }`}
-                                    onClick={() => {
-                                      if (hasReacted) {
-                                        void removeReaction(chatMessage.id, reaction.emoji);
-                                      } else {
-                                        void addReaction(chatMessage.id, reaction.emoji);
-                                      }
-                                    }}
+                                    title={reactorNames}
+                                    placement="top"
+                                    mouseEnterDelay={0.3}
                                   >
-                                    {reaction.emoji}{reaction.count > 1 ? ` ${reaction.count}` : ""}
-                                  </button>
+                                    <button
+                                      className={`${styles.reactionBadge} ${
+                                        hasReacted ? styles.reactionBadgeActive : ""
+                                      }`}
+                                      onClick={() => {
+                                        if (hasReacted) {
+                                          void removeReaction(chatMessage.id, reaction.emoji);
+                                        } else {
+                                          void addReaction(chatMessage.id, reaction.emoji);
+                                        }
+                                      }}
+                                    >
+                                      {reaction.emoji}{reaction.count > 1 ? ` ${reaction.count}` : ""}
+                                    </button>
+                                  </Tooltip>
                                 );
                               })}
                             </div>
