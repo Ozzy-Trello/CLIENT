@@ -1290,6 +1290,7 @@ const ChatWidget = () => {
   const [reactionPickerMessageId, setReactionPickerMessageId] = useState<
     string | null
   >(null);
+  const [reactionPickerExpanded, setReactionPickerExpanded] = useState(false);
   const [generalLastSeenAt, setGeneralLastSeenAt] = useState<string>("");
   const [loadingByPeerId, setLoadingByPeerId] = useState<
     Record<string, boolean>
@@ -4217,13 +4218,11 @@ const ChatWidget = () => {
                           {hoveredMessageId === chatMessage.id ? (
                             <button
                               className={styles.reactionTrigger}
-                              onClick={() =>
-                                setReactionPickerMessageId(
-                                  reactionPickerMessageId === chatMessage.id
-                                    ? null
-                                    : chatMessage.id,
-                                )
-                              }
+                              onClick={() => {
+                                const closing = reactionPickerMessageId === chatMessage.id;
+                                setReactionPickerMessageId(closing ? null : chatMessage.id);
+                                if (closing) setReactionPickerExpanded(false);
+                              }}
                             >
                               😊
                             </button>
@@ -4233,18 +4232,50 @@ const ChatWidget = () => {
                               className={styles.reactionPickerPopover}
                               onMouseDown={(event) => event.stopPropagation()}
                             >
-                              <Picker
-                                data={emojiData}
-                                onEmojiSelect={(emoji: { native: string }) => {
-                                  void addReaction(chatMessage.id, emoji.native);
-                                  setReactionPickerMessageId(null);
-                                }}
-                                theme="light"
-                                previewPosition="none"
-                                skinTonePosition="search"
-                                perLine={8}
-                                maxFrequentRows={2}
-                              />
+                              {reactionPickerExpanded ? (
+                                <Picker
+                                  data={emojiData}
+                                  onEmojiSelect={(emoji: { native: string }) => {
+                                    void addReaction(chatMessage.id, emoji.native);
+                                    setReactionPickerMessageId(null);
+                                    setReactionPickerExpanded(false);
+                                  }}
+                                  theme="light"
+                                  previewPosition="none"
+                                  skinTonePosition="search"
+                                  perLine={8}
+                                  maxFrequentRows={2}
+                                />
+                              ) : (
+                                <div className={styles.reactionPickerRow}>
+                                  {REACTION_EMOJIS.map((emoji) => (
+                                    <button
+                                      key={`${chatMessage.id}-${emoji}`}
+                                      type="button"
+                                      className={styles.reactionEmojiOption}
+                                      onMouseDown={(event) => {
+                                        event.preventDefault();
+                                        event.stopPropagation();
+                                        void addReaction(chatMessage.id, emoji);
+                                        setReactionPickerMessageId(null);
+                                      }}
+                                    >
+                                      {emoji}
+                                    </button>
+                                  ))}
+                                  <button
+                                    type="button"
+                                    className={styles.reactionEmojiOption}
+                                    onMouseDown={(event) => {
+                                      event.preventDefault();
+                                      event.stopPropagation();
+                                      setReactionPickerExpanded(true);
+                                    }}
+                                  >
+                                    +
+                                  </button>
+                                </div>
+                              )}
                             </div>
                           ) : null}
                           </div>
