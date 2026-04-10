@@ -1252,6 +1252,7 @@ const ChatWidget = () => {
   const loadingOlderPeersRef = useRef(new Set<string>());
   const markReadInFlightRef = useRef(new Set<string>());
   const chatWindowsRef = useRef<ChatWindowState[]>([]);
+  const openWindowCallbackRef = useRef<(peerUserId: string) => void>(() => {});
   const messagesByPeerIdRef = useRef<Record<string, ChatMessage[]>>({});
   const messagesPaginationByPeerIdRef = useRef<
     Record<string, Pagination | undefined>
@@ -2723,6 +2724,10 @@ const ChatWidget = () => {
       return;
     }
 
+    window.dispatchEvent(
+      new CustomEvent("chat:window-opened", { detail: { peerUserId } }),
+    );
+
     setIsComposerOpen(false);
     setIsOverflowOpen(false);
 
@@ -2754,6 +2759,19 @@ const ChatWidget = () => {
       );
     }
   };
+
+  // Keep ref in sync so the chat:open-window listener always calls the latest version
+  openWindowCallbackRef.current = openWindow;
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const { peerUserId } = (e as CustomEvent<{ peerUserId: string }>).detail;
+      openWindowCallbackRef.current(peerUserId);
+    };
+    window.addEventListener("chat:open-window", handler);
+    return () => window.removeEventListener("chat:open-window", handler);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const minimizeWindow = (peerUserId: string) => {
     setChatWindows((current) =>
@@ -3410,6 +3428,18 @@ const ChatWidget = () => {
             if (isOpenAndActive) {
               markIncomingMessageAnimated(completedMessage.id);
             }
+            if (!isOpenAndActive) {
+              const senderName =
+                rawEventData?.sender?.name ||
+                (completedMessage as any).sender?.name ||
+                "General";
+              const content = completedMessage.content || "(Attachment)";
+              window.dispatchEvent(
+                new CustomEvent("chat:toast", {
+                  detail: { peerUserId: GENERAL_ROOM_ID, senderName, content },
+                }),
+              );
+            }
           }
 
           scheduleScrollToBottom(peerUserId);
@@ -3575,6 +3605,15 @@ const ChatWidget = () => {
               ...current,
               [GENERAL_ROOM_ID]: true,
             }));
+          }
+          if (!isOpenAndActive) {
+            const senderName = peerUser?.name || "Someone";
+            const content = finalMessage.content || "(Attachment)";
+            window.dispatchEvent(
+              new CustomEvent("chat:toast", {
+                detail: { peerUserId, senderName, content },
+              }),
+            );
           }
         }
 

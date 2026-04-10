@@ -4,6 +4,7 @@ import { Layout, Menu } from "antd";
 import TopBar from "@components/topbar";
 import Sidebar from "@components/sidebar";
 import ChatWidget from "@components/chat/chat-widget";
+import ChatNotificationToast from "@components/chat/chat-notification-toast";
 import "./style.css";
 import { useWorkspaceSidebar } from "@providers/workspace-sidebar-context";
 import { usePathname } from "next/navigation";
@@ -68,6 +69,7 @@ const WorkspaceLayout: React.FC<BaseLayoutProps> = ({ children }) => {
         </Content>
       </Layout>
       <ChatWidget />
+      <ChatNotificationToast />
     </Layout>
   );
 };
