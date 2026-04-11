@@ -202,11 +202,21 @@
   right: 0;
 }
 
+.reactionPickerPopoverOwn {
+  right: 0;
+  left: auto;
+}
+
+.reactionPickerPopoverIncoming {
+  left: 0;
+  right: auto;
+}
+
 .reactionPickerRow {
   display: flex;
   flex-wrap: nowrap;
   gap: 4px;
-  max-width: 220px;
+  max-width: 160px;
   overflow-x: auto;
   padding: 4px;
   border-radius: 999px;
@@ -686,6 +696,19 @@
   left: 0;
   bottom: calc(100% + 6px);
   z-index: 20;
+}
+
+.composerEmojiDrawer {
+  max-width: 250px;
+  overflow: hidden;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.16);
+}
+
+.composerEmojiDrawer :global(em-emoji-picker) {
+  width: 250px;
+  height: 320px;
+  --border-radius: 12px;
 }
 
 .composerEmojiRow {
