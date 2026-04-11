@@ -1296,6 +1296,34 @@ const ChatWidget = () => {
     string | null
   >(null);
   const [reactionPickerExpanded, setReactionPickerExpanded] = useState(false);
+
+  useEffect(() => {
+    const handleOutsideEmojiPickers = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!target) return;
+
+      const insideReactionPicker = target.closest("[data-reaction-picker='true']");
+      const insideComposerPicker = target.closest("[data-composer-picker='true']");
+      const onReactionTrigger = target.closest("[data-reaction-trigger='true']");
+      const onComposerTrigger = target.closest("[data-composer-trigger='true']");
+
+      if (
+        insideReactionPicker ||
+        insideComposerPicker ||
+        onReactionTrigger ||
+        onComposerTrigger
+      ) {
+        return;
+      }
+
+      setReactionPickerMessageId(null);
+      setReactionPickerExpanded(false);
+      setComposerEmojiPickerPeerId(null);
+    };
+
+    document.addEventListener("mousedown", handleOutsideEmojiPickers);
+    return () => document.removeEventListener("mousedown", handleOutsideEmojiPickers);
+  }, []);
   const [generalLastSeenAt, setGeneralLastSeenAt] = useState<string>("");
   const [loadingByPeerId, setLoadingByPeerId] = useState<
     Record<string, boolean>
@@ -4325,6 +4353,7 @@ const ChatWidget = () => {
                           </div>
                           {hoveredMessageId === chatMessage.id ? (
                             <button
+                              data-reaction-trigger="true"
                               className={styles.reactionTrigger}
                               onClick={() => {
                                 const closing = reactionPickerMessageId === chatMessage.id;
@@ -4337,7 +4366,12 @@ const ChatWidget = () => {
                           ) : null}
                           {reactionPickerMessageId === chatMessage.id ? (
                             <div
-                              className={styles.reactionPickerPopover}
+                              data-reaction-picker="true"
+                              className={`${styles.reactionPickerPopover} ${
+                                isOwnMessage
+                                  ? styles.reactionPickerPopoverOwn
+                                  : styles.reactionPickerPopoverIncoming
+                              }`}
                               onMouseDown={(event) => event.stopPropagation()}
                             >
                               {reactionPickerExpanded ? (
@@ -4561,6 +4595,7 @@ const ChatWidget = () => {
                     <Button
                       type="text"
                       className={styles.composerEmojiButton}
+                      data-composer-trigger="true"
                       onClick={() =>
                         setComposerEmojiPickerPeerId((current) =>
                           current === window.peerUserId ? null : window.peerUserId,
@@ -4572,27 +4607,25 @@ const ChatWidget = () => {
                     </Button>
                     {composerEmojiPickerPeerId === window.peerUserId ? (
                       <div
+                        data-composer-picker="true"
                         className={styles.composerEmojiPopover}
                         onMouseDown={(event) => event.stopPropagation()}
                       >
-                        <div className={styles.composerEmojiRow}>
-                          {REACTION_EMOJIS.map((emoji) => (
-                            <button
-                              key={`composer-${window.peerUserId}-${emoji}`}
-                              type="button"
-                              className={styles.composerEmojiOption}
-                              onMouseDown={(event) => {
-                                event.preventDefault();
-                                event.stopPropagation();
-                                setDraftByPeerId((current) => ({
-                                  ...current,
-                                  [window.peerUserId]: `${current[window.peerUserId] || ""}${emoji}`,
-                                }));
-                              }}
-                            >
-                              {emoji}
-                            </button>
-                          ))}
+                        <div className={styles.composerEmojiDrawer}>
+                          <Picker
+                            data={emojiData}
+                            onEmojiSelect={(emoji: { native: string }) => {
+                              setDraftByPeerId((current) => ({
+                                ...current,
+                                [window.peerUserId]: `${current[window.peerUserId] || ""}${emoji.native}`,
+                              }));
+                            }}
+                            theme="light"
+                            previewPosition="none"
+                            skinTonePosition="search"
+                            perLine={8}
+                            maxFrequentRows={2}
+                          />
                         </div>
                       </div>
                     ) : null}
