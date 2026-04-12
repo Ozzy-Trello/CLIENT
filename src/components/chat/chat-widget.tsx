@@ -4623,8 +4623,10 @@ const ChatWidget = () => {
                             theme="light"
                             previewPosition="none"
                             skinTonePosition="search"
-                            perLine={8}
-                            maxFrequentRows={2}
+                            perLine={7}
+                            emojiSize={20}
+                            emojiButtonSize={28}
+                            maxFrequentRows={1}
                           />
                         </div>
                       </div>
