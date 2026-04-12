@@ -699,15 +699,15 @@
 }
 
 .composerEmojiDrawer {
-  max-width: 250px;
+  max-width: 350px;
   overflow: hidden;
   border-radius: 12px;
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.16);
 }
 
 .composerEmojiDrawer :global(em-emoji-picker) {
-  width: 250px;
-  height: 320px;
+  width: 350px;
+  height: 360px;
   --border-radius: 12px;
 }
 
