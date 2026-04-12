@@ -212,17 +212,50 @@
   right: auto;
 }
 
-.reactionPickerRow {
+.reactionPickerInline {
   display: flex;
-  flex-wrap: nowrap;
-  gap: 4px;
-  max-width: 160px;
-  overflow-x: auto;
-  padding: 4px;
+  align-items: center;
+  gap: 0;
+  max-width: 190px;
   border-radius: 999px;
   background: #ffffff;
   border: 1px solid #e2e8f0;
   box-shadow: 0 4px 10px rgba(15, 23, 42, 0.12);
+}
+
+.reactionPickerRow {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 4px;
+  overflow-x: auto;
+  padding: 4px;
+  scrollbar-width: none;
+}
+
+.reactionPickerRow::-webkit-scrollbar {
+  display: none;
+}
+
+.reactionExpandButton {
+  flex-shrink: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: #64748b;
+  border-left: 1px solid #e2e8f0;
+  border-radius: 0 999px 999px 0;
+}
+
+.reactionExpandButton:hover {
+  background: #f1f5f9;
+  color: #334155;
 }
 
 .reactionEmojiOption {
@@ -699,8 +732,6 @@
 }
 
 .composerEmojiDrawer {
-  max-width: 250px;
-  overflow: hidden;
   border-radius: 12px;
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.16);
 }
@@ -709,7 +740,7 @@
   width: 250px;
   height: 320px;
   --border-radius: 12px;
-  --emoji-size: 20px;
+  --emoji-size: 18px;
   --font-size: 12px;
   --category-icon-size: 16px;
 }

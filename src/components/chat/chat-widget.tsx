@@ -4389,27 +4389,33 @@ const ChatWidget = () => {
                                   maxFrequentRows={2}
                                 />
                               ) : (
-                                <div className={styles.reactionPickerRow}>
-                                  {REACTION_EMOJIS.map((emoji) => (
-                                    <button
-                                      key={`${chatMessage.id}-${emoji}`}
-                                      type="button"
-                                      className={styles.reactionEmojiOption}
-                                      onMouseDown={(event) => {
-                                        event.preventDefault();
-                                        event.stopPropagation();
-                                        void addReaction(chatMessage.id, emoji);
-                                        setReactionPickerMessageId(null);
-                                      }}
-                                    >
-                                      {emoji}
-                                    </button>
-                                  ))}
+                                <div className={styles.reactionPickerInline}>
+                                  <div className={styles.reactionPickerRow}>
+                                    {REACTION_EMOJIS.map((emoji) => (
+                                      <button
+                                        key={`${chatMessage.id}-${emoji}`}
+                                        type="button"
+                                        className={styles.reactionEmojiOption}
+                                        onMouseDown={(event) => {
+                                          event.preventDefault();
+                                          event.stopPropagation();
+                                          void addReaction(chatMessage.id, emoji);
+                                          setReactionPickerMessageId(null);
+                                        }}
+                                      >
+                                        {emoji}
+                                      </button>
+                                    ))}
+                                  </div>
                                   <button
                                     type="button"
-                                    className={styles.reactionEmojiOption}
+                                    data-reaction-picker="true"
+                                    className={styles.reactionExpandButton}
                                     onMouseDown={(event) => {
                                       event.preventDefault();
+                                      event.stopPropagation();
+                                    }}
+                                    onClick={(event) => {
                                       event.stopPropagation();
                                       setReactionPickerExpanded(true);
                                     }}
@@ -4623,9 +4629,9 @@ const ChatWidget = () => {
                             theme="light"
                             previewPosition="none"
                             skinTonePosition="search"
-                            perLine={7}
-                            emojiSize={20}
-                            emojiButtonSize={28}
+                            perLine={8}
+                            emojiSize={18}
+                            emojiButtonSize={26}
                             maxFrequentRows={1}
                           />
                         </div>
