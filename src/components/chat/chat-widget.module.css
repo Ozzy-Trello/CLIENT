@@ -1033,6 +1033,38 @@
   padding: 6px 8px 10px;
 }
 
+.presenceSectionHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px 2px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.presenceSectionHeader:hover {
+  background: #f8fafc;
+  border-radius: 6px;
+}
+
+.presenceChevron {
+  font-size: 10px;
+  color: #94a3b8;
+  transition: transform 0.2s;
+}
+
+.presenceChevronCollapsed {
+  transform: rotate(-90deg);
+}
+
+.presenceSectionLabel {
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
 .peopleItem {
   border-radius: 12px;
   padding: 10px 8px !important;

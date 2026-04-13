@@ -1247,6 +1247,8 @@ const ChatWidget = () => {
   const [isComposerOpen, setIsComposerOpen] = useState(false);
   const [isOverflowOpen, setIsOverflowOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [onlineCollapsed, setOnlineCollapsed] = useState(false);
+  const [offlineCollapsed, setOfflineCollapsed] = useState(false);
   const [chatWindows, setChatWindows] = useState<ChatWindowState[]>([]);
   const [didRestoreWindows, setDidRestoreWindows] = useState(false);
   const [draftByPeerId, setDraftByPeerId] = useState<Record<string, string>>(
@@ -1801,6 +1803,27 @@ const ChatWidget = () => {
       );
     });
   }, [people, searchTerm]);
+
+  const groupedPeople = useMemo(() => {
+    const general: typeof filteredPeople = [];
+    const online: typeof filteredPeople = [];
+    const offline: typeof filteredPeople = [];
+
+    for (const entry of filteredPeople) {
+      if (isGeneralRoom(entry.peerUserId)) {
+        general.push(entry);
+        continue;
+      }
+      const status = getPeerPresenceStatus(entry.peerUserId);
+      if (status === "online" || status === "idle") {
+        online.push(entry);
+      } else {
+        offline.push(entry);
+      }
+    }
+
+    return { general, online, offline };
+  }, [filteredPeople, presenceByUserId]);
 
   const generalMentionUsers = useMemo(() => {
     const map = new Map<string, ChatUser>();
@@ -4820,61 +4843,191 @@ const ChatWidget = () => {
                   />
                 </div>
               ) : (
-                <List
-                  dataSource={filteredPeople}
-                  renderItem={(entry) => {
-                    const roleLabel = getRoleLabel(entry.peerUser);
-                    const mentionBadge =
-                      isGeneralRoom(entry.peerUserId) &&
-                      isGeneralMentionActive
-                        ? "@"
-                        : entry.unreadCount;
-
-                    return (
-                      <List.Item
-                        className={styles.peopleItem}
-                        onClick={() => openWindow(entry.peerUserId)}
-                      >
-                        <List.Item.Meta
-                          avatar={
-                            <Badge
-                              count={mentionBadge}
-                              overflowCount={9}
-                              size="small"
-                              offset={[-2, 24]}
-                            >
-                              {renderPresenceAvatar(
-                                entry.peerUser,
-                                getPeerPresenceStatus(entry.peerUserId),
-                              )}
-                            </Badge>
-                          }
-                          title={
-                            <Text className={styles.peopleName}>
-                              {entry.peerUser.name}
-                            </Text>
-                          }
-                          description={
-                            <div className={styles.peopleDescription}>
-                              {roleLabel ? (
-                                <Text className={styles.peopleRole}>{roleLabel}</Text>
-                              ) : null}
-                              {typingByUserId[entry.peerUserId] ? (
-                                <span className={styles.peopleTyping}>
-                                  <TypingIndicator label={null} />
-                                </span>
-                              ) : entry.lastMessage ? (
-                                <Text className={styles.peopleMeta}>
-                                  {entry.lastMessage}
+                <>
+                  {groupedPeople.general.length > 0 ? (
+                    <List
+                      dataSource={groupedPeople.general}
+                      renderItem={(entry) => {
+                        const mentionBadge =
+                          isGeneralMentionActive ? "@" : entry.unreadCount;
+                        return (
+                          <List.Item
+                            className={styles.peopleItem}
+                            onClick={() => openWindow(entry.peerUserId)}
+                          >
+                            <List.Item.Meta
+                              avatar={
+                                <Badge
+                                  count={mentionBadge}
+                                  overflowCount={9}
+                                  size="small"
+                                  offset={[-2, 24]}
+                                >
+                                  {renderPresenceAvatar(
+                                    entry.peerUser,
+                                    getPeerPresenceStatus(entry.peerUserId),
+                                  )}
+                                </Badge>
+                              }
+                              title={
+                                <Text className={styles.peopleName}>
+                                  {entry.peerUser.name}
                                 </Text>
-                              ) : null}
-                            </div>
-                          }
+                              }
+                              description={
+                                <div className={styles.peopleDescription}>
+                                  <Text className={styles.peopleRole}>Group Chat</Text>
+                                </div>
+                              }
+                            />
+                          </List.Item>
+                        );
+                      }}
+                    />
+                  ) : null}
+
+                  {groupedPeople.online.length > 0 ? (
+                    <>
+                      <div
+                        className={styles.presenceSectionHeader}
+                        onClick={() => setOnlineCollapsed((c) => !c)}
+                      >
+                        <DownOutlined
+                          className={`${styles.presenceChevron} ${
+                            onlineCollapsed ? styles.presenceChevronCollapsed : ""
+                          }`}
                         />
-                      </List.Item>
-                    );
-                  }}
-                />
+                        <span className={styles.presenceSectionLabel}>
+                          Online — {groupedPeople.online.length}
+                        </span>
+                      </div>
+                      {!onlineCollapsed ? (
+                        <List
+                          dataSource={groupedPeople.online}
+                          renderItem={(entry) => {
+                            const roleLabel = getRoleLabel(entry.peerUser);
+                            return (
+                              <List.Item
+                                className={styles.peopleItem}
+                                onClick={() => openWindow(entry.peerUserId)}
+                              >
+                                <List.Item.Meta
+                                  avatar={
+                                    <Badge
+                                      count={entry.unreadCount}
+                                      overflowCount={9}
+                                      size="small"
+                                      offset={[-2, 24]}
+                                    >
+                                      {renderPresenceAvatar(
+                                        entry.peerUser,
+                                        getPeerPresenceStatus(entry.peerUserId),
+                                      )}
+                                    </Badge>
+                                  }
+                                  title={
+                                    <Text className={styles.peopleName}>
+                                      {entry.peerUser.name}
+                                    </Text>
+                                  }
+                                  description={
+                                    <div className={styles.peopleDescription}>
+                                      {roleLabel ? (
+                                        <Text className={styles.peopleRole}>
+                                          {roleLabel}
+                                        </Text>
+                                      ) : null}
+                                      {typingByUserId[entry.peerUserId] ? (
+                                        <span className={styles.peopleTyping}>
+                                          <TypingIndicator label={null} />
+                                        </span>
+                                      ) : entry.lastMessage ? (
+                                        <Text className={styles.peopleMeta}>
+                                          {entry.lastMessage}
+                                        </Text>
+                                      ) : null}
+                                    </div>
+                                  }
+                                />
+                              </List.Item>
+                            );
+                          }}
+                        />
+                      ) : null}
+                    </>
+                  ) : null}
+
+                  {groupedPeople.offline.length > 0 ? (
+                    <>
+                      <div
+                        className={styles.presenceSectionHeader}
+                        onClick={() => setOfflineCollapsed((c) => !c)}
+                      >
+                        <DownOutlined
+                          className={`${styles.presenceChevron} ${
+                            offlineCollapsed ? styles.presenceChevronCollapsed : ""
+                          }`}
+                        />
+                        <span className={styles.presenceSectionLabel}>
+                          Offline — {groupedPeople.offline.length}
+                        </span>
+                      </div>
+                      {!offlineCollapsed ? (
+                        <List
+                          dataSource={groupedPeople.offline}
+                          renderItem={(entry) => {
+                            const roleLabel = getRoleLabel(entry.peerUser);
+                            return (
+                              <List.Item
+                                className={styles.peopleItem}
+                                onClick={() => openWindow(entry.peerUserId)}
+                              >
+                                <List.Item.Meta
+                                  avatar={
+                                    <Badge
+                                      count={entry.unreadCount}
+                                      overflowCount={9}
+                                      size="small"
+                                      offset={[-2, 24]}
+                                    >
+                                      {renderPresenceAvatar(
+                                        entry.peerUser,
+                                        getPeerPresenceStatus(entry.peerUserId),
+                                      )}
+                                    </Badge>
+                                  }
+                                  title={
+                                    <Text className={styles.peopleName}>
+                                      {entry.peerUser.name}
+                                    </Text>
+                                  }
+                                  description={
+                                    <div className={styles.peopleDescription}>
+                                      {roleLabel ? (
+                                        <Text className={styles.peopleRole}>
+                                          {roleLabel}
+                                        </Text>
+                                      ) : null}
+                                      {typingByUserId[entry.peerUserId] ? (
+                                        <span className={styles.peopleTyping}>
+                                          <TypingIndicator label={null} />
+                                        </span>
+                                      ) : entry.lastMessage ? (
+                                        <Text className={styles.peopleMeta}>
+                                          {entry.lastMessage}
+                                        </Text>
+                                      ) : null}
+                                    </div>
+                                  }
+                                />
+                              </List.Item>
+                            );
+                          }}
+                        />
+                      ) : null}
+                    </>
+                  ) : null}
+                </>
               )}
             </div>
           </div>
