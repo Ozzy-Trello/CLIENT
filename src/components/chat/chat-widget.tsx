@@ -1814,7 +1814,9 @@ const ChatWidget = () => {
         general.push(entry);
         continue;
       }
-      const status = getPeerPresenceStatus(entry.peerUserId);
+      const status =
+        presenceByUserId[entry.peerUserId] ??
+        getSeedPresenceStatus(entry.peerUser);
       if (status === "online" || status === "idle") {
         online.push(entry);
       } else {
