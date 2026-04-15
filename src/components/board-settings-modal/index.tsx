@@ -115,7 +115,7 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
   const dispatch = useDispatch();
 
   // Fetch roles for the current workspace
-  const { roles, loading: loadingRoles } = useRoles(currentWorkspace?.id || "");
+  const { roles } = useRoles(currentWorkspace?.id || "");
   const { mutateAsync: updateBoard } = useUpdateBoard(
     currentWorkspace?.id || ""
   );
@@ -209,15 +209,6 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
       setIsInitialized(true); // Mark as initialized
     }
   }, [fetchedBoard, initialBoard, form, isInitialized]);
-
-  // Update selected roles when both board and roles data are available
-  useEffect(() => {
-    const currentBoard = fetchedBoard || initialBoard;
-
-    if (currentBoard?.roleIds && roles.length > 0 && !loadingRoles) {
-      setSelectedRoles(currentBoard.roleIds);
-    }
-  }, [fetchedBoard, initialBoard, roles, loadingRoles]);
 
   // Show loading state while fetching board details
   if (isLoadingBoard) {
@@ -356,7 +347,9 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
 
   const handleRoleAssignmentChange = (roleId: string, assigned: boolean) => {
     if (assigned) {
-      setSelectedRoles((prev) => [...prev, roleId]);
+      setSelectedRoles((prev) =>
+        prev.includes(roleId) ? prev : [...prev, roleId]
+      );
       // Set default permission level when assigning a role
       setRolePermissionLevels((prev) => ({
         ...prev,
@@ -384,7 +377,9 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
 
     // Auto-assign role if setting permission level
     if (!selectedRoles.includes(roleId)) {
-      setSelectedRoles((prev) => [...prev, roleId]);
+      setSelectedRoles((prev) =>
+        prev.includes(roleId) ? prev : [...prev, roleId]
+      );
     }
   };
 
