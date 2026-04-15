@@ -236,6 +236,69 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
   const dashcardTimeoutRef = useRef<any>(null);
   const dashcardLastInvalidatedRef = useRef<number>(0);
   const DASHCARD_INTERVAL_MS = 180000; // 3 minutes throttle
+  const chatAudioRef = useRef<HTMLAudioElement | null>(null);
+  const notificationAudioRef = useRef<HTMLAudioElement | null>(null);
+  const audioUnlockedRef = useRef(false);
+  const lastChatSoundAtRef = useRef(0);
+  const lastNotificationSoundAtRef = useRef(0);
+  const NOTIFICATION_SOUND_COOLDOWN_MS = 700;
+
+  const playNotificationSound = (type: "chat" | "notification") => {
+    const audio =
+      type === "notification" ? notificationAudioRef.current : chatAudioRef.current;
+    if (!audio || !audioUnlockedRef.current) return;
+
+    const now = Date.now();
+    const lastPlayedAtRef =
+      type === "notification" ? lastNotificationSoundAtRef : lastChatSoundAtRef;
+
+    if (now - lastPlayedAtRef.current < NOTIFICATION_SOUND_COOLDOWN_MS) {
+      return;
+    }
+
+    lastPlayedAtRef.current = now;
+
+    try {
+      audio.currentTime = 0;
+      const playPromise = audio.play();
+      if (playPromise && typeof playPromise.catch === "function") {
+        playPromise.catch(() => {});
+      }
+    } catch {
+      // Silent fail to avoid interrupting realtime updates.
+    }
+  };
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const chatAudio = new Audio("/sounds/notif.wav");
+    const notificationAudio = new Audio("/sounds/notif-2.wav");
+    chatAudio.preload = "auto";
+    notificationAudio.preload = "auto";
+    chatAudioRef.current = chatAudio;
+    notificationAudioRef.current = notificationAudio;
+
+    const unlockAudio = () => {
+      audioUnlockedRef.current = true;
+      window.removeEventListener("pointerdown", unlockAudio);
+      window.removeEventListener("keydown", unlockAudio);
+      window.removeEventListener("touchstart", unlockAudio);
+    };
+
+    window.addEventListener("pointerdown", unlockAudio);
+    window.addEventListener("keydown", unlockAudio);
+    window.addEventListener("touchstart", unlockAudio);
+
+    return () => {
+      window.removeEventListener("pointerdown", unlockAudio);
+      window.removeEventListener("keydown", unlockAudio);
+      window.removeEventListener("touchstart", unlockAudio);
+      chatAudioRef.current = null;
+      notificationAudioRef.current = null;
+      audioUnlockedRef.current = false;
+    };
+  }, []);
 
   const scheduleDashcardInvalidation = () => {
     const now = Date.now();
@@ -299,6 +362,8 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             break;
 
           case "chat:new-message": {
+            playNotificationSound("chat");
+
             const chatEventData = message.data?.message || message.data || {};
             const chatPeerUserId =
               message.data?.peerUser?.id ||
@@ -1521,6 +1586,7 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
           case "notification:new":
             if (message.data) {
               dispatch(addNotification(message.data));
+              playNotificationSound("notification");
             }
             return;
 
