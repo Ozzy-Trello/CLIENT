@@ -169,6 +169,14 @@ export const mapBackendCardToFrontend = (backendCard: any): Card => {
     mapped.workspaceId = mapped.workspaceId ?? backendCard.board_info.workspace_id;
   }
 
+  if (backendCard.dash_config !== undefined) {
+    mapped.dashConfig = backendCard.dash_config;
+  }
+
+  if (backendCard.dashConfig !== undefined) {
+    mapped.dashConfig = backendCard.dashConfig;
+  }
+
   if (backendCard.workspace_info) {
     mapped.workspaceId = mapped.workspaceId ?? backendCard.workspace_info.id;
     mapped.workspaceName = mapped.workspaceName ?? backendCard.workspace_info.name;
@@ -275,6 +283,12 @@ const mapFrontendCardToBackend = (frontendCard: Partial<Card>): any => {
     backendData.po_amount = frontendCard.poAmount;
     delete backendData.poAmount;
   }
+
+  if (frontendCard.dashConfig !== undefined) {
+    backendData.dash_config = frontendCard.dashConfig;
+    delete backendData.dashConfig;
+  }
+
   // Ensure productCodeInfo is never sent back to backend on update
   if (frontendCard.productCodeInfo !== undefined) {
     delete backendData.productCodeInfo;

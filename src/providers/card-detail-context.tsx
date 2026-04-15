@@ -601,6 +601,15 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
       return;
     }
 
+    setDashcardConfig((prev) =>
+      prev
+        ? {
+            ...prev,
+            displayConfig,
+          }
+        : prev
+    );
+
     mutate({
       dashConfig: {
         ...dashcardConfig,
@@ -620,6 +629,15 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
       );
       return;
     }
+
+    setDashcardConfig((prev) =>
+      prev
+        ? {
+            ...prev,
+            backgroundColor,
+          }
+        : prev
+    );
 
     mutate({
       dashConfig: {
