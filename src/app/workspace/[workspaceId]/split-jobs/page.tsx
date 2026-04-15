@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useMemo } from "react";
-import { Card, Table, Typography, Space, Tag } from "antd";
+import React, { useMemo, useState } from "react";
+import { Card, Pagination, Table, Typography, Space, Tag } from "antd";
 import dayjs from "dayjs";
 import { useParams } from "next/navigation";
 import { useAllSplitJobs } from "@hooks/split_job";
@@ -31,9 +31,17 @@ export default function SplitJobsPage() {
     ? params.workspaceId[0]
     : (params?.workspaceId as string | undefined);
 
-  const { data = [], isLoading } = useAllSplitJobs(workspaceId);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 10;
 
-  const cardGroups = useMemo(() => data, [data]);
+  const { data, isLoading, isFetching } = useAllSplitJobs(
+    workspaceId,
+    page,
+    PAGE_SIZE,
+  );
+
+  const cardGroups = useMemo(() => data?.cards || [], [data?.cards]);
+  const pagination = data?.paginate;
 
   const columns = [
     {
@@ -97,7 +105,7 @@ export default function SplitJobsPage() {
             </Space>
           }>
             <Table
-              loading={isLoading}
+              loading={isLoading || isFetching}
               dataSource={card.items.map((item) => ({
                 ...item,
                 key: item.id,
@@ -111,6 +119,18 @@ export default function SplitJobsPage() {
             />
           </Card>
         ))}
+
+        {(pagination?.totalData || 0) > PAGE_SIZE && (
+          <div style={{ display: "flex", justifyContent: "flex-end" }}>
+            <Pagination
+              current={pagination?.page || page}
+              pageSize={PAGE_SIZE}
+              total={pagination?.totalData || 0}
+              showSizeChanger={false}
+              onChange={(nextPage) => setPage(nextPage)}
+            />
+          </div>
+        )}
       </Space>
     </div>
   );

@@ -243,11 +243,15 @@ export const useSplitJobValuesByCustomField = (cardId?: string) => {
   };
 };
 
-export const useAllSplitJobs = (workspaceId?: string) => {
-  return useQuery<SplitJobCardGroup[]>({
-    queryKey: ['allSplitJobs', workspaceId],
+export const useAllSplitJobs = (
+  workspaceId?: string,
+  page: number = 1,
+  limit: number = 10
+) => {
+  return useQuery<{ cards: SplitJobCardGroup[]; paginate?: any }>({
+    queryKey: ['allSplitJobs', workspaceId, page, limit],
     queryFn: async () => {
-      const res = await getAllSplitJobs(workspaceId);
+      const res = await getAllSplitJobs(workspaceId, page, limit);
       const groups = (res.data || []) as any[];
 
       const cardMap = new Map<string, SplitJobCardGroup>();
@@ -303,7 +307,10 @@ export const useAllSplitJobs = (workspaceId?: string) => {
         });
       });
 
-      return Array.from(cardMap.values());
+      return {
+        cards: Array.from(cardMap.values()),
+        paginate: res.paginate,
+      };
     },
     staleTime: 2 * 60 * 1000,
   });

@@ -159,10 +159,18 @@ export const getSplitJobValuesByCustomField = async (
 
 // Get all split jobs grouped by custom field (workspace scoped optional)
 export const getAllSplitJobs = async (
-  workspaceId?: string
+  workspaceId?: string,
+  page?: number,
+  limit?: number
 ): Promise<ApiResponse<SplitJobGroup[]>> => {
   const params: Record<string, string> = {};
   if (workspaceId) params.workspace_id = workspaceId;
+  if (typeof page === "number" && page > 0) {
+    params.page = String(page);
+  }
+  if (typeof limit === "number" && limit > 0) {
+    params.limit = String(limit);
+  }
   const { data } = await api.get("/split-job/all", { params });
   return data;
 };
