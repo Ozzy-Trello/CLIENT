@@ -105,6 +105,10 @@ import {
   ProductCodeBulkInsertRequest,
   ProductCodeBulkInsertResult,
 } from "@api/product-code";
+import {
+  uploadDesignTypeImageZip,
+  DesignZipUploadResult,
+} from "@api/design-master-data";
 
 type MenuItem = Required<MenuProps>["items"][number];
 
@@ -582,6 +586,12 @@ const MasterData: React.FC = () => {
   const [hierarchicalUploading, setHierarchicalUploading] = useState(false);
   const [hierarchicalUploadResult, setHierarchicalUploadResult] =
     useState<HierarchicalBulkUploadResult | null>(null);
+
+  const [zipLibraryUploadVisible, setZipLibraryUploadVisible] = useState(false);
+  const [zipLibraryUploading, setZipLibraryUploading] = useState(false);
+  const [zipLibraryUploadProgress, setZipLibraryUploadProgress] = useState(0);
+  const [zipLibraryUploadResult, setZipLibraryUploadResult] =
+    useState<DesignZipUploadResult | null>(null);
 
   // Regular bulk upload modal state
   const [regularBulkUploadVisible, setRegularBulkUploadVisible] =
@@ -1448,6 +1458,28 @@ const MasterData: React.FC = () => {
     }
   };
 
+  const handleTypeImageZipUpload = async (file: File) => {
+    try {
+      setZipLibraryUploading(true);
+      setZipLibraryUploadProgress(25);
+
+      const result = await uploadDesignTypeImageZip(file);
+
+      setZipLibraryUploadProgress(100);
+      setZipLibraryUploadResult(result || null);
+      message.success(
+        `ZIP import completed. Matched: ${result.total_matched}, Updated: ${result.total_updated}, Skipped: ${result.total_skipped}`
+      );
+    } catch (error: any) {
+      message.error(
+        "Failed to upload ZIP library: " +
+          (error.response?.data?.message || error.message)
+      );
+    } finally {
+      setZipLibraryUploading(false);
+    }
+  };
+
   // Check permissions
   if (!isSuperAdmin()) {
     return (
@@ -1506,6 +1538,15 @@ const MasterData: React.FC = () => {
                 onClick: () => {
                   setProductCodeBulkUploadVisible(true);
                   setProductCodeUploadResult(null);
+                },
+              },
+              {
+                key: "type-image-zip",
+                label: "Type Image ZIP Upload",
+                icon: <Package2 size={16} />,
+                onClick: () => {
+                  setZipLibraryUploadVisible(true);
+                  setZipLibraryUploadResult(null);
                 },
               },
             ],
@@ -2533,6 +2574,112 @@ const MasterData: React.FC = () => {
               setHierarchicalBulkUploadVisible(false);
               setHierarchicalUploadResult(null);
               setHierarchicalUploadProgress(0);
+            }}
+          >
+            Close
+          </Button>
+        </div>
+      </Modal>
+
+      <Modal
+        title="Type Image ZIP Upload"
+        open={zipLibraryUploadVisible}
+        onCancel={() => {
+          setZipLibraryUploadVisible(false);
+          setZipLibraryUploadResult(null);
+          setZipLibraryUploadProgress(0);
+        }}
+        footer={null}
+        width={700}
+      >
+        <Alert
+          message="Single ZIP upload"
+          description="Upload one ZIP that contains front/back PNG pairs (depan/belakang). The system will auto-detect variant code from file names and map to existing Product Code entries."
+          type="info"
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
+
+        <Upload.Dragger
+          accept=".zip"
+          beforeUpload={(file) => {
+            handleTypeImageZipUpload(file);
+            return false;
+          }}
+          showUploadList={false}
+          disabled={zipLibraryUploading}
+        >
+          <p className="ant-upload-drag-icon">
+            <Package2 size={48} />
+          </p>
+          <p className="ant-upload-text">
+            {zipLibraryUploading
+              ? "Uploading ZIP..."
+              : "Click or drag ZIP file to upload"}
+          </p>
+          <p className="ant-upload-hint">Supports one ZIP per upload</p>
+        </Upload.Dragger>
+
+        {zipLibraryUploading ? (
+          <div style={{ marginTop: 16 }}>
+            <Progress percent={zipLibraryUploadProgress} />
+          </div>
+        ) : null}
+
+        {zipLibraryUploadResult ? (
+          <div style={{ marginTop: 16 }}>
+            <Card title="ZIP Import Result" size="small">
+              <Space direction="vertical" size={8} style={{ width: "100%" }}>
+                <div>
+                  <strong>Collection:</strong> {zipLibraryUploadResult.collection_code || "-"}
+                </div>
+                <div>
+                  <strong>Collar Variant:</strong> {zipLibraryUploadResult.collar_variant || "-"}
+                </div>
+                <div>
+                  <strong>Total Attempted:</strong> {zipLibraryUploadResult.total_attempted}
+                </div>
+                <div>
+                  <strong>Matched Product Codes:</strong> {zipLibraryUploadResult.total_matched}
+                </div>
+                <div>
+                  <strong>Updated:</strong> {zipLibraryUploadResult.total_updated}
+                </div>
+                <div>
+                  <strong>Skipped:</strong> {zipLibraryUploadResult.total_skipped}
+                </div>
+                {zipLibraryUploadResult.errors?.length ? (
+                  <div>
+                    <strong>Errors:</strong>
+                    <div
+                      style={{
+                        marginTop: 8,
+                        maxHeight: 180,
+                        overflowY: "auto",
+                        border: "1px solid #f0f0f0",
+                        borderRadius: 6,
+                        padding: 8,
+                      }}
+                    >
+                      {zipLibraryUploadResult.errors.map((err, idx) => (
+                        <div key={`${err.variant}-${idx}`} style={{ marginBottom: 6 }}>
+                          <Tag color="red">{err.variant}</Tag> {err.error}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </Space>
+            </Card>
+          </div>
+        ) : null}
+
+        <div style={{ textAlign: "right", marginTop: 16 }}>
+          <Button
+            onClick={() => {
+              setZipLibraryUploadVisible(false);
+              setZipLibraryUploadResult(null);
+              setZipLibraryUploadProgress(0);
             }}
           >
             Close
