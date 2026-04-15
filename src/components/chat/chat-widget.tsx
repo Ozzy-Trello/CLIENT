@@ -1382,7 +1382,7 @@ const ChatWidget = () => {
   >({});
   const outgoingTypingSentAtRef = useRef<Record<string, number>>({});
   const lastBackfillAttemptRef = useRef(0);
-  const audioContextRef = useRef<AudioContext | null>(null);
+  const incomingMessageAudioRef = useRef<HTMLAudioElement | null>(null);
   const audioUnlockedRef = useRef(false);
   const lastIncomingSoundAtRef = useRef(0);
   const storageKey = `${CHAT_WINDOWS_STORAGE_PREFIX}_${currentUserId || "anon"}`;
@@ -1489,21 +1489,11 @@ const ChatWidget = () => {
       return;
     }
 
+    const incomingMessageAudio = new Audio("/sounds/notif.wav");
+    incomingMessageAudio.preload = "auto";
+    incomingMessageAudioRef.current = incomingMessageAudio;
+
     const unlockAudio = () => {
-      const AudioContextClass =
-        window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioContextClass) {
-        return;
-      }
-
-      if (!audioContextRef.current) {
-        audioContextRef.current = new AudioContextClass();
-      }
-
-      if (audioContextRef.current.state === "suspended") {
-        void audioContextRef.current.resume().catch(() => {});
-      }
-
       audioUnlockedRef.current = true;
     };
 
@@ -1513,10 +1503,7 @@ const ChatWidget = () => {
     return () => {
       window.removeEventListener("pointerdown", unlockAudio);
       window.removeEventListener("keydown", unlockAudio);
-      if (audioContextRef.current) {
-        void audioContextRef.current.close().catch(() => {});
-        audioContextRef.current = null;
-      }
+      incomingMessageAudioRef.current = null;
       audioUnlockedRef.current = false;
     };
   }, []);
@@ -2545,7 +2532,8 @@ const ChatWidget = () => {
   };
 
   const playIncomingMessageSound = () => {
-    if (!audioUnlockedRef.current || !audioContextRef.current) {
+    const audio = incomingMessageAudioRef.current;
+    if (!audioUnlockedRef.current || !audio) {
       return;
     }
 
@@ -2555,28 +2543,15 @@ const ChatWidget = () => {
     }
     lastIncomingSoundAtRef.current = nowMs;
 
-    const ctx = audioContextRef.current;
-    if (ctx.state === "suspended") {
-      void ctx.resume().catch(() => {});
-      return;
+    try {
+      audio.currentTime = 0;
+      const playPromise = audio.play();
+      if (playPromise && typeof playPromise.catch === "function") {
+        playPromise.catch(() => {});
+      }
+    } catch {
+      // Keep chat flow stable even when sound playback fails.
     }
-
-    const now = ctx.currentTime;
-    const oscillator = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    oscillator.type = "sine";
-    oscillator.frequency.setValueAtTime(880, now);
-    oscillator.frequency.exponentialRampToValueAtTime(660, now + 0.12);
-
-    gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(0.06, now + 0.01);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.16);
-
-    oscillator.connect(gain);
-    gain.connect(ctx.destination);
-    oscillator.start(now);
-    oscillator.stop(now + 0.17);
   };
 
   const loadMessages = async (
