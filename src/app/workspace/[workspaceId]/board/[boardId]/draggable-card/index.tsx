@@ -41,7 +41,7 @@ const normalizeName = (name?: string) => (name || "").trim().toLowerCase();
 
 const DraggableCard: React.FC<DraggableCardProps> = ({ card, index, list }) => {
   const { openCardDetail } = useCardDetailContext();
-  const { focusedCardId, setFocusedCardId, isCardFocused } = useCardFocus();
+  const { setFocusedCardId, isCardFocused } = useCardFocus();
   const { boardId } = useParams();
   const [isHovered, setIsHovered] = useState<boolean>(false);
   const { isSuperAdmin } = usePermissions();
@@ -72,9 +72,6 @@ const DraggableCard: React.FC<DraggableCardProps> = ({ card, index, list }) => {
   const roleName = (currentUser?.role?.name || "").trim().toLowerCase();
   const isObserver = roleName === "observer";
   const canMoveCard = !isObserver && (isSuperAdmin() || !isBlockedBoard);
-
-  // Determine if this card should be blurred
-  const shouldBlur = focusedCardId !== null && !isCardFocused(card.id);
 
   const handleClick = (e: React.MouseEvent) => {
     if (e.target instanceof HTMLElement) {
@@ -122,7 +119,6 @@ const DraggableCard: React.FC<DraggableCardProps> = ({ card, index, list }) => {
             hover:border-blue-500 overflow-hidden transition-all duration-200
             ${snapshot.isDragging ? "" : ""}
             ${canMoveCard ? "cursor-pointer" : "cursor-default"}
-            ${shouldBlur ? "opacity-30 blur-sm" : ""}
             ${isCardFocused(card.id) ? "ring-2 ring-blue-500 shadow-lg" : ""}
             `}
             ref={provided.innerRef}
