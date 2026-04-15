@@ -431,6 +431,82 @@ export function useCardMutationsOnly() {
     }) => {
       return api.put(`/card/${cardId}`, updates);
     },
+    onMutate: async ({ cardId, updates }) => {
+      await queryClient.cancelQueries({
+        queryKey: queryKeys.cards.detail(cardId),
+      });
+
+      const previousDetail = queryClient.getQueryData<ApiResponse<Card>>(
+        queryKeys.cards.detail(cardId)
+      );
+
+      const previousLists = queryClient.getQueriesData<ApiResponse<Card[]>>({
+        predicate: (query) =>
+          Array.isArray(query.queryKey) &&
+          query.queryKey[0] === "cards" &&
+          query.queryKey[1] === "list",
+      });
+
+      queryClient.setQueryData(
+        queryKeys.cards.detail(cardId),
+        (old: ApiResponse<Card> | undefined) => {
+          if (!old) return old;
+
+          return {
+            ...old,
+            data: {
+              ...old.data,
+              ...updates,
+            },
+          };
+        }
+      );
+
+      queryClient.setQueriesData(
+        {
+          predicate: (query) =>
+            Array.isArray(query.queryKey) &&
+            query.queryKey[0] === "cards" &&
+            query.queryKey[1] === "list",
+        },
+        (old: ApiResponse<Card[]> | undefined) => {
+          if (!old?.data) return old;
+
+          let hasUpdatedCard = false;
+          const nextCards = old.data.map((card) => {
+            if (card.id !== cardId) return card;
+            hasUpdatedCard = true;
+            return {
+              ...card,
+              ...updates,
+            };
+          });
+
+          if (!hasUpdatedCard) return old;
+
+          return {
+            ...old,
+            data: nextCards,
+          };
+        }
+      );
+
+      return { previousDetail, previousLists };
+    },
+    onError: (_err, vars, context) => {
+      if (context?.previousDetail) {
+        queryClient.setQueryData(
+          queryKeys.cards.detail(vars.cardId),
+          context.previousDetail
+        );
+      }
+
+      if (context?.previousLists) {
+        context.previousLists.forEach(([key, value]) => {
+          queryClient.setQueryData(key, value);
+        });
+      }
+    },
     onSuccess: (_res, vars) => {
       if (vars.listId) {
         queryClient.invalidateQueries({
@@ -442,6 +518,15 @@ export function useCardMutationsOnly() {
           queryKey: queryKeys.cards.list(vars.destinationListId),
         });
       }
+
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.cards.detail(vars.cardId),
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.cards.all,
+      });
+
       queryClient.invalidateQueries({ queryKey: queryKeys.planner.all });
     },
   });

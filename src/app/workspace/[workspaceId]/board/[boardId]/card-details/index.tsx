@@ -997,6 +997,8 @@ const CardDetails: React.FC = (props) => {
 
   const handleSaveTitleClick = () => {
     if (!selectedCard) return;
+
+    skipNextTitleBlurSaveRef.current = false;
     const trimmed = newTitle.trim();
     if (!trimmed) {
       setNewTitle(selectedCard.name || "");
@@ -1025,6 +1027,7 @@ const CardDetails: React.FC = (props) => {
               };
             });
           }
+          setNewTitle(trimmed);
           setIsEditingTitle(false);
         },
         onError: (error) => {
@@ -1176,6 +1179,10 @@ const CardDetails: React.FC = (props) => {
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
                 onBlur={() => {
+                  if (skipNextTitleBlurSaveRef.current) {
+                    skipNextTitleBlurSaveRef.current = false;
+                    return;
+                  }
                   handleSaveTitleClick();
                 }}
                 autoFocus
@@ -1183,7 +1190,8 @@ const CardDetails: React.FC = (props) => {
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
-                    e.currentTarget.blur();
+                    skipNextTitleBlurSaveRef.current = true;
+                    handleSaveTitleClick();
                   } else if (e.key === "Escape") {
                     setNewTitle(resolvedCardName);
                     setIsEditingTitle(false);
