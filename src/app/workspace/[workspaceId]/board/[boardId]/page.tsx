@@ -357,7 +357,6 @@ const Board: React.FC = () => {
     // More comprehensive check for draggable elements and their children
     if (
       target.closest("[data-rbd-draggable-id]") ||
-      target.closest("[data-rbd-droppable-id]") ||
       target.closest(".draggable-card-container") ||
       target.closest(".draggable-list-container") ||
       target.closest("button") ||
@@ -423,7 +422,6 @@ const Board: React.FC = () => {
     // More comprehensive check for draggable elements and their children
     if (
       target.closest("[data-rbd-draggable-id]") ||
-      target.closest("[data-rbd-droppable-id]") ||
       target.closest(".draggable-card-container") ||
       target.closest(".draggable-list-container") ||
       target.closest("button") ||
