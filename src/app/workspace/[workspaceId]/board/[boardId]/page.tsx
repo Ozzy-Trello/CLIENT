@@ -727,6 +727,7 @@ const Board: React.FC = () => {
   // Sync local cards when list cache updates (e.g., automation-driven changes)
   useEffect(() => {
     if (!localCardsInitialized) return;
+    if (selectedLabelIds.length > 0) return;
 
     const cache = queryClient.getQueryCache();
     const unsubscribe = cache.subscribe((event) => {
@@ -781,7 +782,7 @@ const Board: React.FC = () => {
     return () => {
       unsubscribe();
     };
-  }, [queryClient, localCardsInitialized, lists]);
+  }, [queryClient, localCardsInitialized, lists, selectedLabelIds]);
 
   // Prefetch ALL dashcard counts in a single batch request at the board level.
   // This ensures all dashcard counts arrive together and are cached before
@@ -1297,6 +1298,37 @@ const Board: React.FC = () => {
 
       console.log('✅ [DRAG END] Local state updated - INSTANT!');
 
+      const refreshFilteredList = async (listId: string) => {
+        if (!resolvedBoardId) return;
+
+        const response = await cards(
+          listId,
+          resolvedBoardId,
+          1,
+          CARD_PAGE_SIZE,
+          selectedLabelIds.length > 0 ? selectedLabelIds : undefined,
+          undefined,
+          undefined
+        );
+
+        const nextCards = response?.data || [];
+
+        setLocalCards((prev) => ({
+          ...prev,
+          [listId]: nextCards,
+        }));
+
+        setCardsPagination((prev) => ({
+          ...prev,
+          [listId]: buildCardsPagination(
+            nextCards.length,
+            response?.paginate?.totalData,
+            1,
+            prev[listId]
+          ),
+        }));
+      };
+
       // Fire mutation in background
       console.log('🔄 [DRAG END] Firing mutation for persistence');
       moveCard(
@@ -1309,6 +1341,16 @@ const Board: React.FC = () => {
         },
         {
           onSuccess: () => {
+            if (selectedLabelIds.length > 0) {
+              const affectedListIds = Array.from(
+                new Set([originalListId, destListId])
+              );
+
+              void Promise.allSettled(
+                affectedListIds.map((listId) => refreshFilteredList(listId))
+              );
+            }
+
             console.log('✅ [DRAG END] Mutation success - clearing drag flag for sync');
             // Clear drag flag BEFORE onSettled invalidates queries
             // This allows the sync effect to pick up the refetched data with updated labels/CFs
