@@ -266,7 +266,7 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const notificationAudio = new Audio("/sounds/notif-2.wav");
+    const notificationAudio = new Audio("/sounds/notif-2.wav?v=20260415-2");
     notificationAudio.preload = "auto";
     notificationAudioRef.current = notificationAudio;
 

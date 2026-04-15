@@ -1489,7 +1489,7 @@ const ChatWidget = () => {
       return;
     }
 
-    const incomingMessageAudio = new Audio("/sounds/notif.wav");
+    const incomingMessageAudio = new Audio("/sounds/notif.wav?v=20260415-2");
     incomingMessageAudio.preload = "auto";
     incomingMessageAudioRef.current = incomingMessageAudio;
 
