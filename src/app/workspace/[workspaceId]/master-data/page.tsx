@@ -28,7 +28,7 @@ import {
   Tag,
   ColorPicker,
 } from "antd";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import {
   DragDropContext,
@@ -615,6 +615,15 @@ const MasterData: React.FC = () => {
   const [bahanForm] = Form.useForm();
   const [warnaForm] = Form.useForm();
 
+  const selectedWarnaProductId = Form.useWatch("productId", warnaForm);
+  const filteredBahansForWarna = useMemo(() => {
+    if (!selectedWarnaProductId) {
+      return [];
+    }
+
+    return bahans.filter((bahan) => bahan.productId === selectedWarnaProductId);
+  }, [bahans, selectedWarnaProductId]);
+
   // Handle product reorder
   const handleProductReorder = async (reorderedProducts: Product[]) => {
     // Optimistic update
@@ -646,9 +655,12 @@ const MasterData: React.FC = () => {
 
   // Handle edit warna
   const handleEditWarna = (warna: Warna) => {
+    const relatedBahan = bahans.find((bahan) => bahan.id === warna.bahanId);
+
     setSelectedWarna(warna);
     warnaForm.setFieldsValue({
       ...warna,
+      productId: relatedBahan?.productId,
       bahanId: warna.bahanId,
     });
     setWarnaModalVisible(true);
@@ -1705,16 +1717,46 @@ const MasterData: React.FC = () => {
       >
         <Form form={warnaForm} layout="vertical" onFinish={handleWarnaSubmit}>
           <Form.Item
+            name="productId"
+            label="Product"
+            rules={[{ required: true, message: "Please select a product" }]}
+          >
+            <Select
+              placeholder="Select a product"
+              showSearch
+              optionFilterProp="label"
+              onChange={() => {
+                warnaForm.setFieldValue("bahanId", undefined);
+              }}
+            >
+              {products.map((product) => (
+                <Select.Option
+                  key={product.id}
+                  value={product.id}
+                  label={product.name}
+                >
+                  {product.name}
+                </Select.Option>
+              ))}
+            </Select>
+          </Form.Item>
+
+          <Form.Item
             name="bahanId"
             label="Bahan"
             rules={[{ required: true, message: "Please select a bahan" }]}
           >
             <Select
-              placeholder="Select a bahan"
+              placeholder={
+                selectedWarnaProductId
+                  ? "Select a bahan"
+                  : "Select product first"
+              }
               showSearch
               optionFilterProp="label"
+              disabled={!selectedWarnaProductId}
             >
-              {bahans.map((bahan) => {
+              {filteredBahansForWarna.map((bahan) => {
                 const productName =
                   bahan.productInfo?.name || bahan.productName || "Unknown Product";
                 const productCode = bahan.productInfo?.productCodes?.[0]?.code;
