@@ -33,6 +33,8 @@ interface POSizeAssignmentProps {
   showManagePOButton?: boolean;
   canOpenJmlStitch?: boolean;
   onOpenJmlStitchModal?: () => void;
+  canOpenJmlSablon?: boolean;
+  onOpenJmlSablonModal?: () => void;
 }
 
 interface SubcategoryData {
@@ -72,6 +74,8 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
   showManagePOButton = true,
   canOpenJmlStitch = false,
   onOpenJmlStitchModal,
+  canOpenJmlSablon = false,
+  onOpenJmlSablonModal,
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSizeModalOpen, setIsSizeModalOpen] = useState(false);
@@ -406,6 +410,16 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
               className="rounded-md hover:bg-gray-50"
             >
               Input Jml Stitch
+            </Button>
+          )}
+          {canOpenJmlSablon && (
+            <Button
+              icon={<Scissors size={14} />}
+              size="small"
+              onClick={() => onOpenJmlSablonModal?.()}
+              className="rounded-md hover:bg-gray-50"
+            >
+              Input Sablon
             </Button>
           )}
         </div>

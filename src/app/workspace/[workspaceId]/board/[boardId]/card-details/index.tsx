@@ -52,6 +52,9 @@ const Attachments = dynamic(() => import("./attachments"), {
 const ModalJmlStitch = dynamic(() => import("@components/modal-jml-stitch"), {
   ssr: false,
 });
+const ModalJmlSablon = dynamic(() => import("@components/modal-jml-sablon"), {
+  ssr: false,
+});
 
 import { CardDateDisplay } from "@components/card-dates";
 import CollapsibleSection from "@components/collapsible-section";
@@ -319,6 +322,9 @@ const CardDetails: React.FC = (props) => {
   const canOpenJmlStitch =
     isSuperAdmin ||
     (isDatelineBoard && roleIn(["Kepala Produksi", "SPV Desainer Bordir"]));
+  const canOpenJmlSablon =
+    isSuperAdmin ||
+    (isDatelineBoard && roleIn(["Kepala Produksi", "SPV Desainer Bordir"]));
   const [isComplete, setIsComplete] = useState<boolean>(false);
   const listSelectionRef = useRef<SelectionRef>(null);
   const [isEditingTitle, setIsEditingTitle] = useState<boolean>(false);
@@ -400,6 +406,7 @@ const CardDetails: React.FC = (props) => {
   const [openPOModal, setOpenPOModal] = useState(false);
   const [openBuatSOModal, setOpenBuatSOModal] = useState(false);
   const [openJmlStitchModal, setOpenJmlStitchModal] = useState(false);
+  const [openJmlSablonModal, setOpenJmlSablonModal] = useState(false);
   const [isPOPelengkap, setIsPOPelengkap] = useState(false);
 
   // Refs for PO logic
@@ -1547,6 +1554,8 @@ const CardDetails: React.FC = (props) => {
             showManagePOButton={canPOSection}
             canOpenJmlStitch={canOpenJmlStitch}
             onOpenJmlStitchModal={() => setOpenJmlStitchModal(true)}
+            canOpenJmlSablon={canOpenJmlSablon}
+            onOpenJmlSablonModal={() => setOpenJmlSablonModal(true)}
           />
         )}
       </Flex>
@@ -2066,6 +2075,16 @@ const CardDetails: React.FC = (props) => {
             <ModalJmlStitch
               open={openJmlStitchModal}
               onClose={() => setOpenJmlStitchModal(false)}
+              card={selectedCard}
+              workspaceId={workspaceId as string}
+              boardId={boardId as string}
+            />
+          )}
+
+          {selectedCard && (
+            <ModalJmlSablon
+              open={openJmlSablonModal}
+              onClose={() => setOpenJmlSablonModal(false)}
               card={selectedCard}
               workspaceId={workspaceId as string}
               boardId={boardId as string}

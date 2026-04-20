@@ -206,14 +206,16 @@ const ModalPackingPOScan: React.FC<ModalPackingPOScanProps> = ({
       // Gate packing scan by custom field hierarchy:
       // base: Jenis Cetak, then dependent checkbox fields.
       let customFields: any[] = [];
+      let cardListName = "";
       try {
-        const customFieldRes = await cardCustomFields(
-          targetCardId.trim(),
-          workspaceId,
-        );
+        const [customFieldRes, cardRes] = await Promise.all([
+          cardCustomFields(targetCardId.trim(), workspaceId),
+          cardDetails(targetCardId.trim(), boardId),
+        ]);
         customFields = Array.isArray(customFieldRes?.data)
           ? customFieldRes.data
           : [];
+        cardListName = normalizeText(cardRes?.data?.listName ?? "");
       } catch (error) {
         console.warn(
           "[PACKING_GATE] Failed to fetch card custom fields, fallback to cardDetails:",
@@ -224,6 +226,7 @@ const ModalPackingPOScan: React.FC<ModalPackingPOScanProps> = ({
         customFields = Array.isArray(targetCard?.customFields)
           ? targetCard.customFields
           : [];
+        cardListName = normalizeText(targetCard?.listName ?? "");
       }
       console.log("[PACKING_GATE] card id:", targetCardId);
       console.log("[PACKING_GATE] total custom fields:", customFields.length);
@@ -279,7 +282,8 @@ const ModalPackingPOScan: React.FC<ModalPackingPOScanProps> = ({
         String(rawJenisCetak || "");
       const jenisCetak = normalizeText(resolvedJenisCetak);
 
-      const isBordirChecked = parseCheckboxFromField(bordirField);
+      const isInFinishingBordirList = cardListName.includes("finishing bordir");
+      const isBordirChecked = isInFinishingBordirList || parseCheckboxFromField(bordirField);
       const isSablonDtfChecked = parseCheckboxFromField(sablonDtfField);
       console.log("[PACKING_GATE] matched fields:", {
         jenisCetakField: jenisCetakField
