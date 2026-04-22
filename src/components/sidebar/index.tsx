@@ -887,7 +887,7 @@ const Sidebar = () => {
         placement="right"
       >
         <Button
-          className={`absolute top-[58px] flex items-center justify-center rounded-full w-6 h-6 p-0 transition-all duration-200 ease-in-out hover:shadow-lg ${
+          className={`fixed flex items-center justify-center rounded-full w-6 h-6 p-0 transition-all duration-200 ease-in-out hover:shadow-lg ${
             isHovered ? "scale-105" : ""
           }`}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
@@ -898,10 +898,11 @@ const Sidebar = () => {
           }
           onClick={toggleSidebar}
           style={{
+            top: 58,
             left: collapsed
               ? `calc(${siderSmall}px - 10px)`
               : `calc(${siderWide}px - 30px)`,
-            zIndex: 102,
+            zIndex: 501,
             backgroundColor: `rgb(${colors.surface})`,
             border: `1px solid rgb(${colors.border})`,
             color: `rgb(${colors.text})`,
