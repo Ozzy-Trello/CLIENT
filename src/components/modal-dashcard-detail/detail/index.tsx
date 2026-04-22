@@ -36,6 +36,11 @@ const Detail: FC = () => {
     setBgColor(color.toHexString());
   };
 
+  const handleColorChangeComplete = (color: any) => {
+    const hexColor = color.toHexString();
+    updateBackgroundColor(hexColor);
+  };
+
   // Calculate display value based on configuration
   const getDisplayValue = () => {
     if (displayConfig.type === DashcardDisplayType.CUSTOM_FIELD_SUM && displayConfig.customFieldId) {
@@ -71,7 +76,6 @@ const Detail: FC = () => {
   // Handle display configuration save
   const handleSaveDisplayConfig = () => {
     updateDisplayConfig(displayConfig);
-    updateBackgroundColor(bgColor);
     setIsEditingDisplay(false);
   };
 
@@ -144,6 +148,7 @@ const Detail: FC = () => {
                 value={bgColor}
                 disabledAlpha={false}
                 onChange={handleColorChange}
+                onChangeComplete={handleColorChangeComplete}
                 showText={true}
               />
             </div>
