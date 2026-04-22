@@ -639,6 +639,75 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
         : prev
     );
 
+    const listId = selectedCard.listId;
+    const cardId = selectedCard.id;
+    const normalizedBoardIdForCache = Array.isArray(boardId) ? boardId[0] : boardId;
+    if (listId) {
+      queryClient.setQueryData(
+        queryKeys.cards.list(listId),
+        (old: any) => {
+          if (!old) return old;
+          const items = Array.isArray(old.data) ? old.data : old.data?.data;
+          if (!Array.isArray(items)) return old;
+          const updatedItems = items.map((c: any) =>
+            c?.id === cardId
+              ? {
+                  ...c,
+                  dashConfig: { ...(c.dashConfig || {}), backgroundColor },
+                }
+              : c
+          );
+          if (Array.isArray(old.data)) {
+            return { ...old, data: updatedItems };
+          }
+          return { ...old, data: { ...old.data, data: updatedItems } };
+        }
+      );
+      queryClient.setQueryData(
+        queryKeys.cards.detail(cardId),
+        (old: any) => {
+          if (!old) return old;
+          const card = old.data;
+          if (!card) return old;
+          return {
+            ...old,
+            data: {
+              ...card,
+              dashConfig: { ...(card.dashConfig || {}), backgroundColor },
+            },
+          };
+        }
+      );
+    }
+    if (normalizedBoardIdForCache) {
+      queryClient.setQueriesData(
+        { queryKey: queryKeys.lists.board(normalizedBoardIdForCache) },
+        (old: any) => {
+          if (!old?.data || !Array.isArray(old.data)) return old;
+          return {
+            ...old,
+            data: old.data.map((list: any) => {
+              if (!Array.isArray(list?.cards)) return list;
+              return {
+                ...list,
+                cards: list.cards.map((c: any) =>
+                  c?.id === cardId
+                    ? {
+                        ...c,
+                        dashConfig: {
+                          ...(c.dashConfig || {}),
+                          backgroundColor,
+                        },
+                      }
+                    : c
+                ),
+              };
+            }),
+          };
+        }
+      );
+    }
+
     mutate({
       dashConfig: {
         ...dashcardConfig,

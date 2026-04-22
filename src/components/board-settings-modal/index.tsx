@@ -29,7 +29,7 @@ import {
 import type { RcFile } from "antd/es/upload/interface";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useBoardDetails, useUpdateBoard } from "../../hooks/board";
 import { Board } from "../../types/board";
@@ -111,6 +111,8 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
   const uploadRef = useRef<any>(null);
+  const rolesListRef = useRef<HTMLDivElement | null>(null);
+  const rolesScrollTopRef = useRef<number>(0);
   const router = useRouter();
   const dispatch = useDispatch();
 
@@ -345,7 +347,20 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
     message.error("Please check your input and try again.");
   };
 
+  useLayoutEffect(() => {
+    if (rolesListRef.current) {
+      rolesListRef.current.scrollTop = rolesScrollTopRef.current;
+    }
+  }, [selectedRoles, rolePermissionLevels]);
+
+  const captureRolesScroll = () => {
+    if (rolesListRef.current) {
+      rolesScrollTopRef.current = rolesListRef.current.scrollTop;
+    }
+  };
+
   const handleRoleAssignmentChange = (roleId: string, assigned: boolean) => {
+    captureRolesScroll();
     if (assigned) {
       setSelectedRoles((prev) =>
         prev.includes(roleId) ? prev : [...prev, roleId]
@@ -370,6 +385,7 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
     roleId: string,
     permissionLevel: string
   ) => {
+    captureRolesScroll();
     setRolePermissionLevels((prev) => ({
       ...prev,
       [roleId]: permissionLevel,
@@ -634,7 +650,10 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
               label="Role Permissions"
               help="Configure role access and permission levels for this board (leave empty for public access)"
             >
-              <div className="grid grid-cols-1 gap-3 max-h-64 overflow-y-auto">
+              <div
+                ref={rolesListRef}
+                className="grid grid-cols-1 gap-3 max-h-64 overflow-y-auto"
+              >
                 {roles.map((role: Role) => {
                   const isAssigned = selectedRoles.includes(role.id);
                   const permissionLevel =
