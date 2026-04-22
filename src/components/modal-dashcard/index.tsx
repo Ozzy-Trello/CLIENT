@@ -312,7 +312,9 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
   }, [customFields]);
 
   const handleColorChange = (color: any) => {
-    setBgColor(color.toHexString());
+    const hexColor = color.toHexString();
+    setBgColor(hexColor);
+    form.setFieldValue("background", hexColor);
   };
 
   const handleFilterOperatorChange = (filterId: string, value: string) => {
@@ -520,9 +522,7 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
                   placeholder="Enter dashcard name"
                 />
               </Form.Item>
-
               <Form.Item
-                name="background"
                 label={<Text strong>Change background</Text>}
               >
                 <ColorPicker
