@@ -29,7 +29,7 @@ import {
 import type { RcFile } from "antd/es/upload/interface";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useBoardDetails, useUpdateBoard } from "../../hooks/board";
 import { Board } from "../../types/board";
@@ -112,7 +112,6 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
   const uploadRef = useRef<any>(null);
   const rolesListRef = useRef<HTMLDivElement | null>(null);
-  const rolesScrollTopRef = useRef<number>(0);
   const router = useRouter();
   const dispatch = useDispatch();
 
@@ -347,20 +346,7 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
     message.error("Please check your input and try again.");
   };
 
-  useLayoutEffect(() => {
-    if (rolesListRef.current) {
-      rolesListRef.current.scrollTop = rolesScrollTopRef.current;
-    }
-  }, [selectedRoles, rolePermissionLevels]);
-
-  const captureRolesScroll = () => {
-    if (rolesListRef.current) {
-      rolesScrollTopRef.current = rolesListRef.current.scrollTop;
-    }
-  };
-
   const handleRoleAssignmentChange = (roleId: string, assigned: boolean) => {
-    captureRolesScroll();
     if (assigned) {
       setSelectedRoles((prev) =>
         prev.includes(roleId) ? prev : [...prev, roleId]
@@ -385,7 +371,6 @@ const BoardSettingsModal: React.FC<BoardSettingsModalProps> = ({
     roleId: string,
     permissionLevel: string
   ) => {
-    captureRolesScroll();
     setRolePermissionLevels((prev) => ({
       ...prev,
       [roleId]: permissionLevel,
