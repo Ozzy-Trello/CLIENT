@@ -2,6 +2,11 @@
 
 import { deleteCardAttachment } from "@api/card_attachment";
 import AttachmentPreviewModal from "@components/attachment-preview-modal";
+import {
+  bulkUpsertSablonAttachments,
+  getSablonAttachments,
+  SablonAttachmentRow,
+} from "@api/sablon_attachment";
 import { setCardCustomFieldValue } from "@api/card_custom_field";
 import { uploadFile } from "@api/file";
 import { useCardAttachment } from "@hooks/card_attachment";
@@ -87,6 +92,7 @@ const ModalJmlSablon: React.FC<ModalJmlSablonProps> = ({ open, onClose, card, wo
 
   const [rowsState, setRowsState] = useState<Record<string, RowState>>({});
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoadingRows, setIsLoadingRows] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isClearingAll, setIsClearingAll] = useState(false);
   const [uploadTotal, setUploadTotal] = useState(0);
@@ -138,6 +144,11 @@ const ModalJmlSablon: React.FC<ModalJmlSablonProps> = ({ open, onClose, card, wo
           ? formatAttachmentName(att.file.name, att.file.mimeType)
           : `Attachment ${index + 1}`,
       })),
+    [imageSablonAttachments],
+  );
+
+  const attachmentIdsKey = useMemo(
+    () => imageSablonAttachments.map((att) => att.id).join("|"),
     [imageSablonAttachments],
   );
 
@@ -193,6 +204,45 @@ const ModalJmlSablon: React.FC<ModalJmlSablonProps> = ({ open, onClose, card, wo
     },
     [imageSablonAttachments],
   );
+
+  useEffect(() => {
+    if (!open) return;
+
+    let cancelled = false;
+
+    const load = async () => {
+      setIsLoadingRows(true);
+      try {
+        const response = await getSablonAttachments(card.id);
+        if (cancelled) return;
+
+        const existingMap = new Map<string, SablonAttachmentRow>();
+        (response.data || []).forEach((row) => {
+          existingMap.set(row.attachmentId, row);
+        });
+
+        setRowsState((prev) => {
+          const next: Record<string, RowState> = {};
+          imageSablonAttachments.forEach((att) => {
+            const existing = existingMap.get(att.id);
+            next[att.id] = {
+              amount: existing?.amount ?? prev[att.id]?.amount ?? null,
+            };
+          });
+          return next;
+        });
+      } catch {
+        if (!cancelled) message.error("Failed to load sablon data");
+      } finally {
+        if (!cancelled) setIsLoadingRows(false);
+      }
+    };
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, card.id, attachmentIdsKey, imageSablonAttachments]);
 
   const grandTotal = useMemo(
     () => imageSablonAttachments.reduce((sum, att) => sum + (getRowState(att.id).amount ?? 0), 0),
@@ -321,6 +371,23 @@ const ModalJmlSablon: React.FC<ModalJmlSablonProps> = ({ open, onClose, card, wo
   const handleSave = async () => {
     setIsSaving(true);
     try {
+      const rowsPayload: SablonAttachmentRow[] = imageSablonAttachments
+        .map((att) => {
+          const row = getRowState(att.id);
+          if (typeof row.amount !== "number") return null;
+
+          return {
+            cardId: card.id,
+            attachmentId: att.id,
+            amount: row.amount,
+          };
+        })
+        .filter((row): row is SablonAttachmentRow => row !== null);
+
+      if (rowsPayload.length > 0) {
+        await bulkUpsertSablonAttachments(rowsPayload);
+      }
+
       const jmlSablonField = (cardCustomFields || []).find((field) =>
         String(field?.name || "").toLowerCase().includes("jml sablon"),
       );
@@ -380,10 +447,10 @@ const ModalJmlSablon: React.FC<ModalJmlSablonProps> = ({ open, onClose, card, wo
         width={700}
         destroyOnClose
         onOk={handleSave}
-        confirmLoading={isSaving}
+        confirmLoading={isSaving || isLoadingRows}
         okText="Save"
         cancelText="Cancel"
-        okButtonProps={{ disabled: isUploading }}
+        okButtonProps={{ disabled: isUploading || isLoadingRows }}
       >
         <Space direction="vertical" size={12} className="w-full">
           <div
