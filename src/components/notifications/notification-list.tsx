@@ -16,8 +16,19 @@ export function NotificationList() {
 
   const handleClick = (n: NotificationItem) => {
     dispatch(setOpen(false));
+    const params = new URLSearchParams();
+    if (n.cardId) {
+      params.set("cardId", n.cardId);
+    }
+    if (n.listId) {
+      params.set("listId", n.listId);
+    }
+
+    const query = params.toString();
     router.push(
-      `/workspace/${n.workspaceId}/board/${n.boardId}?cardId=${n.cardId}&listId=${n.listId}`
+      query
+        ? `/workspace/${n.workspaceId}/board/${n.boardId}?${query}`
+        : `/workspace/${n.workspaceId}/board/${n.boardId}`
     );
   };
 
