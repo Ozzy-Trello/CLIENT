@@ -937,7 +937,10 @@ const Board: React.FC = () => {
       // rawDestination may point to the wrong list, or even be null (if the stale
       // cache can't match the pointer to any droppable).
       let destination = rawDestination;
-      if (type === "card") {
+      if (
+        type === "card" &&
+        (!rawDestination || rawDestination.droppableId !== source.droppableId)
+      ) {
         const pointer = lastPointerPosRef.current;
         const droppables = document.querySelectorAll<HTMLElement>(
           '[data-rbd-droppable-id^="droppable-card-area-"]'
