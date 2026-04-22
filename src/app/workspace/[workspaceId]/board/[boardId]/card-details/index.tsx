@@ -324,7 +324,7 @@ const CardDetails: React.FC = (props) => {
     (isDatelineBoard && roleIn(["Kepala Produksi", "SPV Desainer Bordir"]));
   const canOpenJmlSablon =
     isSuperAdmin ||
-    (isDatelineBoard && roleIn(["Kepala Produksi", "SPV Desainer Bordir"]));
+    (isDatelineBoard && roleIn(["Kepala Produksi", "Admin Produksi"]));
   const [isComplete, setIsComplete] = useState<boolean>(false);
   const listSelectionRef = useRef<SelectionRef>(null);
   const [isEditingTitle, setIsEditingTitle] = useState<boolean>(false);
