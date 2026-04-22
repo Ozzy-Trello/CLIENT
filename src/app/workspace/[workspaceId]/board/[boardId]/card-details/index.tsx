@@ -112,6 +112,8 @@ import { useCardAttachment } from "@hooks/card_attachment";
 import { useCardCustomField } from "@hooks/card_custom_field";
 import { useDevMode } from "@hooks/use-dev-mode";
 import { ManualOverrideProvider } from "./manual-override-context";
+import CardDetailErrorBoundary from "./error-boundary";
+import { Spin } from "antd";
 
 const CardDetails: React.FC = (props) => {
   const resolveCardName = (card: any): string => {
@@ -191,6 +193,9 @@ const CardDetails: React.FC = (props) => {
     completeCard,
     incompleteCard,
     updateCard: updateCardDetails,
+    isLoading: isCardQueryLoading,
+    isError: isCardQueryError,
+    refetch: refetchCardQuery,
   } = useCardDetails(
     selectedCard?.id || "",
     selectedCard?.listId || "",
@@ -1990,6 +1995,42 @@ const CardDetails: React.FC = (props) => {
           </span>
         }
       >
+        <CardDetailErrorBoundary
+          key={selectedCard?.id || "no-card"}
+          onReset={() => refetchCardQuery?.()}
+        >
+        {isCardDetailOpen && !selectedCard?.id && (
+          <div className="flex flex-col items-center justify-center gap-3 py-20">
+            <Spin size="large" />
+            <span className="text-sm text-gray-500">Loading card...</span>
+          </div>
+        )}
+        {isCardDetailOpen &&
+          selectedCard?.id &&
+          !resolvedCardName &&
+          isCardQueryLoading &&
+          !isCardQueryError && (
+            <div className="flex flex-col items-center justify-center gap-3 py-20">
+              <Spin size="large" />
+              <span className="text-sm text-gray-500">Loading card...</span>
+            </div>
+          )}
+        {isCardDetailOpen &&
+          selectedCard?.id &&
+          isCardQueryError &&
+          !resolvedCardName && (
+            <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+              <div className="text-base font-semibold text-gray-800">
+                Can&apos;t load this card
+              </div>
+              <div className="text-sm text-gray-500">
+                The request failed. Check your connection and try again.
+              </div>
+              <Button type="primary" onClick={() => refetchCardQuery?.()}>
+                Retry
+              </Button>
+            </div>
+          )}
         <div className="overflow-x-hidden max-w-full relative">
           {isDraggingFiles && (
             <div className="absolute inset-0 z-50 bg-blue-500/10 border-2 border-dashed border-blue-500 flex items-center justify-center pointer-events-none">
@@ -2169,6 +2210,7 @@ const CardDetails: React.FC = (props) => {
             card={dashcardModalCard}
           />
         </div>
+        </CardDetailErrorBoundary>
       </Modal>
     </ManualOverrideProvider>
   );
