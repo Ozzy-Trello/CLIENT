@@ -44,6 +44,8 @@ const BoardScopeMenu: React.FC<BoardMenuSidebarProps> = ({
   
   const { workspaceId, boardId } = useParams();
   const router = useRouter();
+  const wsId = Array.isArray(workspaceId) ? workspaceId[0] : workspaceId;
+  const bId = Array.isArray(boardId) ? boardId[0] : boardId;
 
   const onClose = () => {
     setIsVisible(false);
@@ -83,6 +85,11 @@ const BoardScopeMenu: React.FC<BoardMenuSidebarProps> = ({
         <MenuItem 
           icon={<SettingOutlined size={16} />} 
           text="Settings" 
+          onClick={() => {
+            if (!wsId) return;
+            router.push(`/workspace/${wsId}/members`);
+            onClose();
+          }}
         />
         
         <MenuItem 
@@ -99,7 +106,9 @@ const BoardScopeMenu: React.FC<BoardMenuSidebarProps> = ({
           icon={<Bot size={16} />} 
           text="Automation"
           onClick={() => {
-            router.push(`/workspace/${workspaceId}/board/${boardId}/automation`)
+            if (!wsId || !bId) return;
+            router.push(`/workspace/${wsId}/board/${bId}/automation`);
+            onClose();
           }}
         />
         
