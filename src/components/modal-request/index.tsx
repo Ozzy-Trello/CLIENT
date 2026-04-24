@@ -244,6 +244,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
     "Siap DTF / Sablon",
     "Siap Bordir",
     "Bordir / DTF",
+    "Finishing Bordir",
     "Finishing Packing",
     "Clearkan PO Lama",
   ].map((l) => l.toLowerCase());
