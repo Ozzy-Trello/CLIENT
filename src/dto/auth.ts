@@ -1,10 +1,46 @@
 export interface LoginRequest {
-  username: string;
+  identity: string;
   password: string;
+  remember_me?: boolean;
 }
 
-export interface LoginResponse {
-  accessToken?: string;
-  refreshToken?: string;
+export interface VerifyOtpRequest {
+  otp_id: string;
+  code: string;
 }
 
+export interface ResendOtpRequest {
+  otp_id: string;
+}
+
+export interface LoginTokens {
+  accessToken: string;
+  refreshToken: string;
+  user?: {
+    id: string;
+    username?: string;
+    email?: string;
+    phone?: string;
+    role?: {
+      id: string;
+      name: string;
+      description?: string;
+      designAccess?: boolean;
+    };
+  };
+}
+
+export interface OtpChallenge {
+  otpRequired: true;
+  otpId: string;
+  expiresAt: string;
+  identity: string;
+}
+
+export type LoginResponse = LoginTokens | OtpChallenge;
+
+export function isOtpChallenge(
+  value: LoginResponse | undefined | null,
+): value is OtpChallenge {
+  return !!value && (value as OtpChallenge).otpRequired === true;
+}
