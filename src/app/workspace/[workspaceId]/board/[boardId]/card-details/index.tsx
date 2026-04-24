@@ -38,6 +38,7 @@ import {
   Puzzle,
   SwitchCamera,
   Stamp as StampIcon,
+  Printer,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -105,6 +106,7 @@ import ProdukFields from "./produk-fields";
 import RequestFields from "./request-field";
 import SplitJobFields from "./split-job-field";
 import StitchSection from "./stitch";
+import SablonSection from "./sablon";
 import CardTimeInList from "./time-in-lists";
 import { uploadFile } from "@api/file";
 import { api } from "@api/index";
@@ -1680,6 +1682,20 @@ const CardDetails: React.FC = (props) => {
           icon={<Scissors size={18} />}
         >
           <StitchSection
+            card={selectedCard}
+            workspaceId={workspaceId as string}
+            boardId={boardId as string}
+          />
+        </CollapsibleSection>
+      )}
+
+      {selectedCard && (
+        <CollapsibleSection
+          title="Sablon"
+          defaultExpanded={false}
+          icon={<Printer size={18} />}
+        >
+          <SablonSection
             card={selectedCard}
             workspaceId={workspaceId as string}
             boardId={boardId as string}

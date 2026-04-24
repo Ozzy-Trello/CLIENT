@@ -52,6 +52,31 @@ export const getOperatorBordir = async (
   return data;
 };
 
+export interface OperatorSablonRow {
+  tanggal: string;
+  operator: string;
+  jenis_order: string;
+  nama_file: string;
+  jumlah_dtf: number;
+}
+
+export interface OperatorSablonResponse {
+  status: string;
+  message: string;
+  data: OperatorSablonRow[];
+  summary: {
+    total_data: number;
+    total_jumlah_dtf: number;
+  };
+}
+
+export const getOperatorSablon = async (
+  cardId: string
+): Promise<OperatorSablonResponse> => {
+  const { data } = await api.get(`/pos/operator-sablon/${cardId}`);
+  return data;
+};
+
 const normalizeRow = (row: any): StitchAttachmentRow => ({
   id: row.id,
   cardId: row.cardId || row.card_id || "",
