@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useDispatch } from "react-redux";
 
 import Button from "antd/es/button";
@@ -22,6 +22,8 @@ interface LoginFormValues {
   remember?: boolean;
 }
 
+const OTP_CHALLENGE_KEY = "login-otp-challenge";
+
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [form] = Form.useForm();
@@ -36,7 +38,56 @@ export default function LoginPage() {
     rememberMe: boolean;
   } | null>(null);
 
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const saved = sessionStorage.getItem(OTP_CHALLENGE_KEY);
+    if (!saved) {
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(saved) as {
+        otpId: string;
+        expiresAt: string;
+        identity: string;
+        rememberMe: boolean;
+      };
+      if (parsed?.otpId && parsed?.expiresAt && parsed?.identity) {
+        if (new Date(parsed.expiresAt).getTime() > Date.now()) {
+          setOtpChallenge(parsed);
+          return;
+        }
+      }
+    } catch {
+      // ignore invalid persisted OTP state
+    }
+
+    sessionStorage.removeItem(OTP_CHALLENGE_KEY);
+  }, []);
+
+  const persistOtpChallenge = (next: {
+    otpId: string;
+    expiresAt: string;
+    identity: string;
+    rememberMe: boolean;
+  } | null) => {
+    setOtpChallenge(next);
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    if (next) {
+      sessionStorage.setItem(OTP_CHALLENGE_KEY, JSON.stringify(next));
+    } else {
+      sessionStorage.removeItem(OTP_CHALLENGE_KEY);
+    }
+  };
+
   const finishAuth = async () => {
+    persistOtpChallenge(null);
     try {
       const result = await refetch();
       if (result) {
@@ -72,7 +123,7 @@ export default function LoginPage() {
         remember_me: rememberMe,
       });
       if (isOtpChallenge(result?.data)) {
-        setOtpChallenge({
+        persistOtpChallenge({
           otpId: result.data.otpId,
           expiresAt: result.data.expiresAt,
           identity: result.data.identity,
@@ -180,10 +231,10 @@ export default function LoginPage() {
       rememberMe={otpChallenge.rememberMe}
       expiresAt={otpChallenge.expiresAt}
       onOtpRotated={(next) =>
-        setOtpChallenge((s) => (s ? { ...s, ...next } : s))
+        persistOtpChallenge(otpChallenge ? { ...otpChallenge, ...next } : null)
       }
       onCancel={() => {
-        setOtpChallenge(null);
+        persistOtpChallenge(null);
         form.resetFields();
       }}
       onVerified={finishAuth}
