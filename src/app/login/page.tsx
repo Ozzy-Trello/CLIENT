@@ -13,7 +13,7 @@ import AuthShell from "./auth-shell";
 import OtpStep from "./otp-step";
 import { useCurrentAccount } from "@hooks/account";
 import { useLogin } from "@hooks/auth";
-import { isOtpChallenge } from "@dto/auth";
+import { normalizeOtpChallenge } from "@dto/auth";
 import { setUser } from "@store/app_slice";
 
 interface LoginFormValues {
@@ -122,13 +122,9 @@ export default function LoginPage() {
         password: values.password,
         remember_me: rememberMe,
       });
-      if (isOtpChallenge(result?.data)) {
-        persistOtpChallenge({
-          otpId: result.data.otpId,
-          expiresAt: result.data.expiresAt,
-          identity: result.data.identity,
-          rememberMe,
-        });
+      const challenge = normalizeOtpChallenge(result?.data);
+      if (challenge) {
+        persistOtpChallenge({ ...challenge, rememberMe });
         message.success("OTP dikirim ke Telegram. Silakan cek dan masukkan.");
       } else {
         message.error(result?.message || "Login response tidak dikenali");

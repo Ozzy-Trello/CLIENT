@@ -42,5 +42,24 @@ export type LoginResponse = LoginTokens | OtpChallenge;
 export function isOtpChallenge(
   value: LoginResponse | undefined | null,
 ): value is OtpChallenge {
-  return !!value && (value as OtpChallenge).otpRequired === true;
+  return (
+    !!value &&
+    ((value as any).otpRequired === true || (value as any).otp_required === true)
+  );
+}
+
+export function normalizeOtpChallenge(
+  value: LoginResponse | undefined | null,
+): OtpChallenge | null {
+  if (!isOtpChallenge(value)) {
+    return null;
+  }
+
+  const challenge = value as any;
+  return {
+    otpRequired: true,
+    otpId: challenge.otpId ?? challenge.otp_id,
+    expiresAt: challenge.expiresAt ?? challenge.expires_at,
+    identity: challenge.identity,
+  };
 }
