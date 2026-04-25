@@ -2,11 +2,12 @@ import TokenStorage from "@utils/token-storage";
 import axios, { AxiosError } from "axios";
 import camelcaseKeys from "camelcase-keys";
 import snakecaseKeys from "snakecase-keys";
-import { refresh } from "./auth";
+
+const API_BASE_URL = `${process.env.NEXT_PUBLIC_BE_BASE_URL}/v1`;
 
 // Create axios instance with interceptors to handle case conversion
 export const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_BE_BASE_URL+'/v1'
+  baseURL: API_BASE_URL,
 });
 
 // Request interceptor to convert camelCase to snake_case
@@ -92,13 +93,12 @@ api.interceptors.response.use(
       }
       
       try {
-        const response = await refresh({
-          'refresh_token': refreshToken, 
-          "access_token": accessToken
+        const response = await axios.post(`${API_BASE_URL}/auth/refresh-token`, {
+          refresh_token: refreshToken,
+          access_token: accessToken,
         });
         
         if (response?.data?.accessToken) {
-          
           const newAccessToken = response.data.accessToken;
           const newRefreshToken = response.data.refreshToken || refreshToken;
           
