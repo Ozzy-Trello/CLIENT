@@ -22,10 +22,8 @@ export function runVersionGate(): void {
 
   if (stored === current) return;
 
-  if (stored !== null) {
-    try { window.localStorage.clear(); } catch {}
-    try { window.sessionStorage.clear(); } catch {}
-  }
+  try { window.localStorage.clear(); } catch {}
+  try { window.sessionStorage.clear(); } catch {}
 
   try {
     window.localStorage.setItem(VERSION_KEY, current);
