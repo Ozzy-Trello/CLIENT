@@ -6,6 +6,12 @@ import type { ColumnsType } from "antd/es/table";
 import { useAdminSessions, useRevokeSession, useRevokeAllSessions } from "@hooks/admin_sessions";
 import type { SessionRow } from "@api/admin_sessions";
 
+function formatDate(val: string | null | undefined): string {
+  if (!val) return "—";
+  const d = new Date(val);
+  return isNaN(d.getTime()) ? "—" : d.toLocaleString();
+}
+
 export default function AdminSessionsPage() {
   const [activeOnly, setActiveOnly] = useState(true);
   const [userIdFilter, setUserIdFilter] = useState("");
@@ -23,7 +29,7 @@ export default function AdminSessionsPage() {
   const columns: ColumnsType<SessionRow> = [
     {
       title: "Status",
-      width: 70,
+      width: 80,
       render: (_, row) =>
         row.revoked_at ? (
           <Tag color="default">Revoked</Tag>
@@ -31,8 +37,13 @@ export default function AdminSessionsPage() {
           <Tag color="green">Active</Tag>
         ),
     },
-    { title: "User ID", dataIndex: "user_id", ellipsis: true, width: 200 },
-    { title: "IP", dataIndex: "ip_address", width: 130 },
+    {
+      title: "User",
+      render: (_, row) => row.user?.username || row.user?.email || row.user_id,
+      ellipsis: true,
+      width: 180,
+    },
+    { title: "IP", dataIndex: "ip_address", width: 130, render: (v) => v || "—" },
     {
       title: "Device",
       render: (_, row) =>
@@ -47,7 +58,7 @@ export default function AdminSessionsPage() {
     },
     {
       title: "Last seen",
-      render: (_, row) => new Date(row.last_seen_at).toLocaleString(),
+      render: (_, row) => formatDate(row.last_seen_at),
     },
     {
       title: "Actions",
@@ -59,24 +70,24 @@ export default function AdminSessionsPage() {
               onConfirm={() =>
                 revokeOne.mutate(row.id, {
                   onSuccess: () => message.success("Session revoked"),
-                  onError: () => message.error("Failed"),
+                  onError: () => message.error("Failed to revoke"),
                 })
               }
             >
-              <Button size="small" danger>
+              <Button size="small" danger loading={revokeOne.isPending}>
                 Kick
               </Button>
             </Popconfirm>
             <Popconfirm
-              title={`Kick ALL sessions for user ${row.user_id}?`}
+              title={`Kick ALL sessions for ${row.user?.username || row.user_id}?`}
               onConfirm={() =>
                 revokeAll.mutate(row.user_id, {
                   onSuccess: () => message.success("All sessions revoked"),
-                  onError: () => message.error("Failed"),
+                  onError: () => message.error("Failed to revoke all"),
                 })
               }
             >
-              <Button size="small" danger type="dashed">
+              <Button size="small" danger type="dashed" loading={revokeAll.isPending}>
                 Kick all
               </Button>
             </Popconfirm>
@@ -91,14 +102,14 @@ export default function AdminSessionsPage() {
       <Space className="mb-4">
         <Switch
           checked={activeOnly}
-          onChange={setActiveOnly}
+          onChange={(v) => { setActiveOnly(v); setPage(1); }}
           checkedChildren="Active only"
           unCheckedChildren="Show all"
         />
         <Input.Search
-          placeholder="Filter by user ID"
+          placeholder="Filter by username or user ID"
           allowClear
-          onSearch={setUserIdFilter}
+          onSearch={(v) => { setUserIdFilter(v); setPage(1); }}
           style={{ width: 280 }}
         />
       </Space>

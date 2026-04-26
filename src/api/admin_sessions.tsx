@@ -1,8 +1,15 @@
 import api from "@api/index";
 
+export interface SessionUser {
+  id: string;
+  username: string;
+  email: string;
+}
+
 export interface SessionRow {
   id: string;
   user_id: string;
+  user?: SessionUser | null;
   ip_address: string | null;
   device_type: string | null;
   browser_name: string | null;
@@ -12,7 +19,7 @@ export interface SessionRow {
   geo_country: string | null;
   geo_city: string | null;
   remember_me: boolean;
-  last_seen_at: string;
+  last_seen_at: string | null;
   created_at: string;
   revoked_at: string | null;
   revoked_by: string | null;

@@ -32,6 +32,7 @@ import {
   Layers,
   Database,
   Activity,
+  MonitorSmartphone,
 } from "lucide-react";
 import { Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import dynamic from "next/dynamic";
@@ -337,6 +338,19 @@ const Sidebar = () => {
           </Link>
         ),
         icon: <Activity size={16} />,
+      });
+
+      menus.push({
+        key: `/workspace/${resolvedWorkspaceId}/sessions`,
+        label: (
+          <Link
+            className="block w-full"
+            href={`/workspace/${resolvedWorkspaceId}/sessions`}
+          >
+            Sessions
+          </Link>
+        ),
+        icon: <MonitorSmartphone size={16} />,
       });
     }
 
