@@ -20,7 +20,8 @@ export interface SessionRow {
   geo_city: string | null;
   remember_me: boolean;
   last_seen_at: string | null;
-  created_at: string;
+  createdAt: string;
+  updatedAt: string;
   revoked_at: string | null;
   revoked_by: string | null;
   revoke_reason: string | null;

@@ -58,7 +58,7 @@ export default function AdminSessionsPage() {
     },
     {
       title: "Last seen",
-      render: (_, row) => formatDate(row.last_seen_at),
+      render: (_, row) => formatDate(row.last_seen_at ?? row.createdAt),
     },
     {
       title: "Actions",
