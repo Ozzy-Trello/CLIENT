@@ -351,10 +351,26 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
           case "connection":
             break;
 
-          case "session:force-logout":
+          case "session:force-logout": {
+            const eventSessionId = message.data?.session_id as string | undefined;
+            if (eventSessionId) {
+              // Single-session kick — only logout if this tab's token matches
+              const token = TokenStorage.getAccessToken();
+              if (token) {
+                try {
+                  const payload = JSON.parse(atob(token.split(".")[1]));
+                  const currentSessionId: string | undefined = payload.session_id;
+                  if (currentSessionId && currentSessionId !== eventSessionId) {
+                    return; // Different session, ignore
+                  }
+                } catch {}
+              }
+            }
+            // Bulk kick (no session_id) or session matched
             TokenStorage.clearTokens();
             window.location.href = "/login";
             return;
+          }
 
           case "chat:new-message": {
             const chatEventData = message.data?.message || message.data || {};
