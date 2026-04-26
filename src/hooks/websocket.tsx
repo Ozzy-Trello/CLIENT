@@ -352,9 +352,9 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             break;
 
           case "session:force-logout": {
-            const eventSessionId = message.data?.session_id as string | undefined;
+            // WS messages are camelcased by the handler above — use sessionId not session_id
+            const eventSessionId = message.data?.sessionId as string | undefined;
             if (eventSessionId) {
-              // Single-session kick — only logout if this tab's token matches
               const token = TokenStorage.getAccessToken();
               if (token) {
                 try {
@@ -366,7 +366,6 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
                 } catch {}
               }
             }
-            // Bulk kick (no session_id) or session matched
             TokenStorage.clearTokens();
             window.location.href = "/login";
             return;
