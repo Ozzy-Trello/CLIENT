@@ -351,6 +351,11 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
           case "connection":
             break;
 
+          case "session:force-logout":
+            TokenStorage.clearTokens();
+            window.location.href = "/login";
+            return;
+
           case "chat:new-message": {
             const chatEventData = message.data?.message || message.data || {};
             const chatPeerUserId =
