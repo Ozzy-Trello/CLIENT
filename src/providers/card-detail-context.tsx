@@ -156,7 +156,6 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
   const [isCardDetailOpen, setIsCardDetailOpen] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const handleUrlChange = useRef<boolean>(); // Track if URL change is handled
 
   // Use React Query for card details when card is selected
   const cardDetailsQuery = useCardDetails(
@@ -179,8 +178,6 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
 
 
   const openCardDetail = async (card: Card, list: AnyList) => {
-    handleUrlChange.current = true; // Set to true when opening card detail
-
     // Don't set incomplete card data immediately - let React Query fetch complete data
     // Only set the basic state needed for the query to work, but keep the name for immediate display
     setActiveList(list);
@@ -483,9 +480,6 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
   }, [cardDetailsQuery.card, activeList?.id, isCardDetailOpen, isPending, isSameCard, snapshotCard]);
 
   const closeCardDetail = useCallback(() => {
-    // Set flag to prevent URL effect from running during this programmatic change
-    handleUrlChange.current = true;
-
     setSelectedCard(null);
     setActiveList(null);
     setIsCardDetailOpen(false);
@@ -501,11 +495,6 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
       : window.location.pathname;
 
     router.replace(newUrl, { scroll: false });
-
-    // Reset the flag after a short delay to allow URL change to complete
-    setTimeout(() => {
-      handleUrlChange.current = undefined;
-    }, 100);
   }, [router, searchParams]);
 
   const handleItemDashcard = (
@@ -854,90 +843,87 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
       }
     }
 
-    // Only handle URL changes if we're not in the middle of a programmatic change
-    if (handleUrlChange.current === undefined) {
-      if (cardId) {
-        // Only open if not already open with the same card
-        if (!isCardDetailOpen || selectedCard?.id !== cardId) {
-          const cachedCardDetail = (queryClient.getQueryData(
-            queryKeys.cards.detail(cardId)
-          ) as any)?.data;
-          const cachedCardsInList = listId
-            ? (queryClient.getQueryData(queryKeys.cards.list(listId)) as any)?.data
-            : undefined;
-          const cachedCardFromList = Array.isArray(cachedCardsInList)
-            ? cachedCardsInList.find((card: any) => card?.id === cardId)
-            : null;
-          const cachedCard = cachedCardDetail || cachedCardFromList;
-          const cachedName = resolveCardName(cachedCard);
-          const resolvedName = cachedName || cardNameFromQuery || undefined;
-          const resolvedListId =
-            listId ||
-            cachedCard?.listId ||
-            (cachedCard as any)?.list_id ||
-            undefined;
+    if (cardId) {
+      // Only open if not already open with the same card
+      if (!isCardDetailOpen || selectedCard?.id !== cardId) {
+        const cachedCardDetail = (queryClient.getQueryData(
+          queryKeys.cards.detail(cardId)
+        ) as any)?.data;
+        const cachedCardsInList = listId
+          ? (queryClient.getQueryData(queryKeys.cards.list(listId)) as any)?.data
+          : undefined;
+        const cachedCardFromList = Array.isArray(cachedCardsInList)
+          ? cachedCardsInList.find((card: any) => card?.id === cardId)
+          : null;
+        const cachedCard = cachedCardDetail || cachedCardFromList;
+        const cachedName = resolveCardName(cachedCard);
+        const resolvedName = cachedName || cardNameFromQuery || undefined;
+        const resolvedListId =
+          listId ||
+          cachedCard?.listId ||
+          (cachedCard as any)?.list_id ||
+          undefined;
 
-          if (resolvedListId) {
-            setIsCardDetailOpen(true);
-            setIsOpenViaUrl(true);
+        if (resolvedListId) {
+          setIsCardDetailOpen(true);
+          setIsOpenViaUrl(true);
 
-            // Don't set incomplete card data - let React Query fetch complete data
-            // Only set the basic state needed for the query to work
-            const list: AnyList = { id: resolvedListId } as AnyList;
-            setActiveList(list);
+          // Don't set incomplete card data - let React Query fetch complete data
+          // Only set the basic state needed for the query to work
+          const list: AnyList = { id: resolvedListId } as AnyList;
+          setActiveList(list);
 
-            // Set minimal card object just for the query key, but React Query will provide complete data
-            setSelectedCard({
-              ...(cachedCard || {}),
-              id: cardId,
-              listId: resolvedListId,
-              ...(resolvedName ? { name: resolvedName } : {}),
-            } as Card);
+          // Set minimal card object just for the query key, but React Query will provide complete data
+          setSelectedCard({
+            ...(cachedCard || {}),
+            id: cardId,
+            listId: resolvedListId,
+            ...(resolvedName ? { name: resolvedName } : {}),
+          } as Card);
 
-            // Extra hardening for deep-link opens: if cache has no name yet, fetch once immediately.
-            if (!cachedCard?.name && normalizedBoardId) {
-              void cardDetails(cardId, normalizedBoardId as string)
-                .then((response) => {
-                  const fetchedCard = response?.data;
-                  if (!fetchedCard?.id) {
-                    return;
+          // Extra hardening for deep-link opens: if cache has no name yet, fetch once immediately.
+          if (!cachedCard?.name && normalizedBoardId) {
+            void cardDetails(cardId, normalizedBoardId as string)
+              .then((response) => {
+                const fetchedCard = response?.data;
+                if (!fetchedCard?.id) {
+                  return;
+                }
+
+                const fetchedListId =
+                  fetchedCard.listId ||
+                  (fetchedCard as any).list_id ||
+                  resolvedListId;
+                if (!fetchedListId) {
+                  return;
+                }
+                setActiveList({ id: fetchedListId } as AnyList);
+                setSelectedCard((prev) => {
+                  if (prev && prev.id !== cardId) {
+                    return prev;
                   }
-
-                  const fetchedListId =
-                    fetchedCard.listId ||
-                    (fetchedCard as any).list_id ||
-                    resolvedListId;
-                  if (!fetchedListId) {
-                    return;
-                  }
-                  setActiveList({ id: fetchedListId } as AnyList);
-                  setSelectedCard((prev) => {
-                    if (prev && prev.id !== cardId) {
-                      return prev;
-                    }
-                    const previousName = resolveCardName(prev);
-                    const fetchedName = resolveCardName(fetchedCard);
-                    const mergedName = fetchedName || previousName;
-                    return {
-                      ...(prev || {}),
-                      ...fetchedCard,
-                      listId: fetchedListId,
-                      ...(mergedName ? { name: mergedName } : {}),
-                    } as Card;
-                  });
-                })
-                .catch(() => {
-                  // no-op: standard query flow will still attempt to fetch
+                  const previousName = resolveCardName(prev);
+                  const fetchedName = resolveCardName(fetchedCard);
+                  const mergedName = fetchedName || previousName;
+                  return {
+                    ...(prev || {}),
+                    ...fetchedCard,
+                    listId: fetchedListId,
+                    ...(mergedName ? { name: mergedName } : {}),
+                  } as Card;
                 });
-            }
+              })
+              .catch(() => {
+                // no-op: standard query flow will still attempt to fetch
+              });
           }
         }
-      } else if (isCardDetailOpen && !isOpenViaUrl) {
-        // Only close if we're currently open and it wasn't opened via URL initially
-        setSelectedCard(null);
-        setActiveList(null);
-        setIsCardDetailOpen(false);
       }
+    } else if (isCardDetailOpen && !isOpenViaUrl) {
+      // Only close if we're currently open and it wasn't opened via URL initially
+      setSelectedCard(null);
+      setActiveList(null);
+      setIsCardDetailOpen(false);
     }
   }, [searchParams.toString(), isCardDetailOpen, isOpenViaUrl, boardId, queryClient, selectedCard?.id, router]);
 
