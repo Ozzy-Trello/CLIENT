@@ -6,6 +6,11 @@ import { encryptTransform } from "redux-persist-transform-encrypt";
 import appSlice from "./app_slice";
 import workspaceSlice from './workspace_slice';
 import notificationReducer from "./notification_slice";
+import { runVersionGate } from "@utils/version-gate";
+
+// Must run before persistStore() below so any cleared localStorage
+// is gone before redux-persist tries to rehydrate.
+runVersionGate();
 
 // noop storage for server-side
 const createNoopStorage = () => {
