@@ -8,23 +8,23 @@ export interface SessionUser {
 
 export interface SessionRow {
   id: string;
-  user_id: string;
+  userId: string;
   user?: SessionUser | null;
-  ip_address: string | null;
-  device_type: string | null;
-  browser_name: string | null;
-  browser_version: string | null;
-  os_name: string | null;
-  os_version: string | null;
-  geo_country: string | null;
-  geo_city: string | null;
-  remember_me: boolean;
-  last_seen_at: string | null;
+  ipAddress: string | null;
+  deviceType: string | null;
+  browserName: string | null;
+  browserVersion: string | null;
+  osName: string | null;
+  osVersion: string | null;
+  geoCountry: string | null;
+  geoCity: string | null;
+  rememberMe: boolean;
+  lastSeenAt: string | null;
   createdAt: string;
   updatedAt: string;
-  revoked_at: string | null;
-  revoked_by: string | null;
-  revoke_reason: string | null;
+  revokedAt: string | null;
+  revokedBy: string | null;
+  revokeReason: string | null;
 }
 
 export function listSessions(params: {

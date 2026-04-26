@@ -31,7 +31,7 @@ export default function AdminSessionsPage() {
       title: "Status",
       width: 80,
       render: (_, row) =>
-        row.revoked_at ? (
+        row.revokedAt ? (
           <Tag color="default">Revoked</Tag>
         ) : (
           <Tag color="green">Active</Tag>
@@ -39,31 +39,36 @@ export default function AdminSessionsPage() {
     },
     {
       title: "User",
-      render: (_, row) => row.user?.username || row.user?.email || row.user_id,
+      render: (_, row) => row.user?.username || row.user?.email || row.userId,
       ellipsis: true,
       width: 180,
     },
-    { title: "IP", dataIndex: "ip_address", width: 130, render: (v) => v || "—" },
+    {
+      title: "IP",
+      dataIndex: "ipAddress",
+      width: 130,
+      render: (v) => v || "—",
+    },
     {
       title: "Device",
       render: (_, row) =>
-        [row.browser_name, row.browser_version, row.os_name]
+        [row.browserName, row.browserVersion, row.osName]
           .filter(Boolean)
           .join(" / ") || "—",
     },
     {
       title: "Location",
       render: (_, row) =>
-        [row.geo_city, row.geo_country].filter(Boolean).join(", ") || "—",
+        [row.geoCity, row.geoCountry].filter(Boolean).join(", ") || "—",
     },
     {
       title: "Last seen",
-      render: (_, row) => formatDate(row.last_seen_at ?? row.createdAt),
+      render: (_, row) => formatDate(row.lastSeenAt ?? row.createdAt),
     },
     {
       title: "Actions",
       render: (_, row) =>
-        row.revoked_at ? null : (
+        row.revokedAt ? null : (
           <Space>
             <Popconfirm
               title="Revoke this session?"
@@ -79,9 +84,9 @@ export default function AdminSessionsPage() {
               </Button>
             </Popconfirm>
             <Popconfirm
-              title={`Kick ALL sessions for ${row.user?.username || row.user_id}?`}
+              title={`Kick ALL sessions for ${row.user?.username || row.userId}?`}
               onConfirm={() =>
-                revokeAll.mutate(row.user_id, {
+                revokeAll.mutate(row.userId, {
                   onSuccess: () => message.success("All sessions revoked"),
                   onError: () => message.error("Failed to revoke all"),
                 })
