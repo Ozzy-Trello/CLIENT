@@ -821,8 +821,20 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
     [dashcardConfig, mutateAsync, selectedCard]
   );
 
-  // Handle URL changes
+  // Track latest state via refs so the URL effect can read current values
+  // without depending on them (which would re-fire the effect on every state change).
+  const isCardDetailOpenRef = useRef(isCardDetailOpen);
+  const isOpenViaUrlRef = useRef(isOpenViaUrl);
+  const selectedCardIdRef = useRef<string | null>(selectedCard?.id ?? null);
+  useEffect(() => { isCardDetailOpenRef.current = isCardDetailOpen; }, [isCardDetailOpen]);
+  useEffect(() => { isOpenViaUrlRef.current = isOpenViaUrl; }, [isOpenViaUrl]);
+  useEffect(() => { selectedCardIdRef.current = selectedCard?.id ?? null; }, [selectedCard?.id]);
+
+  // Handle URL changes — fires ONLY on URL change, reads latest state via refs
   useEffect(() => {
+    const isCardDetailOpen = isCardDetailOpenRef.current;
+    const isOpenViaUrl = isOpenViaUrlRef.current;
+    const selectedCardId = selectedCardIdRef.current;
     const rawCardId = searchParams.get("cardId");
     const rawListId = searchParams.get("listId");
     const rawCardName = searchParams.get("cardName");
@@ -845,7 +857,7 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
 
     if (cardId) {
       // Only open if not already open with the same card
-      if (!isCardDetailOpen || selectedCard?.id !== cardId) {
+      if (!isCardDetailOpen || selectedCardId !== cardId) {
         const cachedCardDetail = (queryClient.getQueryData(
           queryKeys.cards.detail(cardId)
         ) as any)?.data;
@@ -925,7 +937,7 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
       setActiveList(null);
       setIsCardDetailOpen(false);
     }
-  }, [searchParams.toString(), isCardDetailOpen, isOpenViaUrl, boardId, queryClient, selectedCard?.id, router]);
+  }, [searchParams.toString(), boardId, queryClient, router]);
 
   return (
     <CardDetailContext.Provider
