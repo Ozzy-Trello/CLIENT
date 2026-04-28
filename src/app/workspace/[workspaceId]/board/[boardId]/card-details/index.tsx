@@ -147,6 +147,7 @@ const CardDetails: React.FC = (props) => {
     "TEST BOARD",
     "List Purchase | Produksi",
     "Dateline",
+    "Krah Manset | Produksi",
   ];
   const CAN_VIEW_BOARD = ["Delivery"];
   // Optional: if you know the exact board IDs, add them here for stronger matching
