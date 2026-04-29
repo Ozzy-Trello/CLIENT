@@ -9,8 +9,10 @@ import {
 } from "@api/sablon_attachment";
 import { setCardCustomFieldValue } from "@api/card_custom_field";
 import { uploadFile } from "@api/file";
+import { useAccountList } from "@hooks/account";
 import { useCardAttachment } from "@hooks/card_attachment";
 import { useCardCustomField } from "@hooks/card_custom_field";
+import { useRoles } from "@hooks/useRoles";
 import {
   Card,
   EnumAttachmentType,
@@ -23,6 +25,7 @@ import {
   InputNumber,
   Modal,
   Progress,
+  Select,
   Space,
   Table,
   Typography,
@@ -45,6 +48,7 @@ interface ModalJmlSablonProps {
 
 interface RowState {
   amount: number | null;
+  userId: string | null;
 }
 
 interface TableRow {
@@ -86,7 +90,7 @@ const isSupportedUploadFile = (file: { name: string; type?: string }): boolean =
   return isZipFile(file.name, mimeType) || mimeType.startsWith("image/") || IMAGE_EXTENSIONS.test(file.name);
 };
 
-const ModalJmlSablon: React.FC<ModalJmlSablonProps> = ({ open, onClose, card, workspaceId }) => {
+const ModalJmlSablon: React.FC<ModalJmlSablonProps> = ({ open, onClose, card, workspaceId, boardId }) => {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -99,11 +103,37 @@ const ModalJmlSablon: React.FC<ModalJmlSablonProps> = ({ open, onClose, card, wo
   const [uploadCompleted, setUploadCompleted] = useState(0);
   const [uploadCurrentName, setUploadCurrentName] = useState("");
   const [isDragging, setIsDragging] = useState(false);
+  const [allDesignerUserId, setAllDesignerUserId] = useState<string | null>(null);
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [previewInitialIndex, setPreviewInitialIndex] = useState(0);
 
   const { addAttachment, cardAttachments, refetch } = useCardAttachment(card.id, { fetch: true });
   const { cardCustomFields } = useCardCustomField(card.id, workspaceId, { enabled: open });
+
+  const { roles, loading: isLoadingRoles } = useRoles(workspaceId);
+  const designerRoleIds = useMemo(() => {
+    const allowedRoles = new Set(["desainer outlet", "spv desainer outlet"]);
+    return (roles || [])
+      .filter((role) => allowedRoles.has(String(role?.name || "").trim().toLowerCase()))
+      .map((role) => role.id);
+  }, [roles]);
+  const { data: accountListData, isLoading: isLoadingAccountsQuery } = useAccountList({
+    workspaceId,
+    boardId,
+    roleIds: designerRoleIds,
+  });
+  const isLoadingAccounts = isLoadingRoles || isLoadingAccountsQuery;
+
+  const designerOptions = useMemo(
+    () =>
+      designerRoleIds.length === 0
+        ? []
+        : (accountListData?.data || []).map((account: any) => ({
+            value: account.id as string,
+            label: account.name || account.username || account.email || account.id,
+          })),
+    [accountListData?.data, designerRoleIds.length],
+  );
 
   const sablonAttachments = useMemo(
     () =>
@@ -153,16 +183,33 @@ const ModalJmlSablon: React.FC<ModalJmlSablonProps> = ({ open, onClose, card, wo
   );
 
   const getRowState = useCallback(
-    (attachmentId: string): RowState => rowsState[attachmentId] || { amount: null },
+    (attachmentId: string): RowState => rowsState[attachmentId] || { amount: null, userId: null },
     [rowsState],
   );
 
   const handleRowStateChange = useCallback((attachmentId: string, patch: Partial<RowState>) => {
     setRowsState((prev) => ({
       ...prev,
-      [attachmentId]: { amount: prev[attachmentId]?.amount ?? null, ...patch },
+      [attachmentId]: {
+        amount: prev[attachmentId]?.amount ?? null,
+        userId: prev[attachmentId]?.userId ?? null,
+        ...patch,
+      },
     }));
   }, []);
+
+  const applyDesignerToAll = useCallback(() => {
+    setRowsState((prev) => {
+      const next = { ...prev };
+      imageSablonAttachments.forEach((att) => {
+        next[att.id] = {
+          amount: prev[att.id]?.amount ?? null,
+          userId: allDesignerUserId,
+        };
+      });
+      return next;
+    });
+  }, [allDesignerUserId, imageSablonAttachments]);
 
   const handleClearAll = useCallback(() => {
     if (sablonAttachments.length === 0) return;
@@ -182,6 +229,7 @@ const ModalJmlSablon: React.FC<ModalJmlSablonProps> = ({ open, onClose, card, wo
               await deleteCardAttachment(attachment.id);
             }
             setRowsState({});
+            setAllDesignerUserId(null);
             setPreviewModalOpen(false);
             message.success({ key: toastKey, content: "All sablon files deleted" });
             refetch?.();
@@ -227,6 +275,7 @@ const ModalJmlSablon: React.FC<ModalJmlSablonProps> = ({ open, onClose, card, wo
             const existing = existingMap.get(att.id);
             next[att.id] = {
               amount: existing?.amount ?? prev[att.id]?.amount ?? null,
+              userId: existing?.userId ?? prev[att.id]?.userId ?? null,
             };
           });
           return next;
@@ -317,7 +366,7 @@ const ModalJmlSablon: React.FC<ModalJmlSablonProps> = ({ open, onClose, card, wo
         }
 
         message.success({ key: toastKey, content: "Upload complete" });
-        refetch?.();
+        await refetch?.();
         setUploadTotal(0);
         setUploadCompleted(0);
       } catch (err: any) {
@@ -369,24 +418,29 @@ const ModalJmlSablon: React.FC<ModalJmlSablonProps> = ({ open, onClose, card, wo
   }, [open, processFiles]);
 
   const handleSave = async () => {
+    const incompleteRows = imageSablonAttachments.filter((att) => {
+      const row = getRowState(att.id);
+      return typeof row.amount !== "number" || !row.userId;
+    });
+
+    if (incompleteRows.length > 0) {
+      message.error("Semua baris harus terisi (Jml dan Desainer)");
+      return;
+    }
+
     setIsSaving(true);
     try {
-      const rowsPayload: SablonAttachmentRow[] = imageSablonAttachments
-        .map((att) => {
-          const row = getRowState(att.id);
-          if (typeof row.amount !== "number") return null;
+      const rowsPayload: SablonAttachmentRow[] = imageSablonAttachments.map((att) => {
+        const row = getRowState(att.id);
+        return {
+          cardId: card.id,
+          attachmentId: att.id,
+          userId: row.userId,
+          amount: row.amount as number,
+        };
+      });
 
-          return {
-            cardId: card.id,
-            attachmentId: att.id,
-            amount: row.amount,
-          };
-        })
-        .filter((row): row is SablonAttachmentRow => row !== null);
-
-      if (rowsPayload.length > 0) {
-        await bulkUpsertSablonAttachments(rowsPayload);
-      }
+      await bulkUpsertSablonAttachments(rowsPayload);
 
       const jmlSablonField = (cardCustomFields || []).find((field) =>
         String(field?.name || "").toLowerCase().includes("jml sablon"),
@@ -434,8 +488,29 @@ const ModalJmlSablon: React.FC<ModalJmlSablonProps> = ({ open, onClose, card, wo
           />
         ),
       },
+      {
+        title: "Desainer",
+        dataIndex: "attachmentId",
+        key: "userId",
+        width: 200,
+        render: (_: string, record: TableRow) => (
+          <Select
+            allowClear
+            placeholder="Pilih desainer"
+            loading={isLoadingAccounts}
+            options={designerOptions}
+            value={getRowState(record.attachmentId).userId ?? undefined}
+            showSearch
+            optionFilterProp="label"
+            onChange={(value) =>
+              handleRowStateChange(record.attachmentId, { userId: (value as string | undefined) ?? null })
+            }
+            className="w-full"
+          />
+        ),
+      },
     ],
-    [getRowState, handleOpenPreview, handleRowStateChange],
+    [designerOptions, getRowState, handleOpenPreview, handleRowStateChange, isLoadingAccounts],
   );
 
   return (
@@ -444,7 +519,7 @@ const ModalJmlSablon: React.FC<ModalJmlSablonProps> = ({ open, onClose, card, wo
         title="Input Jml Sablon"
         open={open}
         onCancel={onClose}
-        width={700}
+        width={800}
         destroyOnClose
         onOk={handleSave}
         confirmLoading={isSaving || isLoadingRows}
@@ -479,7 +554,21 @@ const ModalJmlSablon: React.FC<ModalJmlSablonProps> = ({ open, onClose, card, wo
             </div>
           )}
 
-          <Space align="center">
+          <Space align="center" wrap>
+            <Select
+              allowClear
+              placeholder="Set desainer ke semua"
+              loading={isLoadingAccounts}
+              options={designerOptions}
+              value={allDesignerUserId ?? undefined}
+              showSearch
+              optionFilterProp="label"
+              onChange={(value) => setAllDesignerUserId((value as string | undefined) ?? null)}
+              style={{ minWidth: 220 }}
+            />
+            <Button onClick={applyDesignerToAll} disabled={imageSablonAttachments.length === 0}>
+              Set Desainer ke semua
+            </Button>
             <Button danger onClick={handleClearAll} disabled={sablonAttachments.length === 0 || isClearingAll} loading={isClearingAll}>
               Clear All
             </Button>
@@ -499,10 +588,11 @@ const ModalJmlSablon: React.FC<ModalJmlSablonProps> = ({ open, onClose, card, wo
           <div><Text strong>Image Files</Text></div>
           <Table<TableRow>
             rowKey="key"
+            loading={isLoadingRows}
             dataSource={imageTableRows}
             columns={tableColumns}
             pagination={false}
-            scroll={{ x: 500, y: 380 }}
+            scroll={{ x: 600, y: 380 }}
             locale={{ emptyText: "Belum ada file image sablon. Upload file di atas." }}
           />
 

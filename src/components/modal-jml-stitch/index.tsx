@@ -474,7 +474,7 @@ const ModalJmlStitch: React.FC<ModalJmlStitchProps> = ({
         }
 
         message.success({ key: toastKey, content: "Upload complete" });
-        refetch?.();
+        await refetch?.();
         setUploadTotal(0);
         setUploadCompleted(0);
       } catch (err: any) {
@@ -556,27 +556,28 @@ const ModalJmlStitch: React.FC<ModalJmlStitchProps> = ({
   }, [open, processFiles]);
 
   const handleSave = async () => {
+    const incompleteRows = imageStitchAttachments.filter((att) => {
+      const row = getRowState(att.id);
+      return !row.userId || typeof row.stitch !== "number" || typeof row.amount !== "number";
+    });
+
+    if (incompleteRows.length > 0) {
+      message.error("Semua baris harus terisi (Stitch, Jml, dan Desainer)");
+      return;
+    }
+
     setIsSaving(true);
     try {
-      const rowsPayload: StitchAttachmentRow[] = imageStitchAttachments
-        .map((att) => {
-          const row = getRowState(att.id);
-          const isComplete =
-            !!row.userId &&
-            typeof row.stitch === "number" &&
-            typeof row.amount === "number";
-
-          if (!isComplete) return null;
-
-          return {
-            cardId: card.id,
-            attachmentId: att.id,
-            userId: row.userId,
-            stitch: row.stitch,
-            amount: row.amount,
-          };
-        })
-        .filter((row): row is StitchAttachmentRow => row !== null);
+      const rowsPayload: StitchAttachmentRow[] = imageStitchAttachments.map((att) => {
+        const row = getRowState(att.id);
+        return {
+          cardId: card.id,
+          attachmentId: att.id,
+          userId: row.userId,
+          stitch: row.stitch as number,
+          amount: row.amount as number,
+        };
+      });
 
       if (rowsPayload.length > 0) {
         await bulkUpsertStitchAttachments(rowsPayload);
