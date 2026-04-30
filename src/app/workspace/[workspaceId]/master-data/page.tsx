@@ -547,6 +547,13 @@ const MasterData: React.FC = () => {
     totalPage: 0,
   });
 
+  // Search/filter state
+  const [productSearch, setProductSearch] = useState('');
+  const [bahanSearch, setBahanSearch] = useState('');
+  const [bahanProductFilter, setBahanProductFilter] = useState<string | undefined>(undefined);
+  const [warnaSearch, setWarnaSearch] = useState('');
+  const [warnabahanFilter, setWarnabahanFilter] = useState<string | undefined>(undefined);
+
   // Loading states for operations
   const [submittingProduct, setSubmittingProduct] = useState(false);
   const [submittingProductCode, setSubmittingProductCode] = useState(false);
@@ -650,7 +657,7 @@ const MasterData: React.FC = () => {
   // Handle warna pagination change
   const handleWarnaPaginationChange = (page: number, pageSize?: number) => {
     const newPageSize = pageSize || warnaPagination.pageSize;
-    fetchWarnas(page, newPageSize);
+    fetchWarnas(page, newPageSize, warnabahanFilter, warnaSearch);
   };
 
   // Handle edit warna
@@ -680,7 +687,7 @@ const MasterData: React.FC = () => {
     try {
       await deleteWarna(warna.id);
       message.success("Warna deleted successfully");
-      fetchWarnas(warnaPagination.currentPage, warnaPagination.pageSize);
+      fetchWarnas(warnaPagination.currentPage, warnaPagination.pageSize, warnabahanFilter, warnaSearch);
     } catch (error) {
       message.error("Failed to delete warna");
       console.error("Error deleting warna:", error);
@@ -711,6 +718,14 @@ const MasterData: React.FC = () => {
               Products Management
             </Typography.Title>
             <Space>
+              <Input.Search
+                placeholder="Search products..."
+                allowClear
+                style={{ width: 220 }}
+                value={productSearch}
+                onChange={(e) => setProductSearch(e.target.value)}
+                onSearch={(v) => setProductSearch(v)}
+              />
               <Button
                 icon={<UploadIcon size={16} />}
                 onClick={() => {
@@ -736,7 +751,11 @@ const MasterData: React.FC = () => {
             </Space>
           </div>
           <ProductTable
-            dataSource={products}
+            dataSource={products.filter((p) =>
+              productSearch.trim()
+                ? p.name.toLowerCase().includes(productSearch.trim().toLowerCase())
+                : true
+            )}
             onEdit={(product) => {
               setSelectedProduct(product);
               productForm.setFieldsValue(product);
@@ -842,16 +861,24 @@ const MasterData: React.FC = () => {
               Bahan Management
             </Typography.Title>
             <Space>
-              {/* <Button
-                icon={<UploadIcon size={16} />}
-                onClick={() => {
-                  setBahanBulkUploadVisible(true);
-                  setBahanUploadResult(null);
-                }}
-                disabled={!isSuperAdmin()}
-              >
-                Bulk Upload
-              </Button> */}
+              <Select
+                placeholder="Filter by product"
+                allowClear
+                style={{ width: 200 }}
+                value={bahanProductFilter}
+                onChange={(v) => setBahanProductFilter(v)}
+                showSearch
+                optionFilterProp="label"
+                options={products.map((p) => ({ value: p.id, label: p.name }))}
+              />
+              <Input.Search
+                placeholder="Search bahan..."
+                allowClear
+                style={{ width: 200 }}
+                value={bahanSearch}
+                onChange={(e) => setBahanSearch(e.target.value)}
+                onSearch={(v) => setBahanSearch(v)}
+              />
               <Button
                 type="primary"
                 icon={<Plus size={16} />}
@@ -909,18 +936,41 @@ const MasterData: React.FC = () => {
             <Typography.Title level={4} style={{ margin: 0 }}>
               Warna Management
             </Typography.Title>
-            <Button
-              type="primary"
-              icon={<Plus size={16} />}
-              onClick={() => {
-                setSelectedWarna(null);
-                warnaForm.resetFields();
-                setWarnaModalVisible(true);
-              }}
-              disabled={!isSuperAdmin()}
-            >
-              Add Warna
-            </Button>
+            <Space>
+              <Select
+                placeholder="Filter by bahan"
+                allowClear
+                style={{ width: 200 }}
+                value={warnabahanFilter}
+                onChange={(v) => setWarnabahanFilter(v)}
+                showSearch
+                optionFilterProp="label"
+                options={bahans.map((b) => ({
+                  value: b.id,
+                  label: `${b.name}${b.productName ? ` (${b.productName})` : ''}`,
+                }))}
+              />
+              <Input.Search
+                placeholder="Search warna..."
+                allowClear
+                style={{ width: 200 }}
+                value={warnaSearch}
+                onChange={(e) => setWarnaSearch(e.target.value)}
+                onSearch={(v) => setWarnaSearch(v)}
+              />
+              <Button
+                type="primary"
+                icon={<Plus size={16} />}
+                onClick={() => {
+                  setSelectedWarna(null);
+                  warnaForm.resetFields();
+                  setWarnaModalVisible(true);
+                }}
+                disabled={!isSuperAdmin()}
+              >
+                Add Warna
+              </Button>
+            </Space>
           </div>
           <WarnaTable
             dataSource={warnas}
@@ -974,10 +1024,10 @@ const MasterData: React.FC = () => {
     }
   };
 
-  const fetchBahans = async () => {
+  const fetchBahans = async (search?: string, productId?: string) => {
     try {
       setLoadingBahans(true);
-      const response = await getBahans(1, 1000);
+      const response = await getBahans(1, 1000, productId, search);
       if (response.data) {
         setBahans(response.data);
       }
@@ -989,16 +1039,12 @@ const MasterData: React.FC = () => {
     }
   };
 
-  const fetchWarnas = async (page: number = 1, limit: number = 10) => {
+  const fetchWarnas = async (page: number = 1, limit: number = 10, bahanId?: string, search?: string) => {
     try {
       setLoadingWarnas(true);
-      const response = await getWarnas(page, limit);
+      const response = await getWarnas(page, limit, bahanId, search);
       if (response.data) {
-        // Sort warnas alphabetically by name (A-Z)
-        const sortedWarnas = response.data.sort((a, b) =>
-          a.name.localeCompare(b.name, undefined, { sensitivity: "base" })
-        );
-        setWarnas(sortedWarnas);
+        setWarnas(response.data);
       }
       // Update pagination info from API response
       if (response.paginate) {
@@ -1029,13 +1075,27 @@ const MasterData: React.FC = () => {
     }
   }, [isSuperAdmin()]);
 
+  // Re-fetch bahan when search/filter changes
+  useEffect(() => {
+    if (dataFetched.current) {
+      fetchBahans(bahanSearch, bahanProductFilter);
+    }
+  }, [bahanSearch, bahanProductFilter]);
+
+  // Re-fetch warna when search/filter changes (reset to page 1)
+  useEffect(() => {
+    if (dataFetched.current) {
+      fetchWarnas(1, warnaPagination.pageSize, warnabahanFilter, warnaSearch);
+    }
+  }, [warnaSearch, warnabahanFilter]);
+
   const handleDeleteProduct = async (product: Product) => {
     try {
       await deleteProduct(product.id);
       message.success("Product deleted successfully");
       fetchProducts();
-      fetchBahans(); // Refresh bahan as they might be affected
-      fetchWarnas(1, 10); // Refresh warna as they might be affected
+      fetchBahans(bahanSearch, bahanProductFilter);
+      fetchWarnas(1, warnaPagination.pageSize, warnabahanFilter, warnaSearch);
     } catch (error) {
       message.error("Failed to delete product");
       console.error("Error deleting product:", error);
@@ -1046,8 +1106,8 @@ const MasterData: React.FC = () => {
     try {
       await deleteBahan(bahan.id);
       message.success("Bahan deleted successfully");
-      fetchBahans();
-      fetchWarnas(1, 10); // Refresh warna as they might be affected
+      fetchBahans(bahanSearch, bahanProductFilter);
+      fetchWarnas(1, warnaPagination.pageSize, warnabahanFilter, warnaSearch);
     } catch (error) {
       message.error("Failed to delete bahan");
       console.error("Error deleting bahan:", error);
@@ -1107,7 +1167,7 @@ const MasterData: React.FC = () => {
         message.success("Bahan created successfully");
       }
       setBahanModalVisible(false);
-      fetchBahans();
+      fetchBahans(bahanSearch, bahanProductFilter);
     } catch (error) {
       message.error(
         selectedBahan ? "Failed to update bahan" : "Failed to create bahan"
@@ -1136,7 +1196,7 @@ const MasterData: React.FC = () => {
         message.success("Warna created successfully");
       }
       setWarnaModalVisible(false);
-      fetchWarnas();
+      fetchWarnas(warnaPagination.currentPage, warnaPagination.pageSize, warnabahanFilter, warnaSearch);
     } catch (error) {
       message.error(
         selectedWarna ? "Failed to update warna" : "Failed to create warna"
@@ -1456,8 +1516,8 @@ const MasterData: React.FC = () => {
 
         // Refresh all data
         fetchProducts();
-        fetchBahans();
-        fetchWarnas();
+        fetchBahans(bahanSearch, bahanProductFilter);
+        fetchWarnas(1, warnaPagination.pageSize, warnabahanFilter, warnaSearch);
       }
     } catch (error: any) {
       message.error(
@@ -2154,50 +2214,58 @@ const MasterData: React.FC = () => {
       >
         <div>
           <Alert
-            message="CSV Format"
+            message="CSV Format — Column Order Matters"
             description={
               <div>
-                <p>Upload a CSV file with the following columns:</p>
-                <ul style={{ marginLeft: 20, marginTop: 8 }}>
+                <p>
+                  Columns are read <strong>by position</strong>, not by header
+                  name. Use this exact order:
+                </p>
+                <ol style={{ marginLeft: 20, marginTop: 8 }}>
                   <li>
-                    <strong>product_name</strong> - Name of the product(s)
-                    (required). Multiple products can be separated by commas
-                    (e.g., "Custom Rompi, Custom Jaket")
+                    <strong>Col 1 — product_name</strong> (required). To link
+                    one bahan/warna to multiple products, separate names with{" "}
+                    <code>|</code> inside quotes (e.g.,{" "}
+                    <code>"Custom Rompi|Custom Jaket"</code>)
                   </li>
                   <li>
-                    <strong>bahan_name</strong> - Name of the bahan (material)
-                    (required)
+                    <strong>Col 2 — bahan_name</strong> (required)
                   </li>
                   <li>
-                    <strong>warna_name</strong> - Name of the warna (color)
-                    (required)
+                    <strong>Col 3 — warna_name</strong> (required)
                   </li>
                   <li>
-                    <strong>product_code</strong> - Unique code for the product
-                    (optional)
+                    <strong>Col 4 — warna_hex_code</strong> (optional, e.g.{" "}
+                    <code>#FF0000</code>)
                   </li>
                   <li>
-                    <strong>bahan_code</strong> - Unique code for the bahan
-                    (optional)
+                    <strong>Col 5 — warna_code</strong> (optional)
                   </li>
                   <li>
-                    <strong>warna_code</strong> - Unique code for the warna
-                    (optional)
+                    <strong>Col 6 — product_code</strong> (optional)
                   </li>
                   <li>
-                    <strong>warna_hex_code</strong> - Hex color code for the
-                    warna (optional)
+                    <strong>Col 7 — product_description</strong> (optional)
                   </li>
-                  <li>
-                    <strong>product_description</strong> - Description for the
-                    product (optional)
-                  </li>
-                </ul>
+                </ol>
+                <p style={{ marginTop: 8, marginBottom: 4 }}>
+                  <strong>Example:</strong>
+                </p>
+                <pre
+                  style={{
+                    background: "#f5f5f5",
+                    padding: "8px 12px",
+                    borderRadius: 4,
+                    fontSize: 12,
+                    overflowX: "auto",
+                  }}
+                >{`product_name,bahan_name,warna_name,warna_hex_code,warna_code,product_code
+Kemeja,Katun,PUTIH,#FFFFFF,WHT,KMJ
+Kemeja,Katun,HITAM,#000000,BLK,KMJ
+Celana,Denim,BIRU,#1A3C6E,BLU,CLN`}</pre>
                 <p style={{ marginTop: 8 }}>
-                  The system will automatically create the hierarchical
-                  relationships: Product → Bahan → Warna. When multiple products
-                  are specified, each will be linked to the same bahan and
-                  warna. Existing items with the same code will be skipped.
+                  Creates hierarchy: Product → Bahan → Warna. Existing items
+                  are skipped (not overwritten).
                 </p>
               </div>
             }
