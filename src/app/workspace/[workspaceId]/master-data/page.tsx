@@ -2239,14 +2239,7 @@ const MasterData: React.FC = () => {
 
       {/* Hierarchical Bulk Upload Modal */}
       <Modal
-        title={
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingRight: 32 }}>
-            <span>Hierarchical Bulk Upload</span>
-            <Button size="small" icon={<Download size={14} />} onClick={downloadHierarchicalTemplate}>
-              Download Template
-            </Button>
-          </div>
-        }
+        title="Hierarchical Bulk Upload"
         open={hierarchicalBulkUploadVisible}
         onCancel={() => {
           setHierarchicalBulkUploadVisible(false);
@@ -2259,6 +2252,11 @@ const MasterData: React.FC = () => {
         width={900}
       >
         <div>
+          <div style={{ textAlign: "right", marginBottom: 8 }}>
+            <Button icon={<Download size={14} />} size="small" onClick={downloadHierarchicalTemplate}>
+              Download Template
+            </Button>
+          </div>
           <Alert
             message="CSV Format — Column Order Matters"
             description={
