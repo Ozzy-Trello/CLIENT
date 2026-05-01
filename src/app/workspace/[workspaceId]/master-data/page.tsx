@@ -593,6 +593,8 @@ const MasterData: React.FC = () => {
   const [hierarchicalUploading, setHierarchicalUploading] = useState(false);
   const [hierarchicalUploadResult, setHierarchicalUploadResult] =
     useState<HierarchicalBulkUploadResult | null>(null);
+  const [hierarchicalPreviewData, setHierarchicalPreviewData] = useState<import("@api/hierarchical-bulk-upload").CSVRow[] | null>(null);
+  const [hierarchicalPreviewFile, setHierarchicalPreviewFile] = useState<File | null>(null);
 
   const [zipLibraryUploadVisible, setZipLibraryUploadVisible] = useState(false);
   const [zipLibraryUploading, setZipLibraryUploading] = useState(false);
@@ -1482,6 +1484,38 @@ const MasterData: React.FC = () => {
     }
   };
 
+  const downloadHierarchicalTemplate = () => {
+    const csv = [
+      "product_name,bahan_name,warna_name,warna_hex_code,warna_code,product_code,product_description",
+      "Kemeja,Katun,PUTIH,#FFFFFF,WHT,KMJ,",
+      "Kemeja,Katun,HITAM,#000000,BLK,KMJ,",
+      "Celana,Denim,BIRU,#1A3C6E,BLU,CLN,Celana denim premium",
+    ].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "hierarchical_upload_template.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleHierarchicalFileSelect = async (file: File) => {
+    try {
+      const text = await file.text();
+      const csvData = parseHierarchicalCSV(text);
+      if (csvData.length === 0) {
+        message.error("No valid data found in CSV");
+        return;
+      }
+      setHierarchicalPreviewFile(file);
+      setHierarchicalPreviewData(csvData);
+      setHierarchicalUploadResult(null);
+    } catch {
+      message.error("Failed to parse CSV file");
+    }
+  };
+
   // Hierarchical bulk upload handler
   const handleHierarchicalBulkUpload = async (file: File) => {
     try {
@@ -1513,6 +1547,9 @@ const MasterData: React.FC = () => {
         message.success(
           `Hierarchical bulk upload completed! Created: ${totalCreated}, Skipped: ${totalSkipped}`
         );
+
+        setHierarchicalPreviewData(null);
+        setHierarchicalPreviewFile(null);
 
         // Refresh all data
         fetchProducts();
@@ -2202,15 +2239,24 @@ const MasterData: React.FC = () => {
 
       {/* Hierarchical Bulk Upload Modal */}
       <Modal
-        title="Hierarchical Bulk Upload"
+        title={
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingRight: 32 }}>
+            <span>Hierarchical Bulk Upload</span>
+            <Button size="small" icon={<Download size={14} />} onClick={downloadHierarchicalTemplate}>
+              Download Template
+            </Button>
+          </div>
+        }
         open={hierarchicalBulkUploadVisible}
         onCancel={() => {
           setHierarchicalBulkUploadVisible(false);
           setHierarchicalUploadResult(null);
           setHierarchicalUploadProgress(0);
+          setHierarchicalPreviewData(null);
+          setHierarchicalPreviewFile(null);
         }}
         footer={null}
-        width={800}
+        width={900}
       >
         <div>
           <Alert
@@ -2277,8 +2323,8 @@ Celana,Denim,BIRU,#1A3C6E,BLU,CLN`}</pre>
           <Upload.Dragger
             accept=".csv"
             beforeUpload={(file) => {
-              handleHierarchicalBulkUpload(file);
-              return false; // Prevent default upload
+              handleHierarchicalFileSelect(file);
+              return false;
             }}
             showUploadList={false}
             disabled={hierarchicalUploading}
@@ -2289,12 +2335,80 @@ Celana,Denim,BIRU,#1A3C6E,BLU,CLN`}</pre>
             <p className="ant-upload-text">
               {hierarchicalUploading
                 ? "Uploading..."
+                : hierarchicalPreviewData
+                ? `${hierarchicalPreviewFile?.name} — click to replace`
                 : "Click or drag CSV file to upload"}
             </p>
             <p className="ant-upload-hint">
-              Support CSV files with hierarchical master data
+              Supports CSV with hierarchical master data (Product → Bahan → Warna)
             </p>
           </Upload.Dragger>
+
+          {hierarchicalPreviewData && !hierarchicalUploadResult && (
+            <div style={{ marginTop: 16 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                <Typography.Text strong>
+                  Preview — {hierarchicalPreviewData.length} row{hierarchicalPreviewData.length !== 1 ? "s" : ""} to process
+                </Typography.Text>
+                <Space>
+                  <Button
+                    onClick={() => {
+                      setHierarchicalPreviewData(null);
+                      setHierarchicalPreviewFile(null);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="primary"
+                    loading={hierarchicalUploading}
+                    onClick={() => {
+                      if (hierarchicalPreviewFile) {
+                        handleHierarchicalBulkUpload(hierarchicalPreviewFile);
+                      }
+                    }}
+                  >
+                    Confirm & Upload
+                  </Button>
+                </Space>
+              </div>
+              <Table
+                size="small"
+                dataSource={hierarchicalPreviewData.slice(0, 10).map((row, i) => ({ ...row, key: i }))}
+                pagination={false}
+                scroll={{ x: true }}
+                footer={
+                  hierarchicalPreviewData.length > 10
+                    ? () => (
+                        <Typography.Text type="secondary">
+                          Showing 10 of {hierarchicalPreviewData.length} rows
+                        </Typography.Text>
+                      )
+                    : undefined
+                }
+                columns={[
+                  { title: "Product", dataIndex: "product_name", key: "product_name", ellipsis: true },
+                  { title: "Bahan", dataIndex: "bahan_name", key: "bahan_name", ellipsis: true },
+                  { title: "Warna", dataIndex: "warna_name", key: "warna_name", ellipsis: true },
+                  {
+                    title: "Hex",
+                    dataIndex: "warna_hex_code",
+                    key: "warna_hex_code",
+                    width: 90,
+                    render: (hex: string) =>
+                      hex ? (
+                        <Space size={4}>
+                          <div style={{ width: 14, height: 14, borderRadius: 2, background: hex, border: "1px solid #d9d9d9", flexShrink: 0 }} />
+                          <Typography.Text style={{ fontSize: 11 }}>{hex}</Typography.Text>
+                        </Space>
+                      ) : "-",
+                  },
+                  { title: "Warna Code", dataIndex: "warna_code", key: "warna_code", render: (v: string) => v || "-" },
+                  { title: "Product Code", dataIndex: "product_code", key: "product_code", render: (v: string) => v || "-" },
+                ]}
+              />
+            </div>
+          )}
 
           {hierarchicalUploading && (
             <div style={{ marginTop: 16 }}>
