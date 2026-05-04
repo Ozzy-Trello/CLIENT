@@ -266,6 +266,11 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
         }
       }
 
+      // Dash config activity
+      if (parsedValue.summary) {
+        return parsedValue.summary;
+      }
+
       // Fallback to original message
       return parsedValue.message || parsedValue.action || "";
     } catch (error) {
