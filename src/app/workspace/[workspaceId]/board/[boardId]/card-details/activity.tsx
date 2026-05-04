@@ -268,7 +268,17 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
 
       // Dash config activity
       if (parsedValue.summary) {
-        return parsedValue.summary;
+        const cleaned = parsedValue.summary
+          .split(";")
+          .map((part: string) => {
+            const [prefix, ...rest] = part.split(":");
+            if (!rest.length) return part.trim();
+            const items = rest.join(":").split(",").map((s: string) => s.trim()).filter(Boolean);
+            return items.length ? `${prefix.trim()}: ${items.join(", ")}` : "";
+          })
+          .filter(Boolean)
+          .join("; ");
+        return cleaned || "updated dash config";
       }
 
       // Fallback to original message
