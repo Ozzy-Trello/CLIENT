@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { getPlan, getPlanSummary, PlanFilterParam, PlanList, PlanSummaryList } from "@api/plans";
 
+const keepPrevious = <T,>(previous: T | undefined): T | undefined => previous;
+
 export const usePlan = (
     plannerId: number | undefined,
     params: {
@@ -46,6 +48,7 @@ export const usePlan = (
         },
         enabled: !!plannerId,
         staleTime: 2 * 60 * 1000,
+        placeholderData: keepPrevious,
     });
 };
 
@@ -94,5 +97,6 @@ export const usePlanSummary = (
         },
         enabled: !!plannerId,
         staleTime: 2 * 60 * 1000,
+        placeholderData: keepPrevious,
     });
 };

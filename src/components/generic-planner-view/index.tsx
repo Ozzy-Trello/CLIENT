@@ -134,9 +134,18 @@ const GenericPlannerView: React.FC<GenericPlannerViewProps> = ({
     v2Type || "",
     v2Type ? v2OptionFilters : undefined,
   );
-  const v2FilterConfig = (v2Data as any)?.filterConfig as V2FilterConfig | null;
-  const v2Cards = (v2Data as any)?.cards ?? [];
-  const v2OptionCards = (v2OptionsData as any)?.cards ?? v2Cards;
+  const lastV2FilterConfigRef = React.useRef<V2FilterConfig | null>(null);
+  const lastV2CardsRef = React.useRef<any[]>([]);
+  const nextV2FilterConfig = ((v2Data as any)?.filterConfig as V2FilterConfig | null) ?? null;
+  if (nextV2FilterConfig) lastV2FilterConfigRef.current = nextV2FilterConfig;
+  const v2FilterConfig = nextV2FilterConfig ?? lastV2FilterConfigRef.current;
+
+  const nextV2Cards = ((v2Data as any)?.cards as any[]) ?? [];
+  if (nextV2Cards.length > 0) lastV2CardsRef.current = nextV2Cards;
+  const v2Cards = nextV2Cards.length > 0 ? nextV2Cards : lastV2CardsRef.current;
+
+  const nextV2OptionCards = ((v2OptionsData as any)?.cards as any[]) ?? [];
+  const v2OptionCards = nextV2OptionCards.length > 0 ? nextV2OptionCards : v2Cards;
   const isV2 = !!v2Type;
 
   // Reset filters on planner type change
@@ -162,9 +171,21 @@ const GenericPlannerView: React.FC<GenericPlannerViewProps> = ({
   // Fetch products for filter dropdown
   const { data: products = [] } = useProducts();
 
+  const normalizeName = (val: string) => val.toLowerCase().replace(/[^a-z0-9]+/g, "").trim();
+
   const resolvedPlanner = propPlannerId
     ? planners.find((p) => p.id === propPlannerId)
-    : planners.find((p) => candidateNames.includes(p.name.toLowerCase()));
+    : planners.find((p) => {
+      const plannerNameKey = normalizeName(p.name);
+      return candidateNames.some((candidate) => {
+        const candidateKey = normalizeName(candidate);
+        return (
+          plannerNameKey === candidateKey ||
+          plannerNameKey.includes(candidateKey) ||
+          candidateKey.includes(plannerNameKey)
+        );
+      });
+    });
 
   const resolvedPlannerId = resolvedPlanner?.id;
 
@@ -228,7 +249,7 @@ const GenericPlannerView: React.FC<GenericPlannerViewProps> = ({
       (resolvedPlanner as any)?.plannerConfig ||
       {});
 
-  const isLoading = loadingPlanners || loadingPlan;
+  const isLoading = loadingPlanners || (loadingPlan && !summaryData);
 
   // Columns
   const rawColumns = Array.isArray(summary?.columns)

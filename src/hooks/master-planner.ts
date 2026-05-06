@@ -13,6 +13,7 @@ import {
 } from "@myTypes/master-planner";
 
 const queryKey = ["master-planner"];
+const keepPrevious = <T,>(previous: T | undefined): T | undefined => previous;
 
 export const useMasterPlanners = () => {
   return useQuery<MasterPlanner[]>({
@@ -91,5 +92,6 @@ export const useMasterPlannerV2 = (type: string, filters?: V2PlannerFilters) => 
     },
     staleTime: 2 * 60 * 1000,
     enabled: !!type,
+    placeholderData: keepPrevious,
   });
 };
