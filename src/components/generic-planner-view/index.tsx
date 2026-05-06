@@ -17,7 +17,7 @@ import {
 } from "antd";
 import dayjs from "dayjs";
 import { usePlanSummary } from "@hooks/usePlan";
-import { PlanFilterParam, PlanItem } from "@api/plans";
+import { PlanFilterParam } from "@api/plans";
 import { useMasterPlanners, useMasterPlannerV2 } from "@hooks/master-planner";
 import { useProducts } from "@hooks/useProducts";
 import { Download, Filter, RotateCcw } from "lucide-react";
@@ -126,7 +126,7 @@ const GenericPlannerView: React.FC<GenericPlannerViewProps> = ({
     });
   }, [v2FilterHook.state]);
   
-  const { data: v2Data, isLoading: loadingV2 } = useMasterPlannerV2(
+  const { data: v2Data } = useMasterPlannerV2(
     v2Type || "",
     v2Type ? v2Filters : undefined,
   );
@@ -171,18 +171,15 @@ const GenericPlannerView: React.FC<GenericPlannerViewProps> = ({
   // Config Decision: V2 vs V1
   const plannerConfig = isV2
     ? (v2Data?.config ?? {})
-    : ((resolvedPlanner as any)?.plannerConfig ||
-      (resolvedPlanner as any)?.planner_config ||
-      {});
+    : ((resolvedPlanner as any)?.plannerConfig || {});
 
   const includeLists: string[] =
-    plannerConfig.include_lists ||
     plannerConfig.includeLists ||
     plannerConfig.filterLists ||
     [];
   const dateField = getDateFieldName(
     plannerName,
-    plannerConfig?.date_field || plannerConfig?.dateField,
+    plannerConfig?.dateField,
   );
 
   // Build filters payload for backend
@@ -222,23 +219,29 @@ const GenericPlannerView: React.FC<GenericPlannerViewProps> = ({
     filters: filtersPayload,
   });
 
-  const isLoading = v2Type ? loadingV2 : loadingPlanners || loadingPlan;
+  const summary = (summaryData as any) ?? {};
+  const summaryMasterPlanner = summary?.masterPlanner || null;
+
+  const plannerConfigResolved = isV2
+    ? (v2Data?.config ?? {})
+    : (summaryMasterPlanner?.plannerConfig ||
+      (resolvedPlanner as any)?.plannerConfig ||
+      {});
+
+  const isLoading = loadingPlanners || loadingPlan;
 
   // Columns
-  const rawColumns = Array.isArray(summaryData?.columns)
-    ? summaryData?.columns
-    : Array.isArray(plannerConfig?.columns)
-      ? plannerConfig.columns
+  const rawColumns = Array.isArray(summary?.columns)
+    ? summary?.columns
+    : Array.isArray(plannerConfigResolved?.columns)
+      ? plannerConfigResolved.columns
       : [];
 
-  const plannerColumns = Array.isArray(plannerConfig?.columns)
-    ? plannerConfig.columns
+  const plannerColumns = Array.isArray(plannerConfigResolved?.columns)
+    ? plannerConfigResolved.columns
     : [];
   const columns = rawColumns.filter((col: any) => col.header !== dateField);
   const filterColumns = plannerColumns.length ? plannerColumns : rawColumns;
-
-  // Data Items Logic (already aggregated by backend summary API)
-  const items: any[] = (summaryData as any)?.items ?? [];
 
   const columnMetaByHeader = new Map<string, any>();
   plannerColumns.forEach((c: any) => {
@@ -247,8 +250,8 @@ const GenericPlannerView: React.FC<GenericPlannerViewProps> = ({
 
   const isDateHeader = (header: string) => {
     const meta = columnMetaByHeader.get(header);
-    const systemField = meta?.system_field || meta?.systemField;
-    const fieldName = meta?.field_name || meta?.fieldName;
+    const systemField = meta?.systemField;
+    const fieldName = meta?.fieldName;
     const h = header.toLowerCase();
     if (systemField && ["due_date", "created_at"].includes(systemField))
       return true;
@@ -259,13 +262,13 @@ const GenericPlannerView: React.FC<GenericPlannerViewProps> = ({
 
   const isListHeader = (header: string) => {
     const meta = columnMetaByHeader.get(header);
-    const systemField = meta?.system_field || meta?.systemField;
+    const systemField = meta?.systemField;
     return systemField === "list_name";
   };
 
   const isProductHeader = (header: string) => {
     const meta = columnMetaByHeader.get(header);
-    const systemField = meta?.system_field || meta?.systemField;
+    const systemField = meta?.systemField;
     return systemField === "product_name";
   };
 
@@ -277,199 +280,28 @@ const GenericPlannerView: React.FC<GenericPlannerViewProps> = ({
     return true;
   });
 
-  // Helper to access dynamic fields robustly
-  const getDynamicValue = React.useCallback((record: PlanItem, key: string) => {
-    const cfValues = (record as any)?.custom_field_values;
-    if (cfValues && cfValues[key] !== undefined) return cfValues[key];
-    if ((record as any)?.[key] !== undefined) return (record as any)[key];
-    const camelKey = key
-      .replace(/(?:^\w|[A-Z]|\b\w)/g, (word, idx) =>
-        idx === 0 ? word.toLowerCase() : word.toUpperCase(),
-      )
-      .replace(/\s+/g, "");
-    if ((record as any)?.[camelKey] !== undefined) return (record as any)[camelKey];
-    const simpleCamel =
-      key.charAt(0).toLowerCase() + key.slice(1).replace(/\s+/g, "");
-    if ((record as any)?.[simpleCamel] !== undefined) return (record as any)[simpleCamel];
-    return undefined;
-  }, []);
-
-  const normalizeDateKey = (val: any): string | null => {
-    if (!val) return null;
-    if (typeof val === "string") {
-      const trimmed = val.trim();
-      if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
-      const parsedStrict = dayjs(
-        trimmed,
-        ["DD/MM/YYYY", "YYYY/MM/DD", "YYYY-MM-DD"],
-        true,
-      );
-      if (parsedStrict.isValid()) return parsedStrict.format("YYYY-MM-DD");
-    }
-    const d = dayjs(val);
-    if (!d.isValid()) return null;
-    return d.format("YYYY-MM-DD");
-  };
-
-  const resolveTargetDate = React.useCallback((card: any): string | null => {
-    const cfValues = card?.custom_field_values || {};
-    const dateVal =
-      card?.target_date ||
-      (plannerConfig?.targetDateId && cfValues[plannerConfig.targetDateId]) ||
-      (plannerConfig?.targetDateName &&
-        cfValues[plannerConfig.targetDateName]) ||
-      cfValues[dateField] ||
-      card?.due_date ||
-      card?.dueDate ||
-      card?.targetDate ||
-      card?.target_date;
-    return normalizeDateKey(dateVal);
-  }, [plannerConfig?.targetDateId, plannerConfig?.targetDateName, dateField]);
-
-  const resolveQuantity = React.useCallback((card: any): number => {
-    const qtyVal =
-      parseNumeric(card?.jml_produksi ?? card?.quantity) ??
-      parseNumeric(getDynamicValue(card as any, "quantity"));
-    return qtyVal ?? 0;
-  }, [getDynamicValue]);
-
-  const textIncludes = (source: any, needle: string) => {
-    if (!needle) return true;
-    const src = typeof source === "string" ? source : String(source ?? "");
-    return src.toLowerCase().includes(needle.toLowerCase());
-  };
-
-  // Helper to get CF value by ID or name
-  const getCfValue = React.useCallback((card: any, idOrName?: string) => {
-    if (!idOrName) return undefined;
-    const cfValues = card?.custom_field_values || {};
-    return cfValues[idOrName];
-  }, []);
-
-  const filteredV2Cards = React.useMemo(() => {
-    if (!isV2) return [];
-    const searchTerm = (search || "").trim().toLowerCase();
-    const filterCfg = v2FilterConfig;
-
-    return v2Cards.filter((card: any) => {
-      // Local filters only - V2 filters (checkbox, qty, present, option) are handled by backend
-      if (searchTerm) {
-        const nameMatch = (card?.name || "").toLowerCase().includes(searchTerm);
-        const cfMatch = Object.values(card?.custom_field_values || {}).some((v) =>
-          typeof v === "string"
-            ? v.toLowerCase().includes(searchTerm)
-            : false,
-        );
-        if (!nameMatch && !cfMatch) return false;
-      }
-
-      if (listFilter.length > 0 && !listFilter.includes(card?.list_name)) return false;
-
-      const cardDate = resolveTargetDate(card);
-      if (date && cardDate !== date) return false;
-
-      // Note: V2 filters (checkboxFilter, qtyFilter, presentFilter, optionFilter, productFilter) 
-      // are now handled by the backend API, so we don't filter them client-side
-
-      for (const [key, val] of Object.entries(dynamicFilters)) {
-        if (!val) continue;
-        const cardVal =
-          getDynamicValue(card as any, key) ??
-          (card?.custom_field_values || {})[key];
-        if (!textIncludes(cardVal, val)) return false;
-      }
-
-      for (const [key, val] of Object.entries(dynamicDateFilters)) {
-        if (!val) continue;
-        const filterDate = normalizeDateKey(val);
-        const cardDateVal = normalizeDateKey(
-          getDynamicValue(card as any, key) ??
-            (card?.custom_field_values || {})[key],
-        );
-        if (filterDate && cardDateVal !== filterDate) return false;
-      }
-
-      return true;
-    });
-  }, [
-    isV2,
-    v2Cards,
-    search,
-    listFilter,
-    date,
-    dynamicFilters,
-    dynamicDateFilters,
-    resolveTargetDate,
-    getDynamicValue,
-    textIncludes,
-    normalizeDateKey,
-  ]);
-
-  // V2: aggregate filtered cards into daily capacity rows
-  const v2DisplayItems = React.useMemo(() => {
-    if (!isV2) return [];
-
-    const grouped = new Map<
-      string,
-      { 
-        totalJml: number; 
-        capacity: number | null;
-        sisa: number | null;
-        status: "Aman" | "Overload" | null;
-        overdue: number | null;
-      }
-    >();
-
-    filteredV2Cards.forEach((card: any) => {
-      const dateKey = resolveTargetDate(card) || card?.due_date || card?.dueDate || "No Date";
-      const qty = resolveQuantity(card) || 0;
-      const capacity = card?.kapasitas_harian ?? card?.kapasitasHarian ?? null;
-      const sisa = card?.sisa_kapasitas ?? card?.sisaKapasitas ?? null;
-      const status = card?.status_produksi ?? card?.statusProduksi ?? null;
-      const overdue = card?.overdue_days ?? card?.overdueDays ?? null;
-      const current = grouped.get(dateKey) ?? {
-        totalJml: 0,
-        capacity: null as number | null,
-        sisa: null as number | null,
-        status: null as "Aman" | "Overload" | null,
-        overdue: null as number | null,
-      };
-      current.totalJml += qty;
-      if (current.capacity === null && capacity !== null) current.capacity = capacity;
-      if (current.sisa === null && sisa !== null) current.sisa = sisa;
-      if (current.status === null && status !== null) current.status = status;
-      if (current.overdue === null && overdue !== null) current.overdue = overdue;
-      grouped.set(dateKey, current);
-    });
-
-    return Array.from(grouped.entries())
-      .map(([dateKey, info]) => ({
-        date: dateKey,
-        jml_produksi: info.totalJml || null,
-        kapasitas_harian: info.capacity,
-        sisa_kapasitas: info.sisa,
-        status_produksi: info.status,
-        overdue_days: info.overdue,
-      }))
-      .sort((a, b) => a.date.localeCompare(b.date));
-  }, [isV2, filteredV2Cards, resolveTargetDate, resolveQuantity]);
-
   const displayItems = React.useMemo(() => {
-    if (isV2) return v2DisplayItems;
-    return items as any[];
-  }, [isV2, v2DisplayItems, items]);
+    return (summary?.items ?? []).map((item: any) => ({
+      date: item?.date,
+      jmlProduksi: item?.jmlProduksi ?? item?.jml_produksi ?? null,
+      kapasitasHarian: item?.kapasitasHarian ?? item?.kapasitas_harian ?? null,
+      sisaKapasitas: item?.sisaKapasitas ?? item?.sisa_kapasitas ?? null,
+      statusProduksi: item?.statusProduksi ?? item?.status_produksi ?? null,
+      overdueDays: item?.overdueDays ?? item?.overdue_days ?? null,
+    }));
+  }, [summary]);
 
   const filteredDisplayItems = React.useMemo(() => {
     if (statusFilter === "any") return displayItems;
     return (displayItems || []).filter((item: any) => {
-      const status = item?.status_produksi ?? item?.statusProduksi ?? item?.status;
+      const status = item?.statusProduksi ?? item?.status;
       return status === statusFilter;
     });
   }, [displayItems, statusFilter]);
 
   const qtyLabel =
-    plannerConfig?.filterLabels?.qty ||
-    (plannerConfig?.columns || []).find((col: any) => col?.id === plannerConfig?.qtyId)?.header ||
+    plannerConfigResolved?.filterLabels?.qty ||
+    (plannerConfigResolved?.columns || []).find((col: any) => col?.id === plannerConfigResolved?.qtyId)?.header ||
     "Jumlah";
 
   const tableColumns = [
@@ -482,8 +314,8 @@ const GenericPlannerView: React.FC<GenericPlannerViewProps> = ({
     },
     {
       title: qtyLabel,
-      dataIndex: "jml_produksi",
-      key: "jml_produksi",
+      dataIndex: "jmlProduksi",
+      key: "jmlProduksi",
       width: 140,
       render: (v: any) => {
         const numVal = parseNumeric(v);
@@ -492,16 +324,16 @@ const GenericPlannerView: React.FC<GenericPlannerViewProps> = ({
     },
     {
       title: "Sisa Kapasitas",
-      dataIndex: "sisa_kapasitas",
-      key: "sisa_kapasitas",
+      dataIndex: "sisaKapasitas",
+      key: "sisaKapasitas",
       width: 130,
       render: (v: number | null) =>
         v !== null && v !== undefined ? formatNumber(v) : "-",
     },
     {
       title: "Status",
-      dataIndex: "status_produksi",
-      key: "status_produksi",
+      dataIndex: "statusProduksi",
+      key: "statusProduksi",
       width: 110,
       render: (v: "Aman" | "Overload" | null) => {
         if (v === "Aman") return <Tag color="green">Aman</Tag>;
@@ -511,8 +343,8 @@ const GenericPlannerView: React.FC<GenericPlannerViewProps> = ({
     },
     {
       title: "Overdue (Hari)",
-      dataIndex: "overdue_days",
-      key: "overdue_days",
+      dataIndex: "overdueDays",
+      key: "overdueDays",
       width: 130,
       render: (v: number | null) => {
         if (v === null || v === undefined) return "-";
@@ -741,7 +573,7 @@ const GenericPlannerView: React.FC<GenericPlannerViewProps> = ({
 
   // Planner capacity info
   const capacityTotals = React.useMemo(() => {
-    const lines = plannerConfig?.lines || [];
+    const lines = plannerConfigResolved?.lines || [];
     const full = lines.reduce((sum: number, l: any) => sum + (parseNumeric(l?.capacity) || 0), 0);
     const half = lines.reduce((sum: number, l: any) => {
       const cap = parseNumeric(l?.capacity) || 0;
@@ -749,7 +581,7 @@ const GenericPlannerView: React.FC<GenericPlannerViewProps> = ({
       return sum + halfCap;
     }, 0);
     return { full, half };
-  }, [plannerConfig?.lines]);
+  }, [plannerConfigResolved?.lines]);
 
   const exportPlannerSummary = () => {
     try {
@@ -760,12 +592,12 @@ const GenericPlannerView: React.FC<GenericPlannerViewProps> = ({
           const key = String(col.dataIndex || col.key || "");
           let value = record?.[key];
           if (key === "date") value = formatDate(record?.date);
-          if (key === "status_produksi" || key === "statusProduksi") {
-            const st = record?.status_produksi ?? record?.statusProduksi ?? "-";
+          if (key === "statusProduksi") {
+            const st = record?.statusProduksi ?? record?.status_produksi ?? "-";
             value = ["Aman", "Overload"].includes(String(st)) ? st : "-";
           }
-          if (key === "overdue_days" || key === "overdueDays") {
-            const overdue = parseNumeric(record?.overdue_days ?? record?.overdueDays);
+          if (key === "overdueDays") {
+            const overdue = parseNumeric(record?.overdueDays ?? record?.overdue_days);
             if (overdue === null) value = "-";
             else if (overdue > 0) value = `Late ${overdue} days`;
             else value = "On Time";
@@ -884,9 +716,9 @@ const GenericPlannerView: React.FC<GenericPlannerViewProps> = ({
         </div>
       ) : (
         <Table
-          rowKey="date"
-          columns={tableColumns}
-          dataSource={filteredDisplayItems as any[]}
+      rowKey="date"
+      columns={tableColumns}
+      dataSource={filteredDisplayItems as any[]}
           size="small"
           pagination={false}
           scroll={{ x: "max-content", y: 400 }}
