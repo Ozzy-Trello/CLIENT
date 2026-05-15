@@ -82,14 +82,16 @@ const ScanProgressModal: React.FC<ScanProgressModalProps> = ({
   }, [cardId, boardId, isOpen]);
 
   /**
-   * Poll scan progress for each PO (every 2s while modal open)
+   * Poll scan progress for each PO while the modal is open.
+   * Keep the interval conservative so large POs do not overwhelm the backend.
    */
   const scanProgressQueries = useQueries({
     queries: pos.map((po) => ({
       queryKey: ["scanProgress", po.id],
       queryFn: () => getPOScanProgress(po.id),
       enabled: !!po.id && isOpen,
-      refetchInterval: 2000,
+      refetchInterval: 8000,
+      refetchIntervalInBackground: false,
     })),
   });
 
@@ -153,7 +155,14 @@ const ScanProgressModal: React.FC<ScanProgressModalProps> = ({
   /**
    * Refresh all PO scan progress queries (fast UI update after scanning)
    */
-  const refreshAllProgress = () => {
+  const refreshProgressForScan = (scanResponse: ScanPOItemResponse) => {
+    const scannedPoId = scanResponse?.data?.po_id ?? scanResponse?.data?.poId;
+
+    if (scannedPoId) {
+      queryClient.invalidateQueries({ queryKey: ["scanProgress", scannedPoId] });
+      return;
+    }
+
     pos.forEach((poItem) => {
       queryClient.invalidateQueries({ queryKey: ["scanProgress", poItem.id] });
     });
@@ -173,7 +182,7 @@ const ScanProgressModal: React.FC<ScanProgressModalProps> = ({
     try {
       const response = await scanPOItem({ qrCode: value });
       message.success(response?.message || `Scanned: ${value}`);
-      refreshAllProgress();
+      refreshProgressForScan(response);
     } catch (error) {
       const errorMessage =
         (error as any)?.response?.data?.message ||
