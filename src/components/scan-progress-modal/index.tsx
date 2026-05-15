@@ -6,6 +6,7 @@ import {
   getPOScanProgress,
   scanPOItem,
   PO,
+  ScanPOItemResponse,
   ScanProgressResponse,
 } from "@api/po";
 import { cardDetails } from "@api/card";
