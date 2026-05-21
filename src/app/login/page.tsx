@@ -104,11 +104,11 @@ export default function LoginPage() {
         if (defaultWorkspaceResponse?.data) {
           window.location.href = `/workspace/${defaultWorkspaceResponse.data.id}/board`;
         } else {
-          window.location.href = "/workspace";
+          window.location.href = "/";
         }
       } catch (error) {
         console.error("Failed to fetch default workspace:", error);
-        window.location.href = "/workspace";
+        window.location.href = "/";
       }
     }, 200);
   };

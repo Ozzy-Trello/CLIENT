@@ -19,7 +19,7 @@ const ResetPassword: React.FC = () => {
       // Simulate login
       message.success('Login successful!');
       setLoading(false);
-      router.push("/workspace/boards");
+      router.push("/");
     }, 2000);
   };
 
