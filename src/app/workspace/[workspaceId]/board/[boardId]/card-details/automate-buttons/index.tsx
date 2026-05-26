@@ -7,6 +7,7 @@ import { selectTheme, selectUser } from "@store/app_slice";
 import {
   getCardButtonsForBoard,
   executeCardButton,
+  updatePOMasukDM,
 } from "@api/automation_rule";
 import { useParams } from "next/navigation";
 import { message, Tooltip } from "antd";
@@ -108,6 +109,9 @@ const AutomateButtons: React.FC<{
         button.ruleId,
         selectedCard.id,
       );
+      if (button.label.trim().toLowerCase() === "checked") {
+        await updatePOMasukDM(selectedCard.id);
+      }
       message.success({
         key: `automation-${button.ruleId}`,
         content: `"${button.label}" executed successfully!`,

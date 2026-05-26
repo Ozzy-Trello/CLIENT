@@ -275,6 +275,11 @@ export const executeCardButton = async (
   return data;
 };
 
+export const updatePOMasukDM = async (cardId: string): Promise<any> => {
+  const { data } = await api.post("/pos/update-po-masuk-dm", { cardId });
+  return data;
+};
+
 // Get Telegram channels
 export const getTelegramChannels = async (): Promise<ApiResponse<any>> => {
   const { data } = await api.get(`/automation-rule/telegram-channels`);
