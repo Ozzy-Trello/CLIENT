@@ -2,8 +2,8 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Select, Spin, message } from "antd";
 import { useCardDetails } from "@hooks/card-details";
 import { getProducts, Product } from "@api/product";
-import { getBahans, Bahan } from "@api/bahan";
-import { getWarnas, Warna } from "@api/warna";
+import { getBahan, getBahans, Bahan } from "@api/bahan";
+import { getWarna, getWarnas, Warna } from "@api/warna";
 import { getProductCodes, ProductCode } from "@api/product-code";
 import { Card } from "@myTypes/card";
 import { useBoardPermissionsContext } from "@providers/board-permissions-context";
@@ -78,6 +78,76 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard, viewOnly = f
   const { canUpdateCard } = useBoardPermissionsContext();
   const canEdit = canUpdateCard();
   const isViewOnly = viewOnly || !canEdit;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const hydrateMissingParents = async () => {
+      if (card.productId || !card.bahanId) return;
+
+      try {
+        const response = await getBahan(card.bahanId);
+        const bahan = response.data;
+        if (!bahan || cancelled) return;
+
+        setCard((prev) => {
+          if (!prev || prev.id !== card.id || prev.productId) return prev;
+          return {
+            ...prev,
+            productId: bahan.productId,
+            productInfo: bahan.productInfo
+              ? { id: bahan.productInfo.id, name: bahan.productInfo.name }
+              : prev.productInfo,
+            bahanInfo: { id: bahan.id, name: bahan.name },
+          };
+        });
+      } catch {
+        // Keep the raw value; the backend may not have enough relation data for older cards.
+      }
+    };
+
+    hydrateMissingParents();
+    return () => {
+      cancelled = true;
+    };
+  }, [card.id, card.bahanId, card.productId, setCard]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const hydrateMissingBahan = async () => {
+      if (card.bahanId || !card.warnaId) return;
+
+      try {
+        const response = await getWarna(card.warnaId);
+        const warna = response.data;
+        if (!warna || cancelled) return;
+
+        setCard((prev) => {
+          if (!prev || prev.id !== card.id || prev.bahanId) return prev;
+          return {
+            ...prev,
+            bahanId: warna.bahanId,
+            bahanInfo: warna.bahanInfo
+              ? { id: warna.bahanInfo.id, name: warna.bahanInfo.name }
+              : prev.bahanInfo,
+            productId: warna.bahanInfo?.product?.id ?? prev.productId,
+            productInfo: warna.bahanInfo?.product
+              ? { id: warna.bahanInfo.product.id, name: warna.bahanInfo.product.name }
+              : prev.productInfo,
+            warnaInfo: { id: warna.id, name: warna.name },
+          };
+        });
+      } catch {
+        // Keep the raw value; the backend may not have enough relation data for older cards.
+      }
+    };
+
+    hydrateMissingBahan();
+    return () => {
+      cancelled = true;
+    };
+  }, [card.id, card.bahanId, card.warnaId, setCard]);
 
   const renderDropdownWithScrollLock = (menu: React.ReactElement) => (
     <div
@@ -508,6 +578,13 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard, viewOnly = f
           <Option key={CLEAR_VALUE} value={CLEAR_VALUE}>
             -
           </Option>
+          {card.productId &&
+            card.productInfo &&
+            !products.some((product) => product.id === card.productId) && (
+              <Option key={card.productId} value={card.productId}>
+                {card.productInfo.name}
+              </Option>
+            )}
           {products.map((product) => (
             <Option key={product.id} value={product.id}>
               {product.name}
@@ -548,6 +625,15 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard, viewOnly = f
           <Option key={CLEAR_VALUE} value={CLEAR_VALUE}>
             -
           </Option>
+          {card.productCodeId &&
+            card.productCodeInfo &&
+            !productCodes.some((productCode) => productCode.id === card.productCodeId) && (
+              <Option key={card.productCodeId} value={card.productCodeId}>
+                {card.productCodeInfo.description
+                  ? `${card.productCodeInfo.description} (${card.productCodeInfo.code})`
+                  : card.productCodeInfo.code}
+              </Option>
+            )}
           {productCodes.map((productCode) => (
             <Option key={productCode.id} value={productCode.id}>
               {productCode.description ? `${productCode.description} (${productCode.code})` : productCode.code}
@@ -588,6 +674,13 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard, viewOnly = f
           <Option key={CLEAR_VALUE} value={CLEAR_VALUE}>
             -
           </Option>
+          {card.bahanId &&
+            card.bahanInfo &&
+            !bahans.some((bahan) => bahan.id === card.bahanId) && (
+              <Option key={card.bahanId} value={card.bahanId}>
+                {card.bahanInfo.name}
+              </Option>
+            )}
           {bahans.map((bahan) => (
             <Option key={bahan.id} value={bahan.id}>
               {bahan.name}
@@ -626,6 +719,13 @@ const ProdukFields: React.FC<ProdukFieldsProps> = ({ card, setCard, viewOnly = f
         <Option key={CLEAR_VALUE} value={CLEAR_VALUE}>
           -
         </Option>
+        {card.warnaId &&
+          card.warnaInfo &&
+          !warnas.some((warna) => warna.id === card.warnaId) && (
+            <Option key={card.warnaId} value={card.warnaId}>
+              {card.warnaInfo.name}
+            </Option>
+          )}
         {warnas.map((warna) => {
           const trimmedCode = warna.code?.trim();
           return (
