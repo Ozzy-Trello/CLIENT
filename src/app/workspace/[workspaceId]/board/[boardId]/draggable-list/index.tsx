@@ -95,6 +95,7 @@ const DraggableList: React.FC<DraggableListProps> = ({
 
     const observer = new IntersectionObserver(
       (entries) => {
+        if ((window as any).__DRAG_IN_PROGRESS__) return;
         if (entries[0].isIntersecting) {
           onLoadMore();
         }
@@ -342,8 +343,12 @@ const DraggableList: React.FC<DraggableListProps> = ({
                   {(provided) => (
                     <div
                       {...provided.droppableProps}
-                      ref={provided.innerRef}
-                      className="flex-grow min-h-[50px] relative overflow-hidden flex flex-col"
+                      ref={(el) => {
+                        provided.innerRef(el);
+                        scrollContainerRef.current = el;
+                      }}
+                      data-card-scroll-container={list.id}
+                      className="custom-scrollbar px-3 py-2 flex-grow min-h-[50px] relative overflow-y-auto"
                     >
                       {/* Loading overlay when adding card */}
                       {isAddingCard && (
@@ -354,15 +359,6 @@ const DraggableList: React.FC<DraggableListProps> = ({
                           </div>
                         </div>
                       )}
-                      {/* Inner scroll wrapper — overflow-y lives here (not on the
-                          droppable itself) so @hello-pangea/dnd's getClosestScrollable
-                          walks past the droppable and finds the board's horizontal
-                          scroll container. This lets the library track horizontal
-                          scroll and update droppable positions during drag. */}
-                      <div
-                        ref={scrollContainerRef}
-                        className="custom-scrollbar px-3 py-2 overflow-y-auto flex-grow"
-                      >
                         <div className="space-y-3">
                           {hasBeenVisible ? (
                             <div className="animate-[fadeIn_0.3s_ease-in] space-y-3">
@@ -427,7 +423,6 @@ const DraggableList: React.FC<DraggableListProps> = ({
                           )}
                           {provided.placeholder}
                         </div>
-                      </div>
                     </div>
                   )}
                 </Droppable>

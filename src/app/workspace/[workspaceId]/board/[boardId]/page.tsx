@@ -572,6 +572,12 @@ const Board: React.FC = () => {
   const dragTypeRef = useRef<"card" | "list" | null>(null);
   const edgeScrollRafRef = useRef<number | null>(null);
   const edgeScrollVelocityRef = useRef(0);
+  const edgeScrollVerticalVelocityRef = useRef(0);
+  const edgeScrollVerticalTargetRef = useRef<HTMLElement | null>(null);
+  // The list the card is currently being dragged over. Set on drag start and
+  // updated by onDragUpdate; used as the authoritative vertical scroll target so
+  // we don't lose it when the pointer hit-test momentarily misses a droppable.
+  const activeCardListIdRef = useRef<string | null>(null);
   // Last known pointer position — used to re-sync @hello-pangea/dnd after programmatic scroll
   const lastPointerPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
@@ -823,10 +829,13 @@ const Board: React.FC = () => {
     // Only zero out velocity — do NOT cancel the RAF loop.
     // Cancelling it would kill the loop permanently for subsequent drags.
     edgeScrollVelocityRef.current = 0;
+    edgeScrollVerticalVelocityRef.current = 0;
+    edgeScrollVerticalTargetRef.current = null;
+    activeCardListIdRef.current = null;
   }, []);
 
   const updateEdgeScrollVelocity = useCallback((clientX: number) => {
-    if (dragTypeRef.current !== "card") {
+    if (dragTypeRef.current !== "card" && dragTypeRef.current !== "list") {
       edgeScrollVelocityRef.current = 0;
       return;
     }
@@ -853,6 +862,124 @@ const Board: React.FC = () => {
     edgeScrollVelocityRef.current = velocity;
   }, []);
 
+  // Compute vertical auto-scroll speed using the list's own top/bottom sections
+  // as anchors (a fraction of the visible scroll area), so it adapts to any
+  // screen size. Returns 0 when the pointer is in the middle or the container
+  // is already at its scroll limit in that direction.
+  const computeVerticalVelocity = useCallback(
+    (el: HTMLElement, clientY: number): number => {
+      const rect = el.getBoundingClientRect();
+      const height = rect.height;
+      if (height <= 0) return 0;
+
+      // Edge zone = 25% of the visible height (min 48px, max 140px).
+      const zone = Math.max(48, Math.min(140, height * 0.25));
+      const MAX_SPEED = 24;
+
+      const atTop = el.scrollTop <= 0;
+      const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 1;
+
+      if (clientY < rect.top + zone) {
+        if (atTop) return 0;
+        const ratio = (rect.top + zone - clientY) / zone;
+        return -Math.min(MAX_SPEED, Math.max(0, ratio) * MAX_SPEED);
+      }
+
+      if (clientY > rect.bottom - zone) {
+        if (atBottom) return 0;
+        const ratio = (clientY - (rect.bottom - zone)) / zone;
+        return Math.min(MAX_SPEED, Math.max(0, ratio) * MAX_SPEED);
+      }
+
+      return 0;
+    },
+    []
+  );
+
+  // Resolve the scroll container for the list currently under/around the
+  // pointer. Prefers an explicit listId hint (from onDragUpdate), then the
+  // persistent active card list, then a geometric hit-test, then the closest
+  // list by horizontal pointer position. Never returns null while a card list
+  // exists so the RAF loop can keep scrolling even between drop targets.
+  const resolveCardScrollContainer = useCallback(
+    (clientX: number, clientY: number, listId?: string | null): HTMLElement | null => {
+      const tryListId = (id: string | null | undefined) =>
+        id
+          ? document.querySelector<HTMLElement>(`[data-card-scroll-container="${id}"]`)
+          : null;
+
+      const hinted = tryListId(listId);
+      if (hinted) return hinted;
+
+      const active = tryListId(activeCardListIdRef.current);
+
+      const droppables = Array.from(
+        document.querySelectorAll<HTMLElement>(
+          '[data-rbd-droppable-id^="droppable-card-area-"]'
+        )
+      );
+
+      // Geometric hit-test (pointer inside a droppable rect).
+      for (const el of droppables) {
+        const rect = el.getBoundingClientRect();
+        if (
+          clientX >= rect.left &&
+          clientX <= rect.right &&
+          clientY >= rect.top &&
+          clientY <= rect.bottom
+        ) {
+          const id = el
+            .getAttribute("data-rbd-droppable-id")
+            ?.replaceAll("droppable-card-area-", "");
+          const container = tryListId(id);
+          if (container) return container;
+        }
+      }
+
+      if (active) return active;
+
+      // Fallback: closest list by horizontal distance (pointer may be in the
+      // vertical gap above/below the cards but still over a list column).
+      let closest: HTMLElement | null = null;
+      let closestDist = Infinity;
+      for (const el of droppables) {
+        const rect = el.getBoundingClientRect();
+        const clampedX = Math.max(rect.left, Math.min(clientX, rect.right));
+        const dist = Math.abs(clientX - clampedX);
+        if (dist < closestDist) {
+          closestDist = dist;
+          const id = el
+            .getAttribute("data-rbd-droppable-id")
+            ?.replaceAll("droppable-card-area-", "");
+          closest = tryListId(id);
+        }
+      }
+      return closest;
+    },
+    []
+  );
+
+  const updateVerticalEdgeScrollVelocity = useCallback((clientX: number, clientY: number, listId?: string | null) => {
+    if (dragTypeRef.current !== "card") {
+      edgeScrollVerticalVelocityRef.current = 0;
+      edgeScrollVerticalTargetRef.current = null;
+      return;
+    }
+
+    const scrollContainer = resolveCardScrollContainer(clientX, clientY, listId);
+    edgeScrollVerticalTargetRef.current = scrollContainer;
+
+    if (!scrollContainer) {
+      edgeScrollVerticalVelocityRef.current = 0;
+      return;
+    }
+
+    edgeScrollVerticalVelocityRef.current = computeVerticalVelocity(
+      scrollContainer,
+      clientY
+    );
+  }, [computeVerticalVelocity, resolveCardScrollContainer]);
+
   useEffect(() => {
     // Use pointermove instead of mousemove — when @hello-pangea/dnd calls setPointerCapture()
     // on the drag handle, browsers may suppress compatibility mousemove events. Pointermove
@@ -862,11 +989,13 @@ const Board: React.FC = () => {
       if (!event.isTrusted) return;
       lastPointerPosRef.current = { x: event.clientX, y: event.clientY };
       updateEdgeScrollVelocity(event.clientX);
+      updateVerticalEdgeScrollVelocity(event.clientX, event.clientY);
     };
     const onTouchMove = (event: TouchEvent) => {
       if (!event.touches || event.touches.length === 0) return;
       lastPointerPosRef.current = { x: event.touches[0].clientX, y: event.touches[0].clientY };
       updateEdgeScrollVelocity(event.touches[0].clientX);
+      updateVerticalEdgeScrollVelocity(event.touches[0].clientX, event.touches[0].clientY);
     };
 
     document.addEventListener("pointermove", onPointerMove, { passive: true });
@@ -876,7 +1005,7 @@ const Board: React.FC = () => {
       document.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("touchmove", onTouchMove);
     };
-  }, [updateEdgeScrollVelocity]);
+  }, [updateEdgeScrollVelocity, updateVerticalEdgeScrollVelocity]);
 
   useEffect(() => {
     let mousemoveRafId: number | null = null;
@@ -887,7 +1016,7 @@ const Board: React.FC = () => {
 
       if (
         container &&
-        dragTypeRef.current === "card" &&
+        (dragTypeRef.current === "card" || dragTypeRef.current === "list") &&
         (window as any).__DRAG_IN_PROGRESS__ &&
         velocity !== 0
       ) {
@@ -912,6 +1041,36 @@ const Board: React.FC = () => {
         });
       }
 
+      if (
+        dragTypeRef.current === "card" &&
+        (window as any).__DRAG_IN_PROGRESS__
+      ) {
+        // Resolve the target list container live each frame so we keep scrolling
+        // even when the pointer hit-test momentarily misses a droppable. Recompute
+        // velocity from the live pointer Y against the current rect: this keeps
+        // scrolling while the pointer is held still at the edge (no pointermove
+        // fires when stationary) and naturally stops at the scroll limits.
+        // @hello-pangea/dnd listens natively to this container's scroll event and
+        // re-syncs droppable positions, so we do NOT dispatch a synthetic
+        // mousemove here — doing so would reset the pointer out of the edge zone
+        // and stop the scroll after one frame.
+        const verticalContainer = resolveCardScrollContainer(
+          lastPointerPosRef.current.x,
+          lastPointerPosRef.current.y
+        );
+        edgeScrollVerticalTargetRef.current = verticalContainer;
+
+        if (verticalContainer) {
+          const verticalVelocity = computeVerticalVelocity(
+            verticalContainer,
+            lastPointerPosRef.current.y
+          );
+          if (verticalVelocity !== 0) {
+            verticalContainer.scrollTop += verticalVelocity;
+          }
+        }
+      }
+
       edgeScrollRafRef.current = requestAnimationFrame(tick);
     };
 
@@ -925,22 +1084,16 @@ const Board: React.FC = () => {
         cancelAnimationFrame(mousemoveRafId);
       }
     };
-  }, []);
+  }, [computeVerticalVelocity, resolveCardScrollContainer]);
 
   const onListDragEnd = (result: DropResult) => {
       const { destination: rawDestination, source, type, draggableId } = result;
 
-      // For card drops: ALWAYS use DOM-based detection to find the real droppable.
-      // @hello-pangea/dnd tracks scroll on the card area droppable (overflow-y:auto)
-      // but NOT on the board's horizontal scroll container. After programmatic
-      // horizontal scroll, the library's position cache is completely stale —
-      // rawDestination may point to the wrong list, or even be null (if the stale
-      // cache can't match the pointer to any droppable).
+      // For card drops: use DOM-based detection to find the real droppable and
+      // index. Programmatic horizontal/vertical scroll can leave the library's
+      // destination cache stale even when it still reports the same droppable.
       let destination = rawDestination;
-      if (
-        type === "card" &&
-        (!rawDestination || rawDestination.droppableId !== source.droppableId)
-      ) {
+      if (type === "card") {
         const pointer = lastPointerPosRef.current;
         const droppables = document.querySelectorAll<HTMLElement>(
           '[data-rbd-droppable-id^="droppable-card-area-"]'
@@ -973,15 +1126,20 @@ const Board: React.FC = () => {
           }
         }
 
+        if (!correctDroppableId && rawDestination) {
+          correctDroppableId = rawDestination.droppableId;
+        }
+
         if (correctDroppableId) {
-          // Compute the correct index inside the target list based on pointer Y position
           let correctIndex = 0;
           const targetEl = document.querySelector<HTMLElement>(
             `[data-rbd-droppable-id="${correctDroppableId}"]`
           );
           if (targetEl) {
-            const draggables = targetEl.querySelectorAll<HTMLElement>(
-              "[data-rbd-draggable-id]"
+            const draggables = Array.from(
+              targetEl.querySelectorAll<HTMLElement>("[data-rbd-draggable-id]")
+            ).filter(
+              (el) => el.getAttribute("data-rbd-draggable-id") !== draggableId
             );
             let insertAt = draggables.length; // default: append at end
             for (let i = 0; i < draggables.length; i++) {
@@ -1010,10 +1168,32 @@ const Board: React.FC = () => {
         }
       }
 
+      if (type === "card" && rawDestination) {
+        const tracked = currentDragState.current;
+        const trackedDroppableId = tracked?.currentListId
+          ? `droppable-card-area-${tracked.currentListId}`
+          : null;
+        const resultLooksStale =
+          rawDestination.droppableId === source.droppableId &&
+          rawDestination.index === source.index;
+
+        if (
+          resultLooksStale &&
+          trackedDroppableId === rawDestination.droppableId &&
+          tracked?.currentPosition !== undefined &&
+          tracked.currentPosition !== rawDestination.index
+        ) {
+          destination = {
+            droppableId: rawDestination.droppableId,
+            index: tracked.currentPosition,
+          };
+        }
+      }
+
       // Drop outside any droppable area (and DOM correction didn't find one either)
       if (!destination) {
         if (type === "card" || type === "list") {
-          if (type === "card") {
+        if (type === "card") {
             currentDragState.current = null;
           }
           dragTypeRef.current = null;
@@ -1097,6 +1277,7 @@ const Board: React.FC = () => {
       };
 
       currentDragState.current = newDragState;
+      activeCardListIdRef.current = sourceListId || null;
     }
   };
 
@@ -1165,6 +1346,14 @@ const Board: React.FC = () => {
         currentPosition: update.destination.index,
       };
     }
+
+    activeCardListIdRef.current = newListId;
+
+    updateVerticalEdgeScrollVelocity(
+      lastPointerPosRef.current.x,
+      lastPointerPosRef.current.y,
+      newListId
+    );
   };
 
   const handleListDragEnd = (
@@ -1177,6 +1366,8 @@ const Board: React.FC = () => {
     // Clean up drag state for lists
     dragTypeRef.current = null;
     stopEdgeAutoScroll();
+    edgeScrollVerticalVelocityRef.current = 0;
+    edgeScrollVerticalTargetRef.current = null;
     setTimeout(() => {
       document.body.classList.remove("dragging");
       (window as any).__DRAG_IN_PROGRESS__ = false;
@@ -1373,6 +1564,9 @@ const Board: React.FC = () => {
       (window as any).__DRAG_IN_PROGRESS__ = false;
       document.body.classList.remove("dragging");
     }
+
+    edgeScrollVerticalVelocityRef.current = 0;
+    edgeScrollVerticalTargetRef.current = null;
   };
 
   const loadMoreCards = useCallback(async (listId: string) => {
