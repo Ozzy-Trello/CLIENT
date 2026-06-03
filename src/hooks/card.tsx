@@ -318,7 +318,7 @@ export function useCards(listId: string, boardId: string) {
         return;
       }
 
-      if (variables.listId) {
+      if (variables.listId && !variables.destinationListId) {
         queryClient.invalidateQueries({
           queryKey: queryKeys.cards.list(variables.listId),
         });
@@ -326,7 +326,8 @@ export function useCards(listId: string, boardId: string) {
 
       if (
         variables.destinationListId &&
-        variables.destinationListId !== variables.listId
+        variables.destinationListId !== variables.listId &&
+        !variables.listId
       ) {
         queryClient.invalidateQueries({
           queryKey: queryKeys.cards.list(variables.destinationListId),
