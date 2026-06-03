@@ -15,7 +15,9 @@ export function handleCardMoved(
   queryClient: QueryClient,
   data: WebSocketEventPayload
 ) {
-  const { cardId, listId: toListId, boardId, changes } = data;
+  const payloadCard = (data as any).card;
+  const { cardId: payloadCardId, listId: toListId, boardId, changes } = data;
+  const cardId = payloadCardId || payloadCard?.id;
   let fromListId = changes?.oldListId;
 
   if (!fromListId && cardId) {
@@ -56,7 +58,7 @@ export function handleCardMoved(
     queryKeys.cards.detail(cardId)
   );
   const detailCard = detailCache?.data || null;
-  const movedCard = sourceCard || detailCard;
+  const movedCard = payloadCard || sourceCard || detailCard;
 
   // Remove card from source list cache
   queryClient.setQueryData(
