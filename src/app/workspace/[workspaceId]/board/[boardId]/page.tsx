@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import React, { useCallback, useEffect, useState, useRef } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useState, useRef } from "react";
 import BoardTopbar from "./topbar";
 import { useSelector } from "react-redux";
 import { selectTheme } from "@store/app_slice";
@@ -314,6 +314,7 @@ const Board: React.FC = () => {
 
   // Ref for the scrollable board container to control scrolling during drag
   const boardScrollContainerRef = useRef<HTMLDivElement>(null);
+  const preservedBoardScrollLeftRef = useRef<number | null>(null);
   const [collapsedLists, setCollapsedLists] = useState<Record<string, boolean>>(
     () => {
       if (typeof window === "undefined") return {};
@@ -557,6 +558,40 @@ const Board: React.FC = () => {
 
   // Enable real-time updates via WebSocket
   useRealtimeUpdates();
+
+  const restorePreservedBoardScrollLeft = useCallback(() => {
+    const scrollLeft = preservedBoardScrollLeftRef.current;
+    const container = boardScrollContainerRef.current;
+    if (scrollLeft == null || !container) return;
+
+    container.scrollLeft = scrollLeft;
+  }, []);
+
+  const preserveBoardScrollLeft = useCallback(() => {
+    const container = boardScrollContainerRef.current;
+    if (!container) return;
+
+    const scrollLeft = container.scrollLeft;
+    preservedBoardScrollLeftRef.current = scrollLeft;
+
+    restorePreservedBoardScrollLeft();
+    requestAnimationFrame(() => {
+      restorePreservedBoardScrollLeft();
+      requestAnimationFrame(restorePreservedBoardScrollLeft);
+    });
+    window.setTimeout(restorePreservedBoardScrollLeft, 0);
+    window.setTimeout(restorePreservedBoardScrollLeft, 100);
+    window.setTimeout(() => {
+      restorePreservedBoardScrollLeft();
+      if (preservedBoardScrollLeftRef.current === scrollLeft) {
+        preservedBoardScrollLeftRef.current = null;
+      }
+    }, 800);
+  }, [restorePreservedBoardScrollLeft]);
+
+  useLayoutEffect(() => {
+    restorePreservedBoardScrollLeft();
+  }, [lists, restorePreservedBoardScrollLeft]);
 
   // Track current drag state for immediate updates
   const currentDragState = useRef<{
@@ -1284,44 +1319,9 @@ const Board: React.FC = () => {
   const onDragUpdate = (update: DragUpdate): void => {
     if (!update.destination) return;
 
-    // Handle list drags - keep the existing logic for lists as it seems to work fine
+    // DnD owns the visual list preview during drag. Mutating the cache here
+    // reorders the board mid-drag and can reset horizontal scroll after auto-scroll.
     if (update.type === "list") {
-      const listId = update.draggableId?.replaceAll("draggable-list-", "");
-      const sourceIndex = update.source.index;
-      const destIndex = update.destination.index;
-
-      if (sourceIndex === destIndex) return; // No change
-
-      // Optimistically update list order (async to match useListMove pattern)
-      (async () => {
-        await queryClient.cancelQueries({
-          queryKey: ["lists", resolvedBoardId],
-        });
-
-        queryClient.setQueryData<ApiResponse<AnyList[]>>(
-          ["lists", resolvedBoardId],
-          (old) => {
-            if (!old?.data) return old;
-
-            const lists = [...old.data];
-            const fromIndex = lists.findIndex((l) => l.id === listId);
-            if (fromIndex === -1) {
-              return old;
-            }
-
-            const [moved] = lists.splice(fromIndex, 1);
-            const toIndex = Math.min(destIndex, lists.length);
-            lists.splice(toIndex, 0, moved);
-
-            // Recalculate position based on neighbors
-            for (let i = 0; i < lists.length; i++) {
-              lists[i].position = (i + 1) * 10000;
-            }
-
-            return { ...old, data: lists };
-          }
-        );
-      })();
       return;
     }
 
@@ -1362,6 +1362,7 @@ const Board: React.FC = () => {
     destIndex: number
   ): void => {
     const listId = draggabelId?.replaceAll("draggable-list-", "");
+    preserveBoardScrollLeft();
 
     // Clean up drag state for lists
     dragTypeRef.current = null;
@@ -1379,6 +1380,8 @@ const Board: React.FC = () => {
       previousPosition: sourceIndex,
       targetPosition: destIndex,
       boardId: resolvedBoardId,
+    }, {
+      onSettled: restorePreservedBoardScrollLeft,
     });
   };
 
