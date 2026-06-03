@@ -1548,22 +1548,17 @@ const Board: React.FC = () => {
                 affectedListIds.map((listId) => refreshFilteredList(listId))
               );
             }
-
-            console.log('✅ [DRAG END] Mutation success - clearing drag flag for sync');
-            // Clear drag flag BEFORE onSettled invalidates queries
-            // This allows the sync effect to pick up the refetched data with updated labels/CFs
-            (window as any).__DRAG_IN_PROGRESS__ = false;
-            document.body.classList.remove("dragging");
           },
           onError: () => {
             console.error('❌ [DRAG END] Mutation failed - rolling back');
             setLocalCards(previousLocalCards);
             setCardsPagination(previousPagination);
-            (window as any).__DRAG_IN_PROGRESS__ = false;
-            document.body.classList.remove("dragging");
           },
         }
       );
+
+      (window as any).__DRAG_IN_PROGRESS__ = false;
+      document.body.classList.remove("dragging");
     } else {
       (window as any).__DRAG_IN_PROGRESS__ = false;
       document.body.classList.remove("dragging");
