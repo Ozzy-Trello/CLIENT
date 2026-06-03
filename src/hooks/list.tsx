@@ -162,13 +162,16 @@ export function useListMove() {
       boardId: string;
     }) => moveList(listId, previousPosition, targetPosition, boardId),
 
-    onMutate: async ({ listId, targetPosition, boardId }) => {
-      await queryClient.cancelQueries({ queryKey: ["lists", boardId] });
-
+    onMutate: ({ listId, targetPosition, boardId }) => {
       const previousLists = queryClient.getQueryData<ApiResponse<AnyList[]>>([
         "lists",
         boardId,
       ]);
+
+      void queryClient.cancelQueries(
+        { queryKey: ["lists", boardId] },
+        { revert: false }
+      );
 
       queryClient.setQueryData<ApiResponse<AnyList[]>>(
         ["lists", boardId],
