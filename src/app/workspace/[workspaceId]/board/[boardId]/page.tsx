@@ -593,33 +593,6 @@ const Board: React.FC = () => {
     restorePreservedBoardScrollLeft();
   }, [lists, restorePreservedBoardScrollLeft]);
 
-  const reorderListCache = useCallback((listId: string, targetPosition: number) => {
-    if (!resolvedBoardId || !listId) return;
-
-    queryClient.setQueryData<ApiResponse<AnyList[]>>(
-      ["lists", resolvedBoardId],
-      (old) => {
-        if (!old?.data) return old;
-
-        const lists = [...old.data];
-        const fromIndex = lists.findIndex((list) => list.id === listId);
-        if (fromIndex === -1) return old;
-
-        const [moved] = lists.splice(fromIndex, 1);
-        const toIndex = Math.min(targetPosition, lists.length);
-        lists.splice(toIndex, 0, moved);
-
-        return {
-          ...old,
-          data: lists.map((list, index) => ({
-            ...list,
-            position: (index + 1) * 10000,
-          })),
-        };
-      }
-    );
-  }, [queryClient, resolvedBoardId]);
-
   // Track current drag state for immediate updates
   const currentDragState = useRef<{
     cardId: string;
@@ -1389,13 +1362,8 @@ const Board: React.FC = () => {
     destIndex: number
   ): void => {
     const listId = draggabelId?.replaceAll("draggable-list-", "");
-    const previousLists = queryClient.getQueryData<ApiResponse<AnyList[]>>([
-      "lists",
-      resolvedBoardId,
-    ]);
 
     preserveBoardScrollLeft();
-    reorderListCache(listId, destIndex);
 
     // Clean up drag state for lists
     dragTypeRef.current = null;
@@ -1414,11 +1382,6 @@ const Board: React.FC = () => {
       targetPosition: destIndex,
       boardId: resolvedBoardId,
     }, {
-      onError: () => {
-        if (previousLists) {
-          queryClient.setQueryData(["lists", resolvedBoardId], previousLists);
-        }
-      },
       onSettled: restorePreservedBoardScrollLeft,
     });
   };

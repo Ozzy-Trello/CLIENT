@@ -207,10 +207,6 @@ export function useListMove() {
       }
     },
 
-    onSuccess: (_res, vars) => {
-      // Let the optimistic UI stay — only sync if absolutely needed
-      queryClient.invalidateQueries({ queryKey: ["lists", vars.boardId] });
-    },
   });
 
   return {
