@@ -95,7 +95,7 @@ export function useCards(listId: string, boardId: string) {
     },
 
     onSuccess: (response, _variables, context) => {
-      const realCard = response.data;
+      const realCard = response.data?.data ?? response.data;
       const { tempId, listId } = context;
 
       // Update individual list cache
@@ -761,7 +761,7 @@ export function useCardsPaginated(
       return { tempId, listId };
     },
     onSuccess: (response, _variables, context) => {
-      const realCard = response.data;
+      const realCard = response.data?.data ?? response.data;
       const { tempId } = context;
 
       // Replace temp card with real card
@@ -848,19 +848,139 @@ export function useCardMove(boardId?: string) {
         targetPosition
       );
     },
-    onMutate: ({ previousListId, targetListId }) => {
+    onMutate: async ({
+      cardId,
+      previousListId,
+      targetListId,
+      targetPosition,
+    }) => {
       console.log('🔄 [CARD MOVE] onMutate - state updated by parent');
 
-      queryClient.cancelQueries({
-        queryKey: queryKeys.cards.list(previousListId),
-      });
-      queryClient.cancelQueries({
-        queryKey: queryKeys.cards.list(targetListId),
-      });
+      await Promise.all([
+        queryClient.cancelQueries(
+          { queryKey: queryKeys.cards.list(previousListId) },
+          { revert: false }
+        ),
+        previousListId === targetListId
+          ? Promise.resolve()
+          : queryClient.cancelQueries(
+              { queryKey: queryKeys.cards.list(targetListId) },
+              { revert: false }
+            ),
+        queryClient.cancelQueries(
+          { queryKey: queryKeys.cards.detail(cardId) },
+          { revert: false }
+        ),
+      ]);
 
-      return {};
+      const previousSourceCards = queryClient.getQueryData<ApiResponse<Card[]>>(
+        queryKeys.cards.list(previousListId)
+      );
+      const previousTargetCards =
+        previousListId === targetListId
+          ? previousSourceCards
+          : queryClient.getQueryData<ApiResponse<Card[]>>(
+              queryKeys.cards.list(targetListId)
+            );
+      const previousDetail = queryClient.getQueryData<ApiResponse<Card>>(
+        queryKeys.cards.detail(cardId)
+      );
+
+      const sourceCard =
+        previousSourceCards?.data?.find((card) => card.id === cardId) ||
+        previousDetail?.data ||
+        null;
+
+      if (sourceCard) {
+        const movedCard = {
+          ...sourceCard,
+          listId: targetListId,
+          list_id: targetListId,
+        };
+
+        queryClient.setQueryData<ApiResponse<Card[]>>(
+          queryKeys.cards.list(previousListId),
+          (old) => {
+            if (!old?.data) return old;
+            return {
+              ...old,
+              data: old.data.filter((card) => card.id !== cardId),
+            };
+          }
+        );
+
+        queryClient.setQueryData<ApiResponse<Card[]>>(
+          queryKeys.cards.list(targetListId),
+          (old) => {
+            const baseCards = old?.data ? [...old.data] : [];
+            const withoutExisting = baseCards.filter((card) => card.id !== cardId);
+            const insertAt = Math.min(targetPosition, withoutExisting.length);
+            withoutExisting.splice(insertAt, 0, movedCard as Card);
+            return old
+              ? { ...old, data: withoutExisting }
+              : { data: withoutExisting };
+          }
+        );
+
+        queryClient.setQueryData<ApiResponse<Card>>(
+          queryKeys.cards.detail(cardId),
+          (old) => {
+            if (!old?.data) return old;
+            return {
+              ...old,
+              data: {
+                ...old.data,
+                listId: targetListId,
+                list_id: targetListId,
+              },
+            };
+          }
+        );
+      }
+
+      return {
+        previousSourceCards,
+        previousTargetCards,
+        previousDetail,
+        previousListId,
+        targetListId,
+        cardId,
+      };
     },
-    onError: () => {
+    onError: (_error, _variables, context) => {
+      if (!context) return;
+
+      if (context.previousSourceCards) {
+        queryClient.setQueryData(
+          queryKeys.cards.list(context.previousListId),
+          context.previousSourceCards
+        );
+      } else {
+        queryClient.removeQueries({
+          queryKey: queryKeys.cards.list(context.previousListId),
+        });
+      }
+
+      if (context.previousListId !== context.targetListId) {
+        if (context.previousTargetCards) {
+          queryClient.setQueryData(
+            queryKeys.cards.list(context.targetListId),
+            context.previousTargetCards
+          );
+        } else {
+          queryClient.removeQueries({
+            queryKey: queryKeys.cards.list(context.targetListId),
+          });
+        }
+      }
+
+      if (context.previousDetail) {
+        queryClient.setQueryData(
+          queryKeys.cards.detail(context.cardId),
+          context.previousDetail
+        );
+      }
+
       // Rollback is handled in the onDragEnd callback where we have the rollback data
       console.error('❌ [CARD MOVE] Mutation failed - rollback handled by onDragEnd');
     },
@@ -869,22 +989,7 @@ export function useCardMove(boardId?: string) {
     },
     onSettled: (_data, _error, variables) => {
       // NOTE: Flag cleanup is handled in the page.tsx drag handler
-      // Invalidate list/card caches to pick up automation-driven changes.
-      if (variables?.previousListId) {
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.cards.list(variables.previousListId),
-          refetchType: "all",
-        });
-      }
-      if (
-        variables?.targetListId &&
-        variables.targetListId !== variables.previousListId
-      ) {
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.cards.list(variables.targetListId),
-          refetchType: "all",
-        });
-      }
+      // Invalidate detail/related caches to pick up automation-driven changes.
       if (variables?.cardId) {
         queryClient.invalidateQueries({
           queryKey: queryKeys.cards.detail(variables.cardId),

@@ -349,8 +349,11 @@ export const searchCards = async (
   return data;
 };
 
-export const createCard = async (card: Card): Promise<ApiResponse<any>> => {
+export const createCard = async (card: Card): Promise<ApiResponse<Card>> => {
   const { data } = await api.post(`/card`, card);
+  if (data.data) {
+    data.data = mapBackendCardToFrontend(data.data);
+  }
   return data;
 };
 

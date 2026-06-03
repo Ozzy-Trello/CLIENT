@@ -1698,7 +1698,7 @@ const Board: React.FC = () => {
         { card, listId },
         {
           onSuccess: (response) => {
-            const realCard = response.data;
+            const realCard = response.data?.data ?? response.data;
             setLocalCards((prev) => ({
               ...prev,
               [listId]: (prev[listId] || []).map((c) =>
