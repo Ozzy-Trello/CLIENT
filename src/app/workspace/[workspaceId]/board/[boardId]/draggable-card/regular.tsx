@@ -148,7 +148,7 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
     [card.customFields, (card as any).custom_fields]
   );
   const shouldFetchCustomFields =
-    !isTempCard && (loadRelatedData || embeddedCardCustomFields.length === 0);
+    !isTempCard && loadRelatedData && embeddedCardCustomFields.length === 0;
 
   const { cardMembers: fetchedCardMembers } = useCardMembers(card?.id, {
     enabled: loadRelatedData && !isTempCard,

@@ -800,14 +800,49 @@ const Board: React.FC = () => {
 
     const initializeLocalCards = async () => {
       setLocalCardsInitialized(false);
-      const initialCards: Record<string, Card[]> = {};
-      const initialPagination: Record<string, any> = {};
       const labelIds = selectedLabelIds.length > 0 ? selectedLabelIds : undefined;
       const hasLabelFilter = !!labelIds;
       const limit = CARD_PAGE_SIZE;
+      const emptyCards = lists.reduce<Record<string, Card[]>>((acc, list) => {
+        acc[list.id] = [];
+        return acc;
+      }, {});
+      const emptyPagination = lists.reduce<Record<string, any>>((acc, list) => {
+        acc[list.id] = buildCardsPagination(0, 0, 1);
+        return acc;
+      }, {});
+
+      // Render the board shell immediately; fill each list as its request returns.
+      setLocalCards(emptyCards);
+      setCardsPagination(emptyPagination);
+      setLocalCardsInitialized(true);
+
+      const updateListCards = (
+        listId: string,
+        nextCards: Card[],
+        totalData?: number
+      ) => {
+        if (cancelled) return;
+
+        setLocalCards((prev) => ({
+          ...prev,
+          [listId]: nextCards,
+        }));
+        setCardsPagination((prev) => ({
+          ...prev,
+          [listId]: buildCardsPagination(
+            nextCards.length,
+            totalData,
+            1,
+            prev[listId]
+          ),
+        }));
+      };
 
       await promiseAllLimit(
         lists.map((list) => async () => {
+          if (cancelled) return;
+
           // Only use cache when there's NO label filter active
           // When filtering, we must always fetch fresh filtered data from the API
           if (!hasLabelFilter) {
@@ -816,11 +851,10 @@ const Board: React.FC = () => {
             );
 
             if (cachedCards?.data) {
-              initialCards[list.id] = cachedCards.data;
-              initialPagination[list.id] = buildCardsPagination(
-                cachedCards.data.length,
-                cachedCards.paginate?.totalData,
-                1
+              updateListCards(
+                list.id,
+                cachedCards.data,
+                cachedCards.paginate?.totalData
               );
               return;
             }
@@ -838,12 +872,7 @@ const Board: React.FC = () => {
             );
 
             if (response?.data) {
-              initialCards[list.id] = response.data;
-              initialPagination[list.id] = buildCardsPagination(
-                response.data.length,
-                response.paginate?.totalData,
-                1
-              );
+              updateListCards(list.id, response.data, response.paginate?.totalData);
 
               // Keep cards.list cache reserved for the default (unfiltered) list view.
               // Filtered results are local-only to avoid total/count cache collisions.
@@ -854,23 +883,15 @@ const Board: React.FC = () => {
                 );
               }
             } else {
-              initialCards[list.id] = [];
-              initialPagination[list.id] = buildCardsPagination(0, 0, 1);
+              updateListCards(list.id, [], 0);
             }
           } catch (error) {
             console.error("[INIT CARDS] Error:", error);
-            initialCards[list.id] = [];
-            initialPagination[list.id] = buildCardsPagination(0, 0, 1);
+            updateListCards(list.id, [], 0);
           }
         }),
         BOARD_CARD_INIT_CONCURRENCY
       );
-
-      if (cancelled) return;
-
-      setLocalCards(initialCards);
-      setCardsPagination(initialPagination);
-      setLocalCardsInitialized(true);
 
       // Cached list data already gives us a warm board immediately.
       // Avoid a second board-wide refetch storm on mount.
