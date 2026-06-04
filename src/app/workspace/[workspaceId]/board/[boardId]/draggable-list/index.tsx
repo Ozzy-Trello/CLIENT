@@ -283,8 +283,9 @@ const DraggableList: React.FC<DraggableListProps> = ({
             draggable-list-container
             ${snapshot.isDragging ? "shadow-lg" : ""}
             ${canMoveListPermission ? "cursor-pointer" : "cursor-default"}
-          
+
           `}
+            data-board-list-id={list.id}
             title={
               !canMoveListPermission
                 ? "You don't have permission to move lists"
@@ -339,6 +340,7 @@ const DraggableList: React.FC<DraggableListProps> = ({
                   droppableId={`droppable-card-area-${list.id}`}
                   direction="vertical"
                   type={`card`}
+                  ignoreContainerClipping
                 >
                   {(provided) => (
                     <div
@@ -348,6 +350,7 @@ const DraggableList: React.FC<DraggableListProps> = ({
                         scrollContainerRef.current = el;
                       }}
                       data-card-scroll-container={list.id}
+                      data-card-count={displayCards.length}
                       className="custom-scrollbar px-3 py-2 flex-grow min-h-[50px] relative overflow-y-auto"
                     >
                       {/* Loading overlay when adding card */}
@@ -359,70 +362,71 @@ const DraggableList: React.FC<DraggableListProps> = ({
                           </div>
                         </div>
                       )}
-                        <div className="space-y-3">
-                          {hasBeenVisible ? (
-                            <div className="animate-[fadeIn_0.3s_ease-in] space-y-3">
-                              {displayCards?.map((card, index) => (
-                                <DraggableCard
-                                  key={card.id}
-                                  card={card}
-                                  list={list}
-                                  index={index}
+                      <div className="space-y-3">
+                        {hasBeenVisible ? (
+                          <div className="animate-[fadeIn_0.3s_ease-in] space-y-3">
+                            {displayCards?.map((card, index) => (
+                              <DraggableCard
+                                key={card.id}
+                                card={card}
+                                list={list}
+                                index={index}
+                              />
+                            ))}
+
+                            {/* Infinite Scroll Sentinel & Loading Indicator */}
+                            {cards.length > 0 &&
+                              (hasMoreCards || isLoadingMore) &&
+                              !loadMoreError && (
+                                <div
+                                  ref={loadMoreRef}
+                                  className="flex justify-center p-2 min-h-[40px]"
+                                >
+                                  {isLoadingMore && (
+                                    <div className="flex items-center gap-2 text-gray-500 text-sm">
+                                      <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                                      Loading...
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
+                            {/* Retry Button (Only when error) */}
+                            {loadMoreError && onRetryLoadMore && (
+                              <div className="flex flex-col items-center py-2 space-y-2">
+                                <div className="text-xs text-red-500 text-center px-2">
+                                  {loadMoreError}
+                                </div>
+                                <button
+                                  onClick={onRetryLoadMore}
+                                  className="px-4 py-2 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg"
+                                >
+                                  Retry
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="space-y-2 px-1">
+                            {Array.from({ length: Math.min(cards.length, 3) }).map(
+                              (_, i) => (
+                                <div
+                                  key={`placeholder-${i}`}
+                                  data-card-placeholder-index={i}
+                                  className="h-[100px] bg-gray-100 rounded-lg animate-pulse"
                                 />
-                              ))}
-
-                              {/* Infinite Scroll Sentinel & Loading Indicator */}
-                              {cards.length > 0 &&
-                                (hasMoreCards || isLoadingMore) &&
-                                !loadMoreError && (
-                                  <div
-                                    ref={loadMoreRef}
-                                    className="flex justify-center p-2 min-h-[40px]"
-                                  >
-                                    {isLoadingMore && (
-                                      <div className="flex items-center gap-2 text-gray-500 text-sm">
-                                        <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                                        Loading...
-                                      </div>
-                                    )}
-                                  </div>
-                                )}
-
-                              {/* Retry Button (Only when error) */}
-                              {loadMoreError && onRetryLoadMore && (
-                                <div className="flex flex-col items-center py-2 space-y-2">
-                                  <div className="text-xs text-red-500 text-center px-2">
-                                    {loadMoreError}
-                                  </div>
-                                  <button
-                                    onClick={onRetryLoadMore}
-                                    className="px-4 py-2 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg"
-                                  >
-                                    Retry
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <div className="space-y-2 px-1">
-                              {Array.from({ length: Math.min(cards.length, 3) }).map(
-                                (_, i) => (
-                                  <div
-                                    key={`placeholder-${i}`}
-                                    className="h-[100px] bg-gray-100 rounded-lg animate-pulse"
-                                  />
-                                )
-                              )}
-                              {cards.length > 3 && (
-                                <div className="text-center text-xs text-gray-400 py-1">
-                                  +{cards.length - 3} more cards
-                                </div>
-                              )}
-                              {cards.length === 0 && <div className="h-[50px]" />}
-                            </div>
-                          )}
-                          {provided.placeholder}
-                        </div>
+                              )
+                            )}
+                            {cards.length > 3 && (
+                              <div className="text-center text-xs text-gray-400 py-1">
+                                +{cards.length - 3} more cards
+                              </div>
+                            )}
+                            {cards.length === 0 && <div className="h-[50px]" />}
+                          </div>
+                        )}
+                        {provided.placeholder}
+                      </div>
                     </div>
                   )}
                 </Droppable>

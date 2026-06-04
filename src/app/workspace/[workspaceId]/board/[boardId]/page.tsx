@@ -55,6 +55,77 @@ const Droppable = dynamic(
 );
 
 const CARD_PAGE_SIZE = 10;
+const DND_DEBUG_STORAGE_KEY = "ozzy_dnd_debug";
+const BOARD_CARD_INIT_CONCURRENCY = 3;
+
+async function promiseAllLimit<T>(
+  tasks: Array<() => Promise<T>>,
+  concurrency: number
+): Promise<PromiseSettledResult<T>[]> {
+  const results: PromiseSettledResult<T>[] = new Array(tasks.length);
+  const safeConcurrency = Math.max(1, Math.floor(concurrency || 1));
+  let nextIndex = 0;
+
+  async function worker() {
+    while (nextIndex < tasks.length) {
+      const currentIndex = nextIndex++;
+
+      try {
+        results[currentIndex] = {
+          status: "fulfilled",
+          value: await tasks[currentIndex](),
+        };
+      } catch (reason) {
+        results[currentIndex] = {
+          status: "rejected",
+          reason,
+        };
+      }
+    }
+  }
+
+  await Promise.all(
+    Array.from({ length: Math.min(safeConcurrency, tasks.length) }, () => worker())
+  );
+
+  return results;
+}
+
+function isDndDebugEnabled() {
+  if (typeof window === "undefined") return false;
+
+  try {
+    return window.localStorage.getItem(DND_DEBUG_STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function debugDnd(message: string, data?: unknown) {
+  if (!isDndDebugEnabled()) return;
+
+  if (data === undefined) {
+    console.info(`[Ozzy DnD] ${message}`);
+    return;
+  }
+
+  console.info(`[Ozzy DnD] ${message}`, data);
+}
+
+function roundDndNumber(value: number) {
+  return Math.round(value * 10) / 10;
+}
+
+function rectToDndDebug(rect: DOMRect) {
+  return {
+    left: roundDndNumber(rect.left),
+    right: roundDndNumber(rect.right),
+    top: roundDndNumber(rect.top),
+    bottom: roundDndNumber(rect.bottom),
+    width: roundDndNumber(rect.width),
+    height: roundDndNumber(rect.height),
+  };
+}
 
 function areListCardsEqual(current: Card[] = [], next: Card[] = []) {
   return (
@@ -615,6 +686,97 @@ const Board: React.FC = () => {
   const activeCardListIdRef = useRef<string | null>(null);
   // Last known pointer position — used to re-sync @hello-pangea/dnd after programmatic scroll
   const lastPointerPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const lastDebugDestinationRef = useRef<string | null>(null);
+  const lastDebugScrollLeftRef = useRef<number | null>(null);
+  const verticalScrolledDuringDragRef = useRef(false);
+  const cardScrollTopAtDragStartRef = useRef<Record<string, number>>({});
+
+  const getDndDebugSnapshot = useCallback(() => {
+    const pointer = lastPointerPosRef.current;
+    const boardEl = boardScrollContainerRef.current;
+    const droppables = Array.from(
+      document.querySelectorAll<HTMLElement>(
+        '[data-rbd-droppable-id^="droppable-card-area-"]'
+      )
+    );
+    const listContainers = Array.from(
+      document.querySelectorAll<HTMLElement>("[data-board-list-id]")
+    );
+
+    const containsPointer = (rect: DOMRect) =>
+      pointer.x >= rect.left &&
+      pointer.x <= rect.right &&
+      pointer.y >= rect.top &&
+      pointer.y <= rect.bottom;
+
+    const closestByX = (els: HTMLElement[]) => {
+      let closest: HTMLElement | null = null;
+      let closestDist = Infinity;
+
+      for (const el of els) {
+        const rect = el.getBoundingClientRect();
+        const clampedX = Math.max(rect.left, Math.min(pointer.x, rect.right));
+        const dist = Math.abs(pointer.x - clampedX);
+        if (dist < closestDist) {
+          closestDist = dist;
+          closest = el;
+        }
+      }
+
+      return closest;
+    };
+
+    const droppableHit = droppables.find((el) =>
+      containsPointer(el.getBoundingClientRect())
+    );
+    const listHit = listContainers.find((el) =>
+      containsPointer(el.getBoundingClientRect())
+    );
+    const closestDroppable = closestByX(droppables);
+    const closestList = closestByX(listContainers);
+
+    return {
+      pointer,
+      dragType: dragTypeRef.current,
+      dragInProgress: (window as any).__DRAG_IN_PROGRESS__,
+      activeCardListId: activeCardListIdRef.current,
+      currentDragState: currentDragState.current,
+      board: boardEl
+        ? {
+            scrollLeft: roundDndNumber(boardEl.scrollLeft),
+            scrollWidth: boardEl.scrollWidth,
+            clientWidth: boardEl.clientWidth,
+            rect: rectToDndDebug(boardEl.getBoundingClientRect()),
+          }
+        : null,
+      edgeVelocity: edgeScrollVelocityRef.current,
+      verticalEdgeVelocity: edgeScrollVerticalVelocityRef.current,
+      droppableHit: droppableHit
+        ? {
+            id: droppableHit.getAttribute("data-rbd-droppable-id"),
+            rect: rectToDndDebug(droppableHit.getBoundingClientRect()),
+          }
+        : null,
+      listHit: listHit
+        ? {
+            id: listHit.dataset.boardListId,
+            rect: rectToDndDebug(listHit.getBoundingClientRect()),
+          }
+        : null,
+      closestDroppable: closestDroppable
+        ? {
+            id: closestDroppable.getAttribute("data-rbd-droppable-id"),
+            rect: rectToDndDebug(closestDroppable.getBoundingClientRect()),
+          }
+        : null,
+      closestList: closestList
+        ? {
+            id: closestList.dataset.boardListId,
+            rect: rectToDndDebug(closestList.getBoundingClientRect()),
+          }
+        : null,
+    };
+  }, []);
 
   // Local state for instant drag-and-drop (like checklist)
   // This is the source of truth for card positions in the UI
@@ -640,13 +802,12 @@ const Board: React.FC = () => {
       setLocalCardsInitialized(false);
       const initialCards: Record<string, Card[]> = {};
       const initialPagination: Record<string, any> = {};
-      const cachedListIdsToRefresh: string[] = [];
       const labelIds = selectedLabelIds.length > 0 ? selectedLabelIds : undefined;
       const hasLabelFilter = !!labelIds;
       const limit = CARD_PAGE_SIZE;
 
-      await Promise.all(
-        lists.map(async (list) => {
+      await promiseAllLimit(
+        lists.map((list) => async () => {
           // Only use cache when there's NO label filter active
           // When filtering, we must always fetch fresh filtered data from the API
           if (!hasLabelFilter) {
@@ -661,7 +822,6 @@ const Board: React.FC = () => {
                 cachedCards.paginate?.totalData,
                 1
               );
-              cachedListIdsToRefresh.push(list.id);
               return;
             }
           }
@@ -702,7 +862,8 @@ const Board: React.FC = () => {
             initialCards[list.id] = [];
             initialPagination[list.id] = buildCardsPagination(0, 0, 1);
           }
-        })
+        }),
+        BOARD_CARD_INIT_CONCURRENCY
       );
 
       if (cancelled) return;
@@ -711,51 +872,8 @@ const Board: React.FC = () => {
       setCardsPagination(initialPagination);
       setLocalCardsInitialized(true);
 
-      if (!hasLabelFilter && cachedListIdsToRefresh.length > 0) {
-        void Promise.allSettled(
-          cachedListIdsToRefresh.map(async (listId) => {
-            const response = await cards(
-              listId,
-              resolvedBoardId,
-              1,
-              limit,
-              undefined,
-              undefined,
-              undefined
-            );
-
-            if (cancelled || !response?.data) return;
-            const freshCards = response.data;
-
-            queryClient.setQueryData<ApiResponse<Card[]>>(
-              queryKeys.cards.list(listId),
-              response
-            );
-
-            setLocalCards((prev) => {
-              const currentCards = prev[listId] || [];
-              if (areListCardsEqual(currentCards, freshCards)) {
-                return prev;
-              }
-
-              return {
-                ...prev,
-                [listId]: freshCards,
-              };
-            });
-
-            setCardsPagination((prev) => ({
-              ...prev,
-              [listId]: buildCardsPagination(
-                freshCards.length,
-                response.paginate?.totalData,
-                1,
-                prev[listId]
-              ),
-            }));
-          })
-        );
-      }
+      // Cached list data already gives us a warm board immediately.
+      // Avoid a second board-wide refetch storm on mount.
     };
 
     initializeLocalCards();
@@ -953,6 +1071,9 @@ const Board: React.FC = () => {
           '[data-rbd-droppable-id^="droppable-card-area-"]'
         )
       );
+      const listContainers = Array.from(
+        document.querySelectorAll<HTMLElement>("[data-board-list-id]")
+      );
 
       // Geometric hit-test (pointer inside a droppable rect).
       for (const el of droppables) {
@@ -967,6 +1088,19 @@ const Board: React.FC = () => {
             .getAttribute("data-rbd-droppable-id")
             ?.replaceAll("droppable-card-area-", "");
           const container = tryListId(id);
+          if (container) return container;
+        }
+      }
+
+      for (const el of listContainers) {
+        const rect = el.getBoundingClientRect();
+        if (
+          clientX >= rect.left &&
+          clientX <= rect.right &&
+          clientY >= rect.top &&
+          clientY <= rect.bottom
+        ) {
+          const container = tryListId(el.dataset.boardListId);
           if (container) return container;
         }
       }
@@ -989,6 +1123,18 @@ const Board: React.FC = () => {
           closest = tryListId(id);
         }
       }
+
+      for (const el of listContainers) {
+        const rect = el.getBoundingClientRect();
+        const clampedX = Math.max(rect.left, Math.min(clientX, rect.right));
+        const dist = Math.abs(clientX - clampedX);
+        const container = tryListId(el.dataset.boardListId);
+        if (container && dist < closestDist) {
+          closestDist = dist;
+          closest = container;
+        }
+      }
+
       return closest;
     },
     []
@@ -1043,6 +1189,42 @@ const Board: React.FC = () => {
   }, [updateEdgeScrollVelocity, updateVerticalEdgeScrollVelocity]);
 
   useEffect(() => {
+    const logIfDragging = (event: Event) => {
+      if (!(window as any).__DRAG_IN_PROGRESS__) return;
+      debugDnd(`window ${event.type}`, getDndDebugSnapshot());
+    };
+
+    window.addEventListener("mouseup", logIfDragging, true);
+    window.addEventListener("pointerup", logIfDragging, true);
+    window.addEventListener("touchend", logIfDragging, true);
+    window.addEventListener("wheel", logIfDragging, true);
+
+    return () => {
+      window.removeEventListener("mouseup", logIfDragging, true);
+      window.removeEventListener("pointerup", logIfDragging, true);
+      window.removeEventListener("touchend", logIfDragging, true);
+      window.removeEventListener("wheel", logIfDragging, true);
+    };
+  }, [getDndDebugSnapshot]);
+
+  useEffect(() => {
+    const stopDragCancellingResize = (event: Event) => {
+      if (
+        (dragTypeRef.current === "card" || dragTypeRef.current === "list") &&
+        (window as any).__DRAG_IN_PROGRESS__
+      ) {
+        debugDnd("window resize blocked during drag", getDndDebugSnapshot());
+        event.stopImmediatePropagation();
+      }
+    };
+
+    window.addEventListener("resize", stopDragCancellingResize, true);
+    return () => {
+      window.removeEventListener("resize", stopDragCancellingResize, true);
+    };
+  }, [getDndDebugSnapshot]);
+
+  useEffect(() => {
     let mousemoveRafId: number | null = null;
 
     const tick = () => {
@@ -1055,7 +1237,25 @@ const Board: React.FC = () => {
         (window as any).__DRAG_IN_PROGRESS__ &&
         velocity !== 0
       ) {
+        const previousScrollLeft = container.scrollLeft;
         container.scrollLeft += velocity;
+        const nextScrollLeft = container.scrollLeft;
+
+        if (
+          isDndDebugEnabled() &&
+          (lastDebugScrollLeftRef.current === null ||
+            Math.abs(nextScrollLeft - lastDebugScrollLeftRef.current) >= 120 ||
+            nextScrollLeft === previousScrollLeft)
+        ) {
+          lastDebugScrollLeftRef.current = nextScrollLeft;
+          debugDnd("board auto-scroll", {
+            previousScrollLeft: roundDndNumber(previousScrollLeft),
+            nextScrollLeft: roundDndNumber(nextScrollLeft),
+            velocity,
+            pointer: lastPointerPosRef.current,
+            atLimit: nextScrollLeft === previousScrollLeft,
+          });
+        }
 
         // After programmatic scroll, @hello-pangea/dnd receives the scroll event
         // and updates its position cache via RAF-throttled scheduleScrollUpdate.
@@ -1101,7 +1301,11 @@ const Board: React.FC = () => {
             lastPointerPosRef.current.y
           );
           if (verticalVelocity !== 0) {
+            const previousScrollTop = verticalContainer.scrollTop;
             verticalContainer.scrollTop += verticalVelocity;
+            if (verticalContainer.scrollTop !== previousScrollTop) {
+              verticalScrolledDuringDragRef.current = true;
+            }
           }
         }
       }
@@ -1122,7 +1326,15 @@ const Board: React.FC = () => {
   }, [computeVerticalVelocity, resolveCardScrollContainer]);
 
   const onListDragEnd = (result: DropResult) => {
-      const { destination: rawDestination, source, type, draggableId } = result;
+      const { destination: rawDestination, source, type, draggableId, reason } = result;
+      debugDnd("drag end received", {
+        reason,
+        type,
+        draggableId,
+        source,
+        rawDestination,
+        snapshot: getDndDebugSnapshot(),
+      });
 
       // For card drops: use DOM-based detection to find the real droppable and
       // index. Programmatic horizontal/vertical scroll can leave the library's
@@ -1130,26 +1342,27 @@ const Board: React.FC = () => {
       let destination = rawDestination;
       if (type === "card") {
         const pointer = lastPointerPosRef.current;
-        const droppables = document.querySelectorAll<HTMLElement>(
-          '[data-rbd-droppable-id^="droppable-card-area-"]'
+        const droppables = Array.from(
+          document.querySelectorAll<HTMLElement>(
+            '[data-rbd-droppable-id^="droppable-card-area-"]'
+          )
+        );
+        const listContainers = Array.from(
+          document.querySelectorAll<HTMLElement>("[data-board-list-id]")
         );
 
         let correctDroppableId: string | null = null;
+        let closestDroppableId: string | null = null;
         let closestDistSq = Infinity;
 
-        for (let d = 0; d < droppables.length; d++) {
-          const el = droppables[d];
-          const rect = el.getBoundingClientRect();
-          if (
-            pointer.x >= rect.left &&
-            pointer.x <= rect.right &&
-            pointer.y >= rect.top &&
-            pointer.y <= rect.bottom
-          ) {
-            correctDroppableId = el.getAttribute("data-rbd-droppable-id");
-            break;
-          }
-          // Track closest droppable in case pointer is between lists or near edge
+        const isPointerInside = (rect: DOMRect) =>
+          pointer.x >= rect.left &&
+          pointer.x <= rect.right &&
+          pointer.y >= rect.top &&
+          pointer.y <= rect.bottom;
+
+        const rememberClosest = (droppableId: string | null, rect: DOMRect) => {
+          if (!droppableId) return;
           const clampedX = Math.max(rect.left, Math.min(pointer.x, rect.right));
           const clampedY = Math.max(rect.top, Math.min(pointer.y, rect.bottom));
           const dx = pointer.x - clampedX;
@@ -1157,8 +1370,45 @@ const Board: React.FC = () => {
           const distSq = dx * dx + dy * dy;
           if (distSq < closestDistSq) {
             closestDistSq = distSq;
-            correctDroppableId = el.getAttribute("data-rbd-droppable-id");
+            closestDroppableId = droppableId;
           }
+        };
+
+        const getDroppableIdForList = (el: HTMLElement) => {
+          const listId = el.dataset.boardListId;
+          if (!listId) return null;
+
+          const droppableId = `droppable-card-area-${listId}`;
+          const targetEl = document.querySelector<HTMLElement>(
+            `[data-rbd-droppable-id="${droppableId}"]`
+          );
+          return targetEl ? droppableId : null;
+        };
+
+        for (const el of droppables) {
+          const rect = el.getBoundingClientRect();
+          const droppableId = el.getAttribute("data-rbd-droppable-id");
+          if (droppableId && isPointerInside(rect)) {
+            correctDroppableId = droppableId;
+            break;
+          }
+          rememberClosest(droppableId, rect);
+        }
+
+        if (!correctDroppableId) {
+          for (const el of listContainers) {
+            const rect = el.getBoundingClientRect();
+            const droppableId = getDroppableIdForList(el);
+            if (droppableId && isPointerInside(rect)) {
+              correctDroppableId = droppableId;
+              break;
+            }
+            rememberClosest(droppableId, rect);
+          }
+        }
+
+        if (!correctDroppableId) {
+          correctDroppableId = closestDroppableId;
         }
 
         if (!correctDroppableId && rawDestination) {
@@ -1167,27 +1417,68 @@ const Board: React.FC = () => {
 
         if (correctDroppableId) {
           let correctIndex = 0;
+          let targetScrolledDuringDrag = false;
           const targetEl = document.querySelector<HTMLElement>(
             `[data-rbd-droppable-id="${correctDroppableId}"]`
           );
           if (targetEl) {
+            const scrollEl = targetEl.matches("[data-card-scroll-container]")
+              ? targetEl
+              : targetEl.querySelector<HTMLElement>("[data-card-scroll-container]");
+            const initialScrollTop =
+              cardScrollTopAtDragStartRef.current[correctDroppableId] ?? 0;
+            targetScrolledDuringDrag =
+              verticalScrolledDuringDragRef.current ||
+              Math.abs((scrollEl?.scrollTop ?? 0) - initialScrollTop) > 1;
+
             const draggables = Array.from(
               targetEl.querySelectorAll<HTMLElement>("[data-rbd-draggable-id]")
             ).filter(
               (el) => el.getAttribute("data-rbd-draggable-id") !== draggableId
             );
             let insertAt = draggables.length; // default: append at end
-            for (let i = 0; i < draggables.length; i++) {
-              const rect = draggables[i].getBoundingClientRect();
-              if (pointer.y < rect.top + rect.height / 2) {
-                insertAt = i;
-                break;
+
+            if (draggables.length > 0) {
+              for (let i = 0; i < draggables.length; i++) {
+                const rect = draggables[i].getBoundingClientRect();
+                if (pointer.y < rect.top + rect.height / 2) {
+                  insertAt = i;
+                  break;
+                }
+              }
+            } else {
+              const placeholders = Array.from(
+                targetEl.querySelectorAll<HTMLElement>(
+                  "[data-card-placeholder-index]"
+                )
+              );
+              const cardCount = Number(targetEl.dataset.cardCount || 0);
+              insertAt = Number.isFinite(cardCount) ? cardCount : 0;
+
+              for (const placeholder of placeholders) {
+                const rect = placeholder.getBoundingClientRect();
+                const placeholderIndex = Number(
+                  placeholder.dataset.cardPlaceholderIndex
+                );
+                if (
+                  Number.isFinite(placeholderIndex) &&
+                  pointer.y < rect.top + rect.height / 2
+                ) {
+                  insertAt = placeholderIndex;
+                  break;
+                }
               }
             }
+
             correctIndex = insertAt;
           }
 
           const domDestination = { droppableId: correctDroppableId, index: correctIndex };
+          debugDnd("card drop DOM candidate", {
+            rawDestination,
+            domDestination,
+            snapshot: getDndDebugSnapshot(),
+          });
 
           if (!rawDestination) {
             console.log(
@@ -1198,6 +1489,17 @@ const Board: React.FC = () => {
             console.log(
               `[DnD] Correcting destination: ${rawDestination.droppableId} → ${correctDroppableId}`
             );
+            destination = domDestination;
+          } else if (
+            targetScrolledDuringDrag &&
+            correctIndex !== rawDestination.index
+          ) {
+            debugDnd("correcting scrolled same-list index", {
+              rawDestination,
+              domDestination,
+              verticalScrolledDuringDrag: verticalScrolledDuringDragRef.current,
+              snapshot: getDndDebugSnapshot(),
+            });
             destination = domDestination;
           }
         }
@@ -1227,6 +1529,13 @@ const Board: React.FC = () => {
 
       // Drop outside any droppable area (and DOM correction didn't find one either)
       if (!destination) {
+        debugDnd("drag end ignored: no destination", {
+          type,
+          source,
+          rawDestination,
+          snapshot: getDndDebugSnapshot(),
+        });
+
         if (type === "card" || type === "list") {
         if (type === "card") {
             currentDragState.current = null;
@@ -1244,6 +1553,14 @@ const Board: React.FC = () => {
         destination.droppableId === source.droppableId &&
         destination.index === source.index
       ) {
+        debugDnd("drag end ignored: same position", {
+          type,
+          source,
+          destination,
+          rawDestination,
+          snapshot: getDndDebugSnapshot(),
+        });
+
         if (type === "card" || type === "list") {
           if (type === "card") {
             currentDragState.current = null;
@@ -1258,6 +1575,12 @@ const Board: React.FC = () => {
 
       dragTypeRef.current = null;
       stopEdgeAutoScroll();
+      debugDnd("drag end dispatching move", {
+        type,
+        source,
+        destination,
+        rawDestination,
+      });
 
       // Handle the drag end based on type
       switch (type) {
@@ -1284,6 +1607,32 @@ const Board: React.FC = () => {
       dragTypeRef.current = start.type;
       document.body.classList.add("dragging");
       (window as any).__DRAG_IN_PROGRESS__ = true;
+      lastDebugDestinationRef.current = null;
+      lastDebugScrollLeftRef.current = boardScrollContainerRef.current?.scrollLeft ?? null;
+      verticalScrolledDuringDragRef.current = false;
+      cardScrollTopAtDragStartRef.current = {};
+
+      document
+        .querySelectorAll<HTMLElement>(
+          '[data-rbd-droppable-id^="droppable-card-area-"]'
+        )
+        .forEach((el) => {
+          const droppableId = el.getAttribute("data-rbd-droppable-id");
+          const scrollEl = el.matches("[data-card-scroll-container]")
+            ? el
+            : el.querySelector<HTMLElement>("[data-card-scroll-container]");
+
+          if (droppableId && scrollEl) {
+            cardScrollTopAtDragStartRef.current[droppableId] = scrollEl.scrollTop;
+          }
+        });
+
+      debugDnd("drag start", {
+        type: start.type,
+        draggableId: start.draggableId,
+        source: start.source,
+        snapshot: getDndDebugSnapshot(),
+      });
     }
 
     // Initialize drag state tracking for cards
@@ -1317,6 +1666,20 @@ const Board: React.FC = () => {
   };
 
   const onDragUpdate = (update: DragUpdate): void => {
+    const destinationKey = update.destination
+      ? `${update.destination.droppableId}:${update.destination.index}`
+      : "null";
+
+    if (lastDebugDestinationRef.current !== destinationKey) {
+      lastDebugDestinationRef.current = destinationKey;
+      debugDnd("drag update", {
+        type: update.type,
+        source: update.source,
+        destination: update.destination,
+        snapshot: getDndDebugSnapshot(),
+      });
+    }
+
     if (!update.destination) return;
 
     // DnD owns the visual list preview during drag. Mutating the cache here
@@ -1449,6 +1812,17 @@ const Board: React.FC = () => {
       to: destListId,
       actualMove,
     });
+    debugDnd("card drag end handler", {
+      cardId,
+      sourceListId,
+      destListId,
+      sourceIndex,
+      destIndex,
+      originalListId,
+      originalPosition,
+      hasOriginalCard: !!originalCard,
+      actualMove,
+    });
 
     (window as any).__DRAG_IN_PROGRESS__ = true;
     dragTypeRef.current = null;
@@ -1548,17 +1922,22 @@ const Board: React.FC = () => {
                 affectedListIds.map((listId) => refreshFilteredList(listId))
               );
             }
+
+            console.log('✅ [DRAG END] Mutation success - clearing drag flag for sync');
+            // Clear drag flag BEFORE onSettled invalidates queries
+            // This allows the sync effect to pick up the refetched data with updated labels/CFs
+            (window as any).__DRAG_IN_PROGRESS__ = false;
+            document.body.classList.remove("dragging");
           },
           onError: () => {
             console.error('❌ [DRAG END] Mutation failed - rolling back');
             setLocalCards(previousLocalCards);
             setCardsPagination(previousPagination);
+            (window as any).__DRAG_IN_PROGRESS__ = false;
+            document.body.classList.remove("dragging");
           },
         }
       );
-
-      (window as any).__DRAG_IN_PROGRESS__ = false;
-      document.body.classList.remove("dragging");
     } else {
       (window as any).__DRAG_IN_PROGRESS__ = false;
       document.body.classList.remove("dragging");
