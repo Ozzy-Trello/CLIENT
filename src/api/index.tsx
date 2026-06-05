@@ -98,9 +98,11 @@ api.interceptors.response.use(
           access_token: accessToken,
         });
         
-        if (response?.data?.accessToken) {
-          const newAccessToken = response.data.accessToken;
-          const newRefreshToken = response.data.refreshToken || refreshToken;
+        const refreshPayload = response?.data?.data ?? response?.data;
+        const newAccessToken = refreshPayload?.access_token ?? refreshPayload?.accessToken;
+
+        if (newAccessToken) {
+          const newRefreshToken = refreshPayload?.refresh_token ?? refreshPayload?.refreshToken ?? refreshToken;
           
           // Store the new tokens
           TokenStorage.setTokens(newAccessToken, newRefreshToken);
@@ -128,9 +130,10 @@ api.interceptors.response.use(
         isRefreshing = false;
         processQueue(refreshError, null);
         
-        // Clear tokens and redirect to login
-        TokenStorage.clearTokens();
-        window.location.href = '/login';
+        if (axios.isAxiosError(refreshError) && refreshError.response?.status === 401) {
+          TokenStorage.clearTokens();
+          window.location.href = '/login';
+        }
         
         return Promise.reject(refreshError);
       }
