@@ -39,6 +39,7 @@ interface DraggableListProps {
   isAddingCard?: boolean;
   loadMoreError?: string | null;
   onRetryLoadMore?: () => void;
+  onVisible?: (listId: string) => void;
 }
 
 const DraggableList: React.FC<DraggableListProps> = ({
@@ -58,6 +59,7 @@ const DraggableList: React.FC<DraggableListProps> = ({
   isAddingCard = false,
   loadMoreError,
   onRetryLoadMore,
+  onVisible,
 }) => {
   const listRef = useRef<HTMLDivElement | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
@@ -76,6 +78,8 @@ const DraggableList: React.FC<DraggableListProps> = ({
 
   const [activeSortKey, setActiveSortKey] = useState<ListSortKey>("manual");
   const [hasBeenVisible, setHasBeenVisible] = useState(false);
+  const hasCalledOnVisibleRef = useRef(false);
+  const lastOnVisibleRef = useRef(onVisible);
 
   const { canMoveList, canCreateCard } = useBoardPermissionsContext();
   const currentUser = useSelector(selectUser);
@@ -126,6 +130,24 @@ const DraggableList: React.FC<DraggableListProps> = ({
   // Track whether this list is currently intersecting but waiting for drag to end
   const pendingVisibleRef = useRef(false);
 
+  const markVisible = useCallback(() => {
+    setHasBeenVisible(true);
+    if (!hasCalledOnVisibleRef.current) {
+      hasCalledOnVisibleRef.current = true;
+      onVisible?.(list.id);
+    }
+  }, [list.id, onVisible]);
+
+  useEffect(() => {
+    if (lastOnVisibleRef.current !== onVisible) {
+      lastOnVisibleRef.current = onVisible;
+      hasCalledOnVisibleRef.current = false;
+      if (hasBeenVisible) {
+        markVisible();
+      }
+    }
+  }, [hasBeenVisible, markVisible, onVisible]);
+
   useEffect(() => {
     const el = listRef.current;
     if (!el || hasBeenVisible) return;
@@ -142,7 +164,7 @@ const DraggableList: React.FC<DraggableListProps> = ({
           // of the board container's scroll position and all droppable position
           // calculations become wrong.
           if ((window as any).__DRAG_IN_PROGRESS__) return;
-          setHasBeenVisible(true);
+          markVisible();
           observer.disconnect();
         }
       },
@@ -154,13 +176,13 @@ const DraggableList: React.FC<DraggableListProps> = ({
 
     observer.observe(el);
     return () => observer.disconnect();
-  }, [hasBeenVisible]);
+  }, [hasBeenVisible, markVisible]);
 
   // After a drag ends, if this list became visible during the drag, finalize it
   useEffect(() => {
     const onDragEnd = () => {
       if (pendingVisibleRef.current && !hasBeenVisible) {
-        setHasBeenVisible(true);
+        markVisible();
       }
     };
 
@@ -173,13 +195,13 @@ const DraggableList: React.FC<DraggableListProps> = ({
     }, 200);
 
     return () => clearInterval(checkInterval);
-  }, [hasBeenVisible]);
+  }, [hasBeenVisible, markVisible]);
 
   useEffect(() => {
     if (isAddingCard && !hasBeenVisible && !(window as any).__DRAG_IN_PROGRESS__) {
-      setHasBeenVisible(true);
+      markVisible();
     }
-  }, [isAddingCard, hasBeenVisible]);
+  }, [isAddingCard, hasBeenVisible, markVisible]);
 
   // Check if user is super admin for reorder restrictions
   const userRole = (currentUser?.role?.name || "").trim().toLowerCase();

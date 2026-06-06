@@ -114,11 +114,12 @@ const ListName: React.FC<ListNameProps> = ({
   const { moveAllCards, isMovingAllCards } = useMoveAllCardsInList();
   const { archiveAllCards, isArchivingAllCards } = useArchiveAllCardsInList();
   const [targetBoardId, setTargetBoardId] = useState<string>(boardId);
+  const shouldLoadMoveData = actionsPopoverOpen && menuView === "move";
   const { lists: moveLists, isLoading: isLoadingMoveLists } = useLists(
-    targetBoardId || boardId,
+    shouldLoadMoveData ? targetBoardId || boardId : "",
   );
   const { boards: availableBoards, isLoading: isLoadingBoards } = useBoards(
-    workspaceId || "",
+    shouldLoadMoveData ? workspaceId || "" : "",
   );
   const { canArchiveList, canMoveCard, canUpdateCard } =
     useBoardPermissionsContext();

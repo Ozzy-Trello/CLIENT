@@ -299,6 +299,9 @@ const mapFrontendCardToBackend = (frontendCard: Partial<Card>): any => {
 
 export type CardListSortBy = "order" | "created_at" | "name";
 export type CardSortOrder = "asc" | "desc";
+export type CardsOptions = {
+  view?: "board";
+};
 
 export const cards = async (
   listId: string,
@@ -307,7 +310,8 @@ export const cards = async (
   limit: number = 20,
   labelIds?: string[],
   sortBy?: CardListSortBy,
-  sortOrder?: CardSortOrder
+  sortOrder?: CardSortOrder,
+  options?: CardsOptions
 ): Promise<ApiResponse<Card[]>> => {
   const params: any = { page, limit };
 
@@ -321,6 +325,9 @@ export const cards = async (
   }
   if (sortOrder) {
     params.sort_order = sortOrder;
+  }
+  if (options?.view) {
+    params.view = options.view;
   }
 
   const { data } = await api.get("/card", {
