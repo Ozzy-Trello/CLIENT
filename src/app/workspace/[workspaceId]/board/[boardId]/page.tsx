@@ -836,6 +836,19 @@ const Board: React.FC = () => {
 
     const updateListCards = (nextCards: Card[], totalData?: number) => {
       if (requestGeneration !== initialCardsGenerationRef.current) {
+        setLocalCards((prev) => ({
+          ...prev,
+          [listId]: nextCards,
+        }));
+        setCardsPagination((prev) => ({
+          ...prev,
+          [listId]: buildCardsPagination(
+            nextCards.length,
+            totalData,
+            1,
+            prev[listId]
+          ),
+        }));
         setInitialCardsLoadingByListId((prev) => ({
           ...prev,
           [listId]: false,
@@ -875,6 +888,9 @@ const Board: React.FC = () => {
       }
     }
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
     try {
       const response = await cards(
         listId,
@@ -884,16 +900,9 @@ const Board: React.FC = () => {
         labelIds,
         undefined,
         undefined,
-        { view: "board" }
+        { view: "board", signal: controller.signal }
       );
-
-      if (requestGeneration !== initialCardsGenerationRef.current) {
-        setInitialCardsLoadingByListId((prev) => ({
-          ...prev,
-          [listId]: false,
-        }));
-        return;
-      }
+      clearTimeout(timeoutId);
 
       if (response?.data) {
         updateListCards(response.data, response.paginate?.totalData);
@@ -908,6 +917,7 @@ const Board: React.FC = () => {
         updateListCards([], 0);
       }
     } catch (error) {
+      clearTimeout(timeoutId);
       console.error("[INIT CARDS] Error:", error);
       updateListCards([], 0);
     }

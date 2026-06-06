@@ -301,6 +301,7 @@ export type CardListSortBy = "order" | "created_at" | "name";
 export type CardSortOrder = "asc" | "desc";
 export type CardsOptions = {
   view?: "board";
+  signal?: AbortSignal;
 };
 
 export const cards = async (
@@ -333,6 +334,7 @@ export const cards = async (
   const { data } = await api.get("/card", {
     headers: { "list-id": listId, "board-id": boardId },
     params,
+    signal: options?.signal,
   });
 
   // Map backend response to frontend format
