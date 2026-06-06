@@ -835,7 +835,13 @@ const Board: React.FC = () => {
     }));
 
     const updateListCards = (nextCards: Card[], totalData?: number) => {
-      if (requestGeneration !== initialCardsGenerationRef.current) return;
+      if (requestGeneration !== initialCardsGenerationRef.current) {
+        setInitialCardsLoadingByListId((prev) => ({
+          ...prev,
+          [listId]: false,
+        }));
+        return;
+      }
 
       setLocalCards((prev) => ({
         ...prev,
@@ -881,7 +887,13 @@ const Board: React.FC = () => {
         { view: "board" }
       );
 
-      if (requestGeneration !== initialCardsGenerationRef.current) return;
+      if (requestGeneration !== initialCardsGenerationRef.current) {
+        setInitialCardsLoadingByListId((prev) => ({
+          ...prev,
+          [listId]: false,
+        }));
+        return;
+      }
 
       if (response?.data) {
         updateListCards(response.data, response.paginate?.totalData);

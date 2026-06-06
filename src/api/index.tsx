@@ -8,6 +8,7 @@ const API_BASE_URL = `${process.env.NEXT_PUBLIC_BE_BASE_URL}/v1`;
 // Create axios instance with interceptors to handle case conversion
 export const api = axios.create({
   baseURL: API_BASE_URL,
+  timeout: 30000,
 });
 
 // Request interceptor to convert camelCase to snake_case
