@@ -55,7 +55,27 @@ const Droppable = dynamic(
 );
 
 const CARD_PAGE_SIZE = 10;
+const BOARD_CARD_BACKGROUND_CONCURRENCY = 3;
 const DND_DEBUG_STORAGE_KEY = "ozzy_dnd_debug";
+
+async function promiseAllLimit<T>(
+  tasks: Array<() => Promise<T>>,
+  concurrency: number
+): Promise<void> {
+  const safeConcurrency = Math.max(1, Math.floor(concurrency || 1));
+  let nextIndex = 0;
+
+  async function worker() {
+    while (nextIndex < tasks.length) {
+      const currentIndex = nextIndex++;
+      await tasks[currentIndex]();
+    }
+  }
+
+  await Promise.all(
+    Array.from({ length: Math.min(safeConcurrency, tasks.length) }, () => worker())
+  );
+}
 
 function isDndDebugEnabled() {
   if (typeof window === "undefined") return false;
@@ -180,6 +200,7 @@ const BoardContentWithPermissions: React.FC<{
       totalCards: number;
     }
   >;
+  initialCardsLoadingByListId: Record<string, boolean>;
   loadingMoreByListId: Record<string, boolean>;
   loadMoreErrors: Record<string, string | null>;
   addingCardByListId: Record<string, boolean>;
@@ -215,6 +236,7 @@ const BoardContentWithPermissions: React.FC<{
   onToggleCollapse,
   localCards,
   cardsPagination,
+  initialCardsLoadingByListId,
   loadingMoreByListId,
   loadMoreErrors,
   addingCardByListId,
@@ -284,6 +306,7 @@ const BoardContentWithPermissions: React.FC<{
                           collapsed={!!collapsedLists[list.id]}
                           onToggleCollapse={onToggleCollapse}
                           cards={listCards}
+                          isInitialLoading={!!initialCardsLoadingByListId[list.id]}
                           hasMoreCards={pagination.hasMore}
                           isLoadingMore={!!loadingMoreByListId[list.id]}
                           onLoadMore={() => onLoadMoreCards(list.id)}
@@ -756,6 +779,7 @@ const Board: React.FC = () => {
     hasMore: boolean;
     totalCards: number;
   }>>({});
+  const [initialCardsLoadingByListId, setInitialCardsLoadingByListId] = useState<Record<string, boolean>>({});
   const lastViewedBoardIdRef = useRef<string | null>(null);
   const [loadingMoreByListId, setLoadingMoreByListId] = useState<Record<string, boolean>>({});
   const [loadMoreErrors, setLoadMoreErrors] = useState<Record<string, string | null>>({});
@@ -764,9 +788,12 @@ const Board: React.FC = () => {
   const initialCardsGenerationRef = useRef(0);
   const [initialCardsGeneration, setInitialCardsGeneration] = useState(0);
 
-  // Initialize empty card state; visible lists fetch their first page lazily.
+  // Initialize empty card state; visible lists load first, then the rest preload.
   useEffect(() => {
-    if (!lists || lists.length === 0 || !resolvedBoardId) return;
+    if (!lists || lists.length === 0 || !resolvedBoardId) {
+      setInitialCardsLoadingByListId({});
+      return;
+    }
 
     const nextGeneration = initialCardsGenerationRef.current + 1;
     initialCardsGenerationRef.current = nextGeneration;
@@ -781,15 +808,20 @@ const Board: React.FC = () => {
       acc[list.id] = buildCardsPagination(0, 0, 1);
       return acc;
     }, {});
+    const initialLoading = lists.reduce<Record<string, boolean>>((acc, list) => {
+      acc[list.id] = true;
+      return acc;
+    }, {});
 
     setLocalCardsInitialized(false);
     setLocalCards(emptyCards);
     setCardsPagination(emptyPagination);
+    setInitialCardsLoadingByListId(initialLoading);
     setLocalCardsInitialized(true);
   }, [lists, resolvedBoardId, selectedLabelIds]);
 
   const fetchInitialCardsForList = useCallback(async (listId: string) => {
-    if (!resolvedBoardId) return;
+    if (!resolvedBoardId || !initialCardsGeneration) return;
     if (loadedInitialCardListsRef.current.has(listId)) return;
 
     const requestGeneration = initialCardsGeneration;
@@ -797,6 +829,10 @@ const Board: React.FC = () => {
     const hasLabelFilter = !!labelIds;
 
     loadedInitialCardListsRef.current.add(listId);
+    setInitialCardsLoadingByListId((prev) => ({
+      ...prev,
+      [listId]: true,
+    }));
 
     const updateListCards = (nextCards: Card[], totalData?: number) => {
       if (requestGeneration !== initialCardsGenerationRef.current) return;
@@ -813,6 +849,10 @@ const Board: React.FC = () => {
           1,
           prev[listId]
         ),
+      }));
+      setInitialCardsLoadingByListId((prev) => ({
+        ...prev,
+        [listId]: false,
       }));
     };
 
@@ -860,6 +900,26 @@ const Board: React.FC = () => {
       updateListCards([], 0);
     }
   }, [initialCardsGeneration, queryClient, resolvedBoardId, selectedLabelIds]);
+
+  useEffect(() => {
+    if (!lists || lists.length === 0 || !resolvedBoardId || !initialCardsGeneration) return;
+
+    let cancelled = false;
+
+    void promiseAllLimit(
+      lists.map((list) => async () => {
+        if (cancelled) return;
+        await fetchInitialCardsForList(list.id);
+      }),
+      BOARD_CARD_BACKGROUND_CONCURRENCY
+    ).catch((error) => {
+      console.error("[INIT CARDS] Background preload error:", error);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchInitialCardsForList, initialCardsGeneration, lists, resolvedBoardId]);
 
   // Sync local cards when list cache updates (e.g., automation-driven changes)
   useEffect(() => {
@@ -2166,6 +2226,7 @@ const Board: React.FC = () => {
                 onToggleCollapse={handleToggleCollapse}
                 localCards={localCards}
                 cardsPagination={cardsPagination}
+                initialCardsLoadingByListId={initialCardsLoadingByListId}
                 loadingMoreByListId={loadingMoreByListId}
                 loadMoreErrors={loadMoreErrors}
                 addingCardByListId={addingCardByListId}

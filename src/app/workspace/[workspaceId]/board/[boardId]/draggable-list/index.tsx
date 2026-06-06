@@ -31,6 +31,7 @@ interface DraggableListProps {
   collapsed?: boolean;
   onToggleCollapse?: (listId: string) => void;
   cards: Card[];
+  isInitialLoading?: boolean;
   hasMoreCards: boolean;
   isLoadingMore: boolean;
   onLoadMore: () => void;
@@ -51,6 +52,7 @@ const DraggableList: React.FC<DraggableListProps> = ({
   collapsed = false,
   onToggleCollapse,
   cards,
+  isInitialLoading = false,
   hasMoreCards,
   isLoadingMore,
   onLoadMore,
@@ -387,14 +389,21 @@ const DraggableList: React.FC<DraggableListProps> = ({
                       <div className="space-y-3">
                         {hasBeenVisible ? (
                           <div className="animate-[fadeIn_0.3s_ease-in] space-y-3">
-                            {displayCards?.map((card, index) => (
-                              <DraggableCard
-                                key={card.id}
-                                card={card}
-                                list={list}
-                                index={index}
-                              />
-                            ))}
+                            {isInitialLoading && displayCards.length === 0 ? (
+                              <div className="flex items-center justify-center gap-2 py-6 text-gray-500 text-sm">
+                                <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                                Loading cards...
+                              </div>
+                            ) : (
+                              displayCards?.map((card, index) => (
+                                <DraggableCard
+                                  key={card.id}
+                                  card={card}
+                                  list={list}
+                                  index={index}
+                                />
+                              ))
+                            )}
 
                             {/* Infinite Scroll Sentinel & Loading Indicator */}
                             {cards.length > 0 &&
@@ -430,13 +439,20 @@ const DraggableList: React.FC<DraggableListProps> = ({
                           </div>
                         ) : (
                           <div className="space-y-2 px-1">
-                            {Array.from({ length: Math.min(cards.length, 3) }).map(
-                              (_, i) => (
-                                <div
-                                  key={`placeholder-${i}`}
-                                  data-card-placeholder-index={i}
-                                  className="h-[100px] bg-gray-100 rounded-lg animate-pulse"
-                                />
+                            {isInitialLoading && cards.length === 0 ? (
+                              <div className="flex items-center justify-center gap-2 py-6 text-gray-500 text-sm">
+                                <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                                Loading cards...
+                              </div>
+                            ) : (
+                              Array.from({ length: Math.min(cards.length, 3) }).map(
+                                (_, i) => (
+                                  <div
+                                    key={`placeholder-${i}`}
+                                    data-card-placeholder-index={i}
+                                    className="h-[100px] bg-gray-100 rounded-lg animate-pulse"
+                                  />
+                                )
                               )
                             )}
                             {cards.length > 3 && (
@@ -444,7 +460,7 @@ const DraggableList: React.FC<DraggableListProps> = ({
                                 +{cards.length - 3} more cards
                               </div>
                             )}
-                            {cards.length === 0 && <div className="h-[50px]" />}
+                            {!isInitialLoading && cards.length === 0 && <div className="h-[50px]" />}
                           </div>
                         )}
                         {provided.placeholder}
