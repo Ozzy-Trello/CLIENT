@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { getPOsByCardId, PO } from "@api/po";
+import { getPOById, getPOsByCardId, PO } from "@api/po";
 
 const normalizeAPIResponse = (response: any): PO[] => {
   console.log("🔵 [Query Hook] Normalizing response:", {
@@ -66,14 +66,20 @@ export const usePOsForSizeAssignment = (
         });
 
         const normalizedData = normalizeAPIResponse(response);
+        const detailedPOs = await Promise.all(
+          normalizedData.map(async (po) => {
+            const detailResponse = await getPOById(po.id);
+            return detailResponse.data ?? po;
+          })
+        );
 
         console.log("🟢 [Query Hook] Returning data:", {
-          count: normalizedData.length,
-          poIds: normalizedData.map((po) => po.id),
+          count: detailedPOs.length,
+          poIds: detailedPOs.map((po) => po.id),
           timestamp: new Date().toISOString(),
         });
 
-        return normalizedData;
+        return detailedPOs;
       } catch (error) {
         const duration = Date.now() - startTime;
         console.error("❌ [Query Hook] API call FAILED:", {
