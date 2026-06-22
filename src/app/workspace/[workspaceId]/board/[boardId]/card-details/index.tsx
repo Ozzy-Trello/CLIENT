@@ -786,6 +786,76 @@ const CardDetails: React.FC = (props) => {
     }
   }, []);
 
+  const isMobileDevice = useCallback(() => {
+    if (typeof navigator === "undefined") return false;
+    return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  }, []);
+
+  const drawWibTimestamp = useCallback(
+    (ctx: CanvasRenderingContext2D, width: number, height: number) => {
+      const now = new Date();
+      const gmt7 = new Date(now.getTime() + 7 * 60 * 60 * 1000);
+      const pad = (n: number) => String(n).padStart(2, "0");
+      const timestamp = `${gmt7.getUTCFullYear()}-${pad(gmt7.getUTCMonth() + 1)}-${pad(gmt7.getUTCDate())} ${pad(gmt7.getUTCHours())}:${pad(gmt7.getUTCMinutes())}:${pad(gmt7.getUTCSeconds())} WIB`;
+      const fontSize = Math.max(16, Math.round(height * 0.028));
+      ctx.font = `bold ${fontSize}px sans-serif`;
+      ctx.textAlign = "right";
+      ctx.textBaseline = "bottom";
+      const padding = Math.round(fontSize * 0.6);
+      const textMetrics = ctx.measureText(timestamp);
+      const bgX = width - padding - textMetrics.width - 8;
+      const bgY = height - padding - fontSize - 4;
+      const bgW = textMetrics.width + 16;
+      const bgH = fontSize + 8;
+      ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+      ctx.beginPath();
+      ctx.roundRect(bgX, bgY, bgW, bgH, 4);
+      ctx.fill();
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText(timestamp, width - padding, height - padding);
+    },
+    [],
+  );
+
+  const addTimestampToImageFile = useCallback(
+    async (sourceFile: File): Promise<File> => {
+      const objectUrl = URL.createObjectURL(sourceFile);
+      try {
+        const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+          const img = new Image();
+          img.onload = () => resolve(img);
+          img.onerror = reject;
+          img.src = objectUrl;
+        });
+
+        const width = image.naturalWidth || image.width;
+        const height = image.naturalHeight || image.height;
+        if (!width || !height) return sourceFile;
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return sourceFile;
+
+        ctx.drawImage(image, 0, 0, width, height);
+        drawWibTimestamp(ctx, width, height);
+
+        const blob: Blob | null = await new Promise((resolve) =>
+          canvas.toBlob(resolve, "image/jpeg", 0.95),
+        );
+        if (!blob) return sourceFile;
+
+        return new File([blob], `camera-${Date.now()}.jpg`, {
+          type: "image/jpeg",
+        });
+      } finally {
+        URL.revokeObjectURL(objectUrl);
+      }
+    },
+    [drawWibTimestamp],
+  );
+
   const startCameraStream = useCallback(async (facingMode: "environment" | "user") => {
     const media = (navigator as any).mediaDevices;
     if (!media?.getUserMedia) return;
@@ -797,7 +867,11 @@ const CardDetails: React.FC = (props) => {
     }
 
     const stream: MediaStream = await media.getUserMedia({
-      video: { facingMode: { ideal: facingMode } },
+      video: {
+        facingMode: { ideal: facingMode },
+        width: { ideal: 1920 },
+        height: { ideal: 1080 },
+      },
       audio: false,
     });
     streamRef.current = stream;
@@ -810,6 +884,11 @@ const CardDetails: React.FC = (props) => {
   const openCamera = useCallback(async () => {
     if (quickUploadLoading) return;
     if (typeof navigator === "undefined") return;
+
+    if (isMobileDevice()) {
+      cameraInputRef.current?.click();
+      return;
+    }
 
     const media = (navigator as any).mediaDevices;
     if (!media?.getUserMedia) {
@@ -825,7 +904,23 @@ const CardDetails: React.FC = (props) => {
       setIsCameraModalOpen(false);
       message.error(err?.message || "Failed to open camera");
     }
-  }, [quickUploadLoading, cameraFacingMode, startCameraStream]);
+  }, [quickUploadLoading, isMobileDevice, cameraFacingMode, startCameraStream]);
+
+  const handleNativeCameraCapture = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      event.target.value = "";
+      if (!file) return;
+
+      try {
+        const stampedFile = await addTimestampToImageFile(file);
+        void handleQuickUpload(stampedFile);
+      } catch {
+        message.error("Failed to process camera image");
+      }
+    },
+    [addTimestampToImageFile, handleQuickUpload],
+  );
 
   const swapCamera = useCallback(async () => {
     const newMode = cameraFacingMode === "environment" ? "user" : "environment";
@@ -859,30 +954,10 @@ const CardDetails: React.FC = (props) => {
 
     ctx.drawImage(video, 0, 0, width, height);
 
-    // Draw GMT+7 timestamp on bottom-right
-    const now = new Date();
-    const gmt7 = new Date(now.getTime() + 7 * 60 * 60 * 1000);
-    const pad = (n: number) => String(n).padStart(2, "0");
-    const timestamp = `${gmt7.getUTCFullYear()}-${pad(gmt7.getUTCMonth() + 1)}-${pad(gmt7.getUTCDate())} ${pad(gmt7.getUTCHours())}:${pad(gmt7.getUTCMinutes())}:${pad(gmt7.getUTCSeconds())} WIB`;
-    const fontSize = Math.max(16, Math.round(height * 0.028));
-    ctx.font = `bold ${fontSize}px sans-serif`;
-    ctx.textAlign = "right";
-    ctx.textBaseline = "bottom";
-    const padding = Math.round(fontSize * 0.6);
-    const textMetrics = ctx.measureText(timestamp);
-    const bgX = width - padding - textMetrics.width - 8;
-    const bgY = height - padding - fontSize - 4;
-    const bgW = textMetrics.width + 16;
-    const bgH = fontSize + 8;
-    ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
-    ctx.beginPath();
-    ctx.roundRect(bgX, bgY, bgW, bgH, 4);
-    ctx.fill();
-    ctx.fillStyle = "#ffffff";
-    ctx.fillText(timestamp, width - padding, height - padding);
+    drawWibTimestamp(ctx, width, height);
 
     const blob: Blob | null = await new Promise((resolve) =>
-      canvas.toBlob(resolve, "image/jpeg", 0.92),
+      canvas.toBlob(resolve, "image/jpeg", 0.95),
     );
     if (!blob) {
       message.error("Failed to capture image");
@@ -894,7 +969,7 @@ const CardDetails: React.FC = (props) => {
     stopCameraStream();
     setIsCameraModalOpen(false);
     void handleQuickUpload(file);
-  }, [handleQuickUpload, stopCameraStream]);
+  }, [drawWibTimestamp, handleQuickUpload, stopCameraStream]);
 
   useEffect(() => {
     if (!isCameraModalOpen) {
@@ -1271,12 +1346,7 @@ const CardDetails: React.FC = (props) => {
             accept="image/*"
             capture="environment"
             className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              e.target.value = "";
-              if (!file) return;
-              void handleQuickUpload(file);
-            }}
+            onChange={handleNativeCameraCapture}
           />
 
           <Tooltip
