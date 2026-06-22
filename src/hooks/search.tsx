@@ -4,15 +4,16 @@ import { unifiedSearch, SearchResult, GroupedSearchResults } from "@api/search";
 export const useUnifiedSearch = (
   query: string,
   workspaceId?: string,
+  boardId?: string,
   options?: {
     enabled?: boolean;
     staleTime?: number;
   }
 ) => {
   return useQuery({
-    queryKey: ["unifiedSearch", query, workspaceId],
+    queryKey: ["unifiedSearch", query, workspaceId, boardId],
     queryFn: async () => {
-      const result = await unifiedSearch(query, workspaceId);
+      const result = await unifiedSearch(query, workspaceId, boardId);
       return result;
     },
     enabled: options?.enabled ?? (!!query && query.trim().length >= 2),

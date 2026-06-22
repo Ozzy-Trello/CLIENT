@@ -349,7 +349,7 @@ const TopBar: React.FC = React.memo(() => {
   const {
     data: searchResults = { cards: [], boards: [] },
     isLoading: isSearching,
-  } = useUnifiedSearch(debouncedSearchQuery, workspaceId, {
+  } = useUnifiedSearch(debouncedSearchQuery, workspaceId, urlBoardId, {
     enabled: debouncedSearchQuery.length >= 2,
   });
   const isDebouncing =

@@ -28,11 +28,15 @@ export interface GroupedSearchResults {
 export const unifiedSearch = async (
   query: string,
   workspaceId?: string,
+  boardId?: string,
   params?: any
 ): Promise<ApiResponse<GroupedSearchResults>> => {
   const headers: any = {};
   if (workspaceId) {
     headers["workspace-id"] = workspaceId;
+  }
+  if (boardId) {
+    headers["board-id"] = boardId;
   }
 
   const { data } = await api.get("/search", {
