@@ -1,44 +1,30 @@
-import { api } from ".";
-import { FileUpload } from "../types/file-upload";
+import { api } from "./index";
 import { ApiResponse } from "../types/type";
+import { FileUpload } from "@myTypes/file-upload";
 
 export const uploadFile = async (
-  file: File,
-  options?: { cardId?: string; type?: string }
+  fileOrFormData: File | FormData,
+  options?: { cardId?: string; name?: string; prefix?: string; type?: string },
 ): Promise<ApiResponse<FileUpload>> => {
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("name", file.name);
-  formData.append("prefix", file.type);
-  if (options?.cardId) {
-    formData.append("card_id", options.cardId);
-  }
-  if (options?.type) {
-    formData.append("type", options.type);
+  const formData =
+    fileOrFormData instanceof FormData ? fileOrFormData : new FormData();
+
+  if (!(fileOrFormData instanceof FormData)) {
+    formData.append("file", fileOrFormData);
+    formData.append("name", options?.name || fileOrFormData.name);
+    if (options?.cardId) formData.append("card_id", options.cardId);
+    if (options?.prefix) formData.append("prefix", options.prefix);
+    if (options?.type) formData.append("type", options.type);
   }
 
-  try {
-    const { data } = await api.post("/file", formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-      transformRequest: [(data) => data],
-    });
-
-    return data;
-  } catch (error) {
-    throw error;
-  }
+  const { data } = await api.post("/file", formData);
+  return data;
 };
 
 export const renameFile = async (
   fileId: string,
-  newName: string
+  name: string,
 ): Promise<ApiResponse<FileUpload>> => {
-  try {
-    const { data } = await api.patch(`/file/${fileId}/rename`, { name: newName });
-    return data;
-  } catch (error) {
-    throw error;
-  }
+  const { data } = await api.patch(`/file/${fileId}/rename`, { name });
+  return data;
 };

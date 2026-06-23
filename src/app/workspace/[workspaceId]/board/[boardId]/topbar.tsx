@@ -42,6 +42,7 @@ import ModalStokQR from "@components/modal-stok-qr";
 import ModalPOQR from "@components/modal-po-qr";
 import ModalPOScan from "@components/modal-po-scan";
 import ModalPacking from "@components/modal-packing";
+import ModalPackingKirim from "@components/modal-packing-kirim";
 import ModalPackingPOScan from "@components/modal-packing-po-scan";
 import ModalPengiriman from "@components/modal-pengiriman";
 import { useSelector } from "react-redux";
@@ -141,6 +142,8 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
   const [modalPOQROpen, setModalPOQROpen] = useState<boolean>(false);
   const [modalPOScanOpen, setModalPOScanOpen] = useState<boolean>(false);
   const [modalPackingOpen, setModalPackingOpen] = useState<boolean>(false);
+  const [modalPackingKirimOpen, setModalPackingKirimOpen] =
+    useState<boolean>(false);
   const [modalPackingPOScanOpen, setModalPackingPOScanOpen] =
     useState<boolean>(false);
   const [modalPengirimanOpen, setModalPengirimanOpen] =
@@ -164,6 +167,7 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
     modalPOQROpen ||
     modalPOScanOpen ||
     modalPackingOpen ||
+    modalPackingKirimOpen ||
     modalPackingPOScanOpen ||
     modalPengirimanOpen ||
     scanProgressOpen;
@@ -694,6 +698,14 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
     });
   }
 
+  if (isListPOOutlet) {
+    mobileMenuItems.push({
+      key: "packing-kirim",
+      label: "Packing Kirim",
+      onClick: () => setModalPackingKirimOpen(true),
+    });
+  }
+
   // Temporarily hide Invoice action from mobile topbar menu
   // if (isDateline) {
   //   mobileMenuItems.push({
@@ -864,6 +876,19 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
                   >
                     <div className="border rounded px-1 text-[7px]">10</div>
                     <span>Track</span>
+                  </Button>
+                </Tooltip>
+              )}
+              {isListPOOutlet && (
+                <Tooltip title="Packing Kirim">
+                  <Button
+                    size="small"
+                    shape="default"
+                    variant="text"
+                    icon={<Package size={16} />}
+                    onClick={() => setModalPackingKirimOpen(true)}
+                  >
+                    <span>Packing Kirim</span>
                   </Button>
                 </Tooltip>
               )}
@@ -1131,6 +1156,13 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
       <ModalPacking
         open={modalPackingOpen}
         onClose={() => setModalPackingOpen(false)}
+      />
+
+      <ModalPackingKirim
+        open={modalPackingKirimOpen}
+        onClose={() => setModalPackingKirimOpen(false)}
+        workspaceId={params.workspaceId as string}
+        boardId={params.boardId as string}
       />
 
       <ModalPackingPOScan
