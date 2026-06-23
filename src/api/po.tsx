@@ -104,7 +104,7 @@ export const getPOsByCardId = async (
 ): Promise<ApiResponse<PO[]>> => {
   try {
     const { data, status } = await api.get(`/po`, {
-      params: { card_id: cardId },
+      params: { card_id: cardId, page: 1, limit: 1000 },
     });
 
     if (status === 204 || !data) {
