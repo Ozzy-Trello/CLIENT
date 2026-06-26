@@ -166,12 +166,10 @@ const ModalPackingKirim: React.FC<ModalPackingKirimProps> = ({
       const listName = (response.data.listName || response.data.list_name || "")
         .trim()
         .toLowerCase();
-      const isAllowedList =
-        listName.includes("request packing") ||
-        listName.includes("polosan kirim");
+      const isAllowedList = listName.includes("request packing");
 
       if (!isAllowedList) {
-        message.error("Card belum di request packing / polosan kirim");
+        message.error("Card belum di request packing");
         return;
       }
 
