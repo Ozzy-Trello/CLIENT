@@ -3,6 +3,7 @@ import { Alert, Button, Modal, Space, Steps, Typography, message } from "antd";
 import { Camera, CheckCircle, Package } from "lucide-react";
 import { Scanner } from "@yudiel/react-qr-scanner";
 import QRGuideOverlay from "@components/qr-overlay";
+import InlineImageFrame from "./inline-image-frame";
 import InlinePdfFrame from "./inline-pdf-frame";
 import { cardDetails, getCardByShortId } from "@api/card";
 import { getCardAttachments, createCardAttachment } from "@api/card_attachment";
@@ -25,6 +26,8 @@ interface ModalPackingKirimProps {
 }
 
 const { Text, Title } = Typography;
+
+type POPreviewKind = "pdf" | "image";
 
 const uuidRegex =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -61,8 +64,8 @@ const ModalPackingKirim: React.FC<ModalPackingKirimProps> = ({
 }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [primaryCard, setPrimaryCard] = useState<Card | null>(null);
-  const [stampPOAttachment, setStampPOAttachment] =
-    useState<CardAttachment | null>(null);
+  const [poAttachment, setPOAttachment] = useState<CardAttachment | null>(null);
+  const [poPreviewKind, setPOPreviewKind] = useState<POPreviewKind | null>(null);
   const [secondCardId, setSecondCardId] = useState("");
   const [isResolving, setIsResolving] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
@@ -87,7 +90,8 @@ const ModalPackingKirim: React.FC<ModalPackingKirimProps> = ({
   const resetState = () => {
     setCurrentStep(0);
     setPrimaryCard(null);
-    setStampPOAttachment(null);
+    setPOAttachment(null);
+    setPOPreviewKind(null);
     setSecondCardId("");
     setIsResolving(false);
     setIsValidating(false);
@@ -172,27 +176,40 @@ const ModalPackingKirim: React.FC<ModalPackingKirimProps> = ({
       }
 
       const attachmentsResponse = await getCardAttachments(cardId);
-      const newestStampPOAttachment = (attachmentsResponse.data || [])
-        .filter((attachment) => {
-          const name = attachment.file?.name || attachment.name || "";
-          return (
-            attachment.type === EnumCardAttachmentType.PO &&
-            name.toLowerCase().includes("stamp")
-          );
-        })
-        .sort((a, b) => {
-          const aTime = new Date(a.createdAt || 0).getTime();
-          const bTime = new Date(b.createdAt || 0).getTime();
-          return bTime - aTime;
-        })[0];
+      const poAttachments = (attachmentsResponse.data || []).filter(
+        (attachment) => attachment.type === EnumCardAttachmentType.PO,
+      );
 
-      if (!newestStampPOAttachment) {
-        message.error("No PO stamp attachment found for this card");
+      const newestAttachmentByName = (keyword: string) =>
+        poAttachments
+          .filter((attachment) => {
+            const name = attachment.file?.name || attachment.name || "";
+            return name.toLowerCase().includes(keyword);
+          })
+          .sort((a, b) => {
+            const aTime = new Date(a.createdAt || 0).getTime();
+            const bTime = new Date(b.createdAt || 0).getTime();
+            return bTime - aTime;
+          })[0];
+
+      const newestStampPOAttachment = newestAttachmentByName("stamp");
+      const newestFakturPOAttachment = newestAttachmentByName("faktur");
+      const selectedPOAttachment =
+        newestStampPOAttachment || newestFakturPOAttachment || null;
+      const selectedPOPreviewKind: POPreviewKind | null = newestStampPOAttachment
+        ? "pdf"
+        : newestFakturPOAttachment
+          ? "image"
+          : null;
+
+      if (!selectedPOAttachment) {
+        message.error("No PO stamp or FAKTUR attachment found for this card");
         return;
       }
 
       setPrimaryCard(response.data);
-      setStampPOAttachment(newestStampPOAttachment);
+      setPOAttachment(selectedPOAttachment);
+      setPOPreviewKind(selectedPOPreviewKind);
       setCurrentStep(1);
       message.success("Card scanned");
     } catch {
@@ -471,28 +488,27 @@ const ModalPackingKirim: React.FC<ModalPackingKirimProps> = ({
     </Space>
   );
 
-  const stampAttachmentRawUrl = stampPOAttachment?.file?.url || "";
-  const stampAttachmentDirectUrl = decodeStoredFileUrl(stampAttachmentRawUrl);
-  const stampAttachmentPreviewUrl = stampAttachmentDirectUrl
-    ? buildFileProxyUrl(stampAttachmentDirectUrl)
+  const poAttachmentRawUrl = poAttachment?.file?.url || "";
+  const poAttachmentDirectUrl = decodeStoredFileUrl(poAttachmentRawUrl);
+  const poAttachmentPreviewUrl = poAttachmentDirectUrl
+    ? buildFileProxyUrl(poAttachmentDirectUrl)
     : "";
-  const stampAttachmentName =
-    stampPOAttachment?.file?.name || stampPOAttachment?.name || "";
-  const isStampAttachmentPDF =
-    stampAttachmentName.toLowerCase().endsWith(".pdf") ||
-    Boolean(stampPOAttachment?.file?.mimeType?.toLowerCase().includes("pdf"));
-  const showInlineStampPreview = Boolean(
-    stampAttachmentPreviewUrl && isStampAttachmentPDF,
+  const poAttachmentName = poAttachment?.file?.name || poAttachment?.name || "";
+  const showInlinePdfPreview = Boolean(
+    poAttachmentPreviewUrl && poPreviewKind === "pdf",
+  );
+  const showInlineImagePreview = Boolean(
+    poAttachmentPreviewUrl && poPreviewKind === "image",
   );
 
-  if (stampPOAttachment) {
-    console.log("[PK] stamp attachment:", {
-      name: stampAttachmentName,
-      mimeType: stampPOAttachment?.file?.mimeType,
-      rawUrl: stampAttachmentRawUrl,
-      directUrl: stampAttachmentDirectUrl,
-      previewUrl: stampAttachmentPreviewUrl,
-      isPDF: isStampAttachmentPDF,
+  if (poAttachment) {
+    console.log("[PK] PO preview attachment:", {
+      name: poAttachmentName,
+      mimeType: poAttachment?.file?.mimeType,
+      rawUrl: poAttachmentRawUrl,
+      directUrl: poAttachmentDirectUrl,
+      previewUrl: poAttachmentPreviewUrl,
+      previewKind: poPreviewKind,
     });
   }
 
@@ -510,7 +526,7 @@ const ModalPackingKirim: React.FC<ModalPackingKirimProps> = ({
         open={open}
         onCancel={handleClose}
         footer={null}
-        width={showInlineStampPreview ? 920 : 560}
+        width={showInlinePdfPreview ? 920 : 560}
         destroyOnHidden
       >
         <Space direction="vertical" size="large" className="w-full p-2 sm:p-4">
@@ -532,10 +548,13 @@ const ModalPackingKirim: React.FC<ModalPackingKirimProps> = ({
               "Scan the first QR.",
             )}
 
-          {currentStep === 1 && primaryCard && stampPOAttachment && (
+          {currentStep === 1 && primaryCard && poAttachment && (
             <Space direction="vertical" size="middle" className="w-full">
-              {showInlineStampPreview && (
-                <InlinePdfFrame url={stampAttachmentPreviewUrl} />
+              {showInlinePdfPreview && (
+                <InlinePdfFrame url={poAttachmentPreviewUrl} />
+              )}
+              {showInlineImagePreview && (
+                <InlineImageFrame url={poAttachmentPreviewUrl} />
               )}
               <Space className="w-full justify-end">
                 <Button onClick={() => setCurrentStep(0)}>Rescan</Button>
