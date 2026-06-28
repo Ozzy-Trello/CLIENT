@@ -57,6 +57,57 @@ const decodeStoredFileUrl = (value: string): string => {
   }
 };
 
+const NO_FAKTUR_CUSTOM_FIELD_ID = "6c7f05f1-85bc-42f3-98b2-6a6509cc539c";
+
+const isUrlLikeScan = (value: string): boolean => {
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  return (
+    /^https?:\/\//i.test(trimmed) ||
+    trimmed.startsWith("/") ||
+    trimmed.includes("cardId=") ||
+    uuidRegex.test(trimmed)
+  );
+};
+
+const normalizeFaktur = (value: string): string => value.trim().toLowerCase();
+
+const getNoFakturFromCard = (card: Card): string => {
+  const normalizeId = (field: any) =>
+    String(field?.id ?? field?.customFieldId ?? field?.custom_field_id ?? "").trim();
+
+  const getValue = (field: any) => {
+    const raw =
+      field?.valueString ??
+      field?.value_string ??
+      field?.valueOption ??
+      field?.value_option ??
+      field?.valueNumber ??
+      field?.value_number ??
+      "";
+    return raw === null || raw === undefined ? "" : String(raw).trim();
+  };
+
+  const fields = Array.isArray(card.customFields) ? card.customFields : [];
+  const byId = fields.find(
+    (field: any) => normalizeId(field) === NO_FAKTUR_CUSTOM_FIELD_ID,
+  );
+  const byName = fields.find(
+    (field: any) =>
+      String(field?.name || "")
+        .trim()
+        .toLowerCase() === "no faktur",
+  );
+
+  const valueById = byId ? getValue(byId) : "";
+  if (valueById) return valueById;
+
+  const valueByName = byName ? getValue(byName) : "";
+  if (valueByName) return valueByName;
+
+  return String((card as any)?.noFaktur || "").trim();
+};
+
 const ModalPackingKirim: React.FC<ModalPackingKirimProps> = ({
   open,
   onClose,
@@ -226,24 +277,48 @@ const ModalPackingKirim: React.FC<ModalPackingKirimProps> = ({
 
     setIsValidating(true);
     try {
-      const scannedCardId = await extractCardIdFromScan(scannedData);
-      console.log("[PK] handleSecondScan extracted:", {
-        primaryCardId: primaryCard.id,
-        scannedCardId,
-      });
-      if (!scannedCardId) {
-        message.error("Could not extract card ID from scanned QR");
+      const rawScan = scannedData.trim();
+      if (!rawScan) {
+        message.error("Could not read scanned QR");
         return;
       }
 
-      setSecondCardId(scannedCardId);
-      const validation = await validatePackingKirim(
-        primaryCard.id,
-        scannedCardId,
-      );
-      console.log("[PK] validate success:", validation);
+      if (isUrlLikeScan(rawScan)) {
+        const scannedCardId = await extractCardIdFromScan(rawScan);
+        console.log("[PK] handleSecondScan extracted:", {
+          primaryCardId: primaryCard.id,
+          scannedCardId,
+        });
+        if (!scannedCardId) {
+          message.error("Could not extract card ID from scanned QR");
+          return;
+        }
+
+        setSecondCardId(scannedCardId);
+        const validation = await validatePackingKirim(
+          primaryCard.id,
+          scannedCardId,
+        );
+        console.log("[PK] validate success:", validation);
+        setCurrentStep(3);
+        message.success("QR matches");
+        return;
+      }
+
+      const noFaktur = getNoFakturFromCard(primaryCard);
+      if (!noFaktur) {
+        message.error("No Faktur belum terisi di card");
+        return;
+      }
+
+      if (normalizeFaktur(rawScan) !== normalizeFaktur(noFaktur)) {
+        message.error("No Faktur tidak sesuai");
+        return;
+      }
+
+      setSecondCardId(rawScan);
       setCurrentStep(3);
-      message.success("QR matches");
+      message.success("No Faktur matches");
     } catch (error: any) {
       console.log("[PK] validate error:", {
         status: error?.response?.status,
