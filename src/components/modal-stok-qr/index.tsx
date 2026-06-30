@@ -148,7 +148,7 @@ const ModalStokQR: React.FC<ModalStokQRProps> = ({ open, onClose }) => {
       form.setFieldsValue({ soNumber: extractedSO });
 
       // Directly open the barcode URL
-      const barcodeUrl = `https://warehouse.ozzyclothing.co.id/warehouse/barcode-production/print/${extractedSO}`;
+      const barcodeUrl = `https://portal.ozzyclothing.co.id/warehouse/barcode-production/print/${extractedSO}`;
       window.open(barcodeUrl, "_blank");
       message.success(`Opening barcode printing for SO: ${extractedSO}`);
       onClose();
@@ -166,7 +166,7 @@ const ModalStokQR: React.FC<ModalStokQRProps> = ({ open, onClose }) => {
     setIsGenerating(true);
     try {
       // Open barcode printing URL in new tab
-      const barcodeUrl = `https://warehouse.ozzyclothing.co.id/warehouse/barcode-production/print/${selectedSO}`;
+      const barcodeUrl = `https://portal.ozzyclothing.co.id/warehouse/barcode-production/print/${selectedSO}`;
       window.open(barcodeUrl, "_blank");
 
       message.success(`Opening barcode printing for SO: ${selectedSO}`);

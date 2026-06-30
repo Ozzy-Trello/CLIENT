@@ -5,6 +5,7 @@ import ListItemFilter from "./list";
 import AssignedItemFilter from "./assigned";
 import CustomFieldItemFilter from "./custom-field";
 import DueItemFilter from "./due";
+import CreatedAtItemFilter from "./created-at";
 import LabelsItemFilter from "./label";
 import CompleteItemFilter from "./complete";
 import ProductItemFilter from "./product";
@@ -26,6 +27,8 @@ const ItemFilter: FC<ItemFilterProps> = ({ item }) => {
   if (item.type === "custom_field") return <CustomFieldItemFilter {...item} id={item.id} label={item.label} />;
 
   if (item.type === "due_date") return <DueItemFilter {...item} id={item.id} label={item.label} />;
+
+  if (item.type === "created_at") return <CreatedAtItemFilter {...item} id={item.id} label={item.label} />;
 
   if (item.type === "labels") return <LabelsItemFilter {...item} id={item.id} label={item.label} />;
 

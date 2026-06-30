@@ -155,6 +155,23 @@ export const dashcardsFilter: DashcardFilter[] = [
     ],
   },
   {
+    id: "created_at",
+    label: "Created At",
+    groupType: "primary",
+    type: EnumCardAttributeType.CREATED_AT,
+    options: [
+      { label: "today", value: "today" },
+      { label: "this week", value: "this_week" },
+      { label: "this month", value: "this_month" },
+      { label: "in the past", value: "in_the_past" },
+      { label: "in the future", value: "in_the_future" },
+      { label: "any time", value: "any_time" },
+      { label: "no date", value: "no_date" },
+      { label: "later than", value: "later_than" },
+      { label: "earlier than", value: "earlier_than" },
+    ],
+  },
+  {
     id: "labels",
     label: "Labels",
     groupType: "primary",

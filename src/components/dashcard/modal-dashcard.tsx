@@ -695,6 +695,99 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
     return null;
   };
 
+  const CreatedAtFilterComponent = ({
+    filter,
+  }: {
+    filter: DashcardFilter;
+  }) => {
+    const [number, setNumber] = useState<number>(1);
+    const [unit, setUnit] = useState<string>("day");
+    const [reference, setReference] = useState<string>("ago");
+
+    const unitOptions = [
+      { label: "day", value: "day" },
+      { label: "week", value: "week" },
+      { label: "month", value: "month" },
+    ];
+
+    const referenceOptions = [
+      { label: "ago", value: "ago" },
+      { label: "from now", value: "from_now" },
+    ];
+
+    const selectedOption = (filter.operator as string) || "";
+
+    useEffect(() => {
+      if (filter.value && typeof filter.value === "object") {
+        const value = filter.value as any;
+        setNumber(value.number || 1);
+        setUnit(value.unit || "day");
+        setReference(value.reference || "ago");
+      }
+    }, [filter.value]);
+
+    const handleComplexValueChange = (
+      newNumber?: number,
+      newUnit?: string,
+      newReference?: string
+    ) => {
+      if (
+        selectedOption === "later_than" ||
+        selectedOption === "earlier_than"
+      ) {
+        handleFilterValueChange(filter.id, {
+          type: selectedOption,
+          number: newNumber !== undefined ? newNumber : number,
+          unit: newUnit !== undefined ? newUnit : unit,
+          reference: newReference !== undefined ? newReference : reference,
+        } as any);
+      }
+    };
+
+    const isComplexOption =
+      selectedOption === "later_than" || selectedOption === "earlier_than";
+
+    if (isComplexOption) {
+      return (
+        <Space>
+          <InputNumber
+            size="small"
+            min={1}
+            value={number}
+            onChange={(value) => {
+              const newNumber = value || 1;
+              setNumber(newNumber);
+              handleComplexValueChange(newNumber);
+            }}
+            style={{ width: 60 }}
+          />
+          <Select
+            size="small"
+            value={unit}
+            onChange={(value) => {
+              setUnit(value);
+              handleComplexValueChange(undefined, value);
+            }}
+            style={{ width: 80 }}
+            options={unitOptions}
+          />
+          <Select
+            size="small"
+            value={reference}
+            onChange={(value) => {
+              setReference(value);
+              handleComplexValueChange(undefined, undefined, value);
+            }}
+            style={{ width: 90 }}
+            options={referenceOptions}
+          />
+        </Space>
+      );
+    }
+
+    return null;
+  };
+
   return (
     <Modal
       className="modal-dashcard"
@@ -877,6 +970,8 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
                             <UserSelection onChange={onAssignedChange} />
                           ) : filter.type === EnumCardAttributeType.DUE_DATE ? (
                             <DueDateFilterComponent filter={filter} />
+                          ) : filter.type === EnumCardAttributeType.CREATED_AT ? (
+                            <CreatedAtFilterComponent filter={filter} />
                           ) : filter.type === EnumCardAttributeType.LABELS ? (
                             (() => {
                               const operator = String(filter.operator);
