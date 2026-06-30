@@ -41,7 +41,7 @@ export const useDashcardList = (
     if (!syncContext) return;
     setItemDashcard([]);
     setDashcardConfig(card?.dashConfig);
-  }, [syncContext, cardId, card?.dashConfig, setItemDashcard, setDashcardConfig]);
+  }, [syncContext, cardId, setItemDashcard, setDashcardConfig]);
 
   useEffect(() => {
     if (!syncContext) return;

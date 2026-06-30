@@ -1,4 +1,4 @@
-import { FC, useEffect, useState } from "react";
+import { FC, useEffect, useMemo, useState } from "react";
 import { useCardDetailContext } from "@providers/card-detail-context";
 import ShowFilter from "./filter/show";
 import EditFilter from "./filter/edit";
@@ -31,7 +31,11 @@ const Detail: FC = () => {
     dashcardConfig?.displayConfig || { type: DashcardDisplayType.CARD_COUNT }
   );
   const [bgColor, setBgColor] = useState(dashcardConfig?.backgroundColor || "#4096ff");
-  const { count } = useDashcardCount(selectedCard?.id || "");
+  const { count, refetch } = useDashcardCount(selectedCard?.id || "");
+  const displayConfigKey = useMemo(
+    () => JSON.stringify(dashcardConfig?.displayConfig || null),
+    [dashcardConfig?.displayConfig]
+  );
 
   const handleColorChange = (color: any) => {
     setBgColor(color.toHexString());
@@ -67,6 +71,12 @@ const Detail: FC = () => {
     setDisplayConfig(dashcardConfig?.displayConfig || { type: DashcardDisplayType.CARD_COUNT });
     setBgColor(dashcardConfig?.backgroundColor || "#4096ff");
   }, [dashcardConfig]);
+
+  useEffect(() => {
+    if (selectedCard?.id) {
+      refetch();
+    }
+  }, [selectedCard?.id, displayConfigKey, refetch]);
 
   // Process items - backend now sends all names resolved, no need to fetch lookups
   useEffect(() => {
