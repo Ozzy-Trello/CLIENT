@@ -1705,6 +1705,16 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       },
     },
     {
+      title: "Jml Pesanan",
+      dataIndex: "jmlPesanan",
+      key: "jml_pesanan",
+      ellipsis: true,
+      width: "auto",
+      render: (_: unknown, record: RequestItem) => (
+        <span>{record.jmlPesanan != null ? Number(record.jmlPesanan).toLocaleString("id-ID") : "-"}</span>
+      ),
+    },
+    {
       title: "Type",
       dataIndex: "requestType",
       key: "request_type",

@@ -118,7 +118,7 @@ const DueItemFilter: FC<DashcardFilter> = ({ id, operator, value, label }) => {
       </div>
     );
 
-  const showValue = operator === "later_than" || operator === "earlier_than";
+  const showValue = (operator as string) === "later_than" || (operator as string) === "earlier_than";
 
   return (
     <div className="flex items-center gap-3">
