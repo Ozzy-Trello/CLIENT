@@ -1,5 +1,5 @@
 import { Modal, TabsProps, Tabs } from "antd";
-import { Dispatch, SetStateAction, FC } from "react";
+import { Dispatch, SetStateAction, FC, useEffect } from "react";
 import TablePivot from "./table-pivot";
 import Detail from "./detail";
 import Metrics from "./metrics";
@@ -18,8 +18,14 @@ const ModalDashcardDetail: FC<ModalDashcardDetailProps> = ({
   setOpen,
   card,
 }) => {
-  const { itemDashcard } = useCardDetailContext();
-  useDashcardList(card, { syncContext: true });
+  const { itemDashcard, setSelectedCard } = useCardDetailContext();
+  useDashcardList(open ? card : null, { syncContext: true, limit: 100 });
+
+  useEffect(() => {
+    if (open && card) {
+      setSelectedCard(card);
+    }
+  }, [open, card, setSelectedCard]);
 
   const itemTabs: TabsProps["items"] = [
     {
@@ -38,6 +44,7 @@ const ModalDashcardDetail: FC<ModalDashcardDetailProps> = ({
 
   return (
     <Modal
+      key={card?.id ?? "dashcard-detail"}
       title="Dashcard"
       open={open}
       onCancel={() => setOpen(false)}

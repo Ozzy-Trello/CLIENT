@@ -556,8 +556,14 @@ export const getCardLabels = async (
   return data;
 };
 
-export const getListDashcard = async (workspaceId: string, id: string) => {
-  const { data } = await api.get(`/card/${id}/list-dashcard/${workspaceId}`);
+export const getListDashcard = async (
+  workspaceId: string,
+  id: string,
+  limit?: number
+) => {
+  const { data } = await api.get(`/card/${id}/list-dashcard/${workspaceId}`, {
+    params: limit ? { limit } : undefined,
+  });
 
   return data as ApiResponse<ListDashcardDataResponse>;
 };

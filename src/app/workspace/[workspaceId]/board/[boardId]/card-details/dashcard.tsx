@@ -5,6 +5,7 @@ import { Card } from "@myTypes/card";
 import { useCardDetailContext } from "@providers/card-detail-context";
 import MembersList from "@components/members-list";
 import { useDashcardList } from "@hooks/dashcard-list";
+import { useDashcardCount } from "@hooks/dashcard";
 
 interface DashcardProps {
   card: Card;
@@ -12,7 +13,8 @@ interface DashcardProps {
 }
 
 const Dashcard: FC<DashcardProps> = ({ card, onOpenDetail }) => {
-  const { resultData, refetchList } = useDashcardList(card);
+  const { resultData, refetchList } = useDashcardList(card, { limit: 10 });
+  const { count } = useDashcardCount(card.id);
 
   const { handleItemDashcard, setOpenEditFilter, setCurrentFilter } =
     useCardDetailContext();
@@ -58,7 +60,7 @@ const Dashcard: FC<DashcardProps> = ({ card, onOpenDetail }) => {
           <div className="p-3 bg-gray-200 rounded-lg flex items-center text-gray-500 font-bold justify-between">
             {items.length > 0 && (
               <div>
-                Showing the first {items.length} of {resultData?.items?.length}{" "}
+                Showing the first {items.length} of {count}{" "}
                 matching cards
               </div>
             )}

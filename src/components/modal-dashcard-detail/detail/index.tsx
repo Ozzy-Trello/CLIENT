@@ -7,6 +7,7 @@ import { useCustomFields } from "@hooks/custom_field";
 import { useParams } from "next/navigation";
 import { Button, ColorPicker } from "antd";
 import { Edit } from "lucide-react";
+import { useDashcardCount } from "@hooks/dashcard";
 
 const Detail: FC = () => {
   const {
@@ -15,7 +16,6 @@ const Detail: FC = () => {
     itemDashcard,
     openEditFilter,
     setProcessedItemDashcard,
-    processedItemDashcard,
     isUpdatingCard,
     updateDisplayConfig,
     updateBackgroundColor,
@@ -31,6 +31,7 @@ const Detail: FC = () => {
     dashcardConfig?.displayConfig || { type: DashcardDisplayType.CARD_COUNT }
   );
   const [bgColor, setBgColor] = useState(dashcardConfig?.backgroundColor || "#4096ff");
+  const { count } = useDashcardCount(selectedCard?.id || "");
 
   const handleColorChange = (color: any) => {
     setBgColor(color.toHexString());
@@ -43,25 +44,7 @@ const Detail: FC = () => {
 
   // Calculate display value based on configuration
   const getDisplayValue = () => {
-    if (displayConfig.type === DashcardDisplayType.CUSTOM_FIELD_SUM && displayConfig.customFieldId) {
-      // Find the custom field to get its name
-      const customField = customFields?.find(field => field.id === displayConfig.customFieldId);
-      if (!customField) return processedItemDashcard?.length || 0;
-      
-      // Calculate sum of the custom field using the field name
-      const sum = processedItemDashcard.reduce((total, item) => {
-        const customFieldColumn = item.columns?.find(
-          (col) => col.column === customField.name
-        );
-        if (!customFieldColumn) return total;
-        
-        const value = customFieldColumn.value;
-        const numValue = typeof value === 'string' ? parseFloat(value) : (typeof value === 'number' ? value : 0);
-        return total + (isNaN(numValue) ? 0 : numValue);
-      }, 0);
-      return Math.round(sum).toString();
-    }
-    return processedItemDashcard?.length || 0;
+    return typeof count === "number" ? count.toLocaleString() : count || 0;
   };
 
   // Get display label based on configuration
@@ -81,9 +64,8 @@ const Detail: FC = () => {
 
   // Sync display config when dashcard config changes
   useEffect(() => {
-    if (dashcardConfig?.displayConfig) {
-      setDisplayConfig(dashcardConfig.displayConfig);
-    }
+    setDisplayConfig(dashcardConfig?.displayConfig || { type: DashcardDisplayType.CARD_COUNT });
+    setBgColor(dashcardConfig?.backgroundColor || "#4096ff");
   }, [dashcardConfig]);
 
   // Process items - backend now sends all names resolved, no need to fetch lookups
