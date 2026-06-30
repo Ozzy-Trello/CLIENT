@@ -114,13 +114,17 @@ const CreatedAtItemFilter: FC<DashcardFilter> = ({ id, operator, value, label })
       </div>
     );
 
+  const showValue = operator === "later_than" || operator === "earlier_than";
+
   return (
     <div className="flex items-center gap-3">
       <div className="font-semibold min-w-16">{label || "Created At"}</div>
       <div className="border p-2 rounded-lg border-gray-200">
         {convertOperatorToText(operator ?? "")}
       </div>
-      <div className="border p-2 rounded-lg border-gray-200">{convertValueToText(value)}</div>
+      {showValue && (
+        <div className="border p-2 rounded-lg border-gray-200">{convertValueToText(value)}</div>
+      )}
     </div>
   );
 };

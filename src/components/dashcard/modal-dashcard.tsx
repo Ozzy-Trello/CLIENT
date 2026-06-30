@@ -415,6 +415,15 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
                 }
               }
 
+              // Clear value for date operators that don't use one
+              const isDateFilter =
+                filter.type === EnumCardAttributeType.DUE_DATE ||
+                filter.type === EnumCardAttributeType.CREATED_AT;
+              const noValueDateOps = ["today", "this_week", "this_month", "in_the_past"];
+              if (isDateFilter && noValueDateOps.includes(normalizedOp)) {
+                next.value = undefined;
+              }
+
               return next;
             })()
           : filter
