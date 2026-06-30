@@ -56,7 +56,7 @@ const Dashcard: React.FC<DashcardProps> = (props) => {
   );
 
   // Use our custom hook to fetch and manage dashcard count
-  const { count } = useDashcardCount(card.id);
+  const { count } = useDashcardCount(card.id, card.dashConfig);
 
   // Only fetch full item list when dashcard needs it (custom field sum display)
   // Regular count dashcards don't need items — avoids N parallel API calls

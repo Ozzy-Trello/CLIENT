@@ -81,12 +81,24 @@ function scheduleBatchFetch(
  * board, their individual count requests are automatically collected into a
  * single batch API call within a 50ms window.
  */
-export const useDashcardCount = (dashcardId: string) => {
+const dashcardCountKey = (
+  workspaceId: string | undefined,
+  dashcardId: string,
+  configSignature?: string
+) => ["dashcardCount", workspaceId, dashcardId, configSignature || "no-config"];
+
+export const getDashcardCountQueryKey = dashcardCountKey;
+
+export const getDashcardConfigSignature = (dashConfig: unknown) =>
+  dashConfig ? JSON.stringify(dashConfig) : "no-config";
+
+export const useDashcardCount = (dashcardId: string, dashConfig?: unknown) => {
   const queryClient = useQueryClient();
   const params = useParams();
   const workspaceId = Array.isArray(params.workspaceId)
     ? params.workspaceId[0]
     : params.workspaceId;
+  const configSignature = getDashcardConfigSignature(dashConfig);
 
   const {
     data: count = 0,
@@ -95,7 +107,7 @@ export const useDashcardCount = (dashcardId: string) => {
     error,
     refetch,
   } = useQuery({
-    queryKey: ["dashcardCount", dashcardId],
+    queryKey: dashcardCountKey(workspaceId, dashcardId, configSignature),
     queryFn: () => scheduleBatchFetch(dashcardId, workspaceId),
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchInterval: 5 * 60 * 1000, // refresh every 5 minutes
@@ -110,7 +122,7 @@ export const useDashcardCount = (dashcardId: string) => {
    * This can be called manually if needed
    */
   const refreshCount = () => {
-    queryClient.invalidateQueries({ queryKey: ["dashcardCount", dashcardId] });
+    queryClient.invalidateQueries({ queryKey: ["dashcardCount", workspaceId, dashcardId] });
   };
 
   return {

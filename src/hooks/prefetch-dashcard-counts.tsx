@@ -2,6 +2,10 @@ import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { batchCardCount } from "@api/card";
 import { Card, EnumCardType } from "@myTypes/card";
+import {
+  getDashcardConfigSignature,
+  getDashcardCountQueryKey,
+} from "@hooks/dashcard";
 
 /**
  * Board-level hook that prefetches ALL dashcard counts in a single batch request.
@@ -52,8 +56,23 @@ export const usePrefetchDashcardCounts = (
         // Pre-populate React Query cache for each dashcard.
         // Uses the same query key ["dashcardCount", id] as useDashcardCount,
         // so when the individual hook mounts it finds cached data instantly.
+        const dashcardById = new Map<string, Card>();
+        Object.values(localCards).forEach((cards) => {
+          cards.forEach((card) => {
+            if (card.type === EnumCardType.Dashcard) dashcardById.set(card.id, card);
+          });
+        });
+
         Object.entries(countMap).forEach(([id, count]) => {
-          queryClient.setQueryData(["dashcardCount", id], count);
+          const dashcard = dashcardById.get(id);
+          queryClient.setQueryData(
+            getDashcardCountQueryKey(
+              workspaceId,
+              id,
+              getDashcardConfigSignature(dashcard?.dashConfig)
+            ),
+            count
+          );
         });
       })
       .catch(() => {

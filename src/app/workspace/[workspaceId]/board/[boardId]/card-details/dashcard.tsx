@@ -14,7 +14,7 @@ interface DashcardProps {
 
 const Dashcard: FC<DashcardProps> = ({ card, onOpenDetail }) => {
   const { resultData, refetchList } = useDashcardList(card, { limit: 10 });
-  const { count } = useDashcardCount(card.id);
+  const { count } = useDashcardCount(card.id, card.dashConfig);
 
   const { handleItemDashcard, setOpenEditFilter, setCurrentFilter } =
     useCardDetailContext();

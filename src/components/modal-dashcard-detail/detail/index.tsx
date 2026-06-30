@@ -31,7 +31,10 @@ const Detail: FC = () => {
     dashcardConfig?.displayConfig || { type: DashcardDisplayType.CARD_COUNT }
   );
   const [bgColor, setBgColor] = useState(dashcardConfig?.backgroundColor || "#4096ff");
-  const { count, refetch } = useDashcardCount(selectedCard?.id || "");
+  const { count, refetch } = useDashcardCount(
+    selectedCard?.id || "",
+    dashcardConfig ?? selectedCard?.dashConfig
+  );
   const displayConfigKey = useMemo(
     () => JSON.stringify(dashcardConfig?.displayConfig || null),
     [dashcardConfig?.displayConfig]

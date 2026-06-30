@@ -238,7 +238,14 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
       return updateCard(selectedCard!.id, updateData);
     },
     onSuccess: async () => {
-      // No dashcard invalidation/refetch to avoid unnecessary reloads
+      if (selectedCard?.id) {
+        queryClient.invalidateQueries({
+          queryKey: ["dashcardCount", workspaceId, selectedCard.id],
+        });
+        queryClient.invalidateQueries({
+          queryKey: ["list-dashcard", selectedCard.id, workspaceId],
+        });
+      }
     },
     onError: (error) => {
       console.error("Error updating dashcard:", error);
