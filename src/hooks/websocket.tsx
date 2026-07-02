@@ -887,6 +887,17 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             break;
           }
 
+          case "card_note:updated": {
+            const { cardId } = message.data;
+            queryClient.invalidateQueries({
+              queryKey: ["cardNotes", cardId],
+            });
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.cards.detail(cardId),
+            });
+            break;
+          }
+
           case "card_attachment:updated": {
             const { cardId } = message.data;
             queryClient.invalidateQueries({

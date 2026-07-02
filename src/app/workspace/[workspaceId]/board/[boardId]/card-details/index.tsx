@@ -43,6 +43,7 @@ import {
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Activity from "./activity";
+import Notes from "./notes";
 import Cover from "./cover";
 import Description from "./description";
 
@@ -2260,11 +2261,18 @@ const CardDetails: React.FC = (props) => {
                   <div className="pl-4 lg:pl-0 h-[calc(85vh-100px)] overflow-y-auto pr-2 custom-scrollbar">
                     <div className="bg-gray-50/50 rounded-lg p-2 min-h-[400px]">
                       {selectedCard && (
-                        <Activity
-                          currentUser={currentUser}
-                          card={selectedCard}
-                          setCard={setSelectedCard}
-                        />
+                        <>
+                          <Notes
+                            currentUser={currentUser}
+                            card={selectedCard}
+                            isSuperAdmin={isSuperAdmin}
+                          />
+                          <Activity
+                            currentUser={currentUser}
+                            card={selectedCard}
+                            setCard={setSelectedCard}
+                          />
+                        </>
                       )}
                     </div>
                   </div>
@@ -2276,6 +2284,13 @@ const CardDetails: React.FC = (props) => {
                 {actionsToolbar}
                 {mainBody}
                 <div className="mt-8 pt-8 border-t border-gray-100">
+                  {selectedCard && (
+                    <Notes
+                      currentUser={currentUser}
+                      card={selectedCard}
+                      isSuperAdmin={isSuperAdmin}
+                    />
+                  )}
                   <div className="mb-4 flex items-center gap-2 font-semibold">
                     <MessageSquare size={18} />
                     <span>Activity</span>
