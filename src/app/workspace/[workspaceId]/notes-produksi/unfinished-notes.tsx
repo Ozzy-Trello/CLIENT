@@ -2,26 +2,35 @@
 
 import { useMemo, useState } from "react";
 import type { ColumnsType } from "antd/es/table";
-import { Empty, Popover, Spin, Table, Tag, Typography } from "antd";
+import { Empty, Popover, Select, Spin, Table, Tag, Typography } from "antd";
 import dayjs from "dayjs";
 import Link from "next/link";
 import { UnfinishedCardNoteCard } from "@api/card_notes";
 import { useUnfinishedCardNotes } from "@hooks/useUnfinishedCardNotes";
+import { useRoles } from "@hooks/useRoles";
 
 interface UnfinishedNotesProps {
   workspaceId: string;
 }
 
 const noteDivisionName = (note: UnfinishedCardNoteCard["notes"][number]) =>
-  note.divisionName ?? note.division_name ?? "Division";
+  note.divisionName ?? note.division_name ?? "PIC";
 
 const UnfinishedNotes: React.FC<UnfinishedNotesProps> = ({ workspaceId }) => {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
+  const [selectedPicRoleId, setSelectedPicRoleId] = useState<string | undefined>();
+  const { roles, loading: rolesLoading } = useRoles(workspaceId);
   const { unfinishedCards, pagination, isLoading } = useUnfinishedCardNotes(
     workspaceId,
     page,
     limit,
+    selectedPicRoleId,
+  );
+
+  const picOptions = useMemo(
+    () => roles.map((role) => ({ label: role.name, value: role.id })),
+    [roles],
   );
 
   const columns: ColumnsType<UnfinishedCardNoteCard> = useMemo(
@@ -119,6 +128,23 @@ const UnfinishedNotes: React.FC<UnfinishedNotesProps> = ({ workspaceId }) => {
 
   return (
     <Spin spinning={isLoading}>
+      <div className="mb-3 flex items-center gap-2">
+        <Typography.Text className="font-medium text-gray-700">PIC</Typography.Text>
+        <Select
+          className="min-w-[240px]"
+          allowClear
+          loading={rolesLoading}
+          options={picOptions}
+          placeholder="Semua PIC"
+          value={selectedPicRoleId}
+          onChange={(value) => {
+            setSelectedPicRoleId(value);
+            setPage(1);
+          }}
+          showSearch
+          optionFilterProp="label"
+        />
+      </div>
       <Table
         rowKey={(record) => record.cardId}
         dataSource={unfinishedCards}

@@ -63,9 +63,10 @@ export const getUnfinishedCardNotes = async (
   workspaceId: string,
   page: number = 1,
   limit: number = 50,
+  divisionRoleId?: string,
 ): Promise<ApiResponse<UnfinishedCardNoteCard[]>> => {
   const response = await api.get("/card-notes/unfinished", {
-    params: { workspaceId, page, limit },
+    params: { workspaceId, page, limit, divisionRoleId },
   });
 
   if (response.status === 204 || !response.data) {
