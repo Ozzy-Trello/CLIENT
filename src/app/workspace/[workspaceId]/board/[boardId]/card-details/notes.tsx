@@ -28,7 +28,7 @@ const formatDate = (value?: string | null) => {
 
 const noteCreatedBy = (note: CardNote) => note.createdBy ?? note.created_by;
 const noteDivisionRoleId = (note: CardNote) => note.divisionRoleId ?? note.division_role_id;
-const noteDivisionName = (note: CardNote) => note.divisionName ?? note.division_name ?? "Division";
+const noteDivisionName = (note: CardNote) => note.divisionName ?? note.division_name ?? "PIC";
 const noteDoneByName = (note: CardNote) => note.doneByName ?? note.done_by_name;
 const noteDoneAt = (note: CardNote) => note.doneAt ?? note.done_at;
 const noteCreatedByName = (note: CardNote) => note.createdByName ?? note.created_by_name;
@@ -77,8 +77,8 @@ const Notes: React.FC<NotesProps> = ({ card, currentUser, isSuperAdmin }) => {
       }),
     [notes],
   );
-  const uncheckedNotesCount = useMemo(
-    () => notes.filter((note) => !note.done).length,
+  const doneNotesCount = useMemo(
+    () => notes.filter((note) => note.done).length,
     [notes],
   );
 
@@ -91,7 +91,7 @@ const Notes: React.FC<NotesProps> = ({ card, currentUser, isSuperAdmin }) => {
   const handleCreate = async () => {
     const trimmed = noteText.trim();
     if (!trimmed || !divisionRoleId) {
-      message.warning("Isi note dan division dulu.");
+      message.warning("Isi note dan PIC dulu.");
       return;
     }
 
@@ -110,7 +110,7 @@ const Notes: React.FC<NotesProps> = ({ card, currentUser, isSuperAdmin }) => {
   const handleUpdate = async (noteId: string) => {
     const trimmed = editingNote.trim();
     if (!trimmed || !editingDivisionRoleId) {
-      message.warning("Isi note dan division dulu.");
+      message.warning("Isi note dan PIC dulu.");
       return;
     }
 
@@ -138,17 +138,13 @@ const Notes: React.FC<NotesProps> = ({ card, currentUser, isSuperAdmin }) => {
       minute: "2-digit",
     });
     const rows = sortedNotes.map((note, index) => {
-      const doneInfo = note.done
-        ? `${noteDoneByName(note) || "-"}${noteDoneAt(note) ? `, ${formatDate(noteDoneAt(note))}` : ""}`
-        : "-";
-
       return `
         <tr>
           <td class="number">${index + 1}</td>
           <td>${escapeHtml(note.note).replace(/\n/g, "<br />")}</td>
           <td>${escapeHtml(noteDivisionName(note))}</td>
           <td>${note.done ? "Done" : "Belum"}</td>
-          <td>${escapeHtml(doneInfo)}</td>
+          <td></td>
         </tr>
       `;
     }).join("");
@@ -168,19 +164,20 @@ const Notes: React.FC<NotesProps> = ({ card, currentUser, isSuperAdmin }) => {
             table { width: 100%; border-collapse: collapse; }
             th, td { border: 1px solid #d1d5db; padding: 4px; text-align: left; vertical-align: top; }
             th { background: #f3f4f6; font-weight: 700; }
+            tbody td { height: 44px; }
             .number { width: 18px; text-align: center; }
           </style>
         </head>
         <body>
           <h1>Notes Produksi</h1>
           <div class="meta">${escapeHtml(card.name)} · Dicetak ${escapeHtml(printedAt)}</div>
-          <div class="summary">Belum selesai: ${uncheckedNotesCount}/${notes.length}</div>
+          <div class="summary">Selesai: ${doneNotesCount}/${notes.length}</div>
           <table>
             <thead>
               <tr>
                 <th class="number">#</th>
                 <th>Note</th>
-                <th>Division</th>
+                <th>PIC</th>
                 <th>Status</th>
                 <th>Done By</th>
               </tr>
@@ -221,7 +218,7 @@ const Notes: React.FC<NotesProps> = ({ card, currentUser, isSuperAdmin }) => {
       },
     },
     {
-      title: "Division",
+      title: "PIC",
       key: "division",
       width: 130,
       render: (_: unknown, note: CardNote) => {
@@ -303,7 +300,7 @@ const Notes: React.FC<NotesProps> = ({ card, currentUser, isSuperAdmin }) => {
           <DownOutlined className={`text-xs text-gray-500 transition-transform ${collapsed ? "-rotate-90" : ""}`} />
           <span>Notes Produksi</span>
           <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
-            {uncheckedNotesCount}/{notes.length}
+            {doneNotesCount}/{notes.length}
           </span>
         </button>
         <Button size="small" icon={<PrinterOutlined />} onClick={handlePrint}>
@@ -336,7 +333,7 @@ const Notes: React.FC<NotesProps> = ({ card, currentUser, isSuperAdmin }) => {
                 className="flex-1"
                 loading={rolesLoading}
                 options={roleOptions}
-                placeholder="Division"
+                placeholder="PIC"
                 value={divisionRoleId}
                 onChange={setDivisionRoleId}
                 showSearch
