@@ -51,6 +51,21 @@ type ColumnSort = {
 };
 type SortingState = ColumnSort[];
 
+const normalizeDateGroupKey = (value: unknown): string => {
+  if (value === null || value === undefined || value === "") return "";
+  const date =
+    typeof value === "string" || typeof value === "number"
+      ? new Date(value)
+      : value instanceof Date
+        ? value
+        : null;
+  if (!date || isNaN(date.getTime())) return String(value);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
 const humanizeColumnId = (columnId: string) => {
   const cleaned = columnId.replace(/[_\s]+/g, " ").trim();
   const withBoundaries = cleaned
@@ -125,6 +140,18 @@ const TablePivot: FC = () => {
     const combined = Array.from(new Set([...Array.from(dashcardColumns), ...Array.from(workspaceCustomFields)]));
     return combined
   }, [processedItemDashcard, customFields]);
+
+  const dateColumnNames = useMemo(() => {
+    const dateColumns = new Set<string>();
+    processedItemDashcard.forEach((item) => {
+      item.columns.forEach((col: any) => {
+        if (col.type === "date") {
+          dateColumns.add(col.column);
+        }
+      });
+    });
+    return dateColumns;
+  }, [processedItemDashcard]);
 
   const pivotData = usePivotData(processedItemDashcard, customFields);
 
@@ -489,6 +516,7 @@ const TablePivot: FC = () => {
         },
       }),
       columnHelper.accessor("dueDate", {
+        getGroupingValue: (row) => normalizeDateGroupKey(row.dueDate),
         header: () =>
           headerTemplate("Due Date", getColumnMenu("dueDate").items || [], getColumnMenu("dueDate").onClick),
         cell: (info) => {
@@ -497,6 +525,7 @@ const TablePivot: FC = () => {
         },
       }),
       columnHelper.accessor("createdAt", {
+        getGroupingValue: (row) => normalizeDateGroupKey(row.createdAt),
         header: () =>
           headerTemplate("Created Date", getColumnMenu("createdAt").items || [], getColumnMenu("createdAt").onClick),
         cell: (info) => {
@@ -509,6 +538,9 @@ const TablePivot: FC = () => {
     const dynamicColumnsDefinitions =
       dynamicColumns.map((columnName) =>
         columnHelper.accessor(columnName, {
+          ...(dateColumnNames.has(columnName)
+            ? { getGroupingValue: (row: any) => normalizeDateGroupKey(row[columnName]) }
+            : {}),
           header: () =>
             headerTemplate(
               columnName.charAt(0).toUpperCase() + columnName.slice(1),
@@ -531,7 +563,7 @@ const TablePivot: FC = () => {
       ) || [];
 
     return [...baseColumns, ...dynamicColumnsDefinitions];
-  }, [processedItemDashcard, grouping, sorting, dynamicColumns, currentWorkspaceId]);
+  }, [processedItemDashcard, grouping, sorting, dynamicColumns, dateColumnNames, currentWorkspaceId]);
 
 
 
