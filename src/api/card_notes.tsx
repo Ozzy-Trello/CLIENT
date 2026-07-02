@@ -6,6 +6,20 @@ import {
 } from "@myTypes/card_note";
 import { ApiResponse } from "@myTypes/type";
 
+export interface UnfinishedCardNoteCard {
+  cardId: string;
+  cardName: string;
+  boardId: string;
+  boardName: string;
+  listId?: string;
+  listName: string;
+  dueDate?: string | null;
+  totalNotes: number;
+  doneNotes: number;
+  undoneNotes: number;
+  notes: CardNote[];
+}
+
 export const getCardNotes = async (cardId: string): Promise<ApiResponse<CardNote[]>> => {
   const { data } = await api.get(`/card/${cardId}/notes`);
   return data;
@@ -43,4 +57,30 @@ export const deleteCardNote = async (
 ): Promise<ApiResponse<null>> => {
   const { data } = await api.delete(`/card/${cardId}/notes/${noteId}`);
   return data;
+};
+
+export const getUnfinishedCardNotes = async (
+  workspaceId: string,
+  page: number = 1,
+  limit: number = 50,
+): Promise<ApiResponse<UnfinishedCardNoteCard[]>> => {
+  const response = await api.get("/card-notes/unfinished", {
+    params: { workspaceId, page, limit },
+  });
+
+  if (response.status === 204 || !response.data) {
+    return {
+      data: [],
+      paginate: {
+        limit,
+        page,
+        totalData: 0,
+        totalPage: 0,
+        nextPage: 0,
+        prevPage: 0,
+      },
+    };
+  }
+
+  return response.data;
 };

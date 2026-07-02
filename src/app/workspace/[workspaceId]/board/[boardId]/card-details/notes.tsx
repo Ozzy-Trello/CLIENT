@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { Button, Checkbox, Input, Popconfirm, Select, Table, Tag, Typography, message } from "antd";
-import { DownOutlined, DeleteOutlined, EditOutlined, PlusOutlined, SaveOutlined } from "@ant-design/icons";
+import { DownOutlined, DeleteOutlined, EditOutlined, PlusOutlined, PrinterOutlined, SaveOutlined } from "@ant-design/icons";
 import { useParams } from "next/navigation";
 import { Card } from "@myTypes/card";
 import { User } from "@myTypes/user";
@@ -32,6 +32,14 @@ const noteDivisionName = (note: CardNote) => note.divisionName ?? note.division_
 const noteDoneByName = (note: CardNote) => note.doneByName ?? note.done_by_name;
 const noteDoneAt = (note: CardNote) => note.doneAt ?? note.done_at;
 const noteCreatedByName = (note: CardNote) => note.createdByName ?? note.created_by_name;
+
+const escapeHtml = (value: string) =>
+  value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 
 const Notes: React.FC<NotesProps> = ({ card, currentUser, isSuperAdmin }) => {
   const params = useParams();
@@ -67,6 +75,10 @@ const Notes: React.FC<NotesProps> = ({ card, currentUser, isSuperAdmin }) => {
         const bTime = new Date(b.createdAt ?? b.created_at ?? 0).getTime();
         return aTime - bTime;
       }),
+    [notes],
+  );
+  const uncheckedNotesCount = useMemo(
+    () => notes.filter((note) => !note.done).length,
     [notes],
   );
 
@@ -109,6 +121,82 @@ const Notes: React.FC<NotesProps> = ({ card, currentUser, isSuperAdmin }) => {
     setEditingId(null);
     setEditingNote("");
     setEditingDivisionRoleId(undefined);
+  };
+
+  const handlePrint = () => {
+    const printWindow = window.open("", "_blank", "width=794,height=1123");
+    if (!printWindow) {
+      message.error("Pop-up print diblokir browser.");
+      return;
+    }
+
+    const printedAt = new Date().toLocaleString("id-ID", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    const rows = sortedNotes.map((note, index) => {
+      const doneInfo = note.done
+        ? `${noteDoneByName(note) || "-"}${noteDoneAt(note) ? `, ${formatDate(noteDoneAt(note))}` : ""}`
+        : "-";
+
+      return `
+        <tr>
+          <td class="number">${index + 1}</td>
+          <td>${escapeHtml(note.note).replace(/\n/g, "<br />")}</td>
+          <td>${escapeHtml(noteDivisionName(note))}</td>
+          <td>${note.done ? "Done" : "Belum"}</td>
+          <td>${escapeHtml(doneInfo)}</td>
+        </tr>
+      `;
+    }).join("");
+
+    printWindow.document.write(`
+      <!doctype html>
+      <html>
+        <head>
+          <title>Notes Produksi</title>
+          <style>
+            @page { size: 148mm 210mm; margin: 8mm; }
+            * { box-sizing: border-box; }
+            body { font-family: Arial, sans-serif; color: #111827; font-size: 10px; margin: 0; }
+            h1 { font-size: 16px; margin: 0 0 4px; }
+            .meta { color: #4b5563; margin-bottom: 10px; }
+            .summary { font-weight: 700; margin-bottom: 8px; }
+            table { width: 100%; border-collapse: collapse; }
+            th, td { border: 1px solid #d1d5db; padding: 4px; text-align: left; vertical-align: top; }
+            th { background: #f3f4f6; font-weight: 700; }
+            .number { width: 18px; text-align: center; }
+          </style>
+        </head>
+        <body>
+          <h1>Notes Produksi</h1>
+          <div class="meta">${escapeHtml(card.name)} · Dicetak ${escapeHtml(printedAt)}</div>
+          <div class="summary">Belum selesai: ${uncheckedNotesCount}/${notes.length}</div>
+          <table>
+            <thead>
+              <tr>
+                <th class="number">#</th>
+                <th>Note</th>
+                <th>Division</th>
+                <th>Status</th>
+                <th>Done By</th>
+              </tr>
+            </thead>
+            <tbody>${rows || `<tr><td colspan="5">No notes</td></tr>`}</tbody>
+          </table>
+          <script>
+            window.onload = function () {
+              window.print();
+              window.onafterprint = function () { window.close(); };
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
   };
 
   const columns = [
@@ -206,18 +294,21 @@ const Notes: React.FC<NotesProps> = ({ card, currentUser, isSuperAdmin }) => {
 
   return (
     <div className="mb-4 rounded-lg border border-gray-100 bg-white shadow-sm">
-      <div className="flex items-center justify-between px-3 py-2">
+      <div className="flex items-center justify-between gap-2 px-3 py-2">
         <button
           type="button"
           className="flex items-center gap-2 rounded-md px-1 py-1 text-left font-semibold text-gray-700 hover:bg-gray-50"
           onClick={() => setCollapsed((value) => !value)}
         >
           <DownOutlined className={`text-xs text-gray-500 transition-transform ${collapsed ? "-rotate-90" : ""}`} />
-          <span>Notes</span>
+          <span>Notes Produksi</span>
           <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
-            {notes.length}
+            {uncheckedNotesCount}/{notes.length}
           </span>
         </button>
+        <Button size="small" icon={<PrinterOutlined />} onClick={handlePrint}>
+          Print
+        </Button>
       </div>
 
       {!collapsed && (

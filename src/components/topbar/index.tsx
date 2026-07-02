@@ -28,6 +28,7 @@ import ModalRequestProduksi from "../modal-request-produksi";
 import WebSocketDebugModal from "../websocket-debug-modal";
 import { getRequestNotificationCounts } from "@api/accurate";
 import { getUnfinishedCardAccessories } from "@api/unfinished-accessory";
+import { getUnfinishedCardNotes } from "@api/card_notes";
 import TokenStorage from "@utils/token-storage";
 import { SearchResult, useUnifiedSearch } from "@hooks/search";
 import { selectCurrentBoard, selectCurrentWorkspace } from "@store/workspace_slice";
@@ -117,6 +118,7 @@ const TopBar: React.FC = React.memo(() => {
     pendingWarehouseSend: number;
   }>({ pendingVerification: 0, pendingWarehouseSend: 0 });
   const [pendingAccessoryCount, setPendingAccessoryCount] = useState(0);
+  const [pendingNoteCount, setPendingNoteCount] = useState(0);
   const searchRef = useRef<HTMLDivElement>(null);
   const theme = useSelector(selectTheme);
   const { colors } = theme;
@@ -260,6 +262,10 @@ const TopBar: React.FC = React.memo(() => {
     return Boolean(isDateline && workspaceId);
   };
 
+  const canSeeNotesProduksiStatus = (): boolean => {
+    return Boolean(workspaceId);
+  };
+
   // Fetch request/warehouse counts
   useEffect(() => {
     const fetchCounts = async () => {
@@ -328,6 +334,26 @@ const TopBar: React.FC = React.memo(() => {
     fetchPendingAccessoryCount();
 
     const interval = setInterval(fetchPendingAccessoryCount, 60_000);
+    return () => clearInterval(interval);
+  }, [workspaceId]);
+
+  useEffect(() => {
+    const fetchPendingNoteCount = async () => {
+      if (!workspaceId) {
+        setPendingNoteCount(0);
+        return;
+      }
+      try {
+        const res = await getUnfinishedCardNotes(workspaceId, 1, 1);
+        setPendingNoteCount(res?.paginate?.totalData ?? 0);
+      } catch (error) {
+        console.error("Failed to load pending notes produksi count", error);
+      }
+    };
+
+    fetchPendingNoteCount();
+
+    const interval = setInterval(fetchPendingNoteCount, 60_000);
     return () => clearInterval(interval);
   }, [workspaceId]);
 
@@ -462,6 +488,20 @@ const TopBar: React.FC = React.memo(() => {
       ),
       onClick: () =>
         router.push(`/workspace/${workspaceId}/aksesoris/status-aksesoris`),
+    });
+  }
+
+  if (canSeeNotesProduksiStatus()) {
+    mobileActionMenuItems.push({
+      key: "status-notes-produksi",
+      label: (
+        <div className="flex items-center justify-between gap-3">
+          <span>Status Notes Produksi</span>
+          <Badge count={pendingNoteCount} overflowCount={99} />
+        </div>
+      ),
+      onClick: () =>
+        router.push(`/workspace/${workspaceId}/notes-produksi/status-notes-produksi`),
     });
   }
 
@@ -646,6 +686,20 @@ const TopBar: React.FC = React.memo(() => {
                   }
                 >
                   Status Aksesoris
+                </Button>
+              </Badge>
+            </div>
+          )}
+
+          {canSeeNotesProduksiStatus() && (
+            <div className="hidden lg:block">
+              <Badge count={pendingNoteCount} overflowCount={99} offset={[-6, 8]}>
+                <Button
+                  onClick={() =>
+                    router.push(`/workspace/${workspaceId}/notes-produksi/status-notes-produksi`)
+                  }
+                >
+                  Status Notes Produksi
                 </Button>
               </Badge>
             </div>
