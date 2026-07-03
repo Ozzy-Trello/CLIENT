@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ColumnsType } from "antd/es/table";
 import { Empty, Popover, Select, Spin, Table, Tag, Typography } from "antd";
 import dayjs from "dayjs";
@@ -8,10 +8,15 @@ import Link from "next/link";
 import { UnfinishedCardNoteCard } from "@api/card_notes";
 import { useUnfinishedCardNotes } from "@hooks/useUnfinishedCardNotes";
 import { useRoles } from "@hooks/useRoles";
+import { useSelector } from "react-redux";
+import { selectUser } from "@store/app_slice";
 
 interface UnfinishedNotesProps {
   workspaceId: string;
 }
+
+const ROLE_ME_VALUE = "__role_me__";
+const SHOW_ALL_VALUE = "__show_all__";
 
 const noteDivisionName = (note: UnfinishedCardNoteCard["notes"][number]) =>
   note.divisionName ?? note.division_name ?? "PIC";
@@ -21,15 +26,30 @@ const UnfinishedNotes: React.FC<UnfinishedNotesProps> = ({ workspaceId }) => {
   const [limit, setLimit] = useState(20);
   const [selectedPicRoleId, setSelectedPicRoleId] = useState<string | undefined>();
   const { roles, loading: rolesLoading } = useRoles(workspaceId);
+  const currentUser = useSelector(selectUser);
+  const defaultPicRoleId = currentUser?.role?.id;
+
+  useEffect(() => {
+    if (selectedPicRoleId !== undefined) return;
+    setSelectedPicRoleId(defaultPicRoleId || ROLE_ME_VALUE);
+  }, [defaultPicRoleId, selectedPicRoleId]);
+
+  const resolvedPicRoleId =
+    selectedPicRoleId === ROLE_ME_VALUE ? defaultPicRoleId : selectedPicRoleId;
+
   const { unfinishedCards, pagination, isLoading } = useUnfinishedCardNotes(
     workspaceId,
     page,
     limit,
-    selectedPicRoleId,
+    resolvedPicRoleId,
   );
 
   const picOptions = useMemo(
-    () => roles.map((role) => ({ label: role.name, value: role.id })),
+    () => [
+      { label: "By Role Me", value: ROLE_ME_VALUE },
+      { label: "Show All", value: SHOW_ALL_VALUE },
+      ...roles.map((role) => ({ label: role.name, value: role.id })),
+    ],
     [roles],
   );
 
@@ -136,9 +156,9 @@ const UnfinishedNotes: React.FC<UnfinishedNotesProps> = ({ workspaceId }) => {
           loading={rolesLoading}
           options={picOptions}
           placeholder="Semua PIC"
-          value={selectedPicRoleId}
+          value={selectedPicRoleId ?? ROLE_ME_VALUE}
           onChange={(value) => {
-            setSelectedPicRoleId(value);
+            setSelectedPicRoleId(value === undefined ? SHOW_ALL_VALUE : value);
             setPage(1);
           }}
           showSearch
