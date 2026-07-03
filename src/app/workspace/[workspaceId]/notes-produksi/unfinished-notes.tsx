@@ -15,7 +15,7 @@ interface UnfinishedNotesProps {
   workspaceId: string;
 }
 
-const ROLE_ME_VALUE = "__role_me__";
+const SHOW_ALL_VALUE = "__show_all__";
 
 const noteDivisionName = (note: UnfinishedCardNoteCard["notes"][number]) =>
   note.divisionName ?? note.division_name ?? "PIC";
@@ -30,11 +30,11 @@ const UnfinishedNotes: React.FC<UnfinishedNotesProps> = ({ workspaceId }) => {
 
   useEffect(() => {
     if (selectedPicRoleId !== undefined) return;
-    setSelectedPicRoleId(defaultPicRoleId || ROLE_ME_VALUE);
+    setSelectedPicRoleId(defaultPicRoleId || SHOW_ALL_VALUE);
   }, [defaultPicRoleId, selectedPicRoleId]);
 
   const resolvedPicRoleId =
-    selectedPicRoleId === ROLE_ME_VALUE ? defaultPicRoleId : selectedPicRoleId;
+    selectedPicRoleId === SHOW_ALL_VALUE ? undefined : selectedPicRoleId;
 
   const { unfinishedCards, pagination, isLoading } = useUnfinishedCardNotes(
     workspaceId,
@@ -45,8 +45,7 @@ const UnfinishedNotes: React.FC<UnfinishedNotesProps> = ({ workspaceId }) => {
 
   const picOptions = useMemo(
     () => [
-      { label: "By Role Me", value: ROLE_ME_VALUE },
-      { label: "Show All", value: undefined },
+      { label: "Show All", value: SHOW_ALL_VALUE },
       ...roles.map((role) => ({ label: role.name, value: role.id })),
     ],
     [roles],
@@ -155,9 +154,9 @@ const UnfinishedNotes: React.FC<UnfinishedNotesProps> = ({ workspaceId }) => {
           loading={rolesLoading}
           options={picOptions}
           placeholder="Semua PIC"
-          value={selectedPicRoleId ?? ROLE_ME_VALUE}
+          value={selectedPicRoleId ?? SHOW_ALL_VALUE}
           onChange={(value) => {
-            setSelectedPicRoleId(value);
+            setSelectedPicRoleId(value ?? SHOW_ALL_VALUE);
             setPage(1);
           }}
           showSearch
