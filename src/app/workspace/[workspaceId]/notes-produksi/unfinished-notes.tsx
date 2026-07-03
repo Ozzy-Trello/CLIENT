@@ -16,7 +16,6 @@ interface UnfinishedNotesProps {
 }
 
 const ROLE_ME_VALUE = "__role_me__";
-const SHOW_ALL_VALUE = "__show_all__";
 
 const noteDivisionName = (note: UnfinishedCardNoteCard["notes"][number]) =>
   note.divisionName ?? note.division_name ?? "PIC";
@@ -47,7 +46,7 @@ const UnfinishedNotes: React.FC<UnfinishedNotesProps> = ({ workspaceId }) => {
   const picOptions = useMemo(
     () => [
       { label: "By Role Me", value: ROLE_ME_VALUE },
-      { label: "Show All", value: SHOW_ALL_VALUE },
+      { label: "Show All", value: undefined },
       ...roles.map((role) => ({ label: role.name, value: role.id })),
     ],
     [roles],
@@ -158,7 +157,7 @@ const UnfinishedNotes: React.FC<UnfinishedNotesProps> = ({ workspaceId }) => {
           placeholder="Semua PIC"
           value={selectedPicRoleId ?? ROLE_ME_VALUE}
           onChange={(value) => {
-            setSelectedPicRoleId(value === undefined ? SHOW_ALL_VALUE : value);
+            setSelectedPicRoleId(value);
             setPage(1);
           }}
           showSearch
