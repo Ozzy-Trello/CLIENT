@@ -66,6 +66,7 @@ const { TextArea } = Input;
 const ModalPengiriman: React.FC<ModalPengirimanProps> = ({ open, onClose }) => {
   const [form] = Form.useForm();
   const soInputRef = useRef<BaseSelectRef>(null);
+  const scanProcessedRef = useRef(false);
 
   // UI and data states
   const [loading, setLoading] = useState(false);
@@ -120,6 +121,7 @@ const ModalPengiriman: React.FC<ModalPengirimanProps> = ({ open, onClose }) => {
       setSelectedSalesOrders([]);
       setSelectedProducts([]);
       setShowCameraScanner(false);
+      scanProcessedRef.current = false;
       requestAnimationFrame(() => {
         soInputRef.current?.focus();
       });
@@ -251,6 +253,8 @@ const ModalPengiriman: React.FC<ModalPengirimanProps> = ({ open, onClose }) => {
   };
 
   const handleCameraScan = (scannedData: string) => {
+    if (scanProcessedRef.current) return;
+    scanProcessedRef.current = true;
     setShowCameraScanner(false);
 
     const extractedSO = extractSOFromScan(scannedData);
@@ -640,9 +644,10 @@ const ModalPengiriman: React.FC<ModalPengirimanProps> = ({ open, onClose }) => {
       <Modal
         title="Scan QR Code untuk SO"
         open={showCameraScanner}
-        onCancel={() => setShowCameraScanner(false)}
+        onCancel={() => { scanProcessedRef.current = false; setShowCameraScanner(false); }}
+        afterClose={() => { scanProcessedRef.current = false; }}
         footer={[
-          <Button key="cancel" onClick={() => setShowCameraScanner(false)}>
+          <Button key="cancel" onClick={() => { scanProcessedRef.current = false; setShowCameraScanner(false); }}>
             Cancel
           </Button>,
         ]}

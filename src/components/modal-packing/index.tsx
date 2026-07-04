@@ -22,7 +22,7 @@ import {
   Typography,
 } from "antd";
 import ScannerIcon from "@components/icons/ScannerIcon";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import QRGuideOverlay from "@components/qr-overlay";
 
 interface ModalPackingProps {
@@ -59,6 +59,7 @@ const ModalPacking: React.FC<ModalPackingProps> = ({ open, onClose }) => {
   >({});
   const [showCameraScanner, setShowCameraScanner] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const scanProcessedRef = useRef(false);
 
   // Fetch sales orders with packing=0 filter
   const { data: salesOrders = [], isLoading } = useQuery({
@@ -405,6 +406,7 @@ const ModalPacking: React.FC<ModalPackingProps> = ({ open, onClose }) => {
     setCurrentSOForValidation(null);
     setBarcodeInput("");
     setShowCameraScanner(false);
+    scanProcessedRef.current = false;
     onClose();
   };
 
@@ -436,6 +438,8 @@ const ModalPacking: React.FC<ModalPackingProps> = ({ open, onClose }) => {
   };
 
   const handleCameraScan = (scannedData: string) => {
+    if (scanProcessedRef.current) return;
+    scanProcessedRef.current = true;
     setShowCameraScanner(false);
 
     const extractedSO = extractSOFromScan(scannedData);
@@ -855,9 +859,10 @@ const ModalPacking: React.FC<ModalPackingProps> = ({ open, onClose }) => {
       <Modal
         title="Scan QR Code untuk SO"
         open={showCameraScanner}
-        onCancel={() => setShowCameraScanner(false)}
+        onCancel={() => { scanProcessedRef.current = false; setShowCameraScanner(false); }}
+        afterClose={() => { scanProcessedRef.current = false; }}
         footer={[
-          <Button key="cancel" onClick={() => setShowCameraScanner(false)}>
+          <Button key="cancel" onClick={() => { scanProcessedRef.current = false; setShowCameraScanner(false); }}>
             Cancel
           </Button>,
         ]}

@@ -29,12 +29,14 @@ const ModalPOQR: React.FC<ModalPOQRProps> = ({
   const [showCameraScanner, setShowCameraScanner] = useState<boolean>(false);
   const scannerBufferRef = useRef<string>("");
   const scannerTimeoutRef = useRef<NodeJS.Timeout>();
+  const scanProcessedRef = useRef(false);
 
   // Reset form when modal opens/closes
   useEffect(() => {
     if (open) {
       form.resetFields();
       setCardId("");
+      scanProcessedRef.current = false;
     }
   }, [open, form]);
 
@@ -290,26 +292,28 @@ const ModalPOQR: React.FC<ModalPOQRProps> = ({
           {/* Camera Scanner Modal */}
           <Modal
             title="Scan QR Code with Camera"
-            open={showCameraScanner}
-            onCancel={() => setShowCameraScanner(false)}
-            footer={null}
-            width={400}
-            centered
-            zIndex={2000}
-            styles={{
-              mask: { zIndex: 1999 },
-            }}
-          >
-            <div className="p-4">
-              <div className="relative w-full h-[320px]">
-                <Scanner
-                  onScan={(result) => {
-                    if (result && result.length > 0) {
-                      const scannedData = result[0].rawValue;
-                      handleScan(scannedData);
-                      setShowCameraScanner(false);
-                    }
-                  }}
+        open={showCameraScanner}
+        onCancel={() => { scanProcessedRef.current = false; setShowCameraScanner(false); }}
+        afterClose={() => { scanProcessedRef.current = false; }}
+        footer={null}
+        width={400}
+        centered
+        zIndex={2000}
+        styles={{
+          mask: { zIndex: 1999 },
+        }}
+      >
+        <div className="p-4">
+          <div className="relative w-full h-[320px]">
+            <Scanner
+              onScan={(result) => {
+                if (result && result.length > 0 && !scanProcessedRef.current) {
+                  scanProcessedRef.current = true;
+                  const scannedData = result[0].rawValue;
+                  handleScan(scannedData);
+                  setShowCameraScanner(false);
+                }
+              }}
                   onError={(error) => {
                     console.error("Scanner error:", error);
                     message.error("Camera scanning failed");

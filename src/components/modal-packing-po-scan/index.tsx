@@ -125,6 +125,7 @@ const ModalPackingPOScan: React.FC<ModalPackingPOScanProps> = ({
   const scannerInputRef = useRef<string>("");
   const scannerBufferRef = useRef<string>("");
   const scannerTimeoutRef = useRef<NodeJS.Timeout>();
+  const scanProcessedRef = useRef(false);
 
   // Reset form when modal opens/closes
   useEffect(() => {
@@ -138,6 +139,7 @@ const ModalPackingPOScan: React.FC<ModalPackingPOScanProps> = ({
       setShowCameraScanner(false);
       scannerInputRef.current = "";
       scannerBufferRef.current = "";
+      scanProcessedRef.current = false;
     }
   }, [open, form]);
 
@@ -447,6 +449,8 @@ const ModalPackingPOScan: React.FC<ModalPackingPOScanProps> = ({
   };
 
   const handleCameraScan = async (result: string) => {
+    if (scanProcessedRef.current) return;
+    scanProcessedRef.current = true;
     setShowCameraScanner(false);
     await handleScan(result);
   };
@@ -590,9 +594,10 @@ const ModalPackingPOScan: React.FC<ModalPackingPOScanProps> = ({
       <Modal
         title="Scan QR Code with Camera"
         open={showCameraScanner}
-        onCancel={() => setShowCameraScanner(false)}
+        onCancel={() => { scanProcessedRef.current = false; setShowCameraScanner(false); }}
+        afterClose={() => { scanProcessedRef.current = false; }}
         footer={[
-          <Button key="cancel" onClick={() => setShowCameraScanner(false)}>
+          <Button key="cancel" onClick={() => { scanProcessedRef.current = false; setShowCameraScanner(false); }}>
             Cancel
           </Button>,
         ]}

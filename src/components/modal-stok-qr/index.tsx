@@ -19,12 +19,14 @@ const ModalStokQR: React.FC<ModalStokQRProps> = ({ open, onClose }) => {
   const [showCameraScanner, setShowCameraScanner] = useState<boolean>(false);
   const scannerBufferRef = useRef<string>("");
   const scannerTimeoutRef = useRef<NodeJS.Timeout>();
+  const scanProcessedRef = useRef(false);
 
   // Reset form when modal opens/closes
   useEffect(() => {
     if (open) {
       form.resetFields();
       setSelectedSO("");
+      scanProcessedRef.current = false;
     }
   }, [open, form]);
 
@@ -243,7 +245,8 @@ const ModalStokQR: React.FC<ModalStokQRProps> = ({ open, onClose }) => {
           <Modal
             title="Scan QR Code with Camera"
             open={showCameraScanner}
-            onCancel={() => setShowCameraScanner(false)}
+            onCancel={() => { scanProcessedRef.current = false; setShowCameraScanner(false); }}
+            afterClose={() => { scanProcessedRef.current = false; }}
             footer={null}
             width={400}
             centered
@@ -256,7 +259,8 @@ const ModalStokQR: React.FC<ModalStokQRProps> = ({ open, onClose }) => {
               <div className="relative w-full h-[320px]">
                 <Scanner
                   onScan={(result) => {
-                    if (result && result.length > 0) {
+                    if (result && result.length > 0 && !scanProcessedRef.current) {
+                      scanProcessedRef.current = true;
                       const scannedData = result[0].rawValue;
                       handleScan(scannedData);
                       setShowCameraScanner(false);
