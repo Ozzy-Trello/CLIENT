@@ -1,14 +1,37 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { execSync } from 'child_process';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Resolve a per-build git commit hash so the build ID changes on every deploy,
+// even when APP_BUILD_VERSION is pinned in .env. Falls back to a timestamp when
+// git is unavailable (e.g. shallow/exported source tree).
+let gitBuildHash = '';
+try {
+  gitBuildHash = execSync('git rev-parse --short HEAD', {
+    cwd: __dirname,
+    stdio: ['ignore', 'pipe', 'ignore'],
+  })
+    .toString()
+    .trim();
+} catch {
+  gitBuildHash = '';
+}
+
 const manualBuildVersion =
   process.env.APP_BUILD_VERSION ||
   process.env.NEXT_PUBLIC_APP_BUILD_VERSION ||
   process.env.npm_package_version ||
   '0.1.0';
-const normalizedBuildVersion = manualBuildVersion
+
+// Build ID must be unique per build so hashed chunk paths change on every
+// deploy. A deterministic ID caused stale immutable-cached chunks to collide
+// with new content, throwing "Cannot read properties of undefined (reading
+// 'call')" on first load until a hard refresh.
+const uniqueBuildId = `${manualBuildVersion}-${gitBuildHash || Date.now()}`;
+const normalizedBuildVersion = uniqueBuildId
   .trim()
   .toLowerCase()
   .replace(/[^a-z0-9-_]/g, '-');
@@ -18,7 +41,6 @@ const nextConfig = {
   env: {
     NEXT_PUBLIC_APP_BUILD_VERSION: manualBuildVersion,
   },
-  // Keep build ID deterministic so cache busting is controlled manually.
   generateBuildId: async () => {
     return `build-${normalizedBuildVersion}`;
   },
