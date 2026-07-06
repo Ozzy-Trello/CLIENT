@@ -825,19 +825,28 @@ const CardDetails: React.FC = (props) => {
   const addTimestampToImageFile = useCallback(
     async (sourceFile: File): Promise<File> => {
       const objectUrl = URL.createObjectURL(sourceFile);
+      let image: HTMLImageElement | null = null;
+      let canvas: HTMLCanvasElement | null = null;
       try {
-        const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+        image = await new Promise<HTMLImageElement>((resolve, reject) => {
           const img = new Image();
           img.onload = () => resolve(img);
           img.onerror = reject;
           img.src = objectUrl;
         });
 
-        const width = image.naturalWidth || image.width;
-        const height = image.naturalHeight || image.height;
-        if (!width || !height) return sourceFile;
+        const srcWidth = image.naturalWidth || image.width;
+        const srcHeight = image.naturalHeight || image.height;
+        if (!srcWidth || !srcHeight) return sourceFile;
 
-        const canvas = document.createElement("canvas");
+        // Cap dimensions to avoid huge canvases on high-res phone cameras
+        // (full-res decode+canvas per capture causes memory pressure and heat on mobile)
+        const MAX_DIMENSION = 2560;
+        const scale = Math.min(1, MAX_DIMENSION / Math.max(srcWidth, srcHeight));
+        const width = Math.round(srcWidth * scale);
+        const height = Math.round(srcHeight * scale);
+
+        canvas = document.createElement("canvas");
         canvas.width = width;
         canvas.height = height;
         const ctx = canvas.getContext("2d");
@@ -847,7 +856,7 @@ const CardDetails: React.FC = (props) => {
         drawWibTimestamp(ctx, width, height);
 
         const blob: Blob | null = await new Promise((resolve) =>
-          canvas.toBlob(resolve, "image/jpeg", 0.95),
+          canvas!.toBlob(resolve, "image/jpeg", 0.9),
         );
         if (!blob) return sourceFile;
 
@@ -856,6 +865,17 @@ const CardDetails: React.FC = (props) => {
         });
       } finally {
         URL.revokeObjectURL(objectUrl);
+        // Release image and canvas memory explicitly (mobile browsers are
+        // slow to GC large canvas/image buffers, which causes the crash + heat).
+        if (image) {
+          image.onload = null;
+          image.onerror = null;
+          image.src = "";
+        }
+        if (canvas) {
+          canvas.width = 0;
+          canvas.height = 0;
+        }
       }
     },
     [drawWibTimestamp],
@@ -962,8 +982,13 @@ const CardDetails: React.FC = (props) => {
     drawWibTimestamp(ctx, width, height);
 
     const blob: Blob | null = await new Promise((resolve) =>
-      canvas.toBlob(resolve, "image/jpeg", 0.95),
+      canvas.toBlob(resolve, "image/jpeg", 0.9),
     );
+
+    // Release canvas memory explicitly before continuing
+    canvas.width = 0;
+    canvas.height = 0;
+
     if (!blob) {
       message.error("Failed to capture image");
       return;
