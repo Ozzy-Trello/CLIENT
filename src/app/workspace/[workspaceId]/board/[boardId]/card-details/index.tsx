@@ -57,6 +57,9 @@ const ModalJmlStitch = dynamic(() => import("@components/modal-jml-stitch"), {
 const ModalJmlSablon = dynamic(() => import("@components/modal-jml-sablon"), {
   ssr: false,
 });
+const ModalListNama = dynamic(() => import("@components/modal-list-nama"), {
+  ssr: false,
+});
 
 import { CardDateDisplay } from "@components/card-dates";
 import CollapsibleSection from "@components/collapsible-section";
@@ -416,6 +419,7 @@ const CardDetails: React.FC = (props) => {
   const [openBuatSOModal, setOpenBuatSOModal] = useState(false);
   const [openJmlStitchModal, setOpenJmlStitchModal] = useState(false);
   const [openJmlSablonModal, setOpenJmlSablonModal] = useState(false);
+  const [openListNamaModal, setOpenListNamaModal] = useState(false);
   const [isPOPelengkap, setIsPOPelengkap] = useState(false);
 
   // Refs for PO logic
@@ -2008,6 +2012,20 @@ const CardDetails: React.FC = (props) => {
       </Tooltip>
     ) : null;
 
+  // 10b. List Nama
+  const toolbarListNamaButton = canManageCardAttachments?.() ? (
+    <Tooltip title="Kelola List Nama">
+      <Button
+        size="small"
+        type="default"
+        className="bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-200"
+        onClick={() => setOpenListNamaModal(true)}
+      >
+        <FileText className="mr-1" size={14} /> List Nama
+      </Button>
+    </Tooltip>
+  ) : null;
+
   // 11. + Actions (Dropdown)
   const toolbarAddButton = (
     <Popover
@@ -2062,6 +2080,7 @@ const CardDetails: React.FC = (props) => {
       {toolbarChecklistButton}
       {toolbarMembersButton}
       {toolbarBuatSOButton}
+      {toolbarListNamaButton}
       {toolbarAutomationButton}
       {toolbarAddButton}
     </div>
@@ -2217,6 +2236,14 @@ const CardDetails: React.FC = (props) => {
               card={selectedCard}
               workspaceId={workspaceId as string}
               boardId={boardId as string}
+            />
+          )}
+
+          {selectedCard && (
+            <ModalListNama
+              open={openListNamaModal}
+              onClose={() => setOpenListNamaModal(false)}
+              card={selectedCard}
             />
           )}
 
