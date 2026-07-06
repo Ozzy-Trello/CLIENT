@@ -1639,6 +1639,7 @@ const CardDetails: React.FC = (props) => {
             onOpenJmlStitchModal={() => setOpenJmlStitchModal(true)}
             canOpenJmlSablon={canOpenJmlSablon}
             onOpenJmlSablonModal={() => setOpenJmlSablonModal(true)}
+            onOpenListNamaModal={() => setOpenListNamaModal(true)}
           />
         )}
       </Flex>
@@ -2012,20 +2013,6 @@ const CardDetails: React.FC = (props) => {
       </Tooltip>
     ) : null;
 
-  // 10b. List Nama
-  const toolbarListNamaButton = canManageCardAttachments?.() ? (
-    <Tooltip title="Kelola List Nama">
-      <Button
-        size="small"
-        type="default"
-        className="bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-200"
-        onClick={() => setOpenListNamaModal(true)}
-      >
-        <FileText className="mr-1" size={14} /> List Nama
-      </Button>
-    </Tooltip>
-  ) : null;
-
   // 11. + Actions (Dropdown)
   const toolbarAddButton = (
     <Popover
@@ -2080,7 +2067,6 @@ const CardDetails: React.FC = (props) => {
       {toolbarChecklistButton}
       {toolbarMembersButton}
       {toolbarBuatSOButton}
-      {toolbarListNamaButton}
       {toolbarAutomationButton}
       {toolbarAddButton}
     </div>
