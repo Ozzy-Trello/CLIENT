@@ -170,41 +170,130 @@ const ModalListNama: React.FC<ModalListNamaProps> = ({ open, onClose, card }) =>
     const printWindow = window.open("", "_blank");
     if (!printWindow) return;
 
-    const tableRows = listNama
-      .map(
-        (item, i) => `
-        <tr>
-          <td style="border:1px solid #ddd;padding:6px">${i + 1}</td>
-          <td style="border:1px solid #ddd;padding:6px">${item.nama}</td>
-          <td style="border:1px solid #ddd;padding:6px">${item.ukuran}</td>
-          <td style="border:1px solid #ddd;padding:6px">${item.jenisLengan ?? "-"}</td>
-          <td style="border:1px solid #ddd;padding:6px">${item.catatan ?? "-"}</td>
-        </tr>`
-      )
+    const escapeHtml = (value: string | null | undefined) =>
+      String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+
+    const rows = [];
+    for (let i = 0; i < listNama.length; i += 3) {
+      rows.push(listNama.slice(i, i + 3));
+    }
+
+    const labelsHtml = rows
+      .map((row) => {
+        const rowHtml = row
+          .map((item) => {
+            const nama = escapeHtml(item.nama).toUpperCase();
+            const ukuran = escapeHtml(item.ukuran).toUpperCase();
+            const jenisLengan = escapeHtml(item.jenisLengan).toUpperCase();
+            const catatan = escapeHtml(item.catatan).toUpperCase();
+            const sizeLine = jenisLengan ? `${ukuran} - ${jenisLengan}` : ukuran;
+
+            return `
+              <div class="label">
+                <div class="line line-nama">${nama}</div>
+                <div class="line line-size">${sizeLine}</div>
+                <div class="line line-catatan">${catatan}</div>
+              </div>
+            `;
+          })
+          .join("");
+
+        return `<div class="row">${rowHtml}</div>`;
+      })
       .join("");
 
     printWindow.document.write(`
+      <!doctype html>
       <html>
-        <head><title>List Nama - ${card?.name ?? ""}</title></head>
+        <head>
+          <meta charset="utf-8" />
+          <title>List Nama - ${escapeHtml(card?.name)}</title>
+          <style>
+            @page { size: 103mm 16mm; margin: 0; }
+            html {
+              margin: 0;
+              padding: 0;
+              width: 103mm;
+            }
+            body {
+              margin: 0;
+              padding: 0;
+              width: 103mm;
+              font-family: Arial, sans-serif;
+              color: #000;
+            }
+            .row {
+              width: 103mm;
+              height: 16mm;
+              clear: both;
+              overflow: hidden;
+              page-break-after: always;
+              break-after: page;
+            }
+            .row:last-child {
+              page-break-after: auto;
+              break-after: auto;
+            }
+            .label {
+              width: 33mm;
+              height: 15mm;
+              float: left;
+              margin-right: 2mm;
+              margin-top: 0.25mm;
+              box-sizing: border-box;
+              border: 1px solid #000;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+              padding: 0.35mm 0.5mm;
+              overflow: hidden;
+            }
+            .label:nth-child(3n),
+            .label:last-child {
+              margin-right: 0;
+            }
+            .line {
+              width: 100%;
+              max-width: 100%;
+              font-weight: 900;
+              text-transform: uppercase;
+              text-align: center;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              line-height: 1.08;
+              -webkit-text-stroke: 0.08px #000;
+            }
+            .line-nama {
+              font-size: 9.5pt;
+            }
+            .line-size {
+              font-size: 9.5pt;
+            }
+            .line-catatan {
+              font-size: 8.5pt;
+              min-height: 1.2em;
+            }
+          </style>
+        </head>
         <body>
-          <h2>List Nama - ${card?.name ?? ""}</h2>
-          <table style="border-collapse:collapse;width:100%">
-            <thead>
-              <tr>
-                <th style="border:1px solid #ddd;padding:6px;background:#f5f5f5">No</th>
-                <th style="border:1px solid #ddd;padding:6px;background:#f5f5f5">Nama</th>
-                <th style="border:1px solid #ddd;padding:6px;background:#f5f5f5">Ukuran</th>
-                <th style="border:1px solid #ddd;padding:6px;background:#f5f5f5">Jenis Lengan</th>
-                <th style="border:1px solid #ddd;padding:6px;background:#f5f5f5">Catatan</th>
-              </tr>
-            </thead>
-            <tbody>${tableRows}</tbody>
-          </table>
+          ${labelsHtml}
+          <script>
+            window.onload = function () {
+              window.print();
+              window.onafterprint = function () { window.close(); };
+            };
+          </script>
         </body>
       </html>
     `);
     printWindow.document.close();
-    printWindow.print();
   }, [listNama, card]);
 
   const columns = [
