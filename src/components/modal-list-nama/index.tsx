@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback } from "react";
-import { Modal, Button, Table, Input, Space, Popconfirm, message, Tag, Row, Col, Divider } from "antd";
+import { Modal, Button, Table, Input, Space, Popconfirm, message, Tag, Row, Col, Select } from "antd";
 import { DeleteOutlined, PlusOutlined, UploadOutlined, DownloadOutlined, PrinterOutlined, EditOutlined, CheckOutlined, CloseOutlined } from "@ant-design/icons";
+import { useQuery } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
 import {
   useListNama,
@@ -11,6 +12,9 @@ import {
   useDeleteListNama,
 } from "../../hooks/useListNama";
 import { ListNama } from "../../api/card-list-nama";
+import { getAllSubcategories } from "../../api/category";
+
+const UKURAN_OPTIONS = ["XS", "S", "M", "L", "XL", "XXL", "XXXL", "XXXXL", "XXXXXL", "Custom"];
 
 interface ModalListNamaProps {
   open: boolean;
@@ -29,24 +33,37 @@ const ModalListNama: React.FC<ModalListNamaProps> = ({ open, onClose, card }) =>
   const updateMutation = useUpdateListNama(cardId ?? "");
   const deleteMutation = useDeleteListNama(cardId ?? "");
 
+  const { data: subcategories } = useQuery({
+    queryKey: ["subcategories", card?.workspaceId],
+    queryFn: async () => {
+      const response = await getAllSubcategories(card.workspaceId);
+      return response.data || [];
+    },
+    enabled: open && !!card?.workspaceId,
+  });
+  const JENIS_LENGAN_OPTIONS = subcategories?.map((s: { name: string }) => s.name) ?? [];
+
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValues, setEditValues] = useState<{ nama: string; ukuran: string; jenisLengan: string; catatan: string }>({ nama: "", ukuran: "", jenisLengan: "", catatan: "" });
+  const [editCustomUkuran, setEditCustomUkuran] = useState("");
 
   const [addNama, setAddNama] = useState("");
   const [addUkuran, setAddUkuran] = useState("");
+  const [addCustomUkuran, setAddCustomUkuran] = useState("");
   const [addJenisLengan, setAddJenisLengan] = useState("");
   const [addCatatan, setAddCatatan] = useState("");
 
   const resetAddForm = () => {
     setAddNama("");
     setAddUkuran("");
+    setAddCustomUkuran("");
     setAddJenisLengan("");
     setAddCatatan("");
   };
 
   const handleAdd = async () => {
     const nama = addNama.trim();
-    const ukuran = addUkuran.trim();
+    const ukuran = addUkuran === "Custom" ? addCustomUkuran.trim() : addUkuran.trim();
     if (!nama || !ukuran) {
       message.warning("Nama dan Ukuran wajib diisi");
       return;
@@ -67,19 +84,21 @@ const ModalListNama: React.FC<ModalListNamaProps> = ({ open, onClose, card }) =>
   };
 
   const startEdit = (record: ListNama) => {
+    const isCustomUkuran = !UKURAN_OPTIONS.includes(record.ukuran);
     setEditingId(record.id);
     setEditValues({
       nama: record.nama,
-      ukuran: record.ukuran,
+      ukuran: isCustomUkuran ? "Custom" : record.ukuran,
       jenisLengan: record.jenisLengan ?? "",
       catatan: record.catatan ?? "",
     });
+    setEditCustomUkuran(isCustomUkuran ? record.ukuran : "");
   };
 
   const handleSaveEdit = async () => {
     if (!editingId) return;
     const nama = editValues.nama.trim();
-    const ukuran = editValues.ukuran.trim();
+    const ukuran = editValues.ukuran === "Custom" ? editCustomUkuran.trim() : editValues.ukuran.trim();
     if (!nama || !ukuran) {
       message.warning("Nama dan Ukuran wajib diisi");
       return;
@@ -321,14 +340,27 @@ const ModalListNama: React.FC<ModalListNamaProps> = ({ open, onClose, card }) =>
       title: "Ukuran",
       dataIndex: "ukuran",
       key: "ukuran",
-      width: 90,
+      width: 120,
       render: (text: string, record: ListNama) =>
         editingId === record.id ? (
-          <Input
-            size="small"
-            value={editValues.ukuran}
-            onChange={(e) => setEditValues({ ...editValues, ukuran: e.target.value })}
-          />
+          <Space size={4}>
+            <Select
+              size="small"
+              style={{ width: 80 }}
+              value={editValues.ukuran}
+              onChange={(val) => setEditValues({ ...editValues, ukuran: val })}
+              options={UKURAN_OPTIONS.map((s) => ({ label: s, value: s }))}
+            />
+            {editValues.ukuran === "Custom" && (
+              <Input
+                size="small"
+                placeholder="Custom"
+                style={{ width: 80 }}
+                value={editCustomUkuran}
+                onChange={(e) => setEditCustomUkuran(e.target.value)}
+              />
+            )}
+          </Space>
         ) : (
           text
         ),
@@ -337,13 +369,16 @@ const ModalListNama: React.FC<ModalListNamaProps> = ({ open, onClose, card }) =>
       title: "Jenis Lengan",
       dataIndex: "jenisLengan",
       key: "jenisLengan",
-      width: 120,
+      width: 130,
       render: (text: string | null, record: ListNama) =>
         editingId === record.id ? (
-          <Input
+          <Select
             size="small"
-            value={editValues.jenisLengan}
-            onChange={(e) => setEditValues({ ...editValues, jenisLengan: e.target.value })}
+            style={{ width: "100%" }}
+            allowClear
+            value={editValues.jenisLengan || undefined}
+            onChange={(val) => setEditValues({ ...editValues, jenisLengan: val ?? "" })}
+            options={JENIS_LENGAN_OPTIONS.map((s: string) => ({ label: s, value: s }))}
           />
         ) : (
           text ?? "-"
@@ -451,22 +486,36 @@ const ModalListNama: React.FC<ModalListNamaProps> = ({ open, onClose, card }) =>
               onPressEnter={handleAdd}
             />
           </Col>
-          <Col span={4}>
-            <Input
+          <Col span={addUkuran === "Custom" ? 4 : 3}>
+            <Select
               size="small"
               placeholder="Ukuran *"
-              value={addUkuran}
-              onChange={(e) => setAddUkuran(e.target.value)}
-              onPressEnter={handleAdd}
+              style={{ width: "100%" }}
+              value={addUkuran || undefined}
+              onChange={(val) => setAddUkuran(val)}
+              options={UKURAN_OPTIONS.map((s) => ({ label: s, value: s }))}
             />
           </Col>
+          {addUkuran === "Custom" && (
+            <Col span={3}>
+              <Input
+                size="small"
+                placeholder="Custom size"
+                value={addCustomUkuran}
+                onChange={(e) => setAddCustomUkuran(e.target.value)}
+                onPressEnter={handleAdd}
+              />
+            </Col>
+          )}
           <Col span={5}>
-            <Input
+            <Select
               size="small"
               placeholder="Jenis Lengan"
-              value={addJenisLengan}
-              onChange={(e) => setAddJenisLengan(e.target.value)}
-              onPressEnter={handleAdd}
+              style={{ width: "100%" }}
+              allowClear
+              value={addJenisLengan || undefined}
+              onChange={(val) => setAddJenisLengan(val ?? "")}
+              options={JENIS_LENGAN_OPTIONS.map((s: string) => ({ label: s, value: s }))}
             />
           </Col>
           <Col span={5}>
