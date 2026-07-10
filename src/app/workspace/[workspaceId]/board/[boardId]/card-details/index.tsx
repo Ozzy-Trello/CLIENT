@@ -337,6 +337,22 @@ const CardDetails: React.FC = (props) => {
   const canOpenJmlSablon =
     isSuperAdmin ||
     (isDatelineBoard && roleIn(["Kepala Produksi", "Admin Produksi"]));
+  const canOpenListNama =
+    isSuperAdmin ||
+    (isDatelineBoard &&
+      roleIn([
+        "Desainer Outlet",
+        "SPV Desainer Outlet",
+        "Desainer Bordir",
+        "SPV Desainer Bordir",
+        "Warehouse Bahan",
+        "Warehouse Produk",
+        "Kepala Produksi",
+        "Admin Produksi",
+        "Deal Maker",
+        "SPV Deal Maker",
+        "SPV Outlet",
+      ]));
   const [isComplete, setIsComplete] = useState<boolean>(false);
   const listSelectionRef = useRef<SelectionRef>(null);
   const [isEditingTitle, setIsEditingTitle] = useState<boolean>(false);
@@ -1655,7 +1671,7 @@ const CardDetails: React.FC = (props) => {
           <POAmount card={selectedCard} setSelectedCard={setSelectedCard} />
         )}
 
-        {selectedCard && (canPOSection || canOpenJmlStitch) && (
+        {selectedCard && (canPOSection || canOpenJmlStitch || canOpenListNama) && (
           <POSizeAssignment
             card={selectedCard}
             setSelectedCard={setSelectedCard}
