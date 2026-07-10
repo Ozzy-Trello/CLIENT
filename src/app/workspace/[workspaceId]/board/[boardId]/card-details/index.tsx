@@ -317,8 +317,11 @@ const CardDetails: React.FC = (props) => {
   const SUPER_ADMIN_ROLE_ID = "f97c942c-5d0c-49c3-b74d-5b149c08634f";
   const userRole = (currentUser?.role?.name || "").trim().toLowerCase();
   const isSuperAdmin = currentUser?.role?.id === SUPER_ADMIN_ROLE_ID;
+  const normalizedBoardName = effectiveBoardName.trim().toLowerCase();
   const isDatelineBoard =
-    effectiveBoardName.toLowerCase() === "dateline" || boardId === "Dateline";
+    normalizedBoardName === "dateline" || boardId === "Dateline";
+  const isListPOOutletBoard = normalizedBoardName === "list po | outlet";
+  const canShowListNamaBoard = isDatelineBoard || isListPOOutletBoard;
   const roleIn = (roles: string[]) =>
     roles.some((r) => r.toLowerCase() === userRole);
   const canMaterialRequirement =
@@ -339,7 +342,7 @@ const CardDetails: React.FC = (props) => {
     (isDatelineBoard && roleIn(["Kepala Produksi", "Admin Produksi"]));
   const canOpenListNama =
     isSuperAdmin ||
-    (isDatelineBoard &&
+    (canShowListNamaBoard &&
       roleIn([
         "Desainer Outlet",
         "SPV Desainer Outlet",
