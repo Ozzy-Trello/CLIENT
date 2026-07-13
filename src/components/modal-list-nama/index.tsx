@@ -265,12 +265,12 @@ const ModalListNama: React.FC<ModalListNamaProps> = ({ open, onClose, card }) =>
               margin-right: 2mm;
               margin-top: 0.25mm;
               box-sizing: border-box;
-              border: 1px solid #000;
               display: flex;
               flex-direction: column;
               align-items: center;
               justify-content: center;
-              padding: 0.35mm 0.5mm;
+              gap: 0.3mm;
+              padding: 0.2mm 0.5mm;
               overflow: hidden;
             }
             .label:nth-child(3n),
@@ -290,7 +290,12 @@ const ModalListNama: React.FC<ModalListNamaProps> = ({ open, onClose, card }) =>
               -webkit-text-stroke: 0.08px #000;
             }
             .line-nama {
-              font-size: 9.5pt;
+              font-size: 8.8pt;
+              line-height: 1.05;
+              white-space: normal;
+              display: -webkit-box;
+              -webkit-box-orient: vertical;
+              -webkit-line-clamp: 2;
             }
             .line-size {
               font-size: 9.5pt;
