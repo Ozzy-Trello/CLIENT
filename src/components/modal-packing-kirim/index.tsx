@@ -123,12 +123,7 @@ const ModalPackingKirim: React.FC<ModalPackingKirimProps> = ({
   const [isUploading, setIsUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadedFileName, setUploadedFileName] = useState("");
-  const [photoCameraActive, setPhotoCameraActive] = useState(false);
-  const [photoCameraLoading, setPhotoCameraLoading] = useState(false);
   const nativeCameraInputRef = useRef<HTMLInputElement>(null);
-  const photoVideoRef = useRef<HTMLVideoElement>(null);
-  const photoCanvasRef = useRef<HTMLCanvasElement>(null);
-  const photoStreamRef = useRef<MediaStream | null>(null);
   const scannerBufferRef = useRef("");
   const scannerTimeoutRef = useRef<NodeJS.Timeout>();
   const scanLockRef = useRef(false);
@@ -148,7 +143,6 @@ const ModalPackingKirim: React.FC<ModalPackingKirimProps> = ({
     setIsValidating(false);
     setIsUploading(false);
     setSelectedFile(null);
-    stopPhotoCamera();
     setUploadedFileName("");
     scannerBufferRef.current = "";
     scanLockRef.current = false;
@@ -157,12 +151,6 @@ const ModalPackingKirim: React.FC<ModalPackingKirimProps> = ({
   useEffect(() => {
     if (open) resetState();
   }, [open]);
-
-  useEffect(() => {
-    if (currentStep !== 3) stopPhotoCamera();
-  }, [currentStep]);
-
-  useEffect(() => () => stopPhotoCamera(), []);
 
   const extractCardIdFromScan = async (scannedData: string): Promise<string | null> => {
     const trimmedData = scannedData.trim();
@@ -443,90 +431,15 @@ const ModalPackingKirim: React.FC<ModalPackingKirimProps> = ({
     }
   };
 
-  function stopPhotoCamera() {
-    photoStreamRef.current?.getTracks().forEach((track) => track.stop());
-    photoStreamRef.current = null;
-    if (photoVideoRef.current) photoVideoRef.current.srcObject = null;
-    setPhotoCameraActive(false);
-    setPhotoCameraLoading(false);
-  }
-
-  const isMobileDevice = () =>
-    typeof navigator !== "undefined" &&
-    /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-
   const handleNativeCameraCapture = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) setSelectedFile(file);
     event.target.value = "";
   };
 
-  const openPhotoCamera = async () => {
+  const openPhotoCamera = () => {
     setSelectedFile(null);
-
-    if (isMobileDevice()) {
-      nativeCameraInputRef.current?.click();
-      return;
-    }
-
-    const mediaDevices = navigator.mediaDevices;
-    if (!mediaDevices?.getUserMedia) {
-      message.error("Camera is not available on this device");
-      return;
-    }
-
-    setPhotoCameraLoading(true);
-    try {
-      const stream = await mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: "environment" },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-        },
-        audio: false,
-      });
-
-      photoStreamRef.current = stream;
-      setPhotoCameraActive(true);
-      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-      if (photoVideoRef.current) {
-        photoVideoRef.current.srcObject = stream;
-        await photoVideoRef.current.play();
-      }
-    } catch {
-      message.error("Failed to open camera");
-      stopPhotoCamera();
-    } finally {
-      setPhotoCameraLoading(false);
-    }
-  };
-
-  const capturePhoto = async () => {
-    const video = photoVideoRef.current;
-    const canvas = photoCanvasRef.current;
-    if (!video || !canvas) return;
-
-    const width = video.videoWidth || 1280;
-    const height = video.videoHeight || 720;
-    canvas.width = width;
-    canvas.height = height;
-    canvas.getContext("2d")?.drawImage(video, 0, 0, width, height);
-
-    const blob = await new Promise<Blob | null>((resolve) =>
-      canvas.toBlob(resolve, "image/jpeg", 0.92),
-    );
-    if (!blob) {
-      message.error("Failed to capture picture");
-      return;
-    }
-
-    setSelectedFile(
-      new File([blob], `packing-kirim-${Date.now()}.jpg`, {
-        type: "image/jpeg",
-        lastModified: Date.now(),
-      }),
-    );
-    stopPhotoCamera();
+    nativeCameraInputRef.current?.click();
   };
 
   const handleClose = () => {
@@ -661,34 +574,13 @@ const ModalPackingKirim: React.FC<ModalPackingKirimProps> = ({
                 onChange={handleNativeCameraCapture}
               />
               <Space direction="vertical" size="small" className="w-full">
-                <canvas ref={photoCanvasRef} className="hidden" />
-                {photoCameraActive && (
-                  <div className="overflow-hidden rounded-lg border border-slate-200 bg-black">
-                    <video
-                      ref={photoVideoRef}
-                      className="h-[320px] w-full object-cover"
-                      playsInline
-                      muted
-                    />
-                  </div>
-                )}
                 <Space>
-                  {photoCameraActive ? (
-                    <>
-                      <Button type="primary" icon={<Camera size={16} />} onClick={capturePhoto}>
-                        Capture
-                      </Button>
-                      <Button onClick={stopPhotoCamera}>Cancel</Button>
-                    </>
-                  ) : (
-                    <Button
-                      icon={<Camera size={16} />}
-                      loading={photoCameraLoading}
-                      onClick={openPhotoCamera}
-                    >
-                      Take Picture
-                    </Button>
-                  )}
+                  <Button
+                    icon={<Camera size={16} />}
+                    onClick={openPhotoCamera}
+                  >
+                    Take Picture
+                  </Button>
                   {selectedFile && (
                     <Button onClick={() => setSelectedFile(null)}>Remove</Button>
                   )}
