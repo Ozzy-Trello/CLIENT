@@ -94,7 +94,7 @@ const Home: React.FC<LabelManagerProps> = ({
   }, [workspaceLabels, cardLabels, suggestionsWithAssignment]);
 
   const toggleCheck = (isChecked: boolean, labelId: string) => {
-    if (!selectedCard || !workspaceId) return;
+    if (!selectedCard || !workspaceId || !isSuperAdmin) return;
 
     if (isChecked) {
       addCardLabel({ labelId });
@@ -136,6 +136,7 @@ const Home: React.FC<LabelManagerProps> = ({
                 <div className="flex items-center gap-2 flex-1">
                   <Checkbox
                     checked={!!label.isAssigned}
+                    disabled={!isSuperAdmin}
                     onChange={(e) => {
                       if (label.labelId) {
                         toggleCheck(e.target.checked, label.labelId);
@@ -149,14 +150,16 @@ const Home: React.FC<LabelManagerProps> = ({
                     {label.name}
                   </div>
                 </div>
-                <Tooltip title="Edit label">
-                  <button
-                    onClick={() => handleEdit(label)}
-                    className="p-1 hover:bg-gray-200 rounded-sm transition-colors ml-2"
-                  >
-                    <Pencil size={14} className="text-gray-500" />
-                  </button>
-                </Tooltip>
+                {isSuperAdmin && (
+                  <Tooltip title="Edit label">
+                    <button
+                      onClick={() => handleEdit(label)}
+                      className="p-1 hover:bg-gray-200 rounded-sm transition-colors ml-2"
+                    >
+                      <Pencil size={14} className="text-gray-500" />
+                    </button>
+                  </Tooltip>
+                )}
               </div>
             ))}
           </div>
