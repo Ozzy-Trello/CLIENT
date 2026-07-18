@@ -94,7 +94,7 @@ const Home: React.FC<LabelManagerProps> = ({
   }, [workspaceLabels, cardLabels, suggestionsWithAssignment]);
 
   const toggleCheck = (isChecked: boolean, labelId: string) => {
-    if (!selectedCard || !workspaceId || !isSuperAdmin) return;
+    if (!selectedCard || !workspaceId) return;
 
     if (isChecked) {
       addCardLabel({ labelId });
@@ -136,7 +136,6 @@ const Home: React.FC<LabelManagerProps> = ({
                 <div className="flex items-center gap-2 flex-1">
                   <Checkbox
                     checked={!!label.isAssigned}
-                    disabled={!isSuperAdmin}
                     onChange={(e) => {
                       if (label.labelId) {
                         toggleCheck(e.target.checked, label.labelId);
