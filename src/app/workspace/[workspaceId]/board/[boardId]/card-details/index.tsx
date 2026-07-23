@@ -956,14 +956,12 @@ const CardDetails: React.FC = (props) => {
       event.target.value = "";
       if (!file) return;
 
-      try {
-        const stampedFile = await addTimestampToImageFile(file);
-        void handleQuickUpload(stampedFile);
-      } catch {
-        message.error("Failed to process camera image");
-      }
+      // Mobile native camera flow: upload original file directly.
+      // Re-decoding + canvas timestamp rendering is memory-heavy on some phones/webviews
+      // and is the most likely cause of the crash after returning from camera.
+      void handleQuickUpload(file);
     },
-    [addTimestampToImageFile, handleQuickUpload],
+    [handleQuickUpload],
   );
 
   const swapCamera = useCallback(async () => {
