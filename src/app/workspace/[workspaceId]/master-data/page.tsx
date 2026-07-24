@@ -27,6 +27,7 @@ import {
   List,
   Tag,
   ColorPicker,
+  Switch,
 } from "antd";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
@@ -109,6 +110,7 @@ import {
   uploadDesignTypeImageZip,
   DesignZipUploadResult,
 } from "@api/design-master-data";
+import { uploadFile } from "@api/file";
 
 type MenuItem = Required<MenuProps>["items"][number];
 
@@ -172,7 +174,7 @@ const ProductTable: React.FC<{
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "40px 1fr 120px",
+                gridTemplateColumns: "40px 1fr 1fr 96px 96px 120px",
                 gap: "8px",
                 padding: "8px 16px",
                 backgroundColor: "#fafafa",
@@ -182,6 +184,9 @@ const ProductTable: React.FC<{
             >
               <div></div>
               <div>Product Name</div>
+              <div>Form Display</div>
+              <div>Image</div>
+              <div>Show In Form</div>
               <div>Actions</div>
             </div>
             {sortedProducts.map((product, index) => (
@@ -198,7 +203,7 @@ const ProductTable: React.FC<{
                     style={{
                       ...provided.draggableProps.style,
                       display: "grid",
-                      gridTemplateColumns: "40px 1fr 120px",
+                      gridTemplateColumns: "40px 1fr 1fr 96px 96px 120px",
                       gap: "8px",
                       padding: "12px 16px",
                       backgroundColor: snapshot.isDragging ? "#e6f7ff" : "#fff",
@@ -226,6 +231,21 @@ const ProductTable: React.FC<{
                     </div>
                     <div>
                       <Typography.Text strong>{product.name}</Typography.Text>
+                    </div>
+                    <div>
+                      <Typography.Text>{product.formDisplayName || "-"}</Typography.Text>
+                    </div>
+                    <div>
+                      {product.formImageUrl ? (
+                        <Avatar shape="square" size={48} src={product.formImageUrl} />
+                      ) : (
+                        "-"
+                      )}
+                    </div>
+                    <div>
+                      <Tag color={product.showInForm ? "green" : "default"}>
+                        {product.showInForm ? "Yes" : "No"}
+                      </Tag>
                     </div>
                     <div>
                       <Space size="small">
@@ -284,6 +304,12 @@ const BahanTable: React.FC<{
       dataIndex: "productName",
       key: "productName",
       render: (productName: string) => productName || "-",
+    },
+    {
+      title: "Recommended",
+      dataIndex: "formRecommended",
+      key: "formRecommended",
+      render: (recommended: boolean) => recommended ? <Tag color="green">Recommended</Tag> : "-",
     },
 
     {
@@ -556,6 +582,7 @@ const MasterData: React.FC = () => {
 
   // Loading states for operations
   const [submittingProduct, setSubmittingProduct] = useState(false);
+  const [productImageUploading, setProductImageUploading] = useState(false);
   const [submittingProductCode, setSubmittingProductCode] = useState(false);
   const [submittingBahan, setSubmittingBahan] = useState(false);
   const [submittingWarna, setSubmittingWarna] = useState(false);
@@ -625,6 +652,7 @@ const MasterData: React.FC = () => {
   const [warnaForm] = Form.useForm();
 
   const selectedWarnaProductId = Form.useWatch("productId", warnaForm);
+  const productFormImageUrl = Form.useWatch("formImageUrl", productForm);
   const filteredBahansForWarna = useMemo(() => {
     if (!selectedWarnaProductId) {
       return [];
@@ -887,6 +915,7 @@ const MasterData: React.FC = () => {
                 onClick={() => {
                   setSelectedBahan(null);
                   bahanForm.resetFields();
+                  bahanForm.setFieldValue("formRecommended", false);
                   setBahanModalVisible(true);
                 }}
                 disabled={!isSuperAdmin()}
@@ -1153,12 +1182,37 @@ const MasterData: React.FC = () => {
     }
   };
 
+  const handleProductImageUpload = async (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      message.error("Please upload an image file");
+      return;
+    }
+
+    try {
+      setProductImageUploading(true);
+      const response = await uploadFile(file, {
+        name: file.name,
+        prefix: "product-form-images",
+        type: "product-form-image",
+      });
+      if (!response.data?.url) throw new Error("Upload did not return a URL");
+      productForm.setFieldValue("formImageUrl", response.data.url);
+      message.success("Product image uploaded");
+    } catch (error) {
+      message.error("Failed to upload product image");
+      console.error("Error uploading product image:", error);
+    } finally {
+      setProductImageUploading(false);
+    }
+  };
+
   const handleBahanSubmit = async (values: any) => {
     try {
       setSubmittingBahan(true);
       const bahanData = {
         name: values.name,
         productId: values.productId,
+        formRecommended: values.formRecommended ?? false,
       };
 
       if (selectedBahan) {
@@ -1682,6 +1736,7 @@ const MasterData: React.FC = () => {
         <Form
           form={productForm}
           layout="vertical"
+          initialValues={{ showInForm: true }}
           onFinish={handleProductSubmit}
         >
           <Form.Item
@@ -1691,6 +1746,41 @@ const MasterData: React.FC = () => {
           >
             <Input placeholder="Enter product name" />
           </Form.Item>
+          <Form.Item name="formDisplayName" label="Form Display Name">
+            <Input placeholder="Shown on public custom-order form" />
+          </Form.Item>
+          <Form.Item name="formImageUrl" hidden>
+            <Input />
+          </Form.Item>
+          <Form.Item name="showInForm" label="Show In Form" valuePropName="checked">
+            <Switch />
+          </Form.Item>
+          <Upload.Dragger
+            accept="image/*"
+            beforeUpload={(file) => {
+              handleProductImageUpload(file);
+              return false;
+            }}
+            maxCount={1}
+            showUploadList={false}
+            style={{ marginBottom: 16 }}
+          >
+            <p className="ant-upload-drag-icon">
+              <UploadIcon size={28} />
+            </p>
+            <p className="ant-upload-text">
+              {productImageUploading ? "Uploading image..." : "Click or drag product image here"}
+            </p>
+            <p className="ant-upload-hint">Used on the public custom-order form.</p>
+          </Upload.Dragger>
+          {productFormImageUrl ? (
+            <Space style={{ marginBottom: 16 }}>
+              <Avatar shape="square" size={64} src={productFormImageUrl} />
+              <Button onClick={() => productForm.setFieldValue("formImageUrl", null)}>
+                Remove image
+              </Button>
+            </Space>
+          ) : null}
           <div style={{ textAlign: "right" }}>
             <Space>
               <Button onClick={() => setProductModalVisible(false)}>
@@ -1787,6 +1877,9 @@ const MasterData: React.FC = () => {
             rules={[{ required: true, message: "Please enter bahan name" }]}
           >
             <Input placeholder="Enter bahan name" />
+          </Form.Item>
+          <Form.Item name="formRecommended" label="Recommended In Form" valuePropName="checked">
+            <Switch />
           </Form.Item>
           <div style={{ textAlign: "right" }}>
             <Space>

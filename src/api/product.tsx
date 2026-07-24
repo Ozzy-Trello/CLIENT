@@ -12,6 +12,9 @@ export interface ProductCode {
 export interface Product {
   id: string;
   name: string;
+  formDisplayName?: string | null;
+  formImageUrl?: string | null;
+  showInForm: boolean;
   productCodes: ProductCode[];
   order?: number;
   createdAt?: string;
@@ -20,11 +23,17 @@ export interface Product {
 
 export interface ProductCreateRequest {
   name: string;
+  formDisplayName?: string | null;
+  formImageUrl?: string | null;
+  showInForm?: boolean;
 }
 
 export interface ProductUpdateRequest {
   name?: string;
   order?: number;
+  formDisplayName?: string | null;
+  formImageUrl?: string | null;
+  showInForm?: boolean;
 }
 
 export interface ProductOrderUpdateRequest {
