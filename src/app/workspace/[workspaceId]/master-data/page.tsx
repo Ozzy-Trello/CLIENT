@@ -174,7 +174,7 @@ const ProductTable: React.FC<{
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "40px 1fr 1fr 96px 96px 120px",
+                gridTemplateColumns: "40px 1fr 1fr 96px 96px 96px 120px",
                 gap: "8px",
                 padding: "8px 16px",
                 backgroundColor: "#fafafa",
@@ -187,6 +187,7 @@ const ProductTable: React.FC<{
               <div>Form Display</div>
               <div>Image</div>
               <div>Show In Form</div>
+              <div>Recommended</div>
               <div>Actions</div>
             </div>
             {sortedProducts.map((product, index) => (
@@ -203,7 +204,7 @@ const ProductTable: React.FC<{
                     style={{
                       ...provided.draggableProps.style,
                       display: "grid",
-                      gridTemplateColumns: "40px 1fr 1fr 96px 96px 120px",
+                      gridTemplateColumns: "40px 1fr 1fr 96px 96px 96px 120px",
                       gap: "8px",
                       padding: "12px 16px",
                       backgroundColor: snapshot.isDragging ? "#e6f7ff" : "#fff",
@@ -246,6 +247,9 @@ const ProductTable: React.FC<{
                       <Tag color={product.showInForm ? "green" : "default"}>
                         {product.showInForm ? "Yes" : "No"}
                       </Tag>
+                    </div>
+                    <div>
+                      {product.formRecommended ? <Tag color="gold">Yes</Tag> : "-"}
                     </div>
                     <div>
                       <Space size="small">
@@ -1753,6 +1757,9 @@ const MasterData: React.FC = () => {
             <Input />
           </Form.Item>
           <Form.Item name="showInForm" label="Show In Form" valuePropName="checked">
+            <Switch />
+          </Form.Item>
+          <Form.Item name="formRecommended" label="Recommended In Form" valuePropName="checked">
             <Switch />
           </Form.Item>
           <Upload.Dragger

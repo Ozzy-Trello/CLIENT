@@ -15,6 +15,7 @@ export interface Product {
   formDisplayName?: string | null;
   formImageUrl?: string | null;
   showInForm: boolean;
+  formRecommended: boolean;
   productCodes: ProductCode[];
   order?: number;
   createdAt?: string;
@@ -26,6 +27,7 @@ export interface ProductCreateRequest {
   formDisplayName?: string | null;
   formImageUrl?: string | null;
   showInForm?: boolean;
+  formRecommended?: boolean;
 }
 
 export interface ProductUpdateRequest {
@@ -34,6 +36,7 @@ export interface ProductUpdateRequest {
   formDisplayName?: string | null;
   formImageUrl?: string | null;
   showInForm?: boolean;
+  formRecommended?: boolean;
 }
 
 export interface ProductOrderUpdateRequest {
