@@ -6,6 +6,7 @@ export interface Bahan {
   name: string;
   productId: string;
   productName?: string;
+  showInForm: boolean;
   formRecommended: boolean;
   productInfo?: {
     id: string;
@@ -25,12 +26,14 @@ export interface Bahan {
 export interface BahanCreateRequest {
   name: string;
   productId: string;
+  showInForm?: boolean;
   formRecommended?: boolean;
 }
 
 export interface BahanUpdateRequest {
   name?: string;
   productId?: string;
+  showInForm?: boolean;
   formRecommended?: boolean;
 }
 

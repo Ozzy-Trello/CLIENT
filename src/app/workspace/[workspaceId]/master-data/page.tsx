@@ -310,6 +310,12 @@ const BahanTable: React.FC<{
       render: (productName: string) => productName || "-",
     },
     {
+      title: "Shown In Form",
+      dataIndex: "showInForm",
+      key: "showInForm",
+      render: (shown: boolean) => shown ? <Tag color="blue">Shown</Tag> : <Tag>Hidden</Tag>,
+    },
+    {
       title: "Recommended",
       dataIndex: "formRecommended",
       key: "formRecommended",
@@ -919,6 +925,7 @@ const MasterData: React.FC = () => {
                 onClick={() => {
                   setSelectedBahan(null);
                   bahanForm.resetFields();
+                  bahanForm.setFieldValue("showInForm", true);
                   bahanForm.setFieldValue("formRecommended", false);
                   setBahanModalVisible(true);
                 }}
@@ -1216,6 +1223,7 @@ const MasterData: React.FC = () => {
       const bahanData = {
         name: values.name,
         productId: values.productId,
+        showInForm: values.showInForm ?? true,
         formRecommended: values.formRecommended ?? false,
       };
 
@@ -1886,6 +1894,9 @@ const MasterData: React.FC = () => {
             <Input placeholder="Enter bahan name" />
           </Form.Item>
           <Form.Item name="formRecommended" label="Recommended In Form" valuePropName="checked">
+            <Switch />
+          </Form.Item>
+          <Form.Item name="showInForm" label="Show In Form" valuePropName="checked">
             <Switch />
           </Form.Item>
           <div style={{ textAlign: "right" }}>
