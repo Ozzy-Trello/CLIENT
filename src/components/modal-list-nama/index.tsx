@@ -138,14 +138,21 @@ const ModalListNama: React.FC<ModalListNamaProps> = ({ open, onClose, card }) =>
         const sheet = workbook.Sheets[sheetName];
         const jsonData = XLSX.utils.sheet_to_json(sheet);
 
-        const rows = jsonData
-          .map((row: any) => ({
-            nama: (row.nama ?? row.Nama ?? "").toString().trim(),
-            ukuran: (row.ukuran ?? row.Ukuran ?? "").toString().trim(),
-            jenisLengan: (row["jenis lengan"] ?? row["Jenis Lengan"] ?? row.jenisLengan ?? "").toString().trim() || null,
-            catatan: (row.catatan ?? row.Catatan ?? "").toString().trim() || null,
-          }))
-          .filter((r) => r.nama && r.ukuran);
+         const rows = jsonData
+           .map((row: any) => {
+             const normalized = Object.entries(row).reduce<Record<string, unknown>>((result, [key, value]) => {
+               result[key.trim().toLocaleLowerCase("id").replace(/\s+/g, " ")] = value;
+               return result;
+             }, {});
+
+             return {
+               nama: (normalized.nama ?? "").toString().trim(),
+               ukuran: (normalized.ukuran ?? "").toString().trim(),
+               jenisLengan: (normalized["jenis lengan"] ?? normalized.jenislengan ?? "").toString().trim() || null,
+               catatan: (normalized.catatan ?? "").toString().trim() || null,
+             };
+           })
+           .filter((r) => r.nama && r.ukuran);
 
         if (rows.length === 0) {
           message.warning("Tidak ada data valid untuk diimport");

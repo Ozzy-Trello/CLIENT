@@ -37,6 +37,7 @@ import {
   Truck,
   Camera,
   ScanLine,
+  Link2,
 } from "lucide-react";
 import ModalStokQR from "@components/modal-stok-qr";
 import ModalPOQR from "@components/modal-po-qr";
@@ -61,6 +62,7 @@ import ScanProgressModal from "@components/scan-progress-modal";
 import QRGuideOverlay from "@components/qr-overlay";
 import { useLabels } from "@hooks/label";
 import { Checkbox } from "antd";
+import { createCustomOrderInvitation } from "@api/custom-order";
 
 const sanitizeQueryParamId = (value: string | null | undefined): string => {
   const trimmed = String(value ?? "").trim();
@@ -159,6 +161,10 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
   const [labelFilterModalOpen, setLabelFilterModalOpen] =
     useState<boolean>(false);
   const [invoiceModalOpen, setInvoiceModalOpen] = useState<boolean>(false);
+  const [customOrderModalOpen, setCustomOrderModalOpen] = useState(false);
+  const [customOrderUrl, setCustomOrderUrl] = useState("");
+  const [customOrderExpiresAt, setCustomOrderExpiresAt] = useState("");
+  const [isCreatingCustomOrderLink, setIsCreatingCustomOrderLink] = useState(false);
   // External scanner state - check if any modal is open
   const anyModalOpen =
     showScanner ||
@@ -170,7 +176,8 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
     modalPackingKirimOpen ||
     modalPackingPOScanOpen ||
     modalPengirimanOpen ||
-    scanProgressOpen;
+    scanProgressOpen ||
+    customOrderModalOpen;
 
   const [externalScannerActive, setExternalScannerActive] = useState(false);
   const scannerBufferRef = useRef<string>("");
@@ -206,6 +213,8 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
   const moveOldCardsMutation = useMoveOldCards();
   const isRequestDesainBoard =
     currentBoard?.name?.toLowerCase().includes("request desain") ?? false;
+  const isExactRequestDesainBoard =
+    currentBoard?.name?.trim().toLowerCase() === "request desain | outlet";
   const showMoveCardsButton = isRequestDesainBoard;
   const handleMoveCards = () => {
     moveOldCardsMutation.mutate();
@@ -213,6 +222,34 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
   const isMoveCardsPending = moveOldCardsMutation.isPending;
   const roleInList = (allowed: string[]) =>
     allowed.some((role) => role.toLowerCase() === userRole);
+  const canGenerateCustomOrderLink =
+    isExactRequestDesainBoard && roleInList(["Deal Maker", "SPV Deal Maker", "Super Admin"]);
+
+  const handleCreateCustomOrderLink = async () => {
+    if (!normalizedBoardId) return;
+
+    setIsCreatingCustomOrderLink(true);
+    try {
+      const invitation = await createCustomOrderInvitation(normalizedBoardId);
+      setCustomOrderUrl(invitation.url);
+      setCustomOrderExpiresAt(invitation.expiresAt);
+      setCustomOrderModalOpen(true);
+    } catch (error: any) {
+      message.error(error?.response?.data?.message || "Gagal membuat link form custom");
+    } finally {
+      setIsCreatingCustomOrderLink(false);
+    }
+  };
+
+  const handleCopyCustomOrderLink = async () => {
+    if (!customOrderUrl) return;
+    try {
+      await navigator.clipboard.writeText(customOrderUrl);
+      message.success("Link berhasil disalin");
+    } catch {
+      message.error("Link gagal disalin");
+    }
+  };
 
   console.log("[TOPBAR LOGS] Current User Role:", userRole);
 
@@ -706,6 +743,14 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
     });
   }
 
+  if (canGenerateCustomOrderLink) {
+    mobileMenuItems.push({
+      key: "custom-order-link",
+      label: "Generate Link Form Custom",
+      onClick: handleCreateCustomOrderLink,
+    });
+  }
+
   // Temporarily hide Invoice action from mobile topbar menu
   // if (isDateline) {
   //   mobileMenuItems.push({
@@ -889,6 +934,18 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
                     onClick={() => setModalPackingKirimOpen(true)}
                   >
                     <span>Packing Kirim</span>
+                  </Button>
+                </Tooltip>
+              )}
+              {canGenerateCustomOrderLink && (
+                <Tooltip title="Generate Link Form Custom">
+                  <Button
+                    size="small"
+                    icon={<Link2 size={16} />}
+                    loading={isCreatingCustomOrderLink}
+                    onClick={handleCreateCustomOrderLink}
+                  >
+                    <span>Form Custom</span>
                   </Button>
                 </Tooltip>
               )}
@@ -1133,6 +1190,24 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
         open={modalDeliveryOpen}
         onClose={() => setModalDeliveryOpen(false)}
       />
+      <Modal
+        open={customOrderModalOpen}
+        title="Link Form Custom"
+        onCancel={() => setCustomOrderModalOpen(false)}
+        footer={null}
+        destroyOnClose={false}
+      >
+        <Space direction="vertical" size="middle" style={{ width: "100%" }}>
+          <Typography.Text>
+            Link ini hanya dapat digunakan satu kali dan berlaku sampai {customOrderExpiresAt ? new Date(customOrderExpiresAt).toLocaleString("id-ID") : "7 hari"}.
+          </Typography.Text>
+          <Input
+            value={customOrderUrl}
+            readOnly
+            addonAfter={<Button type="link" onClick={handleCopyCustomOrderLink}>Salin</Button>}
+          />
+        </Space>
+      </Modal>
 
       <ModalStokQR
         open={modalStokQROpen}
