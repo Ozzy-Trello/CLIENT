@@ -43,4 +43,14 @@ export const queryKeys = {
     all: ['master-planner-v2'] as const,
     v2: (type?: string) => [...queryKeys.planner.all, type].filter(Boolean),
   },
+
+  notulensi: {
+    all: ['notulensi'] as const,
+    workspace: (workspaceId: string) =>
+      [...queryKeys.notulensi.all, 'workspace', workspaceId] as const,
+    detail: (workspaceId: string, id: string) =>
+      [...queryKeys.notulensi.workspace(workspaceId), 'detail', id] as const,
+    privateNote: (workspaceId: string, id: string) =>
+      [...queryKeys.notulensi.detail(workspaceId, id), 'private-note'] as const,
+  },
 } as const;

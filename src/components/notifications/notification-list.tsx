@@ -9,13 +9,20 @@ import { NotificationItem } from "@myTypes/notification";
 
 dayjs.extend(relativeTime);
 
-export function NotificationList() {
-  const router = useRouter();
-  const dispatch = useDispatch();
-  const notifications = useSelector(selectNotifications);
+export function getNotificationTarget(n: NotificationItem): string | null {
+  if (n.entityType === "notulensi") {
+    if (!n.workspaceId || !n.entityId) {
+      return null;
+    }
 
-  const handleClick = (n: NotificationItem) => {
-    dispatch(setOpen(false));
+    return `/workspace/${n.workspaceId}/notulensi/${n.entityId}`;
+  }
+
+  if (n.entityType === "card" || n.boardId) {
+    if (!n.workspaceId || !n.boardId) {
+      return null;
+    }
+
     const params = new URLSearchParams();
     if (n.cardId) {
       params.set("cardId", n.cardId);
@@ -25,11 +32,25 @@ export function NotificationList() {
     }
 
     const query = params.toString();
-    router.push(
-      query
-        ? `/workspace/${n.workspaceId}/board/${n.boardId}?${query}`
-        : `/workspace/${n.workspaceId}/board/${n.boardId}`
-    );
+    return query
+      ? `/workspace/${n.workspaceId}/board/${n.boardId}?${query}`
+      : `/workspace/${n.workspaceId}/board/${n.boardId}`;
+  }
+
+  return null;
+}
+
+export function NotificationList() {
+  const router = useRouter();
+  const dispatch = useDispatch();
+  const notifications = useSelector(selectNotifications);
+
+  const handleClick = (n: NotificationItem) => {
+    dispatch(setOpen(false));
+    const target = getNotificationTarget(n);
+    if (target) {
+      router.push(target);
+    }
   };
 
   if (notifications.length === 0) {
@@ -44,7 +65,9 @@ export function NotificationList() {
         <div
           key={n.id}
           onClick={() => handleClick(n)}
-          className={`flex flex-col gap-1 px-4 py-3 cursor-pointer hover:bg-gray-50 border-b border-gray-100 ${
+          className={`flex flex-col gap-1 px-4 py-3 border-b border-gray-100 ${
+            getNotificationTarget(n) ? "cursor-pointer hover:bg-gray-50" : "cursor-default"
+          } ${
             !n.isRead ? "bg-blue-50" : ""
           }`}
         >

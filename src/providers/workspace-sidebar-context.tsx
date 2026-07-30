@@ -13,7 +13,6 @@ export const WorkspaceSidebarProvider = ({
   children: React.ReactNode;
 }) => {
   const [collapsed, setCollapsed] = useState(false);
-  // const { width, height, isMobile } = useScreenSize();
   const siderWide = 280;
   const siderSmall = 10;
 
@@ -21,19 +20,28 @@ export const WorkspaceSidebarProvider = ({
     setCollapsed((prev) => !prev);
   };
 
-  // useEffect(() => {
-  //   // handle auto collapse when screen width < 768
-  //   const handleResize = () => {
-  //     const screenWidth = window.innerWidth;
-  //     if (isMobile && !collapsed) {
-  //       setCollapsed(true);
-  //     } else if (!isMobile && collapsed) {
-  //       setCollapsed(false);
-  //     }
-  //   };
-  //   handleResize();
- 
-  // }, [width]);
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 767px)");
+    let previousMatches: boolean | null = null;
+
+    const applyForBreakpoint = (matches: boolean) => {
+      setCollapsed(matches);
+      previousMatches = matches;
+    };
+
+    applyForBreakpoint(mediaQuery.matches);
+
+    const handleChange = (event: MediaQueryListEvent) => {
+      if (previousMatches === event.matches) {
+        return;
+      }
+
+      applyForBreakpoint(event.matches);
+    };
+
+    mediaQuery.addEventListener("change", handleChange);
+    return () => mediaQuery.removeEventListener("change", handleChange);
+  }, []);
 
   return (
     <SidebarContext.Provider value={{ collapsed, toggleSidebar, siderWide, siderSmall }}>

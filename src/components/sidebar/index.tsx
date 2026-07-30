@@ -33,6 +33,7 @@ import {
   Database,
   Activity,
   MonitorSmartphone,
+  ClipboardList,
 } from "lucide-react";
 import { Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import dynamic from "next/dynamic";
@@ -53,7 +54,7 @@ import {
 } from "@store/workspace_slice";
 import { selectTheme, selectIsDarkMode, selectUser } from "@store/app_slice";
 import { useBoards } from "@hooks/board";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter } from "next/navigation";
 import { Board } from "@myTypes/board";
 import { usePermissions, useCurrentAccount } from "@hooks/account";
 import { useUserBoardOrder } from "@hooks/user-board-order";
@@ -84,6 +85,7 @@ type MenuItem = Required<MenuProps>["items"][number];
 const Sidebar = () => {
   const dispatch = useDispatch();
   const router = useRouter();
+  const pathname = usePathname();
   // const path = usePat
   const { collapsed, toggleSidebar, siderWide, siderSmall } =
     useWorkspaceSidebar();
@@ -211,6 +213,18 @@ const Sidebar = () => {
           </Link>
         ),
         icon: <Trello size={16} />,
+      },
+      {
+        key: `/workspace/${resolvedWorkspaceId}/notulensi`,
+        label: (
+          <Link
+            className="block w-full"
+            href={`/workspace/${resolvedWorkspaceId}/notulensi`}
+          >
+            Notulensi
+          </Link>
+        ),
+        icon: <ClipboardList size={16} />,
       },
     ];
 
@@ -472,12 +486,44 @@ const Sidebar = () => {
   ]);
 
   const selectedKeys = useMemo(() => {
-    if (boardId) {
-      return [`/workspace/${workspaceId}/board/${boardId}`];
-    } else {
-      return [`/workspace/${workspaceId}/board`];
+    const resolvedWorkspaceId = Array.isArray(workspaceId)
+      ? workspaceId[0]
+      : workspaceId || "";
+
+    if (!resolvedWorkspaceId) {
+      return [];
     }
-  }, [boardId, workspaceId]);
+
+    const baseWorkspacePath = `/workspace/${resolvedWorkspaceId}`;
+
+    if (pathname?.startsWith(`${baseWorkspacePath}/notulensi`)) {
+      return [`${baseWorkspacePath}/notulensi`];
+    }
+
+    if (pathname?.startsWith(`${baseWorkspacePath}/board/`) && boardId) {
+      return [`${baseWorkspacePath}/board/${boardId}`];
+    }
+
+    const staticPaths = [
+      "board",
+      "members",
+      "materials",
+      "roles",
+      "custom-fields",
+      "master-data",
+      "master-planner",
+      "split-jobs",
+      "aksesoris",
+      "automation-dashboard",
+      "sessions",
+    ];
+
+    const matched = staticPaths.find((segment) =>
+      pathname?.startsWith(`${baseWorkspacePath}/${segment}`)
+    );
+
+    return [matched ? `${baseWorkspacePath}/${matched}` : `${baseWorkspacePath}/board`];
+  }, [boardId, pathname, workspaceId]);
 
   // Handle drag start for visual feedback
   const onDragStart = useCallback(() => {
@@ -626,7 +672,7 @@ const Sidebar = () => {
               {/* Static menu items (non-draggable) */}
               <Menu
                 mode="inline"
-                defaultSelectedKeys={["1"]}
+                selectedKeys={selectedKeys}
                 style={{ borderRight: 0, fontSize: "12px" }}
                 items={allMenus}
                 className="[&_.ant-menu-item]:my-1 [&_.ant-menu-item-icon]:flex [&_.ant-menu-item-icon]:items-center text-[10px]"
