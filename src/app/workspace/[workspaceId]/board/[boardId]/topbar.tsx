@@ -63,6 +63,7 @@ import QRGuideOverlay from "@components/qr-overlay";
 import { useLabels } from "@hooks/label";
 import { Checkbox } from "antd";
 import { createCustomOrderInvitation } from "@api/custom-order";
+import { buildCustomOrderMessage } from "@utils/custom-order-message";
 
 const sanitizeQueryParamId = (value: string | null | undefined): string => {
   const trimmed = String(value ?? "").trim();
@@ -165,6 +166,9 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
   const [customOrderUrl, setCustomOrderUrl] = useState("");
   const [customOrderExpiresAt, setCustomOrderExpiresAt] = useState("");
   const [isCreatingCustomOrderLink, setIsCreatingCustomOrderLink] = useState(false);
+  const customOrderMessage = customOrderUrl
+    ? buildCustomOrderMessage(customOrderUrl)
+    : "";
   // External scanner state - check if any modal is open
   const anyModalOpen =
     showScanner ||
@@ -242,12 +246,12 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
   };
 
   const handleCopyCustomOrderLink = async () => {
-    if (!customOrderUrl) return;
+    if (!customOrderMessage) return;
     try {
-      await navigator.clipboard.writeText(customOrderUrl);
-      message.success("Link berhasil disalin");
+      await navigator.clipboard.writeText(customOrderMessage);
+      message.success("Template pesan berhasil disalin");
     } catch {
-      message.error("Link gagal disalin");
+      message.error("Template pesan gagal disalin");
     }
   };
 
@@ -1192,7 +1196,7 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
       />
       <Modal
         open={customOrderModalOpen}
-        title="Link Form Custom"
+        title="Template WhatsApp Form Desain"
         onCancel={() => setCustomOrderModalOpen(false)}
         footer={null}
         destroyOnClose={false}
@@ -1201,11 +1205,14 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
           <Typography.Text>
             Link ini hanya dapat digunakan satu kali dan berlaku sampai {customOrderExpiresAt ? new Date(customOrderExpiresAt).toLocaleString("id-ID") : "7 hari"}.
           </Typography.Text>
-          <Input
-            value={customOrderUrl}
+          <Input.TextArea
+            value={customOrderMessage}
             readOnly
-            addonAfter={<Button type="link" onClick={handleCopyCustomOrderLink}>Salin</Button>}
+            autoSize={{ minRows: 12, maxRows: 18 }}
           />
+          <Button type="primary" block onClick={handleCopyCustomOrderLink}>
+            Salin template pesan
+          </Button>
         </Space>
       </Modal>
 
