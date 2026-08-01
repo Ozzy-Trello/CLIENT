@@ -2,18 +2,21 @@
 
 import RichTextEditor from "@components/rich-text-editor";
 import NotulensiUserSelect from "@components/notulensi/notulensi-user-select";
-import { NOTULENSI_PRIORITY_META, NOTULENSI_STATUS_META } from "@components/notulensi/notulensi-status";
+import { NOTULENSI_PRIORITY_META } from "@components/notulensi/notulensi-status";
+import { selectUser } from "@store/app_slice";
+import { useNotulensiEligibleAssignees } from "@hooks/notulensi";
 import {
   CreateNotulensiPayload,
   NotulensiDetail,
   NotulensiPriority,
-  NotulensiStatus,
   UpdateNotulensiPayload,
 } from "@myTypes/notulensi";
-import { Button, DatePicker, Form, Grid, Input, Result, Select } from "antd";
+import { Button, Checkbox, DatePicker, Form, Grid, Input, Result, Select } from "antd";
 import dayjs, { Dayjs } from "dayjs";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 import { useMemo } from "react";
+import { useSelector } from "react-redux";
 
 type FormValues = {
   title: string;
@@ -21,7 +24,6 @@ type FormValues = {
   assigneeIds: string[];
   priority: NotulensiPriority;
   dueDate?: Dayjs;
-  status?: "draft" | "open";
 };
 
 type Props = {
@@ -37,11 +39,6 @@ type Props = {
 const stripHtml = (value: string) =>
   value.replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").trim();
 
-const CREATE_STATUS_OPTIONS: Array<Extract<NotulensiStatus, "draft" | "open">> = [
-  "draft",
-  "open",
-];
-
 export default function NotulensiForm({
   mode,
   initialData,
@@ -53,12 +50,29 @@ export default function NotulensiForm({
 }: Props) {
   const screens = Grid.useBreakpoint();
   const [form] = Form.useForm<FormValues>();
+  const currentUser = useSelector(selectUser);
+  const params = useParams();
+  const workspaceId = Array.isArray(params.workspaceId)
+    ? params.workspaceId[0]
+    : params.workspaceId || "";
+  const eligibleAssignees = useNotulensiEligibleAssignees(workspaceId);
+  const canAssignSelf = Boolean(
+    currentUser?.id && eligibleAssignees.data?.data.some((user) => user.id === currentUser.id)
+  );
+  const assignSelfReason = !currentUser?.id
+    ? "Current user unavailable"
+    : eligibleAssignees.isLoading
+      ? "Checking assignment eligibility"
+      : eligibleAssignees.isError
+        ? "Could not verify assignment eligibility"
+        : !canAssignSelf
+          ? "You are not eligible for assignment in this workspace"
+          : undefined;
 
   const initialValues = useMemo<FormValues | undefined>(() => {
     if (!initialData) {
       return {
-        priority: "medium",
-        status: "draft",
+        priority: "reg",
         assigneeIds: [],
         title: "",
         content: "",
@@ -92,7 +106,6 @@ export default function NotulensiForm({
             priority: values.priority,
             dueDate: values.dueDate?.toISOString() || null,
             assigneeIds: values.assigneeIds,
-            ...(mode === "create" ? { status: values.status || "draft" } : {}),
           };
 
           await onSubmit(payload as CreateNotulensiPayload | UpdateNotulensiPayload);
@@ -146,6 +159,30 @@ export default function NotulensiForm({
             <NotulensiUserSelect />
           </Form.Item>
 
+          <Form.Item noStyle shouldUpdate={(previous, current) => previous.assigneeIds !== current.assigneeIds}>
+            {() => (
+              <Checkbox
+                disabled={!canAssignSelf}
+                checked={Boolean(currentUser?.id && form.getFieldValue("assigneeIds")?.includes(currentUser.id))}
+                title={assignSelfReason}
+                onChange={(event) => {
+                  if (!canAssignSelf || !currentUser?.id) return;
+                  const ids = form.getFieldValue("assigneeIds") || [];
+                  form.setFieldValue(
+                    "assigneeIds",
+                    event.target.checked
+                      ? Array.from(new Set([...ids, currentUser.id]))
+                      : ids.filter((id: string) => id !== currentUser.id)
+                  );
+                  form.validateFields(["assigneeIds"]);
+                }}
+              >
+                Assign to me
+                {assignSelfReason ? ` (${assignSelfReason})` : ""}
+              </Checkbox>
+            )}
+          </Form.Item>
+
           <Form.Item name="priority" label="Priority" rules={[{ required: true, message: "Priority is required" }]}>
             <Select
               options={Object.entries(NOTULENSI_PRIORITY_META).map(([value, meta]) => ({
@@ -159,16 +196,6 @@ export default function NotulensiForm({
             <DatePicker showTime className="w-full" />
           </Form.Item>
 
-          {mode === "create" ? (
-            <Form.Item name="status" label="Initial status" rules={[{ required: true, message: "Status is required" }]}>
-              <Select
-                options={CREATE_STATUS_OPTIONS.map((value) => ({
-                  value,
-                  label: NOTULENSI_STATUS_META[value].label,
-                }))}
-              />
-            </Form.Item>
-          ) : null}
         </div>
 
         <div className={`mt-6 flex gap-3 ${screens.md ? "justify-end" : "flex-col"}`}>

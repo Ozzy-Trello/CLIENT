@@ -1,6 +1,6 @@
 "use client";
 
-import { useAccountListForModal } from "@hooks/account";
+import { useNotulensiEligibleAssignees } from "@hooks/notulensi";
 import { Avatar, Select, Typography } from "antd";
 import { useParams } from "next/navigation";
 import { useMemo } from "react";
@@ -23,7 +23,7 @@ export default function NotulensiUserSelect({
     ? params.workspaceId[0]
     : params.workspaceId || "";
 
-  const { data, isLoading } = useAccountListForModal({ workspaceId });
+  const { data, isLoading } = useNotulensiEligibleAssignees(workspaceId);
 
   const options = useMemo(() => {
     return (data?.data || []).map((account) => ({

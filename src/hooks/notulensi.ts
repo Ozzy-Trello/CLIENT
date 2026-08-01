@@ -1,16 +1,20 @@
 import {
   createNotulensi,
   createNotulensiComment,
-  deleteNotulensi,
+  deleteNotulensiAttachment,
   deleteNotulensiComment,
   deleteNotulensiPrivateNote,
+  getNotulensiEligibleAssignees,
   getNotulensiDetail,
   getNotulensiList,
   getNotulensiPrivateNote,
-  transitionNotulensiStatus,
+  openNotulensi,
+  runNotulensiAction,
   updateNotulensi,
   updateNotulensiComment,
   updateNotulensiPrivateNote,
+  updateNotulensiProgress,
+  uploadNotulensiAttachment,
 } from "@api/notulensi";
 import { queryKeys } from "@constants/query-keys";
 import {
@@ -18,10 +22,12 @@ import {
   NotulensiCommentPayload,
   NotulensiListFilters,
   NotulensiPrivateNotePayload,
-  NotulensiStatus,
+  NotulensiProgress,
+  NotulensiWorkflowAction,
   UpdateNotulensiPayload,
 } from "@myTypes/notulensi";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import axios from "axios";
 
 const invalidateWorkspaceNotulensi = async (
   queryClient: ReturnType<typeof useQueryClient>,
@@ -59,8 +65,39 @@ export function useNotulensiList(
 export function useNotulensiDetail(workspaceId: string, id: string) {
   return useQuery({
     queryKey: queryKeys.notulensi.detail(workspaceId, id),
-    queryFn: () => getNotulensiDetail(workspaceId, id),
+    queryFn: async () => {
+      try {
+        return await openNotulensi(workspaceId, id);
+      } catch (error) {
+        if (axios.isAxiosError(error) && error.response?.status === 403) {
+          return getNotulensiDetail(workspaceId, id);
+        }
+        throw error;
+      }
+    },
     enabled: Boolean(workspaceId && id),
+  });
+}
+
+export function useUploadNotulensiAttachment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ workspaceId, id, file }: { workspaceId: string; id: string; file: File }) =>
+      uploadNotulensiAttachment(workspaceId, id, file),
+    onSuccess: async (_, variables) => {
+      await invalidateWorkspaceNotulensi(queryClient, variables.workspaceId, variables.id);
+    },
+  });
+}
+
+export function useDeleteNotulensiAttachment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ workspaceId, id, attachmentId }: { workspaceId: string; id: string; attachmentId: string }) =>
+      deleteNotulensiAttachment(workspaceId, id, attachmentId),
+    onSuccess: async (_, variables) => {
+      await invalidateWorkspaceNotulensi(queryClient, variables.workspaceId, variables.id);
+    },
   });
 }
 
@@ -103,42 +140,41 @@ export function useUpdateNotulensi() {
   });
 }
 
-export function useDeleteNotulensi() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ workspaceId, id }: { workspaceId: string; id: string }) =>
-      deleteNotulensi(workspaceId, id),
-    onSuccess: async (_, variables) => {
-      await queryClient.invalidateQueries({
-        queryKey: queryKeys.notulensi.workspace(variables.workspaceId),
-      });
-      queryClient.removeQueries({
-        queryKey: queryKeys.notulensi.detail(variables.workspaceId, variables.id),
-      });
-      queryClient.removeQueries({
-        queryKey: queryKeys.notulensi.privateNote(variables.workspaceId, variables.id),
-      });
-    },
-  });
-}
-
-export function useTransitionNotulensi() {
+export function useNotulensiAction() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: ({
       workspaceId,
       id,
-      status,
+      action,
     }: {
       workspaceId: string;
       id: string;
-      status: NotulensiStatus;
-    }) => transitionNotulensiStatus(workspaceId, id, { status }),
+      action: NotulensiWorkflowAction;
+    }) => runNotulensiAction(workspaceId, id, action),
     onSuccess: async (_, variables) => {
       await invalidateWorkspaceNotulensi(queryClient, variables.workspaceId, variables.id);
     },
+  });
+}
+
+export function useUpdateNotulensiProgress() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ workspaceId, id, progress }: { workspaceId: string; id: string; progress: NotulensiProgress }) =>
+      updateNotulensiProgress(workspaceId, id, progress),
+    onSuccess: async (_, variables) => {
+      await invalidateWorkspaceNotulensi(queryClient, variables.workspaceId, variables.id);
+    },
+  });
+}
+
+export function useNotulensiEligibleAssignees(workspaceId: string) {
+  return useQuery({
+    queryKey: [...queryKeys.notulensi.workspace(workspaceId), "eligible-assignees"] as const,
+    queryFn: () => getNotulensiEligibleAssignees(workspaceId),
+    enabled: Boolean(workspaceId),
   });
 }
 

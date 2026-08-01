@@ -1,15 +1,18 @@
 import { api } from "@api/index";
 import {
   CreateNotulensiPayload,
-  DeleteNotulensiResponse,
   NotulensiComment,
   NotulensiCommentPayload,
+  NotulensiAttachmentResponse,
   NotulensiDetailResponse,
+  NotulensiExportResponse,
   NotulensiListFilters,
   NotulensiListResponse,
   NotulensiPrivateNotePayload,
   NotulensiPrivateNoteResponse,
-  NotulensiStatusTransitionPayload,
+  NotulensiEligibleAssigneesResponse,
+  NotulensiProgress,
+  NotulensiWorkflowAction,
   UpdateNotulensiPayload,
 } from "@myTypes/notulensi";
 
@@ -35,6 +38,11 @@ const omitEmpty = (filters: NotulensiListFilters) => {
   );
 };
 
+const exportParams = (filters: NotulensiListFilters) => {
+  const { page: _page, limit: _limit, ...activeFilters } = filters;
+  return omitEmpty(activeFilters);
+};
+
 export const getNotulensiList = async (
   workspaceId: string,
   filters: NotulensiListFilters = {}
@@ -53,11 +61,54 @@ export const createNotulensi = async (
   return response.data;
 };
 
+export const openNotulensi = async (
+  workspaceId: string,
+  id: string
+): Promise<NotulensiDetailResponse> => {
+  const response = await api.post(`${notulensiBasePath(workspaceId)}/${id}/open`);
+  return response.data;
+};
+
 export const getNotulensiDetail = async (
   workspaceId: string,
   id: string
 ): Promise<NotulensiDetailResponse> => {
   const response = await api.get(`${notulensiBasePath(workspaceId)}/${id}`);
+  return response.data;
+};
+
+export const uploadNotulensiAttachment = async (
+  workspaceId: string,
+  id: string,
+  file: File
+): Promise<NotulensiAttachmentResponse> => {
+  const formData = new FormData();
+  formData.append("file", file);
+  const response = await api.post(
+    `${notulensiBasePath(workspaceId)}/${id}/attachments`,
+    formData
+  );
+  return response.data;
+};
+
+export const deleteNotulensiAttachment = async (
+  workspaceId: string,
+  id: string,
+  attachmentId: string
+): Promise<{ success: boolean }> => {
+  const response = await api.delete(
+    `${notulensiBasePath(workspaceId)}/${id}/attachments/${attachmentId}`
+  );
+  return response.data;
+};
+
+export const exportNotulensi = async (
+  workspaceId: string,
+  filters: NotulensiListFilters
+): Promise<NotulensiExportResponse> => {
+  const response = await api.get(`${notulensiBasePath(workspaceId)}/export`, {
+    params: exportParams(filters),
+  });
   return response.data;
 };
 
@@ -70,23 +121,33 @@ export const updateNotulensi = async (
   return response.data;
 };
 
-export const deleteNotulensi = async (
+export const runNotulensiAction = async (
   workspaceId: string,
-  id: string
-): Promise<DeleteNotulensiResponse> => {
-  const response = await api.delete(`${notulensiBasePath(workspaceId)}/${id}`);
+  id: string,
+  action: NotulensiWorkflowAction
+): Promise<NotulensiDetailResponse> => {
+  const response = await api.post(
+    `${notulensiBasePath(workspaceId)}/${id}/actions/${action.replaceAll("_", "-")}`
+  );
   return response.data;
 };
 
-export const transitionNotulensiStatus = async (
+export const updateNotulensiProgress = async (
   workspaceId: string,
   id: string,
-  payload: NotulensiStatusTransitionPayload
+  progress: NotulensiProgress
 ): Promise<NotulensiDetailResponse> => {
-  const response = await api.post(
-    `${notulensiBasePath(workspaceId)}/${id}/status`,
-    payload
+  const response = await api.patch(
+    `${notulensiBasePath(workspaceId)}/${id}/progress`,
+    { progress }
   );
+  return response.data;
+};
+
+export const getNotulensiEligibleAssignees = async (
+  workspaceId: string
+): Promise<NotulensiEligibleAssigneesResponse> => {
+  const response = await api.get(`${notulensiBasePath(workspaceId)}/eligible-assignees`);
   return response.data;
 };
 

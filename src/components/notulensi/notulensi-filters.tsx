@@ -35,7 +35,7 @@ export default function NotulensiFilters({ value, onChange, allowAll = false }: 
 
   const clearFilters = () => {
     setSearchText("");
-    onChange({ scope: "related", page: 1, limit: value.limit });
+    onChange({ scope: "assigned", page: 1, limit: value.limit });
   };
 
   return (
@@ -78,7 +78,7 @@ export default function NotulensiFilters({ value, onChange, allowAll = false }: 
       </div>
       <div className="flex flex-col gap-3 lg:flex-row">
         <Select<NotulensiScope>
-          value={value.scope || "related"}
+          value={value.scope || "assigned"}
           onChange={(scope) => applyPatch({ scope })}
           className={screens.lg ? "w-56" : "w-full"}
           options={scopeOptions.filter((option) => allowAll || option.value !== "all")}

@@ -5,9 +5,10 @@ import {
   NotulensiStatusTag,
 } from "@components/notulensi/notulensi-status";
 import { NotulensiListResponse, NotulensiSummary } from "@myTypes/notulensi";
-import { Avatar, Button, Empty, Grid, List, Skeleton, Table, Tooltip, Typography } from "antd";
+import { Avatar, Empty, Grid, List, Skeleton, Table, Tooltip, Typography } from "antd";
 import dayjs from "dayjs";
 import { AlertCircle, CalendarClock, Clock3 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 type Props = {
@@ -64,6 +65,15 @@ function LoadingState() {
 
 export default function NotulensiList({ workspaceId, data, loading, onPageChange }: Props) {
   const screens = Grid.useBreakpoint();
+  const router = useRouter();
+  const openItem = (id: string) => router.push(`/workspace/${workspaceId}/notulensi/${id}`);
+  const rowKeyboard = (event: React.KeyboardEvent, id: string) => {
+    if (event.target !== event.currentTarget) return;
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      openItem(id);
+    }
+  };
 
   if (loading) {
     return <LoadingState />;
@@ -83,11 +93,14 @@ export default function NotulensiList({ workspaceId, data, loading, onPageChange
         <List
           dataSource={data.data}
           renderItem={(item) => (
-            <List.Item className="px-4">
-              <Link
-                href={`/workspace/${workspaceId}/notulensi/${item.id}`}
-                className="block w-full"
-              >
+            <List.Item
+              className="cursor-pointer px-4"
+              role="link"
+              tabIndex={0}
+              onClick={() => openItem(item.id)}
+              onKeyDown={(event) => rowKeyboard(event, item.id)}
+            >
+              <div className="block w-full">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <Typography.Text type="secondary" className="block text-xs">
@@ -105,9 +118,8 @@ export default function NotulensiList({ workspaceId, data, loading, onPageChange
                       <AssigneeAvatars item={item} />
                     </div>
                   </div>
-                  <Button type="link">Open</Button>
                 </div>
-              </Link>
+              </div>
             </List.Item>
           )}
           pagination={{
@@ -137,19 +149,31 @@ export default function NotulensiList({ workspaceId, data, loading, onPageChange
           pageSizeOptions: [10, 20, 50],
         }}
         scroll={{ x: 980 }}
+        onRow={(item) => ({
+          tabIndex: 0,
+          className: "cursor-pointer",
+          onClick: (event) => {
+            if ((event.target as HTMLElement).closest("a, button, input, select, textarea")) return;
+            openItem(item.id);
+          },
+          onKeyDown: (event) => rowKeyboard(event, item.id),
+        })}
         columns={[
           {
             title: "Code",
             dataIndex: "code",
             width: 120,
+            render: (code: string, item: NotulensiSummary) => (
+              <Link href={`/workspace/${workspaceId}/notulensi/${item.id}`}>{code}</Link>
+            ),
           },
           {
             title: "Title",
             key: "title",
             render: (_, item: NotulensiSummary) => (
               <div className="min-w-0">
-                <Link href={`/workspace/${workspaceId}/notulensi/${item.id}`}>
-                  <Typography.Text strong>{item.title}</Typography.Text>
+                <Link href={`/workspace/${workspaceId}/notulensi/${item.id}`} className="font-semibold">
+                  {item.title}
                 </Link>
                 <Typography.Paragraph type="secondary" ellipsis={{ rows: 2 }} className="!mb-0 text-xs">
                   {toPlainText(item.content) || "No description"}
@@ -193,15 +217,6 @@ export default function NotulensiList({ workspaceId, data, loading, onPageChange
               </div>
             ),
             width: 170,
-          },
-          {
-            title: "Actions",
-            width: 100,
-            render: (_, item: NotulensiSummary) => (
-              <Link href={`/workspace/${workspaceId}/notulensi/${item.id}`}>
-                <Button type="link">Open</Button>
-              </Link>
-            ),
           },
         ]}
       />

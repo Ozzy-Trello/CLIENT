@@ -1,11 +1,22 @@
 export type NotulensiStatus =
-  | "draft"
-  | "open"
+  | "new"
   | "in_progress"
+  | "waiting_review"
+  | "revision"
   | "completed"
   | "cancelled";
 
-export type NotulensiPriority = "low" | "medium" | "high" | "urgent";
+export type NotulensiPriority = "urgent" | "reg" | "minor";
+
+export type NotulensiProgress = 0 | 25 | 50 | 75 | 100;
+
+export type NotulensiAction =
+  | "start"
+  | "submit_review"
+  | "request_revision"
+  | "complete"
+  | "cancel"
+  | "update_progress";
 
 export type NotulensiScope = "related" | "created" | "assigned" | "all";
 
@@ -13,6 +24,7 @@ export interface NotulensiUser {
   id: string;
   username: string;
   email: string;
+  role?: { id: string; name: string } | null;
 }
 
 export interface NotulensiAssignee {
@@ -58,8 +70,14 @@ export interface NotulensiPrivateNote {
 
 export interface NotulensiPermissions {
   canEdit: boolean;
-  canDelete: boolean;
-  canTransition: boolean;
+  canUploadAttachment: boolean;
+  canDeleteAttachment: boolean;
+}
+
+export interface NotulensiReadReceipt {
+  userId: string;
+  openedAt: string;
+  user: NotulensiUser | null;
 }
 
 export interface NotulensiSummary {
@@ -70,10 +88,16 @@ export interface NotulensiSummary {
   content: string;
   status: NotulensiStatus;
   priority: NotulensiPriority;
+  progress: NotulensiProgress;
   dueDate: string | null;
   createdBy: string;
   creator: NotulensiUser | null;
   assignees: NotulensiAssignee[];
+  allowedActions: NotulensiAction[];
+  currentUserOpenedAt: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  cancelledAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -83,6 +107,21 @@ export interface NotulensiDetail extends NotulensiSummary {
   statusHistory: NotulensiStatusHistory[];
   privateNote: NotulensiPrivateNote | null;
   permissions: NotulensiPermissions;
+  readReceipts: NotulensiReadReceipt[];
+  attachments: NotulensiAttachment[];
+}
+
+export interface NotulensiAttachment {
+  id: string;
+  fileId: string;
+  name: string;
+  url: string;
+  size: number;
+  sizeUnit: string;
+  mimeType: string;
+  uploadedBy: string;
+  uploader: NotulensiUser | null;
+  createdAt: string;
 }
 
 export interface NotulensiPagination {
@@ -114,6 +153,77 @@ export interface NotulensiDetailResponse {
   data: NotulensiDetail;
 }
 
+export interface NotulensiAttachmentResponse {
+  data: NotulensiAttachment;
+}
+
+export interface NotulensiExportTask {
+  id: string;
+  code: string;
+  title: string;
+  content: string;
+  status: NotulensiStatus;
+  progress: NotulensiProgress;
+  priority: NotulensiPriority;
+  dueDate: string | null;
+  creatorName: string | null;
+  creatorEmail: string | null;
+  creatorRole: string | null;
+  assignees: string[];
+  assigneeRoles: string[];
+  createdAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
+  cancelledAt: string | null;
+}
+
+export interface NotulensiExportReadReceipt {
+  taskCode: string;
+  userName: string | null;
+  userRole: string | null;
+  openedAt: string;
+}
+
+export interface NotulensiExportStatusHistory {
+  taskCode: string;
+  fromStatus: NotulensiStatus | null;
+  toStatus: NotulensiStatus;
+  actorName: string | null;
+  actorRole: string | null;
+  createdAt: string;
+}
+
+export interface NotulensiExportComment {
+  taskCode: string;
+  content: string;
+  authorName: string | null;
+  authorRole: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface NotulensiExportAttachment {
+  taskCode: string;
+  name: string | null;
+  url: string | null;
+  size: number | null;
+  sizeUnit: string | null;
+  mimeType: string | null;
+  uploadedBy: string | null;
+  uploaderRole: string | null;
+  createdAt: string;
+}
+
+export interface NotulensiExportResponse {
+  data: {
+    tasks: NotulensiExportTask[];
+    readReceipts: NotulensiExportReadReceipt[];
+    statusHistory: NotulensiExportStatusHistory[];
+    comments: NotulensiExportComment[];
+    attachments: NotulensiExportAttachment[];
+  };
+}
+
 export interface NotulensiPrivateNoteResponse {
   data: NotulensiPrivateNote | null;
 }
@@ -121,7 +231,6 @@ export interface NotulensiPrivateNoteResponse {
 export interface CreateNotulensiPayload {
   title: string;
   content: string;
-  status?: Extract<NotulensiStatus, "draft" | "open">;
   priority?: NotulensiPriority;
   dueDate?: string | null;
   assigneeIds: string[];
@@ -135,8 +244,14 @@ export interface UpdateNotulensiPayload {
   assigneeIds?: string[];
 }
 
-export interface NotulensiStatusTransitionPayload {
-  status: NotulensiStatus;
+export type NotulensiWorkflowAction = Exclude<NotulensiAction, "update_progress">;
+
+export interface NotulensiProgressPayload {
+  progress: NotulensiProgress;
+}
+
+export interface NotulensiEligibleAssigneesResponse {
+  data: NotulensiUser[];
 }
 
 export interface NotulensiCommentPayload {

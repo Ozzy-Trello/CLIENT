@@ -221,7 +221,7 @@ const Sidebar = () => {
             className="block w-full"
             href={`/workspace/${resolvedWorkspaceId}/notulensi`}
           >
-            Notulensi
+            Tasks and Projects
           </Link>
         ),
         icon: <ClipboardList size={16} />,
