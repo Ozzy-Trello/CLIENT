@@ -139,16 +139,11 @@ export default function NotulensiForm({
               },
             ]}
           >
-            <Form.Item noStyle shouldUpdate>
-              {() => (
-                <RichTextEditor
-                  initialValue={form.getFieldValue("content") || ""}
-                  minHeight={220}
-                  className="w-full"
-                  onChange={(content) => form.setFieldValue("content", content)}
-                />
-              )}
-            </Form.Item>
+            <RichTextEditor
+              initialValue={initialData?.content || ""}
+              minHeight={220}
+              className="w-full"
+            />
           </Form.Item>
 
           <Form.Item

@@ -53,7 +53,8 @@ export default function NotulensiUserSelect({
       options={options}
       optionFilterProp="searchLabel"
       placeholder="Assign users"
-      maxTagCount="responsive"
+      maxTagCount={2}
+      maxTagPlaceholder={(omitted) => `+${omitted.length}`}
       className="w-full"
       filterOption={(input, option) =>
         String(option?.searchLabel || "").includes(input.toLowerCase())
