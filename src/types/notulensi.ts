@@ -15,6 +15,7 @@ export type NotulensiAction =
   | "submit_review"
   | "request_revision"
   | "complete"
+  | "undo_complete"
   | "cancel"
   | "update_progress";
 

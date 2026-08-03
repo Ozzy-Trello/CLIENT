@@ -110,6 +110,16 @@ describe("notulensi api", () => {
     expect(mockApi.get).toHaveBeenCalledWith("/workspace/ws-1/notulensi/eligible-assignees");
   });
 
+  it("maps undo_complete to the undo-complete action endpoint", async () => {
+    mockApi.post.mockResolvedValue({ data: { data: { id: "n-1" } } });
+
+    await runNotulensiAction("ws-1", "n-1", "undo_complete");
+
+    expect(mockApi.post).toHaveBeenCalledWith(
+      "/workspace/ws-1/notulensi/n-1/actions/undo-complete"
+    );
+  });
+
   it("calls comment endpoints with exact URLs", async () => {
     mockApi.post.mockResolvedValue({ data: { data: { id: "c-1" } } });
     mockApi.patch.mockResolvedValue({ data: { data: { id: "c-1" } } });

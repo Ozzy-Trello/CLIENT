@@ -7,6 +7,10 @@ import {
   NOTULENSI_STATUS_META,
 } from "@components/notulensi/notulensi-status";
 import {
+  NOTULENSI_ACTION_META,
+  NOTULENSI_PROGRESS_OPTIONS,
+} from "@components/notulensi/notulensi-detail-utils";
+import {
   useCreateNotulensiComment,
   useDeleteNotulensiComment,
   useDeleteNotulensiAttachment,
@@ -34,6 +38,7 @@ import {
   Timeline,
   Typography,
   Progress,
+  Select,
   message,
 } from "antd";
 import { AxiosError } from "axios";
@@ -121,6 +126,7 @@ export default function NotulensiDetailView({
   }
 
   const handleAction = async (action: NotulensiWorkflowAction) => {
+    if (actionMutation.isPending) return;
     try {
       await actionMutation.mutateAsync({ workspaceId, id: detail.id, action });
       message.success("Status updated");
@@ -130,20 +136,12 @@ export default function NotulensiDetailView({
   };
 
   const handleProgress = async (progress: NotulensiProgress) => {
-    if (progressMutation.isPending) return;
+    if (progressMutation.isPending || progress === detail.progress) return;
     try {
       await progressMutation.mutateAsync({ workspaceId, id: detail.id, progress });
     } catch (progressError) {
       message.error(getErrorMessage(progressError, "Failed to update progress"));
     }
-  };
-
-  const actionMeta: Record<NotulensiWorkflowAction, { label: string; danger?: boolean; terminal?: boolean }> = {
-    start: { label: "Proses" },
-    submit_review: { label: "Menunggu Review" },
-    request_revision: { label: "Revision" },
-    complete: { label: "Selesai", terminal: true },
-    cancel: { label: "Cancel", danger: true, terminal: true },
   };
 
   const canEditComment = (comment: NotulensiComment) =>
@@ -196,22 +194,22 @@ export default function NotulensiDetailView({
             {detail.allowedActions
               .filter((action): action is NotulensiWorkflowAction => action !== "update_progress")
               .map((action) => {
-                const meta = actionMeta[action];
+                const meta = NOTULENSI_ACTION_META[action];
                 const button = (
                   <Button
                     danger={meta.danger}
                     type={action === "complete" ? "primary" : "default"}
                     loading={actionMutation.isPending}
-                    onClick={meta.terminal ? undefined : () => handleAction(action)}
+                    onClick={meta.confirmation ? undefined : () => handleAction(action)}
                   >
                     {meta.label}
                   </Button>
                 );
-                return meta.terminal ? (
+                return meta.confirmation ? (
                   <Popconfirm
                     key={action}
-                    title={`${meta.label} task ini?`}
-                    description="Tindakan ini mengakhiri workflow task."
+                    title={meta.confirmation.title}
+                    description={meta.confirmation.description}
                     onConfirm={() => handleAction(action)}
                   >
                     {button}
@@ -229,29 +227,19 @@ export default function NotulensiDetailView({
         <div className="mb-4 rounded-lg border border-[rgb(var(--color-border))] p-3">
           <div className="mb-2 flex items-center justify-between gap-3">
             <Typography.Text strong>Progress</Typography.Text>
-            <Space>
-              {detail.allowedActions.includes("update_progress") ? (
-                <Button
-                  size="small"
-                  disabled={detail.progress === 0 || progressMutation.isPending}
-                  loading={progressMutation.isPending}
-                  onClick={() => handleProgress(Math.max(0, detail.progress - 25) as NotulensiProgress)}
-                >
-                  -25
-                </Button>
-              ) : null}
+            {detail.allowedActions.includes("update_progress") ? (
+              <Select<NotulensiProgress>
+                aria-label="Progress"
+                value={detail.progress}
+                options={NOTULENSI_PROGRESS_OPTIONS}
+                loading={progressMutation.isPending}
+                disabled={progressMutation.isPending}
+                onChange={handleProgress}
+                className="w-24"
+              />
+            ) : (
               <Typography.Text>{detail.progress}%</Typography.Text>
-              {detail.allowedActions.includes("update_progress") ? (
-                <Button
-                  size="small"
-                  disabled={detail.progress === 100 || progressMutation.isPending}
-                  loading={progressMutation.isPending}
-                  onClick={() => handleProgress(Math.min(100, detail.progress + 25) as NotulensiProgress)}
-                >
-                  +25
-                </Button>
-              ) : null}
-            </Space>
+            )}
           </div>
           <Progress percent={detail.progress} steps={4} showInfo={false} />
         </div>
