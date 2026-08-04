@@ -8,6 +8,7 @@ import {
   getNotulensiEligibleAssignees,
   getNotulensiDetail,
   getNotulensiList,
+  getNotulensiMentionUsers,
   getNotulensiPrivateNote,
   openNotulensi,
   runNotulensiAction,
@@ -196,6 +197,14 @@ export function useNotulensiEligibleAssignees(workspaceId: string) {
   return useQuery({
     queryKey: [...queryKeys.notulensi.workspace(workspaceId), "eligible-assignees"] as const,
     queryFn: () => getNotulensiEligibleAssignees(workspaceId),
+    enabled: Boolean(workspaceId),
+  });
+}
+
+export function useNotulensiMentionUsers(workspaceId: string) {
+  return useQuery({
+    queryKey: [...queryKeys.notulensi.workspace(workspaceId), "mention-users"] as const,
+    queryFn: () => getNotulensiMentionUsers(workspaceId),
     enabled: Boolean(workspaceId),
   });
 }

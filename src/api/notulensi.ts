@@ -160,6 +160,13 @@ export const getNotulensiEligibleAssignees = async (
   return response.data;
 };
 
+export const getNotulensiMentionUsers = async (
+  workspaceId: string
+): Promise<NotulensiEligibleAssigneesResponse> => {
+  const response = await api.get(`${notulensiBasePath(workspaceId)}/mention-users`);
+  return response.data;
+};
+
 export const createNotulensiComment = async (
   workspaceId: string,
   id: string,

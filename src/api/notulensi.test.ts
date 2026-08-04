@@ -6,6 +6,7 @@ import {
   deleteNotulensiComment,
   deleteNotulensiPrivateNote,
   getNotulensiEligibleAssignees,
+  getNotulensiMentionUsers,
   exportNotulensi,
   getNotulensiList,
   getNotulensiPrivateNote,
@@ -88,7 +89,7 @@ describe("notulensi api", () => {
     });
   });
 
-  it("calls open, update, workflow action, progress, and assignee endpoints", async () => {
+  it("calls open, update, workflow action, progress, assignee, and mention endpoints", async () => {
     mockApi.get.mockResolvedValue({ data: { data: [] } });
     mockApi.patch.mockResolvedValue({ data: { data: { id: "n-1" } } });
     mockApi.post.mockResolvedValue({ data: { data: { id: "n-1" } } });
@@ -98,6 +99,7 @@ describe("notulensi api", () => {
     await runNotulensiAction("ws-1", "n-1", "submit_review");
     await updateNotulensiProgress("ws-1", "n-1", 75);
     await getNotulensiEligibleAssignees("ws-1");
+    await getNotulensiMentionUsers("ws-1");
 
     expect(mockApi.post).toHaveBeenCalledWith("/workspace/ws-1/notulensi/n-1/open");
     expect(mockApi.patch).toHaveBeenCalledWith("/workspace/ws-1/notulensi/n-1", {
@@ -109,6 +111,7 @@ describe("notulensi api", () => {
     );
     expect(mockApi.patch).toHaveBeenCalledWith("/workspace/ws-1/notulensi/n-1/progress", { progress: 75 });
     expect(mockApi.get).toHaveBeenCalledWith("/workspace/ws-1/notulensi/eligible-assignees");
+    expect(mockApi.get).toHaveBeenCalledWith("/workspace/ws-1/notulensi/mention-users");
   });
 
   it("maps undo_complete to the undo-complete action endpoint", async () => {

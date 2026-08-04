@@ -23,7 +23,7 @@ import {
   useDeleteNotulensiAttachment,
   useDeleteNotulensiPrivateNote,
   useNotulensiPrivateNote,
-  useNotulensiEligibleAssignees,
+  useNotulensiMentionUsers,
   useNotulensiAction,
   useRefreshNotulensi,
   useUpdateNotulensiProgress,
@@ -111,8 +111,8 @@ export default function NotulensiDetailView({
   const deleteAttachmentMutation = useDeleteNotulensiAttachment();
   const deleteNotulensiMutation = useDeleteNotulensi();
   const privateNoteQuery = useNotulensiPrivateNote(workspaceId, detail?.id || "");
-  const eligibleAssignees = useNotulensiEligibleAssignees(workspaceId);
-  const mentionUsers = eligibleAssignees.data?.data || [];
+  const mentionUsersQuery = useNotulensiMentionUsers(workspaceId);
+  const mentionUsers = mentionUsersQuery.data?.data || [];
 
   const privateNote = privateNoteQuery.data?.data ?? detail?.privateNote ?? null;
 

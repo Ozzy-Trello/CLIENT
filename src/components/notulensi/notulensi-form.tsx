@@ -5,7 +5,10 @@ import NotulensiUserSelect from "@components/notulensi/notulensi-user-select";
 import { NOTULENSI_PRIORITY_META } from "@components/notulensi/notulensi-status";
 import { normalizeOptionalRichText } from "@components/notulensi/notulensi-detail-utils";
 import { selectUser } from "@store/app_slice";
-import { useNotulensiEligibleAssignees } from "@hooks/notulensi";
+import {
+  useNotulensiEligibleAssignees,
+  useNotulensiMentionUsers,
+} from "@hooks/notulensi";
 import {
   CreateNotulensiPayload,
   NotulensiDetail,
@@ -54,6 +57,7 @@ export default function NotulensiForm({
     ? params.workspaceId[0]
     : params.workspaceId || "";
   const eligibleAssignees = useNotulensiEligibleAssignees(workspaceId);
+  const mentionUsers = useNotulensiMentionUsers(workspaceId);
   const canAssignSelf = Boolean(
     currentUser?.id && eligibleAssignees.data?.data.some((user) => user.id === currentUser.id)
   );
@@ -129,7 +133,7 @@ export default function NotulensiForm({
           >
             <RichTextEditor
               initialValue={initialData?.content || ""}
-              mentionUsers={eligibleAssignees.data?.data || []}
+              mentionUsers={mentionUsers.data?.data || []}
               allowWorkspaceAllMention={false}
               minHeight={220}
               className="w-full"
