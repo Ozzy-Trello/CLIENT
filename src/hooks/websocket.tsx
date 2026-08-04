@@ -24,6 +24,7 @@ import {
   handleCustomFieldCleared,
   handleCustomFieldUpdated,
   handleListArchived,
+  invalidateNotulensiNotification,
 } from "@utils/websocket-event-handlers";
 import { addNotification } from "@store/notification_slice";
 import TokenStorage from "@utils/token-storage";
@@ -1604,6 +1605,7 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
 
           case "notification:new":
             if (message.data) {
+              invalidateNotulensiNotification(queryClient, message.data);
               dispatch(addNotification(message.data));
               playNotificationSound();
             }

@@ -12,7 +12,14 @@
 
 .trello-editor-container .ql-editor {
   padding: 12px 15px;
-  /* Don't set a fixed height here - it will be managed by JS */
+  min-height: var(--editor-min-height);
+  max-height: var(--editor-max-height);
+  overflow-y: auto;
+}
+
+.trello-editor-container .ql-editor.ql-blank::before {
+  color: #999;
+  font-style: italic;
 }
 
 .trello-editor-container .ql-toolbar {
@@ -33,9 +40,4 @@
   max-width: 100%;
   height: auto;
   margin: 5px 0;
-}
-
-/* Remove default height constraint */
-.trello-editor-container .ql-container .ql-editor {
-  min-height: 0;
 }

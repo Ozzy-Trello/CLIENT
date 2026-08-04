@@ -8,15 +8,24 @@ import {
 } from "@components/notulensi/notulensi-status";
 import {
   NOTULENSI_ACTION_META,
+  MAX_NOTULENSI_ATTACHMENT_SIZE,
   NOTULENSI_PROGRESS_OPTIONS,
+  copyNotulensiLink,
+  hasDisplayableRichContent,
+  hasRichTextContent,
+  uploadNotulensiAttachmentsSequentially,
+  validateNotulensiAttachments,
 } from "@components/notulensi/notulensi-detail-utils";
 import {
   useCreateNotulensiComment,
   useDeleteNotulensiComment,
+  useDeleteNotulensi,
   useDeleteNotulensiAttachment,
   useDeleteNotulensiPrivateNote,
   useNotulensiPrivateNote,
+  useNotulensiEligibleAssignees,
   useNotulensiAction,
+  useRefreshNotulensi,
   useUpdateNotulensiProgress,
   useUpdateNotulensiComment,
   useUpdateNotulensiPrivateNote,
@@ -44,10 +53,9 @@ import {
 import { AxiosError } from "axios";
 import dayjs from "dayjs";
 import Link from "next/link";
-import { Download, Paperclip, Trash2, Upload } from "lucide-react";
-import { ChangeEvent, useEffect, useRef, useState } from "react";
-
-const MAX_ATTACHMENT_SIZE = 50 * 1024 * 1024;
+import { useRouter } from "next/navigation";
+import { Copy, Download, Paperclip, Trash2, Upload } from "lucide-react";
+import { ChangeEvent, DragEvent, useEffect, useRef, useState } from "react";
 
 type Props = {
   workspaceId: string;
@@ -84,7 +92,12 @@ export default function NotulensiDetailView({
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editingComment, setEditingComment] = useState("");
   const [privateNoteDraft, setPrivateNoteDraft] = useState("");
+  const [pendingAction, setPendingAction] = useState<NotulensiWorkflowAction | null>(null);
+  const [isDraggingAttachment, setIsDraggingAttachment] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null);
+  const isUploadingAttachments = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
 
   const actionMutation = useNotulensiAction();
   const progressMutation = useUpdateNotulensiProgress();
@@ -94,8 +107,12 @@ export default function NotulensiDetailView({
   const updatePrivateNoteMutation = useUpdateNotulensiPrivateNote();
   const deletePrivateNoteMutation = useDeleteNotulensiPrivateNote();
   const uploadAttachmentMutation = useUploadNotulensiAttachment();
+  const refreshNotulensi = useRefreshNotulensi();
   const deleteAttachmentMutation = useDeleteNotulensiAttachment();
+  const deleteNotulensiMutation = useDeleteNotulensi();
   const privateNoteQuery = useNotulensiPrivateNote(workspaceId, detail?.id || "");
+  const eligibleAssignees = useNotulensiEligibleAssignees(workspaceId);
+  const mentionUsers = eligibleAssignees.data?.data || [];
 
   const privateNote = privateNoteQuery.data?.data ?? detail?.privateNote ?? null;
 
@@ -126,12 +143,34 @@ export default function NotulensiDetailView({
   }
 
   const handleAction = async (action: NotulensiWorkflowAction) => {
-    if (actionMutation.isPending) return;
+    if (pendingAction) return;
+    setPendingAction(action);
     try {
       await actionMutation.mutateAsync({ workspaceId, id: detail.id, action });
       message.success("Status updated");
     } catch (actionError) {
       message.error(getErrorMessage(actionError, "Failed to update status"));
+    } finally {
+      setPendingAction(null);
+    }
+  };
+
+  const handleCopyLink = async () => {
+    try {
+      await copyNotulensiLink(workspaceId, detail.id);
+      message.success("Link copied");
+    } catch {
+      message.error("Failed to copy link");
+    }
+  };
+
+  const handleDelete = async () => {
+    try {
+      await deleteNotulensiMutation.mutateAsync({ workspaceId, id: detail.id });
+      message.success("Task deleted");
+      router.push(`/workspace/${workspaceId}/notulensi`);
+    } catch (deleteError) {
+      message.error(getErrorMessage(deleteError, "Failed to delete task"));
     }
   };
 
@@ -152,20 +191,42 @@ export default function NotulensiDetailView({
     comment.permissions?.canDelete ??
     (comment.createdBy === currentUser?.id || Boolean(isSuperAdmin));
 
-  const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (!file) return;
-    if (file.size > MAX_ATTACHMENT_SIZE) {
-      message.error("File must be 50 MB or smaller");
+  const handleFiles = async (files: File[]) => {
+    if (!files.length) return;
+    if (isUploadingAttachments.current) {
+      message.warning("An attachment upload is already in progress");
       return;
     }
+    isUploadingAttachments.current = true;
+
+    const { accepted, rejected } = validateNotulensiAttachments(files);
+    let result;
     try {
-      await uploadAttachmentMutation.mutateAsync({ workspaceId, id: detail.id, file });
-      message.success("Attachment uploaded");
-    } catch (uploadError) {
-      message.error(getErrorMessage(uploadError, "Failed to upload attachment"));
+      result = await uploadNotulensiAttachmentsSequentially(accepted, (file) =>
+        uploadAttachmentMutation.mutateAsync({ workspaceId, id: detail.id, file, invalidate: false }),
+        (current, total) => setUploadProgress({ current, total })
+      );
+      if (accepted.length) await refreshNotulensi(workspaceId);
+    } finally {
+      setUploadProgress(null);
+      isUploadingAttachments.current = false;
     }
+
+    if (!rejected.length && !result.failed) {
+      message.success(`${result.uploaded} attachment${result.uploaded === 1 ? "" : "s"} uploaded`);
+    } else {
+      const errors = [
+        rejected.length ? `${rejected.length} exceeded 50 MB` : "",
+        result.failed ? `${result.failed} failed to upload` : "",
+      ].filter(Boolean).join("; ");
+      message.error(`${result.uploaded} of ${files.length} attachments uploaded; ${errors}.`);
+    }
+  };
+
+  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    event.target.value = "";
+    void handleFiles(files);
   };
 
   return (
@@ -199,7 +260,7 @@ export default function NotulensiDetailView({
                   <Button
                     danger={meta.danger}
                     type={action === "complete" ? "primary" : "default"}
-                    loading={actionMutation.isPending}
+                    loading={pendingAction === action}
                     onClick={meta.confirmation ? undefined : () => handleAction(action)}
                   >
                     {meta.label}
@@ -216,10 +277,30 @@ export default function NotulensiDetailView({
                   </Popconfirm>
                 ) : <span key={action}>{button}</span>;
               })}
-            {detail.permissions.canEdit ? (
+            <Button icon={<Copy size={16} />} onClick={handleCopyLink}>
+              Copy Link
+            </Button>
+            {detail.permissions?.canEdit ? (
               <Link href={`/workspace/${workspaceId}/notulensi/${detail.id}/edit`}>
                 <Button>Edit</Button>
               </Link>
+            ) : null}
+            {detail.permissions?.canDelete ? (
+              <Popconfirm
+                title={`Permanently delete "${detail.title}"?`}
+                description="This task and its data will be permanently deleted. This action cannot be undone."
+                okText="Delete permanently"
+                okButtonProps={{ danger: true }}
+                onConfirm={handleDelete}
+              >
+                <Button
+                  danger
+                  icon={<Trash2 size={16} />}
+                  loading={deleteNotulensiMutation.isPending}
+                >
+                  Delete
+                </Button>
+              </Popconfirm>
             ) : null}
           </Space>
         </div>
@@ -275,7 +356,11 @@ export default function NotulensiDetailView({
           </div>
         </div>
 
-        <RichTextEditor initialValue={detail.content} readOnly minHeight={220} />
+        {hasDisplayableRichContent(detail.content) ? (
+          <RichTextEditor initialValue={detail.content} readOnly minHeight={80} />
+        ) : (
+          <Typography.Text type="secondary">No description</Typography.Text>
+        )}
       </div>
 
       <div
@@ -290,35 +375,85 @@ export default function NotulensiDetailView({
             </Typography.Title>
             <Typography.Text type="secondary">Files up to 50 MB</Typography.Text>
           </div>
-          {detail.permissions.canUploadAttachment ? (
-            <>
+          {detail.permissions?.canUploadAttachment ? (
+            <div
+              className={`w-full rounded-xl border-2 border-dashed p-5 text-center transition-colors ${
+                uploadProgress
+                  ? "cursor-not-allowed border-[rgb(var(--color-border))] opacity-60"
+                  : isDraggingAttachment
+                  ? "border-[rgb(var(--color-primary))] bg-[rgb(var(--color-background))]"
+                  : "border-[rgb(var(--color-border))]"
+              }`}
+              aria-disabled={Boolean(uploadProgress)}
+              onDragEnter={(event) => {
+                event.preventDefault();
+                if (!uploadProgress) setIsDraggingAttachment(true);
+              }}
+              onDragOver={(event) => {
+                event.preventDefault();
+                event.dataTransfer.dropEffect = uploadProgress ? "none" : "copy";
+              }}
+              onDragLeave={(event) => {
+                event.preventDefault();
+                if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                  setIsDraggingAttachment(false);
+                }
+              }}
+              onDrop={(event: DragEvent<HTMLDivElement>) => {
+                event.preventDefault();
+                setIsDraggingAttachment(false);
+                void handleFiles(Array.from(event.dataTransfer.files));
+              }}
+            >
               <input
                 ref={fileInputRef}
                 type="file"
                 className="hidden"
+                multiple
                 onChange={handleFileChange}
               />
+              <Typography.Text strong className="mb-2 block">
+                {uploadProgress
+                  ? "Attachment upload in progress"
+                  : isDraggingAttachment
+                    ? "Drop files to upload"
+                    : "Drag and drop files here"}
+              </Typography.Text>
+              {uploadProgress ? (
+                <Typography.Text role="status" aria-live="polite" className="mb-2 block">
+                  Uploading {uploadProgress.current} of {uploadProgress.total}
+                </Typography.Text>
+              ) : (
+                <Typography.Text type="secondary" className="mb-2 block">
+                  Select one or more files, up to {MAX_NOTULENSI_ATTACHMENT_SIZE / 1024 / 1024} MB each
+                </Typography.Text>
+              )}
               <Button
                 type="primary"
                 icon={<Upload size={16} />}
-                loading={uploadAttachmentMutation.isPending}
+                loading={Boolean(uploadProgress)}
+                disabled={Boolean(uploadProgress)}
                 onClick={() => fileInputRef.current?.click()}
               >
-                Upload file
+                Choose files
               </Button>
-            </>
+            </div>
           ) : null}
         </div>
         {detail.attachments.length ? (
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             {detail.attachments.map((attachment) => {
-              const isImage = attachment.mimeType.startsWith("image/");
+              const label = attachment.name || "Unnamed attachment";
+              const size = attachment.size == null
+                ? "Size unavailable"
+                : [attachment.size, attachment.sizeUnit].filter(Boolean).join(" ");
+              const isImage = Boolean(attachment.url && attachment.mimeType?.startsWith("image/"));
               return (
                 <div key={attachment.id} className="flex min-w-0 items-center gap-3 rounded-xl border border-[rgb(var(--color-border))] p-3">
                   {isImage ? (
                     <Image
-                      src={attachment.url}
-                      alt={attachment.name}
+                      src={attachment.url || undefined}
+                      alt={label}
                       width={56}
                       height={56}
                       className="rounded-lg object-cover"
@@ -330,19 +465,23 @@ export default function NotulensiDetailView({
                     </div>
                   )}
                   <div className="min-w-0 flex-1">
-                    <Typography.Link href={attachment.url} target="_blank" rel="noopener noreferrer" ellipsis className="block font-medium">
-                      {attachment.name}
-                    </Typography.Link>
+                    {attachment.url ? (
+                      <Typography.Link href={attachment.url} target="_blank" rel="noopener noreferrer" ellipsis className="block font-medium">
+                        {label}
+                      </Typography.Link>
+                    ) : <Typography.Text ellipsis className="block font-medium">{label}</Typography.Text>}
                     <Typography.Text type="secondary" className="block text-xs">
-                      {attachment.size} {attachment.sizeUnit} · {attachment.uploader?.username || "Unknown user"}
+                      {size} · {attachment.uploader?.username || "Unknown user"}
                     </Typography.Text>
                     <Typography.Text type="secondary" className="block text-xs">
                       {dayjs(attachment.createdAt).format("DD MMM YYYY HH:mm")}
                     </Typography.Text>
                   </div>
                   <Space size={0}>
-                    <Button type="text" aria-label={`Open ${attachment.name}`} href={attachment.url} target="_blank" icon={<Download size={16} />} />
-                    {detail.permissions.canDeleteAttachment ? (
+                    {attachment.url ? (
+                      <Button type="text" aria-label={`Open ${label}`} href={attachment.url} target="_blank" icon={<Download size={16} />} />
+                    ) : null}
+                    {detail.permissions?.canDeleteAttachment ? (
                       <Popconfirm
                         title="Delete this attachment?"
                         onConfirm={async () => {
@@ -354,7 +493,7 @@ export default function NotulensiDetailView({
                           }
                         }}
                       >
-                        <Button type="text" danger aria-label={`Delete ${attachment.name}`} loading={deleteAttachmentMutation.isPending} icon={<Trash2 size={16} />} />
+                        <Button type="text" danger aria-label={`Delete ${label}`} loading={deleteAttachmentMutation.isPending} icon={<Trash2 size={16} />} />
                       </Popconfirm>
                     ) : null}
                   </Space>
@@ -375,23 +514,25 @@ export default function NotulensiDetailView({
               label: "Discussion",
               children: (
                 <div className="flex flex-col gap-4">
-                  <Input.TextArea
-                    rows={4}
+                  <RichTextEditor
+                    minHeight={100}
                     value={newComment}
-                    onChange={(event) => setNewComment(event.target.value)}
+                    onChange={setNewComment}
                     placeholder="Add a comment"
+                    mentionUsers={mentionUsers}
+                    allowWorkspaceAllMention={false}
                   />
                   <div className="flex justify-end">
                     <Button
                       type="primary"
                       loading={createCommentMutation.isPending}
                       onClick={async () => {
-                        if (!newComment.trim()) return;
+                        if (!hasRichTextContent(newComment)) return;
                         try {
                           await createCommentMutation.mutateAsync({
                             workspaceId,
                             id: detail.id,
-                            payload: { content: newComment.trim() },
+                            payload: { content: newComment },
                           });
                           setNewComment("");
                           message.success("Comment added");
@@ -455,24 +596,26 @@ export default function NotulensiDetailView({
                         </div>
                         {editingCommentId === comment.id ? (
                           <div className="flex flex-col gap-3">
-                            <Input.TextArea
-                              rows={4}
+                            <RichTextEditor
+                              minHeight={100}
                               value={editingComment}
-                              onChange={(event) => setEditingComment(event.target.value)}
+                              onChange={setEditingComment}
+                              mentionUsers={mentionUsers}
+                              allowWorkspaceAllMention={false}
                             />
                             <div className="flex flex-wrap justify-end gap-2">
                               <Button onClick={() => setEditingCommentId(null)}>Cancel</Button>
                               <Button
                                 type="primary"
                                 loading={updateCommentMutation.isPending}
-                                disabled={!editingComment.trim()}
+                                disabled={!hasRichTextContent(editingComment)}
                                 onClick={async () => {
                                   try {
                                     await updateCommentMutation.mutateAsync({
                                       workspaceId,
                                       id: detail.id,
                                       commentId: comment.id,
-                                      payload: { content: editingComment.trim() },
+                                      payload: { content: editingComment },
                                     });
                                     setEditingCommentId(null);
                                     message.success("Comment updated");
@@ -488,9 +631,7 @@ export default function NotulensiDetailView({
                             </div>
                           </div>
                         ) : (
-                          <Typography.Paragraph className="!mb-0 whitespace-pre-wrap">
-                            {comment.content}
-                          </Typography.Paragraph>
+                          <RichTextEditor initialValue={comment.content} readOnly minHeight={60} maxHeight={180} />
                         )}
                       </div>
                     ))

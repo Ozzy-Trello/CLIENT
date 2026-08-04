@@ -1,6 +1,7 @@
 import { api } from "@api/index";
 import {
   CreateNotulensiPayload,
+  DeleteNotulensiResponse,
   NotulensiComment,
   NotulensiCommentPayload,
   NotulensiAttachmentResponse,
@@ -74,6 +75,14 @@ export const getNotulensiDetail = async (
   id: string
 ): Promise<NotulensiDetailResponse> => {
   const response = await api.get(`${notulensiBasePath(workspaceId)}/${id}`);
+  return response.data;
+};
+
+export const deleteNotulensi = async (
+  workspaceId: string,
+  id: string
+): Promise<DeleteNotulensiResponse> => {
+  const response = await api.delete(`${notulensiBasePath(workspaceId)}/${id}`);
   return response.data;
 };
 

@@ -60,7 +60,7 @@ export default function EditNotulensiPage() {
       <NotulensiForm
         mode="edit"
         initialData={detail}
-        canEdit={detail.permissions.canEdit}
+        canEdit={Boolean(detail.permissions?.canEdit)}
         submitting={updateMutation.isPending}
         cancelHref={`/workspace/${workspaceId}/notulensi/${id}`}
         onSubmit={async (payload) => {

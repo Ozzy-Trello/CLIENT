@@ -1,9 +1,14 @@
 import dynamic from "next/dynamic";
 import React, { Dispatch, SetStateAction, forwardRef } from "react";
 import "./style.css";
+import { MentionUser } from "./mentions";
+
+export { buildMentionSuggestions } from "./mentions";
+export type { MentionUser } from "./mentions";
 
 // Define the props interface here too so it's available for both components
 interface RichTextEditorProps {
+  value?: string;
   initialValue?: string;
   onChange?: (content: string) => void;
   placeholder?: string;
@@ -14,22 +19,32 @@ interface RichTextEditorProps {
   readOnly?: boolean;
   workspaceId?: string;
   boardId?: string;
+  mentionUsers?: MentionUser[];
+  allowWorkspaceAllMention?: boolean;
   hasCustomImageSelector?: boolean;
   openCustomImagesSelector?: boolean;
   setOpenCustomImageSelector?: Dispatch<SetStateAction<boolean>>;
   selectedAttachmentImageUrl?: string;
 }
 
+export interface RichTextEditorHandle {
+  insertMention: (id: string, value: string) => void;
+  focus: () => void;
+}
+
+export const toCssSize = (value: string | number) =>
+  typeof value === "number" ? `${value}px` : value;
+
 // Create a placeholder component to show while loading
 const EditorPlaceholder: React.FC<{
   minHeight?: string | number;
   width?: string | number;
-}> = ({ minHeight = "100px", width = "100%" }) => {
+}> = ({ minHeight = "inherit", width = "100%" }) => {
   return (
     <div
       style={{
-        minHeight: typeof minHeight === "number" ? `${minHeight}px` : minHeight,
-        width: typeof width === "number" ? `${width}px` : width,
+        minHeight: toCssSize(minHeight),
+        width: toCssSize(width),
         backgroundColor: "#f9f9f9",
         border: "1px solid #d9d9d9",
         borderRadius: "4px",
@@ -44,7 +59,9 @@ const EditorPlaceholder: React.FC<{
 };
 
 // Import the component with SSR disabled
-const RichTextEditorClient = dynamic<RichTextEditorProps>(
+const RichTextEditorClient = dynamic<
+  RichTextEditorProps & React.RefAttributes<RichTextEditorHandle>
+>(
   () => import("./client").then((mod) => mod.default),
   {
     ssr: false,
@@ -52,9 +69,22 @@ const RichTextEditorClient = dynamic<RichTextEditorProps>(
   }
 );
 
-// Forward ref to the dynamic component using cloneElement workaround
-const RichTextEditorWithRef = forwardRef<any, RichTextEditorProps>(
-  (props, ref) => <RichTextEditorClient {...props} />
+const RichTextEditorWithRef = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
+  ({ minHeight = "100px", width = "100%", ...props }, ref) => (
+    <div
+      style={{
+        minHeight: typeof minHeight === "number" ? `${minHeight}px` : minHeight,
+        width: typeof width === "number" ? `${width}px` : width,
+      }}
+    >
+      <RichTextEditorClient
+        {...props}
+        ref={ref}
+        minHeight={minHeight}
+        width="100%"
+      />
+    </div>
+  )
 );
 
 export default RichTextEditorWithRef;

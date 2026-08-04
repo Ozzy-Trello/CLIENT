@@ -4,12 +4,35 @@ import {
   NotulensiPriorityTag,
   NotulensiStatusTag,
 } from "@components/notulensi/notulensi-status";
-import { NotulensiListResponse, NotulensiSummary } from "@myTypes/notulensi";
-import { Avatar, Empty, Grid, List, Skeleton, Table, Tooltip, Typography } from "antd";
+import {
+  copyNotulensiLink,
+  getAssigneeNames,
+  getListWorkflowActions,
+  NOTULENSI_ACTION_META,
+} from "@components/notulensi/notulensi-detail-utils";
+import { useDeleteNotulensi, useNotulensiAction } from "@hooks/notulensi";
+import {
+  NotulensiListResponse,
+  NotulensiSummary,
+  NotulensiWorkflowAction,
+} from "@myTypes/notulensi";
+import {
+  Button,
+  Empty,
+  Grid,
+  List,
+  Popconfirm,
+  Skeleton,
+  Table,
+  Tooltip,
+  Typography,
+  message,
+} from "antd";
 import dayjs from "dayjs";
-import { AlertCircle, CalendarClock, Clock3 } from "lucide-react";
+import { AlertCircle, CalendarClock, Clock3, Copy, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useState } from "react";
 
 type Props = {
   workspaceId: string;
@@ -22,8 +45,6 @@ const terminalStatuses = new Set(["completed", "cancelled"]);
 
 const toPlainText = (value: string) =>
   value.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
-
-const getInitials = (value: string) => value.slice(0, 2).toUpperCase();
 
 function DueDateText({ item }: { item: NotulensiSummary }) {
   if (!item.dueDate) {
@@ -41,15 +62,14 @@ function DueDateText({ item }: { item: NotulensiSummary }) {
   );
 }
 
-function AssigneeAvatars({ item }: { item: NotulensiSummary }) {
+function AssigneeNames({ item, mobile = false }: { item: NotulensiSummary; mobile?: boolean }) {
+  const names = getAssigneeNames(item.assignees);
   return (
-    <Avatar.Group max={{ count: 3 }}>
-      {item.assignees.map((assignee) => (
-        <Tooltip key={assignee.id} title={assignee.user?.username || "Unknown user"}>
-          <Avatar>{getInitials(assignee.user?.username || "?")}</Avatar>
-        </Tooltip>
-      ))}
-    </Avatar.Group>
+    <Tooltip title={mobile ? undefined : names}>
+      <Typography.Text className={mobile ? "whitespace-normal" : "block truncate"}>
+        {names}
+      </Typography.Text>
+    </Tooltip>
   );
 }
 
@@ -66,6 +86,10 @@ function LoadingState() {
 export default function NotulensiList({ workspaceId, data, loading, onPageChange }: Props) {
   const screens = Grid.useBreakpoint();
   const router = useRouter();
+  const actionMutation = useNotulensiAction();
+  const deleteMutation = useDeleteNotulensi();
+  const [pendingAction, setPendingAction] = useState<string | null>(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const openItem = (id: string) => router.push(`/workspace/${workspaceId}/notulensi/${id}`);
   const rowKeyboard = (event: React.KeyboardEvent, id: string) => {
     if (event.target !== event.currentTarget) return;
@@ -74,6 +98,97 @@ export default function NotulensiList({ workspaceId, data, loading, onPageChange
       openItem(id);
     }
   };
+  const runAction = async (item: NotulensiSummary, action: NotulensiWorkflowAction) => {
+    const pendingKey = `${item.id}:${action}`;
+    if (pendingAction) return;
+    setPendingAction(pendingKey);
+    try {
+      await actionMutation.mutateAsync({ workspaceId, id: item.id, action });
+      message.success("Status updated");
+    } catch {
+      message.error("Failed to update status");
+    } finally {
+      setPendingAction(null);
+    }
+  };
+  const copyLink = async (item: NotulensiSummary) => {
+    try {
+      await copyNotulensiLink(workspaceId, item.id);
+      message.success("Link copied");
+    } catch {
+      message.error("Failed to copy link");
+    }
+  };
+  const deleteItem = async (item: NotulensiSummary) => {
+    if (pendingDeleteId) return;
+    setPendingDeleteId(item.id);
+    try {
+      await deleteMutation.mutateAsync({ workspaceId, id: item.id });
+      message.success("Task deleted");
+    } catch {
+      message.error("Failed to delete task");
+    } finally {
+      setPendingDeleteId(null);
+    }
+  };
+  const actions = (item: NotulensiSummary) => (
+    <div
+      className="flex flex-wrap items-center gap-1"
+      onClick={(event) => event.stopPropagation()}
+      onKeyDown={(event) => event.stopPropagation()}
+    >
+      {getListWorkflowActions(item.allowedActions).map((action) => {
+        const meta = NOTULENSI_ACTION_META[action];
+        const button = (
+          <Button
+            size="small"
+            danger={meta.danger}
+            type={action === "complete" ? "primary" : "default"}
+            loading={pendingAction === `${item.id}:${action}`}
+            onClick={meta.confirmation ? undefined : () => runAction(item, action)}
+          >
+            {meta.label}
+          </Button>
+        );
+        return meta.confirmation ? (
+          <Popconfirm
+            key={action}
+            title={meta.confirmation.title}
+            description={meta.confirmation.description}
+            onConfirm={() => runAction(item, action)}
+          >
+            {button}
+          </Popconfirm>
+        ) : <span key={action}>{button}</span>;
+      })}
+      <Button
+        size="small"
+        icon={<Copy size={14} />}
+        aria-label={`Copy link for ${item.title}`}
+        onClick={() => copyLink(item)}
+      >
+        Copy Link
+      </Button>
+      {item.permissions?.canDelete ? (
+        <Popconfirm
+          title={`Permanently delete "${item.title}"?`}
+          description="This task and its data will be permanently deleted. This action cannot be undone."
+          okText="Delete permanently"
+          okButtonProps={{ danger: true }}
+          onConfirm={() => deleteItem(item)}
+        >
+          <Button
+            size="small"
+            danger
+            icon={<Trash2 size={14} />}
+            loading={pendingDeleteId === item.id}
+          >
+            Delete
+          </Button>
+        </Popconfirm>
+      ) : null}
+    </div>
+  );
 
   if (loading) {
     return <LoadingState />;
@@ -95,19 +210,18 @@ export default function NotulensiList({ workspaceId, data, loading, onPageChange
           renderItem={(item) => (
             <List.Item
               className="cursor-pointer px-4"
-              role="link"
-              tabIndex={0}
-              onClick={() => openItem(item.id)}
-              onKeyDown={(event) => rowKeyboard(event, item.id)}
+              onClick={(event) => {
+                if ((event.target as HTMLElement).closest("a, button, input, select, textarea")) return;
+                openItem(item.id);
+              }}
             >
               <div className="block w-full">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <Typography.Text type="secondary" className="block text-xs">
-                      {item.code}
-                    </Typography.Text>
                     <Typography.Title level={5} className="!mb-1 !mt-0 text-base">
-                      {item.title}
+                      <Link href={`/workspace/${workspaceId}/notulensi/${item.id}`}>
+                        {item.title}
+                      </Link>
                     </Typography.Title>
                     <div className="mb-2 flex flex-wrap gap-2">
                       <NotulensiStatusTag status={item.status} />
@@ -115,8 +229,15 @@ export default function NotulensiList({ workspaceId, data, loading, onPageChange
                     </div>
                     <div className="flex flex-col gap-2 text-sm">
                       <DueDateText item={item} />
-                      <AssigneeAvatars item={item} />
+                       <AssigneeNames item={item} mobile />
+                      <Typography.Text type="secondary">
+                        Created: {dayjs(item.createdAt).format("DD MMM YYYY HH:mm")}
+                      </Typography.Text>
+                      <Typography.Text type="secondary">
+                        Updated: {dayjs(item.updatedAt).format("DD MMM YYYY HH:mm")}
+                      </Typography.Text>
                     </div>
+                    <div className="mt-3">{actions(item)}</div>
                   </div>
                 </div>
               </div>
@@ -148,7 +269,7 @@ export default function NotulensiList({ workspaceId, data, loading, onPageChange
           showSizeChanger: true,
           pageSizeOptions: [10, 20, 50],
         }}
-        scroll={{ x: 980 }}
+        scroll={{ x: 1260 }}
         onRow={(item) => ({
           tabIndex: 0,
           className: "cursor-pointer",
@@ -159,14 +280,6 @@ export default function NotulensiList({ workspaceId, data, loading, onPageChange
           onKeyDown: (event) => rowKeyboard(event, item.id),
         })}
         columns={[
-          {
-            title: "Code",
-            dataIndex: "code",
-            width: 120,
-            render: (code: string, item: NotulensiSummary) => (
-              <Link href={`/workspace/${workspaceId}/notulensi/${item.id}`}>{code}</Link>
-            ),
-          },
           {
             title: "Title",
             key: "title",
@@ -200,13 +313,23 @@ export default function NotulensiList({ workspaceId, data, loading, onPageChange
           },
           {
             title: "Assignees",
-            render: (_, item: NotulensiSummary) => <AssigneeAvatars item={item} />,
-            width: 140,
+             render: (_, item: NotulensiSummary) => <AssigneeNames item={item} />,
+             width: 180,
           },
           {
             title: "Creator",
             render: (_, item: NotulensiSummary) => item.creator?.username || "Unknown user",
             width: 140,
+          },
+          {
+            title: "Created Date",
+            render: (_, item: NotulensiSummary) => (
+              <div className="flex items-center gap-1">
+                <Clock3 size={14} aria-hidden="true" />
+                <span>{dayjs(item.createdAt).format("DD MMM YYYY HH:mm")}</span>
+              </div>
+            ),
+            width: 170,
           },
           {
             title: "Updated",
@@ -217,6 +340,13 @@ export default function NotulensiList({ workspaceId, data, loading, onPageChange
               </div>
             ),
             width: 170,
+          },
+          {
+            title: "Actions",
+            key: "actions",
+            fixed: "right",
+            render: (_, item: NotulensiSummary) => actions(item),
+            width: 370,
           },
         ]}
       />

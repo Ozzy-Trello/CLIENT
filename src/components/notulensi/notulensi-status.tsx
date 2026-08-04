@@ -10,7 +10,7 @@ export const NOTULENSI_STATUS_META: Record<
   new: { label: "New", color: "processing" },
   in_progress: { label: "Proses", color: "gold" },
   waiting_review: { label: "Menunggu Review", color: "purple" },
-  revision: { label: "Revision", color: "orange" },
+  revision: { label: "Revisi", color: "orange" },
   completed: { label: "Selesai", color: "success" },
   cancelled: { label: "Cancel", color: "error" },
 };

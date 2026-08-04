@@ -1,6 +1,6 @@
 import { QueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@constants/query-keys";
-import { handleCardMoved } from "./websocket-event-handlers";
+import { handleCardMoved, invalidateNotulensiNotification } from "./websocket-event-handlers";
 
 describe("handleCardMoved", () => {
   it("moves a payload card between list caches immediately", () => {
@@ -47,5 +47,29 @@ describe("handleCardMoved", () => {
       listId: "list-b",
       list_id: "list-b",
     });
+  });
+});
+
+describe("invalidateNotulensiNotification", () => {
+  it("invalidates only the notified notulensi workspace and detail", () => {
+    const queryClient = new QueryClient();
+    const invalidate = jest.spyOn(queryClient, "invalidateQueries");
+
+    invalidateNotulensiNotification(queryClient, {
+      entityType: "notulensi",
+      entityId: "n-1",
+      workspaceId: "ws-1",
+    });
+
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.notulensi.workspace("ws-1") });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.notulensi.detail("ws-1", "n-1") });
+
+    invalidate.mockClear();
+    invalidateNotulensiNotification(queryClient, {
+      entityType: "card",
+      entityId: "card-1",
+      workspaceId: "ws-1",
+    });
+    expect(invalidate).not.toHaveBeenCalled();
   });
 });

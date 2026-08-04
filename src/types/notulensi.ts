@@ -71,8 +71,13 @@ export interface NotulensiPrivateNote {
 
 export interface NotulensiPermissions {
   canEdit: boolean;
+  canDelete: boolean;
   canUploadAttachment: boolean;
   canDeleteAttachment: boolean;
+}
+
+export interface NotulensiSummaryPermissions {
+  canDelete: boolean;
 }
 
 export interface NotulensiReadReceipt {
@@ -95,6 +100,7 @@ export interface NotulensiSummary {
   creator: NotulensiUser | null;
   assignees: NotulensiAssignee[];
   allowedActions: NotulensiAction[];
+  permissions?: NotulensiSummaryPermissions | null;
   currentUserOpenedAt: string | null;
   startedAt: string | null;
   completedAt: string | null;
@@ -107,7 +113,7 @@ export interface NotulensiDetail extends NotulensiSummary {
   comments: NotulensiComment[];
   statusHistory: NotulensiStatusHistory[];
   privateNote: NotulensiPrivateNote | null;
-  permissions: NotulensiPermissions;
+  permissions?: NotulensiPermissions | null;
   readReceipts: NotulensiReadReceipt[];
   attachments: NotulensiAttachment[];
 }
@@ -115,11 +121,11 @@ export interface NotulensiDetail extends NotulensiSummary {
 export interface NotulensiAttachment {
   id: string;
   fileId: string;
-  name: string;
-  url: string;
-  size: number;
-  sizeUnit: string;
-  mimeType: string;
+  name: string | null;
+  url: string | null;
+  size: number | null;
+  sizeUnit: string | null;
+  mimeType: string | null;
   uploadedBy: string;
   uploader: NotulensiUser | null;
   createdAt: string;
@@ -231,7 +237,7 @@ export interface NotulensiPrivateNoteResponse {
 
 export interface CreateNotulensiPayload {
   title: string;
-  content: string;
+  content?: string | null;
   priority?: NotulensiPriority;
   dueDate?: string | null;
   assigneeIds: string[];
@@ -239,7 +245,7 @@ export interface CreateNotulensiPayload {
 
 export interface UpdateNotulensiPayload {
   title?: string;
-  content?: string;
+  content?: string | null;
   priority?: NotulensiPriority;
   dueDate?: string | null;
   assigneeIds?: string[];

@@ -17,6 +17,11 @@ import Quill from "quill";
 import Mention from "quill-mention";
 import { useAccountList } from "../../hooks/account";
 import { Account } from "../../dto/account";
+import { buildMentionSuggestions, MentionUser } from "./mentions";
+import type { RichTextEditorHandle } from "./index";
+
+const toCssSize = (value: string | number) =>
+  typeof value === "number" ? `${value}px` : value;
 
 // Register Quill modules once at module level
 if (typeof window !== "undefined") {
@@ -48,14 +53,10 @@ const formats = [
   "mention",
 ];
 
-const WORKSPACE_ALL_MENTION_ID = "__workspace_all__";
-const WORKSPACE_ALL_MENTION_VALUE = "all";
-const workspaceAllMentionOption = {
-  id: WORKSPACE_ALL_MENTION_ID,
-  value: WORKSPACE_ALL_MENTION_VALUE,
-};
+const readOnlyModules = { toolbar: false };
 
 interface RichTextEditorProps {
+  value?: string;
   initialValue?: string;
   onChange?: (content: string) => void;
   placeholder?: string;
@@ -66,17 +67,19 @@ interface RichTextEditorProps {
   readOnly?: boolean;
   workspaceId?: string;
   boardId?: string;
+  mentionUsers?: MentionUser[];
+  allowWorkspaceAllMention?: boolean;
   hasCustomImageSelector?: boolean;
   openCustomImagesSelector?: boolean;
   setOpenCustomImageSelector?: Dispatch<SetStateAction<boolean>>;
   selectedAttachmentImageUrl?: string;
-  forwardedRef?: any;
 }
 
-const RichTextEditorClient = forwardRef<any, RichTextEditorProps>(
+const RichTextEditorClient = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
   (
     {
       initialValue = "",
+      value: controlledValue,
       onChange,
       placeholder = "comment..",
       width = "100%",
@@ -90,11 +93,13 @@ const RichTextEditorClient = forwardRef<any, RichTextEditorProps>(
       selectedAttachmentImageUrl,
       workspaceId,
       boardId,
-      forwardedRef,
+      mentionUsers,
+      allowWorkspaceAllMention = true,
     },
     ref
   ) => {
-    const [value, setValue] = useState<string>(initialValue);
+    const isControlled = controlledValue !== undefined;
+    const [localValue, setLocalValue] = useState<string>(initialValue);
     const quillRef = useRef<ReactQuill>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const mentionAnchorIndexRef = useRef<number | null>(null);
@@ -170,8 +175,8 @@ const RichTextEditorClient = forwardRef<any, RichTextEditorProps>(
     const accountList = accountListResponse?.data || [];
 
     useEffect(() => {
-      setValue(initialValue);
-    }, [initialValue]);
+      if (!isControlled) setLocalValue(initialValue);
+    }, [initialValue, isControlled]);
 
     // Create mention source function that uses current accountList
     const mentionSource = useCallback(
@@ -188,28 +193,12 @@ const RichTextEditorClient = forwardRef<any, RichTextEditorProps>(
 
         const normalizedSearch = (searchTerm || "").toLowerCase();
 
-        const values = accountList.map((account: Account) => {
-          return { id: account.id, value: account.name || account.username };
-        });
-
-        const matches =
-          normalizedSearch.length === 0
-            ? values
-            : values.filter((item) => {
-                const valueText = (item.value || "").toLowerCase();
-                return valueText.includes(normalizedSearch);
-              });
-
-        const shouldShowWorkspaceAll =
-          Boolean(workspaceId) &&
-          (normalizedSearch.length === 0 ||
-            WORKSPACE_ALL_MENTION_VALUE.includes(normalizedSearch));
-
-        const suggestions = [];
-        if (shouldShowWorkspaceAll) {
-          suggestions.push(workspaceAllMentionOption);
-        }
-        suggestions.push(...matches);
+        const users = mentionUsers ?? accountList.map((account: Account) => account);
+        const suggestions = buildMentionSuggestions(
+          users,
+          normalizedSearch,
+          allowWorkspaceAllMention && Boolean(workspaceId || mentionUsers)
+        );
 
         const editor = quillRef.current?.getEditor();
         const selection = editor?.getSelection();
@@ -219,7 +208,7 @@ const RichTextEditorClient = forwardRef<any, RichTextEditorProps>(
 
         renderList(suggestions, searchTerm);
       },
-      [accountList, workspaceId]
+      [accountList, allowWorkspaceAllMention, mentionUsers, workspaceId]
     );
 
     // Update mention source when accountList changes
@@ -276,7 +265,7 @@ const RichTextEditorClient = forwardRef<any, RichTextEditorProps>(
 
                 // Update React state
                 const updatedContent = quillEditor.root.innerHTML;
-                setValue(updatedContent);
+                if (!isControlled) setLocalValue(updatedContent);
                 if (onChange) onChange(updatedContent);
 
                 message.success("Image added");
@@ -291,10 +280,10 @@ const RichTextEditorClient = forwardRef<any, RichTextEditorProps>(
       return () => {
         containerRef.current?.removeEventListener("paste", pasteHandler);
       };
-    }, [readOnly, onChange]);
+    }, [isControlled, readOnly, onChange]);
 
     const handleChange = (content: string) => {
-      setValue(content);
+      if (!isControlled) setLocalValue(content);
       if (onChange) {
         onChange(content);
       }
@@ -307,16 +296,16 @@ const RichTextEditorClient = forwardRef<any, RichTextEditorProps>(
         console.log("Mention module:", mentionModule);
 
         // Ensure the mention module has the latest source function
-        if (mentionModule && mentionModule.options && accountList.length > 0) {
+        if (mentionModule && mentionModule.options && (mentionUsers || accountList.length > 0)) {
           mentionModule.options.source = mentionSource;
           console.log(
             "Mention module source updated with",
-            accountList.length,
+            mentionUsers?.length ?? accountList.length,
             "accounts"
           );
         }
       }
-    }, [mentionSource, accountList]);
+    }, [mentionSource, mentionUsers, accountList]);
 
     useEffect(() => {
       if (quillRef.current) {
@@ -342,17 +331,17 @@ const RichTextEditorClient = forwardRef<any, RichTextEditorProps>(
 
       // Update internal state and parent
       const updatedContent = quillEditor.root.innerHTML;
-      setValue(updatedContent);
+      if (!isControlled) setLocalValue(updatedContent);
       if (onChange) onChange(updatedContent);
 
       if (setOpenCustomImageSelector) {
         // Reset the image URL to avoid re-inserting on re-renders
         setOpenCustomImageSelector(false);
       }
-    }, [selectedAttachmentImageUrl]);
+    }, [isControlled, onChange, selectedAttachmentImageUrl, setOpenCustomImageSelector]);
 
     useImperativeHandle(
-      forwardedRef || ref,
+      ref,
       () => ({
         insertMention: (id: string, value: string) => {
           const quill = quillRef.current?.getEditor();
@@ -376,60 +365,37 @@ const RichTextEditorClient = forwardRef<any, RichTextEditorProps>(
     );
 
     return (
-      <>
-        {/* Add a style tag for any custom CSS */}
-        <style jsx global>{`
-          .trello-editor-container .ql-container {
-            font-size: 14px;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-              "Helvetica Neue", Arial, sans-serif;
-          }
-          .trello-editor-container .ql-editor {
-            padding: 12px 15px;
-            min-height: ${typeof minHeight === "string"
-              ? minHeight
-              : `${minHeight}px`};
-            max-height: ${typeof maxHeight === "string"
-              ? maxHeight
-              : `${maxHeight}px`};
-            overflow-y: auto;
-          }
-          .trello-editor-container .ql-editor.ql-blank::before {
-            font-style: italic;
-            color: #999;
-          }
-        `}</style>
-
-        <div
-          ref={containerRef}
-          className={`trello-editor-container ${className}`}
-          style={{
-            width,
-          }}
-        >
-          <ReactQuill
-            key="rich-text-editor"
-            ref={quillRef}
-            theme="snow"
-            value={value}
-            onChange={handleChange}
-            modules={modulesRef.current}
-            formats={formats}
-            placeholder={placeholder}
-            readOnly={readOnly}
-            onChangeSelection={(range, source, editor) => {
-              // This helps prevent the delta undefined error
-              if (editor && editor.getContents) {
-                try {
-                  editor.getContents();
-                } catch (error) {
-                  console.warn("Editor delta error caught:", error);
-                }
+      <div
+        ref={containerRef}
+        className={`trello-editor-container ${className}`}
+        style={{
+          width: toCssSize(width),
+          "--editor-min-height": toCssSize(minHeight),
+          "--editor-max-height": toCssSize(maxHeight),
+        } as React.CSSProperties}
+      >
+        <ReactQuill
+          key="rich-text-editor"
+          ref={quillRef}
+          theme="snow"
+          value={isControlled ? controlledValue : localValue}
+          onChange={handleChange}
+          modules={readOnly ? readOnlyModules : modulesRef.current}
+          formats={formats}
+          placeholder={placeholder}
+          readOnly={readOnly}
+          onChangeSelection={(range, source, editor) => {
+            // This helps prevent the delta undefined error
+            if (editor && editor.getContents) {
+              try {
+                editor.getContents();
+              } catch (error) {
+                console.warn("Editor delta error caught:", error);
               }
-            }}
-          />
-        </div>
-      </>
+            }
+          }}
+        />
+      </div>
     );
   }
 );

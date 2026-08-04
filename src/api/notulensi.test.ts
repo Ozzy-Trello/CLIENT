@@ -2,6 +2,7 @@ import {
   createNotulensi,
   createNotulensiComment,
   deleteNotulensiAttachment,
+  deleteNotulensi,
   deleteNotulensiComment,
   deleteNotulensiPrivateNote,
   getNotulensiEligibleAssignees,
@@ -118,6 +119,24 @@ describe("notulensi api", () => {
     expect(mockApi.post).toHaveBeenCalledWith(
       "/workspace/ws-1/notulensi/n-1/actions/undo-complete"
     );
+  });
+
+  it("maps request_revision to the request-revision action endpoint", async () => {
+    mockApi.post.mockResolvedValue({ data: { data: { id: "n-1" } } });
+
+    await runNotulensiAction("ws-1", "n-1", "request_revision");
+
+    expect(mockApi.post).toHaveBeenCalledWith(
+      "/workspace/ws-1/notulensi/n-1/actions/request-revision"
+    );
+  });
+
+  it("deletes a task using the existing task endpoint", async () => {
+    mockApi.delete.mockResolvedValue({ data: { success: true } });
+
+    await deleteNotulensi("ws-1", "n-1");
+
+    expect(mockApi.delete).toHaveBeenCalledWith("/workspace/ws-1/notulensi/n-1");
   });
 
   it("calls comment endpoints with exact URLs", async () => {

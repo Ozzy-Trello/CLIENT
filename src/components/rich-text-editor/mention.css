@@ -73,10 +73,6 @@
   font-weight: 500 !important;
 }
 
-.ql-editor {
-  min-height: 300px !important;
-}
-
 /* Loading state for mentions */
 .mention-loading {
   padding: 8px 12px;

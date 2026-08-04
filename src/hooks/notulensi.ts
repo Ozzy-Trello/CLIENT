@@ -1,6 +1,7 @@
 import {
   createNotulensi,
   createNotulensiComment,
+  deleteNotulensi,
   deleteNotulensiAttachment,
   deleteNotulensiComment,
   deleteNotulensiPrivateNote,
@@ -82,12 +83,21 @@ export function useNotulensiDetail(workspaceId: string, id: string) {
 export function useUploadNotulensiAttachment() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ workspaceId, id, file }: { workspaceId: string; id: string; file: File }) =>
+    mutationFn: ({ workspaceId, id, file }: { workspaceId: string; id: string; file: File; invalidate?: boolean }) =>
       uploadNotulensiAttachment(workspaceId, id, file),
     onSuccess: async (_, variables) => {
+      if (variables.invalidate === false) return;
       await invalidateWorkspaceNotulensi(queryClient, variables.workspaceId, variables.id);
     },
   });
+}
+
+export function useRefreshNotulensi() {
+  const queryClient = useQueryClient();
+  return (workspaceId: string) =>
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.notulensi.workspace(workspaceId),
+    });
 }
 
 export function useDeleteNotulensiAttachment() {
@@ -136,6 +146,18 @@ export function useUpdateNotulensi() {
     }) => updateNotulensi(workspaceId, id, payload),
     onSuccess: async (_, variables) => {
       await invalidateWorkspaceNotulensi(queryClient, variables.workspaceId, variables.id);
+    },
+  });
+}
+
+export function useDeleteNotulensi() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ workspaceId, id }: { workspaceId: string; id: string }) =>
+      deleteNotulensi(workspaceId, id),
+    onSuccess: async (_, variables) => {
+      await invalidateWorkspaceNotulensi(queryClient, variables.workspaceId);
     },
   });
 }

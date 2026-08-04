@@ -7,6 +7,22 @@ import {
   WebSocketEventPayload,
 } from "@myTypes/event";
 
+export function invalidateNotulensiNotification(
+  queryClient: QueryClient,
+  notification: { entityType?: string; entityId?: string | null; workspaceId?: string }
+) {
+  if (notification.entityType !== "notulensi" || !notification.workspaceId) return;
+
+  queryClient.invalidateQueries({
+    queryKey: queryKeys.notulensi.workspace(notification.workspaceId),
+  });
+  if (notification.entityId) {
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.notulensi.detail(notification.workspaceId, notification.entityId),
+    });
+  }
+}
+
 /**
  * Handle board.card.moved automation events by invalidating
  * the card/list/board caches that are affected.

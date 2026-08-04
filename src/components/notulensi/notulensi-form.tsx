@@ -3,6 +3,7 @@
 import RichTextEditor from "@components/rich-text-editor";
 import NotulensiUserSelect from "@components/notulensi/notulensi-user-select";
 import { NOTULENSI_PRIORITY_META } from "@components/notulensi/notulensi-status";
+import { normalizeOptionalRichText } from "@components/notulensi/notulensi-detail-utils";
 import { selectUser } from "@store/app_slice";
 import { useNotulensiEligibleAssignees } from "@hooks/notulensi";
 import {
@@ -35,9 +36,6 @@ type Props = {
   onSubmit: (payload: CreateNotulensiPayload | UpdateNotulensiPayload) => Promise<void> | void;
   cancelHref: string;
 };
-
-const stripHtml = (value: string) =>
-  value.replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").trim();
 
 export default function NotulensiForm({
   mode,
@@ -102,7 +100,7 @@ export default function NotulensiForm({
         onFinish={async (values) => {
           const payload = {
             title: values.title.trim(),
-            content: values.content,
+            content: normalizeOptionalRichText(values.content),
             priority: values.priority,
             dueDate: values.dueDate?.toISOString() || null,
             assigneeIds: values.assigneeIds,
@@ -128,19 +126,11 @@ export default function NotulensiForm({
             name="content"
             label="Content"
             className="md:col-span-2"
-            rules={[
-              { required: true, message: "Content is required" },
-              {
-                validator: async (_, value) => {
-                  if (!stripHtml(value || "")) {
-                    throw new Error("Content cannot be empty");
-                  }
-                },
-              },
-            ]}
           >
             <RichTextEditor
               initialValue={initialData?.content || ""}
+              mentionUsers={eligibleAssignees.data?.data || []}
+              allowWorkspaceAllMention={false}
               minHeight={220}
               className="w-full"
             />
