@@ -1094,107 +1094,179 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
 
                                // Number field type
                                if (field.type === "number") {
-                                if (operator === "is_between") {
-                                  const rangeValue = (filter.value as {
-                                    from: string;
-                                    to: string;
-                                  }) || { from: "", to: "" };
-                                  return (
-                                    <Space>
-                                      <InputNumber
-                                        size="small"
-                                        placeholder="From"
-                                        value={
-                                          rangeValue.from
-                                            ? Number(rangeValue.from)
-                                            : undefined
-                               }
-
-                               if (field.type === "date") {
-                                 if (operator === "later_than" || operator === "earlier_than") {
-                                   const relative = (filter.value as any) || { number: 1, unit: "day", reference: "ago" };
+                                 if (operator === "is_between") {
+                                   const rangeValue = (filter.value as {
+                                     from: string;
+                                     to: string;
+                                   }) || { from: "", to: "" };
                                    return (
                                      <Space>
-                                       <InputNumber size="small" min={1} value={relative.number} onChange={(value) => handleFilterValueChange(filter.id, { ...relative, type: operator, number: value || 1 })} />
-                                       <Select size="small" value={relative.unit || "day"} options={["day", "week", "month", "year"].map((unit) => ({ label: unit, value: unit }))} onChange={(unit) => handleFilterValueChange(filter.id, { ...relative, type: operator, unit })} />
-                                       <Select size="small" value={relative.reference || "ago"} options={[{ label: "ago", value: "ago" }, { label: "from now", value: "from_now" }]} onChange={(reference) => handleFilterValueChange(filter.id, { ...relative, type: operator, reference })} />
+                                       <InputNumber
+                                         size="small"
+                                         placeholder="From"
+                                         value={
+                                           rangeValue.from
+                                             ? Number(rangeValue.from)
+                                             : undefined
+                                         }
+                                         onChange={(value) =>
+                                           handleFilterValueChange(filter.id, {
+                                             from: value?.toString() || "",
+                                             to: rangeValue.to,
+                                           })
+                                         }
+                                         style={{ width: 80 }}
+                                       />
+                                       <InputNumber
+                                         size="small"
+                                         placeholder="To"
+                                         value={
+                                           rangeValue.to
+                                             ? Number(rangeValue.to)
+                                             : undefined
+                                         }
+                                         onChange={(value) =>
+                                           handleFilterValueChange(filter.id, {
+                                             from: rangeValue.from,
+                                             to: value?.toString() || "",
+                                           })
+                                         }
+                                         style={{ width: 80 }}
+                                       />
                                      </Space>
                                    );
                                  }
-                                 if (operator === "equals" || operator === "not_equals") {
-                                   return <DatePicker size="small" value={filter.value ? dayjs(String(filter.value)) : null} onChange={(date) => handleFilterValueChange(filter.id, date ? date.format("YYYY-MM-DD") : "")} />;
+
+                                 return (
+                                   <InputNumber
+                                     size="small"
+                                     placeholder="Enter number"
+                                     value={
+                                       filter.value
+                                         ? Number(filter.value)
+                                         : undefined
+                                     }
+                                     onChange={(value) =>
+                                       handleFilterValueChange(
+                                         filter.id,
+                                         value?.toString() || ""
+                                       )
+                                     }
+                                     style={{ width: "100%" }}
+                                   />
+                                 );
+                               }
+
+                               if (field.type === "date") {
+                                 if (
+                                   operator === "later_than" ||
+                                   operator === "earlier_than"
+                                 ) {
+                                   const relative = (filter.value as any) || {
+                                     number: 1,
+                                     unit: "day",
+                                     reference: "ago",
+                                   };
+                                   return (
+                                     <Space>
+                                       <InputNumber
+                                         size="small"
+                                         min={1}
+                                         value={relative.number}
+                                         onChange={(value) =>
+                                           handleFilterValueChange(filter.id, {
+                                             ...relative,
+                                             type: operator,
+                                             number: value || 1,
+                                           })
+                                         }
+                                       />
+                                       <Select
+                                         size="small"
+                                         value={relative.unit || "day"}
+                                         options={[
+                                           "day",
+                                           "week",
+                                           "month",
+                                           "year",
+                                         ].map((unit) => ({
+                                           label: unit,
+                                           value: unit,
+                                         }))}
+                                         onChange={(unit) =>
+                                           handleFilterValueChange(filter.id, {
+                                             ...relative,
+                                             type: operator,
+                                             unit,
+                                           })
+                                         }
+                                       />
+                                       <Select
+                                         size="small"
+                                         value={relative.reference || "ago"}
+                                         options={[
+                                           { label: "ago", value: "ago" },
+                                           {
+                                             label: "from now",
+                                             value: "from_now",
+                                           },
+                                         ]}
+                                         onChange={(reference) =>
+                                           handleFilterValueChange(filter.id, {
+                                             ...relative,
+                                             type: operator,
+                                             reference,
+                                           })
+                                         }
+                                       />
+                                     </Space>
+                                   );
                                  }
+
+                                 if (
+                                   operator === "equals" ||
+                                   operator === "not_equals"
+                                 ) {
+                                   return (
+                                     <DatePicker
+                                       size="small"
+                                       value={
+                                         filter.value
+                                           ? dayjs(String(filter.value))
+                                           : null
+                                       }
+                                       onChange={(date) =>
+                                         handleFilterValueChange(
+                                           filter.id,
+                                           date ? date.format("YYYY-MM-DD") : ""
+                                         )
+                                       }
+                                     />
+                                   );
+                                 }
+
                                  return null;
                                }
-                                        onChange={(value) =>
-                                          handleFilterValueChange(filter.id, {
-                                            from: value?.toString() || "",
-                                            to: rangeValue.to,
-                                          })
-                                        }
-                                        style={{ width: 80 }}
-                                      />
-                                      <InputNumber
-                                        size="small"
-                                        placeholder="To"
-                                        value={
-                                          rangeValue.to
-                                            ? Number(rangeValue.to)
-                                            : undefined
-                                        }
-                                        onChange={(value) =>
-                                          handleFilterValueChange(filter.id, {
-                                            from: rangeValue.from,
-                                            to: value?.toString() || "",
-                                          })
-                                        }
-                                        style={{ width: 80 }}
-                                      />
-                                    </Space>
-                                  );
-                                } else {
-                                  return (
-                                    <InputNumber
-                                      size="small"
-                                      placeholder="Enter number"
-                                      value={
-                                        filter.value
-                                          ? Number(filter.value)
-                                          : undefined
-                                      }
-                                      onChange={(value) =>
-                                        handleFilterValueChange(
-                                          filter.id,
-                                          value?.toString() || ""
-                                        )
-                                      }
-                                      style={{ width: "100%" }}
-                                    />
-                                  );
-                                }
-                              }
 
-                              // Checkbox field type - no input needed as operators handle the logic
-                              if (field.type === "checkbox") {
-                                return null;
-                              }
+                               if (field.type === "checkbox") {
+                                 return null;
+                               }
 
-                              // Text input for name-based operators
-                              if (isTextInput) {
-                                return (
-                                  <Input
-                                    size="small"
-                                    placeholder="Enter text"
-                                    value={(filter.value as string) || ""}
-                                    onChange={(e) =>
-                                      handleFilterValueChange(
-                                        filter.id,
-                                        e.target.value
-                                      )
-                                    }
-                                  />
-                                );
-                              }
+                               if (isTextInput) {
+                                 return (
+                                   <Input
+                                     size="small"
+                                     placeholder="Enter text"
+                                     value={(filter.value as string) || ""}
+                                     onChange={(e) =>
+                                       handleFilterValueChange(
+                                         filter.id,
+                                         e.target.value
+                                       )
+                                     }
+                                   />
+                                 );
+                               }
 
                               // Dropdown type
                               if (field.type === "dropdown") {
