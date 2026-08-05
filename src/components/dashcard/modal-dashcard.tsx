@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import dayjs from "dayjs";
 import {
   Button,
   Form,
@@ -11,6 +12,7 @@ import {
   message,
   ColorPicker,
   InputNumber,
+  DatePicker,
 } from "antd";
 import {
   Plus,
@@ -323,6 +325,23 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
               { label: "Checked", value: "checked" },
               { label: "Unchecked", value: "unchecked" },
             ];
+          } else if (item.type === "date") {
+            options = [
+              { label: "equals", value: "equals" },
+              { label: "not equals", value: "not_equals" },
+              { label: "today", value: "today" },
+              { label: "tomorrow", value: "tomorrow" },
+              { label: "this week", value: "this_week" },
+              { label: "next week", value: "next_week" },
+              { label: "this month", value: "this_month" },
+              { label: "next month", value: "next_month" },
+              { label: "in the past", value: "in_the_past" },
+              { label: "in the future", value: "in_the_future" },
+              { label: "any time", value: "any_time" },
+              { label: "no date", value: "no_date" },
+              { label: "later than", value: "later_than" },
+              { label: "earlier than", value: "earlier_than" },
+            ];
           } else {
             // Default for text and other types
             options = [
@@ -418,8 +437,10 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
               // Clear value for date operators that don't use one
               const isDateFilter =
                 filter.type === EnumCardAttributeType.DUE_DATE ||
-                filter.type === EnumCardAttributeType.CREATED_AT;
-              const noValueDateOps = ["today", "this_week", "this_month", "in_the_past"];
+                filter.type === EnumCardAttributeType.CREATED_AT ||
+                ((filter as any).field?.type === "date" &&
+                  filter.type === EnumCardAttributeType.CUSTOM_FIELD);
+              const noValueDateOps = ["today", "tomorrow", "this_week", "next_week", "this_month", "next_month", "in_the_past", "in_the_future", "any_time", "no_date"];
               if (isDateFilter && normalizedOp && noValueDateOps.includes(normalizedOp)) {
                 next.value = undefined;
               }
@@ -1071,8 +1092,8 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
                               // No input needed for these operators
                               if (isNoValueInput) return null;
 
-                              // Number field type
-                              if (field.type === "number") {
+                               // Number field type
+                               if (field.type === "number") {
                                 if (operator === "is_between") {
                                   const rangeValue = (filter.value as {
                                     from: string;
@@ -1087,7 +1108,24 @@ const ModalDashcard: React.FC<ModalDashcardProps> = ({
                                           rangeValue.from
                                             ? Number(rangeValue.from)
                                             : undefined
-                                        }
+                               }
+
+                               if (field.type === "date") {
+                                 if (operator === "later_than" || operator === "earlier_than") {
+                                   const relative = (filter.value as any) || { number: 1, unit: "day", reference: "ago" };
+                                   return (
+                                     <Space>
+                                       <InputNumber size="small" min={1} value={relative.number} onChange={(value) => handleFilterValueChange(filter.id, { ...relative, type: operator, number: value || 1 })} />
+                                       <Select size="small" value={relative.unit || "day"} options={["day", "week", "month", "year"].map((unit) => ({ label: unit, value: unit }))} onChange={(unit) => handleFilterValueChange(filter.id, { ...relative, type: operator, unit })} />
+                                       <Select size="small" value={relative.reference || "ago"} options={[{ label: "ago", value: "ago" }, { label: "from now", value: "from_now" }]} onChange={(reference) => handleFilterValueChange(filter.id, { ...relative, type: operator, reference })} />
+                                     </Space>
+                                   );
+                                 }
+                                 if (operator === "equals" || operator === "not_equals") {
+                                   return <DatePicker size="small" value={filter.value ? dayjs(String(filter.value)) : null} onChange={(date) => handleFilterValueChange(filter.id, date ? date.format("YYYY-MM-DD") : "")} />;
+                                 }
+                                 return null;
+                               }
                                         onChange={(value) =>
                                           handleFilterValueChange(filter.id, {
                                             from: value?.toString() || "",
