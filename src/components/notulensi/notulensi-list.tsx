@@ -3,11 +3,13 @@
 import {
   NotulensiPriorityTag,
   NotulensiStatusTag,
+  NOTULENSI_STATUS_ACTIONS,
+  NOTULENSI_STATUS_META,
+  NOTULENSI_STATUS_ORDER,
 } from "@components/notulensi/notulensi-status";
 import {
   copyNotulensiLink,
   getAssigneeNames,
-  getListWorkflowActions,
   NOTULENSI_ACTION_META,
 } from "@components/notulensi/notulensi-detail-utils";
 import { useDeleteNotulensi, useNotulensiAction } from "@hooks/notulensi";
@@ -31,6 +33,7 @@ import {
   Typography,
   message,
 } from "antd";
+import { SyncOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { AlertCircle, CalendarClock, Copy, MoreHorizontal, Trash2 } from "lucide-react";
 import Link from "next/link";
@@ -185,12 +188,33 @@ export default function NotulensiList({
         placement="bottomRight"
         menu={{
           items: [
-            ...getListWorkflowActions(item.allowedActions).map((action) => ({
-              key: action,
-              label: NOTULENSI_ACTION_META[action].label,
-              danger: NOTULENSI_ACTION_META[action].danger,
-              onClick: () => confirmAction(item, action),
-            })),
+            ...NOTULENSI_STATUS_ORDER.map((status) => {
+              const action = NOTULENSI_STATUS_ACTIONS[status];
+              const meta = NOTULENSI_STATUS_META[status];
+              const isCurrent = item.status === status;
+              if (!action || isCurrent || !item.allowedActions.includes(action)) {
+                return {
+                  key: `status-${status}`,
+                  icon: meta.icon,
+                  label: meta.label,
+                  disabled: true,
+                };
+              }
+
+              return {
+                key: `status-${status}`,
+                icon: meta.icon,
+                label: meta.label,
+                onClick: () => confirmAction(item, action),
+              };
+            }),
+            {
+              key: "status-berkelanjutan",
+              icon: <SyncOutlined />,
+              label: "Berkelanjutan",
+              disabled: true,
+            },
+            { type: "divider" as const },
             {
               key: "copy-link",
               icon: <Copy size={14} aria-hidden="true" />,

@@ -11,7 +11,7 @@ import {
   validateNotulensiAttachments,
   uploadNotulensiAttachmentsSequentially,
 } from "./notulensi-detail-utils";
-import { NOTULENSI_STATUS_ORDER } from "./notulensi-status";
+import { NOTULENSI_STATUS_META, NOTULENSI_STATUS_ORDER } from "./notulensi-status";
 
 describe("notulensi detail options", () => {
   it("normalizes missing optional content to an empty string", () => {
@@ -73,6 +73,12 @@ describe("notulensi detail options", () => {
       "completed",
       "cancelled",
     ]);
+  });
+
+  it("uses the current status labels and icons", () => {
+    expect(NOTULENSI_STATUS_META.new.label).toBe("New Task");
+    expect(NOTULENSI_STATUS_META.cancelled.label).toBe("Canceled");
+    expect(NOTULENSI_STATUS_ORDER.every((status) => Boolean(NOTULENSI_STATUS_META[status].icon))).toBe(true);
   });
 
   it("builds and copies the authenticated canonical link", async () => {

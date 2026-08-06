@@ -1,6 +1,10 @@
 "use client";
 
-import { NOTULENSI_PRIORITY_META, NOTULENSI_STATUS_META } from "@components/notulensi/notulensi-status";
+import {
+  NOTULENSI_PRIORITY_META,
+  NOTULENSI_STATUS_ORDER,
+  NotulensiStatusLabel,
+} from "@components/notulensi/notulensi-status";
 import { NotulensiListFilters, NotulensiPriority, NotulensiScope, NotulensiStatus } from "@myTypes/notulensi";
 import { Button, DatePicker, Grid, Input, Select } from "antd";
 import dayjs, { Dayjs } from "dayjs";
@@ -56,9 +60,9 @@ export default function NotulensiFilters({ value, onChange, allowAll = false }: 
           placeholder="Status"
           maxTagCount="responsive"
           className={screens.lg ? "w-56" : "w-full"}
-          options={Object.entries(NOTULENSI_STATUS_META).map(([status, meta]) => ({
+          options={NOTULENSI_STATUS_ORDER.map((status) => ({
             value: status,
-            label: meta.label,
+            label: <NotulensiStatusLabel status={status} />,
           }))}
         />
         <Select<NotulensiPriority[]>
