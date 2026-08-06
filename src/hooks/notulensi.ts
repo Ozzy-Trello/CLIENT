@@ -11,6 +11,7 @@ import {
   getNotulensiMentionUsers,
   getNotulensiPrivateNote,
   openNotulensi,
+  renameNotulensiAttachment,
   runNotulensiAction,
   updateNotulensi,
   updateNotulensiComment,
@@ -26,6 +27,7 @@ import {
   NotulensiPrivateNotePayload,
   NotulensiProgress,
   NotulensiWorkflowAction,
+  RenameNotulensiAttachmentPayload,
   UpdateNotulensiPayload,
 } from "@myTypes/notulensi";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -106,6 +108,26 @@ export function useDeleteNotulensiAttachment() {
   return useMutation({
     mutationFn: ({ workspaceId, id, attachmentId }: { workspaceId: string; id: string; attachmentId: string }) =>
       deleteNotulensiAttachment(workspaceId, id, attachmentId),
+    onSuccess: async (_, variables) => {
+      await invalidateWorkspaceNotulensi(queryClient, variables.workspaceId, variables.id);
+    },
+  });
+}
+
+export function useRenameNotulensiAttachment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      workspaceId,
+      id,
+      attachmentId,
+      payload,
+    }: {
+      workspaceId: string;
+      id: string;
+      attachmentId: string;
+      payload: RenameNotulensiAttachmentPayload;
+    }) => renameNotulensiAttachment(workspaceId, id, attachmentId, payload),
     onSuccess: async (_, variables) => {
       await invalidateWorkspaceNotulensi(queryClient, variables.workspaceId, variables.id);
     },

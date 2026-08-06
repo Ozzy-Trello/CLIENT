@@ -1,7 +1,8 @@
 "use client";
 
 import NotulensiForm from "@components/notulensi/notulensi-form";
-import { useCreateNotulensi } from "@hooks/notulensi";
+import { uploadNotulensiAttachmentsSequentially } from "@components/notulensi/notulensi-detail-utils";
+import { useCreateNotulensi, useUploadNotulensiAttachment } from "@hooks/notulensi";
 import { CreateNotulensiPayload } from "@myTypes/notulensi";
 import { message, Typography } from "antd";
 import { AxiosError } from "axios";
@@ -25,6 +26,7 @@ export default function NewNotulensiPage() {
     ? params.workspaceId[0]
     : params.workspaceId || "";
   const createMutation = useCreateNotulensi();
+  const uploadAttachmentMutation = useUploadNotulensiAttachment();
 
   return (
     <div className="flex flex-col gap-4 p-4 md:p-6">
@@ -38,19 +40,39 @@ export default function NewNotulensiPage() {
       </div>
       <NotulensiForm
         mode="create"
-        submitting={createMutation.isPending}
+        submitting={createMutation.isPending || uploadAttachmentMutation.isPending}
         cancelHref={`/workspace/${workspaceId}/notulensi`}
-        onSubmit={async (payload) => {
+        onSubmit={async (payload, queuedFiles = []) => {
+          let id: string;
           try {
             const response = await createMutation.mutateAsync({
               workspaceId,
               payload: payload as CreateNotulensiPayload,
             });
-            message.success("Instruction created");
-            router.replace(`/workspace/${workspaceId}/notulensi/${response.data.id}`);
+            id = response.data.id;
           } catch (error) {
             message.error(getErrorMessage(error, "Failed to create instruction"));
+            return;
           }
+
+          const result = await uploadNotulensiAttachmentsSequentially(
+            queuedFiles,
+            (file) => uploadAttachmentMutation.mutateAsync({ workspaceId, id, file, invalidate: false }),
+            () => undefined
+          );
+
+          if (result.failed) {
+            message.error(
+              `Instruction created; ${result.uploaded} of ${queuedFiles.length} attachments uploaded, ${result.failed} failed`
+            );
+          } else if (result.uploaded) {
+            message.success(
+              `Instruction created with ${result.uploaded} attachment${result.uploaded === 1 ? "" : "s"}`
+            );
+          } else {
+            message.success("Instruction created");
+          }
+          router.replace(`/workspace/${workspaceId}/notulensi`);
         }}
       />
     </div>

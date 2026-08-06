@@ -14,6 +14,7 @@ import {
   NotulensiEligibleAssigneesResponse,
   NotulensiProgress,
   NotulensiWorkflowAction,
+  RenameNotulensiAttachmentPayload,
   UpdateNotulensiPayload,
 } from "@myTypes/notulensi";
 
@@ -30,6 +31,8 @@ const omitEmpty = (filters: NotulensiListFilters) => {
     due_from: filters.dueFrom || undefined,
     due_to: filters.dueTo || undefined,
     scope: filters.scope || undefined,
+    sort_by: filters.sortBy || undefined,
+    sort_order: filters.sortOrder || undefined,
     page: filters.page,
     limit: filters.limit,
   };
@@ -107,6 +110,19 @@ export const deleteNotulensiAttachment = async (
 ): Promise<{ success: boolean }> => {
   const response = await api.delete(
     `${notulensiBasePath(workspaceId)}/${id}/attachments/${attachmentId}`
+  );
+  return response.data;
+};
+
+export const renameNotulensiAttachment = async (
+  workspaceId: string,
+  id: string,
+  attachmentId: string,
+  payload: RenameNotulensiAttachmentPayload
+): Promise<NotulensiAttachmentResponse> => {
+  const response = await api.patch(
+    `${notulensiBasePath(workspaceId)}/${id}/attachments/${attachmentId}`,
+    payload
   );
   return response.data;
 };

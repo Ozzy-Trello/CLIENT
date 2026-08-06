@@ -15,18 +15,22 @@
 }
 
 .ql-mention-list-container {
-  width: 270px;
+  position: fixed !important;
+  width: min(270px, calc(100vw - 16px));
+  max-height: min(300px, calc(100vh - 16px));
   border: 1px solid #ddd;
   border-radius: 6px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
   background-color: white;
-  z-index: 9001;
+  z-index: 10000 !important;
   padding: 4px 0;
+  overflow: hidden;
 }
 
 .ql-mention-list {
-  max-height: 300px;
+  max-height: min(292px, calc(100vh - 24px));
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 0;
   margin: 0;
 }
@@ -42,6 +46,11 @@
 
 .ql-mention-list-item:last-child {
   border-bottom: none;
+}
+
+.ql-mention-list-item.disabled {
+  color: #777;
+  cursor: default;
 }
 
 .ql-mention-list-item.selected,

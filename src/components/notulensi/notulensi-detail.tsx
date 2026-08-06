@@ -1,6 +1,7 @@
 "use client";
 
 import RichTextEditor from "@components/rich-text-editor";
+import AttachmentPreviewModal from "@components/attachment-preview-modal";
 import {
   NotulensiPriorityTag,
   NotulensiStatusTag,
@@ -25,6 +26,7 @@ import {
   useNotulensiPrivateNote,
   useNotulensiMentionUsers,
   useNotulensiAction,
+  useRenameNotulensiAttachment,
   useRefreshNotulensi,
   useUpdateNotulensiProgress,
   useUpdateNotulensiComment,
@@ -32,10 +34,16 @@ import {
   useUploadNotulensiAttachment,
 } from "@hooks/notulensi";
 import { useCurrentAccount } from "@hooks/account";
+import { CardAttachment, EnumAttachmentType, EnumCardAttachmentType } from "@myTypes/card";
 import { NotulensiComment, NotulensiDetail, NotulensiProgress, NotulensiWorkflowAction } from "@myTypes/notulensi";
+import { buildFileProxyUrl } from "@utils/file-url";
+import {
+  isImageFile,
+  isPDFFile,
+  isVideoFile,
+} from "@app/workspace/[workspaceId]/board/[boardId]/card-details/attachment-helpers";
 import {
   Alert,
-  Avatar,
   Button,
   Image,
   Input,
@@ -54,7 +62,7 @@ import { AxiosError } from "axios";
 import dayjs from "dayjs";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Copy, Download, Paperclip, Trash2, Upload } from "lucide-react";
+import { ArrowLeft, Check, Copy, Download, Paperclip, Pencil, Trash2, Upload, X } from "lucide-react";
 import { ChangeEvent, DragEvent, useEffect, useRef, useState } from "react";
 
 type Props = {
@@ -76,8 +84,6 @@ const getErrorMessage = (error: unknown, fallback: string) => {
   return fallback;
 };
 
-const getInitials = (value: string) => value.slice(0, 2).toUpperCase();
-
 export default function NotulensiDetailView({
   workspaceId,
   detail,
@@ -95,6 +101,10 @@ export default function NotulensiDetailView({
   const [pendingAction, setPendingAction] = useState<NotulensiWorkflowAction | null>(null);
   const [isDraggingAttachment, setIsDraggingAttachment] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null);
+  const [renamingAttachmentId, setRenamingAttachmentId] = useState<string | null>(null);
+  const [attachmentName, setAttachmentName] = useState("");
+  const [previewModalOpen, setPreviewModalOpen] = useState(false);
+  const [previewInitialIndex, setPreviewInitialIndex] = useState(0);
   const isUploadingAttachments = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
@@ -109,12 +119,42 @@ export default function NotulensiDetailView({
   const uploadAttachmentMutation = useUploadNotulensiAttachment();
   const refreshNotulensi = useRefreshNotulensi();
   const deleteAttachmentMutation = useDeleteNotulensiAttachment();
+  const renameAttachmentMutation = useRenameNotulensiAttachment();
   const deleteNotulensiMutation = useDeleteNotulensi();
   const privateNoteQuery = useNotulensiPrivateNote(workspaceId, detail?.id || "");
   const mentionUsersQuery = useNotulensiMentionUsers(workspaceId);
   const mentionUsers = mentionUsersQuery.data?.data || [];
 
   const privateNote = privateNoteQuery.data?.data ?? detail?.privateNote ?? null;
+
+  const previewableAttachments: CardAttachment[] = (detail?.attachments || [])
+    .filter((attachment) => {
+      const name = attachment.name || "";
+      const mimeType = attachment.mimeType || undefined;
+      return Boolean(
+        attachment.url &&
+        (isImageFile(name, mimeType) || isPDFFile(name, mimeType) || isVideoFile(name, mimeType))
+      );
+    })
+    .map((attachment) => ({
+      id: attachment.id,
+      isCover: false,
+      cardId: "",
+      attachableType: EnumAttachmentType.File,
+      attachableId: attachment.fileId,
+      type: EnumCardAttachmentType.Attachment,
+      createdAt: attachment.createdAt,
+      file: {
+        id: attachment.fileId,
+        name: attachment.name || "Unnamed attachment",
+        url: attachment.url || "",
+        size: attachment.size || 0,
+        sizeUnit: attachment.sizeUnit || "",
+        mimeType: attachment.mimeType || "",
+        createdBy: attachment.uploadedBy,
+        createdAt: attachment.createdAt,
+      },
+    }));
 
   useEffect(() => {
     setPrivateNoteDraft(privateNote?.content || "");
@@ -147,6 +187,7 @@ export default function NotulensiDetailView({
     setPendingAction(action);
     try {
       await actionMutation.mutateAsync({ workspaceId, id: detail.id, action });
+      await refreshNotulensi(workspaceId);
       message.success("Status updated");
     } catch (actionError) {
       message.error(getErrorMessage(actionError, "Failed to update status"));
@@ -229,13 +270,46 @@ export default function NotulensiDetailView({
     void handleFiles(files);
   };
 
+  const handleDownload = (url?: string | null, name?: string | null) => {
+    if (!url) return;
+    const link = document.createElement("a");
+    link.href = buildFileProxyUrl(url);
+    link.download = name || "download";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleOpenPreview = (attachmentId: string) => {
+    const index = previewableAttachments.findIndex((attachment) => attachment.id === attachmentId);
+    if (index < 0) return;
+    setPreviewInitialIndex(index);
+    setPreviewModalOpen(true);
+  };
+
+  const handleRenameAttachment = async (attachmentId: string) => {
+    if (!attachmentName.trim()) return;
+    try {
+      await renameAttachmentMutation.mutateAsync({
+        workspaceId,
+        id: detail.id,
+        attachmentId,
+        payload: { name: attachmentName.trim() },
+      });
+      setRenamingAttachmentId(null);
+      message.success("Attachment renamed");
+    } catch (renameError) {
+      message.error(getErrorMessage(renameError, "Failed to rename attachment"));
+    }
+  };
+
   return (
     <div className="flex flex-col gap-4">
       <div className="rounded-2xl border border-[rgb(var(--color-border))] bg-[rgb(var(--color-surface))] p-4 md:p-6">
         <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <Link href={`/workspace/${workspaceId}/notulensi`}>
-              <Button type="link" className="!px-0">Back</Button>
+              <Button type="default" icon={<ArrowLeft size={16} />}>Back</Button>
             </Link>
             <Typography.Text type="secondary" className="block text-sm">
               {detail.code}
@@ -251,7 +325,7 @@ export default function NotulensiDetailView({
               </Typography.Text>
             </div>
           </div>
-          <Space wrap>
+          <Space wrap className="ml-auto justify-end">
             {detail.allowedActions
               .filter((action): action is NotulensiWorkflowAction => action !== "update_progress")
               .map((action) => {
@@ -344,11 +418,11 @@ export default function NotulensiDetailView({
         <div className="mb-4 flex flex-wrap gap-4 text-sm">
           <div>
             <Typography.Text type="secondary" className="block">Assignees</Typography.Text>
-            <Avatar.Group>
-              {detail.assignees.map((assignee) => (
-                <Avatar key={assignee.id}>{getInitials(assignee.user?.username || "?")}</Avatar>
-              ))}
-            </Avatar.Group>
+            <Typography.Text>
+              {detail.assignees.length
+                ? detail.assignees.map((assignee) => assignee.user?.username || "Unknown user").join(", ")
+                : "Unassigned"}
+            </Typography.Text>
           </div>
           <div>
             <Typography.Text type="secondary" className="block">Creator</Typography.Text>
@@ -447,28 +521,45 @@ export default function NotulensiDetailView({
               const size = attachment.size == null
                 ? "Size unavailable"
                 : [attachment.size, attachment.sizeUnit].filter(Boolean).join(" ");
-              const isImage = Boolean(attachment.url && attachment.mimeType?.startsWith("image/"));
+              const isImage = Boolean(
+                attachment.url && isImageFile(label, attachment.mimeType || undefined)
+              );
+              const isPreviewable = previewableAttachments.some((item) => item.id === attachment.id);
+              const canRename = Boolean(
+                detail.permissions?.canDeleteAttachment || detail.permissions?.canUploadAttachment
+              );
               return (
                 <div key={attachment.id} className="flex min-w-0 items-center gap-3 rounded-xl border border-[rgb(var(--color-border))] p-3">
                   {isImage ? (
-                    <Image
-                      src={attachment.url || undefined}
-                      alt={label}
-                      width={56}
-                      height={56}
-                      className="rounded-lg object-cover"
-                      fallback="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs="
-                    />
+                    <button type="button" disabled={!isPreviewable} onClick={() => handleOpenPreview(attachment.id)}>
+                      <Image
+                        preview={false}
+                        src={attachment.url || undefined}
+                        alt={label}
+                        width={56}
+                        height={56}
+                        className="rounded-lg object-cover"
+                        fallback="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs="
+                      />
+                    </button>
                   ) : (
                     <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-[rgb(var(--color-background))]">
                       <Paperclip size={22} aria-hidden="true" />
                     </div>
                   )}
                   <div className="min-w-0 flex-1">
-                    {attachment.url ? (
-                      <Typography.Link href={attachment.url} target="_blank" rel="noopener noreferrer" ellipsis className="block font-medium">
+                    {renamingAttachmentId === attachment.id ? (
+                      <Input
+                        size="small"
+                        value={attachmentName}
+                        autoFocus
+                        onChange={(event) => setAttachmentName(event.target.value)}
+                        onPressEnter={() => handleRenameAttachment(attachment.id)}
+                      />
+                    ) : isPreviewable ? (
+                      <button type="button" className="block max-w-full truncate text-left font-medium hover:underline" onClick={() => handleOpenPreview(attachment.id)}>
                         {label}
-                      </Typography.Link>
+                      </button>
                     ) : <Typography.Text ellipsis className="block font-medium">{label}</Typography.Text>}
                     <Typography.Text type="secondary" className="block text-xs">
                       {size} · {attachment.uploader?.username || "Unknown user"}
@@ -478,8 +569,31 @@ export default function NotulensiDetailView({
                     </Typography.Text>
                   </div>
                   <Space size={0}>
+                    {renamingAttachmentId === attachment.id ? (
+                      <>
+                        <Button
+                          type="text"
+                          aria-label={`Save name for ${label}`}
+                          icon={<Check size={16} />}
+                          loading={renameAttachmentMutation.isPending}
+                          disabled={!attachmentName.trim()}
+                          onClick={() => handleRenameAttachment(attachment.id)}
+                        />
+                        <Button type="text" aria-label="Cancel rename" icon={<X size={16} />} onClick={() => setRenamingAttachmentId(null)} />
+                      </>
+                    ) : canRename ? (
+                      <Button
+                        type="text"
+                        aria-label={`Rename ${label}`}
+                        icon={<Pencil size={16} />}
+                        onClick={() => {
+                          setRenamingAttachmentId(attachment.id);
+                          setAttachmentName(label);
+                        }}
+                      />
+                    ) : null}
                     {attachment.url ? (
-                      <Button type="text" aria-label={`Open ${label}`} href={attachment.url} target="_blank" icon={<Download size={16} />} />
+                      <Button type="text" aria-label={`Download ${label}`} onClick={() => handleDownload(attachment.url, label)} icon={<Download size={16} />} />
                     ) : null}
                     {detail.permissions?.canDeleteAttachment ? (
                       <Popconfirm
@@ -526,6 +640,7 @@ export default function NotulensiDetailView({
                     <Button
                       type="primary"
                       loading={createCommentMutation.isPending}
+                      disabled={!hasRichTextContent(newComment)}
                       onClick={async () => {
                         if (!hasRichTextContent(newComment)) return;
                         try {
@@ -727,6 +842,15 @@ export default function NotulensiDetailView({
           ]}
         />
       </div>
+      <AttachmentPreviewModal
+        open={previewModalOpen}
+        onClose={() => setPreviewModalOpen(false)}
+        attachments={previewableAttachments}
+        initialIndex={previewInitialIndex}
+        isImageFile={isImageFile}
+        isPDFFile={isPDFFile}
+        onDownload={handleDownload}
+      />
     </div>
   );
 }

@@ -11,6 +11,7 @@ import {
   getNotulensiList,
   getNotulensiPrivateNote,
   openNotulensi,
+  renameNotulensiAttachment,
   runNotulensiAction,
   updateNotulensi,
   updateNotulensiComment,
@@ -49,6 +50,8 @@ describe("notulensi api", () => {
       dueFrom: "2026-07-01T00:00:00.000Z",
       dueTo: "2026-07-31T23:59:59.999Z",
       scope: "related",
+      sortBy: "due_date",
+      sortOrder: "asc",
       page: 2,
       limit: 20,
     });
@@ -63,6 +66,8 @@ describe("notulensi api", () => {
         due_from: "2026-07-01T00:00:00.000Z",
         due_to: "2026-07-31T23:59:59.999Z",
         scope: "related",
+        sort_by: "due_date",
+        sort_order: "asc",
         page: 2,
         limit: 20,
       },
@@ -202,6 +207,21 @@ describe("notulensi api", () => {
     expect(mockApi.delete).toHaveBeenCalledWith(
       "/workspace/ws-1/notulensi/n-1/attachments/a-1"
     );
+  });
+
+  it("renames an attachment using the scoped endpoint", async () => {
+    const attachment = { id: "a-1", name: "minutes.pdf" };
+    mockApi.patch.mockResolvedValue({ data: { data: attachment } });
+
+    const result = await renameNotulensiAttachment("ws-1", "n-1", "a-1", {
+      name: "minutes.pdf",
+    });
+
+    expect(mockApi.patch).toHaveBeenCalledWith(
+      "/workspace/ws-1/notulensi/n-1/attachments/a-1",
+      { name: "minutes.pdf" }
+    );
+    expect(result).toEqual({ data: attachment });
   });
 
   it("exports active filters without pagination", async () => {

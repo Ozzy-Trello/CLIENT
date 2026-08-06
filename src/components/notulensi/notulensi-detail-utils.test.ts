@@ -11,6 +11,7 @@ import {
   validateNotulensiAttachments,
   uploadNotulensiAttachmentsSequentially,
 } from "./notulensi-detail-utils";
+import { NOTULENSI_STATUS_ORDER } from "./notulensi-status";
 
 describe("notulensi detail options", () => {
   it("normalizes missing optional content to an empty string", () => {
@@ -41,11 +42,37 @@ describe("notulensi detail options", () => {
     expect(NOTULENSI_ACTION_META.request_revision.label).toBe("Revisi");
   });
 
-  it("selects only list workflow actions", () => {
+  it("selects every list workflow action except progress updates", () => {
     expect(
-      getListWorkflowActions(["start", "request_revision", "complete", "cancel", "update_progress"])
-    ).toEqual(["request_revision", "complete", "cancel"]);
+      getListWorkflowActions([
+        "start",
+        "submit_review",
+        "request_revision",
+        "complete",
+        "undo_complete",
+        "cancel",
+        "update_progress",
+      ])
+    ).toEqual([
+      "start",
+      "submit_review",
+      "request_revision",
+      "complete",
+      "undo_complete",
+      "cancel",
+    ]);
     expect(getListWorkflowActions()).toEqual([]);
+  });
+
+  it("orders status filters by workflow display order", () => {
+    expect(NOTULENSI_STATUS_ORDER).toEqual([
+      "new",
+      "in_progress",
+      "revision",
+      "waiting_review",
+      "completed",
+      "cancelled",
+    ]);
   });
 
   it("builds and copies the authenticated canonical link", async () => {

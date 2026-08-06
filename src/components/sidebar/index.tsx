@@ -5,6 +5,7 @@ import { useWorkspaceSidebar } from "@providers/workspace-sidebar-context";
 import {
   Avatar,
   Button,
+  Badge,
   Menu,
   Typography,
   Layout,
@@ -58,6 +59,7 @@ import { useParams, usePathname, useRouter } from "next/navigation";
 import { Board } from "@myTypes/board";
 import { usePermissions, useCurrentAccount } from "@hooks/account";
 import { useUserBoardOrder } from "@hooks/user-board-order";
+import { useNotulensiList } from "@hooks/notulensi";
 
 // Role categorization utility
 const getRoleCategory = (
@@ -140,6 +142,13 @@ const Sidebar = () => {
   const workspaceIdStr = Array.isArray(workspaceId)
     ? workspaceId[0]
     : workspaceId;
+  const { data: assignedNotulensi } = useNotulensiList(workspaceIdStr || "", {
+    scope: "assigned",
+    status: ["new", "in_progress", "waiting_review", "revision"],
+    page: 1,
+    limit: 1,
+  });
+  const assignedNotulensiCount = assignedNotulensi?.pagination.total ?? 0;
 
   // Use user board order hook for drag-and-drop functionality
   const {
@@ -171,6 +180,7 @@ const Sidebar = () => {
   const prevWorkspaceIdRef = useRef<string | null>(null);
   const prevBoardsLengthRef = useRef<number>(0);
   const prevCollapsedRef = useRef<boolean>(collapsed); // Add missing ref for collapsed state
+  const prevAssignedNotulensiCountRef = useRef<number | null>(null);
 
   // Memoize handlers to prevent them from changing on every render
   const handleOpenBoardModal = useCallback((e: React.MouseEvent) => {
@@ -218,10 +228,11 @@ const Sidebar = () => {
         key: `/workspace/${resolvedWorkspaceId}/notulensi`,
         label: (
           <Link
-            className="block w-full"
+            className="flex w-full items-center justify-between gap-2"
             href={`/workspace/${resolvedWorkspaceId}/notulensi`}
           >
-            Tasks and Projects
+            <span>Tasks and Projects</span>
+            <Badge count={assignedNotulensiCount} />
           </Link>
         ),
         icon: <ClipboardList size={16} />,
@@ -369,7 +380,7 @@ const Sidebar = () => {
     }
 
     return menus;
-  }, [workspaceId, isSuperAdmin, isLoadingAccount]);
+  }, [workspaceId, isSuperAdmin, isLoadingAccount, assignedNotulensiCount]);
 
   // Check if user can create boards
   const canCreateBoard = canCreate("board");
@@ -386,11 +397,14 @@ const Sidebar = () => {
       ? workspaceId[0]
       : workspaceId || null;
     const currentBoardsLength = sortedBoards?.length || 0;
+    const assignedNotulensiCountChanged =
+      assignedNotulensiCount !== prevAssignedNotulensiCountRef.current;
 
     if (
       currentWorkspaceId === prevWorkspaceIdRef.current &&
       currentBoardsLength === prevBoardsLengthRef.current &&
       collapsed === prevCollapsedRef.current &&
+      !assignedNotulensiCountChanged &&
       allMenus.length > 0 &&
       !isLoadingAccount // Ensure we rebuild when loading completes
     ) {
@@ -401,6 +415,7 @@ const Sidebar = () => {
     prevWorkspaceIdRef.current = currentWorkspaceId;
     prevBoardsLengthRef.current = currentBoardsLength;
     prevCollapsedRef.current = collapsed;
+    prevAssignedNotulensiCountRef.current = assignedNotulensiCount;
 
     // Build menus only when needed
     const buildMenus = async () => {
@@ -454,6 +469,9 @@ const Sidebar = () => {
 
         // Only update state if values have actually changed
         setAllMenus((prevMenus) => {
+          if (assignedNotulensiCountChanged) {
+            return fullMenus;
+          }
           // Simple length check to avoid deep comparison
           if (prevMenus.length !== fullMenus.length) {
             return fullMenus;
@@ -483,6 +501,7 @@ const Sidebar = () => {
     isLoadingAccount,
     isSuperAdmin,
     userRole,
+    assignedNotulensiCount,
   ]);
 
   const selectedKeys = useMemo(() => {

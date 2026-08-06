@@ -23,13 +23,8 @@ import type { RichTextEditorHandle } from "./index";
 const toCssSize = (value: string | number) =>
   typeof value === "number" ? `${value}px` : value;
 
-// Register Quill modules once at module level
 if (typeof window !== "undefined") {
-  try {
-    Quill.register("modules/mention", Mention, true);
-  } catch (error) {
-    console.warn("Quill mention module registration error:", error);
-  }
+  Quill.register("modules/mention", Mention, true);
 }
 
 // Move toolbar configuration outside component to prevent recreation
@@ -103,6 +98,28 @@ const RichTextEditorClient = forwardRef<RichTextEditorHandle, RichTextEditorProp
     const quillRef = useRef<ReactQuill>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const mentionAnchorIndexRef = useRef<number | null>(null);
+    const isControlledRef = useRef(isControlled);
+    const onChangeRef = useRef(onChange);
+    const setOpenCustomImageSelectorRef = useRef(setOpenCustomImageSelector);
+
+    isControlledRef.current = isControlled;
+    onChangeRef.current = onChange;
+    setOpenCustomImageSelectorRef.current = setOpenCustomImageSelector;
+
+    const insertImage = useCallback((imageUrl: string, index?: number) => {
+      const quillEditor = quillRef.current?.getEditor();
+      if (!quillEditor) return;
+
+      const insertIndex =
+        index ?? quillEditor.getSelection()?.index ?? quillEditor.getLength();
+      quillEditor.insertEmbed(insertIndex, "image", imageUrl);
+      quillEditor.setSelection(insertIndex + 1, 0);
+
+      const updatedContent = quillEditor.root.innerHTML;
+      if (!isControlledRef.current) setLocalValue(updatedContent);
+      onChangeRef.current?.(updatedContent);
+      message.success("Image added");
+    }, []);
 
     // Initialize modules object immediately
     const modulesRef = useRef<any>({
@@ -110,10 +127,29 @@ const RichTextEditorClient = forwardRef<RichTextEditorHandle, RichTextEditorProp
         container: toolbarConfig,
         handlers: {
           image: function () {
-            if (setOpenCustomImageSelector) {
-              console.log("Custom Quill image handler triggered");
-              setOpenCustomImageSelector(true);
+            if (setOpenCustomImageSelectorRef.current) {
+              setOpenCustomImageSelectorRef.current(true);
+              return;
             }
+
+            const editor = quillRef.current?.getEditor();
+            const cursorIndex = editor?.getSelection()?.index ?? editor?.getLength();
+            const input = document.createElement("input");
+            input.type = "file";
+            input.accept = "image/*";
+            input.onchange = () => {
+              const file = input.files?.[0];
+              if (!file) return;
+
+              const reader = new FileReader();
+              reader.onload = () => {
+                if (typeof reader.result === "string") {
+                  insertImage(reader.result, cursorIndex);
+                }
+              };
+              reader.readAsDataURL(file);
+            };
+            input.click();
           },
         },
       },
@@ -124,10 +160,13 @@ const RichTextEditorClient = forwardRef<RichTextEditorHandle, RichTextEditorProp
         allowedChars: /^[A-Za-z0-9_.\-\sÅÄÖåäö]*$/,
         mentionDenotationChars: ["@"],
         blotName: "mention",
+        positioningStrategy: "fixed",
+        renderLoading: () => "Loading mentions...",
         onSelect: (
           item: any,
           insertItem: (data: any, programmaticInsert?: boolean) => void
         ) => {
+          if (item?.disabled) return;
           const mentionPayload = {
             id: item?.id || "",
             value: item?.value || "",
@@ -160,8 +199,10 @@ const RichTextEditorClient = forwardRef<RichTextEditorHandle, RichTextEditorProp
               selection.index - searchTerm.length - 1;
           }
 
-          console.log("Default mention source called");
-          renderList([], searchTerm); // Default empty function
+          renderList(
+            [{ id: "", value: "No mentions found", disabled: true }],
+            searchTerm
+          );
         },
       },
     });
@@ -184,13 +225,6 @@ const RichTextEditorClient = forwardRef<RichTextEditorHandle, RichTextEditorProp
         searchTerm: string,
         renderList: (matches: any[], searchTerm: string) => void
       ) => {
-        console.log(
-          "Mention source called with:",
-          searchTerm,
-          "accountList:",
-          accountList
-        );
-
         const normalizedSearch = (searchTerm || "").toLowerCase();
 
         const users = mentionUsers ?? accountList.map((account: Account) => account);
@@ -206,7 +240,12 @@ const RichTextEditorClient = forwardRef<RichTextEditorHandle, RichTextEditorProp
           mentionAnchorIndexRef.current = selection.index - searchTerm.length - 1;
         }
 
-        renderList(suggestions, searchTerm);
+        renderList(
+          suggestions.length
+            ? suggestions
+            : [{ id: "", value: "No mentions found", disabled: true }],
+          searchTerm
+        );
       },
       [accountList, allowWorkspaceAllMention, mentionUsers, workspaceId]
     );
@@ -222,7 +261,9 @@ const RichTextEditorClient = forwardRef<RichTextEditorHandle, RichTextEditorProp
           const mentionModule = editor.getModule("mention");
           if (mentionModule && mentionModule.options) {
             mentionModule.options.source = mentionSource;
-            console.log("Updated mention module source");
+            if (mentionModule.isOpen) {
+              mentionModule.onSelectionChange(editor.getSelection());
+            }
           }
         }
       }
@@ -235,11 +276,8 @@ const RichTextEditorClient = forwardRef<RichTextEditorHandle, RichTextEditorProp
       const pasteHandler = (e: ClipboardEvent) => {
         if (!e.clipboardData || !e.clipboardData.items) return;
 
-        let imageFound = false;
-
         Array.from(e.clipboardData.items).forEach((item) => {
           if (item.type.indexOf("image") !== -1) {
-            imageFound = true;
             e.preventDefault();
 
             const file = item.getAsFile();
@@ -249,27 +287,7 @@ const RichTextEditorClient = forwardRef<RichTextEditorHandle, RichTextEditorProp
             reader.onload = (event) => {
               if (!event.target?.result) return;
 
-              const imageUrl = event.target.result as string;
-
-              // Insert image into editor
-              const quillEditor = quillRef.current?.getEditor();
-              if (quillEditor) {
-                const range = quillEditor.getSelection() || {
-                  index: quillEditor.getLength(),
-                  length: 0,
-                };
-                quillEditor.insertEmbed(range.index, "image", imageUrl);
-
-                // Move cursor after image
-                quillEditor.setSelection(range.index + 1, 0);
-
-                // Update React state
-                const updatedContent = quillEditor.root.innerHTML;
-                if (!isControlled) setLocalValue(updatedContent);
-                if (onChange) onChange(updatedContent);
-
-                message.success("Image added");
-              }
+              insertImage(event.target.result as string);
             };
             reader.readAsDataURL(file);
           }
@@ -280,7 +298,7 @@ const RichTextEditorClient = forwardRef<RichTextEditorHandle, RichTextEditorProp
       return () => {
         containerRef.current?.removeEventListener("paste", pasteHandler);
       };
-    }, [isControlled, readOnly, onChange]);
+    }, [insertImage, readOnly]);
 
     const handleChange = (content: string) => {
       if (!isControlled) setLocalValue(content);
@@ -293,16 +311,10 @@ const RichTextEditorClient = forwardRef<RichTextEditorHandle, RichTextEditorProp
       const editor = quillRef.current?.getEditor();
       if (editor) {
         const mentionModule = editor.getModule("mention");
-        console.log("Mention module:", mentionModule);
 
         // Ensure the mention module has the latest source function
         if (mentionModule && mentionModule.options && (mentionUsers || accountList.length > 0)) {
           mentionModule.options.source = mentionSource;
-          console.log(
-            "Mention module source updated with",
-            mentionUsers?.length ?? accountList.length,
-            "accounts"
-          );
         }
       }
     }, [mentionSource, mentionUsers, accountList]);

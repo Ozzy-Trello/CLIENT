@@ -27,8 +27,8 @@ export const NOTULENSI_PRIORITY_META: Record<
 export const NOTULENSI_STATUS_ORDER: NotulensiStatus[] = [
   "new",
   "in_progress",
-  "waiting_review",
   "revision",
+  "waiting_review",
   "completed",
   "cancelled",
 ];

@@ -21,6 +21,18 @@ export type NotulensiAction =
 
 export type NotulensiScope = "related" | "created" | "assigned" | "all";
 
+export type NotulensiSortBy =
+  | "title"
+  | "status"
+  | "progress"
+  | "priority"
+  | "due_date"
+  | "creator"
+  | "created_at"
+  | "updated_at";
+
+export type NotulensiSortOrder = "asc" | "desc";
+
 export interface NotulensiUser {
   id: string;
   username: string;
@@ -147,6 +159,8 @@ export interface NotulensiListFilters {
   dueFrom?: string;
   dueTo?: string;
   scope?: NotulensiScope;
+  sortBy?: NotulensiSortBy;
+  sortOrder?: NotulensiSortOrder;
   page?: number;
   limit?: number;
 }
@@ -267,6 +281,10 @@ export interface NotulensiCommentPayload {
 
 export interface NotulensiPrivateNotePayload {
   content: string;
+}
+
+export interface RenameNotulensiAttachmentPayload {
+  name: string;
 }
 
 export interface DeleteNotulensiResponse {

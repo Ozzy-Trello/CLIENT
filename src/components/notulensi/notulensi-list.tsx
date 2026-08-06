@@ -13,15 +13,18 @@ import {
 import { useDeleteNotulensi, useNotulensiAction } from "@hooks/notulensi";
 import {
   NotulensiListResponse,
+  NotulensiSortBy,
+  NotulensiSortOrder,
   NotulensiSummary,
   NotulensiWorkflowAction,
 } from "@myTypes/notulensi";
 import {
   Button,
+  Dropdown,
   Empty,
   Grid,
-  List,
-  Popconfirm,
+  Modal,
+  Pagination,
   Skeleton,
   Table,
   Tooltip,
@@ -29,19 +32,32 @@ import {
   message,
 } from "antd";
 import dayjs from "dayjs";
-import { AlertCircle, CalendarClock, Clock3, Copy, Trash2 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { AlertCircle, CalendarClock, Copy, MoreHorizontal, Trash2 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 type Props = {
   workspaceId: string;
   data?: NotulensiListResponse;
   loading: boolean;
+  sortBy?: NotulensiSortBy;
+  sortOrder?: NotulensiSortOrder;
   onPageChange: (page: number, pageSize: number) => void;
+  onSortChange: (sortBy: NotulensiSortBy, sortOrder: NotulensiSortOrder) => void;
 };
 
 const terminalStatuses = new Set(["completed", "cancelled"]);
+const sortKeys = new Set<NotulensiSortBy>([
+  "title",
+  "status",
+  "progress",
+  "priority",
+  "due_date",
+  "creator",
+  "created_at",
+  "updated_at",
+]);
 
 const toPlainText = (value: string) =>
   value.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
@@ -54,7 +70,7 @@ function DueDateText({ item }: { item: NotulensiSummary }) {
   const overdue = !terminalStatuses.has(item.status) && dayjs(item.dueDate).isBefore(dayjs());
 
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex flex-wrap items-center gap-1">
       {overdue ? <AlertCircle size={14} aria-hidden="true" /> : <CalendarClock size={14} aria-hidden="true" />}
       <Typography.Text>{dayjs(item.dueDate).format("DD MMM YYYY HH:mm")}</Typography.Text>
       {overdue ? <Typography.Text type="danger">Overdue</Typography.Text> : null}
@@ -83,7 +99,15 @@ function LoadingState() {
   );
 }
 
-export default function NotulensiList({ workspaceId, data, loading, onPageChange }: Props) {
+export default function NotulensiList({
+  workspaceId,
+  data,
+  loading,
+  sortBy,
+  sortOrder,
+  onPageChange,
+  onSortChange,
+}: Props) {
   const screens = Grid.useBreakpoint();
   const router = useRouter();
   const actionMutation = useNotulensiAction();
@@ -91,7 +115,7 @@ export default function NotulensiList({ workspaceId, data, loading, onPageChange
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const openItem = (id: string) => router.push(`/workspace/${workspaceId}/notulensi/${id}`);
-  const rowKeyboard = (event: React.KeyboardEvent, id: string) => {
+  const openFromKeyboard = (event: React.KeyboardEvent, id: string) => {
     if (event.target !== event.currentTarget) return;
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
@@ -131,68 +155,73 @@ export default function NotulensiList({ workspaceId, data, loading, onPageChange
       setPendingDeleteId(null);
     }
   };
+  const confirmAction = (item: NotulensiSummary, action: NotulensiWorkflowAction) => {
+    const confirmation = NOTULENSI_ACTION_META[action].confirmation;
+    if (!confirmation) return runAction(item, action);
+    Modal.confirm({
+      title: confirmation.title,
+      content: confirmation.description,
+      okButtonProps: { danger: NOTULENSI_ACTION_META[action].danger },
+      onOk: () => runAction(item, action),
+    });
+  };
+  const confirmDelete = (item: NotulensiSummary) => {
+    Modal.confirm({
+      title: `Permanently delete "${item.title}"?`,
+      content: "This task and its data will be permanently deleted. This action cannot be undone.",
+      okText: "Delete permanently",
+      okButtonProps: { danger: true },
+      onOk: () => deleteItem(item),
+    });
+  };
   const actions = (item: NotulensiSummary) => (
     <div
-      className="flex flex-wrap items-center gap-1"
+      className="flex justify-end"
       onClick={(event) => event.stopPropagation()}
       onKeyDown={(event) => event.stopPropagation()}
     >
-      {getListWorkflowActions(item.allowedActions).map((action) => {
-        const meta = NOTULENSI_ACTION_META[action];
-        const button = (
-          <Button
-            size="small"
-            danger={meta.danger}
-            type={action === "complete" ? "primary" : "default"}
-            loading={pendingAction === `${item.id}:${action}`}
-            onClick={meta.confirmation ? undefined : () => runAction(item, action)}
-          >
-            {meta.label}
-          </Button>
-        );
-        return meta.confirmation ? (
-          <Popconfirm
-            key={action}
-            title={meta.confirmation.title}
-            description={meta.confirmation.description}
-            onConfirm={() => runAction(item, action)}
-          >
-            {button}
-          </Popconfirm>
-        ) : <span key={action}>{button}</span>;
-      })}
-      <Button
-        size="small"
-        icon={<Copy size={14} />}
-        aria-label={`Copy link for ${item.title}`}
-        onClick={() => copyLink(item)}
+      <Dropdown
+        trigger={["click"]}
+        placement="bottomRight"
+        menu={{
+          items: [
+            ...getListWorkflowActions(item.allowedActions).map((action) => ({
+              key: action,
+              label: NOTULENSI_ACTION_META[action].label,
+              danger: NOTULENSI_ACTION_META[action].danger,
+              onClick: () => confirmAction(item, action),
+            })),
+            {
+              key: "copy-link",
+              icon: <Copy size={14} aria-hidden="true" />,
+              label: "Copy Link",
+              onClick: () => copyLink(item),
+            },
+            ...(item.permissions?.canDelete
+              ? [{
+                  key: "delete",
+                  icon: <Trash2 size={14} aria-hidden="true" />,
+                  label: "Delete",
+                  danger: true,
+                  onClick: () => confirmDelete(item),
+                }]
+              : []),
+          ],
+        }}
       >
-        Copy Link
-      </Button>
-      {item.permissions?.canDelete ? (
-        <Popconfirm
-          title={`Permanently delete "${item.title}"?`}
-          description="This task and its data will be permanently deleted. This action cannot be undone."
-          okText="Delete permanently"
-          okButtonProps={{ danger: true }}
-          onConfirm={() => deleteItem(item)}
-        >
-          <Button
-            size="small"
-            danger
-            icon={<Trash2 size={14} />}
-            loading={pendingDeleteId === item.id}
-          >
-            Delete
-          </Button>
-        </Popconfirm>
-      ) : null}
+        <Button
+          type="text"
+          icon={<MoreHorizontal size={18} aria-hidden="true" />}
+          aria-label={`More actions for ${item.title}`}
+          loading={pendingAction?.startsWith(`${item.id}:`) || pendingDeleteId === item.id}
+        />
+      </Dropdown>
     </div>
   );
+  const orderFor = (key: NotulensiSortBy) =>
+    sortBy === key ? (sortOrder === "asc" ? "ascend" : "descend") : null;
 
-  if (loading) {
-    return <LoadingState />;
-  }
+  if (loading) return <LoadingState />;
 
   if (!data?.data.length) {
     return (
@@ -204,54 +233,46 @@ export default function NotulensiList({ workspaceId, data, loading, onPageChange
 
   if (!screens.md) {
     return (
-      <div className="rounded-xl border border-[rgb(var(--color-border))] bg-[rgb(var(--color-surface))]">
-        <List
-          dataSource={data.data}
-          renderItem={(item) => (
-            <List.Item
-              className="cursor-pointer px-4"
+      <div>
+        <div className="flex flex-col gap-3">
+          {data.data.map((item) => (
+            <div
+              key={item.id}
+              role="link"
+              tabIndex={0}
+              className="cursor-pointer rounded-xl border border-[rgb(var(--color-border))] bg-[rgb(var(--color-surface))] p-4"
               onClick={(event) => {
                 if ((event.target as HTMLElement).closest("a, button, input, select, textarea")) return;
                 openItem(item.id);
               }}
+              onKeyDown={(event) => openFromKeyboard(event, item.id)}
             >
-              <div className="block w-full">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <Typography.Title level={5} className="!mb-1 !mt-0 text-base">
-                      <Link href={`/workspace/${workspaceId}/notulensi/${item.id}`}>
-                        {item.title}
-                      </Link>
-                    </Typography.Title>
-                    <div className="mb-2 flex flex-wrap gap-2">
-                      <NotulensiStatusTag status={item.status} />
-                      <NotulensiPriorityTag priority={item.priority} />
-                    </div>
-                    <div className="flex flex-col gap-2 text-sm">
-                      <DueDateText item={item} />
-                       <AssigneeNames item={item} mobile />
-                      <Typography.Text type="secondary">
-                        Created: {dayjs(item.createdAt).format("DD MMM YYYY HH:mm")}
-                      </Typography.Text>
-                      <Typography.Text type="secondary">
-                        Updated: {dayjs(item.updatedAt).format("DD MMM YYYY HH:mm")}
-                      </Typography.Text>
-                    </div>
-                    <div className="mt-3">{actions(item)}</div>
-                  </div>
-                </div>
+              <div className="flex items-start justify-between gap-3">
+                <Typography.Title level={5} className="!mb-2 !mt-0 min-w-0 whitespace-normal break-words text-base">
+                  <Link href={`/workspace/${workspaceId}/notulensi/${item.id}`}>{item.title}</Link>
+                </Typography.Title>
+                <div className="shrink-0">{actions(item)}</div>
               </div>
-            </List.Item>
-          )}
-          pagination={{
-            current: data.pagination.page,
-            pageSize: data.pagination.limit,
-            total: data.pagination.total,
-            onChange: onPageChange,
-            showSizeChanger: true,
-            pageSizeOptions: [10, 20, 50],
-          }}
-        />
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
+                <NotulensiStatusTag status={item.status} />
+                <Typography.Text>{item.progress}%</Typography.Text>
+                <NotulensiPriorityTag priority={item.priority} />
+                <AssigneeNames item={item} mobile />
+                <DueDateText item={item} />
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 flex justify-end">
+          <Pagination
+            current={data.pagination.page}
+            pageSize={data.pagination.limit}
+            total={data.pagination.total}
+            onChange={onPageChange}
+            showSizeChanger
+            pageSizeOptions={[10, 20, 50]}
+          />
+        </div>
       </div>
     );
   }
@@ -269,7 +290,15 @@ export default function NotulensiList({ workspaceId, data, loading, onPageChange
           showSizeChanger: true,
           pageSizeOptions: [10, 20, 50],
         }}
-        scroll={{ x: 1260 }}
+        scroll={{ x: 1560 }}
+        sortDirections={["ascend", "descend", "ascend"]}
+        onChange={(_, __, sorter) => {
+          const activeSorter = Array.isArray(sorter) ? sorter[0] : sorter;
+          const key = activeSorter.columnKey;
+          if (typeof key === "string" && sortKeys.has(key as NotulensiSortBy) && activeSorter.order) {
+            onSortChange(key as NotulensiSortBy, activeSorter.order === "ascend" ? "asc" : "desc");
+          }
+        }}
         onRow={(item) => ({
           tabIndex: 0,
           className: "cursor-pointer",
@@ -277,12 +306,14 @@ export default function NotulensiList({ workspaceId, data, loading, onPageChange
             if ((event.target as HTMLElement).closest("a, button, input, select, textarea")) return;
             openItem(item.id);
           },
-          onKeyDown: (event) => rowKeyboard(event, item.id),
+          onKeyDown: (event) => openFromKeyboard(event, item.id),
         })}
         columns={[
           {
             title: "Title",
             key: "title",
+            sorter: true,
+            sortOrder: orderFor("title"),
             render: (_, item: NotulensiSummary) => (
               <div className="min-w-0">
                 <Link href={`/workspace/${workspaceId}/notulensi/${item.id}`} className="font-semibold">
@@ -296,57 +327,72 @@ export default function NotulensiList({ workspaceId, data, loading, onPageChange
           },
           {
             title: "Status",
+            key: "status",
+            sorter: true,
+            sortOrder: orderFor("status"),
             render: (_, item: NotulensiSummary) => <NotulensiStatusTag status={item.status} />,
             width: 130,
           },
           {
+            title: "Progress",
+            key: "progress",
+            sorter: true,
+            sortOrder: orderFor("progress"),
+            render: (_, item: NotulensiSummary) => `${item.progress}%`,
+            width: 105,
+          },
+          {
             title: "Priority",
-            render: (_, item: NotulensiSummary) => (
-              <NotulensiPriorityTag priority={item.priority} />
-            ),
+            key: "priority",
+            sorter: true,
+            sortOrder: orderFor("priority"),
+            render: (_, item: NotulensiSummary) => <NotulensiPriorityTag priority={item.priority} />,
             width: 120,
           },
           {
-            title: "Due",
-            render: (_, item: NotulensiSummary) => <DueDateText item={item} />,
+            title: "Assignees",
+            render: (_, item: NotulensiSummary) => <AssigneeNames item={item} />,
             width: 180,
           },
           {
-            title: "Assignees",
-             render: (_, item: NotulensiSummary) => <AssigneeNames item={item} />,
-             width: 180,
+            title: "Due",
+            key: "due_date",
+            sorter: true,
+            sortOrder: orderFor("due_date"),
+            render: (_, item: NotulensiSummary) => <DueDateText item={item} />,
+            width: 200,
           },
           {
             title: "Creator",
+            key: "creator",
+            sorter: true,
+            sortOrder: orderFor("creator"),
             render: (_, item: NotulensiSummary) => item.creator?.username || "Unknown user",
             width: 140,
           },
           {
-            title: "Created Date",
-            render: (_, item: NotulensiSummary) => (
-              <div className="flex items-center gap-1">
-                <Clock3 size={14} aria-hidden="true" />
-                <span>{dayjs(item.createdAt).format("DD MMM YYYY HH:mm")}</span>
-              </div>
-            ),
+            title: "Created",
+            key: "created_at",
+            sorter: true,
+            sortOrder: orderFor("created_at"),
+            render: (_, item: NotulensiSummary) => dayjs(item.createdAt).format("DD MMM YYYY HH:mm"),
             width: 170,
           },
           {
             title: "Updated",
-            render: (_, item: NotulensiSummary) => (
-              <div className="flex items-center gap-1">
-                <Clock3 size={14} aria-hidden="true" />
-                <span>{dayjs(item.updatedAt).format("DD MMM YYYY HH:mm")}</span>
-              </div>
-            ),
+            key: "updated_at",
+            sorter: true,
+            sortOrder: orderFor("updated_at"),
+            render: (_, item: NotulensiSummary) => dayjs(item.updatedAt).format("DD MMM YYYY HH:mm"),
             width: 170,
           },
           {
             title: "Actions",
             key: "actions",
+            align: "right",
             fixed: "right",
             render: (_, item: NotulensiSummary) => actions(item),
-            width: 370,
+            width: 90,
           },
         ]}
       />

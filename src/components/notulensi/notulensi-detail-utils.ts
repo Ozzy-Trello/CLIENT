@@ -53,18 +53,11 @@ export const NOTULENSI_ACTION_META: Record<
   },
 };
 
-const LIST_WORKFLOW_ACTIONS = new Set<NotulensiWorkflowAction>([
-  "request_revision",
-  "complete",
-  "cancel",
-]);
-
 export const getListWorkflowActions = (
   allowedActions: NotulensiAction[] = []
 ): NotulensiWorkflowAction[] =>
   allowedActions.filter(
-    (action): action is NotulensiWorkflowAction =>
-      action !== "update_progress" && LIST_WORKFLOW_ACTIONS.has(action)
+    (action): action is NotulensiWorkflowAction => action !== "update_progress"
   );
 
 export const getNotulensiUrl = (origin: string, workspaceId: string, id: string) =>

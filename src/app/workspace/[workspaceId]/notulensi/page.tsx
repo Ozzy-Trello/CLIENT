@@ -90,10 +90,15 @@ export default function NotulensiPage() {
       ) : null}
 
       <NotulensiList
-          workspaceId={workspaceId}
-          data={listQuery.data}
-          loading={listQuery.isLoading || listQuery.isFetching && !listQuery.data}
-          onPageChange={(page, pageSize) => setFilters((prev) => ({ ...prev, page, limit: pageSize }))}
+        workspaceId={workspaceId}
+        data={listQuery.data}
+        loading={listQuery.isLoading || listQuery.isFetching && !listQuery.data}
+        sortBy={filters.sortBy}
+        sortOrder={filters.sortOrder}
+        onPageChange={(page, pageSize) => setFilters((prev) => ({ ...prev, page, limit: pageSize }))}
+        onSortChange={(sortBy, sortOrder) =>
+          setFilters((prev) => ({ ...prev, sortBy, sortOrder, page: 1 }))
+        }
       />
     </div>
   );
