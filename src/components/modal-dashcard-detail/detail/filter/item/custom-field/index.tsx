@@ -473,12 +473,8 @@ const CustomFieldItemFilter: FC<DashcardFilter> = ({
       return `${fromText} to ${toText}`;
     }
     
-    // Handle complex date filter values for date fields
-    if (isDateField && typeof value === 'object' && value !== null && 'type' in value) {
-      const complexValue = value as any;
-      if (complexValue.type === 'relative') {
-        return `${complexValue.number} ${complexValue.unit} ${complexValue.reference}`;
-      }
+    if (isDateField && typeof value === 'object' && value !== null) {
+      return convertValueToText(value);
     }
     
     // For date fields with simple operators, the operator itself is the display value
@@ -575,7 +571,7 @@ const CustomFieldItemFilter: FC<DashcardFilter> = ({
     }
     
     return String(value);
-  }, [value, item?.source]);
+  }, [value, item?.source, item?.type, isDateField]);
 
   return (
     <div className="flex items-center gap-3">

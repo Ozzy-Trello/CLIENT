@@ -19,9 +19,10 @@ export const convertValueToText = (value: any): string => {
   }
   
   if (typeof value === "object") {
-    // Handle complex date filter objects like {type, unit, number, reference}
-    if (value.type && value.unit && value.number) {
-      return `${value.number} ${value.unit}${value.number > 1 ? 's' : ''} ${value.reference || 'from now'}`;
+    if (typeof value.number === "number" && value.unit) {
+      const unit = String(value.unit).replace(/s$/, "");
+      const reference = String(value.reference || "from now").replace(/_/g, " ");
+      return `${value.number} ${unit}${value.number === 1 ? "" : "s"} ${reference}`;
     }
     
     // For other objects, try to display key-value pairs
