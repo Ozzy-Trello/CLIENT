@@ -369,7 +369,7 @@ export default function NotulensiList({
             width: 120,
           },
           {
-            title: "Progress",
+            title: <span className="whitespace-nowrap">Progress</span>,
             key: "progress",
             sorter: true,
             sortOrder: orderFor("progress"),
