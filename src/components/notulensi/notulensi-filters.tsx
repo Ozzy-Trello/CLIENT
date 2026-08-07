@@ -14,6 +14,7 @@ type Props = {
   value: NotulensiListFilters;
   onChange: (next: NotulensiListFilters) => void;
   allowAll?: boolean;
+  statusCounts?: Record<NotulensiStatus, number>;
 };
 
 const scopeOptions: { value: NotulensiScope; label: string }[] = [
@@ -23,7 +24,7 @@ const scopeOptions: { value: NotulensiScope; label: string }[] = [
   { value: "all", label: "All workspace" },
 ];
 
-export default function NotulensiFilters({ value, onChange, allowAll = false }: Props) {
+export default function NotulensiFilters({ value, onChange, allowAll = false, statusCounts }: Props) {
   const screens = Grid.useBreakpoint();
   const [searchText, setSearchText] = useState(value.search || "");
 
@@ -62,7 +63,12 @@ export default function NotulensiFilters({ value, onChange, allowAll = false }: 
           className={screens.lg ? "w-56" : "w-full"}
           options={NOTULENSI_STATUS_ORDER.map((status) => ({
             value: status,
-            label: <NotulensiStatusLabel status={status} />,
+            label: (
+              <span className="inline-flex items-center gap-1">
+                <NotulensiStatusLabel status={status} />
+                <span>({statusCounts?.[status] ?? 0})</span>
+              </span>
+            ),
           }))}
         />
         <Select<NotulensiPriority[]>

@@ -1,4 +1,5 @@
 import { NotulensiAction, NotulensiAssignee, NotulensiProgress, NotulensiWorkflowAction } from "@myTypes/notulensi";
+import dayjs from "dayjs";
 
 export const normalizeOptionalRichText = (content?: string) => content || "";
 
@@ -21,6 +22,8 @@ export const getAssigneeNames = (assignees: NotulensiAssignee[]) =>
   assignees.length
     ? assignees.map((assignee) => assignee.user?.username || "Unknown user").join(", ")
     : "Unassigned";
+
+export const formatNotulensiListDate = (date: string) => dayjs(date).format("DD/MM/YYYY");
 
 export const NOTULENSI_ACTION_META: Record<
   NotulensiWorkflowAction,

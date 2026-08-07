@@ -400,6 +400,7 @@ export default function NotulensiDetailView({
         </div>
 
         <div className="mb-4 grid grid-cols-1 gap-2 text-sm md:grid-cols-2">
+          <Typography.Text>Updated: {dayjs(detail.updatedAt).format("DD MMM YYYY HH:mm")}</Typography.Text>
           <Typography.Text>Opened by you: {detail.currentUserOpenedAt ? dayjs(detail.currentUserOpenedAt).format("DD MMM YYYY HH:mm") : "Not opened"}</Typography.Text>
           <Typography.Text>Started: {detail.startedAt ? dayjs(detail.startedAt).format("DD MMM YYYY HH:mm") : "-"}</Typography.Text>
           <Typography.Text>Completed: {detail.completedAt ? dayjs(detail.completedAt).format("DD MMM YYYY HH:mm") : "-"}</Typography.Text>

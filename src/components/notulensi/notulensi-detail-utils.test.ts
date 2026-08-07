@@ -2,6 +2,7 @@ import {
   NOTULENSI_ACTION_META,
   NOTULENSI_PROGRESS_OPTIONS,
   copyNotulensiLink,
+  formatNotulensiListDate,
   getListWorkflowActions,
   getAssigneeNames,
   getNotulensiUrl,
@@ -36,6 +37,10 @@ describe("notulensi detail options", () => {
       { id: "a-1", userId: "u-1", user: { id: "u-1", username: "alice", email: "a@test" } },
       { id: "a-2", userId: "u-2", user: null },
     ])).toBe("alice, Unknown user");
+  });
+
+  it("formats home dates without time", () => {
+    expect(formatNotulensiListDate("2026-08-07")).toBe("07/08/2026");
   });
 
   it("uses Revisi for the revision action", () => {

@@ -78,7 +78,12 @@ export default function NotulensiPage() {
         </div>
       </div>
 
-      <NotulensiFilters value={filters} onChange={setFilters} allowAll={allowAll} />
+      <NotulensiFilters
+        value={filters}
+        onChange={setFilters}
+        allowAll={allowAll}
+        statusCounts={listQuery.data?.status_counts}
+      />
 
       {listQuery.isError ? (
         <Alert

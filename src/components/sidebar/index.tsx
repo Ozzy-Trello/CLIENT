@@ -694,7 +694,7 @@ const Sidebar = () => {
                 selectedKeys={selectedKeys}
                 style={{ borderRight: 0, fontSize: "12px" }}
                 items={allMenus}
-                className="[&_.ant-menu-item]:my-1 [&_.ant-menu-item-icon]:flex [&_.ant-menu-item-icon]:items-center text-[10px]"
+                className="workspace-sidebar-menu [&_.ant-menu-item]:my-1 [&_.ant-menu-item-icon]:flex [&_.ant-menu-item-icon]:items-center text-[10px]"
               />
 
               {/* Favorites Section */}

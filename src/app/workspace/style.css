@@ -67,6 +67,11 @@ header {
   border-color: rgb(var(--color-primary));
 }
 
+.workspace-sidebar-menu .ant-menu-item:hover,
+.workspace-sidebar-menu .ant-menu-item-selected {
+  filter: none;
+}
+
 
 li.ant-menu {
   display: flex !important;

@@ -5,11 +5,12 @@ import {
   NotulensiStatusTag,
   NOTULENSI_STATUS_ACTIONS,
   NOTULENSI_STATUS_META,
-  NOTULENSI_STATUS_ORDER,
 } from "@components/notulensi/notulensi-status";
 import {
   copyNotulensiLink,
+  formatNotulensiListDate,
   getAssigneeNames,
+  getListWorkflowActions,
   NOTULENSI_ACTION_META,
 } from "@components/notulensi/notulensi-detail-utils";
 import { useDeleteNotulensi, useNotulensiAction } from "@hooks/notulensi";
@@ -33,7 +34,6 @@ import {
   Typography,
   message,
 } from "antd";
-import { SyncOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { AlertCircle, CalendarClock, Copy, MoreHorizontal, Trash2 } from "lucide-react";
 import Link from "next/link";
@@ -75,7 +75,7 @@ function DueDateText({ item }: { item: NotulensiSummary }) {
   return (
     <div className="flex flex-wrap items-center gap-1">
       {overdue ? <AlertCircle size={14} aria-hidden="true" /> : <CalendarClock size={14} aria-hidden="true" />}
-      <Typography.Text>{dayjs(item.dueDate).format("DD MMM YYYY HH:mm")}</Typography.Text>
+      <Typography.Text>{formatNotulensiListDate(item.dueDate)}</Typography.Text>
       {overdue ? <Typography.Text type="danger">Overdue</Typography.Text> : null}
     </div>
   );
@@ -188,33 +188,20 @@ export default function NotulensiList({
         placement="bottomRight"
         menu={{
           items: [
-            ...NOTULENSI_STATUS_ORDER.map((status) => {
-              const action = NOTULENSI_STATUS_ACTIONS[status];
-              const meta = NOTULENSI_STATUS_META[status];
-              const isCurrent = item.status === status;
-              if (!action || isCurrent || !item.allowedActions.includes(action)) {
-                return {
-                  key: `status-${status}`,
-                  icon: meta.icon,
-                  label: meta.label,
-                  disabled: true,
-                };
-              }
-
+            ...getListWorkflowActions(item.allowedActions).map((action) => {
+              const targetStatus = Object.entries(NOTULENSI_STATUS_ACTIONS)
+                .find(([, statusAction]) => statusAction === action)?.[0] as keyof typeof NOTULENSI_STATUS_META | undefined;
               return {
-                key: `status-${status}`,
-                icon: meta.icon,
-                label: meta.label,
+                key: `action-${action}`,
+                icon: targetStatus ? NOTULENSI_STATUS_META[targetStatus].icon : undefined,
+                label: NOTULENSI_ACTION_META[action].label,
+                danger: NOTULENSI_ACTION_META[action].danger,
                 onClick: () => confirmAction(item, action),
               };
             }),
-            {
-              key: "status-berkelanjutan",
-              icon: <SyncOutlined />,
-              label: "Berkelanjutan",
-              disabled: true,
-            },
-            { type: "divider" as const },
+            ...(getListWorkflowActions(item.allowedActions).length
+              ? [{ type: "divider" as const }]
+              : []),
             {
               key: "copy-link",
               icon: <Copy size={14} aria-hidden="true" />,
@@ -314,7 +301,7 @@ export default function NotulensiList({
           showSizeChanger: true,
           pageSizeOptions: [10, 20, 50],
         }}
-        scroll={{ x: 1560 }}
+        scroll={{ x: 1390 }}
         sortDirections={["ascend", "descend", "ascend"]}
         onChange={(_, __, sorter) => {
           const activeSorter = Array.isArray(sorter) ? sorter[0] : sorter;
@@ -350,20 +337,28 @@ export default function NotulensiList({
             ),
           },
           {
+            title: "Created Date",
+            key: "created_at",
+            sorter: true,
+            sortOrder: orderFor("created_at"),
+            render: (_, item: NotulensiSummary) => formatNotulensiListDate(item.createdAt),
+            width: 130,
+          },
+          {
+            title: "Due Date",
+            key: "due_date",
+            sorter: true,
+            sortOrder: orderFor("due_date"),
+            render: (_, item: NotulensiSummary) => <DueDateText item={item} />,
+            width: 190,
+          },
+          {
             title: "Status",
             key: "status",
             sorter: true,
             sortOrder: orderFor("status"),
             render: (_, item: NotulensiSummary) => <NotulensiStatusTag status={item.status} />,
             width: 130,
-          },
-          {
-            title: "Progress",
-            key: "progress",
-            sorter: true,
-            sortOrder: orderFor("progress"),
-            render: (_, item: NotulensiSummary) => `${item.progress}%`,
-            width: 105,
           },
           {
             title: "Priority",
@@ -374,17 +369,12 @@ export default function NotulensiList({
             width: 120,
           },
           {
-            title: "Assignees",
-            render: (_, item: NotulensiSummary) => <AssigneeNames item={item} />,
-            width: 180,
-          },
-          {
-            title: "Due",
-            key: "due_date",
+            title: "Progress",
+            key: "progress",
             sorter: true,
-            sortOrder: orderFor("due_date"),
-            render: (_, item: NotulensiSummary) => <DueDateText item={item} />,
-            width: 200,
+            sortOrder: orderFor("progress"),
+            render: (_, item: NotulensiSummary) => `${item.progress}%`,
+            width: 120,
           },
           {
             title: "Creator",
@@ -395,23 +385,12 @@ export default function NotulensiList({
             width: 140,
           },
           {
-            title: "Created",
-            key: "created_at",
-            sorter: true,
-            sortOrder: orderFor("created_at"),
-            render: (_, item: NotulensiSummary) => dayjs(item.createdAt).format("DD MMM YYYY HH:mm"),
-            width: 170,
+            title: "Assignees",
+            render: (_, item: NotulensiSummary) => <AssigneeNames item={item} />,
+            width: 180,
           },
           {
-            title: "Updated",
-            key: "updated_at",
-            sorter: true,
-            sortOrder: orderFor("updated_at"),
-            render: (_, item: NotulensiSummary) => dayjs(item.updatedAt).format("DD MMM YYYY HH:mm"),
-            width: 170,
-          },
-          {
-            title: "Actions",
+            title: "Action",
             key: "actions",
             align: "right",
             fixed: "right",
