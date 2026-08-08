@@ -371,6 +371,15 @@ const AddUpdateField: React.FC<AddUpdateFieldProps> = (props) => {
                   const v = typeof val === "string" ? val : val?.value ?? "";
                   change("source", String(v));
                   if (v !== "user-role") setRoleFilterIds([]);
+                  if (v === EnumCustomFieldSource.Role) {
+                    change(
+                      "options",
+                      roles.map((role) => ({
+                        value: role.id,
+                        label: role.name,
+                      }))
+                    );
+                  }
                 }}
                 options={[
                   {
@@ -384,6 +393,10 @@ const AddUpdateField: React.FC<AddUpdateFieldProps> = (props) => {
                   {
                     value: "user-role",
                     label: "User (by role)",
+                  },
+                  {
+                    value: EnumCustomFieldSource.Role,
+                    label: "Role",
                   },
                 ]}
               />

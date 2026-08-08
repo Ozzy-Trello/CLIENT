@@ -7,6 +7,7 @@ export enum EnumCustomFieldType {
 }
 export enum EnumCustomFieldSource {
   User = "user",
+  Role = "role",
   Product = "product",
   Custom = "custom",
 }

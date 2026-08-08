@@ -15,6 +15,7 @@ import { EnterToSaveNumberInput } from "./components/EnterToSaveNumberInput";
 import { OptionAutoComplete } from "./components/OptionAutoComplete";
 import { normalizeCheckboxValue, parseRoleSource } from "./utils";
 import { useManualOverrideContext } from "../manual-override-context";
+import { useRoles } from "@hooks/useRoles";
 
 interface CustomFieldsProps {
   card: Card | null;
@@ -47,6 +48,7 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
 
   const { canManageCardCustomFields, canUpdateCard } = useBoardPermissionsContext();
   const { setManualOverrideFlag } = useManualOverrideContext();
+  const { roles } = useRoles(workspaceId || "");
 
   const [searchTerm, setSearchTerm] = useState<string>("");
   const userSelectionRefs = useRef<Map<string, SelectionRef>>(new Map());
@@ -173,6 +175,27 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
               className={`w-full ${!canEdit ? "bg-gray-100 cursor-not-allowed" : ""}`}
               roleIds={roleIds}
               disabled={!canEdit}
+            />
+          );
+        } else if (field.source === EnumCustomFieldSource.Role) {
+          const options = [
+            { label: "-", value: "__CLEAR__" },
+            ...(field.options?.length
+              ? field.options
+              : (roles || []).map((role) => ({ value: role.id, label: role.name }))),
+          ];
+          return (
+            <OptionAutoComplete
+              options={options}
+              value={field.valueOption as string}
+              onChange={(value) => {
+                if (!canEdit) return;
+                if (value === "__CLEAR__") clearOptionValue(field.id!);
+                else if (value) setOptionValue(field.id!, value);
+              }}
+              placeholder={`Select ${field.name}...`}
+              disabled={!canEdit}
+              className={!canEdit ? "bg-gray-100 cursor-not-allowed" : ""}
             />
           );
         } else {

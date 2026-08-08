@@ -1577,6 +1577,9 @@ export const FieldValueInput = forwardRef<SelectionRef, FieldValueInputProps>(
       value: string;
     }>();
     const { workspaceId, boardId } = useParams();
+    const { roles } = useRoles(
+      Array.isArray(workspaceId) ? workspaceId[0] : (workspaceId as string)
+    );
     const [userOptions, setUserOptions] = useState<
       Array<{ label: string; value: string }>
     >([]);
@@ -1596,6 +1599,11 @@ export const FieldValueInput = forwardRef<SelectionRef, FieldValueInputProps>(
     const roleIds = field?.source?.startsWith("user-role:")
       ? parseRoleSource(field.source)
       : [];
+    const roleOptions = useMemo(
+      () =>
+        (roles || []).map((role) => ({ value: role.id, label: role.name })),
+      [roles]
+    );
 
     const usersQuery = useAccountList({
       workspaceId: workspaceId as string,
@@ -1657,6 +1665,23 @@ export const FieldValueInput = forwardRef<SelectionRef, FieldValueInputProps>(
       setSelectedObject(option);
       onChange?.(val, option);
     };
+
+    if (field?.source === "role") {
+      return (
+        <Select
+          style={{ width, ...style }}
+          size={size}
+          className={`${className} min-w-[157px]`}
+          value={inputValue}
+          onChange={(val, option) => handleChange(val, option)}
+          placeholder={placeholder}
+          options={roleOptions}
+          showSearch
+          optionFilterProp="label"
+          notFoundContent="No roles found"
+        />
+      );
+    }
 
     if (field?.source === "user" || field?.source?.startsWith("user-role:")) {
       return (
@@ -1751,6 +1776,9 @@ export const MultiFieldValueInput = forwardRef<
       Array<{ label: string; value: string }>
     >([]);
     const { workspaceId, boardId } = useParams();
+    const { roles } = useRoles(
+      Array.isArray(workspaceId) ? workspaceId[0] : (workspaceId as string)
+    );
     const [userOptions, setUserOptions] = useState<
       Array<{ label: string; value: string }>
     >([]);
@@ -1770,6 +1798,11 @@ export const MultiFieldValueInput = forwardRef<
     const roleIds = field?.source?.startsWith("user-role:")
       ? parseRoleSource(field.source)
       : [];
+    const roleOptions = useMemo(
+      () =>
+        (roles || []).map((role) => ({ value: role.id, label: role.name })),
+      [roles]
+    );
 
     const usersQuery = useAccountList({
       workspaceId: workspaceId as string,
@@ -1833,6 +1866,24 @@ export const MultiFieldValueInput = forwardRef<
       setSelectedObjects(options);
       onChange?.(values, options);
     };
+
+    if (field?.source === "role") {
+      return (
+        <Select
+          mode="multiple"
+          style={{ width, ...style }}
+          size={size}
+          className={`${className} min-w-[200px]`}
+          value={inputValues}
+          onChange={(vals, options) => handleChange(vals, options as any[])}
+          placeholder={placeholder}
+          options={roleOptions}
+          showSearch
+          optionFilterProp="label"
+          notFoundContent="No roles found"
+        />
+      );
+    }
 
     if (field?.source === "user" || field?.source?.startsWith("user-role:")) {
       return (

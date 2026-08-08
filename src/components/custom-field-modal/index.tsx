@@ -107,7 +107,11 @@ const CustomFieldModal: React.FC<CustomFieldModalProps> = ({
       setSelectedViewBoards(field.canViewBoards || []);
       setSelectedEditBoards(field.canEditBoards || []);
       setSource(normalizedSource);
-      setOptions(field.options || []);
+      setOptions(
+        normalizedSource === EnumCustomFieldSource.Role
+          ? roles.map((role) => ({ value: role.id, label: role.name }))
+          : field.options || []
+      );
       setRoleFilterIds(parsedRoleFilterIds);
       setEditingOptionValue(null); // Reset editing state
       setEditingOptionText("");
@@ -382,6 +386,14 @@ const CustomFieldModal: React.FC<CustomFieldModalProps> = ({
                           typeof val === "string" ? val : val?.value ?? "";
                         setSource(v);
                         if (v !== "user-role") setRoleFilterIds([]);
+                        if (v === EnumCustomFieldSource.Role) {
+                          setOptions(
+                            roles.map((role) => ({
+                              value: role.id,
+                              label: role.name,
+                            }))
+                          );
+                        }
                       }}
                     >
                       <Option value={EnumCustomFieldSource.Custom}>
@@ -389,6 +401,7 @@ const CustomFieldModal: React.FC<CustomFieldModalProps> = ({
                       </Option>
                       <Option value={EnumCustomFieldSource.User}>User</Option>
                       <Option value="user-role">User (by role)</Option>
+                      <Option value={EnumCustomFieldSource.Role}>Role</Option>
                     </Select>
                   </Form.Item>
 
