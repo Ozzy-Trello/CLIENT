@@ -40,9 +40,6 @@ export default function NotulensiPage() {
           <Typography.Title level={2} className="!mb-1 !mt-0">
             Tasks and Projects
           </Typography.Title>
-          <Typography.Paragraph type="secondary" className="!mb-0">
-            Track operational instructions, follow-up, and discussion in one place.
-          </Typography.Paragraph>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button

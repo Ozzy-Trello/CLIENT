@@ -63,11 +63,11 @@ export default function NotulensiFilters({ value, onChange, allowAll = false, st
   return (
     <div className="flex flex-col gap-3">
       <div
-        className="-mx-1 overflow-x-auto px-1 pb-1"
+        className="pb-1"
         role="group"
         aria-label="Filter tasks by status"
       >
-        <div className="flex min-w-max gap-2 lg:min-w-0 lg:flex-wrap">
+        <div className="grid grid-cols-3 gap-2 md:flex md:flex-wrap">
           {NOTULENSI_STATUS_ORDER.map((status) => {
             const selected = value.status?.includes(status) ?? false;
             return (
@@ -76,15 +76,18 @@ export default function NotulensiFilters({ value, onChange, allowAll = false, st
                 type="button"
                 aria-pressed={selected}
                 onClick={() => toggleStatus(status)}
-                className={`inline-flex min-h-10 items-center gap-3 rounded-lg border px-3.5 py-2 text-sm font-semibold shadow-sm transition-[background-color,border-color,color,box-shadow,transform] duration-150 ease-out hover:-translate-y-px hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${
+                className={`flex min-h-12 min-w-0 items-center justify-between gap-1 rounded-lg border px-2 py-2 text-xs font-semibold shadow-sm transition-[background-color,border-color,color,box-shadow,transform] duration-150 ease-out hover:-translate-y-px hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 sm:text-sm md:inline-flex md:min-h-10 md:w-auto md:gap-3 md:px-3.5 ${
                   selected
                     ? statusFilterStyles[status]
                     : "border-[rgb(var(--color-border))] bg-[rgb(var(--color-surface))] text-[rgb(var(--color-text-primary))] hover:border-slate-400"
                 }`}
               >
-                <NotulensiStatusLabel status={status} className="gap-1.5" />
+                <NotulensiStatusLabel
+                  status={status}
+                  className="min-w-0 gap-1 text-left leading-tight md:gap-1.5"
+                />
                 <span
-                  className={`min-w-6 rounded px-1.5 py-0.5 text-center text-xs tabular-nums ${
+                  className={`min-w-5 shrink-0 rounded px-1 py-0.5 text-center text-[11px] tabular-nums md:min-w-6 md:px-1.5 md:text-xs ${
                     selected ? "bg-black/20 text-white" : "bg-slate-100 text-slate-700"
                   }`}
                 >
