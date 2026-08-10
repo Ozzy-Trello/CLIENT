@@ -24,6 +24,15 @@ const scopeOptions: { value: NotulensiScope; label: string }[] = [
   { value: "all", label: "All workspace" },
 ];
 
+const statusFilterStyles: Record<NotulensiStatus, string> = {
+  new: "border-blue-600 bg-blue-600 text-white",
+  in_progress: "border-amber-500 bg-amber-500 text-white",
+  revision: "border-orange-500 bg-orange-500 text-white",
+  waiting_review: "border-violet-600 bg-violet-600 text-white",
+  completed: "border-emerald-600 bg-emerald-600 text-white",
+  cancelled: "border-rose-600 bg-rose-600 text-white",
+};
+
 export default function NotulensiFilters({ value, onChange, allowAll = false, statusCounts }: Props) {
   const screens = Grid.useBreakpoint();
   const [searchText, setSearchText] = useState(value.search || "");
@@ -43,68 +52,95 @@ export default function NotulensiFilters({ value, onChange, allowAll = false, st
     onChange({ scope: "assigned", page: 1, limit: value.limit });
   };
 
+  const toggleStatus = (status: NotulensiStatus) => {
+    const selected = value.status || [];
+    const next = selected.includes(status)
+      ? selected.filter((item) => item !== status)
+      : [...selected, status];
+    applyPatch({ status: next.length ? next : undefined });
+  };
+
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-[rgb(var(--color-border))] bg-[rgb(var(--color-surface))] p-4">
-      <div className="flex flex-col gap-3 lg:flex-row">
-        <Input.Search
-          value={searchText}
-          onChange={(event) => setSearchText(event.target.value)}
-          onSearch={(search) => applyPatch({ search: search.trim() || undefined })}
-          placeholder="Search instructions"
-          allowClear
-          className="min-w-0 flex-1"
-        />
-        <Select<NotulensiStatus[]>
-          mode="multiple"
-          value={value.status}
-          onChange={(status) => applyPatch({ status: status.length ? status : undefined })}
-          placeholder="Status"
-          maxTagCount="responsive"
-          className={screens.lg ? "w-56" : "w-full"}
-          options={NOTULENSI_STATUS_ORDER.map((status) => ({
-            value: status,
-            label: (
-              <span className="inline-flex items-center gap-1">
-                <NotulensiStatusLabel status={status} />
-                <span>({statusCounts?.[status] ?? 0})</span>
-              </span>
-            ),
-          }))}
-        />
-        <Select<NotulensiPriority[]>
-          mode="multiple"
-          value={value.priority}
-          onChange={(priority) =>
-            applyPatch({ priority: priority.length ? priority : undefined })
-          }
-          placeholder="Priority"
-          maxTagCount="responsive"
-          className={screens.lg ? "w-56" : "w-full"}
-          options={Object.entries(NOTULENSI_PRIORITY_META).map(([priority, meta]) => ({
-            value: priority,
-            label: meta.label,
-          }))}
-        />
+    <div className="flex flex-col gap-3">
+      <div
+        className="-mx-1 overflow-x-auto px-1 pb-1"
+        role="group"
+        aria-label="Filter tasks by status"
+      >
+        <div className="flex min-w-max gap-2 lg:min-w-0 lg:flex-wrap">
+          {NOTULENSI_STATUS_ORDER.map((status) => {
+            const selected = value.status?.includes(status) ?? false;
+            return (
+              <button
+                key={status}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => toggleStatus(status)}
+                className={`inline-flex min-h-10 items-center gap-3 rounded-lg border px-3.5 py-2 text-sm font-semibold shadow-sm transition-[background-color,border-color,color,box-shadow,transform] duration-150 ease-out hover:-translate-y-px hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${
+                  selected
+                    ? statusFilterStyles[status]
+                    : "border-[rgb(var(--color-border))] bg-[rgb(var(--color-surface))] text-[rgb(var(--color-text-primary))] hover:border-slate-400"
+                }`}
+              >
+                <NotulensiStatusLabel status={status} className="gap-1.5" />
+                <span
+                  className={`min-w-6 rounded px-1.5 py-0.5 text-center text-xs tabular-nums ${
+                    selected ? "bg-black/20 text-white" : "bg-slate-100 text-slate-700"
+                  }`}
+                >
+                  {statusCounts?.[status] ?? 0}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
-      <div className="flex flex-col gap-3 lg:flex-row">
-        <Select<NotulensiScope>
-          value={value.scope || "assigned"}
-          onChange={(scope) => applyPatch({ scope })}
-          className={screens.lg ? "w-56" : "w-full"}
-          options={scopeOptions.filter((option) => allowAll || option.value !== "all")}
-        />
-        <DatePicker.RangePicker
-          value={rangeValue as [Dayjs, Dayjs] | null}
-          onChange={(dates) =>
-            applyPatch({
-              dueFrom: dates?.[0]?.startOf("day").toISOString(),
-              dueTo: dates?.[1]?.endOf("day").toISOString(),
-            })
-          }
-          className={screens.lg ? "w-80" : "w-full"}
-          allowClear
-        />
-        <Button onClick={clearFilters}>Clear filters</Button>
+
+      <div className="flex flex-col gap-3 rounded-xl border border-[rgb(var(--color-border))] bg-[rgb(var(--color-surface))] p-4">
+        <div className="flex flex-col gap-3 lg:flex-row">
+          <Input.Search
+            value={searchText}
+            onChange={(event) => setSearchText(event.target.value)}
+            onSearch={(search) => applyPatch({ search: search.trim() || undefined })}
+            placeholder="Search instructions"
+            allowClear
+            className="min-w-0 flex-1"
+          />
+          <Select<NotulensiPriority[]>
+            mode="multiple"
+            value={value.priority}
+            onChange={(priority) =>
+              applyPatch({ priority: priority.length ? priority : undefined })
+            }
+            placeholder="Priority"
+            maxTagCount="responsive"
+            className={screens.lg ? "w-56" : "w-full"}
+            options={Object.entries(NOTULENSI_PRIORITY_META).map(([priority, meta]) => ({
+              value: priority,
+              label: meta.label,
+            }))}
+          />
+        </div>
+        <div className="flex flex-col gap-3 lg:flex-row">
+          <Select<NotulensiScope>
+            value={value.scope || "assigned"}
+            onChange={(scope) => applyPatch({ scope })}
+            className={screens.lg ? "w-56" : "w-full"}
+            options={scopeOptions.filter((option) => allowAll || option.value !== "all")}
+          />
+          <DatePicker.RangePicker
+            value={rangeValue as [Dayjs, Dayjs] | null}
+            onChange={(dates) =>
+              applyPatch({
+                dueFrom: dates?.[0]?.startOf("day").toISOString(),
+                dueTo: dates?.[1]?.endOf("day").toISOString(),
+              })
+            }
+            className={screens.lg ? "w-80" : "w-full"}
+            allowClear
+          />
+          <Button onClick={clearFilters}>Clear filters</Button>
+        </div>
       </div>
     </div>
   );

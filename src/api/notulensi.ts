@@ -54,7 +54,19 @@ export const getNotulensiList = async (
   const response = await api.get(notulensiBasePath(workspaceId), {
     params: omitEmpty(filters),
   });
-  return response.data;
+  const data = response.data;
+  const counts = data.statusCounts ?? data.status_counts ?? {};
+  return {
+    ...data,
+    statusCounts: {
+      new: counts.new ?? 0,
+      in_progress: counts.in_progress ?? counts.inProgress ?? 0,
+      revision: counts.revision ?? 0,
+      waiting_review: counts.waiting_review ?? counts.waitingReview ?? 0,
+      completed: counts.completed ?? 0,
+      cancelled: counts.cancelled ?? 0,
+    },
+  };
 };
 
 export const createNotulensi = async (

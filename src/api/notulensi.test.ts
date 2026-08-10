@@ -74,6 +74,34 @@ describe("notulensi api", () => {
     });
   });
 
+  it("normalizes camel-cased status count keys", async () => {
+    mockApi.get.mockResolvedValue({
+      data: {
+        data: [],
+        pagination: {},
+        statusCounts: {
+          new: 2,
+          inProgress: 3,
+          revision: 4,
+          waitingReview: 5,
+          completed: 6,
+          cancelled: 7,
+        },
+      },
+    });
+
+    const response = await getNotulensiList("ws-1");
+
+    expect(response.statusCounts).toEqual({
+      new: 2,
+      in_progress: 3,
+      revision: 4,
+      waiting_review: 5,
+      completed: 6,
+      cancelled: 7,
+    });
+  });
+
   it("creates with camelCase payload for interceptor conversion", async () => {
     mockApi.post.mockResolvedValue({ data: { data: { id: "n-1" } } });
 

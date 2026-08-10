@@ -169,7 +169,7 @@ export interface NotulensiListFilters {
 export interface NotulensiListResponse {
   data: NotulensiSummary[];
   pagination: NotulensiPagination;
-  status_counts: Record<NotulensiStatus, number>;
+  statusCounts: Record<NotulensiStatus, number>;
 }
 
 export interface NotulensiDetailResponse {

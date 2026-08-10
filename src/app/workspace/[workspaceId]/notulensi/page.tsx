@@ -82,7 +82,7 @@ export default function NotulensiPage() {
         value={filters}
         onChange={setFilters}
         allowAll={allowAll}
-        statusCounts={listQuery.data?.status_counts}
+        statusCounts={listQuery.data?.statusCounts}
       />
 
       {listQuery.isError ? (
