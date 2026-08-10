@@ -83,6 +83,7 @@ export interface NotulensiPrivateNote {
 
 export interface NotulensiPermissions {
   canEdit: boolean;
+  canAssign: boolean;
   canDelete: boolean;
   canUploadAttachment: boolean;
   canDeleteAttachment: boolean;

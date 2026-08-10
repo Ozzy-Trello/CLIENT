@@ -29,10 +29,12 @@ import {
   useRenameNotulensiAttachment,
   useRefreshNotulensi,
   useUpdateNotulensiProgress,
+  useUpdateNotulensi,
   useUpdateNotulensiComment,
   useUpdateNotulensiPrivateNote,
   useUploadNotulensiAttachment,
 } from "@hooks/notulensi";
+import NotulensiUserSelect from "@components/notulensi/notulensi-user-select";
 import { useCurrentAccount } from "@hooks/account";
 import { CardAttachment, EnumAttachmentType, EnumCardAttachmentType } from "@myTypes/card";
 import { NotulensiComment, NotulensiDetail, NotulensiProgress, NotulensiWorkflowAction } from "@myTypes/notulensi";
@@ -105,12 +107,14 @@ export default function NotulensiDetailView({
   const [attachmentName, setAttachmentName] = useState("");
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [previewInitialIndex, setPreviewInitialIndex] = useState(0);
+  const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
   const isUploadingAttachments = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
   const actionMutation = useNotulensiAction();
   const progressMutation = useUpdateNotulensiProgress();
+  const updateNotulensiMutation = useUpdateNotulensi();
   const createCommentMutation = useCreateNotulensiComment();
   const updateCommentMutation = useUpdateNotulensiComment();
   const deleteCommentMutation = useDeleteNotulensiComment();
@@ -124,6 +128,10 @@ export default function NotulensiDetailView({
   const privateNoteQuery = useNotulensiPrivateNote(workspaceId, detail?.id || "");
   const mentionUsersQuery = useNotulensiMentionUsers(workspaceId);
   const mentionUsers = mentionUsersQuery.data?.data || [];
+
+  useEffect(() => {
+    setAssigneeIds(detail?.assignees.map((assignee) => assignee.userId) || []);
+  }, [detail?.id, detail?.updatedAt]);
 
   const privateNote = privateNoteQuery.data?.data ?? detail?.privateNote ?? null;
 
@@ -182,6 +190,14 @@ export default function NotulensiDetailView({
     );
   }
 
+  const savedAssigneeIds = detail.assignees
+    .map((assignee) => assignee.userId)
+    .sort();
+  const selectedAssigneeIds = [...assigneeIds].sort();
+  const hasAssigneeChanges =
+    savedAssigneeIds.length !== selectedAssigneeIds.length ||
+    savedAssigneeIds.some((id, index) => id !== selectedAssigneeIds[index]);
+
   const handleAction = async (action: NotulensiWorkflowAction) => {
     if (pendingAction) return;
     setPendingAction(action);
@@ -221,6 +237,20 @@ export default function NotulensiDetailView({
       await progressMutation.mutateAsync({ workspaceId, id: detail.id, progress });
     } catch (progressError) {
       message.error(getErrorMessage(progressError, "Failed to update progress"));
+    }
+  };
+
+  const handleAssignees = async () => {
+    if (!assigneeIds.length || !hasAssigneeChanges || updateNotulensiMutation.isPending) return;
+    try {
+      await updateNotulensiMutation.mutateAsync({
+        workspaceId,
+        id: detail.id,
+        payload: { assigneeIds },
+      });
+      message.success("Assignees updated");
+    } catch (updateError) {
+      message.error(getErrorMessage(updateError, "Failed to update assignees"));
     }
   };
 
@@ -419,11 +449,29 @@ export default function NotulensiDetailView({
         <div className="mb-4 flex flex-wrap gap-4 text-sm">
           <div>
             <Typography.Text type="secondary" className="block">Assignees</Typography.Text>
-            <Typography.Text>
-              {detail.assignees.length
-                ? detail.assignees.map((assignee) => assignee.user?.username || "Unknown user").join(", ")
-                : "Unassigned"}
-            </Typography.Text>
+            {detail.permissions?.canAssign ? (
+              <Space.Compact className="mt-1 w-full min-w-[280px]">
+                <NotulensiUserSelect
+                  value={assigneeIds}
+                  onChange={setAssigneeIds}
+                  disabled={updateNotulensiMutation.isPending}
+                />
+                <Button
+                  type="primary"
+                  onClick={handleAssignees}
+                  loading={updateNotulensiMutation.isPending}
+                  disabled={!assigneeIds.length || !hasAssigneeChanges}
+                >
+                  Save
+                </Button>
+              </Space.Compact>
+            ) : (
+              <Typography.Text>
+                {detail.assignees.length
+                  ? detail.assignees.map((assignee) => assignee.user?.username || "Unknown user").join(", ")
+                  : "Unassigned"}
+              </Typography.Text>
+            )}
           </div>
           <div>
             <Typography.Text type="secondary" className="block">Creator</Typography.Text>
