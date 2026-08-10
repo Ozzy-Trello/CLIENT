@@ -40,6 +40,7 @@ const invalidateWorkspaceNotulensi = async (
 ) => {
   await queryClient.invalidateQueries({
     queryKey: queryKeys.notulensi.workspace(workspaceId),
+    refetchType: "all",
   });
 
   if (id) {
