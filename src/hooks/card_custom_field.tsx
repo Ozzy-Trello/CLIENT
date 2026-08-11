@@ -109,12 +109,13 @@ export const useCardCustomField = (
                 
                 // Determine the new value based on updatedData
                 // This covers most common custom field value types
-                const newVal = 
+                const newVal =
                   updatedData.valueString !== undefined ? updatedData.valueString :
                   updatedData.valueNumber !== undefined ? updatedData.valueNumber :
                   updatedData.valueOption !== undefined ? updatedData.valueOption :
                   updatedData.valueDate !== undefined ? updatedData.valueDate :
                   updatedData.valueCheckbox !== undefined ? updatedData.valueCheckbox :
+                  updatedData.valueUserId !== undefined ? updatedData.valueUserId :
                   undefined;
 
                 if (newVal === undefined) return card;
@@ -249,7 +250,7 @@ export const useCardCustomField = (
   };
 
   // Helper function to set user ID value
-  const setUserValue = (customFieldId: string, value: string) => {
+  const setUserValue = (customFieldId: string, value: string | null) => {
     setValueMutation.mutate({
       customFieldId,
       updatedData: {

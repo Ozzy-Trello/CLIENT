@@ -159,8 +159,15 @@ export const UserSelection = forwardRef<SelectionRef, SelectionProps>(
     }));
 
     // Handle selection change
-    const handleChange = (value: string, option: any) => {
-      setSelectedValue(value);
+    const handleChange = (value: string | undefined, option: any) => {
+      const normalizedValue = value || "";
+      setSelectedValue(normalizedValue || undefined);
+
+      if (!normalizedValue) {
+        setSelectedObject(undefined);
+        onChange?.("", option);
+        return;
+      }
 
       // Store the entire selected object
       if (Array.isArray(option)) {
@@ -176,7 +183,7 @@ export const UserSelection = forwardRef<SelectionRef, SelectionProps>(
 
       // Call the onChange prop if provided
       if (onChange) {
-        onChange(value, option);
+        onChange(normalizedValue, option);
       }
     };
 

@@ -191,7 +191,7 @@ export interface CardCustomField {
   valueOption?: string | null;
   valueCheckbox?: boolean;
   valueDate?: Date;
-  valueUserId?: string;
+  valueUserId?: string | null;
   canView?: boolean;
   canEdit?: boolean;
   isPublic?: boolean;

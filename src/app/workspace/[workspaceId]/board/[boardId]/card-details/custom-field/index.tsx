@@ -151,11 +151,10 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
                 if (ref && field.id) userSelectionRefs.current.set(field.id, ref);
               }}
               value={field.valueUserId}
-              onChange={(value: string) =>
-                canEdit && value ? setUserValue(field.id!, value) : undefined
-              }
+              onChange={(value: string) => canEdit ? setUserValue(field.id!, value || null) : undefined}
               placeholder={`Select ${field.name}...`}
               size="middle"
+              allowClear
               disabled={!canEdit}
             />
           );
@@ -167,11 +166,10 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
                 if (ref && field.id) userSelectionRefs.current.set(field.id, ref);
               }}
               value={field.valueUserId}
-              onChange={(value: string) =>
-                canEdit && value ? setUserValue(field.id!, value) : undefined
-              }
+              onChange={(value: string) => canEdit ? setUserValue(field.id!, value || null) : undefined}
               placeholder={`Select ${field.name}...`}
               size="middle"
+              allowClear
               className={`w-full ${!canEdit ? "bg-gray-100 cursor-not-allowed" : ""}`}
               roleIds={roleIds}
               disabled={!canEdit}
