@@ -19,7 +19,7 @@ import {
   NotulensiPriority,
   UpdateNotulensiPayload,
 } from "@myTypes/notulensi";
-import { Button, Checkbox, DatePicker, Form, Grid, Input, Result, Select, Typography, message } from "antd";
+import { Button, Checkbox, DatePicker, Form, Input, Result, Select, Typography, message } from "antd";
 import dayjs, { Dayjs } from "dayjs";
 import { Paperclip, Trash2, Upload } from "lucide-react";
 import Link from "next/link";
@@ -57,7 +57,6 @@ export default function NotulensiForm({
   onSubmit,
   cancelHref,
 }: Props) {
-  const screens = Grid.useBreakpoint();
   const [form] = Form.useForm<FormValues>();
   const [queuedFiles, setQueuedFiles] = useState<File[]>([]);
   const [isDraggingAttachment, setIsDraggingAttachment] = useState(false);
@@ -119,7 +118,7 @@ export default function NotulensiForm({
   }
 
   return (
-    <div className="mx-auto max-w-[900px] rounded-2xl border border-[rgb(var(--color-border))] bg-[rgb(var(--color-surface))] p-4 md:p-6">
+    <div className="mx-auto w-full min-w-0 max-w-[900px] rounded-2xl border border-[rgb(var(--color-border))] bg-[rgb(var(--color-surface))] p-4 md:p-6">
       <Form<FormValues>
         form={form}
         layout="vertical"
@@ -140,7 +139,7 @@ export default function NotulensiForm({
           );
         }}
       >
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2">
           <Form.Item
             name="title"
             label="Title"
@@ -163,6 +162,7 @@ export default function NotulensiForm({
               mentionUsers={mentionUsers.data?.data || []}
               allowWorkspaceAllMention={false}
               minHeight={220}
+              maxHeight="none"
               className="w-full"
             />
           </Form.Item>
@@ -288,11 +288,11 @@ export default function NotulensiForm({
           ) : null}
         </div>
 
-        <div className={`mt-6 flex gap-3 ${screens.md ? "justify-end" : "flex-col"}`}>
-          <Link href={cancelHref}>
-            <Button block={!screens.md}>Cancel</Button>
+        <div className="mt-6 flex flex-col gap-3 pb-[env(safe-area-inset-bottom)] md:flex-row md:justify-end md:pb-0">
+          <Link href={cancelHref} className="w-full md:w-auto">
+            <Button block>Cancel</Button>
           </Link>
-          <Button type="primary" htmlType="submit" loading={submitting} block={!screens.md}>
+          <Button type="primary" htmlType="submit" loading={submitting} className="w-full md:w-auto">
             {mode === "create" ? "Create instruction" : "Save changes"}
           </Button>
         </div>

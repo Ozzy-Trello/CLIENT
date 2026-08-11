@@ -27,9 +27,10 @@ const { Title, Text } = Typography;
 
 interface ChecklistComponentProps {
   cardId: string;
+  readOnly?: boolean;
 }
 
-export const ChecklistComponent: React.FC<ChecklistComponentProps> = ({ cardId }) => {
+export const ChecklistComponent: React.FC<ChecklistComponentProps> = ({ cardId, readOnly = false }) => {
   const [newChecklistTitle, setNewChecklistTitle] = useState<string>("");
   const [showNewChecklistInput, setShowNewChecklistInput] = useState<boolean>(false);
   const [newItemTexts, setNewItemTexts] = useState<Record<string, string>>({});
@@ -196,6 +197,7 @@ export const ChecklistComponent: React.FC<ChecklistComponentProps> = ({ cardId }
   };
 
   const handleDragEnd = (result: DropResult) => {
+    if (readOnly) return;
     const { source, destination } = result;
 
     if (!destination) {
@@ -257,38 +259,44 @@ export const ChecklistComponent: React.FC<ChecklistComponentProps> = ({ cardId }
   };
 
   if (isLoading) {
-    return <div className="p-4">Loading checklists...</div>;
+    return <Typography.Text type="secondary">Loading checklists...</Typography.Text>;
   }
 
   return (
     <DragDropContext onDragEnd={handleDragEnd}>
-      <div className="space-y-6 p-4">
+      <div className="min-w-0 space-y-5">
         {/* Existing Checklists */}
         {checklists && checklists.map((checklist: ChecklistDTO) => (
-          <div key={checklist.id} className="bg-white rounded-md shadow-sm p-4">
-            <div className="flex justify-between items-center mb-2">
-              <Title level={5} className="m-0">{checklist.title}</Title>
-              <Dropdown
-                overlay={
-                  <Menu>
-                    <Menu.Item 
-                      key="delete" 
-                      icon={<Trash2 size={16} />}
-                      onClick={() => handleDeleteChecklist(checklist.id)}
-                    >
-                      Delete
-                    </Menu.Item>
-                  </Menu>
-                }
-                trigger={['click']}
-              >
-                <Button 
-                  type="text" 
-                  icon={<MoreHorizontal size={16} />} 
-                  size="small"
-                  className="flex items-center"
-                />
-              </Dropdown>
+          <div
+            key={checklist.id}
+            className="min-w-0 rounded-xl border border-[rgb(var(--color-border))] bg-[rgb(var(--color-background))] p-3 md:p-4"
+          >
+            <div className="mb-2 flex min-w-0 items-start justify-between gap-2">
+              <Title level={5} className="!m-0 min-w-0 break-words">{checklist.title}</Title>
+              {!readOnly ? (
+                <Dropdown
+                  overlay={
+                    <Menu>
+                      <Menu.Item
+                        key="delete"
+                        icon={<Trash2 size={16} />}
+                        onClick={() => handleDeleteChecklist(checklist.id)}
+                      >
+                        Delete
+                      </Menu.Item>
+                    </Menu>
+                  }
+                  trigger={['click']}
+                >
+                  <Button
+                    type="text"
+                    icon={<MoreHorizontal size={16} />}
+                    size="small"
+                    aria-label={`More actions for ${checklist.title}`}
+                    className="flex shrink-0 items-center"
+                  />
+                </Dropdown>
+              ) : null}
             </div>
 
             {/* Progress Bar */}
@@ -314,20 +322,22 @@ export const ChecklistComponent: React.FC<ChecklistComponentProps> = ({ cardId }
                       key={`${checklist.id}-item-${index}`}
                       draggableId={`${checklist.id}-item-${index}`}
                       index={index}
+                      isDragDisabled={readOnly}
                     >
                       {(provided, snapshot) => (
                         <div
                           ref={provided.innerRef}
                           {...provided.draggableProps}
                           {...provided.dragHandleProps}
-                          className={`flex items-start group ${snapshot.isDragging ? "bg-white shadow-lg rounded-md" : ""}`}
+                          className={`group flex min-w-0 items-start rounded-md p-1 ${snapshot.isDragging ? "bg-[rgb(var(--color-surface))] shadow-lg" : ""}`}
                         >
-                          <Checkbox 
-                            checked={item.checked} 
+                          <Checkbox
+                            checked={item.checked}
+                            disabled={readOnly}
                             onChange={() => handleToggleItem(checklist.id, index)}
-                            className="mt-1"
+                            className="mt-1 shrink-0"
                           />
-                          <div className="flex-grow ml-2">
+                          <div className="ml-2 min-w-0 flex-1">
                             {editingItemInfo && 
                              editingItemInfo.checklistId === checklist.id && 
                              editingItemInfo.itemIndex === index ? (
@@ -350,27 +360,27 @@ export const ChecklistComponent: React.FC<ChecklistComponentProps> = ({ cardId }
                                 autoFocus
                               />
                             ) : (
-                              <Text 
+                              <Text
                                 delete={item.checked}
-                                className="text-sm"
+                                className="break-words text-sm"
                               >
                                 {item.label}
                               </Text>
                             )}
                             
                             {/* Due date and assignee info if available */}
-                            {(item.due_date || item.assignee_name) && (
-                              <div className="text-xs text-gray-500 mt-1 flex items-center gap-2">
-                                {item.due_date && (
+                            {(item.dueDate || item.due_date || item.assigneeName || item.assignee_name) && (
+                              <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[rgb(var(--color-text-muted))]">
+                                {(item.dueDate || item.due_date) && (
                                   <span className="flex items-center">
                                     <Calendar size={12} className="mr-1" />
-                                    {new Date(item.due_date).toLocaleDateString()}
+                                    {new Date(item.dueDate || item.due_date || "").toLocaleDateString()}
                                   </span>
                                 )}
-                                {item.assignee_name && (
+                                {(item.assigneeName || item.assignee_name) && (
                                   <span className="flex items-center">
                                     <User size={12} className="mr-1" />
-                                    {item.assignee_name}
+                                    {item.assigneeName || item.assignee_name}
                                   </span>
                                 )}
                               </div>
@@ -378,30 +388,32 @@ export const ChecklistComponent: React.FC<ChecklistComponentProps> = ({ cardId }
                           </div>
                           
                           {/* Item Actions */}
-                          <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Tooltip title="Edit">
-                              <Button 
-                                type="text" 
-                                icon={<Edit size={14} />} 
-                                size="small"
-                                onClick={() => setEditingItemInfo({
-                                  checklistId: checklist.id,
-                                  itemIndex: index,
-                                  text: item.label
-                                })}
-                                className="mr-1"
-                              />
-                            </Tooltip>
-                            <Tooltip title="Delete">
-                              <Button 
-                                type="text" 
-                                icon={<Trash2 size={14} />} 
-                                size="small"
-                                onClick={() => handleRemoveItem(checklist.id, index)}
-                                danger
-                              />
-                            </Tooltip>
-                          </div>
+                          {!readOnly ? (
+                            <div className="shrink-0 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
+                              <Tooltip title="Edit">
+                                <Button
+                                  type="text"
+                                  icon={<Edit size={14} />}
+                                  size="small"
+                                  onClick={() => setEditingItemInfo({
+                                    checklistId: checklist.id,
+                                    itemIndex: index,
+                                    text: item.label
+                                  })}
+                                  className="mr-1"
+                                />
+                              </Tooltip>
+                              <Tooltip title="Delete">
+                                <Button
+                                  type="text"
+                                  icon={<Trash2 size={14} />}
+                                  size="small"
+                                  onClick={() => handleRemoveItem(checklist.id, index)}
+                                  danger
+                                />
+                              </Tooltip>
+                            </div>
+                          ) : null}
                         </div>
                       )}
                     </Draggable>
@@ -412,8 +424,8 @@ export const ChecklistComponent: React.FC<ChecklistComponentProps> = ({ cardId }
             </Droppable>
 
             {/* Add New Item Input */}
-            {showNewItemInputs[checklist.id] ? (
-              <div className="flex items-center mb-2">
+            {!readOnly && showNewItemInputs[checklist.id] ? (
+              <div className="mb-2 flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
                 <Input 
                   placeholder="Add an item..."
                   value={newItemTexts[checklist.id] || ""}
@@ -427,7 +439,7 @@ export const ChecklistComponent: React.FC<ChecklistComponentProps> = ({ cardId }
                 <Button 
                   type="primary"
                   onClick={() => handleAddItem(checklist.id)}
-                  className="ml-2"
+                  className="sm:ml-2"
                 >
                   Add
                 </Button>
@@ -436,12 +448,12 @@ export const ChecklistComponent: React.FC<ChecklistComponentProps> = ({ cardId }
                     ...prev,
                     [checklist.id]: false
                   }))}
-                  className="ml-2"
+                  className="sm:ml-2"
                 >
                   Cancel
                 </Button>
               </div>
-            ) : (
+            ) : !readOnly ? (
               <Button 
                 type="text" 
                 icon={<Plus size={14} />}
@@ -453,13 +465,17 @@ export const ChecklistComponent: React.FC<ChecklistComponentProps> = ({ cardId }
               >
                 Add an item
               </Button>
-            )}
+            ) : null}
           </div>
         ))}
 
+        {!checklists?.length ? (
+          <Typography.Text type="secondary">No checklists yet.</Typography.Text>
+        ) : null}
+
         {/* Add New Checklist */}
-        {showNewChecklistInput ? (
-          <div className="bg-white rounded-md shadow-sm p-4">
+        {!readOnly && showNewChecklistInput ? (
+          <div className="min-w-0 rounded-xl border border-[rgb(var(--color-border))] bg-[rgb(var(--color-background))] p-3 md:p-4">
             <div className="mb-4">
               <Input 
                 placeholder="Checklist title..."
@@ -485,7 +501,7 @@ export const ChecklistComponent: React.FC<ChecklistComponentProps> = ({ cardId }
               </Button>
             </div>
           </div>
-        ) : (
+        ) : !readOnly ? (
           <Button 
             icon={<CheckSquare size={16} />}
             onClick={() => setShowNewChecklistInput(true)}
@@ -493,7 +509,7 @@ export const ChecklistComponent: React.FC<ChecklistComponentProps> = ({ cardId }
           >
             Add Checklist
           </Button>
-        )}
+        ) : null}
       </div>
     </DragDropContext>
   );

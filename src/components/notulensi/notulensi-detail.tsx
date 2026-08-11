@@ -2,6 +2,7 @@
 
 import RichTextEditor from "@components/rich-text-editor";
 import AttachmentPreviewModal from "@components/attachment-preview-modal";
+import ChecklistComponent from "@components/checklist";
 import {
   NotulensiPriorityTag,
   NotulensiStatusTag,
@@ -64,7 +65,7 @@ import { AxiosError } from "axios";
 import dayjs from "dayjs";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Check, Copy, Download, Paperclip, Pencil, Trash2, Upload, X } from "lucide-react";
+import { ArrowLeft, Check, Copy, Download, ListChecks, Paperclip, Pencil, Trash2, Upload, X } from "lucide-react";
 import { ChangeEvent, DragEvent, useEffect, useRef, useState } from "react";
 
 type Props = {
@@ -450,7 +451,7 @@ export default function NotulensiDetailView({
           <div>
             <Typography.Text type="secondary" className="block">Assignees</Typography.Text>
             {detail.permissions?.canAssign ? (
-              <Space.Compact className="mt-1 w-full min-w-[280px]">
+              <Space.Compact className="mt-1 w-full min-w-0 sm:min-w-[280px]">
                 <NotulensiUserSelect
                   value={assigneeIds}
                   onChange={setAssigneeIds}
@@ -485,6 +486,22 @@ export default function NotulensiDetailView({
           <Typography.Text type="secondary">No description</Typography.Text>
         )}
       </div>
+
+      {detail.cardId ? (
+        <div className="min-w-0 rounded-2xl border border-[rgb(var(--color-border))] bg-[rgb(var(--color-surface))] p-4 md:p-6">
+          <div className="mb-4">
+            <Typography.Title level={4} className="!mb-0 !mt-0">
+              <ListChecks className="mr-2 inline" size={18} aria-hidden="true" />
+              Checklists
+            </Typography.Title>
+            <Typography.Text type="secondary">Changes are synced with the linked card.</Typography.Text>
+          </div>
+          <ChecklistComponent
+            cardId={detail.cardId}
+            readOnly={!detail.permissions?.canAssign}
+          />
+        </div>
+      ) : null}
 
       <div
         className="rounded-2xl border border-[rgb(var(--color-border))] bg-[rgb(var(--color-surface))] p-4 md:p-6"

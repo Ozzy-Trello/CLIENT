@@ -244,7 +244,7 @@ export default function NotulensiList({
 
   if (!screens.md) {
     return (
-      <div>
+      <div className="min-w-0">
         <div className="flex flex-col gap-3">
           {data.data.map((item) => (
             <div
@@ -274,14 +274,14 @@ export default function NotulensiList({
             </div>
           ))}
         </div>
-        <div className="mt-4 flex justify-end">
+        <div className="mt-4 flex min-w-0 justify-center">
           <Pagination
             current={data.pagination.page}
             pageSize={data.pagination.limit}
             total={data.pagination.total}
             onChange={onPageChange}
-            showSizeChanger
-            pageSizeOptions={[10, 20, 50]}
+            simple
+            showSizeChanger={false}
           />
         </div>
       </div>

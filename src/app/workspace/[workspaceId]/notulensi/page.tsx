@@ -31,7 +31,7 @@ export default function NotulensiPage() {
   const listQuery = useNotulensiList(workspaceId, filters);
 
   return (
-    <div className="flex flex-col gap-4 p-4 md:p-6">
+    <div className="flex min-w-0 flex-col gap-4 p-4 md:p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <Typography.Text type="secondary" className="block uppercase tracking-wide">
@@ -41,17 +41,19 @@ export default function NotulensiPage() {
             Tasks and Projects
           </Typography.Title>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="grid w-full min-w-0 grid-cols-3 gap-1.5 sm:flex sm:w-auto sm:gap-2">
           <Button
             icon={<RefreshCcw size={16} />}
             onClick={() => listQuery.refetch()}
             loading={listQuery.isFetching}
+            className="min-w-0 !px-2 sm:!px-4"
           >
             Refresh
           </Button>
           <Button
             icon={<Download size={16} />}
             loading={exporting}
+            className="min-w-0 !px-2 sm:!px-4"
             onClick={async () => {
               setExporting(true);
               try {
@@ -67,10 +69,10 @@ export default function NotulensiPage() {
               }
             }}
           >
-            Export XLSX
+            Export<span className="hidden md:inline"> XLSX</span>
           </Button>
-          <Link href={`/workspace/${workspaceId}/notulensi/new`}>
-            <Button type="primary">New Task</Button>
+          <Link href={`/workspace/${workspaceId}/notulensi/new`} className="min-w-0">
+            <Button type="primary" block className="min-w-0 !px-2 sm:!px-4">New Task</Button>
           </Link>
         </div>
       </div>

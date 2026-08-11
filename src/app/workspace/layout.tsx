@@ -43,24 +43,31 @@ const WorkspaceLayout: React.FC<BaseLayoutProps> = ({ children }) => {
         style={{
           marginTop: "45px",
           width: collapsed
-            ? `calc(100%-${siderSmall})`
-            : `calc(100%-${siderWide}) `,
+            ? `calc(100% - ${siderSmall}px)`
+            : `calc(100% - ${siderWide}px)`,
+          minWidth: 0,
+          maxWidth: "100%",
           transition: "margin-left 0.2s ease",
-          height: "calc(100vh - 45px)",
+          height: "calc(100dvh - 45px)",
           overflow: isBoardPage ? "hidden" : "auto",
+          overflowX: "hidden",
+          overscrollBehaviorY: isBoardPage ? "none" : "contain",
+          WebkitOverflowScrolling: "touch",
         }}
       >
         <Content
           style={{
             height: isBoardPage ? "100%" : "auto",
-            minHeight: isBoardPage ? "100%" : "calc(100vh - 45px)",
+            minHeight: isBoardPage ? "100%" : "calc(100dvh - 45px)",
+            minWidth: 0,
             display: "flex",
             flexDirection: "column",
             overflow: isBoardPage ? "hidden" : "visible",
           }}
         >
-          <div style={{ 
-            flex: 1, 
+          <div style={{
+            flex: 1,
+            minWidth: 0,
             overflow: isBoardPage ? "hidden" : "visible",
             minHeight: isBoardPage ? "auto" : "100%"
           }}>

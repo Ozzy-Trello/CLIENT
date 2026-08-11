@@ -103,6 +103,7 @@ export interface NotulensiSummary {
   id: string;
   workspaceId: string;
   code: string;
+  cardId: string | null;
   title: string;
   content: string;
   status: NotulensiStatus;
