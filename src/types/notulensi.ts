@@ -258,6 +258,13 @@ export interface CreateNotulensiPayload {
   priority?: NotulensiPriority;
   dueDate?: string | null;
   assigneeIds: string[];
+  checklist?: {
+    title: string;
+    items: Array<{
+      label: string;
+      checked: boolean;
+    }>;
+  };
 }
 
 export interface UpdateNotulensiPayload {

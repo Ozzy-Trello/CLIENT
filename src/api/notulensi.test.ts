@@ -111,6 +111,10 @@ describe("notulensi api", () => {
       priority: "reg",
       dueDate: "2026-07-29T12:00:00.000Z",
       assigneeIds: ["user-1"],
+      checklist: {
+        title: "Launch steps",
+        items: [{ label: "Confirm artwork", checked: false }],
+      },
     });
 
     expect(mockApi.post).toHaveBeenCalledWith("/workspace/ws-1/notulensi", {
@@ -119,6 +123,10 @@ describe("notulensi api", () => {
       priority: "reg",
       dueDate: "2026-07-29T12:00:00.000Z",
       assigneeIds: ["user-1"],
+      checklist: {
+        title: "Launch steps",
+        items: [{ label: "Confirm artwork", checked: false }],
+      },
     });
   });
 

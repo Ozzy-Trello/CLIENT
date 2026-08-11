@@ -21,7 +21,7 @@ import {
 } from "@myTypes/notulensi";
 import { Button, Checkbox, DatePicker, Form, Input, Result, Select, Typography, message } from "antd";
 import dayjs, { Dayjs } from "dayjs";
-import { Paperclip, Trash2, Upload } from "lucide-react";
+import { ListChecks, Paperclip, Plus, Trash2, Upload } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ChangeEvent, DragEvent, useMemo, useRef, useState } from "react";
@@ -60,6 +60,9 @@ export default function NotulensiForm({
   const [form] = Form.useForm<FormValues>();
   const [queuedFiles, setQueuedFiles] = useState<File[]>([]);
   const [isDraggingAttachment, setIsDraggingAttachment] = useState(false);
+  const [checklistTitle, setChecklistTitle] = useState("Checklist");
+  const [checklistItems, setChecklistItems] = useState<string[]>([]);
+  const [newChecklistItem, setNewChecklistItem] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const currentUser = useSelector(selectUser);
   const params = useParams();
@@ -94,6 +97,13 @@ export default function NotulensiForm({
     event.target.value = "";
   };
 
+  const addChecklistItem = () => {
+    const label = newChecklistItem.trim();
+    if (!label || checklistItems.length >= 100) return;
+    setChecklistItems((items) => [...items, label]);
+    setNewChecklistItem("");
+  };
+
   const initialValues = useMemo<FormValues | undefined>(() => {
     if (!initialData) {
       return {
@@ -125,12 +135,22 @@ export default function NotulensiForm({
         initialValues={initialValues}
         disabled={loading || !canEdit}
         onFinish={async (values) => {
+          const normalizedChecklistItems = [
+            ...checklistItems,
+            ...(newChecklistItem.trim() && checklistItems.length < 100 ? [newChecklistItem] : []),
+          ].map((label) => label.trim()).filter(Boolean);
           const payload = {
             title: values.title.trim(),
             content: normalizeOptionalRichText(values.content),
             priority: values.priority,
             dueDate: values.dueDate?.toISOString() || null,
             assigneeIds: values.assigneeIds,
+            ...(mode === "create" && normalizedChecklistItems.length ? {
+              checklist: {
+                title: checklistTitle.trim() || "Checklist",
+                items: normalizedChecklistItems.map((label) => ({ label, checked: false })),
+              },
+            } : {}),
           };
 
           await onSubmit(
@@ -213,7 +233,74 @@ export default function NotulensiForm({
           </Form.Item>
 
           {mode === "create" ? (
-            <div className="md:col-span-2">
+            <div className="min-w-0 md:col-span-2">
+              <div className="mb-2">
+                <Typography.Text strong>
+                  <ListChecks className="mr-2 inline" size={16} aria-hidden="true" />
+                  Checklist
+                </Typography.Text>
+                <Typography.Text type="secondary" className="ml-2">
+                  Optional, synced with the linked card
+                </Typography.Text>
+              </div>
+              <Input
+                value={checklistTitle}
+                maxLength={255}
+                aria-label="Checklist title"
+                placeholder="Checklist title"
+                onChange={(event) => setChecklistTitle(event.target.value)}
+              />
+              {checklistItems.length ? (
+                <div className="mt-3 flex min-w-0 flex-col gap-2">
+                  {checklistItems.map((item, index) => (
+                    <div key={index} className="flex min-w-0 items-center gap-2">
+                      <Input
+                        value={item}
+                        maxLength={500}
+                        aria-label={`Checklist item ${index + 1}`}
+                        onChange={(event) => setChecklistItems((items) =>
+                          items.map((label, itemIndex) => itemIndex === index ? event.target.value : label)
+                        )}
+                      />
+                      <Button
+                        type="text"
+                        danger
+                        icon={<Trash2 size={16} />}
+                        aria-label={`Remove checklist item ${index + 1}`}
+                        onClick={() => setChecklistItems((items) =>
+                          items.filter((_, itemIndex) => itemIndex !== index)
+                        )}
+                      />
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+              <div className="mt-3 flex min-w-0 flex-col gap-2 sm:flex-row">
+                <Input
+                  value={newChecklistItem}
+                  maxLength={500}
+                  disabled={checklistItems.length >= 100}
+                  placeholder="Add a checklist item"
+                  onChange={(event) => setNewChecklistItem(event.target.value)}
+                  onPressEnter={(event) => {
+                    event.preventDefault();
+                    addChecklistItem();
+                  }}
+                />
+                <Button
+                  htmlType="button"
+                  icon={<Plus size={16} />}
+                  disabled={!newChecklistItem.trim() || checklistItems.length >= 100}
+                  onClick={addChecklistItem}
+                >
+                  Add item
+                </Button>
+              </div>
+            </div>
+          ) : null}
+
+          {mode === "create" ? (
+            <div className="min-w-0 md:col-span-2">
               <div className="mb-2">
                 <Typography.Text strong>
                   <Paperclip className="mr-2 inline" size={16} aria-hidden="true" />
