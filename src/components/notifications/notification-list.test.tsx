@@ -1,13 +1,48 @@
-import { getNotificationTarget } from "./notification-list";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { useDispatch, useSelector } from "react-redux";
+import {
+  getNotifications,
+  getUnreadCount,
+  markNotificationRead,
+} from "@api/notifications";
+import { NotificationList, getNotificationTarget } from "./notification-list";
 import { NotificationItem } from "@myTypes/notification";
 
-jest.mock("next/navigation", () => ({
-  useRouter: () => ({ push: jest.fn() }),
+jest.mock("next/link", () => ({
+  __esModule: true,
+  default: ({
+    href,
+    children,
+    onClick,
+    onAuxClick,
+    ...props
+  }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
+    <a
+      href={href}
+      onClick={(event) => {
+        onClick?.(event);
+        event.preventDefault();
+      }}
+      onAuxClick={(event) => {
+        onAuxClick?.(event);
+        event.preventDefault();
+      }}
+      {...props}
+    >
+      {children}
+    </a>
+  ),
 }));
 
 jest.mock("react-redux", () => ({
-  useDispatch: () => jest.fn(),
-  useSelector: () => [],
+  useDispatch: jest.fn(),
+  useSelector: jest.fn(),
+}));
+
+jest.mock("@api/notifications", () => ({
+  getNotifications: jest.fn(),
+  getUnreadCount: jest.fn(),
+  markNotificationRead: jest.fn(),
 }));
 
 const baseNotification: NotificationItem = {
@@ -153,5 +188,74 @@ describe("getNotificationTarget", () => {
         boardId: null,
       })
     ).toBeNull();
+  });
+});
+
+describe("NotificationList", () => {
+  const dispatch = jest.fn();
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (useDispatch as unknown as jest.Mock).mockReturnValue(dispatch);
+    (useSelector as unknown as jest.Mock).mockReturnValue([baseNotification]);
+    (markNotificationRead as jest.Mock).mockResolvedValue(undefined);
+  });
+
+  it("renders navigable notifications as links and closes only on plain primary click", () => {
+    const { rerender } = render(<NotificationList />);
+    const link = screen.getByRole("link", { name: /New item/i });
+
+    expect(link.getAttribute("href")).toBe("/workspace/ws-1/notulensi/note-1");
+    fireEvent.click(link, { ctrlKey: true });
+    expect(markNotificationRead).toHaveBeenCalledWith("1");
+    expect(dispatch).not.toHaveBeenCalledWith(expect.objectContaining({ payload: false }));
+
+    jest.clearAllMocks();
+    (useDispatch as unknown as jest.Mock).mockReturnValue(dispatch);
+    (useSelector as unknown as jest.Mock).mockReturnValue([baseNotification]);
+    (markNotificationRead as jest.Mock).mockResolvedValue(undefined);
+    rerender(<NotificationList />);
+    fireEvent.click(screen.getByRole("link", { name: /New item/i }));
+
+    expect(markNotificationRead).toHaveBeenCalledWith("1");
+    expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ payload: false }));
+  });
+
+  it("marks unread links on middle click without closing the dropdown", () => {
+    render(<NotificationList />);
+
+    fireEvent(
+      screen.getByRole("link", { name: /New item/i }),
+      new MouseEvent("auxclick", { bubbles: true, button: 1 })
+    );
+
+    expect(markNotificationRead).toHaveBeenCalledWith("1");
+    expect(dispatch).not.toHaveBeenCalledWith(expect.objectContaining({ payload: false }));
+  });
+
+  it("leaves non-target notifications as non-links and unread", () => {
+    (useSelector as unknown as jest.Mock).mockReturnValue([
+      { ...baseNotification, entityType: "product" },
+    ]);
+
+    render(<NotificationList />);
+
+    expect(screen.queryByRole("link")).toBeNull();
+    fireEvent.click(screen.getByText("New item"));
+    expect(markNotificationRead).not.toHaveBeenCalled();
+  });
+
+  it("refreshes the list and count after a mark-read failure", async () => {
+    (markNotificationRead as jest.Mock).mockRejectedValue(new Error("network"));
+    (getNotifications as jest.Mock).mockResolvedValue({ data: [baseNotification] });
+    (getUnreadCount as jest.Mock).mockResolvedValue({ unreadCount: 1 });
+    render(<NotificationList />);
+
+    fireEvent.click(screen.getByRole("link", { name: /New item/i }), { ctrlKey: true });
+
+    await waitFor(() => {
+      expect(getNotifications).toHaveBeenCalledWith(1, 20);
+      expect(getUnreadCount).toHaveBeenCalled();
+    });
   });
 });

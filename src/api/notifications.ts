@@ -18,3 +18,6 @@ export const markAllRead = async (): Promise<void> => {
   await api.patch("/notifications/read");
 };
 
+export const markNotificationRead = async (notificationId: string): Promise<void> => {
+  await api.patch(`/notifications/${encodeURIComponent(notificationId)}/read`);
+};

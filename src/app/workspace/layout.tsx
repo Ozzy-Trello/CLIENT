@@ -5,6 +5,7 @@ import TopBar from "@components/topbar";
 import Sidebar from "@components/sidebar";
 import ChatWidget from "@components/chat/chat-widget";
 import ChatNotificationToast from "@components/chat/chat-notification-toast";
+import NotulensiToast from "@components/notifications/notulensi-toast";
 import "./style.css";
 import { useWorkspaceSidebar } from "@providers/workspace-sidebar-context";
 import { usePathname } from "next/navigation";
@@ -77,6 +78,7 @@ const WorkspaceLayout: React.FC<BaseLayoutProps> = ({ children }) => {
       </Layout>
       <ChatWidget />
       <ChatNotificationToast />
+      <NotulensiToast />
     </Layout>
   );
 };

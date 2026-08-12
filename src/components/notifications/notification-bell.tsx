@@ -8,11 +8,10 @@ import {
   setOpen,
   setUnreadCount,
   setNotifications,
-  markAllReadLocally,
   selectUnreadCount,
   selectNotificationOpen,
 } from "@store/notification_slice";
-import { getNotifications, getUnreadCount, markAllRead } from "@api/notifications";
+import { getNotifications, getUnreadCount } from "@api/notifications";
 import { NotificationList } from "./notification-list";
 
 export function NotificationBell() {
@@ -31,18 +30,9 @@ export function NotificationBell() {
     dispatch(setOpen(open));
 
     if (open) {
-      // Optimistically zero the badge
-      dispatch(markAllReadLocally());
-
-      // Fetch latest notifications + fire mark-read in parallel
-      const [notifResult] = await Promise.allSettled([
-        getNotifications(1, 20),
-        markAllRead(),
-      ]);
-
-      if (notifResult.status === "fulfilled") {
-        dispatch(setNotifications(notifResult.value.data));
-      }
+      getNotifications(1, 20)
+        .then((result) => dispatch(setNotifications(result.data)))
+        .catch(() => {});
     }
   };
 

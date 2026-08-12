@@ -1608,6 +1608,14 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
               invalidateNotulensiNotification(queryClient, message.data);
               dispatch(addNotification(message.data));
               playNotificationSound();
+              if (message.data.entityType === "notulensi") {
+                window.dispatchEvent(new CustomEvent("notulensi:toast", {
+                  detail: {
+                    title: message.data.title,
+                    message: message.data.message,
+                  },
+                }));
+              }
             }
             return;
 

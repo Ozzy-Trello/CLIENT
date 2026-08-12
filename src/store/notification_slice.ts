@@ -33,6 +33,13 @@ const notificationSlice = createSlice({
       state.unreadCount = 0;
       state.notifications = state.notifications.map((n) => ({ ...n, isRead: true }));
     },
+    markNotificationReadLocally(state, action: PayloadAction<string>) {
+      const notification = state.notifications.find((n) => n.id === action.payload);
+      if (notification && !notification.isRead) {
+        notification.isRead = true;
+        state.unreadCount = Math.max(0, state.unreadCount - 1);
+      }
+    },
     setOpen(state, action: PayloadAction<boolean>) {
       state.isOpen = action.payload;
     },
@@ -44,6 +51,7 @@ export const {
   addNotification,
   setUnreadCount,
   markAllReadLocally,
+  markNotificationReadLocally,
   setOpen,
 } = notificationSlice.actions;
 
