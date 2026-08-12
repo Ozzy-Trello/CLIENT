@@ -136,7 +136,8 @@
 .chatWindowBody {
   flex: 1;
   min-height: 0;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
   padding: 10px;
   background: #f8fafc;
 }
@@ -158,6 +159,7 @@
 }
 
 .messageBubble {
+  min-width: 0;
   max-width: 100%;
   width: fit-content;
   border-radius: 16px;
@@ -173,6 +175,7 @@
 .messageBubbleWrapper {
   position: relative;
   display: inline-flex;
+  min-width: 0;
   max-width: 78%;
   overflow: visible;
 }
@@ -779,6 +782,8 @@
 }
 
 .attachmentList {
+  min-width: 0;
+  max-width: 100%;
   margin-top: 8px;
   display: grid;
   gap: 8px;
@@ -818,6 +823,8 @@
 }
 
 .fileAttachment {
+  min-width: 0;
+  max-width: 100%;
   display: flex;
   align-items: center;
   gap: 6px;
