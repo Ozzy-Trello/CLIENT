@@ -13,8 +13,12 @@ import {
   MAX_NOTULENSI_ATTACHMENT_SIZE,
   NOTULENSI_PROGRESS_OPTIONS,
   copyNotulensiLink,
+  getCommentQuote,
+  getPastedFiles,
+  getAssigneeNames,
   hasDisplayableRichContent,
   hasRichTextContent,
+  linkifyNotulensiComment,
   uploadNotulensiAttachmentsSequentially,
   validateNotulensiAttachments,
 } from "@components/notulensi/notulensi-detail-utils";
@@ -65,8 +69,8 @@ import { AxiosError } from "axios";
 import dayjs from "dayjs";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Check, Copy, Download, ListChecks, Paperclip, Pencil, Trash2, Upload, X } from "lucide-react";
-import { ChangeEvent, DragEvent, useEffect, useRef, useState } from "react";
+import { ArrowLeft, Check, Copy, Download, ExternalLink, ListChecks, Paperclip, Pencil, Trash2, Upload, X } from "lucide-react";
+import { ChangeEvent, ClipboardEvent, DragEvent, useEffect, useRef, useState } from "react";
 
 type Props = {
   workspaceId: string;
@@ -100,6 +104,7 @@ export default function NotulensiDetailView({
   const [newComment, setNewComment] = useState("");
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editingComment, setEditingComment] = useState("");
+  const [replyingTo, setReplyingTo] = useState<NotulensiComment | null>(null);
   const [privateNoteDraft, setPrivateNoteDraft] = useState("");
   const [pendingAction, setPendingAction] = useState<NotulensiWorkflowAction | null>(null);
   const [isDraggingAttachment, setIsDraggingAttachment] = useState(false);
@@ -468,9 +473,7 @@ export default function NotulensiDetailView({
               </Space.Compact>
             ) : (
               <Typography.Text>
-                {detail.assignees.length
-                  ? detail.assignees.map((assignee) => assignee.user?.username || "Unknown user").join(", ")
-                  : "Unassigned"}
+                {getAssigneeNames(detail.assignees)}
               </Typography.Text>
             )}
           </div>
@@ -517,6 +520,8 @@ export default function NotulensiDetailView({
           </div>
           {detail.permissions?.canUploadAttachment ? (
             <div
+              tabIndex={0}
+              aria-label="Attachment paste and drop zone"
               className={`w-full rounded-xl border-2 border-dashed p-5 text-center transition-colors ${
                 uploadProgress
                   ? "cursor-not-allowed border-[rgb(var(--color-border))] opacity-60"
@@ -544,6 +549,12 @@ export default function NotulensiDetailView({
                 setIsDraggingAttachment(false);
                 void handleFiles(Array.from(event.dataTransfer.files));
               }}
+              onPaste={(event: ClipboardEvent<HTMLDivElement>) => {
+                const files = getPastedFiles(event.clipboardData);
+                if (!files.length || uploadProgress) return;
+                event.preventDefault();
+                void handleFiles(files);
+              }}
             >
               <input
                 ref={fileInputRef}
@@ -557,7 +568,7 @@ export default function NotulensiDetailView({
                   ? "Attachment upload in progress"
                   : isDraggingAttachment
                     ? "Drop files to upload"
-                    : "Drag and drop files here"}
+                    : "Drag, drop, or paste files here"}
               </Typography.Text>
               {uploadProgress ? (
                 <Typography.Text role="status" aria-live="polite" className="mb-2 block">
@@ -626,6 +637,10 @@ export default function NotulensiDetailView({
                       <button type="button" className="block max-w-full truncate text-left font-medium hover:underline" onClick={() => handleOpenPreview(attachment.id)}>
                         {label}
                       </button>
+                    ) : attachment.url ? (
+                      <a className="block max-w-full truncate font-medium hover:underline" href={attachment.url} target="_blank" rel="noopener noreferrer">
+                        {label}
+                      </a>
                     ) : <Typography.Text ellipsis className="block font-medium">{label}</Typography.Text>}
                     <Typography.Text type="secondary" className="block text-xs">
                       {size} · {attachment.uploader?.username || "Unknown user"}
@@ -659,7 +674,12 @@ export default function NotulensiDetailView({
                       />
                     ) : null}
                     {attachment.url ? (
-                      <Button type="text" aria-label={`Download ${label}`} onClick={() => handleDownload(attachment.url, label)} icon={<Download size={16} />} />
+                      <>
+                        <Button type="text" aria-label={`Download ${label}`} onClick={() => handleDownload(attachment.url, label)} icon={<Download size={16} />} />
+                        <a href={attachment.url} target="_blank" rel="noopener noreferrer" aria-label={`Open original ${label}`} className="inline-flex h-8 w-8 items-center justify-center rounded-md hover:bg-[rgb(var(--color-background))]">
+                          <ExternalLink size={16} />
+                        </a>
+                      </>
                     ) : null}
                     {detail.permissions?.canDeleteAttachment ? (
                       <Popconfirm
@@ -694,6 +714,15 @@ export default function NotulensiDetailView({
               label: "Discussion",
               children: (
                 <div className="flex flex-col gap-4">
+                  {replyingTo ? (
+                    <div className="flex items-start justify-between gap-3 rounded-lg bg-[rgb(var(--color-background))] px-3 py-2 text-sm">
+                      <div className="min-w-0">
+                        <Typography.Text strong>Replying to {replyingTo.creator?.username || "Unknown user"}</Typography.Text>
+                        <Typography.Text type="secondary" className="block truncate">{getCommentQuote(replyingTo.content) || "Comment"}</Typography.Text>
+                      </div>
+                      <Button type="text" size="small" onClick={() => setReplyingTo(null)}>Cancel</Button>
+                    </div>
+                  ) : null}
                   <RichTextEditor
                     minHeight={100}
                     value={newComment}
@@ -713,9 +742,13 @@ export default function NotulensiDetailView({
                           await createCommentMutation.mutateAsync({
                             workspaceId,
                             id: detail.id,
-                            payload: { content: newComment },
+                            payload: {
+                              content: newComment,
+                              ...(replyingTo ? { replyToCommentId: replyingTo.id } : {}),
+                            },
                           });
                           setNewComment("");
+                          setReplyingTo(null);
                           message.success("Comment added");
                         } catch (commentError) {
                           message.error(getErrorMessage(commentError, "Failed to add comment"));
@@ -739,6 +772,7 @@ export default function NotulensiDetailView({
                             </Typography.Text>
                           </div>
                           <Space wrap>
+                            <Button type="link" onClick={() => setReplyingTo(comment)}>Reply</Button>
                             {canEditComment(comment) ? (
                               <Button
                                 type="link"
@@ -812,7 +846,15 @@ export default function NotulensiDetailView({
                             </div>
                           </div>
                         ) : (
-                          <RichTextEditor initialValue={comment.content} readOnly minHeight={60} maxHeight={180} />
+                          <>
+                            {comment.replyTo ? (
+                              <div className="mb-2 rounded-md bg-[rgb(var(--color-background))] px-3 py-2 text-sm">
+                                <Typography.Text strong>{comment.replyTo.creator?.username || "Unknown user"}</Typography.Text>
+                                <Typography.Text type="secondary" className="ml-2">{getCommentQuote(comment.replyTo.content) || "Comment"}</Typography.Text>
+                              </div>
+                            ) : null}
+                            <RichTextEditor initialValue={comment.content} readOnly minHeight={60} maxHeight={180} transformReadOnlyHtml={linkifyNotulensiComment} />
+                          </>
                         )}
                       </div>
                     ))

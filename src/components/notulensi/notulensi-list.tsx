@@ -303,7 +303,8 @@ export default function NotulensiList({
         }}
         scroll={{ x: 1390 }}
         sortDirections={["ascend", "descend", "ascend"]}
-        onChange={(_, __, sorter) => {
+        onChange={(_, __, sorter, extra) => {
+          if (extra.action !== "sort") return;
           const activeSorter = Array.isArray(sorter) ? sorter[0] : sorter;
           const key = activeSorter.columnKey;
           if (typeof key === "string" && sortKeys.has(key as NotulensiSortBy) && activeSorter.order) {

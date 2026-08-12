@@ -7,7 +7,7 @@ export { buildMentionSuggestions } from "./mentions";
 export type { MentionUser } from "./mentions";
 
 // Define the props interface here too so it's available for both components
-interface RichTextEditorProps {
+export interface RichTextEditorProps {
   value?: string;
   initialValue?: string;
   onChange?: (content: string) => void;
@@ -25,6 +25,8 @@ interface RichTextEditorProps {
   openCustomImagesSelector?: boolean;
   setOpenCustomImageSelector?: Dispatch<SetStateAction<boolean>>;
   selectedAttachmentImageUrl?: string;
+  onImageUpload?: (file: File) => Promise<string>;
+  transformReadOnlyHtml?: (html: string) => string;
 }
 
 export interface RichTextEditorHandle {

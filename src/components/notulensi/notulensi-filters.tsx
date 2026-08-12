@@ -18,7 +18,7 @@ type Props = {
 };
 
 const scopeOptions: { value: NotulensiScope; label: string }[] = [
-  { value: "related", label: "All related" },
+  { value: "related", label: "All Related" },
   { value: "created", label: "Created by me" },
   { value: "assigned", label: "Assigned to me" },
   { value: "all", label: "All workspace" },
@@ -49,7 +49,7 @@ export default function NotulensiFilters({ value, onChange, allowAll = false, st
 
   const clearFilters = () => {
     setSearchText("");
-    onChange({ scope: "assigned", page: 1, limit: value.limit });
+    onChange({ scope: "related", page: 1, limit: value.limit });
   };
 
   const toggleStatus = (status: NotulensiStatus) => {
@@ -126,7 +126,7 @@ export default function NotulensiFilters({ value, onChange, allowAll = false, st
         </div>
         <div className="flex flex-col gap-3 lg:flex-row">
           <Select<NotulensiScope>
-            value={value.scope || "assigned"}
+            value={value.scope || "related"}
             onChange={(scope) => applyPatch({ scope })}
             className={screens.lg ? "w-56" : "w-full"}
             options={scopeOptions.filter((option) => allowAll || option.value !== "all")}

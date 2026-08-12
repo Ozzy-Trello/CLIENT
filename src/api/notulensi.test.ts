@@ -188,13 +188,16 @@ describe("notulensi api", () => {
     mockApi.patch.mockResolvedValue({ data: { data: { id: "c-1" } } });
     mockApi.delete.mockResolvedValue({ data: { success: true } });
 
-    await createNotulensiComment("ws-1", "n-1", { content: "Please confirm" });
+    await createNotulensiComment("ws-1", "n-1", {
+      content: "Please confirm",
+      replyToCommentId: "c-parent",
+    });
     await updateNotulensiComment("ws-1", "n-1", "c-1", { content: "Updated" });
     await deleteNotulensiComment("ws-1", "n-1", "c-1");
 
     expect(mockApi.post).toHaveBeenCalledWith(
       "/workspace/ws-1/notulensi/n-1/comments",
-      { content: "Please confirm" }
+      { content: "Please confirm", replyToCommentId: "c-parent" }
     );
     expect(mockApi.patch).toHaveBeenCalledWith(
       "/workspace/ws-1/notulensi/n-1/comments/c-1",
@@ -227,11 +230,13 @@ describe("notulensi api", () => {
   });
 
   it("uploads and deletes attachments with direct multipart endpoints", async () => {
-    mockApi.post.mockResolvedValue({ data: { data: { id: "a-1" } } });
+    mockApi.post.mockResolvedValue({
+      data: { data: { id: "a-1", url: "https://files.example.com/report.pdf" } },
+    });
     mockApi.delete.mockResolvedValue({ data: { success: true } });
     const file = new File(["content"], "report.pdf", { type: "application/pdf" });
 
-    await uploadNotulensiAttachment("ws-1", "n-1", file);
+    const uploadResponse = await uploadNotulensiAttachment("ws-1", "n-1", file);
     await deleteNotulensiAttachment("ws-1", "n-1", "a-1");
 
     const formData = mockApi.post.mock.calls[0][1] as FormData;
@@ -240,6 +245,7 @@ describe("notulensi api", () => {
       expect.any(FormData)
     );
     expect(formData.get("file")).toBe(file);
+    expect(uploadResponse.data.url).toBe("https://files.example.com/report.pdf");
     expect(mockApi.delete).toHaveBeenCalledWith(
       "/workspace/ws-1/notulensi/n-1/attachments/a-1"
     );

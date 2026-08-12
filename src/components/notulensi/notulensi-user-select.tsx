@@ -28,14 +28,14 @@ export default function NotulensiUserSelect({
   const options = useMemo(() => {
     return (data?.data || []).map((account) => ({
       value: account.id,
-      searchLabel: `${account.username} ${account.email}`.toLowerCase(),
+      searchLabel: `${account.username} ${account.email} ${account.role?.name || ""}`.toLowerCase(),
       label: (
         <div className="flex items-center gap-3">
           <Avatar size={24}>{getInitials(account.username)}</Avatar>
           <div className="min-w-0">
             <Typography.Text className="block">{account.username}</Typography.Text>
             <Typography.Text type="secondary" className="block text-xs">
-              {account.email}
+              {[account.role?.name, account.email].filter(Boolean).join(" · ")}
             </Typography.Text>
           </div>
         </div>

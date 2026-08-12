@@ -4,8 +4,6 @@ import React, {
   useRef,
   useCallback,
   useMemo,
-  Dispatch,
-  SetStateAction,
   useImperativeHandle,
   forwardRef,
 } from "react";
@@ -18,7 +16,7 @@ import Mention from "quill-mention";
 import { useAccountList } from "../../hooks/account";
 import { Account } from "../../dto/account";
 import { buildMentionSuggestions, MentionUser } from "./mentions";
-import type { RichTextEditorHandle } from "./index";
+import type { RichTextEditorHandle, RichTextEditorProps } from "./index";
 
 const toCssSize = (value: string | number) =>
   typeof value === "number" ? `${value}px` : value;
@@ -50,26 +48,6 @@ const formats = [
 
 const readOnlyModules = { toolbar: false };
 
-interface RichTextEditorProps {
-  value?: string;
-  initialValue?: string;
-  onChange?: (content: string) => void;
-  placeholder?: string;
-  width?: string | number;
-  minHeight?: string | number;
-  maxHeight?: string | number;
-  className?: string;
-  readOnly?: boolean;
-  workspaceId?: string;
-  boardId?: string;
-  mentionUsers?: MentionUser[];
-  allowWorkspaceAllMention?: boolean;
-  hasCustomImageSelector?: boolean;
-  openCustomImagesSelector?: boolean;
-  setOpenCustomImageSelector?: Dispatch<SetStateAction<boolean>>;
-  selectedAttachmentImageUrl?: string;
-}
-
 const RichTextEditorClient = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
   (
     {
@@ -90,6 +68,8 @@ const RichTextEditorClient = forwardRef<RichTextEditorHandle, RichTextEditorProp
       boardId,
       mentionUsers,
       allowWorkspaceAllMention = true,
+      onImageUpload,
+      transformReadOnlyHtml,
     },
     ref
   ) => {
@@ -101,10 +81,12 @@ const RichTextEditorClient = forwardRef<RichTextEditorHandle, RichTextEditorProp
     const isControlledRef = useRef(isControlled);
     const onChangeRef = useRef(onChange);
     const setOpenCustomImageSelectorRef = useRef(setOpenCustomImageSelector);
+    const onImageUploadRef = useRef(onImageUpload);
 
     isControlledRef.current = isControlled;
     onChangeRef.current = onChange;
     setOpenCustomImageSelectorRef.current = setOpenCustomImageSelector;
+    onImageUploadRef.current = onImageUpload;
 
     const insertImage = useCallback((imageUrl: string, index?: number) => {
       const quillEditor = quillRef.current?.getEditor();
@@ -137,9 +119,18 @@ const RichTextEditorClient = forwardRef<RichTextEditorHandle, RichTextEditorProp
             const input = document.createElement("input");
             input.type = "file";
             input.accept = "image/*";
-            input.onchange = () => {
+            input.onchange = async () => {
               const file = input.files?.[0];
               if (!file) return;
+
+              if (onImageUploadRef.current) {
+                try {
+                  insertImage(await onImageUploadRef.current(file), cursorIndex);
+                } catch {
+                  message.error("Failed to upload image");
+                }
+                return;
+              }
 
               const reader = new FileReader();
               reader.onload = () => {
@@ -276,27 +267,30 @@ const RichTextEditorClient = forwardRef<RichTextEditorHandle, RichTextEditorProp
       const pasteHandler = (e: ClipboardEvent) => {
         if (!e.clipboardData || !e.clipboardData.items) return;
 
-        Array.from(e.clipboardData.items).forEach((item) => {
-          if (item.type.indexOf("image") !== -1) {
-            e.preventDefault();
+        const imageItem = Array.from(e.clipboardData.items).find((item) =>
+          item.type.startsWith("image/")
+        );
+        const file = imageItem?.getAsFile();
+        if (!file) return;
+        e.preventDefault();
 
-            const file = item.getAsFile();
-            if (!file) return;
+        if (onImageUploadRef.current) {
+          void onImageUploadRef.current(file)
+            .then((url) => insertImage(url))
+            .catch(() => message.error("Failed to upload image"));
+          return;
+        }
 
-            const reader = new FileReader();
-            reader.onload = (event) => {
-              if (!event.target?.result) return;
-
-              insertImage(event.target.result as string);
-            };
-            reader.readAsDataURL(file);
-          }
-        });
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          if (event.target?.result) insertImage(event.target.result as string);
+        };
+        reader.readAsDataURL(file);
       };
 
-      containerRef.current.addEventListener("paste", pasteHandler);
+      containerRef.current.addEventListener("paste", pasteHandler, true);
       return () => {
-        containerRef.current?.removeEventListener("paste", pasteHandler);
+        containerRef.current?.removeEventListener("paste", pasteHandler, true);
       };
     }, [insertImage, readOnly]);
 
@@ -306,6 +300,18 @@ const RichTextEditorClient = forwardRef<RichTextEditorHandle, RichTextEditorProp
         onChange(content);
       }
     };
+
+    const editorValue = readOnly && transformReadOnlyHtml
+      ? transformReadOnlyHtml(isControlled ? controlledValue || "" : localValue)
+      : isControlled ? controlledValue : localValue;
+
+    useEffect(() => {
+      if (!readOnly) return;
+      quillRef.current?.getEditor().root.querySelectorAll("a").forEach((anchor) => {
+        anchor.target = "_blank";
+        anchor.rel = "noopener noreferrer";
+      });
+    }, [editorValue, readOnly]);
 
     const handleMentionModule = useCallback(() => {
       const editor = quillRef.current?.getEditor();
@@ -390,7 +396,7 @@ const RichTextEditorClient = forwardRef<RichTextEditorHandle, RichTextEditorProp
           key="rich-text-editor"
           ref={quillRef}
           theme="snow"
-          value={isControlled ? controlledValue : localValue}
+          value={editorValue}
           onChange={handleChange}
           modules={readOnly ? readOnlyModules : modulesRef.current}
           formats={formats}

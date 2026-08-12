@@ -1,7 +1,7 @@
 "use client";
 
 import NotulensiForm from "@components/notulensi/notulensi-form";
-import { useNotulensiDetail, useUpdateNotulensi } from "@hooks/notulensi";
+import { useNotulensiDetail, useUpdateNotulensi, useUploadNotulensiAttachment } from "@hooks/notulensi";
 import { UpdateNotulensiPayload } from "@myTypes/notulensi";
 import { Result, Skeleton, Typography, message } from "antd";
 import { AxiosError } from "axios";
@@ -28,6 +28,7 @@ export default function EditNotulensiPage() {
 
   const detailQuery = useNotulensiDetail(workspaceId, id);
   const updateMutation = useUpdateNotulensi();
+  const uploadAttachmentMutation = useUploadNotulensiAttachment();
 
   if (detailQuery.isLoading) {
     return (
@@ -61,8 +62,13 @@ export default function EditNotulensiPage() {
         mode="edit"
         initialData={detail}
         canEdit={Boolean(detail.permissions?.canEdit)}
-        submitting={updateMutation.isPending}
+        submitting={updateMutation.isPending || uploadAttachmentMutation.isPending}
         cancelHref={`/workspace/${workspaceId}/notulensi/${id}`}
+        onImageUpload={async (file) => {
+          const response = await uploadAttachmentMutation.mutateAsync({ workspaceId, id, file });
+          if (!response.data.url) throw new Error("Upload did not return an image URL");
+          return response.data.url;
+        }}
         onSubmit={async (payload) => {
           try {
             await updateMutation.mutateAsync({

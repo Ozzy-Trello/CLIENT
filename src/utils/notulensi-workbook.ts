@@ -43,6 +43,11 @@ export function createNotulensiWorkbook(payload: NotulensiExportResponse["data"]
   const workbook = XLSX.utils.book_new();
   (Object.keys(NOTULENSI_EXPORT_HEADERS) as Array<keyof typeof NOTULENSI_EXPORT_HEADERS>).forEach((name) => {
     const sheet = XLSX.utils.json_to_sheet(rows[name], { header: [...NOTULENSI_EXPORT_HEADERS[name]] });
+    if (name === "Attachments") {
+      payload.attachments.forEach((attachment, index) => {
+        if (attachment.url) sheet[`C${index + 2}`].l = { Target: attachment.url };
+      });
+    }
     XLSX.utils.book_append_sheet(workbook, sheet, name);
   });
   return workbook;

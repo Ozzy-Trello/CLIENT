@@ -5,7 +5,12 @@ import NotulensiUserSelect from "@components/notulensi/notulensi-user-select";
 import { NOTULENSI_PRIORITY_META } from "@components/notulensi/notulensi-status";
 import {
   MAX_NOTULENSI_ATTACHMENT_SIZE,
+  MAX_NOTULENSI_CONTENT_TEXT_LENGTH,
+  QueuedInlineImage,
+  getPastedFiles,
+  isNotulensiContentValid,
   normalizeOptionalRichText,
+  removeQueuedInlineImages,
   validateNotulensiAttachments,
 } from "@components/notulensi/notulensi-detail-utils";
 import { selectUser } from "@store/app_slice";
@@ -24,7 +29,7 @@ import dayjs, { Dayjs } from "dayjs";
 import { ListChecks, Paperclip, Plus, Trash2, Upload } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ChangeEvent, DragEvent, useMemo, useRef, useState } from "react";
+import { ChangeEvent, ClipboardEvent, DragEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 
 type FormValues = {
@@ -43,8 +48,11 @@ type Props = {
   canEdit?: boolean;
   onSubmit: (
     payload: CreateNotulensiPayload | UpdateNotulensiPayload,
-    queuedFiles?: File[]
+    queuedFiles?: File[],
+    inlineImages?: QueuedInlineImage[],
+    contentWithInlineImages?: string
   ) => Promise<void> | void;
+  onImageUpload?: (file: File) => Promise<string>;
   cancelHref: string;
 };
 
@@ -56,14 +64,17 @@ export default function NotulensiForm({
   canEdit = true,
   onSubmit,
   cancelHref,
+  onImageUpload,
 }: Props) {
   const [form] = Form.useForm<FormValues>();
   const [queuedFiles, setQueuedFiles] = useState<File[]>([]);
+  const [queuedInlineImages, setQueuedInlineImages] = useState<QueuedInlineImage[]>([]);
   const [isDraggingAttachment, setIsDraggingAttachment] = useState(false);
   const [checklistTitle, setChecklistTitle] = useState("Checklist");
   const [checklistItems, setChecklistItems] = useState<string[]>([]);
   const [newChecklistItem, setNewChecklistItem] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const queuedInlineImagesRef = useRef<QueuedInlineImage[]>([]);
   const currentUser = useSelector(selectUser);
   const params = useParams();
   const workspaceId = Array.isArray(params.workspaceId)
@@ -90,6 +101,18 @@ export default function NotulensiForm({
     if (rejected.length) {
       message.error(`${rejected.length} attachment${rejected.length === 1 ? "" : "s"} exceeded 50 MB`);
     }
+  };
+
+  queuedInlineImagesRef.current = queuedInlineImages;
+  useEffect(() => () => {
+    queuedInlineImagesRef.current.forEach(({ placeholderUrl }) => URL.revokeObjectURL(placeholderUrl));
+  }, []);
+
+  const handleInlineImage = async (file: File) => {
+    if (onImageUpload) return onImageUpload(file);
+    const placeholderUrl = URL.createObjectURL(file);
+    setQueuedInlineImages((images) => [...images, { file, placeholderUrl }]);
+    return placeholderUrl;
   };
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -135,13 +158,21 @@ export default function NotulensiForm({
         initialValues={initialValues}
         disabled={loading || !canEdit}
         onFinish={async (values) => {
+          if (!isNotulensiContentValid(values.content)) {
+            message.error(`Content must be ${MAX_NOTULENSI_CONTENT_TEXT_LENGTH.toLocaleString()} visible characters or less`);
+            return;
+          }
           const normalizedChecklistItems = [
             ...checklistItems,
             ...(newChecklistItem.trim() && checklistItems.length < 100 ? [newChecklistItem] : []),
           ].map((label) => label.trim()).filter(Boolean);
           const payload = {
             title: values.title.trim(),
-            content: normalizeOptionalRichText(values.content),
+            content: normalizeOptionalRichText(
+              mode === "create"
+                ? removeQueuedInlineImages(values.content, queuedInlineImages)
+                : values.content
+            ),
             priority: values.priority,
             dueDate: values.dueDate?.toISOString() || null,
             assigneeIds: values.assigneeIds,
@@ -155,7 +186,9 @@ export default function NotulensiForm({
 
           await onSubmit(
             payload as CreateNotulensiPayload | UpdateNotulensiPayload,
-            mode === "create" ? queuedFiles : undefined
+            mode === "create" ? queuedFiles : undefined,
+            mode === "create" ? queuedInlineImages : undefined,
+            values.content
           );
         }}
       >
@@ -184,6 +217,7 @@ export default function NotulensiForm({
               minHeight={220}
               maxHeight="none"
               className="w-full"
+              onImageUpload={handleInlineImage}
             />
           </Form.Item>
 
@@ -311,6 +345,8 @@ export default function NotulensiForm({
                 </Typography.Text>
               </div>
               <div
+                tabIndex={0}
+                aria-label="Attachment paste and drop zone"
                 className={`rounded-xl border-2 border-dashed p-5 text-center transition-colors ${
                   isDraggingAttachment
                     ? "border-[rgb(var(--color-primary))] bg-[rgb(var(--color-background))]"
@@ -335,6 +371,12 @@ export default function NotulensiForm({
                   setIsDraggingAttachment(false);
                   queueFiles(Array.from(event.dataTransfer.files));
                 }}
+                onPaste={(event: ClipboardEvent<HTMLDivElement>) => {
+                  const files = getPastedFiles(event.clipboardData);
+                  if (!files.length) return;
+                  event.preventDefault();
+                  queueFiles(files);
+                }}
               >
                 <input
                   ref={fileInputRef}
@@ -344,7 +386,7 @@ export default function NotulensiForm({
                   onChange={handleFileChange}
                 />
                 <Typography.Text strong className="mb-2 block">
-                  {isDraggingAttachment ? "Drop files to queue" : "Drag and drop files here"}
+                  {isDraggingAttachment ? "Drop files to queue" : "Drag, drop, or paste files here"}
                 </Typography.Text>
                 <Button icon={<Upload size={16} />} onClick={() => fileInputRef.current?.click()}>
                   Choose files

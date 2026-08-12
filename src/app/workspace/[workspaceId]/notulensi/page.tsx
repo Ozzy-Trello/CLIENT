@@ -20,7 +20,7 @@ export default function NotulensiPage() {
     ? params.workspaceId[0]
     : params.workspaceId || "";
   const [filters, setFilters] = useState<NotulensiListFilters>({
-    scope: "assigned",
+    scope: "related",
     page: 1,
     limit: 20,
   });

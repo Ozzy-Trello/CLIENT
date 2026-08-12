@@ -51,6 +51,14 @@ export interface NotulensiCommentPermissions {
   canDelete: boolean;
 }
 
+export interface NotulensiCommentReply {
+  id: string;
+  content: string;
+  createdBy: string;
+  creator: NotulensiUser | null;
+  createdAt: string;
+}
+
 export interface NotulensiComment {
   id: string;
   notulensiId: string;
@@ -59,6 +67,8 @@ export interface NotulensiComment {
   creator: NotulensiUser | null;
   createdAt: string;
   updatedAt: string;
+  replyToCommentId: string | null;
+  replyTo: NotulensiCommentReply | null;
   permissions?: NotulensiCommentPermissions | null;
 }
 
@@ -287,6 +297,7 @@ export interface NotulensiEligibleAssigneesResponse {
 
 export interface NotulensiCommentPayload {
   content: string;
+  replyToCommentId?: string;
 }
 
 export interface NotulensiPrivateNotePayload {

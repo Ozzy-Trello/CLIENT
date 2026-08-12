@@ -1,5 +1,6 @@
 import { NotulensiAction, NotulensiAssignee, NotulensiProgress, NotulensiWorkflowAction } from "@myTypes/notulensi";
 import dayjs from "dayjs";
+import { linkifyHtml } from "@utils/normalize-quill-html";
 
 export const normalizeOptionalRichText = (content?: string) => content || "";
 
@@ -20,7 +21,12 @@ export const hasDisplayableRichContent = (content?: string) =>
 
 export const getAssigneeNames = (assignees: NotulensiAssignee[]) =>
   assignees.length
-    ? assignees.map((assignee) => assignee.user?.username || "Unknown user").join(", ")
+    ? assignees.map((assignee) => {
+        if (!assignee.user) return "Unknown user";
+        return assignee.user.role?.name
+          ? `${assignee.user.username} (${assignee.user.role.name})`
+          : assignee.user.username;
+      }).join(", ")
     : "Unassigned";
 
 export const formatNotulensiListDate = (date: string) => dayjs(date).format("DD/MM/YYYY");
@@ -30,7 +36,7 @@ export const NOTULENSI_ACTION_META: Record<
   { label: string; danger?: boolean; confirmation?: { title: string; description: string } }
 > = {
   start: { label: "Proses" },
-  submit_review: { label: "Menunggu Review" },
+  submit_review: { label: "Ajukan Review" },
   request_revision: { label: "Revisi" },
   complete: {
     label: "Selesai",
@@ -99,6 +105,58 @@ export const NOTULENSI_PROGRESS_OPTIONS: { label: string; value: NotulensiProgre
 ];
 
 export const MAX_NOTULENSI_ATTACHMENT_SIZE = 50 * 1024 * 1024;
+export const MAX_NOTULENSI_CONTENT_TEXT_LENGTH = 100000;
+
+export type QueuedInlineImage = { file: File; placeholderUrl: string };
+
+export const getRichTextPlainText = (content?: string) => {
+  if (!content) return "";
+  const doc = new DOMParser().parseFromString(content, "text/html");
+  return (doc.body.textContent || "").replace(/\u00a0/g, " ");
+};
+
+export const isNotulensiContentValid = (content?: string) =>
+  getRichTextPlainText(content).length <= MAX_NOTULENSI_CONTENT_TEXT_LENGTH;
+
+export const removeQueuedInlineImages = (
+  content: string,
+  images: QueuedInlineImage[]
+) => replaceInlineImageUrls(content, new Map(images.map(({ placeholderUrl }) => [placeholderUrl, ""])));
+
+export const replaceInlineImageUrls = (content: string, urls: Map<string, string>) => {
+  if (!content || !urls.size) return content;
+  const doc = new DOMParser().parseFromString(content, "text/html");
+  doc.querySelectorAll("img").forEach((image) => {
+    const replacement = urls.get(image.getAttribute("src") || "");
+    if (replacement === undefined) return;
+    if (replacement) image.setAttribute("src", replacement);
+    else image.remove();
+  });
+  return doc.body.innerHTML;
+};
+
+export const getPastedFiles = (clipboardData: Pick<DataTransfer, "files" | "items">) => {
+  const files = Array.from(clipboardData.files || []);
+  if (files.length) return files;
+  return Array.from(clipboardData.items || [])
+    .filter((item) => item.kind === "file")
+    .map((item) => item.getAsFile())
+    .filter((file): file is File => Boolean(file));
+};
+
+export const getCommentQuote = (content?: string, maxLength = 180) => {
+  const text = getRichTextPlainText(content).replace(/\s+/g, " ").trim();
+  return text.length > maxLength ? `${text.slice(0, maxLength - 1)}…` : text;
+};
+
+export const linkifyNotulensiComment = (content: string) => {
+  const doc = new DOMParser().parseFromString(linkifyHtml(content), "text/html");
+  doc.querySelectorAll("a").forEach((anchor) => {
+    anchor.target = "_blank";
+    anchor.rel = "noopener noreferrer";
+  });
+  return doc.body.innerHTML;
+};
 
 export const validateNotulensiAttachments = (files: File[]) => ({
   accepted: files.filter((file) => file.size <= MAX_NOTULENSI_ATTACHMENT_SIZE),

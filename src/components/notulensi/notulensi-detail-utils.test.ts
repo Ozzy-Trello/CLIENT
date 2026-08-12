@@ -5,10 +5,17 @@ import {
   formatNotulensiListDate,
   getListWorkflowActions,
   getAssigneeNames,
+  getCommentQuote,
+  getPastedFiles,
+  getRichTextPlainText,
   getNotulensiUrl,
   hasDisplayableRichContent,
   hasRichTextContent,
+  isNotulensiContentValid,
+  linkifyNotulensiComment,
   normalizeOptionalRichText,
+  removeQueuedInlineImages,
+  replaceInlineImageUrls,
   validateNotulensiAttachments,
   uploadNotulensiAttachmentsSequentially,
 } from "./notulensi-detail-utils";
@@ -31,12 +38,48 @@ describe("notulensi detail options", () => {
     expect(hasDisplayableRichContent('<p><img src="image.png"></p>')).toBe(true);
   });
 
+  it("validates content by visible text instead of raw HTML size", () => {
+    expect(getRichTextPlainText(`<p>${"a".repeat(100000)}</p>`)).toHaveLength(100000);
+    expect(isNotulensiContentValid(`<p>${"a".repeat(100000)}</p>`)).toBe(true);
+    expect(isNotulensiContentValid(`<p>${"a".repeat(100001)}</p>`)).toBe(false);
+    expect(isNotulensiContentValid(`<span class="${"x".repeat(100001)}">ok</span>`)).toBe(true);
+  });
+
+  it("removes unresolved inline images and replaces uploaded placeholders", () => {
+    const file = new File(["image"], "image.png", { type: "image/png" });
+    const html = '<p>Before<img src="blob:queued-1">After<img src="https://existing.test/image.png"></p>';
+    expect(removeQueuedInlineImages(html, [{ file, placeholderUrl: "blob:queued-1" }])).toBe(
+      '<p>BeforeAfter<img src="https://existing.test/image.png"></p>'
+    );
+    expect(replaceInlineImageUrls(html, new Map([["blob:queued-1", "https://files.test/image.png"]]))).toContain(
+      'src="https://files.test/image.png"'
+    );
+  });
+
+  it("extracts pasted files without intercepting text-only clipboard data", () => {
+    const file = new File(["x"], "notes.txt");
+    expect(getPastedFiles({ files: [file] as unknown as FileList, items: [] as unknown as DataTransferItemList })).toEqual([file]);
+    expect(getPastedFiles({ files: [] as unknown as FileList, items: [] as unknown as DataTransferItemList })).toEqual([]);
+  });
+
+  it("builds bounded plain-text reply quotes and safely linkifies comments", () => {
+    expect(getCommentQuote(`<p>${"a".repeat(200)}</p>`)).toHaveLength(180);
+    const html = linkifyNotulensiComment('<p>See https://example.com and <a href="https://linked.test">linked</a></p>');
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    expect(doc.querySelectorAll("a")).toHaveLength(2);
+    doc.querySelectorAll("a").forEach((anchor) => {
+      expect(anchor.target).toBe("_blank");
+      expect(anchor.rel).toBe("noopener noreferrer");
+    });
+  });
+
   it("formats assignee names including empty and deleted users", () => {
     expect(getAssigneeNames([])).toBe("Unassigned");
     expect(getAssigneeNames([
       { id: "a-1", userId: "u-1", user: { id: "u-1", username: "alice", email: "a@test" } },
-      { id: "a-2", userId: "u-2", user: null },
-    ])).toBe("alice, Unknown user");
+      { id: "a-2", userId: "u-2", user: { id: "u-2", username: "bob", email: "b@test", role: { id: "r-1", name: "Manager" } } },
+      { id: "a-3", userId: "u-3", user: null },
+    ])).toBe("alice, bob (Manager), Unknown user");
   });
 
   it("formats home dates without time", () => {
@@ -45,6 +88,11 @@ describe("notulensi detail options", () => {
 
   it("uses Revisi for the revision action", () => {
     expect(NOTULENSI_ACTION_META.request_revision.label).toBe("Revisi");
+  });
+
+  it("labels only the review submission action as Ajukan Review", () => {
+    expect(NOTULENSI_ACTION_META.submit_review.label).toBe("Ajukan Review");
+    expect(NOTULENSI_STATUS_META.waiting_review.label).toBe("Menunggu Review");
   });
 
   it("selects every list workflow action except progress updates", () => {

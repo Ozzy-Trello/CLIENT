@@ -45,6 +45,9 @@ describe("notulensi workbook", () => {
     expect(XLSX.utils.sheet_to_json(workbook.Sheets.Attachments, { header: 1 })).toEqual([
       NOTULENSI_EXPORT_HEADERS.Attachments, ["N-1", "report.xlsx", "https://files.example.com/report.xlsx", 42, "KB", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "Bima", "Analyst", "2026-07-29T12:00:00.000Z"],
     ]);
+    expect(workbook.Sheets.Attachments.C2.l).toEqual({
+      Target: "https://files.example.com/report.xlsx",
+    });
     expect(Object.values(workbook.Sheets).flatMap((sheet) => (XLSX.utils.sheet_to_json(sheet, { header: 1 }) as unknown[][]).flat())).not.toEqual(expect.arrayContaining(["private-note", "secret-project", "reminder-secret", "restricted"]));
   });
 
