@@ -1,4 +1,4 @@
-import { getImageFile, toCssSize } from "./index";
+import { getImageFile, sanitizeEditorImageUrl, toCssSize } from "./index";
 import { buildMentionSuggestions } from "./mentions";
 
 describe("rich text editor sizing", () => {
@@ -15,6 +15,19 @@ describe("rich text editor image files", () => {
 
     expect(getImageFile({ files: [pdf, image] as any, items: [] as any })).toBe(image);
     expect(getImageFile({ files: [pdf] as any, items: [] as any })).toBeNull();
+  });
+
+  it("allows local previews and safe persisted image URLs", () => {
+    expect(sanitizeEditorImageUrl("blob:https://ozzy.test/preview")).toBe(
+      "blob:https://ozzy.test/preview"
+    );
+    expect(sanitizeEditorImageUrl("data:image/png;base64,abc")).toBe(
+      "data:image/png;base64,abc"
+    );
+    expect(sanitizeEditorImageUrl("https://files.test/photo.png")).toBe(
+      "https://files.test/photo.png"
+    );
+    expect(sanitizeEditorImageUrl("javascript:alert(1)")).toBe("//:0");
   });
 });
 

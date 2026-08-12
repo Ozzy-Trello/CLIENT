@@ -50,6 +50,9 @@ export const getImageFile = (
     ?.getAsFile() || null;
 };
 
+export const sanitizeEditorImageUrl = (url: string) =>
+  /^(?:https?:|data:image\/|blob:)/i.test(url) ? url : "//:0";
+
 // Create a placeholder component to show while loading
 const EditorPlaceholder: React.FC<{
   minHeight?: string | number;

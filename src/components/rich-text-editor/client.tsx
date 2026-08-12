@@ -16,13 +16,20 @@ import Mention from "quill-mention";
 import { useAccountList } from "../../hooks/account";
 import { Account } from "../../dto/account";
 import { buildMentionSuggestions, MentionUser } from "./mentions";
-import { getImageFile } from "./index";
+import { getImageFile, sanitizeEditorImageUrl } from "./index";
 import type { RichTextEditorHandle, RichTextEditorProps } from "./index";
 
 const toCssSize = (value: string | number) =>
   typeof value === "number" ? `${value}px` : value;
 
 if (typeof window !== "undefined") {
+  const Image = Quill.import("formats/image");
+  class PreviewImage extends Image {
+    static sanitize(url: string) {
+      return sanitizeEditorImageUrl(url);
+    }
+  }
+  Quill.register(PreviewImage, true);
   Quill.register("modules/mention", Mention, true);
 }
 
