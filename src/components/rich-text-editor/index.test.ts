@@ -1,10 +1,20 @@
-import { toCssSize } from "./index";
+import { getImageFile, toCssSize } from "./index";
 import { buildMentionSuggestions } from "./mentions";
 
 describe("rich text editor sizing", () => {
   it("preserves CSS sizes and converts numeric sizes to pixels", () => {
     expect(toCssSize(220)).toBe("220px");
     expect(toCssSize("14rem")).toBe("14rem");
+  });
+});
+
+describe("rich text editor image files", () => {
+  it("accepts images from drag and drop but ignores other files", () => {
+    const image = new File(["image"], "photo.png", { type: "image/png" });
+    const pdf = new File(["pdf"], "document.pdf", { type: "application/pdf" });
+
+    expect(getImageFile({ files: [pdf, image] as any, items: [] as any })).toBe(image);
+    expect(getImageFile({ files: [pdf] as any, items: [] as any })).toBeNull();
   });
 });
 

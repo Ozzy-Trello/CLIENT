@@ -37,6 +37,19 @@ export interface RichTextEditorHandle {
 export const toCssSize = (value: string | number) =>
   typeof value === "number" ? `${value}px` : value;
 
+export const getImageFile = (
+  transfer: Pick<DataTransfer, "files" | "items">
+) => {
+  const file = Array.from(transfer.files || []).find((item) =>
+    item.type.startsWith("image/")
+  );
+  if (file) return file;
+
+  return Array.from(transfer.items || [])
+    .find((item) => item.kind === "file" && item.type.startsWith("image/"))
+    ?.getAsFile() || null;
+};
+
 // Create a placeholder component to show while loading
 const EditorPlaceholder: React.FC<{
   minHeight?: string | number;

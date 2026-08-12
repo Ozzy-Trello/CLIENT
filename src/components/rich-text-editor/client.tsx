@@ -16,6 +16,7 @@ import Mention from "quill-mention";
 import { useAccountList } from "../../hooks/account";
 import { Account } from "../../dto/account";
 import { buildMentionSuggestions, MentionUser } from "./mentions";
+import { getImageFile } from "./index";
 import type { RichTextEditorHandle, RichTextEditorProps } from "./index";
 
 const toCssSize = (value: string | number) =>
@@ -103,6 +104,19 @@ const RichTextEditorClient = forwardRef<RichTextEditorHandle, RichTextEditorProp
       message.success("Image added");
     }, []);
 
+    const addImageFile = useCallback(async (file: File, index?: number) => {
+      if (onImageUploadRef.current) {
+        insertImage(await onImageUploadRef.current(file), index);
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === "string") insertImage(reader.result, index);
+      };
+      reader.readAsDataURL(file);
+    }, [insertImage]);
+
     // Initialize modules object immediately
     const modulesRef = useRef<any>({
       toolbar: {
@@ -123,22 +137,11 @@ const RichTextEditorClient = forwardRef<RichTextEditorHandle, RichTextEditorProp
               const file = input.files?.[0];
               if (!file) return;
 
-              if (onImageUploadRef.current) {
-                try {
-                  insertImage(await onImageUploadRef.current(file), cursorIndex);
-                } catch {
-                  message.error("Failed to upload image");
-                }
-                return;
+              try {
+                await addImageFile(file, cursorIndex);
+              } catch {
+                message.error("Failed to upload image");
               }
-
-              const reader = new FileReader();
-              reader.onload = () => {
-                if (typeof reader.result === "string") {
-                  insertImage(reader.result, cursorIndex);
-                }
-              };
-              reader.readAsDataURL(file);
             };
             input.click();
           },
@@ -260,39 +263,40 @@ const RichTextEditorClient = forwardRef<RichTextEditorHandle, RichTextEditorProp
       }
     }, [mentionSource]);
 
-    // Handle image paste
+    // Handle pasted and dropped images before Quill inserts local file paths.
     useEffect(() => {
       if (readOnly || !containerRef.current) return;
 
       const pasteHandler = (e: ClipboardEvent) => {
-        if (!e.clipboardData || !e.clipboardData.items) return;
-
-        const imageItem = Array.from(e.clipboardData.items).find((item) =>
-          item.type.startsWith("image/")
-        );
-        const file = imageItem?.getAsFile();
+        if (!e.clipboardData) return;
+        const file = getImageFile(e.clipboardData);
         if (!file) return;
         e.preventDefault();
+        void addImageFile(file).catch(() => message.error("Failed to upload image"));
+      };
 
-        if (onImageUploadRef.current) {
-          void onImageUploadRef.current(file)
-            .then((url) => insertImage(url))
-            .catch(() => message.error("Failed to upload image"));
-          return;
-        }
+      const dragOverHandler = (e: DragEvent) => {
+        if (e.dataTransfer && getImageFile(e.dataTransfer)) e.preventDefault();
+      };
 
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          if (event.target?.result) insertImage(event.target.result as string);
-        };
-        reader.readAsDataURL(file);
+      const dropHandler = (e: DragEvent) => {
+        if (!e.dataTransfer) return;
+        const file = getImageFile(e.dataTransfer);
+        if (!file) return;
+        e.preventDefault();
+        const index = quillRef.current?.getEditor().getSelection()?.index;
+        void addImageFile(file, index).catch(() => message.error("Failed to upload image"));
       };
 
       containerRef.current.addEventListener("paste", pasteHandler, true);
+      containerRef.current.addEventListener("dragover", dragOverHandler, true);
+      containerRef.current.addEventListener("drop", dropHandler, true);
       return () => {
         containerRef.current?.removeEventListener("paste", pasteHandler, true);
+        containerRef.current?.removeEventListener("dragover", dragOverHandler, true);
+        containerRef.current?.removeEventListener("drop", dropHandler, true);
       };
-    }, [insertImage, readOnly]);
+    }, [addImageFile, readOnly]);
 
     const handleChange = (content: string) => {
       if (!isControlled) setLocalValue(content);
