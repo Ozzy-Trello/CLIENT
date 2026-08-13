@@ -200,10 +200,7 @@ const RichTextEditorClient = forwardRef<RichTextEditorHandle, RichTextEditorProp
               selection.index - searchTerm.length - 1;
           }
 
-          renderList(
-            [{ id: "", value: "No mentions found", disabled: true }],
-            searchTerm
-          );
+          renderList([], searchTerm);
         },
       },
     });
@@ -241,12 +238,7 @@ const RichTextEditorClient = forwardRef<RichTextEditorHandle, RichTextEditorProp
           mentionAnchorIndexRef.current = selection.index - searchTerm.length - 1;
         }
 
-        renderList(
-          suggestions.length
-            ? suggestions
-            : [{ id: "", value: "No mentions found", disabled: true }],
-          searchTerm
-        );
+        renderList(suggestions, searchTerm);
       },
       [accountList, allowWorkspaceAllMention, mentionUsers, workspaceId]
     );
