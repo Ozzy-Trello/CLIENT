@@ -91,23 +91,23 @@ export function NotificationList() {
 
   if (notifications.length === 0) {
     return (
-      <div className="p-4 text-center text-gray-400 text-sm">No notifications</div>
+      <div className="w-80 max-w-[calc(100vw-1rem)] p-4 text-center text-sm text-gray-400">No notifications</div>
     );
   }
 
   return (
-    <div className="max-h-96 overflow-y-auto min-w-80">
+    <div className="max-h-[min(24rem,calc(100dvh-5rem))] w-96 max-w-[calc(100vw-1rem)] overflow-y-auto overflow-x-hidden">
       {notifications.map((n) => {
         const target = getNotificationTarget(n);
         const content = (
           <>
-            <div className="flex items-center justify-between">
-              <span className={`text-sm ${!n.isRead ? "font-semibold" : "font-normal"}`}>
+            <div className="min-w-0">
+              <span className={`block truncate text-sm ${!n.isRead ? "font-semibold" : "font-normal"}`}>
                 {n.title}
               </span>
             </div>
             {n.message && (
-              <p className="text-xs text-gray-500 truncate">{n.message}</p>
+              <p className="m-0 truncate text-xs text-gray-500">{n.message}</p>
             )}
             <span className="text-xs text-gray-400">
               {dayjs(n.createdAt).fromNow()}
@@ -115,7 +115,7 @@ export function NotificationList() {
           </>
         );
 
-        const className = `flex w-full flex-col gap-1 border-0 border-b border-gray-100 px-4 py-3 text-left ${
+        const className = `flex min-w-0 w-full flex-col gap-1 overflow-hidden border-0 border-b border-gray-100 px-4 py-3 text-left ${
           target ? "cursor-pointer hover:bg-gray-50" : "cursor-default"
         } ${!n.isRead ? "bg-blue-50" : ""}`;
 

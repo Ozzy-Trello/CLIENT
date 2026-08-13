@@ -340,7 +340,8 @@ export default function NotulensiDetailView({
   };
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="grid min-w-0 grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(380px,0.8fr)]">
+      <div className="flex min-w-0 flex-col gap-4">
       <div className="rounded-2xl border border-[rgb(var(--color-border))] bg-[rgb(var(--color-surface))] p-4 md:p-6">
         <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
@@ -706,7 +707,8 @@ export default function NotulensiDetailView({
         )}
       </div>
 
-      <div className="rounded-2xl border border-[rgb(var(--color-border))] bg-[rgb(var(--color-surface))] p-4 md:p-6">
+      </div>
+      <div className="rounded-2xl border border-[rgb(var(--color-border))] bg-[rgb(var(--color-surface))] p-4 md:p-6 xl:sticky xl:top-4 xl:max-h-[calc(100dvh-2rem)] xl:overflow-y-auto">
         <Tabs
           items={[
             {
@@ -759,7 +761,9 @@ export default function NotulensiDetailView({
                     </Button>
                   </div>
                   {detail.comments.length ? (
-                    detail.comments.map((comment) => (
+                    [...detail.comments]
+                      .sort((a, b) => dayjs(b.createdAt).valueOf() - dayjs(a.createdAt).valueOf())
+                      .map((comment) => (
                       <div
                         key={comment.id}
                         className="rounded-lg border border-[rgb(var(--color-border))] p-3"
