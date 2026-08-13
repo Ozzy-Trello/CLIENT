@@ -1,7 +1,7 @@
 "use client";
 
 import { useNotulensiEligibleAssignees } from "@hooks/notulensi";
-import { Avatar, Select, Typography } from "antd";
+import { Select, Typography } from "antd";
 import { useParams } from "next/navigation";
 import { useMemo } from "react";
 
@@ -10,8 +10,6 @@ type NotulensiUserSelectProps = {
   onChange?: (value: string[]) => void;
   disabled?: boolean;
 };
-
-const getInitials = (username: string) => username.slice(0, 2).toUpperCase();
 
 export default function NotulensiUserSelect({
   value,
@@ -30,14 +28,11 @@ export default function NotulensiUserSelect({
       value: account.id,
       searchLabel: `${account.username} ${account.email} ${account.role?.name || ""}`.toLowerCase(),
       label: (
-        <div className="flex items-center gap-3">
-          <Avatar size={24}>{getInitials(account.username)}</Avatar>
-          <div className="min-w-0">
-            <Typography.Text className="block">{account.username}</Typography.Text>
-            <Typography.Text type="secondary" className="block text-xs">
-              {[account.role?.name, account.email].filter(Boolean).join(" · ")}
-            </Typography.Text>
-          </div>
+        <div className="min-w-0 py-0.5">
+          <Typography.Text className="block truncate">{account.username}</Typography.Text>
+          <Typography.Text type="secondary" className="block truncate text-xs">
+            {[account.role?.name, account.email].filter(Boolean).join(" · ")}
+          </Typography.Text>
         </div>
       ),
     }));

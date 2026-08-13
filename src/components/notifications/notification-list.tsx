@@ -117,7 +117,7 @@ export function NotificationList() {
 
         const className = `flex min-w-0 w-full flex-col gap-1 overflow-hidden border-0 border-b border-gray-100 px-4 py-3 text-left ${
           target ? "cursor-pointer hover:bg-gray-50" : "cursor-default"
-        } ${!n.isRead ? "bg-blue-50" : ""}`;
+        } ${!n.isRead ? "bg-blue-500/10" : ""}`;
 
         return target ? (
           <Link
