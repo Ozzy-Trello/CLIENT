@@ -13,6 +13,7 @@ import {
 } from "@store/notification_slice";
 import { getNotifications, getUnreadCount } from "@api/notifications";
 import { NotificationList } from "./notification-list";
+import styles from "./notification.module.css";
 
 export function NotificationBell() {
   const dispatch = useDispatch();
@@ -53,6 +54,7 @@ export function NotificationBell() {
       )}
       trigger={["click"]}
       placement="bottomRight"
+      overlayClassName={styles.dropdown}
       autoAdjustOverflow
       overlayStyle={{
         zIndex: 9999,

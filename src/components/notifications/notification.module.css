@@ -1,0 +1,7 @@
+@media (max-width: 639px) {
+  .dropdown:global(.ant-dropdown) {
+    left: 8px !important;
+    right: 8px !important;
+    width: auto !important;
+  }
+}
