@@ -91,12 +91,12 @@ export function NotificationList() {
 
   if (notifications.length === 0) {
     return (
-      <div className="w-80 max-w-[calc(100vw-1rem)] p-4 text-center text-sm text-gray-400">No notifications</div>
+      <div className="w-full p-4 text-center text-sm text-gray-400">No notifications</div>
     );
   }
 
   return (
-    <div className="max-h-[min(24rem,calc(100dvh-5rem))] w-96 max-w-[calc(100vw-1rem)] overflow-y-auto overflow-x-hidden">
+    <div className="max-h-[min(24rem,calc(100dvh-5rem))] w-full overflow-y-auto overflow-x-hidden">
       {notifications.map((n) => {
         const target = getNotificationTarget(n);
         const content = (

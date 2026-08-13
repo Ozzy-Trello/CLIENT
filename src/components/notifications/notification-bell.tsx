@@ -54,7 +54,10 @@ export function NotificationBell() {
       trigger={["click"]}
       placement="bottomRight"
       autoAdjustOverflow
-      overlayStyle={{ zIndex: 9999, maxWidth: "calc(100vw - 16px)" }}
+      overlayStyle={{
+        zIndex: 9999,
+        width: "min(384px, calc(100vw - 16px))",
+      }}
     >
       <Badge count={unreadCount} size="small" offset={[-2, 2]}>
         <BellOutlined
