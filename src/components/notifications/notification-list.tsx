@@ -117,7 +117,10 @@ export function NotificationList() {
 
         const className = `flex min-w-0 w-full flex-col gap-1 overflow-hidden border-0 border-b border-gray-100 px-4 py-3 text-left ${
           target ? "cursor-pointer hover:bg-gray-50" : "cursor-default"
-        } ${!n.isRead ? "bg-[rgba(59,130,246,0.08)] hover:bg-[rgba(59,130,246,0.12)]" : ""}`;
+        }`;
+        const style = !n.isRead
+          ? { backgroundColor: "rgba(59, 130, 246, 0.1)" }
+          : undefined;
 
         return target ? (
           <Link
@@ -128,11 +131,12 @@ export function NotificationList() {
               if (event.button === 1) markRead(n);
             }}
             className={className}
+            style={style}
           >
             {content}
           </Link>
         ) : (
-          <div key={n.id} className={className}>
+          <div key={n.id} className={className} style={style}>
             {content}
           </div>
         );

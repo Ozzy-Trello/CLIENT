@@ -206,6 +206,7 @@ describe("NotificationList", () => {
     const link = screen.getByRole("link", { name: /New item/i });
 
     expect(link.getAttribute("href")).toBe("/workspace/ws-1/notulensi/note-1");
+    expect(link.style.backgroundColor).toBe("rgba(59, 130, 246, 0.1)");
     fireEvent.click(link, { ctrlKey: true });
     expect(markNotificationRead).toHaveBeenCalledWith("1");
     expect(dispatch).not.toHaveBeenCalledWith(expect.objectContaining({ payload: false }));
