@@ -1,6 +1,7 @@
 import {
   createNotulensi,
   createNotulensiComment,
+  createNotulensiLink,
   deleteNotulensiAttachment,
   deleteNotulensi,
   deleteNotulensiComment,
@@ -45,7 +46,8 @@ describe("notulensi api", () => {
       search: "line check",
       status: ["new", "in_progress"],
       priority: ["reg", "urgent"],
-      assigneeId: "user-1",
+      assigneeIds: ["user-1", "user-3"],
+      roleIds: ["role-1", "role-2"],
       creatorId: "user-2",
       dueFrom: "2026-07-01T00:00:00.000Z",
       dueTo: "2026-07-31T23:59:59.999Z",
@@ -61,7 +63,8 @@ describe("notulensi api", () => {
         search: "line check",
         status: "new,in_progress",
         priority: "reg,urgent",
-        assignee_id: "user-1",
+        assignee_ids: "user-1,user-3",
+        role_ids: "role-1,role-2",
         creator_id: "user-2",
         due_from: "2026-07-01T00:00:00.000Z",
         due_to: "2026-07-31T23:59:59.999Z",
@@ -251,6 +254,20 @@ describe("notulensi api", () => {
     );
   });
 
+  it("creates a link attachment with interceptor-ready payload", async () => {
+    mockApi.post.mockResolvedValue({ data: { data: { id: "a-2", attachmentType: "link" } } });
+
+    await createNotulensiLink("ws-1", "n-1", {
+      url: "https://example.com/spec",
+      displayText: "Specification",
+    });
+
+    expect(mockApi.post).toHaveBeenCalledWith(
+      "/workspace/ws-1/notulensi/n-1/attachments/link",
+      { url: "https://example.com/spec", displayText: "Specification" }
+    );
+  });
+
   it("renames an attachment using the scoped endpoint", async () => {
     const attachment = { id: "a-1", name: "minutes.pdf" };
     mockApi.patch.mockResolvedValue({ data: { data: attachment } });
@@ -272,13 +289,21 @@ describe("notulensi api", () => {
     await exportNotulensi("ws-1", {
       search: "needle",
       status: ["new"],
+      assigneeIds: ["user-1", "user-2"],
+      roleIds: ["role-1"],
       scope: "assigned",
       page: 3,
       limit: 50,
     });
 
     expect(mockApi.get).toHaveBeenCalledWith("/workspace/ws-1/notulensi/export", {
-      params: { search: "needle", status: "new", scope: "assigned" },
+      params: {
+        search: "needle",
+        status: "new",
+        assignee_ids: "user-1,user-2",
+        role_ids: "role-1",
+        scope: "assigned",
+      },
     });
   });
 });

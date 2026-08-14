@@ -1,6 +1,7 @@
 import { api } from "@api/index";
 import {
   CreateNotulensiPayload,
+  CreateNotulensiLinkPayload,
   DeleteNotulensiResponse,
   NotulensiComment,
   NotulensiCommentPayload,
@@ -27,6 +28,8 @@ const omitEmpty = (filters: NotulensiListFilters) => {
     status: filters.status?.length ? filters.status.join(",") : undefined,
     priority: filters.priority?.length ? filters.priority.join(",") : undefined,
     assignee_id: filters.assigneeId || undefined,
+    assignee_ids: filters.assigneeIds?.length ? filters.assigneeIds.join(",") : undefined,
+    role_ids: filters.roleIds?.length ? filters.roleIds.join(",") : undefined,
     creator_id: filters.creatorId || undefined,
     due_from: filters.dueFrom || undefined,
     due_to: filters.dueTo || undefined,
@@ -111,6 +114,18 @@ export const uploadNotulensiAttachment = async (
   const response = await api.post(
     `${notulensiBasePath(workspaceId)}/${id}/attachments`,
     formData
+  );
+  return response.data;
+};
+
+export const createNotulensiLink = async (
+  workspaceId: string,
+  id: string,
+  payload: CreateNotulensiLinkPayload
+): Promise<NotulensiAttachmentResponse> => {
+  const response = await api.post(
+    `${notulensiBasePath(workspaceId)}/${id}/attachments/link`,
+    payload
   );
   return response.data;
 };

@@ -6,15 +6,17 @@ import {
   NotulensiStatusLabel,
 } from "@components/notulensi/notulensi-status";
 import { NotulensiListFilters, NotulensiPriority, NotulensiScope, NotulensiStatus } from "@myTypes/notulensi";
+import { useNotulensiEligibleAssignees } from "@hooks/notulensi";
 import { Button, DatePicker, Grid, Input, Select } from "antd";
 import dayjs, { Dayjs } from "dayjs";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type Props = {
   value: NotulensiListFilters;
   onChange: (next: NotulensiListFilters) => void;
   allowAll?: boolean;
   statusCounts?: Record<NotulensiStatus, number>;
+  workspaceId: string;
 };
 
 const scopeOptions: { value: NotulensiScope; label: string }[] = [
@@ -33,9 +35,16 @@ const statusFilterStyles: Record<NotulensiStatus, string> = {
   cancelled: "border-rose-600 bg-rose-600 text-white",
 };
 
-export default function NotulensiFilters({ value, onChange, allowAll = false, statusCounts }: Props) {
+export default function NotulensiFilters({ value, onChange, allowAll = false, statusCounts, workspaceId }: Props) {
   const screens = Grid.useBreakpoint();
   const [searchText, setSearchText] = useState(value.search || "");
+  const eligibleAssignees = useNotulensiEligibleAssignees(workspaceId);
+  const users = eligibleAssignees.data?.data || [];
+  const roleOptions = Array.from(
+    new Map(users.flatMap((user) => user.role ? [[user.role.id, user.role.name] as const] : [])).entries()
+  ).map(([value, label]) => ({ value, label }));
+
+  useEffect(() => setSearchText(value.search || ""), [value.search]);
 
   const rangeValue = useMemo(() => {
     return value.dueFrom && value.dueTo
@@ -122,6 +131,26 @@ export default function NotulensiFilters({ value, onChange, allowAll = false, st
               value: priority,
               label: meta.label,
             }))}
+          />
+          <Select<string[]>
+            mode="multiple"
+            value={value.assigneeIds}
+            onChange={(assigneeIds) => applyPatch({ assigneeIds: assigneeIds.length ? assigneeIds : undefined })}
+            placeholder="Assignees"
+            loading={eligibleAssignees.isLoading}
+            maxTagCount="responsive"
+            className={screens.lg ? "w-64" : "w-full"}
+            options={users.map((user) => ({ value: user.id, label: user.username }))}
+          />
+          <Select<string[]>
+            mode="multiple"
+            value={value.roleIds}
+            onChange={(roleIds) => applyPatch({ roleIds: roleIds.length ? roleIds : undefined })}
+            placeholder="Roles"
+            loading={eligibleAssignees.isLoading}
+            maxTagCount="responsive"
+            className={screens.lg ? "w-56" : "w-full"}
+            options={roleOptions}
           />
         </div>
         <div className="flex flex-col gap-3 lg:flex-row">

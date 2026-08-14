@@ -2,6 +2,7 @@
 
 import NotulensiFilters from "@components/notulensi/notulensi-filters";
 import NotulensiList from "@components/notulensi/notulensi-list";
+import { parseNotulensiFilters, persistedNotulensiFilters } from "@components/notulensi/notulensi-filter-storage";
 import { exportNotulensi } from "@api/notulensi";
 import { useNotulensiList } from "@hooks/notulensi";
 import { useCurrentAccount } from "@hooks/account";
@@ -12,7 +13,7 @@ import { Download, RefreshCcw } from "lucide-react";
 import * as XLSX from "xlsx";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function NotulensiPage() {
   const params = useParams();
@@ -25,10 +26,24 @@ export default function NotulensiPage() {
     limit: 20,
   });
   const [exporting, setExporting] = useState(false);
+  const [hydratedStorageKey, setHydratedStorageKey] = useState<string | null>(null);
 
   const { data: currentAccountData } = useCurrentAccount();
   const allowAll = currentAccountData?.data?.role?.name === "Super Admin";
-  const listQuery = useNotulensiList(workspaceId, filters);
+  const userId = currentAccountData?.data?.id;
+  const storageKey = userId && workspaceId ? `ozzy_notulensi_filters_${userId}_${workspaceId}` : null;
+  const listQuery = useNotulensiList(workspaceId, filters, Boolean(storageKey && hydratedStorageKey === storageKey));
+
+  useEffect(() => {
+    if (!storageKey) return;
+    setFilters(parseNotulensiFilters(localStorage.getItem(storageKey), allowAll));
+    setHydratedStorageKey(storageKey);
+  }, [allowAll, storageKey]);
+
+  useEffect(() => {
+    if (!storageKey || hydratedStorageKey !== storageKey) return;
+    localStorage.setItem(storageKey, JSON.stringify(persistedNotulensiFilters(filters)));
+  }, [filters, hydratedStorageKey, storageKey]);
 
   return (
     <div className="flex min-w-0 flex-col gap-4 p-4 md:p-6">
@@ -82,6 +97,7 @@ export default function NotulensiPage() {
         onChange={setFilters}
         allowAll={allowAll}
         statusCounts={listQuery.data?.statusCounts}
+        workspaceId={workspaceId}
       />
 
       {listQuery.isError ? (

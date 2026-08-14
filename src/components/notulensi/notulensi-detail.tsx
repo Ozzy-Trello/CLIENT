@@ -24,6 +24,7 @@ import {
 } from "@components/notulensi/notulensi-detail-utils";
 import {
   useCreateNotulensiComment,
+  useCreateNotulensiLink,
   useDeleteNotulensiComment,
   useDeleteNotulensi,
   useDeleteNotulensiAttachment,
@@ -69,7 +70,7 @@ import { AxiosError } from "axios";
 import dayjs from "dayjs";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Check, Copy, Download, ExternalLink, ListChecks, Paperclip, Pencil, Trash2, Upload, X } from "lucide-react";
+import { ArrowLeft, Check, Copy, Download, ExternalLink, Link as LinkIcon, ListChecks, Paperclip, Pencil, Trash2, Upload, X } from "lucide-react";
 import { ChangeEvent, ClipboardEvent, DragEvent, useEffect, useRef, useState } from "react";
 
 type Props = {
@@ -111,6 +112,9 @@ export default function NotulensiDetailView({
   const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null);
   const [renamingAttachmentId, setRenamingAttachmentId] = useState<string | null>(null);
   const [attachmentName, setAttachmentName] = useState("");
+  const [addingLink, setAddingLink] = useState(false);
+  const [linkUrl, setLinkUrl] = useState("");
+  const [linkDisplayText, setLinkDisplayText] = useState("");
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [previewInitialIndex, setPreviewInitialIndex] = useState(0);
   const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
@@ -127,6 +131,7 @@ export default function NotulensiDetailView({
   const updatePrivateNoteMutation = useUpdateNotulensiPrivateNote();
   const deletePrivateNoteMutation = useDeleteNotulensiPrivateNote();
   const uploadAttachmentMutation = useUploadNotulensiAttachment();
+  const createLinkMutation = useCreateNotulensiLink();
   const refreshNotulensi = useRefreshNotulensi();
   const deleteAttachmentMutation = useDeleteNotulensiAttachment();
   const renameAttachmentMutation = useRenameNotulensiAttachment();
@@ -146,7 +151,7 @@ export default function NotulensiDetailView({
       const name = attachment.name || "";
       const mimeType = attachment.mimeType || undefined;
       return Boolean(
-        attachment.url &&
+        attachment.attachmentType === "file" && attachment.fileId && attachment.url &&
         (isImageFile(name, mimeType) || isPDFFile(name, mimeType) || isVideoFile(name, mimeType))
       );
     })
@@ -155,11 +160,11 @@ export default function NotulensiDetailView({
       isCover: false,
       cardId: "",
       attachableType: EnumAttachmentType.File,
-      attachableId: attachment.fileId,
+      attachableId: attachment.fileId!,
       type: EnumCardAttachmentType.Attachment,
       createdAt: attachment.createdAt,
       file: {
-        id: attachment.fileId,
+        id: attachment.fileId!,
         name: attachment.name || "Unnamed attachment",
         url: attachment.url || "",
         size: attachment.size || 0,
@@ -339,6 +344,38 @@ export default function NotulensiDetailView({
     }
   };
 
+  const isLinkUrlValid = /^https?:\/\/\S+$/i.test(linkUrl.trim());
+
+  const handleCreateLink = async () => {
+    if (!isLinkUrlValid) return;
+    try {
+      await createLinkMutation.mutateAsync({
+        workspaceId,
+        id: detail.id,
+        payload: {
+          url: linkUrl.trim(),
+          ...(linkDisplayText.trim() ? { displayText: linkDisplayText.trim() } : {}),
+        },
+      });
+      setLinkUrl("");
+      setLinkDisplayText("");
+      setAddingLink(false);
+      message.success("Link added");
+    } catch (linkError) {
+      message.error(getErrorMessage(linkError, "Failed to add link"));
+    }
+  };
+
+  const uploadCommentImage = async (file: File) => {
+    const response = await uploadAttachmentMutation.mutateAsync({
+      workspaceId,
+      id: detail.id,
+      file,
+    });
+    if (!response.data.url) throw new Error("Upload did not return an image URL");
+    return response.data.url;
+  };
+
   return (
     <div className="grid min-w-0 grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(380px,0.8fr)]">
       <div className="flex min-w-0 flex-col gap-4">
@@ -370,7 +407,7 @@ export default function NotulensiDetailView({
                 const button = (
                   <Button
                     danger={meta.danger}
-                    type={action === "complete" ? "primary" : "default"}
+                    type={action === "complete" || action === "submit_review" ? "primary" : "default"}
                     loading={pendingAction === action}
                     onClick={meta.confirmation ? undefined : () => handleAction(action)}
                   >
@@ -580,26 +617,60 @@ export default function NotulensiDetailView({
                   Select one or more files, up to {MAX_NOTULENSI_ATTACHMENT_SIZE / 1024 / 1024} MB each
                 </Typography.Text>
               )}
-              <Button
-                type="primary"
-                icon={<Upload size={16} />}
-                loading={Boolean(uploadProgress)}
-                disabled={Boolean(uploadProgress)}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                Choose files
-              </Button>
+              <Space wrap>
+                <Button
+                  type="primary"
+                  icon={<Upload size={16} />}
+                  loading={Boolean(uploadProgress)}
+                  disabled={Boolean(uploadProgress)}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  Choose files
+                </Button>
+                <Button icon={<LinkIcon size={16} />} onClick={() => setAddingLink((value) => !value)}>
+                  Add link
+                </Button>
+              </Space>
+              {addingLink ? (
+                <div className="mx-auto mt-3 flex max-w-xl flex-col gap-2 text-left sm:flex-row">
+                  <Input
+                    value={linkUrl}
+                    status={linkUrl && !isLinkUrlValid ? "error" : undefined}
+                    placeholder="https://example.com"
+                    aria-label="Link URL"
+                    onChange={(event) => setLinkUrl(event.target.value)}
+                  />
+                  <Input
+                    value={linkDisplayText}
+                    placeholder="Display text (optional)"
+                    aria-label="Link display text"
+                    onChange={(event) => setLinkDisplayText(event.target.value)}
+                    onPressEnter={handleCreateLink}
+                  />
+                  <Button
+                    type="primary"
+                    disabled={!isLinkUrlValid}
+                    loading={createLinkMutation.isPending}
+                    onClick={handleCreateLink}
+                  >
+                    Add
+                  </Button>
+                </div>
+              ) : null}
             </div>
           ) : null}
         </div>
         {detail.attachments.length ? (
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             {detail.attachments.map((attachment) => {
-              const label = attachment.name || "Unnamed attachment";
+              const isLink = attachment.attachmentType === "link";
+              const label = isLink
+                ? attachment.displayText || attachment.name || attachment.url || "Link"
+                : attachment.name || "Unnamed attachment";
               const size = attachment.size == null
                 ? "Size unavailable"
                 : [attachment.size, attachment.sizeUnit].filter(Boolean).join(" ");
-              const isImage = Boolean(
+              const isImage = !isLink && Boolean(
                 attachment.url && isImageFile(label, attachment.mimeType || undefined)
               );
               const isPreviewable = previewableAttachments.some((item) => item.id === attachment.id);
@@ -622,7 +693,7 @@ export default function NotulensiDetailView({
                     </button>
                   ) : (
                     <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-[rgb(var(--color-background))]">
-                      <Paperclip size={22} aria-hidden="true" />
+                      {isLink ? <LinkIcon size={22} aria-hidden="true" /> : <Paperclip size={22} aria-hidden="true" />}
                     </div>
                   )}
                   <div className="min-w-0 flex-1">
@@ -634,6 +705,10 @@ export default function NotulensiDetailView({
                         onChange={(event) => setAttachmentName(event.target.value)}
                         onPressEnter={() => handleRenameAttachment(attachment.id)}
                       />
+                    ) : isLink && attachment.url ? (
+                      <a className="block max-w-full truncate font-medium hover:underline" href={attachment.url} target="_blank" rel="noopener noreferrer">
+                        {label}
+                      </a>
                     ) : isPreviewable ? (
                       <button type="button" className="block max-w-full truncate text-left font-medium hover:underline" onClick={() => handleOpenPreview(attachment.id)}>
                         {label}
@@ -643,9 +718,13 @@ export default function NotulensiDetailView({
                         {label}
                       </a>
                     ) : <Typography.Text ellipsis className="block font-medium">{label}</Typography.Text>}
-                    <Typography.Text type="secondary" className="block text-xs">
-                      {size} · {attachment.uploader?.username || "Unknown user"}
-                    </Typography.Text>
+                    {isLink && attachment.url ? (
+                      <Typography.Text type="secondary" ellipsis className="block text-xs">{attachment.url}</Typography.Text>
+                    ) : (
+                      <Typography.Text type="secondary" className="block text-xs">
+                        {size} · {attachment.uploader?.username || "Unknown user"}
+                      </Typography.Text>
+                    )}
                     <Typography.Text type="secondary" className="block text-xs">
                       {dayjs(attachment.createdAt).format("DD MMM YYYY HH:mm")}
                     </Typography.Text>
@@ -674,13 +753,18 @@ export default function NotulensiDetailView({
                         }}
                       />
                     ) : null}
-                    {attachment.url ? (
+                    {attachment.url && !isLink ? (
                       <>
                         <Button type="text" aria-label={`Download ${label}`} onClick={() => handleDownload(attachment.url, label)} icon={<Download size={16} />} />
                         <a href={attachment.url} target="_blank" rel="noopener noreferrer" aria-label={`Open original ${label}`} className="inline-flex h-8 w-8 items-center justify-center rounded-md hover:bg-[rgb(var(--color-background))]">
                           <ExternalLink size={16} />
                         </a>
                       </>
+                    ) : null}
+                    {attachment.url && isLink ? (
+                      <a href={attachment.url} target="_blank" rel="noopener noreferrer" aria-label={`Open ${label}`} className="inline-flex h-8 w-8 items-center justify-center rounded-md hover:bg-[rgb(var(--color-background))]">
+                        <ExternalLink size={16} />
+                      </a>
                     ) : null}
                     {detail.permissions?.canDeleteAttachment ? (
                       <Popconfirm
@@ -708,7 +792,7 @@ export default function NotulensiDetailView({
       </div>
 
       </div>
-      <div className="rounded-2xl border border-[rgb(var(--color-border))] bg-[rgb(var(--color-surface))] p-4 md:p-6 xl:sticky xl:top-4 xl:max-h-[calc(100dvh-2rem)] xl:overflow-y-auto">
+      <div className="rounded-2xl border border-[rgb(var(--color-border))] bg-[rgb(var(--color-surface))] p-4 md:p-6 xl:sticky xl:top-4">
         <Tabs
           items={[
             {
@@ -732,6 +816,7 @@ export default function NotulensiDetailView({
                     placeholder="Add a comment"
                     mentionUsers={mentionUsers}
                     allowWorkspaceAllMention={false}
+                    onImageUpload={uploadCommentImage}
                   />
                   <div className="flex justify-end">
                     <Button
@@ -821,6 +906,7 @@ export default function NotulensiDetailView({
                               onChange={setEditingComment}
                               mentionUsers={mentionUsers}
                               allowWorkspaceAllMention={false}
+                              onImageUpload={uploadCommentImage}
                             />
                             <div className="flex flex-wrap justify-end gap-2">
                               <Button onClick={() => setEditingCommentId(null)}>Cancel</Button>

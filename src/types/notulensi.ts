@@ -144,9 +144,11 @@ export interface NotulensiDetail extends NotulensiSummary {
 
 export interface NotulensiAttachment {
   id: string;
-  fileId: string;
+  attachmentType: "file" | "link";
+  fileId: string | null;
   name: string | null;
   url: string | null;
+  displayText: string | null;
   size: number | null;
   sizeUnit: string | null;
   mimeType: string | null;
@@ -167,6 +169,8 @@ export interface NotulensiListFilters {
   status?: NotulensiStatus[];
   priority?: NotulensiPriority[];
   assigneeId?: string;
+  assigneeIds?: string[];
+  roleIds?: string[];
   creatorId?: string;
   dueFrom?: string;
   dueTo?: string;
@@ -306,6 +310,11 @@ export interface NotulensiPrivateNotePayload {
 
 export interface RenameNotulensiAttachmentPayload {
   name: string;
+}
+
+export interface CreateNotulensiLinkPayload {
+  url: string;
+  displayText?: string;
 }
 
 export interface DeleteNotulensiResponse {

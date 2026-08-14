@@ -7,6 +7,7 @@ export const normalizeOptionalRichText = (content?: string) => content || "";
 export const hasRichTextContent = (content?: string) => {
   if (!content) return false;
   if (/<span\b[^>]*(?:data-id|class=["'][^"']*\bmention\b)/i.test(content)) return true;
+  if (/<img\b[^>]*\bsrc=["'][^"']+["']/i.test(content)) return true;
 
   const text = content
     .replace(/<[^>]*>/g, " ")

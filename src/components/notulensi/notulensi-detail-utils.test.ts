@@ -27,14 +27,15 @@ describe("notulensi detail options", () => {
     expect(normalizeOptionalRichText("<p>Detail</p>")).toBe("<p>Detail</p>");
   });
 
-  it("requires visible comment text or a mention", () => {
+  it("requires visible comment text, a mention, or an image", () => {
     expect(hasRichTextContent("<p><br></p>")).toBe(false);
     expect(hasRichTextContent("<p>&nbsp;\u200b</p>")).toBe(false);
     expect(hasRichTextContent("<p>Looks good</p>")).toBe(true);
     expect(
       hasRichTextContent('<p><span class="mention" data-id="u-1">@alice</span></p>')
     ).toBe(true);
-    expect(hasRichTextContent('<p><img src="image.png"></p>')).toBe(false);
+    expect(hasRichTextContent('<p><img src="https://files.test/image.png"></p>')).toBe(true);
+    expect(hasRichTextContent("<p><img></p>")).toBe(false);
     expect(hasDisplayableRichContent('<p><img src="image.png"></p>')).toBe(true);
   });
 

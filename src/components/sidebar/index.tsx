@@ -143,7 +143,7 @@ const Sidebar = () => {
     ? workspaceId[0]
     : workspaceId;
   const { data: assignedNotulensi } = useNotulensiList(workspaceIdStr || "", {
-    scope: "assigned",
+    scope: "related",
     status: ["new", "in_progress", "waiting_review", "revision"],
     page: 1,
     limit: 1,
