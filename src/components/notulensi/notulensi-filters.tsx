@@ -147,8 +147,17 @@ export default function NotulensiFilters({ value, onChange, allowAll = false, st
             placeholder="Assignees"
             loading={eligibleAssignees.isLoading}
             maxTagCount="responsive"
+            showSearch
+            optionFilterProp="searchLabel"
+            filterOption={(input, option) =>
+              String(option?.searchLabel || "").includes(input.toLowerCase())
+            }
             className={screens.lg ? "w-64" : "w-full"}
-            options={users.map((user) => ({ value: user.id, label: user.username }))}
+            options={users.map((user) => ({
+              value: user.id,
+              label: user.username,
+              searchLabel: `${user.username} ${user.email} ${user.role?.name || ""}`.toLowerCase(),
+            }))}
           />
           <Select<string[]>
             mode="multiple"
@@ -157,6 +166,8 @@ export default function NotulensiFilters({ value, onChange, allowAll = false, st
             placeholder="Roles"
             loading={eligibleAssignees.isLoading}
             maxTagCount="responsive"
+            showSearch
+            optionFilterProp="label"
             className={screens.lg ? "w-56" : "w-full"}
             options={roleOptions}
           />

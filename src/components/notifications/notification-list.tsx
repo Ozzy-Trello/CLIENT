@@ -1,14 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { MouseEvent } from "react";
+import { MouseEvent, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import {
+  appendNotifications,
   markNotificationReadLocally,
   selectNotifications,
+  selectNotificationTotal,
   setNotifications,
+  setNotificationTotal,
   setOpen,
   setUnreadCount,
 } from "@store/notification_slice";
@@ -55,6 +58,9 @@ export function getNotificationTarget(n: NotificationItem): string | null {
 export function NotificationList() {
   const dispatch = useDispatch();
   const notifications = useSelector(selectNotifications);
+  const total = useSelector(selectNotificationTotal);
+  const [page, setPage] = useState(1);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   const refreshNotifications = async () => {
     const [notificationsResult, countResult] = await Promise.allSettled([
@@ -63,6 +69,7 @@ export function NotificationList() {
     ]);
     if (notificationsResult.status === "fulfilled") {
       dispatch(setNotifications(notificationsResult.value.data));
+      dispatch(setNotificationTotal(notificationsResult.value.total));
     }
     if (countResult.status === "fulfilled") {
       dispatch(setUnreadCount(countResult.value.unreadCount));
@@ -89,11 +96,26 @@ export function NotificationList() {
     }
   };
 
+  const loadMore = async () => {
+    if (loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const next = await getNotifications(page + 1, 20);
+      dispatch(appendNotifications(next.data));
+      dispatch(setNotificationTotal(next.total));
+      setPage((current) => current + 1);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
   if (notifications.length === 0) {
     return (
       <div className="w-full p-4 text-center text-sm text-gray-400">No notifications</div>
     );
   }
+
+  const hasMore = notifications.length < total;
 
   return (
     <div className="max-h-[min(24rem,calc(100dvh-5rem))] w-full overflow-y-auto overflow-x-hidden">
@@ -141,6 +163,16 @@ export function NotificationList() {
           </div>
         );
       })}
+      {hasMore && (
+        <button
+          type="button"
+          onClick={() => void loadMore()}
+          disabled={loadingMore}
+          className="w-full border-0 bg-transparent px-4 py-2 text-center text-sm font-medium text-blue-600 hover:bg-gray-50 disabled:text-gray-400"
+        >
+          {loadingMore ? "Loading..." : "Show more"}
+        </button>
+      )}
     </div>
   );
 }

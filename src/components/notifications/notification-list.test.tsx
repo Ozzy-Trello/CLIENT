@@ -248,7 +248,7 @@ describe("NotificationList", () => {
 
   it("refreshes the list and count after a mark-read failure", async () => {
     (markNotificationRead as jest.Mock).mockRejectedValue(new Error("network"));
-    (getNotifications as jest.Mock).mockResolvedValue({ data: [baseNotification] });
+    (getNotifications as jest.Mock).mockResolvedValue({ data: [baseNotification], total: 1 });
     (getUnreadCount as jest.Mock).mockResolvedValue({ unreadCount: 1 });
     render(<NotificationList />);
 
@@ -258,5 +258,37 @@ describe("NotificationList", () => {
       expect(getNotifications).toHaveBeenCalledWith(1, 20);
       expect(getUnreadCount).toHaveBeenCalled();
     });
+  });
+
+  it("loads the next page when clicking Show more", async () => {
+    const pageOne = Array.from({ length: 20 }, (_, index) => ({
+      ...baseNotification,
+      id: `item-${index}`,
+    }));
+    (useSelector as unknown as jest.Mock)
+      .mockReturnValue([])
+      .mockReturnValueOnce(pageOne)
+      .mockReturnValueOnce(25);
+    (getNotifications as jest.Mock)
+      .mockResolvedValue({ data: [{ ...baseNotification, id: "item-20" }], total: 25 });
+    render(<NotificationList />);
+
+    const showMore = screen.getByRole("button", { name: /Show more/i });
+    fireEvent.click(showMore);
+
+    await waitFor(() => {
+      expect(getNotifications).toHaveBeenCalledWith(2, 20);
+    });
+    expect(dispatch).toHaveBeenCalledWith(
+      expect.objectContaining({ payload: [{ ...baseNotification, id: "item-20" }] })
+    );
+  });
+
+  it("hides Show more when the loaded list matches the total", () => {
+    (useSelector as unknown as jest.Mock).mockReturnValue([baseNotification]);
+
+    render(<NotificationList />);
+
+    expect(screen.queryByRole("button", { name: /Show more/i })).toBeNull();
   });
 });

@@ -5,12 +5,14 @@ import { NotificationItem } from "@myTypes/notification";
 interface NotificationState {
   notifications: NotificationItem[];
   unreadCount: number;
+  total: number;
   isOpen: boolean;
 }
 
 const initialState: NotificationState = {
   notifications: [],
   unreadCount: 0,
+  total: 0,
   isOpen: false,
 };
 
@@ -20,6 +22,16 @@ const notificationSlice = createSlice({
   reducers: {
     setNotifications(state, action: PayloadAction<NotificationItem[]>) {
       state.notifications = action.payload;
+    },
+    appendNotifications(state, action: PayloadAction<NotificationItem[]>) {
+      const existing = new Set(state.notifications.map((item) => item.id));
+      state.notifications = [
+        ...state.notifications,
+        ...action.payload.filter((item) => !existing.has(item.id)),
+      ];
+    },
+    setNotificationTotal(state, action: PayloadAction<number>) {
+      state.total = action.payload;
     },
     addNotification(state, action: PayloadAction<NotificationItem>) {
       // Prepend new notification, keep list bounded to 50
@@ -48,6 +60,8 @@ const notificationSlice = createSlice({
 
 export const {
   setNotifications,
+  appendNotifications,
+  setNotificationTotal,
   addNotification,
   setUnreadCount,
   markAllReadLocally,
@@ -63,5 +77,7 @@ export const selectNotifications = (state: { notificationState?: NotificationSta
   state.notificationState?.notifications ?? [];
 export const selectUnreadCount = (state: { notificationState?: NotificationState }) =>
   state.notificationState?.unreadCount ?? 0;
+export const selectNotificationTotal = (state: { notificationState?: NotificationState }) =>
+  state.notificationState?.total ?? 0;
 export const selectNotificationOpen = (state: { notificationState?: NotificationState }) =>
   state.notificationState?.isOpen ?? false;

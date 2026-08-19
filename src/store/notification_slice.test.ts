@@ -1,6 +1,8 @@
 import reducer, {
+  appendNotifications,
   markNotificationReadLocally,
   setNotifications,
+  setNotificationTotal,
   setUnreadCount,
 } from "./notification_slice";
 
@@ -37,5 +39,33 @@ describe("markNotificationReadLocally", () => {
     state = reducer(state, markNotificationReadLocally("1"));
 
     expect(state.unreadCount).toBe(0);
+  });
+});
+
+describe("appendNotifications", () => {
+  it("appends new notifications without duplicating existing ids", () => {
+    let state = reducer(undefined, setNotifications([notification("1", false)]));
+    state = reducer(state, appendNotifications([
+      notification("2", false),
+      notification("1", false),
+      notification("3", false),
+    ]));
+
+    expect(state.notifications.map((item) => item.id)).toEqual(["1", "2", "3"]);
+  });
+
+  it("keeps total unchanged", () => {
+    let state = reducer(undefined, setNotificationTotal(25));
+    state = reducer(state, appendNotifications([notification("2", false)]));
+
+    expect(state.total).toBe(25);
+  });
+});
+
+describe("setNotificationTotal", () => {
+  it("sets the total number of notifications", () => {
+    const state = reducer(undefined, setNotificationTotal(42));
+
+    expect(state.total).toBe(42);
   });
 });
