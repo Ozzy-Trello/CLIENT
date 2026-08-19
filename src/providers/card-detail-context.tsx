@@ -936,6 +936,40 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
                 // no-op: standard query flow will still attempt to fetch
               });
           }
+        } else if (!resolvedListId && normalizedBoardId) {
+          // Deep link has no listId anywhere (e.g. pasted/QR link without listId).
+          // Resolve the card's list first, then open the card detail.
+          cardDetails(cardId, normalizedBoardId)
+            .then((response) => {
+              const fetchedCard = response?.data;
+              const fetchedListId =
+                fetchedCard?.listId ||
+                (fetchedCard as any)?.list_id ||
+                "";
+              if (!fetchedCard?.id || !fetchedListId) {
+                return;
+              }
+              setActiveList({ id: fetchedListId } as AnyList);
+              setSelectedCard((prev) => {
+                if (prev && prev.id !== cardId) {
+                  return prev;
+                }
+                const previousName = resolveCardName(prev);
+                const fetchedName = resolveCardName(fetchedCard);
+                const mergedName = fetchedName || previousName || cardNameFromQuery || undefined;
+                return {
+                  ...(prev || {}),
+                  ...fetchedCard,
+                  listId: fetchedListId,
+                  ...(mergedName ? { name: mergedName } : {}),
+                } as Card;
+              });
+              setIsCardDetailOpen(true);
+              setIsOpenViaUrl(true);
+            })
+            .catch(() => {
+              // no-op: standard query flow will still attempt to fetch
+            });
         }
       }
     } else if (isCardDetailOpen && !isOpenViaUrl) {

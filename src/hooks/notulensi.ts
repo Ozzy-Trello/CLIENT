@@ -2,6 +2,7 @@ import {
   createNotulensi,
   createNotulensiComment,
   createNotulensiLink,
+  createNotulensiCardAttachment,
   deleteNotulensi,
   deleteNotulensiAttachment,
   deleteNotulensiComment,
@@ -24,6 +25,7 @@ import { queryKeys } from "@constants/query-keys";
 import {
   CreateNotulensiPayload,
   CreateNotulensiLinkPayload,
+  CreateNotulensiCardPayload,
   NotulensiCommentPayload,
   NotulensiListFilters,
   NotulensiPrivateNotePayload,
@@ -103,6 +105,17 @@ export function useCreateNotulensiLink() {
   return useMutation({
     mutationFn: ({ workspaceId, id, payload }: { workspaceId: string; id: string; payload: CreateNotulensiLinkPayload }) =>
       createNotulensiLink(workspaceId, id, payload),
+    onSuccess: async (_, variables) => {
+      await invalidateWorkspaceNotulensi(queryClient, variables.workspaceId, variables.id);
+    },
+  });
+}
+
+export function useCreateNotulensiCardAttachment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ workspaceId, id, payload }: { workspaceId: string; id: string; payload: CreateNotulensiCardPayload }) =>
+      createNotulensiCardAttachment(workspaceId, id, payload),
     onSuccess: async (_, variables) => {
       await invalidateWorkspaceNotulensi(queryClient, variables.workspaceId, variables.id);
     },

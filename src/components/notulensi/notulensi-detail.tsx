@@ -13,6 +13,7 @@ import {
   MAX_NOTULENSI_ATTACHMENT_SIZE,
   NOTULENSI_PROGRESS_OPTIONS,
   copyNotulensiLink,
+  detectCardUrl,
   getCommentQuote,
   getPastedFiles,
   getAssigneeNames,
@@ -25,6 +26,7 @@ import {
 import {
   useCreateNotulensiComment,
   useCreateNotulensiLink,
+  useCreateNotulensiCardAttachment,
   useDeleteNotulensiComment,
   useDeleteNotulensi,
   useDeleteNotulensiAttachment,
@@ -42,7 +44,8 @@ import {
 } from "@hooks/notulensi";
 import NotulensiUserSelect from "@components/notulensi/notulensi-user-select";
 import { useCurrentAccount } from "@hooks/account";
-import { CardAttachment, EnumAttachmentType, EnumCardAttachmentType } from "@myTypes/card";
+import { searchCards } from "@api/card";
+import { Card, CardAttachment, EnumAttachmentType, EnumCardAttachmentType } from "@myTypes/card";
 import { NotulensiComment, NotulensiDetail, NotulensiProgress, NotulensiWorkflowAction } from "@myTypes/notulensi";
 import { buildFileProxyUrl } from "@utils/file-url";
 import {
@@ -55,10 +58,13 @@ import {
   Button,
   Image,
   Input,
+  List,
   Popconfirm,
+  Popover,
   Result,
   Skeleton,
   Space,
+  Spin,
   Tabs,
   Timeline,
   Typography,
@@ -70,7 +76,7 @@ import { AxiosError } from "axios";
 import dayjs from "dayjs";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Check, Copy, Download, ExternalLink, Link as LinkIcon, ListChecks, Paperclip, Pencil, Trash2, Upload, X } from "lucide-react";
+import { ArrowLeft, Check, Copy, Download, ExternalLink, FileText, Link as LinkIcon, ListChecks, Paperclip, Pencil, Trash2, Upload, X } from "lucide-react";
 import { ChangeEvent, ClipboardEvent, DragEvent, useEffect, useRef, useState } from "react";
 
 type Props = {
@@ -115,6 +121,10 @@ export default function NotulensiDetailView({
   const [addingLink, setAddingLink] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
   const [linkDisplayText, setLinkDisplayText] = useState("");
+  const [cardPickerOpen, setCardPickerOpen] = useState(false);
+  const [cardSearchText, setCardSearchText] = useState("");
+  const [cardResults, setCardResults] = useState<Card[]>([]);
+  const [searchingCards, setSearchingCards] = useState(false);
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [previewInitialIndex, setPreviewInitialIndex] = useState(0);
   const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
@@ -132,6 +142,7 @@ export default function NotulensiDetailView({
   const deletePrivateNoteMutation = useDeleteNotulensiPrivateNote();
   const uploadAttachmentMutation = useUploadNotulensiAttachment();
   const createLinkMutation = useCreateNotulensiLink();
+  const createCardAttachmentMutation = useCreateNotulensiCardAttachment();
   const refreshNotulensi = useRefreshNotulensi();
   const deleteAttachmentMutation = useDeleteNotulensiAttachment();
   const renameAttachmentMutation = useRenameNotulensiAttachment();
@@ -363,6 +374,40 @@ export default function NotulensiDetailView({
       message.success("Link added");
     } catch (linkError) {
       message.error(getErrorMessage(linkError, "Failed to add link"));
+    }
+  };
+
+  const handleCardSearch = async (value: string) => {
+    setCardSearchText(value);
+    if (value.trim().length < 3) {
+      setCardResults([]);
+      return;
+    }
+    setSearchingCards(true);
+    try {
+      const response = await searchCards({ name: value, description: value });
+      setCardResults(response.data || []);
+    } catch {
+      setCardResults([]);
+    } finally {
+      setSearchingCards(false);
+    }
+  };
+
+  const handleAttachCard = async (card: Card) => {
+    if (createCardAttachmentMutation.isPending) return;
+    try {
+      await createCardAttachmentMutation.mutateAsync({
+        workspaceId,
+        id: detail.id,
+        payload: { cardId: card.id },
+      });
+      setCardPickerOpen(false);
+      setCardSearchText("");
+      setCardResults([]);
+      message.success("Card attached");
+    } catch (attachError) {
+      message.error(getErrorMessage(attachError, "Failed to attach card"));
     }
   };
 
@@ -618,19 +663,69 @@ export default function NotulensiDetailView({
                 </Typography.Text>
               )}
               <Space wrap>
-                <Button
-                  type="primary"
-                  icon={<Upload size={16} />}
-                  loading={Boolean(uploadProgress)}
-                  disabled={Boolean(uploadProgress)}
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  Choose files
-                </Button>
-                <Button icon={<LinkIcon size={16} />} onClick={() => setAddingLink((value) => !value)}>
-                  Add link
-                </Button>
-              </Space>
+                  <Button
+                    type="primary"
+                    icon={<Upload size={16} />}
+                    loading={Boolean(uploadProgress)}
+                    disabled={Boolean(uploadProgress)}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    Choose files
+                  </Button>
+                  <Button icon={<LinkIcon size={16} />} onClick={() => setAddingLink((value) => !value)}>
+                    Add link
+                  </Button>
+                  <Popover
+                    open={cardPickerOpen}
+                    onOpenChange={setCardPickerOpen}
+                    trigger="click"
+                    placement="bottom"
+                    content={
+                      <div className="w-80">
+                        <Input
+                          value={cardSearchText}
+                          autoFocus
+                          allowClear
+                          placeholder="Search cards (min 3 characters)"
+                          aria-label="Search cards to attach"
+                          onChange={(event) => void handleCardSearch(event.target.value)}
+                        />
+                        <div className="mt-2 max-h-60 overflow-auto">
+                          {searchingCards ? (
+                            <div className="flex justify-center py-4">
+                              <Spin size="small" />
+                            </div>
+                          ) : cardResults.length ? (
+                            <List
+                              size="small"
+                              dataSource={cardResults}
+                              renderItem={(item) => (
+                                <List.Item className="cursor-pointer" onClick={() => void handleAttachCard(item)}>
+                                  <List.Item.Meta
+                                    title={<span className="text-sm">{item.name}</span>}
+                                    description={
+                                      <Typography.Text type="secondary" className="text-xs">
+                                        {[item.boardName, item.listName].filter(Boolean).join(" · ") || "Card"}
+                                      </Typography.Text>
+                                    }
+                                  />
+                                </List.Item>
+                              )}
+                            />
+                          ) : (
+                            <Typography.Text type="secondary" className="block py-2 text-center text-xs">
+                              {cardSearchText.trim().length >= 3 ? "No cards found" : "Type at least 3 characters to search"}
+                            </Typography.Text>
+                          )}
+                        </div>
+                      </div>
+                    }
+                  >
+                    <Button icon={<FileText size={16} />} loading={createCardAttachmentMutation.isPending}>
+                      Attach card
+                    </Button>
+                  </Popover>
+                </Space>
               {addingLink ? (
                 <div className="mx-auto mt-3 flex max-w-xl flex-col gap-2 text-left sm:flex-row">
                   <Input
@@ -664,9 +759,13 @@ export default function NotulensiDetailView({
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             {detail.attachments.map((attachment) => {
               const isLink = attachment.attachmentType === "link";
+              const isCard = attachment.attachmentType === "card";
+              const cardLink = isLink ? detectCardUrl(attachment.url) : null;
               const label = isLink
                 ? attachment.displayText || attachment.name || attachment.url || "Link"
-                : attachment.name || "Unnamed attachment";
+                : isCard
+                  ? attachment.card?.name || attachment.name || "Unnamed attachment"
+                  : attachment.name || "Unnamed attachment";
               const size = attachment.size == null
                 ? "Size unavailable"
                 : [attachment.size, attachment.sizeUnit].filter(Boolean).join(" ");
@@ -674,6 +773,7 @@ export default function NotulensiDetailView({
                 attachment.url && isImageFile(label, attachment.mimeType || undefined)
               );
               const isPreviewable = previewableAttachments.some((item) => item.id === attachment.id);
+              const attachedCard = isCard ? attachment.card : null;
               const canRename = Boolean(
                 detail.permissions?.canDeleteAttachment || detail.permissions?.canUploadAttachment
               );
@@ -693,7 +793,7 @@ export default function NotulensiDetailView({
                     </button>
                   ) : (
                     <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-[rgb(var(--color-background))]">
-                      {isLink ? <LinkIcon size={22} aria-hidden="true" /> : <Paperclip size={22} aria-hidden="true" />}
+                      {isLink ? <LinkIcon size={22} aria-hidden="true" /> : isCard ? <FileText size={22} aria-hidden="true" /> : <Paperclip size={22} aria-hidden="true" />}
                     </div>
                   )}
                   <div className="min-w-0 flex-1">
@@ -705,6 +805,26 @@ export default function NotulensiDetailView({
                         onChange={(event) => setAttachmentName(event.target.value)}
                         onPressEnter={() => handleRenameAttachment(attachment.id)}
                       />
+                    ) : cardLink ? (
+                      <button
+                        type="button"
+                        className="block max-w-full truncate text-left font-medium hover:underline"
+                        onClick={() => router.push(cardLink.path)}
+                      >
+                        {label}
+                      </button>
+                    ) : isCard && attachedCard && attachedCard.boardId ? (
+                      <button
+                        type="button"
+                        className="block max-w-full truncate text-left font-medium hover:underline"
+                        onClick={() =>
+                          router.push(
+                            `/workspace/${attachedCard.workspaceId || workspaceId}/board/${attachedCard.boardId}?cardId=${attachedCard.id}${attachedCard.listId ? `&listId=${attachedCard.listId}` : ""}`
+                          )
+                        }
+                      >
+                        {attachedCard.name || label}
+                      </button>
                     ) : isLink && attachment.url ? (
                       <a className="block max-w-full truncate font-medium hover:underline" href={attachment.url} target="_blank" rel="noopener noreferrer">
                         {label}
@@ -720,6 +840,10 @@ export default function NotulensiDetailView({
                     ) : <Typography.Text ellipsis className="block font-medium">{label}</Typography.Text>}
                     {isLink && attachment.url ? (
                       <Typography.Text type="secondary" ellipsis className="block text-xs">{attachment.url}</Typography.Text>
+                    ) : isCard && attachedCard ? (
+                      <Typography.Text type="secondary" ellipsis className="block text-xs">
+                        {[attachedCard.boardName, attachedCard.listName].filter(Boolean).join(" · ") || "Card"}
+                      </Typography.Text>
                     ) : (
                       <Typography.Text type="secondary" className="block text-xs">
                         {size} · {attachment.uploader?.username || "Unknown user"}
@@ -762,9 +886,15 @@ export default function NotulensiDetailView({
                       </>
                     ) : null}
                     {attachment.url && isLink ? (
-                      <a href={attachment.url} target="_blank" rel="noopener noreferrer" aria-label={`Open ${label}`} className="inline-flex h-8 w-8 items-center justify-center rounded-md hover:bg-[rgb(var(--color-background))]">
-                        <ExternalLink size={16} />
-                      </a>
+                      cardLink ? (
+                        <button type="button" aria-label={`Open ${label}`} onClick={() => router.push(cardLink.path)} className="inline-flex h-8 w-8 items-center justify-center rounded-md hover:bg-[rgb(var(--color-background))]">
+                          <ExternalLink size={16} />
+                        </button>
+                      ) : (
+                        <a href={attachment.url} target="_blank" rel="noopener noreferrer" aria-label={`Open ${label}`} className="inline-flex h-8 w-8 items-center justify-center rounded-md hover:bg-[rgb(var(--color-background))]">
+                          <ExternalLink size={16} />
+                        </a>
+                      )
                     ) : null}
                     {detail.permissions?.canDeleteAttachment ? (
                       <Popconfirm

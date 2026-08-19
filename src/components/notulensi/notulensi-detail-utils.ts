@@ -1,6 +1,37 @@
 import { NotulensiAction, NotulensiAssignee, NotulensiProgress, NotulensiWorkflowAction } from "@myTypes/notulensi";
 import dayjs from "dayjs";
 import { linkifyHtml } from "@utils/normalize-quill-html";
+import {
+  extractBoardIdFromUrl,
+  extractCardIdFromUrl,
+  extractListIdFromUrl,
+  extractWorkspaceIdFromUrl,
+} from "@utils/url-parser";
+
+export interface CardUrlInfo {
+  workspaceId: string;
+  boardId: string;
+  cardId: string;
+  listId: string | null;
+  path: string;
+}
+
+export const detectCardUrl = (url?: string | null): CardUrlInfo | null => {
+  if (!url) return null;
+  const workspaceId = extractWorkspaceIdFromUrl(url);
+  const boardId = extractBoardIdFromUrl(url);
+  const cardId = extractCardIdFromUrl(url);
+  if (!workspaceId || !boardId || !cardId) return null;
+  const listId = extractListIdFromUrl(url);
+  const listQuery = listId ? `&listId=${listId}` : "";
+  return {
+    workspaceId,
+    boardId,
+    cardId,
+    listId,
+    path: `/workspace/${workspaceId}/board/${boardId}?cardId=${cardId}${listQuery}`,
+  };
+};
 
 export const normalizeOptionalRichText = (content?: string) => content || "";
 

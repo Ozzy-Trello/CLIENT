@@ -7,6 +7,7 @@ import {
 } from "@components/notulensi/notulensi-status";
 import { NotulensiListFilters, NotulensiPriority, NotulensiScope, NotulensiStatus } from "@myTypes/notulensi";
 import { useNotulensiEligibleAssignees } from "@hooks/notulensi";
+import { useDebouncedCallback } from "@hooks/useDebouncedCallback";
 import { Button, DatePicker, Grid, Input, Select } from "antd";
 import dayjs, { Dayjs } from "dayjs";
 import { useEffect, useMemo, useState } from "react";
@@ -55,6 +56,10 @@ export default function NotulensiFilters({ value, onChange, allowAll = false, st
   const applyPatch = (patch: Partial<NotulensiListFilters>) => {
     onChange({ ...value, ...patch, page: 1 });
   };
+
+  const applySearch = useDebouncedCallback<typeof applyPatch>((patch) => {
+    applyPatch(patch);
+  }, 300);
 
   const clearFilters = () => {
     setSearchText("");
@@ -112,7 +117,10 @@ export default function NotulensiFilters({ value, onChange, allowAll = false, st
         <div className="flex flex-col gap-3 lg:flex-row">
           <Input.Search
             value={searchText}
-            onChange={(event) => setSearchText(event.target.value)}
+            onChange={(event) => {
+              setSearchText(event.target.value);
+              applySearch({ search: event.target.value.trim() || undefined });
+            }}
             onSearch={(search) => applyPatch({ search: search.trim() || undefined })}
             placeholder="Search instructions"
             allowClear

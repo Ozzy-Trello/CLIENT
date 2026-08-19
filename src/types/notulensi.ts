@@ -142,9 +142,19 @@ export interface NotulensiDetail extends NotulensiSummary {
   attachments: NotulensiAttachment[];
 }
 
+export interface NotulensiAttachmentCard {
+  id: string;
+  name: string | null;
+  boardId: string | null;
+  boardName: string | null;
+  listId: string | null;
+  listName: string | null;
+  workspaceId: string | null;
+}
+
 export interface NotulensiAttachment {
   id: string;
-  attachmentType: "file" | "link";
+  attachmentType: "file" | "link" | "card";
   fileId: string | null;
   name: string | null;
   url: string | null;
@@ -152,6 +162,8 @@ export interface NotulensiAttachment {
   size: number | null;
   sizeUnit: string | null;
   mimeType: string | null;
+  cardId: string | null;
+  card: NotulensiAttachmentCard | null;
   uploadedBy: string;
   uploader: NotulensiUser | null;
   createdAt: string;
@@ -315,6 +327,10 @@ export interface RenameNotulensiAttachmentPayload {
 export interface CreateNotulensiLinkPayload {
   url: string;
   displayText?: string;
+}
+
+export interface CreateNotulensiCardPayload {
+  cardId: string;
 }
 
 export interface DeleteNotulensiResponse {

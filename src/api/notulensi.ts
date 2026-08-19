@@ -2,6 +2,7 @@ import { api } from "@api/index";
 import {
   CreateNotulensiPayload,
   CreateNotulensiLinkPayload,
+  CreateNotulensiCardPayload,
   DeleteNotulensiResponse,
   NotulensiComment,
   NotulensiCommentPayload,
@@ -125,6 +126,18 @@ export const createNotulensiLink = async (
 ): Promise<NotulensiAttachmentResponse> => {
   const response = await api.post(
     `${notulensiBasePath(workspaceId)}/${id}/attachments/link`,
+    payload
+  );
+  return response.data;
+};
+
+export const createNotulensiCardAttachment = async (
+  workspaceId: string,
+  id: string,
+  payload: CreateNotulensiCardPayload
+): Promise<NotulensiAttachmentResponse> => {
+  const response = await api.post(
+    `${notulensiBasePath(workspaceId)}/${id}/attachments/card`,
     payload
   );
   return response.data;
