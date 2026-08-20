@@ -7,10 +7,11 @@ import {
   EnumCardAttachmentType,
   EnumCardType,
 } from "@myTypes/card";
-import { Button, List, Tag, Typography, Image, Modal } from "antd";
+import { Button, List, Tag, Typography, Image, Modal, Select } from "antd";
 import React, { useMemo, useRef, useState } from "react";
 import { formatFileSizeInMB, getFileIcon, isImageFile, isPDFFile, isVideoFile } from "./attachment-helpers";
 import { useCardAttachment } from "@hooks/card_attachment";
+import { useCardCustomField } from "@hooks/card_custom_field";
 import { useAttachmentPrinting } from "./hooks/useAttachmentPrinting";
 import { useParams } from "next/navigation";
 import { uploadFile, renameFile } from "@api/file";
@@ -27,13 +28,21 @@ interface AttachmentsProps {
 
 const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser }) => {
   void setCard;
-  void currentUser;
 
   const params = useParams();
   const workspaceId = Array.isArray(params.workspaceId)
     ? params.workspaceId[0]
     : params.workspaceId;
   const boardId = Array.isArray(params.boardId) ? params.boardId[0] : params.boardId;
+  const roleName = String(currentUser?.role?.name || "").trim().toLowerCase();
+  const canUploadFUPelunasan = ["deal maker", "spv deal maker", "fat"].includes(roleName);
+  const { cardCustomFields, setValueAsync } = useCardCustomField(card.id, workspaceId || "", {
+    enabled: !!workspaceId,
+  });
+  const fuPelunasanField = useMemo(
+    () => cardCustomFields?.find((field) => field.name?.trim().toLowerCase() === "fu pelunasan"),
+    [cardCustomFields],
+  );
 
   const {
     cardAttachments,
@@ -41,6 +50,7 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
     markPrinted,
     deleteAttachment,
     addAttachment,
+    addAttachmentAsync,
     refetch,
     updateLinkDisplayText,
     isUpdatingLinkDisplayText,
@@ -207,6 +217,9 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [previewInitialIndex, setPreviewInitialIndex] = useState(0);
+  const [selectedFUPelunasan, setSelectedFUPelunasan] = useState<string>();
+  const [isUploadingFUPelunasan, setIsUploadingFUPelunasan] = useState(false);
+  const fuPelunasanInputRef = useRef<HTMLInputElement | null>(null);
 
   // Link rename state
   const [renamingLinkId, setRenamingLinkId] = useState<string | null>(null);
@@ -237,6 +250,62 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
     } finally {
       setIsUploading(false);
       if (inputRef.current) inputRef.current.value = "";
+    }
+  };
+
+  const fuPelunasanAttachments = useMemo(
+    () => fileAttachments.filter((attachment) => attachment.metadata?.category === "FU Pelunasan"),
+    [fileAttachments],
+  );
+  const uploadedFUPelunasanOptions = useMemo(
+    () => new Set(
+      fuPelunasanAttachments
+        .map((attachment) => attachment.metadata?.fuPelunasanOption)
+        .filter((value): value is string => Boolean(value)),
+    ),
+    [fuPelunasanAttachments],
+  );
+
+  const handleFUPelunasanUpload = async (fileList: FileList | null) => {
+    const file = fileList?.[0];
+    const option = selectedFUPelunasan?.trim();
+    if (!file || !option || !fuPelunasanField?.id) return;
+    if (!file.type.startsWith("image/")) {
+      message.error("FU Pelunasan harus berupa screenshot gambar");
+      return;
+    }
+    if (uploadedFUPelunasanOptions.has(option)) {
+      message.error(`${option} sudah memiliki attachment`);
+      return;
+    }
+
+    setIsUploadingFUPelunasan(true);
+    try {
+      const uploadResponse = await uploadFile(file, { cardId: card.id });
+      const uploaded = uploadResponse?.data;
+      if (!uploaded?.id) throw new Error("Upload did not return a file");
+
+      await addAttachmentAsync({
+        cardId: card.id,
+        attachableType: EnumAttachmentType.File,
+        attachableId: uploaded.id,
+        isCover: false,
+        type: EnumCardAttachmentType.Attachment,
+        metadata: { category: "FU Pelunasan", fuPelunasanOption: option },
+      });
+
+      const updatedData = fuPelunasanField.type === "dropdown"
+        ? { valueOption: option }
+        : { valueString: option };
+      await setValueAsync({ customFieldId: fuPelunasanField.id, updatedData });
+      setSelectedFUPelunasan(undefined);
+      await refetch?.();
+      message.success(`${option} berhasil diupload`);
+    } catch (error: any) {
+      message.error(error?.response?.data?.message || error?.message || "FU Pelunasan gagal diupload");
+    } finally {
+      setIsUploadingFUPelunasan(false);
+      if (fuPelunasanInputRef.current) fuPelunasanInputRef.current.value = "";
     }
   };
 
@@ -280,11 +349,14 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
     }
   };
 
-  const renderSection = (title: string, data: CardAttachment[]) => (
+  const renderSection = (title: string, data: CardAttachment[], headerContent?: React.ReactNode) => (
     <div className="mb-6">
-      <Typography.Text className="text-xs text-gray-500 uppercase font-semibold">
-        {title}
-      </Typography.Text>
+      <div className="flex items-center justify-between gap-2">
+        <Typography.Text className="text-xs text-gray-500 uppercase font-semibold">
+          {title}
+        </Typography.Text>
+        {headerContent}
+      </div>
       <List
         className="mt-2"
         dataSource={data}
@@ -754,6 +826,41 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
       {renderSection("Bukti", buktiAttachments)}
       {renderSection("BORDIR", stitchAttachments)}
       {renderSection("Other", otherAttachments)}
+      {canUploadFUPelunasan && fuPelunasanField && renderSection(
+        "FU Pelunasan",
+        fuPelunasanAttachments,
+        <div className="flex items-center gap-2">
+          <Select
+            size="small"
+            placeholder="Pilih FU"
+            value={selectedFUPelunasan}
+            options={(fuPelunasanField.options || []).map((option) => ({
+              value: option.value,
+              label: option.label,
+              disabled: uploadedFUPelunasanOptions.has(option.value),
+            }))}
+            onChange={setSelectedFUPelunasan}
+            className="min-w-28"
+          />
+          <Button
+            size="small"
+            type="primary"
+            icon={<UploadOutlined />}
+            loading={isUploadingFUPelunasan}
+            disabled={!selectedFUPelunasan || uploadedFUPelunasanOptions.has(selectedFUPelunasan)}
+            onClick={() => fuPelunasanInputRef.current?.click()}
+          >
+            FU Pelunasan
+          </Button>
+          <input
+            ref={fuPelunasanInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(event) => handleFUPelunasanUpload(event.target.files)}
+          />
+        </div>,
+      )}
 
       <AttachmentPreviewModal
         open={previewModalOpen}

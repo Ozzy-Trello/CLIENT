@@ -114,6 +114,8 @@ export function useCardAttachment(
         url?: string;
         displayText?: string;
         favicon?: string;
+        category?: string;
+        fuPelunasanOption?: string;
       };
     }) => {
       return createCardAttachment({
@@ -240,6 +242,7 @@ export function useCardAttachment(
     isError: shouldFetch ? cardAttachmentQuery.isError : false,
     error: shouldFetch ? cardAttachmentQuery.error : undefined,
     addAttachment: addAttachmentMutation.mutate,
+    addAttachmentAsync: addAttachmentMutation.mutateAsync,
     deleteAttachment: deleteAttachmentMutation.mutate,
     isAddingAttachment: addAttachmentMutation.isPending,
     isDeletingAttachment: deleteAttachmentMutation.isPending,

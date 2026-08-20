@@ -133,6 +133,8 @@ export interface CardAttachment {
     url?: string;
     displayText?: string;
     favicon?: string;
+    category?: string;
+    fuPelunasanOption?: string;
   };
 }
 

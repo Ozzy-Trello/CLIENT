@@ -108,6 +108,8 @@ export const createCardAttachment = async (params: {
     url?: string;
     displayText?: string;
     favicon?: string;
+    category?: string;
+    fuPelunasanOption?: string;
   };
 }): Promise<ApiResponse<CardAttachment>> => {
   const { data } = await api.post('/card-attachment', params);
