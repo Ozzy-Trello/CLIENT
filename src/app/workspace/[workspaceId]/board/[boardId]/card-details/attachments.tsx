@@ -349,8 +349,13 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
     }
   };
 
-  const renderSection = (title: string, data: CardAttachment[], headerContent?: React.ReactNode) => (
-    <div className="mb-6">
+  const renderSection = (
+    title: string,
+    data: CardAttachment[],
+    headerContent?: React.ReactNode,
+    sectionId?: string,
+  ) => (
+    <div id={sectionId} className="mb-6">
       <div className="flex items-center justify-between gap-2">
         <Typography.Text className="text-xs text-gray-500 uppercase font-semibold">
           {title}
@@ -860,6 +865,7 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
             onChange={(event) => handleFUPelunasanUpload(event.target.files)}
           />
         </div>,
+        "fu-pelunasan-section",
       )}
 
       <AttachmentPreviewModal

@@ -499,6 +499,12 @@ const CardDetails: React.FC = (props) => {
   }, [cardCustomFields, selectedCard?.customFields, selectedCard]);
 
   const isBuatSODisabled = isLoadingCardCustomFields || !!noFakturValue;
+  const fuPelunasanField = cardCustomFields?.find(
+    (field: any) => field?.name?.trim().toLowerCase() === "fu pelunasan",
+  );
+  const canFUPelunasan =
+    ["deal maker", "spv deal maker", "fat", "super admin"].includes(roleLower) &&
+    !!fuPelunasanField;
 
   // Role Checks & Permissions for Toolbar
   // const roleLower = (userRole || currentUser?.role?.name || "").trim().toLowerCase(); // Already defined above
@@ -2055,6 +2061,17 @@ const CardDetails: React.FC = (props) => {
       </Tooltip>
     ) : null;
 
+  const toolbarFUPelunasanButton = canFUPelunasan ? (
+    <Button
+      size="small"
+      type="default"
+      className="bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-200"
+      onClick={() => document.getElementById("fu-pelunasan-section")?.scrollIntoView({ behavior: "smooth", block: "center" })}
+    >
+      FU Pelunasan
+    </Button>
+  ) : null;
+
   // 11. + Actions (Dropdown)
   const toolbarAddButton = (
     <Popover
@@ -2109,6 +2126,7 @@ const CardDetails: React.FC = (props) => {
       {toolbarChecklistButton}
       {toolbarMembersButton}
       {toolbarBuatSOButton}
+      {toolbarFUPelunasanButton}
       {toolbarAutomationButton}
       {toolbarAddButton}
     </div>
