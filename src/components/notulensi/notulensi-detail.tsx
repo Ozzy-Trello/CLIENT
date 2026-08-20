@@ -128,6 +128,7 @@ export default function NotulensiDetailView({
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [previewInitialIndex, setPreviewInitialIndex] = useState(0);
   const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
+  const [showAllReadReceipts, setShowAllReadReceipts] = useState(false);
   const isUploadingAttachments = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
@@ -154,6 +155,10 @@ export default function NotulensiDetailView({
   useEffect(() => {
     setAssigneeIds(detail?.assignees.map((assignee) => assignee.userId) || []);
   }, [detail?.id, detail?.updatedAt]);
+
+  useEffect(() => {
+    setShowAllReadReceipts(false);
+  }, [detail?.id]);
 
   const privateNote = privateNoteQuery.data?.data ?? detail?.privateNote ?? null;
 
@@ -219,6 +224,9 @@ export default function NotulensiDetailView({
   const hasAssigneeChanges =
     savedAssigneeIds.length !== selectedAssigneeIds.length ||
     savedAssigneeIds.some((id, index) => id !== selectedAssigneeIds[index]);
+  const visibleReadReceipts = showAllReadReceipts
+    ? detail.readReceipts
+    : detail.readReceipts.slice(0, 3);
 
   const handleAction = async (action: NotulensiWorkflowAction) => {
     if (pendingAction) return;
@@ -425,7 +433,7 @@ export default function NotulensiDetailView({
     <div className="grid min-w-0 grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(380px,0.8fr)]">
       <div className="flex min-w-0 flex-col gap-4">
       <div className="rounded-2xl border border-[rgb(var(--color-border))] bg-[rgb(var(--color-surface))] p-4 md:p-6">
-        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+         <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <Link href={`/workspace/${workspaceId}/notulensi`}>
               <Button type="default" icon={<ArrowLeft size={16} />}>Back</Button>
@@ -495,10 +503,19 @@ export default function NotulensiDetailView({
                 </Button>
               </Popconfirm>
             ) : null}
-          </Space>
-        </div>
+           </Space>
+         </div>
 
-        <div className="mb-4 rounded-lg border border-[rgb(var(--color-border))] p-3">
+         <div className="mb-4 rounded-lg border border-[rgb(var(--color-border))] p-3">
+           <Typography.Text type="secondary" className="mb-2 block">Description</Typography.Text>
+           {hasDisplayableRichContent(detail.content) ? (
+             <RichTextEditor initialValue={detail.content} readOnly minHeight={80} />
+           ) : (
+             <Typography.Text type="secondary">No description</Typography.Text>
+           )}
+         </div>
+
+         <div className="mb-4 rounded-lg border border-[rgb(var(--color-border))] p-3">
           <div className="mb-2 flex items-center justify-between gap-3">
             <Typography.Text strong>Progress</Typography.Text>
             {detail.allowedActions.includes("update_progress") ? (
@@ -526,13 +543,25 @@ export default function NotulensiDetailView({
           <Typography.Text>Cancelled: {detail.cancelledAt ? dayjs(detail.cancelledAt).format("DD MMM YYYY HH:mm") : "-"}</Typography.Text>
         </div>
 
-        <div className="mb-4">
-          <Typography.Text type="secondary" className="mb-2 block">Read receipts</Typography.Text>
-          {detail.readReceipts.length ? detail.readReceipts.map((receipt) => (
-            <Typography.Text key={receipt.userId} className="block text-sm">
-              {receipt.user?.username || "Unknown user"}: {dayjs(receipt.openedAt).format("DD MMM YYYY HH:mm")}
-            </Typography.Text>
-          )) : <Typography.Text type="secondary">No reads yet</Typography.Text>}
+         <div className="mb-4">
+           <div className="mb-2 flex items-center justify-between gap-3">
+             <Typography.Text type="secondary">Read receipts</Typography.Text>
+             {detail.readReceipts.length > 3 ? (
+               <Button
+                 type="link"
+                 size="small"
+                 className="!px-0"
+                 onClick={() => setShowAllReadReceipts((current) => !current)}
+               >
+                 {showAllReadReceipts ? "Show less" : `Show more (${detail.readReceipts.length - 3})`}
+               </Button>
+             ) : null}
+           </div>
+            {detail.readReceipts.length ? visibleReadReceipts.map((receipt) => (
+             <Typography.Text key={receipt.userId} className="block text-sm">
+               {receipt.user?.username || "Unknown user"}: {dayjs(receipt.openedAt).format("DD MMM YYYY HH:mm")}
+             </Typography.Text>
+           )) : <Typography.Text type="secondary">No reads yet</Typography.Text>}
         </div>
 
         <div className="mb-4 flex flex-wrap gap-4 text-sm">
@@ -566,12 +595,7 @@ export default function NotulensiDetailView({
           </div>
         </div>
 
-        {hasDisplayableRichContent(detail.content) ? (
-          <RichTextEditor initialValue={detail.content} readOnly minHeight={80} />
-        ) : (
-          <Typography.Text type="secondary">No description</Typography.Text>
-        )}
-      </div>
+       </div>
 
       {detail.cardId ? (
         <div className="min-w-0 rounded-2xl border border-[rgb(var(--color-border))] bg-[rgb(var(--color-surface))] p-4 md:p-6">
