@@ -10,6 +10,7 @@ import {
   Modal,
   Popover,
   Row,
+  Select,
   Tag,
   Tooltip,
   Typography,
@@ -437,6 +438,10 @@ const CardDetails: React.FC = (props) => {
   const [openStampModal, setOpenStampModal] = useState(false);
   const [openPOModal, setOpenPOModal] = useState(false);
   const [openBuatSOModal, setOpenBuatSOModal] = useState(false);
+  const [openFUPelunasanModal, setOpenFUPelunasanModal] = useState(false);
+  const [selectedFUPelunasan, setSelectedFUPelunasan] = useState<string>();
+  const [isUploadingFUPelunasan, setIsUploadingFUPelunasan] = useState(false);
+  const fuPelunasanInputRef = useRef<HTMLInputElement | null>(null);
   const [openJmlStitchModal, setOpenJmlStitchModal] = useState(false);
   const [openJmlSablonModal, setOpenJmlSablonModal] = useState(false);
   const [openListNamaModal, setOpenListNamaModal] = useState(false);
@@ -446,7 +451,7 @@ const CardDetails: React.FC = (props) => {
   const poUploadSequenceRef = useRef(0);
   const poGeneratedNamesRef = useRef<Set<string>>(new Set());
 
-  const { cardCustomFields, isLoading: isLoadingCardCustomFields } =
+  const { cardCustomFields, isLoading: isLoadingCardCustomFields, setValueAsync } =
     useCardCustomField(selectedCard?.id || "", workspaceId as string, {
       enabled: !!selectedCard?.id && !!workspaceId,
     });
@@ -533,8 +538,17 @@ const CardDetails: React.FC = (props) => {
     (canManageCardAttachments && canManageCardAttachments());
 
   // Attachment Logic for Toolbar
-  const { cardAttachments, addAttachment } = useCardAttachment(
+  const { cardAttachments, addAttachment, addAttachmentAsync, refetch: refetchCardAttachments } = useCardAttachment(
     selectedCard?.id || "",
+  );
+  const uploadedFUPelunasanOptions = useMemo(
+    () => new Set(
+      (cardAttachments || [])
+        .filter((attachment: any) => attachment.metadata?.category === "FU Pelunasan")
+        .map((attachment: any) => attachment.metadata?.fuPelunasanOption)
+        .filter((value): value is string => Boolean(value)),
+    ),
+    [cardAttachments],
   );
 
   const hasBuktiAttachment = () => {
@@ -636,6 +650,56 @@ const CardDetails: React.FC = (props) => {
         isCover: false,
         type: EnumCardAttachmentType.PO,
       });
+    }
+  };
+
+  const handleFUPelunasanUpload = async (fileList: FileList | null) => {
+    const file = fileList?.[0];
+    const option = selectedFUPelunasan?.trim();
+    if (!file || !option || !fuPelunasanField?.id || !selectedCard) return;
+    if (!file.type.startsWith("image/")) {
+      message.error("FU Pelunasan harus berupa screenshot gambar");
+      return;
+    }
+
+    const hasExistingOption = (cardAttachments || []).some(
+      (attachment: any) =>
+        attachment.metadata?.category === "FU Pelunasan" &&
+        attachment.metadata?.fuPelunasanOption === option,
+    );
+    if (hasExistingOption) {
+      message.error(`${option} sudah memiliki attachment`);
+      return;
+    }
+
+    setIsUploadingFUPelunasan(true);
+    try {
+      const uploadResponse = await uploadFile(file, { cardId: selectedCard.id });
+      const uploaded = uploadResponse?.data;
+      if (!uploaded?.id) throw new Error("Upload did not return a file");
+
+      await addAttachmentAsync({
+        cardId: selectedCard.id,
+        attachableType: EnumAttachmentType.File,
+        attachableId: uploaded.id,
+        isCover: false,
+        type: EnumCardAttachmentType.Attachment,
+        metadata: { category: "FU Pelunasan", fuPelunasanOption: option },
+      });
+
+      const updatedData = fuPelunasanField.type === "dropdown"
+        ? { valueOption: option }
+        : { valueString: option };
+      await setValueAsync({ customFieldId: fuPelunasanField.id, updatedData });
+      setSelectedFUPelunasan(undefined);
+      setOpenFUPelunasanModal(false);
+      await refetchCardAttachments?.();
+      message.success(`${option} berhasil diupload`);
+    } catch (error: any) {
+      message.error(error?.response?.data?.message || error?.message || "FU Pelunasan gagal diupload");
+    } finally {
+      setIsUploadingFUPelunasan(false);
+      if (fuPelunasanInputRef.current) fuPelunasanInputRef.current.value = "";
     }
   };
 
@@ -2070,7 +2134,7 @@ const CardDetails: React.FC = (props) => {
       size="small"
       type="default"
       className="bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-200"
-      onClick={() => document.getElementById("fu-pelunasan-section")?.scrollIntoView({ behavior: "smooth", block: "center" })}
+      onClick={() => setOpenFUPelunasanModal(true)}
     >
       FU Pelunasan
     </Button>
@@ -2198,6 +2262,49 @@ const CardDetails: React.FC = (props) => {
           )}
 
           {/* Modals for Toolbar Actions */}
+          <Modal
+            title="FU Pelunasan"
+            open={openFUPelunasanModal}
+            onCancel={() => {
+              setOpenFUPelunasanModal(false);
+              setSelectedFUPelunasan(undefined);
+            }}
+            footer={null}
+            destroyOnClose
+          >
+            <div className="space-y-4">
+              <div>
+                <Typography.Text strong>Pilih FU</Typography.Text>
+                <Select
+                  className="mt-2 w-full"
+                  placeholder="Pilih FU Pelunasan"
+                  value={selectedFUPelunasan}
+                  options={(fuPelunasanField?.options || []).map((option: any) => ({
+                    value: option.value,
+                    label: option.label,
+                    disabled: uploadedFUPelunasanOptions.has(option.value),
+                  }))}
+                  onChange={setSelectedFUPelunasan}
+                />
+              </div>
+              <Button
+                type="primary"
+                block
+                loading={isUploadingFUPelunasan}
+                disabled={!selectedFUPelunasan || uploadedFUPelunasanOptions.has(selectedFUPelunasan)}
+                onClick={() => fuPelunasanInputRef.current?.click()}
+              >
+                Pilih Screenshot Chat
+              </Button>
+              <input
+                ref={fuPelunasanInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(event) => handleFUPelunasanUpload(event.target.files)}
+              />
+            </div>
+          </Modal>
           <UploadModal
             isVisible={openBuktiModal}
             onClose={() => setOpenBuktiModal(false)}
