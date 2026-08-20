@@ -12,6 +12,7 @@ import React, { useMemo, useRef, useState } from "react";
 import { formatFileSizeInMB, getFileIcon, isImageFile, isPDFFile, isVideoFile } from "./attachment-helpers";
 import { useCardAttachment } from "@hooks/card_attachment";
 import { useCardCustomField } from "@hooks/card_custom_field";
+import { useCustomFields } from "@hooks/custom_field";
 import { useAttachmentPrinting } from "./hooks/useAttachmentPrinting";
 import { useParams } from "next/navigation";
 import { uploadFile, renameFile } from "@api/file";
@@ -39,9 +40,11 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
   const { cardCustomFields, setValueAsync } = useCardCustomField(card.id, workspaceId || "", {
     enabled: !!workspaceId,
   });
+  const { customFields } = useCustomFields(workspaceId || "");
   const fuPelunasanField = useMemo(
-    () => cardCustomFields?.find((field) => field.name?.trim().toLowerCase() === "fu pelunasan"),
-    [cardCustomFields],
+    () => cardCustomFields?.find((field) => field.name?.trim().toLowerCase() === "fu pelunasan") ||
+      customFields?.find((field) => field.name?.trim().toLowerCase() === "fu pelunasan"),
+    [cardCustomFields, customFields],
   );
 
   const {

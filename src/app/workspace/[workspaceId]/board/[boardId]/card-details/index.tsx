@@ -116,6 +116,7 @@ import { uploadFile } from "@api/file";
 import { api } from "@api/index";
 import { useCardAttachment } from "@hooks/card_attachment";
 import { useCardCustomField } from "@hooks/card_custom_field";
+import { useCustomFields } from "@hooks/custom_field";
 import { useDevMode } from "@hooks/use-dev-mode";
 import { ManualOverrideProvider } from "./manual-override-context";
 import CardDetailErrorBoundary from "./error-boundary";
@@ -449,6 +450,7 @@ const CardDetails: React.FC = (props) => {
     useCardCustomField(selectedCard?.id || "", workspaceId as string, {
       enabled: !!selectedCard?.id && !!workspaceId,
     });
+  const { customFields } = useCustomFields(workspaceId as string);
 
   const noFakturValue = useMemo(() => {
     const normalizeId = (field: any) =>
@@ -500,6 +502,8 @@ const CardDetails: React.FC = (props) => {
 
   const isBuatSODisabled = isLoadingCardCustomFields || !!noFakturValue;
   const fuPelunasanField = cardCustomFields?.find(
+    (field: any) => field?.name?.trim().toLowerCase() === "fu pelunasan",
+  ) || customFields?.find(
     (field: any) => field?.name?.trim().toLowerCase() === "fu pelunasan",
   );
   const canFUPelunasan =
