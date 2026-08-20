@@ -35,7 +35,7 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
     : params.workspaceId;
   const boardId = Array.isArray(params.boardId) ? params.boardId[0] : params.boardId;
   const roleName = String(currentUser?.role?.name || "").trim().toLowerCase();
-  const canUploadFUPelunasan = ["deal maker", "spv deal maker", "fat"].includes(roleName);
+  const canUploadFUPelunasan = ["deal maker", "spv deal maker", "fat", "super admin"].includes(roleName);
   const { cardCustomFields, setValueAsync } = useCardCustomField(card.id, workspaceId || "", {
     enabled: !!workspaceId,
   });
