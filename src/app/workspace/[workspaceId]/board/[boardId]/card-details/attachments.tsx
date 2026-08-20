@@ -142,8 +142,8 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
     () =>
       fileAttachments.filter(
         (att) =>
-          !att.type ||
-          att.type === EnumCardAttachmentType.Attachment
+          att.metadata?.category !== "FU Pelunasan" &&
+          (!att.type || att.type === EnumCardAttachmentType.Attachment)
       ),
     [fileAttachments]
   );
