@@ -452,7 +452,7 @@ export default function NotulensiDetailView({
               </Typography.Text>
             </div>
           </div>
-          <Space wrap className="ml-auto justify-end">
+           <Space wrap className="ml-auto w-full justify-start sm:w-auto sm:justify-end">
             {detail.allowedActions
               .filter((action): action is NotulensiWorkflowAction => action !== "update_progress")
               .map((action) => {
@@ -568,7 +568,7 @@ export default function NotulensiDetailView({
           <div>
             <Typography.Text type="secondary" className="block">Assignees</Typography.Text>
             {detail.permissions?.canAssign ? (
-              <Space.Compact className="mt-1 w-full min-w-0 sm:min-w-[280px]">
+               <Space.Compact className="mt-1 flex w-full min-w-0 flex-col sm:min-w-[280px] sm:flex-row">
                 <NotulensiUserSelect
                   value={assigneeIds}
                   onChange={setAssigneeIds}
@@ -705,7 +705,7 @@ export default function NotulensiDetailView({
                     trigger="click"
                     placement="bottom"
                     content={
-                      <div className="w-80">
+                       <div className="w-[min(20rem,calc(100vw-2rem))]">
                         <Input
                           value={cardSearchText}
                           autoFocus

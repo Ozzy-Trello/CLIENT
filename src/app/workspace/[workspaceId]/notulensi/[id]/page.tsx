@@ -13,7 +13,7 @@ export default function NotulensiDetailPage() {
   const detailQuery = useNotulensiDetail(workspaceId, id);
 
   return (
-    <div className="p-4 md:p-6">
+    <div className="min-w-0 p-3 sm:p-4 md:p-6">
       <NotulensiDetailView
         workspaceId={workspaceId}
         detail={detailQuery.data?.data}

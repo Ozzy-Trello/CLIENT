@@ -30,7 +30,7 @@ export default function NewNotulensiPage() {
   const updateMutation = useUpdateNotulensi();
 
   return (
-    <div className="flex flex-col gap-4 p-4 md:p-6">
+    <div className="flex min-w-0 flex-col gap-3 p-3 sm:gap-4 sm:p-4 md:p-6">
       <div>
         <Typography.Title level={2} className="!mb-1 !mt-0">
           New Notulensi

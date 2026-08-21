@@ -674,7 +674,18 @@ const CardDetails: React.FC = (props) => {
 
     setIsUploadingFUPelunasan(true);
     try {
-      const uploadResponse = await uploadFile(file, { cardId: selectedCard.id });
+      const selectedOptionLabel =
+        fuPelunasanField.options?.find((candidate: any) => candidate.value === option)?.label || option;
+      const extension = file.name.includes(".") ? file.name.slice(file.name.lastIndexOf(".")) : "";
+      const safeName = String(selectedOptionLabel)
+        .trim()
+        .replace(/[\\/:*?"<>|]+/g, "-")
+        .replace(/\s+/g, " ");
+      const renamedFile = new File([file], `${safeName}${extension}`, {
+        type: file.type,
+        lastModified: file.lastModified,
+      });
+      const uploadResponse = await uploadFile(renamedFile, { cardId: selectedCard.id });
       const uploaded = uploadResponse?.data;
       if (!uploaded?.id) throw new Error("Upload did not return a file");
 

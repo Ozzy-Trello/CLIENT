@@ -151,7 +151,7 @@ export default function NotulensiForm({
   }
 
   return (
-    <div className="mx-auto w-full min-w-0 max-w-[900px] rounded-2xl border border-[rgb(var(--color-border))] bg-[rgb(var(--color-surface))] p-4 md:p-6">
+    <div className="mx-auto w-full min-w-0 max-w-[900px] rounded-2xl border border-[rgb(var(--color-border))] bg-[rgb(var(--color-surface))] p-3 sm:p-4 md:p-6">
       <Form<FormValues>
         form={form}
         layout="vertical"
@@ -347,7 +347,7 @@ export default function NotulensiForm({
               <div
                 tabIndex={0}
                 aria-label="Attachment paste and drop zone"
-                className={`rounded-xl border-2 border-dashed p-5 text-center transition-colors ${
+                 className={`rounded-xl border-2 border-dashed p-3 sm:p-5 text-center transition-colors ${
                   isDraggingAttachment
                     ? "border-[rgb(var(--color-primary))] bg-[rgb(var(--color-background))]"
                     : "border-[rgb(var(--color-border))]"
