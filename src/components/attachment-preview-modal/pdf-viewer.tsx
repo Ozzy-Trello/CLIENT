@@ -55,8 +55,8 @@ const PreviewPdfViewer: React.FC<PreviewPdfViewerProps> = ({ url, zoom = 1 }) =>
     }
 
     if (/^https?:\/\//i.test(normalizedUrl)) {
-      // Direct URL first, fallback to same-origin proxy for CORS-blocked hosts.
-      pushCandidate(normalizedUrl);
+      // Use the same no-cache proxy as downloads so both actions receive the
+      // same freshly generated document from dynamic upstream URLs.
       pushCandidate(buildFileProxyUrl(normalizedUrl), authHeaders);
       return candidates;
     }

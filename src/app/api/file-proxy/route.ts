@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { proxyFileByUrl } from "./lib";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -17,4 +19,3 @@ export async function GET(request: NextRequest) {
 
   return proxyFileByUrl(request, rawUrl, forceInline);
 }
-

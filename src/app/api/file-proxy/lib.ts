@@ -79,13 +79,11 @@ export async function proxyFileByUrl(
 
     const baseUpstreamHeaders: Record<string, string> = {
       "User-Agent": "Mozilla/5.0 (compatible; OzzyDND/1.0)",
+      "Cache-Control": "no-cache",
+      Pragma: "no-cache",
     };
 
-    const commonPassthroughHeaders = [
-      "accept",
-      "if-none-match",
-      "if-modified-since",
-    ] as const;
+    const commonPassthroughHeaders = ["accept"] as const;
 
     for (const headerName of commonPassthroughHeaders) {
       const value = request.headers.get(headerName);
@@ -109,6 +107,7 @@ export async function proxyFileByUrl(
 
         const upstream = await fetch(candidateUrl, {
           headers: upstreamHeaders,
+          cache: "no-store",
         });
 
         lastStatus = upstream.status;
@@ -127,7 +126,9 @@ export async function proxyFileByUrl(
         const responseHeaders = new Headers({
           "Content-Type": contentType,
           "Content-Disposition": shouldInline ? "inline" : "attachment",
-          "Cache-Control": "private, max-age=60",
+          "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+          Pragma: "no-cache",
+          Expires: "0",
         });
 
         return new NextResponse(upstream.body, {
