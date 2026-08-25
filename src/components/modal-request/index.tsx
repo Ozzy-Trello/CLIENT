@@ -19,6 +19,7 @@ import { useAccountListForModal } from "@hooks/account";
 import { getCombinedOzzyProducts } from "@api/ozzy-warehouse";
 import { getPOProductsByCardId } from "@api/po-product";
 import type { OzzyProductWithSource } from "@api/ozzy-warehouse";
+import { resolveMpiAdjustmentAccount } from "@utils/mpi-adjustment-account";
 interface ModalRequestProps {
   open: boolean;
   onClose: () => void;
@@ -458,6 +459,16 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
           normalizedSource === "mpi" || normalizedSource.includes("mpi");
         const isKuiSource =
           normalizedSource === "kui" || normalizedSource.includes("kui");
+
+        const mpiCategoryAccount = resolveMpiAdjustmentAccount(
+          selectedItem,
+          normalizedSource,
+          glaccounts.d,
+        );
+        if (mpiCategoryAccount) {
+          setAccountField(mpiCategoryAccount);
+          return;
+        }
 
         if (isMpiSource || isKuiSource) {
           const normalizedName = selectedItem.name?.toLowerCase() || "";

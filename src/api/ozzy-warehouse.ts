@@ -47,6 +47,11 @@ export interface OzzyProduct {
   unitType: string;
   unitPrice: string;
   quantity: string;
+  categoryId?: number | null;
+  categoryName?: string | null;
+  cogsGlAccountId?: number | null;
+  inventoryGlAccountId?: number | null;
+  itemTypeName?: string | null;
   description?: string | null;
   qrCodeImage?: string | null;
   itemCategory?: {

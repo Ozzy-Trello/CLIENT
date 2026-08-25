@@ -22,6 +22,7 @@ import { updatePOProduct } from "@api/po-product";
 import { useParams } from "next/navigation";
 import { useAccountList } from "@hooks/account";
 import BahanControls from "./BahanControls";
+import { resolveMpiAdjustmentAccount } from "@utils/mpi-adjustment-account";
 
 type ZeroLoadingCandidate = {
   id: string;
@@ -88,6 +89,13 @@ const resolveGlAccountForItem = async (item?: any) => {
     if (!Array.isArray(accountList) || accountList.length === 0) {
       return null;
     }
+
+    const mpiCategoryAccount = resolveMpiAdjustmentAccount(
+      item,
+      itemSource,
+      accountList,
+    );
+    if (mpiCategoryAccount) return mpiCategoryAccount;
 
     const targetGlAccountId = getCogsGlAccountIdFromItem(item);
     if (targetGlAccountId !== null) {

@@ -38,6 +38,7 @@ import {
   resolveProductUnit,
 } from "./productHelpers";
 import { buildRequestItemMeta } from "./requestPayload";
+import { resolveMpiAdjustmentAccount } from "@utils/mpi-adjustment-account";
 import { useCardCustomField } from "@hooks/card_custom_field";
 import { useManualOverrideContext } from "../manual-override-context";
 
@@ -1533,6 +1534,18 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
       // GL accounts response received
 
       if (glaccounts && glaccounts.data && glaccounts.data.d) {
+        const mpiCategoryAccount = resolveMpiAdjustmentAccount(
+          selectedItem,
+          itemSource,
+          glaccounts.data.d,
+        );
+        if (mpiCategoryAccount) {
+          return {
+            adjustment_no: mpiCategoryAccount.no,
+            adjustment_name: mpiCategoryAccount.name,
+          };
+        }
+
         // First, try to get Inventory GL account from item category (this is the correct field for adjustment)
         const inventoryGlAccountId =
           selectedItem?.itemCategory?.parent?.inventoryGlAccountId;
