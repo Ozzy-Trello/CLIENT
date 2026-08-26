@@ -10,15 +10,15 @@
 #
 set -euo pipefail
 
-APP_ROOT="${OZZY_DEPLOY_ROOT:-/root/produksi}"
-LIVE_DIR="${OZZY_LIVE_DIR:-$APP_ROOT/client}"
-RELEASES_DIR="$APP_ROOT/releases/client"
+APP_ROOT="${OZZY_DEPLOY_ROOT:-/srv/ozzy-client}"
+SOURCE_DIR="${OZZY_SOURCE_DIR:-$APP_ROOT/source}"
+RELEASES_DIR="$APP_ROOT/releases"
 SHARED_STATIC="$APP_ROOT/shared/client/_next/static"
 STATE_DIR="$APP_ROOT/state"
 STATE_FILE="$STATE_DIR/client-deploy.env"
 UPSTREAM_CONF="${OZZY_NGINX_UPSTREAM:-$APP_ROOT/nginx/ozzy-client-upstream.conf}"
-NGINX_BIN="${NGINX_BIN:-/www/server/nginx/sbin/nginx}"
-ECOSYSTEM_SRC="$(cd "$(dirname "$0")/.." && pwd)/ecosystem.config.js"
+NGINX_SWITCH_HELPER="${OZZY_NGINX_HELPER:-/usr/local/sbin/switch-ozzy-client}"
+ECOSYSTEM_SRC="$SOURCE_DIR/ecosystem.config.js"
 
 PORT_A="${OZZY_PORT_A:-3300}"
 PORT_B="${OZZY_PORT_B:-3301}"
@@ -34,10 +34,10 @@ mkdir "$LOCK_DIR" 2>/dev/null || fail "another deploy is in progress ($LOCK_DIR)
 trap 'rm -rf "$LOCK_DIR"' EXIT
 
 command -v pm2 >/dev/null || fail "pm2 not found in PATH"
-[ -x "$NGINX_BIN" ] || fail "nginx binary not found: $NGINX_BIN"
-[ -d "$LIVE_DIR/.git" ] || fail "live checkout missing: $LIVE_DIR"
+[ -x "$NGINX_SWITCH_HELPER" ] || fail "nginx switch helper missing: $NGINX_SWITCH_HELPER"
+[ -d "$SOURCE_DIR/.git" ] || fail "source checkout missing: $SOURCE_DIR"
 
-REMOTE_URL="$(git -C "$LIVE_DIR" remote get-url origin)"
+REMOTE_URL="$(git -C "$SOURCE_DIR" remote get-url origin)"
 EXPECTED_SHA="$(git ls-remote "$REMOTE_URL" "refs/heads/$BRANCH" | awk '{print substr($1,1,7)}')"
 [ -n "$EXPECTED_SHA" ] || fail "could not resolve remote SHA for branch $BRANCH"
 
@@ -53,7 +53,7 @@ source_state() {
     source "$STATE_FILE"
   fi
   ACTIVE_PORT="${ACTIVE_PORT:-$PORT_A}"
-  ACTIVE_RELEASE="${ACTIVE_RELEASE:-$LIVE_DIR}"
+  ACTIVE_RELEASE="${ACTIVE_RELEASE:-$SOURCE_DIR}"
 }
 source_state
 
@@ -76,8 +76,8 @@ git clone --depth 1 --branch "$BRANCH" "$REMOTE_URL" "$RELEASE_DIR" >/dev/null 2
 ACTUAL_SHA="$(git -C "$RELEASE_DIR" rev-parse --short HEAD)"
 [ "$ACTUAL_SHA" = "$EXPECTED_SHA" ] || fail "cloned SHA $ACTUAL_SHA != expected $EXPECTED_SHA"
 
-# Carry over untracked server-side env files from the live checkout.
-for envfile in "$LIVE_DIR"/.env*; do
+# Carry over untracked server-side env files from the source checkout.
+for envfile in "$SOURCE_DIR"/.env*; do
   [ -f "$envfile" ] && cp "$envfile" "$RELEASE_DIR/"
 done
 
@@ -127,23 +127,15 @@ done
 log "candidate verified"
 
 # --- atomic cutover --------------------------------------------------------
-UPSTREAM_BACKUP="$UPSTREAM_CONF.pre-deploy"
-[ -f "$UPSTREAM_CONF" ] && cp "$UPSTREAM_CONF" "$UPSTREAM_BACKUP"
-
 write_upstream() {
-  local port="$1" target="$2"
-  printf 'upstream ozzy_client {\n    server 127.0.0.1:%s;\n}\n' "$port" > "$target.tmp.$$"
-  mv "$target.tmp.$$" "$target"
+  "$NGINX_SWITCH_HELPER" "$1"
 }
 
-write_upstream "$INACTIVE_PORT" "$UPSTREAM_CONF"
-if ! "$NGINX_BIN" -t >/dev/null 2>&1; then
-  "$NGINX_BIN" -t || true
-  [ -f "$UPSTREAM_BACKUP" ] && cp "$UPSTREAM_BACKUP" "$UPSTREAM_CONF"
-  write_upstream "$ACTIVE_PORT" "$UPSTREAM_CONF"
-  fail "nginx -t failed; upstream restored to $ACTIVE_PORT"
+write_upstream "$INACTIVE_PORT"
+if [ "$(cat "$UPSTREAM_CONF" 2>/dev/null | awk '/server/{print $2}' | awk -F: '{print $NF}')" != "$INACTIVE_PORT" ]; then
+  write_upstream "$ACTIVE_PORT"
+  fail "upstream switch did not settle; restored to $ACTIVE_PORT"
 fi
-"$NGINX_BIN" -s reload
 
 PUBLIC_CHECK="${OZZY_PUBLIC_URL:-}"
 if [ -n "$PUBLIC_CHECK" ]; then

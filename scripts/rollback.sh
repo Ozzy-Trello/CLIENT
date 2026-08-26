@@ -5,10 +5,9 @@
 #
 set -euo pipefail
 
-APP_ROOT="${OZZY_DEPLOY_ROOT:-/root/produksi}"
+APP_ROOT="${OZZY_DEPLOY_ROOT:-/srv/ozzy-client}"
 STATE_FILE="$APP_ROOT/state/client-deploy.env"
-UPSTREAM_CONF="${OZZY_NGINX_UPSTREAM:-$APP_ROOT/nginx/ozzy-client-upstream.conf}"
-NGINX_BIN="${NGINX_BIN:-/www/server/nginx/sbin/nginx}"
+NGINX_SWITCH_HELPER="${OZZY_NGINX_HELPER:-/usr/local/sbin/switch-ozzy-client}"
 
 log() { printf '[rollback] %s\n' "$*"; }
 fail() { printf '[rollback] ERROR: %s\n' "$*" >&2; exit 1; }
@@ -18,14 +17,7 @@ fail() { printf '[rollback] ERROR: %s\n' "$*" >&2; exit 1; }
 source "$STATE_FILE"
 [ -n "${LAST_PORT:-}" ] || fail "state file has no LAST_PORT"
 
-printf 'upstream ozzy_client {\n    server 127.0.0.1:%s;\n}\n' "$LAST_PORT" > "$UPSTREAM_CONF.tmp.$$"
-mv "$UPSTREAM_CONF.tmp.$$" "$UPSTREAM_CONF"
-
-if ! "$NGINX_BIN" -t >/dev/null 2>&1; then
-  "$NGINX_BIN" -t || true
-  fail "nginx -t failed after writing upstream $LAST_PORT; fix manually"
-fi
-"$NGINX_BIN" -s reload
+"$NGINX_SWITCH_HELPER" "$LAST_PORT" || fail "nginx switch helper failed for $LAST_PORT"
 
 cat > "$STATE_FILE" <<EOF
 ACTIVE_PORT=$LAST_PORT
