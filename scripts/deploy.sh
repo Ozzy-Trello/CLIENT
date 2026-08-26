@@ -94,6 +94,9 @@ BUILD_ID="$(cat "$RELEASE_DIR/.next/BUILD_ID")"
 log "built BUILD_ID=$BUILD_ID"
 
 # --- start candidate -------------------------------------------------------
+# startOrReload keeps the original pm_cwd, so recreate the candidate to pick
+# up the new release dir. Safe: the candidate is always the inactive port.
+pm2 delete "$CANDIDATE_NAME" >/dev/null 2>&1 || true
 log "starting PM2 app $CANDIDATE_NAME on port $INACTIVE_PORT"
 OZZY_CLIENT_CWD="$RELEASE_DIR" OZZY_CLIENT_PORT="$INACTIVE_PORT" \
   pm2 startOrReload "$ECOSYSTEM_SRC" --only "$CANDIDATE_NAME" --update-env >/dev/null
