@@ -3,7 +3,7 @@
 # /usr/local/sbin/switch-ozzy-client <port>
 #
 # Validates that <port> matches one of the configured blue-green ports and
-# atomically rewrites /root/produksi/nginx/ozzy-client-upstream.conf between
+# atomically rewrites /srv/ozzy-client/nginx/ozzy-client-upstream.conf between
 # nginx -t and nginx -s reload. The original file is restored on failure.
 #
 set -euo pipefail
@@ -16,7 +16,7 @@ case " $ALLOWED " in
   *) echo "refused: port $PORT not in {${ALLOWED// /,}}" >&2; exit 64 ;;
 esac
 
-CONF=/root/produksi/nginx/ozzy-client-upstream.conf
+CONF="${OZZY_NGINX_UPSTREAM:-/srv/ozzy-client/nginx/ozzy-client-upstream.conf}"
 BACKUP="${CONF}.pre-switch.$$"
 NGINX_BIN="${NGINX_BIN:-/www/server/nginx/sbin/nginx}"
 
