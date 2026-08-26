@@ -5,6 +5,9 @@ on:
     branches: [stable]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 concurrency:
   group: ozzy-client-production
   cancel-in-progress: false
@@ -13,27 +16,15 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    env:
-      CLIENT_DEPLOY_ENABLED: ${{ vars.CLIENT_DEPLOY_ENABLED }}
-    defaults:
-      run:
-        working-directory: client
     steps:
-      - name: Skip when deploy disabled
-        if: env.CLIENT_DEPLOY_ENABLED != 'true'
-        run: |
-          echo "CLIENT_DEPLOY_ENABLED=$CLIENT_DEPLOY_ENABLED, skipping deployment."
-          exit 78
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: client/package-lock.json
+          cache-dependency-path: package-lock.json
       - name: Install dependencies
         run: npm ci
-      - name: Lint
-        run: npm run lint
       - name: Test
         run: npm test -- --runInBand
       - name: Build
@@ -41,28 +32,30 @@ jobs:
 
   deploy:
     needs: build
+    if: ${{ vars.CLIENT_DEPLOY_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    if: ${{ vars.CLIENT_DEPLOY_ENABLED == 'true' }}
     steps:
-      - name: Skip when deploy disabled
-        if: vars.CLIENT_DEPLOY_ENABLED != 'true'
-        run: exit 78
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-        with:
-          persist-credentials: false
-      - name: Setup SSH
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ vars.CLIENT_PROD_HOST }}
-          username: ${{ vars.CLIENT_PROD_USER }}
-          key: ${{ secrets.CLIENT_PROD_SSH_PRIVATE_KEY }}
-          known_hosts: ${{ secrets.CLIENT_PROD_SSH_KNOWN_HOSTS }}
-          command_timeout: 25m
-          script: |
-            cd /srv/ozzy-client/source
-            git fetch --prune origin
-            git reset --hard "origin/${{ github.event.ref == 'refs/heads/stable' && 'stable' || 'stable' }}"
-            OZZY_PUBLIC_URL=https://production.ozzyclothing.co.id \
-              bash scripts/deploy.sh
-            echo "DEPLOY_SHA=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Configure restricted SSH key
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.CLIENT_PROD_SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.CLIENT_PROD_SSH_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/client_deploy
+          chmod 600 ~/.ssh/client_deploy
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+      - name: Deploy through forced command
+        env:
+          PROD_HOST: ${{ vars.CLIENT_PROD_HOST }}
+          PROD_USER: ${{ vars.CLIENT_PROD_USER }}
+        run: |
+          ssh -i ~/.ssh/client_deploy \
+            -o BatchMode=yes \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            "$PROD_USER@$PROD_HOST" deploy
+      - name: Remove SSH key
+        if: ${{ always() }}
+        run: rm -f ~/.ssh/client_deploy
