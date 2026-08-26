@@ -80,6 +80,11 @@ for envfile in "$SOURCE_DIR"/.env*; do
   [ -f "$envfile" ] && cp "$envfile" "$RELEASE_DIR/"
 done
 
+# A dev leftover here once shipped localhost API URLs to browsers.
+if grep -E "^NEXT_PUBLIC_BE_BASE_URL=.*(localhost|127\.0\.0\.1)" "$RELEASE_DIR/.env.production" >/dev/null 2>&1; then
+  fail ".env.production points NEXT_PUBLIC_BE_BASE_URL at loopback"
+fi
+
 log "npm ci + build in $RELEASE_DIR"
 (cd "$RELEASE_DIR" && npm ci --no-audit --no-fund >/dev/null)
 (cd "$RELEASE_DIR" && npm run build >/dev/null)
