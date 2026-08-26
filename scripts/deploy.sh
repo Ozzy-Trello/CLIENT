@@ -97,6 +97,23 @@ log "built BUILD_ID=$BUILD_ID"
 # startOrReload keeps the original pm_cwd, so recreate the candidate to pick
 # up the new release dir. Safe: the candidate is always the inactive port.
 pm2 delete "$CANDIDATE_NAME" >/dev/null 2>&1 || true
+
+# An orphaned next-server child can outlive its npm parent and hold the port.
+PIDS=""
+for _ in $(seq 1 10); do
+  PIDS="$(ss -ltnp "( sport = :$INACTIVE_PORT )" 2>/dev/null | grep -oE 'pid=[0-9]+' | cut -d= -f2 | sort -u)"
+  [ -z "$PIDS" ] && break
+  sleep 1
+done
+if [ -n "$PIDS" ]; then
+  log "killing stale listener(s) on $INACTIVE_PORT: $(echo "$PIDS" | tr '\n' ' ')"
+  kill $PIDS 2>/dev/null || true
+  sleep 2
+fi
+if ss -ltn "( sport = :$INACTIVE_PORT )" 2>/dev/null | grep -q LISTEN; then
+  fail "port $INACTIVE_PORT still in use; refusing to start candidate"
+fi
+
 log "starting PM2 app $CANDIDATE_NAME on port $INACTIVE_PORT"
 OZZY_CLIENT_CWD="$RELEASE_DIR" OZZY_CLIENT_PORT="$INACTIVE_PORT" \
   pm2 startOrReload "$ECOSYSTEM_SRC" --only "$CANDIDATE_NAME" --update-env >/dev/null
