@@ -112,7 +112,7 @@ done
 # Every asset referenced by the served HTML must exist with a non-HTML type.
 log "verifying assets referenced by / and /login"
 for page in "/" "/login"; do
-  ASSETS="$(curl -fsS "$CANDIDATE_URL$page" | grep -oE '/_next/static/[^"]+' | sort -u)"
+  ASSETS="$(curl -fsS "$CANDIDATE_URL$page" | grep -oE '/_next/static/[^"\\]+' | sort -u)"
   [ -n "$ASSETS" ] || fail "no static assets referenced by $page"
   while IFS= read -r asset; do
     RESULT="$(curl -s -o /dev/null -w '%{http_code} %{content_type}' "$CANDIDATE_URL$asset")"
