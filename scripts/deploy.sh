@@ -100,7 +100,7 @@ pm2 delete "$CANDIDATE_NAME" >/dev/null 2>&1 || true
 # An orphaned next-server child can outlive its npm parent and hold the port.
 PIDS=""
 for _ in $(seq 1 10); do
-  PIDS="$(ss -ltnp "( sport = :$INACTIVE_PORT )" 2>/dev/null | grep -oE 'pid=[0-9]+' | cut -d= -f2 | sort -u)"
+  PIDS="$(ss -ltnp "( sport = :$INACTIVE_PORT )" 2>/dev/null | grep -oE 'pid=[0-9]+' | cut -d= -f2 | sort -u || true)"
   [ -z "$PIDS" ] && break
   sleep 1
 done
