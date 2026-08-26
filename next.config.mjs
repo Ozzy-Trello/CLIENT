@@ -35,11 +35,13 @@ const normalizedBuildVersion = uniqueBuildId
   .trim()
   .toLowerCase()
   .replace(/[^a-z0-9-_]/g, '-');
+const appBuildId = `build-${normalizedBuildVersion}`;
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   env: {
     NEXT_PUBLIC_APP_BUILD_VERSION: manualBuildVersion,
+    NEXT_PUBLIC_APP_BUILD_ID: appBuildId,
   },
   generateBuildId: async () => {
     return `build-${normalizedBuildVersion}`;
@@ -68,41 +70,7 @@ const nextConfig = {
     gzipSize: true,
   },
   webpack: (config, { dev, isServer }) => {
-    // Docker-specific optimizations
- 
-
-    // Optimize bundle splitting
     if (!dev && !isServer) {
-      config.optimization.splitChunks = {
-        chunks: 'all',
-        cacheGroups: {
-          vendor: {
-            test: /[\/]node_modules[\/]/,
-            name: 'vendors',
-            priority: 10,
-            reuseExistingChunk: true,
-          },
-          common: {
-            name: 'common',
-            minChunks: 2,
-            priority: 5,
-            reuseExistingChunk: true,
-          },
-          react: {
-            test: /[\/]node_modules[\/](react|react-dom)[\/]/,
-            name: 'react',
-            priority: 20,
-            reuseExistingChunk: true,
-          },
-          query: {
-            test: /[\/]node_modules[\/]@tanstack[\/]react-query[\/]/,
-            name: 'react-query',
-            priority: 15,
-            reuseExistingChunk: true,
-          },
-        },
-      };
-      
       // Additional CSS minimization prevention
       if (process.env.DISABLE_CSS_MINIFICATION === 'true') {
         config.optimization.minimizer = config.optimization.minimizer.filter(
@@ -155,6 +123,22 @@ const nextConfig = {
           {
             key: 'X-XSS-Protection',
             value: '1; mode=block',
+          },
+        ],
+      },
+      {
+        // HTML, RSC payloads and API responses must never be cached by
+        // proxies/browsers; stale cached HTML is what references deleted
+        // chunks after a deploy and produces white screens.
+        source: '/((?!_next/static|_next/image).*)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'private, no-cache, no-store, must-revalidate',
+          },
+          {
+            key: 'X-App-Build',
+            value: appBuildId,
           },
         ],
       },
