@@ -132,7 +132,7 @@ write_upstream() {
 }
 
 write_upstream "$INACTIVE_PORT"
-if [ "$(cat "$UPSTREAM_CONF" 2>/dev/null | awk '/server/{print $2}' | awk -F: '{print $NF}')" != "$INACTIVE_PORT" ]; then
+if [ "$(cat "$UPSTREAM_CONF" 2>/dev/null | awk '/server/{print $2}' | tr -d ';' | awk -F: '{print $NF}')" != "$INACTIVE_PORT" ]; then
   write_upstream "$ACTIVE_PORT"
   fail "upstream switch did not settle; restored to $ACTIVE_PORT"
 fi
