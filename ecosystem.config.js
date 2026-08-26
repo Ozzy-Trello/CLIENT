@@ -9,8 +9,8 @@ module.exports = {
     {
       name: `ozzy-client-${port}`,
       cwd,
-      script: "npm",
-      args: `run start -- -p ${port}`,
+      script: "./node_modules/.bin/next",
+      args: `start -p ${port}`,
       env: {
         NODE_ENV: "production",
         PORT: port,

@@ -18,7 +18,6 @@ STATE_DIR="$APP_ROOT/state"
 STATE_FILE="$STATE_DIR/client-deploy.env"
 UPSTREAM_CONF="${OZZY_NGINX_UPSTREAM:-$APP_ROOT/nginx/ozzy-client-upstream.conf}"
 NGINX_SWITCH_HELPER="${OZZY_NGINX_HELPER:-/usr/local/sbin/switch-ozzy-client}"
-ECOSYSTEM_SRC="$SOURCE_DIR/ecosystem.config.js"
 
 PORT_A="${OZZY_PORT_A:-3300}"
 PORT_B="${OZZY_PORT_B:-3301}"
@@ -115,8 +114,8 @@ if ss -ltn "( sport = :$INACTIVE_PORT )" 2>/dev/null | grep -q LISTEN; then
 fi
 
 log "starting PM2 app $CANDIDATE_NAME on port $INACTIVE_PORT"
-OZZY_CLIENT_CWD="$RELEASE_DIR" OZZY_CLIENT_PORT="$INACTIVE_PORT" \
-  pm2 startOrReload "$ECOSYSTEM_SRC" --only "$CANDIDATE_NAME" --update-env >/dev/null
+OZZY_CLIENT_PORT="$INACTIVE_PORT" \
+  pm2 startOrReload "$RELEASE_DIR/ecosystem.config.js" --only "$CANDIDATE_NAME" --update-env >/dev/null
 
 CANDIDATE_URL="http://127.0.0.1:$INACTIVE_PORT"
 HEALTH_OK=""
