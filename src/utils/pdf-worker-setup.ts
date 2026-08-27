@@ -13,7 +13,7 @@ export async function setupPDFWorker() {
 
     const { pdfjs } = await import("react-pdf");
     const baseUrl = window.location.origin;
-    pdfjs.GlobalWorkerOptions.workerSrc = `${baseUrl}/pdf.worker.min.js`;
+    pdfjs.GlobalWorkerOptions.workerSrc = `${baseUrl}/pdf.worker.min.mjs`;
 
     workerInitialized = true;
   } catch (error) {
