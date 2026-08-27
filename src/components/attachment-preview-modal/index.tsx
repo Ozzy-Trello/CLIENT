@@ -141,12 +141,13 @@ const AttachmentPreviewModal: React.FC<AttachmentPreviewModalProps> = ({
     };
   }, [isMoving]);
 
-  // Mouse wheel zoom on content area
+  // Preserve normal wheel scrolling; Ctrl/Cmd-wheel handles intentional zoom.
   useEffect(() => {
     const el = contentRef.current;
     if (!open || !el) return;
 
     const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return;
       e.preventDefault();
       const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
       setZoom((prev) => {
