@@ -24,13 +24,37 @@ const toCssSize = (value: string | number) =>
 
 if (typeof window !== "undefined") {
   const Image = Quill.import("formats/image");
+  const Embed = Quill.import("blots/embed");
   class PreviewImage extends Image {
     static sanitize(url: string) {
       return sanitizeEditorImageUrl(url);
     }
   }
+
+  class MentionBlot extends Embed {
+    static blotName = "mention";
+    static tagName = "span";
+    static className = "mention";
+
+    static create(data: any) {
+      const node = super.create();
+      node.setAttribute("data-id", data.id);
+      node.setAttribute("data-value", data.value);
+      node.innerText = `@${data.value}`;
+      return node;
+    }
+
+    static value(node: any) {
+      return {
+        id: node.getAttribute("data-id"),
+        value: node.getAttribute("data-value"),
+      };
+    }
+  }
+
   Quill.register(PreviewImage, true);
   Quill.register("modules/mention", Mention, true);
+  Quill.register(MentionBlot);
 }
 
 // Move toolbar configuration outside component to prevent recreation

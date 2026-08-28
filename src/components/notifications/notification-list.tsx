@@ -40,7 +40,12 @@ export function getNotificationTarget(
       return null;
     }
 
-    return `/workspace/${encodeURIComponent(n.workspaceId)}/notulensi/${encodeURIComponent(n.entityId)}`;
+    const params = new URLSearchParams();
+    if (category === "comment") {
+      params.set("notificationId", n.id);
+    }
+    const qs = params.toString();
+    return `/workspace/${encodeURIComponent(n.workspaceId)}/notulensi/${encodeURIComponent(n.entityId)}${qs ? `?${qs}` : ""}`;
   }
 
   if (n.entityType !== "card") {
