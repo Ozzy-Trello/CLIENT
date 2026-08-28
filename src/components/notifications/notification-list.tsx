@@ -75,8 +75,8 @@ function normalizeCategoryResult(
 ) {
   const matchesCategory = (notification: NotificationItem) =>
     category === "comment"
-      ? notification.type === "comment_mention"
-      : notification.type !== "comment_mention";
+      ? notification.type === "comment_mention" || notification.type === "notulensi_mention"
+      : notification.type !== "comment_mention" && notification.type !== "notulensi_mention";
   const data = result.data.filter(matchesCategory);
   const backendIgnoredCategory = data.length !== result.data.length;
 

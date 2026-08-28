@@ -83,7 +83,7 @@ export function UnreadCommentGate() {
       footer={null}
       centered
     >
-      <div className="space-y-4 px-1 pb-2 text-sm text-gray-600">
+      <div className="space-y-4 p-1 text-sm text-gray-600">
         <p className="m-0">
           Ada comment mention yang belum dibaca. Buka dan baca comment tersebut satu per satu
           sampai selesai sebelum melanjutkan pekerjaan lain.

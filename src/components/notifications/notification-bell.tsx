@@ -72,6 +72,7 @@ export function NotificationBell() {
           <Tabs
             activeKey={activeTab}
             onChange={(key) => dispatch(setActiveTab(key as "general" | "comment"))}
+            centered
             className="px-2 pt-2"
             items={[
               {

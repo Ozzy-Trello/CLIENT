@@ -45,8 +45,10 @@ const initialState: NotificationState = {
   isReviewingComment: false,
 };
 
+const COMMENT_TYPES = new Set(["comment_mention", "notulensi_mention"]);
+
 const getNotificationCategory = (notification: NotificationItem): NotificationTab =>
-  notification.type === "comment_mention" ? "comment" : "general";
+  COMMENT_TYPES.has(notification.type) ? "comment" : "general";
 
 const getCategoryPayload = <T,>(
   payload: CategoryPayload<T> | T,
