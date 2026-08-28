@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Button, Modal } from "antd";
-import { useRouter } from "next/navigation";
+import { WarningOutlined } from "@ant-design/icons";
 import { useDispatch, useSelector } from "react-redux";
 import { getUnreadCount } from "@api/notifications";
 import {
@@ -13,11 +13,9 @@ import {
   setOpen,
   setUnreadCounts,
 } from "@store/notification_slice";
-import TokenStorage from "@utils/token-storage";
 
 export function UnreadCommentGate() {
   const dispatch = useDispatch();
-  const router = useRouter();
   const commentUnreadCount = useSelector(selectCommentUnreadCount);
   const commentGateEnabled = useSelector(selectCommentGateEnabled);
   const isReviewingComment = useSelector(selectIsReviewingComment);
@@ -67,25 +65,25 @@ export function UnreadCommentGate() {
     dispatch(setOpen(true));
   };
 
-  const handleLogout = () => {
-    TokenStorage.clearTokens();
-    router.push("/login");
-  };
-
   const shouldShow =
     isCountKnown && commentGateEnabled && commentUnreadCount > 0 && !isReviewingComment;
 
   return (
     <Modal
       open={shouldShow}
-      title="Baca komen task & project terlebih dahulu"
+      title={
+        <span className="flex items-center gap-2">
+          <WarningOutlined className="text-amber-500" />
+          Baca komen task & project terlebih dahulu
+        </span>
+      }
       closable={false}
       keyboard={false}
       maskClosable={false}
       footer={null}
       centered
     >
-      <div className="space-y-4 text-sm text-gray-600">
+      <div className="space-y-4 px-1 pb-2 text-sm text-gray-600">
         <p className="m-0">
           Ada comment mention yang belum dibaca. Buka dan baca comment tersebut satu per satu
           sampai selesai sebelum melanjutkan pekerjaan lain.
@@ -93,8 +91,7 @@ export function UnreadCommentGate() {
         <p className="m-0 font-medium text-gray-800">
           {commentUnreadCount} comment belum dibaca.
         </p>
-        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <Button onClick={handleLogout}>Logout</Button>
+        <div className="flex justify-end">
           <Button type="primary" onClick={openCommentNotifications}>
             Lihat Comment
           </Button>
