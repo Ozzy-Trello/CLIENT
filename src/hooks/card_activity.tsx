@@ -26,6 +26,7 @@ export const useCardActivity = (
   const {
     data: activitiesData,
     isLoading,
+    isFetching,
     refetch,
   } = useQuery({
     queryKey: ["cardActivity", cardId, page, filter],
@@ -54,7 +55,7 @@ export const useCardActivity = (
     activitiesData?.paginate?.totalData || activitiesData?.paginate?.total || 0
   );
   const hasMore = allActivities.length < total;
-  const isLoadingMore = false; // We'll handle this differently
+  const isLoadingMore = isFetching && page > 1;
 
   const loadMore = async () => {
     if (!hasMore || isLoading) return;
@@ -140,6 +141,7 @@ export const useCardActivity = (
       setPage(1);
     },
     isLoading,
+    isFetching,
     isLoadingMore,
     hasMore,
     loadMore,

@@ -5,7 +5,7 @@ import { generateId } from "@utils/general";
 import RichTextEditor from "@components/rich-text-editor";
 import { ListCollapse } from "lucide-react";
 import { useAccountList } from "@hooks/account";
-import { useParams } from "next/navigation";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Account } from "@dto/account";
 import { Card, CardActivity, EnumCardActivityType } from "@myTypes/card";
 import { User } from "@myTypes/user";
@@ -13,6 +13,13 @@ import { useCardActivity } from "@hooks/card_activity";
 import CardAttachmentImageListModal from "@components/modal-list-card-attachment-images";
 import { useBoardPermissionsContext } from "@providers/board-permissions-context";
 import { normalizeQuillHtml, linkifyHtml } from "@utils/normalize-quill-html";
+import { getUnreadCount, markNotificationRead } from "@api/notifications";
+import { useDispatch } from "react-redux";
+import {
+  markNotificationReadLocally,
+  setIsReviewingComment,
+  setUnreadCounts,
+} from "@store/notification_slice";
 
 interface ActivitySectionProps {
   card: Card;
@@ -39,8 +46,13 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
     mutationState,
     resetMutation,
     isLoading,
+    isFetching,
   } = useCardActivity(card?.id);
   const params = useParams();
+  const dispatch = useDispatch();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const workspaceId =
     typeof params.workspaceId === "string" ? params.workspaceId : "";
   const boardId = typeof params.boardId === "string" ? params.boardId : "";
@@ -59,9 +71,43 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState<string>("");
   const editEditorRef = useRef<any>(null);
+  const [highlightedActivityId, setHighlightedActivityId] = useState<string | null>(null);
+  const activityRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const processedCommentTargetRef = useRef<string | null>(null);
 
   // Get board permissions
   const { canCommentOnCard } = useBoardPermissionsContext();
+  const commentId = searchParams.get("commentId")?.trim() || null;
+  const notificationId = searchParams.get("notificationId")?.trim() || null;
+
+  const clearCommentReviewParams = () => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("commentId");
+    params.delete("notificationId");
+    const nextUrl = params.toString() ? `${pathname}?${params}` : pathname;
+    router.replace(nextUrl, { scroll: false });
+  };
+
+  const finishCommentReview = async (currentNotificationId: string | null) => {
+    if (currentNotificationId) {
+      try {
+        await markNotificationRead(currentNotificationId);
+        dispatch(markNotificationReadLocally(currentNotificationId));
+      } catch {
+        // Reconcile against the server count contract below.
+      }
+    }
+
+    try {
+      const counts = await getUnreadCount();
+      dispatch(setUnreadCounts(counts));
+    } catch {
+      // Leave local counts as-is if reconciliation fails.
+    }
+
+    dispatch(setIsReviewingComment(false));
+    clearCommentReviewParams();
+  };
 
   const enableEditComment = (): void => {
     if (canCommentOnCard()) {
@@ -216,6 +262,62 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
       }, 0);
     }
   }, [isEditingComment, pendingMention]);
+
+  useEffect(() => {
+    if (commentId && filter !== "comment") {
+      setFilter("comment");
+    }
+  }, [commentId, filter, setFilter]);
+
+  useEffect(() => {
+    if (!commentId || filter !== "comment" || isFetching) {
+      return;
+    }
+
+    const targetActivity = cardActivities.find((activity) => activity.id === commentId);
+    if (targetActivity) {
+      setHighlightedActivityId(targetActivity.id || null);
+      return;
+    }
+
+    if (hasMore) {
+      loadMore();
+      return;
+    }
+
+    if (processedCommentTargetRef.current !== `missing:${commentId}`) {
+      processedCommentTargetRef.current = `missing:${commentId}`;
+      void finishCommentReview(notificationId);
+    }
+  }, [commentId, notificationId, filter, isFetching, cardActivities, hasMore, loadMore]);
+
+  useEffect(() => {
+    if (!commentId || !highlightedActivityId || highlightedActivityId !== commentId) {
+      return;
+    }
+
+    const targetElement = activityRefs.current[highlightedActivityId];
+    if (!targetElement) {
+      return;
+    }
+
+    const processedKey = `found:${highlightedActivityId}:${notificationId || ""}`;
+    if (processedCommentTargetRef.current === processedKey) {
+      return;
+    }
+    processedCommentTargetRef.current = processedKey;
+
+    targetElement.scrollIntoView({ behavior: "smooth", block: "center" });
+    const timeoutId = window.setTimeout(() => {
+      setHighlightedActivityId((current) => (current === highlightedActivityId ? null : current));
+    }, 2000);
+
+    void finishCommentReview(notificationId);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [commentId, highlightedActivityId, notificationId]);
 
   // Function to render activity messages with clickable filenames
   const renderActivityMessage = (newValue: any) => {
@@ -387,7 +489,19 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
           <Divider className="my-2" />
           {cardActivities.map((item: CardActivity, index: number) => {
             return (
-              <div key={index} className="flex pt-2">
+              <div
+                key={item.id || index}
+                ref={(element) => {
+                  if (item.id) {
+                    activityRefs.current[item.id] = element;
+                  }
+                }}
+                id={item.id ? `comment-activity-${item.id}` : undefined}
+                data-comment-activity-id={item.id}
+                className={`flex pt-2 rounded-md transition-colors ${
+                  highlightedActivityId === item.id ? "bg-yellow-100" : ""
+                }`}
+              >
                 <div className="mr-3">
                   <Avatar
                     size={28}

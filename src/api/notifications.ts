@@ -1,17 +1,28 @@
 import { api } from ".";
-import { NotificationsResponse } from "@myTypes/notification";
+import {
+  NotificationCategory,
+  NotificationsResponse,
+  NotificationUnreadCounts,
+} from "@myTypes/notification";
 
 export const getNotifications = async (
   page = 1,
-  limit = 20
+  limit = 20,
+  category: NotificationCategory = "all"
 ): Promise<NotificationsResponse> => {
-  const res = await api.get("/notifications", { params: { page, limit } });
+  const res = await api.get("/notifications", { params: { page, limit, category } });
   return res.data;
 };
 
-export const getUnreadCount = async (): Promise<{ unreadCount: number }> => {
+export const getUnreadCount = async (): Promise<NotificationUnreadCounts> => {
   const res = await api.get("/notifications/count");
-  return res.data;
+  return {
+    unreadCount: Number(res.data.unreadCount) || 0,
+    generalUnreadCount:
+      Number(res.data.generalUnreadCount) || Number(res.data.unreadCount) || 0,
+    commentUnreadCount: Number(res.data.commentUnreadCount) || 0,
+    commentGateEnabled: res.data.commentGateEnabled === true,
+  };
 };
 
 export const markAllRead = async (): Promise<void> => {

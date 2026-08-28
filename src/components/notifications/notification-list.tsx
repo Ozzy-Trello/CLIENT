@@ -1,21 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { MouseEvent, useState } from "react";
+import { MouseEvent, useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
+import { RootState } from "@store/index";
 import {
   appendNotifications,
   markNotificationReadLocally,
-  selectNotifications,
-  selectNotificationTotal,
+  selectNotificationsByCategory,
+  selectNotificationTotalByCategory,
+  setIsReviewingComment,
   setNotifications,
   setNotificationTotal,
   setOpen,
-  setUnreadCount,
+  setUnreadCounts,
 } from "@store/notification_slice";
-import { NotificationItem } from "@myTypes/notification";
+import { NotificationCategory, NotificationItem } from "@myTypes/notification";
 import {
   getNotifications,
   getUnreadCount,
@@ -29,7 +31,10 @@ function isValidId(id: string | null | undefined): id is string {
   return !!value && value !== "null" && value !== "undefined";
 }
 
-export function getNotificationTarget(n: NotificationItem): string | null {
+export function getNotificationTarget(
+  n: NotificationItem,
+  category: Exclude<NotificationCategory, "all"> = "general",
+): string | null {
   if (n.entityType === "notulensi") {
     if (!isValidId(n.workspaceId) || !isValidId(n.entityId)) {
       return null;
@@ -52,29 +57,65 @@ export function getNotificationTarget(n: NotificationItem): string | null {
     params.set("listId", n.listId);
   }
 
+  if (category === "comment" && isValidId(n.activityId)) {
+    params.set("commentId", n.activityId);
+    params.set("notificationId", n.id);
+  }
+
   return `/workspace/${encodeURIComponent(n.workspaceId)}/board/${encodeURIComponent(n.boardId)}?${params}`;
 }
 
-export function NotificationList() {
+interface NotificationListProps {
+  category: Exclude<NotificationCategory, "all">;
+}
+
+function normalizeCategoryResult(
+  result: { data: NotificationItem[]; total: number },
+  category: Exclude<NotificationCategory, "all">,
+) {
+  const matchesCategory = (notification: NotificationItem) =>
+    category === "comment"
+      ? notification.type === "comment_mention"
+      : notification.type !== "comment_mention";
+  const data = result.data.filter(matchesCategory);
+  const backendIgnoredCategory = data.length !== result.data.length;
+
+  return {
+    data,
+    total: backendIgnoredCategory ? data.length : result.total,
+  };
+}
+
+export function NotificationList({ category }: NotificationListProps) {
   const dispatch = useDispatch();
-  const notifications = useSelector(selectNotifications);
-  const total = useSelector(selectNotificationTotal);
+  const notifications = useSelector((state: RootState) =>
+    selectNotificationsByCategory(state, category)
+  );
+  const total = useSelector((state: RootState) =>
+    selectNotificationTotalByCategory(state, category)
+  );
   const [page, setPage] = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);
 
   const refreshNotifications = async () => {
     const [notificationsResult, countResult] = await Promise.allSettled([
-      getNotifications(1, 20),
+      getNotifications(1, 20, category),
       getUnreadCount(),
     ]);
     if (notificationsResult.status === "fulfilled") {
-      dispatch(setNotifications(notificationsResult.value.data));
-      dispatch(setNotificationTotal(notificationsResult.value.total));
+      const normalized = normalizeCategoryResult(notificationsResult.value, category);
+      dispatch(setNotifications({ category, value: normalized.data }));
+      dispatch(setNotificationTotal({ category, value: normalized.total }));
     }
     if (countResult.status === "fulfilled") {
-      dispatch(setUnreadCount(countResult.value.unreadCount));
+      dispatch(setUnreadCounts(countResult.value));
     }
   };
+
+  useEffect(() => {
+    setPage(1);
+    void refreshNotifications();
+  }, [category]);
 
   const markRead = (notification: NotificationItem) => {
     if (notification.isRead) return;
@@ -84,7 +125,26 @@ export function NotificationList() {
   };
 
   const handleClick = (event: MouseEvent<HTMLAnchorElement>, notification: NotificationItem) => {
-    markRead(notification);
+    if (
+      category === "comment" &&
+      (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey)
+    ) {
+      event.preventDefault();
+      return;
+    }
+
+    if (category === "general") {
+      markRead(notification);
+    } else if (
+      event.button === 0 &&
+      !event.ctrlKey &&
+      !event.metaKey &&
+      !event.shiftKey &&
+      !event.altKey
+    ) {
+      dispatch(setIsReviewingComment(true));
+    }
+
     if (
       event.button === 0 &&
       !event.ctrlKey &&
@@ -100,9 +160,10 @@ export function NotificationList() {
     if (loadingMore) return;
     setLoadingMore(true);
     try {
-      const next = await getNotifications(page + 1, 20);
-      dispatch(appendNotifications(next.data));
-      dispatch(setNotificationTotal(next.total));
+      const next = await getNotifications(page + 1, 20, category);
+      const normalized = normalizeCategoryResult(next, category);
+      dispatch(appendNotifications({ category, value: normalized.data }));
+      dispatch(setNotificationTotal({ category, value: normalized.total }));
       setPage((current) => current + 1);
     } finally {
       setLoadingMore(false);
@@ -120,7 +181,7 @@ export function NotificationList() {
   return (
     <div className="max-h-[min(24rem,calc(100dvh-5rem))] w-full overflow-y-auto overflow-x-hidden">
       {notifications.map((n) => {
-        const target = getNotificationTarget(n);
+        const target = getNotificationTarget(n, category);
         const content = (
           <>
             <div className="min-w-0">
@@ -150,6 +211,10 @@ export function NotificationList() {
             href={target}
             onClick={(event) => handleClick(event, n)}
             onAuxClick={(event) => {
+              if (category === "comment") {
+                event.preventDefault();
+                return;
+              }
               if (event.button === 1) markRead(n);
             }}
             className={className}
