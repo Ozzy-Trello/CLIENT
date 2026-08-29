@@ -435,16 +435,22 @@ describe("NotificationList", () => {
     });
   });
 
-  it("keeps notulensi discussion notifications in the comment category", async () => {
+  it("keeps description mentions and notulensi discussions in the comment category", async () => {
     mockState.notificationState.notificationsByCategory.comment = [];
     const discussionNotification = {
       ...baseNotification,
       id: "discussion-1",
       type: "notulensi_comment",
     };
+    const descriptionMention = {
+      ...baseNotification,
+      id: "description-1",
+      type: "mention",
+      entityType: "card",
+    };
     (getNotifications as jest.Mock).mockResolvedValue({
-      data: [discussionNotification],
-      total: 1,
+      data: [discussionNotification, descriptionMention],
+      total: 2,
     });
 
     render(<NotificationList category="comment" />);
@@ -452,7 +458,10 @@ describe("NotificationList", () => {
     await waitFor(() => {
       expect(dispatch).toHaveBeenCalledWith(
         expect.objectContaining({
-          payload: { category: "comment", value: [discussionNotification] },
+          payload: {
+            category: "comment",
+            value: [discussionNotification, descriptionMention],
+          },
         }),
       );
     });

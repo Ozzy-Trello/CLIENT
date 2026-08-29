@@ -132,12 +132,14 @@ describe("addNotification", () => {
     let state = reducer(undefined, addNotification(notification("general-1", false)));
     state = reducer(state, addNotification(notification("comment-1", false, "comment_mention")));
     state = reducer(state, addNotification(notification("notulensi-comment-1", false, "notulensi_comment")));
+    state = reducer(state, addNotification(notification("card-description-1", false, "mention")));
 
-    expect(state.unreadCount).toBe(3);
+    expect(state.unreadCount).toBe(4);
     expect(state.generalUnreadCount).toBe(1);
-    expect(state.commentUnreadCount).toBe(2);
+    expect(state.commentUnreadCount).toBe(3);
     expect(state.notificationsByCategory.general[0].id).toBe("general-1");
     expect(state.notificationsByCategory.comment.map((item) => item.id)).toEqual([
+      "card-description-1",
       "notulensi-comment-1",
       "comment-1",
     ]);

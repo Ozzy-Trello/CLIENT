@@ -78,10 +78,11 @@ function normalizeCategoryResult(
   result: { data: NotificationItem[]; total: number },
   category: Exclude<NotificationCategory, "all">,
 ) {
+  const commentTypes = ["comment_mention", "notulensi_mention", "notulensi_comment", "mention"];
   const matchesCategory = (notification: NotificationItem) =>
     category === "comment"
-      ? ["comment_mention", "notulensi_mention", "notulensi_comment"].includes(notification.type)
-      : !["comment_mention", "notulensi_mention", "notulensi_comment"].includes(notification.type);
+      ? commentTypes.includes(notification.type)
+      : !commentTypes.includes(notification.type);
   const data = result.data.filter(matchesCategory);
   const backendIgnoredCategory = data.length !== result.data.length;
 
