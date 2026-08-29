@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { useDispatch, useSelector } from "react-redux";
 import { getUnreadCount } from "@api/notifications";
 import { UnreadCommentGate } from "./unread-comment-gate";
@@ -14,6 +14,10 @@ jest.mock("react-redux", () => ({
 
 jest.mock("@api/notifications", () => ({
   getUnreadCount: jest.fn(),
+}));
+
+jest.mock("@hooks/account", () => ({
+  useCurrentAccount: () => ({ data: { data: { id: "user-1" } } }),
 }));
 
 jest.mock("@utils/token-storage", () => ({
@@ -40,6 +44,7 @@ describe("UnreadCommentGate", () => {
     state = {
       notificationState: {
         commentUnreadCount: 0,
+        commentUnreadGroupCount: 0,
         commentGateEnabled: false,
         isReviewingComment: false,
       },
@@ -53,9 +58,11 @@ describe("UnreadCommentGate", () => {
       unreadCount: 2,
       generalUnreadCount: 0,
       commentUnreadCount: 2,
+      commentUnreadGroupCount: 1,
       commentGateEnabled: true,
     });
     state.notificationState.commentUnreadCount = 2;
+    state.notificationState.commentUnreadGroupCount = 1;
     state.notificationState.commentGateEnabled = true;
 
     render(<UnreadCommentGate />);
@@ -63,6 +70,36 @@ describe("UnreadCommentGate", () => {
     expect(await screen.findByRole("dialog")).not.toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Lihat Comment" }));
     expect(dispatch).toHaveBeenCalledTimes(3);
+  });
+
+  it("suppresses the gate during grace and refetches at expiry", async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(Date.parse("2026-08-30T10:00:00.000Z"));
+    window.localStorage.setItem(
+      "ozzy_comment_review_grace:user-1",
+      String(Date.now() + 1000),
+    );
+    state.notificationState.commentUnreadCount = 2;
+    state.notificationState.commentUnreadGroupCount = 1;
+    state.notificationState.commentGateEnabled = true;
+    (getUnreadCount as jest.Mock).mockResolvedValue({
+      unreadCount: 2,
+      generalUnreadCount: 0,
+      commentUnreadCount: 2,
+      commentUnreadGroupCount: 1,
+      commentGateEnabled: true,
+    });
+
+    render(<UnreadCommentGate />);
+    expect((await screen.findAllByText(/Review window/)).length).toBeGreaterThan(0);
+    expect(screen.queryByRole("dialog")).toBeNull();
+
+    await act(async () => {
+      jest.advanceTimersByTime(1001);
+    });
+    expect(getUnreadCount).toHaveBeenCalledTimes(2);
+    expect(await screen.findByRole("dialog")).not.toBeNull();
+    jest.useRealTimers();
   });
 
   it("fails open when the canonical count request fails", async () => {

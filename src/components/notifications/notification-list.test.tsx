@@ -2,7 +2,9 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { useDispatch, useSelector } from "react-redux";
 import {
   getNotifications,
+  getNotificationGroupItems,
   getUnreadCount,
+  markNotificationGroupRead,
   markNotificationRead,
 } from "@api/notifications";
 import { NotificationList, getNotificationTarget } from "./notification-list";
@@ -23,6 +25,7 @@ type MockNotificationState = {
     unreadCount: number;
     generalUnreadCount: number;
     commentUnreadCount: number;
+    commentUnreadGroupCount: number;
     commentGateEnabled: boolean;
     isOpen: boolean;
     activeTab: "general" | "comment";
@@ -62,13 +65,22 @@ jest.mock("react-redux", () => ({
 }));
 
 jest.mock("@api/notifications", () => ({
+  getNotificationGroupItems: jest.fn(),
   getNotifications: jest.fn(),
   getUnreadCount: jest.fn(),
+  markNotificationGroupRead: jest.fn(),
   markNotificationRead: jest.fn(),
+}));
+
+const startGrace = jest.fn();
+jest.mock("@hooks/use-comment-review-grace", () => ({
+  useCommentReviewGrace: () => ({ startGrace }),
 }));
 
 const baseNotification: NotificationItem = {
   id: "1",
+  groupId: "1",
+  groupCount: 1,
   type: "info",
   title: "New item",
   message: null,
@@ -120,6 +132,20 @@ describe("getNotificationTarget", () => {
       )
     ).toBe(
       "/workspace/ws-1/board/board-1?cardId=card-1&commentId=activity-1&notificationId=notification-1"
+    );
+  });
+
+  it("adds notificationId to card description mentions", () => {
+    expect(getNotificationTarget({
+      ...baseNotification,
+      id: "description-1",
+      type: "mention",
+      activityId: null,
+      entityType: "card",
+      entityId: "card-1",
+      boardId: "board-1",
+    }, "comment")).toBe(
+      "/workspace/ws-1/board/board-1?cardId=card-1&notificationId=description-1",
     );
   });
 
@@ -255,6 +281,7 @@ describe("NotificationList", () => {
         unreadCount: 1,
         generalUnreadCount: 1,
         commentUnreadCount: 0,
+        commentUnreadGroupCount: 0,
         commentGateEnabled: true,
         isOpen: true,
         activeTab: "general",
@@ -269,8 +296,18 @@ describe("NotificationList", () => {
       unreadCount: 1,
       generalUnreadCount: 1,
       commentUnreadCount: 0,
+      commentUnreadGroupCount: 0,
+      commentGateEnabled: true,
     });
     (markNotificationRead as jest.Mock).mockResolvedValue(undefined);
+    (markNotificationGroupRead as jest.Mock).mockResolvedValue({
+      success: true,
+      unreadCount: 0,
+      generalUnreadCount: 0,
+      commentUnreadCount: 0,
+      commentUnreadGroupCount: 0,
+    });
+    (getNotificationGroupItems as jest.Mock).mockResolvedValue({ data: [], total: 0 });
   });
 
   it("renders navigable notifications as links and closes only on plain primary click", () => {
@@ -293,6 +330,8 @@ describe("NotificationList", () => {
       unreadCount: 1,
       generalUnreadCount: 1,
       commentUnreadCount: 0,
+      commentUnreadGroupCount: 0,
+      commentGateEnabled: true,
     });
     (markNotificationRead as jest.Mock).mockResolvedValue(undefined);
     rerender(<NotificationList category="general" />);
@@ -333,6 +372,8 @@ describe("NotificationList", () => {
       unreadCount: 1,
       generalUnreadCount: 1,
       commentUnreadCount: 0,
+      commentUnreadGroupCount: 0,
+      commentGateEnabled: true,
     });
     render(<NotificationList category="general" />);
 
@@ -376,10 +417,12 @@ describe("NotificationList", () => {
     expect(screen.queryByRole("button", { name: /Show more/i })).toBeNull();
   });
 
-  it("defers comment notification read until the target view acknowledges it", () => {
+  it("marks a comment group read and starts grace from its header", async () => {
     const commentNotification = {
       ...baseNotification,
       id: "comment-1",
+      groupId: "card-1",
+      groupCount: 3,
       type: "comment_mention",
       activityId: "activity-1",
       entityType: "card",
@@ -389,13 +432,17 @@ describe("NotificationList", () => {
     mockState.notificationState.notificationsByCategory.comment = [commentNotification];
     mockState.notificationState.totalByCategory.comment = 1;
     mockState.notificationState.commentUnreadCount = 1;
+    mockState.notificationState.commentUnreadGroupCount = 1;
 
     render(<NotificationList category="comment" />);
 
     fireEvent.click(screen.getByRole("link", { name: /New item/i }));
 
-    expect(markNotificationRead).not.toHaveBeenCalled();
-    expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ payload: true }));
+    expect(markNotificationGroupRead).toHaveBeenCalledWith("card-1");
+    expect(startGrace).toHaveBeenCalledTimes(1);
+    expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({
+      payload: { groupId: "card-1", groupCount: 3 },
+    }));
     expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ payload: false }));
   });
 
@@ -403,6 +450,8 @@ describe("NotificationList", () => {
     const commentNotification = {
       ...baseNotification,
       id: "comment-1",
+      groupId: "card-1",
+      groupCount: 2,
       type: "comment_mention",
       activityId: "activity-1",
       entityType: "card",
@@ -416,7 +465,58 @@ describe("NotificationList", () => {
     fireEvent.click(screen.getByRole("link", { name: /New item/i }), { ctrlKey: true });
 
     expect(markNotificationRead).not.toHaveBeenCalled();
-    expect(dispatch).not.toHaveBeenCalledWith(expect.objectContaining({ payload: true }));
+    expect(startGrace).not.toHaveBeenCalled();
+  });
+
+  it("expands a group without reading and opens an exact child", async () => {
+    const group = {
+      ...baseNotification,
+      id: "latest",
+      groupId: "card-1",
+      groupCount: 2,
+      type: "comment_mention",
+      activityId: "activity-2",
+      entityType: "card",
+      entityId: "card-1",
+      boardId: "board-1",
+    };
+    const child = { ...group, id: "child-1", activityId: "activity-1" };
+    mockState.notificationState.notificationsByCategory.comment = [group];
+    mockState.notificationState.totalByCategory.comment = 1;
+    (getNotifications as jest.Mock).mockResolvedValue({ data: [group], total: 1 });
+    (getNotificationGroupItems as jest.Mock).mockResolvedValue({ data: [child], total: 1 });
+
+    render(<NotificationList category="comment" />);
+    fireEvent.click(screen.getByRole("button", { name: "Expand notification group" }));
+
+    expect(markNotificationGroupRead).not.toHaveBeenCalled();
+    expect(startGrace).not.toHaveBeenCalled();
+    await waitFor(() => expect(getNotificationGroupItems).toHaveBeenCalledWith("card-1", 1, 20));
+    const childLink = screen.getAllByRole("link").find((link) =>
+      link.getAttribute("href")?.includes("commentId=activity-1"),
+    );
+    expect(childLink).toBeDefined();
+    fireEvent.click(childLink!);
+    expect(markNotificationGroupRead).toHaveBeenCalledWith("card-1");
+  });
+
+  it("does not reset grace when opening a fully read group", () => {
+    const group = {
+      ...baseNotification,
+      isRead: true,
+      type: "mention",
+      entityType: "card",
+      entityId: "card-1",
+      boardId: "board-1",
+    };
+    mockState.notificationState.notificationsByCategory.comment = [group];
+    mockState.notificationState.totalByCategory.comment = 1;
+
+    render(<NotificationList category="comment" />);
+    fireEvent.click(screen.getByRole("link", { name: /New item/i }));
+
+    expect(markNotificationGroupRead).not.toHaveBeenCalled();
+    expect(startGrace).not.toHaveBeenCalled();
   });
 
   it("filters legacy unscoped responses before the backend category contract is active", async () => {

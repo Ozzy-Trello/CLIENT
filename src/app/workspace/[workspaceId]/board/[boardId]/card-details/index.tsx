@@ -231,6 +231,8 @@ const CardDetails: React.FC = (props) => {
     "Ozzy Clothing Production";
   const cardIdQuery = sanitizeQueryParamId(searchParams.get("cardId"));
   const listIdQuery = sanitizeQueryParamId(searchParams.get("listId"));
+  const reviewNotificationId = sanitizeQueryParamId(searchParams.get("notificationId"));
+  const reviewCommentId = sanitizeQueryParamId(searchParams.get("commentId"));
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -1772,7 +1774,11 @@ const CardDetails: React.FC = (props) => {
       </Flex>
 
       {selectedCard && (
-        <Description card={effectiveCard || selectedCard} setSelectedCard={setSelectedCard} />
+        <Description
+          card={effectiveCard || selectedCard}
+          setSelectedCard={setSelectedCard}
+          isReviewTarget={Boolean(reviewNotificationId && !reviewCommentId)}
+        />
       )}
 
       {selectedCard &&

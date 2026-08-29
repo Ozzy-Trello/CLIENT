@@ -2,6 +2,7 @@ import reducer, {
   addNotification,
   appendNotifications,
   markAllReadLocally,
+  markNotificationGroupReadLocally,
   markNotificationReadLocally,
   setActiveTab,
   setNotifications,
@@ -11,6 +12,8 @@ import reducer, {
 
 const notification = (id: string, isRead: boolean, type = "info") => ({
   id,
+  groupId: id,
+  groupCount: 1,
   type,
   title: id,
   message: null,
@@ -38,7 +41,7 @@ describe("markNotificationReadLocally", () => {
     );
     state = reducer(
       state,
-      setUnreadCounts({ unreadCount: 1, generalUnreadCount: 1, commentUnreadCount: 0, commentGateEnabled: true })
+      setUnreadCounts({ unreadCount: 1, generalUnreadCount: 1, commentUnreadCount: 0, commentUnreadGroupCount: 0, commentGateEnabled: true })
     );
     state = reducer(state, markNotificationReadLocally("1"));
     state = reducer(state, markNotificationReadLocally("1"));
@@ -53,7 +56,7 @@ describe("markNotificationReadLocally", () => {
     state = reducer(state, setNotifications({ category: "all", value: [notification("1", false, "comment_mention")] }));
     state = reducer(
       state,
-      setUnreadCounts({ unreadCount: 1, generalUnreadCount: 0, commentUnreadCount: 1, commentGateEnabled: true })
+      setUnreadCounts({ unreadCount: 1, generalUnreadCount: 0, commentUnreadCount: 1, commentUnreadGroupCount: 1, commentGateEnabled: true })
     );
 
     state = reducer(state, markNotificationReadLocally("1"));
@@ -97,6 +100,17 @@ describe("appendNotifications", () => {
 
     expect(state.totalByCategory.general).toBe(25);
   });
+
+  it("deduplicates comment pages by group ID when the representative changes", () => {
+    const first = { ...notification("first", false, "comment_mention"), groupId: "card-1" };
+    const latest = { ...notification("latest", false, "comment_mention"), groupId: "card-1" };
+    let state = reducer(undefined, setNotifications({ category: "comment", value: [first] }));
+
+    state = reducer(state, appendNotifications({ category: "comment", value: [latest] }));
+
+    expect(state.notificationsByCategory.comment).toHaveLength(1);
+    expect(state.notificationsByCategory.comment[0].id).toBe("first");
+  });
 });
 
 describe("setNotificationTotal", () => {
@@ -114,7 +128,7 @@ describe("markAllReadLocally", () => {
     state = reducer(state, setNotifications({ category: "comment", value: [notification("comment-1", false, "comment_mention")] }));
     state = reducer(
       state,
-      setUnreadCounts({ unreadCount: 2, generalUnreadCount: 1, commentUnreadCount: 1, commentGateEnabled: true })
+      setUnreadCounts({ unreadCount: 2, generalUnreadCount: 1, commentUnreadCount: 1, commentUnreadGroupCount: 1, commentGateEnabled: true })
     );
 
     state = reducer(state, markAllReadLocally());
@@ -137,12 +151,58 @@ describe("addNotification", () => {
     expect(state.unreadCount).toBe(4);
     expect(state.generalUnreadCount).toBe(1);
     expect(state.commentUnreadCount).toBe(3);
+    expect(state.commentUnreadGroupCount).toBe(3);
     expect(state.notificationsByCategory.general[0].id).toBe("general-1");
     expect(state.notificationsByCategory.comment.map((item) => item.id)).toEqual([
       "card-description-1",
       "notulensi-comment-1",
       "comment-1",
     ]);
+  });
+
+  it("merges new comment events into their existing group", () => {
+    const first = { ...notification("first", false, "comment_mention"), groupId: "card-1", groupCount: 2 };
+    const latest = { ...notification("latest", false, "comment_mention"), groupId: "card-1", groupCount: 3 };
+    let state = reducer(undefined, addNotification(first));
+    state = reducer(state, addNotification(latest));
+
+    expect(state.notificationsByCategory.comment).toHaveLength(1);
+    expect(state.notificationsByCategory.comment[0]).toMatchObject({ id: "latest", groupCount: 3 });
+    expect(state.totalByCategory.comment).toBe(1);
+    expect(state.commentUnreadCount).toBe(2);
+    expect(state.commentUnreadGroupCount).toBe(1);
+  });
+
+  it("ignores duplicate websocket notification events", () => {
+    const event = { ...notification("event-1", false, "comment_mention"), groupId: "card-1", groupCount: 2 };
+    let state = reducer(undefined, addNotification(event));
+    state = reducer(state, addNotification(event));
+
+    expect(state.notificationsByCategory.comment).toHaveLength(1);
+    expect(state.notificationsByCategory.comment[0].groupCount).toBe(2);
+    expect(state.unreadCount).toBe(1);
+    expect(state.commentUnreadCount).toBe(1);
+  });
+});
+
+describe("markNotificationGroupReadLocally", () => {
+  it("marks the group and decrements raw and grouped counts once", () => {
+    const grouped = { ...notification("latest", false, "comment_mention"), groupId: "card-1", groupCount: 3 };
+    let state = reducer(undefined, setNotifications({ category: "comment", value: [grouped] }));
+    state = reducer(state, setUnreadCounts({
+      unreadCount: 5,
+      generalUnreadCount: 2,
+      commentUnreadCount: 3,
+      commentUnreadGroupCount: 1,
+      commentGateEnabled: true,
+    }));
+    state = reducer(state, markNotificationGroupReadLocally({ groupId: "card-1", groupCount: 3 }));
+    state = reducer(state, markNotificationGroupReadLocally({ groupId: "card-1", groupCount: 3 }));
+
+    expect(state.notificationsByCategory.comment[0].isRead).toBe(true);
+    expect(state.unreadCount).toBe(2);
+    expect(state.commentUnreadCount).toBe(0);
+    expect(state.commentUnreadGroupCount).toBe(0);
   });
 });
 

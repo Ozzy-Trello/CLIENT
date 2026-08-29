@@ -18,6 +18,7 @@ interface NotificationState {
   unreadCount: number;
   generalUnreadCount: number;
   commentUnreadCount: number;
+  commentUnreadGroupCount: number;
   commentGateEnabled: boolean;
   totalByCategory: Record<NotificationCategory, number>;
   isOpen: boolean;
@@ -34,6 +35,7 @@ const initialState: NotificationState = {
   unreadCount: 0,
   generalUnreadCount: 0,
   commentUnreadCount: 0,
+  commentUnreadGroupCount: 0,
   commentGateEnabled: false,
   totalByCategory: {
     all: 0,
@@ -54,6 +56,12 @@ const COMMENT_TYPES = new Set([
 
 const getNotificationCategory = (notification: NotificationItem): NotificationTab =>
   COMMENT_TYPES.has(notification.type) ? "comment" : "general";
+
+const normalizeNotification = (notification: NotificationItem): NotificationItem => ({
+  ...notification,
+  groupId: notification.groupId || notification.id,
+  groupCount: Math.max(1, Number(notification.groupCount) || 1),
+});
 
 const getCategoryPayload = <T,>(
   payload: CategoryPayload<T> | T,
@@ -93,17 +101,21 @@ const notificationSlice = createSlice({
       action: PayloadAction<CategoryPayload<NotificationItem[]> | NotificationItem[]>,
     ) {
       const { category, value } = getCategoryPayload(action.payload, state.activeTab);
-      state.notificationsByCategory[category] = value;
+      state.notificationsByCategory[category] = value.map(normalizeNotification);
     },
     appendNotifications(
       state,
       action: PayloadAction<CategoryPayload<NotificationItem[]> | NotificationItem[]>,
     ) {
       const { category, value } = getCategoryPayload(action.payload, state.activeTab);
-      const existing = new Set(state.notificationsByCategory[category].map((item) => item.id));
+      const existing = new Set(state.notificationsByCategory[category].map((item) =>
+        category === "comment" ? item.groupId || item.id : item.id
+      ));
       state.notificationsByCategory[category] = [
         ...state.notificationsByCategory[category],
-        ...value.filter((item) => !existing.has(item.id)),
+        ...value.map(normalizeNotification).filter((item) =>
+          !existing.has(category === "comment" ? item.groupId || item.id : item.id)
+        ),
       ];
     },
     setNotificationTotal(state, action: PayloadAction<CategoryPayload<number> | number>) {
@@ -111,19 +123,54 @@ const notificationSlice = createSlice({
       state.totalByCategory[category] = value;
     },
     addNotification(state, action: PayloadAction<NotificationItem>) {
-      const category = getNotificationCategory(action.payload);
-      state.notificationsByCategory.all = [action.payload, ...state.notificationsByCategory.all].slice(0, 50);
-      state.notificationsByCategory[category] = [
-        action.payload,
+      const notification = normalizeNotification(action.payload);
+      const category = getNotificationCategory(notification);
+      const isDuplicateEvent = [
+        ...state.notificationsByCategory.all,
         ...state.notificationsByCategory[category],
-      ].slice(0, 50);
+      ].some((item) => item.id === notification.id);
+      if (isDuplicateEvent) return;
+      const commentList = state.notificationsByCategory.comment;
+      const existingCommentGroup = category === "comment"
+        ? commentList.find((item) => (item.groupId || item.id) === notification.groupId)
+        : undefined;
+      const mergeIntoList = (list: NotificationItem[]) => {
+        if (category !== "comment") {
+          return [notification, ...list].slice(0, 50);
+        }
+        const existingIndex = list.findIndex(
+          (item) => getNotificationCategory(item) === "comment" &&
+            (item.groupId || item.id) === notification.groupId,
+        );
+        if (existingIndex === -1) {
+          return [notification, ...list].slice(0, 50);
+        }
+        const existing = list[existingIndex];
+        const merged = {
+          ...notification,
+          groupCount: Math.max(existing.groupCount, notification.groupCount),
+          isRead: notification.isRead && existing.isRead,
+        };
+        return [merged, ...list.filter((_, index) => index !== existingIndex)].slice(0, 50);
+      };
+      const isNewGroup = category !== "comment" || (
+        !existingCommentGroup
+        && (notification.groupCount === 1 || state.totalByCategory.comment <= commentList.length)
+      );
+      state.notificationsByCategory.all = mergeIntoList(state.notificationsByCategory.all);
+      state.notificationsByCategory[category] = mergeIntoList(
+        state.notificationsByCategory[category],
+      );
       state.totalByCategory.all += 1;
-      state.totalByCategory[category] += 1;
+      if (isNewGroup) {
+        state.totalByCategory[category] += 1;
+      }
 
       if (!action.payload.isRead) {
         state.unreadCount += 1;
         if (category === "comment") {
           state.commentUnreadCount += 1;
+          if (isNewGroup) state.commentUnreadGroupCount += 1;
         } else {
           state.generalUnreadCount += 1;
         }
@@ -136,6 +183,7 @@ const notificationSlice = createSlice({
       state.unreadCount = action.payload.unreadCount;
       state.generalUnreadCount = action.payload.generalUnreadCount;
       state.commentUnreadCount = action.payload.commentUnreadCount;
+      state.commentUnreadGroupCount = action.payload.commentUnreadGroupCount;
       state.commentGateEnabled = action.payload.commentGateEnabled;
     },
     markAllReadLocally(state) {
@@ -158,15 +206,50 @@ const notificationSlice = createSlice({
 
       if (notification && !notification.isRead) {
         const category = getNotificationCategory(notification);
+        if (category === "comment") {
+          const groupId = notification.groupId || notification.id;
+          const unreadEvents = Math.max(1, notification.groupCount || 1);
+          const matchesGroup = (item: NotificationItem) =>
+            getNotificationCategory(item) === "comment" && (item.groupId || item.id) === groupId;
+          for (const listCategory of ["all", "comment"] as const) {
+            state.notificationsByCategory[listCategory].forEach((item) => {
+              if (matchesGroup(item)) item.isRead = true;
+            });
+          }
+          state.unreadCount = Math.max(0, state.unreadCount - unreadEvents);
+          state.commentUnreadCount = Math.max(0, state.commentUnreadCount - unreadEvents);
+          state.commentUnreadGroupCount = Math.max(0, state.commentUnreadGroupCount - 1);
+          return;
+        }
         markNotificationReadInList(state.notificationsByCategory.all, action.payload);
         markNotificationReadInList(state.notificationsByCategory[category], action.payload);
         state.unreadCount = Math.max(0, state.unreadCount - 1);
-        if (category === "comment") {
-          state.commentUnreadCount = Math.max(0, state.commentUnreadCount - 1);
-        } else {
-          state.generalUnreadCount = Math.max(0, state.generalUnreadCount - 1);
-        }
+        state.generalUnreadCount = Math.max(0, state.generalUnreadCount - 1);
       }
+    },
+    markNotificationGroupReadLocally(
+      state,
+      action: PayloadAction<{ groupId: string; groupCount?: number }>,
+    ) {
+      const { groupId } = action.payload;
+      const matchesGroup = (item: NotificationItem) =>
+        getNotificationCategory(item) === "comment" && (item.groupId || item.id) === groupId;
+      const representative = state.notificationsByCategory.comment.find(matchesGroup)
+        || state.notificationsByCategory.all.find(matchesGroup);
+      if (!representative || representative.isRead) return;
+
+      const unreadEvents = Math.max(
+        1,
+        action.payload.groupCount || representative.groupCount || 1,
+      );
+      for (const category of ["all", "comment"] as const) {
+        state.notificationsByCategory[category].forEach((item) => {
+          if (matchesGroup(item)) item.isRead = true;
+        });
+      }
+      state.unreadCount = Math.max(0, state.unreadCount - unreadEvents);
+      state.commentUnreadCount = Math.max(0, state.commentUnreadCount - unreadEvents);
+      state.commentUnreadGroupCount = Math.max(0, state.commentUnreadGroupCount - 1);
     },
     setOpen(state, action: PayloadAction<boolean>) {
       state.isOpen = action.payload;
@@ -189,6 +272,7 @@ export const {
   setUnreadCounts,
   markAllReadLocally,
   markNotificationReadLocally,
+  markNotificationGroupReadLocally,
   setOpen,
   setActiveTab,
   setIsReviewingComment,
@@ -215,6 +299,8 @@ export const selectGeneralUnreadCount = (state: { notificationState?: Notificati
   getNotificationState(state)?.generalUnreadCount ?? 0;
 export const selectCommentUnreadCount = (state: { notificationState?: NotificationState }) =>
   getNotificationState(state)?.commentUnreadCount ?? 0;
+export const selectCommentUnreadGroupCount = (state: { notificationState?: NotificationState }) =>
+  getNotificationState(state)?.commentUnreadGroupCount ?? 0;
 export const selectCommentGateEnabled = (state: { notificationState?: NotificationState }) =>
   getNotificationState(state)?.commentGateEnabled ?? false;
 export const selectNotificationTotal = (state: { notificationState?: NotificationState }) => {

@@ -5,7 +5,6 @@ import { useNotulensiDetail } from "@hooks/notulensi";
 import { markNotificationRead, getUnreadCount } from "@api/notifications";
 import {
   markNotificationReadLocally,
-  setIsReviewingComment,
   setUnreadCounts,
 } from "@store/notification_slice";
 import { useDispatch } from "react-redux";
@@ -22,10 +21,13 @@ export default function NotulensiDetailPage() {
   const id = Array.isArray(params.id) ? params.id[0] : params.id || "";
   const detailQuery = useNotulensiDetail(workspaceId, id);
   const notificationId = searchParams.get("notificationId")?.trim() || null;
+  const commentId = searchParams.get("commentId")?.trim() || null;
   const processedNotificationRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!notificationId || notificationId === processedNotificationRef.current) return;
+    const detail = detailQuery.data?.data;
+    if (!detail || (commentId && !detail.comments.some((comment) => comment.id === commentId))) return;
     processedNotificationRef.current = notificationId;
 
     const markRead = async () => {
@@ -41,11 +43,10 @@ export default function NotulensiDetailPage() {
       } catch {
         // ignore
       }
-      dispatch(setIsReviewingComment(false));
     };
 
     void markRead();
-  }, [notificationId, dispatch]);
+  }, [commentId, detailQuery.data?.data, notificationId, dispatch]);
 
   return (
     <div className="min-w-0 p-3 sm:p-4 md:p-6">
@@ -55,6 +56,8 @@ export default function NotulensiDetailPage() {
         loading={detailQuery.isLoading}
         error={detailQuery.isError}
         onRetry={() => detailQuery.refetch()}
+        commentId={commentId}
+        reviewNotificationId={notificationId}
       />
     </div>
   );

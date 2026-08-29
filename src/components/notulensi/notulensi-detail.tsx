@@ -85,6 +85,8 @@ type Props = {
   loading: boolean;
   error: boolean;
   onRetry: () => void;
+  commentId?: string | null;
+  reviewNotificationId?: string | null;
 };
 
 const getErrorMessage = (error: unknown, fallback: string) => {
@@ -104,6 +106,8 @@ export default function NotulensiDetailView({
   loading,
   error,
   onRetry,
+  commentId,
+  reviewNotificationId,
 }: Props) {
   const { data: currentAccountData } = useCurrentAccount();
   const currentUser = currentAccountData?.data;
@@ -131,6 +135,11 @@ export default function NotulensiDetailView({
   const [showAllReadReceipts, setShowAllReadReceipts] = useState(false);
   const isUploadingAttachments = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const commentRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const descriptionRef = useRef<HTMLDivElement>(null);
+  const processedReviewTargetRef = useRef<string | null>(null);
+  const [highlightedCommentId, setHighlightedCommentId] = useState<string | null>(null);
+  const [isDescriptionHighlighted, setIsDescriptionHighlighted] = useState(false);
   const router = useRouter();
 
   const actionMutation = useNotulensiAction();
@@ -159,6 +168,25 @@ export default function NotulensiDetailView({
   useEffect(() => {
     setShowAllReadReceipts(false);
   }, [detail?.id]);
+
+  useEffect(() => {
+    if (!reviewNotificationId || !detail) return;
+    const targetKey = commentId
+      ? `${reviewNotificationId}:comment:${commentId}`
+      : `${reviewNotificationId}:description`;
+    if (processedReviewTargetRef.current === targetKey) return;
+    const element = commentId ? commentRefs.current[commentId] : descriptionRef.current;
+    if (!element) return;
+    processedReviewTargetRef.current = targetKey;
+    if (commentId) setHighlightedCommentId(commentId);
+    else setIsDescriptionHighlighted(true);
+    element.scrollIntoView({ behavior: "smooth", block: "center" });
+    const timeout = window.setTimeout(() => {
+      setHighlightedCommentId(null);
+      setIsDescriptionHighlighted(false);
+    }, 2000);
+    return () => window.clearTimeout(timeout);
+  }, [commentId, detail, reviewNotificationId]);
 
   const privateNote = privateNoteQuery.data?.data ?? detail?.privateNote ?? null;
 
@@ -506,7 +534,14 @@ export default function NotulensiDetailView({
            </Space>
          </div>
 
-         <div className="mb-4 rounded-lg border border-[rgb(var(--color-border))] p-3">
+         <div
+           ref={descriptionRef}
+           className={`mb-4 rounded-lg border p-3 transition-colors ${
+             isDescriptionHighlighted
+               ? "border-blue-300 bg-blue-50"
+               : "border-[rgb(var(--color-border))]"
+           }`}
+         >
            <Typography.Text type="secondary" className="mb-2 block">Description</Typography.Text>
            {hasDisplayableRichContent(detail.content) ? (
              <RichTextEditor initialValue={detail.content} readOnly minHeight={80} />
@@ -1005,7 +1040,12 @@ export default function NotulensiDetailView({
                       .map((comment) => (
                       <div
                         key={comment.id}
-                        className="rounded-lg border border-[rgb(var(--color-border))] p-3"
+                        ref={(element) => { commentRefs.current[comment.id] = element; }}
+                        className={`rounded-lg border p-3 transition-colors ${
+                          highlightedCommentId === comment.id
+                            ? "border-blue-300 bg-blue-50"
+                            : "border-[rgb(var(--color-border))]"
+                        }`}
                       >
                         <div className="mb-2 flex flex-wrap items-start justify-between gap-2">
                           <div>

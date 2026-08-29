@@ -5,7 +5,7 @@ import { Card } from "@myTypes/card";
 import { Button, Typography } from "antd";
 import { AlignLeft, Edit, Loader2 } from "lucide-react";
 import { useParams } from "next/navigation";
-import { Dispatch, SetStateAction, useEffect, useState } from "react";
+import { Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { selectTheme, selectIsDarkMode } from "@store/app_slice";
 import { useBoardPermissionsContext } from "@providers/board-permissions-context";
@@ -16,7 +16,8 @@ import { normalizeQuillHtml, linkifyHtml } from "@utils/normalize-quill-html";
 const Description: React.FC<{
   card: Card;
   setSelectedCard: Dispatch<SetStateAction<Card | null>>;
-}> = ({ card, setSelectedCard }) => {
+  isReviewTarget?: boolean;
+}> = ({ card, setSelectedCard, isReviewTarget = false }) => {
   const theme = useSelector(selectTheme);
   const isDarkMode = useSelector(selectIsDarkMode);
   const { colors } = theme;
@@ -37,6 +38,8 @@ const Description: React.FC<{
     useState<boolean>(false);
   const [selectedattachmentImageUrl, setSelectedAttachmentImageUrl] =
     useState<string>("");
+  const descriptionRef = useRef<HTMLDivElement>(null);
+  const [isHighlighted, setIsHighlighted] = useState(false);
 
   const { updateCardAsync, isUpdating, refetch } = useCardDetails(
     card.id,
@@ -102,13 +105,26 @@ const Description: React.FC<{
     }
   }, [card?.description, isEditingDescription]);
 
+  useEffect(() => {
+    if (!isReviewTarget || !descriptionRef.current) return;
+    setIsHighlighted(true);
+    descriptionRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    const timeout = window.setTimeout(() => setIsHighlighted(false), 2000);
+    return () => window.clearTimeout(timeout);
+  }, [isReviewTarget]);
+
   const readOnlyDescription = card.description || newDescription;
   const normalizedReadOnlyDescription = linkifyHtml(
     normalizeQuillHtml(readOnlyDescription)
   );
 
   return (
-    <div className="mt-6">
+    <div
+      ref={descriptionRef}
+      className={`mt-6 rounded-lg transition-shadow ${
+        isHighlighted ? "ring-2 ring-blue-300 ring-offset-2" : ""
+      }`}
+    >
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-3">
           <AlignLeft size={18} />

@@ -17,7 +17,6 @@ import { getUnreadCount, markNotificationRead } from "@api/notifications";
 import { useDispatch } from "react-redux";
 import {
   markNotificationReadLocally,
-  setIsReviewingComment,
   setUnreadCounts,
 } from "@store/notification_slice";
 
@@ -105,9 +104,16 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
       // Leave local counts as-is if reconciliation fails.
     }
 
-    dispatch(setIsReviewingComment(false));
     clearCommentReviewParams();
   };
+
+  useEffect(() => {
+    if (!notificationId || commentId || processedCommentTargetRef.current === `description:${notificationId}`) {
+      return;
+    }
+    processedCommentTargetRef.current = `description:${notificationId}`;
+    void finishCommentReview(notificationId);
+  }, [commentId, notificationId]);
 
   const enableEditComment = (): void => {
     if (canCommentOnCard()) {

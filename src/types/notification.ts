@@ -2,6 +2,8 @@ export type NotificationCategory = "all" | "general" | "comment";
 
 export interface NotificationItem {
   id: string;
+  groupId: string;
+  groupCount: number;
   type: string;
   title: string;
   message: string | null;
@@ -30,5 +32,12 @@ export interface NotificationUnreadCounts {
   unreadCount: number;
   generalUnreadCount: number;
   commentUnreadCount: number;
+  commentUnreadGroupCount: number;
   commentGateEnabled: boolean;
+}
+
+export interface MarkNotificationGroupReadResponse
+  extends Omit<NotificationUnreadCounts, "commentGateEnabled"> {
+  success: boolean;
+  commentGateEnabled?: boolean;
 }
