@@ -8,12 +8,13 @@ import {
 } from "@myTypes/notification";
 
 export const normalizeNotification = (
-  notification: Omit<NotificationItem, "groupId" | "groupCount"> &
-    Partial<Pick<NotificationItem, "groupId" | "groupCount">>,
+  notification: Omit<NotificationItem, "groupId" | "groupCount" | "unreadCount"> &
+    Partial<Pick<NotificationItem, "groupId" | "groupCount" | "unreadCount">>,
 ): NotificationItem => ({
   ...notification,
   groupId: notification.groupId || notification.id,
   groupCount: Math.max(1, Number(notification.groupCount) || 1),
+  unreadCount: Math.max(0, Number(notification.unreadCount) || 0),
 });
 
 export const getNotifications = async (

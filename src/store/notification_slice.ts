@@ -61,6 +61,7 @@ const normalizeNotification = (notification: NotificationItem): NotificationItem
   ...notification,
   groupId: notification.groupId || notification.id,
   groupCount: Math.max(1, Number(notification.groupCount) || 1),
+  unreadCount: Math.max(0, Number(notification.unreadCount) || 0),
 });
 
 const getCategoryPayload = <T,>(
@@ -149,6 +150,7 @@ const notificationSlice = createSlice({
         const merged = {
           ...notification,
           groupCount: Math.max(existing.groupCount, notification.groupCount),
+          unreadCount: existing.unreadCount + (notification.isRead ? 0 : 1),
           isRead: notification.isRead && existing.isRead,
         };
         return [merged, ...list.filter((_, index) => index !== existingIndex)].slice(0, 50);
@@ -229,7 +231,7 @@ const notificationSlice = createSlice({
     },
     markNotificationGroupReadLocally(
       state,
-      action: PayloadAction<{ groupId: string; groupCount?: number }>,
+      action: PayloadAction<{ groupId: string; unreadCount?: number }>,
     ) {
       const { groupId } = action.payload;
       const matchesGroup = (item: NotificationItem) =>
@@ -240,11 +242,14 @@ const notificationSlice = createSlice({
 
       const unreadEvents = Math.max(
         1,
-        action.payload.groupCount || representative.groupCount || 1,
+        action.payload.unreadCount ?? representative.unreadCount ?? representative.groupCount ?? 1,
       );
       for (const category of ["all", "comment"] as const) {
         state.notificationsByCategory[category].forEach((item) => {
-          if (matchesGroup(item)) item.isRead = true;
+          if (matchesGroup(item)) {
+            item.isRead = true;
+            item.unreadCount = 0;
+          }
         });
       }
       state.unreadCount = Math.max(0, state.unreadCount - unreadEvents);

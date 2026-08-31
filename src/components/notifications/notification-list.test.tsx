@@ -441,7 +441,7 @@ describe("NotificationList", () => {
     expect(markNotificationGroupRead).toHaveBeenCalledWith("card-1");
     expect(startGrace).toHaveBeenCalledTimes(1);
     expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({
-      payload: { groupId: "card-1", groupCount: 3 },
+      payload: { groupId: "card-1", unreadCount: 0 },
     }));
     expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ payload: false }));
   });

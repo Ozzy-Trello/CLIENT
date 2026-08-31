@@ -4,6 +4,7 @@ export interface NotificationItem {
   id: string;
   groupId: string;
   groupCount: number;
+  unreadCount: number;
   type: string;
   title: string;
   message: string | null;

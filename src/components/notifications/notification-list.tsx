@@ -171,7 +171,7 @@ export function NotificationList({ category }: NotificationListProps) {
     locallyReadGroups.current.add(groupId);
     dispatch(markNotificationGroupReadLocally({
       groupId,
-      groupCount: notification.groupCount || 1,
+      unreadCount: notification.unreadCount || 0,
     }));
     setGroupItems((current) => current[groupId] ? {
       ...current,
@@ -306,7 +306,7 @@ export function NotificationList({ category }: NotificationListProps) {
             >
               <span className={`flex min-w-0 items-center gap-2 text-sm ${!n.isRead ? "font-semibold" : "font-normal"}`}>
                 <span className="truncate">{n.title}</span>
-                {(n.groupCount || 1) > 1 && <Badge count={n.groupCount} size="small" />}
+                {(n.unreadCount || 0) > 0 && <Badge count={n.unreadCount} size="small" />}
               </span>
               {n.message && <span className="truncate text-xs text-gray-500">{n.message}</span>}
               <span className="text-xs text-gray-400">{dayjs(n.createdAt).fromNow()}</span>
@@ -322,16 +322,18 @@ export function NotificationList({ category }: NotificationListProps) {
             <div key={groupId} className="border-b border-gray-100">
               <div className="flex min-w-0 items-stretch">
                 {groupHeader}
-                <button
-                  type="button"
-                  aria-label={expandedGroups[groupId] ? "Collapse notification group" : "Expand notification group"}
-                  aria-expanded={Boolean(expandedGroups[groupId])}
-                  aria-controls={panelId}
-                  onClick={() => toggleGroup(groupId)}
-                  className="flex min-h-10 min-w-10 items-center justify-center border-0 bg-transparent text-gray-500 hover:bg-gray-50 hover:text-gray-800"
-                >
-                  <DownOutlined className={`transition-transform ${expandedGroups[groupId] ? "rotate-180" : ""}`} />
-                </button>
+                {(n.groupCount || 1) > 1 && (
+                  <button
+                    type="button"
+                    aria-label={expandedGroups[groupId] ? "Collapse notification group" : "Expand notification group"}
+                    aria-expanded={Boolean(expandedGroups[groupId])}
+                    aria-controls={panelId}
+                    onClick={() => toggleGroup(groupId)}
+                    className="flex min-h-10 min-w-10 items-center justify-center border-0 bg-transparent text-gray-500 hover:bg-gray-50 hover:text-gray-800"
+                  >
+                    <DownOutlined className={`transition-transform ${expandedGroups[groupId] ? "rotate-180" : ""}`} />
+                  </button>
+                )}
               </div>
               {expandedGroups[groupId] && (
                 <div id={panelId} role="region" className="bg-gray-50/70 py-1">

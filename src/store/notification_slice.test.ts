@@ -187,7 +187,7 @@ describe("addNotification", () => {
 
 describe("markNotificationGroupReadLocally", () => {
   it("marks the group and decrements raw and grouped counts once", () => {
-    const grouped = { ...notification("latest", false, "comment_mention"), groupId: "card-1", groupCount: 3 };
+    const grouped = { ...notification("latest", false, "comment_mention"), groupId: "card-1", groupCount: 3, unreadCount: 3 };
     let state = reducer(undefined, setNotifications({ category: "comment", value: [grouped] }));
     state = reducer(state, setUnreadCounts({
       unreadCount: 5,
@@ -196,8 +196,8 @@ describe("markNotificationGroupReadLocally", () => {
       commentUnreadGroupCount: 1,
       commentGateEnabled: true,
     }));
-    state = reducer(state, markNotificationGroupReadLocally({ groupId: "card-1", groupCount: 3 }));
-    state = reducer(state, markNotificationGroupReadLocally({ groupId: "card-1", groupCount: 3 }));
+    state = reducer(state, markNotificationGroupReadLocally({ groupId: "card-1", unreadCount: 3 }));
+    state = reducer(state, markNotificationGroupReadLocally({ groupId: "card-1", unreadCount: 3 }));
 
     expect(state.notificationsByCategory.comment[0].isRead).toBe(true);
     expect(state.unreadCount).toBe(2);
