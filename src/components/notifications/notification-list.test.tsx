@@ -8,7 +8,7 @@ import {
   markNotificationRead,
 } from "@api/notifications";
 import { NotificationList, getNotificationTarget } from "./notification-list";
-import { NotificationItem } from "@myTypes/notification";
+import { NOTIFICATION_NEW_EVENT, NotificationItem } from "@myTypes/notification";
 
 type MockNotificationState = {
   notificationState: {
@@ -81,6 +81,7 @@ const baseNotification: NotificationItem = {
   id: "1",
   groupId: "1",
   groupCount: 1,
+  unreadCount: 1,
   type: "info",
   title: "New item",
   message: null,
@@ -341,6 +342,33 @@ describe("NotificationList", () => {
     expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ payload: false }));
   });
 
+  it("refetches canonical notifications whenever the dropdown opens", async () => {
+    mockState.notificationState.isOpen = false;
+    const { rerender } = render(<NotificationList category="comment" />);
+    expect(getNotifications).not.toHaveBeenCalled();
+
+    mockState.notificationState.isOpen = true;
+    rerender(<NotificationList category="comment" />);
+
+    await waitFor(() => {
+      expect(getNotifications).toHaveBeenCalledWith(1, 20, "comment");
+      expect(getUnreadCount).toHaveBeenCalled();
+    });
+  });
+
+  it("refetches an open list after a realtime notification event", async () => {
+    render(<NotificationList category="comment" />);
+    await waitFor(() => expect(getNotifications).toHaveBeenCalled());
+    jest.clearAllMocks();
+
+    window.dispatchEvent(new CustomEvent(NOTIFICATION_NEW_EVENT));
+
+    await waitFor(() => {
+      expect(getNotifications).toHaveBeenCalledWith(1, 20, "comment");
+      expect(getUnreadCount).toHaveBeenCalled();
+    });
+  });
+
   it("marks unread links on middle click without closing the dropdown", () => {
     render(<NotificationList category="general" />);
 
@@ -441,7 +469,7 @@ describe("NotificationList", () => {
     expect(markNotificationGroupRead).toHaveBeenCalledWith("card-1");
     expect(startGrace).toHaveBeenCalledTimes(1);
     expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({
-      payload: { groupId: "card-1", unreadCount: 0 },
+      payload: { groupId: "card-1", unreadCount: 1 },
     }));
     expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ payload: false }));
   });

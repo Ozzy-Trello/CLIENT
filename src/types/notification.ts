@@ -1,5 +1,7 @@
 export type NotificationCategory = "all" | "general" | "comment";
 
+export const NOTIFICATION_NEW_EVENT = "notification:new";
+
 export interface NotificationItem {
   id: string;
   groupId: string;

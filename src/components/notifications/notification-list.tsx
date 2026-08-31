@@ -13,6 +13,7 @@ import {
   markNotificationGroupReadLocally,
   markNotificationReadLocally,
   selectCommentGateEnabled,
+  selectNotificationOpen,
   selectNotificationsByCategory,
   selectNotificationTotalByCategory,
   setNotifications,
@@ -20,7 +21,11 @@ import {
   setOpen,
   setUnreadCounts,
 } from "@store/notification_slice";
-import { NotificationCategory, NotificationItem } from "@myTypes/notification";
+import {
+  NOTIFICATION_NEW_EVENT,
+  NotificationCategory,
+  NotificationItem,
+} from "@myTypes/notification";
 import {
   getNotificationGroupItems,
   getNotifications,
@@ -102,6 +107,7 @@ function normalizeCategoryResult(
 export function NotificationList({ category }: NotificationListProps) {
   const dispatch = useDispatch();
   const commentGateEnabled = useSelector(selectCommentGateEnabled);
+  const isOpen = useSelector(selectNotificationOpen);
   const notifications = useSelector((state: RootState) =>
     selectNotificationsByCategory(state, category)
   );
@@ -120,13 +126,16 @@ export function NotificationList({ category }: NotificationListProps) {
     failedPage?: number;
   }>>({});
   const locallyReadGroups = useRef(new Set<string>());
+  const refreshRequestId = useRef(0);
   const { startGrace } = useCommentReviewGrace();
 
   const refreshNotifications = async () => {
+    const requestId = ++refreshRequestId.current;
     const [notificationsResult, countResult] = await Promise.allSettled([
       getNotifications(1, 20, category),
       getUnreadCount(),
     ]);
+    if (requestId !== refreshRequestId.current) return;
     if (notificationsResult.status === "fulfilled") {
       const normalized = normalizeCategoryResult(notificationsResult.value, category);
       dispatch(setNotifications({ category, value: normalized.data }));
@@ -138,9 +147,26 @@ export function NotificationList({ category }: NotificationListProps) {
   };
 
   useEffect(() => {
+    if (!isOpen) return;
     setPage(1);
     void refreshNotifications();
-  }, [category]);
+
+    const refreshVisibleList = () => {
+      void refreshNotifications();
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") refreshVisibleList();
+    };
+
+    window.addEventListener("focus", refreshVisibleList);
+    window.addEventListener(NOTIFICATION_NEW_EVENT, refreshVisibleList);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      window.removeEventListener("focus", refreshVisibleList);
+      window.removeEventListener(NOTIFICATION_NEW_EVENT, refreshVisibleList);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [category, isOpen]);
 
   const markRead = (notification: NotificationItem) => {
     if (notification.isRead) return;

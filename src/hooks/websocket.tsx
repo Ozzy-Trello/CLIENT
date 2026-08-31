@@ -28,6 +28,8 @@ import {
 } from "@utils/websocket-event-handlers";
 import { addNotification } from "@store/notification_slice";
 import TokenStorage from "@utils/token-storage";
+import { shouldProcessWebSocketEventDuringDrag } from "@utils/websocket-drag-events";
+import { NOTIFICATION_NEW_EVENT } from "@myTypes/notification";
 
 /**
  * Tracks recent frontend mutations to avoid processing websocket echoes
@@ -332,19 +334,12 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
         let message = JSON.parse(event.data);
         message = camelcaseKeys(message, { deep: true });
 
-        // Don't process most WebSocket updates during drag operations to prevent re-renders
-        // Allow label automation events so labels stay in sync without refresh.
-        if ((window as any).__DRAG_IN_PROGRESS__) {
-          const allowDuringDrag = new Set([
-            "automation:label_added",
-            "automation:label_removed",
-            EnumUserActionEvent.CardMoved,
-            EnumBackendWebSocketEvent.CARD_MOVED,
-            EnumBackendWebSocketEvent.CARD_UPDATED,
-          ]);
-          if (!allowDuringDrag.has(message.event)) {
-            return;
-          }
+        // Keep lightweight state-critical events while suppressing drag-sensitive updates.
+        if (
+          (window as any).__DRAG_IN_PROGRESS__
+          && !shouldProcessWebSocketEventDuringDrag(message.event)
+        ) {
+          return;
         }
 
         let refreshDashcard = false;
@@ -1603,10 +1598,11 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             refreshDashcard = true;
             break;
 
-          case "notification:new":
+          case NOTIFICATION_NEW_EVENT:
             if (message.data) {
               invalidateNotulensiNotification(queryClient, message.data);
               dispatch(addNotification(message.data));
+              window.dispatchEvent(new CustomEvent(NOTIFICATION_NEW_EVENT));
               playNotificationSound();
               if (message.data.entityType === "notulensi") {
                 window.dispatchEvent(new CustomEvent("notulensi:toast", {

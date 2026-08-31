@@ -14,6 +14,7 @@ const notification = (id: string, isRead: boolean, type = "info") => ({
   id,
   groupId: id,
   groupCount: 1,
+  unreadCount: isRead ? 0 : 1,
   type,
   title: id,
   message: null,
@@ -162,12 +163,21 @@ describe("addNotification", () => {
 
   it("merges new comment events into their existing group", () => {
     const first = { ...notification("first", false, "comment_mention"), groupId: "card-1", groupCount: 2 };
-    const latest = { ...notification("latest", false, "comment_mention"), groupId: "card-1", groupCount: 3 };
+    const latest = {
+      ...notification("latest", false, "comment_mention"),
+      groupId: "card-1",
+      groupCount: 3,
+      unreadCount: 2,
+    };
     let state = reducer(undefined, addNotification(first));
     state = reducer(state, addNotification(latest));
 
     expect(state.notificationsByCategory.comment).toHaveLength(1);
-    expect(state.notificationsByCategory.comment[0]).toMatchObject({ id: "latest", groupCount: 3 });
+    expect(state.notificationsByCategory.comment[0]).toMatchObject({
+      id: "latest",
+      groupCount: 3,
+      unreadCount: 2,
+    });
     expect(state.totalByCategory.comment).toBe(1);
     expect(state.commentUnreadCount).toBe(2);
     expect(state.commentUnreadGroupCount).toBe(1);

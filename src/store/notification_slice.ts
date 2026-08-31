@@ -150,7 +150,10 @@ const notificationSlice = createSlice({
         const merged = {
           ...notification,
           groupCount: Math.max(existing.groupCount, notification.groupCount),
-          unreadCount: existing.unreadCount + (notification.isRead ? 0 : 1),
+          unreadCount: Math.max(
+            existing.unreadCount + (notification.isRead ? 0 : 1),
+            notification.unreadCount,
+          ),
           isRead: notification.isRead && existing.isRead,
         };
         return [merged, ...list.filter((_, index) => index !== existingIndex)].slice(0, 50);
