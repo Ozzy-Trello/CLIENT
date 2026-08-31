@@ -458,7 +458,7 @@ export default function NotulensiDetailView({
   };
 
   return (
-    <div className="grid min-w-0 grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(380px,0.8fr)]">
+    <div className="grid min-w-0 max-w-full grid-cols-1 items-start gap-4 overflow-x-hidden xl:grid-cols-[minmax(0,1fr)_minmax(380px,0.8fr)]">
       <div className="flex min-w-0 flex-col gap-4">
       <div className="rounded-2xl border border-[rgb(var(--color-border))] bg-[rgb(var(--color-surface))] p-4 md:p-6">
          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
@@ -469,7 +469,7 @@ export default function NotulensiDetailView({
             <Typography.Text type="secondary" className="block text-sm">
               {detail.code}
             </Typography.Text>
-            <Typography.Title level={3} className="!mb-2 !mt-1">
+            <Typography.Title level={3} className="!mb-2 !mt-1 break-words">
               {detail.title}
             </Typography.Title>
             <div className="flex flex-wrap gap-2">
@@ -480,7 +480,7 @@ export default function NotulensiDetailView({
               </Typography.Text>
             </div>
           </div>
-           <Space wrap className="ml-auto w-full justify-start sm:w-auto sm:justify-end">
+            <div className="ml-auto flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
             {detail.allowedActions
               .filter((action): action is NotulensiWorkflowAction => action !== "update_progress")
               .map((action) => {
@@ -531,7 +531,7 @@ export default function NotulensiDetailView({
                 </Button>
               </Popconfirm>
             ) : null}
-           </Space>
+            </div>
          </div>
 
          <div
@@ -600,16 +600,17 @@ export default function NotulensiDetailView({
         </div>
 
         <div className="mb-4 flex flex-wrap gap-4 text-sm">
-          <div>
+           <div className="min-w-0 w-full sm:w-auto">
             <Typography.Text type="secondary" className="block">Assignees</Typography.Text>
             {detail.permissions?.canAssign ? (
-               <Space.Compact className="mt-1 flex w-full min-w-0 flex-col sm:min-w-[280px] sm:flex-row">
+               <div className="mt-1 flex w-full min-w-0 flex-col gap-2 sm:min-w-[280px] sm:flex-row sm:gap-0">
                 <NotulensiUserSelect
                   value={assigneeIds}
                   onChange={setAssigneeIds}
                   disabled={updateNotulensiMutation.isPending}
                 />
-                <Button
+                 <Button
+                   className="w-full sm:w-auto"
                   type="primary"
                   onClick={handleAssignees}
                   loading={updateNotulensiMutation.isPending}
@@ -617,7 +618,7 @@ export default function NotulensiDetailView({
                 >
                   Save
                 </Button>
-              </Space.Compact>
+               </div>
             ) : (
               <Typography.Text>
                 {getAssigneeNames(detail.assignees)}
@@ -837,7 +838,7 @@ export default function NotulensiDetailView({
                 detail.permissions?.canDeleteAttachment || detail.permissions?.canUploadAttachment
               );
               return (
-                <div key={attachment.id} className="flex min-w-0 items-center gap-3 rounded-xl border border-[rgb(var(--color-border))] p-3">
+                 <div key={attachment.id} className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-3 rounded-xl border border-[rgb(var(--color-border))] p-3 sm:grid-cols-[auto_minmax(0,1fr)_auto]">
                   {isImage ? (
                     <button type="button" disabled={!isPreviewable} onClick={() => handleOpenPreview(attachment.id)}>
                       <Image
@@ -912,7 +913,7 @@ export default function NotulensiDetailView({
                       {dayjs(attachment.createdAt).format("DD MMM YYYY HH:mm")}
                     </Typography.Text>
                   </div>
-                  <Space size={0}>
+                   <Space size={0} className="col-span-2 flex justify-end sm:col-span-1">
                     {renamingAttachmentId === attachment.id ? (
                       <>
                         <Button
@@ -981,8 +982,9 @@ export default function NotulensiDetailView({
       </div>
 
       </div>
-      <div className="rounded-2xl border border-[rgb(var(--color-border))] bg-[rgb(var(--color-surface))] p-4 md:p-6 xl:sticky xl:top-4">
-        <Tabs
+       <div className="min-w-0 max-w-full rounded-2xl border border-[rgb(var(--color-border))] bg-[rgb(var(--color-surface))] p-3 sm:p-4 md:p-6 xl:sticky xl:top-4">
+         <Tabs
+           className="min-w-0 [&_.ant-tabs-content-holder]:min-w-0 [&_.ant-tabs-tabpane]:min-w-0"
           items={[
             {
               key: "discussion",
@@ -1048,13 +1050,13 @@ export default function NotulensiDetailView({
                         }`}
                       >
                         <div className="mb-2 flex flex-wrap items-start justify-between gap-2">
-                          <div>
+                          <div className="min-w-0 flex-1">
                             <Typography.Text strong>{comment.creator?.username || "Unknown user"}</Typography.Text>
-                            <Typography.Text type="secondary" className="ml-2 text-xs">
+                            <Typography.Text type="secondary" className="block break-words text-xs sm:ml-2 sm:inline">
                               {dayjs(comment.updatedAt).format("DD MMM YYYY HH:mm")}
                             </Typography.Text>
                           </div>
-                          <Space wrap>
+                          <Space wrap className="w-full justify-end sm:w-auto">
                             <Button type="link" onClick={() => setReplyingTo(comment)}>Reply</Button>
                             {canEditComment(comment) ? (
                               <Button
@@ -1132,9 +1134,9 @@ export default function NotulensiDetailView({
                         ) : (
                           <>
                             {comment.replyTo ? (
-                              <div className="mb-2 rounded-md bg-[rgb(var(--color-background))] px-3 py-2 text-sm">
+                              <div className="mb-2 min-w-0 overflow-hidden rounded-md bg-[rgb(var(--color-background))] px-3 py-2 text-sm">
                                 <Typography.Text strong>{comment.replyTo.creator?.username || "Unknown user"}</Typography.Text>
-                                <Typography.Text type="secondary" className="ml-2">{getCommentQuote(comment.replyTo.content) || "Comment"}</Typography.Text>
+                                <Typography.Text type="secondary" className="mt-1 block break-words sm:ml-2 sm:mt-0 sm:inline">{getCommentQuote(comment.replyTo.content) || "Comment"}</Typography.Text>
                               </div>
                             ) : null}
                             <RichTextEditor initialValue={comment.content} readOnly minHeight={60} maxHeight={180} transformReadOnlyHtml={linkifyNotulensiComment} />

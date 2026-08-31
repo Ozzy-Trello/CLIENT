@@ -49,7 +49,7 @@ export default function NotulensiDetailPage() {
   }, [commentId, detailQuery.data?.data, notificationId, dispatch]);
 
   return (
-    <div className="min-w-0 p-3 sm:p-4 md:p-6">
+    <div className="min-w-0 max-w-full overflow-x-hidden p-2 sm:p-4 md:p-6">
       <NotulensiDetailView
         workspaceId={workspaceId}
         detail={detailQuery.data?.data}

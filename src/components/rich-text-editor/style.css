@@ -1,6 +1,8 @@
 /* RichTextEditor.css */
 .trello-editor-container {
   border-radius: 3px;
+  max-width: 100%;
+  min-width: 0;
   overflow: visible;
 }
 
@@ -19,6 +21,8 @@
   min-height: var(--editor-min-height);
   max-height: var(--editor-max-height);
   overflow-y: auto;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .trello-editor-container .ql-editor.ql-blank::before {
@@ -44,4 +48,26 @@
   max-width: 100%;
   height: auto;
   margin: 5px 0;
+}
+
+@media (max-width: 639px) {
+  .trello-editor-container .ql-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    padding: 6px;
+  }
+
+  .trello-editor-container .ql-toolbar .ql-formats {
+    display: inline-flex;
+    margin-bottom: 4px;
+    margin-right: 4px;
+  }
+
+  .trello-editor-container .ql-toolbar .ql-picker.ql-header {
+    width: 88px;
+  }
+
+  .trello-editor-container .ql-editor {
+    padding: 10px;
+  }
 }
