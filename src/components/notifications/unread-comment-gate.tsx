@@ -14,6 +14,10 @@ import {
   setUnreadCounts,
 } from "@store/notification_slice";
 import { useCommentReviewGrace } from "@hooks/use-comment-review-grace";
+import {
+  COMMENT_GATE_MAX_DEFERRALS,
+  useCommentGateDeferral,
+} from "@hooks/use-comment-gate-deferral";
 
 export function UnreadCommentGate() {
   const dispatch = useDispatch();
@@ -22,7 +26,16 @@ export function UnreadCommentGate() {
   const commentGateEnabled = useSelector(selectCommentGateEnabled);
   const [isCountKnown, setIsCountKnown] = useState(false);
   const { clearGrace, isActive, isReady, secondsRemaining } = useCommentReviewGrace();
+  const {
+    canDefer,
+    clearDeferral,
+    defer,
+    deferralCount,
+    isDeferred,
+    isReady: isDeferralReady,
+  } = useCommentGateDeferral();
   const wasActive = useRef(false);
+  const wasDeferred = useRef(false);
 
   const refreshCounts = async () => {
     try {
@@ -65,8 +78,19 @@ export function UnreadCommentGate() {
   }, [isActive, isReady]);
 
   useEffect(() => {
-    if (isActive && isCountKnown && commentUnreadCount === 0) clearGrace();
-  }, [clearGrace, commentUnreadCount, isActive, isCountKnown]);
+    if (!isDeferralReady) return;
+    if (wasDeferred.current && !isDeferred) {
+      setIsCountKnown(false);
+      void refreshCounts();
+    }
+    wasDeferred.current = isDeferred;
+  }, [isDeferred, isDeferralReady]);
+
+  useEffect(() => {
+    if (!isCountKnown || (commentGateEnabled && commentUnreadCount > 0)) return;
+    if (isActive) clearGrace();
+    if (deferralCount > 0 || isDeferred) clearDeferral();
+  }, [clearDeferral, clearGrace, commentGateEnabled, commentUnreadCount, deferralCount, isActive, isCountKnown, isDeferred]);
 
   const openCommentNotifications = () => {
     dispatch(setActiveTab("comment"));
@@ -74,12 +98,16 @@ export function UnreadCommentGate() {
   };
 
   const awaitingExpiryRefresh = wasActive.current && !isActive;
+  const awaitingDeferralRefresh = wasDeferred.current && !isDeferred;
   const shouldShow = isReady
+    && isDeferralReady
     && isCountKnown
     && commentGateEnabled
     && commentUnreadCount > 0
     && !isActive
-    && !awaitingExpiryRefresh;
+    && !isDeferred
+    && !awaitingExpiryRefresh
+    && !awaitingDeferralRefresh;
   const minutes = Math.floor(secondsRemaining / 60);
   const seconds = String(secondsRemaining % 60).padStart(2, "0");
   const warningLevel = secondsRemaining <= 15 ? "critical" : secondsRemaining <= 60 ? "warning" : "normal";
@@ -132,8 +160,22 @@ export function UnreadCommentGate() {
           <p className="m-0 font-medium text-gray-800">
             {commentUnreadGroupCount} task memiliki {commentUnreadCount} notifikasi belum dibaca.
           </p>
-          <div className="flex justify-end">
-            <Button type="primary" onClick={openCommentNotifications}>
+          {canDefer ? (
+            <p className="m-0 text-gray-500">
+              Bisa ditunda selama 3 menit. Sisa tunda: {COMMENT_GATE_MAX_DEFERRALS - deferralCount} kali.
+            </p>
+          ) : (
+            <p className="m-0 font-medium text-red-700">
+              Batas tunda habis. Buka Comment untuk melanjutkan.
+            </p>
+          )}
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            {canDefer ? (
+              <Button className="min-h-11 sm:min-h-0" onClick={defer}>
+                Tunda 3 menit
+              </Button>
+            ) : null}
+            <Button className="min-h-11 sm:min-h-0" type="primary" onClick={openCommentNotifications}>
               Lihat Comment
             </Button>
           </div>

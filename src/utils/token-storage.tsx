@@ -135,7 +135,10 @@ const TokenStorage = {
     localStorage.removeItem(REMEMBER_ME_KEY);
     for (let index = localStorage.length - 1; index >= 0; index -= 1) {
       const key = localStorage.key(index);
-      if (key?.startsWith("ozzy_comment_review_grace:")) {
+      if (
+        key?.startsWith("ozzy_comment_review_grace:")
+        || key?.startsWith("ozzy_comment_gate_deferral:")
+      ) {
         localStorage.removeItem(key);
       }
     }

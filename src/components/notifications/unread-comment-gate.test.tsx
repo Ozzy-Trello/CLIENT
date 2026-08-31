@@ -41,6 +41,7 @@ describe("UnreadCommentGate", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    window.localStorage.clear();
     state = {
       notificationState: {
         commentUnreadCount: 0,
@@ -100,6 +101,58 @@ describe("UnreadCommentGate", () => {
     expect(getUnreadCount).toHaveBeenCalledTimes(2);
     expect(await screen.findByRole("dialog")).not.toBeNull();
     jest.useRealTimers();
+  });
+
+  it("allows two deferrals and requires Comment on the third appearance", async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(Date.parse("2026-08-31T10:00:00.000Z"));
+    state.notificationState.commentUnreadCount = 2;
+    state.notificationState.commentUnreadGroupCount = 1;
+    state.notificationState.commentGateEnabled = true;
+    (getUnreadCount as jest.Mock).mockResolvedValue({
+      unreadCount: 2,
+      generalUnreadCount: 0,
+      commentUnreadCount: 2,
+      commentUnreadGroupCount: 1,
+      commentGateEnabled: true,
+    });
+
+    render(<UnreadCommentGate />);
+
+    expect(await screen.findByText("Sisa tunda: 2 kali.", { exact: false })).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Tunda 3 menit" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+
+    await act(async () => jest.advanceTimersByTime(180_001));
+    expect(await screen.findByText("Sisa tunda: 1 kali.", { exact: false })).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Tunda 3 menit" }));
+
+    await act(async () => jest.advanceTimersByTime(180_001));
+    expect(await screen.findByText("Batas tunda habis. Buka Comment untuk melanjutkan.")).not.toBeNull();
+    expect(screen.queryByRole("button", { name: "Tunda 3 menit" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Lihat Comment" })).not.toBeNull();
+    jest.useRealTimers();
+  });
+
+  it("resets the deferral quota after all comments are read", async () => {
+    window.localStorage.setItem(
+      "ozzy_comment_gate_deferral:user-1",
+      JSON.stringify({ count: 2, expiry: 0 }),
+    );
+    (getUnreadCount as jest.Mock).mockResolvedValue({
+      unreadCount: 0,
+      generalUnreadCount: 0,
+      commentUnreadCount: 0,
+      commentUnreadGroupCount: 0,
+      commentGateEnabled: true,
+    });
+
+    render(<UnreadCommentGate />);
+
+    await waitFor(() => expect(getUnreadCount).toHaveBeenCalled());
+    await waitFor(() => expect(
+      window.localStorage.getItem("ozzy_comment_gate_deferral:user-1"),
+    ).toBeNull());
   });
 
   it("fails open when the canonical count request fails", async () => {
