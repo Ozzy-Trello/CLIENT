@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Fragment,
   useCallback,
   useEffect,
   useMemo,
@@ -40,6 +41,7 @@ import {
   SendOutlined,
 } from "@ant-design/icons";
 import styles from "./chat-widget.module.css";
+import { getChatDateSeparator } from "./chat-date-separator";
 import { useWebSocket } from "@hooks/websocket";
 import { selectUser } from "@store/app_slice";
 import { queryKeys } from "@constants/query-keys";
@@ -4073,7 +4075,11 @@ const ChatWidget = () => {
                     />
                   </div>
                 ) : (
-                  messages.map((chatMessage) => {
+                  messages.map((chatMessage, messageIndex) => {
+                    const dateSeparator = getChatDateSeparator(
+                      chatMessage.createdAt,
+                      messages[messageIndex - 1]?.createdAt,
+                    );
                     const isOwnMessage =
                       Boolean(currentUserId) &&
                       chatMessage.senderId === currentUserId;
@@ -4100,9 +4106,18 @@ const ChatWidget = () => {
                         : styles.messageStatusDelivered;
 
                     return (
-                      <div
-                        key={chatMessage.id}
-                        ref={(element) => {
+                      <Fragment key={getMessageMergeKey(chatMessage)}>
+                        {dateSeparator ? (
+                          <div
+                            className={styles.dateSeparator}
+                            role="separator"
+                            aria-label={`Tanggal chat: ${dateSeparator}`}
+                          >
+                            <span>{dateSeparator}</span>
+                          </div>
+                        ) : null}
+                        <div
+                          ref={(element) => {
                           const peerNodes =
                             messageNodeByPeerIdRef.current[window.peerUserId] || {};
                           if (chatMessage.id) {
@@ -4428,7 +4443,8 @@ const ChatWidget = () => {
                           ) : null}
                           </div>
                         </div>
-                      </div>
+                        </div>
+                      </Fragment>
                     );
                   })
                 )}
