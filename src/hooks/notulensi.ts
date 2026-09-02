@@ -85,6 +85,7 @@ export function useNotulensiDetail(workspaceId: string, id: string) {
       }
     },
     enabled: Boolean(workspaceId && id),
+    refetchOnMount: "always",
   });
 }
 
