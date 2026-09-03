@@ -95,6 +95,33 @@ export function useUpdateChecklist(checklistId: string, cardId: string) {
 }
 
 /**
+ * Hook to rename a checklist without touching its items
+ */
+export function useRenameChecklist(cardId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ checklistId, title }: { checklistId: string, title: string }) => {
+      const currentChecklist = await getChecklistById(checklistId);
+
+      if (!currentChecklist.data) {
+        throw new Error("Checklist not found");
+      }
+
+      return updateChecklist(checklistId, {
+        title,
+        data: currentChecklist.data.data,
+      });
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['checklist', variables.checklistId] });
+      queryClient.invalidateQueries({ queryKey: ['checklists', cardId] });
+      invalidateChecklistCardContext(queryClient, cardId);
+    },
+  });
+}
+
+/**
  * Hook to delete a checklist
  */
 export function useDeleteChecklist(cardId: string) {

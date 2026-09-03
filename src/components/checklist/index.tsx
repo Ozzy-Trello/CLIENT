@@ -1,5 +1,6 @@
-import React, { useState } from "react";
-import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
+import React, { useRef, useState } from "react";
+import dynamic from "next/dynamic";
+import { Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { Button, Checkbox, Input, Progress, Typography, Dropdown, Menu, Tooltip, message } from "antd";
 import { 
   CheckSquare, 
@@ -8,11 +9,15 @@ import {
   Trash2, 
   Edit, 
   Calendar, 
-  User
+  User,
+  ArrowUp,
+  ArrowDown,
+  GripVertical
 } from "lucide-react";
 import { 
   useCardChecklists, 
   useCreateChecklist, 
+  useRenameChecklist,
   useDeleteChecklist, 
   useToggleChecklistItem, 
   useAddChecklistItem, 
@@ -24,6 +29,12 @@ import {
 import { ChecklistDTO, ChecklistItem } from "@myTypes/checklist";
 
 const { Title, Text } = Typography;
+
+// The drag context touches the DOM on mount, so it must not render on the server.
+const DragDropContext = dynamic(
+  () => import("@hello-pangea/dnd").then((mod) => mod.DragDropContext),
+  { ssr: false }
+);
 
 interface ChecklistComponentProps {
   cardId: string;
@@ -40,12 +51,16 @@ export const ChecklistComponent: React.FC<ChecklistComponentProps> = ({ cardId, 
     itemIndex: number;
     text: string;
   } | null>(null);
+  // Serialize add-item writes per checklist: the mutation is read-modify-write,
+  // so rapid Enter presses would otherwise overwrite each other.
+  const addItemQueues = useRef<Record<string, Promise<unknown>>>({});
 
   // Fetch checklists for this card
   const { data: checklists, isLoading } = useCardChecklists(cardId);
   
   // Mutations
   const createChecklistMutation = useCreateChecklist();
+  const renameChecklistMutation = useRenameChecklist(cardId);
   const deleteChecklistMutation = useDeleteChecklist(cardId);
   const toggleItemMutation = useToggleChecklistItem(cardId);
   const addItemMutation = useAddChecklistItem(cardId);
@@ -81,6 +96,29 @@ export const ChecklistComponent: React.FC<ChecklistComponentProps> = ({ cardId, 
       },
       onError: () => {
         message.error("Failed to create checklist");
+      }
+    });
+  };
+
+  // Handle renaming a checklist
+  const handleRenameChecklist = (checklist: ChecklistDTO, title: string) => {
+    const trimmed = title.trim();
+
+    if (!trimmed) {
+      message.error("Checklist title cannot be empty");
+      return;
+    }
+
+    if (trimmed === checklist.title) {
+      return;
+    }
+
+    renameChecklistMutation.mutate({
+      checklistId: checklist.id,
+      title: trimmed
+    }, {
+      onError: () => {
+        message.error("Failed to rename checklist");
       }
     });
   };
@@ -121,33 +159,32 @@ export const ChecklistComponent: React.FC<ChecklistComponentProps> = ({ cardId, 
     const checklist = checklists?.find((c: ChecklistDTO) => c.id === checklistId);
     if (!checklist) return;
 
-    addItemMutation.mutate({
-      checklistId,
-      title: checklist.title || "",
-      newItem: {
-        label: newItemText,
-        checked: false
-      }
-    }, {
-      onSuccess: () => {
-        // Clear the input
+    // Clear the input immediately so the next item can be typed right away
+    setNewItemTexts(prev => ({
+      ...prev,
+      [checklistId]: ""
+    }));
+
+    const previous = addItemQueues.current[checklistId] ?? Promise.resolve();
+    addItemQueues.current[checklistId] = previous
+      .catch(() => undefined)
+      .then(() =>
+        addItemMutation.mutateAsync({
+          checklistId,
+          title: checklist.title || "",
+          newItem: {
+            label: newItemText,
+            checked: false
+          }
+        })
+      )
+      .catch(() => {
         setNewItemTexts(prev => ({
           ...prev,
-          [checklistId]: ""
+          [checklistId]: prev[checklistId] || newItemText
         }));
-        
-        // Hide the input
-        setShowNewItemInputs(prev => ({
-          ...prev,
-          [checklistId]: false
-        }));
-        
-        message.success("Item added successfully");
-      },
-      onError: () => {
         message.error("Failed to add item");
-      }
-    });
+      });
   };
 
   // Handle removing an item from a checklist
@@ -193,6 +230,25 @@ export const ChecklistComponent: React.FC<ChecklistComponentProps> = ({ cardId, 
       onError: () => {
         message.error("Failed to update item");
       }
+    });
+  };
+
+  // Handle moving an item up or down within its checklist
+  const handleMoveItem = (checklistId: string, itemIndex: number, direction: -1 | 1) => {
+    const checklist = checklists?.find((c: ChecklistDTO) => c.id === checklistId);
+    if (!checklist?.data) return;
+
+    const targetIndex = itemIndex + direction;
+    if (targetIndex < 0 || targetIndex >= checklist.data.length) return;
+
+    reorderItemMutation.mutate({
+      checklistId,
+      startIndex: itemIndex,
+      endIndex: targetIndex,
+    }, {
+      onError: () => {
+        message.error("Failed to reorder item");
+      },
     });
   };
 
@@ -272,7 +328,16 @@ export const ChecklistComponent: React.FC<ChecklistComponentProps> = ({ cardId, 
             className="min-w-0 rounded-xl border border-[rgb(var(--color-border))] bg-[rgb(var(--color-background))] p-3 md:p-4"
           >
             <div className="mb-2 flex min-w-0 items-start justify-between gap-2">
-              <Title level={5} className="!m-0 min-w-0 break-words">{checklist.title}</Title>
+              <Title
+                level={5}
+                className="!m-0 min-w-0 break-words"
+                editable={readOnly ? false : {
+                  tooltip: "Rename checklist",
+                  onChange: (value) => handleRenameChecklist(checklist, value),
+                }}
+              >
+                {checklist.title}
+              </Title>
               {!readOnly ? (
                 <Dropdown
                   overlay={
@@ -328,9 +393,17 @@ export const ChecklistComponent: React.FC<ChecklistComponentProps> = ({ cardId, 
                         <div
                           ref={provided.innerRef}
                           {...provided.draggableProps}
-                          {...provided.dragHandleProps}
                           className={`group flex min-w-0 items-start rounded-md p-1 ${snapshot.isDragging ? "bg-[rgb(var(--color-surface))] shadow-lg" : ""}`}
                         >
+                          {!readOnly ? (
+                            <span
+                              {...provided.dragHandleProps}
+                              aria-label={`Drag ${item.label} to reorder`}
+                              className="mr-1 mt-1 shrink-0 cursor-grab text-[rgb(var(--color-text-muted))]"
+                            >
+                              <GripVertical size={16} />
+                            </span>
+                          ) : null}
                           <Checkbox
                             checked={item.checked}
                             disabled={readOnly}
@@ -390,6 +463,28 @@ export const ChecklistComponent: React.FC<ChecklistComponentProps> = ({ cardId, 
                           {/* Item Actions */}
                           {!readOnly ? (
                             <div className="shrink-0 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
+                              <Tooltip title="Move up">
+                                <Button
+                                  type="text"
+                                  icon={<ArrowUp size={14} />}
+                                  size="small"
+                                  disabled={index === 0}
+                                  aria-label={`Move ${item.label} up`}
+                                  onClick={() => handleMoveItem(checklist.id, index, -1)}
+                                  className="mr-1"
+                                />
+                              </Tooltip>
+                              <Tooltip title="Move down">
+                                <Button
+                                  type="text"
+                                  icon={<ArrowDown size={14} />}
+                                  size="small"
+                                  disabled={index === checklist.data.length - 1}
+                                  aria-label={`Move ${item.label} down`}
+                                  onClick={() => handleMoveItem(checklist.id, index, 1)}
+                                  className="mr-1"
+                                />
+                              </Tooltip>
                               <Tooltip title="Edit">
                                 <Button
                                   type="text"
