@@ -32,7 +32,8 @@ export default function NotulensiPage() {
   const allowAll = currentAccountData?.data?.role?.name === "Super Admin";
   const userId = currentAccountData?.data?.id;
   const storageKey = userId && workspaceId ? `ozzy_notulensi_filters_${userId}_${workspaceId}` : null;
-  const listQuery = useNotulensiList(workspaceId, filters, Boolean(storageKey && hydratedStorageKey === storageKey));
+  const filtersReady = Boolean(storageKey) && hydratedStorageKey === storageKey;
+  const listQuery = useNotulensiList(workspaceId, filters, filtersReady);
 
   useEffect(() => {
     if (!storageKey) return;
@@ -112,7 +113,10 @@ export default function NotulensiPage() {
       <NotulensiList
         workspaceId={workspaceId}
         data={listQuery.data}
-        loading={listQuery.isLoading || listQuery.isFetching && !listQuery.data}
+        // Only blank the list when there is genuinely nothing to show yet:
+        // while filters are still hydrating from storage, and on the first
+        // load. Later searches keep the previous rows via placeholderData.
+        loading={!listQuery.data && !listQuery.isError && (!filtersReady || listQuery.isFetching)}
         sortBy={filters.sortBy}
         sortOrder={filters.sortOrder}
         onPageChange={(page, pageSize) => setFilters((prev) => ({ ...prev, page, limit: pageSize }))}

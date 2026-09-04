@@ -68,6 +68,9 @@ export function useNotulensiList(
     queryKey: [...queryKeys.notulensi.workspace(workspaceId), "list", filters] as const,
     queryFn: () => getNotulensiList(workspaceId, filters),
     enabled: Boolean(workspaceId) && enabled,
+    // filters sit in the query key, so every keystroke lands on an empty cache
+    // entry and the list would blank out between searches.
+    placeholderData: (previousData) => previousData,
   });
 }
 
