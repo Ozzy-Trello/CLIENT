@@ -1071,6 +1071,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       downloadCsv(records);
       setExportModalOpen(false);
     } catch (error) {
+      console.error("Failed to export gudang requests", error);
       message.error("Gagal mengekspor data");
     } finally {
       setIsExporting(false);
