@@ -16,7 +16,7 @@ import Mention from "quill-mention";
 import { useAccountList } from "../../hooks/account";
 import { Account } from "../../dto/account";
 import { buildMentionSuggestions, MentionUser } from "./mentions";
-import { getImageFile, sanitizeEditorImageUrl } from "./index";
+import { getImageFile, sanitizeEditorImageUrl, shouldInsertAttachmentImage } from "./index";
 import type { RichTextEditorHandle, RichTextEditorProps } from "./index";
 
 const toCssSize = (value: string | number) =>
@@ -114,6 +114,7 @@ const RichTextEditorClient = forwardRef<RichTextEditorHandle, RichTextEditorProp
     const onChangeRef = useRef(onChange);
     const setOpenCustomImageSelectorRef = useRef(setOpenCustomImageSelector);
     const onImageUploadRef = useRef(onImageUpload);
+    const insertedAttachmentUrlRef = useRef<string | undefined>(undefined);
 
     isControlledRef.current = isControlled;
     onChangeRef.current = onChange;
@@ -360,10 +361,21 @@ const RichTextEditorClient = forwardRef<RichTextEditorHandle, RichTextEditorProp
     }, [handleMentionModule]);
 
     useEffect(() => {
-      if (!selectedAttachmentImageUrl) return;
+      // Reopening the picker means the next pick is deliberate, even when it is
+      // the same image the editor inserted last time.
+      if (openCustomImagesSelector) insertedAttachmentUrlRef.current = undefined;
+    }, [openCustomImagesSelector]);
+
+    useEffect(() => {
+      if (!shouldInsertAttachmentImage(
+        selectedAttachmentImageUrl,
+        insertedAttachmentUrlRef.current
+      )) return;
 
       const quillEditor = quillRef.current?.getEditor();
       if (!quillEditor) return;
+
+      insertedAttachmentUrlRef.current = selectedAttachmentImageUrl;
 
       // Insert image at current cursor position or at the end
       const range = quillEditor.getSelection() || {
@@ -376,14 +388,13 @@ const RichTextEditorClient = forwardRef<RichTextEditorHandle, RichTextEditorProp
 
       // Update internal state and parent
       const updatedContent = quillEditor.root.innerHTML;
-      if (!isControlled) setLocalValue(updatedContent);
-      if (onChange) onChange(updatedContent);
+      if (!isControlledRef.current) setLocalValue(updatedContent);
+      onChangeRef.current?.(updatedContent);
 
-      if (setOpenCustomImageSelector) {
-        // Reset the image URL to avoid re-inserting on re-renders
-        setOpenCustomImageSelector(false);
-      }
-    }, [isControlled, onChange, selectedAttachmentImageUrl, setOpenCustomImageSelector]);
+      setOpenCustomImageSelectorRef.current?.(false);
+      // onChange identity changes on every parent render, so depending on it
+      // here would re-run this effect for its own onChange call.
+    }, [selectedAttachmentImageUrl]);
 
     useImperativeHandle(
       ref,

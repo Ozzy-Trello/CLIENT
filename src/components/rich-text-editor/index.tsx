@@ -53,6 +53,14 @@ export const getImageFile = (
 export const sanitizeEditorImageUrl = (url: string) =>
   /^(?:https?:|data:image\/|blob:)/i.test(url) ? url : "//:0";
 
+// Callers hold the picked attachment URL in state and never clear it, so the
+// editor has to decide for itself whether a URL is a fresh pick or the same
+// value surviving another render.
+export const shouldInsertAttachmentImage = (
+  selectedUrl: string | undefined,
+  lastInsertedUrl: string | undefined
+) => Boolean(selectedUrl) && selectedUrl !== lastInsertedUrl;
+
 // Create a placeholder component to show while loading
 const EditorPlaceholder: React.FC<{
   minHeight?: string | number;

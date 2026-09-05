@@ -1,4 +1,9 @@
-import { getImageFile, sanitizeEditorImageUrl, toCssSize } from "./index";
+import {
+  getImageFile,
+  sanitizeEditorImageUrl,
+  shouldInsertAttachmentImage,
+  toCssSize,
+} from "./index";
 import { buildMentionSuggestions } from "./mentions";
 
 describe("rich text editor sizing", () => {
@@ -28,6 +33,31 @@ describe("rich text editor image files", () => {
       "https://files.test/photo.png"
     );
     expect(sanitizeEditorImageUrl("javascript:alert(1)")).toBe("//:0");
+  });
+});
+
+describe("rich text editor attachment image insertion", () => {
+  it("inserts a freshly picked image once", () => {
+    expect(shouldInsertAttachmentImage("https://files.test/a.png", undefined)).toBe(true);
+  });
+
+  it("refuses to insert the same URL again", () => {
+    // The picked URL stays in caller state across renders, so re-inserting it
+    // would append the image on every render until the editor gave out.
+    expect(
+      shouldInsertAttachmentImage("https://files.test/a.png", "https://files.test/a.png")
+    ).toBe(false);
+  });
+
+  it("inserts a different image after the previous one", () => {
+    expect(
+      shouldInsertAttachmentImage("https://files.test/b.png", "https://files.test/a.png")
+    ).toBe(true);
+  });
+
+  it("ignores an empty selection", () => {
+    expect(shouldInsertAttachmentImage("", undefined)).toBe(false);
+    expect(shouldInsertAttachmentImage(undefined, undefined)).toBe(false);
   });
 });
 
