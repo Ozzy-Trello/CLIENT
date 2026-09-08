@@ -431,11 +431,14 @@ const Shipment: React.FC<ShipmentProps> = ({
             ) : null}
             {shipment ? (
               <div className="mt-1.5 text-xs text-gray-500">
-                Status mapping: {shipment.courierCode || shipment.courierServiceCode
-                  ? [shipment.courierCode, shipment.courierServiceCode]
-                      .filter(Boolean)
-                      .join(" / ")
-                  : "Ekspedisi belum didukung Biteship"}
+                Status mapping:{" "}
+                {shipment.ekspedisiOptionValue !== ekspedisi
+                  ? "Tersimpan setelah Anda menyimpan perubahan"
+                  : shipment.courierCode || shipment.courierServiceCode
+                    ? [shipment.courierCode, shipment.courierServiceCode]
+                        .filter(Boolean)
+                        .join(" / ")
+                    : "Ekspedisi belum didukung Biteship"}
               </div>
             ) : null}
           </div>

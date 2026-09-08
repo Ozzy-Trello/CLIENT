@@ -246,6 +246,27 @@ describe("Shipment", () => {
     },
   );
 
+  it("stops showing the saved mapping once another courier is picked", async () => {
+    mockUseCardShipment.mockReturnValue(buildShipmentHook(buildShipment()));
+
+    renderShipment();
+
+    await waitFor(() =>
+      expect(screen.getByText("Status mapping: jne / reg")).not.toBeNull(),
+    );
+
+    fireEvent.change(screen.getByRole("combobox"), {
+      target: { value: "sicepat_best" },
+    });
+
+    expect(screen.queryByText("Status mapping: jne / reg")).toBeNull();
+    expect(
+      screen.getByText(
+        "Status mapping: Tersimpan setelah Anda menyimpan perubahan",
+      ),
+    ).not.toBeNull();
+  });
+
   it("keeps save disabled when the required receipt image is missing", () => {
     renderShipment();
 
