@@ -1,6 +1,9 @@
 import { uploadFile } from "@api/file";
 import { useCardAttachment } from "@hooks/card_attachment";
-import { useCardShipment } from "@hooks/card_shipment";
+import {
+  useCardShipment,
+  useEkspedisiCourierMappings,
+} from "@hooks/card_shipment";
 import {
   CardAttachment,
   CardCustomField,
@@ -70,6 +73,11 @@ const Shipment: React.FC<ShipmentProps> = ({
     isAddingAttachment,
     isDeletingAttachment,
   } = useCardAttachment(cardId, { fetch: open });
+  const {
+    mappings,
+    isLoading: isLoadingMappings,
+    isUnavailable: isMappingUnavailable,
+  } = useEkspedisiCourierMappings({ enabled: open });
   const [ekspedisi, setEkspedisi] = useState("");
   const [waybill, setWaybill] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -109,6 +117,11 @@ const Shipment: React.FC<ShipmentProps> = ({
   const existingReceipt = hideExistingReceipt
     ? undefined
     : receiptAttachments[0];
+  const selectedMapping = useMemo(() => {
+    const label = options.find((option) => option.value === ekspedisi)?.label;
+    if (!label) return null;
+    return mappings.find((mapping) => mapping.label === label) ?? null;
+  }, [ekspedisi, mappings, options]);
   const canEdit = canUpdateCard() && canManageCardCustomFields();
   const isBusy =
     isSubmitting ||
@@ -429,16 +442,16 @@ const Shipment: React.FC<ShipmentProps> = ({
                 Custom Field Ekspedisi belum tersedia atau belum memiliki opsi.
               </div>
             ) : null}
-            {shipment ? (
+            {hasValidCourier ? (
               <div className="mt-1.5 text-xs text-gray-500">
                 Status mapping:{" "}
-                {shipment.ekspedisiOptionValue !== ekspedisi
-                  ? "Tersimpan setelah Anda menyimpan perubahan"
-                  : shipment.courierCode || shipment.courierServiceCode
-                    ? [shipment.courierCode, shipment.courierServiceCode]
-                        .filter(Boolean)
-                        .join(" / ")
-                    : "Ekspedisi belum didukung Biteship"}
+                {isLoadingMappings
+                  ? "Memeriksa ketersediaan di Biteship..."
+                  : isMappingUnavailable
+                    ? "Katalog Biteship tidak dapat dimuat"
+                    : selectedMapping
+                      ? `${selectedMapping.courierCode} / ${selectedMapping.courierServiceCode}`
+                      : "Ekspedisi belum didukung Biteship"}
               </div>
             ) : null}
           </div>

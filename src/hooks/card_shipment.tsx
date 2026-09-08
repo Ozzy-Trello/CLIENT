@@ -1,6 +1,7 @@
 import {
   deleteCardShipment,
   getCardShipment,
+  getEkspedisiCourierMappings,
   saveCardShipment,
   SaveCardShipmentPayload,
 } from "@api/card_shipment";
@@ -47,5 +48,20 @@ export const useCardShipment = (
     deleteShipment: deleteMutation.mutateAsync,
     isSaving: saveMutation.isPending,
     isDeleting: deleteMutation.isPending,
+  };
+};
+
+export const useEkspedisiCourierMappings = (options?: { enabled?: boolean }) => {
+  const mappingQuery = useQuery({
+    queryKey: ["ekspedisiCourierMapping"],
+    queryFn: getEkspedisiCourierMappings,
+    enabled: options?.enabled ?? true,
+    staleTime: 60 * 60 * 1000,
+  });
+
+  return {
+    mappings: mappingQuery.data?.data ?? [],
+    isLoading: mappingQuery.isLoading,
+    isUnavailable: mappingQuery.isError,
   };
 };

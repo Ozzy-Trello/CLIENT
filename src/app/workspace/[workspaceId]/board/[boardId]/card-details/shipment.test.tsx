@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import Shipment from "./shipment";
 
 const mockUseCardShipment = jest.fn();
+const mockUseEkspedisiCourierMappings = jest.fn();
 const mockUseCardAttachment = jest.fn();
 const mockUseBoardPermissionsContext = jest.fn();
 const mockUploadFile = jest.fn();
@@ -19,6 +20,8 @@ jest.mock("lucide-react", () => ({
 
 jest.mock("@hooks/card_shipment", () => ({
   useCardShipment: (...args: unknown[]) => mockUseCardShipment(...args),
+  useEkspedisiCourierMappings: (...args: unknown[]) =>
+    mockUseEkspedisiCourierMappings(...args),
 }));
 
 jest.mock("@hooks/card_attachment", () => ({
@@ -149,6 +152,15 @@ const buildShipmentHook = (shipment: ReturnType<typeof buildShipment> | null = n
   isDeleting: false,
 });
 
+const buildMappingHook = (overrides: Record<string, unknown> = {}) => ({
+  mappings: [
+    { label: "JNE Regular", courierCode: "jne", courierServiceCode: "reg" },
+  ],
+  isLoading: false,
+  isUnavailable: false,
+  ...overrides,
+});
+
 const buildAttachmentHook = (cardAttachments: (typeof existingReceipt)[] = []) => ({
   cardAttachments,
   isLoading: false,
@@ -189,6 +201,7 @@ describe("Shipment", () => {
       canManageCardCustomFields: () => true,
     });
     mockUseCardShipment.mockReturnValue(buildShipmentHook());
+    mockUseEkspedisiCourierMappings.mockReturnValue(buildMappingHook());
     mockUseCardAttachment.mockReturnValue(buildAttachmentHook());
     mockSaveShipment.mockResolvedValue(undefined);
     mockDeleteShipment.mockResolvedValue(undefined);
@@ -227,26 +240,7 @@ describe("Shipment", () => {
     expect(mockUseCardAttachment).toHaveBeenCalledWith("card-1", { fetch: true });
   });
 
-  it.each([
-    ["jne", "reg", "Status mapping: jne / reg"],
-    [null, null, "Status mapping: Ekspedisi belum didukung Biteship"],
-  ])(
-    "shows the saved courier mapping status",
-    (courierCode, serviceCode, expectedStatus) => {
-      mockUseCardShipment.mockReturnValue(
-        buildShipmentHook(buildShipment({
-          courierCode,
-          courierServiceCode: serviceCode,
-        })),
-      );
-
-      renderShipment();
-
-      expect(screen.getByText(expectedStatus)).not.toBeNull();
-    },
-  );
-
-  it("stops showing the saved mapping once another courier is picked", async () => {
+  it("remaps the status as soon as another courier is picked", async () => {
     mockUseCardShipment.mockReturnValue(buildShipmentHook(buildShipment()));
 
     renderShipment();
@@ -261,10 +255,28 @@ describe("Shipment", () => {
 
     expect(screen.queryByText("Status mapping: jne / reg")).toBeNull();
     expect(
-      screen.getByText(
-        "Status mapping: Tersimpan setelah Anda menyimpan perubahan",
-      ),
+      screen.getByText("Status mapping: Ekspedisi belum didukung Biteship"),
     ).not.toBeNull();
+  });
+
+  it("hides the status until a courier is picked", () => {
+    renderShipment();
+
+    expect(screen.queryByText(/Status mapping:/)).toBeNull();
+  });
+
+  it.each([
+    [{ isLoading: true }, "Status mapping: Memeriksa ketersediaan di Biteship..."],
+    [{ isUnavailable: true }, "Status mapping: Katalog Biteship tidak dapat dimuat"],
+  ])("reports the catalog state instead of guessing", (override, expected) => {
+    mockUseEkspedisiCourierMappings.mockReturnValue(
+      buildMappingHook({ mappings: [], ...override }),
+    );
+    mockUseCardShipment.mockReturnValue(buildShipmentHook(buildShipment()));
+
+    renderShipment();
+
+    expect(screen.getByText(expected)).not.toBeNull();
   });
 
   it("keeps save disabled when the required receipt image is missing", () => {

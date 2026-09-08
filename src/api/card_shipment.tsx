@@ -20,6 +20,19 @@ export interface SaveCardShipmentPayload {
   ekspedisiOptionValue: string;
 }
 
+export interface EkspedisiCourierMapping {
+  label: string;
+  courierCode: string;
+  courierServiceCode: string;
+}
+
+export const getEkspedisiCourierMappings = async (): Promise<
+  ApiResponse<EkspedisiCourierMapping[]>
+> => {
+  const { data } = await api.get("/biteship/courier-mapping");
+  return data;
+};
+
 export const getCardShipment = async (
   cardId: string,
 ): Promise<ApiResponse<CardShipment | null>> => {
