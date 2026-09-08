@@ -6,12 +6,17 @@ import {
 } from "@api/card_shipment";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-export const useCardShipment = (cardId?: string, workspaceId?: string) => {
+export const useCardShipment = (
+  cardId?: string,
+  workspaceId?: string,
+  options?: { enabled?: boolean },
+) => {
   const queryClient = useQueryClient();
+  const enabled = options?.enabled ?? true;
   const shipmentQuery = useQuery({
     queryKey: ["cardShipment", cardId],
     queryFn: () => getCardShipment(cardId!),
-    enabled: !!cardId,
+    enabled: !!cardId && enabled,
   });
 
   const refresh = async () => {

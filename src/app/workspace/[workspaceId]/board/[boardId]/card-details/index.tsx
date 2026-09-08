@@ -40,7 +40,6 @@ import {
   SwitchCamera,
   Stamp as StampIcon,
   Printer,
-  Truck,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -449,6 +448,7 @@ const CardDetails: React.FC = (props) => {
   const [openJmlStitchModal, setOpenJmlStitchModal] = useState(false);
   const [openJmlSablonModal, setOpenJmlSablonModal] = useState(false);
   const [openListNamaModal, setOpenListNamaModal] = useState(false);
+  const [openShipmentModal, setOpenShipmentModal] = useState(false);
   const [isPOPelengkap, setIsPOPelengkap] = useState(false);
 
   // Refs for PO logic
@@ -1771,6 +1771,7 @@ const CardDetails: React.FC = (props) => {
             canOpenJmlSablon={canOpenJmlSablon}
             onOpenJmlSablonModal={() => setOpenJmlSablonModal(true)}
             onOpenListNamaModal={() => setOpenListNamaModal(true)}
+            onOpenShipmentModal={() => setOpenShipmentModal(true)}
           />
         )}
       </Flex>
@@ -1816,21 +1817,6 @@ const CardDetails: React.FC = (props) => {
         selectedCard?.type !== "dashcard" && (
           <LocationDisplay coordinate={selectedCard?.location} />
         )}
-
-      {selectedCard && selectedCard?.type !== "dashcard" && (
-        <CollapsibleSection
-          title="Pengiriman"
-          defaultExpanded={true}
-          icon={<Truck size={18} />}
-        >
-          <Shipment
-            cardId={selectedCard.id}
-            workspaceId={workspaceId as string}
-            cardCustomFields={cardCustomFields}
-            customFields={customFields}
-          />
-        </CollapsibleSection>
-      )}
 
       {selectedCard && selectedCard?.type !== "dashcard" && (
         <CollapsibleSection
@@ -2435,6 +2421,17 @@ const CardDetails: React.FC = (props) => {
               open={openListNamaModal}
               onClose={() => setOpenListNamaModal(false)}
               card={selectedCard}
+            />
+          )}
+
+          {selectedCard && (
+            <Shipment
+              open={openShipmentModal}
+              onClose={() => setOpenShipmentModal(false)}
+              cardId={selectedCard.id}
+              workspaceId={workspaceId as string}
+              cardCustomFields={cardCustomFields}
+              customFields={customFields}
             />
           )}
 

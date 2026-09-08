@@ -244,6 +244,7 @@ export function useCardAttachment(
     addAttachment: addAttachmentMutation.mutate,
     addAttachmentAsync: addAttachmentMutation.mutateAsync,
     deleteAttachment: deleteAttachmentMutation.mutate,
+    deleteAttachmentAsync: deleteAttachmentMutation.mutateAsync,
     isAddingAttachment: addAttachmentMutation.isPending,
     isDeletingAttachment: deleteAttachmentMutation.isPending,
     markPrinted: markPrintedMutation.mutate,

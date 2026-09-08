@@ -24,7 +24,7 @@ import {
   Tag,
   Tooltip,
 } from "antd";
-import { Package, Ruler, Scissors } from "lucide-react";
+import { Package, Ruler, Scissors, Truck } from "lucide-react";
 import React, { useEffect, useState } from "react";
 
 interface POSizeAssignmentProps {
@@ -36,6 +36,7 @@ interface POSizeAssignmentProps {
   canOpenJmlSablon?: boolean;
   onOpenJmlSablonModal?: () => void;
   onOpenListNamaModal?: () => void;
+  onOpenShipmentModal?: () => void;
 }
 
 interface SubcategoryData {
@@ -78,6 +79,7 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
   canOpenJmlSablon = false,
   onOpenJmlSablonModal,
   onOpenListNamaModal,
+  onOpenShipmentModal,
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSizeModalOpen, setIsSizeModalOpen] = useState(false);
@@ -392,7 +394,7 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
         <span className="text-gray-300 font-semibold text-xs block">
           PO Details
         </span>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {showManagePOButton && (
             <Button
               icon={<Package size={14} />}
@@ -402,6 +404,16 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
               className="rounded-md hover:bg-gray-50"
             >
               Manage POs
+            </Button>
+          )}
+          {onOpenShipmentModal && (
+            <Button
+              icon={<Truck size={14} />}
+              size="small"
+              onClick={onOpenShipmentModal}
+              className="rounded-md hover:bg-gray-50"
+            >
+              Input Resi
             </Button>
           )}
           {canOpenJmlStitch && (
