@@ -3,21 +3,21 @@ import { ApiResponse } from "@myTypes/type";
 
 export interface CardShipment {
   id: string;
-  card_id: string;
-  waybill_id: string;
-  ekspedisi_option_value: string;
-  ekspedisi_label: string;
-  courier_code: string | null;
-  courier_service_code: string | null;
-  created_by: string;
-  updated_by: string;
-  created_at: string;
-  updated_at: string;
+  cardId: string;
+  waybillId: string;
+  ekspedisiOptionValue: string;
+  ekspedisiLabel: string;
+  courierCode: string | null;
+  courierServiceCode: string | null;
+  createdBy: string;
+  updatedBy: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface SaveCardShipmentPayload {
-  waybill_id: string;
-  ekspedisi_option_value: string;
+  waybillId: string;
+  ekspedisiOptionValue: string;
 }
 
 export const getCardShipment = async (

@@ -38,9 +38,13 @@ jest.mock("@providers/board-permissions-context", () => ({
 }));
 
 jest.mock("antd", () => {
-  const Modal = ({ open, title, children, footer }: any) =>
+  const Modal = ({ open, title, children, footer, styles }: any) =>
     open ? (
-      <div role="dialog" aria-label={title}>
+      <div
+        role="dialog"
+        aria-label={title}
+        data-body-padding={styles?.body?.padding}
+      >
         <div>{title}</div>
         {children}
         <div>{footer}</div>
@@ -128,11 +132,11 @@ const existingReceipt = {
 
 const buildShipment = (overrides: Record<string, unknown> = {}) => ({
   id: "shipment-1",
-  updated_at: "2026-09-08T00:00:00.000Z",
-  ekspedisi_option_value: "jne_reg",
-  waybill_id: "WAYBILL-123",
-  courier_code: "jne",
-  courier_service_code: "reg",
+  updatedAt: "2026-09-08T00:00:00.000Z",
+  ekspedisiOptionValue: "jne_reg",
+  waybillId: "WAYBILL-123",
+  courierCode: "jne",
+  courierServiceCode: "reg",
   ...overrides,
 });
 
@@ -199,7 +203,9 @@ describe("Shipment", () => {
 
     renderShipment();
 
-    expect(screen.getByRole("dialog", { name: "Input Resi" })).not.toBeNull();
+    const dialog = screen.getByRole("dialog", { name: "Input Resi" });
+    expect(dialog).not.toBeNull();
+    expect(dialog.getAttribute("data-body-padding")).toBe("4px");
     await waitFor(() => {
       expect((screen.getByRole("textbox") as HTMLInputElement).value).toBe(
         "WAYBILL-123",
@@ -229,8 +235,8 @@ describe("Shipment", () => {
     (courierCode, serviceCode, expectedStatus) => {
       mockUseCardShipment.mockReturnValue(
         buildShipmentHook(buildShipment({
-          courier_code: courierCode,
-          courier_service_code: serviceCode,
+          courierCode,
+          courierServiceCode: serviceCode,
         })),
       );
 
@@ -283,8 +289,8 @@ describe("Shipment", () => {
 
     await waitFor(() =>
       expect(mockSaveShipment).toHaveBeenCalledWith({
-        waybill_id: "WB-456",
-        ekspedisi_option_value: "sicepat_best",
+        waybillId: "WB-456",
+        ekspedisiOptionValue: "sicepat_best",
       }),
     );
     expect(mockUploadFile).toHaveBeenCalledWith(file, {

@@ -143,17 +143,17 @@ const Shipment: React.FC<ShipmentProps> = ({
     const isSameCard = initializedCardRef.current === cardId;
     if (isSameCard && isFormDirtyRef.current) return;
 
-    setEkspedisi(shipment?.ekspedisi_option_value ?? "");
-    setWaybill(shipment?.waybill_id ?? "");
+    setEkspedisi(shipment?.ekspedisiOptionValue ?? "");
+    setWaybill(shipment?.waybillId ?? "");
     initializedCardRef.current = cardId;
   }, [
     cardId,
     isLoadingShipment,
     open,
-    shipment?.ekspedisi_option_value,
+    shipment?.ekspedisiOptionValue,
     shipment?.id,
-    shipment?.updated_at,
-    shipment?.waybill_id,
+    shipment?.updatedAt,
+    shipment?.waybillId,
   ]);
 
   useEffect(() => {
@@ -245,8 +245,8 @@ const Shipment: React.FC<ShipmentProps> = ({
     let shipmentSaved = false;
     try {
       await saveShipment({
-        waybill_id: trimmedWaybill,
-        ekspedisi_option_value: ekspedisi,
+        waybillId: trimmedWaybill,
+        ekspedisiOptionValue: ekspedisi,
       });
       shipmentSaved = true;
 
@@ -347,6 +347,7 @@ const Shipment: React.FC<ShipmentProps> = ({
       closable={!isBusy}
       maskClosable={!isBusy}
       keyboard={!isBusy}
+      styles={{ body: { padding: "4px" } }}
       footer={
         <div className="flex items-center justify-between gap-3">
           <div>
@@ -430,8 +431,8 @@ const Shipment: React.FC<ShipmentProps> = ({
             ) : null}
             {shipment ? (
               <div className="mt-1.5 text-xs text-gray-500">
-                Status mapping: {shipment.courier_code || shipment.courier_service_code
-                  ? [shipment.courier_code, shipment.courier_service_code]
+                Status mapping: {shipment.courierCode || shipment.courierServiceCode
+                  ? [shipment.courierCode, shipment.courierServiceCode]
                       .filter(Boolean)
                       .join(" / ")
                   : "Ekspedisi belum didukung Biteship"}
