@@ -40,6 +40,7 @@ import {
   SwitchCamera,
   Stamp as StampIcon,
   Printer,
+  Truck,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -113,6 +114,7 @@ import SplitJobFields from "./split-job-field";
 import StitchSection from "./stitch";
 import SablonSection from "./sablon";
 import CardTimeInList from "./time-in-lists";
+import Shipment from "./shipment";
 import { uploadFile } from "@api/file";
 import { api } from "@api/index";
 import { useCardAttachment } from "@hooks/card_attachment";
@@ -1814,6 +1816,21 @@ const CardDetails: React.FC = (props) => {
         selectedCard?.type !== "dashcard" && (
           <LocationDisplay coordinate={selectedCard?.location} />
         )}
+
+      {selectedCard && selectedCard?.type !== "dashcard" && (
+        <CollapsibleSection
+          title="Pengiriman"
+          defaultExpanded={true}
+          icon={<Truck size={18} />}
+        >
+          <Shipment
+            cardId={selectedCard.id}
+            workspaceId={workspaceId as string}
+            cardCustomFields={cardCustomFields}
+            customFields={customFields}
+          />
+        </CollapsibleSection>
+      )}
 
       {selectedCard && selectedCard?.type !== "dashcard" && (
         <CollapsibleSection
