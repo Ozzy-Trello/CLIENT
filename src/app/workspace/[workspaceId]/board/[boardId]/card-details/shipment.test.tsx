@@ -255,7 +255,9 @@ describe("Shipment", () => {
 
     expect(screen.queryByText("Status mapping: jne / reg")).toBeNull();
     expect(
-      screen.getByText("Status mapping: Ekspedisi belum didukung Biteship"),
+      screen.getByText(
+        "Status mapping: Ekspedisi ini tidak bisa dilacak by sistem Ozzy Clothing",
+      ),
     ).not.toBeNull();
   });
 
@@ -266,8 +268,8 @@ describe("Shipment", () => {
   });
 
   it.each([
-    [{ isLoading: true }, "Status mapping: Memeriksa ketersediaan di Biteship..."],
-    [{ isUnavailable: true }, "Status mapping: Katalog Biteship tidak dapat dimuat"],
+    [{ isLoading: true }, "Status mapping: Memeriksa dukungan sistem Ozzy Clothing..."],
+    [{ isUnavailable: true }, "Status mapping: Data ekspedisi Ozzy Clothing tidak dapat dimuat"],
   ])("reports the catalog state instead of guessing", (override, expected) => {
     mockUseEkspedisiCourierMappings.mockReturnValue(
       buildMappingHook({ mappings: [], ...override }),

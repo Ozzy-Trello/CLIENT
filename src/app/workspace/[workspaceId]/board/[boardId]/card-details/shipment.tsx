@@ -446,12 +446,12 @@ const Shipment: React.FC<ShipmentProps> = ({
               <div className="mt-1.5 text-xs text-gray-500">
                 Status mapping:{" "}
                 {isLoadingMappings
-                  ? "Memeriksa ketersediaan di Biteship..."
+                  ? "Memeriksa dukungan sistem Ozzy Clothing..."
                   : isMappingUnavailable
-                    ? "Katalog Biteship tidak dapat dimuat"
+                    ? "Data ekspedisi Ozzy Clothing tidak dapat dimuat"
                     : selectedMapping
                       ? `${selectedMapping.courierCode} / ${selectedMapping.courierServiceCode}`
-                      : "Ekspedisi belum didukung Biteship"}
+                      : "Ekspedisi ini tidak bisa dilacak by sistem Ozzy Clothing"}
               </div>
             ) : null}
           </div>
