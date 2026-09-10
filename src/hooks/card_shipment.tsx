@@ -18,6 +18,10 @@ export const useCardShipment = (
     queryKey: ["cardShipment", cardId],
     queryFn: () => getCardShipment(cardId!),
     enabled: !!cardId && enabled,
+    // Ekspedisi bisa berubah dari kartu atau orang lain, jadi modal resi
+    // selalu mulai dari data server, bukan cache dari sesi sebelumnya.
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
   const refresh = async () => {
