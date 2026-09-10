@@ -267,6 +267,78 @@ describe("Shipment", () => {
     expect(screen.queryByText(/Status mapping:/)).toBeNull();
   });
 
+  it("prefills the courier from the Ekspedisi custom field when no shipment exists", async () => {
+    renderShipment({
+      cardCustomFields: [
+        { ...ekspedisiField, valueOption: "sicepat_best" },
+      ] as any,
+    });
+
+    await waitFor(() =>
+      expect((screen.getByRole("combobox") as HTMLSelectElement).value).toBe(
+        "sicepat_best",
+      ),
+    );
+  });
+
+  it("lets the Ekspedisi custom field win over a stale shipment courier", async () => {
+    mockUseCardShipment.mockReturnValue(buildShipmentHook(buildShipment()));
+
+    renderShipment({
+      cardCustomFields: [
+        { ...ekspedisiField, valueOption: "sicepat_best" },
+      ] as any,
+    });
+
+    await waitFor(() =>
+      expect((screen.getByRole("combobox") as HTMLSelectElement).value).toBe(
+        "sicepat_best",
+      ),
+    );
+    expect((screen.getByRole("textbox") as HTMLInputElement).value).toBe(
+      "WAYBILL-123",
+    );
+  });
+
+  it("falls back to the shipment courier when the custom field value is unknown", async () => {
+    mockUseCardShipment.mockReturnValue(buildShipmentHook(buildShipment()));
+
+    renderShipment({
+      cardCustomFields: [{ ...ekspedisiField, valueOption: "retired" }] as any,
+    });
+
+    await waitFor(() =>
+      expect((screen.getByRole("combobox") as HTMLSelectElement).value).toBe(
+        "jne_reg",
+      ),
+    );
+  });
+
+  it("saves the courier taken from the Ekspedisi custom field", async () => {
+    mockUseCardAttachment.mockReturnValue(buildAttachmentHook([existingReceipt]));
+    mockUseCardShipment.mockReturnValue(buildShipmentHook(buildShipment()));
+
+    renderShipment({
+      cardCustomFields: [
+        { ...ekspedisiField, valueOption: "sicepat_best" },
+      ] as any,
+    });
+
+    await waitFor(() =>
+      expect((screen.getByRole("combobox") as HTMLSelectElement).value).toBe(
+        "sicepat_best",
+      ),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Simpan" }));
+
+    await waitFor(() =>
+      expect(mockSaveShipment).toHaveBeenCalledWith({
+        waybillId: "WAYBILL-123",
+        ekspedisiOptionValue: "sicepat_best",
+      }),
+    );
+  });
+
   it.each([
     [{ isLoading: true }, "Status mapping: Memeriksa dukungan sistem Ozzy Clothing..."],
     [{ isUnavailable: true }, "Status mapping: Data ekspedisi Ozzy Clothing tidak dapat dimuat"],

@@ -89,7 +89,7 @@ const Shipment: React.FC<ShipmentProps> = ({
   const initializedCardRef = useRef<string>();
   const isFormDirtyRef = useRef(false);
 
-  const { ekspedisiField, options } = useMemo(() => {
+  const { ekspedisiField, options, ekspedisiFieldValue } = useMemo(() => {
     const cardField = cardCustomFields?.find(
       (field) => field.name?.trim().toLowerCase() === "ekspedisi",
     );
@@ -104,6 +104,7 @@ const Shipment: React.FC<ShipmentProps> = ({
         cardOptions.length > 0
           ? cardOptions
           : normalizeOptions(workspaceField?.options),
+      ekspedisiFieldValue: cardField?.valueOption?.trim() ?? "",
     };
   }, [cardCustomFields, customFields]);
 
@@ -156,13 +157,24 @@ const Shipment: React.FC<ShipmentProps> = ({
     const isSameCard = initializedCardRef.current === cardId;
     if (isSameCard && isFormDirtyRef.current) return;
 
-    setEkspedisi(shipment?.ekspedisiOptionValue ?? "");
+    // Custom Field Ekspedisi menang: mengisinya di kartu harus langsung
+    // terlihat di sini, termasuk saat shipment lama memakai ekspedisi lain.
+    const knownOption = options.some(
+      (option) => option.value === ekspedisiFieldValue,
+    );
+    setEkspedisi(
+      (knownOption ? ekspedisiFieldValue : "") ||
+        shipment?.ekspedisiOptionValue ||
+        "",
+    );
     setWaybill(shipment?.waybillId ?? "");
     initializedCardRef.current = cardId;
   }, [
     cardId,
+    ekspedisiFieldValue,
     isLoadingShipment,
     open,
+    options,
     shipment?.ekspedisiOptionValue,
     shipment?.id,
     shipment?.updatedAt,
