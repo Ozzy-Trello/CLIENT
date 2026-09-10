@@ -1,6 +1,6 @@
 import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import Shipment from "./shipment";
+import Shipment, { canInputResi } from "./shipment";
 
 const mockUseCardShipment = jest.fn();
 const mockUseEkspedisiCourierMappings = jest.fn();
@@ -181,6 +181,27 @@ const renderShipment = (props: Partial<React.ComponentProps<typeof Shipment>> = 
       {...props}
     />,
   );
+
+describe("canInputResi", () => {
+  const lists = [
+    { id: "list-antrian", name: "Antrian Kirim" },
+    { id: "list-resi", name: "  Menunggu Resi " },
+    { id: "list-selesai", name: "Selesai" },
+  ];
+
+  it("opens the button only on the Menunggu Resi list", () => {
+    expect(canInputResi(lists, "list-resi")).toBe(true);
+    expect(canInputResi(lists, "list-antrian")).toBe(false);
+    expect(canInputResi(lists, "list-selesai")).toBe(false);
+  });
+
+  it("stays closed while the list is still unknown", () => {
+    expect(canInputResi([], "list-resi")).toBe(false);
+    expect(canInputResi(lists, undefined)).toBe(false);
+    expect(canInputResi(lists, "list-missing")).toBe(false);
+    expect(canInputResi([{ id: "list-resi" }], "list-resi")).toBe(false);
+  });
+});
 
 describe("Shipment", () => {
   beforeAll(() => {

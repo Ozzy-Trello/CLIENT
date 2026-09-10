@@ -79,6 +79,7 @@ import { generateQRCodesPDF } from "@api/qr";
 import { cardDetails } from "@api/card";
 
 import { useBoardDetails } from "@hooks/board";
+import { useLists } from "@hooks/list";
 import { useCardMutationsOnly } from "@hooks/card";
 import { useCardDetails } from "@hooks/card-details";
 import { useQueryClient } from "@tanstack/react-query";
@@ -113,7 +114,7 @@ import SplitJobFields from "./split-job-field";
 import StitchSection from "./stitch";
 import SablonSection from "./sablon";
 import CardTimeInList from "./time-in-lists";
-import Shipment from "./shipment";
+import Shipment, { canInputResi } from "./shipment";
 import { uploadFile } from "@api/file";
 import { api } from "@api/index";
 import { useCardAttachment } from "@hooks/card_attachment";
@@ -361,6 +362,9 @@ const CardDetails: React.FC = (props) => {
         "SPV Deal Maker",
         "SPV Outlet",
       ]));
+  // Resi hanya relevan setelah kartu sampai di tahap menunggu nomor resi.
+  const { lists: boardLists } = useLists(boardId as string);
+  const isWaitingForResiList = canInputResi(boardLists, selectedCard?.listId);
   const [isComplete, setIsComplete] = useState<boolean>(false);
   const listSelectionRef = useRef<SelectionRef>(null);
   const [isEditingTitle, setIsEditingTitle] = useState<boolean>(false);
@@ -1771,7 +1775,11 @@ const CardDetails: React.FC = (props) => {
             canOpenJmlSablon={canOpenJmlSablon}
             onOpenJmlSablonModal={() => setOpenJmlSablonModal(true)}
             onOpenListNamaModal={() => setOpenListNamaModal(true)}
-            onOpenShipmentModal={() => setOpenShipmentModal(true)}
+            onOpenShipmentModal={
+              isWaitingForResiList
+                ? () => setOpenShipmentModal(true)
+                : undefined
+            }
           />
         )}
       </Flex>

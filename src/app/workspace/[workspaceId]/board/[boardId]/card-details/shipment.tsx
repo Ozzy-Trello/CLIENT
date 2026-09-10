@@ -29,6 +29,20 @@ interface ShipmentProps {
 
 const MAX_RECEIPT_SIZE = 10 * 1024 * 1024;
 
+const WAITING_FOR_RESI_LIST = "menunggu resi";
+
+/**
+ * Resi baru bisa diinput setelah kartu sampai di list "Menunggu Resi".
+ */
+export const canInputResi = (
+  lists: Array<{ id: string; name?: string }>,
+  listId?: string,
+): boolean => {
+  if (!listId) return false;
+  const name = lists.find((list) => list.id === listId)?.name;
+  return name?.trim().toLowerCase() === WAITING_FOR_RESI_LIST;
+};
+
 const normalizeOptions = (options: unknown): CustomOption[] => {
   let parsed = options;
   if (typeof parsed === "string") {
