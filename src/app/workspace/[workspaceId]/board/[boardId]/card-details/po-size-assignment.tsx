@@ -12,6 +12,7 @@ import { Card } from "@myTypes/card";
 import { useBoardPermissionsContext } from "@providers/board-permissions-context";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { usePOsForSizeAssignment } from "./hooks/usePOsForSizeAssignment";
+import { RESI_BLOCKED_MESSAGE } from "./shipment";
 import {
   Alert,
   Button,
@@ -37,6 +38,7 @@ interface POSizeAssignmentProps {
   onOpenJmlSablonModal?: () => void;
   onOpenListNamaModal?: () => void;
   onOpenShipmentModal?: () => void;
+  canInputResi?: boolean;
 }
 
 interface SubcategoryData {
@@ -80,6 +82,7 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
   onOpenJmlSablonModal,
   onOpenListNamaModal,
   onOpenShipmentModal,
+  canInputResi = false,
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSizeModalOpen, setIsSizeModalOpen] = useState(false);
@@ -407,14 +410,26 @@ const POSizeAssignment: React.FC<POSizeAssignmentProps> = ({
             </Button>
           )}
           {onOpenShipmentModal && (
-            <Button
-              icon={<Truck size={14} />}
-              size="small"
-              onClick={onOpenShipmentModal}
-              className="rounded-md hover:bg-gray-50"
-            >
-              Input Resi
-            </Button>
+            <Tooltip title={canInputResi ? "" : RESI_BLOCKED_MESSAGE}>
+              <Button
+                icon={<Truck size={14} />}
+                size="small"
+                onClick={() => {
+                  if (!canInputResi) {
+                    message.info(RESI_BLOCKED_MESSAGE);
+                    return;
+                  }
+                  onOpenShipmentModal();
+                }}
+                className={
+                  canInputResi
+                    ? "rounded-md hover:bg-gray-50"
+                    : "rounded-md !text-gray-400 !border-gray-200 !bg-gray-100"
+                }
+              >
+                Input Resi
+              </Button>
+            </Tooltip>
           )}
           {canOpenJmlStitch && (
             <Button

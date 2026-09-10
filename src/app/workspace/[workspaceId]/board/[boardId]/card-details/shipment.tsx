@@ -31,6 +31,9 @@ const MAX_RECEIPT_SIZE = 10 * 1024 * 1024;
 
 const WAITING_FOR_RESI_LIST = "menunggu resi";
 
+export const RESI_BLOCKED_MESSAGE =
+  "Card belum ada di list Menunggu Resi";
+
 /**
  * Resi baru bisa diinput setelah kartu sampai di list "Menunggu Resi".
  */

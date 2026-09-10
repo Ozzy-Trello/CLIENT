@@ -1,6 +1,6 @@
 import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import Shipment, { canInputResi } from "./shipment";
+import Shipment, { RESI_BLOCKED_MESSAGE, canInputResi } from "./shipment";
 
 const mockUseCardShipment = jest.fn();
 const mockUseEkspedisiCourierMappings = jest.fn();
@@ -200,6 +200,10 @@ describe("canInputResi", () => {
     expect(canInputResi(lists, undefined)).toBe(false);
     expect(canInputResi(lists, "list-missing")).toBe(false);
     expect(canInputResi([{ id: "list-resi" }], "list-resi")).toBe(false);
+  });
+
+  it("names the list the card still has to reach", () => {
+    expect(RESI_BLOCKED_MESSAGE).toBe("Card belum ada di list Menunggu Resi");
   });
 });
 

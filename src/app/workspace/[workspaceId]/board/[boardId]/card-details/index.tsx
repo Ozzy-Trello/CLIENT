@@ -1775,11 +1775,8 @@ const CardDetails: React.FC = (props) => {
             canOpenJmlSablon={canOpenJmlSablon}
             onOpenJmlSablonModal={() => setOpenJmlSablonModal(true)}
             onOpenListNamaModal={() => setOpenListNamaModal(true)}
-            onOpenShipmentModal={
-              isWaitingForResiList
-                ? () => setOpenShipmentModal(true)
-                : undefined
-            }
+            onOpenShipmentModal={() => setOpenShipmentModal(true)}
+            canInputResi={isWaitingForResiList}
           />
         )}
       </Flex>
