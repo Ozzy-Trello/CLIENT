@@ -15,7 +15,7 @@ import Quill from "quill";
 import Mention from "quill-mention";
 import { useAccountList } from "../../hooks/account";
 import { Account } from "../../dto/account";
-import { buildMentionSuggestions, MentionUser } from "./mentions";
+import { buildMentionSuggestions, mentionListTop, MentionUser } from "./mentions";
 import { getImageFile, sanitizeEditorImageUrl, shouldInsertAttachmentImage } from "./index";
 import type { RichTextEditorHandle, RichTextEditorProps } from "./index";
 
@@ -188,6 +188,7 @@ const RichTextEditorClient = forwardRef<RichTextEditorHandle, RichTextEditorProp
         blotName: "mention",
         positioningStrategy: "fixed",
         renderLoading: () => "Loading mentions...",
+
         onSelect: (
           item: any,
           insertItem: (data: any, programmaticInsert?: boolean) => void
@@ -286,6 +287,46 @@ const RichTextEditorClient = forwardRef<RichTextEditorHandle, RichTextEditorProp
         }
       }
     }, [mentionSource]);
+
+    // quill-mention measures free space against documentElement, which a mobile
+    // keyboard never shrinks, so it drops short lists behind the keyboard.
+    useEffect(() => {
+      if (readOnly) return;
+
+      const editor = quillRef.current?.getEditor();
+      const mention: any = editor?.getModule("mention");
+      if (!editor || !mention?.setMentionContainerPosition) return;
+
+      const reposition = mention.setMentionContainerPosition.bind(mention);
+      mention.setMentionContainerPosition = () => {
+        reposition();
+
+        const list: HTMLElement = mention.mentionContainer;
+        if (!list || typeof mention.mentionCharPos !== "number") return;
+
+        const editorPos = (
+          editor as unknown as { container: HTMLElement }
+        ).container.getBoundingClientRect();
+        const charPos = editor.getBounds(mention.mentionCharPos);
+        const viewport = window.visualViewport;
+
+        list.style.top = `${mentionListTop(
+          {
+            top: editorPos.top + charPos.top,
+            bottom: editorPos.top + charPos.bottom,
+          },
+          list.offsetHeight,
+          {
+            height: viewport?.height ?? window.innerHeight,
+            offsetTop: viewport?.offsetTop ?? 0,
+          }
+        )}px`;
+      };
+
+      return () => {
+        mention.setMentionContainerPosition = reposition;
+      };
+    }, [readOnly]);
 
     // Handle pasted and dropped images before Quill inserts local file paths.
     useEffect(() => {

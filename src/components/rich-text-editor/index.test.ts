@@ -4,7 +4,7 @@ import {
   shouldInsertAttachmentImage,
   toCssSize,
 } from "./index";
-import { buildMentionSuggestions } from "./mentions";
+import { buildMentionSuggestions, mentionListTop } from "./mentions";
 
 describe("rich text editor sizing", () => {
   it("preserves CSS sizes and converts numeric sizes to pixels", () => {
@@ -58,6 +58,30 @@ describe("rich text editor attachment image insertion", () => {
   it("ignores an empty selection", () => {
     expect(shouldInsertAttachmentImage("", undefined)).toBe(false);
     expect(shouldInsertAttachmentImage(undefined, undefined)).toBe(false);
+  });
+});
+
+describe("mention list placement", () => {
+  const fullScreen = { height: 800, offsetTop: 0 };
+  // A phone keyboard covers the lower half without shrinking documentElement.
+  const keyboardOpen = { height: 360, offsetTop: 0 };
+  const caret = { top: 300, bottom: 320 };
+
+  it("sits under the caret when the list fits below", () => {
+    expect(mentionListTop(caret, 200, fullScreen)).toBe(320);
+  });
+
+  it("flips above the caret once the keyboard covers the space below", () => {
+    // The old code placed short lists at 320, behind the keyboard.
+    expect(mentionListTop(caret, 200, keyboardOpen)).toBe(100);
+  });
+
+  it("keeps a tall list on screen when neither side has room", () => {
+    expect(mentionListTop(caret, 500, keyboardOpen)).toBe(0);
+  });
+
+  it("respects a viewport scrolled down by the keyboard", () => {
+    expect(mentionListTop({ top: 500, bottom: 520 }, 200, { height: 360, offsetTop: 200 })).toBe(300);
   });
 });
 

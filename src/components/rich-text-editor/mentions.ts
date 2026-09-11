@@ -4,6 +4,25 @@ export type MentionUser = {
   name?: string;
 };
 
+/**
+ * Mobile keyboards shrink the visual viewport but leave documentElement at full
+ * height, so quill-mention reads the covered area as free space and drops short
+ * lists behind the keyboard. Measure against the visual viewport instead.
+ */
+export const mentionListTop = (
+  anchor: { top: number; bottom: number },
+  listHeight: number,
+  viewport: { height: number; offsetTop: number }
+) => {
+  const visibleTop = viewport.offsetTop;
+  const visibleBottom = viewport.offsetTop + viewport.height;
+
+  if (anchor.bottom + listHeight <= visibleBottom) return anchor.bottom;
+  if (anchor.top - listHeight >= visibleTop) return anchor.top - listHeight;
+
+  return Math.max(visibleTop, visibleBottom - listHeight);
+};
+
 export const buildMentionSuggestions = (
   users: MentionUser[],
   searchTerm: string,
