@@ -447,8 +447,33 @@ describe("Shipment", () => {
     expect(mockAddAttachmentAsync.mock.invocationCallOrder[0]).toBeLessThan(
       mockDeleteAttachmentAsync.mock.invocationCallOrder[0],
     );
+    expect(mockDeleteAttachmentAsync.mock.invocationCallOrder[0]).toBeLessThan(
+      mockSaveShipment.mock.invocationCallOrder[0],
+    );
     expect(mockOnClose).toHaveBeenCalledTimes(1);
     await waitFor(() => expect(mockRevokeObjectURL).toHaveBeenCalled());
+  });
+
+  it("does not save the waybill when attaching the receipt image fails", async () => {
+    mockUploadFile.mockResolvedValue({ data: { id: "file-new" } });
+    mockAddAttachmentAsync.mockRejectedValue(new Error("Attachment gagal"));
+    const file = new File(["receipt"], "capture.jpg", { type: "image/jpeg" });
+
+    renderShipment();
+    fireEvent.change(screen.getByRole("combobox"), {
+      target: { value: "sicepat_best" },
+    });
+    fireEvent.change(screen.getByRole("textbox"), {
+      target: { value: "WB-456" },
+    });
+    fireEvent.change(screen.getByLabelText("Pilih gambar resi"), {
+      target: { files: [file] },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Simpan" }));
+
+    await waitFor(() => expect(mockAddAttachmentAsync).toHaveBeenCalled());
+    expect(mockSaveShipment).not.toHaveBeenCalled();
+    expect(mockOnClose).not.toHaveBeenCalled();
   });
 
   it("disables editing for a read-only user", async () => {
