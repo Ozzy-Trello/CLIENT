@@ -331,16 +331,16 @@ export function NotificationList({ category }: NotificationListProps) {
               style={!n.isRead ? { backgroundColor: "rgba(59, 130, 246, 0.1)" } : undefined}
             >
               <span className={`flex min-w-0 items-center gap-2 text-sm ${!n.isRead ? "font-semibold" : "font-normal"}`}>
-                <span className="truncate">{n.title}</span>
+                <span className="truncate" title={n.title}>{n.title}</span>
                 {(n.unreadCount || 0) > 0 && <Badge count={n.unreadCount} size="small" />}
               </span>
-              {n.message && <span className="truncate text-xs text-gray-500">{n.message}</span>}
+              {n.message && <span className="truncate text-xs text-gray-500" title={n.message}>{n.message}</span>}
               <span className="text-xs text-gray-400">{dayjs(n.createdAt).fromNow()}</span>
             </Link>
           ) : (
             <div className="flex min-h-10 min-w-0 flex-1 flex-col gap-1 px-4 py-3 text-left">
-              <span className="truncate text-sm">{n.title}</span>
-              {n.message && <span className="truncate text-xs text-gray-500">{n.message}</span>}
+              <span className="truncate text-sm" title={n.title}>{n.title}</span>
+              {n.message && <span className="truncate text-xs text-gray-500" title={n.message}>{n.message}</span>}
             </div>
           );
 
@@ -376,10 +376,10 @@ export function NotificationList({ category }: NotificationListProps) {
                     const childTarget = getNotificationTarget(child, "comment");
                     const childContent = (
                       <>
-                        <span className={`truncate text-xs ${!child.isRead ? "font-semibold text-gray-800" : "text-gray-700"}`}>
+                        <span className={`truncate text-xs ${!child.isRead ? "font-semibold text-gray-800" : "text-gray-700"}`} title={`${child.createdBy?.username || "Unknown"} · ${child.title}`}>
                           {child.createdBy?.username || "Unknown"} · {child.title}
                         </span>
-                        {child.message && <span className="truncate text-xs text-gray-500">{child.message}</span>}
+                        {child.message && <span className="truncate text-xs text-gray-500" title={child.message}>{child.message}</span>}
                         <span className="text-[11px] text-gray-400">{dayjs(child.createdAt).fromNow()}</span>
                       </>
                     );
@@ -419,12 +419,12 @@ export function NotificationList({ category }: NotificationListProps) {
         const content = (
           <>
             <div className="min-w-0">
-              <span className={`block truncate text-sm ${!n.isRead ? "font-semibold" : "font-normal"}`}>
+              <span className={`block truncate text-sm ${!n.isRead ? "font-semibold" : "font-normal"}`} title={n.title}>
                 {n.title}
               </span>
             </div>
             {n.message && (
-              <p className="m-0 truncate text-xs text-gray-500">{n.message}</p>
+              <p className="m-0 truncate text-xs text-gray-500" title={n.message}>{n.message}</p>
             )}
             <span className="text-xs text-gray-400">
               {dayjs(n.createdAt).fromNow()}

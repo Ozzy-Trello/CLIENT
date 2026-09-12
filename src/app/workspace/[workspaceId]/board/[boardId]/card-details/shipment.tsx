@@ -284,14 +284,7 @@ const Shipment: React.FC<ShipmentProps> = ({
     }
 
     setIsSubmitting(true);
-    let shipmentSaved = false;
     try {
-      await saveShipment({
-        waybillId: trimmedWaybill,
-        ekspedisiOptionValue: ekspedisi,
-      });
-      shipmentSaved = true;
-
       if (selectedFile) {
         const dotIndex = selectedFile.name.lastIndexOf(".");
         const extension =
@@ -318,15 +311,20 @@ const Shipment: React.FC<ShipmentProps> = ({
         await deleteReceiptAttachments();
       }
 
+      // Attach the receipt while the card is still in "Menunggu Resi". Saving
+      // the waybill can trigger automation that moves the card to another list.
+      await saveShipment({
+        waybillId: trimmedWaybill,
+        ekspedisiOptionValue: ekspedisi,
+      });
+
       message.success("Data resi berhasil disimpan.");
       closeAndDiscard();
     } catch (error: any) {
       message.error(
         error?.response?.data?.message ||
           error?.message ||
-          (shipmentSaved
-            ? "Nomor resi tersimpan, tetapi gambar resi gagal diperbarui."
-            : "Gagal menyimpan data resi."),
+          "Gagal menyimpan data resi.",
       );
     } finally {
       setIsSubmitting(false);

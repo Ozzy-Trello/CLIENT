@@ -342,6 +342,15 @@ describe("NotificationList", () => {
     expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ payload: false }));
   });
 
+  it("exposes complete notification text as hover tooltips", () => {
+    const notification = { ...baseNotification, message: "A complete long notification message" };
+    mockState.notificationState.notificationsByCategory.general = [notification];
+    render(<NotificationList category="general" />);
+
+    expect(screen.getByText(notification.title).getAttribute("title")).toBe(notification.title);
+    expect(screen.getByText(notification.message).getAttribute("title")).toBe(notification.message);
+  });
+
   it("refetches canonical notifications whenever the dropdown opens", async () => {
     mockState.notificationState.isOpen = false;
     const { rerender } = render(<NotificationList category="comment" />);
