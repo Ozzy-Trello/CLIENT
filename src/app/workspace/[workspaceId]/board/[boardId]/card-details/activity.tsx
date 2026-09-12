@@ -1,6 +1,14 @@
 import React, { useEffect, useState, useRef } from "react";
-import { Button, Input, Avatar, Typography, Divider, Popconfirm } from "antd";
-import { MessageOutlined } from "@ant-design/icons";
+import {
+  Button,
+  Input,
+  Avatar,
+  Typography,
+  Divider,
+  Popconfirm,
+  Tooltip,
+} from "antd";
+import { InfoCircleOutlined, MessageOutlined } from "@ant-design/icons";
 import { generateId } from "@utils/general";
 import RichTextEditor from "@components/rich-text-editor";
 import { ListCollapse } from "lucide-react";
@@ -25,6 +33,25 @@ interface ActivitySectionProps {
   setCard: React.Dispatch<React.SetStateAction<Card | null>>;
   currentUser: User | null;
 }
+
+const mentionNotificationHint =
+  "Mention @user agar orang tersebut menerima notifikasi komentar di card ini. Tanpa mention, tidak ada notifikasi yang dikirim.";
+
+const MentionNotificationHint = () => (
+  <div className="mt-2 flex items-start gap-2 text-xs leading-5 text-gray-500">
+    <Tooltip title={mentionNotificationHint}>
+      <InfoCircleOutlined
+        className="mt-0.5 shrink-0 cursor-help text-gray-400"
+        aria-label="Informasi notifikasi komentar"
+      />
+    </Tooltip>
+    <span>
+      Mention <span className="font-medium text-blue-600">@user</span> agar
+      orang tersebut menerima notifikasi komentar di card ini. Tanpa mention,
+      tidak ada notifikasi yang dikirim.
+    </span>
+  </div>
+);
 
 const Activity: React.FC<ActivitySectionProps> = (props) => {
   const { currentUser, card, setCard } = props;
@@ -441,51 +468,57 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
 
         <div className="flex-grow">
           {isEditingComment ? (
-            <div className="border border-gray-200 rounded-md mb-3">
-              <RichTextEditor
-                ref={editorRef}
-                initialValue={comment ? comment : ""}
-                placeholder="Write your comment here..."
-                className="w-full text-sm"
-                onChange={handleContentChange}
-                workspaceId={workspaceId}
-                boardId={boardId}
-                hasCustomImageSelector={true}
-                setOpenCustomImageSelector={setOpenCardAttachmentListModal}
-                openCustomImagesSelector={openCardAttachmentListModal}
-                selectedAttachmentImageUrl={selectedattachmentImageUrl}
-              />
-              <div className="flex justify-end p-2 bg-gray-50 border-t">
-                <Button
-                  onClick={disableEditComment}
-                  size="small"
-                  className="mr-2 rounded-md text-xs"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="primary"
-                  onClick={handleSaveCommentClick}
-                  size="small"
-                  className="rounded-md bg-blue-600 hover:bg-blue-700 text-xs"
-                >
-                  Save
-                </Button>
+            <div className="mb-3">
+              <div className="border border-gray-200 rounded-md">
+                <RichTextEditor
+                  ref={editorRef}
+                  initialValue={comment ? comment : ""}
+                  placeholder="Write your comment here..."
+                  className="w-full text-sm"
+                  onChange={handleContentChange}
+                  workspaceId={workspaceId}
+                  boardId={boardId}
+                  hasCustomImageSelector={true}
+                  setOpenCustomImageSelector={setOpenCardAttachmentListModal}
+                  openCustomImagesSelector={openCardAttachmentListModal}
+                  selectedAttachmentImageUrl={selectedattachmentImageUrl}
+                />
+                <div className="flex justify-end p-2 bg-gray-50 border-t">
+                  <Button
+                    onClick={disableEditComment}
+                    size="small"
+                    className="mr-2 rounded-md text-xs"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="primary"
+                    onClick={handleSaveCommentClick}
+                    size="small"
+                    className="rounded-md bg-blue-600 hover:bg-blue-700 text-xs"
+                  >
+                    Save
+                  </Button>
+                </div>
               </div>
+              <MentionNotificationHint />
             </div>
           ) : (
-            <Input
-              placeholder={canCommentOnCard() ? "Write a comment..." : "You don't have permission to comment"}
-              onClick={enableEditComment}
-              readOnly={true}
-              disabled={!canCommentOnCard()}
-              className={`text-sm rounded-full px-4 border border-gray-200 transition-all ${
-                canCommentOnCard() 
-                  ? "cursor-pointer bg-gray-50 hover:bg-white hover:border-gray-300" 
-                  : "cursor-not-allowed bg-gray-100 opacity-60"
-              }`}
-              prefix={<MessageOutlined className="text-gray-400" />}
-            />
+            <div>
+              <Input
+                placeholder={canCommentOnCard() ? "Write a comment..." : "You don't have permission to comment"}
+                onClick={enableEditComment}
+                readOnly={true}
+                disabled={!canCommentOnCard()}
+                className={`text-sm rounded-full px-4 border border-gray-200 transition-all ${
+                  canCommentOnCard()
+                    ? "cursor-pointer bg-gray-50 hover:bg-white hover:border-gray-300"
+                    : "cursor-not-allowed bg-gray-100 opacity-60"
+                }`}
+                prefix={<MessageOutlined className="text-gray-400" />}
+              />
+              <MentionNotificationHint />
+            </div>
           )}
         </div>
       </div>
