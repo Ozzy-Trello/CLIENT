@@ -17,6 +17,7 @@ import { cardDetails, getCardByShortId } from "@api/card";
 import { cardCustomFields } from "@api/card_custom_field";
 import { LookupCache } from "@utils/lookup-cache";
 import QRGuideOverlay from "@components/qr-overlay";
+import { isCardListBordirEligible } from "./bordir-gate";
 
 const sanitizeQueryParamId = (value: string | null | undefined): string => {
   const trimmed = String(value ?? "").trim();
@@ -284,7 +285,7 @@ const ModalPackingPOScan: React.FC<ModalPackingPOScanProps> = ({
         String(rawJenisCetak || "");
       const jenisCetak = normalizeText(resolvedJenisCetak);
 
-      const isInFinishingBordirList = cardListName.includes("finishing bordir");
+      const isInFinishingBordirList = isCardListBordirEligible(cardListName);
       const isBordirChecked = isInFinishingBordirList || parseCheckboxFromField(bordirField);
       const isSablonDtfChecked = parseCheckboxFromField(sablonDtfField);
       console.log("[PACKING_GATE] matched fields:", {
