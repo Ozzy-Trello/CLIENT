@@ -1125,6 +1125,11 @@ const CardDetails: React.FC = (props) => {
     }
     const handleDragOver = (e: DragEvent) => {
       e.preventDefault();
+      // Keep the full-card drop overlay hidden while dragging over the
+      // Input Resi modal's own drop zone.
+      if ((e.target as HTMLElement)?.closest?.(".shipment-modal")) {
+        return;
+      }
       setIsDraggingFiles(true);
     };
     const handleDragLeave = (e: DragEvent) => {
@@ -1132,6 +1137,11 @@ const CardDetails: React.FC = (props) => {
       setIsDraggingFiles(false);
     };
     const handleDrop = (e: DragEvent) => {
+      // The Input Resi modal has its own drop zone for the receipt image;
+      // let it handle the file instead of attaching it to the whole card.
+      if ((e.target as HTMLElement)?.closest?.(".shipment-modal")) {
+        return;
+      }
       e.preventDefault();
       setIsDraggingFiles(false);
       const dt = e.dataTransfer;
@@ -1157,6 +1167,11 @@ const CardDetails: React.FC = (props) => {
         target.tagName === "TEXTAREA" ||
         target.isContentEditable;
       if (isInputElement) {
+        return;
+      }
+
+      // The Input Resi modal handles its own paste for the receipt image.
+      if (target?.closest?.(".shipment-modal")) {
         return;
       }
 

@@ -572,6 +572,43 @@ describe("Shipment", () => {
     });
   });
 
+  it("captures a pasted image anywhere in the modal as the receipt, even outside the drop zone", async () => {
+    renderShipment();
+
+    const file = new File(["receipt"], "receipt.png", { type: "image/png" });
+    const clipboardData = { files: [file] } as unknown as DataTransfer;
+
+    fireEvent(
+      screen.getByRole("dialog"),
+      Object.assign(new Event("paste", { bubbles: true, cancelable: true }), {
+        clipboardData,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("receipt.png")).not.toBeNull();
+    });
+  });
+
+  it("ignores a pasted image while the waybill input is focused, so typing isn't interrupted", async () => {
+    renderShipment();
+
+    const file = new File(["receipt"], "receipt.png", { type: "image/png" });
+    const clipboardData = { files: [file] } as unknown as DataTransfer;
+    const input = screen.getByRole("textbox");
+
+    fireEvent(
+      input,
+      Object.assign(new Event("paste", { bubbles: true, cancelable: true }), {
+        clipboardData,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByText("receipt.png")).toBeNull();
+    });
+  });
+
   it("fills the waybill field from a scanned QR/barcode", async () => {
     renderShipment();
 

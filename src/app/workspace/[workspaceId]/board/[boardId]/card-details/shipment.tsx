@@ -210,6 +210,29 @@ const Shipment: React.FC<ShipmentProps> = ({
   ]);
 
   useEffect(() => {
+    if (!open || !canEdit) return;
+
+    // The global card-level paste handler ignores anything inside this
+    // modal (see .shipment-modal check in card-details/index.tsx), so the
+    // receipt image has to be captured here instead.
+    const handleWindowPaste = (event: ClipboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const isTextField =
+        target?.tagName === "INPUT" || target?.tagName === "TEXTAREA";
+      if (isTextField || isBusy) return;
+
+      const file = event.clipboardData?.files?.[0];
+      if (!file) return;
+
+      event.preventDefault();
+      selectReceiptFile(file);
+    };
+
+    window.addEventListener("paste", handleWindowPaste);
+    return () => window.removeEventListener("paste", handleWindowPaste);
+  }, [open, canEdit, isBusy]);
+
+  useEffect(() => {
     if (
       !selectedFile ||
       typeof URL.createObjectURL !== "function"
@@ -265,6 +288,7 @@ const Shipment: React.FC<ShipmentProps> = ({
 
   const handleDrop = (event: React.DragEvent<HTMLElement>) => {
     event.preventDefault();
+    event.stopPropagation();
     if (!canEdit || isBusy) return;
     selectReceiptFile(event.dataTransfer.files?.[0]);
   };
@@ -414,6 +438,7 @@ const Shipment: React.FC<ShipmentProps> = ({
       closable={!isBusy}
       maskClosable={!isBusy}
       keyboard={!isBusy}
+      wrapClassName="shipment-modal"
       styles={{ body: { padding: "4px" } }}
       footer={
         <div className="flex items-center justify-between gap-3">
