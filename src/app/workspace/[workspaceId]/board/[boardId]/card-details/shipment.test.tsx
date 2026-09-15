@@ -12,10 +12,28 @@ const mockCreateObjectURL = jest.fn(() => "blob:receipt-preview");
 const mockRevokeObjectURL = jest.fn();
 
 jest.mock("lucide-react", () => ({
+  Camera: () => <span aria-hidden="true" />,
   FileImage: () => <span aria-hidden="true" />,
   RefreshCw: () => <span aria-hidden="true" />,
   Trash2: () => <span aria-hidden="true" />,
   Upload: () => <span aria-hidden="true" />,
+}));
+
+jest.mock("@yudiel/react-qr-scanner", () => ({
+  Scanner: ({ onScan }: any) => (
+    <button
+      type="button"
+      data-testid="qr-scan-trigger"
+      onClick={() => onScan([{ rawValue: "SCANNED-WAYBILL-999" }])}
+    >
+      trigger scan
+    </button>
+  ),
+}));
+
+jest.mock("@components/qr-overlay", () => ({
+  __esModule: true,
+  default: () => <div data-testid="qr-overlay" />,
 }));
 
 jest.mock("@hooks/card_shipment", () => ({
@@ -62,13 +80,14 @@ jest.mock("antd", () => {
         {loading ? "Loading" : children}
       </button>
     ),
-    Input: ({ onChange, onPressEnter, ...props }: any) => (
+    Input: React.forwardRef(({ onChange, onPressEnter, ...props }: any, ref: any) => (
       <input
+        ref={ref}
         {...props}
         onChange={onChange}
         onKeyDown={(event) => event.key === "Enter" && onPressEnter?.(event)}
       />
-    ),
+    )),
     Modal,
     Select: ({
       options = [],
@@ -92,6 +111,9 @@ jest.mock("antd", () => {
       </select>
     ),
     Spin: () => <div>Loading data</div>,
+    Typography: {
+      Text: ({ children, ...props }: any) => <span {...props}>{children}</span>,
+    },
     message: {
       error: jest.fn(),
       success: jest.fn(),
@@ -540,5 +562,26 @@ describe("Shipment", () => {
       attachableId: "file-old-2",
     });
     await waitFor(() => expect(mockOnClose).toHaveBeenCalledTimes(1));
+  });
+
+  it("focuses the waybill input as soon as the modal opens", async () => {
+    renderShipment();
+
+    await waitFor(() => {
+      expect(document.activeElement).toBe(screen.getByRole("textbox"));
+    });
+  });
+
+  it("fills the waybill field from a scanned QR/barcode", async () => {
+    renderShipment();
+
+    fireEvent.click(screen.getByRole("button", { name: /scan qr/i }));
+    fireEvent.click(screen.getByTestId("qr-scan-trigger"));
+
+    await waitFor(() => {
+      expect((screen.getByRole("textbox") as HTMLInputElement).value).toBe(
+        "SCANNED-WAYBILL-999",
+      );
+    });
   });
 });

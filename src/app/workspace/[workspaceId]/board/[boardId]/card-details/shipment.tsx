@@ -13,8 +13,11 @@ import {
 import { CustomField, CustomOption } from "@myTypes/custom-field";
 import { useBoardPermissionsContext } from "@providers/board-permissions-context";
 import { toDirectFileUrl } from "@utils/file-url";
-import { Button, Input, Modal, Select, Spin, message } from "antd";
-import { FileImage, RefreshCw, Trash2, Upload } from "lucide-react";
+import { Button, Input, Modal, Select, Spin, Typography, message } from "antd";
+import type { InputRef } from "antd";
+import { Camera, FileImage, RefreshCw, Trash2, Upload } from "lucide-react";
+import { Scanner } from "@yudiel/react-qr-scanner";
+import QRGuideOverlay from "@components/qr-overlay";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { formatFileSize, formatFileSizeInMB } from "./attachment-helpers";
 
@@ -103,8 +106,11 @@ const Shipment: React.FC<ShipmentProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeletingReceipt, setIsDeletingReceipt] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const waybillInputRef = useRef<InputRef>(null);
   const initializedCardRef = useRef<string>();
   const isFormDirtyRef = useRef(false);
+  const [showCameraScanner, setShowCameraScanner] = useState(false);
+  const scanProcessedRef = useRef(false);
 
   const { ekspedisiField, options, ekspedisiFieldValue } = useMemo(() => {
     const cardField = cardCustomFields?.find(
@@ -167,8 +173,13 @@ const Shipment: React.FC<ShipmentProps> = ({
       isFormDirtyRef.current = false;
       setSelectedFile(null);
       setHideExistingReceipt(false);
+      setShowCameraScanner(false);
+      scanProcessedRef.current = false;
       return;
     }
+    requestAnimationFrame(() => {
+      waybillInputRef.current?.focus();
+    });
     if (isLoadingShipment) return;
 
     const isSameCard = initializedCardRef.current === cardId;
@@ -351,6 +362,21 @@ const Shipment: React.FC<ShipmentProps> = ({
     }
   };
 
+  const handleCameraScan = (scannedValue: string) => {
+    if (scanProcessedRef.current) return;
+    scanProcessedRef.current = true;
+    setShowCameraScanner(false);
+
+    const value = scannedValue.trim();
+    if (!value) {
+      message.error("Tidak dapat membaca nomor resi dari QR/barcode.");
+      return;
+    }
+    isFormDirtyRef.current = true;
+    setWaybill(value);
+    message.success("Nomor resi berhasil discan.");
+  };
+
   const confirmDelete = () => {
     Modal.confirm({
       title: "Hapus data resi?",
@@ -377,6 +403,7 @@ const Shipment: React.FC<ShipmentProps> = ({
     : toDirectFileUrl(existingReceipt?.file?.url);
 
   return (
+    <>
     <Modal
       title="Input Resi"
       open={open}
@@ -429,17 +456,27 @@ const Shipment: React.FC<ShipmentProps> = ({
             <label htmlFor="shipment-waybill" className="mb-1.5 block text-sm font-medium text-gray-700">
               No. Resi <span className="text-red-500">*</span>
             </label>
-            <Input
-              id="shipment-waybill"
-              value={waybill}
-              onChange={(event) => {
-                isFormDirtyRef.current = true;
-                setWaybill(event.target.value);
-              }}
-              placeholder="Contoh: JNE1234567890"
-              disabled={!canEdit || isBusy}
-              onPressEnter={handleSave}
-            />
+            <div className="flex gap-2">
+              <Input
+                id="shipment-waybill"
+                ref={waybillInputRef}
+                value={waybill}
+                onChange={(event) => {
+                  isFormDirtyRef.current = true;
+                  setWaybill(event.target.value);
+                }}
+                placeholder="Contoh: JNE1234567890"
+                disabled={!canEdit || isBusy}
+                onPressEnter={handleSave}
+              />
+              <Button
+                icon={<Camera size={14} />}
+                onClick={() => setShowCameraScanner(true)}
+                disabled={!canEdit || isBusy}
+              >
+                Scan QR
+              </Button>
+            </div>
             <div className="mt-1.5 text-xs leading-5 text-gray-500">
               Setelah disimpan, nomor resi ini akan tersinkron ke Custom Field Resi.
             </div>
@@ -582,6 +619,60 @@ const Shipment: React.FC<ShipmentProps> = ({
         </div>
       )}
     </Modal>
+
+    <Modal
+      title="Scan QR/Barcode Resi"
+      open={showCameraScanner}
+      onCancel={() => {
+        scanProcessedRef.current = false;
+        setShowCameraScanner(false);
+      }}
+      afterClose={() => {
+        scanProcessedRef.current = false;
+      }}
+      footer={[
+        <Button
+          key="cancel"
+          onClick={() => {
+            scanProcessedRef.current = false;
+            setShowCameraScanner(false);
+          }}
+        >
+          Batal
+        </Button>,
+      ]}
+      width={400}
+      centered
+      zIndex={2000}
+      styles={{ mask: { zIndex: 1999 } }}
+    >
+      <div className="flex flex-col items-center">
+        <div className="w-full max-w-sm">
+          <div className="relative h-[320px] w-full">
+            <Scanner
+              onScan={(result) => {
+                if (result && result.length > 0) {
+                  handleCameraScan(result[0].rawValue);
+                }
+              }}
+              onError={(error) => {
+                console.error("Scanner error:", error);
+                message.error("Gagal membuka kamera. Coba lagi.");
+              }}
+              styles={{
+                container: { width: "100%", height: "100%" },
+                video: { width: "100%", height: "100%" },
+              }}
+            />
+            <QRGuideOverlay imageClassName="h-24 w-auto max-w-[140px] opacity-70" />
+          </div>
+        </div>
+        <Typography.Text type="secondary" className="mt-4 text-center">
+          Posisikan QR/barcode resi di dalam kotak kamera
+        </Typography.Text>
+      </div>
+    </Modal>
+    </>
   );
 };
 
