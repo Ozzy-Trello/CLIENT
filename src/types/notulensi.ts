@@ -78,6 +78,35 @@ export interface NotulensiStatusHistory {
   fromStatus: NotulensiStatus | null;
   toStatus: NotulensiStatus;
   changedBy: string;
+  sequence: number;
+  actor: NotulensiUser | null;
+  createdAt: string;
+}
+
+export type NotulensiActivityAction =
+  | "comment_added"
+  | "comment_edited"
+  | "comment_deleted"
+  | "attachment_added"
+  | "attachment_removed"
+  | "attachment_renamed"
+  | "assignee_added"
+  | "assignee_removed"
+  | "title_changed"
+  | "content_changed"
+  | "priority_changed"
+  | "due_date_changed"
+  | "progress_changed";
+
+export interface NotulensiActivity {
+  id: string;
+  notulensiId: string;
+  action: NotulensiActivityAction;
+  entityType: "comment" | "attachment" | "assignee" | "field" | null;
+  entityId: string | null;
+  oldValue: unknown;
+  newValue: unknown;
+  sequence: number;
   actor: NotulensiUser | null;
   createdAt: string;
 }
@@ -136,6 +165,7 @@ export interface NotulensiSummary {
 export interface NotulensiDetail extends NotulensiSummary {
   comments: NotulensiComment[];
   statusHistory: NotulensiStatusHistory[];
+  activities: NotulensiActivity[];
   privateNote: NotulensiPrivateNote | null;
   permissions?: NotulensiPermissions | null;
   readReceipts: NotulensiReadReceipt[];

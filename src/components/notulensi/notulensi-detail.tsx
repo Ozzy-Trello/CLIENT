@@ -12,6 +12,7 @@ import {
   NOTULENSI_ACTION_META,
   MAX_NOTULENSI_ATTACHMENT_SIZE,
   NOTULENSI_PROGRESS_OPTIONS,
+  buildNotulensiTimeline,
   copyNotulensiLink,
   detectCardUrl,
   getCommentQuote,
@@ -189,6 +190,15 @@ export default function NotulensiDetailView({
   }, [commentId, detail, reviewNotificationId]);
 
   const privateNote = privateNoteQuery.data?.data ?? detail?.privateNote ?? null;
+
+  const timelineEntries = buildNotulensiTimeline(
+    detail?.statusHistory,
+    detail?.activities,
+    (entry) =>
+      entry.fromStatus
+        ? `${NOTULENSI_STATUS_META[entry.fromStatus].label} -> ${NOTULENSI_STATUS_META[entry.toStatus].label}`
+        : `Set to ${NOTULENSI_STATUS_META[entry.toStatus].label}`
+  );
 
   const previewableAttachments: CardAttachment[] = (detail?.attachments || [])
     .filter((attachment) => {
@@ -1153,18 +1163,17 @@ export default function NotulensiDetailView({
             {
               key: "history",
               label: "History",
-              children: (
+              children: timelineEntries.length ? (
                 <Timeline
-                  items={detail.statusHistory.map((item) => ({
+                  items={timelineEntries.map((item) => ({
+                    key: item.id,
                     children: (
                       <div>
                         <Typography.Text strong>
                           {item.actor?.username || "System"}
                         </Typography.Text>
                         <Typography.Paragraph className="!mb-0 text-sm">
-                          {item.fromStatus
-                            ? `${NOTULENSI_STATUS_META[item.fromStatus].label} -> ${NOTULENSI_STATUS_META[item.toStatus].label}`
-                            : `Set to ${NOTULENSI_STATUS_META[item.toStatus].label}`}
+                          {item.description}
                         </Typography.Paragraph>
                         <Typography.Text type="secondary" className="text-xs">
                           {dayjs(item.createdAt).format("DD MMM YYYY HH:mm")}
@@ -1173,6 +1182,8 @@ export default function NotulensiDetailView({
                     ),
                   }))}
                 />
+              ) : (
+                <Alert type="info" message="No activity yet" showIcon />
               ),
             },
             {

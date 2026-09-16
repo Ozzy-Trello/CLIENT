@@ -1,4 +1,12 @@
-import { NotulensiAction, NotulensiAssignee, NotulensiProgress, NotulensiWorkflowAction } from "@myTypes/notulensi";
+import {
+  NotulensiAction,
+  NotulensiActivity,
+  NotulensiAssignee,
+  NotulensiProgress,
+  NotulensiStatusHistory,
+  NotulensiUser,
+  NotulensiWorkflowAction,
+} from "@myTypes/notulensi";
 import dayjs from "dayjs";
 import { linkifyHtml } from "@utils/normalize-quill-html";
 import {
@@ -138,6 +146,98 @@ export const NOTULENSI_PROGRESS_OPTIONS: { label: string; value: NotulensiProgre
 
 export const MAX_NOTULENSI_ATTACHMENT_SIZE = 50 * 1024 * 1024;
 export const MAX_NOTULENSI_CONTENT_TEXT_LENGTH = 100000;
+
+export interface NotulensiTimelineEntry {
+  id: string;
+  kind: "status" | "activity";
+  actor: NotulensiUser | null;
+  description: string;
+  createdAt: string;
+}
+
+const PRIORITY_LABELS: Record<string, string> = {
+  reg: "Reguler",
+  urgent: "Urgent",
+};
+
+const asRecord = (value: unknown): Record<string, unknown> =>
+  value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+
+const asText = (value: unknown): string => {
+  if (value === null || value === undefined || value === "") return "-";
+  return String(value);
+};
+
+const formatActivityDate = (value: unknown): string =>
+  value ? dayjs(String(value)).format("DD MMM YYYY") : "-";
+
+export const describeNotulensiActivity = (activity: NotulensiActivity): string => {
+  const oldValue = activity.oldValue;
+  const newValue = activity.newValue;
+
+  switch (activity.action) {
+    case "comment_added":
+      return asRecord(newValue).is_reply ? "membalas komentar" : "menambahkan komentar";
+    case "comment_edited":
+      return "mengubah komentar";
+    case "comment_deleted":
+      return "menghapus komentar";
+    case "attachment_added":
+      return `menambahkan lampiran ${asText(asRecord(newValue).name)}`;
+    case "attachment_removed":
+      return `menghapus lampiran ${asText(asRecord(oldValue).name)}`;
+    case "attachment_renamed":
+      return `mengganti nama lampiran ${asText(asRecord(oldValue).name)} menjadi ${asText(asRecord(newValue).name)}`;
+    case "assignee_added":
+      return `menugaskan ${asText(asRecord(newValue).username)}`;
+    case "assignee_removed":
+      return `melepas ${asText(asRecord(oldValue).username)}`;
+    case "title_changed":
+      return `mengubah judul dari "${asText(oldValue)}" menjadi "${asText(newValue)}"`;
+    case "content_changed":
+      return "mengubah isi task";
+    case "priority_changed":
+      return `mengubah prioritas dari ${PRIORITY_LABELS[String(oldValue)] ?? asText(oldValue)} menjadi ${
+        PRIORITY_LABELS[String(newValue)] ?? asText(newValue)
+      }`;
+    case "due_date_changed":
+      return `mengubah deadline dari ${formatActivityDate(oldValue)} menjadi ${formatActivityDate(newValue)}`;
+    case "progress_changed":
+      return `mengubah progres dari ${asText(oldValue)}% menjadi ${asText(newValue)}%`;
+    default:
+      return activity.action;
+  }
+};
+
+/**
+ * Status tinggal di tabelnya sendiri dan aktivitas lain di tabel baru, jadi
+ * timeline digabung di sini. Keduanya sudah datang terurut menurun dari
+ * backend; sort ulang memastikan gabungannya tetap terbaru di atas.
+ */
+export const buildNotulensiTimeline = (
+  statusHistory: NotulensiStatusHistory[] = [],
+  activities: NotulensiActivity[] = [],
+  describeStatus: (entry: NotulensiStatusHistory) => string
+): NotulensiTimelineEntry[] => {
+  const entries: NotulensiTimelineEntry[] = [
+    ...statusHistory.map((entry) => ({
+      id: `status-${entry.id}`,
+      kind: "status" as const,
+      actor: entry.actor,
+      description: describeStatus(entry),
+      createdAt: entry.createdAt,
+    })),
+    ...activities.map((entry) => ({
+      id: `activity-${entry.id}`,
+      kind: "activity" as const,
+      actor: entry.actor,
+      description: describeNotulensiActivity(entry),
+      createdAt: entry.createdAt,
+    })),
+  ];
+
+  return entries.sort((a, b) => dayjs(b.createdAt).valueOf() - dayjs(a.createdAt).valueOf());
+};
 
 export type QueuedInlineImage = { file: File; placeholderUrl: string };
 

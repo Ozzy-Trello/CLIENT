@@ -1,6 +1,8 @@
 import {
   NOTULENSI_ACTION_META,
   NOTULENSI_PROGRESS_OPTIONS,
+  buildNotulensiTimeline,
+  describeNotulensiActivity,
   copyNotulensiLink,
   formatNotulensiListDate,
   getListWorkflowActions,
@@ -211,5 +213,87 @@ describe("notulensi detail options", () => {
     expect(order).toEqual(["a.txt", "b.txt", "c.txt"]);
     expect(progress).toEqual(["1 of 3", "2 of 3", "3 of 3"]);
     expect(result).toEqual({ uploaded: 2, failed: 1 });
+  });
+});
+
+describe("notulensi timeline", () => {
+  const activity = (overrides: Record<string, unknown> = {}) =>
+    ({
+      id: "a-1",
+      notulensiId: "n-1",
+      action: "comment_added",
+      entityType: "comment",
+      entityId: "c-1",
+      oldValue: null,
+      newValue: null,
+      sequence: 1,
+      actor: { id: "u-1", username: "Alice", email: "alice@test" },
+      createdAt: "2026-09-16T01:00:00.000Z",
+      ...overrides,
+    }) as any;
+
+  it("describes each activity in Indonesian", () => {
+    expect(describeNotulensiActivity(activity({ newValue: { is_reply: false } })))
+      .toBe("menambahkan komentar");
+    expect(describeNotulensiActivity(activity({ newValue: { is_reply: true } })))
+      .toBe("membalas komentar");
+    expect(
+      describeNotulensiActivity(
+        activity({ action: "attachment_added", newValue: { name: "brief.pdf" } })
+      )
+    ).toBe("menambahkan lampiran brief.pdf");
+    expect(
+      describeNotulensiActivity(
+        activity({ action: "assignee_removed", oldValue: { username: "Bob" } })
+      )
+    ).toBe("melepas Bob");
+    expect(
+      describeNotulensiActivity(
+        activity({ action: "title_changed", oldValue: "Lama", newValue: "Baru" })
+      )
+    ).toBe('mengubah judul dari "Lama" menjadi "Baru"');
+    expect(
+      describeNotulensiActivity(
+        activity({ action: "progress_changed", oldValue: 25, newValue: 50 })
+      )
+    ).toBe("mengubah progres dari 25% menjadi 50%");
+  });
+
+  it("does not leak rich text for a content change", () => {
+    expect(describeNotulensiActivity(activity({ action: "content_changed" })))
+      .toBe("mengubah isi task");
+  });
+
+  it("merges status history with activities, newest first", () => {
+    const statusHistory = [
+      {
+        id: "s-1",
+        notulensiId: "n-1",
+        fromStatus: null,
+        toStatus: "new",
+        changedBy: "u-1",
+        sequence: 1,
+        actor: { id: "u-1", username: "Alice", email: "alice@test" },
+        createdAt: "2026-09-16T00:00:00.000Z",
+      },
+    ] as any;
+    const activities = [
+      activity({ id: "a-2", createdAt: "2026-09-16T03:00:00.000Z" }),
+      activity({ id: "a-1", createdAt: "2026-09-16T02:00:00.000Z" }),
+    ];
+
+    const entries = buildNotulensiTimeline(statusHistory, activities, () => "Set to New Task");
+
+    expect(entries.map((entry) => entry.id)).toEqual([
+      "activity-a-2",
+      "activity-a-1",
+      "status-s-1",
+    ]);
+    expect(entries[2].description).toBe("Set to New Task");
+    expect(entries[0].actor?.username).toBe("Alice");
+  });
+
+  it("survives a detail payload without either list", () => {
+    expect(buildNotulensiTimeline(undefined, undefined, () => "")).toEqual([]);
   });
 });
