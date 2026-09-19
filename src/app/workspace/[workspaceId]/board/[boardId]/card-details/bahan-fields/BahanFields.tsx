@@ -1648,9 +1648,15 @@ const BahanFields: React.FC<BahanFieldsProps> = ({ cardId, workspaceId }) => {
             });
           }
 
-          // Last resort: Use the first available account
-          if (!suitableAccount && glaccounts.data.d.length > 0) {
-            suitableAccount = glaccounts.data.d[0];
+          // Sengaja tidak ada fallback ke akun pertama: urutan daftar
+          // ditentukan Accurate, sehingga menebak berarti mengirim jurnal ke
+          // akun yang kebetulan teratas. Lebih baik dikosongkan supaya
+          // ketiadaan mapping terlihat daripada salah posting diam-diam.
+          if (!suitableAccount) {
+            console.warn(
+              "[accurate] tidak ada akun perkiraan yang cocok",
+              { item: selectedItem?.name, category: rawCategoryName, source: itemSource },
+            );
           }
 
           if (suitableAccount) {
