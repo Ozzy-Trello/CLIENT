@@ -105,6 +105,15 @@ const AccessoryFields: React.FC<AccessoryFieldsProps> = ({
         </div>
       )}
 
+      {/* Packing is refused while any accessory is open, so say so here rather
+          than letting the operator find out at the packing step. */}
+      {totalItems > 0 && doneItems < totalItems && (
+        <div className="text-xs text-amber-600">
+          Belum bisa finishing packing: {totalItems - doneItems} aksesoris belum
+          selesai.
+        </div>
+      )}
+
       {/* List of card accessories */}
       {cardAccessories.length === 0 && !productId ? (
         <div className="py-3 text-center">

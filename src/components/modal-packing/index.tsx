@@ -389,9 +389,12 @@ const ModalPacking: React.FC<ModalPackingProps> = ({ open, onClose }) => {
       } else {
         message.error(response?.message || "Gagal menyimpan data packing");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating packing:", error);
-      message.error("Gagal menyimpan data packing");
+      // The server rejects packing when accessories are unfinished; show that
+      // reason instead of a generic failure.
+      const serverMessage = error?.response?.data?.message;
+      message.error(serverMessage || "Gagal menyimpan data packing");
     } finally {
       setIsSubmitting(false);
     }
