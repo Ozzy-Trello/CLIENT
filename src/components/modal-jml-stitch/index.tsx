@@ -19,6 +19,7 @@ import {
   EnumCardAttachmentType,
 } from "@myTypes/card";
 import { isImageFile, isPDFFile } from "@utils/file";
+import { runUploadQueue } from "@utils/run-upload-queue";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Button,
@@ -460,20 +461,31 @@ const ModalJmlStitch: React.FC<ModalJmlStitchProps> = ({
 
         setUploadTotal(tasks.length);
 
-        for (let index = 0; index < tasks.length; index += 1) {
-          const task = tasks[index];
-          setUploadCurrentName(task.displayName);
-          message.loading({
-            key: toastKey,
-            content: `Uploading ${index + 1}/${tasks.length}...`,
-            duration: 0,
-          });
-          const nextFile = await task.buildFile();
-          await uploadSingleFile(nextFile);
-          setUploadCompleted(index + 1);
-        }
+        const { failures } = await runUploadQueue(
+          tasks,
+          uploadSingleFile,
+          (completed, current) => {
+            setUploadCurrentName(current);
+            setUploadCompleted(completed);
+            message.loading({
+              key: toastKey,
+              content: `Uploading ${completed}/${tasks.length}...`,
+              duration: 0,
+            });
+          },
+        );
 
-        message.success({ key: toastKey, content: "Upload complete" });
+        if (failures.length === tasks.length) {
+          message.error({ key: toastKey, content: failures[0].reason });
+        } else if (failures.length > 0) {
+          message.warning({
+            key: toastKey,
+            content: `${tasks.length - failures.length}/${tasks.length} ter-upload. Gagal: ${failures.map((f) => f.displayName).join(", ")}`,
+            duration: 8,
+          });
+        } else {
+          message.success({ key: toastKey, content: "Upload complete" });
+        }
         await refetch?.();
         setUploadTotal(0);
         setUploadCompleted(0);

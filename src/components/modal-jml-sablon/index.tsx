@@ -9,6 +9,7 @@ import {
 } from "@api/sablon_attachment";
 import { setCardCustomFieldValue } from "@api/card_custom_field";
 import { uploadFile } from "@api/file";
+import { runUploadQueue } from "@utils/run-upload-queue";
 import { useAccountList } from "@hooks/account";
 import { useCardAttachment } from "@hooks/card_attachment";
 import { useCardCustomField } from "@hooks/card_custom_field";
@@ -357,15 +358,27 @@ const ModalJmlSablon: React.FC<ModalJmlSablonProps> = ({ open, onClose, card, wo
         }
 
         setUploadTotal(tasks.length);
-        for (let i = 0; i < tasks.length; i++) {
-          const task = tasks[i];
-          setUploadCurrentName(task.displayName);
-          message.loading({ key: toastKey, content: `Uploading ${i + 1}/${tasks.length}...`, duration: 0 });
-          await uploadSingleFile(await task.buildFile());
-          setUploadCompleted(i + 1);
-        }
+        const { failures } = await runUploadQueue(
+          tasks,
+          uploadSingleFile,
+          (completed, current) => {
+            setUploadCurrentName(current);
+            setUploadCompleted(completed);
+            message.loading({ key: toastKey, content: `Uploading ${completed}/${tasks.length}...`, duration: 0 });
+          },
+        );
 
-        message.success({ key: toastKey, content: "Upload complete" });
+        if (failures.length === tasks.length) {
+          message.error({ key: toastKey, content: failures[0].reason });
+        } else if (failures.length > 0) {
+          message.warning({
+            key: toastKey,
+            content: `${tasks.length - failures.length}/${tasks.length} ter-upload. Gagal: ${failures.map((f) => f.displayName).join(", ")}`,
+            duration: 8,
+          });
+        } else {
+          message.success({ key: toastKey, content: "Upload complete" });
+        }
         await refetch?.();
         setUploadTotal(0);
         setUploadCompleted(0);
