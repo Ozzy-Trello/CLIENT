@@ -325,13 +325,19 @@ const ModalJmlStitch: React.FC<ModalJmlStitchProps> = ({
     [imageStitchAttachments, getRowState],
   );
 
+  const imageAttachmentsRef = useRef(imageStitchAttachments);
+  imageAttachmentsRef.current = imageStitchAttachments;
+
   // Prefill rows from existing stitch_attachment records when modal opens
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
 
     const load = async () => {
-      setIsLoadingRows(true);
+      // Only block the table on the first load. Uploading re-runs this effect,
+      // and a spinner over rows that are already on screen reads as a hang.
+      const isFirstLoad = imageAttachmentsRef.current.length === 0;
+      if (isFirstLoad) setIsLoadingRows(true);
       try {
         const response = await getStitchAttachments(card.id);
         if (cancelled) return;
@@ -343,7 +349,7 @@ const ModalJmlStitch: React.FC<ModalJmlStitchProps> = ({
 
         setRowsState((prev) => {
           const next: Record<string, RowState> = {};
-          imageStitchAttachments.forEach((att) => {
+          imageAttachmentsRef.current.forEach((att) => {
             const existing = existingMap.get(att.id);
             next[att.id] = {
               stitch: existing?.stitch ?? prev[att.id]?.stitch ?? null,
@@ -365,12 +371,9 @@ const ModalJmlStitch: React.FC<ModalJmlStitchProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [
-    open,
-    card.id,
-    attachmentIdsKey,
-    imageStitchAttachments,
-  ]);
+    // attachmentIdsKey is a string: depending on the array itself re-ran this
+    // on every render, so the spinner never settled.
+  }, [open, card.id, attachmentIdsKey]);
 
   // Upload a single File as a STITCH attachment and link it to the card
   const uploadSingleFile = useCallback(

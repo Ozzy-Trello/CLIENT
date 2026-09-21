@@ -254,13 +254,19 @@ const ModalJmlSablon: React.FC<ModalJmlSablonProps> = ({ open, onClose, card, wo
     [imageSablonAttachments],
   );
 
+  const imageAttachmentsRef = useRef(imageSablonAttachments);
+  imageAttachmentsRef.current = imageSablonAttachments;
+
   useEffect(() => {
     if (!open) return;
 
     let cancelled = false;
 
     const load = async () => {
-      setIsLoadingRows(true);
+      // Only block the table on the first load. Uploading re-runs this effect,
+      // and a spinner over rows that are already on screen reads as a hang.
+      const isFirstLoad = imageAttachmentsRef.current.length === 0;
+      if (isFirstLoad) setIsLoadingRows(true);
       try {
         const response = await getSablonAttachments(card.id);
         if (cancelled) return;
@@ -272,7 +278,7 @@ const ModalJmlSablon: React.FC<ModalJmlSablonProps> = ({ open, onClose, card, wo
 
         setRowsState((prev) => {
           const next: Record<string, RowState> = {};
-          imageSablonAttachments.forEach((att) => {
+          imageAttachmentsRef.current.forEach((att) => {
             const existing = existingMap.get(att.id);
             next[att.id] = {
               amount: existing?.amount ?? prev[att.id]?.amount ?? null,
@@ -292,7 +298,9 @@ const ModalJmlSablon: React.FC<ModalJmlSablonProps> = ({ open, onClose, card, wo
     return () => {
       cancelled = true;
     };
-  }, [open, card.id, attachmentIdsKey, imageSablonAttachments]);
+    // attachmentIdsKey is a string: depending on the array itself re-ran this
+    // on every render, so the spinner never settled.
+  }, [open, card.id, attachmentIdsKey]);
 
   const grandTotal = useMemo(
     () => imageSablonAttachments.reduce((sum, att) => sum + (getRowState(att.id).amount ?? 0), 0),
