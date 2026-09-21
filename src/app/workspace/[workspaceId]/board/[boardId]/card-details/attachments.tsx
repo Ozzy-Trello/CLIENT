@@ -212,19 +212,29 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
   const [linkRenameValue, setLinkRenameValue] = useState("");
 
   const uploadFiles = async (fileList: FileList | null) => {
-    if (!fileList || !card.id) return;
+    if (!fileList || isUploading || !card.id) return;
     setIsUploading(true);
     try {
       for (const file of Array.from(fileList)) {
         const res = await uploadFile(file, { cardId: card.id });
         const uploaded = res?.data;
         if (uploaded?.id) {
-          addAttachment({
-            cardId: card.id,
-            attachableType: EnumAttachmentType.File,
-            attachableId: uploaded.id,
-            isCover: false,
-            type: EnumCardAttachmentType.Attachment,
+          // Awaited: an unawaited mutate raced the refetch below and could
+          // fire twice for the same file.
+          await new Promise<void>((resolve, reject) => {
+            addAttachment(
+              {
+                cardId: card.id,
+                attachableType: EnumAttachmentType.File,
+                attachableId: uploaded.id,
+                isCover: false,
+                type: EnumCardAttachmentType.Attachment,
+              },
+              {
+                onSuccess: () => resolve(),
+                onError: (error) => reject(error),
+              }
+            );
           });
         }
       }

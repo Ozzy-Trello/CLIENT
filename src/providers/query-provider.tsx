@@ -34,8 +34,9 @@ export default function QueryProvider({
               Math.min(1000 * 2 ** attemptIndex, 30000),
           },
           mutations: {
-            retry: 1,
-            retryDelay: 500, // Reduced delay for faster retries
+            // Mutations are not idempotent: a retried POST /card-attachment
+            // attaches the same file twice.
+            retry: false,
             onError: (error: any) => {
               console.error("Mutation error:", error);
             },
