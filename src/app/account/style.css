@@ -1,6 +1,13 @@
 /* Modern Account Page Styles */
 .modern-account-page {
-  min-height: 100vh;
+  /* body carries overflow:hidden so the board can own its own scrolling,
+     which left anything taller than the screen unreachable here. This page
+     scrolls itself instead. dvh keeps the bottom clear of a mobile browser's
+     address bar. */
+  height: 100vh;
+  height: 100dvh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   padding: 32px 24px;
 }
 
