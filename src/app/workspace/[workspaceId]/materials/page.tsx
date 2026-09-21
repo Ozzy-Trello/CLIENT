@@ -56,6 +56,10 @@ import {
   useDeleteAccessory,
 } from "../../../../hooks/useAccessories";
 import { useProducts } from "../../../../hooks/useProducts";
+import {
+  ShippingOriginsTab,
+  ShippingCouriersTab,
+} from "@components/shipping-master";
 import { Accessory } from "../../../../api/accessory";
 
 const { Title } = Typography;
@@ -881,6 +885,16 @@ export default function MaterialsPage({ params }: { params: { workspaceId: strin
           </DragDropContext>
         </Card>
       ),
+    },
+    {
+      key: "cabang-kirim",
+      label: "Cabang Kirim",
+      children: <ShippingOriginsTab workspaceId={workspaceId} />,
+    },
+    {
+      key: "ekspedisi",
+      label: "Ekspedisi",
+      children: <ShippingCouriersTab workspaceId={workspaceId} />,
     },
     {
       key: "aksesoris",

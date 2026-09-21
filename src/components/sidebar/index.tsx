@@ -35,6 +35,7 @@ import {
   Activity,
   MonitorSmartphone,
   ClipboardList,
+  Truck,
 } from "lucide-react";
 import { Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import dynamic from "next/dynamic";
@@ -236,6 +237,18 @@ const Sidebar = () => {
           </Link>
         ),
         icon: <ClipboardList size={16} />,
+      },
+      {
+        key: `/workspace/${resolvedWorkspaceId}/cek-ongkir`,
+        label: (
+          <Link
+            className="block w-full"
+            href={`/workspace/${resolvedWorkspaceId}/cek-ongkir`}
+          >
+            Cek Ongkir
+          </Link>
+        ),
+        icon: <Truck size={16} />,
       },
     ];
 
@@ -527,6 +540,7 @@ const Sidebar = () => {
       "board",
       "members",
       "materials",
+      "cek-ongkir",
       "roles",
       "custom-fields",
       "master-data",
