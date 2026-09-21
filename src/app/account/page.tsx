@@ -15,6 +15,7 @@ import { Account as AccountDto } from "@dto/account";
 import { selectUser } from "@store/app_slice";
 import { useSelector } from "react-redux";
 import { useRouter } from "next/navigation";
+import TelegramLinkCard from "./TelegramLinkCard";
 
 const Account: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -318,6 +319,12 @@ const Account: React.FC = () => {
                 </div>
               )}
             </Card>
+          </Col>
+        </Row>
+
+        <Row gutter={[20, 20]} style={{ marginTop: 20 }}>
+          <Col xs={24}>
+            <TelegramLinkCard />
           </Col>
         </Row>
       </div>
