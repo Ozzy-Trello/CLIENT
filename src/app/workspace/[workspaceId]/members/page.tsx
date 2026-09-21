@@ -23,7 +23,12 @@ import AddUserModal from "./add_user_modal";
 import { accountList, userDetails } from "@api/account";
 import { useParams } from "next/navigation";
 import { Account } from "@dto/account";
-import { Edit, Plus, Settings, Trash, Trash2, Users } from "lucide-react";
+import { Edit, Plus, Settings, Trash, Trash2, Unlink, Users } from "lucide-react";
+import {
+  adminUnlinkTelegram,
+  listTelegramLinks,
+  type LinkedAccount,
+} from "@api/telegram-link";
 import { useAllRoles } from "../../../../hooks/board";
 import {
   useUpdateAnyAccount,
@@ -42,12 +47,16 @@ const TableMembers: React.FC<{
   dataSource?: Account[];
   onEdit: (user: Account) => void;
   onDelete: (user: Account) => void;
+  telegramByUserId?: Map<string, LinkedAccount>;
+  onDisconnectTelegram?: (user: Account) => void;
   pagination?: any;
   onPaginationChange?: (page: number, pageSize: number) => void;
 }> = ({
   dataSource = [],
   onEdit,
   onDelete,
+  telegramByUserId,
+  onDisconnectTelegram,
   pagination,
   onPaginationChange,
 }) => {
@@ -93,6 +102,34 @@ const TableMembers: React.FC<{
       dataIndex: "email",
       key: "email",
       render: (_: any, record: Account) => record?.email || "-",
+    },
+    {
+      title: "Telegram",
+      key: "telegram",
+      render: (_: any, record: Account) => {
+        const link = telegramByUserId?.get(record.id);
+        if (!link) {
+          return <Typography.Text type="secondary">Not connected</Typography.Text>;
+        }
+
+        const handle = link.telegramUsername
+          ? `@${link.telegramUsername}`
+          : link.telegramFirstName || "Connected";
+
+        return (
+          <Space size="small">
+            <Typography.Text>{handle}</Typography.Text>
+            <Tooltip title="Disconnect Telegram">
+              <Button
+                type="text"
+                size="small"
+                icon={<Unlink size={14} />}
+                onClick={() => onDisconnectTelegram?.(record)}
+              />
+            </Tooltip>
+          </Space>
+        );
+      },
     },
     {
       title: "Action",
@@ -141,7 +178,11 @@ const TableMembers: React.FC<{
   return (
     <Table
       dataSource={dataSource}
-      columns={columns}
+      // Only a super admin can read or clear these links, so the column would
+      // be dead weight for everyone else.
+      columns={columns.filter(
+        (column) => column.key !== "telegram" || isSuperAdmin()
+      )}
       style={{ width: "100%" }}
       rowKey={(record) => record.id}
       pagination={pagination}
@@ -197,8 +238,46 @@ const Members: React.FC = () => {
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
 
+  const [telegramLinks, setTelegramLinks] = useState<LinkedAccount[]>([]);
+
   const memberCount = data.length;
   const selectedRoleIds = roleFilter ? [roleFilter] : [];
+
+  const telegramByUserId = new Map(
+    telegramLinks.map((link) => [link.userId, link])
+  );
+
+  useEffect(() => {
+    if (!isSuperAdmin()) {
+      return;
+    }
+    // A failure here only costs the column: the rest of the page still works.
+    listTelegramLinks()
+      .then(setTelegramLinks)
+      .catch(() => setTelegramLinks([]));
+  }, [isSuperAdmin]);
+
+  const handleDisconnectTelegram = (user: Account) => {
+    Modal.confirm({
+      title: "Disconnect Telegram?",
+      content: `${
+        (user as any).fullname || user.username
+      } will stop receiving notifications on Telegram until they connect again.`,
+      okText: "Disconnect",
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          await adminUnlinkTelegram(user.id);
+          setTelegramLinks((links) =>
+            links.filter((link) => link.userId !== user.id)
+          );
+          message.success("Telegram disconnected");
+        } catch {
+          message.error("Failed to disconnect Telegram");
+        }
+      },
+    });
+  };
 
   const menuItems: MenuItem[] = [
     {
@@ -499,6 +578,8 @@ const Members: React.FC = () => {
               dataSource={data}
               onEdit={openEditUserModal}
               onDelete={handleDeleteUser}
+              telegramByUserId={telegramByUserId}
+              onDisconnectTelegram={handleDisconnectTelegram}
               pagination={pagination}
               onPaginationChange={(page, pageSize) => {
                 setPagination((prev) => ({ ...prev, current: page, pageSize }));
