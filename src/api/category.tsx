@@ -18,6 +18,7 @@ import {
   CategoryFilter,
   ReorderMainCategoriesRequest,
   ReorderSubcategoriesRequest,
+  ShippingWeightProduct,
 } from "../types/category";
 
 // Utility functions to transform backend snake_case to frontend camelCase
@@ -46,6 +47,20 @@ const transformJunction = (backendJunction: any): CategorySubcategoryJunction =>
   isTotalField: backendJunction.is_total_field,
   isEditableTotal: backendJunction.is_editable_total,
   operator: backendJunction.operator || "add",
+  // Interceptor di src/api/index.tsx sudah meng-camelCase-kan response, tapi
+  // transform ini juga dipanggil untuk data yang belum lewat interceptor.
+  shippingWeightGrams:
+    (backendJunction.shippingWeightGrams ??
+      backendJunction.shipping_weight_grams) == null
+      ? null
+      : Number(
+          backendJunction.shippingWeightGrams ??
+            backendJunction.shipping_weight_grams
+        ),
+  includeInShipping:
+    backendJunction.includeInShipping ??
+    backendJunction.include_in_shipping ??
+    false,
   createdAt: backendJunction.created_at ? new Date(backendJunction.created_at) : undefined,
   updatedAt: backendJunction.updated_at ? new Date(backendJunction.updated_at) : undefined,
 });
@@ -69,6 +84,8 @@ const transformCreateJunctionRequest = (request: CreateJunctionRequest) => ({
   is_total_field: request.isTotalField,
   is_editable_total: request.isEditableTotal,
   operator: request.operator,
+  shipping_weight_grams: request.shippingWeightGrams,
+  include_in_shipping: request.includeInShipping,
 });
 
 const transformUpdateJunctionRequest = (request: UpdateJunctionRequest) => ({
@@ -79,6 +96,8 @@ const transformUpdateJunctionRequest = (request: UpdateJunctionRequest) => ({
   is_total_field: request.isTotalField,
   is_editable_total: request.isEditableTotal,
   operator: request.operator,
+  shipping_weight_grams: request.shippingWeightGrams,
+  include_in_shipping: request.includeInShipping,
 });
 
 const transformBulkCreateJunctionRequest = (request: BulkCreateJunctionRequest) => ({
@@ -90,6 +109,8 @@ const transformBulkCreateJunctionRequest = (request: BulkCreateJunctionRequest) 
     is_total_field: sub.isTotalField,
     is_editable_total: sub.isEditableTotal,
     operator: sub.operator,
+    shipping_weight_grams: sub.shippingWeightGrams,
+    include_in_shipping: sub.includeInShipping,
   })),
 });
 
@@ -217,6 +238,16 @@ export const getAllSubcategories = async (
     data.data = data.data.map(transformSubcategory);
   }
   
+  return data;
+};
+
+// Interceptor di src/api/index.tsx sudah mengubah snake_case jadi camelCase.
+export const getShippingWeights = async (
+  workspaceId: string
+): Promise<ApiResponse<ShippingWeightProduct[]>> => {
+  const { data } = await api.get("/category/shipping-weights", {
+    headers: { "workspace-id": workspaceId },
+  });
   return data;
 };
 

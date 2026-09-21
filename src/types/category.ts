@@ -24,6 +24,8 @@ export interface CategorySubcategoryJunction {
   isTotalField: boolean;
   isEditableTotal: boolean;
   operator: "add" | "subtract" | "multiply" | "divide";
+  shippingWeightGrams: number | null;
+  includeInShipping: boolean;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -71,6 +73,8 @@ export interface CreateJunctionRequest {
   isTotalField?: boolean;
   isEditableTotal?: boolean;
   operator?: "add" | "subtract" | "multiply" | "divide";
+  shippingWeightGrams?: number | null;
+  includeInShipping?: boolean;
 }
 
 export interface BulkCreateJunctionRequest {
@@ -82,6 +86,8 @@ export interface BulkCreateJunctionRequest {
     isTotalField?: boolean;
     isEditableTotal?: boolean;
     operator?: "add" | "subtract" | "multiply" | "divide";
+    shippingWeightGrams?: number | null;
+    includeInShipping?: boolean;
   }>;
 }
 
@@ -93,6 +99,23 @@ export interface UpdateJunctionRequest {
   isTotalField?: boolean;
   isEditableTotal?: boolean;
   operator?: "add" | "subtract" | "multiply" | "divide";
+  shippingWeightGrams?: number | null;
+  includeInShipping?: boolean;
+}
+
+export interface ShippingWeightVariant {
+  junctionId: string;
+  subcategoryId: string;
+  name: string;
+  shippingWeightGrams: number;
+  displayOrder: number;
+}
+
+export interface ShippingWeightProduct {
+  mainCategoryId: string;
+  name: string;
+  displayOrder: number;
+  variants: ShippingWeightVariant[];
 }
 
 // System Overview Types

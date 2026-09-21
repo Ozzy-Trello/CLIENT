@@ -18,6 +18,7 @@ import {
   Tabs,
   Select,
   Tooltip,
+  Checkbox,
   message
 } from "antd";
 import { PlusOutlined, EditOutlined, DeleteOutlined, HolderOutlined } from "@ant-design/icons";
@@ -86,6 +87,8 @@ export default function MaterialsPage({ params }: { params: { workspaceId: strin
     junctionId: string;
     weight: number;
     operator: "add" | "subtract" | "multiply" | "divide";
+    shippingWeightGrams: number | null;
+    includeInShipping: boolean;
   } | null>(null);
   
   const [categoryForm] = Form.useForm();
@@ -217,8 +220,22 @@ export default function MaterialsPage({ params }: { params: { workspaceId: strin
     junctionForm.resetFields();
   };
 
-  const handleAddSubcategory = async (values: { subcategoryId: string; calculationWeight: number; operator?: "add" | "subtract" | "multiply" | "divide" }) => {
+  const handleAddSubcategory = async (values: {
+    subcategoryId: string;
+    calculationWeight: number;
+    operator?: "add" | "subtract" | "multiply" | "divide";
+    shippingWeightGrams?: number | null;
+    includeInShipping?: boolean;
+  }) => {
     if (!editingCategory) return;
+
+    const shippingWeightGrams = values.shippingWeightGrams ?? null;
+    if (values.includeInShipping && shippingWeightGrams === null) {
+      message.error(
+        "Isi berat produk dulu sebelum menampilkannya di perhitungan ongkir"
+      );
+      return;
+    }
 
     try {
       const junctionData: CreateJunctionRequest = {
@@ -229,6 +246,8 @@ export default function MaterialsPage({ params }: { params: { workspaceId: strin
         isTotalField: false,
         isEditableTotal: false,
         operator: values.operator || "add",
+        shippingWeightGrams,
+        includeInShipping: values.includeInShipping || false,
       };
 
       await createJunctionMutation.mutateAsync(junctionData);
@@ -272,13 +291,25 @@ export default function MaterialsPage({ params }: { params: { workspaceId: strin
 
   const handleSaveJunction = async () => {
     if (!pendingChanges) return;
-    
+
+    if (
+      pendingChanges.includeInShipping &&
+      pendingChanges.shippingWeightGrams === null
+    ) {
+      message.error(
+        "Isi berat produk dulu sebelum menampilkannya di perhitungan ongkir"
+      );
+      return;
+    }
+
     try {
       await updateJunctionMutation.mutateAsync({
         id: pendingChanges.junctionId,
         junction: {
           calculationWeight: pendingChanges.weight,
           operator: pendingChanges.operator,
+          shippingWeightGrams: pendingChanges.shippingWeightGrams,
+          includeInShipping: pendingChanges.includeInShipping,
         },
       });
 
@@ -295,6 +326,8 @@ export default function MaterialsPage({ params }: { params: { workspaceId: strin
                 ...subcat.junction,
                 calculationWeight: pendingChanges.weight,
                 operator: pendingChanges.operator,
+                shippingWeightGrams: pendingChanges.shippingWeightGrams,
+                includeInShipping: pendingChanges.includeInShipping,
               },
             };
           }
@@ -326,7 +359,9 @@ export default function MaterialsPage({ params }: { params: { workspaceId: strin
     setPendingChanges({
       junctionId: junction.id,
       weight: junction.calculationWeight,
-      operator: junction.operator || "add"
+      operator: junction.operator || "add",
+      shippingWeightGrams: junction.shippingWeightGrams ?? null,
+      includeInShipping: junction.includeInShipping ?? false,
     });
   };
 
@@ -1019,6 +1054,35 @@ export default function MaterialsPage({ params }: { params: { workspaceId: strin
                                   );
                                 }}
                               />
+                              <InputNumber
+                                value={pendingChanges?.shippingWeightGrams}
+                                min={1}
+                                max={100000}
+                                step={10}
+                                precision={0}
+                                addonAfter="g"
+                                placeholder="Berat"
+                                style={{ width: 130 }}
+                                onChange={(value) => {
+                                  setPendingChanges((prev) =>
+                                    prev
+                                      ? { ...prev, shippingWeightGrams: value ?? null }
+                                      : null
+                                  );
+                                }}
+                              />
+                              <Checkbox
+                                checked={pendingChanges?.includeInShipping ?? false}
+                                onChange={(e) => {
+                                  setPendingChanges((prev) =>
+                                    prev
+                                      ? { ...prev, includeInShipping: e.target.checked }
+                                      : null
+                                  );
+                                }}
+                              >
+                                <span className="text-xs">Tampilkan di ongkir</span>
+                              </Checkbox>
                               <Button
                                 size="small"
                                 type="primary"
@@ -1039,6 +1103,23 @@ export default function MaterialsPage({ params }: { params: { workspaceId: strin
                                 )}{" "}
                                 {subcategory.junction.calculationWeight}
                               </span>
+                              {subcategory.junction.shippingWeightGrams !== null && (
+                                <Tag
+                                  color={
+                                    subcategory.junction.includeInShipping
+                                      ? "green"
+                                      : "default"
+                                  }
+                                >
+                                  {subcategory.junction.shippingWeightGrams.toLocaleString(
+                                    "id-ID"
+                                  )}{" "}
+                                  g
+                                  {subcategory.junction.includeInShipping
+                                    ? " · ongkir"
+                                    : ""}
+                                </Tag>
+                              )}
                               {!subcategory.junction.isTotalField && (
                                 <Button
                                   size="small"
@@ -1132,6 +1213,22 @@ export default function MaterialsPage({ params }: { params: { workspaceId: strin
                     { label: "Divide (÷)", value: "divide" },
                   ]}
                 />
+              </Form.Item>
+              <Form.Item name="shippingWeightGrams">
+                <InputNumber
+                  placeholder="Berat"
+                  min={1}
+                  max={100000}
+                  step={10}
+                  precision={0}
+                  addonAfter="g"
+                  style={{ width: 130 }}
+                />
+              </Form.Item>
+              <Form.Item name="includeInShipping" valuePropName="checked" initialValue={false}>
+                <Checkbox>
+                  <span className="text-xs">Tampilkan di ongkir</span>
+                </Checkbox>
               </Form.Item>
               <Form.Item>
                 <Button 

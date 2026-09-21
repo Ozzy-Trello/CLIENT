@@ -8,6 +8,7 @@ import {
   deleteMainCategory,
   getSubcategories,
   getAllSubcategories,
+  getShippingWeights,
   getSubcategory,
   createSubcategory,
   updateSubcategory,
@@ -184,6 +185,15 @@ export function useAllSubcategories(workspaceId: string) {
   });
 }
 
+export function useShippingWeights(workspaceId: string) {
+  return useQuery({
+    queryKey: ["shippingWeights", workspaceId],
+    queryFn: () => getShippingWeights(workspaceId),
+    enabled: !!workspaceId,
+    staleTime: 5000,
+  });
+}
+
 export function useSubcategory(id: string, workspaceId: string) {
   return useQuery({
     queryKey: ["subcategory", id, workspaceId],
@@ -316,10 +326,15 @@ export function useCreateJunction(workspaceId: string) {
       queryClient.invalidateQueries({
         queryKey: ["categorySystemOverview", workspaceId],
       });
+      queryClient.invalidateQueries({
+        queryKey: ["shippingWeights", workspaceId],
+      });
     },
     onError: (error: any) => {
       message.error(
-        error.response?.data?.message || "Failed to create junction"
+        error.response?.data?.error ||
+          error.response?.data?.message ||
+          "Failed to create junction"
       );
     },
   });
@@ -344,11 +359,16 @@ export function useUpdateJunction(workspaceId: string) {
         queryKey: ["categorySystemOverview", workspaceId],
       });
       queryClient.invalidateQueries({ queryKey: ["junctionsByCategory"] });
+      queryClient.invalidateQueries({
+        queryKey: ["shippingWeights", workspaceId],
+      });
       message.success("Updated successfully");
     },
     onError: (error: any) => {
       message.error(
-        error.response?.data?.message || "Failed to update junction"
+        error.response?.data?.error ||
+          error.response?.data?.message ||
+          "Failed to update junction"
       );
     },
   });
