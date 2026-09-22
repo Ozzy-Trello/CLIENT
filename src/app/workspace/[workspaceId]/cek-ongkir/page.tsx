@@ -33,12 +33,9 @@ import {
   formatRupiah,
   roundShippingKg,
 } from "@utils/shipping-weight";
-import { buildOrderLines } from "@utils/shipping-quote-lines";
+import { buildQuoteMessage, ESTIMATE_NOTE } from "@utils/shipping-quote-lines";
 
 const { Title, Text, Paragraph } = Typography;
-
-const ESTIMATE_NOTE =
-  "Hanya estimasi awal. Berat aktual bisa lebih ringan atau lebih berat. Kemasan belum termasuk; tarif akhir mengikuti hasil timbang, dimensi, dan ketentuan ekspedisi.";
 
 export default function CekOngkirPage({
   params,
@@ -168,24 +165,14 @@ export default function CekOngkirPage({
 
   const autotext = useMemo(() => {
     if (!quote || isDirty || chosenRates.length === 0) return "";
-    const itemLines = buildOrderLines(quote.items);
-
-    const rateLines = chosenRates
-      .map(
-        (rate, index) =>
-          `${index + 1}. ${rate.courierName} ${rate.service} — ${formatRupiah(rate.cost)}` +
-          (rate.etd ? `\n   Estimasi ${rate.etd}` : "")
-      )
-      .join("\n");
-
-    return [
-      `Halo Kak, berikut estimasi ongkir pesanan Kakak dari ${quote.origin.name} ke ${quote.destination.label}.`,
-      `Dari: ${quote.origin.name}\nAlamat asal: ${quote.origin.address}\nKe: ${quote.destination.label}\n\nRincian pesanan:\n${itemLines}\n\nTotal: ${quote.totalPieces} pcs\nEstimasi berat produk: ${formatGrams(quote.totalGrams)}\nBerat hitung ongkir: ${quote.billedWeightKg} kg`,
-      rateLines,
-      "Estimasi waktu dihitung setelah paket diserahkan ke ekspedisi, di luar waktu produksi.",
-      ESTIMATE_NOTE,
-      "Kakak mau pilih pengiriman yang mana?",
-    ].join("\n\n");
+    return buildQuoteMessage({
+      originName: quote.origin.name,
+      destinationLabel: quote.destination.label,
+      items: quote.items,
+      totalPieces: quote.totalPieces,
+      billedWeightKg: quote.billedWeightKg,
+      rates: chosenRates,
+    });
   }, [quote, isDirty, chosenRates]);
 
   const copyAutotext = async () => {
@@ -411,7 +398,14 @@ export default function CekOngkirPage({
           </>
         )}
 
-        <Alert className="mt-4" type="warning" showIcon message={ESTIMATE_NOTE} />
+        <Alert
+          className="mt-4"
+          type="warning"
+          showIcon
+          message={
+            <span className="whitespace-pre-line">{ESTIMATE_NOTE}</span>
+          }
+        />
 
         <Button
           type="primary"
