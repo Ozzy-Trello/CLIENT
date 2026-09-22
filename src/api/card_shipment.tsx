@@ -48,6 +48,16 @@ export const saveCardShipment = async (
   return data;
 };
 
+export const generateCardWaybill = async (
+  cardId: string,
+  ekspedisiOptionValue: string,
+): Promise<ApiResponse<{ waybillId: string }>> => {
+  const { data } = await api.post(`/card/${cardId}/shipment/generate-waybill`, {
+    ekspedisiOptionValue,
+  });
+  return data;
+};
+
 export const deleteCardShipment = async (
   cardId: string,
 ): Promise<ApiResponse<null>> => {

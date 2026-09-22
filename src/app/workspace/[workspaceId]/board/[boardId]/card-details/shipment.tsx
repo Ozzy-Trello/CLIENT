@@ -37,6 +37,18 @@ const WAITING_FOR_RESI_LIST = "menunggu resi";
 export const RESI_BLOCKED_MESSAGE =
   "Card belum ada di list Menunggu Resi";
 
+const OZZY_XPRESS_LABEL = "ozzy xpress";
+
+/**
+ * Kurir internal tidak menerbitkan resi, jadi nomornya dibuatkan server.
+ */
+export const isOzzyXpressOption = (
+  options: CustomOption[],
+  value: string,
+): boolean =>
+  options.find((option) => option.value === value)?.label.trim().toLowerCase() ===
+  OZZY_XPRESS_LABEL;
+
 /**
  * Resi baru bisa diinput setelah kartu sampai di list "Menunggu Resi".
  */
@@ -82,8 +94,10 @@ const Shipment: React.FC<ShipmentProps> = ({
     isLoading: isLoadingShipment,
     saveShipment,
     deleteShipment,
+    generateWaybill,
     isSaving,
     isDeleting,
+    isGenerating,
   } = useCardShipment(cardId, workspaceId, { enabled: open });
   const {
     cardAttachments,
@@ -109,6 +123,7 @@ const Shipment: React.FC<ShipmentProps> = ({
   const waybillInputRef = useRef<InputRef>(null);
   const initializedCardRef = useRef<string>();
   const isFormDirtyRef = useRef(false);
+  const generateRequestedRef = useRef(false);
   const [showCameraScanner, setShowCameraScanner] = useState(false);
   const scanProcessedRef = useRef(false);
 
@@ -147,11 +162,13 @@ const Shipment: React.FC<ShipmentProps> = ({
     return mappings.find((mapping) => mapping.label === label) ?? null;
   }, [ekspedisi, mappings, options]);
   const canEdit = canUpdateCard() && canManageCardCustomFields();
+  const isOzzyXpress = isOzzyXpressOption(options, ekspedisi);
   const isBusy =
     isSubmitting ||
     isDeletingReceipt ||
     isSaving ||
     isDeleting ||
+    isGenerating ||
     isAddingAttachment ||
     isDeletingAttachment;
   const isLoading = isLoadingShipment || isLoadingAttachments;
@@ -171,6 +188,7 @@ const Shipment: React.FC<ShipmentProps> = ({
     if (!open) {
       initializedCardRef.current = undefined;
       isFormDirtyRef.current = false;
+      generateRequestedRef.current = false;
       setSelectedFile(null);
       setHideExistingReceipt(false);
       setShowCameraScanner(false);
@@ -207,6 +225,41 @@ const Shipment: React.FC<ShipmentProps> = ({
     shipment?.id,
     shipment?.updatedAt,
     shipment?.waybillId,
+  ]);
+
+  // Nomor resi Ozzy Xpress dibuatkan server begitu ekspedisinya terpilih,
+  // termasuk saat modal baru dibuka dan pilihannya sudah datang dari kartu.
+  // Nomor yang sudah tersimpan dipertahankan supaya urutan harian tidak
+  // terbakar percuma setiap kali modal dibuka ulang.
+  useEffect(() => {
+    if (!open || !canEdit || isLoadingShipment) return;
+    if (!isOzzyXpress || waybill.trim() || generateRequestedRef.current) return;
+
+    generateRequestedRef.current = true;
+    generateWaybill(ekspedisi)
+      .then((response) => {
+        const generated = response?.data?.waybillId;
+        if (!generated) throw new Error("Nomor resi tidak diterima dari server.");
+        isFormDirtyRef.current = true;
+        setWaybill(generated);
+      })
+      .catch((error: any) => {
+        // Sengaja tidak mencoba ulang: penyebabnya (Cabang kosong) hanya bisa
+        // diperbaiki orang, dan percobaan berulang akan membanjiri server.
+        message.error(
+          error?.response?.data?.message ||
+            error?.message ||
+            "Gagal membuat nomor resi Ozzy Xpress.",
+        );
+      });
+  }, [
+    canEdit,
+    ekspedisi,
+    generateWaybill,
+    isLoadingShipment,
+    isOzzyXpress,
+    open,
+    waybill,
   ]);
 
   useEffect(() => {
@@ -490,20 +543,31 @@ const Shipment: React.FC<ShipmentProps> = ({
                   isFormDirtyRef.current = true;
                   setWaybill(event.target.value);
                 }}
-                placeholder="Contoh: JNE1234567890"
+                placeholder={
+                  isOzzyXpress
+                    ? "Dibuat otomatis..."
+                    : "Contoh: JNE1234567890"
+                }
                 disabled={!canEdit || isBusy}
+                readOnly={isOzzyXpress}
                 onPressEnter={handleSave}
               />
-              <Button
-                icon={<Camera size={14} />}
-                onClick={() => setShowCameraScanner(true)}
-                disabled={!canEdit || isBusy}
-              >
-                Scan QR
-              </Button>
+              {isOzzyXpress ? null : (
+                <Button
+                  icon={<Camera size={14} />}
+                  onClick={() => setShowCameraScanner(true)}
+                  disabled={!canEdit || isBusy}
+                >
+                  Scan QR
+                </Button>
+              )}
             </div>
             <div className="mt-1.5 text-xs leading-5 text-gray-500">
-              Setelah disimpan, nomor resi ini akan tersinkron ke Custom Field Resi.
+              {isGenerating
+                ? "Membuat nomor resi Ozzy Xpress..."
+                : isOzzyXpress
+                  ? "Nomor resi Ozzy Xpress dibuat otomatis dan tidak bisa diubah."
+                  : "Setelah disimpan, nomor resi ini akan tersinkron ke Custom Field Resi."}
             </div>
           </div>
 
@@ -517,6 +581,12 @@ const Shipment: React.FC<ShipmentProps> = ({
               value={ekspedisi || undefined}
               onChange={(value) => {
                 isFormDirtyRef.current = true;
+                // Nomor OZX milik ekspedisi lamanya, jadi ikut dibuang saat
+                // pindah kurir; kurir baru memakai nomor dari ekspedisi itu.
+                if (isOzzyXpress && !isOzzyXpressOption(options, value)) {
+                  setWaybill("");
+                }
+                generateRequestedRef.current = false;
                 setEkspedisi(value);
               }}
               placeholder="Pilih ekspedisi"

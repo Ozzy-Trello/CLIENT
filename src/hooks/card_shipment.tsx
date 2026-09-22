@@ -1,5 +1,6 @@
 import {
   deleteCardShipment,
+  generateCardWaybill,
   getCardShipment,
   getEkspedisiCourierMappings,
   saveCardShipment,
@@ -45,13 +46,21 @@ export const useCardShipment = (
     onSuccess: refresh,
   });
 
+  // Nomor baru diambil tiap kali dipanggil, jadi hasilnya tidak di-cache.
+  const generateMutation = useMutation({
+    mutationFn: (ekspedisiOptionValue: string) =>
+      generateCardWaybill(cardId!, ekspedisiOptionValue),
+  });
+
   return {
     shipment: shipmentQuery.data?.data ?? null,
     isLoading: shipmentQuery.isLoading,
     saveShipment: saveMutation.mutateAsync,
     deleteShipment: deleteMutation.mutateAsync,
+    generateWaybill: generateMutation.mutateAsync,
     isSaving: saveMutation.isPending,
     isDeleting: deleteMutation.isPending,
+    isGenerating: generateMutation.isPending,
   };
 };
 

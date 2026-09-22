@@ -124,6 +124,7 @@ jest.mock("antd", () => {
 
 const mockSaveShipment = jest.fn();
 const mockDeleteShipment = jest.fn();
+const mockGenerateWaybill = jest.fn();
 const mockAddAttachmentAsync = jest.fn();
 const mockDeleteAttachmentAsync = jest.fn();
 const mockOnClose = jest.fn();
@@ -170,8 +171,10 @@ const buildShipmentHook = (shipment: ReturnType<typeof buildShipment> | null = n
   isLoading: false,
   saveShipment: mockSaveShipment,
   deleteShipment: mockDeleteShipment,
+  generateWaybill: mockGenerateWaybill,
   isSaving: false,
   isDeleting: false,
+  isGenerating: false,
 });
 
 const buildMappingHook = (overrides: Record<string, unknown> = {}) => ({
@@ -254,6 +257,9 @@ describe("Shipment", () => {
     mockDeleteShipment.mockResolvedValue(undefined);
     mockAddAttachmentAsync.mockResolvedValue(undefined);
     mockDeleteAttachmentAsync.mockResolvedValue(undefined);
+    mockGenerateWaybill.mockResolvedValue({
+      data: { waybillId: "OZXIND1709260002" },
+    });
     mockModalConfirm.mockImplementation(({ onOk }) => onOk());
   });
 
@@ -619,6 +625,123 @@ describe("Shipment", () => {
       expect((screen.getByRole("textbox") as HTMLInputElement).value).toBe(
         "SCANNED-WAYBILL-999",
       );
+    });
+  });
+
+  describe("Ozzy Xpress", () => {
+    const ozzyField = {
+      ...ekspedisiField,
+      options: [
+        ...ekspedisiField.options,
+        { value: "Ozzy-Xpress", label: "Ozzy Xpress" },
+      ],
+    };
+
+    it("generates the waybill as soon as Ozzy Xpress is picked", async () => {
+      renderShipment({ cardCustomFields: [ozzyField] as any });
+
+      fireEvent.change(screen.getByRole("combobox"), {
+        target: { value: "Ozzy-Xpress" },
+      });
+
+      await waitFor(() => {
+        expect((screen.getByRole("textbox") as HTMLInputElement).value).toBe(
+          "OZXIND1709260002",
+        );
+      });
+      expect(mockGenerateWaybill).toHaveBeenCalledWith("Ozzy-Xpress");
+    });
+
+    it("generates on open when the card already carries Ozzy Xpress", async () => {
+      renderShipment({
+        cardCustomFields: [{ ...ozzyField, valueOption: "Ozzy-Xpress" }] as any,
+      });
+
+      await waitFor(() => {
+        expect((screen.getByRole("textbox") as HTMLInputElement).value).toBe(
+          "OZXIND1709260002",
+        );
+      });
+      expect(mockGenerateWaybill).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps a stored waybill instead of burning a new daily number", async () => {
+      mockUseCardShipment.mockReturnValue(
+        buildShipmentHook(
+          buildShipment({
+            ekspedisiOptionValue: "Ozzy-Xpress",
+            waybillId: "OZXIND1709260001",
+          }),
+        ),
+      );
+
+      renderShipment({ cardCustomFields: [ozzyField] as any });
+
+      await waitFor(() => {
+        expect((screen.getByRole("textbox") as HTMLInputElement).value).toBe(
+          "OZXIND1709260001",
+        );
+      });
+      expect(mockGenerateWaybill).not.toHaveBeenCalled();
+    });
+
+    it("locks the field and hides the scanner so the number cannot be typed", async () => {
+      renderShipment({ cardCustomFields: [ozzyField] as any });
+
+      fireEvent.change(screen.getByRole("combobox"), {
+        target: { value: "Ozzy-Xpress" },
+      });
+
+      await waitFor(() => {
+        expect(
+          (screen.getByRole("textbox") as HTMLInputElement).readOnly,
+        ).toBe(true);
+      });
+      expect(screen.queryByRole("button", { name: /scan qr/i })).toBeNull();
+    });
+
+    it("drops the OZX number when the courier changes away", async () => {
+      renderShipment({ cardCustomFields: [ozzyField] as any });
+
+      const select = screen.getByRole("combobox");
+      fireEvent.change(select, { target: { value: "Ozzy-Xpress" } });
+      await waitFor(() => {
+        expect((screen.getByRole("textbox") as HTMLInputElement).value).toBe(
+          "OZXIND1709260002",
+        );
+      });
+
+      fireEvent.change(select, { target: { value: "jne_reg" } });
+
+      await waitFor(() => {
+        expect((screen.getByRole("textbox") as HTMLInputElement).value).toBe("");
+      });
+      expect(
+        (screen.getByRole("textbox") as HTMLInputElement).readOnly,
+      ).toBe(false);
+    });
+
+    it("surfaces the missing-branch error and does not retry in a loop", async () => {
+      mockGenerateWaybill.mockRejectedValue({
+        response: { data: { message: "Isi Cabang dulu sebelum generate nomor resi" } },
+      });
+
+      renderShipment({ cardCustomFields: [ozzyField] as any });
+
+      fireEvent.change(screen.getByRole("combobox"), {
+        target: { value: "Ozzy-Xpress" },
+      });
+
+      await waitFor(() => {
+        expect(require("antd").message.error).toHaveBeenCalledWith(
+          "Isi Cabang dulu sebelum generate nomor resi",
+        );
+      });
+      expect((screen.getByRole("textbox") as HTMLInputElement).value).toBe("");
+      // Cabang tidak akan terisi sendiri, jadi percobaan ulang hanya membanjiri
+      // server dan menumpuk pesan error di layar.
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(mockGenerateWaybill).toHaveBeenCalledTimes(1);
     });
   });
 });
