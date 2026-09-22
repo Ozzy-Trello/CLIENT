@@ -17,6 +17,7 @@ import {
   Typography,
   message,
 } from "antd";
+import { PlusOutlined, DeleteOutlined } from "@ant-design/icons";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   createShippingQuote,
@@ -24,6 +25,7 @@ import {
   getShippingProducts,
   searchShippingDestinations,
   ShippingDestination,
+  ShippingProduct,
   ShippingQuote,
 } from "@api/shipping";
 import {
@@ -31,6 +33,7 @@ import {
   formatRupiah,
   roundShippingKg,
 } from "@utils/shipping-weight";
+import { buildOrderLines } from "@utils/shipping-quote-lines";
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -49,7 +52,8 @@ export default function CekOngkirPage({
     null
   );
   const [destinationQuery, setDestinationQuery] = useState("");
-  const [productId, setProductId] = useState<string | undefined>();
+  const [productIds, setProductIds] = useState<string[]>([]);
+  const [productToAdd, setProductToAdd] = useState<string | undefined>();
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [quote, setQuote] = useState<ShippingQuote | null>(null);
   const [selectedRates, setSelectedRates] = useState<Set<string>>(new Set());
@@ -87,20 +91,35 @@ export default function CekOngkirPage({
     };
   }, [destinationQuery]);
 
-  const selectedProduct = useMemo(
-    () => products.find((product) => product.mainCategoryId === productId),
-    [products, productId]
+  const chosenProducts = useMemo(
+    () =>
+      productIds
+        .map((id) => products.find((product) => product.mainCategoryId === id))
+        .filter((product): product is ShippingProduct => !!product),
+    [products, productIds]
   );
 
-  const lines = useMemo(() => {
-    if (!selectedProduct) return [];
-    return selectedProduct.variants
-      .map((variant) => ({
-        variant,
-        quantity: quantities[variant.junctionId] ?? 0,
-      }))
-      .filter((line) => line.quantity > 0);
-  }, [selectedProduct, quantities]);
+  const availableProducts = useMemo(
+    () =>
+      products.filter(
+        (product) => !productIds.includes(product.mainCategoryId)
+      ),
+    [products, productIds]
+  );
+
+  const lines = useMemo(
+    () =>
+      chosenProducts.flatMap((product) =>
+        product.variants
+          .map((variant) => ({
+            product,
+            variant,
+            quantity: quantities[variant.junctionId] ?? 0,
+          }))
+          .filter((line) => line.quantity > 0)
+      ),
+    [chosenProducts, quantities]
+  );
 
   const totalPieces = lines.reduce((sum, line) => sum + line.quantity, 0);
   const totalGrams = lines.reduce(
@@ -149,9 +168,8 @@ export default function CekOngkirPage({
 
   const autotext = useMemo(() => {
     if (!quote || isDirty || chosenRates.length === 0) return "";
-    const itemLines = quote.items
-      .map((item) => `${item.variantName}: ${item.quantity} pcs`)
-      .join("\n");
+    const itemLines = buildOrderLines(quote.items);
+
     const rateLines = chosenRates
       .map(
         (rate, index) =>
@@ -162,7 +180,7 @@ export default function CekOngkirPage({
 
     return [
       `Halo Kak, berikut estimasi ongkir pesanan Kakak dari ${quote.origin.name} ke ${quote.destination.label}.`,
-      `Dari: ${quote.origin.name}\nAlamat asal: ${quote.origin.address}\nKe: ${quote.destination.label}\nProduk: ${quote.items[0]?.productName ?? "-"}\n${itemLines}\nTotal: ${quote.totalPieces} pcs\nEstimasi berat produk: ${formatGrams(quote.totalGrams)}\nBerat hitung ongkir: ${quote.billedWeightKg} kg`,
+      `Dari: ${quote.origin.name}\nAlamat asal: ${quote.origin.address}\nKe: ${quote.destination.label}\n\nRincian pesanan:\n${itemLines}\n\nTotal: ${quote.totalPieces} pcs\nEstimasi berat produk: ${formatGrams(quote.totalGrams)}\nBerat hitung ongkir: ${quote.billedWeightKg} kg`,
       rateLines,
       "Estimasi waktu dihitung setelah paket diserahkan ke ekspedisi, di luar waktu produksi.",
       ESTIMATE_NOTE,
@@ -270,28 +288,76 @@ export default function CekOngkirPage({
           </Col>
 
           <Col xs={24} md={6}>
-            <Text strong>Produk</Text>
-            <Select
-              className="mt-2 w-full"
-              placeholder="Pilih produk"
-              value={productId}
-              onChange={(value) => {
-                setProductId(value);
-                setQuantities({});
-                markDirty();
-              }}
-              options={products.map((product) => ({
-                label: product.name,
-                value: product.mainCategoryId,
-              }))}
-            />
+            <Text strong>Tambah produk</Text>
+            <div className="mt-2 flex gap-2">
+              <Select
+                className="flex-1"
+                placeholder={
+                  availableProducts.length === 0
+                    ? "Semua produk sudah dipilih"
+                    : "Pilih produk"
+                }
+                disabled={availableProducts.length === 0}
+                value={productToAdd}
+                onChange={setProductToAdd}
+                options={availableProducts.map((product) => ({
+                  label: product.name,
+                  value: product.mainCategoryId,
+                }))}
+              />
+              <Button
+                icon={<PlusOutlined />}
+                disabled={!productToAdd}
+                onClick={() => {
+                  if (!productToAdd) return;
+                  setProductIds((prev) => [...prev, productToAdd]);
+                  setProductToAdd(undefined);
+                  markDirty();
+                }}
+              />
+            </div>
           </Col>
         </Row>
 
-        {selectedProduct && (
-          <>
-            <Row gutter={[16, 16]} className="mt-4">
-              {selectedProduct.variants.map((variant) => (
+        {chosenProducts.length === 0 && products.length > 0 && (
+          <Text type="secondary" className="mt-4 block text-xs">
+            Belum ada produk dipilih. Tambah satu atau lebih produk untuk
+            mengisi jumlah pcs.
+          </Text>
+        )}
+
+        {chosenProducts.map((product) => (
+          <div
+            key={product.mainCategoryId}
+            className="mt-4 rounded border border-gray-200 p-3"
+          >
+            <div className="mb-2 flex items-center justify-between">
+              <Text strong>{product.name}</Text>
+              <Button
+                type="text"
+                danger
+                size="small"
+                icon={<DeleteOutlined />}
+                onClick={() => {
+                  setProductIds((prev) =>
+                    prev.filter((id) => id !== product.mainCategoryId)
+                  );
+                  setQuantities((prev) => {
+                    const next = { ...prev };
+                    for (const variant of product.variants) {
+                      delete next[variant.junctionId];
+                    }
+                    return next;
+                  });
+                  markDirty();
+                }}
+              >
+                Hapus
+              </Button>
+            </div>
+
+            <Row gutter={[16, 16]}>
+              {product.variants.map((variant) => (
                 <Col xs={12} md={6} key={variant.junctionId}>
                   <Text className="text-xs">
                     {variant.name} · {variant.shippingWeightGrams} g/pcs
@@ -313,7 +379,11 @@ export default function CekOngkirPage({
                 </Col>
               ))}
             </Row>
+          </div>
+        ))}
 
+        {chosenProducts.length > 0 && (
+          <>
             <Row gutter={16} className="mt-4 rounded bg-gray-50 p-4">
               <Col xs={8}>
                 <Statistic title="Total jumlah" value={totalPieces} suffix="pcs" />
