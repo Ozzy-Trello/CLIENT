@@ -16,12 +16,15 @@ import {
 } from "antd";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  getShippingCourierServices,
   getShippingCouriersAdmin,
   getShippingOriginsAdmin,
   searchShippingDestinations,
   ShippingCourierAdmin,
+  ShippingCourierServiceAdmin,
   ShippingOriginAdmin,
   updateShippingCourier,
+  updateShippingCourierService,
   updateShippingOrigin,
 } from "@api/shipping";
 
@@ -278,6 +281,22 @@ export function ShippingCouriersTab({ workspaceId }: { workspaceId: string }) {
     enabled: !!workspaceId,
   });
 
+  const { data: services = [], isLoading: loadingServices } = useQuery({
+    queryKey: ["shippingCourierServices", workspaceId],
+    queryFn: () => getShippingCourierServices(workspaceId),
+    enabled: !!workspaceId,
+  });
+
+  const servicesByCourier = useMemo(() => {
+    const map = new Map<string, ShippingCourierServiceAdmin[]>();
+    for (const service of services) {
+      const rows = map.get(service.courierCode) ?? [];
+      rows.push(service);
+      map.set(service.courierCode, rows);
+    }
+    return map;
+  }, [services]);
+
   const toggleMutation = useMutation({
     mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
       updateShippingCourier(workspaceId, id, isActive),
@@ -293,7 +312,22 @@ export function ShippingCouriersTab({ workspaceId }: { workspaceId: string }) {
     },
   });
 
-  if (isLoading) {
+  const toggleServiceMutation = useMutation({
+    mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
+      updateShippingCourierService(workspaceId, id, isActive),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["shippingCourierServices", workspaceId],
+      });
+    },
+    onError: (error: any) => {
+      message.error(
+        error?.response?.data?.error || "Gagal mengubah status layanan"
+      );
+    },
+  });
+
+  if (isLoading || loadingServices) {
     return (
       <div className="flex h-40 items-center justify-center">
         <Spin />
@@ -308,13 +342,59 @@ export function ShippingCouriersTab({ workspaceId }: { workspaceId: string }) {
       </Title>
       <Paragraph type="secondary">
         Ekspedisi yang dimatikan tidak muncul di hasil Cek Ongkir maupun di
-        pesan yang dikirim ke konsumen.
+        pesan yang dikirim ke konsumen. Buka barisnya untuk mematikan layanan
+        tertentu saja, misalnya JNE JTR&gt;200 yang tidak dipakai untuk
+        pakaian.
       </Paragraph>
 
       <Table
         rowKey="id"
         dataSource={couriers}
         pagination={false}
+        expandable={{
+          expandedRowRender: (record: ShippingCourierAdmin) => {
+            const rows = servicesByCourier.get(record.courierCode) ?? [];
+            if (rows.length === 0) {
+              return (
+                <Text type="secondary" className="text-xs">
+                  Layanan akan muncul setelah pengecekan ongkir.
+                </Text>
+              );
+            }
+            return (
+              <Table
+                rowKey="id"
+                size="small"
+                dataSource={rows}
+                pagination={false}
+                columns={[
+                  { title: "Layanan", dataIndex: "service" },
+                  {
+                    title: "Tampilkan",
+                    dataIndex: "isActive",
+                    width: 120,
+                    render: (
+                      value: boolean,
+                      service: ShippingCourierServiceAdmin
+                    ) => (
+                      <Switch
+                        size="small"
+                        checked={value}
+                        loading={toggleServiceMutation.isPending}
+                        onChange={(checked) =>
+                          toggleServiceMutation.mutate({
+                            id: service.id,
+                            isActive: checked,
+                          })
+                        }
+                      />
+                    ),
+                  },
+                ]}
+              />
+            );
+          },
+        }}
         columns={[
           { title: "Ekspedisi", dataIndex: "displayName" },
           {
@@ -322,6 +402,22 @@ export function ShippingCouriersTab({ workspaceId }: { workspaceId: string }) {
             dataIndex: "courierCode",
             width: 120,
             render: (value: string) => <Tag>{value}</Tag>,
+          },
+          {
+            title: "Layanan",
+            width: 140,
+            render: (_: unknown, record: ShippingCourierAdmin) => {
+              const rows = servicesByCourier.get(record.courierCode) ?? [];
+              if (rows.length === 0) {
+                return <Text type="secondary">Belum ada</Text>;
+              }
+              const active = rows.filter((row) => row.isActive).length;
+              return (
+                <Text type={active === rows.length ? undefined : "warning"}>
+                  {active} dari {rows.length}
+                </Text>
+              );
+            },
           },
           {
             title: "Tampilkan",

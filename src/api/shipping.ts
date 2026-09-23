@@ -28,6 +28,14 @@ export interface ShippingCourierAdmin {
   displayOrder: number;
 }
 
+export interface ShippingCourierServiceAdmin {
+  id: string;
+  courierCode: string;
+  service: string;
+  displayName: string | null;
+  isActive: boolean;
+}
+
 export interface ShippingDestination {
   id: number;
   label: string;
@@ -192,6 +200,29 @@ export const updateShippingCourier = async (
 ): Promise<ShippingCourierAdmin> => {
   const { data } = await api.put(
     `/shipping/admin/couriers/${id}`,
+    { is_active: isActive },
+    headers(workspaceId)
+  );
+  return data.data;
+};
+
+export const getShippingCourierServices = async (
+  workspaceId: string
+): Promise<ShippingCourierServiceAdmin[]> => {
+  const { data } = await api.get(
+    "/shipping/admin/courier-services",
+    headers(workspaceId)
+  );
+  return data.data ?? [];
+};
+
+export const updateShippingCourierService = async (
+  workspaceId: string,
+  id: string,
+  isActive: boolean
+): Promise<ShippingCourierServiceAdmin> => {
+  const { data } = await api.put(
+    `/shipping/admin/courier-services/${id}`,
     { is_active: isActive },
     headers(workspaceId)
   );
