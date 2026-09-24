@@ -468,9 +468,14 @@ export default function CekOngkirPage({
                   {visibleRates.map((rate, index) => (
                     <label
                       key={`${rate.courierCode}-${rate.service}-${index}`}
-                      className="flex items-center justify-between gap-3 border-b py-2"
+                      className="flex items-start gap-2 border-b py-2"
                     >
+                      {/* Teks ditaruh di luar Checkbox, bukan sebagai isinya:
+                          pembungkus bawaan Ant Design menolak menyusut,
+                          sehingga nama kurir yang panjang melebarkan baris dan
+                          seluruh halaman bisa digeser ke samping di ponsel. */}
                       <Checkbox
+                        className="shrink-0 pt-0.5"
                         checked={selectedRates.has(rateKey(index))}
                         onChange={(e) => {
                           setSelectedRates((prev) => {
@@ -480,16 +485,24 @@ export default function CekOngkirPage({
                             return next;
                           });
                         }}
-                      >
-                        <span className="font-medium">
+                      />
+                      {/* Nama memakai satu baris penuh, harga dan estimasi
+                          berbagi baris di bawahnya. Berebut ruang di satu
+                          baris membuat nama panjang pecah jadi empat baris. */}
+                      <span className="block min-w-0 flex-1">
+                        <span className="block font-medium [overflow-wrap:anywhere]">
                           {rate.courierName} · {rate.service}
                         </span>
-                        {rate.etd && (
-                          <Tag className="ml-2">Estimasi {rate.etd}</Tag>
-                        )}
-                      </Checkbox>
-                      <span className="font-semibold text-green-700">
-                        {formatRupiah(rate.cost)}
+                        <span className="mt-1 flex items-center justify-between gap-2">
+                          <span className="whitespace-nowrap font-semibold text-green-700">
+                            {formatRupiah(rate.cost)}
+                          </span>
+                          {rate.etd && (
+                            <Tag className="m-0 whitespace-normal">
+                              Estimasi {rate.etd}
+                            </Tag>
+                          )}
+                        </span>
                       </span>
                     </label>
                   ))}
@@ -503,7 +516,10 @@ export default function CekOngkirPage({
           <Card title="Bagikan ke konsumen">
             {autotext ? (
               <>
-                <pre className="max-h-96 overflow-y-auto whitespace-pre-wrap rounded bg-gray-50 p-3 text-xs">
+                {/* Baris tarif bisa lebih panjang dari layar ponsel, dan
+                    pre-wrap saja tidak memecah kata; tanpa ini halaman bisa
+                    digeser ke samping. */}
+                <pre className="max-h-96 overflow-y-auto whitespace-pre-wrap rounded bg-gray-50 p-3 text-xs [overflow-wrap:anywhere]">
                   {autotext}
                 </pre>
                 <Button type="primary" className="mt-3" onClick={copyAutotext}>
