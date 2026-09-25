@@ -4,7 +4,7 @@ import DraggableCard from "../draggable-card";
 import AddCard from "./add-card";
 import { ListSortKey } from "./sort-options";
 import { UseMutateFunction } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "antd";
 import { AnyList } from "@myTypes/list";
 import { Card } from "@myTypes/card";
@@ -41,6 +41,8 @@ interface DraggableListProps {
   loadMoreError?: string | null;
   onRetryLoadMore?: () => void;
   onVisible?: (listId: string) => void;
+  sortKey: ListSortKey;
+  onSortChange: (listId: string, sortKey: ListSortKey) => void;
 }
 
 const DraggableList: React.FC<DraggableListProps> = ({
@@ -62,6 +64,8 @@ const DraggableList: React.FC<DraggableListProps> = ({
   loadMoreError,
   onRetryLoadMore,
   onVisible,
+  sortKey,
+  onSortChange,
 }) => {
   const listRef = useRef<HTMLDivElement | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
@@ -78,7 +82,6 @@ const DraggableList: React.FC<DraggableListProps> = ({
     [listRef]
   );
 
-  const [activeSortKey, setActiveSortKey] = useState<ListSortKey>("manual");
   const [hasBeenVisible, setHasBeenVisible] = useState(false);
   const hasCalledOnVisibleRef = useRef(false);
   const lastOnVisibleRef = useRef(onVisible);
@@ -124,10 +127,6 @@ const DraggableList: React.FC<DraggableListProps> = ({
     onLoadMore,
     list.id,
   ]);
-
-  useEffect(() => {
-    setActiveSortKey("manual");
-  }, [list.id]);
 
   // Track whether this list is currently intersecting but waiting for drag to end
   const pendingVisibleRef = useRef(false);
@@ -235,38 +234,10 @@ const DraggableList: React.FC<DraggableListProps> = ({
   const isLimitExceeded = list.cardLimit && cards.length > list.cardLimit;
   const listColor = isLimitExceeded ? "#fbbf24" : list.background || "#f9fafb"; // Yellow if limit exceeded, fallback to light gray
 
-  const displayCards = useMemo(() => {
-    if (activeSortKey === "manual") return cards;
-
-    const sorted = [...cards];
-
-    switch (activeSortKey) {
-      case "created_desc":
-        sorted.sort(
-          (a, b) =>
-            new Date(b.createdAt || 0).getTime() -
-            new Date(a.createdAt || 0).getTime()
-        );
-        break;
-      case "created_asc":
-        sorted.sort(
-          (a, b) =>
-            new Date(a.createdAt || 0).getTime() -
-            new Date(b.createdAt || 0).getTime()
-        );
-        break;
-      case "name_asc":
-        sorted.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-        break;
-      case "name_desc":
-        sorted.sort((a, b) => (b.name || "").localeCompare(a.name || ""));
-        break;
-      default:
-        break;
-    }
-
-    return sorted;
-  }, [cards, activeSortKey]);
+  // Urutan datang dari server dalam keadaan sudah terurut. Mengurutkan ulang
+  // di sini hanya akan mengurutkan 10 kartu yang termuat, bukan seluruh isi
+  // list, sehingga "Oldest first" menunjuk kartu yang keliru.
+  const displayCards = cards;
 
   return (
     <Draggable
@@ -356,8 +327,8 @@ const DraggableList: React.FC<DraggableListProps> = ({
                   deleteList={deleteList}
                   cardsCount={cards.length}
                   totalCards={totalCards}
-                  currentSortKey={activeSortKey}
-                  onSortChange={(key) => setActiveSortKey(key)}
+                        currentSortKey={sortKey}
+                        onSortChange={(key) => onSortChange(list.id, key)}
                   onToggleCollapse={onToggleCollapse}
                 />
                 <Droppable

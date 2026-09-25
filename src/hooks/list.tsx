@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { lists, moveList, deleteList, archiveList, unarchiveList, moveAllCardsInList, sortListCards } from "../api/list";
+import { lists, moveList, deleteList, archiveList, unarchiveList, moveAllCardsInList } from "../api/list";
 import { deleteAllCardsInList, archiveAllCardsInList } from "../api/card";
 import { api } from "../api";
 import { AnyList } from "../types/list";
@@ -416,38 +416,6 @@ export function useArchiveAllCardsInList() {
   };
 }
 
-/**
- * Hook to sort cards in a list
- */
-export function useSortListCards() {
-  const queryClient = useQueryClient();
-
-  const sortListCardsMutation = useMutation({
-    mutationFn: ({ listId, sortBy, direction }: { listId: string; sortBy: "name" | "createdAt" | "updatedAt" | "dueDate" | "position"; direction: "asc" | "desc" }) =>
-      sortListCards(listId, sortBy, direction),
-
-    onMutate: async ({ listId }) => {
-      await queryClient.cancelQueries({ queryKey: queryKeys.cards.list(listId) });
-      const previousCards = queryClient.getQueryData(queryKeys.cards.list(listId));
-      return { previousCards };
-    },
-
-    onError: (_err, vars, context) => {
-      if (context?.previousCards) {
-        queryClient.setQueryData(queryKeys.cards.list(vars.listId), context.previousCards);
-      }
-    },
-
-    onSettled: (_data, _error, variables) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.cards.list(variables.listId) });
-    },
-  });
-
-  return {
-    sortListCards: sortListCardsMutation.mutate,
-    isSortingListCards: sortListCardsMutation.isPending,
-  };
-}
 /**
  * Hook to delete all cards in a list
  */

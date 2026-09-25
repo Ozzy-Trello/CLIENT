@@ -20,6 +20,11 @@ import ListSkeleton from "./list-skeleton.tsx";
 import BoardScopeMenu from "@components/board-scope-menu";
 import { useCardMove, useCards } from "@hooks/card";
 import { cards } from "@api/card";
+import { getListSortPreferences, updateListSortPreference } from "@api/list";
+import {
+  LIST_SORT_OPTIONS,
+  ListSortKey,
+} from "./draggable-list/sort-options";
 import ModalDashcard from "@components/dashcard/modal-dashcard";
 import { DashcardConfig } from "@myTypes/dashcard";
 import { Card, EnumCardType } from "@myTypes/card";
@@ -57,6 +62,19 @@ const Droppable = dynamic(
 const CARD_PAGE_SIZE = 10;
 const BOARD_CARD_BACKGROUND_CONCURRENCY = 3;
 const DND_DEBUG_STORAGE_KEY = "ozzy_dnd_debug";
+
+/**
+ * Urutan dikerjakan server, bukan di layar. Board hanya memuat 10 kartu per
+ * list, jadi mengurutkan yang sudah termuat membuat "Oldest first" menunjuk
+ * kartu tertua di antara 10 itu saja — bukan kartu tertua sesungguhnya.
+ */
+function sortParams(sortKey: ListSortKey | undefined) {
+  const option = LIST_SORT_OPTIONS.find((item) => item.key === sortKey);
+  if (!option || option.key === "manual") {
+    return { sortBy: undefined, sortOrder: undefined };
+  }
+  return { sortBy: option.sortBy, sortOrder: option.sortOrder };
+}
 
 async function promiseAllLimit<T>(
   tasks: Array<() => Promise<T>>,
@@ -208,6 +226,8 @@ const BoardContentWithPermissions: React.FC<{
   onRetryLoadMoreCards: (listId: string) => void;
   onListVisible: (listId: string) => void;
   onAddCard: ({ card, listId }: { card: Partial<Card>; listId: string }) => void;
+  listSortKeys: Record<string, ListSortKey>;
+  onSortChange: (listId: string, sortKey: ListSortKey) => void;
 }> = ({
   lists,
   isLoading,
@@ -244,6 +264,8 @@ const BoardContentWithPermissions: React.FC<{
   onRetryLoadMoreCards,
   onListVisible,
   onAddCard,
+  listSortKeys,
+  onSortChange,
 }) => {
     // Now we can safely use the context hook inside the provider
     const { canCreateList } = useBoardPermissionsContext();
@@ -316,6 +338,8 @@ const BoardContentWithPermissions: React.FC<{
                           loadMoreError={loadMoreErrors[list.id] || null}
                           onRetryLoadMore={() => onRetryLoadMoreCards(list.id)}
                           onVisible={onListVisible}
+                          sortKey={listSortKeys[list.id] || "manual"}
+                          onSortChange={onSortChange}
                         />
                       );
                     })}
@@ -399,6 +423,15 @@ const Board: React.FC = () => {
       return next;
     });
   }, []);
+
+  // Urutan pilihan admin, tersimpan di server per pengguna. Disimpan di sini
+  // dan bukan di tiap list karena ikut menentukan permintaan kartunya.
+  const [listSortKeys, setListSortKeys] = useState<Record<string, ListSortKey>>(
+    {}
+  );
+  const listSortKeysRef = useRef(listSortKeys);
+  listSortKeysRef.current = listSortKeys;
+  const [sortPreferencesLoaded, setSortPreferencesLoaded] = useState(false);
 
   // Drag-to-scroll state management
   const [isDraggingToScroll, setIsDraggingToScroll] = useState(false);
@@ -827,6 +860,10 @@ const Board: React.FC = () => {
     const requestGeneration = initialCardsGeneration;
     const labelIds = selectedLabelIds.length > 0 ? selectedLabelIds : undefined;
     const hasLabelFilter = !!labelIds;
+    const { sortBy, sortOrder } = sortParams(listSortKeysRef.current[listId]);
+    // Cache board dipakai bersama tanpa memuat urutan, jadi hasil terurut
+    // tidak boleh dibaca dari sana maupun ditulis ke sana.
+    const cacheable = !hasLabelFilter && !sortBy;
 
     loadedInitialCardListsRef.current.add(listId);
     setInitialCardsLoadingByListId((prev) => ({
@@ -877,7 +914,7 @@ const Board: React.FC = () => {
 
     // Only use cache when there's NO label filter active.
     // Filtered results are local-only to avoid total/count cache collisions.
-    if (!hasLabelFilter) {
+    if (cacheable) {
       const cachedCards = queryClient.getQueryData<ApiResponse<Card[]>>(
         queryKeys.cards.list(listId)
       );
@@ -898,8 +935,8 @@ const Board: React.FC = () => {
         1,
         CARD_PAGE_SIZE,
         labelIds,
-        undefined,
-        undefined,
+        sortBy,
+        sortOrder,
         { view: "board", signal: controller.signal }
       );
       clearTimeout(timeoutId);
@@ -907,7 +944,7 @@ const Board: React.FC = () => {
       if (response?.data) {
         updateListCards(response.data, response.paginate?.totalData);
 
-        if (!hasLabelFilter) {
+        if (cacheable) {
           queryClient.setQueryData<ApiResponse<Card[]>>(
             queryKeys.cards.list(listId),
             response
@@ -921,10 +958,43 @@ const Board: React.FC = () => {
       console.error("[INIT CARDS] Error:", error);
       updateListCards([], 0);
     }
-  }, [initialCardsGeneration, queryClient, resolvedBoardId, selectedLabelIds]);
+  }, [
+    initialCardsGeneration,
+    queryClient,
+    resolvedBoardId,
+    selectedLabelIds,
+  ]);
+
+  // Dimuat sebelum kartu diambil supaya permintaan pertama sudah memakai
+  // urutan yang benar, bukan mengambil urutan manual lalu menukar isinya.
+  useEffect(() => {
+    if (!resolvedBoardId) return;
+
+    let cancelled = false;
+    setSortPreferencesLoaded(false);
+
+    getListSortPreferences(resolvedBoardId)
+      .then((preferences) => {
+        if (cancelled) return;
+        setListSortKeys(preferences as Record<string, ListSortKey>);
+      })
+      .catch((error) => {
+        // Board tetap terbuka dengan urutan manual kalau preferensi gagal
+        // dibaca; kegagalan ini tidak boleh menahan kartu.
+        console.error("[LIST SORT] Failed to load preferences:", error);
+      })
+      .finally(() => {
+        if (!cancelled) setSortPreferencesLoaded(true);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [resolvedBoardId]);
 
   useEffect(() => {
     if (!lists || lists.length === 0 || !resolvedBoardId || !initialCardsGeneration) return;
+    if (!sortPreferencesLoaded) return;
 
     let cancelled = false;
 
@@ -941,7 +1011,40 @@ const Board: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [fetchInitialCardsForList, initialCardsGeneration, lists, resolvedBoardId]);
+  }, [
+    fetchInitialCardsForList,
+    initialCardsGeneration,
+    lists,
+    resolvedBoardId,
+    sortPreferencesLoaded,
+  ]);
+
+  /**
+   * Mengubah urutan berarti memuat ulang list itu dari halaman pertama,
+   * karena kartu berikutnya harus ikut urutan yang sama.
+   */
+  const handleSortChange = useCallback(
+    (listId: string, sortKey: ListSortKey) => {
+      setListSortKeys((prev) => {
+        const next = { ...prev };
+        if (sortKey === "manual") delete next[listId];
+        else next[listId] = sortKey;
+        listSortKeysRef.current = next;
+        return next;
+      });
+
+      loadedInitialCardListsRef.current.delete(listId);
+      queryClient.removeQueries({ queryKey: queryKeys.cards.list(listId) });
+      void fetchInitialCardsForList(listId);
+
+      updateListSortPreference(listId, sortKey).catch((error) => {
+        // Urutan sudah tampil; gagal menyimpan hanya berarti tidak bertahan
+        // sampai board dibuka lagi.
+        console.error("[LIST SORT] Failed to save preference:", error);
+      });
+    },
+    [fetchInitialCardsForList, queryClient]
+  );
 
   // Sync local cards when list cache updates (e.g., automation-driven changes)
   useEffect(() => {
@@ -2020,20 +2123,21 @@ const Board: React.FC = () => {
     setLoadMoreErrors((prev) => ({ ...prev, [listId]: null }));
 
     try {
+      const { sortBy, sortOrder } = sortParams(listSortKeysRef.current[listId]);
       const response = await cards(
         listId,
         resolvedBoardId,
         nextPage,
         CARD_PAGE_SIZE,
         selectedLabelIds.length > 0 ? selectedLabelIds : undefined,
-        undefined,
-        undefined,
+        sortBy,
+        sortOrder,
         { view: "board" }
       );
 
       if (response.data && response.data.length > 0) {
         const newCards = response.data; // Extract for type safety
-        const hasLabelFilter = selectedLabelIds.length > 0;
+        const hasLabelFilter = selectedLabelIds.length > 0 || !!sortBy;
 
         setLocalCards((prev) => {
           const existing = prev[listId] || [];
@@ -2256,6 +2360,8 @@ const Board: React.FC = () => {
                 onRetryLoadMoreCards={retryLoadMoreCards}
                 onListVisible={fetchInitialCardsForList}
                 onAddCard={handleAddCard}
+                listSortKeys={listSortKeys}
+                onSortChange={handleSortChange}
               />
               <HorizontalSlider
                 containerRef={boardScrollContainerRef}

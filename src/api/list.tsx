@@ -99,15 +99,20 @@ export const moveAllCardsInList = async (
   return data;
 };
 
-// Sort cards in a list by a given field/direction
-export const sortListCards = async (
-  listId: string,
-  sortBy: "name" | "createdAt" | "updatedAt" | "dueDate" | "position",
-  direction: "asc" | "desc"
-): Promise<ApiResponse<{ sorted: boolean }>> => {
-  const { data } = await api.post(`/list/${listId}/sort-cards`, {
-    sortBy,
-    direction,
+// Urutan kartu pilihan admin, tersimpan per pengguna. Dibaca sekaligus
+// seboard karena board membuka puluhan list berbarengan.
+export const getListSortPreferences = async (
+  boardId: string
+): Promise<Record<string, string>> => {
+  const { data } = await api.get("/list/sort-preferences", {
+    params: { boardId },
   });
-  return data;
+  return data?.data || {};
+};
+
+export const updateListSortPreference = async (
+  listId: string,
+  sortKey: string
+): Promise<void> => {
+  await api.put(`/list/${listId}/sort-preference`, { sortKey });
 };
