@@ -432,6 +432,8 @@ const Board: React.FC = () => {
   const listSortKeysRef = useRef(listSortKeys);
   listSortKeysRef.current = listSortKeys;
   const [sortPreferencesLoaded, setSortPreferencesLoaded] = useState(false);
+  const sortPreferencesLoadedRef = useRef(false);
+  sortPreferencesLoadedRef.current = sortPreferencesLoaded;
 
   // Drag-to-scroll state management
   const [isDraggingToScroll, setIsDraggingToScroll] = useState(false);
@@ -856,6 +858,10 @@ const Board: React.FC = () => {
   const fetchInitialCardsForList = useCallback(async (listId: string) => {
     if (!resolvedBoardId || !initialCardsGeneration) return;
     if (loadedInitialCardListsRef.current.has(listId)) return;
+    // List yang masuk pandangan memanggil ini lewat onVisible, jadi gerbangnya
+    // harus di sini: tanpa ini kartu diminta sebelum urutan pilihan admin
+    // terbaca, dan yang termuat adalah urutan manual.
+    if (!sortPreferencesLoadedRef.current) return;
 
     const requestGeneration = initialCardsGeneration;
     const labelIds = selectedLabelIds.length > 0 ? selectedLabelIds : undefined;
