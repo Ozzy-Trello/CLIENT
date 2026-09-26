@@ -101,13 +101,28 @@ export const moveAllCardsInList = async (
 
 // Urutan kartu pilihan admin, tersimpan per pengguna. Dibaca sekaligus
 // seboard karena board membuka puluhan list berbarengan.
+//
+// Backend mengirim deretan, bukan peta ber-kunci id list: interceptor
+// response mengubah semua kunci JSON ke camelCase dan itu merusak UUID.
+// Petanya disusun di sini dari nilai, yang tidak disentuh.
 export const getListSortPreferences = async (
   boardId: string
 ): Promise<Record<string, string>> => {
   const { data } = await api.get("/list/sort-preferences", {
     params: { boardId },
   });
-  return data?.data || {};
+
+  const rows: Array<{ listId?: string; sortKey?: string }> = Array.isArray(
+    data?.data
+  )
+    ? data.data
+    : [];
+
+  const result: Record<string, string> = {};
+  for (const row of rows) {
+    if (row?.listId && row?.sortKey) result[row.listId] = row.sortKey;
+  }
+  return result;
 };
 
 export const updateListSortPreference = async (
