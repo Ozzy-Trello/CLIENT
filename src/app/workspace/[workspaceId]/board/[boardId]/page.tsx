@@ -1069,6 +1069,10 @@ const Board: React.FC = () => {
       if (!listId) return;
       if (lists && !lists.some((list) => list.id === listId)) return;
       if ((window as any).__DRAG_IN_PROGRESS__) return;
+      // Cache ini juga diisi useCards, yang memuat tanpa urutan. Menyalinnya
+      // ke list yang sedang memakai urutan pilihan admin akan menimpa kartu
+      // terurut dengan urutan manual beberapa detik setelah board terbuka.
+      if (listSortKeysRef.current[listId]) return;
 
       const data = queryClient.getQueryData<ApiResponse<Card[]>>(key);
       if (!data?.data) return;
