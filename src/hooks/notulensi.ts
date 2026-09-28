@@ -27,6 +27,7 @@ import {
   CreateNotulensiPayload,
   CreateNotulensiLinkPayload,
   CreateNotulensiCardPayload,
+  NotulensiCalendarFilters,
   NotulensiCommentPayload,
   NotulensiListFilters,
   NotulensiPrivateNotePayload,
@@ -255,11 +256,16 @@ export function useNotulensiEligibleAssignees(workspaceId: string) {
   });
 }
 
-export function useNotulensiCalendar(workspaceId: string, enabled = true) {
+export function useNotulensiCalendar(
+  workspaceId: string,
+  enabled = true,
+  filters: NotulensiCalendarFilters = {}
+) {
   return useQuery({
-    queryKey: [...queryKeys.notulensi.workspace(workspaceId), "calendar"] as const,
-    queryFn: () => getNotulensiCalendar(workspaceId),
+    queryKey: [...queryKeys.notulensi.workspace(workspaceId), "calendar", filters] as const,
+    queryFn: () => getNotulensiCalendar(workspaceId, filters),
     enabled: Boolean(workspaceId) && enabled,
+    placeholderData: (previousData) => previousData,
   });
 }
 

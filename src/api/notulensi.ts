@@ -9,6 +9,7 @@ import {
   NotulensiAttachmentResponse,
   NotulensiDetailResponse,
   NotulensiExportResponse,
+  NotulensiCalendarFilters,
   NotulensiCalendarResponse,
   NotulensiListFilters,
   NotulensiListResponse,
@@ -218,9 +219,17 @@ export const getNotulensiEligibleAssignees = async (
 };
 
 export const getNotulensiCalendar = async (
-  workspaceId: string
+  workspaceId: string,
+  filters: NotulensiCalendarFilters = {}
 ): Promise<NotulensiCalendarResponse> => {
-  const response = await api.get(`${notulensiBasePath(workspaceId)}/calendar`);
+  const response = await api.get(`${notulensiBasePath(workspaceId)}/calendar`, {
+    params: {
+      scope: filters.scope || undefined,
+      assignee_ids: filters.assigneeIds?.length
+        ? filters.assigneeIds.join(",")
+        : undefined,
+    },
+  });
   return response.data;
 };
 

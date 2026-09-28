@@ -33,7 +33,9 @@ export default function NotulensiDueDatePicker({
   ...pickerProps
 }: Props) {
   const enabled = assigneeIds.length > 0;
-  const calendarQuery = useNotulensiCalendar(workspaceId, enabled);
+  // Sending assignee_ids lifts the server's scope filter, so the counts
+  // cover the selected PICs' full workload, not just tasks related to us.
+  const calendarQuery = useNotulensiCalendar(workspaceId, enabled, { assigneeIds });
   const today = todayKey();
 
   const counts = useMemo(() => {

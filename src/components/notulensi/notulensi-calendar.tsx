@@ -4,7 +4,6 @@ import { NotulensiStatusLabel } from "@components/notulensi/notulensi-status";
 import {
   addMonths,
   countsByDate,
-  filterByPic,
   monthGrid,
   summarize,
   tasksOnDate,
@@ -14,7 +13,7 @@ import {
 } from "@components/notulensi/notulensi-calendar-utils";
 import { useCurrentAccount } from "@hooks/account";
 import { useNotulensiCalendar, useNotulensiEligibleAssignees } from "@hooks/notulensi";
-import { NotulensiCalendarTask } from "@myTypes/notulensi";
+import { NotulensiCalendarTask, NotulensiScope } from "@myTypes/notulensi";
 import { Alert, Button, Select, Spin } from "antd";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
@@ -65,6 +64,11 @@ function TaskLine({
         </span>
         <NotulensiStatusLabel status={task.status} />
       </div>
+      {task.creatorUsername && (
+        <div className="mt-0.5 text-xs text-gray-500">
+          Dibuat oleh {task.creatorUsername}
+        </div>
+      )}
       {key < today && (
         <div className="mt-0.5 text-xs font-semibold text-red-600">
           Overdue · deadline asli
@@ -74,26 +78,38 @@ function TaskLine({
   );
 }
 
+const scopeOptions: { value: NotulensiScope; label: string }[] = [
+  { value: "related", label: "All Related" },
+  { value: "created", label: "Created by me" },
+  { value: "assigned", label: "Assigned to me" },
+  { value: "all", label: "All workspace" },
+];
+
 export default function NotulensiCalendar({ workspaceId }: { workspaceId: string }) {
   const today = todayKey();
   const [month, setMonth] = useState(() => toMonthKey(today));
   const [selectedDate, setSelectedDate] = useState(today);
   const [view, setView] = useState<SummaryView>("current");
-  // null = user has not touched the filter yet; defaults to the logged-in
-  // user once the account loads. PIC means assignee, so members land on
-  // their own workload first and switch to "Semua PIC" when needed.
-  const [pickedPic, setPickedPic] = useState<string | null>(null);
+  // Same filter model as the list: scope defaults to All Related, assignees
+  // blank. Picking assignees widens visibility server-side so any member can
+  // inspect another PIC's workload.
+  const [scope, setScope] = useState<NotulensiScope>("related");
+  const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
 
-  const calendarQuery = useNotulensiCalendar(workspaceId);
-  const assigneesQuery = useNotulensiEligibleAssignees(workspaceId);
   const { data: accountData } = useCurrentAccount();
-  const pic = pickedPic ?? accountData?.data?.id ?? "all";
+  const allowAll = accountData?.data?.role?.name === "Super Admin";
 
-  const allTasks = useMemo(
+  const calendarQuery = useNotulensiCalendar(workspaceId, true, {
+    scope: assigneeIds.length ? undefined : scope,
+    assigneeIds,
+  });
+  const assigneesQuery = useNotulensiEligibleAssignees(workspaceId);
+
+  const tasks = useMemo(
     () => calendarQuery.data?.data ?? [],
     [calendarQuery.data]
   );
-  const tasks = useMemo(() => filterByPic(allTasks, pic), [allTasks, pic]);
+  const undatedCount = calendarQuery.data?.undatedCount ?? 0;
   const counts = useMemo(() => countsByDate(tasks), [tasks]);
   const summary = useMemo(
     () => summarize(tasks, month, today),
@@ -101,14 +117,12 @@ export default function NotulensiCalendar({ workspaceId }: { workspaceId: string
   );
   const grid = useMemo(() => monthGrid(month), [month]);
 
-  const picOptions = useMemo(
-    () => [
-      { value: "all", label: "Semua PIC" },
-      ...(assigneesQuery.data?.data ?? []).map((user) => ({
+  const assigneeOptions = useMemo(
+    () =>
+      (assigneesQuery.data?.data ?? []).map((user) => ({
         value: user.id,
         label: user.username,
       })),
-    ],
     [assigneesQuery.data]
   );
 
@@ -170,20 +184,41 @@ export default function NotulensiCalendar({ workspaceId }: { workspaceId: string
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-3">
         <Select
-          value={pic}
-          options={picOptions}
-          onChange={setPickedPic}
+          value={scope}
+          options={scopeOptions.filter(
+            (option) => option.value !== "all" || allowAll
+          )}
+          onChange={setScope}
+          disabled={assigneeIds.length > 0}
+          className="min-w-[160px]"
+          aria-label="Scope"
+        />
+        <Select
+          mode="multiple"
+          value={assigneeIds}
+          options={assigneeOptions}
+          onChange={setAssigneeIds}
           loading={assigneesQuery.isLoading}
-          className="min-w-[180px]"
+          placeholder="Assignees"
+          className="min-w-[220px]"
           showSearch
           optionFilterProp="label"
-          aria-label="Filter PIC"
+          allowClear
+          aria-label="Filter assignees"
         />
         <span className="text-xs text-gray-500">
-          Filter PIC berlaku untuk kalender, ringkasan dan daftar.
+          Memilih assignees menampilkan seluruh task PIC tersebut.
         </span>
         {calendarQuery.isFetching && <Spin size="small" />}
       </div>
+
+      {undatedCount > 0 && (
+        <Alert
+          type="info"
+          showIcon
+          message={`${undatedCount} task aktif tidak muncul di kalender karena belum punya due date.`}
+        />
+      )}
 
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-3" aria-label="Ringkasan pekerjaan">
         {summaryCards.map((card) => (
@@ -289,9 +324,12 @@ export default function NotulensiCalendar({ workspaceId }: { workspaceId: string
           </h3>
           <div className="text-xs text-gray-500">
             {detailTasks.length} task ·{" "}
-            {pic === "all"
-              ? "semua PIC"
-              : picOptions.find((option) => option.value === pic)?.label}
+            {assigneeIds.length
+              ? assigneeIds
+                  .map((id) => assigneeOptions.find((option) => option.value === id)?.label)
+                  .filter(Boolean)
+                  .join(", ")
+              : scopeOptions.find((option) => option.value === scope)?.label}
           </div>
           {calendarQuery.isLoading ? (
             <Spin />

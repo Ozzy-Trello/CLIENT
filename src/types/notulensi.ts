@@ -241,11 +241,20 @@ export interface NotulensiCalendarTask {
   status: NotulensiStatus;
   priority: NotulensiPriority;
   dueDate: string;
+  createdBy?: string;
+  creatorUsername?: string | null;
   assignees: NotulensiCalendarAssignee[];
+}
+
+export interface NotulensiCalendarFilters {
+  scope?: NotulensiScope;
+  assigneeIds?: string[];
 }
 
 export interface NotulensiCalendarResponse {
   data: NotulensiCalendarTask[];
+  /** Active tasks hidden from the calendar because they have no due date. */
+  undatedCount?: number;
 }
 
 export interface NotulensiDetailResponse {
