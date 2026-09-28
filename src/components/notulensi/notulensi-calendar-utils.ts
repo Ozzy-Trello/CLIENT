@@ -56,6 +56,18 @@ export const filterByPic = (
         task.assignees.some((assignee) => assignee.userId === picUserId)
       );
 
+/**
+ * Date-picker grid numbers: a task counts once when at least one of the
+ * selected PICs is assigned to it, however many of them match.
+ */
+export const filterByAnyPic = (
+  tasks: NotulensiCalendarTask[],
+  picUserIds: string[]
+): NotulensiCalendarTask[] =>
+  tasks.filter((task) =>
+    task.assignees.some((assignee) => picUserIds.includes(assignee.userId))
+  );
+
 /** One task counts once per date, however many assignees it has. */
 export const countsByDate = (
   tasks: NotulensiCalendarTask[]

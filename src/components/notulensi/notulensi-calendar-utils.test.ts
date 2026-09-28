@@ -1,6 +1,7 @@
 import {
   addMonths,
   countsByDate,
+  filterByAnyPic,
   filterByPic,
   hasStacking,
   monthGrid,
@@ -66,6 +67,15 @@ describe("summary counts (prototype scenarios)", () => {
     expect(countsByDate(TASKS).get("2026-10-20")).toBe(4);
     expect(countsByDate(filterByPic(TASKS, "wahyu")).get("2026-10-20")).toBe(4);
     expect(countsByDate(filterByPic(TASKS, "rifqi")).get("2026-10-20")).toBe(1);
+  });
+
+  it("picker grid counts a task once even when several selected PICs share it", () => {
+    // Task 4 belongs to both Wahyu and Rifqi: still one entry on 20 Oct.
+    const combined = countsByDate(filterByAnyPic(TASKS, ["wahyu", "rifqi"]));
+    expect(combined.get("2026-10-20")).toBe(4);
+    expect(combined.get("2026-09-20")).toBe(1);
+    expect(countsByDate(filterByAnyPic(TASKS, ["henry"])).get("2026-10-20")).toBeUndefined();
+    expect(filterByAnyPic(TASKS, [])).toEqual([]);
   });
 });
 

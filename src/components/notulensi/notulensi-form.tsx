@@ -2,6 +2,7 @@
 
 import RichTextEditor from "@components/rich-text-editor";
 import NotulensiDueDateInsight from "@components/notulensi/notulensi-due-date-insight";
+import NotulensiDueDatePicker from "@components/notulensi/notulensi-due-date-picker";
 import NotulensiUserSelect from "@components/notulensi/notulensi-user-select";
 import { NOTULENSI_PRIORITY_META } from "@components/notulensi/notulensi-status";
 import {
@@ -25,7 +26,7 @@ import {
   NotulensiPriority,
   UpdateNotulensiPayload,
 } from "@myTypes/notulensi";
-import { Button, Checkbox, DatePicker, Form, Input, Result, Select, Typography, message } from "antd";
+import { Button, Checkbox, Form, Input, Result, Select, Typography, message } from "antd";
 import dayjs, { Dayjs } from "dayjs";
 import { ListChecks, Paperclip, Plus, Trash2, Upload } from "lucide-react";
 import Link from "next/link";
@@ -263,8 +264,23 @@ export default function NotulensiForm({
             />
           </Form.Item>
 
-          <Form.Item name="dueDate" label="Due date">
-            <DatePicker showTime className="w-full" />
+          <Form.Item
+            noStyle
+            shouldUpdate={(previous, current) =>
+              previous.assigneeIds !== current.assigneeIds
+            }
+          >
+            {() => (
+              <Form.Item name="dueDate" label="Due date">
+                <NotulensiDueDatePicker
+                  showTime
+                  className="w-full"
+                  workspaceId={workspaceId}
+                  assigneeIds={form.getFieldValue("assigneeIds") || []}
+                  editingTaskId={mode === "edit" ? initialData?.id : null}
+                />
+              </Form.Item>
+            )}
           </Form.Item>
 
           <Form.Item
