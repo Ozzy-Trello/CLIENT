@@ -43,7 +43,7 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
     clearOptionValue,
     setUserValue,
     isLoading,
-    isUpdating,
+    updatingFieldId,
   } = useCardCustomField(card?.id || "", workspaceId);
 
   const { canManageCardCustomFields, canUpdateCard } = useBoardPermissionsContext();
@@ -304,13 +304,6 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
   return (
     <div className="relative min-h-[200px]">
       {contextHolder}
-      {isUpdating && (
-        <div className="fixed inset-0 bg-white/60 z-[9999] flex items-center justify-center backdrop-blur-[1px]">
-          <div className="bg-white p-3 rounded-full shadow-lg">
-            <Loader2 className="animate-spin text-blue-600" size={32} />
-          </div>
-        </div>
-      )}
       <div className="ml-0 md:ml-8 mb-4">
         <Input
           placeholder="Search custom fields..."
@@ -338,6 +331,13 @@ const CustomFields: React.FC<CustomFieldsProps> = (props) => {
                         {field.name}
                       </span>
                     </Tooltip>
+                    {updatingFieldId === field.id && (
+                      <Loader2
+                        className="animate-spin text-blue-600 shrink-0"
+                        size={14}
+                        aria-label="Saving"
+                      />
+                    )}
                   </div>
                   {["no faktur", "no do", "no ri"].includes(
                     String(field.name || "").trim().toLowerCase()
