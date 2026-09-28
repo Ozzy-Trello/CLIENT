@@ -12,6 +12,7 @@ import {
   toMonthKey,
   todayKey,
 } from "@components/notulensi/notulensi-calendar-utils";
+import { useCurrentAccount } from "@hooks/account";
 import { useNotulensiCalendar, useNotulensiEligibleAssignees } from "@hooks/notulensi";
 import { NotulensiCalendarTask } from "@myTypes/notulensi";
 import { Alert, Button, Select, Spin } from "antd";
@@ -78,10 +79,15 @@ export default function NotulensiCalendar({ workspaceId }: { workspaceId: string
   const [month, setMonth] = useState(() => toMonthKey(today));
   const [selectedDate, setSelectedDate] = useState(today);
   const [view, setView] = useState<SummaryView>("current");
-  const [pic, setPic] = useState<string>("all");
+  // null = user has not touched the filter yet; defaults to the logged-in
+  // user once the account loads. PIC means assignee, so members land on
+  // their own workload first and switch to "Semua PIC" when needed.
+  const [pickedPic, setPickedPic] = useState<string | null>(null);
 
   const calendarQuery = useNotulensiCalendar(workspaceId);
   const assigneesQuery = useNotulensiEligibleAssignees(workspaceId);
+  const { data: accountData } = useCurrentAccount();
+  const pic = pickedPic ?? accountData?.data?.id ?? "all";
 
   const allTasks = useMemo(
     () => calendarQuery.data?.data ?? [],
@@ -166,7 +172,7 @@ export default function NotulensiCalendar({ workspaceId }: { workspaceId: string
         <Select
           value={pic}
           options={picOptions}
-          onChange={setPic}
+          onChange={setPickedPic}
           loading={assigneesQuery.isLoading}
           className="min-w-[180px]"
           showSearch
