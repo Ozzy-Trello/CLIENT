@@ -83,7 +83,9 @@ export async function proxyFileByUrl(
       Pragma: "no-cache",
     };
 
-    const commonPassthroughHeaders = ["accept"] as const;
+    // Range matters for PDF thumbnails: pdf.js fetches only the bytes it needs
+    // instead of pulling whole files (production has PDFs up to 97 MB).
+    const commonPassthroughHeaders = ["accept", "range"] as const;
 
     for (const headerName of commonPassthroughHeaders) {
       const value = request.headers.get(headerName);
@@ -130,6 +132,13 @@ export async function proxyFileByUrl(
           Pragma: "no-cache",
           Expires: "0",
         });
+
+        // Without these, pdf.js cannot tell that partial fetches are possible
+        // and falls back to downloading the entire file.
+        for (const headerName of ["accept-ranges", "content-range", "content-length"]) {
+          const value = upstream.headers.get(headerName);
+          if (value) responseHeaders.set(headerName, value);
+        }
 
         return new NextResponse(upstream.body, {
           status: upstream.status,

@@ -43,7 +43,12 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({
   const { pdfUrl, options } = useMemo(() => {
     const normalizedUrl = toDirectFileUrl(url);
     let resolvedPdfUrl = normalizedUrl;
-    const resolvedOptions: any = {};
+    // A thumbnail only ever renders page 1, so fetch just the bytes that page
+    // needs. Without this pdf.js downloads the whole file (up to 97 MB here).
+    const resolvedOptions: any = {
+      disableAutoFetch: true,
+      disableStream: false,
+    };
     const accessToken = TokenStorage.getAccessToken();
     const backendBaseUrl = process.env.NEXT_PUBLIC_BE_BASE_URL || "";
 

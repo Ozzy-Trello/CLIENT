@@ -56,6 +56,33 @@ export function invalidateCardContext(
   });
 }
 
+/**
+ * Narrow refresh for a single custom field value.
+ *
+ * The full invalidateCardContext also drops queryKeys.cards.all, which is a
+ * prefix of every list and every card query, so each save refetched all loaded
+ * lists plus the planner. Over HTTP/1.1 (6 sockets per origin) those refetches
+ * queued behind each other and the delay compounded per save. The mutation
+ * already writes the server response into the caches, so only the card and its
+ * own list need to refetch here.
+ */
+export function invalidateCardFieldValue(
+  queryClient: QueryClient,
+  params: { cardId: string; listId?: string | null }
+) {
+  const { cardId, listId } = params;
+
+  queryClient.invalidateQueries({
+    queryKey: queryKeys.cards.detail(cardId),
+  });
+
+  if (listId) {
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.cards.list(listId),
+    });
+  }
+}
+
 export function resolveCardContextForInvalidation(
   queryClient: QueryClient,
   cardId: string
