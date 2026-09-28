@@ -7,6 +7,7 @@ import {
   deleteNotulensiAttachment,
   deleteNotulensiComment,
   deleteNotulensiPrivateNote,
+  getNotulensiCalendar,
   getNotulensiEligibleAssignees,
   getNotulensiDetail,
   getNotulensiList,
@@ -251,6 +252,14 @@ export function useNotulensiEligibleAssignees(workspaceId: string) {
     queryKey: [...queryKeys.notulensi.workspace(workspaceId), "eligible-assignees"] as const,
     queryFn: () => getNotulensiEligibleAssignees(workspaceId),
     enabled: Boolean(workspaceId),
+  });
+}
+
+export function useNotulensiCalendar(workspaceId: string, enabled = true) {
+  return useQuery({
+    queryKey: [...queryKeys.notulensi.workspace(workspaceId), "calendar"] as const,
+    queryFn: () => getNotulensiCalendar(workspaceId),
+    enabled: Boolean(workspaceId) && enabled,
   });
 }
 

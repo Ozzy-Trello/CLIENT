@@ -1,5 +1,6 @@
 "use client";
 
+import NotulensiCalendar from "@components/notulensi/notulensi-calendar";
 import NotulensiFilters from "@components/notulensi/notulensi-filters";
 import NotulensiList from "@components/notulensi/notulensi-list";
 import { parseNotulensiFilters, persistedNotulensiFilters } from "@components/notulensi/notulensi-filter-storage";
@@ -7,9 +8,9 @@ import { exportNotulensi } from "@api/notulensi";
 import { useNotulensiList } from "@hooks/notulensi";
 import { useCurrentAccount } from "@hooks/account";
 import { NotulensiListFilters } from "@myTypes/notulensi";
-import { Alert, Button, Typography, message } from "antd";
+import { Alert, Button, Segmented, Typography, message } from "antd";
 import { createNotulensiWorkbook } from "@utils/notulensi-workbook";
-import { Download, RefreshCcw } from "lucide-react";
+import { CalendarDays, Download, List as ListIcon, RefreshCcw } from "lucide-react";
 import * as XLSX from "xlsx";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -26,6 +27,7 @@ export default function NotulensiPage() {
     limit: 20,
   });
   const [exporting, setExporting] = useState(false);
+  const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
   const [hydratedStorageKey, setHydratedStorageKey] = useState<string | null>(null);
 
   const { data: currentAccountData } = useCurrentAccount();
@@ -93,37 +95,53 @@ export default function NotulensiPage() {
         </div>
       </div>
 
-      <NotulensiFilters
-        value={filters}
-        onChange={setFilters}
-        allowAll={allowAll}
-        statusCounts={listQuery.data?.statusCounts}
-        workspaceId={workspaceId}
+      <Segmented
+        value={viewMode}
+        onChange={(value) => setViewMode(value as "list" | "calendar")}
+        options={[
+          { value: "list", label: "List", icon: <ListIcon size={14} className="inline" /> },
+          { value: "calendar", label: "Kalender", icon: <CalendarDays size={14} className="inline" /> },
+        ]}
+        className="self-start"
       />
 
-      {listQuery.isError ? (
-        <Alert
-          type="error"
-          showIcon
-          message="Failed to load instructions"
-          action={<Button onClick={() => listQuery.refetch()}>Retry</Button>}
-        />
-      ) : null}
+      {viewMode === "calendar" ? (
+        <NotulensiCalendar workspaceId={workspaceId} />
+      ) : (
+        <>
+          <NotulensiFilters
+            value={filters}
+            onChange={setFilters}
+            allowAll={allowAll}
+            statusCounts={listQuery.data?.statusCounts}
+            workspaceId={workspaceId}
+          />
 
-      <NotulensiList
-        workspaceId={workspaceId}
-        data={listQuery.data}
-        // Only blank the list when there is genuinely nothing to show yet:
-        // while filters are still hydrating from storage, and on the first
-        // load. Later searches keep the previous rows via placeholderData.
-        loading={!listQuery.data && !listQuery.isError && (!filtersReady || listQuery.isFetching)}
-        sortBy={filters.sortBy}
-        sortOrder={filters.sortOrder}
-        onPageChange={(page, pageSize) => setFilters((prev) => ({ ...prev, page, limit: pageSize }))}
-        onSortChange={(sortBy, sortOrder) =>
-          setFilters((prev) => ({ ...prev, sortBy, sortOrder, page: 1 }))
-        }
-      />
+          {listQuery.isError ? (
+            <Alert
+              type="error"
+              showIcon
+              message="Failed to load instructions"
+              action={<Button onClick={() => listQuery.refetch()}>Retry</Button>}
+            />
+          ) : null}
+
+          <NotulensiList
+            workspaceId={workspaceId}
+            data={listQuery.data}
+            // Only blank the list when there is genuinely nothing to show yet:
+            // while filters are still hydrating from storage, and on the first
+            // load. Later searches keep the previous rows via placeholderData.
+            loading={!listQuery.data && !listQuery.isError && (!filtersReady || listQuery.isFetching)}
+            sortBy={filters.sortBy}
+            sortOrder={filters.sortOrder}
+            onPageChange={(page, pageSize) => setFilters((prev) => ({ ...prev, page, limit: pageSize }))}
+            onSortChange={(sortBy, sortOrder) =>
+              setFilters((prev) => ({ ...prev, sortBy, sortOrder, page: 1 }))
+            }
+          />
+        </>
+      )}
     </div>
   );
 }

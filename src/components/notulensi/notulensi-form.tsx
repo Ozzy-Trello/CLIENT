@@ -1,6 +1,7 @@
 "use client";
 
 import RichTextEditor from "@components/rich-text-editor";
+import NotulensiDueDateInsight from "@components/notulensi/notulensi-due-date-insight";
 import NotulensiUserSelect from "@components/notulensi/notulensi-user-select";
 import { NOTULENSI_PRIORITY_META } from "@components/notulensi/notulensi-status";
 import {
@@ -264,6 +265,25 @@ export default function NotulensiForm({
 
           <Form.Item name="dueDate" label="Due date">
             <DatePicker showTime className="w-full" />
+          </Form.Item>
+
+          <Form.Item
+            noStyle
+            shouldUpdate={(previous, current) =>
+              previous.dueDate !== current.dueDate ||
+              previous.assigneeIds !== current.assigneeIds
+            }
+          >
+            {() => (
+              <div className="md:col-span-2">
+                <NotulensiDueDateInsight
+                  workspaceId={workspaceId}
+                  assigneeIds={form.getFieldValue("assigneeIds") || []}
+                  dueDate={form.getFieldValue("dueDate")?.toISOString() || null}
+                  editingTaskId={mode === "edit" ? initialData?.id : null}
+                />
+              </div>
+            )}
           </Form.Item>
 
           {mode === "create" ? (

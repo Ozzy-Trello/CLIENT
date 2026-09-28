@@ -229,6 +229,25 @@ export interface NotulensiListResponse {
   statusCounts: Record<NotulensiStatus, number>;
 }
 
+export interface NotulensiCalendarAssignee {
+  userId: string;
+  username: string | null;
+}
+
+export interface NotulensiCalendarTask {
+  id: string;
+  code: string;
+  title: string;
+  status: NotulensiStatus;
+  priority: NotulensiPriority;
+  dueDate: string;
+  assignees: NotulensiCalendarAssignee[];
+}
+
+export interface NotulensiCalendarResponse {
+  data: NotulensiCalendarTask[];
+}
+
 export interface NotulensiDetailResponse {
   data: NotulensiDetail;
 }

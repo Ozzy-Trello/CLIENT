@@ -9,6 +9,7 @@ import {
   NotulensiAttachmentResponse,
   NotulensiDetailResponse,
   NotulensiExportResponse,
+  NotulensiCalendarResponse,
   NotulensiListFilters,
   NotulensiListResponse,
   NotulensiPrivateNotePayload,
@@ -213,6 +214,13 @@ export const getNotulensiEligibleAssignees = async (
   workspaceId: string
 ): Promise<NotulensiEligibleAssigneesResponse> => {
   const response = await api.get(`${notulensiBasePath(workspaceId)}/eligible-assignees`);
+  return response.data;
+};
+
+export const getNotulensiCalendar = async (
+  workspaceId: string
+): Promise<NotulensiCalendarResponse> => {
+  const response = await api.get(`${notulensiBasePath(workspaceId)}/calendar`);
   return response.data;
 };
 
