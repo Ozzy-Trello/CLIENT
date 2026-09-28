@@ -11,9 +11,13 @@ import { useParams } from "next/navigation";
 import { generateId } from "@utils/general";
 // import { Droppable, DropResult, DragUpdate } from "@hello-pangea/dnd";
 import List from "./draggable-list";
-import { Button, Input } from "antd";
-import { Plus, X } from "lucide-react";
-import { CardDetailProvider } from "@providers/card-detail-context";
+import BoardCalendar from "./board-calendar";
+import { Button, Input, Segmented } from "antd";
+import { CalendarDays, Columns3, Plus, X } from "lucide-react";
+import {
+  CardDetailProvider,
+  useCardDetailContext,
+} from "@providers/card-detail-context";
 import { CardFocusProvider } from "@providers/card-focus-context";
 import CardDetails from "./card-details";
 import ListSkeleton from "./list-skeleton.tsx";
@@ -181,6 +185,18 @@ function buildCardsPagination(
     totalCards: resolvedTotal,
   };
 }
+
+// Lives inside CardDetailProvider: opening a card from the calendar reuses
+// the same cardId/listId URL params as the kanban view.
+const BoardCalendarWithCardDetail: React.FC<{ boardId: string }> = ({ boardId }) => {
+  const { handleItemDashcard } = useCardDetailContext();
+  return (
+    <BoardCalendar
+      boardId={boardId}
+      onOpenCard={(cardId, listId) => handleItemDashcard(cardId, listId, boardId)}
+    />
+  );
+};
 
 // Component that uses BoardPermissionsContext - must be inside the provider
 const BoardContentWithPermissions: React.FC<{
@@ -590,6 +606,7 @@ const Board: React.FC = () => {
   const [isAddingList, setIsAddingList] = useState<boolean>(false);
   const [newListName, setNewListName] = useState<string>("");
   const [boardScopeMenu, setBoardScopeMenu] = useState<boolean>(false);
+  const [boardView, setBoardView] = useState<"kanban" | "calendar">("kanban");
   const { addCard } = useCards("", resolvedBoardId || "");
   const { moveCard } = useCardMove(resolvedBoardId);
   const { moveList } = useListMove();
@@ -2332,6 +2349,27 @@ const Board: React.FC = () => {
         />
         <CardFocusProvider>
           <CardDetailProvider>
+            <div className="px-3 pt-2 md:px-4">
+              <Segmented
+                value={boardView}
+                onChange={(value) => setBoardView(value as "kanban" | "calendar")}
+                options={[
+                  {
+                    value: "kanban",
+                    label: "Kanban View",
+                    icon: <Columns3 size={14} className="inline" />,
+                  },
+                  {
+                    value: "calendar",
+                    label: "Calendar View",
+                    icon: <CalendarDays size={14} className="inline" />,
+                  },
+                ]}
+              />
+            </div>
+            {boardView === "calendar" ? (
+              <BoardCalendarWithCardDetail boardId={resolvedBoardId || ""} />
+            ) : (
             <div className="relative pb-10">
               {/* Horizontal Slider for manual navigation - positioned inside board area */}
               <BoardContentWithPermissions
@@ -2378,6 +2416,7 @@ const Board: React.FC = () => {
                 widthPercent={20}
               />
             </div>
+            )}
 
             <CardDetails />
 

@@ -253,8 +253,6 @@ export interface NotulensiCalendarFilters {
 
 export interface NotulensiCalendarResponse {
   data: NotulensiCalendarTask[];
-  /** Active tasks hidden from the calendar because they have no due date. */
-  undatedCount?: number;
 }
 
 export interface NotulensiDetailResponse {

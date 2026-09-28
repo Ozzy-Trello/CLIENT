@@ -109,7 +109,6 @@ export default function NotulensiCalendar({ workspaceId }: { workspaceId: string
     () => calendarQuery.data?.data ?? [],
     [calendarQuery.data]
   );
-  const undatedCount = calendarQuery.data?.undatedCount ?? 0;
   const counts = useMemo(() => countsByDate(tasks), [tasks]);
   const summary = useMemo(
     () => summarize(tasks, month, today),
@@ -212,13 +211,7 @@ export default function NotulensiCalendar({ workspaceId }: { workspaceId: string
         {calendarQuery.isFetching && <Spin size="small" />}
       </div>
 
-      {undatedCount > 0 && (
-        <Alert
-          type="info"
-          showIcon
-          message={`${undatedCount} task aktif tidak muncul di kalender karena belum punya due date.`}
-        />
-      )}
+
 
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-3" aria-label="Ringkasan pekerjaan">
         {summaryCards.map((card) => (

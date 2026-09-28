@@ -176,7 +176,11 @@ export default function NotulensiForm({
                 : values.content
             ),
             priority: values.priority,
-            dueDate: values.dueDate?.toISOString() || null,
+            // Date-only picker: send noon local time so the calendar date
+            // survives the UTC round-trip (WIB is UTC+7).
+            dueDate: values.dueDate
+              ? values.dueDate.hour(12).minute(0).second(0).millisecond(0).toISOString()
+              : null,
             assigneeIds: values.assigneeIds,
             ...(mode === "create" && normalizedChecklistItems.length ? {
               checklist: {
@@ -271,9 +275,12 @@ export default function NotulensiForm({
             }
           >
             {() => (
-              <Form.Item name="dueDate" label="Due date">
+              <Form.Item
+                name="dueDate"
+                label="Due date"
+                rules={[{ required: true, message: "Due date is required" }]}
+              >
                 <NotulensiDueDatePicker
-                  showTime
                   className="w-full"
                   workspaceId={workspaceId}
                   assigneeIds={form.getFieldValue("assigneeIds") || []}

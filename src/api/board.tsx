@@ -70,6 +70,27 @@ export const getAllRoles = async (
   return data;
 };
 
+export interface BoardCalendarCard {
+  id: string;
+  listId: string;
+  listName: string;
+  name: string;
+  dueDate: string;
+  startDate: string | null;
+  isComplete: boolean;
+}
+
+export const getBoardCalendarCards = async (
+  boardId: string,
+  from: string,
+  to: string
+): Promise<ApiResponse<BoardCalendarCard[]>> => {
+  const { data } = await api.get(`/board/${boardId}/calendar`, {
+    params: { from, to },
+  });
+  return data;
+};
+
 export const exportBoardCsv = async (
   boardId: string,
   workspaceId?: string
