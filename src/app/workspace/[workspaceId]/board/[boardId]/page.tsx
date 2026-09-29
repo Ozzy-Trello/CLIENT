@@ -12,8 +12,8 @@ import { generateId } from "@utils/general";
 // import { Droppable, DropResult, DragUpdate } from "@hello-pangea/dnd";
 import List from "./draggable-list";
 import BoardCalendar from "./board-calendar";
-import { Button, Input, Segmented } from "antd";
-import { CalendarDays, Columns3, Plus, X } from "lucide-react";
+import { Button, Input } from "antd";
+import { Plus, X } from "lucide-react";
 import {
   CardDetailProvider,
   useCardDetailContext,
@@ -2346,27 +2346,11 @@ const Board: React.FC = () => {
           board={boardDetails}
           selectedLabelIds={selectedLabelIds}
           onLabelFilterChange={setSelectedLabelIds}
+          boardView={boardView}
+          onBoardViewChange={setBoardView}
         />
         <CardFocusProvider>
           <CardDetailProvider>
-            <div className="px-3 pt-2 md:px-4">
-              <Segmented
-                value={boardView}
-                onChange={(value) => setBoardView(value as "kanban" | "calendar")}
-                options={[
-                  {
-                    value: "kanban",
-                    label: "Kanban View",
-                    icon: <Columns3 size={14} className="inline" />,
-                  },
-                  {
-                    value: "calendar",
-                    label: "Calendar View",
-                    icon: <CalendarDays size={14} className="inline" />,
-                  },
-                ]}
-              />
-            </div>
             {boardView === "calendar" ? (
               <BoardCalendarWithCardDetail boardId={resolvedBoardId || ""} />
             ) : (

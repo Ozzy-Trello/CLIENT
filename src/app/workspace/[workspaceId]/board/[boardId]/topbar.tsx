@@ -2,6 +2,7 @@ import {
   Button,
   Dropdown,
   MenuProps,
+  Segmented,
   Tooltip,
   Typography,
   message,
@@ -109,6 +110,8 @@ interface BoardTopbarProps {
   board?: any; // Board data from API response
   selectedLabelIds?: string[];
   onLabelFilterChange?: (labelIds: string[]) => void;
+  boardView?: "kanban" | "calendar";
+  onBoardViewChange?: (view: "kanban" | "calendar") => void;
 }
 
 const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
@@ -119,6 +122,8 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
     setOpenDashcardModal,
     selectedLabelIds = [],
     onLabelFilterChange,
+    boardView = "kanban",
+    onBoardViewChange,
   } = props;
   const { collapsed, siderSmall, siderWide } = useWorkspaceSidebar();
   const [showRightColMenu, setIsShowRighColtMenu] = useState(true);
@@ -907,6 +912,18 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
             }}
           />
         </Tooltip>
+        {onBoardViewChange && (
+          <Segmented
+            size="small"
+            value={boardView}
+            onChange={(value) => onBoardViewChange(value as "kanban" | "calendar")}
+            options={[
+              { value: "kanban", label: "List" },
+              { value: "calendar", label: "Calendar" },
+            ]}
+            className="flex-shrink-0"
+          />
+        )}
       </div>
 
       <div className="flex-shrink-0 w-auto order-3 sm:order-2">

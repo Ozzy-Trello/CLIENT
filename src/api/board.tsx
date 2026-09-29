@@ -78,15 +78,51 @@ export interface BoardCalendarCard {
   dueDate: string;
   startDate: string | null;
   isComplete: boolean;
+  cover: string | null;
+}
+
+export interface BoardCalendarSummary {
+  overdue: number;
+  dueThisMonth: number;
+  dueNextMonth: number;
 }
 
 export const getBoardCalendarCards = async (
   boardId: string,
   from: string,
-  to: string
+  to: string,
+  excludeListIds: string[] = []
 ): Promise<ApiResponse<BoardCalendarCard[]>> => {
   const { data } = await api.get(`/board/${boardId}/calendar`, {
-    params: { from, to },
+    params: {
+      from,
+      to,
+      exclude_list_ids: excludeListIds.length ? excludeListIds.join(",") : undefined,
+    },
+  });
+  return data;
+};
+
+export const getBoardCalendarSummary = async (
+  boardId: string,
+  ranges: {
+    today: string;
+    monthStart: string;
+    monthEnd: string;
+    nextMonthStart: string;
+    nextMonthEnd: string;
+  },
+  excludeListIds: string[] = []
+): Promise<ApiResponse<BoardCalendarSummary>> => {
+  const { data } = await api.get(`/board/${boardId}/calendar/summary`, {
+    params: {
+      today: ranges.today,
+      month_start: ranges.monthStart,
+      month_end: ranges.monthEnd,
+      next_month_start: ranges.nextMonthStart,
+      next_month_end: ranges.nextMonthEnd,
+      exclude_list_ids: excludeListIds.length ? excludeListIds.join(",") : undefined,
+    },
   });
   return data;
 };
