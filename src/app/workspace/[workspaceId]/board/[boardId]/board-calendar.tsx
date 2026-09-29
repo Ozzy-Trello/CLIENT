@@ -10,13 +10,16 @@ import {
 import {
   BoardCalendarCard,
   getBoardCalendarCards,
+  getBoardCalendarIgnoredLists,
   getBoardCalendarSummary,
+  updateBoardCalendarIgnoredLists,
 } from "@api/board";
 import { useLists } from "@hooks/list";
-import { Alert, Button, Popover, Spin, Checkbox } from "antd";
+import { usePermissions } from "@hooks/account";
+import { Alert, Button, Popover, Spin, Checkbox, message } from "antd";
 import { ChevronLeft, ChevronRight, FileImage, ListFilter } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
 
 /* eslint-disable @next/next/no-img-element */
 
@@ -38,9 +41,6 @@ const monthRange = (monthKey: string) => ({
   to: lastDayOf(monthKey),
 });
 
-const ignoredListsStorageKey = (boardId: string) =>
-  `ozzy_board_calendar_ignored_lists_${boardId}`;
-
 type Props = {
   boardId: string;
   onOpenCard: (cardId: string, listId: string) => void;
@@ -50,37 +50,43 @@ export default function BoardCalendar({ boardId, onOpenCard }: Props) {
   const today = todayKey();
   const [month, setMonth] = useState(() => toMonthKey(today));
   const [selectedDate, setSelectedDate] = useState<string>(today);
-  const [ignoredListIds, setIgnoredListIds] = useState<string[]>([]);
-  const [hydrated, setHydrated] = useState(false);
 
   const { lists } = useLists(boardId);
+  const { isSuperAdmin } = usePermissions();
+  const queryClient = useQueryClient();
 
-  // Ignored lists survive reloads, per board per browser.
-  useEffect(() => {
-    if (!boardId) return;
-    try {
-      const raw = localStorage.getItem(ignoredListsStorageKey(boardId));
-      setIgnoredListIds(raw ? JSON.parse(raw) : []);
-    } catch {
-      setIgnoredListIds([]);
-    }
-    setHydrated(true);
-  }, [boardId]);
+  // Ignored lists live on the board (super-admin controlled) so every
+  // member counts the same deadlines.
+  const ignoredQuery = useQuery({
+    queryKey: ["boardCalendarIgnoredLists", boardId],
+    queryFn: () => getBoardCalendarIgnoredLists(boardId),
+    enabled: Boolean(boardId),
+  });
+  const ignoredListIds = useMemo(
+    () => ignoredQuery.data?.data ?? [],
+    [ignoredQuery.data]
+  );
 
-  useEffect(() => {
-    if (!boardId || !hydrated) return;
-    localStorage.setItem(
-      ignoredListsStorageKey(boardId),
-      JSON.stringify(ignoredListIds)
-    );
-  }, [boardId, ignoredListIds, hydrated]);
+  const saveIgnored = useMutation({
+    mutationFn: (listIds: string[]) =>
+      updateBoardCalendarIgnoredLists(boardId, listIds),
+    onSuccess: (response) => {
+      queryClient.setQueryData(["boardCalendarIgnoredLists", boardId], response);
+      queryClient.invalidateQueries({ queryKey: ["boardCalendar", boardId] });
+      queryClient.invalidateQueries({ queryKey: ["boardCalendarSummary", boardId] });
+    },
+    onError: () => {
+      message.error("Gagal menyimpan pengaturan list");
+    },
+  });
 
   const range = useMemo(() => monthRange(month), [month]);
+  const settingReady = ignoredQuery.isSuccess;
 
   const cardsQuery = useQuery({
     queryKey: ["boardCalendar", boardId, month, ignoredListIds],
     queryFn: () => getBoardCalendarCards(boardId, range.from, range.to, ignoredListIds),
-    enabled: Boolean(boardId) && hydrated,
+    enabled: Boolean(boardId) && settingReady,
     placeholderData: (previous) => previous,
   });
 
@@ -99,7 +105,7 @@ export default function BoardCalendar({ boardId, onOpenCard }: Props) {
         },
         ignoredListIds
       ),
-    enabled: Boolean(boardId) && hydrated,
+    enabled: Boolean(boardId) && settingReady,
     placeholderData: (previous) => previous,
   });
 
@@ -140,17 +146,19 @@ export default function BoardCalendar({ boardId, onOpenCard }: Props) {
   const listFilterContent = (
     <div className="flex max-h-72 w-64 flex-col gap-1 overflow-y-auto">
       <span className="mb-1 text-xs text-gray-500">
-        List yang dicentang diabaikan dalam perhitungan due date.
+        List yang dicentang diabaikan dalam perhitungan due date. Berlaku
+        untuk semua pengguna board ini.
       </span>
       {(lists ?? []).map((list: any) => (
         <Checkbox
           key={list.id}
           checked={ignoredListIds.includes(list.id)}
+          disabled={saveIgnored.isPending}
           onChange={(event) =>
-            setIgnoredListIds((current) =>
+            saveIgnored.mutate(
               event.target.checked
-                ? [...current, list.id]
-                : current.filter((id) => id !== list.id)
+                ? [...ignoredListIds, list.id]
+                : ignoredListIds.filter((id) => id !== list.id)
             )
           }
         >
@@ -196,16 +204,24 @@ export default function BoardCalendar({ boardId, onOpenCard }: Props) {
           onClick={() => goToMonth(addMonths(month, 1))}
         />
         <Button onClick={() => goToMonth(toMonthKey(today))}>Bulan ini</Button>
-        <Popover content={listFilterContent} trigger="click" placement="bottomLeft">
-          <Button icon={<ListFilter size={16} />}>
-            Abaikan list
-            {ignoredListIds.length > 0 && (
-              <span className="ml-1 rounded bg-blue-600 px-1.5 text-xs font-semibold text-white">
-                {ignoredListIds.length}
-              </span>
-            )}
-          </Button>
-        </Popover>
+        {isSuperAdmin() ? (
+          <Popover content={listFilterContent} trigger="click" placement="bottomLeft">
+            <Button icon={<ListFilter size={16} />} loading={saveIgnored.isPending}>
+              Abaikan list
+              {ignoredListIds.length > 0 && (
+                <span className="ml-1 rounded bg-blue-600 px-1.5 text-xs font-semibold text-white">
+                  {ignoredListIds.length}
+                </span>
+              )}
+            </Button>
+          </Popover>
+        ) : (
+          ignoredListIds.length > 0 && (
+            <span className="text-xs text-gray-500">
+              {ignoredListIds.length} list diabaikan dari perhitungan
+            </span>
+          )
+        )}
         {(cardsQuery.isFetching || summaryQuery.isFetching) && <Spin size="small" />}
       </div>
 

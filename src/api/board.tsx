@@ -103,6 +103,23 @@ export const getBoardCalendarCards = async (
   return data;
 };
 
+export const getBoardCalendarIgnoredLists = async (
+  boardId: string
+): Promise<ApiResponse<string[]>> => {
+  const { data } = await api.get(`/board/${boardId}/calendar/ignored-lists`);
+  return data;
+};
+
+export const updateBoardCalendarIgnoredLists = async (
+  boardId: string,
+  listIds: string[]
+): Promise<ApiResponse<string[]>> => {
+  const { data } = await api.put(`/board/${boardId}/calendar/ignored-lists`, {
+    list_ids: listIds,
+  });
+  return data;
+};
+
 export const getBoardCalendarSummary = async (
   boardId: string,
   ranges: {
