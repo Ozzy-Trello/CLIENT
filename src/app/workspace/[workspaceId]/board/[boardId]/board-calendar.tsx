@@ -188,7 +188,9 @@ export default function BoardCalendar({ boardId, onOpenCard }: Props) {
   ];
 
   return (
-    <div className="flex flex-col gap-3 p-3 md:p-4">
+    // The workspace layout locks overflow on board pages so kanban can drag
+    // horizontally, so the calendar has to carry its own vertical scroll.
+    <div className="flex max-h-[calc(100dvh-95px)] flex-col gap-3 overflow-y-auto overscroll-contain p-3 md:p-4">
       <div className="flex flex-wrap items-center gap-2">
         <Button
           icon={<ChevronLeft size={16} />}
@@ -286,7 +288,9 @@ export default function BoardCalendar({ boardId, onOpenCard }: Props) {
           <div className="text-xs text-gray-500">
             {selectedCards.length} card jatuh tempo
           </div>
-          <div className="flex max-h-[60vh] flex-col gap-2 overflow-y-auto pr-1 lg:max-h-[calc(100vh-320px)]">
+          {/* Nested scrolling traps touch on mobile, so the list only gets its
+              own scroller next to the grid on large screens. */}
+          <div className="flex flex-col gap-2 pr-1 lg:max-h-[calc(100dvh-320px)] lg:overflow-y-auto">
             {cardsQuery.isLoading ? (
               <Spin />
             ) : selectedCards.length ? (
