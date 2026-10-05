@@ -13,6 +13,7 @@ import { cardDetails } from "@api/card";
 import { Card } from "@myTypes/card";
 import { LookupCache } from "@utils/lookup-cache";
 import { usePermissions } from "@hooks/account";
+import { applyScannedItem } from "./scan-progress-cache";
 
 const STANDARD_SIZES = ["XS", "S", "M", "L", "XL", "XXL", "XXXL", "XXXXL", "XXXXXL"];
 const sizeOrder = (size: string): number => {
@@ -91,7 +92,9 @@ const ScanProgressModal: React.FC<ScanProgressModalProps> = ({
       queryKey: ["scanProgress", po.id],
       queryFn: () => getPOScanProgress(po.id),
       enabled: !!po.id && isOpen,
-      refetchInterval: 8000,
+      // Each poll pulls the full item list, so keep it off the critical path
+      // while scanning: the local patch already keeps the screen current.
+      refetchInterval: scanningKey ? false : 30000,
       refetchIntervalInBackground: false,
     })),
   });
@@ -156,17 +159,27 @@ const ScanProgressModal: React.FC<ScanProgressModalProps> = ({
   /**
    * Refresh all PO scan progress queries (fast UI update after scanning)
    */
+  /**
+   * Refetching after every scan re-downloads the whole item list — 299 KB for
+   * a 1,092-item PO — which is what operators feel as a pause between scans.
+   * The scan response already says which item was marked, so patch that one
+   * row in the cache; the 8s poll still reconciles anything scanned elsewhere.
+   */
   const refreshProgressForScan = (scanResponse: ScanPOItemResponse) => {
-    const scannedPoId = scanResponse?.data?.po_id ?? scanResponse?.data?.poId;
+    const scanned = (scanResponse as any)?.data;
+    const scannedPoId = scanned?.po_id ?? scanned?.poId;
+    const scannedItemId = scanned?.id;
 
-    if (scannedPoId) {
-      queryClient.invalidateQueries({ queryKey: ["scanProgress", scannedPoId] });
+    if (!scannedPoId || !scannedItemId) {
+      pos.forEach((poItem) => {
+        queryClient.invalidateQueries({ queryKey: ["scanProgress", poItem.id] });
+      });
       return;
     }
 
-    pos.forEach((poItem) => {
-      queryClient.invalidateQueries({ queryKey: ["scanProgress", poItem.id] });
-    });
+    queryClient.setQueryData(["scanProgress", scannedPoId], (previous: any) =>
+      applyScannedItem(previous, scanned)
+    );
   };
 
   /**
