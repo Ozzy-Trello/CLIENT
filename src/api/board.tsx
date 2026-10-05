@@ -150,6 +150,9 @@ export const exportBoardCsv = async (
 ): Promise<ExportBoardCsvResult> => {
   const response = await api.get(`/board/${boardId}/export/csv`, {
     responseType: "blob",
+    // Boards whose cards hold pasted images export tens of MB; the shared
+    // 30s ceiling aborted those downloads mid-transfer.
+    timeout: 0,
     headers: workspaceId
       ? {
           "workspace-id": workspaceId,

@@ -139,6 +139,14 @@ const BoardScopeMenu: React.FC<BoardMenuSidebarProps> = ({
       return;
     }
 
+    // Big boards take a while to arrive; keep the notice up so nobody
+    // assumes the click did nothing and starts clicking again.
+    message.loading({
+      content: "Menyiapkan file CSV, mohon tunggu…",
+      key: "export-board-csv",
+      duration: 0,
+    });
+
     exportBoardMutation.mutate(
       {
         boardId: boardIdString,
@@ -153,10 +161,16 @@ const BoardScopeMenu: React.FC<BoardMenuSidebarProps> = ({
             headerFilename ||
             formatExportFilename(currentBoard?.name, boardIdString);
           downloadBlob(result.blob, downloadName);
-          message.success("Board CSV export started");
+          message.success({
+            content: "File CSV siap diunduh",
+            key: "export-board-csv",
+          });
         },
         onError: () => {
-          message.error("Failed to export board CSV");
+          message.error({
+            content: "Gagal export CSV. Coba lagi beberapa saat.",
+            key: "export-board-csv",
+          });
         },
       }
     );
