@@ -129,7 +129,7 @@ const ModalJmlStitch: React.FC<ModalJmlStitchProps> = ({
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [previewInitialIndex, setPreviewInitialIndex] = useState(0);
 
-  const { addAttachment, cardAttachments, refetch } = useCardAttachment(
+  const { addAttachmentAsync, cardAttachments, refetch } = useCardAttachment(
     card.id,
     { fetch: true },
   );
@@ -385,20 +385,17 @@ const ModalJmlStitch: React.FC<ModalJmlStitchProps> = ({
       const uploaded = res?.data;
       if (!uploaded?.id) throw new Error(`Upload failed for ${file.name}`);
 
-      await new Promise<void>((resolve, reject) => {
-        addAttachment(
-          {
-            cardId: card.id,
-            attachableType: EnumAttachmentType.File,
-            attachableId: uploaded.id,
-            isCover: false,
-            type: EnumCardAttachmentType.Stitch,
-          },
-          { onSuccess: () => resolve(), onError: reject },
-        );
+      // Per-call mutate callbacks can be replaced by another parallel upload.
+      // mutateAsync gives each queue worker its own completion promise.
+      await addAttachmentAsync({
+        cardId: card.id,
+        attachableType: EnumAttachmentType.File,
+        attachableId: uploaded.id,
+        isCover: false,
+        type: EnumCardAttachmentType.Stitch,
       });
     },
-    [addAttachment, card.id],
+    [addAttachmentAsync, card.id],
   );
 
   const processFiles = useCallback(

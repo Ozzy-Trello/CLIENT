@@ -108,7 +108,7 @@ const ModalJmlSablon: React.FC<ModalJmlSablonProps> = ({ open, onClose, card, wo
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [previewInitialIndex, setPreviewInitialIndex] = useState(0);
 
-  const { addAttachment, cardAttachments, refetch } = useCardAttachment(card.id, { fetch: true });
+  const { addAttachmentAsync, cardAttachments, refetch } = useCardAttachment(card.id, { fetch: true });
   const { cardCustomFields } = useCardCustomField(card.id, workspaceId, { enabled: open });
 
   const { roles, loading: isLoadingRoles } = useRoles(workspaceId);
@@ -312,14 +312,17 @@ const ModalJmlSablon: React.FC<ModalJmlSablonProps> = ({ open, onClose, card, wo
       const res = await uploadFile(file, { cardId: card.id, type: EnumCardAttachmentType.Sablon });
       const uploaded = res?.data;
       if (!uploaded?.id) throw new Error(`Upload failed for ${file.name}`);
-      await new Promise<void>((resolve, reject) => {
-        addAttachment(
-          { cardId: card.id, attachableType: EnumAttachmentType.File, attachableId: uploaded.id, isCover: false, type: EnumCardAttachmentType.Sablon },
-          { onSuccess: () => resolve(), onError: reject },
-        );
+      // Per-call mutate callbacks can be replaced by another parallel upload.
+      // mutateAsync gives each queue worker its own completion promise.
+      await addAttachmentAsync({
+        cardId: card.id,
+        attachableType: EnumAttachmentType.File,
+        attachableId: uploaded.id,
+        isCover: false,
+        type: EnumCardAttachmentType.Sablon,
       });
     },
-    [addAttachment, card.id],
+    [addAttachmentAsync, card.id],
   );
 
   const processFiles = useCallback(
