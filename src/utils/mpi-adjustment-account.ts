@@ -3,11 +3,22 @@ type AdjustmentAccount = {
   [key: string]: unknown;
 };
 
+/**
+ * Category names as Accurate spells them (category_name), mapped to the
+ * adjustment account the business expects. Anything missing here falls back to
+ * the first account in the list — Persediaan Produk Reject — which is why
+ * resleting and plastik OPP kept landing there.
+ */
 const MPI_CATEGORY_ACCOUNT_MAPPINGS = new Map<string, string>([
   ["benang", "HPP Benang"],
   ["perlengkapanproduksi", "Beban Perlengkapan"],
   ["labelsize", "HPP Label"],
   ["hangtag", "HPP Hang Tag"],
+  ["kancing", "HPP Kancing"],
+  ["resleting", "HPP Resleting"],
+  ["plastikopp", "HPP Plastik OPP"],
+  ["kainkeras", "HPP Kain Keras"],
+  ["reject", "Persediaan Produk Reject"],
 ]);
 
 const normalize = (value: unknown): string =>

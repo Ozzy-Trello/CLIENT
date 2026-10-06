@@ -9,6 +9,11 @@ const accounts = [
   { id: 3, no: "5003", name: "HPP Label" },
   { id: 4, no: "5004", name: "HPP Hang Tag" },
   { id: 5, no: "5008.01", name: "HPP Bahan HEMCA Stok" },
+  { id: 6, no: "5006", name: "HPP Resleting" },
+  { id: 7, no: "5007", name: "HPP Plastik OPP" },
+  { id: 8, no: "5008", name: "HPP Kancing" },
+  { id: 9, no: "5009", name: "HPP Kain Keras" },
+  { id: 10, no: "5010", name: "Persediaan Produk Reject" },
 ];
 
 describe("MPI inventory-adjustment category mapping", () => {
@@ -34,6 +39,32 @@ describe("MPI inventory-adjustment category mapping", () => {
     };
     expect(resolveMpiAdjustmentAccount(item, "MPI", accounts)?.name).toBe(
       "Beban Perlengkapan",
+    );
+  });
+
+  it.each([
+    // Reported in NTL-0134: these two kept landing in Persediaan Produk Reject.
+    ["Resleting YKK 75 cm Gigi Besar (Jagung) Navy", "Resleting", "HPP Resleting"],
+    ["OPP HEMCA Professional Polo Shirt", "Plastik OPP", "HPP Plastik OPP"],
+    ["Kancing HEMCA Navy 12mm", "Kancing", "HPP Kancing"],
+    ["Kain Keras Polos", "Kain Keras", "HPP Kain Keras"],
+    ["Benang Reject Navy", "Reject", "Persediaan Produk Reject"],
+  ])(
+    "maps %s in category %s to %s",
+    (_itemName, category, expected) => {
+      const item = { categoryName: category };
+      expect(getMpiAdjustmentAccountName(item, "MPI")).toBe(expected);
+      expect(resolveMpiAdjustmentAccount(item, "MPI", accounts)?.name).toBe(
+        expected,
+      );
+    },
+  );
+
+  it("reads the category from the payload shape the warehouse API returns", () => {
+    // /warehouse/ozzy/products sends category_name, not itemCategory.
+    const item = { category_name: "Resleting" };
+    expect(resolveMpiAdjustmentAccount(item, "MPI", accounts)?.name).toBe(
+      "HPP Resleting",
     );
   });
 
