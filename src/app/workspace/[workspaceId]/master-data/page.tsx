@@ -635,7 +635,6 @@ const MasterData: React.FC = () => {
 
   const [zipLibraryUploadVisible, setZipLibraryUploadVisible] = useState(false);
   const [zipLibraryUploading, setZipLibraryUploading] = useState(false);
-  const [zipLibraryUploadProgress, setZipLibraryUploadProgress] = useState(0);
   const [zipLibraryUploadResult, setZipLibraryUploadResult] =
     useState<DesignZipUploadResult | null>(null);
 
@@ -1636,15 +1635,17 @@ const MasterData: React.FC = () => {
   const handleTypeImageZipUpload = async (file: File) => {
     try {
       setZipLibraryUploading(true);
-      setZipLibraryUploadProgress(25);
 
       const result = await uploadDesignTypeImageZip(file);
 
-      setZipLibraryUploadProgress(100);
       setZipLibraryUploadResult(result || null);
-      message.success(
-        `ZIP import completed. Matched: ${result.total_matched}, Updated: ${result.total_updated}, Skipped: ${result.total_skipped}`
-      );
+      message.success({
+        content:
+          `ZIP import selesai. Terpetakan: ${result.total_matched}, ` +
+          `diperbarui: ${result.total_updated}, dilewati: ${result.total_skipped}. ` +
+          `Tutup lalu buka ulang halaman Design agar gambarnya tampil.`,
+        duration: 8,
+      });
     } catch (error: any) {
       message.error(
         "Failed to upload ZIP library: " +
@@ -2920,7 +2921,6 @@ Celana,Denim,BIRU,#1A3C6E,BLU,CLN`}</pre>
         onCancel={() => {
           setZipLibraryUploadVisible(false);
           setZipLibraryUploadResult(null);
-          setZipLibraryUploadProgress(0);
         }}
         footer={null}
         width={700}
@@ -2947,15 +2947,24 @@ Celana,Denim,BIRU,#1A3C6E,BLU,CLN`}</pre>
           </p>
           <p className="ant-upload-text">
             {zipLibraryUploading
-              ? "Uploading ZIP..."
+              ? "Memproses ZIP di server…"
               : "Click or drag ZIP file to upload"}
           </p>
-          <p className="ant-upload-hint">Supports one ZIP per upload</p>
+          <p className="ant-upload-hint">
+            {zipLibraryUploading
+              ? "Jangan tutup halaman. Gambar disalin ke storage satu per satu, jadi prosesnya memang memerlukan waktu."
+              : "Supports one ZIP per upload"}
+          </p>
         </Upload.Dragger>
 
         {zipLibraryUploading ? (
           <div style={{ marginTop: 16 }}>
-            <Progress percent={zipLibraryUploadProgress} />
+            {/* No real percentage exists: the server reports nothing until it
+                finishes. A bar pinned mid-way just looked stalled. */}
+            <Progress percent={100} status="active" showInfo={false} />
+            <p style={{ fontSize: 12, color: "#666", marginTop: 8 }}>
+              Memproses… hasil akan muncul setelah selesai.
+            </p>
           </div>
         ) : null}
 
@@ -3012,7 +3021,6 @@ Celana,Denim,BIRU,#1A3C6E,BLU,CLN`}</pre>
             onClick={() => {
               setZipLibraryUploadVisible(false);
               setZipLibraryUploadResult(null);
-              setZipLibraryUploadProgress(0);
             }}
           >
             Close
