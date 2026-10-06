@@ -635,6 +635,8 @@ const MasterData: React.FC = () => {
 
   const [zipLibraryUploadVisible, setZipLibraryUploadVisible] = useState(false);
   const [zipLibraryUploading, setZipLibraryUploading] = useState(false);
+  const [zipLibraryUploadDone, setZipLibraryUploadDone] = useState(0);
+  const [zipLibraryUploadTotal, setZipLibraryUploadTotal] = useState(0);
   const [zipLibraryUploadResult, setZipLibraryUploadResult] =
     useState<DesignZipUploadResult | null>(null);
 
@@ -1635,8 +1637,13 @@ const MasterData: React.FC = () => {
   const handleTypeImageZipUpload = async (file: File) => {
     try {
       setZipLibraryUploading(true);
+      setZipLibraryUploadTotal(0);
+      setZipLibraryUploadDone(0);
 
-      const result = await uploadDesignTypeImageZip(file);
+      const result = await uploadDesignTypeImageZip(file, ({ done, total }) => {
+        setZipLibraryUploadDone(done);
+        setZipLibraryUploadTotal(total);
+      });
 
       setZipLibraryUploadResult(result || null);
       message.success({
@@ -2959,11 +2966,20 @@ Celana,Denim,BIRU,#1A3C6E,BLU,CLN`}</pre>
 
         {zipLibraryUploading ? (
           <div style={{ marginTop: 16 }}>
-            {/* No real percentage exists: the server reports nothing until it
-                finishes. A bar pinned mid-way just looked stalled. */}
-            <Progress percent={100} status="active" showInfo={false} />
+            {zipLibraryUploadTotal > 0 ? (
+              <Progress
+                percent={Math.round(
+                  (zipLibraryUploadDone / zipLibraryUploadTotal) * 100,
+                )}
+                status="active"
+              />
+            ) : (
+              <Progress percent={0} status="active" showInfo={false} />
+            )}
             <p style={{ fontSize: 12, color: "#666", marginTop: 8 }}>
-              Memproses… hasil akan muncul setelah selesai.
+              {zipLibraryUploadTotal > 0
+                ? `${zipLibraryUploadDone} dari ${zipLibraryUploadTotal} pasang gambar diproses`
+                : "Menyiapkan ZIP…"}
             </p>
           </div>
         ) : null}
