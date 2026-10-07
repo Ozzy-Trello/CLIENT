@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useQueries, useQueryClient } from "@tanstack/react-query";
-import { Button, message, Modal, Progress, Tooltip } from "antd";
+import { Alert, Button, message, Modal, Progress, Tooltip } from "antd";
 import {
   getPOsByCardId,
   getPOScanProgress,
@@ -43,9 +43,11 @@ const ScanProgressModal: React.FC<ScanProgressModalProps> = ({
   const [card, setCard] = useState<Card | null>(null);
   const [pos, setPOs] = useState<PO[]>([]);
   const [scanningKey, setScanningKey] = useState<string | null>(null); // per-item / per-scan loading key
+  const [queuedScanCount, setQueuedScanCount] = useState(0);
 
   const scannerRef = useRef<HTMLInputElement>(null);
   const scanQueueRef = useRef<PendingScan[]>([]);
+  const queuedOrProcessingValuesRef = useRef(new Set<string>());
   const processingScanRef = useRef(false);
   const queryClient = useQueryClient();
   const { user, isSuperAdmin } = usePermissions();
@@ -201,19 +203,25 @@ const ScanProgressModal: React.FC<ScanProgressModalProps> = ({
       while (scanQueueRef.current.length > 0) {
         const next = scanQueueRef.current.shift();
         if (!next) continue;
+        setQueuedScanCount(scanQueueRef.current.length);
 
         setScanningKey(next.loadingKey);
         try {
           const response = await scanPOItem({ qrCode: next.value });
-          message.success(response?.message || `Scanned: ${next.value}`);
           refreshProgressForScan(response);
         } catch (error) {
           const errorMessage =
             (error as any)?.response?.data?.message ||
             (error as Error)?.message ||
             "Failed to process scan. Please try again.";
-          message.error(errorMessage);
+          message.open({
+            key: "scan-validation-error",
+            type: "error",
+            content: errorMessage,
+            duration: 2,
+          });
         } finally {
+          queuedOrProcessingValuesRef.current.delete(next.value);
           setScanningKey(null);
         }
       }
@@ -229,9 +237,26 @@ const ScanProgressModal: React.FC<ScanProgressModalProps> = ({
   const submitScan = (qrCode: string, loadingKey: string) => {
     const value = qrCode.trim();
     if (!value) return;
+    if (queuedOrProcessingValuesRef.current.has(value)) return;
 
+    queuedOrProcessingValuesRef.current.add(value);
     scanQueueRef.current.push({ value, loadingKey });
+    setQueuedScanCount(scanQueueRef.current.length);
     void processScanQueue();
+  };
+
+  const handleModalClose = () => {
+    if (scanningKey || queuedScanCount > 0) {
+      message.warning(
+        queuedScanCount > 0
+          ? `Masih memproses validasi scan. ${queuedScanCount} scan menunggu.`
+          : "Masih memproses validasi scan. Tunggu sampai selesai.",
+      );
+      scannerRef.current?.focus();
+      return;
+    }
+
+    onClose();
   };
 
   /**
@@ -282,9 +307,9 @@ const ScanProgressModal: React.FC<ScanProgressModalProps> = ({
         </div>
       }
       open={isOpen}
-      onCancel={onClose}
+      onCancel={handleModalClose}
       footer={[
-        <Button key="close" onClick={onClose}>
+        <Button key="close" onClick={handleModalClose}>
           Close
         </Button>,
       ]}
@@ -315,6 +340,19 @@ const ScanProgressModal: React.FC<ScanProgressModalProps> = ({
 
       <div onClick={() => scannerRef.current?.focus()}>
         <div className="space-y-4">
+          {(scanningKey || queuedScanCount > 0) && (
+            <Alert
+              type="info"
+              showIcon
+              message="Validasi scan masih berjalan"
+              description={
+                queuedScanCount > 0
+                  ? `${queuedScanCount} scan menunggu diproses. Modal belum bisa ditutup.`
+                  : "Tunggu sampai scan selesai sebelum menutup modal."
+              }
+            />
+          )}
+
           {/* Overall progress */}
           {overallProgress.total > 0 && (
             <div className="p-4 rounded-lg border bg-white shadow-sm">
