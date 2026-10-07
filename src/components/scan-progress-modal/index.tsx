@@ -28,6 +28,11 @@ interface ScanProgressModalProps {
   boardId?: string;
 }
 
+interface PendingScan {
+  value: string;
+  loadingKey: string;
+}
+
 const ScanProgressModal: React.FC<ScanProgressModalProps> = ({
   isOpen,
   onClose,
@@ -40,6 +45,8 @@ const ScanProgressModal: React.FC<ScanProgressModalProps> = ({
   const [scanningKey, setScanningKey] = useState<string | null>(null); // per-item / per-scan loading key
 
   const scannerRef = useRef<HTMLInputElement>(null);
+  const scanQueueRef = useRef<PendingScan[]>([]);
+  const processingScanRef = useRef(false);
   const queryClient = useQueryClient();
   const { user, isSuperAdmin } = usePermissions();
   const roleLower = (user?.role?.name || "").trim().toLowerCase();
@@ -183,30 +190,48 @@ const ScanProgressModal: React.FC<ScanProgressModalProps> = ({
   };
 
   /**
+   * Process scanner input in order. The scanner can send the next barcode
+   * before the previous request has finished, so never drop queued scans.
+   */
+  const processScanQueue = async () => {
+    if (processingScanRef.current) return;
+
+    processingScanRef.current = true;
+    try {
+      while (scanQueueRef.current.length > 0) {
+        const next = scanQueueRef.current.shift();
+        if (!next) continue;
+
+        setScanningKey(next.loadingKey);
+        try {
+          const response = await scanPOItem({ qrCode: next.value });
+          message.success(response?.message || `Scanned: ${next.value}`);
+          refreshProgressForScan(response);
+        } catch (error) {
+          const errorMessage =
+            (error as any)?.response?.data?.message ||
+            (error as Error)?.message ||
+            "Failed to process scan. Please try again.";
+          message.error(errorMessage);
+        } finally {
+          setScanningKey(null);
+        }
+      }
+    } finally {
+      processingScanRef.current = false;
+      scannerRef.current?.focus();
+    }
+  };
+
+  /**
    * Unified scan submitter: used by BOTH scanner Enter + per-item button
    */
-  const submitScan = async (qrCode: string, loadingKey: string) => {
+  const submitScan = (qrCode: string, loadingKey: string) => {
     const value = qrCode.trim();
     if (!value) return;
 
-    // prevent parallel scans
-    if (scanningKey) return;
-
-    setScanningKey(loadingKey);
-    try {
-      const response = await scanPOItem({ qrCode: value });
-      message.success(response?.message || `Scanned: ${value}`);
-      refreshProgressForScan(response);
-    } catch (error) {
-      const errorMessage =
-        (error as any)?.response?.data?.message ||
-        (error as Error)?.message ||
-        "Failed to process scan. Please try again.";
-      message.error(errorMessage);
-    } finally {
-      setScanningKey(null);
-      scannerRef.current?.focus();
-    }
+    scanQueueRef.current.push({ value, loadingKey });
+    void processScanQueue();
   };
 
   /**
@@ -224,7 +249,7 @@ const ScanProgressModal: React.FC<ScanProgressModalProps> = ({
     if (!value) return;
 
     // scanner run key
-    await submitScan(value, `scanner:${value}`);
+    submitScan(value, `scanner:${value}`);
   };
 
   /**
