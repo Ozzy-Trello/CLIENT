@@ -60,7 +60,6 @@ import { useParams } from "next/navigation";
 import { FineGrainedPermissions } from "../../../../../types/board";
 import ModalDelivery from "@components/modal-delivery";
 import ScanProgressModal from "@components/scan-progress-modal";
-import QrPackingModal from "@components/barcode-packing-modal/qr-packing-modal";
 import QRGuideOverlay from "@components/qr-overlay";
 import { useLabels } from "@hooks/label";
 import { Checkbox } from "antd";
@@ -157,7 +156,6 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
     useState<boolean>(false);
   const [modalPengirimanOpen, setModalPengirimanOpen] =
     useState<boolean>(false);
-  const [qrPackingOpen, setQrPackingOpen] = useState(false);
   // Standalone Scan Progress modal state
   const [scanProgressOpen, setScanProgressOpen] = useState<boolean>(false);
   const [scanProgressCardId, setScanProgressCardId] = useState<string | null>(
@@ -188,7 +186,6 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
     modalPackingPOScanOpen ||
     modalPengirimanOpen ||
     scanProgressOpen ||
-    qrPackingOpen ||
     customOrderModalOpen;
 
   const [externalScannerActive, setExternalScannerActive] = useState(false);
@@ -755,13 +752,6 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
     });
   }
 
-  if (isDateline) {
-    mobileMenuItems.push({
-      key: "qr-packing",
-      label: "QR Packing",
-      onClick: () => setQrPackingOpen(true),
-    });
-  }
 
   if (canGenerateCustomOrderLink) {
     mobileMenuItems.push({
@@ -966,18 +956,6 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
                     onClick={() => setModalPackingKirimOpen(true)}
                   >
                     <span>Packing Kirim</span>
-                  </Button>
-                </Tooltip>
-              )}
-              {isDateline && (
-                <Tooltip title="QR Packing">
-                  <Button
-                    size="small"
-                    type="primary"
-                    icon={<QrCode size={16} />}
-                    onClick={() => setQrPackingOpen(true)}
-                  >
-                    <span>QR Packing</span>
                   </Button>
                 </Tooltip>
               )}
@@ -1305,12 +1283,6 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
         onClose={() => setScanProgressOpen(false)}
         cardId={scanProgressCardId || ""}
         boardId={params.boardId as string}
-      />
-
-      <QrPackingModal
-        isOpen={qrPackingOpen}
-        onClose={() => setQrPackingOpen(false)}
-        boardId={normalizedBoardId as string}
       />
 
       <ModalPengiriman
