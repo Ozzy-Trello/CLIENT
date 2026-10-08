@@ -36,11 +36,13 @@ const IssueBarcodePackingModal: React.FC<IssueBarcodePackingModalProps> = ({
   const [packCount, setPackCount] = useState(1);
   const [existing, setExisting] = useState<BarcodePacking[] | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [loadingExisting, setLoadingExisting] = useState(false);
 
   useEffect(() => {
     if (!isOpen || !cardId) return;
 
     let cancelled = false;
+    setLoadingExisting(true);
     getBarcodePacking(cardId)
       .then((response) => {
         if (cancelled) return;
@@ -54,6 +56,9 @@ const IssueBarcodePackingModal: React.FC<IssueBarcodePackingModalProps> = ({
           setPackCount(1);
           setQuantities([jmlPesanan]);
         }
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingExisting(false);
       });
 
     return () => {
@@ -125,6 +130,7 @@ const IssueBarcodePackingModal: React.FC<IssueBarcodePackingModalProps> = ({
           </Button>,
         ]}
         width={640}
+        styles={{ body: { padding: "24px 28px 20px" } }}
       >
         <Table
           size="small"
@@ -170,41 +176,54 @@ const IssueBarcodePackingModal: React.FC<IssueBarcodePackingModalProps> = ({
         </Button>,
       ]}
       width={520}
+      styles={{ body: { padding: "24px 28px 20px" } }}
     >
-      {jmlPesanan > 0 ? (
+      {loadingExisting ? (
+        <div className="py-10 text-center text-sm text-gray-600" role="status">
+          Memeriksa barcode packing...
+        </div>
+      ) : jmlPesanan > 0 ? (
         <div className="space-y-3">
-          <div className="rounded-lg border border-blue-200 bg-blue-50 px-5 py-4">
-            <div className="text-sm text-gray-500">Nama PO</div>
-            <div className="mt-1 text-xl font-bold text-gray-900">{cardName || "-"}</div>
-            <div className="mt-1 text-sm text-gray-500">Card ID: {cardId}</div>
-            <div className="mt-3 text-sm text-gray-500">Jml Pesanan</div>
-            <div className="text-xl font-bold text-gray-900">{jmlPesanan} pcs</div>
+          <div className="rounded-xl border border-slate-200 bg-slate-50 px-5 py-4">
+            <div className="flex items-start justify-between gap-5">
+              <div className="min-w-0">
+                <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">Nama PO</div>
+                <div className="mt-2 truncate text-xl font-bold text-slate-900">{cardName || "-"}</div>
+                <div className="mt-1 truncate text-xs text-slate-600">Card ID: {cardId}</div>
+              </div>
+              <div className="shrink-0 text-right">
+                <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">Jml Pesanan</div>
+                <div className="mt-2 text-xl font-bold text-slate-900">{jmlPesanan} pcs</div>
+              </div>
+            </div>
           </div>
 
-          <div className="pt-3 text-sm font-semibold text-gray-700">Split menjadi berapa pack?</div>
+          <div className="pt-3 text-sm font-semibold text-slate-900">Split menjadi berapa pack?</div>
           <InputNumber
             min={1}
             value={packCount}
             onChange={setPackTotal}
+            disabled={submitting}
             className="w-full"
           />
 
           {quantities.map((qty, index) => (
             <div key={index} className="flex items-center gap-2">
-              <span className="w-28 text-sm font-semibold text-gray-700">
+              <span className="w-28 text-sm font-semibold text-slate-700">
                 PACK {index + 1} / {packCount} · PCS
               </span>
               <InputNumber
                 min={1}
                 value={qty}
                 onChange={(value) => setQty(index, value)}
+                disabled={submitting}
                 className="flex-1"
               />
             </div>
           ))}
 
-          <div className={`pt-2 text-sm font-medium ${matches ? "text-green-700" : "text-red-600"}`}>
-            Total isi: {total} / {jmlPesanan} pcs — {matches ? "Sesuai" : "Belum sesuai"}
+          <div className={`rounded-lg px-3 py-2 text-sm font-medium ${matches ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-900"}`}>
+            Total isi: {total} / {jmlPesanan} pcs. {matches ? "Sesuai." : "Sesuaikan jumlah sebelum generate."}
           </div>
 
         </div>
