@@ -152,6 +152,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
   const [isExporting, setIsExporting] = useState(false);
   const [labelFilter, setLabelFilter] = useState<string>("");
   const [requestTypeFilter, setRequestTypeFilter] = useState<string>("");
+  const [routingFilter, setRoutingFilter] = useState<string>("");
   const [searchInput, setSearchInput] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [scanInput, setScanInput] = useState("");
@@ -302,6 +303,9 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     if (requestTypeFilter) {
       baseFilter.requestType = requestTypeFilter;
     }
+    if (routingFilter) {
+      baseFilter.routing = routingFilter;
+    }
     if (dateRange[0] || dateRange[1]) {
       baseFilter.requestReceived = {
         from: dateRange[0]?.startOf("day").toISOString(),
@@ -321,6 +325,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     filterKembali,
     labelFilter,
     requestTypeFilter,
+    routingFilter,
     dateRange,
     searchTerm,
     shortIdFilter,
@@ -389,6 +394,15 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     });
     const base = ["Ozzy", "Steady"];
     return Array.from(new Set([...base, ...Array.from(collected).sort()]));
+  }, [data]);
+
+  const routingOptions = useMemo(() => {
+    const collected = new Set<string>(["REG", "ROUTING KHUSUS"]);
+    data?.data.forEach((item) => {
+      const routing = String(item.routing || "").trim();
+      if (routing) collected.add(routing);
+    });
+    return Array.from(collected).sort();
   }, [data]);
 
   const dropdownStatusOptions: { label: string; value: BasicStatusFilter }[] = [
@@ -1724,6 +1738,14 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       width: "auto",
     },
     {
+      title: "Routing",
+      dataIndex: "routing",
+      key: "routing",
+      ellipsis: true,
+      width: 140,
+      render: (value: string | null | undefined) => value || "-",
+    },
+    {
       title: "Ozzy / Steady",
       key: "card_labels",
       ellipsis: true,
@@ -2266,6 +2288,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     filterAccurate !== null,
     Boolean(labelFilter),
     Boolean(requestTypeFilter),
+    Boolean(routingFilter),
     Boolean(searchTerm),
     shortIdFilter !== null,
   ].filter(Boolean).length;
@@ -2281,6 +2304,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     setFilterAccurate(null);
     setLabelFilter("");
     setRequestTypeFilter("");
+    setRoutingFilter("");
     setSearchInput("");
     setSearchTerm("");
     setScanInput("");
@@ -2487,6 +2511,33 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
                 ...requestTypeOptions.map((type) => ({
                   value: type,
                   label: formatRequestTypeLabel(type),
+                })),
+              ]}
+            />
+          </div>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 4,
+            }}
+          >
+            <span style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>
+              Routing
+            </span>
+            <Select
+              allowClear
+              placeholder="Semua Routing"
+              value={routingFilter || undefined}
+              onChange={(value) => {
+                setRoutingFilter(value || "");
+                setPagination((prev) => ({ ...prev, page: 1 }));
+              }}
+              options={[
+                { value: "", label: "Semua Routing" },
+                ...routingOptions.map((routing) => ({
+                  value: routing,
+                  label: routing,
                 })),
               ]}
             />

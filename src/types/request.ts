@@ -61,6 +61,7 @@ export interface RequestItem {
   est_bahan?: number | null;
   efisiensi?: number | null;
   jmlPesanan?: number | null;
+  routing?: string | null;
   barcode_printed?: boolean;
   barcodePrinted?: boolean;
   barcodePrintedAt?: string;
