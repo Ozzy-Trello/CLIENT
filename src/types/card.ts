@@ -102,6 +102,7 @@ export enum EnumCardAttachmentType {
   Attachment = "attachment",
   Bukti = "bukti",
   PO = "PO",
+  PORepeat = "PO Repeat",
   Link = "link",
   Stitch = "stitch",
   Sablon = "sablon",
@@ -112,6 +113,7 @@ export type TCardAttachmentType =
   | EnumCardAttachmentType.Attachment
   | EnumCardAttachmentType.Bukti
   | EnumCardAttachmentType.PO
+  | EnumCardAttachmentType.PORepeat
   | EnumCardAttachmentType.Link
   | EnumCardAttachmentType.Stitch
   | EnumCardAttachmentType.Sablon;

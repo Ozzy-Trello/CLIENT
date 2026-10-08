@@ -129,6 +129,14 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
     [fileAttachments]
   );
 
+  const poRepeatAttachments = useMemo(
+    () =>
+      fileAttachments.filter(
+        (att) => att.type === EnumCardAttachmentType.PORepeat,
+      ),
+    [fileAttachments]
+  );
+
   const stitchAttachments = useMemo(
     () =>
       fileAttachments.filter(
@@ -211,7 +219,10 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
   const [renamingLinkId, setRenamingLinkId] = useState<string | null>(null);
   const [linkRenameValue, setLinkRenameValue] = useState("");
 
-  const uploadFiles = async (fileList: FileList | null) => {
+  const uploadFiles = async (
+    fileList: FileList | null,
+    attachmentType: EnumCardAttachmentType = EnumCardAttachmentType.Attachment,
+  ) => {
     if (!fileList || isUploading || !card.id) return;
     setIsUploading(true);
     try {
@@ -228,7 +239,7 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
                 attachableType: EnumAttachmentType.File,
                 attachableId: uploaded.id,
                 isCover: false,
-                type: EnumCardAttachmentType.Attachment,
+                 type: attachmentType,
               },
               {
                 onSuccess: () => resolve(),
@@ -257,6 +268,10 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
 
   const handleSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     uploadFiles(e.target.files);
+  };
+
+  const handlePORepeatSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    uploadFiles(e.target.files, EnumCardAttachmentType.PORepeat);
   };
 
   const handleStartRename = (fileId: string, currentName: string) => {
@@ -289,11 +304,37 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
     }
   };
 
-  const renderSection = (title: string, data: CardAttachment[]) => (
+  const renderSection = (
+    title: string,
+    data: CardAttachment[],
+    uploadType?: EnumCardAttachmentType,
+  ) => (
     <div className="mb-6">
-      <Typography.Text className="text-xs text-gray-500 uppercase font-semibold">
-        {title}
-      </Typography.Text>
+      <div className="flex items-center justify-between">
+        <Typography.Text className="text-xs text-gray-500 uppercase font-semibold">
+          {title}
+        </Typography.Text>
+        {uploadType && (
+          <>
+            <input
+              ref={inputRef}
+              type="file"
+              accept="application/pdf,.pdf"
+              className="hidden"
+              onChange={handlePORepeatSelect}
+            />
+            <Button
+              type="link"
+              size="small"
+              icon={<UploadOutlined />}
+              loading={isUploading}
+              onClick={() => inputRef.current?.click()}
+            >
+              Upload
+            </Button>
+          </>
+        )}
+      </div>
       <List
         className="mt-2"
         dataSource={data}
@@ -760,6 +801,7 @@ const Attachments: React.FC<AttachmentsProps> = ({ card, setCard, currentUser })
       {renderCardLinks()}
       {renderLinkSection()}
       {renderSection("PO", poAttachments)}
+      {renderSection("PO Repeat", poRepeatAttachments, EnumCardAttachmentType.PORepeat)}
       {renderSection("Bukti", buktiAttachments)}
       {renderSection("BORDIR", stitchAttachments)}
       {renderSection("Other", otherAttachments)}
