@@ -45,9 +45,22 @@ export const scanPackDelivery = async (
   return data;
 };
 
+export interface StartReceivingResponse {
+  card: { id: string; name: string; list_name?: string };
+  progress: { total: number; delivered: number; received: number };
+}
+
+export const startReceiving = async (
+  cardId: string,
+): Promise<ApiResponse<StartReceivingResponse>> => {
+  const { data } = await api.get(`/packing/receiving/${cardId}`);
+  return data;
+};
+
 export const scanPackReceived = async (
   qrCode: string,
+  cardId: string,
 ): Promise<ApiResponse<BarcodePackingScanResponse>> => {
-  const { data } = await api.post("/packing/scan-received", { qrCode });
+  const { data } = await api.post("/packing/scan-received", { qrCode, cardId });
   return data;
 };

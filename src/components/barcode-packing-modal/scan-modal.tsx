@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Alert, Button, message, Modal, Progress } from "antd";
-import { scanPackDelivery, scanPackReceived } from "@api/barcode-packing";
+import { scanPackDelivery } from "@api/barcode-packing";
 
-type ScanStage = "delivery" | "received";
+/** Tahap received dipindah ke ModalReceiving karena butuh scan PO lebih dulu. */
+type ScanStage = "delivery";
 
 interface ScanPackModalProps {
   isOpen: boolean;
@@ -12,7 +13,6 @@ interface ScanPackModalProps {
 
 const STAGE_LABEL: Record<ScanStage, string> = {
   delivery: "Scan Kurir (Delivery)",
-  received: "Scan PA (Diterima Outlet)",
 };
 
 const ScanPackModal: React.FC<ScanPackModalProps> = ({ isOpen, onClose, stage }) => {
@@ -52,16 +52,12 @@ const ScanPackModal: React.FC<ScanPackModalProps> = ({ isOpen, onClose, stage })
         setScanning(true);
 
         try {
-          const scan = stage === "delivery" ? scanPackDelivery : scanPackReceived;
-          const response = await scan(value);
+          const response = await scanPackDelivery(value);
           const result = response.data;
           if (result) {
             setProgress({
               total: result.progress.total,
-              done:
-                stage === "delivery"
-                  ? result.progress.delivered
-                  : result.progress.received,
+              done: result.progress.delivered,
             });
           }
         } catch (error) {

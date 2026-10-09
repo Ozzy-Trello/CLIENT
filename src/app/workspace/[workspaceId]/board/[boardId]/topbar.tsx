@@ -60,6 +60,10 @@ import { useParams } from "next/navigation";
 import { FineGrainedPermissions } from "../../../../../types/board";
 import ModalDelivery from "@components/modal-delivery";
 import ScanProgressModal from "@components/scan-progress-modal";
+// QR Packing ditahan sementara. Uncomment saat flow packing siap dipakai.
+// import QrPackingModal from "@components/barcode-packing-modal/qr-packing-modal";
+// import ScanPackModal from "@components/barcode-packing-modal/scan-modal";
+import ModalReceiving from "@components/modal-receiving";
 import QRGuideOverlay from "@components/qr-overlay";
 import { useLabels } from "@hooks/label";
 import { Checkbox } from "antd";
@@ -156,6 +160,11 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
     useState<boolean>(false);
   const [modalPengirimanOpen, setModalPengirimanOpen] =
     useState<boolean>(false);
+  // QR Packing dan scan Delivery ditahan sementara.
+  // const [qrPackingOpen, setQrPackingOpen] = useState(false);
+  // const [scanPackStage, setScanPackStage] = useState<"delivery" | "received">("delivery");
+  // const [scanPackOpen, setScanPackOpen] = useState(false);
+  const [modalReceivingOpen, setModalReceivingOpen] = useState<boolean>(false);
   // Standalone Scan Progress modal state
   const [scanProgressOpen, setScanProgressOpen] = useState<boolean>(false);
   const [scanProgressCardId, setScanProgressCardId] = useState<string | null>(
@@ -186,6 +195,9 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
     modalPackingPOScanOpen ||
     modalPengirimanOpen ||
     scanProgressOpen ||
+    // qrPackingOpen ||
+    // scanPackOpen ||
+    modalReceivingOpen ||
     customOrderModalOpen;
 
   const [externalScannerActive, setExternalScannerActive] = useState(false);
@@ -209,6 +221,7 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
   const boardName = (currentBoard?.name || "").trim().toLowerCase();
   const isDateline = boardName === "dateline";
   const isListPOOutlet = boardName === "list po | outlet";
+  const isDelivery = boardName === "delivery";
 
   // User board order hook for favorites
   const { userBoardOrder, toggleFavorite, isTogglingFavorite } =
@@ -285,6 +298,8 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
   const canShowPacking =
     isSuperAdmin ||
     (isDateline && roleInList(["Finishing & Packing", "Kepala Produksi"]));
+  // Receiving dipakai outlet; backend tetap menolak card di luar PO Terkirim (PA).
+  const canShowReceiving = isSuperAdmin || isDelivery || isListPOOutlet;
 
   // Determine if current board is favorited
   const isFavorited =
@@ -752,6 +767,32 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
     });
   }
 
+  /*
+  if (isDateline) {
+    mobileMenuItems.push({
+      key: "qr-packing",
+      label: "QR Packing",
+      onClick: () => setQrPackingOpen(true),
+    });
+    mobileMenuItems.push({
+      key: "scan-delivery",
+      label: "Scan Delivery",
+      onClick: () => {
+        setScanPackStage("delivery");
+        setScanPackOpen(true);
+      },
+    });
+  }
+  */
+
+  if (canShowReceiving) {
+    mobileMenuItems.push({
+      key: "receiving",
+      label: "Receiving",
+      onClick: () => setModalReceivingOpen(true),
+    });
+  }
+
 
   if (canGenerateCustomOrderLink) {
     mobileMenuItems.push({
@@ -956,6 +997,31 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
                     onClick={() => setModalPackingKirimOpen(true)}
                   >
                     <span>Packing Kirim</span>
+                  </Button>
+                </Tooltip>
+              )}
+              {/*
+              <Tooltip title="QR Packing">
+                <Button type="primary" icon={<QrCode size={16} />} onClick={() => setQrPackingOpen(true)}>
+                  QR Packing
+                </Button>
+              </Tooltip>
+              <Tooltip title="Scan Delivery">
+                <Button icon={<ScanLine size={16} />} onClick={() => { setScanPackStage("delivery"); setScanPackOpen(true); }}>
+                  Scan Delivery
+                </Button>
+              </Tooltip>
+              */}
+              {canShowReceiving && (
+                <Tooltip title="Receiving">
+                  <Button
+                    size="small"
+                    shape="default"
+                    variant="text"
+                    icon={<ScanLine size={16} />}
+                    onClick={() => setModalReceivingOpen(true)}
+                  >
+                    <span>Receiving</span>
                   </Button>
                 </Tooltip>
               )}
@@ -1283,6 +1349,27 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
         onClose={() => setScanProgressOpen(false)}
         cardId={scanProgressCardId || ""}
         boardId={params.boardId as string}
+      />
+
+      {/*
+      QR Packing ditahan sementara.
+      <QrPackingModal
+        isOpen={qrPackingOpen}
+        onClose={() => setQrPackingOpen(false)}
+        boardId={normalizedBoardId as string}
+      />
+
+      Menu scan Delivery (kurir); Diterima Outlet sudah ditangani ModalReceiving:
+      <ScanPackModal
+        isOpen={scanPackOpen}
+        onClose={() => setScanPackOpen(false)}
+        stage={scanPackStage}
+      />
+      */}
+
+      <ModalReceiving
+        open={modalReceivingOpen}
+        onClose={() => setModalReceivingOpen(false)}
       />
 
       <ModalPengiriman

@@ -3,6 +3,8 @@
 import { generateQRCodesPDF } from "@api/qr";
 // import UploadModal from "@components/modal-upload/modal-upload"; // Moved to index.tsx
 import ScanProgressModal from "@components/scan-progress-modal";
+// QR Packing ditahan sementara. API dan komponen tetap disimpan untuk development.
+// import IssueBarcodePackingModal from "@components/barcode-packing-modal/issue-modal";
 // import ModalBuatSO from "@components/modal-buat-so"; // Moved to index.tsx
 import PopoverAttach from "@components/popover-attach";
 import PopoverChecklist from "@components/popover-checklist";
@@ -39,6 +41,7 @@ import {
   FlipHorizontal,
   MapPin,
   MoveRight,
+  // Package,
   Paperclip,
   QrCode,
   RectangleEllipsis,
@@ -133,6 +136,8 @@ const Actions: React.FC<{
   // const [isPOPelengkap, setIsPOPelengkap] = useState(false);
 
   const [isProgressOpen, setIsProgressOpen] = useState(false);
+  // QR Packing ditahan sementara sampai alur scan Delivery dan Outlet siap.
+  // const [isBarcodePackingOpen, setIsBarcodePackingOpen] = useState(false);
 
   const params = useParams();
   const boardId = params.boardId as string;
@@ -1053,6 +1058,33 @@ const Actions: React.FC<{
           cardId={selectedCard?.id || ""}
           boardId={boardId as string}
         />
+
+        {/*
+        QR Packing ditahan sementara. Uncomment setelah flow scan Delivery dan
+        Diterima Outlet sudah memiliki menu FE.
+        {isFinishingPacking && (
+          <PermissionButton
+            canPerform={true}
+            onClick={() => setIsBarcodePackingOpen(true)}
+            tooltip="Terbitkan barcode per pack untuk kiriman"
+            permissionLevel={permissionLevel}
+            buttonStyle={buttonStyle}
+          >
+            <Package size={14} />
+            <span className="text-xs">Barcode Packing</span>
+          </PermissionButton>
+        )}
+
+        {isBarcodePackingOpen && (
+          <IssueBarcodePackingModal
+            isOpen={isBarcodePackingOpen}
+            onClose={() => setIsBarcodePackingOpen(false)}
+            cardId={selectedCard?.id || ""}
+            cardName={selectedCard?.name}
+            jmlPesanan={jmlPesanan}
+          />
+        )}
+        */}
 
         {/* NOTE: Bukti, PO, and Buat SO modals are now in index.tsx */}
         {/* These were moved outside actions.tsx for better state management */}
