@@ -63,7 +63,7 @@ import ScanProgressModal from "@components/scan-progress-modal";
 // QR Packing ditahan sementara. Uncomment saat flow packing siap dipakai.
 // import QrPackingModal from "@components/barcode-packing-modal/qr-packing-modal";
 // import ScanPackModal from "@components/barcode-packing-modal/scan-modal";
-import ModalReceiving from "@components/modal-receiving";
+// import ModalReceiving from "@components/modal-receiving";
 import QRGuideOverlay from "@components/qr-overlay";
 import { useLabels } from "@hooks/label";
 import { Checkbox } from "antd";
@@ -164,7 +164,7 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
   // const [qrPackingOpen, setQrPackingOpen] = useState(false);
   // const [scanPackStage, setScanPackStage] = useState<"delivery" | "received">("delivery");
   // const [scanPackOpen, setScanPackOpen] = useState(false);
-  const [modalReceivingOpen, setModalReceivingOpen] = useState<boolean>(false);
+  // const [modalReceivingOpen, setModalReceivingOpen] = useState<boolean>(false);
   // Standalone Scan Progress modal state
   const [scanProgressOpen, setScanProgressOpen] = useState<boolean>(false);
   const [scanProgressCardId, setScanProgressCardId] = useState<string | null>(
@@ -197,7 +197,7 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
     scanProgressOpen ||
     // qrPackingOpen ||
     // scanPackOpen ||
-    modalReceivingOpen ||
+    // modalReceivingOpen ||
     customOrderModalOpen;
 
   const [externalScannerActive, setExternalScannerActive] = useState(false);
@@ -221,7 +221,7 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
   const boardName = (currentBoard?.name || "").trim().toLowerCase();
   const isDateline = boardName === "dateline";
   const isListPOOutlet = boardName === "list po | outlet";
-  const isDelivery = boardName === "delivery";
+  // const isDelivery = boardName === "delivery";
 
   // User board order hook for favorites
   const { userBoardOrder, toggleFavorite, isTogglingFavorite } =
@@ -298,8 +298,8 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
   const canShowPacking =
     isSuperAdmin ||
     (isDateline && roleInList(["Finishing & Packing", "Kepala Produksi"]));
-  // Receiving dipakai outlet; backend tetap menolak card di luar PO Terkirim (PA).
-  const canShowReceiving = isSuperAdmin || isDelivery || isListPOOutlet;
+  // Receiving ditahan sementara; backend tetap menolak card di luar PO Terkirim (PA).
+  // const canShowReceiving = isSuperAdmin || isDelivery || isListPOOutlet;
 
   // Determine if current board is favorited
   const isFavorited =
@@ -785,6 +785,7 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
   }
   */
 
+  /*
   if (canShowReceiving) {
     mobileMenuItems.push({
       key: "receiving",
@@ -792,6 +793,7 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
       onClick: () => setModalReceivingOpen(true),
     });
   }
+  */
 
 
   if (canGenerateCustomOrderLink) {
@@ -1012,6 +1014,7 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
                 </Button>
               </Tooltip>
               */}
+              {/*
               {canShowReceiving && (
                 <Tooltip title="Receiving">
                   <Button
@@ -1025,6 +1028,7 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
                   </Button>
                 </Tooltip>
               )}
+              */}
               {canGenerateCustomOrderLink && (
                 <Tooltip title="Generate Link Form Custom">
                   <Button
@@ -1367,10 +1371,12 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
       />
       */}
 
+      {/*
       <ModalReceiving
         open={modalReceivingOpen}
         onClose={() => setModalReceivingOpen(false)}
       />
+      */}
 
       <ModalPengiriman
         open={modalPengirimanOpen}
