@@ -133,6 +133,7 @@ export default function NotulensiFilters({ value, onChange, allowAll = false, st
               applyPatch({ priority: priority.length ? priority : undefined })
             }
             placeholder="Priority"
+            allowClear
             maxTagCount="responsive"
             className={screens.lg ? "w-56" : "w-full"}
             options={Object.entries(NOTULENSI_PRIORITY_META).map(([priority, meta]) => ({
@@ -146,6 +147,7 @@ export default function NotulensiFilters({ value, onChange, allowAll = false, st
             onChange={(assigneeIds) => applyPatch({ assigneeIds: assigneeIds.length ? assigneeIds : undefined })}
             placeholder="Assignees"
             loading={eligibleAssignees.isLoading}
+            allowClear
             maxTagCount="responsive"
             showSearch
             optionFilterProp="searchLabel"
@@ -165,6 +167,7 @@ export default function NotulensiFilters({ value, onChange, allowAll = false, st
             onChange={(roleIds) => applyPatch({ roleIds: roleIds.length ? roleIds : undefined })}
             placeholder="Roles"
             loading={eligibleAssignees.isLoading}
+            allowClear
             maxTagCount="responsive"
             showSearch
             optionFilterProp="label"
