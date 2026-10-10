@@ -3,8 +3,7 @@
 import { generateQRCodesPDF } from "@api/qr";
 // import UploadModal from "@components/modal-upload/modal-upload"; // Moved to index.tsx
 import ScanProgressModal from "@components/scan-progress-modal";
-// QR Packing ditahan sementara. API dan komponen tetap disimpan untuk development.
-// import IssueBarcodePackingModal from "@components/barcode-packing-modal/issue-modal";
+import IssueBarcodePackingModal from "@components/barcode-packing-modal/issue-modal";
 // import ModalBuatSO from "@components/modal-buat-so"; // Moved to index.tsx
 import PopoverAttach from "@components/popover-attach";
 import PopoverChecklist from "@components/popover-checklist";
@@ -41,7 +40,7 @@ import {
   FlipHorizontal,
   MapPin,
   MoveRight,
-  // Package,
+  Package,
   Paperclip,
   QrCode,
   RectangleEllipsis,
@@ -136,8 +135,7 @@ const Actions: React.FC<{
   // const [isPOPelengkap, setIsPOPelengkap] = useState(false);
 
   const [isProgressOpen, setIsProgressOpen] = useState(false);
-  // QR Packing ditahan sementara sampai alur scan Delivery dan Outlet siap.
-  // const [isBarcodePackingOpen, setIsBarcodePackingOpen] = useState(false);
+  const [isBarcodePackingOpen, setIsBarcodePackingOpen] = useState(false);
 
   const params = useParams();
   const boardId = params.boardId as string;
@@ -205,6 +203,36 @@ const Actions: React.FC<{
   }, [cardCustomFields, selectedCard?.customFields, selectedCard]);
 
   const isBuatSODisabled = isLoadingCardCustomFields || !!noFakturValue;
+
+  const JML_PESANAN_CUSTOM_FIELD_ID = "7bd961d5-019e-408f-9b40-2be7b8a0e15b";
+
+  const jmlPesanan = useMemo(() => {
+    const sources: any[][] = [
+      Array.isArray(cardCustomFields) ? cardCustomFields : [],
+      Array.isArray(selectedCard?.customFields) ? selectedCard?.customFields : [],
+    ];
+
+    for (const fields of sources) {
+      const field = fields.find(
+        (f: any) =>
+          String(
+            f?.id ?? f?.customFieldId ?? f?.custom_field_id ?? "",
+          ).trim() === JML_PESANAN_CUSTOM_FIELD_ID ||
+          String(f?.name || "").trim().toLowerCase() === "jml pesanan",
+      );
+      const value = Number(field?.valueNumber ?? field?.value_number);
+      if (Number.isInteger(value) && value > 0) return value;
+    }
+
+    return 0;
+  }, [cardCustomFields, selectedCard?.customFields]);
+
+  // Barcode packing hanya terbit dari Finishing Packing; di luar itu tombol
+  // tidak relevan dan backend akan menolaknya.
+  const isFinishingPacking = String((selectedCard as any)?.listName || "")
+    .trim()
+    .toLowerCase()
+    .includes("finishing packing");
 
 
   const theme = useSelector(selectTheme) as any;
@@ -1059,10 +1087,8 @@ const Actions: React.FC<{
           boardId={boardId as string}
         />
 
-        {/*
-        QR Packing ditahan sementara. Uncomment setelah flow scan Delivery dan
-        Diterima Outlet sudah memiliki menu FE.
-        {isFinishingPacking && (
+        {/* Barcode Packing; masih uji coba, jadi dibatasi super admin. */}
+        {superAdmin && isFinishingPacking && (
           <PermissionButton
             canPerform={true}
             onClick={() => setIsBarcodePackingOpen(true)}
@@ -1084,7 +1110,6 @@ const Actions: React.FC<{
             jmlPesanan={jmlPesanan}
           />
         )}
-        */}
 
         {/* NOTE: Bukti, PO, and Buat SO modals are now in index.tsx */}
         {/* These were moved outside actions.tsx for better state management */}
