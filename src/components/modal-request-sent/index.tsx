@@ -397,7 +397,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
   }, [data]);
 
   const routingOptions = useMemo(() => {
-    const collected = new Set<string>(["REG", "ROUTING KHUSUS"]);
+    const collected = new Set<string>(["REG", "KHUSUS"]);
     data?.data.forEach((item) => {
       const routing = String(item.routing || "").trim();
       if (routing) collected.add(routing);
