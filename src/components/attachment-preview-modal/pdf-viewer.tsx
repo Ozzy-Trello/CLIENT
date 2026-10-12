@@ -171,7 +171,13 @@ const PreviewPdfViewer: React.FC<PreviewPdfViewerProps> = ({ url, zoom = 1 }) =>
                   renderTextLayer={false}
                   renderAnnotationLayer={false}
                   loading=""
-                  error=""
+                  // PDF dengan struktur utuh tapi stream rusak tetap lolos
+                  // onLoadError, jadi tanpa pesan ini halamannya putih polos.
+                  error={
+                    <div className="py-8 text-center text-white">
+                      Halaman {index + 1} gagal dimuat; berkas kemungkinan rusak
+                    </div>
+                  }
                   noData=""
                 />
               ))}
