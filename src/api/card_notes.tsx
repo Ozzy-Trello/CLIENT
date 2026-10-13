@@ -25,6 +25,13 @@ export const getCardNotes = async (cardId: string): Promise<ApiResponse<CardNote
   return data;
 };
 
+export const getCardNoteOptions = async (
+  workspaceId: string,
+): Promise<ApiResponse<string[]>> => {
+  const { data } = await api.get("/card-notes/options", { params: { workspaceId } });
+  return data;
+};
+
 export const createCardNote = async (
   cardId: string,
   payload: CreateCardNotePayload,

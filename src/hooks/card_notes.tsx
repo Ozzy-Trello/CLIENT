@@ -1,6 +1,7 @@
 import {
   createCardNote,
   deleteCardNote,
+  getCardNoteOptions,
   getCardNotes,
   setCardNoteDone,
   updateCardNote,
@@ -9,7 +10,7 @@ import { CreateCardNotePayload, UpdateCardNotePayload } from "@myTypes/card_note
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 
-export const useCardNotes = (cardId?: string) => {
+export const useCardNotes = (cardId?: string, workspaceId?: string) => {
   const queryClient = useQueryClient();
   const enabled = !!cardId;
 
@@ -47,7 +48,12 @@ export const useCardNotes = (cardId?: string) => {
 
   const createMutation = useMutation({
     mutationFn: (payload: CreateCardNotePayload) => createCardNote(cardId!, payload),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      invalidate();
+      if (workspaceId) {
+        queryClient.invalidateQueries({ queryKey: ["cardNoteOptions", workspaceId] });
+      }
+    },
   });
 
   const updateMutation = useMutation({
@@ -79,4 +85,15 @@ export const useCardNotes = (cardId?: string) => {
     isSettingDone: doneMutation.isPending,
     isDeleting: deleteMutation.isPending,
   };
+};
+
+export const useCardNoteOptions = (workspaceId?: string) => {
+  const { data, isLoading } = useQuery({
+    queryKey: ["cardNoteOptions", workspaceId],
+    queryFn: () => getCardNoteOptions(workspaceId!),
+    enabled: !!workspaceId,
+    staleTime: 30_000,
+  });
+
+  return { options: data?.data ?? [], isLoading };
 };

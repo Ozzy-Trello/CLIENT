@@ -1,12 +1,12 @@
 import React, { useMemo, useState } from "react";
-import { Button, Checkbox, Input, Popconfirm, Select, Table, Tag, Typography, message } from "antd";
+import { AutoComplete, Button, Checkbox, Input, Popconfirm, Select, Table, Tag, Typography, message } from "antd";
 import { DownOutlined, DeleteOutlined, EditOutlined, PlusOutlined, PrinterOutlined, SaveOutlined } from "@ant-design/icons";
 import { useParams } from "next/navigation";
 import { Card } from "@myTypes/card";
 import { User } from "@myTypes/user";
 import { CardNote } from "@myTypes/card_note";
 import { useRoles } from "@hooks/useRoles";
-import { useCardNotes } from "@hooks/card_notes";
+import { useCardNoteOptions, useCardNotes } from "@hooks/card_notes";
 
 interface NotesProps {
   card: Card;
@@ -54,7 +54,8 @@ const Notes: React.FC<NotesProps> = ({ card, currentUser, isSuperAdmin }) => {
     deleteNote,
     isCreating,
     isSettingDone,
-  } = useCardNotes(card.id);
+  } = useCardNotes(card.id, workspaceId);
+  const { options: noteOptions, isLoading: noteOptionsLoading } = useCardNoteOptions(workspaceId);
 
   const [collapsed, setCollapsed] = useState(false);
   const [showComposer, setShowComposer] = useState(false);
@@ -68,6 +69,17 @@ const Notes: React.FC<NotesProps> = ({ card, currentUser, isSuperAdmin }) => {
     () => roles.map((role) => ({ label: role.name, value: role.id })),
     [roles],
   );
+  const noteSelectOptions = useMemo(() => {
+    const trimmed = noteText.trim();
+    const exists = noteOptions.some((option) => option.toLowerCase() === trimmed.toLowerCase());
+    const options = noteOptions.map((option) => ({ value: option, label: option }));
+
+    if (trimmed && !exists) {
+      options.unshift({ value: trimmed, label: `+ Tambahkan "${trimmed}"` });
+    }
+
+    return options;
+  }, [noteOptions, noteText]);
   const sortedNotes = useMemo(
     () =>
       [...notes].sort((a, b) => {
@@ -322,11 +334,16 @@ const Notes: React.FC<NotesProps> = ({ card, currentUser, isSuperAdmin }) => {
           />
 
           {showComposer ? <div className="space-y-2 rounded-md bg-gray-50 p-2">
-            <Input.TextArea
+            <AutoComplete
+              className="w-full"
               value={noteText}
-              onChange={(event) => setNoteText(event.target.value)}
-              placeholder="Add note..."
-              autoSize={{ minRows: 2, maxRows: 4 }}
+              onChange={setNoteText}
+              options={noteSelectOptions}
+              placeholder="Pilih atau tambahkan note..."
+              filterOption={(inputValue, option) =>
+                String(option?.value || "").toLowerCase().includes(inputValue.toLowerCase())
+              }
+              notFoundContent={noteOptionsLoading ? "Loading..." : "Ketik untuk menambahkan note baru"}
             />
             <div className="flex gap-2">
               <Select
