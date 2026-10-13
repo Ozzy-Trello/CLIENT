@@ -1,6 +1,7 @@
 import {
   createCardNote,
   deleteCardNote,
+  deleteCardNoteOption,
   getCardNoteOptions,
   getCardNotes,
   setCardNoteDone,
@@ -88,6 +89,7 @@ export const useCardNotes = (cardId?: string, workspaceId?: string) => {
 };
 
 export const useCardNoteOptions = (workspaceId?: string) => {
+  const queryClient = useQueryClient();
   const { data, isLoading } = useQuery({
     queryKey: ["cardNoteOptions", workspaceId],
     queryFn: () => getCardNoteOptions(workspaceId!),
@@ -95,5 +97,17 @@ export const useCardNoteOptions = (workspaceId?: string) => {
     staleTime: 30_000,
   });
 
-  return { options: data?.data ?? [], isLoading };
+  const deleteMutation = useMutation({
+    mutationFn: (optionId: string) => deleteCardNoteOption(workspaceId!, optionId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["cardNoteOptions", workspaceId] });
+    },
+  });
+
+  return {
+    options: data?.data ?? [],
+    isLoading,
+    deleteOption: deleteMutation.mutateAsync,
+    isDeletingOption: deleteMutation.isPending,
+  };
 };

@@ -55,7 +55,11 @@ const Notes: React.FC<NotesProps> = ({ card, currentUser, isSuperAdmin }) => {
     isCreating,
     isSettingDone,
   } = useCardNotes(card.id, workspaceId);
-  const { options: noteOptions, isLoading: noteOptionsLoading } = useCardNoteOptions(workspaceId);
+  const {
+    options: noteOptions,
+    isLoading: noteOptionsLoading,
+    deleteOption,
+  } = useCardNoteOptions(workspaceId);
 
   const [collapsed, setCollapsed] = useState(false);
   const [showComposer, setShowComposer] = useState(false);
@@ -69,10 +73,36 @@ const Notes: React.FC<NotesProps> = ({ card, currentUser, isSuperAdmin }) => {
     () => roles.map((role) => ({ label: role.name, value: role.id })),
     [roles],
   );
+  const handleDeleteOption = async (optionId: string, optionName: string) => {
+    try {
+      await deleteOption(optionId);
+      message.success(`Saran "${optionName}" dihapus.`);
+    } catch {
+      message.error("Gagal menghapus saran.");
+    }
+  };
+
   const noteSelectOptions = useMemo(() => {
     const trimmed = noteText.trim();
-    const exists = noteOptions.some((option) => option.toLowerCase() === trimmed.toLowerCase());
-    const options = noteOptions.map((option) => ({ value: option, label: option }));
+    const exists = noteOptions.some(
+      (option) => option.name.toLowerCase() === trimmed.toLowerCase(),
+    );
+    const options: { value: string; label: React.ReactNode }[] = noteOptions.map((option) => ({
+      value: option.name,
+      label: (
+        <div className="flex items-center justify-between gap-2">
+          <span className="truncate">{option.name}</span>
+          <DeleteOutlined
+            className="shrink-0 text-gray-400 hover:text-red-500"
+            onMouseDown={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              void handleDeleteOption(option.id, option.name);
+            }}
+          />
+        </div>
+      ),
+    }));
 
     if (trimmed && !exists) {
       options.unshift({ value: trimmed, label: `+ Tambahkan "${trimmed}"` });

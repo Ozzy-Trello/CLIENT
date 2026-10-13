@@ -1,6 +1,7 @@
 import { api } from ".";
 import {
   CardNote,
+  CardNoteOption,
   CreateCardNotePayload,
   UpdateCardNotePayload,
 } from "@myTypes/card_note";
@@ -27,8 +28,18 @@ export const getCardNotes = async (cardId: string): Promise<ApiResponse<CardNote
 
 export const getCardNoteOptions = async (
   workspaceId: string,
-): Promise<ApiResponse<string[]>> => {
+): Promise<ApiResponse<CardNoteOption[]>> => {
   const { data } = await api.get("/card-notes/options", { params: { workspaceId } });
+  return data;
+};
+
+export const deleteCardNoteOption = async (
+  workspaceId: string,
+  optionId: string,
+): Promise<ApiResponse<null>> => {
+  const { data } = await api.delete(`/card-notes/options/${optionId}`, {
+    params: { workspaceId },
+  });
   return data;
 };
 

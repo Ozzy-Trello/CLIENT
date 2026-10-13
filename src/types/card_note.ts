@@ -24,6 +24,11 @@ export interface CardNote {
   updated_at?: string;
 }
 
+export interface CardNoteOption {
+  id: string;
+  name: string;
+}
+
 export interface CreateCardNotePayload {
   note: string;
   divisionRoleId: string;
