@@ -294,7 +294,7 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
   const canShowPacking =
     isSuperAdmin ||
     (isDateline && roleInList(["Finishing & Packing", "Kepala Produksi"]));
-  // Menu barcode packing + Terima PO dibuka untuk peran operasional Dateline.
+  // Menu barcode packing dibuka untuk peran operasional Dateline.
   // Backend tetap menolak card di luar list yang sesuai.
   const canShowQrPacking =
     isSuperAdmin ||
@@ -308,6 +308,10 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
         "Warehouse Produk",
         "Kepala Gudang",
       ]));
+
+  // Terima PO hanya tampil di board Delivery (penerimaan di outlet).
+  const isDeliveryBoard = boardName === "delivery";
+  const canShowTerimaPO = isSuperAdmin || isDeliveryBoard;
 
   // Determine if current board is favorited
   const isFavorited =
@@ -786,6 +790,9 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
       label: "Scan Delivery",
       onClick: () => setScanPackOpen(true),
     });
+  }
+
+  if (canShowTerimaPO) {
     mobileMenuItems.push({
       key: "receiving",
       label: "Terima PO",
@@ -1024,18 +1031,20 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
                       <span>Scan Delivery</span>
                     </Button>
                   </Tooltip>
-                  <Tooltip title="Terima PO">
-                    <Button
-                      size="small"
-                      shape="default"
-                      variant="text"
-                      icon={<ScanLine size={16} />}
-                      onClick={() => setModalReceivingOpen(true)}
-                    >
-                      <span>Terima PO</span>
-                    </Button>
-                  </Tooltip>
                 </>
+              )}
+              {canShowTerimaPO && (
+                <Tooltip title="Terima PO">
+                  <Button
+                    size="small"
+                    shape="default"
+                    variant="text"
+                    icon={<ScanLine size={16} />}
+                    onClick={() => setModalReceivingOpen(true)}
+                  >
+                    <span>Terima PO</span>
+                  </Button>
+                </Tooltip>
               )}
               {canGenerateCustomOrderLink && (
                 <Tooltip title="Generate Link Form Custom">
