@@ -17,7 +17,9 @@ const getJmlPesanan = (card: Card): number => {
   const field = (card.customFields || []).find(
     (item) => item.id === JML_PESANAN_ID || item.name?.trim().toLowerCase() === "jml pesanan",
   );
-  const value = Number(field?.valueNumber);
+  // Respons short-id memipihkan custom field ke {name, value}, tanpa valueNumber.
+  const raw = field?.valueNumber ?? field?.value;
+  const value = Number(raw);
   return Number.isInteger(value) && value > 0 ? value : 0;
 };
 

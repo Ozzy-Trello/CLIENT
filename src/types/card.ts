@@ -190,6 +190,7 @@ export interface CardCustomField {
   type?: EnumCustomFieldType;
   options?: CustomOption[];
   isShowAtFront?: boolean;
+  value?: string | number | boolean | null;
   valueString?: string;
   valueNumber?: number | null;
   valueOption?: string | null;

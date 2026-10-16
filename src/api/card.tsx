@@ -26,6 +26,7 @@ export const mapCustomFieldToFrontend = (field: any): CardCustomField => ({
   type: field.type,
   options: field.options,
   isShowAtFront: field.is_show_at_front ?? field.isShowAtFront,
+  value: field.value,
   valueString: field.value_string ?? field.valueString,
   valueNumber: field.value_number ?? field.valueNumber,
   valueOption: field.value_option ?? field.valueOption,
