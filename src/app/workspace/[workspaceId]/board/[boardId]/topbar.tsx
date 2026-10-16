@@ -294,9 +294,20 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
   const canShowPacking =
     isSuperAdmin ||
     (isDateline && roleInList(["Finishing & Packing", "Kepala Produksi"]));
-  // Flow packing QR masih uji coba, jadi dibatasi super admin. Backend tetap
-  // menolak card di luar list yang sesuai.
-  const canShowQrPacking = isSuperAdmin;
+  // Menu barcode packing + Terima PO dibuka untuk peran operasional Dateline.
+  // Backend tetap menolak card di luar list yang sesuai.
+  const canShowQrPacking =
+    isSuperAdmin ||
+    (isDateline &&
+      roleInList([
+        "Kurir",
+        "Finishing & Packing",
+        "Kepala Produksi",
+        "Admin Produksi",
+        "Warehouse Bahan",
+        "Warehouse Produk",
+        "Kepala Gudang",
+      ]));
 
   // Determine if current board is favorited
   const isFavorited =
@@ -777,7 +788,7 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
     });
     mobileMenuItems.push({
       key: "receiving",
-      label: "Receiving",
+      label: "Terima PO",
       onClick: () => setModalReceivingOpen(true),
     });
   }
@@ -1013,7 +1024,7 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
                       <span>Scan Delivery</span>
                     </Button>
                   </Tooltip>
-                  <Tooltip title="Receiving">
+                  <Tooltip title="Terima PO">
                     <Button
                       size="small"
                       shape="default"
@@ -1021,7 +1032,7 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
                       icon={<ScanLine size={16} />}
                       onClick={() => setModalReceivingOpen(true)}
                     >
-                      <span>Receiving</span>
+                      <span>Terima PO</span>
                     </Button>
                   </Tooltip>
                 </>

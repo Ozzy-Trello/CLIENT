@@ -180,7 +180,7 @@ const ModalReceiving: React.FC<ModalReceivingProps> = ({ open, onClose }) => {
 
   return (
     <Modal
-      title="Receiving (Diterima Outlet)"
+      title="Terima PO"
       open={open}
       onCancel={handleClose}
       onOk={card ? handleClose : handlePoScan}
