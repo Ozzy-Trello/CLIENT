@@ -39,11 +39,15 @@ const QrPackingModal: React.FC<QrPackingModalProps> = ({ isOpen, onClose, boardI
     const scanned = value.trim();
     if (!scanned) return;
 
+    // Hasil scan QR kartu berupa URL (.../qr/<shortId>), bukan ID mentah.
+    const urlShortId = scanned.match(/\/qr\/(\d+)/i)?.[1];
     setLoading(true);
     try {
-      const response = /^\d+$/.test(scanned)
-        ? await getCardByShortId(Number(scanned))
-        : await cardDetails(scanned, boardId);
+      const response = urlShortId
+        ? await getCardByShortId(Number(urlShortId))
+        : /^\d+$/.test(scanned)
+          ? await getCardByShortId(Number(scanned))
+          : await cardDetails(scanned, boardId);
       const found = response.data;
       if (!found) throw new Error("Card tidak ditemukan");
       setCard(found);
