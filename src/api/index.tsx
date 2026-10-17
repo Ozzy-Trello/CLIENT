@@ -105,8 +105,12 @@ api.interceptors.response.use(
         if (newAccessToken) {
           const newRefreshToken = refreshPayload?.refresh_token ?? refreshPayload?.refreshToken ?? refreshToken;
           
-          // Store the new tokens
-          TokenStorage.setTokens(newAccessToken, newRefreshToken);
+          // Store the new tokens, keeping the "remember me" preference intact.
+          TokenStorage.setTokens(
+            newAccessToken,
+            newRefreshToken,
+            TokenStorage.getRememberMePreference(),
+          );
           
           // Update the original request with new token
           if (originalRequest?.headers) {
