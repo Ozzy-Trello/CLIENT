@@ -650,14 +650,16 @@ export interface FinishingPackingCard {
   name?: string;
   shortId?: number;
   listId?: string;
+  listName?: string;
 }
 
 export const getFinishingPackingCards = async (
   search?: string,
-  limit = 20
+  limit = 20,
+  lists?: string[]
 ): Promise<FinishingPackingCard[]> => {
   const { data } = await api.get("/card/finishing-packing", {
-    params: { search, limit },
+    params: { search, limit, lists: lists?.join(",") },
   });
   const cards: any[] = data.data || [];
   return cards.map((card) => ({
@@ -665,6 +667,7 @@ export const getFinishingPackingCards = async (
     name: card.name,
     shortId: card.short_id,
     listId: card.list_id,
+    listName: card.list_name,
   }));
 };
 
