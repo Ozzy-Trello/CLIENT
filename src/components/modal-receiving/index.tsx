@@ -3,7 +3,7 @@ import { Alert, Button, Input, Modal, Progress, Typography, message } from "antd
 import type { InputRef } from "antd";
 import { getCardByShortId } from "@api/card";
 import { scanPackReceived, startReceiving } from "@api/barcode-packing";
-import URLShortener from "@utils/url-shortener";
+import { resolveCardIdFromScan } from "@utils/resolve-card-scan";
 
 interface ModalReceivingProps {
   open: boolean;
@@ -15,28 +15,11 @@ interface ReceivingCard {
   name: string;
 }
 
-const resolveCardId = async (scanned: string): Promise<string | null> => {
-  const trimmed = scanned.trim();
-  if (!trimmed) return null;
-
-  try {
-    const url = new URL(
-      trimmed.startsWith("http") ? trimmed : `https://example.com${trimmed}`,
-    );
-    const parts = url.pathname.split("/");
-    if (parts.length >= 3 && parts[1] === "qr") {
-      const shortId = parseInt(parts[2]);
-      if (!Number.isNaN(shortId)) {
-        const response = await getCardByShortId(shortId);
-        if (response.data) return response.data.id;
-      }
-    }
-  } catch {
-    // Bukan URL; lanjut ke parser berikutnya.
-  }
-
-  return URLShortener.extractCardIdFromUrl(trimmed) || trimmed;
-};
+const resolveCardId = (scanned: string): Promise<string | null> =>
+  resolveCardIdFromScan(scanned, async (shortId) => {
+    const response = await getCardByShortId(Number(shortId));
+    return response.data?.id ?? null;
+  });
 
 const ModalReceiving: React.FC<ModalReceivingProps> = ({ open, onClose }) => {
   const [poInput, setPoInput] = useState("");
