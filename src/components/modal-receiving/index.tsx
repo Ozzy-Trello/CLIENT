@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Alert, Button, Input, Modal, Progress, Select, Typography, message } from "antd";
-import type { InputRef } from "antd";
+import { Alert, AutoComplete, Button, Modal, Progress, Typography, message } from "antd";
 import { getCardByShortId } from "@api/card";
 import { getReceivingCards, scanPackReceived, startReceiving } from "@api/barcode-packing";
 import type { ReceivingCardOption } from "@api/barcode-packing";
@@ -35,8 +34,9 @@ const ModalReceiving: React.FC<ModalReceivingProps> = ({ open, onClose }) => {
   const [cardSearch, setCardSearch] = useState("");
   const [receivingCards, setReceivingCards] = useState<ReceivingCardOption[]>([]);
   const [cardsLoading, setCardsLoading] = useState(false);
+  const [cardOptionsOpen, setCardOptionsOpen] = useState(false);
 
-  const poRef = useRef<InputRef>(null);
+  const poRef = useRef<any>(null);
   const packRef = useRef<HTMLInputElement>(null);
   const queueRef = useRef<string[]>([]);
   const inFlightRef = useRef(new Set<string>());
@@ -211,43 +211,38 @@ const ModalReceiving: React.FC<ModalReceivingProps> = ({ open, onClose }) => {
     >
       {!card ? (
         <>
-          <Typography.Text strong>Scan PO</Typography.Text>
-          <Input
+          <Typography.Text strong>Scan atau cari PO/card</Typography.Text>
+          <AutoComplete
             ref={poRef}
             value={poInput}
-            placeholder="Scan QR PO atau ketik Card ID..."
-            onChange={(e) => setPoInput(e.target.value)}
-            onPressEnter={handlePoScan}
-            className="mt-2"
-          />
-          <Typography.Text strong className="mt-4 block">
-            Pilih card yang akan diterima
-          </Typography.Text>
-          <Select
-            showSearch
-            allowClear
-            className="mt-2 w-full"
-            placeholder="Cari nama card atau ID..."
-            filterOption={false}
-            onSearch={setCardSearch}
-            onClear={() => setCardSearch("")}
-            loading={cardsLoading}
-            disabled={resolving}
-            options={receivingCards.map((item) => ({
-              value: item.id,
-              label: `${item.short_id ? `#${item.short_id} · ` : ""}${item.name} · ${item.received_packs}/${item.total_packs} pack diterima`,
-            }))}
+            placeholder="Scan QR atau ketik nama/ID card..."
+            onChange={(value) => {
+              setPoInput(value);
+              setCardSearch(value);
+            }}
             onSelect={(cardId) => {
               setPoInput("");
               void handleStartReceiving(cardId);
             }}
+            onInputKeyDown={(e) => {
+              if (e.key === "Enter" && !cardOptionsOpen) void handlePoScan();
+            }}
+            onOpenChange={setCardOptionsOpen}
+            options={receivingCards.map((item) => ({
+              value: item.id,
+              label: `${item.shortId ? `#${item.shortId} · ` : ""}${item.name} · ${item.receivedPacks}/${item.totalPacks} pack diterima`,
+            }))}
+            filterOption={false}
+            allowClear
             notFoundContent={cardsLoading ? "Memuat card..." : "Tidak ada card yang bisa diterima"}
+            className="mt-2"
+            style={{ width: "100%" }}
           />
           <Alert
             className="mt-4"
             type="info"
             showIcon
-            message="Pilih card dari daftar atau scan QR card."
+            message="Pilih card dari hasil pencarian atau scan QR card di field yang sama."
           />
         </>
       ) : (
