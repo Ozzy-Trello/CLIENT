@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Alert, Button, Input, Modal, Progress, Typography, message } from "antd";
+import { Alert, Button, Input, Modal, Progress, Select, Typography, message } from "antd";
 import type { InputRef } from "antd";
 import { getCardByShortId } from "@api/card";
-import { scanPackReceived, startReceiving } from "@api/barcode-packing";
+import { getReceivingCards, scanPackReceived, startReceiving } from "@api/barcode-packing";
+import type { ReceivingCardOption } from "@api/barcode-packing";
 import { resolveCardIdFromScan } from "@utils/resolve-card-scan";
 
 interface ModalReceivingProps {
@@ -31,6 +32,9 @@ const ModalReceiving: React.FC<ModalReceivingProps> = ({ open, onClose }) => {
   const [packInput, setPackInput] = useState("");
   const [scanning, setScanning] = useState(false);
   const [queuedCount, setQueuedCount] = useState(0);
+  const [cardSearch, setCardSearch] = useState("");
+  const [receivingCards, setReceivingCards] = useState<ReceivingCardOption[]>([]);
+  const [cardsLoading, setCardsLoading] = useState(false);
 
   const poRef = useRef<InputRef>(null);
   const packRef = useRef<HTMLInputElement>(null);
@@ -45,6 +49,8 @@ const ModalReceiving: React.FC<ModalReceivingProps> = ({ open, onClose }) => {
     setCard(null);
     setProgress(null);
     setPackInput("");
+    setCardSearch("");
+    setReceivingCards([]);
     setQueuedCount(0);
     queueRef.current = [];
     inFlightRef.current.clear();
@@ -54,24 +60,38 @@ const ModalReceiving: React.FC<ModalReceivingProps> = ({ open, onClose }) => {
   }, [open]);
 
   useEffect(() => {
+    if (!open || card) return;
+    let active = true;
+    setCardsLoading(true);
+    const timer = window.setTimeout(() => {
+      getReceivingCards(cardSearch.trim() || undefined)
+        .then((response) => {
+          if (active) setReceivingCards(response.data ?? []);
+        })
+        .catch(() => {
+          if (active) setReceivingCards([]);
+        })
+        .finally(() => {
+          if (active) setCardsLoading(false);
+        });
+    }, cardSearch ? 300 : 0);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [open, card, cardSearch]);
+
+  useEffect(() => {
     if (!card || !packRef.current) return;
     packRef.current.focus();
     const interval = setInterval(() => packRef.current?.focus(), 100);
     return () => clearInterval(interval);
   }, [card]);
 
-  const handlePoScan = async () => {
-    const scanned = poInput.trim();
-    if (!scanned) return;
-
+  const handleStartReceiving = async (cardId: string) => {
     setResolving(true);
     try {
-      const cardId = await resolveCardId(scanned);
-      if (!cardId) {
-        message.error("Card ID tidak terbaca dari hasil scan");
-        return;
-      }
-
       const response = await startReceiving(cardId);
       const result = response.data;
       if (!result) throw new Error("PO tidak ditemukan");
@@ -88,6 +108,24 @@ const ModalReceiving: React.FC<ModalReceivingProps> = ({ open, onClose }) => {
       );
     } finally {
       setResolving(false);
+    }
+  };
+
+  const handlePoScan = async () => {
+    const scanned = poInput.trim();
+    if (!scanned) return;
+
+    try {
+      const cardId = await resolveCardId(scanned);
+      if (!cardId) {
+        message.error("Card ID tidak terbaca dari hasil scan");
+        return;
+      }
+      await handleStartReceiving(cardId);
+    } catch (error: any) {
+      message.error(
+        error?.response?.data?.message || error?.message || "PO tidak dapat diterima",
+      );
     }
   };
 
@@ -182,11 +220,34 @@ const ModalReceiving: React.FC<ModalReceivingProps> = ({ open, onClose }) => {
             onPressEnter={handlePoScan}
             className="mt-2"
           />
+          <Typography.Text strong className="mt-4 block">
+            Pilih card yang akan diterima
+          </Typography.Text>
+          <Select
+            showSearch
+            allowClear
+            className="mt-2 w-full"
+            placeholder="Cari nama card atau ID..."
+            filterOption={false}
+            onSearch={setCardSearch}
+            onClear={() => setCardSearch("")}
+            loading={cardsLoading}
+            disabled={resolving}
+            options={receivingCards.map((item) => ({
+              value: item.id,
+              label: `${item.short_id ? `#${item.short_id} · ` : ""}${item.name} · ${item.received_packs}/${item.total_packs} pack diterima`,
+            }))}
+            onSelect={(cardId) => {
+              setPoInput("");
+              void handleStartReceiving(cardId);
+            }}
+            notFoundContent={cardsLoading ? "Memuat card..." : "Tidak ada card yang bisa diterima"}
+          />
           <Alert
             className="mt-4"
             type="info"
             showIcon
-            message="Hanya PO di list PO Terkirim (PA) yang dapat diterima."
+            message="Pilih card dari daftar atau scan QR card."
           />
         </>
       ) : (
@@ -251,7 +312,13 @@ const ModalReceiving: React.FC<ModalReceivingProps> = ({ open, onClose }) => {
             </div>
           )}
 
-          <Button onClick={() => setCard(null)} disabled={scanning || queuedCount > 0}>
+          <Button onClick={() => {
+            setCard(null);
+            setProgress(null);
+            setPackInput("");
+            setPoInput("");
+            cardIdRef.current = "";
+          }} disabled={scanning || queuedCount > 0}>
             Scan PO lain
           </Button>
         </div>

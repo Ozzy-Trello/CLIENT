@@ -50,6 +50,25 @@ export interface StartReceivingResponse {
   progress: { total: number; delivered: number; received: number };
 }
 
+export interface ReceivingCardOption {
+  id: string;
+  name: string;
+  short_id: number | null;
+  list_name: string;
+  total_packs: number;
+  received_packs: number;
+}
+
+export const getReceivingCards = async (
+  search?: string,
+  limit = 50,
+): Promise<ApiResponse<ReceivingCardOption[]>> => {
+  const { data } = await api.get("/packing/receiving/cards", {
+    params: { search, limit },
+  });
+  return data;
+};
+
 export const startReceiving = async (
   cardId: string,
 ): Promise<ApiResponse<StartReceivingResponse>> => {
