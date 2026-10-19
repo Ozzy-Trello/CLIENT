@@ -225,7 +225,14 @@ const ModalReceiving: React.FC<ModalReceivingProps> = ({ open, onClose }) => {
               void handleStartReceiving(cardId);
             }}
             onInputKeyDown={(e) => {
-              if (e.key === "Enter" && !cardOptionsOpen) void handlePoScan();
+              const scannedCardId =
+                /\/qr\//i.test(poInput) ||
+                /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(poInput.trim()) ||
+                /^\d+$/.test(poInput.trim());
+              if (e.key === "Enter" && (scannedCardId || !cardOptionsOpen)) {
+                e.preventDefault();
+                void handlePoScan();
+              }
             }}
             onOpenChange={setCardOptionsOpen}
             options={receivingCards.map((item) => ({
