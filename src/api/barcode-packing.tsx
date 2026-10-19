@@ -53,10 +53,10 @@ export interface StartReceivingResponse {
 export interface ReceivingCardOption {
   id: string;
   name: string;
-  short_id: number | null;
-  list_name: string;
-  total_packs: number;
-  received_packs: number;
+  shortId: number | null;
+  listName: string;
+  totalPacks: number;
+  receivedPacks: number;
 }
 
 export const getReceivingCards = async (
