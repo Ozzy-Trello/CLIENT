@@ -35,6 +35,22 @@ export const getBarcodePacking = async (
   return data;
 };
 
+export const updateBarcodePacking = async (
+  cardId: string,
+  packs: Array<{ id: string; qty: number }>,
+): Promise<ApiResponse<BarcodePacking[]>> => {
+  const { data } = await api.put(`/packing/barcode/${cardId}`, { packs });
+  return data;
+};
+
+export const deleteBarcodePacking = async (
+  cardId: string,
+  packId: string,
+): Promise<ApiResponse<BarcodePacking[]>> => {
+  const { data } = await api.delete(`/packing/barcode/${cardId}/${packId}`);
+  return data;
+};
+
 export const printBarcodePacking = async (cardId: string) =>
   api.get(`/packing/barcode/${cardId}/print`, { responseType: "blob" });
 
