@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Alert, Button, InputNumber, message, Modal, Table } from "antd";
+import { Alert, Button, InputNumber, message, Modal, Popconfirm, Table } from "antd";
 import {
   BarcodePacking,
+  deleteBarcodePacking,
   getBarcodePacking,
   issueBarcodePacking,
   printBarcodePacking,
+  updateBarcodePacking,
 } from "@api/barcode-packing";
 import { addCardLabel, getCardLabels } from "@api/card";
 import { getAllLabels } from "@api/label";
@@ -44,6 +46,10 @@ const IssueBarcodePackingModal: React.FC<IssueBarcodePackingModalProps> = ({
   const [existing, setExisting] = useState<BarcodePacking[] | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [loadingExisting, setLoadingExisting] = useState(false);
+  const [editingExisting, setEditingExisting] = useState(false);
+  const [editingQuantities, setEditingQuantities] = useState<Record<string, number | null>>({});
+  const [savingExisting, setSavingExisting] = useState(false);
+  const [deletingPackId, setDeletingPackId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isOpen || !cardId) return;
@@ -154,16 +160,97 @@ const IssueBarcodePackingModal: React.FC<IssueBarcodePackingModalProps> = ({
     }
   };
 
+  const beginEditExisting = () => {
+    if (!existing || existing.some((pack) => pack.deliveredAt || pack.receivedAt)) return;
+    setEditingQuantities(Object.fromEntries(existing.map((pack) => [pack.id, pack.qty])));
+    setEditingExisting(true);
+  };
+
+  const saveExistingChanges = async () => {
+    if (!existing) return;
+    const updates = existing.map((pack) => ({
+      id: pack.id,
+      qty: Number(editingQuantities[pack.id]),
+    }));
+    const total = updates.reduce((sum, pack) => sum + pack.qty, 0);
+    if (
+      updates.some((pack) => !Number.isInteger(pack.qty) || pack.qty < 1) ||
+      total !== jmlPesanan
+    ) {
+      message.error(`Total qty harus sama dengan Jml Pesanan (${jmlPesanan} pcs)`);
+      return;
+    }
+
+    setSavingExisting(true);
+    try {
+      const response = await updateBarcodePacking(cardId, updates);
+      setExisting(response.data ?? []);
+      setEditingExisting(false);
+      message.success("Qty pack diperbarui. Cetak ulang semua barcode.");
+    } catch (error) {
+      message.error((error as any)?.response?.data?.message || "Gagal mengubah qty pack");
+    } finally {
+      setSavingExisting(false);
+    }
+  };
+
+  const handleDeletePack = async (packId: string) => {
+    setDeletingPackId(packId);
+    try {
+      const response = await deleteBarcodePacking(cardId, packId);
+      const packs = response.data ?? [];
+      if (packs.length) {
+        setExisting(packs);
+      } else {
+        setExisting(null);
+        setPackCount(1);
+        setQuantities([null]);
+      }
+      setEditingExisting(false);
+      message.success("Pack dihapus. Cetak ulang barcode yang tersisa.");
+    } catch (error) {
+      message.error((error as any)?.response?.data?.message || "Gagal menghapus pack");
+    } finally {
+      setDeletingPackId(null);
+    }
+  };
+
   if (existing) {
+    const hasScans = existing.some((pack) => pack.deliveredAt || pack.receivedAt);
+    const editingTotal = existing.reduce(
+      (sum, pack) => sum + (Number(editingQuantities[pack.id]) || 0),
+      0,
+    );
     return (
       <Modal
         title="Barcode Packing"
         open={isOpen}
         onCancel={onClose}
         footer={[
-          <Button key="print" type="primary" onClick={handleReprint}>
+          editingExisting ? (
+            <Button
+              key="save"
+              type="primary"
+              loading={savingExisting}
+              disabled={editingTotal !== jmlPesanan || Object.values(editingQuantities).some((qty) => !Number.isInteger(qty) || Number(qty) < 1)}
+              onClick={saveExistingChanges}
+            >
+              Simpan Qty
+            </Button>
+          ) : (
+            <Button key="print" type="primary" onClick={handleReprint}>
             Cetak Ulang
-          </Button>,
+            </Button>
+          ),
+          editingExisting ? (
+            <Button key="cancel-edit" onClick={() => setEditingExisting(false)} disabled={savingExisting}>
+              Batal Edit
+            </Button>
+          ) : (
+            <Button key="edit" onClick={beginEditExisting} disabled={hasScans}>
+              Edit Qty
+            </Button>
+          ),
           <Button key="close" onClick={onClose}>
             Tutup
           </Button>,
@@ -171,6 +258,21 @@ const IssueBarcodePackingModal: React.FC<IssueBarcodePackingModalProps> = ({
         width={640}
         styles={{ body: { padding: "24px 28px 20px" } }}
       >
+        {hasScans ? (
+          <Alert
+            className="mb-3"
+            type="warning"
+            showIcon
+            message="Barcode tidak bisa diubah atau dihapus setelah ada pack discan."
+          />
+        ) : editingExisting ? (
+          <Alert
+            className="mb-3"
+            type="info"
+            showIcon
+            message={`Total qty harus tetap ${jmlPesanan} pcs. Setelah disimpan, cetak ulang semua label.`}
+          />
+        ) : null}
         <Table
           size="small"
           rowKey="id"
@@ -178,7 +280,20 @@ const IssueBarcodePackingModal: React.FC<IssueBarcodePackingModalProps> = ({
           dataSource={existing}
           columns={[
             { title: "Pack", dataIndex: "packNumber", width: 70 },
-            { title: "Qty", dataIndex: "qty", width: 80 },
+            {
+              title: "Qty",
+              dataIndex: "qty",
+              width: 110,
+              render: (value: number, pack: BarcodePacking) => editingExisting ? (
+                <InputNumber
+                  min={1}
+                  value={editingQuantities[pack.id]}
+                  onChange={(qty) => setEditingQuantities((current) => ({ ...current, [pack.id]: qty }))}
+                  disabled={savingExisting}
+                  size="small"
+                />
+              ) : value,
+            },
             {
               title: "Kurir",
               dataIndex: "deliveredAt",
@@ -188,6 +303,30 @@ const IssueBarcodePackingModal: React.FC<IssueBarcodePackingModalProps> = ({
               title: "Outlet",
               dataIndex: "receivedAt",
               render: (value: string | null) => (value ? "Diterima" : "-"),
+            },
+            {
+              title: "",
+              key: "actions",
+              width: 90,
+              render: (_: unknown, pack: BarcodePacking) => (
+                <Popconfirm
+                  title="Hapus pack ini?"
+                  description="Qty akan digabung ke pack terdekat. Barcode yang tersisa harus dicetak ulang."
+                  okText="Hapus"
+                  cancelText="Batal"
+                  onConfirm={() => handleDeletePack(pack.id)}
+                  disabled={hasScans || editingExisting || deletingPackId !== null}
+                >
+                  <Button
+                    size="small"
+                    danger
+                    loading={deletingPackId === pack.id}
+                    disabled={hasScans || editingExisting || deletingPackId !== null}
+                  >
+                    Hapus
+                  </Button>
+                </Popconfirm>
+              ),
             },
           ]}
         />
