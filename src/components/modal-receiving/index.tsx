@@ -1,8 +1,16 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Alert, AutoComplete, Button, Modal, Progress, Typography, message } from "antd";
+import { Camera, Keyboard } from "lucide-react";
+import { Scanner } from "@yudiel/react-qr-scanner";
+import QRGuideOverlay from "@components/qr-overlay";
 import { getCardByShortId } from "@api/card";
-import { getReceivingCards, scanPackReceived, startReceiving } from "@api/barcode-packing";
-import type { ReceivingCardOption } from "@api/barcode-packing";
+import {
+  getBarcodePacking,
+  getReceivingCards,
+  scanPackReceived,
+  startReceiving,
+} from "@api/barcode-packing";
+import type { BarcodePacking, ReceivingCardOption } from "@api/barcode-packing";
 import { resolveCardIdFromScan } from "@utils/resolve-card-scan";
 
 interface ModalReceivingProps {
@@ -31,6 +39,8 @@ const ModalReceiving: React.FC<ModalReceivingProps> = ({ open, onClose }) => {
   const [packInput, setPackInput] = useState("");
   const [scanning, setScanning] = useState(false);
   const [queuedCount, setQueuedCount] = useState(0);
+  const [packs, setPacks] = useState<BarcodePacking[]>([]);
+  const [cameraActive, setCameraActive] = useState(false);
   const [cardSearch, setCardSearch] = useState("");
   const [receivingCards, setReceivingCards] = useState<ReceivingCardOption[]>([]);
   const [cardsLoading, setCardsLoading] = useState(false);
@@ -42,6 +52,7 @@ const ModalReceiving: React.FC<ModalReceivingProps> = ({ open, onClose }) => {
   const inFlightRef = useRef(new Set<string>());
   const processingRef = useRef(false);
   const cardIdRef = useRef("");
+  const lastCameraScanRef = useRef<{ value: string; at: number } | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -49,6 +60,8 @@ const ModalReceiving: React.FC<ModalReceivingProps> = ({ open, onClose }) => {
     setCard(null);
     setProgress(null);
     setPackInput("");
+    setPacks([]);
+    setCameraActive(false);
     setCardSearch("");
     setReceivingCards([]);
     setQueuedCount(0);
@@ -83,11 +96,11 @@ const ModalReceiving: React.FC<ModalReceivingProps> = ({ open, onClose }) => {
   }, [open, card, cardSearch]);
 
   useEffect(() => {
-    if (!card || !packRef.current) return;
+    if (!card || cameraActive || !packRef.current) return;
     packRef.current.focus();
     const interval = setInterval(() => packRef.current?.focus(), 100);
     return () => clearInterval(interval);
-  }, [card]);
+  }, [card, cameraActive]);
 
   const handleStartReceiving = async (cardId: string) => {
     setResolving(true);
@@ -102,6 +115,8 @@ const ModalReceiving: React.FC<ModalReceivingProps> = ({ open, onClose }) => {
         total: result.progress.total,
         received: result.progress.received,
       });
+      const packsResponse = await getBarcodePacking(cardId);
+      setPacks(packsResponse.data ?? []);
     } catch (error: any) {
       message.error(
         error?.response?.data?.message || error?.message || "PO tidak dapat diterima",
@@ -152,6 +167,11 @@ const ModalReceiving: React.FC<ModalReceivingProps> = ({ open, onClose }) => {
               total: result.progress.total,
               received: result.progress.received,
             });
+            setPacks((current) =>
+              current.map((pack) =>
+                pack.id === result.pack.id ? result.pack : pack,
+              ),
+            );
           }
         } catch (error: any) {
           message.open({
@@ -167,7 +187,7 @@ const ModalReceiving: React.FC<ModalReceivingProps> = ({ open, onClose }) => {
       }
     } finally {
       processingRef.current = false;
-      packRef.current?.focus();
+      if (!cameraActive) packRef.current?.focus();
     }
   };
 
@@ -185,10 +205,26 @@ const ModalReceiving: React.FC<ModalReceivingProps> = ({ open, onClose }) => {
     void processQueue();
   };
 
+  const enqueueCameraScan = (value: string) => {
+    const now = Date.now();
+    if (
+      lastCameraScanRef.current?.value === value &&
+      now - lastCameraScanRef.current.at < 1200
+    ) {
+      return;
+    }
+    lastCameraScanRef.current = { value, at: now };
+    if (!value || inFlightRef.current.has(value)) return;
+    inFlightRef.current.add(value);
+    queueRef.current.push(value);
+    setQueuedCount(queueRef.current.length);
+    void processQueue();
+  };
+
   const handleClose = () => {
     if (scanning || queuedCount > 0) {
       message.warning("Masih memproses scan. Tunggu sampai selesai.");
-      packRef.current?.focus();
+      if (!cameraActive) packRef.current?.focus();
       return;
     }
     onClose();
@@ -253,8 +289,9 @@ const ModalReceiving: React.FC<ModalReceivingProps> = ({ open, onClose }) => {
           />
         </>
       ) : (
-        <div onClick={() => packRef.current?.focus()} className="space-y-4">
-          <input
+        <div onClick={() => !cameraActive && packRef.current?.focus()} className="space-y-4">
+          {!cameraActive && (
+            <input
             ref={packRef}
             type="text"
             value={packInput}
@@ -273,7 +310,8 @@ const ModalReceiving: React.FC<ModalReceivingProps> = ({ open, onClose }) => {
               margin: 0,
             }}
             autoFocus
-          />
+            />
+          )}
 
           <div className="p-4 rounded-lg border bg-white shadow-sm">
             <Typography.Text strong>{card.name}</Typography.Text>
@@ -285,6 +323,46 @@ const ModalReceiving: React.FC<ModalReceivingProps> = ({ open, onClose }) => {
             </div>
             <div className="mt-2">
               <Progress percent={percent} size="small" strokeWidth={10} showInfo={false} />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Typography.Text strong>Detail barcode pack</Typography.Text>
+              <Button
+                size="small"
+                icon={cameraActive ? <Keyboard size={16} /> : <Camera size={16} />}
+                onClick={() => setCameraActive((active) => !active)}
+              >
+                {cameraActive ? "Pakai scanner barcode" : "Scan via kamera"}
+              </Button>
+            </div>
+            {cameraActive && (
+              <div className="relative h-[260px] overflow-hidden rounded-lg border bg-black">
+                <Scanner
+                  constraints={{ facingMode: "environment" }}
+                  onScan={(results) => {
+                    const value = results[0]?.rawValue?.trim();
+                    if (value) enqueueCameraScan(value);
+                  }}
+                  onError={() => message.error("Kamera tidak dapat digunakan")}
+                  styles={{
+                    container: { width: "100%", height: "100%" },
+                    video: { width: "100%", height: "100%", objectFit: "cover" },
+                  }}
+                />
+                <QRGuideOverlay imageClassName="h-20 w-auto max-w-[120px] opacity-70" />
+              </div>
+            )}
+            <div className="max-h-56 space-y-2 overflow-y-auto rounded-lg border p-2">
+              {packs.map((pack) => (
+                <div key={pack.id} className="flex items-center justify-between rounded border px-3 py-2 text-sm">
+                  <span>PACK {pack.packNumber} · {pack.qty} pcs</span>
+                  <span className={pack.receivedAt ? "font-medium text-green-700" : "text-gray-500"}>
+                    {pack.receivedAt ? "✓ Diterima" : "Pending"}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
 
@@ -314,13 +392,18 @@ const ModalReceiving: React.FC<ModalReceivingProps> = ({ open, onClose }) => {
             </div>
           )}
 
-          <Button onClick={() => {
-            setCard(null);
-            setProgress(null);
-            setPackInput("");
-            setPoInput("");
-            cardIdRef.current = "";
-          }} disabled={scanning || queuedCount > 0}>
+          <Button
+            onClick={() => {
+              setCard(null);
+              setProgress(null);
+              setPackInput("");
+              setPacks([]);
+              setCameraActive(false);
+              setPoInput("");
+              cardIdRef.current = "";
+            }}
+            disabled={scanning || queuedCount > 0}
+          >
             Scan PO lain
           </Button>
         </div>
