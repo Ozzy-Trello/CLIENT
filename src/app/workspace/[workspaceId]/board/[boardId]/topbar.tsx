@@ -42,7 +42,6 @@ import {
 } from "lucide-react";
 import ModalStokQR from "@components/modal-stok-qr";
 import ModalPOQR from "@components/modal-po-qr";
-import ModalPOScan from "@components/modal-po-scan";
 import ModalPacking from "@components/modal-packing";
 import ModalPackingKirim from "@components/modal-packing-kirim";
 import ModalPackingPOScan from "@components/modal-packing-po-scan";
@@ -151,7 +150,6 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
   const [modalDeliveryOpen, setModalDeliveryOpen] = useState<boolean>(false);
   const [modalStokQROpen, setModalStokQROpen] = useState<boolean>(false);
   const [modalPOQROpen, setModalPOQROpen] = useState<boolean>(false);
-  const [modalPOScanOpen, setModalPOScanOpen] = useState<boolean>(false);
   const [modalPackingOpen, setModalPackingOpen] = useState<boolean>(false);
   const [modalPackingKirimOpen, setModalPackingKirimOpen] =
     useState<boolean>(false);
@@ -186,7 +184,6 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
     modalDeliveryOpen ||
     modalStokQROpen ||
     modalPOQROpen ||
-    modalPOScanOpen ||
     modalPackingOpen ||
     modalPackingKirimOpen ||
     modalPackingPOScanOpen ||
@@ -553,7 +550,7 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
           <span>PO</span>
         </div>
       ),
-      onClick: () => setModalPOScanOpen(true), // Opens PO scanning modal for validation
+      onClick: () => setScanPackOpen(true),
     },
   ];
 
@@ -785,11 +782,6 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
       label: "QR Packing",
       onClick: () => setQrPackingOpen(true),
     });
-    mobileMenuItems.push({
-      key: "scan-delivery",
-      label: "Scan Delivery",
-      onClick: () => setScanPackOpen(true),
-    });
   }
 
   if (canShowTerimaPO) {
@@ -1018,17 +1010,6 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
                       onClick={() => setQrPackingOpen(true)}
                     >
                       <span>QR Packing</span>
-                    </Button>
-                  </Tooltip>
-                  <Tooltip title="Scan Delivery">
-                    <Button
-                      size="small"
-                      shape="default"
-                      variant="text"
-                      icon={<ScanLine size={16} />}
-                      onClick={() => setScanPackOpen(true)}
-                    >
-                      <span>Scan Delivery</span>
                     </Button>
                   </Tooltip>
                 </>
@@ -1333,13 +1314,6 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
         listId={currentBoard?.lists?.[0]?.id} // Use first list as default, can be improved
       />
 
-      <ModalPOScan
-        open={modalPOScanOpen}
-        onClose={() => setModalPOScanOpen(false)}
-        boardId={params.boardId as string}
-        listId={currentBoard?.lists?.[0]?.id} // Use first list as default, can be improved
-      />
-
       <ModalPacking
         open={modalPackingOpen}
         onClose={() => setModalPackingOpen(false)}
@@ -1376,6 +1350,7 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
         isOpen={qrPackingOpen}
         onClose={() => setQrPackingOpen(false)}
         boardId={normalizedBoardId as string}
+        workspaceId={params.workspaceId as string}
       />
 
       {/* Scan kurir; Diterima Outlet ditangani ModalReceiving. */}

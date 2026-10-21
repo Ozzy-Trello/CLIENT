@@ -14,6 +14,7 @@ interface QrPackingModalProps {
   isOpen: boolean;
   onClose: () => void;
   boardId: string;
+  workspaceId: string;
 }
 
 const JML_PESANAN_ID = "7bd961d5-019e-408f-9b40-2be7b8a0e15b";
@@ -31,7 +32,7 @@ const getJmlPesanan = (card: Card): number => {
   return Number.isInteger(value) && value > 0 ? value : 0;
 };
 
-const QrPackingModal: React.FC<QrPackingModalProps> = ({ isOpen, onClose, boardId }) => {
+const QrPackingModal: React.FC<QrPackingModalProps> = ({ isOpen, onClose, boardId, workspaceId }) => {
   const [value, setValue] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [card, setCard] = useState<Card | null>(null);
@@ -154,6 +155,7 @@ const QrPackingModal: React.FC<QrPackingModalProps> = ({ isOpen, onClose, boardI
           onClose={onClose}
           cardId={card.id}
           cardName={card.name}
+          workspaceId={workspaceId}
           jmlPesanan={getJmlPesanan(card)}
         />
       )}

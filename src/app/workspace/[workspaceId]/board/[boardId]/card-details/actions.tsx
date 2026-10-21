@@ -1107,6 +1107,7 @@ const Actions: React.FC<{
             onClose={() => setIsBarcodePackingOpen(false)}
             cardId={selectedCard?.id || ""}
             cardName={selectedCard?.name}
+            workspaceId={workspaceId}
             jmlPesanan={jmlPesanan}
           />
         )}

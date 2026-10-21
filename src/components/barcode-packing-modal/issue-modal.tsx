@@ -6,23 +6,29 @@ import {
   issueBarcodePacking,
   printBarcodePacking,
 } from "@api/barcode-packing";
+import { addCardLabel, getCardLabels } from "@api/card";
+import { getAllLabels } from "@api/label";
 
 interface IssueBarcodePackingModalProps {
   isOpen: boolean;
   onClose: () => void;
   cardId: string;
   cardName?: string;
+  workspaceId: string;
   /** CF "Jml Pesanan"; total qty seluruh pack harus sama persis dengan ini. */
   jmlPesanan: number;
 }
 
-const downloadPdf = (blob: Blob, cardName?: string) => {
+const previewPdf = (blob: Blob, previewWindow: Window | null, cardName?: string) => {
   const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `barcode-packing-${cardName || "card"}.pdf`;
-  link.click();
-  URL.revokeObjectURL(url);
+  if (!previewWindow) {
+    URL.revokeObjectURL(url);
+    message.warning("Izinkan pop-up untuk melihat barcode packing.");
+    return;
+  }
+  previewWindow.document.title = `Barcode Packing - ${cardName || "card"}`;
+  previewWindow.location.href = url;
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
 };
 
 const IssueBarcodePackingModal: React.FC<IssueBarcodePackingModalProps> = ({
@@ -30,9 +36,10 @@ const IssueBarcodePackingModal: React.FC<IssueBarcodePackingModalProps> = ({
   onClose,
   cardId,
   cardName,
+  workspaceId,
   jmlPesanan,
 }) => {
-  const [quantities, setQuantities] = useState<number[]>([]);
+  const [quantities, setQuantities] = useState<Array<number | null>>([]);
   const [packCount, setPackCount] = useState(1);
   const [existing, setExisting] = useState<BarcodePacking[] | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -49,12 +56,12 @@ const IssueBarcodePackingModal: React.FC<IssueBarcodePackingModalProps> = ({
         const packs = response.data ?? [];
         setExisting(packs.length > 0 ? packs : null);
         setPackCount(packs.length || 1);
-        setQuantities(packs.length > 0 ? [] : [jmlPesanan]);
+        setQuantities(packs.length > 0 ? [] : [null]);
       })
       .catch(() => {
         if (!cancelled) {
           setPackCount(1);
-          setQuantities([jmlPesanan]);
+          setQuantities([null]);
         }
       })
       .finally(() => {
@@ -67,14 +74,18 @@ const IssueBarcodePackingModal: React.FC<IssueBarcodePackingModalProps> = ({
   }, [isOpen, cardId, jmlPesanan]);
 
   const total = useMemo(
-    () => quantities.reduce((sum, qty) => sum + (Number(qty) || 0), 0),
+    () => quantities.reduce<number>((sum, qty) => sum + (Number(qty) || 0), 0),
     [quantities],
   );
-  const matches = total === jmlPesanan && jmlPesanan > 0;
+  const matches =
+    quantities.length > 0 &&
+    quantities.every((qty) => Number.isInteger(qty) && Number(qty) > 0) &&
+    total === jmlPesanan &&
+    jmlPesanan > 0;
 
   const setQty = (index: number, value: number | null) => {
     setQuantities((prev) =>
-      prev.map((qty, idx) => (idx === index ? Number(value) || 0 : qty)),
+      prev.map((qty, idx) => (idx === index ? value : qty)),
     );
   };
 
@@ -82,22 +93,48 @@ const IssueBarcodePackingModal: React.FC<IssueBarcodePackingModalProps> = ({
     const nextCount = Math.max(1, Number(value) || 1);
     setPackCount(nextCount);
     setQuantities((previous) =>
-      Array.from({ length: nextCount }, (_, index) => previous[index] ?? 1),
+      Array.from({ length: nextCount }, (_, index) => previous[index] ?? null),
     );
   };
 
+  const addQrPackingLabel = async () => {
+    const [labelsResponse, cardLabelsResponse] = await Promise.all([
+      getAllLabels(workspaceId),
+      getCardLabels(workspaceId, cardId),
+    ]);
+    const qrPackingLabel = labelsResponse.data?.find(
+      (label) => label.name.trim().toLowerCase() === "qr packing",
+    );
+    if (!qrPackingLabel) throw new Error("Label QR Packing tidak ditemukan");
+
+    const isAssigned = (cardLabelsResponse.data ?? []).some(
+      (label: any) => (label.labelId ?? label.label_id ?? label.id) === qrPackingLabel.id,
+    );
+    if (!isAssigned) {
+      await addCardLabel(workspaceId, qrPackingLabel.id, cardId);
+    }
+  };
+
   const handleIssue = async () => {
+    if (!matches) return;
+    const previewWindow = window.open("about:blank", "_blank");
     setSubmitting(true);
     try {
       await issueBarcodePacking(
         cardId,
-        quantities.map((qty) => ({ qty })),
+        quantities.map((qty) => ({ qty: Number(qty) })),
       );
+      try {
+        await addQrPackingLabel();
+      } catch {
+        message.warning("Barcode terbit, tetapi label QR Packing gagal ditambahkan.");
+      }
       const { data: blob } = await printBarcodePacking(cardId);
-      downloadPdf(blob, cardName);
+      previewPdf(blob, previewWindow, cardName);
       message.success("Barcode packing diterbitkan");
       onClose();
     } catch (error) {
+      previewWindow?.close();
       message.error(
         (error as any)?.response?.data?.message || "Gagal menerbitkan barcode",
       );
@@ -107,10 +144,12 @@ const IssueBarcodePackingModal: React.FC<IssueBarcodePackingModalProps> = ({
   };
 
   const handleReprint = async () => {
+    const previewWindow = window.open("about:blank", "_blank");
     try {
       const { data: blob } = await printBarcodePacking(cardId);
-      downloadPdf(blob, cardName);
+      previewPdf(blob, previewWindow, cardName);
     } catch {
+      previewWindow?.close();
       message.error("Gagal mencetak ulang barcode");
     }
   };

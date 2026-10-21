@@ -12,7 +12,7 @@ interface ScanPackModalProps {
 }
 
 const STAGE_LABEL: Record<ScanStage, string> = {
-  delivery: "Scan Kurir (Delivery)",
+  delivery: "Delivery - PO",
 };
 
 const ScanPackModal: React.FC<ScanPackModalProps> = ({ isOpen, onClose, stage }) => {
@@ -168,7 +168,7 @@ const ScanPackModal: React.FC<ScanPackModalProps> = ({ isOpen, onClose, stage })
           </div>
         ) : (
           <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
-            Arahkan scanner ke barcode packing untuk mulai.
+            Arahkan scanner ke barcode packing PO untuk menandai pack terkirim.
           </div>
         )}
       </div>
