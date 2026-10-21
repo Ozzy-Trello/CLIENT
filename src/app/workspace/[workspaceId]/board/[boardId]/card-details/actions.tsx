@@ -22,12 +22,13 @@ import { useCardAttachment } from "@hooks/card_attachment";
 import { useCardCustomField } from "@hooks/card_custom_field";
 import { useCardMembers } from "@hooks/card_member";
 import { EnumAttachmentType, EnumCardAttachmentType } from "@myTypes/card";
+import { getBarcodePacking } from "@api/barcode-packing";
 // import { FileUpload } from "@myTypes/file-upload"; // Moved to index.tsx
 import { useBoardPermissionsContext } from "@providers/board-permissions-context";
 import { useCardDetailContext } from "@providers/card-detail-context";
 import { selectIsDarkMode, selectTheme } from "@store/app_slice";
 import { selectCurrentBoard } from "@store/workspace_slice";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, message, Modal, Tooltip } from "antd";
 import {
   Archive,
@@ -227,14 +228,6 @@ const Actions: React.FC<{
     return 0;
   }, [cardCustomFields, selectedCard?.customFields]);
 
-  // Barcode packing hanya terbit dari Finishing Packing; di luar itu tombol
-  // tidak relevan dan backend akan menolaknya.
-  const isFinishingPacking = String((selectedCard as any)?.listName || "")
-    .trim()
-    .toLowerCase()
-    .includes("finishing packing");
-
-
   const theme = useSelector(selectTheme) as any;
   const isDarkMode = useSelector(selectIsDarkMode);
   const { colors } = theme;
@@ -285,6 +278,14 @@ const Actions: React.FC<{
 
   const roleIn = (roles: string[]) =>
     roles.some((r) => r.toLowerCase() === roleLower);
+  const canAccessQrPacking =
+    superAdmin || roleIn(["spv finishing"]);
+  const barcodePackingQuery = useQuery({
+    queryKey: ["barcode-packing", currentCardId],
+    queryFn: () => getBarcodePacking(currentCardId),
+    enabled: !!currentCardId && canAccessQrPacking,
+  });
+  const hasIssuedBarcodePacking = (barcodePackingQuery.data?.data?.length ?? 0) > 0;
   const { isMember, toggleMember, isAddingMember, isRemovingMember } =
     useCardMembers(selectedCard?.id || "");
 
@@ -1087,24 +1088,26 @@ const Actions: React.FC<{
           boardId={boardId as string}
         />
 
-        {/* Barcode Packing; masih uji coba, jadi dibatasi super admin. */}
-        {superAdmin && isFinishingPacking && (
+        {canAccessQrPacking && hasIssuedBarcodePacking && (
           <PermissionButton
             canPerform={true}
             onClick={() => setIsBarcodePackingOpen(true)}
-            tooltip="Terbitkan barcode per pack untuk kiriman"
+            tooltip="Lihat, cetak ulang, atau kelola QR Packing"
             permissionLevel={permissionLevel}
             buttonStyle={buttonStyle}
           >
-            <Package size={14} />
-            <span className="text-xs">Barcode Packing</span>
+            <QrCode size={14} />
+            <span className="text-xs">Generate QR Packing</span>
           </PermissionButton>
         )}
 
         {isBarcodePackingOpen && (
           <IssueBarcodePackingModal
             isOpen={isBarcodePackingOpen}
-            onClose={() => setIsBarcodePackingOpen(false)}
+            onClose={() => {
+              setIsBarcodePackingOpen(false);
+              void barcodePackingQuery.refetch();
+            }}
             cardId={selectedCard?.id || ""}
             cardName={selectedCard?.name}
             workspaceId={workspaceId}
