@@ -282,7 +282,7 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
     isSuperAdmin ||
     (isDateline &&
       roleInList([
-        "Finishing & Packing",
+        "SPV Finishing",
         "Kepala Produksi",
         "Warehouse Produk",
         "Warehouse Bahan",
@@ -290,7 +290,7 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
       ]));
   const canShowPacking =
     isSuperAdmin ||
-    (isDateline && roleInList(["Finishing & Packing", "Kepala Produksi"]));
+    (isDateline && roleInList(["SPV Finishing", "Kepala Produksi"]));
   // Menu barcode packing dibuka untuk peran operasional Dateline.
   // Backend tetap menolak card di luar list yang sesuai.
   const canShowQrPacking =
@@ -298,7 +298,7 @@ const BoardTopbar: React.FC<BoardTopbarProps> = (props) => {
     (isDateline &&
       roleInList([
         "Kurir",
-        "Finishing & Packing",
+        "SPV Finishing",
         "Kepala Produksi",
         "Admin Produksi",
         "Warehouse Bahan",
