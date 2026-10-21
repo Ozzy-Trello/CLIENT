@@ -170,7 +170,7 @@ const TopBar: React.FC = React.memo(() => {
     HELPER_LINE: "Helper Line",
     SPV_SEWING: "SPV Sewing",
     SPV_BORDIR: "SPV Operator Bordir",
-    FINISHING: "Finishing & Packing",
+    SPV_FINISHING: "SPV Finishing",
     OPERATOR_KRAH: "Operator Krah Manset",
     KEPALA_GUDANG: "Kepala Gudang",
     PURCHASING: "Purchasing",
@@ -190,7 +190,7 @@ const TopBar: React.FC = React.memo(() => {
     ROLES.HELPER_LINE,
     ROLES.SPV_SEWING,
     ROLES.SPV_BORDIR,
-    ROLES.FINISHING,
+    ROLES.SPV_FINISHING,
     ROLES.OPERATOR_KRAH,
     ROLES.KEPALA_GUDANG,
   ];
