@@ -273,7 +273,7 @@ const ModalReceiving: React.FC<ModalReceivingProps> = ({ open, onClose }) => {
             onOpenChange={setCardOptionsOpen}
             options={receivingCards.map((item) => ({
               value: item.id,
-              label: `${item.shortId ? `#${item.shortId} · ` : ""}${item.name} · ${item.receivedPacks}/${item.totalPacks} pack diterima`,
+              label: `${item.name} · ${item.receivedPacks}/${item.totalPacks} pack diterima`,
             }))}
             filterOption={false}
             allowClear
