@@ -3,10 +3,7 @@ import { Button, Input, List, Typography, Space, Upload, Avatar } from "antd";
 import { FileOutlined, LinkOutlined } from "@ant-design/icons";
 import { FileUpload } from "@myTypes/file-upload"; // Use your existing FileUpload type
 import UploadModal from "../modal-upload/modal-upload";
-import { cards, searchCards } from "@api/card";
-import { result } from "lodash";
-import Image from "next/image";
-import { File } from "lucide-react";
+import { searchCards } from "@api/card";
 import { Card } from "@myTypes/card";
 
 const { Text } = Typography;
@@ -41,6 +38,7 @@ const ContentAttach: React.FC<ContentAttachProps> = ({
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [recentlyViewedCards, setRecentlyViewedCards] = useState<Card[]>([]);
   const [searchResults, setSearchResults] = useState<Card[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
   const [uploadModalVisible, setUploadModalVisible] = useState(false);
 
   // Helper to display a friendly board name with safe fallbacks
@@ -50,19 +48,40 @@ const ContentAttach: React.FC<ContentAttachProps> = ({
     return boardName || boardId || "";
   };
 
-  // Handle search functionality
-  const handleSearch = async (value: string) => {
-    setSearchQuery(value);
-    if (value.trim().length < 3) return;
+  useEffect(() => {
+    const query = searchQuery.trim();
+    setSearchResults([]);
 
-    const results = await searchCards({ name: value, desription: value });
-
-    if (results && results.data) {
-      setSearchResults(results.data);
-    } else {
-      setSearchResults([]);
+    if (query.length < 2 || isValidUrl(query)) {
+      setSearchLoading(false);
+      return;
     }
-  };
+
+    let active = true;
+    setSearchLoading(true);
+    const timer = window.setTimeout(() => {
+      searchCards({
+        name: query,
+        description: query,
+        page: 1,
+        limit: 20,
+      })
+        .then((response) => {
+          if (active) setSearchResults(response.data ?? []);
+        })
+        .catch(() => {
+          if (active) setSearchResults([]);
+        })
+        .finally(() => {
+          if (active) setSearchLoading(false);
+        });
+    }, 350);
+
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [searchQuery]);
 
   // Open the upload modal when "Choose a file" is clicked
   const handleOpenUploadModal = () => {
@@ -103,7 +122,7 @@ const ContentAttach: React.FC<ContentAttachProps> = ({
         <Input
           placeholder="Find recent links or paste a new link"
           value={searchQuery}
-          onChange={(e) => handleSearch(e.target.value)}
+          onChange={(e) => setSearchQuery(e.target.value)}
           className="mt-1"
           prefix={<LinkOutlined className="text-gray-400" />}
         />
@@ -124,6 +143,7 @@ const ContentAttach: React.FC<ContentAttachProps> = ({
           <div className="w-full">
             <Text strong>Search Results</Text>
             <List
+              loading={searchLoading}
               dataSource={searchResults}
               renderItem={(item) => (
                 <List.Item
@@ -169,7 +189,13 @@ const ContentAttach: React.FC<ContentAttachProps> = ({
                   />
                 </List.Item>
               )}
-              locale={{ emptyText: "No results found" }}
+              locale={{
+                emptyText: isValidUrl(searchQuery.trim())
+                  ? "Link siap dilampirkan"
+                  : searchQuery.trim().length < 2
+                    ? "Ketik minimal 2 karakter untuk mencari"
+                    : "No results found",
+              }}
               className="max-h-48 overflow-auto"
             />
           </div>
